@@ -58,30 +58,11 @@ fn line(task: u64, title: &[u8]) -> c::TaskLine {
 
 fn limits() -> temper_client_domain::Limits {
     let mut limits = f::domain_limits();
-    // The small whole project opens three lists, reports and provenance together.
+    // The small whole project opens its lists together.
     limits.client.domain.handles = 64;
     limits.client.domain.reads = 32;
     limits.client.exchanges = 32;
     limits
-}
-
-fn note(task: u64, description: &[u8]) -> c::Note {
-    c::Note {
-        number: task,
-        revision: c::Revision { value: 1 },
-        scope: c::NoteScope::Task { project: f::PROJECT, task },
-        description: text(description),
-        body: text(b""),
-        writer: c::NoteAuthor::Task { task, attempt: 1 },
-        tasks: List::uncapped(),
-        changed: Some(Wall::from_nanos(RECENT)),
-        acts: List::uncapped(),
-        cut: false,
-    }
-}
-
-fn notes(rows: &[c::Note]) -> c::ReadValue {
-    c::ReadValue::Notes(Box::new(c::NotePage { rows: list(rows), before: None, after: None, cut: false }))
 }
 
 struct Fixture {
@@ -205,10 +186,15 @@ impl Fixture {
         goal.delegates_total = 9;
         goal.budget.numbers.spent = 31;
         goal.budget.numbers.budget = 50;
+        goal.parts = list(&[temper_fixtures::client_documents::goal_part(
+            Some((b"Six of nine tasks landed.", Wall::from_nanos(RECENT))),
+            None,
+        )]);
         self.live(self.goals, if full { core::slice::from_ref(&goal) } else { &[] });
-        let chat_lines = [line(CHAT, b"The comment is stale"), line(DRAFT, b"Read barriers")];
+        let mut draft = line(DRAFT, b"Read barriers");
+        draft.parts = list(&[temper_fixtures::client_documents::chat_part(Some(b"Read barriers"))]);
+        let chat_lines = [line(CHAT, b"The comment is stale"), draft];
         self.live(self.chats, if full { &chat_lines } else { &[] });
-        let draft_notes = [note(DRAFT, b"Read barriers")];
         for (read, what) in self.reads() {
             if let c::Read::Tasks { .. } = what {
                 self.answer(
@@ -220,10 +206,8 @@ impl Fixture {
                         ended: c::EndedGroup::None,
                     })),
                 );
-            } else if let c::Read::Notes { scope: c::NoteScope::Tasks { .. }, .. } = what {
-                self.answer(read, notes(if full { &draft_notes } else { &[] }));
-            } else if let c::Read::Notes { scope: c::NoteScope::Task { task: GOAL, .. }, .. } = what {
-                self.answer(read, notes(&[note(GOAL, b"report: Six of nine tasks landed.")]));
+            } else if let c::Read::Notes { .. } = what {
+                panic!("Work rows read no notes");
             }
         }
         let mut queued = List::with_capacity(3);
@@ -402,7 +386,15 @@ impl Fixture {
                             },
                         });
                     }
-                    Down::Read { read, what: Readable::Jig(c::Read::Notes { .. }) } => self.answer(read, notes(&[])),
+                    Down::Read { read, what: Readable::Jig(c::Read::Notes { .. }) } => self.answer(
+                        read,
+                        c::ReadValue::Notes(Box::new(c::NotePage {
+                            rows: List::with_capacity(0),
+                            before: None,
+                            after: None,
+                            cut: false,
+                        })),
+                    ),
                     Down::Save { .. }
                     | Down::Erase { .. }
                     | Down::Send { .. }
@@ -692,6 +684,7 @@ fn the_terminal_numbers_filters_and_cards_with_their_from_headline_and_rows() {
         "[5] Chats · 1",
         "[6] goal membership-handoff",
         "Six of nine tasks landed.",
+        "Written by the goal at 07:54",
         "Witness retention",
         "landed 07:54",
     ] {

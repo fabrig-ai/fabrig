@@ -808,7 +808,7 @@ fn world_in_layout(
                             } else if query.tracked == Some(true) {
                                 goal_window(w, window, goals)
                             } else {
-                                task_window(w, window)
+                                task_window(w, window, goals == Some("chats-drafts"))
                             };
                             if asking_chat {
                                 for row in tasks.rows.iter_mut() {
@@ -1824,7 +1824,7 @@ fn task_line(t: c::Task) -> c::TaskLine {
         conversation: None,
     }
 }
-fn chat_rows(w: World, ended: bool) -> List<c::TaskLine> {
+fn chat_rows(w: World, ended: bool, drafts: bool) -> List<c::TaskLine> {
     let numbers: &[u64] = match (w, ended) {
         (Reference | FirstRun { step: 2 | 3 }, false) | (Solo, true) => &[1],
         (Reference, true) => &[3, 2],
@@ -1834,7 +1834,10 @@ fn chat_rows(w: World, ended: bool) -> List<c::TaskLine> {
     };
     let mut rows = List::with_capacity(u32::try_from(numbers.len()).expect("small chats"));
     for number in numbers {
-        rows.push(task_line(document(w, *number))).expect("row");
+        let mut row = task_line(document(w, *number));
+        let document = if drafts { match number { 1 => Some(b"Away mode".as_slice()), 3 => Some(b"Report format".as_slice()), _ => None } } else { None };
+        row.parts = List::from_boxed(Box::new([documents::chat_part(document)]));
+        rows.push(row).expect("row");
     }
     rows
 }
@@ -2013,24 +2016,6 @@ fn read_value(w: World, what: &c::Read, then: Then, goals: Option<&str>) -> Opti
         c::Read::Notes { scope, .. } => Some(c::ReadValue::Notes(Box::new(
             if let Some(name) = goals.filter(|name| name.starts_with("remembered-")) {
                 remembered_notes(name, scope)
-            } else if goals == Some("chats-drafts") && *scope == (c::NoteScope::Tasks { project: PROJECT }) {
-                let mut rows = List::with_capacity(2);
-                for (task, title) in [(1, "Away mode"), (3, "Report format")] {
-                    rows.push(c::Note {
-                        number: 1,
-                        revision: c::Revision { value: 1 },
-                        scope: c::NoteScope::Task { project: PROJECT, task },
-                        description: doc(title),
-                        body: c::DocumentText { bytes: text(""), cut: true },
-                        writer: c::NoteAuthor::Task { task, attempt: 1 },
-                        tasks: List::with_capacity(0),
-                        changed: None,
-                        acts: List::with_capacity(0),
-                        cut: false,
-                    })
-                    .expect("chat document");
-                }
-                c::NotePage { rows, before: None, after: None, cut: false }
             } else if matches!(then, Then::Mode(_) | Then::Sheet(Confirmation::StartOver))
                 && *scope == (c::NoteScope::Task { project: PROJECT, task: 10 })
             {
@@ -2066,7 +2051,7 @@ fn read_value(w: World, what: &c::Read, then: Then, goals: Option<&str>) -> Opti
             ended_mark: 0,
             live: List::with_capacity(0),
             live_after: None,
-            ended: c::EndedGroup::Rows { rows: ended_rows(w), after: None, cut: false },
+            ended: c::EndedGroup::Rows { rows: ended_rows(w, goals == Some("chats-drafts")), after: None, cut: false },
         }))),
         c::Read::Task { task: number } => Some(c::ReadValue::Task(Box::new(shown_task(w, *number, then)))),
         c::Read::ActivityBeside { .. } => Some(c::ReadValue::Activity(Box::new(c::ActivityPage {
@@ -2360,6 +2345,7 @@ fn goal_line(w: World, f: &GoalFacts) -> c::TaskLine {
     task.last_activity = offset(w, f.at);
     task.changed = task.last_activity;
     let mut line = task_line(finish_document(task));
+    line.parts = List::from_boxed(Box::new([documents::goal_part(f.headline.map(|headline| (headline.as_bytes(), offset(w, f.at))), None)]));
     line.delegates_done = f.done;
     line.delegates_total = f.total;
     let (phase, details) = owner(&mut line.chip);
@@ -4418,8 +4404,8 @@ fn base_task(number: u64, title: &str) -> c::Task {
         run_wait: None,
     }
 }
-fn task_window(w: World, window: u32) -> c::Tasks {
-    let all = chat_rows(w, false);
+fn task_window(w: World, window: u32, drafts: bool) -> c::Tasks {
+    let all = chat_rows(w, false, drafts);
     let mut rows = List::with_capacity(window);
     for row in &all {
         if rows.len() < window {
@@ -4428,8 +4414,8 @@ fn task_window(w: World, window: u32) -> c::Tasks {
     }
     c::Tasks { more: all.len() > rows.len(), rows, ended_mark: 0 }
 }
-fn ended_rows(w: World) -> List<c::TaskLine> {
-    let all = chat_rows(w, true);
+fn ended_rows(w: World, drafts: bool) -> List<c::TaskLine> {
+    let all = chat_rows(w, true, drafts);
     let mut rows = List::with_capacity(limits().client.domain.rows);
     for row in &all {
         if rows.len() < rows.capacity() {

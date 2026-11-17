@@ -111,7 +111,7 @@ fn settle(root: &mut Domain, out: &mut Queue<Request>, work: Work, name: &str) {
                         live_after: None,
                         ended: c::EndedGroup::Rows { rows: rows(work, &query, true), after: None, cut: false },
                     }))),
-                    c::Read::Notes { scope, .. } => Some(c::ReadValue::Notes(Box::new(notes(work, &scope)))),
+                    c::Read::Notes { .. } => panic!("Work reads no per-row notes"),
                     c::Read::Task { task } => Some(c::ReadValue::Task(Box::new(base_task(task, "Change")))),
                     _ => super::read_value(super::World::Bare, &what, Then::Shown, None),
                 };
@@ -299,7 +299,7 @@ fn rows(work: Work, query: &c::TaskQuery, ended: bool) -> List<c::TaskLine> {
     let mut rows = List::with_capacity(7);
     if query.tracked == Some(true) {
         if matches!(work, Work::Whole) && !ended {
-            for (number, title, _, done, total, spent, budget) in REPORTS {
+            for (number, title, report, done, total, spent, budget) in REPORTS {
                 let mut task = base_task(number, title);
                 task.label = 2;
                 task.flags.conversation = false;
@@ -310,6 +310,7 @@ fn rows(work: Work, query: &c::TaskQuery, ended: bool) -> List<c::TaskLine> {
                 task.budget.numbers.spent = spent;
                 task.budget.numbers.budget = budget;
                 let mut line = super::task_line(task);
+                line.parts = List::from_boxed(Box::new([super::documents::goal_part(Some((report.as_bytes(), at(if number == 81 { -37 } else { -1 }))), None)]));
                 line.delegates_done = done;
                 line.delegates_total = total;
                 rows.push(line).expect("two live goals");
@@ -332,43 +333,13 @@ fn rows(work: Work, query: &c::TaskQuery, ended: bool) -> List<c::TaskLine> {
             } else {
                 -i64::try_from(*number).expect("few chats")
             });
-            rows.push(super::task_line(task)).expect("seven chats");
+            let mut line = super::task_line(task);
+            let document = if matches!(work, Work::Whole) && *number == 11 { Some(b"read-barriers".as_slice()) } else { None };
+            line.parts = List::from_boxed(Box::new([super::documents::chat_part(document)]));
+            rows.push(line).expect("seven chats");
         }
     }
     rows
-}
-fn note(task: u64, description: &str, body: &str) -> c::Note {
-    c::Note {
-        number: 1,
-        revision: c::Revision { value: 1 },
-        scope: c::NoteScope::Task { project: 1, task },
-        description: doc(description),
-        body: doc(body),
-        writer: c::NoteAuthor::Task { task, attempt: 1 },
-        tasks: List::with_capacity(0),
-        changed: Some(at(if task == 81 { -37 } else { -1 })),
-        acts: List::with_capacity(0),
-        cut: false,
-    }
-}
-fn notes(work: Work, scope: &c::NoteScope) -> c::NotePage {
-    let mut rows = List::with_capacity(2);
-    if matches!(work, Work::Whole) {
-        match scope {
-            c::NoteScope::Tasks { project: 1 } => {
-                rows.push(note(11, "read-barriers", "")).expect("one draft being written");
-            }
-            c::NoteScope::Task { task, .. } => {
-                for (number, _, report, ..) in REPORTS {
-                    if *task == number {
-                        rows.push(note(number, &format!("report: {report}"), "")).expect("goal report");
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-    c::NotePage { rows, before: None, after: None, cut: false }
 }
 const WHOLE_QUEUED: [(u64, &str); 3] =
     [(100, "Witness rejoin fix"), (101, "Comment rewritten from the code"), (102, "Witness rejoin test")];

@@ -61,25 +61,6 @@ fn limits() -> temper_client_domain::Limits {
     limits
 }
 
-fn note(task: u64, description: &[u8]) -> c::Note {
-    c::Note {
-        number: task,
-        revision: c::Revision { value: 1 },
-        scope: c::NoteScope::Task { project: f::PROJECT, task },
-        description: text(description),
-        body: text(b""),
-        writer: c::NoteAuthor::Task { task, attempt: 1 },
-        tasks: List::uncapped(),
-        changed: Some(Wall::from_nanos(RECENT)),
-        acts: List::uncapped(),
-        cut: false,
-    }
-}
-
-fn notes(rows: &[c::Note]) -> c::ReadValue {
-    c::ReadValue::Notes(Box::new(c::NotePage { rows: list(rows), before: None, after: None, cut: false }))
-}
-
 struct Fixture {
     root: Domain,
     out: Queue<Request>,
@@ -203,10 +184,12 @@ impl Fixture {
         goal.delegates_total = 9;
         goal.budget.numbers.spent = 31;
         goal.budget.numbers.budget = 50;
+        goal.parts = list(&[temper_fixtures::client_documents::goal_part(Some((b"Six of nine tasks landed.", Wall::from_nanos(RECENT))), None)]);
         self.live(self.goals, if full { core::slice::from_ref(&goal) } else { &[] });
-        let chat_lines = [line(CHAT, b"The comment is stale"), line(DRAFT, b"Read barriers")];
+        let mut draft = line(DRAFT, b"Read barriers");
+        draft.parts = list(&[temper_fixtures::client_documents::chat_part(Some(b"Read barriers"))]);
+        let chat_lines = [line(CHAT, b"The comment is stale"), draft];
         self.live(self.chats, if full { &chat_lines } else { &[] });
-        let draft_notes = [note(DRAFT, b"Read barriers")];
         for (read, what) in self.reads() {
             if let c::Read::Tasks { .. } = what {
                 self.answer(
@@ -218,10 +201,8 @@ impl Fixture {
                         ended: c::EndedGroup::None,
                     })),
                 );
-            } else if let c::Read::Notes { scope: c::NoteScope::Tasks { .. }, .. } = what {
-                self.answer(read, notes(if full { &draft_notes } else { &[] }));
-            } else if let c::Read::Notes { scope: c::NoteScope::Task { task: GOAL, .. }, .. } = what {
-                self.answer(read, notes(&[note(GOAL, b"report: Six of nine tasks landed.")]));
+            } else if let c::Read::Notes { .. } = what {
+                panic!("Work rows read no notes");
             }
         }
         let mut queued = List::with_capacity(3);

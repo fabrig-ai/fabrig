@@ -6,6 +6,7 @@ use super::{Request, ended::EndedRead, report};
 use crate::{GoalsFilter, Limits, owner::Owner};
 use jig_client::{Client, Handle, Latest, Readable, Readout, Told, Watchable, contract as c};
 use skein_lib::{List, Queue, Wall};
+use temper_client_domain_forge::parts;
 
 /// The open project's goal fact across pages (temper/docs/design/client/view.md, 3).
 #[derive(Debug)]
@@ -186,8 +187,6 @@ impl Fact {
 #[derive(Debug)]
 struct Row {
     task: u64,
-    activity: Wall,
-    read_at: Option<Wall>,
     report: Option<report::Report>,
 }
 
@@ -198,7 +197,6 @@ pub struct Goals {
     pub live: Handle,
     pub ended: Handle,
     pub needs: Handle,
-    pub report: Handle,
     query: Option<c::TaskQuery>,
     page: Option<c::TaskPage>,
     first: bool,
@@ -208,7 +206,6 @@ pub struct Goals {
     needs_total: Option<u32>,
     selection: Option<List<c::InboxSelection>>,
     rows: List<Row>,
-    reading_report: Option<(u64, Wall)>,
 }
 
 impl Goals {
@@ -219,7 +216,6 @@ impl Goals {
             live: handle(first),
             ended: handle(first.checked_add(1).expect("page handles fit")),
             needs: handle(first.checked_add(2).expect("page handles fit")),
-            report: handle(first.checked_add(3).expect("page handles fit")),
             query: None,
             page: None,
             first: true,
@@ -229,14 +225,13 @@ impl Goals {
             needs_total: None,
             selection: None,
             rows: List::with_capacity(0),
-            reading_report: None,
         }
     }
     pub fn leave(&self, out: &mut Queue<Request>) -> u64 {
-        for handle in [self.live, self.ended, self.needs, self.report] {
+        for handle in [self.live, self.ended, self.needs] {
             out.push(Request::Client(jig_client::Event::Unwatch { handle }));
         }
-        self.report.number.checked_add(1).expect("page handles fit")
+        self.needs.number.checked_add(1).expect("page handles fit")
     }
     pub fn configure(
         &mut self,
@@ -262,8 +257,7 @@ impl Goals {
             self.count = 0;
             self.needs_total = None;
             self.selection = None;
-            self.reading_report = None;
-            self.rows = List::with_capacity(limits.client.domain.rows.checked_mul(2).expect("goal rows fit"));
+            self.rows = List::with_capacity(0);
             if let Some(query) = next {
                 out.push(Request::Client(jig_client::Event::Watch {
                     handle: self.live,
@@ -281,7 +275,7 @@ impl Goals {
             self.needs_total = Some(me.needs_total);
             self.read_needs(out);
         }
-        self.reconcile(client, out);
+        self.reconcile(client);
     }
     fn read(&mut self, ended: Option<c::Cursor>, out: &mut Queue<Request>) {
         if let Some(query) = &self.query {
@@ -360,28 +354,6 @@ impl Goals {
                 };
                 true
             }
-            Told::Page { handle, page } if handle == self.report => {
-                if let Some((task, at)) = self.reading_report.take() {
-                    for row in self.rows.iter_mut() {
-                        if row.task == task {
-                            row.read_at = Some(at);
-                            row.report = match &page {
-                                Readout::Jig(c::ReadResult::Value(c::ReadValue::Notes(page))) => {
-                                    match report::newest(&page.rows) {
-                                        Some(note) => Some(report::parse(note)),
-                                        None => None,
-                                    }
-                                }
-                                Readout::Jig(c::ReadResult::Value(_) | c::ReadResult::None(_))
-                                | Readout::Family { .. }
-                                | Readout::NotServed { .. }
-                                | Readout::Limit => None,
-                            };
-                        }
-                    }
-                }
-                true
-            }
             Told::Ended { handle, .. } if handle == self.live => true,
             Told::Link { .. }
             | Told::Pending { .. }
@@ -394,46 +366,36 @@ impl Goals {
             | Told::Page { .. } => false,
         }
     }
-    fn reconcile(&mut self, client: &Client, out: &mut Queue<Request>) {
-        let mut rows = List::with_capacity(self.rows.capacity());
-        let mut previous = core::mem::replace(&mut self.rows, List::with_capacity(0));
+    fn reconcile(&mut self, client: &Client) {
+        let mut rows = List::uncapped();
         let live = match self.live(client) {
             Some(live) => live.rows.as_slice(),
             None => &[],
         };
         for lines in [live, self.ended()] {
             for line in lines {
-                if rows.len() == rows.capacity() {
-                    break;
-                }
-                let mut row = Row { task: line.chip.task, activity: line.last_activity, read_at: None, report: None };
-                for index in 0..previous.len() {
-                    if previous.get(index).expect("retained goal row").task == row.task {
-                        row = previous.swap_remove(index).expect("retained goal row");
-                        row.activity = line.last_activity;
-                        break;
+                let part = match parts::goal(line) {
+                    Some(part) => part.into_parts().report,
+                    None => None,
+                };
+                let report = match part {
+                    Some(report) => {
+                        let report = report.into_parts();
+                        Some(report::Report {
+                            headline: report.headline,
+                            at: Some(Wall::from_nanos(report.at)),
+                            paragraphs: List::with_capacity(0),
+                            left: None,
+                            risk: None,
+                            decided: List::with_capacity(0),
+                        })
                     }
-                }
-                rows.push(row).expect("live and ended goal rows fit");
+                    None => None,
+                };
+                rows.push(Row { task: line.chip.task, report }).expect("live and ended goal rows fit");
             }
         }
         self.rows = rows;
-        if self.reading_report.is_some() {
-            return;
-        }
-        for row in &self.rows {
-            if row.read_at != Some(row.activity) {
-                self.reading_report = Some((row.task, row.activity));
-                out.push(Request::Client(jig_client::Event::Read {
-                    handle: self.report,
-                    read: Readable::Jig(report::read(
-                        self.query.as_ref().expect("configured goals").project.expect("project query"),
-                        row.task,
-                    )),
-                }));
-                break;
-            }
-        }
     }
     /// The live watch has delivered and the ended read has answered with its value, for this query.
     #[must_use]
@@ -524,8 +486,10 @@ fn handle(number: u64) -> Handle {
 /// The project's goal template supplies the label (temper/docs/design/client/pages/README.md).
 #[must_use]
 pub fn query(me: &c::Me, project: u32) -> Option<c::TaskQuery> {
+    let mut parts = List::with_capacity(1);
+    parts.push(parts::asks(temper_client_protocol_wire::GOAL_PART)).expect("one goal part");
     Some(c::TaskQuery {
-        parts: List::with_capacity(0),
+        parts,
         project: Some(project),
         label: Some(jig_client::shapes::template(me, project, jig_client::shapes::GOAL)?.label),
         tracked: Some(true),

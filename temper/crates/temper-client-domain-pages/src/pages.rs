@@ -1442,7 +1442,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         if let Some(inbox) = &mut pages.inbox {
             pages.next = pages.next.max(inbox.next);
             pages.goals = Some(goals::Goals::new(pages.next));
-            pages.next = pages.next.checked_add(4).expect("page handles fit");
+            pages.next = pages.next.checked_add(3).expect("page handles fit");
             inbox.next = pages.next;
         }
     }
@@ -1456,12 +1456,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         && chats_offered
     {
         chats.configure(me, project, &env.limits, out);
-        if let Address::Chats { .. } | Address::Work { .. } | Address::Goals { .. } | Address::Changes { .. } =
-            pages.address
-            && let Some(project) = project
-        {
-            chats.open_documents(project, env.limits.client.domain.rows, out);
-        }
+        chats.reconcile(client);
     }
     if let Address::Work { project, .. }
     | Address::Goals { project, .. }
@@ -1679,9 +1674,6 @@ pub fn fire(pages: &mut Pages, env: &Env<Limits>, _client: &Client, out: &mut Qu
     if let Some(page) = &mut pages.remembered {
         page.fire(env.now, out);
     }
-    if let Some(chats) = &mut pages.chats {
-        chats.fire(env.now, out);
-    }
     if let Some(chat) = &mut pages.chat
         && chat.fire(env.now, out)
     {
@@ -1701,17 +1693,13 @@ pub fn next_deadline(pages: &Pages) -> Option<Time> {
         Some(chat) => chat.next_deadline(),
         None => None,
     };
-    let chats = match &pages.chats {
-        Some(chats) => chats.next_deadline(),
-        None => None,
-    };
     let remembered = match &pages.remembered {
         Some(page) => page.next_deadline(),
         None => None,
     };
     activity::earliest(
         activity::earliest(remembered, pages.team.next_deadline()),
-        activity::earliest(activity::earliest(task, chat), activity::earliest(chats, pages.needs.next_deadline())),
+        activity::earliest(activity::earliest(task, chat), pages.needs.next_deadline()),
     )
 }
 #[must_use]
@@ -1758,9 +1746,9 @@ fn prepare_rail_chats(pages: &mut Pages, client: &Client) {
         first = first.max(inbox.next);
     }
     if let Some(goals) = &pages.goals {
-        first = first.max(goals.report.number.checked_add(1).expect("goal handles fit"));
+        first = first.max(goals.needs.number.checked_add(1).expect("goal handles fit"));
     }
-    let next = first.checked_add(4).expect("rail chat handles fit");
+    let next = first.checked_add(3).expect("rail chat handles fit");
     if let Some(chat) = &mut pages.chat {
         chat.next = chat.next.max(next);
     }
@@ -1898,7 +1886,7 @@ fn went(
             page.filter = filter;
         }
         if let Address::NewChat { .. } = address {
-            page.close_documents(out);
+            page.close_goals(out);
         }
         pages.address = address;
         return;
@@ -2085,9 +2073,9 @@ fn went(
                 page.filter = filter;
             }
             pages.goals = Some(page);
-            pages.next = pages.next.checked_add(4).expect("goal handles fit");
+            pages.next = pages.next.checked_add(3).expect("goal handles fit");
             pages.chats = Some(chats::Chats::new(pages.next));
-            pages.next = pages.next.checked_add(4).expect("rail chat handles fit");
+            pages.next = pages.next.checked_add(3).expect("rail chat handles fit");
             pages.changes = Some(changes::Changes::new(project, &mut pages.next, env.limits.forge, out));
         }
         if let Address::Task { task } = address {
@@ -2115,7 +2103,7 @@ fn went(
             pages.home = Some(home::Home::new(project, pages.next, env.limits.forge, out));
             pages.next = pages.next.checked_add(2).expect("page handles fit");
             pages.chats = Some(chats::Chats::new(pages.next));
-            pages.next = pages.next.checked_add(2).expect("page handles fit");
+            pages.next = pages.next.checked_add(3).expect("page handles fit");
             let filter = if pages.launchpad {
                 pages.all_home = Some(all_home::AllHome::new(true, None, env.limits.forge));
                 pages.left_off = Some(launchpad::LeftOff::new(project, &mut pages.next));
@@ -2130,8 +2118,8 @@ fn went(
             pages.chats = Some(chats::Chats::new(pages.next));
         }
         if let Address::Settings { .. } = address {
-            // How work runs' view read follows the rail's four chat handles.
-            pages.next = pages.next.checked_add(4).expect("rail chat handles fit");
+            // How work runs' view read follows the rail's chat handles.
+            pages.next = pages.next.checked_add(3).expect("rail chat handles fit");
         }
         if let Address::Chats { filter, .. } = address {
             let mut page = chats::Chats::new(pages.next);
@@ -2383,7 +2371,7 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
         return true;
     }
     if let Some(chats) = &mut pages.chats {
-        if !chats.notes_told(env.now, client, &told, out) && !chats.told(told.clone(), client, &pages.address, out) {
+        if !chats.told(told.clone(), client, &pages.address, out) {
             return match &mut pages.inbox {
                 Some(inbox) => inbox.told(client, told, &env.limits, out),
                 None => false,

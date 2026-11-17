@@ -2098,6 +2098,10 @@ fn home_goals(live: usize, ended: usize, beginning: bool) -> d::Domain {
     for row in goals.live.rows.iter_mut() {
         row.tracked = Some(1);
         if row.chip.task == 9 {
+            row.parts = List::from_boxed(Box::new([temper_fixtures::client_documents::goal_part(
+                Some((b"A goal report.", f::NOW)),
+                None,
+            )]));
             row.delegates_done = 5;
             row.delegates_total = 6;
         }
@@ -2139,7 +2143,7 @@ fn home_goals(live: usize, ended: usize, beginning: bool) -> d::Domain {
 #[test]
 fn goals_takes_chats_place() {
     let root = home_goals(2, 3, false);
-    assert!(root.pages().goals().unwrap().report(9).is_some(), "Home reads the goal report");
+    assert!(root.pages().goals().unwrap().report(9).is_some(), "Home takes the report from its goal part");
     assert!(root.pages().goals().unwrap().needs_person(9), "Home reads the goal needs");
     for (mut view, browser) in [(f::page_view(&root), false), (f::browser_page_view(&root), true)] {
         let region = main_find(view.tree(), Role::Region, b"Goals");

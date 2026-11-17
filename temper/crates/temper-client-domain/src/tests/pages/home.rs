@@ -593,7 +593,7 @@ fn home_reads_its_projects_needs_and_releases_them() {
         let chats = f.root.pages().chats().unwrap();
         assert_eq!(chats.live.asker, crate::owner::Owner::Pages.asker());
         assert_eq!(chats.closed.number, chats.live.number + 1);
-        assert_eq!(inbox.entries.number, chats.live.number + 2);
+        assert_eq!(inbox.entries.number, chats.live.number + 3);
         up(&mut f.root, Up::Watched { watch: f.inbox, event: c::WatchEvent::Opened });
         let out = f::inbox_entries(&mut f.root, f.inbox, List::with_capacity(EMPTY));
         let reads = inbox_reads(&out);

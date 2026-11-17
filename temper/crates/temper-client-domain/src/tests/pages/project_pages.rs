@@ -334,8 +334,8 @@ fn requests(f: &mut Fixture) -> List<Request> {
 }
 
 struct WorkReads {
-    goal_handles: [Handle; 4],
-    chat_handles: [Handle; 4],
+    goal_handles: [Handle; 3],
+    chat_handles: [Handle; 3],
     change: Handle,
     chat_query: c::TaskQuery,
 }
@@ -345,10 +345,12 @@ fn work_reads(f: &mut Fixture, address: &Address) -> WorkReads {
     let goals = f.pages.goals().expect("goals on Work");
     let chats = f.pages.chats().expect("chats on Work");
     assert_eq!(f.pages.changes().expect("changes on Work").project, project);
-    let goal_handles = [goals.live, goals.ended, goals.needs, goals.report];
-    let chat_handles = [chats.live, chats.closed, chats.notes, chats.goals];
+    let goal_handles = [goals.live, goals.ended, goals.needs];
+    let chat_handles = [chats.live, chats.closed, chats.goals];
     let goal_query = c::TaskQuery {
-        parts: List::with_capacity(0),
+        parts: List::from_boxed(Box::new([temper_client_domain_forge::parts::asks(
+            temper_client_protocol_wire::GOAL_PART,
+        )])),
         project: Some(project),
         requester: None,
         root: None,
@@ -360,6 +362,9 @@ fn work_reads(f: &mut Fixture, address: &Address) -> WorkReads {
         order: c::QueryOrder::Priority,
     };
     let chat_query = c::TaskQuery {
+        parts: List::from_boxed(Box::new([temper_client_domain_forge::parts::asks(
+            temper_client_protocol_wire::CHAT_PART,
+        )])),
         requester: Some(c::Requester::Person(fixtures::PARTY)),
         tracked: None,
         order: c::QueryOrder::Activity,
@@ -398,17 +403,12 @@ fn work_reads(f: &mut Fixture, address: &Address) -> WorkReads {
             }),
         }))
         .expect("goal needs");
-    expected
-        .push(Request::Client(jig_client::Event::Read {
-            handle: chats.notes,
-            read: Readable::Jig(c::Read::Notes {
-                scope: c::NoteScope::Tasks { project },
-                description: None,
-                after: None,
-            }),
-        }))
-        .expect("chat documents");
     let opened = requests(f);
+    for request in &opened {
+        if let Request::Client(jig_client::Event::Read { read: Readable::Jig(c::Read::Notes { .. }), .. }) = request {
+            panic!("list rows read no notes");
+        }
+    }
     for request in &expected {
         assert!(opened.as_slice().contains(request), "{address:?}: missing {request:?}, got {opened:?}");
     }

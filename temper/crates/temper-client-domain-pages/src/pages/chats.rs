@@ -13,7 +13,8 @@ use jig_client::contract::{
     self as c, Delivery, EndedGroup, Me, Read, ReadResult, ReadValue, TaskPage, TaskQuery, Text,
 };
 use jig_client::{Client, Handle, Key, Latest, Readable, Readout, Told, Watchable};
-use skein_lib::{Env, List, Map, Queue, Time, Writer};
+use skein_lib::{Env, List, Map, Queue, Writer};
+use temper_client_domain_forge::parts;
 
 /// Ask temper's stock template (temper/docs/design/protocol/configuration/stock.md).
 pub const ASKING_TEMPLATE: u32 = 5;
@@ -32,12 +33,8 @@ pub struct Chats {
     pub live: Handle,
     pub closed: Handle,
     pub documents: Map<u64, c::DocumentText>,
-    pub notes: Handle,
     pub goals: Handle,
-    notes_project: Option<u32>,
-    notes_seen: u32,
-    note_numbers: Map<u64, u64>,
-    asking: super::activity::Asking,
+    window: u32,
     goal_tasks: List<u64>,
     pub words: Box<[u8]>,
     pub beyond: u64,
@@ -53,7 +50,6 @@ pub struct Chats {
     ended_read: EndedRead,
     page_delivered: bool,
     page_answered: bool,
-    documents_known: bool,
 }
 impl Chats {
     #[must_use]
@@ -63,12 +59,8 @@ impl Chats {
             live: handle(first),
             closed: handle(first.checked_add(1).expect("page handles fit")),
             documents: Map::with_capacity(0),
-            notes: handle(first.checked_add(2).expect("page handles fit")),
-            goals: handle(first.checked_add(3).expect("page handles fit")),
-            notes_project: None,
-            notes_seen: 0,
-            note_numbers: Map::with_capacity(0),
-            asking: super::activity::Asking::new(),
+            goals: handle(first.checked_add(2).expect("page handles fit")),
+            window: 0,
             goal_tasks: List::with_capacity(0),
             words: Box::default(),
             beyond: 0,
@@ -84,25 +76,21 @@ impl Chats {
             ended_read: EndedRead::new(),
             page_delivered: false,
             page_answered: false,
-            documents_known: false,
         }
     }
     pub fn leave(&self, out: &mut Queue<Request>) -> u64 {
-        for handle in [self.live, self.closed] {
+        for handle in [self.live, self.closed, self.goals] {
             out.push(Request::Client(jig_client::Event::Unwatch { handle }));
-        }
-        if self.notes_project.is_some() {
-            for handle in [self.notes, self.goals] {
-                out.push(Request::Client(jig_client::Event::Unwatch { handle }));
-            }
         }
         self.goals.number.checked_add(1).expect("page handles fit")
     }
     pub fn configure(&mut self, me: Option<&Me>, project: Option<u32>, limits: &Limits, out: &mut Queue<Request>) {
         let (Some(me), Some(project)) = (me, project) else { return };
         let Some(template) = jig_client::shapes::template(me, project, jig_client::shapes::CHAT) else { return };
+        let mut parts = List::with_capacity(1);
+        parts.push(parts::asks(temper_client_protocol_wire::CHAT_PART)).expect("one chat part");
         let query = TaskQuery {
-            parts: List::with_capacity(0),
+            parts,
             project: Some(project),
             requester: Some(c::Requester::Person(me.party.number)),
             root: None,
@@ -119,15 +107,12 @@ impl Chats {
         if self.query.is_some() {
             self.leave(out);
         }
-        self.notes_project = None;
-        self.asking.answered();
+        self.window = limits.client.domain.rows;
         self.goal_tasks = List::with_capacity(0);
-        self.documents = Map::with_capacity(0);
-        self.note_numbers = Map::with_capacity(0);
+        self.documents = Map::with_capacity(self.window.checked_mul(2).expect("chat windows fit"));
         self.page = None;
         self.page_delivered = false;
         self.page_answered = false;
-        self.documents_known = false;
         self.first = true;
         self.ended_read = EndedRead::new();
         self.query = Some(query.clone());
@@ -137,89 +122,37 @@ impl Chats {
         }));
         self.read(None, out);
     }
-    pub fn open_documents(&mut self, project: u32, rows: u32, out: &mut Queue<Request>) {
-        if self.notes_project == Some(project) {
-            return;
-        }
-        self.documents_known = false;
-        self.notes_project = Some(project);
-        self.notes_seen = 0;
-        self.documents = Map::with_capacity(rows);
-        self.note_numbers = Map::with_capacity(rows);
-        self.asking.ask(
-            self.notes,
-            Read::Notes { scope: c::NoteScope::Tasks { project }, description: None, after: None },
-            out,
-        );
-    }
-    pub(crate) fn close_documents(&mut self, out: &mut Queue<Request>) {
-        self.documents_known = false;
-        if self.notes_project.take().is_none() {
-            return;
-        }
-        for handle in [self.notes, self.goals] {
-            out.push(Request::Client(jig_client::Event::Unwatch { handle }));
-        }
-        self.asking.answered();
-        self.documents = Map::with_capacity(0);
-        self.note_numbers = Map::with_capacity(0);
-        self.goal_tasks = List::with_capacity(0);
-    }
-    pub fn fire(&mut self, now: Time, out: &mut Queue<Request>) {
-        self.asking.fire(now, self.notes, out);
-    }
-    #[must_use]
-    pub const fn next_deadline(&self) -> Option<Time> {
-        self.asking.next_deadline()
-    }
-    pub fn notes_told(&mut self, now: Time, client: &Client, told: &Told, out: &mut Queue<Request>) -> bool {
-        let Told::Page { handle, page } = told else { return false };
-        if *handle != self.notes {
-            return false;
-        }
-        if let Readout::Jig(ReadResult::Value(ReadValue::Notes(page))) = page {
-            self.documents_known = true;
-            self.asking.answered();
-            let Some(project) = self.notes_project else { return true };
-            let bound = self.documents.capacity();
-            for note in &page.rows {
-                if self.notes_seen >= bound {
-                    break;
-                }
-                self.notes_seen = self.notes_seen.checked_add(1).expect("notes bounded by rows");
-                if let c::NoteScope::Task { project: held, task } = note.scope
-                    && held == project
-                    && !note.description.bytes().starts_with(b"work:")
-                    && match self.note_numbers.get(&task) {
-                        Some(number) => note.number < *number,
-                        None => true,
-                    }
+    pub(crate) fn reconcile(&mut self, client: &Client) {
+        let mut documents = Map::with_capacity(self.documents.capacity());
+        let live = match self.live(client) {
+            Some(live) => live.rows.as_slice(),
+            None => &[],
+        };
+        let closed = match &self.page {
+            Some(page) => match &page.ended {
+                EndedGroup::Rows { rows, .. } => rows.as_slice(),
+                EndedGroup::None => &[],
+            },
+            None => &[],
+        };
+        for lines in [live, closed] {
+            for line in lines {
+                if let Some(part) = parts::chat(line)
+                    && let Some(document) = part.into_parts().document
                 {
-                    self.note_numbers.insert(task, note.number).expect("at most rows notes");
-                    self.documents.insert(task, note.description.clone()).expect("at most rows documents");
+                    let document =
+                        c::DocumentText::complete(Text::new(document, 512).expect("chat part document bound"));
+                    documents.insert(line.chip.task, document).expect("live and closed chat rows fit");
                 }
             }
-            if self.notes_seen < bound
-                && let Some(after) = &page.after
-            {
-                self.asking.ask(
-                    self.notes,
-                    Read::Notes {
-                        scope: c::NoteScope::Tasks { project },
-                        description: None,
-                        after: Some(after.clone()),
-                    },
-                    out,
-                );
-            }
-        } else if super::activity::read_end(client, page).transient() {
-            self.asking.ended(now);
-        } else {
-            self.asking.answered();
-            self.documents = Map::with_capacity(self.documents.capacity());
-            self.note_numbers = Map::with_capacity(self.note_numbers.capacity());
         }
-        true
+        self.documents = documents;
+    }
+    pub(crate) fn close_goals(&mut self, out: &mut Queue<Request>) {
+        if !self.goal_tasks.is_empty() {
+            out.push(Request::Client(jig_client::Event::Unwatch { handle: self.goals }));
+            self.goal_tasks = List::with_capacity(0);
+        }
     }
     /// The newest goal this person started from a row, breaking clock ties by goal number.
     #[must_use]
@@ -245,7 +178,8 @@ impl Chats {
         rows: u32,
         out: &mut Queue<Request>,
     ) {
-        let Some(project) = self.notes_project else { return };
+        let Some(query) = &self.query else { return };
+        let Some(project) = query.project else { return };
         let mut tasks = List::with_capacity(rows);
         let live = match self.live(client) {
             Some(live) => live.rows.as_slice(),
@@ -559,11 +493,6 @@ impl Chats {
     pub fn known(&self, client: &Client) -> bool {
         self.page_answered && self.live(client).is_some()
     }
-    /// The notes read has answered with its value, for the Drafts filter.
-    #[must_use]
-    pub const fn documents_known(&self) -> bool {
-        self.documents_known
-    }
     pub(super) fn delivered(&self, client: &Client, project: u32) -> bool {
         let Some(query) = &self.query else { return false };
         query.project == Some(project) && self.page_delivered && super::home::delivered(client, self.live)
@@ -697,7 +626,10 @@ fn newer(a: (skein_lib::Wall, u64), b: (skein_lib::Wall, u64)) -> bool {
 
 pub(crate) fn refresh(root: &mut dyn Routing, out: &mut Queue<Request>) {
     let parts = root.parts();
-    if let Some(chats) = &mut parts.pages.chats {
-        chats.goal_watch(parts.client, parts.forge, chats.documents.capacity(), out);
+    if let Address::Chats { .. } | Address::Work { .. } | Address::Goals { .. } | Address::Changes { .. } =
+        parts.pages.address
+        && let Some(chats) = &mut parts.pages.chats
+    {
+        chats.goal_watch(parts.client, parts.forge, chats.window, out);
     }
 }

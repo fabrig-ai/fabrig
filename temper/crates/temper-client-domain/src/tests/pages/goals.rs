@@ -16,8 +16,6 @@ const LATER: Wall = Wall::from_nanos(10);
 // Two rows fill the fixture's live window and each ended page.
 const WINDOW: u32 = 2;
 const LABEL: u32 = 7;
-// The report handle admits one read at a time.
-const REPORTS_AT_ONCE: usize = 1;
 // Two rows of the first ended page, one of the next, and one live row.
 const ENDED_READ: u32 = 3;
 const ALL_READ: u32 = 4;
@@ -204,25 +202,17 @@ fn needs_read(reads: &[(Token, c::Read)]) -> Token {
     }
     panic!("needs read")
 }
-fn notes(headline: &[u8]) -> c::ReadValue {
-    let note = c::Note {
-        number: 1,
-        revision: c::Revision { value: 1 },
-        scope: c::NoteScope::Task { project: fixtures::PROJECT, task: GOAL },
-        description: fixtures::chat::document_text(headline),
-        body: fixtures::chat::document_text(b""),
-        writer: c::NoteAuthor::Task { task: GOAL, attempt: 1 },
-        tasks: List::with_capacity(0),
-        changed: Some(LATER),
-        acts: List::with_capacity(0),
-        cut: false,
+pub(super) fn report_part(headline: Option<&[u8]>) -> c::RowPart {
+    let report = match headline {
+        Some(headline) => Some((headline, LATER)),
+        None => None,
     };
-    c::ReadValue::Notes(Box::new(c::NotePage {
-        rows: List::from_boxed(Box::new([note])),
-        before: None,
-        after: None,
-        cut: false,
-    }))
+    temper_fixtures::client_documents::goal_part(report, Some(42))
+}
+fn with_part(task: u64, part: c::RowPart) -> c::TaskLine {
+    let mut line = line(task, Wall::EPOCH);
+    line.parts = List::from_boxed(Box::new([part]));
+    line
 }
 
 #[test]
@@ -233,7 +223,9 @@ fn goals_read_its_query_and_release_it() {
     let mut out = Queue::uncapped();
     goals.configure(Some(&me()), fixtures::PROJECT, root.client(), &limits, &mut out);
     let query = c::TaskQuery {
-        parts: List::with_capacity(0),
+        parts: List::from_boxed(Box::new([temper_client_domain_forge::parts::asks(
+            temper_client_protocol_wire::GOAL_PART,
+        )])),
         project: Some(fixtures::PROJECT),
         label: Some(LABEL),
         tracked: Some(true),
@@ -280,7 +272,7 @@ fn goals_read_its_query_and_release_it() {
     let mut changed = me();
     changed.projects.get_mut(0).unwrap().templates.get_mut(0).unwrap().label = LABEL + 1;
     goals.configure(Some(&changed), fixtures::PROJECT, root.client(), &limits, &mut out);
-    for handle in [goals.live, goals.ended, goals.needs, goals.report] {
+    for handle in [goals.live, goals.ended, goals.needs] {
         assert_eq!(out.pop(), Some(Request::Client(jig_client::Event::Unwatch { handle })));
     }
     assert_eq!(
@@ -295,10 +287,10 @@ fn goals_read_its_query_and_release_it() {
     );
     while out.pop().is_some() {}
     let next = goals.leave(&mut out);
-    for handle in [goals.live, goals.ended, goals.needs, goals.report] {
+    for handle in [goals.live, goals.ended, goals.needs] {
         assert_eq!(out.pop(), Some(Request::Client(jig_client::Event::Unwatch { handle })));
     }
-    assert!(Goals::new(next).live.number > goals.report.number);
+    assert!(Goals::new(next).live.number > goals.needs.number);
     assert!(goals::query(&fixtures::chats::me(), fixtures::PROJECT).is_none());
     assert!(goals::query(&me(), OTHER.try_into().unwrap()).is_none());
     assert!(out.is_empty());
@@ -436,55 +428,66 @@ fn a_goals_id_is_its_leading_capitals_and_digits() {
 }
 
 #[test]
-fn reports_are_read_one_at_a_time_and_again_as_activity_moves() {
+fn reports_arrive_with_live_and_ended_rows_without_notes() {
     let mut h = Harness::new();
-    h.reads();
-    h.live(&[line(GOAL, Wall::EPOCH), line(OTHER, Wall::EPOCH)], false);
-    let reads = reports(&h.reads());
-    assert_eq!(reads.len(), REPORTS_AT_ONCE);
-    assert_eq!(reads[0].1, GOAL);
-    h.live(&[line(GOAL, LATER), line(OTHER, Wall::EPOCH)], false);
-    assert!(reports(&h.reads()).is_empty(), "one report in flight");
-    h.answer(reads[0].0, notes(b"report: Old."));
-    let reads = reports(&h.reads());
-    assert_eq!(reads.len(), REPORTS_AT_ONCE);
-    assert_eq!(reads[0].1, GOAL, "moved activity is next in row order");
-    h.answer(reads[0].0, notes(b"report: New."));
-    let reads = reports(&h.reads());
-    assert_eq!(reads.len(), REPORTS_AT_ONCE);
-    assert_eq!(reads[0].1, OTHER);
-    h.answer(reads[0].0, notes(b"report: Other."));
+    let read = ended_read(&h.reads());
+    h.live(&[with_part(GOAL, report_part(Some(b"Two of three landed")))], false);
+    h.answer(read, page(&[with_part(OTHER, report_part(Some(b"Ended report")))], false));
+    let report = h.goals().report(GOAL).unwrap();
+    assert_eq!(report.headline.as_ref(), b"Two of three landed");
+    assert_eq!(report.at, Some(LATER));
+    assert!(report.paragraphs.is_empty());
+    assert_eq!(h.goals().report(OTHER).unwrap().headline.as_ref(), b"Ended report");
     assert!(reports(&h.reads()).is_empty());
-    assert_eq!(h.goals().report(GOAL).unwrap().headline.as_ref(), b"New.");
-    h.live(&[line(GOAL, LATER), line(OTHER, Wall::EPOCH)], false);
-    assert!(reports(&h.reads()).is_empty(), "same activity keeps reports");
+    h.live(&[with_part(GOAL, report_part(Some(b"Next delivery")))], false);
+    assert_eq!(h.goals().report(GOAL).unwrap().headline.as_ref(), b"Next delivery");
+    h.live(&[with_part(GOAL, c::RowPart::Unknown)], false);
+    assert!(h.goals().report(GOAL).is_none(), "an unavailable replacement does not keep a stale report");
+    assert!(reports(&h.reads()).is_empty());
 }
 
 #[test]
-fn no_report_is_no_error() {
-    for value in [
-        Readout::Limit,
-        Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)),
-        Readout::Jig(c::ReadResult::Value(notes(b"words report: not an opening"))),
-        Readout::Jig(c::ReadResult::Value(c::ReadValue::Notes(Box::new(c::NotePage {
-            rows: List::with_capacity(0),
-            before: None,
-            after: None,
-            cut: false,
-        })))),
+fn unavailable_parts_read_nothing_and_the_next_report_wins() {
+    for part in [
+        c::RowPart::Unknown,
+        c::RowPart::NotServed(c::NotServed {
+            owner: c::Owner::Family(temper_client_protocol_wire::FORGE),
+            served: List::with_capacity(0),
+        }),
+        c::RowPart::Failed(c::PartFailure::Busy),
+        report_part(None),
     ] {
         let mut h = Harness::new();
         h.reads();
-        h.live(&[line(GOAL, Wall::EPOCH)], false);
-        let reads = reports(&h.reads());
-        assert_eq!(reads.len(), REPORTS_AT_ONCE);
-        h.result(reads[0].0, value);
+        h.live(&[with_part(GOAL, part)], false);
         assert!(h.goals().report(GOAL).is_none());
         assert!(reports(&h.reads()).is_empty());
-        h.live(&[line(GOAL, Wall::EPOCH)], false);
-        assert!(reports(&h.reads()).is_empty(), "an absent report is remembered at this activity");
-        h.live(&[line(GOAL, LATER)], false);
-        assert_eq!(reports(&h.reads()).len(), REPORTS_AT_ONCE, "moved activity reads an absent report again");
+        h.live(&[with_part(GOAL, report_part(Some(b"Now written")))], false);
+        assert_eq!(h.goals().report(GOAL).unwrap().headline.as_ref(), b"Now written");
+        assert!(reports(&h.reads()).is_empty());
+    }
+}
+
+#[test]
+fn goal_parts_require_the_forge_version_and_a_complete_record() {
+    use temper_client_domain_forge::parts;
+    let part = report_part(Some(b"Written"));
+    let c::RowPart::Value(value) = &part else { unreachable!() };
+    let decoded = parts::goal(&with_part(GOAL, part.clone())).unwrap().into_parts();
+    assert_eq!(decoded.milestone, Some(42));
+    assert_eq!(decoded.report.unwrap().headline(), b"Written");
+    let mut trailing = List::uncapped();
+    for byte in value.bytes.iter().copied() {
+        trailing.push(byte).unwrap();
+    }
+    trailing.push(0).unwrap();
+    for value in [
+        jig_client::Family { family: 99, ..value.clone() },
+        jig_client::Family { version: 0, ..value.clone() },
+        jig_client::Family { bytes: Box::new([]), ..value.clone() },
+        jig_client::Family { bytes: trailing.into_boxed(), ..value.clone() },
+    ] {
+        assert!(parts::goal(&with_part(GOAL, c::RowPart::Value(value))).is_none());
     }
 }
 
@@ -664,7 +667,7 @@ fn a_filter_is_a_move_that_keeps_the_reads() {
         assert!(out.is_empty());
     }
     pages::step(&mut pages, &fixtures::env(&limits), root.client(), Event::Left, &mut out);
-    let handles = [handle.number - 1, handle.number, handle.number + 1, handle.number + 2];
+    let handles = [handle.number - 1, handle.number, handle.number + 1];
     for number in handles {
         let unwatch =
             Request::Client(jig_client::Event::Unwatch { handle: jig_client::Handle { asker: handle.asker, number } });
@@ -685,7 +688,7 @@ fn a_filter_is_a_move_that_keeps_the_reads() {
     );
     assert!(pages.goals().unwrap().live.number > *handles.last().unwrap());
     let old = pages.goals().unwrap();
-    let previous = [old.live, old.ended, old.needs, old.report];
+    let previous = [old.live, old.ended, old.needs];
     out.clear();
     pages::step(
         &mut pages,
@@ -702,7 +705,7 @@ fn a_filter_is_a_move_that_keeps_the_reads() {
         }
         assert!(released, "goal read released");
     }
-    assert!(pages.goals().unwrap().live.number > previous[3].number, "another project gets new handles");
+    assert!(pages.goals().unwrap().live.number > previous[2].number, "another project gets new handles");
     assert_eq!((pages.goals().unwrap().ended()).len(), 0);
 }
 
@@ -821,10 +824,10 @@ fn goals_opens_on_home_once_the_project_has_one() {
         }
         let goals = h.root.pages().goals().expect("Home opens Goals");
         assert_eq!(goals.filter, GoalsFilter::All);
-        let handles = [goals.live, goals.ended, goals.needs, goals.report];
+        let handles = [goals.live, goals.ended, goals.needs];
         let inbox = h.root.pages().inbox().unwrap();
         assert!(handles[0].number > inbox.entries.number);
-        assert!(inbox.next > handles[3].number, "later inbox cards cannot reuse goal handles");
+        assert!(inbox.next > handles[2].number, "later inbox cards cannot reuse goal handles");
         let requests = h.take();
         let mut watching = false;
         let mut reads = 0_usize;

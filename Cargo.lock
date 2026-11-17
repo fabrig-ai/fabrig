@@ -6067,6 +6067,7 @@ dependencies = [
  "temper-client-protocol-wire",
  "temper-client-view-kit",
  "temper-client-view-words",
+ "temper-fixtures",
  "temper-protocol-reaches",
  "temper-test-env",
 ]
@@ -6969,6 +6970,7 @@ dependencies = [
  "jig-client",
  "skein-io",
  "skein-lib",
+ "temper-client-protocol-wire",
  "temper-test-env",
 ]
 

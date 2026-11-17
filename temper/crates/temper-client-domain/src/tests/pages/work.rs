@@ -593,6 +593,7 @@ impl Fixture {
         let mut chat = super::chats::chat_line();
         chat.chip.task = 3;
         chat.last_activity = wall(30);
+        chat.parts = list(&[super::chats::document_part(Some(b"Draft"))]);
         self.live(self.chats, &[chat.clone()]);
         let mut reads = List::uncapped();
         for request in &self.out {
@@ -616,16 +617,8 @@ impl Fixture {
                         ended: c::EndedGroup::Rows { rows, after: None, cut: false },
                     })),
                 );
-            } else if let c::Read::Notes { scope: c::NoteScope::Tasks { .. }, .. } = what {
-                self.answer(
-                    read,
-                    c::ReadValue::Notes(Box::new(c::NotePage {
-                        rows: list(&[draft_note()]),
-                        after: None,
-                        before: None,
-                        cut: false,
-                    })),
-                );
+            } else if let c::Read::Notes { .. } = what {
+                panic!("Work rows read no notes");
             }
         }
     }
@@ -835,13 +828,6 @@ fn only_read_hidden_settings_override_filters() {
         assert_eq!(work::overrides(&root, f::PROJECT), want, "{value:?}");
         assert_eq!(work::overrides(&root, 99), Overrides::default());
     }
-}
-
-fn draft_note() -> c::Note {
-    let mut note = super::chat::draft_note(1, 1, b"Draft body");
-    note.scope = c::NoteScope::Task { project: f::PROJECT, task: 3 };
-    note.description = c::DocumentText::complete(c::Text::new(b"Draft".as_slice().into(), 32).unwrap());
-    note
 }
 
 fn work_limits() -> crate::Limits {

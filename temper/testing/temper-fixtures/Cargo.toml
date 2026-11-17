@@ -9,6 +9,7 @@ publish.workspace = true
 
 [dependencies]
 temper-test-env.workspace = true
+temper-client-protocol-wire.workspace = true
 jig-client.workspace = true
 skein-lib.workspace = true
 skein-io.workspace = true

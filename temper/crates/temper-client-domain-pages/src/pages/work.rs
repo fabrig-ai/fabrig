@@ -610,7 +610,6 @@ pub fn facts(root: &dyn Root, project: u32) -> Option<Facts> {
         || !milestones.known(root.client())
         || !goals.known(root.client())
         || !chats.known(root.client())
-        || !chats.documents_known()
     {
         return None;
     }
