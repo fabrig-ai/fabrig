@@ -1,5 +1,5 @@
 //! Rulings reach later work (temper/docs/design/domain/forge/change/questions.md, 1,
-//! What later work is told; gates.md, 1; repairs.md, A repair).
+//! What every delegate is told; gates.md, 1; repairs.md, A repair).
 use super::questions::{call, make_change, next_producer, plan_world_with_gate, row};
 use super::reviews::{finish_review, next_assignment, produce};
 use super::*;
@@ -10,20 +10,14 @@ const TICKS: u32 = 200;
 // The landing's target review and merge pass through the queue's window.
 const LAND_TICKS: u32 = 1000;
 const QUESTION: &[u8] = b"Question: keep both lines?\nKeep one or both? I recommend both.";
-const ANSWER: &[u8] = b"keep both lines";
+const ANSWER: &[u8] = b"Keep both lines";
 const AMENDED: &[u8] = b"Drop the file named in the original request.";
 
 fn world() -> (World, engine::Assignment, u64, engine::Assignment, Box<[u8]>) {
     let (mut world, requester) = plan_world_with_gate(
         None,
         Gate { agent: true, ..Gate::default() },
-        &StoryLimits {
-            turn: true,
-            batch: Some(4),
-            landing_members: Some(4),
-            spec_bytes: Some(4096),
-            ..StoryLimits::default()
-        },
+        &StoryLimits { batch: Some(4), landing_members: Some(4), spec_bytes: Some(4096), ..StoryLimits::default() },
         false,
     );
     let change = make_change(&mut world, &requester, 93, engine::ChangeQuestions::Up);
@@ -81,39 +75,27 @@ fn repair_answer() -> (World, u64, engine::Assignment, u64) {
 
 fn assert_answer(world: &World, run: &engine::Assignment, repair: u64) {
     let words = core::str::from_utf8(&live_task(world, run.task).spec.words).expect("task words");
-    let ruling = format!("Task {repair} asked: Question: keep both lines?\nAnswer: keep both lines");
+    let ruling =
+        format!("Task {repair} asked, at spec revision 0: Question: keep both lines?\nAnswer: Keep both lines");
     assert!(words.contains(&ruling), "{words}");
-    assert!(words.ends_with("Its request, at spec revision 0:\nMake the agreed fix"), "{words}");
+    assert!(words.ends_with("Its current spec, at revision 0:\nMake the agreed fix"), "{words}");
 }
 
 #[test]
 fn a_repair_answer_reaches_the_next_review_and_approval_merges() {
     let (mut world, change, reviewer, repair) = repair_answer();
     assert_answer(&world, &reviewer, repair);
+    review(&mut world, &reviewer, 2);
+    let next_repair = next_assignment(&mut world, 7);
+    assert_answer(&world, &next_repair, repair);
+    let branch = row(&world, change).branch;
+    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"both lines kept", 1)
+        .expect("next repair pushes");
+    super::delegates::fixtures::answer_producer(&mut world, &next_repair);
+    let reviewer = next_assignment(&mut world, 8);
+    assert_answer(&world, &reviewer, repair);
     // The scripted reviewer approves only after reading the ruling in its spec.
     review(&mut world, &reviewer, 1);
-    for _ in 0..LAND_TICKS {
-        world.tick();
-        if world.assigned.len() > 7 {
-            break;
-        }
-    }
-    let landing_review = world
-        .assigned
-        .get(7)
-        .unwrap_or_else(|| {
-            let delegate = row(&world, change).delegate.expect("landing reviewer").0;
-            panic!(
-                "landing reviewer {} {:?}; assignments {}",
-                delegate,
-                live_task(&world, delegate),
-                world.assigned.len()
-            );
-        })
-        .clone();
-    assert!(matches!(row(&world, change).change.state, State::Judging { .. }));
-    assert_answer(&world, &landing_review, repair);
-    review(&mut world, &landing_review, 1);
     for _ in 0..LAND_TICKS {
         world.tick();
         if matches!(row(&world, change).change.state, State::Landed { .. }) {
@@ -125,21 +107,25 @@ fn a_repair_answer_reaches_the_next_review_and_approval_merges() {
 }
 
 #[test]
-fn a_repair_answer_reaches_the_next_repairs_preservation_words() {
-    let (mut world, _, reviewer, first_repair) = repair_answer();
+fn a_repair_answer_reaches_the_next_repairs_preservation_words_across_a_restart() {
+    let (mut world, change, reviewer, first_repair) = repair_answer();
+    world.drain_cut();
+    let kept = row(&world, change).questions.answered;
+    world.restart_same();
+    world.until(Until::Ready);
+    assert_eq!(row(&world, change).questions.answered, kept);
     review(&mut world, &reviewer, 2);
     let repair = next_assignment(&mut world, 7);
     assert_answer(&world, &repair, first_repair);
     let words = core::str::from_utf8(&live_task(&world, repair.task).spec.words).expect("repair words");
-    assert!(words.contains("unless the change's request as revised, or an answer given on it, says otherwise."));
+    assert!(words.contains("unless its current spec or a ruling says otherwise."));
 }
 
 #[test]
 fn an_amended_request_reaches_the_next_review_and_repair() {
     let (mut world, requester, change, producer, branch) = world();
-    // Amend after the first review was made; it is not changed in place.
-    produce(&mut world, &producer, &branch);
-    let first_review = next_assignment(&mut world, 3);
+    let producer_words = core::str::from_utf8(&live_task(&world, producer.task).spec.words).expect("producer words");
+    assert!(producer_words.ends_with("Its current spec is your spec's words above."));
     let amendment = temper_engine_domain_world::fixtures::task_amendment(Some(AMENDED), None, b"Drop the file");
     call(
         &mut world,
@@ -148,22 +134,37 @@ fn an_amended_request_reaches_the_next_review_and_repair() {
         engine::Tool::Amend { keep_parameters: true, target: change, revision: 0, amendment },
     );
     assert_eq!(live_task(&world, change).revisions.spec, 1);
+    for _ in 0..TICKS {
+        world.tick();
+        if live_task(&world, change).inbox.is_empty() && world.store.pending.is_empty() {
+            break;
+        }
+    }
+    assert_eq!(
+        row(&world, change).questions.amended.len(),
+        1,
+        "amendment is retained before production ends: {:?}",
+        live_task(&world, change)
+    );
+    produce(&mut world, &producer, &branch);
+    let first_review = next_assignment(&mut world, 3);
+    assert_amended(&world, &first_review);
     review(&mut world, &first_review, 2);
-    let revised_review = next_assignment(&mut world, 4);
-    assert_amended(&world, &revised_review);
-    assert_eq!(row(&world, change).change.repairs, 0, "the stale request starts no repair");
-    review(&mut world, &revised_review, 2);
-    let repair = next_assignment(&mut world, 5);
+    let repair = next_assignment(&mut world, 4);
     assert_amended(&world, &repair);
     fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"amended change", 1)
         .expect("amended repair pushes");
     super::delegates::fixtures::answer_producer(&mut world, &repair);
-    let next_review = next_assignment(&mut world, 6);
+    let next_review = next_assignment(&mut world, 5);
     assert_amended(&world, &next_review);
+    review(&mut world, &next_review, 2);
+    let second_repair = next_assignment(&mut world, 6);
+    assert_amended(&world, &second_repair);
 }
 
 fn assert_amended(world: &World, run: &engine::Assignment) {
     let words = core::str::from_utf8(&live_task(world, run.task).spec.words).expect("spec words");
-    let expected = format!("Its request, at spec revision 1:\n{}", core::str::from_utf8(AMENDED).expect("amendment"));
+    let expected = format!("Its current spec, at revision 1:\n{}", core::str::from_utf8(AMENDED).expect("amendment"));
     assert!(words.ends_with(&expected), "{words}");
+    assert!(words.contains("Amended to spec revision 1: Drop the file"), "{words}");
 }

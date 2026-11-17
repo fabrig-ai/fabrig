@@ -29,13 +29,8 @@ fn a_resolution_delegate_carries_its_base_as_hexadecimal_text() {
     let resolver = next_delegate(&mut world);
     assert_commit(&world, resolver.task, RESOLVE_COMMIT, BASE_DIGITS);
     let words = core::str::from_utf8(&live_task(&world, resolver.task).spec.words).expect("resolution words");
-    assert!(words.contains("Keep both sides, blank lines, deletions and renames"), "{words}");
-    assert!(
-        words.contains(
-            "Restore a file the base deleted only if the change needs it, after reading the commit that deleted it"
-        ),
-        "{words}"
-    );
+    assert!(words.contains("including both independent appended lines and existing blank lines"), "{words}");
+    assert!(words.contains("Read the commit that deleted a file before you restore anything"), "{words}");
 }
 
 #[test]

@@ -543,12 +543,12 @@ impl World {
                 limits.tasks.message_bytes = if batch.unwrap_or(1) > 1 { 256 } else { 128 };
                 limits.call_records = 4;
                 limits.brief.gather = Duration::from_secs(5);
-                limits.brief.read_bytes = 512;
+                limits.brief.read_bytes = 4096;
                 // Change delegates gather the larger CI and pull fixtures below.
-                limits.brief.budgets.task = 384;
+                limits.brief.budgets.task = 2048;
                 limits.brief.budgets.pull = 384;
                 limits.brief.budgets.ci = 384;
-                limits.brief.brief_bytes = 768;
+                limits.brief.brief_bytes = 4096;
                 limits.tasks.tasks = tasks.unwrap_or(12);
                 limits.forge.tasks = limits.tasks.tasks;
                 if tasks.is_some() {
@@ -561,7 +561,8 @@ impl World {
                 limits.tasks.tree_tasks = tree_tasks.unwrap_or(12);
                 limits.tasks.depth = 4;
                 limits.tasks.parameters = 8;
-                limits.tasks.spec_bytes = 512;
+                // Every agent delegate keeps its required change context beside its own words.
+                limits.tasks.spec_bytes = 4096;
                 limits.tasks.executor_kinds = 5;
                 limits.tasks.charters = 4;
                 let mut producer = walking::charter();
@@ -1678,10 +1679,10 @@ impl World {
         self.env.limits.people.inbox_tasks = tasks * 2;
         self.env.limits.forge.tasks = tasks;
         self.env.limits.forge.client.resources = tasks * self.env.limits.forge.resources_per_task;
-        self.env.limits.brief.budgets.task = 512;
+        self.env.limits.brief.budgets.task = 2048;
         // Task, Waiting, transcript tail and Home fit beside one another.
         self.env.limits.brief.sections = 4;
-        self.env.limits.brief.brief_bytes = 1024;
+        self.env.limits.brief.brief_bytes = 4096;
         self.restart_config.core.defaults.rules.ceiling.delegation.tasks = tasks;
         let policy = &mut self.restart_config.core.seed_projects[0].policy.policy;
         policy.ceiling.delegation.tasks = tasks;

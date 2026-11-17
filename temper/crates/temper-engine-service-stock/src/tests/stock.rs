@@ -1187,14 +1187,15 @@ fn stock_charters_put_revised_requests_and_answers_first() {
     let words = core::str::from_utf8(&reviewer.policy.instructions).expect("review instructions");
     assert!(words.starts_with(concat!(
         "Review the change at the named head: read its pull request, the files it changes and its checks, and judge them against what the change was asked to do. ",
-        "What it was asked is its request as revised and the answers given on it, as your brief gives them: where they differ from its title or its original request, they come first. ",
+        "What it was asked is its current spec and rulings, which end your brief's task: where its title, its original request, its pull request's body or any remarks say otherwise, they are supporting evidence, and the spec and rulings come first. ",
         "Then give your verdict"
     )));
     let implementer = crate::stock::charter_set().implementer.expect("implementer text");
+    assert!(implementer.lines().any(|line| line == "- **Your change's current spec and rulings end your spec:** its number and spec revision, each amendment's reason and each answer given on it. They outrank its original request, the pull request's title and body, and CI's and reviews' remarks, which are supporting evidence."));
     assert_eq!(
         implementer.lines().find(|line| line.starts_with("- **In repairs and resolutions,**")),
         Some(
-            "- **In repairs and resolutions,** keep the requested change and unrelated base content, appended lines and blank lines included, and each side's intended deletions and renames: a file the base deleted stays deleted unless the requested change needs it, and you read the commit that deleted it before you restore anything. Restore losses a review names; never remove content just to pass a check, and keeping an intended deletion removes none; unless the change's request as revised, or an answer given on it, says otherwise: your spec gives them after its preservation words, and they come before its original request and this rule. Your result says, for each file deleted or renamed on either side, whether you kept the deletion or restored the file, and why."
+            "- **In repairs and resolutions,** keep the requested change and unrelated base content, appended lines and blank lines included, and each side's intended deletions and renames: a file the base deleted stays deleted unless the requested change needs it, and you read the commit that deleted it before you restore anything. Restore losses a review names; never remove content just to pass a check, and keeping an intended deletion removes none; unless its current spec or a ruling says otherwise: your spec ends with them, and they come before its original request and this rule. Your result says, for each file deleted or renamed on either side, whether you kept the deletion or restored the file, and why."
         )
     );
 }

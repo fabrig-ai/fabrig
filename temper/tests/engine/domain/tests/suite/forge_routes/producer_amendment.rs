@@ -77,7 +77,16 @@ fn next_attempt(world: &mut World, producer: &engine::Assignment) -> engine::Ass
 
 fn assert_spec(world: &World, producer: u64, original: &tasks::Spec, words: &[u8]) {
     let mut expected = original.clone();
-    expected.words = [words, SCOPE].concat().into_boxed_slice();
+    let tasks::Party::Task(change) = live_task(world, producer).requester else { panic!("change requester") };
+    let revision = live_task(world, change).revisions.spec;
+    let mut context = format!(
+        "\n\nThis change's current spec and rulings: task {change} at spec revision {revision}. They come first: its original request, its pull request's title and body, and CI's and reviews' remarks are supporting evidence, and where they differ from these, follow these. To preserve the requested change is to preserve it as its current spec and rulings state it.\nRulings, newest first:"
+    );
+    for revision in (1..=revision).rev() {
+        write!(&mut context, "\nAmended to spec revision {revision}: Widen to the CLI").expect("expected ruling");
+    }
+    context.push_str("\nIts current spec is your spec's words above.");
+    expected.words = [words, SCOPE, context.as_bytes()].concat().into_boxed_slice();
     assert_eq!(live_task(world, producer).spec, expected, "only the producer's words change");
     assert_eq!(world.root.tasks().task(producer).expect("producer in the core").spec, expected);
 }

@@ -151,7 +151,7 @@
         "tasks.parameters": 5,
         "tasks.contract_choices": 2,
         "tasks.result_bytes": 128,
-        "tasks.spec_bytes": 187,
+        "tasks.spec_bytes": 2048,
         "tasks.tasks": 4,
         "tasks.tree_tasks": 6,
         "views.runs": 1,

@@ -47,7 +47,7 @@ pub(super) fn plan_world_with_gate(
         StoryLimits { slots: Some(3), questions: bound, stall: Some(Duration::from_secs(3600)), ..*timing },
     );
     // The question and its contract share the required task section.
-    world.env.limits.brief.budgets.task = 512;
+    world.env.limits.brief.budgets.task = 2048;
     let client = world.env.limits.forge.client;
     world = world.with_forge_client(client);
     world.adopt();

@@ -32,7 +32,7 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
         messages.push(message).expect("decision messages fit the step batch");
     }
     let producer = live_producer(domain, delegate);
-    let Inbox { mut messages, asked, answer, amendment, words } =
+    let Inbox { mut messages, asked, answer, amended, words } =
         take(row, offered, &questions, delegate, producer, env, messages);
     let passed =
         change::pass(&questions, words.as_slice(), producer, usize::try_from(messages.room()).expect("bounded batch"));
@@ -43,9 +43,6 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
     }
     let mut passing_questions = questions.clone();
     passing_questions.waiting.clone_from(&passed.waiting);
-    if let Some(reason) = amendment {
-        amend_producer(domain, env, task, reason, &mut decision);
-    }
     let mut ended = List::with_capacity(u32::try_from(change::QUESTIONS_OPEN).expect("question bound fits u32"));
     for question in &questions.open {
         let done = match domain.core.tasks.task(question.asker) {
@@ -78,13 +75,25 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
         held = true;
         break;
     }
-    let heard = change::RelayHeard { asked: asked.as_slice(), answer, ended: ended.as_slice(), released, held };
+    let heard = change::RelayHeard {
+        revision: row.revisions.spec,
+        amended: amended.as_slice(),
+        message_bytes: usize::try_from(env.limits.tasks.message_bytes).expect("message bound"),
+        asked: asked.as_slice(),
+        answer,
+        ended: ended.as_slice(),
+        released,
+        held,
+    };
     let mut relayed = change::relay(
         &passing_questions,
         &heard,
         &env.limits.forge.change_policy,
         usize::try_from(messages.room()).expect("bounded batch"),
     );
+    if let Some(reason) = amended.as_slice().last() {
+        amend_producer(domain, env, task, reason, &relayed.questions, &mut decision);
+    }
     for act in &relayed.acts {
         match act {
             change::RelayAct::Answer { asker, number, words } => {
@@ -225,7 +234,14 @@ fn word_message(act: &change::WordAct, requester: tasks::Party, route: change::R
     }
 }
 
-fn amend_producer(domain: &Domain, env: &Env<Limits>, task: u64, reason: &[u8], decision: &mut ProcedureStep) {
+fn amend_producer(
+    domain: &Domain,
+    env: &Env<Limits>,
+    task: u64,
+    reason: &[u8],
+    questions: &change::Questions,
+    decision: &mut ProcedureStep,
+) {
     let Some(row) = domain.forge.change(task) else { return };
     let Some((child, change::Delegate::Produce)) = row.delegate else { return };
     let Some(record) = domain.core.tasks.task(child) else { return };
@@ -233,8 +249,8 @@ fn amend_producer(domain: &Domain, env: &Env<Limits>, task: u64, reason: &[u8], 
         tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Held { .. } => {}
         tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => return,
     }
-    let Some(words) = super::production_words(domain, env, task, row) else { return };
-    if words == record.spec.words {
+    let Some(words) = super::production_words(domain, env, task, row, questions) else { return };
+    if super::before_context(&words) == super::before_context(&record.spec.words) {
         return;
     }
     let Some(change) = domain.core.tasks.task(task) else { return };
@@ -403,7 +419,7 @@ struct Inbox<'a> {
     messages: List<StepMessage>,
     asked: List<change::Asked<'a>>,
     answer: Option<&'a [u8]>,
-    amendment: Option<&'a [u8]>,
+    amended: List<&'a [u8]>,
     words: List<change::Waiting>,
 }
 
@@ -418,7 +434,7 @@ fn take<'a>(
 ) -> Inbox<'a> {
     let mut asked = List::with_capacity(u32::try_from(change::QUESTIONS_OPEN).expect("question bound fits u32"));
     let mut answer = None;
-    let mut amendment = None;
+    let mut amended = List::uncapped();
     let mut words = List::uncapped();
     let accepts_answer = match questions.open.first() {
         Some(question) => question.stands == change::Stands::Asked,
@@ -430,7 +446,7 @@ fn take<'a>(
         }
         let kind = match word.kind {
             tasks::MessageKind::Amendment { .. } => {
-                amendment = Some(word.words.as_ref());
+                amended.push(word.words.as_ref()).expect("offered amendments fit a list");
                 continue;
             }
             tasks::MessageKind::Question => tasks::MessageKind::Answer { question: word.number },
@@ -495,7 +511,7 @@ fn take<'a>(
         };
         messages.push(StepMessage { target, kind, words }).expect("reply room checked");
     }
-    Inbox { messages, asked, answer, amendment, words }
+    Inbox { messages, asked, answer, amended, words }
 }
 
 fn has_ask(acts: &[change::RelayAct]) -> bool {

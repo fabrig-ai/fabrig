@@ -6,7 +6,7 @@ use temper_engine_domain_forge_change::{Delegate, Repair, State};
 const STEPS: u32 = 1000;
 const AFTER_UPDATE: &str =
     "CI failed after a clean update from the base, and no merge conflict waits. Repair what the failed check says.";
-const PRESERVE: &str = " Preserve the requested change and unrelated base content, including both independent appended lines and existing blank lines, and do not remove content to make a check pass, unless the change's request as revised, or an answer given on it, says otherwise.";
+const PRESERVE: &str = " Preserve the requested change, as its current spec and rulings state it, and unrelated base content, including both independent appended lines and existing blank lines, and do not remove content to make a check pass, unless its current spec or a ruling says otherwise.";
 
 fn updated_change() -> (World, u64, u64, u64) {
     let small =
@@ -97,7 +97,7 @@ fn a_clean_updates_red_names_its_check_and_no_conflict() {
     let hex = engine::commit_text(&translate::commit(head));
     let short = core::str::from_utf8(&hex[..12]).expect("short head");
     let words = core::str::from_utf8(&live_task(&world, run.task).spec.words).expect("repair words");
-    assert_eq!(words, format!("Repair CI at {short}: build\n{AFTER_UPDATE}{PRESERVE}"));
+    assert!(words.starts_with(&format!("Repair CI at {short}: build\n{AFTER_UPDATE}{PRESERVE}")));
     let pull = section(&run, engine::ForgeBriefKind::Pull);
     assert!(pull.contains("Base: main\n"), "{pull}");
     assert!(pull.contains("What landed in the base: 2 commits\n"), "{pull}");
@@ -119,9 +119,11 @@ fn a_clean_updates_red_with_no_check_read_says_so() {
     let run = repair(&mut world, task, head, true);
     let hex = engine::commit_text(&translate::commit(head));
     let short = core::str::from_utf8(&hex[..12]).expect("short head");
-    assert_eq!(
-        live_task(&world, run.task).spec.words.as_ref(),
-        format!("Repair CI at {short}: no failed check named\n{AFTER_UPDATE}{PRESERVE}").as_bytes()
+    assert!(
+        live_task(&world, run.task)
+            .spec
+            .words
+            .starts_with(format!("Repair CI at {short}: no failed check named\n{AFTER_UPDATE}{PRESERVE}").as_bytes())
     );
     world.close();
 }

@@ -1278,11 +1278,24 @@ fn encode_questions(value: &d::Questions) -> w::Questions {
                 w::Answered::new(
                     &w::CEILINGS,
                     w::AnsweredParts {
+                        revision: answer.revision,
                         asker: answer.asker,
                         number: answer.number,
                         line: answer.line.clone(),
                         answer: answer.answer.clone(),
                     },
+                )
+                .expect(FITS),
+            )
+            .expect("same count");
+    }
+    let mut amended = List::with_capacity(u32::try_from(value.amended.len()).expect("admitted count"));
+    for amendment in &value.amended {
+        amended
+            .push(
+                w::Amended::new(
+                    &w::CEILINGS,
+                    w::AmendedParts { revision: amendment.revision, reason: amendment.reason.clone() },
                 )
                 .expect(FITS),
             )
@@ -1299,17 +1312,23 @@ fn encode_questions(value: &d::Questions) -> w::Questions {
             open,
             waiting,
             answered,
+            amended,
         },
     )
     .expect(FITS)
 }
 
 fn decode_questions(value: w::Questions) -> Result<d::Questions, super::Undecodable> {
-    let w::QuestionsParts { route, taken, open, waiting, answered } = value.into_parts();
+    let w::QuestionsParts { route, taken, open, waiting, answered, amended } = value.into_parts();
     let mut answers = List::with_capacity(answered.len());
     for answer in answered.into_boxed() {
-        let w::AnsweredParts { asker, number, line, answer } = answer.into_parts();
-        answers.push(d::Answered { asker, number, line, answer }).expect("same count");
+        let w::AnsweredParts { asker, number, line, answer, revision } = answer.into_parts();
+        answers.push(d::Answered { asker, number, line, answer, revision }).expect("same count");
+    }
+    let mut amendments = List::with_capacity(amended.len());
+    for amendment in amended.into_boxed() {
+        let w::AmendedParts { revision, reason } = amendment.into_parts();
+        amendments.push(d::Amended { revision, reason }).expect("same count");
     }
     let mut words_waiting = List::with_capacity(waiting.len());
     for word in waiting.into_boxed() {
@@ -1337,6 +1356,7 @@ fn decode_questions(value: w::Questions) -> Result<d::Questions, super::Undecoda
         open: questions.into_boxed(),
         waiting: words_waiting.into_boxed(),
         answered: answers.into_boxed(),
+        amended: amendments.into_boxed(),
     })
 }
 

@@ -6,7 +6,10 @@ fn chat_world(adopt: bool) -> (World, engine::Assignment) {
 }
 
 pub(super) fn chat_world_with_words(adopt: bool, words: &[u8]) -> (World, engine::Assignment) {
-    let mut world = World::configured(true, true);
+    chat_world_in(World::configured(true, true), adopt, words)
+}
+
+fn chat_world_in(mut world: World, adopt: bool, words: &[u8]) -> (World, engine::Assignment) {
     if adopt {
         world.adopt();
     } else {
@@ -446,8 +449,17 @@ fn a_change_keeps_no_note_scope() {
     assert!(row.authority.note_resources.is_empty());
 }
 
-fn producer(words: &[u8]) -> (World, tasks::TaskRecord) {
-    let (mut world, chat) = chat_world(true);
+fn producer(words: &[u8], bound: u32) -> (World, tasks::TaskRecord) {
+    let world = World::configured_limits(
+        true,
+        true,
+        false,
+        1000,
+        Gate::default(),
+        None,
+        StoryLimits { spec_bytes: Some(bound), ..StoryLimits::default() },
+    );
+    let (mut world, chat) = chat_world_in(world, true, &[b'x'; 128]);
     let engine::CallAnswer::Delegated(_) = change(&mut world, &chat, 93, None, words) else { panic!("delegated") };
     world.until(Until::SecondAssignment);
     let row = live(&world, world.assigned[1].task).clone();
@@ -456,19 +468,21 @@ fn producer(words: &[u8]) -> (World, tasks::TaskRecord) {
 
 #[test]
 fn the_producer_hears_the_change_task_lands_what_it_delivers_when_its_bound_has_room() {
-    let (world, row) = producer(b"Small fix");
-    assert_eq!(
-        row.spec.words.as_ref(),
-        b"Small fix\n\nThe host pushes what you deliver; the change task opens the pull request, \
+    let (_, row) = producer(b"Small fix", 4096);
+    assert!(
+        row.spec.words.starts_with(
+            b"Small fix\n\nThe host pushes what you deliver; the change task opens the pull request, \
 waits for CI and merges it. Finish with your change once it is checked. \
 Report the branch and head you produced; only the change task reports landing after merge."
-            .as_slice(),
+                .as_slice()
+        ),
         "the change's words, then the producer's scope"
     );
+    assert!(row.spec.words.ends_with(b"Its current spec is your spec's words above."));
     // Words that leave no room for the scope beside the branches go alone.
-    let bound = usize::try_from(world.env.limits.tasks.spec_bytes).expect("bound fits");
+    let bound = 512_usize;
     let words = vec![b'x'; bound - b"main".len() - 64];
-    let (_, row) = producer(&words);
+    let (_, row) = producer(&words, u32::try_from(bound).expect("small spec"));
     let branch = row
         .spec
         .parameters
@@ -1305,7 +1319,7 @@ fn producer_titles_name_changes_when_the_brief_opens_with_context() {
         (b"In src/main.rs (which has `const TABLE`), add CSV export.".as_slice(), b"Add CSV export".as_slice()),
         (b"Context. Add a versioned export.".as_slice(), b"Add v1.2. JSON export! Keep CSV.".as_slice()),
     ] {
-        let (mut world, producer) = producer(words);
+        let (mut world, producer) = producer(words, 4096);
         let assigned = world.assigned[1].clone();
         let tasks::Party::Task(change) = producer.requester else { panic!("change requester") };
         let branch = world

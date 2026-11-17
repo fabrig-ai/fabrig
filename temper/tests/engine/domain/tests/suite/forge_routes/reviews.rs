@@ -943,14 +943,9 @@ fn a_reviews_retry_says_it_is_asked_again_naming_the_failure() {
     let retry = &live_task(&world, second.task).spec.words;
     assert_ne!(retry, &original);
     assert!(retry.starts_with(OPENING), "retry names the first failure: {retry:?}");
-    // The retry account comes first; its room no longer holds the optional block.
-    let required = core::str::from_utf8(&original)
-        .expect("review words")
-        .split_once("\n\nWhat this change is asked now:")
-        .expect("first review carries its request")
-        .0;
-    assert_eq!(&retry[OPENING.len()..], required.as_bytes());
-    assert!(original.ends_with(b"Its request, at spec revision 0:\nSmall fix"));
+    // Both reviews retain the same required context after the retry account.
+    assert_eq!(&retry[OPENING.len()..], original.as_ref());
+    assert!(original.ends_with(b"Its current spec, at revision 0:\nSmall fix"));
     assert!(
         second.sections.iter().any(|section| matches!(&section.body,
         engine::BriefBody::Text(words) if words.starts_with(OPENING))),
@@ -2436,9 +2431,9 @@ fn assert_preserving_assignment(world: &World, run: &engine::Assignment, context
     let words = &live_task(world, run.task).spec.words;
     let expected = if words.starts_with(b"Resolve the merge conflict.") {
         [
-            b"Keep both sides, blank lines, deletions and renames".as_slice(),
-            b"Restore a file the base deleted only if the change needs it, after reading the commit that deleted it",
-            b"say in your result which you kept or restored, and why",
+            b"including both independent appended lines and existing blank lines".as_slice(),
+            b"Read the commit that deleted a file before you restore anything",
+            b"and why. The worker commits and pushes the resolved merge.",
         ]
     } else {
         [

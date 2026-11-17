@@ -52,7 +52,7 @@ pub const ENGINE_OVERRIDES: [(&str, u32); 22] = [
     ("tasks.resource_reports", 4),
     ("tasks.pools", 2),
     ("tasks.parameters", 5),
-    ("tasks.spec_bytes", 187),
+    ("tasks.spec_bytes", 2048),
     ("tasks.contract_choices", 2),
     ("tasks.executor_kinds", 2),
     ("tasks.authority_grants", 4),

@@ -157,7 +157,7 @@ fn live(store: &Store) -> impl Iterator<Item = &TaskRecord> {
 }
 pub(crate) fn in_flight(store: &Store) -> Option<&TaskRecord> {
     live(store).find(|task| {
-        task.spec.words.as_ref() == b"Golden coding in flight"
+        task.spec.words.starts_with(b"Golden coding in flight")
             && task.turn > 0
             && matches!(task.phase, tasks::Phase::Active(tasks::Active::Running { .. }))
     })

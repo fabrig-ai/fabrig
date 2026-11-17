@@ -17,6 +17,13 @@ fn repairing_landing() -> (World, engine::Assignment, Box<[u8]>, u64, u64, engin
     let repair = reviews::next_assignment(&mut world, before);
     assert_eq!(live_task(&world, repair.task).requester, tasks::Party::Task(landing));
     assert_eq!(row(&world, landing).delegate, Some((repair.task, change::Delegate::Repair(change::Repair::Ci))));
+    let words = core::str::from_utf8(&live_task(&world, repair.task).spec.words).expect("repair context");
+    assert!(
+        words.contains(&format!("This change's current spec and rulings: task {landing} at spec revision 0.")),
+        "{words}"
+    );
+    let spec = core::str::from_utf8(&live_task(&world, landing).spec.words).expect("landing spec");
+    assert!(words.ends_with(&format!("Its current spec, at revision 0:\n{spec}")), "{words}");
     (world, goal, branch, closer, landing, repair)
 }
 fn passed_up(world: &mut World, goal: u64, closer: u64, landing: u64) -> u64 {

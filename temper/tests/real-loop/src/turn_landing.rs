@@ -161,7 +161,7 @@ fn recipe(_: SocketAddr, _: &Path) -> llm::Recipe {
     let mut revised = review;
     // Adding the batch dependency amends the change. Its in-flight review runs
     // on, then the new review approves the same head at revision 1 (gates.md, 1).
-    revised["cue"] = "Its request, at spec revision 1:".into();
+    revised["cue"] = "Its current spec, at revision 1:".into();
     revised["turns"] = json!([revised["turns"][0].clone(), revised["turns"][2].clone()]);
     revised["inputs"] = json!([
         {"cue":"Begin the work your brief describes.","turn":0},

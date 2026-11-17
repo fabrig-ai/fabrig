@@ -633,15 +633,28 @@ pub struct Questions {
     pub waiting: Box<[Waiting]>,
     /// The newest answers, kept oldest first for later work.
     pub answered: Box<[Answered]>,
+    /// The newest amendments, kept oldest first under either question route.
+    pub amended: Box<[Amended]>,
 }
 
 /// Answers kept for later work at most.
 pub const ANSWERS_KEPT: usize = 16;
+/// Amendments kept for later work at most.
+pub const AMENDMENTS_KEPT: usize = 16;
+
+/// An amendment kept for later work (domain/forge/change/questions.md, 1,
+/// Its amendments, kept for later work).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Amended {
+    pub revision: u64,
+    pub reason: Box<[u8]>,
+}
 
 /// A ruling kept for later work (temper/docs/design/domain/forge/change/questions.md, 1,
 /// Its answers, kept for later work).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Answered {
+    pub revision: u64,
     pub asker: u64,
     pub number: u64,
     pub line: Box<[u8]>,

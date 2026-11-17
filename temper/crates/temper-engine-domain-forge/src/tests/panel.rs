@@ -705,6 +705,7 @@ fn a_panel_shows_its_questions() {
     row.questions = change::Questions {
         waiting: Box::new([]),
         answered: Box::new([]),
+        amended: Box::new([]),
         route: change::Route::Up,
         taken: 2,
         open: Box::new([
