@@ -79,8 +79,11 @@ The table grows area by area, each with its stories (`testing.md`).
      | `--model MODEL [--effort EFFORT]` | its main model and effort (area 5) |
      | `--budget AMOUNT` | its authority's spend, AMOUNT in the unit the client shows budgets in, the rest of its authority restated as shown |
      | `--tasks N` | the tasks its subtree may make over its life, the rest of its authority restated as shown |
+     | `--to-party PARTY` \| `--to-role ROLE` | a person task's address: party PARTY, or the project's role ROLE, at the person revision the tool's read shows |
 
-     FILE is a path, or `-` for stdin, used once, as TEXT is.
+     FILE is a path, or `-` for stdin, used once, as TEXT is. The form's
+     positions keep their numbers: `--to-party` and `--to-role` are its
+     last two, after `--tasks`.
    - **A budget or tasks raised is a widening,** funded by the party who
      gives it, who becomes the task's funder (jig's `domain/authority.md`,
      section 7, "Whoever widens a task funds it"): from their role's pool,
@@ -105,6 +108,44 @@ The table grows area by area, each with its stories (`testing.md`).
      the document's revision is no longer REV: `temper ctl: task 41
      moved: its spec revision is 9, not 7; read again: task show 41`,
      exit 1.
+   - **An address passes a person task up** to whoever can settle it,
+     such as the project's owner: `task amend 41 --to-party 1 "over to
+     the owner"`, or `--to-role ROLE` for a role of the task's project.
+     It is jig's `Amendment.addressed`, an `AddressChange` (jig's
+     `domain/tasks/changes.md`, *What an amendment may change*):
+     - **Its revision is the person task's,** `Task::person_revision` of
+       the document the tool reads, never `--rev`'s. A document with no
+       person revision is no person task: the tool sends nothing and
+       exits 1, `temper ctl: task 41 is not a person task: only a person
+       task takes --to-party or --to-role`, before any other check of
+       the call's changes.
+     - **It needs no `--rev`.** jig compares the spec revision of every
+       amendment but a priority alone, so the tool names the spec
+       revision of the same read; `--rev`, given, is compared with it
+       as for any change, and the call's other changes need it as the
+       bullet above says. `--rev REV`'s line says it is not needed for
+       a priority or an address alone.
+     - **It is a change,** even naming the address the task has now: jig
+       then lets go of a party who took it. An amendment naming an
+       address alone is sent, never `amend changes nothing`, and the
+       amendment editor never compares an address away (`../README.md`,
+       3.7).
+     - **A person revision moved** since the read is jig's refusal,
+       `Moved`, printed as any moved refusal is: `task amend: ` and its
+       words, then `read again: task show 41`, exit 2 (`results.md`, 3).
+     - **Both paths send it:** the drafted one, and the keyed one
+       (`--key KEY`), which names its changes whole. A keyed retry made
+       after the change took effect reads the moved person revision, so
+       it is no longer the request its key holds, and jig answers it as
+       that key's conflict, not as done; `task show TASK` says where the
+       task waits now.
+     - **Who may** is jig's admission of the task's `amend` act (jig's
+       `domain/tasks/changes.md`, *Who may*): its requester and those
+       above it in the tree, and a party whose role in the project
+       allows it, the project's owners and maintainers among them. The
+       party a person task waits on holds no `amend` act for that alone,
+       and the tool says `amendment not offered`, as for any act it is
+       not offered.
    - **What the document must hold whole:** a deadline, a budget or
      tasks restates the task's authority, a spec's words its spec. Where the document cut
      it to the client's bounds, the tool sends nothing and exits 1,
@@ -120,7 +161,8 @@ The table grows area by area, each with its stories (`testing.md`).
      circle, a goal past the project's goals) is the engine's refusal,
      exit 2.
    - **The same flag twice, or both of a pair,** exits 1 as usage;
-     `--dependency` alone may repeat.
+     `--dependency` alone may repeat. `--to-party` and `--to-role` are a
+     pair, as `--priority` and `--untracked` are.
 3. **Several parties:** `party make --project PROJECT --role ROLE --out
    FILE` (jig's `MakeService`, keyed; `README.md`, section 7), `sign-in --service
    FILE`, `deployment show`, `deployment census` (`tools.md`, 2), `task move TASK REASON`, a person task's
