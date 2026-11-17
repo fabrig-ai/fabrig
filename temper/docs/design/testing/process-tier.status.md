@@ -2,9 +2,6 @@
 
 2026-11-17. Where the tree's code lags or departs from [process-tier.md](process-tier.md).
 
-- **Not yet:** *The native person's first project*: the kit's person takes the
-  project's button in the tree as its choice while the creation is pending,
-  rather than waiting for the creation's own `Home` to be applied [in flight: change 7062].
 
 
 - **Not yet:** the whole document: the hangup/rebind and Linux killed-box stories in

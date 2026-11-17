@@ -2,9 +2,6 @@
 
 2026-11-17. Where the tree's code lags or departs from [view.md](view.md).
 
-- **Not yet:** 3, *A new project* and *Its state*: a navigation or project
-  choice after "Create" does not cancel the made project's opening, so a late
-  answer still opens its `Home` over the page the person went to [in flight: change 7062].
 
 
 - **Not yet:** 6: the *dated* form, `TimeForm::Dated` [in flight: change 784].

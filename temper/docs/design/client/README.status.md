@@ -4,7 +4,6 @@
 
 
 - **Not yet:** 2: there is no `temper-client-web-page`: the shell is the bundle's `cdylib`.
-- **Not yet:** 2: `NativeClient` has no `address`, the address it last applied [in flight: change 7062].
 
 
 
