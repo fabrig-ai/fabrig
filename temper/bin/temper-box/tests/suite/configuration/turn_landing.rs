@@ -77,8 +77,6 @@ fn the_turn_landing_documents_check_as_their_shapes() {
     assert!(part.worker.jig.agent.is_none(), "temper pins the engine's agent figures");
     assert_eq!(part.worker.git.as_deref().expect("fake git"), b"/turn/data/bin/git");
 
-    let value = json(&rendered("agent.json"));
-    smith_agent_shell::config::from_value(value).expect("the driver fixture's agent configuration");
     let configuration =
         temper_worker_shell::agent::figures::configuration(&figures(), None, &PathBuf::from("/turn/data/worker"), &[])
             .expect("agent document from the engine's figures");
@@ -151,9 +149,9 @@ fn admission(case: &str, bytes: &[u8], files: Box<[jig_protocol_config::File]>) 
         entries.push((file.path, Secret::new(Box::new([b'7'; 64])))).expect("named file count");
     }
     let scratch = crate::support::Scratch::startup(case);
-    let agent_path = scratch.path().join("agent.json");
-    std::fs::write(&agent_path, rendered("agent.json")).expect("rendered agent document");
-    let agent = temper_worker_shell::agent::read(&agent_path).expect("setup agent");
+    let configuration = temper_worker_shell::agent::figures::configuration(&figures(), None, scratch.path(), &[])
+        .expect("agent document from the engine's figures");
+    let agent = temper_worker_shell::agent::prepare_bytes(configuration).expect("setup agent").agent;
     let seeds = Seeds {
         link_secret: None,
         local_secret: None,

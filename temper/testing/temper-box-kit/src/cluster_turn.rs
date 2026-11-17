@@ -31,13 +31,13 @@ pub fn prepare(cluster: &mut Cluster, root: &Path, addresses: &[std::net::Socket
     }
     cluster.bind("proc.forge.ready.address", &addresses[3].to_string());
     cluster.bind("proc.llm.ready.address", &addresses[4].to_string());
+    // Source reads and preparation use the engine's git, found on PATH (config.md, 6.5).
+    cluster.git_on_path("engine", root);
     for name in ["engine", "w1"] {
         cluster.prepare(name);
     }
     let engine_path = cluster.dir("engine").join("config/temper.json");
-    let worker_path = cluster.dir("w1").join("config/temper.json");
     let mut engine = read(&engine_path);
-    let worker = read(&worker_path);
     let agent = support::cluster::agent_configuration(&engine, &cluster.dir("w1").join("data"));
     // domain/worker/jobs.md, kind 1: the engine declares preparation only when
     // its spec and result fit. The worker and the agent must carry that result.
@@ -68,7 +68,6 @@ pub fn prepare(cluster: &mut Cluster, root: &Path, addresses: &[std::net::Socket
         ]}),
     );
     write(&engine_path, &engine);
-    write(&worker_path, &worker);
     // Stock charters need a model-priced reserve, not the small cluster fixture's spend.
     // Two runs fund production and leave room for its scripted turns after the reserve.
     let configured = temper_real_loop_world::settings::configuration(&engine);
@@ -77,6 +76,8 @@ pub fn prepare(cluster: &mut Cluster, root: &Path, addresses: &[std::net::Socket
     for name in ["forge", "llm"] {
         cluster.prepare(name);
     }
+    // The operator installs the LLM's trust root before the engine's first start.
+    support::write_private(&cluster.dir("llm").join("root.der"), skein_tls_kit::pki::ROOT);
     // The person uses the fake's fixed fixture identity, through a private
     // header file rather than a credential in curl's argument vector.
     let token = temper_fake::credential::credential(17, temper_fake::credential::ADMIN_TOKEN);
@@ -114,12 +115,6 @@ pub fn settings(root: &Path, calls: &[support::Ended]) -> Call {
     items.push(json!({"setting":{"kind":"landing-rule","project":1,"number":1},"set":{
         "pattern":{"segments":["6272616e6368"],"last":{"open":""}},
         "enforce":true,"ci":true,"up_to_date":true,"gates":[],"approvals":[]}}));
-    let workers = read(&root.join("engine/settings.json"));
-    for item in workers["items"].as_array().expect("fixture settings") {
-        if item["setting"]["kind"] == "worker" {
-            items.push(item.clone());
-        }
-    }
     let path = root.join("turn-settings.json");
     write(&path, &json!({"items":items}));
     ctl::settings_change(&calls[1], &path, "turn-settings")
@@ -164,14 +159,4 @@ pub fn proof_cut(panel: &Value) -> Result<Option<u64>, String> {
         }
         phase => Err(format!("read landing past proving before kill ({phase}): pace.ci_ms={CI_MS}; {panel}")),
     }
-}
-
-/// Initialize settings before the first work in the process story; offline document checks do not call this.
-pub fn seed(cluster: &Cluster) {
-    let engine = cluster.dir("engine");
-    super::forgejo::bootstrap(&engine.join("config"), &engine.join("data"), &engine.join("cache"));
-    temper_real_loop_world::fixtures::seed_settings_file(
-        &engine.join("data/state"),
-        &fs::read(engine.join("config/landing-settings.json")).expect("landing settings"),
-    );
 }

@@ -15,14 +15,15 @@ use temper_client_browser_world::{
 #[test]
 fn enter_starts_one_chat_and_the_composer_keeps_the_focus() {
     let tier = Tier::new("composer").with_model().with_model_picker();
+    let mut owner = tier.project_face();
     let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
     let composer = || Find::exactly_named(Role::TextArea, b"What do you want done?");
     let message = || Find::exactly_named(Role::TextArea, b"Message");
     // These chats have no changes, so Work has no Chats filter.
     let chats =
         || Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(b"/chats".as_slice()) });
-    let mut stories = Stories::of_person(0);
-    let mut steps = Vec::new();
+    let mut stories = Stories::of_person(1);
+    let mut steps = temper_client_browser_world::page_opens();
     stories.begin("composer", &steps);
     steps.extend([
         see(Find::exactly_named(Role::Heading { level: 1 }, b"Connect a forge")),
@@ -75,9 +76,9 @@ fn enter_starts_one_chat_and_the_composer_keeps_the_focus() {
         }),
     ]);
     let mut script = Script::new(steps.into_boxed_slice());
-    let mut setup = tier.setup();
+    let mut setup = tier.held_setup();
     setup.expected.push(b"Uncaught".as_slice().into());
-    stories.assert_done(temper_client_browser_world::harness(setup).run(&mut [&mut script]));
+    stories.assert_done(temper_client_browser_world::harness(setup).run(&mut [&mut owner, &mut script]));
 }
 
 #[test]
@@ -330,6 +331,7 @@ fn reload_chats(tier: &Tier) -> Vec<Step> {
 #[test]
 fn closing_project_rename_returns_focus_to_the_summary() {
     let tier = Tier::new("rename-focus").with_model();
+    let mut owner = tier.project_face();
     let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
     let press = |role, name: &[u8]| Step::Person(PersonStep::Press { find: Find::exactly_named(role, name) });
     let summary = |name: &[u8]| Find::named(Role::Disclosure, name);
@@ -339,7 +341,8 @@ fn closing_project_rename_returns_focus_to_the_summary() {
         name: b"main-without-focus".as_slice().into(),
     };
     let rename = || Find::exactly_named(Role::TextField, b"Rename");
-    let mut script = Script::new(Box::new([
+    let mut steps = temper_client_browser_world::page_opens();
+    steps.extend([
         see(Find::exactly_named(Role::Heading { level: 1 }, b"Connect a forge")),
         Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(b"/projects/1".as_slice()) }),
         see(summary(b"Project 1")),
@@ -362,8 +365,12 @@ fn closing_project_rename_returns_focus_to_the_summary() {
         see(summary(b"Saved name")),
         Step::Focused(summary(b"Saved name")),
         main_unfocused(),
-    ]));
-    assert_eq!(temper_client_browser_world::harness(tier.setup()).run(&mut [&mut script]), Outcome::Done);
+    ]);
+    let mut script = Script::new(steps.into_boxed_slice());
+    assert_eq!(
+        temper_client_browser_world::harness(tier.held_setup()).run(&mut [&mut owner, &mut script]),
+        Outcome::Done
+    );
 }
 
 /// One `temper box`, three chats through ctl, a page load for each story (client/web/testing.md, 6, item 14).

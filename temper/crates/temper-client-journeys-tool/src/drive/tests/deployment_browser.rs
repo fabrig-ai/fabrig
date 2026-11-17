@@ -17,10 +17,10 @@ fn opening() -> Machine {
     process_line(&mut machine, Process::Forgejo, Output::Stdout, "listening forge\n");
     process_line(&mut machine, Process::Model, Output::Stdout, "listening model\n");
     engine_ready(&mut machine);
-    process_line(&mut machine, Process::Worker, Output::Stderr, "linked worker\n");
     assert!(process_line(&mut machine, Process::Engine, Output::Stdout, "http://ignored/before-sign-in\n").is_empty());
-    let actions = step(&mut machine, exited(Process::SignIn, 0));
-    let [Action::RemoveLink, Action::Open(url)] = actions.as_slice() else { panic!("{actions:?}") };
+    admit_worker(&mut machine);
+    let actions = process_line(&mut machine, Process::Worker, Output::Stderr, "linked worker\n");
+    let [Action::DeploymentLog { .. }, Action::Open(url)] = actions.as_slice() else { panic!("{actions:?}") };
     assert_eq!(url.as_ref(), b"http://127.0.0.1:4101/link?secret=not-logged");
     machine
 }

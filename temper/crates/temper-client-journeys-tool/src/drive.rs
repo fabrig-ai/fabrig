@@ -74,6 +74,7 @@ pub enum Output {
 #[derive(Debug)]
 pub enum Action {
     PrepareDeployment,
+    ReadDeploymentWorker,
     ReadSettingsFiles {
         directory: Option<PathBuf>,
         args: Vec<Box<[u8]>>,
@@ -153,6 +154,7 @@ pub enum Action {
 #[derive(Debug)]
 pub enum Event {
     DeploymentPrepared(Result<deployment::Values, String>),
+    DeploymentWorker(Result<deployment::Worker, String>),
     SettingsFiles(Result<Vec<Box<[u8]>>, String>),
     DeploymentPatch(Result<deployment::RenderedFile, String>),
     DeploymentWritten(Result<(), String>),
@@ -349,6 +351,7 @@ impl Machine {
             }
             Event::SettingsFiles(_)
             | Event::DeploymentPrepared(_)
+            | Event::DeploymentWorker(_)
             | Event::DeploymentPatch(_)
             | Event::DeploymentWritten(_)
             | Event::BoxLine { .. }
@@ -504,12 +507,10 @@ impl Machine {
                         format!("ctl sign-in exited {code}")
                     };
                     self.fail_place(why, now, out);
-                } else if self.plan.options.ctl {
-                    self.first = None;
-                    self.session_ready(out);
+                } else if self.place.signed_in(now, out) {
+                    self.wait_for_place();
                 } else {
-                    self.wait(Phase::Spent, now, Duration::from_secs(30));
-                    out.push(Action::Open(self.first.take().expect("first link")));
+                    self.after_sign_in(now, out);
                 }
             }
             Process::Ctl if self.phase == Phase::Ctl => {
@@ -524,6 +525,15 @@ impl Machine {
             | Process::Worker
             | Process::SignIn
             | Process::Ctl => {}
+        }
+    }
+    fn after_sign_in(&mut self, now: Time, out: &mut Vec<Action>) {
+        if self.plan.options.ctl {
+            self.first = None;
+            self.session_ready(out);
+        } else {
+            self.wait(Phase::Spent, now, Duration::from_secs(30));
+            out.push(Action::Open(self.first.take().expect("first link")));
         }
     }
     fn found(&mut self, node: Option<NodeId>, now: Time, out: &mut Vec<Action>) {
@@ -745,6 +755,7 @@ impl Machine {
         match progress {
             Progress::None => {}
             Progress::Waiting => self.wait_for_place(),
+            Progress::Started => self.after_sign_in(now, out),
             Progress::First(first) => {
                 self.first = Some(first.link.strip_suffix(b"\n").unwrap_or(&first.link).into());
                 self.origin = first.origin;
