@@ -599,12 +599,31 @@ fn task_rows(world: &World) -> Vec<root::Record> {
         .collect()
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Arm {
+    Plain,
+    Procedure,
+    PersonDelegate,
+    ProcedurePerson,
+}
+
+impl Arm {
+    fn setup(self) -> World {
+        match self {
+            Self::Plain => world(),
+            Self::Procedure => procedure_world(),
+            Self::PersonDelegate => person_delegate_world(),
+            Self::ProcedurePerson => procedure_person_world(),
+        }
+    }
+}
+
 #[test]
 #[expect(clippy::too_many_lines, reason = "one table keeps every route's held and unknown person rows together")]
 fn a_person_named_from_outside_is_held_or_refused_and_the_start_links() {
     struct Route {
         name: &'static str,
-        setup: fn() -> World,
+        arm: Arm,
         input: fn(&mut World, u64) -> Option<Refusal>,
         task: u64,
         refusal: Option<Refusal>,
@@ -613,7 +632,7 @@ fn a_person_named_from_outside_is_held_or_refused_and_the_start_links() {
     let routes = [
         Route {
             name: "party amendment",
-            setup: world,
+            arm: Arm::Plain,
             input: amend,
             task: PERSON_TASK,
             refusal: Some(Refusal::Person(people::Refusal::Unknown)),
@@ -621,7 +640,7 @@ fn a_person_named_from_outside_is_held_or_refused_and_the_start_links() {
         },
         Route {
             name: "agent person task",
-            setup: world,
+            arm: Arm::Plain,
             input: agent,
             task: DELEGATE,
             refusal: Some(Refusal::Task(tasks::Problem::new(None, tasks::Refusal::Unknown))),
@@ -629,7 +648,7 @@ fn a_person_named_from_outside_is_held_or_refused_and_the_start_links() {
         },
         Route {
             name: "connector batch executor",
-            setup: world,
+            arm: Arm::Plain,
             input: executor_batch,
             task: DELEGATE,
             refusal: None,
@@ -637,7 +656,7 @@ fn a_person_named_from_outside_is_held_or_refused_and_the_start_links() {
         },
         Route {
             name: "connector batch funder",
-            setup: world,
+            arm: Arm::Plain,
             input: funder_batch,
             task: DELEGATE,
             refusal: None,
@@ -645,7 +664,7 @@ fn a_person_named_from_outside_is_held_or_refused_and_the_start_links() {
         },
         Route {
             name: "connector batch requester",
-            setup: world,
+            arm: Arm::Plain,
             input: requester_batch,
             task: DELEGATE,
             refusal: None,
@@ -653,7 +672,7 @@ fn a_person_named_from_outside_is_held_or_refused_and_the_start_links() {
         },
         Route {
             name: "procedure batch executor",
-            setup: procedure_world,
+            arm: Arm::Procedure,
             input: procedure,
             task: PROCEDURE_DELEGATE,
             refusal: Some(Refusal::Step(core::StepRefusal::Refused(tasks::Problem::new(
@@ -664,7 +683,7 @@ fn a_person_named_from_outside_is_held_or_refused_and_the_start_links() {
         },
         Route {
             name: "party batch executor",
-            setup: world,
+            arm: Arm::Plain,
             input: party_create,
             task: DELEGATE,
             refusal: Some(Refusal::Person(people::Refusal::Unknown)),
@@ -672,7 +691,7 @@ fn a_person_named_from_outside_is_held_or_refused_and_the_start_links() {
         },
         Route {
             name: "role holding",
-            setup: world,
+            arm: Arm::Plain,
             input: roles,
             task: PERSON_TASK,
             refusal: Some(Refusal::Person(people::Refusal::Unknown)),
@@ -680,7 +699,7 @@ fn a_person_named_from_outside_is_held_or_refused_and_the_start_links() {
         },
         Route {
             name: "proposal holder",
-            setup: world,
+            arm: Arm::Plain,
             input: proposal,
             task: DELEGATE,
             refusal: None,
@@ -688,7 +707,7 @@ fn a_person_named_from_outside_is_held_or_refused_and_the_start_links() {
         },
         Route {
             name: "escalation holder",
-            setup: world,
+            arm: Arm::Plain,
             input: escalation,
             task: DELEGATE,
             refusal: None,
@@ -696,7 +715,7 @@ fn a_person_named_from_outside_is_held_or_refused_and_the_start_links() {
         },
         Route {
             name: "compound amendment",
-            setup: world,
+            arm: Arm::Plain,
             input: compound_amend,
             task: PERSON_TASK,
             refusal: Some(Refusal::Compound { at: 1, why: people::Refusal::Unknown }),
@@ -704,7 +723,7 @@ fn a_person_named_from_outside_is_held_or_refused_and_the_start_links() {
         },
         Route {
             name: "agent amendment",
-            setup: person_delegate_world,
+            arm: Arm::PersonDelegate,
             input: agent_amend,
             task: DELEGATE,
             refusal: Some(Refusal::Task(tasks::Problem::new(Some(DELEGATE), tasks::Refusal::Unknown))),
@@ -712,7 +731,7 @@ fn a_person_named_from_outside_is_held_or_refused_and_the_start_links() {
         },
         Route {
             name: "proposed amendment",
-            setup: person_delegate_world,
+            arm: Arm::PersonDelegate,
             input: proposed_amend,
             task: 1,
             refusal: Some(Refusal::Task(tasks::Problem::new(Some(1), tasks::Refusal::Unknown))),
@@ -720,7 +739,7 @@ fn a_person_named_from_outside_is_held_or_refused_and_the_start_links() {
         },
         Route {
             name: "party proposed amendment",
-            setup: world,
+            arm: Arm::Plain,
             input: party_proposed_amend,
             task: PERSON_TASK,
             refusal: Some(Refusal::Person(people::Refusal::Unknown)),
@@ -728,7 +747,7 @@ fn a_person_named_from_outside_is_held_or_refused_and_the_start_links() {
         },
         Route {
             name: "procedure amendment",
-            setup: procedure_person_world,
+            arm: Arm::ProcedurePerson,
             input: procedure_amend,
             task: PROCEDURE_DELEGATE,
             refusal: Some(Refusal::Step(core::StepRefusal::Refused(tasks::Problem::new(
@@ -739,7 +758,7 @@ fn a_person_named_from_outside_is_held_or_refused_and_the_start_links() {
         },
         Route {
             name: "application amendment",
-            setup: world,
+            arm: Arm::Plain,
             input: raw_amend,
             task: PERSON_TASK,
             refusal: None,
@@ -747,33 +766,50 @@ fn a_person_named_from_outside_is_held_or_refused_and_the_start_links() {
         },
         Route {
             name: "proposed batch funder",
-            setup: world,
+            arm: Arm::Plain,
             input: proposed_funder,
             task: 1,
             refusal: Some(Refusal::Task(tasks::Problem::new(Some(1), tasks::Refusal::Unknown))),
             field: NamedLink::ProposedFunder,
         },
     ];
-    for Route { name: route, setup, input, task, refusal, field } in routes {
-        for (named, held) in [(PERSON, true), (PERSON_TASK, false)] {
-            let case = if held { "held" } else { "absent" };
-            eprintln!("route {route}, named person {named}, case {case}");
-            let mut world = setup();
-            let before = task_rows(&world);
-            let answer = input(&mut world, named);
-            let after = task_rows(&world);
-            world.restart_with(configuration().0);
-            assert_eq!(world.domain.start_failure(), None, "{route}, named {named}");
-            assert!(world.domain.ready(), "{route}, named {named}: {:?}", world.domain.start_phase());
-            assert_eq!(world.domain.start_phase(), None, "{route} completed Open, named {named}");
-            if held {
-                assert_eq!(answer, None, "{route}");
-                assert!(linked(&world, task, named, field), "{route}: named {named}");
-            } else {
-                assert_eq!(answer, refusal, "{route}");
-                assert_eq!(after, before, "{route} changes nothing");
+    let mut passed = 0;
+    for arm in [Arm::Plain, Arm::Procedure, Arm::PersonDelegate, Arm::ProcedurePerson] {
+        let mut world = arm.setup();
+        let mut arm_passed = 0;
+        for Route { name: route, arm: _, input, task, refusal, field } in routes.iter().filter(|route| route.arm == arm)
+        {
+            for (named, held) in [(PERSON, true), (PERSON_TASK, false)] {
+                let case = if held { "held" } else { "absent" };
+                eprintln!("route {route}, named person {named}, case {case}");
+                world
+                    .case(&format!("{arm:?}/{route}/{case}"), |world| {
+                        let before = task_rows(world);
+                        let answer = input(world, named);
+                        let after = task_rows(world);
+                        world.restart_with(configuration().0);
+                        assert_eq!(world.domain.start_failure(), None, "{route}, named {named}");
+                        assert!(world.domain.ready(), "{route}, named {named}: {:?}", world.domain.start_phase());
+                        assert_eq!(world.domain.start_phase(), None, "{route} completed Open, named {named}");
+                        if held {
+                            assert_eq!(answer, None, "{route}");
+                            assert!(linked(world, *task, named, *field), "{route}: named {named}");
+                        } else {
+                            assert_eq!(&answer, refusal, "{route}");
+                            assert_eq!(after, before, "{route} changes nothing");
+                        }
+                        assert!(!world.store.rows.values().any(names_absent), "{route} saves no absent person");
+                    })
+                    .expect("named person route passed");
+                arm_passed += 1;
             }
-            assert!(!world.store.rows.values().any(names_absent), "{route} saves no absent person");
         }
+        assert_eq!(
+            arm_passed,
+            routes.iter().filter(|route| route.arm == arm).count() * 2,
+            "{arm:?}: every reference case passed"
+        );
+        passed += arm_passed;
     }
+    assert_eq!(passed, routes.len() * 2, "every reference route passed both cases");
 }

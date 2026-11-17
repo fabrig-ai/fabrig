@@ -237,6 +237,7 @@ pub struct World {
     pub forked: Vec<Cut>,
     sweep: Vec<Cut>,
     fork_child: Option<Cut>,
+    case_child: bool,
     hold_kinds: Vec<(u16, Box<[tasks::Kind]>)>,
     wall: u64,
     wall_lag: u64,

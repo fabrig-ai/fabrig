@@ -291,6 +291,7 @@ impl World {
             forked: Vec::new(),
             sweep: Vec::new(),
             fork_child: None,
+            case_child: false,
             hold_kinds: Vec::new(),
             wall: 0,
             wall_lag: 0,

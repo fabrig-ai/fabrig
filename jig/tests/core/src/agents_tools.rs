@@ -14,6 +14,36 @@ pub struct Story {
     pub setup: fn(u64) -> World,
     pub run: fn(&mut World, Option<Cut>) -> u64,
 }
+impl Story {
+    /// Count the reference's relative commits, then hold the story's prefix once.
+    pub fn sweep(&self, seed: u64, each_commit: bool) {
+        let (before, commits) = {
+            let mut reference = (self.setup)(seed);
+            let commits = (self.run)(&mut reference, None);
+            (reference.store.applied - commits, commits)
+        };
+        let first = if each_commit { 1 } else { commits };
+        let cuts: Vec<_> =
+            (first..=commits).flat_map(|at| [Cut::Submitted(before + at), Cut::Durable(before + at)]).collect();
+        let mut world = (self.setup)(seed);
+        world.sweep(cuts.clone());
+        (self.run)(&mut world, None);
+        if let Some(cut) = world.forked_cut().map(|cut| relative_cut(cut, before)) {
+            assert_eq!(world.reached_cut, Some(cut), "{} reaches its cut", self.name);
+        }
+        world.cut_passed();
+        assert_eq!(world.forked, cuts, "{}: every reference boundary passed", self.name);
+    }
+}
+
+fn relative_cut(cut: Cut, before: u64) -> Cut {
+    match cut {
+        Cut::Submitted(at) => Cut::Submitted(at - before),
+        Cut::Durable(at) => Cut::Durable(at - before),
+        Cut::Disk { .. } | Cut::Failed(_) => panic!("this memory scenario uses transaction cuts"),
+    }
+}
+
 pub const STORIES: &[Story] = &[
     Story { name: "amend done", setup: world, run: amend_done },
     Story { name: "amend moved", setup: world, run: amend_moved },
@@ -51,6 +81,7 @@ fn amend(world: &mut World, cut: Option<Cut>, moved: bool) -> u64 {
     });
     world.tool_call(b"amend", amend.as_bytes(), true);
     let key = world.call_key(if moved { 3 } else { 2 });
+    let cut = cut.or_else(|| world.forked_cut().map(|cut| relative_cut(cut, before)));
     if cut.is_some() {
         assert!(world.reached_cut.is_some(), "call reaches the selected commit");
         world.restart(190, false);
@@ -119,6 +150,7 @@ fn release_moved(world: &mut World, cut: Option<Cut>) -> u64 {
     });
     world.tool_call(b"release", input.as_bytes(), true);
     let key = world.call_key(2);
+    let cut = cut.or_else(|| world.forked_cut().map(|cut| relative_cut(cut, before)));
     if cut.is_some() {
         assert!(world.reached_cut.is_some(), "call reaches the selected commit");
         world.restart(190, false);
@@ -156,6 +188,7 @@ fn held_notice(world: &mut World, cut: Option<Cut>) -> u64 {
         task: CHILD,
         why: tasks::Hold::Budget,
     })));
+    let cut = cut.or_else(|| world.forked_cut().map(|cut| relative_cut(cut, before)));
     if cut.is_some() {
         assert!(world.reached_cut.is_some(), "hold reaches its cut");
         world.restart(190, false);
@@ -198,6 +231,7 @@ pub fn delegate_given(world: &mut World, cut: Option<Cut>) -> u64 {
     });
     world.tool_call(b"delegate", DELEGATE_GIVEN, true);
     let key = world.call_key(1);
+    let cut = cut.or_else(|| world.forked_cut().map(|cut| relative_cut(cut, before)));
     if cut.is_some() {
         assert!(world.reached_cut.is_some(), "delegate reaches its cut");
         world.restart(190, false);
@@ -270,6 +304,7 @@ pub fn withdraw_decided(world: &mut World, cut: Option<Cut>) -> u64 {
     });
     world.tool_call(b"withdraw", WITHDRAW, true);
     let key = world.call_key(WITHDRAW_COMPLETION);
+    let cut = cut.or_else(|| world.forked_cut().map(|cut| relative_cut(cut, before)));
     if cut.is_some() {
         assert!(world.reached_cut.is_some(), "withdraw reaches its cut");
         world.restart(190, false);

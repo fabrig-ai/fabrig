@@ -228,6 +228,7 @@ fn settle_hosts(world: &mut World) {
         .collect();
     let cut = world.cut;
     world.send_all(answers);
+    let cut = cut.or_else(|| world.forked_cut());
     if cut.is_some() && world.reached_cut == cut {
         return;
     }
@@ -665,14 +666,22 @@ pub(crate) fn uncut_deletion() -> (u64, u64, BTreeMap<root::Key, root::Record>) 
     (first, last, final_rows(&uncut))
 }
 
-/// Cut one commit of the deletion, restart, finish, and end as the uncut run did.
-pub(crate) fn a_cut_deletion_ends_the_same(first: u64, cut: Cut, expected: &BTreeMap<root::Key, root::Record>) {
+/// Sweep deletion commits, each child restarting and ending as the reference did.
+pub(crate) fn a_cut_deletion_ends_the_same(first: u64, cuts: &[Cut], expected: &BTreeMap<root::Key, root::Record>) {
     let mut world = deleted_world(SEED);
-    world.cut = Some(cut);
+    world.sweep(cuts.to_vec());
     remove(&mut world, REMOVE);
-    if world.reached_cut != Some(cut) {
+    if world.forked_cut().is_none() {
         settle_hosts(&mut world);
     }
+    if let Some(cut) = world.forked_cut() {
+        deletion_cut_checks(&mut world, first, cut, expected);
+    }
+    world.cut_passed();
+    assert_eq!(world.forked, cuts, "every reference deletion cut passed");
+}
+
+fn deletion_cut_checks(world: &mut World, first: u64, cut: Cut, expected: &BTreeMap<root::Key, root::Record>) {
     assert_eq!(world.reached_cut, Some(cut), "every deletion commit is cut");
     if cut == Cut::Submitted(first) {
         assert!(!world.store.rows.contains_key(&deletion()), "the closing decision is lost");
@@ -703,24 +712,23 @@ pub(crate) fn a_cut_deletion_ends_the_same(first: u64, cut: Cut, expected: &BTre
         // The last step erases the deletion rather than saving a row.
         assert_eq!(world.store.rows.contains_key(&deletion()), matches!(cut, Cut::Submitted(_)));
     }
-    restart_world(&mut world);
+    restart_world(world);
     // Only a submission lost before the closing decision needs the requester again.
     if cut == Cut::Submitted(first) {
-        remove(&mut world, REMOVE);
+        remove(world, REMOVE);
     }
-    finish(&mut world);
+    finish(world);
     assert!(world.domain.ready(), "restart finishes deletion before opening");
-    assert_eq!(rows_naming(&world, PROJECT), Vec::<String>::new(), "{cut:?}");
-    assert_eq!(&final_rows(&world), expected, "{cut:?}");
+    assert_eq!(rows_naming(world, PROJECT), Vec::<String>::new(), "{cut:?}");
+    assert_eq!(&final_rows(world), expected, "{cut:?}");
 }
 
 #[test]
 fn a_deletion_cut_around_its_decision_and_last_step_ends_the_same() {
     let (first, last, expected) = uncut_deletion();
     let between_family_steps = first + (last - first) / 2;
-    for cut in [Cut::Submitted(first), Cut::Durable(first), Cut::Durable(between_family_steps), Cut::Durable(last)] {
-        a_cut_deletion_ends_the_same(first, cut, &expected);
-    }
+    let cuts = vec![Cut::Submitted(first), Cut::Durable(first), Cut::Durable(between_family_steps), Cut::Durable(last)];
+    a_cut_deletion_ends_the_same(first, &cuts, &expected);
 }
 
 fn party_answer(world: &mut World, key: u8, ask: people::Ask) -> people::Reply {
