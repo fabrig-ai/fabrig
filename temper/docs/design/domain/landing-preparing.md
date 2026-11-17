@@ -132,13 +132,16 @@ stay `landing.md`'s, and its events `landing-history.md`'s.
   and the prefixes found are taken (`landing.md`, 5.2, *Lost or
   partial*), so that the replacement prepares only the members above
   them: prefixes already recovered are kept.
-- **Fenced by jig's step:** the forge saves the marks in its own
-  decision, then the root answers the step jig offered with the prepare
-  child in its batch; jig accepts one decision per offered step and
-  makes the child in that acceptance (jig's `domain/tasks/lifecycle.md`,
-  3). The next step is offered only after it, and reads the child live.
-  So concurrent wakes, a restart between the marks' save and the
-  admission, and a release each make at most one replacement.
+- **Fenced by jig's step:** the forge's step that saves the marks asks
+  the root, within the same root decision, to answer the step jig
+  offered with the prepare child in its batch; jig accepts one decision
+  per offered step and makes the child in that acceptance (jig's
+  `domain/tasks/lifecycle.md`, 3). The marks and the child are thus
+  stored together: no restart falls between them. The next step is
+  offered only after it, and reads the child live. So concurrent wakes,
+  a restart and a release each make at most one replacement.
+- **Marks with no child** are reached only where the child ended with
+  no answer, or the round no longer keeps it (section 2, case 4).
 - **Its events:** the replacement child's attempts write their own
   `job` and `job-ended` (`landing-history.md`, 3.3). A step that finds
   the prepare live or answered writes nothing (`landing-history.md`,
@@ -174,17 +177,19 @@ Focused and fuzzy suites alone, each test failing first:
   (`temper/tests/engine/domain/tests/suite/forge_routes/landing_restarts.rs`,
   beside the restart that keeps the same worker job), each with no
   person acting and the prefixes recovered kept:
-  1. a restart after the round's marks are saved and before the
-     prepare child is admitted: one prepare, and the round gates and
-     lands;
+  1. a restart right after the decision that saves the round's marks
+     and admits the prepare child, before any worker claims its first
+     attempt (the nearest cut to the marks alone, section 5): that one
+     child prepares, no second is made, and the round gates and lands;
   2. an admitted prepare whose worker is lost, without a restart and
      with one: jig retries the same child once, its second attempt
      claimed after the first's writer slots are free, and the round
      lands;
   3. a prepare that ended with its answer kept before a restart: the
      answer is read, and nothing is asked again;
-  4. a stop and release at preparing with the prepare absent: it is
-     asked once.
+  4. a stop and release at preparing with the prepare absent, its child
+     ended with no answer while the landing is stopped: the release asks
+     it once.
 
 ## 8. Later
 

@@ -10,6 +10,6 @@
   synthetic `Idle`, may end a failed read in a decision, and replaces a
   real step's pending hearing. [in flight: change 6062]
 - **Not yet:** 4, 5, 6, 7: the domain world's stories of a restart
-  before admission, a lost worker with and without a restart, an answer
+  before the first attempt's claim, a lost worker with and without a restart, an answer
   kept across a restart, and a stop and release at preparing.
   [in flight: change 6063]
