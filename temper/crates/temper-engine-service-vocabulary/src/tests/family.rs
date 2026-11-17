@@ -1781,9 +1781,9 @@ fn installations_and_the_last_connect_end_encode_unchanged() {
 fn embedded_client_refusals_keep_their_bytes_at_current_client_version() {
     // Embedded jig refusal tags keep their bytes at this forge family version.
     let mut after = skein_lib::Writer::new(1);
-    jig_client_protocol_wire::v27::Refusal::Unknown.encode(&mut after).unwrap();
+    jig_client_protocol_wire::Refusal::Unknown.encode(&mut after).unwrap();
     assert_eq!(after.finish().as_ref(), &[9]);
-    assert_eq!(wire::CLIENT_VERSION, 28);
+    assert_eq!(wire::CLIENT_VERSION, 29);
 }
 
 #[test]
@@ -3210,8 +3210,10 @@ fn changes_document_encodes_and_decodes() {
         (flight.task(), flight.member(), flight.round(), flight.step(), flight.probe()),
         (61, 51, 2, &w::LandingStep::Probing, &Some([0x33; 32]))
     );
+    assert_eq!((flight.goal(), flight.chat(), flight.milestone()), (&None, &None, &None));
     assert_eq!(queue.changes().len(), 2);
     for (wire, domain) in queue.changes().iter().zip(value.queues[0].changes.iter()) {
+        assert_eq!((wire.goal(), wire.chat(), wire.milestone()), (&None, &None, &None));
         assert_eq!(
             (wire.task(), wire.title(), wire.ready_since(), *wire.checks_since()),
             (
@@ -3230,12 +3232,14 @@ fn changes_document_encodes_and_decodes() {
     assert_eq!((landed.task(), landed.title(), landed.at()), (50, b"Landed".as_slice(), 987));
     assert_eq!(*landed.commit(), [0xab; 32]);
     assert!(landed.default_branch());
+    assert_eq!((landed.goal(), landed.chat(), landed.milestone()), (&None, &None, &None));
     assert_eq!(got.landed_default_more(), 2);
     assert_eq!(got.landed_default().len(), 1);
     let default = got.landed_default().get(0).unwrap();
     assert_eq!((default.task(), default.title(), default.at()), (49, b"Default landing".as_slice(), 900));
     assert_eq!(*default.commit(), [0xcd; 32]);
     assert!(default.default_branch());
+    assert_eq!((default.goal(), default.chat(), default.milestone()), (&None, &None, &None));
 }
 #[expect(clippy::too_many_lines, reason = "one row table pairs engine and wire stops, including their annotations")]
 fn ways_path() -> (ways::Path, w::BranchPath) {
@@ -4403,6 +4407,8 @@ fn trials_encode_the_whole_document_in_its_order_and_with_its_bounds() {
         assert!(reader.is_empty());
         let rows = document.into_parts().rows.into_boxed();
         assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].run_wait(), &None);
+        assert_eq!(rows[1].run_wait(), &None);
         assert_eq!(rows[0].account(), 12);
         assert_eq!(*rows[0].task(), Some(31));
         assert_eq!(*rows[0].took(), Some(14));
@@ -4999,6 +5005,7 @@ fn landed_sign_offs_reach_the_clients_typed_changes_rows() {
         assert_eq!(row.signed().len(), 1);
         let sign = row.signed().get(0).unwrap();
         assert_eq!((sign.party(), *sign.head(), sign.at()), (signed.person, signed.head, signed.at.as_nanos()));
+        assert_eq!(sign.name(), &None);
     }
 }
 

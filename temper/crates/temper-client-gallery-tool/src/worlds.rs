@@ -5126,6 +5126,7 @@ pub(super) fn project_classes(root: &mut Domain, read: Token, out: &mut Queue<Re
     );
 }
 
+#[expect(clippy::too_many_lines, reason = "one gallery scene assembles the changes panel's bounded wire rows")]
 fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
     use temper_client_protocol_wire::v1 as v;
     let mut queues = List::with_capacity(1);
@@ -5142,6 +5143,9 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
                     v::ChangesQueued::new(
                         &v::CEILINGS,
                         v::ChangesQueuedParts {
+                            goal: None,
+                            chat: None,
+                            milestone: None,
                             task,
                             title: title.as_bytes().into(),
                             ready_since: offset(Reference, -179).as_nanos(),
@@ -5182,6 +5186,9 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
                     v::ChangesLanded::new(
                         &v::CEILINGS,
                         v::ChangesLandedParts {
+                            goal: None,
+                            chat: None,
+                            milestone: None,
                             signed: skein_lib::List::with_capacity(8),
                             commit: [0xab; 32],
                             default_branch: true,
@@ -5200,6 +5207,9 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
                 v::ChangesLanded::new(
                     &v::CEILINGS,
                     v::ChangesLandedParts {
+                        goal: None,
+                        chat: None,
+                        milestone: None,
                         signed: skein_lib::List::with_capacity(8),
                         commit: [0xab; 32],
                         default_branch: true,

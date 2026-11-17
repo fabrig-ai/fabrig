@@ -231,6 +231,9 @@ impl Fixture {
                         w::ChangesQueued::new(
                             &w::CEILINGS,
                             w::ChangesQueuedParts {
+                                goal: None,
+                                chat: None,
+                                milestone: None,
                                 task,
                                 title: title.into(),
                                 ready_since: RECENT,
@@ -246,6 +249,9 @@ impl Fixture {
             list(&[w::ChangesLanded::new(
                 &w::CEILINGS,
                 w::ChangesLandedParts {
+                    goal: None,
+                    chat: None,
+                    milestone: None,
                     signed: List::with_capacity(8),
                     commit: [0xab; 32],
                     default_branch: true,

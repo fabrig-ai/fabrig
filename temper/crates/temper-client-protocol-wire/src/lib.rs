@@ -54,6 +54,18 @@ use skein_lib::{Reader, Writer};
 
 /// The forge connector's number on jig's client wire (client/forge/records.md).
 pub const FORGE: u16 = 1;
+/// A goal's report and milestone (temper/docs/design/client/forge/parts.md, 2).
+pub const GOAL_PART: u32 = 1;
+/// A chat's document description (temper/docs/design/client/forge/parts.md, 2).
+pub const CHAT_PART: u32 = 2;
+/// A milestone's totals and goals (temper/docs/design/client/forge/parts.md, 2).
+pub const MILESTONE_PART: u32 = 3;
+/// A goal part's byte limit (temper/docs/design/client/forge/parts.md, 2).
+pub const GOAL_PART_BYTES: u32 = 1024;
+/// A chat part's byte limit (temper/docs/design/client/forge/parts.md, 2).
+pub const CHAT_PART_BYTES: u32 = 1024;
+/// A milestone part's byte limit (temper/docs/design/client/forge/parts.md, 2).
+pub const MILESTONE_PART_BYTES: u32 = 32768;
 /// The application's stable owners on jig's client wire (client/forge/records.md).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Owner {
@@ -84,7 +96,7 @@ pub const fn owner(number: u16) -> Option<Owner> {
     }
 }
 /// Every record's version, served by both ends (client/forge/records.md).
-pub const CLIENT_VERSION: u32 = 28;
+pub const CLIENT_VERSION: u32 = 29;
 
 /// The deployment's maximum number of forges (client/forge/records.md).
 pub const FORGES: u32 = 16;

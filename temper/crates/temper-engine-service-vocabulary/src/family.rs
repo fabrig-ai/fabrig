@@ -1040,7 +1040,7 @@ fn encoded_role(role: forge::Role) -> w::Role {
 pub fn answer(
     outcome: Option<temper_engine_domain::ApplicationAnswer>,
     limits: &w::Limits,
-    jig: &jig_client_protocol_wire::v27::Limits,
+    jig: &jig_client_protocol_wire::Limits,
 ) -> Option<Box<[u8]>> {
     let outcome = match outcome {
         Some(root::ApplicationAnswer::Reachable(forge::ReachableAnswer::Page(page))) => {
@@ -2093,6 +2093,9 @@ fn changes_panel(value: forge::ChangesView, limits: &w::Limits) -> Option<Box<[u
                     w::ChangesQueued::new(
                         limits,
                         w::ChangesQueuedParts {
+                            goal: None,
+                            chat: None,
+                            milestone: None,
                             task: row.task,
                             title: row.title,
                             ready_since: row.ready_since.as_nanos(),
@@ -2123,6 +2126,9 @@ fn changes_panel(value: forge::ChangesView, limits: &w::Limits) -> Option<Box<[u
                                 w::TrainLanding::new(
                                     limits,
                                     w::TrainLandingParts {
+                                        goal: None,
+                                        chat: None,
+                                        milestone: None,
                                         probe: value.probe,
                                         task: value.task,
                                         member: value.member,
@@ -2175,7 +2181,12 @@ fn changes_landed(
                 .push(
                     w::ChangesSigned::new(
                         limits,
-                        w::ChangesSignedParts { party: sign.person, head: sign.head, at: sign.at.as_nanos() },
+                        w::ChangesSignedParts {
+                            name: None,
+                            party: sign.person,
+                            head: sign.head,
+                            at: sign.at.as_nanos(),
+                        },
                     )
                     .ok()?,
                 )
@@ -2186,6 +2197,9 @@ fn changes_landed(
                 w::ChangesLanded::new(
                     limits,
                     w::ChangesLandedParts {
+                        goal: None,
+                        chat: None,
+                        milestone: None,
                         signed,
                         task: row.task,
                         title: row.title,
@@ -2534,6 +2548,7 @@ pub fn trials(rows: Box<[temper_engine_domain_trials::Row]>, limits: &w::Limits)
                 w::TrialRow::new(
                     limits,
                     w::TrialRowParts {
+                        run_wait: None,
                         account: row.account,
                         task: row.task,
                         took: row.took,

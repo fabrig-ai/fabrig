@@ -408,6 +408,7 @@ fn drafts(work: Work) -> w::DraftsPanel {
     w::DraftsPanel::new(&w::CEILINGS, w::DraftsPanelParts { project: 1, drafts }).expect("drafts panel")
 }
 type ChangeRows = &'static [(u64, &'static str)];
+#[expect(clippy::too_many_lines, reason = "one gallery scene assembles the changes panel's bounded wire rows")]
 fn changes(work: Work) -> w::ChangesPanel {
     let (pending, landed): (ChangeRows, ChangeRows) = match work {
         Work::Whole => (&WHOLE_QUEUED, &WHOLE_LANDED),
@@ -431,6 +432,9 @@ fn changes(work: Work) -> w::ChangesPanel {
                     w::ChangesQueued::new(
                         &w::CEILINGS,
                         w::ChangesQueuedParts {
+                            goal: None,
+                            chat: None,
+                            milestone: None,
                             task: *task,
                             title: title.as_bytes().into(),
                             ready_since: at(-90).as_nanos(),
@@ -464,6 +468,9 @@ fn changes(work: Work) -> w::ChangesPanel {
             w::ChangesLanded::new(
                 &w::CEILINGS,
                 w::ChangesLandedParts {
+                    goal: None,
+                    chat: None,
+                    milestone: None,
                     signed: crate::samples::signoffs(
                         if matches!(work, Work::Whole) { &[73] } else { &[] },
                         at(-2482).as_nanos(),

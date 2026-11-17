@@ -31,6 +31,9 @@ fn queue(repository: &[u8], branch: &[u8], count: u32, red: bool) -> w::ChangesQ
                 w::ChangesQueued::new(
                     &w::CEILINGS,
                     w::ChangesQueuedParts {
+                        goal: None,
+                        chat: None,
+                        milestone: None,
                         task: FIRST + u64::from(index),
                         title: if index == 0 {
                             b"Store: policy record".as_slice().into()
@@ -71,6 +74,9 @@ fn panel(queues: &[w::ChangesQueue], more: u32, landed: bool, landing: &[u8]) ->
                 w::ChangesLanded::new(
                     &w::CEILINGS,
                     w::ChangesLandedParts {
+                        goal: None,
+                        chat: None,
+                        milestone: None,
                         signed: List::with_capacity(8),
                         commit: [0xab; 32],
                         default_branch: true,
@@ -444,6 +450,9 @@ fn a_searching_train_shows_probing_at_its_prefix() {
             w::TrainLanding::new(
                 &w::CEILINGS,
                 w::TrainLandingParts {
+                    goal: None,
+                    chat: None,
+                    milestone: None,
                     task: 61,
                     member: 51,
                     round: 2,
@@ -472,6 +481,9 @@ fn turn_trains_show_the_landing_then_waiters_and_a_free_train() {
         w::TrainLanding::new(
             &w::CEILINGS,
             w::TrainLandingParts {
+                goal: None,
+                chat: None,
+                milestone: None,
                 probe: None,
                 task: 61,
                 member: 51,

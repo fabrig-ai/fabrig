@@ -644,6 +644,9 @@ impl Fixture {
                     w::ChangesQueued::new(
                         &w::CEILINGS,
                         w::ChangesQueuedParts {
+                            goal: None,
+                            chat: None,
+                            milestone: None,
                             task,
                             title: b"Change".as_slice().into(),
                             ready_since: wall(40).as_nanos(),
@@ -677,6 +680,9 @@ impl Fixture {
                 landed: list(&[w::ChangesLanded::new(
                     &w::CEILINGS,
                     w::ChangesLandedParts {
+                        goal: None,
+                        chat: None,
+                        milestone: None,
                         signed: List::with_capacity(8),
                         commit: [0xab; 32],
                         default_branch: true,
@@ -1152,10 +1158,11 @@ fn facts_name_signers_from_the_rails_project_read_and_stay_silent_without_it() {
         fixture.drafts(&[]);
         let mut panel = fixture.panel().into_parts();
         let mut row = panel.landed.get(0).unwrap().clone().into_parts();
-        row.signed =
-            list(&[
-                w::ChangesSigned::new(&w::CEILINGS, w::ChangesSignedParts { party: 5, head: [1; 32], at: 0 }).unwrap()
-            ]);
+        row.signed = list(&[w::ChangesSigned::new(
+            &w::CEILINGS,
+            w::ChangesSignedParts { name: None, party: 5, head: [1; 32], at: 0 },
+        )
+        .unwrap()]);
         let row = w::ChangesLanded::new(&w::CEILINGS, row).unwrap();
         panel.landed = list(core::slice::from_ref(&row));
         panel.landed_default = list(&[row]);

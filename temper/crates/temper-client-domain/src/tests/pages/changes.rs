@@ -49,6 +49,9 @@ fn panel(tasks: &[u64], landed: &[u64]) -> w::ChangesPanel {
                 w::ChangesQueued::new(
                     &w::CEILINGS,
                     w::ChangesQueuedParts {
+                        goal: None,
+                        chat: None,
+                        milestone: None,
                         task: *task,
                         title: b"Queued change".as_slice().into(),
                         ready_since: 0,
@@ -82,6 +85,9 @@ fn panel(tasks: &[u64], landed: &[u64]) -> w::ChangesPanel {
             w::ChangesLanded::new(
                 &w::CEILINGS,
                 w::ChangesLandedParts {
+                    goal: None,
+                    chat: None,
+                    milestone: None,
                     signed: List::with_capacity(8),
                     commit: [0xab; 32],
                     default_branch: true,
@@ -281,6 +287,9 @@ fn list_for_default(tasks: &[u64]) -> List<w::ChangesLanded> {
             w::ChangesLanded::new(
                 &w::CEILINGS,
                 w::ChangesLandedParts {
+                    goal: None,
+                    chat: None,
+                    milestone: None,
                     signed: List::with_capacity(8),
                     task: *task,
                     title: b"Main landing".as_slice().into(),

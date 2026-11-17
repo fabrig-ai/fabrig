@@ -1378,14 +1378,20 @@ pub(super) fn landing(task: u64, at: u64, parties: &[u64]) -> w::ChangesLanded {
     for party in parties {
         signed
             .push(
-                w::ChangesSigned::new(&w::CEILINGS, w::ChangesSignedParts { party: *party, head: [3; 32], at: 0 })
-                    .unwrap(),
+                w::ChangesSigned::new(
+                    &w::CEILINGS,
+                    w::ChangesSignedParts { name: None, party: *party, head: [3; 32], at: 0 },
+                )
+                .unwrap(),
             )
             .unwrap();
     }
     w::ChangesLanded::new(
         &w::CEILINGS,
         w::ChangesLandedParts {
+            goal: None,
+            chat: None,
+            milestone: None,
             task,
             at,
             signed,

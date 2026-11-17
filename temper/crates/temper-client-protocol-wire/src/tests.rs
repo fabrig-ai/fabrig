@@ -3,6 +3,7 @@ mod drafts;
 mod findings;
 mod fixtures;
 mod opened;
+mod parts;
 mod source;
 mod tiers;
 mod versions;
@@ -1383,8 +1384,8 @@ fn revision_setting_read_appends_after_the_deployment_tag() {
         .unwrap(),
     );
     for (read, bytes) in [
-        (v1::Read::Deployment, &[0, 28, 3][..]),
-        (revision, &[0, 28, 4, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4][..]),
+        (v1::Read::Deployment, &[0, 29, 3][..]),
+        (revision, &[0, 29, 4, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4][..]),
     ] {
         let record = v1::Reading::new(&limits, v1::ReadingParts { read }).unwrap();
         assert_eq!(crate::reading(&record).as_ref(), bytes);
@@ -2066,7 +2067,14 @@ fn trial_rows_round_trip_each_step_state_and_failure() {
             for (task, took) in [(None, None), (Some(u64::MAX), Some(u32::MAX))] {
                 let row = v1::TrialRow::new(
                     &limits,
-                    v1::TrialRowParts { account: u32::MAX, task, took, step: step.clone(), state: state.clone() },
+                    v1::TrialRowParts {
+                        run_wait: None,
+                        account: u32::MAX,
+                        task,
+                        took,
+                        step: step.clone(),
+                        state: state.clone(),
+                    },
                 )
                 .unwrap();
                 let mut rows = List::with_capacity(1);

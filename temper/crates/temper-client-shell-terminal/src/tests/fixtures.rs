@@ -302,6 +302,9 @@ fn populate_page(
                             w::ChangesQueued::new(
                                 &w::CEILINGS,
                                 w::ChangesQueuedParts {
+                                    goal: None,
+                                    chat: None,
+                                    milestone: None,
                                     task: 9,
                                     title: b"Store: policy record".as_slice().into(),
                                     ready_since: 0,
@@ -334,6 +337,9 @@ fn populate_page(
                             w::ChangesLanded::new(
                                 &w::CEILINGS,
                                 w::ChangesLandedParts {
+                                    goal: None,
+                                    chat: None,
+                                    milestone: None,
                                     signed: skein_lib::List::with_capacity(8),
                                     commit: [0xab; 32],
                                     default_branch: true,

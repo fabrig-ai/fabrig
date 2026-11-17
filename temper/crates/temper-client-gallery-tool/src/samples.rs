@@ -1827,8 +1827,11 @@ pub(super) fn signoffs(parties: &[u64], at: u64) -> skein_lib::List<temper_clien
     for party in parties {
         signed
             .push(
-                w::ChangesSigned::new(&w::CEILINGS, w::ChangesSignedParts { party: *party, head: [0xab; 32], at })
-                    .expect("sample signer"),
+                w::ChangesSigned::new(
+                    &w::CEILINGS,
+                    w::ChangesSignedParts { name: None, party: *party, head: [0xab; 32], at },
+                )
+                .expect("sample signer"),
             )
             .expect("at most eight sample signers");
     }
@@ -3044,6 +3047,7 @@ fn home_domain(name: &str) -> Domain {
                         let row = w::TrialRow::new(
                             &w::CEILINGS,
                             w::TrialRowParts {
+                                run_wait: None,
                                 account: accounts.accounts.get(0).expect("Home trial account").number,
                                 task: Some(91),
                                 took: None,

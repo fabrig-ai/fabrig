@@ -52,7 +52,7 @@ fn opened() -> (Domain, Token, Token) {
 fn row(account: u32, task: Option<u64>, state: w::TrialState) -> w::TrialRow {
     w::TrialRow::new(
         &w::CEILINGS,
-        w::TrialRowParts { account, task, took: Some(OTHER), step: w::TrialStep::Answers, state },
+        w::TrialRowParts { run_wait: None, account, task, took: Some(OTHER), step: w::TrialStep::Answers, state },
     )
     .unwrap()
 }

@@ -308,7 +308,11 @@ pub(crate) fn fed(kind: d::WayKind) -> (d::Domain, Token, Token) {
 }
 
 pub(crate) fn row(step: v::TrialStep, state: v::TrialState) -> v::TrialRow {
-    v::TrialRow::new(&v::CEILINGS, v::TrialRowParts { account: 1, task: Some(91), took: None, step, state }).unwrap()
+    v::TrialRow::new(
+        &v::CEILINGS,
+        v::TrialRowParts { run_wait: None, account: 1, task: Some(91), took: None, step, state },
+    )
+    .unwrap()
 }
 
 pub(crate) fn rows(root: &mut d::Domain, watch: Token, rows: &[v::TrialRow]) -> Queue<d::Request> {

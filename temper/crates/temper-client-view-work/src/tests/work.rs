@@ -233,6 +233,9 @@ impl Fixture {
                         w::ChangesQueued::new(
                             &w::CEILINGS,
                             w::ChangesQueuedParts {
+                                goal: None,
+                                chat: None,
+                                milestone: None,
                                 task,
                                 title: title.into(),
                                 ready_since: RECENT,
@@ -248,6 +251,9 @@ impl Fixture {
             list(&[w::ChangesLanded::new(
                 &w::CEILINGS,
                 w::ChangesLandedParts {
+                    goal: None,
+                    chat: None,
+                    milestone: None,
                     signed: List::with_capacity(8),
                     commit: [0xab; 32],
                     default_branch: true,
@@ -458,6 +464,9 @@ fn landed_this_week_names_the_goal_once_at_its_main_commit() {
     let branch = w::ChangesLanded::new(
         &w::CEILINGS,
         w::ChangesLandedParts {
+            goal: None,
+            chat: None,
+            milestone: None,
             signed: List::with_capacity(8),
             task: 21,
             title: b"Goal-branch implementation".as_slice().into(),
@@ -470,6 +479,9 @@ fn landed_this_week_names_the_goal_once_at_its_main_commit() {
     let landing = w::ChangesLanded::new(
         &w::CEILINGS,
         w::ChangesLandedParts {
+            goal: None,
+            chat: None,
+            milestone: None,
             signed: List::with_capacity(8),
             task: 22,
             title: b"Landing fallback".as_slice().into(),
@@ -551,6 +563,9 @@ fn landed_this_week_names_the_goal_once_at_its_main_commit() {
                 w::ChangesLanded::new(
                     &w::CEILINGS,
                     w::ChangesLandedParts {
+                        goal: None,
+                        chat: None,
+                        milestone: None,
                         signed: List::with_capacity(8),
                         task,
                         title: title.as_bytes().into(),
@@ -962,6 +977,9 @@ fn queued_change(task: u64) -> w::ChangesQueued {
     w::ChangesQueued::new(
         &w::CEILINGS,
         w::ChangesQueuedParts {
+            goal: None,
+            chat: None,
+            milestone: None,
             task,
             title: b"Move the reader".as_slice().into(),
             ready_since: RECENT,
@@ -1131,6 +1149,9 @@ fn landed_goal_rows_name_their_milestone_and_only_its_recent_completing_change()
         let landing = w::ChangesLanded::new(
             &w::CEILINGS,
             w::ChangesLandedParts {
+                goal: None,
+                chat: None,
+                milestone: None,
                 task: 21,
                 title: b"The landing".as_slice().into(),
                 at: RECENT,

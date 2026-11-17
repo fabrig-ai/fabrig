@@ -254,6 +254,9 @@ fn changes(reader: u64, alone: bool) -> w::ChangesPanel {
                 w::ChangesLanded::new(
                     &w::CEILINGS,
                     w::ChangesLandedParts {
+                        goal: None,
+                        chat: None,
+                        milestone: None,
                         task,
                         title: b"A signed change".as_slice().into(),
                         at,
