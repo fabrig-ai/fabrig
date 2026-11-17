@@ -28,15 +28,9 @@ each delivery fast-forwards r and leaves g unchanged. They use fake git
 and disk, and do not settle the deployment replay gaps below. A goal's
 saved start overtaken by a repair remains deferred (`../forge/README.md`, section 11).
 
-- **Not yet:** *The landing pin*, *Push commits what the run checked*,
-  *A save pushes unchecked* and *A landed dependency's catch-up*: every
-  unreachable second parent is refused; the checkout asks nothing,
-  moves no pin and catches up with nothing [in flight: change 6015].
 - **Not yet:** *A landed dependency's catch-up*, *It asks*: the worker
   asks the engine nothing and answers its checkout not landed [in
   flight: change 6018].
-- **Not yet:** *A landed dependency's catch-up*, *Its ask*:
-  `temper-worker-wire` carries no `landed` ask [in flight: change 6014].
 - **Not yet:** the whole document: a missing base branch fails the
   preparation; the checkout creates it from the default branch for a
   repository that may be written

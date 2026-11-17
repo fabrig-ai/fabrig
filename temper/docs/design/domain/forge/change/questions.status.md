@@ -3,8 +3,6 @@
 2026-11-17. Where the tree's code lags or departs from [questions.md](questions.md).
 
 
-- **Not yet:** 1, *A running producer catches up*: the engine answers no
-  `landed` ask [in flight: change 6014].
 - **Not yet:** 1, *Its requester's words and amendments*: a change
   answers its requester's words with the fallback feedback whatever its
   producer, and keeps no words to pass on its record [in flight: change
