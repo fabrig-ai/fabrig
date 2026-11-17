@@ -2,7 +2,6 @@
 
 2026-11-16. Where temper's code lags or departs from [documentation.md](documentation.md).
 
-- **Not yet:** 8: `limits` and `limits-engine` print the small profile's values, not the stock's [in flight: change 5801].
 
 Section 5 has no known gap in an asking charter reading the same pages
 through `see help`, with `read_docs` absent from that charter's offer.

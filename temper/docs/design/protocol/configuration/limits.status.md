@@ -2,9 +2,6 @@
 
 2026-11-16. Where the tree's code lags or departs from [limits.md](limits.md).
 
-- **Not yet:** "One stock": temper's limits are two profiles, `small` and `standard`, that a document chooses, and `small`'s figures, the setup's and the box's sit in production crates [in flight: change 5801].
-- **Not yet:** "Sized from what": temper's counts are `standard`'s, below dev.fabrig.ai's in the figures its engine document overrides, and some constants cite a test world [in flight: change 5801].
-- **Not yet:** "The stock covers fabrig's development": no deployment figures are recorded, and no test holds the stock above them [in flight: change 5801].
 
 
 
