@@ -277,6 +277,7 @@ UnlinkedRequest, out
   Authorized(authorized)      a printed link's authorization, always lost: no link signs in
   ApprovalAct(act)            an approval's ask, read or decision, which the host carries (section 12)
   Approval(answer)            its answer, as the host gave it back
+  AskedLink(asked)            an asked link's answer, always lost: its host carries no ask (section 9)
   Down { down }               the domain's work, which the host carries: a save, an erase, a send,
                               a watch opened, continued or closed, a read
   SignOut                     the sign-out, which the host answers
@@ -552,7 +553,9 @@ request table's once (`requests.md`); jig's check is ../testing.md's, 6.2.
   `expires` the link's wall time; `NotAsked`, refused, not ready, busy
   or lost, as an approval's ask; or `SignedOut`, the client then signed
   out, as by any exchange (below). A client not signed in sends it with
-  no credential, and the engine refuses it.
+  no credential, and the engine refuses it. A client with no link
+  answers it at once, `NotAsked` lost (4.4). At most one ask is in
+  flight: another meanwhile is answered `NotAsked` busy, unsent.
 - **The credential is never in the small store.** It is the link's, and
   `client.link()` gives it: a host that keeps a sign-in across its own
   restart keeps the credential where its platform keeps secrets, and
