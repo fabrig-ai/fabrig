@@ -249,11 +249,14 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   - **A decision's words,** `decided`'s (`tools.md`): every charter that
     decides says, beside its call: "Write the question in one sentence,
     the situation as a person reads it, and each option in one line."
-    They are charter 1's Asking paragraph and the shared sections of
+    They are charter 1's Asking paragraph, the shared sections of
     charters 13 to 16, the standing role's, the triager's, the prover's
-    and the porter's, as the draft lists them; charter 5's *Asking your
-    requester* doesn't repeat it, keeping its brief within the receiving
-    bounds (`../../protocol/configuration/stock.md`'s charter 5 row). So the option `took` names reads as one line.
+    and the porter's, as the draft lists them, and charter 5's *Asking
+    your requester* (`../../../charters/stock/goal.md`), whose line,
+    after the sentence that calls `decided`, says where the rest goes:
+    "Write its question in one sentence, the situation as a person reads
+    it, and each option in one line; commits, figures and task or pull
+    numbers go in its why." So the option `took` names reads as one line.
   - **A goal's report headline** (`agents.md`, 3, *A goal's report*):
     charter 1's goal paragraph says the headline is one line for the
     person saying "where the goal stands, naming no task, change or pull

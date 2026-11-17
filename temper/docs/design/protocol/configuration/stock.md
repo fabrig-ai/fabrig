@@ -329,7 +329,7 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   same bounds; it needs no policy-byte override or wider store codec.
   The `core.run_bytes`
   floor measures the resolved charter, including its parts and catalogue
-  models; charter 5 at init's catalogue needs 26,744 bytes, its
+  models; charter 5 at init's catalogue needs 27,765 bytes, its
   four files' 24 KB and its models', which `temper-service`'s floor test
   holds exactly. The root holds a run's charter within
   `root.journal.run_bytes`, 65,536 in both of temper's profiles, the
