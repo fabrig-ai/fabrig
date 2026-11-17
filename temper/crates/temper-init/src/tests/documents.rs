@@ -16,7 +16,8 @@ fn engine_figures_keep_the_hub_capacity_required_by_the_stock_agent() {
         let document = parse(file_bytes(files, b"temper.json"));
         let overrides = &document["engine"]["limits"]["overrides"];
         assert_eq!(overrides["hub.accounts"], 4_u32);
-        assert_eq!(overrides["hub.event_bytes"], 10660_u32);
+        // Fabrig's own development's 63,740-byte payload, less the separator.
+        assert_eq!(overrides["hub.event_bytes"], 63_738_u32);
         assert_eq!(overrides["hub.run_calls"], 48_u32);
         for worker in document["workers"].as_array().unwrap() {
             assert!(worker.get("limits").is_none());
@@ -197,8 +198,8 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
         assert!(actual["application"].get("machine").is_none(), "{row}");
         let mut expected = owned.clone();
         assert_ne!(actual["engine"]["owners"].as_array().unwrap().len(), 0);
-        // The startup turn_bounds writer holds these to each document's own
-        // agent; init adds a demo endpoint, so smith derives a different T.
+        // Init's carriers use the stock agent's payload and turn; the owned
+        // example keeps its explicit limits.
         let template = parse(include_bytes!("../../template/temper.json"));
         for pointer in ["/engine/limits/overrides", "/application/limits/overrides"] {
             for (name, bytes) in template.pointer(pointer).expect("template overrides").as_object().expect("limit map")
@@ -209,6 +210,13 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
                     || name.starts_with("root.loads.")
                     || name == "root.journal.transcript_bytes"
                     || name == "io.output"
+                    || name == "hub.event_bytes"
+                    || name == "tasks.message_bytes"
+                    || name == "tasks.result_bytes"
+                    || name == "tasks.inbox_bytes"
+                    || name == "checkout.message_bytes"
+                    || name == "forge.client.op_bytes"
+                    || name == "forge_component.body_bytes"
                 {
                     expected.pointer_mut(pointer).expect("owned overrides")[name] = bytes.clone();
                 }

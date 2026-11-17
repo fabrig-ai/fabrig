@@ -2,6 +2,21 @@
 use crate::agent::Declaration;
 use jig_protocol_config::Limits;
 
+/// Jig's stock with temper's counts (configuration/limits.md, one stock).
+#[must_use]
+pub fn stock() -> Limits {
+    let mut limits = jig_protocol_config::stock();
+    // Fabrig's own development's 48 calls per response.
+    limits.hub.run_calls = 48;
+    // Fabrig's own development's workers have at most 12 places; the
+    // largest round ceiling whose 48-call engine channel fits u32 is 32.
+    limits.core.fleet.slots = 32;
+    // Fabrig's own development's agent uses smith's standard profile,
+    // whose credential accounts are fixed at four, independent of conversations.
+    limits.hub.accounts = 4;
+    limits
+}
+
 /// The projection of an agent's declaration used by the carriers.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Sources {
@@ -174,7 +189,7 @@ pub fn worker_document(
     directories: &jig_protocol_config::Directories,
     sources: Sources,
 ) -> Result<jig_protocol_config::Worker, jig_protocol_config::Problems> {
-    let mut base = jig_protocol_config::stock();
+    let mut base = stock();
     if let Err(found) = worker(&mut base, sources) {
         let mut problems = jig_protocol_config::Problems::empty();
         problems.push(found.path, found.what);

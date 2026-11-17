@@ -1,4 +1,8 @@
-#![expect(clippy::disallowed_methods, reason = "ordinary tests edit fixture text and inspect diagnostics")]
+#![expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_macros,
+    reason = "ordinary tests edit fixture text and inspect diagnostics"
+)]
 use super::fixtures;
 use crate::{figures, startup};
 use jig_protocol_config as config;
@@ -134,4 +138,103 @@ fn a_short_figure_names_the_engine_scalar_and_keeps_the_check() {
     let text = core::str::from_utf8(&lines).unwrap();
     assert!(text.contains("the engine's figures: hub.turn_bytes 1:"), "{text}");
     assert!(text.contains("the agent's largest turn"), "{text}");
+}
+
+/// The engine's stock resolved without document overrides, then composed as
+/// its opening does (configuration/figures.md, 2–3).
+fn stock_figures() -> w::Figures {
+    use temper_engine_service_startup::{limits, stock};
+    let mut input: serde_json::Value =
+        serde_json::from_slice(include_bytes!("../../../temper-init/template/temper.json")).unwrap();
+    input["engine"]["limits"] = serde_json::json!({"overrides":{}});
+    input["engine"]["clients"]["provider"] = serde_json::Value::Null;
+    for endpoint in input["engine"]["llm"]["endpoints"].as_array_mut().unwrap() {
+        if endpoint["address"]["socket"] == "$llm" {
+            endpoint["address"]["socket"] = "127.0.0.1:8370".into();
+        }
+    }
+    let input = serde_json::to_vec(&input["engine"]).unwrap();
+    let document =
+        config::document(&input, &config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 }).unwrap();
+    let engine = temper_engine_service_startup::startup::engine(&document, 0, &config::Directories::working()).unwrap();
+    let mut own = limits::stock();
+    limits::derive(&mut own, temper_service_core::derived::STOCK).unwrap();
+    let mut figures =
+        temper_engine_service_startup::figures::Composer::new(&engine, &own).compose(&stock::agents()).into_parts();
+    figures.places = engine.limits.core.fleet.slots;
+    w::Figures::new(&w::CEILINGS, figures).unwrap()
+}
+
+fn stock_worker(figures: w::Figures) -> (startup::WorkerPart, crate::settings::Agent) {
+    // Exercise the standalone document and figures path, with all admitted places.
+    let input = fixtures::with(
+        &fixtures::worker_alone_document(),
+        b"workers[0].slots",
+        skein_lib::Decimal::of(u64::from(figures.places())).as_bytes(),
+    );
+    let mut part = startup::worker_part(&input, &config::Directories::working(), None).unwrap();
+    let bytes = temper_worker_shell::agent::figures::configuration(
+        &figures,
+        Some(std::path::Path::new("/fixture/claude")),
+        std::path::Path::new("/fixture/data"),
+        &[],
+    )
+    .unwrap();
+    let mut agent = fixtures::parsed_agent(smith_agent_shell::config::parse(&bytes).unwrap());
+    // The standalone shell advertises the parsed host's reply allowance.
+    agent.bounds.reply_bytes = Some(agent.limits.bodies.host_reply_text);
+    figures::apply(&mut part, figures).unwrap();
+    (part, agent)
+}
+
+#[test]
+fn stock_engine_figures_start_a_standalone_worker() {
+    let (mut part, agent) = stock_worker(stock_figures());
+    let limits = crate::worker_settings::root_limits(&part.worker, &agent, &part.limits);
+    assert!(temper_worker_domain::unfit(&limits).is_empty(), "{:?}", temper_worker_domain::unfit(&limits));
+    assert!(temper_worker_domain::valid(&limits));
+    startup::worker::check_worker_part(&mut part, &fixtures::files(), &agent).unwrap();
+}
+
+#[test]
+fn old_agent_payload_refuses_the_stock_event_carrier() {
+    // The former agents setting's payload, before its 2-byte separator.
+    const OLD_PAYLOAD: u64 = 10_662;
+    let mut figures = stock_figures().into_parts();
+    let mut agents = figures.agents.into_parts();
+    for figure in agents.profile.iter_mut() {
+        if figure.name() == b"declared.tool_payload" {
+            *figure = w::Limit::new(
+                &w::CEILINGS,
+                w::LimitParts { name: b"declared.tool_payload".as_slice().into(), value: OLD_PAYLOAD },
+            )
+            .unwrap();
+        }
+    }
+    figures.agents = w::Agents::new(&w::CEILINGS, agents).unwrap();
+    let (mut part, agent) = stock_worker(w::Figures::new(&w::CEILINGS, figures).unwrap());
+    let limits = crate::worker_settings::root_limits(&part.worker, &agent, &part.limits);
+    assert!(temper_worker_domain::unfit(&limits).iter().any(|unfit| *unfit == temper_worker_domain::Unfit::Events));
+    assert!(!temper_worker_domain::valid(&limits));
+    let found = startup::worker::check_worker_part(&mut part, &fixtures::files(), &agent).unwrap_err();
+    let lines = startup::lines(&found);
+    let text = core::str::from_utf8(&lines).unwrap();
+    assert!(text.contains("the engine's figures: hub.event_bytes 63738:"), "{text}");
+}
+
+#[test]
+fn stock_places_are_the_largest_round_engine_channel_ceiling() {
+    let mut jig = temper_service_core::derived::stock();
+    temper_service_core::derived::engine(&mut jig, temper_service_core::derived::STOCK).unwrap();
+    let mut own = temper_engine_service_startup::limits::stock();
+    temper_engine_service_startup::limits::derive(&mut own, temper_service_core::derived::STOCK).unwrap();
+    let payload = temper_engine_service_startup::translate::limits(&own).unwrap();
+    let mut sizes =
+        temper_service_core::derived::worker_sizes(&jig, jig.core.fleet.slots, &payload, own.forge.forges).unwrap();
+    let cap = w::sizes::engine_cap(&sizes);
+    // 32 = 2⁵; 40 is the next number of form d × 10ⁿ, 2ⁿ or 3 × 2ⁿ.
+    assert_eq!(sizes.slots, 32);
+    assert!(cap.is_some(), "{sizes:?}");
+    sizes.slots = 40;
+    assert!(w::sizes::engine_cap(&sizes).is_none(), "{cap:?}; next: {:?}", w::sizes::engine_cap(&sizes));
 }
