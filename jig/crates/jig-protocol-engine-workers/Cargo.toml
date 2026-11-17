@@ -20,9 +20,7 @@ jig-domain-link.workspace = true
 
 [dev-dependencies]
 skein-fake-channel.workspace = true
+jig-protocol-config-fixtures.workspace = true
 
 [lints]
 workspace = true
-
-[dev-dependencies]
-jig-protocol-config-fixtures.workspace = true
