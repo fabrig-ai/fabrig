@@ -44,7 +44,7 @@ pub(super) fn plan_world_with_gate(
         1000,
         gate,
         None,
-        StoryLimits { slots: Some(3), questions: bound, stall: Some(Duration::from_secs(3600)), ..*timing },
+        StoryLimits { slots: Some(3), questions: bound, stall: Some(Duration::from_secs(3600)), ..timing.clone() },
     );
     // The question and its contract share the required task section.
     world.env.limits.brief.budgets.task = 512;
@@ -307,33 +307,25 @@ fn a_question_open_past_the_stall_holds_nothing() {
     park_after_turn(&mut world, &producer, None, 0);
     let before_question = row(&world, change).change.since;
     world.env.now = world.env.now.saturating_add(stall.saturating_add(stall));
-    for _ in 0..TICKS {
-        world.tick();
-    }
+    world.advance_ticks(TICKS);
     assert_eq!(row(&world, change).change.state, State::Producing { requested: true });
     assert!(!matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }));
     assert!(!row(&world, change).questions.open.is_empty());
     let answering_at = world.env.wall;
     answer(&mut world, &requester, change, CALL + 1);
     wait_answer(&mut world, producer.task, change);
-    for _ in 0..TICKS {
-        world.tick();
-    }
+    world.advance_ticks(TICKS);
     let since = row(&world, change).change.since;
     assert!(since >= answering_at);
     assert!(since > before_question);
     let deadline = since.as_nanos().saturating_add(stall.as_nanos());
     // Leave a minute before the deadline, beyond these ticks' twenty seconds.
     world.env.now = Time::from_nanos(deadline - Duration::from_secs(60).as_nanos());
-    for _ in 0..TICKS {
-        world.tick();
-    }
+    world.advance_ticks(TICKS);
     assert_eq!(row(&world, change).change.state, State::Producing { requested: true });
     assert!(row(&world, change).change.since >= since);
     world.env.now = Time::from_nanos(deadline);
-    for _ in 0..TICKS {
-        world.tick();
-    }
+    world.advance_ticks(TICKS);
     assert_eq!(row(&world, change).change.state, State::Producing { requested: true });
     assert!(!matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }));
 }
@@ -581,9 +573,7 @@ fn the_change_merges_nothing_while_its_question_is_up() {
     fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"agreed fix", 1)
         .expect("producer pushed");
     super::delegates::fixtures::answer_producer(&mut world, &producer);
-    for _ in 0..TICKS {
-        world.tick();
-    }
+    world.advance_ticks(TICKS);
     assert_eq!(world.merges, 0);
     assert_eq!(live_task(&world, change).questions.len(), 1);
 }
@@ -761,9 +751,7 @@ fn an_asker_that_ends_drops_its_question() {
     answer(&mut world, &requester, change, CALL + 2);
     let revision = live_task(&world, change).revisions.hold;
     call(&mut world, &requester, CALL + 3, engine::Tool::Release { target: change, revision, again: None });
-    for _ in 0..TICKS {
-        world.tick();
-    }
+    world.advance_ticks(TICKS);
     assert!(row(&world, change).questions.open.is_empty());
     assert!(live_task(&world, change).questions.is_empty());
     let words: Vec<_> = replies(&world, requester.task, change)
@@ -830,9 +818,7 @@ fn a_resolution_that_ends_with_a_relayed_question_still_holds_its_change() {
     answer(&mut world, &requester, change, CALL + 2);
     let revision = live_task(&world, change).revisions.hold;
     call(&mut world, &requester, CALL + 3, engine::Tool::Release { target: change, revision, again: None });
-    for _ in 0..TICKS {
-        world.tick();
-    }
+    world.advance_ticks(TICKS);
     assert!(row(&world, change).questions.open.is_empty());
     assert!(live_task(&world, change).questions.is_empty());
     let expected = format!(
@@ -951,9 +937,7 @@ fn existing_sibling_question() -> AddedDependency {
 }
 
 fn assert_answer_held(world: &mut World, change: u64, producer: &engine::Assignment, dependency: u64) {
-    for _ in 0..TICKS {
-        world.tick();
-    }
+    world.advance_ticks(TICKS);
     assert_eq!(
         row(world, change).questions.open.first().map(|question| question.stands.clone()),
         Some(Stands::Held { answer: ANSWER.into() })
@@ -1141,9 +1125,7 @@ fn finish_early_pair(
 ) {
     super::early_start::push(world, producer, head, b"dependent");
     super::delegates::fixtures::answer_producer(world, producer);
-    for _ in 0..TICKS {
-        world.tick();
-    }
+    world.advance_ticks(TICKS);
     assert_pending_dependency(world, change, dependency);
     super::delegates::fixtures::answer_producer(world, upstream);
     both_land(world, change, dependency);
@@ -1162,9 +1144,7 @@ fn an_early_producers_answer_arrives_while_its_dependency_is_pending() {
         key: [99; 16],
         ask: people::Ask::Say { project: 1, task: producer.task, words: b"Please continue".as_slice().into() },
     }));
-    for _ in 0..TICKS {
-        world.tick();
-    }
+    world.advance_ticks(TICKS);
     assert!(live_task(&world, producer.task).last_activity > activity);
     assert_eq!(world.assigned.iter().filter(|run| run.task == producer.task).count(), attempts);
     assert_eq!(live_task(&world, producer.task).questions[0].number, question);
@@ -1377,9 +1357,7 @@ fn a_retried_step_relays_the_question_once() {
     }
     assert!(cut, "lose the acknowledgement of the atomic relay step");
     world.restart(true, true);
-    for _ in 0..TICKS {
-        world.tick();
-    }
+    world.advance_ticks(TICKS);
     assert_eq!(row(&world, change).questions.open.len(), 1);
     assert_eq!(row(&world, change).questions.open[0].stands, Stands::Asked);
     let words = replies(&world, requester.task, change);

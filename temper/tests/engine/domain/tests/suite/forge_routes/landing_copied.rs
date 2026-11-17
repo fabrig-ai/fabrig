@@ -120,12 +120,12 @@ fn setup(policy: Policy, batch: u16) -> (World, engine::Assignment) {
         &limits,
         StoryLimits {
             batch: Some(batch),
+            project_policy: Some(copy.clone()),
+            settings_owner: Some(forge_top::user_key(1, 7)),
             forge_body_bytes: Some(limits.forge.client.op_bytes),
             ..StoryLimits::default()
         },
-    )
-    .with_project_policy(copy.clone())
-    .with_settings_owner(&forge_top::user_key(1, 7));
+    );
     world.fake_env.limits.limits.files = ROOT_ENTRIES;
     repository(&mut world);
     world.adopt();
@@ -235,33 +235,60 @@ fn reviewed(world: &World, number: u64) -> bool {
             .any(|verdict| verdict.status == change::Status::Passed && Some(verdict.head) == row.change.last_head)
 }
 
-fn no_hold(world: &World) {
-    for record in world.store.rows.values() {
-        if let Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task) | tasks::Stored::Ended(task))) =
-            record
-        {
-            assert!(
-                !matches!(task.phase, tasks::Phase::Held { .. }),
-                "task {}: {:?}; last write: {:?}",
-                task.number,
-                task.phase,
-                world.writes.last()
-            );
-        }
+fn no_hold_record(world: &World, record: &Record) {
+    if let Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task) | tasks::Stored::Ended(task))) = record
+    {
+        assert!(
+            !matches!(task.phase, tasks::Phase::Held { .. }),
+            "task {}: {:?}; last write: {:?}",
+            task.number,
+            task.phase,
+            world.writes.last()
+        );
     }
 }
 
-fn await_landing_end(world: &mut World, changes: &[u64], landing: Option<u64>) -> u64 {
-    for _ in 0..STEPS {
-        world.tick();
-        no_hold(world);
+fn no_hold(world: &World) {
+    for record in world.store.rows.values() {
+        no_hold_record(world, record);
+    }
+}
+
+#[derive(Default)]
+struct LandingChecks {
+    checked: bool,
+    writes: usize,
+}
+
+impl LandingChecks {
+    fn check(&mut self, world: &World) {
+        if self.checked {
+            for key in &world.changed_tasks {
+                if let Some(record) = world.store.rows.get(key) {
+                    no_hold_record(world, record);
+                }
+            }
+        } else {
+            no_hold(world);
+            self.checked = true;
+        }
         assert!(
             !world
                 .writes
                 .iter()
+                .skip(self.writes)
                 .any(|write| matches!(write, api::Write::Merge { how, .. } if *how != api::MergeHow::FastForwardOnly)),
             "the turn only fast-forwards"
         );
+        self.writes = world.writes.len();
+    }
+}
+
+fn await_landing_end(world: &mut World, changes: &[u64], landing: Option<u64>) -> u64 {
+    let mut checks = LandingChecks::default();
+    for _ in 0..STEPS {
+        world.tick();
+        checks.check(world);
         approve(world, changes);
         if let Some(row) =
             landing_rows(world).into_iter().find(|row| landing.is_none_or(|task| row.landing.task == task))

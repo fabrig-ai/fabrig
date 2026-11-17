@@ -820,9 +820,7 @@ fn an_agreed_brief_uses_the_persons_newest_consumed_chat_words() {
         key: [MESSAGE_KEY; 16],
         ask: people::Ask::Say { project: 1, task: chat.task, words: NEWEST.into() },
     }));
-    for _ in 0..STEPS {
-        world.tick();
-    }
+    world.advance_ticks(STEPS);
     let read = Some(live(&world, chat.task).last_message);
     world.send(protocol::turn(Token::new(7), chat.task, chat.attempt, 1, 0, read, b"Read the latest request"));
     world.until(Until::Ready);

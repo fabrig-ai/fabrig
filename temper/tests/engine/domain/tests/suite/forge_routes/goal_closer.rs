@@ -456,9 +456,7 @@ fn a_closer_closes_lands_and_reports() {
         }]),
     };
     assert_eq!(result_words(&world, closer), closer::words(&expected, 4096).as_ref());
-    for _ in 0..300 {
-        world.tick();
-    }
+    world.advance_ticks(300);
     world.close();
 }
 
@@ -511,9 +509,7 @@ fn a_closer_without_a_close_job_skips_the_close_step() {
     assert!(row.close_changes.is_empty());
     assert_eq!(row.landing_changes.len(), 1);
     assert_eq!(world.jobs.len(), 0);
-    for _ in 0..300 {
-        world.tick();
-    }
+    world.advance_ticks(300);
     world.close();
 }
 
@@ -530,9 +526,7 @@ fn a_closer_of_a_goal_with_no_goal_branch_only_reports() {
     assert!(output.contains("into main\n"), "{output}");
     assert!(output.contains("The landing: none, no goal branch."), "{output}");
     assert!(output.ends_with(": unknown\n"), "{output}");
-    for _ in 0..300 {
-        world.tick();
-    }
+    world.advance_ticks(300);
     world.close();
 }
 
@@ -604,9 +598,7 @@ fn a_closers_failed_close_change_holds_it_and_its_release_retries() {
     assert_eq!(closer_row(&world, closer).expect("retry row").close_changes.as_ref(), &[close, second]);
     finish_close(&mut world, second, &branch, &job);
     wait_ended(&mut world, closer);
-    for _ in 0..300 {
-        world.tick();
-    }
+    world.advance_ticks(300);
     world.close();
 }
 
@@ -1088,9 +1080,7 @@ fn a_closer_survives_restart() {
     assert_eq!(restored.close_changes, saved.close_changes);
     assert_eq!(restored.landing_changes.len(), 1);
     assert!(result_words(&world, closer).starts_with(b"Goal T"));
-    for _ in 0..300 {
-        world.tick();
-    }
+    world.advance_ticks(300);
     world.close();
 }
 
@@ -1142,9 +1132,7 @@ fn a_closer_waits_for_work_and_closes_again() {
     let output = core::str::from_utf8(result_words(&world, closer)).expect("report UTF-8");
     assert!(output.contains(&format!("- T{first} Settle goal")), "{output}");
     assert!(output.contains(&format!("- T{second} Settle goal")), "{output}");
-    for _ in 0..300 {
-        world.tick();
-    }
+    world.advance_ticks(300);
     world.close();
 }
 
@@ -1292,9 +1280,7 @@ fn a_goals_report_quotes_each_main_pulls_ci_selection() {
         )),
         "{output}"
     );
-    for _ in 0..300 {
-        world.tick();
-    }
+    world.advance_ticks(300);
     world.close();
 }
 
@@ -1312,9 +1298,7 @@ fn a_failed_log_read_reads_unknown() {
     let words = result_words(&world, closer).into();
     finish_run(&mut world, &goal, tasks::TaskResult::Report { words });
     wait_ended(&mut world, goal.task);
-    for _ in 0..300 {
-        world.tick();
-    }
+    world.advance_ticks(300);
     world.close();
 }
 
@@ -1365,9 +1349,7 @@ fn a_closers_inflight_check_steps_nothing_until_the_next_start() {
     world.send(engine::Event::Stop);
     world.hold_ancestry_answers = false;
     world.events.extend(world.held_ancestry_answers.drain(..));
-    for _ in 0..80 {
-        world.tick();
-    }
+    world.advance_ticks(80);
     assert!(world.drained.is_none());
     assert!(world.events.is_empty(), "the final check's answer has routed while the write stays held");
     assert_eq!(closer_row(&world, task), Some(&saved), "CloserChecked steps nothing while settling");

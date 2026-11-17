@@ -33,9 +33,7 @@ fn a_live_producer_past_the_stall_delivers_its_change() {
         }
         let producer = next_producer(&mut world, change);
         observe_push(&mut world, &producer);
-        for _ in 0..40 {
-            world.tick();
-        }
+        world.advance_ticks(40);
         let requested = row(&world, change).change.since;
         let stall = world.env.limits.forge.change_policy.stall;
         let until = requested.as_nanos().saturating_add(stall.as_nanos());
@@ -51,9 +49,7 @@ fn a_live_producer_past_the_stall_delivers_its_change() {
         }
         let before = row(&world, change).change.state.clone();
         finish_producing(&mut world, change, &producer);
-        for _ in 0..100 {
-            world.tick();
-        }
+        world.advance_ticks(100);
         held.push(matches!(before, State::Held { .. }));
         assert!(row(&world, change).pull.is_some(), "the result opens its pull without a release");
         assert!(row(&world, change).change.last_head.is_some());

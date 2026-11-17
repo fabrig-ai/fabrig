@@ -444,9 +444,7 @@ fn release(world: &mut World, goal: &engine::Assignment, task: u64, call: u64) {
     assert!(matches!(answer, engine::CallAnswer::Revised { .. }), "{answer:?}");
 }
 fn settle(world: &mut World, goal: u64) {
-    for _ in 0..100 {
-        world.tick();
-    }
+    world.advance_ticks(100);
     assert_eq!(goal_runs(world, goal), 2, "the escalation wakes the goal exactly once");
     assert!(ended(world, goal).is_some());
 }
@@ -669,9 +667,7 @@ fn a_cancelled_stalled_landing_retries_without_holding_or_waking_its_goal() {
     let run = awakened(&mut world, goal.task);
     cancel_step(&mut world, &run, landing, 93);
     assert_eq!(row(&world, landing).change.ended_held, Some(change::Hold::Stalled));
-    for _ in 0..100 {
-        world.tick();
-    }
+    world.advance_ticks(100);
     assert!(!matches!(live_task(&world, closer).phase, tasks::Phase::Held { .. }));
     park_goal(&mut world, &run);
     for _ in 0..STEPS {

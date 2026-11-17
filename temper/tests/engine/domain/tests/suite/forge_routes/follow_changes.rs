@@ -335,6 +335,27 @@ fn unaccepted_follow(passes: u32, gate: Gate, cued: bool, context: bool) -> Worl
         gate,
         None,
         StoryLimits {
+            second_project: true,
+            forge_pages: Some(b"https://forge.example"),
+            project_landing: cued.then(|| {
+                (
+                    2,
+                    engine::ProjectLanding {
+                        gate_retries: 2,
+                        gate_timeout: Duration::from_millis(3_600_000),
+                        batch: 1,
+                        combine_main: engine::Combine::Merge,
+                        combine_other: engine::Combine::Squash,
+                        check_timeout: None,
+                        close_job: None,
+                        merge_job: None,
+                        by: engine::Way::Queue,
+                        repositories: Box::new([]),
+                        after: engine::AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 },
+                        landing_attempts: engine::LANDING_ATTEMPTS,
+                    },
+                )
+            }),
             kinds: true,
             workflow_dispatch: true,
             // A seeded source stream and its ports retain more than the basic fake's 16 commits.
@@ -360,28 +381,7 @@ fn unaccepted_follow(passes: u32, gate: Gate, cued: bool, context: bool) -> Worl
             stall: Some(Duration::from_secs(3600)),
             ..StoryLimits::default()
         },
-    )
-    .with_forge_pages(b"https://forge.example")
-    .with_second_project();
-    if cued {
-        world = world.with_project_landing(
-            2,
-            engine::ProjectLanding {
-                gate_retries: 2,
-                gate_timeout: Duration::from_millis(3_600_000),
-                batch: 1,
-                combine_main: engine::Combine::Merge,
-                combine_other: engine::Combine::Squash,
-                check_timeout: None,
-                close_job: None,
-                merge_job: None,
-                by: engine::Way::Queue,
-                repositories: Box::new([]),
-                after: engine::AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 },
-                landing_attempts: engine::LANDING_ATTEMPTS,
-            },
-        );
-    }
+    );
     if cued {
         // At most two check runs per port, across the seed's source stream and drained tail.
         world.fake_env.limits.limits.workflow_runs = 64;

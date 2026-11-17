@@ -3,7 +3,9 @@ use super::*;
 use skein_forge::api;
 
 fn task_row(world: &World, task: u64) -> Option<&tasks::TaskRecord> {
-    world.store.rows.values().find_map(|record| match record {
+    let live = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(task)));
+    let ended = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(task)));
+    world.store.rows.get(&live).into_iter().chain(world.store.rows.get(&ended)).find_map(|record| match record {
         Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row) | tasks::Stored::Ended(row)))
             if row.number == task =>
         {
@@ -89,9 +91,7 @@ fn a_parked_producers_existing_change_waits_for_its_resumed_terminal_to_commit()
         matches!(&resumed.workspace.repositories[0].start, engine::ForgeStart::Saved(name) if name.as_ref() == saved_branch)
     );
     assert_eq!(resumed.workspace.repositories[0].push.as_deref(), Some(branch.as_ref()));
-    for _ in 0..200 {
-        world.tick();
-    }
+    world.advance_ticks(200);
     assert_eq!(world.fake.branch(b"org/repo", &branch), Some(pushed), "no extra edit or commit");
     assert_eq!(world.merges, 0, "withheld terminal keeps the existing change unlanded");
     assert!(!matches!(task_row(&world, change).expect("change").phase, tasks::Phase::Ended(_)));
@@ -154,7 +154,7 @@ fn produced_turn_change(landing_members: Option<u32>) -> (World, u64) {
 }
 
 fn produced_turn_change_with(limits: &StoryLimits) -> (World, u64) {
-    let mut world = World::configured_limits(true, true, false, 1000, Gate::default(), None, *limits);
+    let mut world = World::configured_limits(true, true, false, 1000, Gate::default(), None, limits.clone());
     world.adopt();
     world.send(hello_prepare(2));
     let ask = adoption_chat(&world);
@@ -562,8 +562,8 @@ fn landing_rows(world: &World) -> Vec<&forge_top::LandingRow> {
     world
         .store
         .rows
-        .values()
-        .filter_map(|record| match record {
+        .range(Key::Forge(forge_top::Key::Landing(u64::MIN))..=Key::Forge(forge_top::Key::Landing(u64::MAX)))
+        .filter_map(|(_, record)| match record {
             Record::Forge { row } => match row.as_ref() {
                 forge_top::Stored::Landing(row) => Some(row),
                 _ => None,
@@ -1110,9 +1110,7 @@ fn a_train_forms_after_its_due_readiness_steps_settle() {
     world.slow_branch_latency = skein_lib::Duration::from_secs(1);
     finish_producer(&mut world, &producer_a, forge_world::REPO);
     finish_producer(&mut world, &producer_b, forge_world::REPO);
-    for _ in 0..LATCH_TICKS {
-        world.tick();
-    }
+    world.advance_ticks(LATCH_TICKS);
     assert!(landing_rows(&world).is_empty(), "the latch keeps both changes");
     goal_landing::finish_run(
         &mut world,

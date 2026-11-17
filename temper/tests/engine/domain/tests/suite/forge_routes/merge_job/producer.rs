@@ -358,9 +358,7 @@ fn a_producer_that_cleans_the_conflict_needs_no_resolution() {
     let producer = resume(&mut world, &producer);
     let head = push_merge(&mut world, task, first, base);
     finish_resolution(&mut world, &producer);
-    for _ in 0..STEPS {
-        world.tick();
-    }
+    world.advance_ticks(STEPS);
     let row = change_row(&world, task);
     assert_eq!(row.change.resolutions, 0);
     assert_eq!(row.change.last_head, Some(translate::commit(head)));
