@@ -537,7 +537,7 @@ fn the_bare_document_is_the_box_less_its_parts() {
         for member in ["providers", "endpoints"] {
             expected["engine"]["llm"][member].as_array_mut().unwrap().retain(|item| item["name"] != "demo");
         }
-        let names = [b"worker.secret".as_slice(), b"worker.digest", b"temper.json"];
+        let names = [b"worker.secret".as_slice(), b"temper.json"];
         assert_eq!(bare.len(), names.len(), "{row}");
         for (file, name) in bare.iter().zip(names) {
             assert_eq!(file.name, name, "{row}");

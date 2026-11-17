@@ -209,7 +209,7 @@ temper sizes the engine's watch rooms itself: a stream holds 31 watches, and the
 - `hub.detail_bytes`: bytes, 4,096. Bounds bytes of detail an answer carries for operators: the tail of what it is given.
 - `hub.held`: count, 8. Bounds inbound events a run holds until it is live.
 - `hub.inbox`: count, 82. Bounds messages a run starts with and refusals a turn or answer carries.
-- `hub.event_bytes`: bytes, 135,168. Bounds bytes of an inbound event.
+- `hub.event_bytes`: bytes, 63,738. Bounds bytes of an inbound event.
 - `hub.run_calls`: count, 8. Bounds host calls a run has in flight at once, including delivery.
 - `hub.facts`: count, 256. Bounds facts kept until the parent drains them.
 - `hub.told`: count, 256. Bounds activity and live pieces kept for the core while the link cannot take it.

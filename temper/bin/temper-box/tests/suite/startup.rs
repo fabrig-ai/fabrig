@@ -2041,6 +2041,7 @@ fn turn_bounds() {
     for (relative, escaped) in [
         ("bin/temper-box/tests/fixtures/cluster-turn/engine.json", true),
         ("docs/development/qa/setups/turn-landing/config/engine.json", false),
+        ("docs/development/qa/setups/stock-landing/config/engine.json", false),
     ] {
         let path = root.join(relative);
         let text = fs::read_to_string(&path).expect("engine-figures fixture");

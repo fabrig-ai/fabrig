@@ -3,7 +3,7 @@ use crate::{Limits, Text};
 use alloc::boxed::Box;
 use skein_lib::Decimal;
 
-pub const INTRO: &[u8] = b"JSON fields, types, bounds and effects. The settings file is file. Read settings show KIND N, edit and set it whole. The deployment may refuse: shape, count, reference, rules, budget, grace, owner or linked. Spend uses deployment model-price units. Hex is lowercase hexadecimal. u8/u16/u32/u64 range from 0 through 255/65535/4294967295/18446744073709551615. bool is true or false. text[N]/hex[N]: at most N bytes; [N] T: list of at most N entries of T. ? optional; ! required; |null admits null. Code choices are JSON strings. Values follow setting.kind; project-policy uses policy.";
+pub const INTRO: &[u8] = b"JSON fields, types, bounds and effects. Read `settings show KIND N`, edit and set whole. File shape: file. Refusals: shape, count, reference, rules, budget, grace, owner, linked. Spend: deployment model-price units. Hex: lowercase hexadecimal. u8/u16/u32/u64: 0 through 255/65535/4294967295/18446744073709551615. bool: true/false. text[N]/hex[N]: <=N bytes; [N] T: <=N entries of T. ? optional; ! required; |null admits null. Code choices are JSON strings. Values follow setting.kind; project-policy uses policy.";
 
 #[must_use]
 pub fn page(limits: &Limits) -> Box<[u8]> {
@@ -68,9 +68,9 @@ fn write(forms: &[Form], fields: &[Field], limits: &Limits, out: &mut Text) {
             if field.shape != form.shape {
                 continue;
             }
-            out.put(b"- ");
+            out.put(b"- `");
             out.put(field.name);
-            out.put(b": ");
+            out.put(b"`: ");
             if let Some(bound) = field.list {
                 out.put(b"[");
                 number(most(bound, limits), out);
