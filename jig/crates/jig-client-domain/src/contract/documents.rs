@@ -97,6 +97,8 @@ pub struct Task {
     pub resources: List<super::ResourceLine>,
     pub budget: super::Budget,
     pub authority: super::AuthorityDocument,
+    /// Tasks left over the subtree's life, excluding itself (jig/docs/design/client/domain/contract/documents.md, 1).
+    pub tasks_left: u32,
     pub hold: Option<Box<super::ChipHold>>,
     pub proposals: List<ProposalKey>,
     pub activity: u64,

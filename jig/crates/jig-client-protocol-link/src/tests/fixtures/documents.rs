@@ -57,6 +57,7 @@ pub fn task_record() -> w::Task {
 }
 pub fn task() -> c::Task {
     c::Task {
+        tasks_left: 5,
         concluded: None,
         talk: None,
         session: None,

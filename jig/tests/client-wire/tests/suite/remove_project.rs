@@ -1,5 +1,5 @@
 //! Project deletion records (jig/docs/design/domain/people/acts.md, 2).
-use jig_client_protocol_wire::v26 as w;
+use jig_client_protocol_wire::v27 as w;
 use skein_lib::{Reader, Writer};
 
 #[test]

@@ -2,7 +2,7 @@ use super::*;
 #[test]
 fn the_hello_s_jig_range_reaches_the_domain() {
     let harness = fixtures::Harness::streaming(fixtures::frame_subject());
-    assert!(harness.has(&Request::Hello { family: None, versions: Some(c::VersionRange { first: 26, last: 26 }) }));
+    assert!(harness.has(&Request::Hello { family: None, versions: Some(c::VersionRange { first: 27, last: 27 }) }));
 }
 #[test]
 fn the_hello_s_family_range_reaches_its_owner() {
@@ -23,7 +23,7 @@ fn a_hello_reopens_no_watch_of_an_owner_it_does_not_serve() {
     hello.served.clear();
     hello
         .served
-        .push(w::Served::new(&w::CEILINGS, w::ServedParts { owner: w::Owner::Jig, first: 26, last: 26 }).unwrap())
+        .push(w::Served::new(&w::CEILINGS, w::ServedParts { owner: w::Owner::Jig, first: 27, last: 27 }).unwrap())
         .unwrap();
     harness.stream_record(&fixtures::event_bytes(&w::StreamEvent::Hello(w::Hello::new(&w::CEILINGS, hello).unwrap())));
     assert!(harness.has(&Request::Hello { family: Some(19), versions: None }));
@@ -660,7 +660,7 @@ fn a_watch_ended_not_served_ends_its_handle_naming_why() {
     let (_, name) = h.opening();
     h.stream_record(&fixtures::ending(name, w::WatchEnd::NotServed(fixtures::not_served())));
     assert_eq!(h.ended(fixtures::WATCH), Some(c::WatchEnd::NotServed));
-    assert!(h.has(&Request::Hello { family: Some(19), versions: Some(c::VersionRange { first: 26, last: 26 }) }));
+    assert!(h.has(&Request::Hello { family: Some(19), versions: Some(c::VersionRange { first: 27, last: 27 }) }));
 }
 
 #[test]
