@@ -1,6 +1,6 @@
 # llm: status
 
-2026-11-13. Where skein's code lags or departs from [README.md](README.md).
+2026-11-17. Where skein's code lags or departs from [README.md](README.md).
 
 
 - **Not yet:** 4.7: `off` refused at admission, so no request carries disabled thinking; a focused test holding each shape current Claude models refuse absent; the fake peer refusing disabled thinking and sampling settings [in flight: change 914].
@@ -9,21 +9,27 @@ Section 4.9 has no known implementation gap in the route-specific list
 request, bounded parsing, visibility filtering or optional figures.
 Later pages remain section 6's deferred work.
 
-- **Not yet:** 5: `skein-live`, the live suite's logins on the routes that
-  stay, has no design: the suite calls the public route with a lent login's
-  access token and Anthropic with a lent key file, but five of its provider
-  stories are ignored, manual stories run by the owner; how the owner runs
-  them is for later (section 6).
+- **Not yet:** 5: `skein-live`, the live suite, keeps five of its provider
+  stories ignored, outside its automatic run: the suite calls the public route
+  with a lent Codex login's API key or access token and Anthropic with a lent
+  key file (section 5).
+  `openai_streamed_text_and_history` and `openai_tool_round_trip` need a
+  credential holding the public route's scope, `api.responses.write`, which an
+  OpenAI API key holds and a Codex sign-in's access token lacks (`401 Missing
+  scopes: api.responses.write`): the daily live run runs them, lending an API
+  key's login, the `auth.json` that `codex login --with-api-key` writes, by the
+  request of 2026-11-17.
   `anthropic_streamed_text_and_history`, `anthropic_tool_round_trip` and
   `anthropic_unauthorized` need an Anthropic API key: none is provided or wanted
-  for the automatic suite, by the user's decision of 2026-11-03.
-  `openai_streamed_text_and_history` and `openai_tool_round_trip` need a login
-  whose access token holds the public route's scope, `api.responses.write`: the
-  Codex login lent to the suite lacks it and is refused (`401 Missing scopes:
-  api.responses.write`), and no lent login serves the route in a form the suite
-  reads, by the director's decision of 2026-11-03, which the user takes.
-  `openai_unauthorized` stays in the automatic suite: it sends the lent token
-  replaced by an invalid one.
+  for the automatic suite, by the user's decision of 2026-11-03, so they are
+  manual stories run by the owner, how is for later (section 6).
+  `openai_unauthorized` stays in the automatic suite, and the daily live run
+  runs it too: it sends the lent credential replaced by an invalid one.
+- **Not yet:** 5: the live suite's public-route credential and login file: a
+  lent login's `OPENAI_API_KEY`, where it is a string, sent as the bearer; a
+  login file refused unless it is a regular file of mode 0600, and read once
+  within the login's bound. The suite reads only `.tokens.access_token`, from
+  a login file of any mode, read whole.
 - **Departs:** 3: `skein/docs/foundation/programming-model.md`, 5.4 asks for one
   explicit state enum per lifecycle, each state holding exactly its
   data, no lifecycle in flags or `Option`s beside it, exhaustive matches
