@@ -647,7 +647,7 @@ pub const AMEND: Tool = Tool {
     result: b"amend",
     forms: &[&[
         positional(b"task", b"TASK", Kind::Number, Required, b"The task's number"),
-        flag(b"rev", b"REV", Kind::Number, Optional, b"The spec revision the task prints; not needed for its priority alone"),
+        flag(b"rev", b"REV", Kind::Number, Optional, b"The spec revision the task prints; not needed for its priority or its address alone"),
         flag(b"priority", b"PRIORITY", Kind::Number, Optional, b"Track it at this priority"),
         switch(b"untracked", b"Stop tracking it"),
         flag(b"deadline", b"TIME", Kind::Literal, Optional, b"Its new deadline, as 2026-10-24T17:00Z"),
@@ -666,10 +666,12 @@ pub const AMEND: Tool = Tool {
         super::table::Argument { line: b"An effort that model offers", ..EFFORT },
         positional(b"reason", b"REASON", Kind::Text, Required, b"Why"),
         flag(b"tasks", b"N", Kind::Number, Optional, b"The tasks its subtree may make over its life; the rest of its authority kept"),
+        flag(b"to-party", b"PARTY", Kind::Number, Optional, b"Address the person task to this party"),
+        flag(b"to-role", b"ROLE", Kind::NumberRange { min: 0, max: 4_294_967_295 }, Optional, b"Address the person task to this role of its project"),
     ]],
     keyed: Keyed::Optional,
     area: 2,
-    notes: b"A task whose spec moved since your read fails with `read again:\ntask show TASK`. Each file is read before anything is sent, one\nfinal newline trimmed, at most 32768 bytes of UTF-8. An amendment\nthat names no change fails (exit 1); one that names a value the task\nalready has is sent, and the engine answers it.\n",
+    notes: b"A task whose spec moved since your read fails with `read again:\ntask show TASK`. Each file is read before anything is sent, one\nfinal newline trimmed, at most 32768 bytes of UTF-8. An amendment\nthat names no change fails (exit 1); one that names a value the task\nalready has is sent, and the engine answers it.\nAn address re-addresses at this read's person revision; a non-person\ntask fails (exit 1).\n",
 };
 
 /// Appended so existing keyed tool identities stay stable.
