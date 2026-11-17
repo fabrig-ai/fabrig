@@ -427,19 +427,16 @@ The default, for a project with no prepare command:
   deadline passed) is the project's, not a member's: jig tries it
   again within the job's tries, then holds it, and the landing holds,
   saying so (4.2).
-- **Lost or partial:** a job whose answer is lost is tried again by
-  jig. Before each delegation, and once a job has ended, the landing
+- **Lost or partial:** a job whose attempt is lost is tried again by
+  jig, in the same child. Before each delegation, and once a job has ended, the landing
   reads its members' branches: each prefix found there in order, each
   on the one below, for the round's base and that member's head, is
   taken, and a job is made only for the members above the last taken.
-  Each admitted unprepared suffix is delegated once: while its job has
-  no readable outcome, the landing waits for that job's retries, including
-  after restart. A prepare decision records intent before jig admits its
-  delegation. With no admitted job for that suffix, the landing offers
-  prepare again; a concurrent wait for the same procedure step cannot
-  strand that intent. The retained job record (landing-history.md,
-  3.3) identifies an admitted job by its round and ordered suffix members,
-  even after its child leaves the live delegate list. A failed prefix
+  At each step the landing reads afresh whether the round's prepare
+  lives, has answered or is absent, from jig's context and its job
+  record, never from its own marks: it waits while it lives, reads an
+  answer first, and asks once again where it is absent
+  (`landing-preparing.md`). A failed prefix
   read is no evidence of an absent push. A base found stale as preparation
   ends closes that round before proof. After cleanup, the next round reads
   its new base and advances its preparation number before asking for its
@@ -974,7 +971,9 @@ documents for another task or project remain errors.
   are read afresh, and each run in flight is read (`Read::Run`); a
   dispatch whose outcome was uncertain is found by its runs, as section 11 says.
 - **In each phase:** preparing, the job's delegate is jig's and lives
-  on, and the members' branches are read before any new job (5.2);
+  on, the start's read decides nothing, and the round's prepare is read
+  from jig's restored context (`landing-preparing.md`, 3), the members'
+  branches before any new job (5.2);
   proving or probing, its runs are found again, and its search at its
   stored bounds (`landing-search.md`, 6); the round's pull request, its
   opening uncertain, is found by its branches; judging, each change's
@@ -1054,7 +1053,9 @@ stories supply prepare outcomes as a worker does. The forge's world holds:
   refused.
 
 The domain's stories add, through its root: a restart in each phase,
-the prepare job living on its worker; `batch` raised at a restart; a
+the prepare job living on its worker; a round at preparing recovering
+across a restart, a worker's loss and a release
+(`landing-preparing.md`, 7); `batch` raised at a restart; a
 saved delivery across its worker's loss beside a proving landing; going
 live by `turn` with running work's settings kept (13); a copied policy's
 ceilings on the shipped capacities; a goal's delivery leaving its

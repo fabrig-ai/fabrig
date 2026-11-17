@@ -46,6 +46,9 @@ all. Then temper's:
      red of known flakes rerun before its receipt, and a failed receipt
      superseded once a repair found only flakes and a person released
      its change.
+   - `landing-preparing.md`: a round at preparing reading at each step
+     whether its prepare lives, has answered or is absent, and
+     recovering across a restart, a worker's loss and a release.
    - `landing-history.md`: each change's and landing's steps kept as
      events after their rows go, swept by age and count, and read by
      `temper ctl landing history`.

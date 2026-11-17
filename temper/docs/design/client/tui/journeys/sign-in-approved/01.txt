@@ -1,11 +1,11 @@
 ╭─ temper ─────────────────────────────────────────────────────────────────────╮
-│ Sign in this terminal to 127.0.0.1:34001                                     │
+│ Sign in this terminal to 127.0.0.1:40251                                     │
 │ A tab opened in your browser. Check it shows                                 │
-│ JXGS-LDZM, then press Approve.                                               │
-│ No tab? Open http://127.0.0.1:34001/terminal?code=JXGS-LDZM                  │
+│ ZFFZ-JJKJ, then press Approve.                                               │
+│ No tab? Open http://127.0.0.1:40251/terminal?code=ZFFZ-JJKJ                  │
 │ The code expires in 9 min.                                                   │
 │ Paste the link temper printed, then Enter.                                   │
-│ ❯ Link: http://127.0.0.1:34001/jig/v1/sign-in/link?secret=… (enter sends)    │
+│ ❯ Link: http://127.0.0.1:40251/jig/v1/sign-in/link?secret=… (enter sends)    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 

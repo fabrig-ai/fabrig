@@ -1,11 +1,8 @@
 # design: status
 
-2026-11-15. Where `.temper/pre-pr`'s code lags or departs from [design.md](design.md).
+2026-11-17. Where `.temper/pre-pr`'s code lags or departs from [design.md](design.md).
 
-- **Not yet:** 1, 3, 4, 5, 6, 8 and 9: the check selects no boundary packages, so a docs-only delivery runs citations alone and a package on an unprefixed `.config/gate/always.txt` line is tested only where it changed or depends on what did; it runs no fuzzy tests; its tests pin neither [in flight: change 3858].
-- **Not yet:** 9: the boundary world still runs the tables' rows end to end, thirteen tests where 9.1 keeps ten stories, and `tools/pre-pr/test_pre_pr.py` lacks the base's and the selection's tables, each tree's count failing, a moved pin, the summary's bound and the unset hold [in flight: change 3666].
-- **Not yet:** 1, 6, 7 and 9: the check writes no failures file and its summary has no failures line, a cache hit writing none either; its tests pin neither [in flight: change 3690].
-- **Not yet:** 4: one-process reads no budgets unless given `--budgets`, so the check's output compares no layer with its budget [in flight: change 5592].
+- **Not yet:** 1, 4, 5, 6, 7 and 9: the check reads no `TIERS_LEDGER` and passes no `--ledger` or `--gate`, so a layer over its budget or a test past its reference is a warning at every delivery; it reads no exit 1 through `cpu-summary` and names no failure `budget …` or `reference …`; the passed-tree cache's record has three fields, keying no ledgers; and story 11 and the ledgers' unit tests are not written [in flight: change 6350].
 
 No other gaps in sections 1–9. Section 10's later work remains outside the delivery
 check.

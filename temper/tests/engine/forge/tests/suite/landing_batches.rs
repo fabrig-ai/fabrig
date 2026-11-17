@@ -33,7 +33,7 @@ pub(crate) fn heard(preparation: landing::Preparation, failure: &[u8]) -> top::L
         dependencies: Box::new([]),
         held: Box::new([]),
         failure: failure.into(),
-        preparation,
+        preparation: Some(preparation),
         released: false,
         cancelled: false,
         kept: Box::new([]),

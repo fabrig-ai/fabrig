@@ -96,7 +96,7 @@ fn begin(d: &mut Domain, entry: u64) {
                 dependencies: Box::new([]),
                 held: Box::new([]),
                 failure: Box::new([]),
-                preparation: policy::Preparation::Idle,
+                preparation: Some(policy::Preparation::Idle),
                 kept: Box::new([]),
                 released: false,
                 cancelled: false,

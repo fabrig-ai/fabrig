@@ -516,6 +516,15 @@ A task whose executor is a party, or a role (../model.md, 3.2):
   approval of a state its procedure names, or an answer in words; and,
   always, that it cannot be done, with a reason, which is a failure
   (../tasks/README.md, section 3).
+- **An answer in words has at least one byte:** a report contract bound
+  at 0 words, addressed to a party or a role, is no contract its executor
+  can produce, since every answer a person sends is longer, so the batch
+  check refuses it as `Refusal::Contract`, naming the member, and makes
+  none of its batch (../tasks/README.md, section 4). A bound of 1 up to
+  the deployment's result bound is admitted. A verdict's choices bound at
+  0 words, and a report bound at 0 for an executor that is no person, are
+  admitted as before: a choice is answered by its code, and an agent or a
+  procedure may finish with no words.
 - **An approval** is of the state as its procedure named it: bytes the
   core carries with the contract and never reads, and a part its
   connector shows the state by. The answer names the state it approves;

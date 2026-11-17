@@ -124,7 +124,7 @@ fn narrow(task: &mut c::NewTask, milestone: &c::Task, now: Wall) {
     task.authority.delegation.tasks = if task.authority.delegation.depth == 0 {
         0
     } else {
-        task.authority.delegation.tasks.min(allowance.tasks.saturating_sub(1))
+        task.authority.delegation.tasks.min(milestone.tasks_left.saturating_sub(1))
     };
     if let Some(latest) = milestone.budget.deadline {
         let deadline = match task.deadline {
