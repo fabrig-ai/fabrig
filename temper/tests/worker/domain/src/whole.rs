@@ -74,6 +74,7 @@ struct World {
     hold_push: bool,
     held: Option<(Token, Op)>,
     deliveries: u32,
+    delivery_reply: Option<agent::Delivery>,
     call: Option<Box<[u8]>>,
     replies: Vec<smith_channel::Reply>,
     unsent: u32,
@@ -117,6 +118,7 @@ impl World {
             hold_push: false,
             held: None,
             deliveries: 0,
+            delivery_reply: None,
             call: None,
             replies: Vec::new(),
             unsent: 0,
@@ -324,14 +326,13 @@ impl World {
             }
             agent::Down::Answer { call, reply } => {
                 assert_eq!(call, CALL);
-                if !matches!(reply, agent::Reply::Delivery(_)) {
+                let agent::Reply::Delivery(delivery) = reply else {
                     let Some(reply) = host_reply(reply) else { return false };
                     self.replies.push(reply);
                     return true;
-                }
-                let agent::Reply::Delivery(agent::Delivery::Delivered(receipts)) = reply else {
-                    panic!("the complete edited tree is delivered: {reply:?}");
                 };
+                self.delivery_reply = Some(delivery.clone());
+                let agent::Delivery::Delivered(receipts) = delivery else { return true };
                 assert_eq!(receipts.receipts().len(), 1);
                 assert_eq!(receipts.receipts()[0].directory(), 0);
                 let landed = self.forge.branch(REMOTE, b"topic").expect("delivered branch");
@@ -401,12 +402,53 @@ impl World {
     }
 
     fn deliver(&mut self) {
+        self.request_delivery(protocol::delivery(b"Delivery", b"Worker story"));
+        if let Some(reply) = &self.delivery_reply {
+            assert!(matches!(reply, agent::Delivery::Delivered(_)), "the complete edited tree is delivered: {reply:?}");
+        }
+    }
+
+    fn request_delivery(&mut self, ask: agent::Ask) {
+        self.delivery_reply = None;
         self.say(agent::Up::Call {
             call: CALL,
             name: agent::CallName { activation: self.attempt.raw(), completion: self.deliveries + 1, position: 0 },
             deadline: self.env.now.saturating_add(Duration::from_secs(60)),
-            ask: protocol::delivery(b"Delivery", b"Worker story"),
+            ask,
         });
+    }
+
+    /// A change finish asks the host to deliver before it can answer accepted.
+    fn finish_change(&mut self) -> agent::Delivery {
+        let ask = protocol::delivery(b"Delivery", b"Worker story");
+        let agent::Ask::Deliver { fields } = &ask else { panic!("change delivery") };
+        let change = fields.clone().into_value();
+        self.request_delivery(ask);
+        let reply = self.delivery_reply.take().expect("finishing delivery answered");
+        match &reply {
+            agent::Delivery::Delivered(_) => {
+                let declared = smith_domain_run::outcome::Declared::Change(change);
+                let outcome = agent::Declared::new(declared, u64::MAX).expect("bounded change result");
+                self.say(agent::Up::Answer {
+                    answer: agent::Answer {
+                        read: None,
+                        turns: 0,
+                        spent: 0,
+                        result: agent::RunResult::Accepted { outcome },
+                    },
+                });
+            }
+            agent::Delivery::Nothing => {} // smith refuses the finish and keeps the run live.
+            reply => panic!("unexpected finishing delivery: {reply:?}"),
+        }
+        reply
+    }
+
+    fn park(&mut self) {
+        self.say(agent::Up::Answer {
+            answer: agent::Answer { read: None, turns: 0, spent: 0, result: agent::RunResult::Parked },
+        });
+        self.gone();
     }
 
     fn finish(&mut self) {
@@ -782,6 +824,75 @@ pub fn retry(seed: u64, resume: bool) -> Report {
     assert_eq!(world.domain.kept_answers(), 0);
     assert_eq!(world.stops, 1);
     world.report
+}
+
+/// A repair delivers, parks for a question, then finishes on the same branch
+/// without edits. Only the next item's evidence makes that clean finish delivered.
+pub fn delivered_across_park(seed: u64, names_delivery: bool) {
+    let mut world = World::new(seed);
+    world.start_from(wire::Start::Branch { branch: b"topic".as_slice().into() });
+    world.deliver();
+    assert_eq!(world.deliveries, 1, "the repair received its delivery receipt");
+    let head = world.forge.branch(REMOTE, b"topic").expect("repair delivered");
+    assert_ne!(head, world.first, "the first run pushed its edit");
+    let commit = translate::commit(head).raw();
+    let landed = [wire::Landed { tag: 1, commit, checked: true }];
+    assert_eq!(world.forge.tree(head), [(PATH.to_vec(), b"edited\n".to_vec())].into());
+
+    // The question's engine wire is outside this story; parking ends its hold.
+    world.park();
+    let (answer, work, preparation) = world.answer.take().expect("parked repair answer");
+    assert!(matches!(answer.ending, host::Ending::Parked { .. }));
+    assert_eq!(work.landed.as_ref(), landed);
+    assert_eq!(preparation, None);
+    assert_eq!(world.domain.workspaces(), 0, "the first hold ended");
+    world.event(Event::Link(host::LinkDown::Acknowledge { run: RUN, attempt: world.attempt }));
+    world.attempt = Token::new(world.attempt.raw() + 1);
+    world.process = None;
+
+    // The answer assigns the same task afresh, naming its last checked push.
+    let Event::Assign { mut assignment, items } =
+        assignment(head, RUN, WORKSTREAM, wire::Start::Branch { branch: b"topic".as_slice().into() })
+    else {
+        panic!("repair assignment")
+    };
+    assignment.assignment.attempt = world.attempt;
+    let mut items = items.expect("repair repository");
+    let [repository] = items.repositories.as_mut() else { panic!("one repository") };
+    let wire::Access::Writable { delivered, landing, .. } = &mut repository.access else { panic!("writable repair") };
+    assert_eq!(*landing, None, "a repair has no landing branch");
+    *delivered = names_delivery.then_some(commit);
+    world.event(Event::Assign { assignment, items: Ok(items) });
+    world.say(agent::Up::Admitted);
+
+    let reply = world.finish_change();
+    if names_delivery {
+        assert!(matches!(reply, agent::Delivery::Delivered(_)), "the finishing delivery must be delivered: {reply:?}");
+        world.gone();
+    } else {
+        assert_eq!(reply, agent::Delivery::Nothing, "a clean tree is not the task's own delivery");
+        assert!(world.answer.is_none(), "a nothing refusal leaves the agent running");
+        world.park();
+    }
+    let (answer, work, preparation) = world.answer.take().expect("second repair answer");
+    if names_delivery {
+        assert!(matches!(answer.ending, host::Ending::Ended { .. }), "the change finish ended the run");
+        assert_eq!(work.landed.as_ref(), landed, "the finish reports the first run's head landed");
+        assert_eq!(world.deliveries, 2, "both runs received the receipt for the same head");
+    } else {
+        assert!(matches!(answer.ending, host::Ending::Parked { .. }));
+        assert!(work.landed.is_empty(), "nothing was delivered by the second run");
+        assert_eq!(world.deliveries, 1);
+    }
+    assert_eq!(preparation, None);
+    assert_eq!(world.forge.branch(REMOTE, b"topic"), Some(head), "no new commit was pushed");
+    assert_eq!(world.forge.branch(REMOTE, b"main"), Some(world.first), "the landing branch did not move");
+    world.event(Event::Link(host::LinkDown::Acknowledge { run: RUN, attempt: world.attempt }));
+    world.event(Event::Shutdown { drain: true });
+    assert_eq!(world.domain.agent().agents(), 0);
+    assert_eq!(world.domain.workspaces(), 0);
+    assert_eq!(world.domain.kept_answers(), 0);
+    assert_eq!(world.stops, 1);
 }
 
 /// A save crosses the worker's host face and is replaced by a checked equal-tree push.

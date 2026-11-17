@@ -97,6 +97,16 @@ fn a_run_starting_fresh_from_its_brief_starts_clean() {
 }
 
 #[test]
+fn a_repair_that_delivered_before_parking_finishes_its_next_run_as_a_change() {
+    temper_worker_domain_world::whole::delivered_across_park(116, true);
+}
+
+#[test]
+fn a_clean_repair_without_its_own_delivery_gets_nothing_when_finishing() {
+    temper_worker_domain_world::whole::delivered_across_park(117, false);
+}
+
+#[test]
 fn a_landed_change_saves_nothing() {
     assert_eq!(run(111, Case::Delivered).saves, 0);
 }
