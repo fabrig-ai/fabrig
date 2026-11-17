@@ -424,3 +424,39 @@ fn version_refusals_cross_the_root_without_an_agent_or_a_kept_slot() {
         assert_eq!(h.domain.host().hosted(), 0);
     }
 }
+
+#[test]
+fn a_dependency_catch_up_refuses_at_no_path_or_its_first_conflict() {
+    use crate::checkout::Landing;
+    let cases = [
+        (Landing::CaughtUp { tip: crate::checkout::git::Commit::new([2; 32]) }, None,
+            b"a dependency you started from landed; its landing branch is merged into your checkout: deliver again".as_slice()),
+        (Landing::CaughtUpConflict { files: Box::new([b"src/a.rs".as_slice().into(), b"src/b.rs".as_slice().into()]) },
+            Some(b"src/a.rs".as_slice()),
+            b"a dependency you started from landed; settle the files in conflict with its landing branch and deliver again".as_slice()),
+    ];
+    for (landing, path, words) in cases {
+        let delivery = crate::smith_delivery::landings(&[landing], &[Some(b"topic".as_slice().into())], false);
+        let agent::Delivery::Refused(refusal) = delivery else { panic!("catch-up is refused, never stale") };
+        let marker = match path {
+            Some(path) => Some(agent::Marker::new(0, path.into()).expect("validated conflict path")),
+            None => None,
+        };
+        assert_eq!(refusal, agent::DeliveryRefusal::new(marker, words.into()).expect("bounded catch-up words"));
+    }
+}
+
+#[test]
+fn a_caught_up_save_receipt_names_its_commit_and_the_landing_tip() {
+    let delivery = crate::smith_delivery::landings(
+        &[crate::checkout::Landing::CaughtUpSaved {
+            commit: crate::checkout::git::Commit::new([1; 32]),
+            tip: crate::checkout::git::Commit::new([2; 32]),
+        }],
+        &[Some(b"topic".as_slice().into())],
+        true,
+    );
+    let agent::Delivery::Delivered(delivered) = delivery else { panic!("caught-up save landed") };
+    let text = delivered.receipts()[0].text();
+    assert_eq!(text, b"saved 0101010101010101010101010101010101010101010101010101010101010101 to branch topic, merging the landing tip 0202020202020202020202020202020202020202020202020202020202020202 first, unchecked: no check ran; your checkout stays detached, as expected");
+}

@@ -61,7 +61,8 @@ impl Referee {
                 git::Done::Failed { fault: got } | git::Done::FailedWithOutput { fault: got, .. } => {
                     assert_eq!(got, fault);
                 }
-                other @ (git::Done::Looked { .. }
+                other @ (git::Done::ParentUnreachable { .. }
+                | git::Done::Looked { .. }
                 | git::Done::Results { .. }
                 | git::Done::Paths { .. }
                 | git::Done::Brings { .. }

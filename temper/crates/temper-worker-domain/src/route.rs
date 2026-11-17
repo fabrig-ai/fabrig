@@ -370,6 +370,9 @@ fn answered(domain: &mut Domain, run: Token, attempt: Token, answer: host::RunAn
 /// One of the checkout's requests: out to io, or to the host.
 fn from_checkout(domain: &mut Domain, env: &Env<Limits>, request: checkout::Request, out: &mut Queue<Request>) {
     match request {
+        checkout::Request::DependencyLanded { client, head } => {
+            workspace::dependency_landed_unavailable(domain, env, client, head);
+        }
         checkout::Request::Results { client, check, repository, bytes } => {
             crate::reds::read(domain, client, check, repository, bytes, out);
         }

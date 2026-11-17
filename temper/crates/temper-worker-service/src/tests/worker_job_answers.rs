@@ -64,6 +64,7 @@ fn merge_git(op: root::checkout::git::Op) -> root::checkout::git::Done {
         Op::Brings { .. } => Done::Brings { brings: false },
         Op::IsAncestor { .. } => Done::IsAncestor { contains: true },
         Op::Reds { .. }
+        | Op::Reset { .. }
         | Op::Point { .. }
         | Op::Store { .. }
         | Op::Make { .. }
