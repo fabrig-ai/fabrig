@@ -98,6 +98,21 @@ fn goal_start_delegates_a_narrowed_template_to_a_milestone() {
 }
 
 #[test]
+fn goal_start_beneath_a_milestone_warns_on_long_title_lines() {
+    let mut root = f::choice_root(me());
+    let mut argv = beneath();
+    let text = "é".repeat(61);
+    *argv.get_mut(9).unwrap() = &text;
+    let call = submit(&mut root, argv.as_slice(), milestone());
+    assert_eq!(delegated(&root, call).spec.words.bytes(), text.as_bytes());
+    root.done(call, c::Outcome::Document(c::DocumentOutcome::Created { first: 41, last: 41, given: None }));
+    let answer = root.answer(call).unwrap();
+    assert_eq!(answer.status, 0);
+    assert_eq!(answer.stdout.as_ref(), b"done: task 41, goal\n");
+    assert_eq!(answer.stderr.as_ref(), super::goal_template::TITLE_WARNING);
+}
+
+#[test]
 fn milestone_task_allowance_reserves_the_goal_and_vanishes_at_zero_depth() {
     for (depth, tasks, expected_depth, expected_tasks) in
         [(2, 5, 1, 4), (1, 5, 0, 0), (0, 5, 0, 0), (2, 0, 1, 0), (100, 100, 8, 20)]
