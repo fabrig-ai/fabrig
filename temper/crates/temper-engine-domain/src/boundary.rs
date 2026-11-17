@@ -146,13 +146,7 @@ pub struct KindValue {
     pub value: forge::settings::SizedValue,
 }
 
-/// Whether a charter offers only the asking family's tools and optional settings
-/// (temper/docs/design/domain/agent/tools.md).
-#[must_use]
-pub fn asking(tools: jig_domain_tasks::Tools) -> bool {
-    let families = jig_domain_core::ToolFamilies::JIG;
-    tools.0 & families.ask.0 != 0 && tools.0 & !(families.ask.0 | families.settings) == 0
-}
+pub use temper_engine_domain_room::asking;
 
 /// A run of this policy is given no repository: an asking charter's, or one that
 /// names none of inspect, modify and shell (temper/docs/design/domain/agent/charter.md, 2).
