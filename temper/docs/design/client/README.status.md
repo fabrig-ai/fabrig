@@ -9,6 +9,9 @@
 
 - **Not yet:** 3.6: the sheet for deleting a project, absent from `confirm.rs` [in flight: change 633].
 
+- **Not yet:** 3.4, *`me` comes with the stream*: `me` comes from a watch the client opens once the hello has come, a step after it [in flight: change 6332].
+- **Not yet:** 3.4, *What names no party waits for no `me`*: the forge side's `dismissed`, `away`, `trials`, `approvals`, `devices` and `forges`, and jig's `settings`, are asked once `me` has named the party (`temper-client-domain-forge`'s `forge/*.rs`, `configure`), not once the link is live [in flight: change 6333].
+
 - **Departs:** 2, *The crate graph*: `temper-client-domain-forge` also depends on
   `temper-protocol-records`, because the forge's side encodes and decodes a
   pasted bundle by it (`forge/forges.rs`), and on `skein-ui` for its phrasebooks
