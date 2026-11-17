@@ -137,13 +137,6 @@
       ]
     },
     "clients": {
-      "heartbeat_ms": 10000,
-      "link": true,
-      "approval": true
-    },
-    "deployment": {
-      "directory": "deployment",
-      "seed": 7
     },
     "owners": [
       {
@@ -151,21 +144,7 @@
         "subject": "owner-a"
       }
     ],
-    "providers": [
-      {
-        "number": 1,
-        "kind": "link"
-      },
-      {
-        "number": 2,
-        "kind": "deployment"
-      }
-    ],
-    "connectors": [
-      1
-    ],
-    "memory_bytes": 1073741824,
-    "projects": []
+    "memory_bytes": 1073741824
   },
   "workers": [
     {
@@ -175,15 +154,6 @@
       "name": "local",
       "secret": "worker.secret",
       "slots": 4,
-      "graces": {
-        "grace_ms": 300000,
-        "agent_stop_ms": 5000,
-        "delivery_ms": 1000,
-        "save_ms": 1000
-      },
-      "programs": {
-        "check_interval_ms": 60000
-      },
       "agent": {
         "program": "$binary",
         "configuration": "$agent",
@@ -208,9 +178,6 @@
     }
   ],
   "application": {
-    "machine": {
-      "github": null
-    },
     "clients": {
       "listener": {
         "socket": "$listener"
@@ -243,12 +210,6 @@
         "root.loads.reply_bytes": 16804058,
         "root.loads.transcript_bytes": 16803810
       }
-    },
-    "workers": [
-      {
-        "root": "workspaces",
-        "git": "$git"
-      }
-    ]
+    }
   }
 }

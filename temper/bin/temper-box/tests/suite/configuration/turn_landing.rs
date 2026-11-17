@@ -48,7 +48,7 @@ fn the_turn_landing_documents_check_as_their_shapes() {
 
     let bytes = rendered("worker.json");
     assert_eq!(startup::shape(&bytes, &directories).expect("worker shape"), Shape::WorkerAlone);
-    let part = startup::worker_part(&bytes, &directories).expect("checked worker alone");
+    let part = startup::worker_part(&bytes, &directories, Some(b"/turn/data/bin/git")).expect("checked worker alone");
     assert!(part.worker.jig.slots >= 2);
     assert!(part.worker.jig.limits.hub.slots >= 2);
     assert_eq!(part.worker.jig.secret.as_ref(), b"/turn/data/worker/secrets/worker.secret");
@@ -108,7 +108,7 @@ fn the_turn_landing_engine_passes_every_startup_check() {
 fn the_turn_landing_worker_passes_every_startup_check() {
     let bytes = rendered("worker.json");
     let directories = jig_protocol_config::Directories::working();
-    let part = startup::worker_part(&bytes, &directories).expect("setup worker part");
+    let part = startup::worker_part(&bytes, &directories, Some(b"/turn/data/bin/git")).expect("setup worker part");
     admission(&bytes, part.files);
 }
 
@@ -142,30 +142,51 @@ fn admission(bytes: &[u8], files: Box<[jig_protocol_config::File]>) {
 }
 
 #[test]
-fn the_turn_landing_patch_selects_turn_two_and_its_blocking_gate() {
-    let patch = std::fs::read(root().join("files/landing.json")).expect("landing patch");
-    let bytes = deployment::merge(&rendered("engine.json"), &patch, &place()).expect("merge engine patch");
-    let directories = jig_protocol_config::Directories::working();
-    startup::named(&bytes, &directories).expect("patched engine checks as serve checks it");
-    let engine = engine(&bytes);
-    let document = jig_protocol_config::document(&bytes, &DOCUMENT).expect("patched document");
-    let at = jig_protocol_config::read::Object::new(&document, 0)
-        .expect("object")
-        .member(&document, b"application")
-        .expect("application");
-    let mut problems = startup::Problems::empty();
-    let application =
-        startup::application::parse(&document, at, &engine, &directories, &mut problems).expect("checked application");
-    assert!(problems.is_empty());
-    let landing = application.landings.get(&1).expect("first project");
-    assert_eq!(landing.by, temper_engine_domain::Way::Turn);
-    assert_eq!(landing.batch, 2);
-    let [repository] = landing.repositories.as_ref() else { panic!("one repository's gate") };
-    assert_eq!((repository.repository.forge, repository.repository.repository), (1, 1));
-    let [gate] = repository.gates.as_ref() else { panic!("one gate") };
-    assert_eq!(gate.name.as_ref(), b"gate");
-    assert_eq!(gate.workflow.as_ref(), b"gate.yml");
-    assert!(gate.blocking);
+fn the_turn_landing_settings_select_turn_two_and_its_blocking_gate() {
+    use jig_client::contract::{Setting, SettingEdit, SettingValue};
+    use temper_engine_domain_forge::settings;
+    let bytes = std::fs::read(root().join("files/landing.json")).expect("landing settings");
+    let items = temper_client_tools::jig::settings_file::decode(&bytes, &temper_client_tools::limits::tools())
+        .expect("checked settings file");
+    assert_eq!(items.len(), 2);
+    for (item, kind) in items.iter().zip([4, 5]) {
+        assert_eq!(item.setting, Setting::Application { kind, scope: 1, number: 1 });
+        let SettingEdit::Set(set) = &item.edit else { panic!("set value") };
+        let SettingValue::Application(bytes) = &set.value else { panic!("application setting") };
+        let decoded = temper_engine_smith::kinds::decode(
+            kind,
+            bytes,
+            &temper_engine_smith::kinds::Bounds { segments: 8, segment_bytes: 64, gates: 4, approvals: 4 },
+        )
+        .expect("landing value");
+        match decoded.value {
+            settings::Value::Landing(landing) => {
+                assert_eq!(landing.by, temper_engine_domain_forge_change::Way::Turn);
+                assert_eq!(landing.batch, 2);
+            }
+            settings::Value::Gates(gates) => {
+                let [repository] = gates.repositories.as_ref() else { panic!("one repository's gate") };
+                assert_eq!((repository.repository.forge, repository.repository.repository), (1, 1));
+                let [gate] = repository.gates.as_ref() else { panic!("one gate") };
+                assert_eq!(gate.name.as_ref(), b"gate");
+                assert_eq!(gate.workflow.as_ref(), b"gate.yml");
+                assert!(gate.blocking);
+            }
+            settings::Value::Welcome(_)
+            | settings::Value::Rule(_)
+            | settings::Value::Charter(_)
+            | settings::Value::Questions(_)
+            | settings::Value::Ways(_)
+            | settings::Value::Classes(_)
+            | settings::Value::CharterWords(_)
+            | settings::Value::ProjectWords(_)
+            | settings::Value::Goal(_)
+            | settings::Value::Follow(_)
+            | settings::Value::Dependency(_)
+            | settings::Value::ProjectAreas(_)
+            | settings::Value::ProjectTriager(_) => panic!("kinds 4 and 5"),
+        }
+    }
 }
 
 #[test]

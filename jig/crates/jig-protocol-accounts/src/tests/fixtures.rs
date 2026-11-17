@@ -21,7 +21,8 @@ pub fn sign_in_engine() -> jig_protocol_config::Engine {
         "projects":[], "connectors":[], "memory_bytes":1152921504606846976
     }"#;
     let document = config::document(input, &config::DocumentLimits { bytes: 2048, tokens: 256, depth: 8 }).unwrap();
-    config::engine(&document, 0, &config::Directories::working(), config::Defaults::Passed).unwrap()
+    config::engine(&document, 0, &config::Directories::working(), config::Defaults::Passed, &config::Fixed::NONE)
+        .unwrap()
 }
 pub fn granted(account: u32, token: &[u8], generation: u64, valid: Duration) -> driver::Event {
     driver::Event::Granted { account, token: Secret::new(bytes::copy_of(token)), generation, valid }

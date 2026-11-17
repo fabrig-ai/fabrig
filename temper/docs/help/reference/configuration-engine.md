@@ -4,9 +4,7 @@ Kind: reference
 
 The engine and worker configuration members, their bounds and what temper-box init --box writes.
 
-A seeded project's policy must be a number; inline policies are refused.
-
-Every member is read at startup; a change to any member needs a restart.
+Configuration is read at startup; changing a permitted member needs a restart.
 
 Objects and lists of objects name their shapes below; init values show objects and list lengths, with scalar values written as JSON.
 
@@ -17,17 +15,17 @@ Shape: `engine`. Paths: `engine`. The engine's configuration, read before startu
 - `limits`: limits; required; init writes object. Selects a limits profile and its named overrides.
 - `llm`: llm; required; init writes object. Configures the LLM endpoints, models and providers.
 - `hosts`: hosts; required; init writes object. Names the workers' listener addresses.
-- `clients`: clients; required; init writes object. Configures client heartbeats and sign-in entrances.
-- `deployment`: deployment; required; init writes object. Names the deployment's data directory and optional test seed.
-- `owners`: list of owner, people.initial_owners; required; init writes list (1 entry). Seeds the deployment's first owners and their roles in every seeded project.
-- `providers`: list of identity-provider; required; init writes list (2 entries). Declares the identity providers' numbers and kinds.
+- `clients`: clients; optional; init writes object. Configures the optional OpenID provider.
+- `deployment`: refused: moved: temper keeps the store in the data directory's state
+- `owners`: list of owner, people.initial_owners; required; init writes list (1 entry). Names the deployment's first owners.
+- `providers`: refused: moved: temper fixes its identity providers: 1 link, 2 deployment, 3 Google's
 - `charters`: refused: settings live in the store
 - `templates`: refused: settings live in the store
 - `policies`: refused: settings live in the store
 - `rules`: refused: settings live in the store
-- `projects`: list of project, authority.projects; required; init writes []. Seeds projects, their names, policies and parties' roles on the first start.
-- `connectors`: list of integer, core.connectors; 0 to 65534; required; init writes [1]. Declares the application's connector numbers to the core.
-- `acts`: list of act; optional; init writes list (1 entry). Grants connectors deployment acts in the owners' name, with none granted when absent.
+- `projects`: refused: moved: projects are made at runtime; make one from the client or temper ctl
+- `connectors`: refused: moved: temper fixes its connector, the forge's, 1
+- `acts`: refused: moved: temper fixes the forge connector's acts
 - `memory_bytes`: integer, 0 to 18446744073709551615 bytes; required; init writes 1073741824. Gives the application's byte budget for the engine.
 
 ## engine.limits
@@ -37,33 +35,12 @@ Shape: `limits`. Paths: `engine.limits` `workers[].limits`. A limits profile and
 - `profile`: text, small or standard; required; init writes "standard". Selects the profile whose values the overrides amend.
 - `overrides`: object, known limit names; optional; init writes {"authority.executors":22,"clients.exchanges":12,"clients.streams":8,"clients_http.calls":12,"clients_http.streams":8,"core.resume_bytes":16803814,"documents.rows":2,"documents.text_bytes":512,"fleet.configured_workers":8,"fleet.workers":2,"hub.transcript_bytes":67215250,"hub.turn_bytes":16803810,"hub.turn_queue_bytes":134430480,"io.output":16804602,"tasks.charters":16,"tasks.executor_kinds":22,"tasks.inbox_bytes":874120,"tasks.message_bytes":10660,"tasks.result_bytes":10660} | {"hub.accounts":4,"hub.event_bytes":10660,"hub.run_calls":48,"hub.transcript_bytes":67215250,"hub.turn_bytes":16803810,"hub.turn_queue_bytes":134430480,"io.output":16804602}. Overrides the profile's limits by their dotted names.
 
-## engine.deployment
-
-Shape: `deployment`. Paths: `engine.deployment`. The deployment's data directory and seed.
-
-- `directory`: text, 4096 bytes; data path; required; init writes "deployment". Names the directory holding the store, transcripts and secrets' store.
-- `seed`: integer, 0 to 18446744073709551615; optional; init writes 7. Supplies the deployment's seed for tests.
-
 ## engine.owners[]
 
 Shape: `owner`. Paths: `engine.owners[]`. An identity seeded as one of the deployment's first owners.
 
 - `provider`: integer, 0 to 65535; required; init writes 1. Names the identity's configured provider.
 - `subject`: text, people.identity_bytes; at most 4096 bytes; required; init writes "person@localhost". Names the owner's subject under that provider.
-
-## engine.providers[]
-
-Shape: `identity-provider`. Paths: `engine.providers[]`. An identity provider number and its kind.
-
-- `number`: integer, 0 to 65535; required; init writes 1 | 2. Gives the provider's number, unique among identity providers.
-- `kind`: text, link, deployment or application; required; init writes "link" | "deployment". Chooses a printed link, deployment credentials or an application sign-in.
-
-## engine.acts[]
-
-Shape: `act`. Paths: `engine.acts[]`. A connector's permitted deployment acts.
-
-- `connector`: integer, 0 to 65535; required; init writes 1. Names the configured connector granted these acts.
-- `may`: list of text, close, add_key, remove_account, adopt, make_project, remove_project; required; init writes ["remove_project","remove_account","adopt"]. Lists the deployment acts the connector may make, each at most once.
 
 ## engine.llm
 
@@ -91,9 +68,9 @@ Shape: `endpoint`. Paths: `engine.llm.endpoints[]`. A model endpoint and its tra
 
 ## engine.llm.endpoints[].address
 
-Shape: `address`. Paths: `engine.llm.endpoints[].address` `engine.hosts.listener[]` `workers[].engine` `application.clients.listener` `application.webhooks.listener` `application.machine.owned.listen` `application.machine.fake.listen` `application.machine.github.api` `application.demo.llm.listen`. One socket address, host and port, or in-process name.
+Shape: `address`. Paths: `engine.llm.endpoints[].address` `engine.hosts.listener[]` `workers[].engine` `application.clients.listener` `application.webhooks.listener` `application.demo.llm.listen`. One socket address, host and port, or in-process name.
 
-- `socket`: text, 128 bytes; exclusive with host and in_process; optional; init writes "127.0.0.1:8370" | "127.0.0.1:8367" | "127.0.0.1:8371" | "127.0.0.1:8368" | "127.0.0.1:8369". Gives an IPv4 or IPv6 socket address.
+- `socket`: text, 128 bytes; exclusive with host and in_process; optional; init writes "127.0.0.1:8370" | "127.0.0.1:8367" | "127.0.0.1:8371". Gives an IPv4 or IPv6 socket address.
 - `host`: text, 253 bytes; exclusive with socket and in_process; optional; init writes "api.openai.com" | "api.anthropic.com". Names a host the shell resolves at startup.
 - `port`: integer, 0 to 65535; required with host; optional; init writes 443. Gives the named host's port.
 - `in_process`: text, 32 bytes; exclusive with socket and host; optional; init writes "workers". Names an in-process endpoint within the process.
@@ -157,11 +134,11 @@ Shape: `hosts`. Paths: `engine.hosts`. The workers' listener addresses.
 
 ## engine.clients
 
-Shape: `clients`. Paths: `engine.clients`. Client stream heartbeats and sign-in entrances.
+Shape: `clients`. Paths: `engine.clients`. The clients' OpenID provider and fixed members.
 
-- `heartbeat_ms`: integer, 0 to 18446744073709 milliseconds; required; init writes 10000. Sets the heartbeat interval of clients' streams.
-- `link`: true or false; required; init writes true. Offers the printed link's one-time secret at start when true.
-- `approval`: true or false; optional; init writes true. Enables browser-approved sign-ins when true, with false when absent.
+- `heartbeat_ms`: refused: moved: temper fixes the clients' heartbeat, printed link and approval
+- `link`: refused: moved: temper fixes the clients' heartbeat, printed link and approval
+- `approval`: refused: moved: temper fixes the clients' heartbeat, printed link and approval
 - `provider`: client-provider or null; optional; init writes object. Configures the deployment's OpenID provider, with none when absent or null.
 
 ## engine.clients.provider
@@ -169,33 +146,16 @@ Shape: `clients`. Paths: `engine.clients`. Client stream heartbeats and sign-in 
 Shape: `client-provider`. Paths: `engine.clients.provider`. The deployment's OpenID provider.
 
 - `key`: text, 4096 bytes; data path; required; init writes "provider.key". Names the private PKCS#8 PEM file holding the provider's 3072-bit RSA signing key.
-- `clients`: list of provider-client, at least one; required; init writes list (1 entry). Lists clients allowed to use the provider, with unique identifiers.
+- `clients`: list of provider-client, at least one; required; init writes []. Lists clients allowed to use the provider, with unique identifiers.
 - `addresses`: list of integer, 0 to 65535; application or link providers; required; init writes [1]. Names identity providers whose subjects are verified addresses.
 
 ## engine.clients.provider.clients[]
 
 Shape: `provider-client`. Paths: `engine.clients.provider.clients[]`. A client allowed to use the deployment provider.
 
-- `id`: text, 1 to 255 visible ASCII bytes; required; init writes "forgejo". Gives the client's unique identifier.
-- `secret`: text or null, 4096 bytes; data path; required; init writes null. Names the client's secret file, or null for a public client.
-- `redirect_uri`: text, 2048 bytes; HTTPS or loopback HTTP with a port; required; init writes "http://127.0.0.1:8368/user/oauth2/temper/callback". Gives the client's one redirect URI.
-
-## engine.projects[]
-
-Shape: `project`. Paths: `engine.projects[]`. A project seeded on the first start.
-
-- `number`: integer, 1 to 4294967295; required; init leaves it out. Gives the seed project's unique number, with zero reserved for the deployment.
-- `name`: text, people project-name rules; optional; init leaves it out. Gives the seed project's unique name, defaulting to Project N for its number.
-- `policy`: policy or integer, policy number: 0 to 4294967295; required; init leaves it out. Gives an inline policy or names a policy among the current settings to copy.
-- `roles`: list of permission-role, core.policy_bytes; required with inline policy; optional; init leaves it out. Maps connector permissions to roles when the policy is inline.
-
-## engine.projects[].roles[]
-
-Shape: `permission-role`. Paths: `engine.projects[].roles[]`. A connector permission mapped to a policy role.
-
-- `connector`: integer, 0 to 65535; required; init leaves it out. Names the connector whose permission is mapped.
-- `permission`: integer, 0 to 65535; required; init leaves it out. Names the connector's permission.
-- `role`: integer, 0 to 4294967295; required; init leaves it out. Names the policy role assigned on adoption with that permission.
+- `id`: text, 1 to 255 visible ASCII bytes; required; init leaves it out. Gives the client's unique identifier.
+- `secret`: text or null, 4096 bytes; data path; required; init leaves it out. Names the client's secret file, or null for a public client.
+- `redirect_uri`: text, 2048 bytes; HTTPS or loopback HTTP with a port; required; init leaves it out. Gives the client's one redirect URI.
 
 ## workers[]
 
@@ -205,27 +165,11 @@ Shape: `worker`. Paths: `workers[]`. A worker's connection, execution and stop b
 - `name`: text, link.name; at most 4096 bytes; required; init writes "local". Gives the worker's configured name.
 - `secret`: text, 4096 bytes; data path; required; init writes "worker.secret". Names the private file holding the worker's secret.
 - `slots`: integer, hub.slots; required; init writes 4. Bounds how many runs the worker hosts at once.
-- `graces`: graces; required; init writes object. Gives the graces used to compute the worker's stop bound.
-- `programs`: programs; required; init writes object. Configures the host's local source-login checks.
+- `graces`: refused: moved: temper fixes a worker's graces (temper help server)
+- `programs`: refused: moved: temper fixes the login checks' interval
 - `agent`: agent; required; init writes object. Names the agent program, its arguments and its configuration document.
 - `limits`: limits; required; init writes object. Selects the worker's limits profile and overrides.
 - `memory_bytes`: integer, 0 to 18446744073709551615 bytes; optional; init leaves it out. States the worker's available memory when configured.
-
-## workers[].programs
-
-Shape: `programs`. Paths: `workers[].programs`. The worker's local source-login observations.
-
-- `check_interval_ms`: integer, 1 to 18446744073709 milliseconds; required; init writes 60000. Sets the positive interval between local source-login checks.
-
-## workers[].graces
-
-Shape: `graces`. Paths: `workers[].graces`. The worker's graces after losing its engine.
-
-- `grace_ms`: integer, 0 to 18446744073709 milliseconds; required; init writes 300000. Gives the grace after losing the engine.
-- `drain_ms`: integer, 0 to 18446744073709 milliseconds; 180000 when absent; optional; init leaves it out. Bounds the drain before cancelling runs on shutdown.
-- `agent_stop_ms`: integer, 0 to 18446744073709 milliseconds; required; init writes 5000. Gives the stop grace of an agent's process tree.
-- `delivery_ms`: integer, 0 to 18446744073709 milliseconds; required; init writes 1000. Gives the deadline for a delivery.
-- `save_ms`: integer, 0 to 18446744073709 milliseconds; required; init writes 1000. Gives the grace for saving the worker's state.
 
 ## workers[].agent
 

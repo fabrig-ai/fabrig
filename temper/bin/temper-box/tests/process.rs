@@ -1016,7 +1016,7 @@ fn prepare_owned_worker(members: &mut support::cluster::Members) -> Result<(), S
         .map_err(|why| format!("owned example: {why:?}"))?;
     let mut document = serde_json::json!({
         "workers": example["workers"],
-        "application": {"workers": example["application"]["workers"], "limits": example["application"]["limits"]}
+        "application": {"limits": example["application"]["limits"]}
     });
     let worker = &mut document["workers"][0];
     worker["engine"] = serde_json::json!({"socket": members.capture("engine", "workers").ok_or("engine listener")?});
@@ -2596,7 +2596,7 @@ fn playground_setup_adopts_widget_and_the_worker_reads_its_source_on_the_owned_f
         scratch.path(),
         steps,
         BOX_DEADLINE,
-        |_| first_repository::playground_read_evidence(&paths[0], scratch.path()),
+        |_| first_repository::playground_read_evidence(&paths[1], scratch.path()),
         llm,
     );
     let stderr = String::from_utf8_lossy(&ended.stderr);

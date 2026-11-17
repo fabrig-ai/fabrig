@@ -93,7 +93,7 @@ fn every_settings_read_form_and_offset_decodes() {
 fn settings_bad_fields_are_refused_by_name() {
     for spec in &crate::calls::SPECS {
         if [b"settings".as_slice(), b"propose_settings"].contains(&spec.name) {
-            assert!(skein_lib::bytes::find(spec.schema, br#""description":"Setting number; template-goal: its template's. Omit for rules and unnumbered project settings.""#).is_some());
+            assert!(skein_lib::bytes::find(spec.schema, br#""description":"Setting number; template-goal: its template's. Omit for rules, welcome and unnumbered project settings.""#).is_some());
         }
     }
     for (input, why) in [

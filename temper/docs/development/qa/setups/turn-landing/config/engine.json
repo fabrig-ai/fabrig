@@ -55,35 +55,13 @@
         }
       ]
     },
-    "clients": {
-      "heartbeat_ms": 10000,
-      "link": true
-    },
-    "deployment": {
-      "directory": "{place.data}/engine/state",
-      "seed": 7
-    },
     "owners": [
       {
         "provider": 1,
         "subject": "owner-a"
       }
     ],
-    "providers": [
-      {
-        "number": 1,
-        "kind": "link"
-      },
-      {
-        "number": 2,
-        "kind": "deployment"
-      }
-    ],
-    "connectors": [
-      1
-    ],
-    "memory_bytes": 4503599627370496,
-    "projects": []
+    "memory_bytes": 4503599627370496
   },
   "workers": [],
   "application": {
@@ -99,7 +77,6 @@
       "bundle": "{place.bundle}",
       "public": null
     },
-    "machine": {},
     "demo": null,
     "sign_in": null,
     "limits": {
@@ -113,7 +90,6 @@
         "root.loads.read_bytes": 2668062,
         "root.loads.transcript_bytes": 1334031
       }
-    },
-    "workers": []
+    }
   }
 }

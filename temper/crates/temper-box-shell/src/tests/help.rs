@@ -113,8 +113,13 @@ fn server_worker_unit_outlasts_the_stop_bound_and_kills_the_whole_group() {
             &jig_protocol_config::DocumentLimits { bytes: 65_536, tokens: 4096, depth: 16 },
         )
         .expect("worker document");
-        let worker = jig_protocol_config::worker(&document, 0, &jig_protocol_config::Directories::working())
-            .expect("init worker");
+        let worker = jig_protocol_config::worker(
+            &document,
+            0,
+            &jig_protocol_config::Directories::working(),
+            &temper_service::startup::fixed_worker(),
+        )
+        .expect("init worker");
         let bound =
             jig_protocol_config::stop_bound(&worker.graces, worker.limits.link.ping, worker.limits.link.silence)
                 .expect("stop bound");
@@ -170,13 +175,7 @@ fn coding_run_agent_document() -> serde_json::Value {
         binary: b"/opt/temper/bin/temper-box",
         git: Some(b"/usr/bin/git"),
         claude: Some(b"/opt/temper/bin/claude"),
-        ports: temper_init::Ports {
-            clients: port(8367),
-            owned: port(8368),
-            forge: port(8369),
-            llm: port(8370),
-            webhooks: port(8371),
-        },
+        ports: temper_init::Ports { clients: port(8367), llm: port(8370), webhooks: port(8371) },
         login: Some(b"coder"),
     };
     let directories = temper_init::Directories { config: b"/etc/temper", data: b"/var/lib/temper" };
@@ -281,6 +280,7 @@ fn tester_stock() -> jig_domain_core::settings::Defaults {
         0,
         &jig_protocol_config::Directories::working(),
         jig_protocol_config::Defaults::Passed,
+        &temper_service::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
     )
     .expect("engine configuration");
     temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes)
@@ -1014,18 +1014,16 @@ fn tier_help_contains_a_complete_landing_configuration_example() {
     let text = help::answer(&configured(&["help", "tier"])).expect("tier page");
     let example = fenced_lines(&text).into_iter().map(|(_, line)| line).collect::<Vec<_>>().join("\n");
     let example: serde_json::Value = serde_json::from_str(&example).expect("tier configuration JSON");
-    let landing = &example["application"]["landing"];
-    assert!(landing.get("deployment").is_none());
-    let projects = landing["projects"].as_array().expect("landing projects");
-    assert_eq!(projects.len(), 1);
-    let project = &projects[0];
-    assert_eq!(project["project"], 1);
-    assert!(project.get("rules").is_none());
+    let items = example["items"].as_array().expect("landing settings items");
+    assert_eq!(items.len(), 2);
+    assert_eq!(items[0]["setting"], serde_json::json!({"kind":"project-landing","project":1}));
+    assert_eq!(items[1]["setting"], serde_json::json!({"kind":"project-gates","project":1}));
+    let project = &items[0]["set"];
     assert_eq!(project["by"], "queue");
     assert_eq!(project["check_timeout_ms"], 900_000);
     assert_eq!(project["tier_retries"], 2);
     assert_eq!(project["verification_bound_ms"], 7_200_000);
-    let repositories = project["gates"].as_array().expect("project repository entries");
+    let repositories = items[1]["set"]["repositories"].as_array().expect("project repository entries");
     assert_eq!(repositories.len(), 1);
     let repository = &repositories[0];
     assert_eq!(repository["forge"], 1);
@@ -1046,14 +1044,16 @@ fn tier_help_explains_report_formats_and_preserving_configuration() {
     let text = help::answer(&configured(&["help", "tier"])).expect("tier page");
     let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
     for instruction in [
-        "CONFIG/temper.json",
-        "application.landing.projects[].gates[].tiers",
+        "`project-landing`",
+        "`project-gates`",
+        "temper ctl settings apply",
+        "at the next start",
         "`junit` for JUnit reports",
         "`lines` for one failing test id per line",
-        "project's `gates` array holds repository entries",
+        "`repositories` array holds repository entries",
         "repository's `gates` array holds workflow gates",
         "project, forge and repository numbers",
-        "Preserve the existing configuration",
+        "Preserve the existing settings",
         "restart",
         "`tier_retries` and `verification_bound_ms` beside the project's `by`",
     ] {

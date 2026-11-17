@@ -189,6 +189,7 @@ pub(super) fn box_approval_fixture(second_owner: bool) -> World {
         request,
         answer: forge::SetUpAnswer::SettingUp,
     })));
+    world.driver.send(Event::Forge(Box::new(forge::Event::SetupPerson { forge: 1, login: b"ada".as_slice().into() })));
     world.driver.send(Event::Forge(Box::new(forge::Event::Connection {
         forge: 1,
         state: forge::Connection::Connected { id: 1, login: b"temper".as_slice().into() },
@@ -228,6 +229,8 @@ pub(super) fn restart_box_with_second_owner(world: &mut World) {
         .seed(Box::new([engine::Record::Forge { row: Box::new(forge::Stored::Forge(record)) }]), Box::new([]));
     let (config, _) = box_approval_setup(true);
     world.driver.reopen(config);
+    world.driver.settle();
+    world.driver.send(Event::Forge(Box::new(forge::Event::SetupPerson { forge: 1, login: b"ada".as_slice().into() })));
     world.driver.settle();
     world.driver.send(Event::Party(PartyInput::SignedIn {
         held: None,
@@ -718,7 +721,7 @@ pub(super) fn settings_charter(driver: &mut Driver, run: &engine::Assignment, co
 pub(super) fn settings_value(driver: &mut Driver, run: &engine::Assignment, completion: u32, input: Value) -> Value {
     let (text, _) = settings_whole(driver, run, completion, input);
     let (_, text) = text.split_once('\n').expect("setting heading");
-    serde_json::from_str(text.trim()).expect("setting JSON")
+    serde_json::Deserializer::from_str(text).into_iter::<Value>().next().expect("setting value").expect("setting JSON")
 }
 pub(super) fn omit_removable(authority: &mut Value) {
     let kinds = authority["delegation"]["kinds"].as_array_mut().expect("delegation kinds");

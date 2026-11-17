@@ -187,7 +187,6 @@ fn configure(root: &Path, forge: &Forge<'_>) {
     // The first repository and both outside adoptions are retained across restart.
     value["application"]["limits"]["overrides"]["forge.repositories"] = 3.into();
     value["application"]["limits"]["overrides"]["forge.client.repositories"] = 3.into();
-    value["engine"]["deployment"]["directory"] = json!(root.join("data"));
     fs::rename(config.join("worker.secret"), root.join("data/worker.secret")).expect("data worker secret");
     fs::remove_dir_all(config.join("secrets")).expect("remove obsolete file credentials");
     write_private(&path, &serde_json::to_vec(&value).expect("managed configuration"));
@@ -197,7 +196,7 @@ fn configure(root: &Path, forge: &Forge<'_>) {
     record.mode = temper_engine_domain_forge::Mode::Managed;
     record.bot.login = b"elsewhere-bot".as_slice().into();
     record.bot.email = b"elsewhere-bot@example.invalid".as_slice().into();
-    temper_real_loop_world::fixtures::seed_record(&root.join("data"), record, &[]);
+    temper_real_loop_world::fixtures::seed_record(&root.join("data/state"), record, &[]);
 }
 
 fn scripts(repository: &str, readme: &[u8]) -> Box<[Script]> {

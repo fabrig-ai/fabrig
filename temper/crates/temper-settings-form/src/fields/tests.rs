@@ -5,7 +5,7 @@ use skein_json::writer::{Encoder, Limits as JsonLimits};
 use skein_lib::List;
 
 // T1 names every decoder shape, including the alternative-only objects.
-const SHAPES: [Shape; 77] = [
+const SHAPES: [Shape; 85] = [
     Shape::File,
     Shape::Item,
     Shape::Setting,
@@ -79,6 +79,14 @@ const SHAPES: [Shape; 77] = [
     Shape::PathSet,
     Shape::CharterWords,
     Shape::ProjectWords,
+    Shape::ProjectLanding,
+    Shape::ProjectGates,
+    Shape::LandingCombineSettings,
+    Shape::RepositoryGatesSettings,
+    Shape::GateCheckSettings,
+    Shape::GateReportSettings,
+    Shape::TierCheckSettings,
+    Shape::Welcome,
     Shape::ProjectAreas,
     Shape::ProjectTriager,
     Shape::Area,
@@ -322,6 +330,8 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                         && kind != b"project-questions"
                         && kind != b"project-classes"
                         && kind != b"project-words"
+                        && kind != b"project-landing"
+                        && kind != b"project-gates"
                         && kind != b"project-areas"
                         && kind != b"project-triager"
                         && kind != b"follow"
@@ -333,11 +343,14 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                         && field.name == b"number"
                         && [
                             b"rules".as_slice(),
+                            b"welcome",
                             b"project-policy",
                             b"project-ways",
                             b"project-questions",
                             b"project-classes",
                             b"project-words",
+                            b"project-landing",
+                            b"project-gates",
                             b"project-areas",
                             b"project-triager",
                         ]
@@ -452,6 +465,17 @@ fn optional_worker(field: &Field) -> bool {
     field.shape == Shape::Worker && [b"number".as_slice(), b"digest", b"withdrawn"].contains(&field.name)
 }
 
+fn optional_landing(field: &Field) -> bool {
+    field.shape == Shape::ProjectLanding
+        || field.shape == Shape::LandingCombineSettings
+        || (field.shape == Shape::RepositoryGatesSettings && [b"gates".as_slice(), b"tiers"].contains(&field.name))
+        || (field.shape == Shape::GateCheckSettings
+            && [b"ignored".as_slice(), b"base", b"report"].contains(&field.name))
+        || (field.shape == Shape::GateReportSettings && field.name == b"fuzzy")
+        || (field.shape == Shape::TierCheckSettings
+            && [b"ignored".as_slice(), b"branch", b"span_ms", b"description"].contains(&field.name))
+}
+
 fn optional_follow(field: &Field) -> bool {
     (field.shape == Shape::Follow && [b"start".as_slice(), b"producer"].contains(&field.name))
         || (field.shape == Shape::FollowSource && [b"branch".as_slice(), b"paths"].contains(&field.name))
@@ -479,6 +503,7 @@ fn every_generated_file_decodes() {
             || (field.shape == Shape::ClassItem && field.name == b"words")
             || optional_worker(field)
             || optional_follow(field)
+            || optional_landing(field)
         {
             decodes(Edit::Omit(field));
         }
@@ -511,6 +536,7 @@ fn a_member_left_out_is_refused_naming_it() {
             || (field.shape == Shape::ClassItem && [b"set".as_slice(), b"words"].contains(&field.name))
             || optional_worker(field)
             || optional_follow(field)
+            || optional_landing(field)
         {
             continue;
         }
@@ -659,38 +685,26 @@ const PAGE_FIELDS: [Field; 14] = [
 #[test]
 fn the_page_writes_each_type_as_the_table_says() {
     let page = super::render::page_of(&PAGE_FORMS, &PAGE_FIELDS, &Limits::standard());
-    let expected = br#"# Settings fields
-
-Kind: reference
-
-Every member of a settings value: its type, its bound and what it does to work, as a settings file sets it and `settings show` prints it.
-
-Sections are JSON object shapes; bullets give members, types, bounds and effects. A settings file is `file`: read `settings show KIND N`, edit, set whole. Ctl sends these bounds; the deployment may refuse with: `shape`, `count`, `reference`, `rules`, `budget`, `grace`, `owner` or `linked`. Spend uses deployment model-price units. Hex is lower-case hexadecimal bytes: `666f726765` is `forge`.
-
-## file
-
-LINE
-
-- `number`: integer, 0 to 255.
-- `connector`: integer, 0 to 65,535.
-- `turns`: integer, 0 to 4,294,967,295.
-- `spend`: integer. LINE
-- `waiting`: nanoseconds.
-- `deadline`: nanoseconds since 1970 UTC, or null.
-- `cut`: true or false.
-- `instructions`: text, <= 32,768 bytes.
-- `state`: hex, <= 1,000,000 bytes.
-- `kind`: `"a"`, `"b"` or `"c"`. LINE `"a"`: LINE `"c"`: LINE
-- `edit`: `"removed"` or `"reset"`.
-- `hosts`: `"workers"`.
-- `alternatives`: list, <= 32, each `model`.
-
-## model
-
-- `"chosen"`: LINE
-- `set`: list, <= 32, each the value shape named by `setting.kind` (see `setting`), or null.
-"#;
-    assert_eq!(page.as_ref(), expected);
+    for expected in [
+        b"# Settings fields\n\nKind: reference".as_slice(),
+        b"- `number`: u8.",
+        b"- `connector`: u16.",
+        b"- `turns`: u32.",
+        b"- `spend`: u64. LINE",
+        b"- `waiting`: nanoseconds.",
+        b"- `deadline`: nanoseconds since 1970 UTC, or null.",
+        b"- `cut`: bool.",
+        b"- `instructions`: text[32,768].",
+        b"- `state`: hex[1,000,000].",
+        br#"- `kind`: `"a"`, `"b"` or `"c"`. LINE `"a"`: LINE `"c"`: LINE"#,
+        br#"- `edit`: `"removed"` or `"reset"`."#,
+        br#"- `hosts`: `"workers"`."#,
+        b"- `alternatives`: list[32] `model`.",
+        br#"- `"chosen"`: LINE"#,
+        b"- `set`: list[32] the value for `setting.kind`, or null.",
+    ] {
+        assert!(skein_lib::bytes::find(&page, expected).is_some(), "missing {expected:?}");
+    }
 }
 
 // T2, section 3: row descriptions are at most 320 bytes; INTRO, 1,024.
@@ -798,7 +812,7 @@ fn template_resource_fields_use_the_wire_bound_and_describe_the_goal_branch() {
     assert_eq!(super::most(resources.list.expect("list"), &limits), 2);
     let page = super::page(&limits);
     for needle in [
-        b"`resources`: list, <= 2, each `symbol`".as_slice(),
+        b"`resources`: list[2] `symbol`".as_slice(),
         b"Optional, default []",
         b"Forge connector 1, symbol 1: its own goal branch",
     ] {

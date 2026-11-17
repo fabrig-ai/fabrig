@@ -29,10 +29,8 @@ fn written_workers_outlast_an_engine_restart_below_the_fleet_grace() {
         assert_eq!(engine["hub.transcript_bytes"], window);
         assert_eq!(document["application"]["limits"]["overrides"]["root.journal.transcript_bytes"], resume);
         for worker in document["workers"].as_array().unwrap() {
-            assert_eq!(
-                worker["graces"],
-                json!({"grace_ms":300_000_u64,"agent_stop_ms":5_000_u64,"delivery_ms":1_000_u64,"save_ms":1_000_u64})
-            );
+            assert!(worker.get("graces").is_none());
+            assert!(worker.get("programs").is_none());
             assert_eq!(worker["limits"]["overrides"]["hub.transcript_bytes"], window);
             let bytes = serde_json::to_vec(worker).unwrap();
             let document = jig_protocol_config::document(
@@ -40,8 +38,13 @@ fn written_workers_outlast_an_engine_restart_below_the_fleet_grace() {
                 &jig_protocol_config::DocumentLimits { bytes: 65_536, tokens: 4096, depth: 16 },
             )
             .unwrap();
-            let worker =
-                jig_protocol_config::worker(&document, 0, &jig_protocol_config::Directories::working()).unwrap();
+            let worker = jig_protocol_config::worker(
+                &document,
+                0,
+                &jig_protocol_config::Directories::working(),
+                &temper_service_core::startup::fixed_worker(),
+            )
+            .unwrap();
             let stop =
                 jig_protocol_config::stop_bound(&worker.graces, worker.limits.link.ping, worker.limits.link.silence)
                     .unwrap()
@@ -82,7 +85,7 @@ fn the_box_has_room_for_reference_creating_executors() {
     assert!(usize::try_from(limits.documents.lines).unwrap() >= charters.len());
     assert!(limits.documents.lines >= limits.tasks.charters);
     // The closer adds procedure p6 beside p2, p3 and p4 on each configured connector.
-    let procedures = 4 * written["engine"]["connectors"].as_array().unwrap().len();
+    let procedures = 4;
     assert!(usize::try_from(limits.documents.lines).unwrap() >= procedures);
     // The reference omits the trial, drafter and general standing role from delegation.
     let mut delegated = 0;
@@ -95,15 +98,6 @@ fn the_box_has_room_for_reference_creating_executors() {
     assert_eq!(executors, 18);
     assert!(executors <= usize::try_from(limits.authority.executors).unwrap());
     assert!(executors <= usize::try_from(limits.tasks.executor_kinds).unwrap());
-}
-
-#[test]
-fn the_documents_enable_the_printed_link_and_the_approval() {
-    for source in [fixtures::OWNED, template::TEMPER, template::BARE] {
-        let value = parse(source);
-        assert_eq!(value["engine"]["clients"]["link"], true, "engine.clients.link");
-        assert_eq!(value["engine"]["clients"]["approval"], true, "engine.clients.approval");
-    }
 }
 
 #[test]
@@ -173,7 +167,6 @@ fn the_owned_example_offers_openai_keys_and_chatgpts_sign_in() {
 }
 
 #[test]
-#[expect(clippy::too_many_lines, reason = "one table checks the whole default document against the owned example")]
 fn the_default_keeps_the_owned_structure_with_stock_models() {
     let owned = parse(fixtures::OWNED);
     assert_eq!(owned["engine"]["memory_bytes"], 1_073_741_824_u64);
@@ -191,24 +184,15 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
         }
         let ports = [
             "/application/clients/listener/socket",
-            "/application/machine/fake/listen/socket",
-            "/application/machine/owned/listen/socket",
             "/application/demo/llm/listen/socket",
             "/application/webhooks/listener/socket",
         ]
         .map(|path| actual.pointer(path).expect("written listener").as_str().expect("socket"));
         for (index, port) in ports.iter().enumerate() {
-            assert!(!ports[..index].contains(port), "{row}: five distinct ports");
+            assert!(!ports[..index].contains(port), "{row}: three distinct ports");
         }
-        assert_eq!(
-            actual["application"]["machine"]["owned"]["listen"]["socket"],
-            format!("127.0.0.1:{}", facts.ports.owned),
-            "{row}"
-        );
+        assert!(actual["application"].get("machine").is_none(), "{row}");
         let mut expected = owned.clone();
-        expected["workers"][0]["graces"]["grace_ms"] = json!(300_000_u64);
-        expected["engine"]["acts"] =
-            json!([{ "connector": 1_u16, "may": ["remove_project", "remove_account", "adopt"] }]);
         assert_ne!(actual["engine"]["owners"].as_array().unwrap().len(), 0);
         // The startup turn_bounds writer holds these to each document's own
         // agent; init adds a demo endpoint, so smith derives a different T.
@@ -230,12 +214,10 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
         expected["application"]["limits"]["overrides"]["forge.client.repositories"] = json!(3_u32);
         expected["application"]["limits"]["overrides"]["forge.repositories"] = json!(3_u32);
         expected["application"]["limits"]["overrides"]["forge.output"] = json!(82_u32);
-        expected["application"]["welcome"] = json!(true);
         expected["engine"]["owners"][0]["subject"] = json!("ada@localhost");
         expected["engine"]["clients"]["provider"] = json!({
             "key": "provider.key", "addresses": [1_u32],
-            "clients": [{"id": "forgejo", "secret": null,
-                "redirect_uri": format!("http://127.0.0.1:{}/user/oauth2/temper/callback", facts.ports.owned)}]
+            "clients": parse(b"[]")
         });
         let openai = owned["engine"]["llm"]["providers"][0].clone();
         for (path, value) in [
@@ -259,38 +241,10 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
                      "transport": "plaintext", "headers": parse(b"[]"), "connect_ms": 10_000_u64, "handshake_ms": 10_000_u64}
                 ]),
             ),
-            (
-                "/application/machine",
-                json!({
-                    "owned": {
-                        "forgejo": "fetched", "runner": {
-                            "binary": "fetched", "labels": ["temper-host:host"], "capacity": 1_u32,
-                            "path": "/usr/local/bin:/usr/bin:/bin"},
-                        "listen": {"socket": format!("127.0.0.1:{}", facts.ports.owned)},
-                        "remote": format!("http://127.0.0.1:{}", facts.ports.owned),
-                        "person": {"login": "ada", "email": "ada@localhost"}, "sign_in": "forgejo"
-                    },
-                    "fake": {
-                        "listen": {"socket": format!("127.0.0.1:{}", facts.ports.forge)},
-                        "remote": format!("http://127.0.0.1:{}", facts.ports.forge),
-                        "git": "demo/bin/git"
-                    },
-                    "github": null
-                }),
-            ),
             ("/application/demo", demo(facts.ports.llm.get())),
             ("/application/webhooks", json!({"listener": {"socket": format!("127.0.0.1:{}", facts.ports.webhooks)}})),
             ("/application/clients/listener/socket", json!(format!("127.0.0.1:{}", facts.ports.clients))),
             ("/application/clients/bundle", Value::Null),
-            (
-                "/application/workers/0/git",
-                match facts.git {
-                    Some(git) => json!(text(git)),
-                    None => Value::Null,
-                },
-            ),
-            ("/engine/projects", parse(b"[]")),
-            ("/engine/deployment/directory", json!("deployment")),
             ("/workers/0/secret", json!("worker.secret")),
             ("/workers/0/agent/program", json!(text(facts.binary))),
             ("/workers/0/agent/configuration", json!("/c/temper/agent.json")),
@@ -298,7 +252,9 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
         ] {
             set(&mut expected, path, value);
         }
-        for member in ["charters", "templates", "policies", "rules"] {
+        for member in
+            ["charters", "templates", "policies", "rules", "deployment", "providers", "connectors", "acts", "projects"]
+        {
             expected["engine"].as_object_mut().unwrap().remove(member);
             assert!(actual["engine"].get(member).is_none(), "{row}: {member}");
         }
@@ -577,16 +533,9 @@ fn no_placeholder_is_left() {
             [
                 (b"\"$binary\"".as_slice(), 1_u32),
                 (b"\"$agent\"".as_slice(), 2),
-                (b"\"$git\"".as_slice(), 1),
                 (b"\"$listener\"".as_slice(), 1),
-                (b"\"$forge\"".as_slice(), 1),
-                (b"\"$forge_git\"".as_slice(), 1),
-                (b"\"$owned\"".as_slice(), 1),
-                (b"\"$owned_git\"".as_slice(), 1),
-                (b"\"$login\"".as_slice(), 1),
-                (b"\"$email\"".as_slice(), 2),
+                (b"\"$email\"".as_slice(), 1),
                 (b"\"$provider\"".as_slice(), 1),
-                (b"\"$owned_sign_in\"".as_slice(), 1),
                 (b"\"$llm\"".as_slice(), 2),
                 (b"\"$webhooks\"".as_slice(), 1),
             ]
@@ -599,7 +548,6 @@ fn no_placeholder_is_left() {
             [
                 (b"\"$binary\"".as_slice(), 1_u32),
                 (b"\"$agent\"".as_slice(), 2),
-                (b"\"$git\"".as_slice(), 1),
                 (b"\"$listener\"".as_slice(), 1),
                 (b"\"$webhooks\"".as_slice(), 1),
             ]
@@ -649,23 +597,26 @@ fn the_person_keeps_a_forgejo_login_or_falls_back() {
         let answer = files(&facts, &DIRECTORIES, &[0; 32], &[0xab; 32]).expect("login never refuses init");
         assert_eq!(answer.person, person, "{row}");
         let document = parse(content(&answer, b"temper.json"));
-        assert_eq!(
-            document["application"]["machine"]["owned"]["person"],
-            json!({"login": written, "email": format!("{written}@localhost")}),
-            "{row}"
-        );
+        assert_eq!(document["engine"]["owners"][0]["subject"], json!(format!("{written}@localhost")), "{row}");
     }
 }
 
 #[test]
 fn the_template_seeds_no_project_and_no_settings_members() {
-    let document = parse(template::TEMPER);
-    assert_eq!(document["engine"]["projects"], parse(b"[]"));
-    for member in ["charters", "templates", "policies", "rules"] {
-        assert!(document["engine"].get(member).is_none());
+    for template in [template::TEMPER, template::BARE] {
+        let document = parse(template);
+        for member in
+            ["charters", "templates", "policies", "rules", "deployment", "providers", "connectors", "acts", "projects"]
+        {
+            assert!(document["engine"].get(member).is_none());
+        }
+        assert!(document["application"].get("landing").is_none());
+        assert!(document["application"].get("welcome").is_none());
+        assert!(document["application"].get("charter").is_none());
+        for member in ["heartbeat_ms", "link", "approval"] {
+            assert!(document["engine"]["clients"].get(member).is_none());
+        }
     }
-    assert!(document["application"].get("landing").is_none());
-    assert!(document["application"].get("charter").is_none());
 }
 
 #[test]
@@ -674,9 +625,7 @@ fn the_bare_document_is_the_box_less_its_parts() {
         let boxed = files(&facts, &DIRECTORIES, &[0; 32], &[0xab; 32]).expect("boxed files");
         let bare = crate::bare(&fixtures::bare_facts(&facts), &DIRECTORIES, &[0; 32]).expect("bare files");
         let mut expected = parse(content(&boxed, b"temper.json"));
-        assert_eq!(expected["application"]["welcome"], true, "{row}");
-        expected["application"].as_object_mut().unwrap().remove("welcome");
-        expected["application"]["machine"] = json!({"github": null});
+        assert!(expected["application"].get("welcome").is_none(), "{row}");
         expected["application"]["demo"] = Value::Null;
         expected["engine"]["clients"].as_object_mut().unwrap().remove("provider");
         expected["engine"]["owners"][0]["subject"] = json!("owner-a");
@@ -788,7 +737,7 @@ fn file_bytes<'a>(files: &'a [crate::File], name: &[u8]) -> &'a [u8] {
 }
 
 #[test]
-fn a_box_signs_its_person_in_with_a_public_forgejo_client() {
+fn a_box_keeps_an_empty_provider_for_clients_added_at_setup() {
     let facts = fixtures::facts();
     let answer = files(&facts, &DIRECTORIES, &[0; 32], &[0xab; 32]).unwrap();
     let document = parse(content(&answer, b"temper.json"));
@@ -797,11 +746,10 @@ fn a_box_signs_its_person_in_with_a_public_forgejo_client() {
         document["engine"]["clients"]["provider"],
         json!({
             "key": "provider.key", "addresses": [1_u32],
-            "clients": [{"id": "forgejo", "secret": null,
-                "redirect_uri": format!("http://127.0.0.1:{}/user/oauth2/temper/callback", facts.ports.owned)}]
+            "clients": parse(b"[]")
         })
     );
-    assert_eq!(document["application"]["machine"]["owned"]["sign_in"], "forgejo");
+    assert!(document["application"].get("machine").is_none());
     assert!(document["application"]["sign_in"].is_null());
 }
 
@@ -811,6 +759,6 @@ fn a_box_without_a_key_keeps_its_provider_and_source_null() {
     let answer = files(&facts, &DIRECTORIES, &[0; 32], &[0xab; 32]).unwrap();
     let document = parse(content(&answer, b"temper.json"));
     assert!(document["engine"]["clients"]["provider"].is_null());
-    assert!(document["application"]["machine"]["owned"]["sign_in"].is_null());
+    assert!(document["application"].get("machine").is_none());
     assert_eq!(document["engine"]["owners"][0]["subject"], "ada@localhost");
 }

@@ -105,21 +105,17 @@ fn member(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<landing::Memb
     let row = domain.forge.change(task)?;
     let project = domain.forge.repository(row.repository)?.project;
     let mut gates = List::with_capacity(env.limits.forge.gates);
-    if let Some(config) = domain.config.landings.get(&project) {
-        for repository in &config.repositories {
-            if repository.repository == row.repository
-                && domain.forge.repository(row.repository)?.settings.default_branch == row.base
-            {
-                for _ in &repository.gates {
-                    gates
-                        .push(landing::GateProof {
-                            proof: landing::Proof::Unkeyed,
-                            posted: landing::Posted::Nothing,
-                            faults: 0,
-                        })
-                        .expect("configured gates");
-                }
-            }
+    if let Some(repository) = domain.forge.repository_gates(project, row.repository)
+        && domain.forge.repository(row.repository)?.settings.default_branch == row.base
+    {
+        for _ in &repository.gates {
+            gates
+                .push(landing::GateProof {
+                    proof: landing::Proof::Unkeyed,
+                    posted: landing::Posted::Nothing,
+                    faults: 0,
+                })
+                .expect("configured gates");
         }
     }
     Some(landing::Member {
@@ -149,6 +145,9 @@ fn member(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<landing::Memb
 /// restart work has settled. One queued decision is committed before judging again
 /// so neither a train nor the live-row bound can be reserved twice (landing.md, 9).
 pub(crate) fn form_landings(domain: &mut Domain, env: &Env<Limits>) -> bool {
+    if domain.forge.landing_held() {
+        return false;
+    }
     for (repository, branch) in domain.forge.waiting_trains() {
         if form_train(domain, env, repository, &branch) {
             return true;
@@ -340,6 +339,18 @@ fn create_landing(
 
 #[expect(clippy::match_like_matches_macro, reason = "the foundation requires explicit matching")]
 pub(crate) fn start_landing_step(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunContext) {
+    if domain.forge.landing_held() {
+        if let Some((connector, code, step)) = domain.core.tasks.procedure_due(context.task) {
+            domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
+                task: context.task,
+                connector,
+                code,
+                step,
+                decision: ProcedureStep::new(StepEnd::Wait),
+            }));
+        }
+        return;
+    }
     let task = context.task;
     let Some(row) = domain.forge.landing(task) else { return };
     let released = if let landing::Phase::Held { .. } = row.landing.phase { true } else { false };
@@ -688,7 +699,7 @@ fn prepare_request(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<supe
     if members.is_empty() {
         return None;
     }
-    let combine = match domain.config.landings.get(&row.landing.project) {
+    let combine = match domain.forge.landing_settings(row.landing.project) {
         Some(config) => {
             if main {
                 config.combine_main

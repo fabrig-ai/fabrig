@@ -74,7 +74,7 @@ fn a_document_of_another_shape_needs_a_deployment_reader() {
     let mut input: serde_json::Value = serde_json::from_slice(&input).expect("engine-alone fixture");
     input["engine"]["hosts"]["listener"] = serde_json::json!([{"socket":"127.0.0.1:7100"}]);
     input["workers"] = serde_json::json!([]);
-    input["application"]["workers"] = serde_json::json!([]);
+
     let programs = directory.join("programs");
     let mut agent: serde_json::Value = serde_json::from_slice(&agent).expect("agent fixture");
     agent["programs"] = serde_json::json!({"claude_code":{"path":"/missing/claude","directory":programs}});

@@ -9,6 +9,7 @@ mod store;
 mod accounts;
 mod approval;
 mod engine;
+mod family;
 mod first_period;
 mod hello_refused;
 mod reds;
@@ -36,6 +37,6 @@ pub(crate) mod sign_in;
 
 mod sign_in_configuration;
 
-mod provider;
+pub(crate) mod provider;
 
 mod stock;

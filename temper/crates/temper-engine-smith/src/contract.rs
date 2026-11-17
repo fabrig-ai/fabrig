@@ -14,6 +14,7 @@ pub(crate) const KEPT: &[&str] = &[
     include_str!("../contract/host-tools-v3.txt"),
     include_str!("../contract/host-tools-v4.txt"),
     include_str!("../contract/host-tools-v5.txt"),
+    include_str!("../contract/host-tools-v6.txt"),
 ];
 const ADAPTERS: &[Adapter] = &[
     Adapter { version: 1, tool: b"decided", map: decided },
@@ -29,6 +30,8 @@ const ADAPTERS: &[Adapter] = &[
     Adapter { version: 1, tool: b"delegate", map: delegate },
     Adapter { version: 2, tool: b"delegate", map: delegate },
     Adapter { version: 3, tool: b"delegate", map: delegate },
+    Adapter { version: 5, tool: b"settings", map: settings },
+    Adapter { version: 5, tool: b"propose_settings", map: propose_settings },
 ];
 const CONTRACT: Contract =
     Contract { floor: crate::wire::FLOOR, current: crate::wire::VERSION, kept: KEPT, adapters: ADAPTERS };

@@ -671,7 +671,7 @@ presses the switch across projects: the render check and the walk remain
   (`skein-ui-web/src/page/web.rs`, `refresh` and `content`) is seen by reading too.
 
 - **Not yet:** *Team*, *The project's triager*: no setting names a
-  triager (`../../domain/landing.status.md`, 13.1; `../../domain/findings.status.md`),
+  triager (`../../domain/landing-settings.status.md`, 1.1; `../../domain/findings.status.md`),
   so no read gives `team::Facts`' `triager`, `team::parts` never shows its
   line, and the view has no words for it (`temper-client-view`'s
   `pages/team.rs`).

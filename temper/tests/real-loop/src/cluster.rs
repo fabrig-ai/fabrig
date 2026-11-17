@@ -109,6 +109,16 @@ pub(crate) enum Shape {
     Worker { name: &'static str, engine: Option<SocketAddr>, started: bool, grace: skein_lib::Duration },
 }
 impl Shape {
+    pub(crate) fn graces(&self, agent: &serde_json::Value) -> jig_protocol_config::Graces {
+        let (Self::Engine { grace, .. } | Self::Worker { grace, .. }) = self;
+        jig_protocol_config::Graces {
+            grace: *grace,
+            drain: skein_lib::Duration::from_millis(10),
+            agent_stop: agent_stop_bound(agent),
+            delivery: skein_lib::Duration::from_millis(5),
+            save: skein_lib::Duration::from_millis(5),
+        }
+    }
     pub(crate) fn ready(&self) -> bool {
         !matches!(self, Self::Worker { engine: None, .. } | Self::Worker { started: false, .. })
     }
@@ -134,40 +144,18 @@ impl Shape {
         // The stop bound stays below fleet grace (protocol/cluster.md, 3).
         let ping_ms = crate::PATIENCE.as_nanos().div_euclid(1_000_000) + 1;
         let silence_ms = 3 * ping_ms;
-        let (Self::Engine { grace, .. } | Self::Worker { grace, .. }) = self;
-        let grace_ms = grace.as_millis();
         let mut agent: serde_json::Value =
             serde_json::from_slice(&std::fs::read(data.join("agent.json")).expect("agent document"))
                 .expect("agent JSON");
-        // Preserve the story's supervision policy; its stop bound is derived below.
-        // Cancellation must leave the held peer time to release its response.
-        let [delivery_ms, save_ms] = [5_u64, 5];
-        let graces = jig_protocol_config::Graces {
-            grace: *grace,
-            // A held model call is cancelled promptly even in a long engine-away story.
-            drain: skein_lib::Duration::from_millis(10),
-            agent_stop: agent_stop_bound(&agent),
-            delivery: skein_lib::Duration::from_millis(delivery_ms),
-            save: skein_lib::Duration::from_millis(save_ms),
-        };
-        let agent_stop_ms = graces.agent_stop.as_millis();
-        let stop_bound_ms = jig_protocol_config::stop_bound(
-            &graces,
-            skein_lib::Duration::from_millis(ping_ms),
-            skein_lib::Duration::from_millis(silence_ms),
-        )
-        .expect("cluster stop bound fits a duration")
-        .as_millis();
         match self {
             Self::Engine { workers, .. } => {
                 document["workers"] = json!([]);
-                document["application"]["workers"] = json!([]);
+
                 document["engine"]["hosts"]["listener"] = json!([{"socket":"127.0.0.1:0"}]);
                 // Every configured position admitted: the small profile admits two workers.
                 document["engine"]["limits"]["overrides"]["fleet.workers"] = workers.len().into();
                 // One attempt per one-slot worker: the fleet counts attempts across the whole fleet.
                 document["engine"]["limits"]["overrides"]["fleet.attempts"] = workers.len().into();
-                document["engine"]["limits"]["overrides"]["fleet.grace_ms"] = (stop_bound_ms + 1).into();
                 document["engine"]["limits"]["overrides"]["hub.turns"] = 1.into();
                 document["engine"]["limits"]["overrides"]["link.ping_ms"] = ping_ms.into();
                 document["engine"]["limits"]["overrides"]["link.silence_ms"] = silence_ms.into();
@@ -197,14 +185,14 @@ impl Shape {
                 worker["name"] = (*name).into();
                 worker["secret"] = format!("secrets/{name}.secret").into();
                 worker["engine"] = json!({"socket": engine.unwrap_or(([127,0,0,1],0).into()).to_string()});
-                worker["graces"] = json!({"grace_ms":grace_ms,"drain_ms":graces.drain.as_millis(),"agent_stop_ms":agent_stop_ms,"delivery_ms":delivery_ms,"save_ms":save_ms});
                 worker["limits"]["overrides"]["link.ping_ms"] = ping_ms.into();
                 worker["limits"]["overrides"]["link.silence_ms"] = silence_ms.into();
-                if grace_ms >= 1_000 {
+                if self.graces(&agent).grace.as_millis() >= 1_000 {
                     // Redial promptly after the grace too; waiting out backoff is not this story's rule.
                     worker["limits"]["overrides"]["link.ceiling_ms"] = 1_000.into();
                 }
-                document = json!({"workers":document["workers"],"application":{"workers":document["application"]["workers"],"limits":document["application"]["limits"]}});
+                document =
+                    json!({"workers":document["workers"],"application":{"limits":document["application"]["limits"]}});
                 fixtures::private(
                     &data.join(format!("secrets/{name}.secret")),
                     format!("{name}-fixture-secret").as_bytes(),

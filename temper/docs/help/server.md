@@ -44,23 +44,21 @@ Copy `owned.json` to `CONFIG/temper.json`, `owned/` files to `CONFIG/`; edit:
 - `application.clients`: `listener` `{"socket": "127.0.0.1:8367"}`,
   `public` `"https://temper.example.com"`;
   `application.webhooks.listener`: `{"socket": "127.0.0.1:8368"}`;
-- `application.machine.owned`, the owned Forgejo's: `listen`
-  `{"socket": "127.0.0.1:3000"}`, `remote` `"http://127.0.0.1:3000"`,
-  `forgejo` `"fetched"`, `runner` `{"binary": "fetched", "labels":
-  ["w1-jobs:docker://docker.io/library/debian:trixie-slim"],
-  "capacity": 1, "path": "/usr/bin:/bin"}` or `null` for no CI,
-  `person` your Forgejo login and address, `public`
-  `"https://git.example.com"`;
-- `engine.providers` gains `{"number":3,"kind":"application"}`,
-  Google's; `engine.owners`: `[{"provider":3,"subject":"sam@example.com"}]`;
-- `application.sign_in`: `{"google":{"provider":3,"client":"CLIENT_ID","secret":"secrets/google-client.secret","endpoints":null},"members":[{"address":"sam@example.com","login":"sam"}]}`.
+- `engine.owners`: `[{"provider": 3, "subject": "sam@example.com"}]`;
+  provider 3 is Google's, fixed by temper;
+- `application.sign_in`: `{"google": {"provider": 3, "client":
+  "CLIENT_ID", "secret": "secrets/google-client.secret", "endpoints":
+  null}, "members": [{"address": "sam@example.com", "login": "sam"}]}`.
 
 Provider 3 owners must be members; edit and restart to add one.
 
-For Forgejo sign-in through temper, set `engine.clients.provider`:
-`{"key":"provider.key","clients":[{"id":"forgejo","secret":"forgejo-client.secret","redirect_uri":"https://git.example.com/user/oauth2/temper/callback"}],"addresses":[3]}`
-and `application.sign_in.forges`: `[{"forge":1,"client":"forgejo"}]`.
-Before step 3: creates key/secret; prints this command to run once after step 4:
+For Forgejo sign-in through temper, set
+`engine.clients.provider`: `{"key": "provider.key", "clients": [{"id":
+"forgejo", "secret": "forgejo-client.secret", "redirect_uri":
+"https://git.example.com/user/oauth2/temper/callback"}], "addresses":
+[3]}`, and in `application.sign_in`, `"forges": [{"forge": 1, "client":
+"forgejo"}]`. After preparing the forge in step 3, this creates key and secret and prints the command
+to run once after step 4:
 
 ```
 temper-engine forge sign-in --config CONFIG --data DATA --cache CACHE 1
@@ -115,8 +113,7 @@ Units run as `temper` with `UMask=0077`, `ProtectSystem=strict`,
 Without `PrivateTmp`, `strict` makes `/tmp` read-only. Forgejo:
 
 ```
-temper-engine forge fetch --config CONFIG --data DATA --cache CACHE 1
-temper-engine forge prepare --config CONFIG --data DATA --cache CACHE 1
+temper-engine forge prepare --config CONFIG --data DATA --cache CACHE 1 --listen 127.0.0.1:3000 --public https://git.example.com --runner-label w1-jobs:docker://docker.io/library/debian:trixie-slim --runner-path /usr/bin:/bin --person sam sam@example.com
 temper-engine forge run --config CONFIG --data DATA --cache CACHE 1 forgejo
 ```
 
@@ -127,8 +124,8 @@ engine, which connects kept forges:
 temper-engine serve --config CONFIG --data DATA --cache CACHE
 ```
 
-Expect: `fetch` prints `fetched BINARY DONE of TOTAL bytes`, nothing if
-present; `prepare` prints nothing; both exit 0. `run` prints Forgejo's
+Expect: `prepare` fetches pinned binaries, printing `fetched BINARY DONE of
+TOTAL bytes`, nothing if present, and exits 0. `run` prints Forgejo's
 output; `serve` prints its sign-in link,
 `https://temper.example.com/jig/v1/sign-in/link?secret=` and its
 secret, and on stderr `listening clients 127.0.0.1:8367`.

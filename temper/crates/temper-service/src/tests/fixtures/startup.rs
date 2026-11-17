@@ -10,11 +10,10 @@ use skein_lib::{List, Secret};
 pub const APPLICATION: &[u8] = br#"{
 "webhooks":null,
 "clients":{"listener":{"socket":"127.0.0.1:7100"},"public":null,"bundle":null},
-"machine":{},
-"landing":{"projects":[{"project":1}]},
-"demo":null,"sign_in":null,"limits":{"profile":"small","overrides":{}},"workers":[{"root":"worker-root","git":"/usr/bin/git"}]
+
+"demo":null,"sign_in":null,"limits":{"profile":"small","overrides":{}}
 }"#;
-pub const DEMO: &str = r#""welcome":true,"demo":{"llm":{"listen":{"socket":"$llm"},"provider":3,"key":"demo/llm.key",
+pub const DEMO: &str = r#""demo":{"llm":{"listen":{"socket":"$llm"},"provider":3,"key":"demo/llm.key",
 "asked":[{"cue":"Add CSV export to widget","turns":["CSV"]},
 {"cue":"Add a dark theme to widget","turns":["Theme"]},
 {"cue":"Fix widget's empty search state","turns":["Search"]}],
@@ -40,8 +39,6 @@ pub fn document() -> Box<[u8]> {
     document.extend_from_slice(engine.as_bytes());
     document.extend_from_slice(br#", "workers":[{
 "engine":{"in_process":"workers"},"name":"local","secret":"worker-secret","slots":1,
-"graces":{"grace_ms":10000,"agent_stop_ms":5000,"delivery_ms":1000,"save_ms":1000},
-"programs":{"check_interval_ms":60000},
 "agent":{"program":"/opt/temper/bin/temper","configuration":"/opt/temper/agent.json","arguments":["internal", "agent","/opt/temper/agent.json"]},
 "limits":{"profile":"small","overrides":{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}},
 "memory_bytes":1152921504606846976}],"application":"#);
@@ -290,18 +287,13 @@ pub fn webhook_document() -> Box<[u8]> {
 /// The same deployment with its worker hosted by another process.
 pub fn engine_alone_document() -> Box<[u8]> {
     let input = with(&document(), b"engine.hosts.listener", br#"[{"socket":"127.0.0.1:0"}]"#);
-    let input = with(&input, b"workers", b"[]");
-    with(&input, b"application.workers", b"[]")
+    with(&input, b"workers", b"[]")
 }
 
 /// A worker's document has no engine or engine application members.
 pub fn worker_alone_document() -> Box<[u8]> {
     let input = with(&document(), b"workers[0].engine", br#"{"socket":"127.0.0.1:7100"}"#);
-    let input = with(
-        &input,
-        b"application",
-        br#"{"workers":[{"root":"worker-root","git":"/usr/bin/git"}],"limits":{"profile":"small","overrides":{}}}"#,
-    );
+    let input = with(&input, b"application", br#"{"limits":{"profile":"small","overrides":{}}}"#);
     let text = core::str::from_utf8(&input).unwrap();
     let (_, workers) = text.split_once(", \"workers\":").unwrap();
     [b"{\"workers\":".as_slice(), workers.as_bytes()].concat().into_boxed_slice()

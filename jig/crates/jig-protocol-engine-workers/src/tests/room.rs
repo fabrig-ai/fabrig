@@ -21,7 +21,8 @@ fn config() -> jig_protocol_config::Engine {
         &config::DocumentLimits { bytes: 1024, tokens: 256, depth: 8 },
     )
     .expect("configuration document");
-    config::engine(&document, 0, &config::Directories::working(), config::Defaults::Passed).expect("configuration")
+    config::engine(&document, 0, &config::Directories::working(), config::Defaults::Passed, &config::Fixed::NONE)
+        .expect("configuration")
 }
 
 #[test]

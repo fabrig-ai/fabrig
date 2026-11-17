@@ -540,8 +540,27 @@ pub fn read(directory: &Path) {
     UPGRADED.with(|lines| lines.borrow_mut().clear());
     let start = temper_playground::stories::A.start(fixtures::SEED, skein_sim::Config::calm().wall);
     let configuration = read_configuration(directory);
-    let document: serde_json::Value = serde_json::from_slice(&configuration).expect("configuration JSON");
+    let mut document: serde_json::Value = serde_json::from_slice(&configuration).expect("configuration JSON");
+    // The reader holds the playground reset while inspecting the permanent history.
+    document["world_settings"] = temper_playground::documents::world_document()["world_settings"].clone();
+    document["world_settings"]["adopt_only"] = true.into();
+    let configuration = serde_json::to_vec(&document).expect("reader configuration");
     let mut disk = files::load(directory);
+    // The pre-N5 floor has no setup file; supply the operator's prepare step to this copy.
+    let directories =
+        jig_protocol_config::Directories::given(b"/config", b"/setup", b"/cache").expect("world directories");
+    let setup = temper_forge_setup::setup_file::chosen(
+        temper_forge_setup::machine::BoxKind::Fake,
+        temper_playground::documents::FORGE.port(),
+        b"owner",
+        false,
+        &directories,
+    )
+    .expect("kept fake forge setup");
+    let setup_path = directories
+        .join(jig_protocol_config::Directory::Data, &temper_forge_setup::setup_file::path(1, setup.kind()))
+        .expect("world setup path");
+    machine::lay_handover(&mut disk, &setup_path, &temper_forge_setup::setup_file::encode(&setup));
     let active = files::active(&mut disk);
     machine::lay_handover(&mut disk, b"client/private/address", format!("http://{}\n", fixtures::CLIENTS).as_bytes());
     let machine = Machine::new(disk);
@@ -666,8 +685,13 @@ pub fn refuse(directory: &Path) {
 
 fn assert_served(caller: &ctl::Caller) {
     assert_eq!(caller.answers.len(), 3);
-    for answer in &caller.answers {
-        assert_eq!(answer.exit, skein_io::kernel::Exit::Code(0), "{}", String::from_utf8_lossy(&answer.error));
+    for (index, answer) in caller.answers.iter().enumerate() {
+        assert_eq!(
+            answer.exit,
+            skein_io::kernel::Exit::Code(0),
+            "read {index}: {}",
+            String::from_utf8_lossy(&answer.error)
+        );
     }
     let identity: serde_json::Value = serde_json::from_slice(&caller.answers[0].output).expect("me JSON");
     assert_eq!(identity["party"]["number"], 1);
@@ -701,6 +725,7 @@ pub(crate) fn read_configuration(directory: &Path) -> Vec<u8> {
 fn startup_configuration(directory: &Path) -> (Vec<u8>, temper_service::stock::Given) {
     let configuration = std::fs::read(directory.join("configuration.json")).expect("kept startup configuration");
     let mut document: serde_json::Value = serde_json::from_slice(&configuration).expect("kept configuration JSON");
+    temper_playground::documents::settings::strip_fixed(&mut document);
     // Workers are admitted through settings, not the document (protocol/cluster.md, 3).
     document["engine"]["hosts"].as_object_mut().expect("kept hosts").remove("workers");
     document["workers"][0]["name"] = "local".into();

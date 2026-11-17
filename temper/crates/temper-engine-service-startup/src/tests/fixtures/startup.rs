@@ -7,9 +7,8 @@
 pub const APPLICATION: &[u8] = br#"{
 "webhooks":null,
 "clients":{"listener":{"socket":"127.0.0.1:7100"},"public":null,"bundle":null},
-"machine":{},
-"landing":{"projects":[{"project":1}]},
-"demo":null,"sign_in":null,"limits":{"profile":"small","overrides":{}},"workers":[{"root":"worker-root","git":"/usr/bin/git"}]
+
+"demo":null,"sign_in":null,"limits":{"profile":"small","overrides":{}}
 }"#;
 
 pub fn document() -> Box<[u8]> {
@@ -20,8 +19,6 @@ pub fn document() -> Box<[u8]> {
     document.extend_from_slice(engine.as_bytes());
     document.extend_from_slice(br#", "workers":[{
 "engine":{"in_process":"workers"},"name":"local","secret":"worker-secret","slots":1,
-"graces":{"grace_ms":10000,"agent_stop_ms":5000,"delivery_ms":1000,"save_ms":1000},
-"programs":{"check_interval_ms":60000},
 "agent":{"program":"/opt/temper/bin/temper","configuration":"/opt/temper/agent.json","arguments":["internal", "agent","/opt/temper/agent.json"]},
 "limits":{"profile":"small","overrides":{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}},
 "memory_bytes":1152921504606846976}],"application":"#);
@@ -176,6 +173,5 @@ fn member_span_in(input: &[u8], document: &skein_json::Document, path: &[u8]) ->
 
 pub fn engine_part(input: &[u8]) -> Box<[u8]> {
     let input = with(input, b"workers", b"[]");
-    let input = with(&input, b"application.workers", b"[]");
     with(&input, b"engine.hosts.listener", br#"[{"socket":"127.0.0.1:7200"}]"#)
 }

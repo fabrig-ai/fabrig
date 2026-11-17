@@ -528,3 +528,51 @@ fn forge_push_refusals_fail_only_the_line_and_keep_its_bytes() {
         assert!(m.ready());
     }
 }
+
+#[test]
+fn settings_inputs_resolve_before_ctl_and_keep_the_given_line() {
+    let (scratch, mut machine) = fixture();
+    for verb in ["apply", "propose"] {
+        let source = format!("ctl settings {verb} a.txt - b.txt --against 1 --key a.txt");
+        let actions = line(&mut machine, &source);
+        let [Action::ReadSettingsFiles { directory, args }] = actions.as_slice() else { panic!("{actions:?}") };
+        let resolved = crate::drive::io::deployment::settings_files(directory.as_deref(), args.clone());
+        let actions = machine.step(Event::SettingsFiles(resolved), Time::ZERO);
+        let [Action::Start { process: crate::drive::Process::Ctl, program }] = actions.as_slice() else {
+            panic!("{actions:?}")
+        };
+        let expected: Vec<std::ffi::OsString> = [
+            "ctl".into(),
+            scratch.path().join("session/ctl").into_os_string(),
+            "settings".into(),
+            verb.into(),
+            scratch.path().join("files/a.txt").into_os_string(),
+            "-".into(),
+            scratch.path().join("files/b.txt").into_os_string(),
+            "--against".into(),
+            "1".into(),
+            "--key".into(),
+            "a.txt".into(),
+        ]
+        .into();
+        assert_eq!(program.args, expected);
+        assert_eq!(program.input, crate::drive::Input::Null);
+        let actions = machine.step(super::exited(crate::drive::Process::Ctl, 0), Time::ZERO);
+        assert!(matches!(actions.as_slice(), [Action::Keep(kept), Action::Answer(answer)]
+            if kept.as_ref() == source.as_bytes() && answer.failed.is_none()));
+    }
+}
+
+#[test]
+fn missing_settings_input_fails_by_name_before_ctl_starts() {
+    let (_scratch, mut machine) = fixture();
+    let source = "ctl settings apply missing.json --against 1 --key missing";
+    let actions = line(&mut machine, source);
+    let [Action::ReadSettingsFiles { directory, args }] = actions.as_slice() else { panic!("{actions:?}") };
+    let resolved = crate::drive::io::deployment::settings_files(directory.as_deref(), args.clone());
+    let actions = machine.step(Event::SettingsFiles(resolved), Time::ZERO);
+    assert!(matches!(actions.as_slice(), [Action::Keep(kept), Action::Answer(answer)]
+        if kept.as_ref() == source.as_bytes() && answer.failed.as_ref().is_some_and(|why| why.contains("missing.json"))));
+    assert!(machine.ready());
+    assert_eq!(answer(&line(&mut machine, "")).print(), "ok\n");
+}

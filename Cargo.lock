@@ -161,6 +161,7 @@ dependencies = [
 name = "fabrig-boundary"
 version = "0.0.0"
 dependencies = [
+ "aho-corasick",
  "serde_json",
  "skein-codec",
  "skein-codegen",
@@ -5465,6 +5466,7 @@ dependencies = [
  "temper-client-world",
  "temper-engine-domain",
  "temper-engine-domain-forge",
+ "temper-engine-domain-forge-change",
  "temper-engine-domain-world",
  "temper-engine-shell",
  "temper-engine-smith",
@@ -5545,6 +5547,7 @@ name = "temper-box-machine"
 version = "0.0.0"
 dependencies = [
  "jig-boundary",
+ "jig-protocol-config",
  "skein-fake-machine",
  "skein-io",
  "skein-lib",
@@ -5568,6 +5571,7 @@ dependencies = [
  "jig-domain-fleet",
  "jig-domain-host",
  "jig-domain-link",
+ "jig-domain-people",
  "jig-domain-tasks",
  "jig-protocol-config",
  "jig-protocol-engine-clients",
@@ -6186,6 +6190,7 @@ dependencies = [
  "temper-engine-service-stock",
  "temper-engine-service-vocabulary",
  "temper-engine-smith",
+ "temper-fixtures",
  "temper-protocol-reaches",
  "temper-settings-form",
  "temper-worker-domain-world",
@@ -6383,9 +6388,11 @@ dependencies = [
 name = "temper-engine-domain-forge-vocabulary"
 version = "0.0.0"
 dependencies = [
+ "jig-client-protocol-wire",
  "jig-domain-core-vocabulary",
  "jig-domain-people",
  "jig-domain-tasks",
+ "skein-codec",
  "skein-forge",
  "skein-forge-client",
  "skein-lib",
@@ -6474,6 +6481,7 @@ dependencies = [
  "temper-engine-smith",
  "temper-fake",
  "temper-fake-checkout",
+ "temper-fixtures",
  "temper-protocol-reaches",
  "temper-protocol-store",
  "temper-protocol-worker-wire",
@@ -6583,6 +6591,7 @@ dependencies = [
  "skein-lib",
  "skein-oauth",
  "skein-oauth-accounts",
+ "skein-oauth-issuer",
  "skein-push",
  "skein-scratch",
  "skein-shell",
@@ -6636,6 +6645,7 @@ dependencies = [
  "jig-protocol-engine-clients",
  "jig-protocol-store",
  "jig-protocol-worker-wire",
+ "serde_json",
  "skein-codec",
  "skein-forge",
  "skein-forge-connection",
@@ -6686,6 +6696,7 @@ dependencies = [
  "skein-lib",
  "skein-world",
  "temper-charter-set",
+ "temper-client-protocol-wire",
  "temper-client-tools",
  "temper-client-view-kit",
  "temper-client-view-parts",
@@ -6694,6 +6705,7 @@ dependencies = [
  "temper-engine-domain-forge-change",
  "temper-engine-domain-forge-tiers",
  "temper-engine-domain-ways",
+ "temper-engine-service-startup",
  "temper-engine-service-vocabulary",
  "temper-engine-smith",
  "temper-forge-setup",
@@ -6755,6 +6767,7 @@ dependencies = [
  "temper-engine-domain-forge-issues",
  "temper-engine-domain-trials",
  "temper-engine-domain-ways",
+ "temper-engine-service-startup",
  "temper-engine-service-stock",
  "temper-engine-smith",
  "temper-forge-setup",
@@ -6828,6 +6841,7 @@ dependencies = [
  "jig-protocol-engine-clients",
  "jig-protocol-transcript",
  "serde_json",
+ "skein-codec",
  "skein-forge",
  "skein-forge-client",
  "skein-json",
@@ -6965,8 +6979,13 @@ name = "temper-fixtures"
 version = "0.0.0"
 dependencies = [
  "jig-client",
+ "skein-forge",
  "skein-io",
  "skein-lib",
+ "temper-engine-domain-forge-change",
+ "temper-engine-domain-forge-landing",
+ "temper-engine-domain-forge-tiers",
+ "temper-engine-domain-forge-vocabulary",
  "temper-test-env",
 ]
 
@@ -6998,6 +7017,7 @@ dependencies = [
  "skein-world",
  "temper-fetch-shell",
  "temper-forge-setup",
+ "temper-shell",
 ]
 
 [[package]]
@@ -7058,6 +7078,7 @@ dependencies = [
  "smith-agent-world",
  "smith-domain",
  "temper-fetch",
+ "temper-service-core",
 ]
 
 [[package]]
@@ -7217,6 +7238,7 @@ dependencies = [
  "temper-fake-git-hosted",
  "temper-forge-setup",
  "temper-service",
+ "temper-settings-form",
  "temper-worker-checkout-world",
  "temper-worker-protocol-git",
  "wasm-bindgen",
@@ -7464,6 +7486,7 @@ dependencies = [
  "temper-worker-checkout-world",
  "temper-worker-domain",
  "temper-worker-protocol-git",
+ "temper-worker-shell",
 ]
 
 [[package]]
@@ -7490,6 +7513,7 @@ dependencies = [
  "skein-shell",
  "temper-engine-service",
  "temper-engine-shell",
+ "temper-service-core",
  "temper-test-env",
  "time",
 ]
@@ -7716,6 +7740,7 @@ dependencies = [
  "temper-engine-service-vocabulary",
  "temper-engine-smith",
  "temper-fake-checkout",
+ "temper-fixtures",
  "temper-protocol-worker-wire",
  "temper-service-core",
  "temper-worker-checkout-world",

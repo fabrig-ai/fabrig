@@ -281,7 +281,15 @@ fn configured(bytes: &[u8]) -> Result<Configured, String> {
     let mut whole = read::Object::new(&document, 0).map_err(|why| format!("configuration: {why:?}"))?;
     let engine = whole
         .member(&document, b"engine")
-        .map(|at| config::engine(&document, at, &config::Directories::working(), config::Defaults::Document))
+        .map(|at| {
+            config::engine(
+                &document,
+                at,
+                &config::Directories::working(),
+                config::Defaults::Document,
+                &config::Fixed::NONE,
+            )
+        })
         .transpose()
         .map_err(|why| format!("engine: {why:?}"))?;
     let workers = match whole.member(&document, b"workers") {
@@ -291,8 +299,9 @@ fn configured(bytes: &[u8]) -> Result<Configured, String> {
     let mut specs = Vec::new();
     let mut bounds = engine.as_ref().map(config::files).unwrap_or_default().into_vec();
     for at in &workers {
-        let worker = config::worker(&document, *at, &config::Directories::working())
-            .map_err(|why| format!("worker: {why:?}"))?;
+        let worker =
+            config::worker(&document, *at, &config::Directories::working(), &jig_protocol_config::FixedWorker::NONE)
+                .map_err(|why| format!("worker: {why:?}"))?;
         bounds.extend(config::worker_files(&worker).into_vec());
         specs.push(worker);
     }

@@ -827,16 +827,19 @@ fn an_empty_proposal_has_no_items_list() {
 fn a_review_adds_application_and_policy_rows_without_repeating_jigs_heads() {
     let items = [
         (c::Setting::Application { kind: 7, scope: fixtures::PROJECT, number: 1 }, c::RevisionItemEdit::Set),
-        (c::Setting::Application { kind: 5, scope: 7, number: 3 }, c::RevisionItemEdit::Removed),
+        (c::Setting::Application { kind: u32::MAX, scope: 7, number: 3 }, c::RevisionItemEdit::Removed),
         (c::Setting::ProjectPolicy { project: 2 }, c::RevisionItemEdit::Reset),
         (c::Setting::Charter(c::SettingNumber { number: 2 }), c::RevisionItemEdit::Set),
     ];
     let (mut root, out) = settings_root(settings_page(&items, true));
     proposed_values(&mut root, &out, true, w::QuestionsRoute::None, false);
     let tree = draw_settings(&root, &settings_card(&root), false);
-    for expected in
-        [b"Goals: shown".as_slice(), b"application kind 5, 7, 3 removed", b"project policy 2 reset", b"charter 2"]
-    {
+    for expected in [
+        b"Goals: shown".as_slice(),
+        b"application kind 4294967295, 7, 3 removed",
+        b"project policy 2 reset",
+        b"charter 2",
+    ] {
         let mut count = 0_usize;
         for node in tree.nodes() {
             for run in &node.text {
