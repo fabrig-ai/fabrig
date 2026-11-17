@@ -263,7 +263,7 @@ fn committed_qa_recipes_read_chain_and_end_on_their_own_checks() {
     assert_eq!(recipe.config.len(), 5);
     assert_eq!(
         recipe.check.iter().map(|line| line.line.print()).collect::<Vec<_>>(),
-        [b"ctl project show Hello".as_slice(), b"ctl forge list --until made:1", b"ctl forge repositories 1"]
+        [b"ctl project show Hello".as_slice(), b"ctl forge list --until connected:1", b"ctl forge repositories 1"]
     );
 
     let chain = Chain::read(&setups, "project-landing").expect("project-landing chain");
@@ -383,7 +383,7 @@ fn turn_landing_clients_plans_a_full_deployment_walk_from_the_turn_landing_copy(
         shown(chain.lines(Some("turn-landing")).expect("from turn-landing copy")),
         [
             "turn-landing:9 ctl project show Hello",
-            "turn-landing:10 ctl forge list --until made:1",
+            "turn-landing:10 ctl forge list --until connected:1",
             "turn-landing:11 ctl forge repositories 1",
             "turn-landing-clients:3 web reload \"/projects/1\"",
             "turn-landing-clients:4 web see \"work/hello is in Hello\"",
