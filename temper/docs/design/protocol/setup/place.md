@@ -136,6 +136,12 @@ flags a person gives:
   holds a listener for each group it keeps, at most `box.groups`, never
   one for each forge it has ever run; a forge set up again is a new forge
   at a new port (section 2).
+- **A removal asked again** after its remover succeeded but its group's
+  files weren't removed finds the forge's directory gone: the box then
+  runs no remover, removes the group's files, and closes its listener
+  once they're removed, answering `removed N`. A directory still there
+  with no setup file, or one that doesn't read, refuses as section 3
+  says; so does every `forge` command run directly.
 - **At a later start,** the box opens each started group's listener
   from its setup file before any step, as it opened the document's.
   A group with no setup file stays dormant, named on the box's stderr.
