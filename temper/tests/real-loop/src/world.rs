@@ -197,7 +197,7 @@ pub(crate) fn run(
     direct_key: bool,
     sign_in: bool,
 ) -> CheckedOutcome<Proc> {
-    run_with_agent(scratch, recipe, steps, direct_key, sign_in, agent::agent)
+    run_with_agent(scratch, recipe, steps, direct_key, sign_in, agent::agent, None)
 }
 
 pub(crate) fn run_stubborn(
@@ -205,7 +205,16 @@ pub(crate) fn run_stubborn(
     recipe: impl FnOnce() -> llm::Recipe,
     steps: impl FnOnce() -> Vec<crate::calls::Step>,
 ) -> CheckedOutcome<Proc> {
-    run_with_agent(scratch, recipe, steps, false, false, agent::stubborn)
+    run_with_agent(scratch, recipe, steps, false, false, agent::stubborn, None)
+}
+
+pub(crate) fn run_configured(
+    scratch: &skein_scratch::Scratch,
+    recipe: impl FnOnce() -> llm::Recipe,
+    configure: fn(&mut serde_json::Value, &mut serde_json::Value),
+    steps: impl FnOnce() -> Vec<crate::calls::Step>,
+) -> CheckedOutcome<Proc> {
+    run_with_agent(scratch, recipe, steps, false, false, agent::agent, Some(configure))
 }
 
 fn run_with_agent(
@@ -215,6 +224,7 @@ fn run_with_agent(
     direct_key: bool,
     sign_in: bool,
     agent: agent::Factory,
+    configure: Option<fn(&mut serde_json::Value, &mut serde_json::Value)>,
 ) -> CheckedOutcome<Proc> {
     let patience = crate::PATIENCE;
     // As the browser tier does, reserve a kernel port before the immutable
@@ -255,7 +265,10 @@ fn run_with_agent(
     world.spawn_signals(|signals| {
         Proc::new(Kind::Service(Box::new(match issuer {
             Some(address) => ServiceHost::with_issuer(scratch.path().into(), signals, address),
-            None => ServiceHost::new(scratch.path().into(), signals, direct_key),
+            None => match configure {
+                Some(configure) => ServiceHost::configured_only(scratch.path().into(), signals, configure),
+                None => ServiceHost::new(scratch.path().into(), signals, direct_key),
+            },
         })))
     });
     host(&mut world, scratch.path(), steps, direct_key, 1, agent);

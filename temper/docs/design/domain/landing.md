@@ -1006,7 +1006,13 @@ across a restart, a worker's loss and a release
 saved delivery across its worker's loss beside a proving landing; going
 live by `turn` with running work's settings kept (13); a copied policy's
 ceilings on the shipped capacities; a goal's delivery leaving its
-landing mid-proof, or sharing its run.
+landing mid-proof, or sharing its run; two goals' changes, each
+approved by its review and waiting on one person task, released
+together by the person's answer, forming one landing of two by `turn`
+at a `batch` of two, proved by one green run at the top and landed by
+one fast-forward, each member's pull request merged at its prefix and
+each change landed there, as the turn-landing setup's scripts carry
+them (`../testing/qa/setups.md`, 6).
 
 ## 17. Open questions
 

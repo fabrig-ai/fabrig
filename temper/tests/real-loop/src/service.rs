@@ -97,11 +97,19 @@ impl ServiceHost {
         fixture: Option<crate::forge::Fixture>,
         direct_key: bool,
     ) -> Self {
-        Self::with_shape(path, signals, fixture, direct_key, None, None, None)
+        Self::with_shape(path, signals, fixture, direct_key, None, None, None, None)
     }
     pub(crate) fn with_issuer(path: PathBuf, signals: Fd, issuer: SocketAddr) -> Self {
-        Self::with_shape(path, signals, None, false, None, None, Some(issuer))
+        Self::with_shape(path, signals, None, false, None, None, Some(issuer), None)
     }
+    pub(crate) fn configured_only(
+        path: PathBuf,
+        signals: Fd,
+        configure: fn(&mut serde_json::Value, &mut serde_json::Value),
+    ) -> Self {
+        Self::with_shape(path, signals, None, false, None, None, None, Some(configure))
+    }
+    #[expect(clippy::too_many_arguments, reason = "independent optional peer and configuration fixtures")]
     #[expect(
         clippy::too_many_lines,
         reason = "the hosted service composes the selected cluster shape and figures startup"
@@ -114,6 +122,7 @@ impl ServiceHost {
         cluster: Option<crate::cluster::Shape>,
         github: Option<crate::github::Fixture>,
         issuer: Option<SocketAddr>,
+        configure: Option<fn(&mut serde_json::Value, &mut serde_json::Value)>,
     ) -> Self {
         let clients_listener = github.map(|_| {
             let [listener] = temper_fixtures::ports::reserve::<1>(&[]);
@@ -139,6 +148,15 @@ impl ServiceHost {
         if fixture.is_none() && github.is_none() {
             let mut value = serde_json::from_slice(&std::fs::read(path.join("temper.json")).expect("deployment"))
                 .expect("deployment JSON");
+            if let Some(configure) = configure {
+                let mut agent = serde_json::from_slice(&std::fs::read(path.join("world-agent.json")).expect("agent"))
+                    .expect("agent JSON");
+                configure(&mut value, &mut agent);
+                fixtures::turn_bounds::apply(&mut value, fixtures::turn_bounds::turn_body(&agent));
+                fixtures::private(&path.join("world-agent.json"), &serde_json::to_vec(&agent).expect("agent JSON"))
+                    .expect("agent configuration");
+                temper_fixtures::agent::apply(&mut value, &path, &agent);
+            }
             fixtures::finish_configuration(&path, &mut value).expect("world defaults separated from startup");
         }
         if let Some(shape) = &cluster {
@@ -234,10 +252,10 @@ impl ServiceHost {
         shape: crate::cluster::Shape,
         fixture: Option<crate::forge::Fixture>,
     ) -> Self {
-        Self::with_shape(path.join("data"), signals, fixture, false, Some(shape), None, None)
+        Self::with_shape(path.join("data"), signals, fixture, false, Some(shape), None, None, None)
     }
     pub(crate) fn github(path: PathBuf, signals: Fd, fixture: crate::github::Fixture) -> Self {
-        Self::with_shape(path, signals, None, false, None, Some(fixture), None)
+        Self::with_shape(path, signals, None, false, None, Some(fixture), None, None)
     }
     #[cfg(test)]
     pub(crate) fn clients_occupied_by(&mut self, listener: &TcpListener) {
