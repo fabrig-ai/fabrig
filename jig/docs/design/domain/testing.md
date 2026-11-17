@@ -161,6 +161,23 @@ recovers only committed read positions or committed absence, with the
 mark and any consequent forget atomic (people/README.md, section 5). These
 proofs are in the step and world tiers, within their budgets.
 
+**A crash sweep holds its prefix once,** as section 5's
+`Cut::EachCommitFrom` does. A sweep over a story's cuts (both sides of
+its commits, a commit's or a restart's file operations, a second kill
+during a recovery) runs the story once: at each cut it sweeps, the world
+forks (`skein_fork::split`, `skein/docs/design/testing/README.md`, 6),
+and the child takes that cut as a world built for that cut alone would,
+through the same crash, cold restart, recovery and checks, its closing
+oracle included; the parent waits for it and goes on uncut to the next
+cut. A child that fails fails the sweep, naming its cut, and the sweep
+checks the cuts its children passed against the cuts its reference run
+counted, so that it misses none. Cases that share a setup and differ
+after it (a family's routes, a story at each of its boundaries) fork
+after the shared setup the same way, each child running its case and
+its checks to the end. A sweep whose fixture is drawn from each cut's
+own seed keeps building its world per cut, since one world would change
+what it covers.
+
 ## 5. The conformance world
 
 What every application runs, and what makes jig's promises its own.
@@ -467,6 +484,28 @@ chooses the decision, family-step, sign-in, chat, claim, effect and
 terminal commits for what a crash there can lose. The store world's
 commit cuts remain focused.
 
+**Each world's binary sits in the layer of what its tests check**
+(testing-strategy.md, 8.1; `tools/tiers/layers.md`), never of their
+cost. The core's and the conformance world's stories are domain worlds
+(section 2), so their binaries are placed in `domain`: the core world's
+cuts over the simulated disk (file-operation cuts, generation and
+isolation proofs, owner-set fixtures) are a binary of their own in
+`simulated`, and the conformance world's HTTP settings carriage, with
+`settings_proposals_wire`, stays in `protocol`. The client-protocol
+world's byte and protocol stories are `protocol`'s and its native client
+and service over simulated io `simulated`'s; the client world's and the
+ops world's scripted domain stories are `domain`'s and their joint
+compositions through the shipping components `protocol`'s. Referee
+controls and pure functions (a parser's sweep, a bound's arithmetic, a
+frame decoder over fixed replies) are `step`'s. A module whose tests
+span tiers is split by test. A split keeps its binary's id for the part
+most of its tests stay in, so that main's ledger still knows them. The
+moved tests' CPU, as they cost when the split lands, plus the tenth the
+layers' budgets were set with (`tools/tiers/budgets.md`, 6), goes with
+them by a move line (`tools/tiers/budgets.md`, 10); a test in a new
+binary past its new layer's reference takes a reason line naming what
+it checks (`tools/tiers/references.md`, 2).
+
 The stock profiles' room for a day of deciding requests is arithmetic
 over both profiles in the configuration's step tests. Focused drives
 one world to `Small`'s request bound and restarts it; fuzzy drives
@@ -487,8 +526,12 @@ without running the job again and commits its wires; a durable one makes going b
 refuse as committed. Their whole sweeps are under
 `fuzzy::` in the same binary, each with its focused cuts' body. Layout,
 manifest and admission cases are data rows of their behaviour's table;
-copy mutations and check/switch cuts have one owner each. These are
-component-world scenarios, not a separate tier. `jig-test::process` also
+copy mutations and check/switch cuts have one owner each. A sweep over
+file operations holds its settled prefix once, forking at each
+operation as section 4's sweeps do, and a branch after a crash (going
+back, or recovering forward) forks from the crashed image rather than
+building it again; a fixture drawn from the cut's own seed is built per
+cut. These are component-world scenarios, not a separate tier. `jig-test::process` also
 runs in focused: three paths through the shipped binary against fakes,
 including its bundle page under the reference policy. Startup, HTTP and
 child-exit waits use the shared real loop's `Deadline`, with the measured
