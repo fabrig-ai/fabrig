@@ -38,7 +38,8 @@ findings are `findings.md`'s, and a repair, its result and its release
 - **When:** a gate's run at a key ends failed (7.3), its failed jobs
   and its report read (7.3, `after-landing.md`, 4), and before the
   receipt is made: the report names its failed tests (`landing.md`,
-  6.2's report ids: not unset, unread or past its bound), at least one,
+  6.2's report ids: not unset, unread or past its bound), at least one
+  and at most 64 (a signature's own bound, `findings.md`, section 4),
   and each of them is named by an open flake finding; and this landing
   has not rerun this key for flakes before. Otherwise the receipt is
   made as 7.3 says, at once.
@@ -127,8 +128,9 @@ findings are `findings.md`'s, and a repair, its result and its release
 
 - **The landing's flake reruns,** on its row (`Landing`, `landing.md`,
   section 12), each the receipt's key, the failed run's id and the
-  numbers of the findings it matched, at most one per key the landing
-  proves; a registered layout's added field, empty by default.
+  numbers of the findings it matched (at most 64, one per failed test
+  at most), at most one per key the landing proves; a registered
+  layout's added field, empty by default.
 - **A change's regate,** on its row (`forge/change/README.md`; family
   `ChangeHot`), `regate: Option<Regate>`, `Regate { receipt:
   ReceiptKey, run: u64 }`, the receipt's whole key as `Receipt` is
