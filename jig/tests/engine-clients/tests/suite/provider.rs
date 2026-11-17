@@ -523,31 +523,31 @@ fn runtime_client_signs_in_and_removal_revokes_only_its_grants() {
     let configured_sub = subject(&mut configured, &configured_tokens);
 
     let mut world = World::empty();
-    refused(world.authorize_client("forgejo", REDIRECT), &w::AuthorizeWhy::UnknownClient);
-    world.change(public_client(b"forgejo")).expect("application adds public client");
-    assert_eq!(world.authorize_client("forgejo", REDIRECT), w::AuthorizeAnswer::SignedOut);
+    refused(world.authorize_client("tracker", REDIRECT), &w::AuthorizeWhy::UnknownClient);
+    world.change(public_client(b"tracker")).expect("application adds public client");
+    assert_eq!(world.authorize_client("tracker", REDIRECT), w::AuthorizeAnswer::SignedOut);
     world.sign_in();
-    let code = world.code_for("forgejo");
-    let added_tokens = tokens(&world.redeem_public("forgejo", &code));
+    let code = world.code_for("tracker");
+    let added_tokens = tokens(&world.redeem_public("tracker", &code));
     assert_eq!(subject(&mut world, &added_tokens), configured_sub);
-    let stale = world.code_for("forgejo");
+    let stale = world.code_for("tracker");
     world.change(public_client(b"other")).expect("another client");
     let other_code = world.code_for("other");
     let other_tokens = tokens(&world.redeem_public("other", &other_code));
     let other_pending = world.code_for("other");
 
-    world.change(remove_client(b"forgejo")).expect("remove held client");
-    refused(world.authorize_client("forgejo", REDIRECT), &w::AuthorizeWhy::UnknownClient);
-    error(&world.redeem_public("forgejo", &stale), "invalid_client");
+    world.change(remove_client(b"tracker")).expect("remove held client");
+    refused(world.authorize_client("tracker", REDIRECT), &w::AuthorizeWhy::UnknownClient);
+    error(&world.redeem_public("tracker", &stale), "invalid_client");
     assert_eq!(world.claims(added_tokens["access_token"].as_str().expect("access token")).status, 401);
     // Re-adding must not resurrect codes or access tokens from the removed registration.
-    world.change(public_client(b"forgejo")).expect("slot reused");
-    invalid_grant(&world.redeem_public("forgejo", &stale));
+    world.change(public_client(b"tracker")).expect("slot reused");
+    invalid_grant(&world.redeem_public("tracker", &stale));
     assert_eq!(world.claims(added_tokens["access_token"].as_str().expect("access token")).status, 401);
     assert_eq!(subject(&mut world, &other_tokens), configured_sub);
     tokens(&world.redeem_public("other", &other_pending));
-    let fresh = world.code_for("forgejo");
-    tokens(&world.redeem_public("forgejo", &fresh));
+    let fresh = world.code_for("tracker");
+    tokens(&world.redeem_public("tracker", &fresh));
 }
 
 #[test]
@@ -555,15 +555,15 @@ fn runtime_client_changes_name_each_refusal_and_leave_registrations_unchanged() 
     use skein_oauth_issuer::{Client, ClientError, Error};
     let client_error = |why| Err(ProviderClientRefusal::Client(why));
     let mut absent = World::new(false);
-    assert_eq!(absent.change(public_client(b"forgejo")), Err(ProviderClientRefusal::NoProvider));
-    assert_eq!(absent.change(remove_client(b"forgejo")), Err(ProviderClientRefusal::NoProvider));
+    assert_eq!(absent.change(public_client(b"tracker")), Err(ProviderClientRefusal::NoProvider));
+    assert_eq!(absent.change(remove_client(b"tracker")), Err(ProviderClientRefusal::NoProvider));
     let mut world = World::empty();
-    assert_eq!(world.change(remove_client(b"forgejo")), client_error(ClientError::Unknown));
+    assert_eq!(world.change(remove_client(b"tracker")), client_error(ClientError::Unknown));
     for (id, secret, uri, why) in [
         (b"".as_slice(), None, REDIRECT, Error::Client),
         (b"bad id".as_slice(), None, REDIRECT, Error::Client),
-        (b"forgejo".as_slice(), Some(Secret::new(Box::new([]))), REDIRECT, Error::Client),
-        (b"forgejo".as_slice(), None, "http://remote.example:80/cb", Error::Address),
+        (b"tracker".as_slice(), Some(Secret::new(Box::new([]))), REDIRECT, Error::Client),
+        (b"tracker".as_slice(), None, "http://remote.example:80/cb", Error::Address),
     ] {
         assert_eq!(
             world.change(ProviderClientChange::Add(Client {
@@ -574,16 +574,16 @@ fn runtime_client_changes_name_each_refusal_and_leave_registrations_unchanged() 
             client_error(ClientError::Invalid(why))
         );
     }
-    world.change(public_client(b"forgejo")).expect("first client");
-    assert_eq!(world.change(public_client(b"forgejo")), client_error(ClientError::Duplicate));
+    world.change(public_client(b"tracker")).expect("first client");
+    assert_eq!(world.change(public_client(b"tracker")), client_error(ClientError::Duplicate));
     let cap = jig_protocol_engine_clients::provider_limits(&world.env.limits).clients;
     for number in 1..cap {
         world.change(public_client(format!("client-{number}").as_bytes())).expect("within client limit");
     }
     assert_eq!(world.change(public_client(b"past")), client_error(ClientError::Full));
-    assert_eq!(world.change(public_client(b"forgejo")), client_error(ClientError::Duplicate));
-    world.change(remove_client(b"forgejo")).expect("remove at capacity");
-    assert_eq!(world.change(remove_client(b"forgejo")), client_error(ClientError::Unknown));
+    assert_eq!(world.change(public_client(b"tracker")), client_error(ClientError::Duplicate));
+    world.change(remove_client(b"tracker")).expect("remove at capacity");
+    assert_eq!(world.change(remove_client(b"tracker")), client_error(ClientError::Unknown));
     world.change(public_client(b"replacement")).expect("freed slot");
     world.send(Event::Stop);
     assert_eq!(world.change(public_client(b"stopped")), Err(ProviderClientRefusal::NotReady));
@@ -593,32 +593,32 @@ fn runtime_client_changes_name_each_refusal_and_leave_registrations_unchanged() 
 #[test]
 fn removal_while_people_is_read_does_not_issue_a_code_after_readding() {
     let mut world = World::empty();
-    world.change(public_client(b"forgejo")).expect("client");
+    world.change(public_client(b"tracker")).expect("client");
     world.sign_in();
     world.delay_whose = true;
-    world.begin_query(format!("client_id=forgejo&redirect_uri={REDIRECT}&response_type=code&scope=openid&code_challenge_method=S256&code_challenge={CHALLENGE}").as_bytes());
+    world.begin_query(format!("client_id=tracker&redirect_uri={REDIRECT}&response_type=code&scope=openid&code_challenge_method=S256&code_challenge={CHALLENGE}").as_bytes());
     let reply = world.whose.take().expect("people read outstanding");
     assert!(world.reply.is_none());
-    world.change(remove_client(b"forgejo")).expect("removed while people is read");
+    world.change(remove_client(b"tracker")).expect("removed while people is read");
     refused(world.authorization_answer(), &w::AuthorizeWhy::UnknownClient);
-    world.change(public_client(b"forgejo")).expect("new registration");
+    world.change(public_client(b"tracker")).expect("new registration");
     world.send(Event::Reply { to: reply, reply: people::Reply::Signer(world.signer.clone()) });
     assert!(world.reply.is_none(), "late reply issues no code and no second answer");
     world.delay_whose = false;
-    let fresh = world.code_for("forgejo");
-    tokens(&world.redeem_public("forgejo", &fresh));
+    let fresh = world.code_for("tracker");
+    tokens(&world.redeem_public("tracker", &fresh));
 }
 
 #[test]
 fn removal_while_credential_is_read_rechecks_the_client() {
     let mut world = World::empty();
-    world.change(public_client(b"forgejo")).expect("client");
+    world.change(public_client(b"tracker")).expect("client");
     world.sign_in();
     world.delay_credential = true;
     world.delay_whose = true;
-    world.begin_query(format!("client_id=forgejo&redirect_uri={REDIRECT}&response_type=code&scope=openid&code_challenge_method=S256&code_challenge={CHALLENGE}").as_bytes());
+    world.begin_query(format!("client_id=tracker&redirect_uri={REDIRECT}&response_type=code&scope=openid&code_challenge_method=S256&code_challenge={CHALLENGE}").as_bytes());
     let reply = world.credential_read.take().expect("credential read outstanding");
-    world.change(remove_client(b"forgejo")).expect("removed while credential is read");
+    world.change(remove_client(b"tracker")).expect("removed while credential is read");
     world.send(Event::Secrets(reply));
     refused(world.authorization_answer(), &w::AuthorizeWhy::UnknownClient);
     assert!(world.whose.is_none(), "removed client reaches no people read");
