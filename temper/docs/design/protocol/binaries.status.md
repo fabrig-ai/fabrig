@@ -2,7 +2,6 @@
 
 2026-11-15. Where the tree's code lags or departs from [binaries.md](binaries.md).
 
-- **Not yet:** 1 and 2: neither binary has `checkpoint` [in flight: change 5810].
 
 
 - **Not yet:** 2: `upgrade --check` prints no patch's time and no time of the whole: each patch's line ends `time unavailable` (`temper-engine-shell/src/upgrade/report.rs`), since the store's `Event::Patched` carries no time

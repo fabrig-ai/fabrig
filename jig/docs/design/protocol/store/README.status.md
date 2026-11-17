@@ -2,7 +2,6 @@
 
 2026-11-15. Where jig's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 2: a first start doesn't refuse a `checkpoints/` that holds anything [in flight: change 5803].
 
 
 
