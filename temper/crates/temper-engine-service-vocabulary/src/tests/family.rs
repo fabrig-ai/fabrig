@@ -449,7 +449,7 @@ fn an_outcome_past_its_retention_is_encoded_unknown() {
 }
 #[test]
 fn a_core_refusal_uses_jigs_refusal_record() {
-    use jig_client_protocol_wire::v27 as j;
+    use jig_client_protocol_wire as j;
     let limits = fixtures::engine().jig.limits.clients.wire;
     for (row, input, expected) in [
         ("unknown", people::Refusal::Unknown, j::Refusal::Unknown),
@@ -1380,7 +1380,7 @@ fn expected_forge_row(
 
 #[test]
 fn an_exceeded_hold_refusal_keeps_each_bound_and_its_configured_value() {
-    use jig_client_protocol_wire::v27 as j;
+    use jig_client_protocol_wire as j;
     for (bound, expected) in [
         (people::Bound::Reasoning, j::Bound::Reasoning),
         (people::Bound::Metadata, j::Bound::Metadata),

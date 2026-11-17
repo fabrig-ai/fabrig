@@ -21,6 +21,22 @@ pub(super) fn query(value: &c::TaskQuery, limits: &w::Limits) -> Result<w::TaskQ
     w::TaskQuery::new(
         limits,
         w::TaskQueryParts {
+            parts: {
+                let mut parts = skein_lib::List::with_capacity(value.parts.len());
+                for ask in &value.parts {
+                    parts
+                        .push(w::PartAsk::new(
+                            limits,
+                            w::PartAskParts {
+                                owner: w::Family::new(limits, w::FamilyParts { number: ask.owner })?,
+                                kind: ask.kind,
+                                version: ask.version,
+                            },
+                        )?)
+                        .expect("same part count");
+                }
+                parts
+            },
             project: value.project,
             requester,
             root: value.root,
@@ -101,7 +117,7 @@ pub(super) fn waits(value: &w::WaitsOn) -> c::WaitsOn {
 }
 pub(super) fn line(value: &w::TaskLine, limits: &Limits) -> Result<c::TaskLine, w::Problem> {
     Ok(c::TaskLine {
-        parts: skein_lib::List::with_capacity(0),
+        parts: row_parts(value.parts())?,
         chip: documents::chip_fields(value.chip(), limits)?,
         project: value.project(),
         requester: facts::requester(value.requester()),
@@ -125,4 +141,70 @@ pub(super) fn line(value: &w::TaskLine, limits: &Limits) -> Result<c::TaskLine, 
             Some(v) => Some(c::ConversationRead { seen: v.seen(), unread: documents::count_fields(v.unread()) }),
         },
     })
+}
+
+fn row_parts(value: &skein_lib::List<w::RowPart>) -> Result<skein_lib::List<c::RowPart>, w::Problem> {
+    let mut parts = skein_lib::List::with_capacity(value.len());
+    for part in value {
+        let part = match part {
+            w::RowPart::Value(value) => {
+                let w::Owner::Family(owner) = value.owner() else {
+                    return Err(super::piece_problem(skein_codec::Reason::Tag));
+                };
+                c::RowPart::Value(jig_client_domain::Family {
+                    family: owner.number(),
+                    version: value.version(),
+                    bytes: skein_lib::bytes::copy_of(value.record()),
+                })
+            }
+            w::RowPart::NotServed(why) => c::RowPart::NotServed(not_served(why)),
+            w::RowPart::Unknown => c::RowPart::Unknown,
+            w::RowPart::Failed(why) => c::RowPart::Failed(match why.why() {
+                w::PartFailure::Busy => c::PartFailure::Busy,
+                w::PartFailure::TooLarge => c::PartFailure::TooLarge,
+                w::PartFailure::Unreadable => c::PartFailure::Unreadable,
+            }),
+        };
+        parts.push(part).expect("same part count");
+    }
+    Ok(parts)
+}
+
+/// Contextual checks happen before a decoded answer or delivery leaves the link.
+pub(crate) fn check_rows(
+    rows: &skein_lib::List<c::TaskLine>,
+    asks: &skein_lib::List<c::PartAsk>,
+) -> Result<(), super::Undecodable> {
+    for row in rows {
+        if row.parts.len() != asks.len() {
+            return Err(super::Undecodable::Malformed);
+        }
+        for (part, ask) in row.parts.iter().zip(asks.iter()) {
+            match part {
+                c::RowPart::Value(value) => {
+                    if value.family != ask.owner || value.version != ask.version {
+                        return Err(super::Undecodable::Malformed);
+                    }
+                }
+                c::RowPart::Unknown | c::RowPart::Failed(_) | c::RowPart::NotServed(_) => (),
+            }
+        }
+    }
+    Ok(())
+}
+
+fn part_owner(value: &w::Owner) -> c::Owner {
+    match value {
+        w::Owner::Jig => c::Owner::Jig,
+        w::Owner::Family(owner) => c::Owner::Family(owner.number()),
+    }
+}
+fn not_served(value: &w::NotServed) -> c::NotServed {
+    let mut served = skein_lib::List::with_capacity(value.served().len());
+    for range in value.served() {
+        served
+            .push(c::Served { owner: part_owner(range.owner()), first: range.first(), last: range.last() })
+            .expect("same ranges");
+    }
+    c::NotServed { owner: part_owner(value.owner()), served }
 }

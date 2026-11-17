@@ -1,6 +1,6 @@
 use super::{Exchange, family_record, wire};
 use crate::{Request, stream::Stream};
-use jig_client_protocol_wire::v27 as w;
+use jig_client_protocol_wire as w;
 use jig_domain_core_vocabulary as core;
 use skein_lib::{Token, Writer};
 impl Exchange {
@@ -41,7 +41,7 @@ impl Exchange {
 pub fn owned_subject(value: &w::Subject) -> w::Owned {
     let mut bytes = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut bytes).expect("subject");
-    w::Owned::new(&wire(), w::OwnedParts { owner: w::Owner::Jig, version: 27, record: bytes.finish() })
+    w::Owned::new(&wire(), w::OwnedParts { owner: w::Owner::Jig, version: 28, record: bytes.finish() })
         .expect("subject owner")
 }
 pub fn family_subject() -> w::Owned {
@@ -91,6 +91,7 @@ pub fn subject_cases() -> [(&'static str, w::Subject, core::documents::Watched, 
                         query: w::TaskQuery::new(
                             &limits,
                             w::TaskQueryParts {
+                                parts: skein_lib::List::with_capacity(0),
                                 project: Some(3),
                                 requester: None,
                                 root: Some(7),

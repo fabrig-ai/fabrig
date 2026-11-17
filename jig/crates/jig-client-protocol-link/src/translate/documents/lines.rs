@@ -52,7 +52,7 @@ pub(crate) fn task_line_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Resu
 
 pub(crate) fn tasks_fields(value: &w::Tasks, limits: &Limits) -> Result<c::Tasks, w::Problem> {
     Ok(c::Tasks {
-        ended_mark: 0,
+        ended_mark: value.ended_mark(),
         rows: task_line_piece(value.rows(), limits, limits.client().rows)?,
         more: value.more(),
     })

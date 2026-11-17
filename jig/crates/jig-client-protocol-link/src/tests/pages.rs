@@ -655,13 +655,63 @@ fn history_rows_keep_attempts_holds_and_their_absences() {
 }
 
 #[test]
-fn a_v27_task_page_has_empty_parts_and_zero_ended_mark() {
+fn task_queries_carry_parts_and_pages_return_opaque_values_and_the_ended_mark() {
+    let limits = fixtures::limits();
+    let query = fixtures::part_query();
+    let mut h = fixtures::Harness::new(&limits);
+    let exchange = h.read(Readable::Jig(c::Read::Tasks { query: query.clone(), live: None, ended: None }));
+    let Request::Exchange { message: Message::Read(bytes), .. } = h.out.iter().next().unwrap() else { panic!("read") };
+    let owned = w::Owned::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
+    let w::Read::Tasks(read) = w::Read::decode(limits.wire(), &mut Reader::new(owned.record())).unwrap() else {
+        panic!("task query")
+    };
+    assert_eq!(read.query().parts().len(), query.parts.len());
+    for (actual, expected) in read.query().parts().iter().zip(query.parts.iter()) {
+        assert_eq!(
+            (actual.owner().number(), actual.kind(), actual.version()),
+            (expected.owner, expected.kind, expected.version)
+        );
+    }
+    h.answer(
+        exchange,
+        &fixtures::jig_read_value_answer(&w::ReadValue::Tasks(fixtures::part_page(fixtures::row_parts()))),
+    );
+    let Some(Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(page)))) = h.read_answered() else {
+        panic!("task page")
+    };
+    assert_eq!(page.ended_mark, 61);
+    let c::EndedGroup::Rows { rows, .. } = &page.ended else { panic!("ended rows") };
+    for rows in [&page.live, rows] {
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows.get(0).unwrap().parts, fixtures::expected_row_parts());
+    }
+}
+
+#[test]
+fn mismatched_row_part_counts_and_value_envelopes_make_reads_malformed() {
+    for (parts, asks) in fixtures::malformed_row_parts() {
+        let mut query = fixtures::part_query();
+        query.parts.truncate(asks);
+        let mut h = fixtures::Harness::new(&fixtures::limits());
+        let exchange = h.read(Readable::Jig(c::Read::Tasks { query, live: None, ended: None }));
+        h.answer(exchange, &fixtures::jig_read_value_answer(&w::ReadValue::Tasks(fixtures::part_page(parts))));
+        let Some(Readout::Jig(c::ReadResult::None(why))) = h.read_answered() else {
+            panic!("malformed row was accepted")
+        };
+        assert_eq!(*why, c::ReadNone::Malformed);
+        assert!(h.has(&Request::Fact { fact: Fact::UndecodableDocument }));
+    }
+}
+
+#[test]
+fn a_v28_task_page_has_empty_parts_and_zero_ended_mark() {
     use jig_client_protocol_wire as w;
     let limits = fixtures::limits();
     let rows = jig_client_test_records::tasks_rows_record().into_parts().rows;
     let record = w::TaskPage::new(
         limits.wire(),
         w::TaskPageParts {
+            ended_mark: 0,
             live: rows.clone(),
             live_after: None,
             ended: w::EndedGroup::Rows(

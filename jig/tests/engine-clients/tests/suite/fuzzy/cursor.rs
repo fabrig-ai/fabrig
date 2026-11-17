@@ -1,5 +1,5 @@
 //! Hostile cursor bytes (jig/docs/design/protocol/client/README.md, 4; skein/docs/design/data/codec/README.md, 6).
-use jig_protocol_engine_clients::cursor_v1::{CEILINGS, Held};
+use jig_protocol_engine_clients::cursor_v2::{CEILINGS, Held};
 use skein_lib::{Reader, Rng, Writer, length::len_u64};
 use std::fs;
 
@@ -20,11 +20,11 @@ fn goldens() -> Vec<Vec<u8>> {
         let prefix: &[u8] = if name.starts_with("record_held_") {
             &[]
         } else if name.starts_with("enum_form_") {
-            &[0, 1]
+            &[0, 2]
         } else if name.starts_with("enum_note_scope_") {
-            &[0, 1, 0, 1, 13]
+            &[0, 2, 0, 1, 13]
         } else if name.starts_with("enum_scope_") {
-            &[0, 1, 0, 1]
+            &[0, 2, 0, 1]
         } else {
             continue;
         };

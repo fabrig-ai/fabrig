@@ -1,11 +1,11 @@
 
-  ▄█▀▀   temper 0.0.0 (ceab82a75982-dirty)
- ▄█▄█▄█  127.0.0.1:33411
+  ▄█▀▀   temper 0.0.0 (7ad80ed1bdf2-dirty)
+ ▄█▄█▄█  127.0.0.1:38679
 
- One thing needs you.
+ 1+ things need you.
 
  Where you left off
-   Hello   Add a CSV export to the report, a chat · today 05:29 ·…     /chats 1
+   Hello   Add a CSV export to the report, a chat · today 08:24 ·…     /chats 1
 
  Needs you
    ? Hello   Add a CSV export to the report: csv-export: comma…    n walks them
@@ -21,4 +21,4 @@
 ────────────────────────────────────────────────────────────────────────────────
 ❯ Ask for a change, or ask temper.  / for commands
 ────────────────────────────────────────────────────────────────────────────────
- ● Live · Hello · GPT-6 Astra · high                    1 needs you · n to walk
+ ● Live · Hello · GPT-6 Astra · high                    1+ need you · n to walk

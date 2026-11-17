@@ -113,15 +113,20 @@ fn wire_cursor(value: &reads::Cursor, limits: &w::Limits) -> Result<w::Cursor, w
     w::Cursor::new(limits, w::CursorParts { value: bytes })
 }
 
-pub(super) fn tasks(page: &reads::TaskPage, limits: &w::Limits) -> Result<w::ReadValue, w::Problem> {
+pub(super) fn tasks(
+    page: &reads::TaskPage,
+    query: &jig_domain_core_vocabulary::documents::TaskQuery,
+    slots: &skein_lib::List<super::parts::Slot>,
+    limits: &w::Limits,
+) -> Result<w::ReadValue, w::Problem> {
     let ended = match &page.ended {
         reads::EndedGroup::None => w::EndedGroup::None,
         reads::EndedGroup::Rows { rows, next, cut } => w::EndedGroup::Rows(w::EndedRows::new(
             limits,
             w::EndedRowsParts {
-                rows: task_pieces(rows, limits, limits.ended_rows_rows, w::Path::EndedRowsRows)?,
+                rows: task_pieces(rows, slots, limits, limits.ended_rows_rows, w::Path::EndedRowsRows)?,
                 after: match next {
-                    Some(v) => Some(wire_cursor(v, limits)?),
+                    Some(v) => Some(task_cursor(v, query, limits)?),
                     None => None,
                 },
                 cut: *cut,
@@ -131,9 +136,10 @@ pub(super) fn tasks(page: &reads::TaskPage, limits: &w::Limits) -> Result<w::Rea
     Ok(w::ReadValue::Tasks(w::TaskPage::new(
         limits,
         w::TaskPageParts {
-            live: task_pieces(&page.live, limits, limits.task_page_live, w::Path::TaskPageLive)?,
+            ended_mark: page.ended_mark,
+            live: task_pieces(&page.live, slots, limits, limits.task_page_live, w::Path::TaskPageLive)?,
             live_after: match &page.live_next {
-                Some(v) => Some(wire_cursor(v, limits)?),
+                Some(v) => Some(task_cursor(v, query, limits)?),
                 None => None,
             },
             ended,
@@ -142,16 +148,32 @@ pub(super) fn tasks(page: &reads::TaskPage, limits: &w::Limits) -> Result<w::Rea
 }
 fn task_pieces(
     lines: &skein_lib::List<jig_domain_core_vocabulary::documents::TaskLine>,
+    slots: &skein_lib::List<super::parts::Slot>,
     limits: &w::Limits,
     bound: u32,
     path: w::Path,
 ) -> Result<Box<[u8]>, w::Problem> {
     let mut pieces = skein_lib::List::with_capacity(lines.len());
     for line in lines {
-        let line = super::queries::line(line, limits)?;
+        let line = super::queries::line_parts(line, slots, limits)?;
         let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(line.measure()));
         line.encode(&mut writer).expect("measured line");
         pieces.push(writer.finish()).expect("same line count");
     }
     super::pieces(&pieces, bound, path)
+}
+
+fn task_cursor(
+    value: &reads::Cursor,
+    query: &jig_domain_core_vocabulary::documents::TaskQuery,
+    limits: &w::Limits,
+) -> Result<w::Cursor, w::Problem> {
+    let mut value = value.clone();
+    let (reads::Cursor::Live { scope, .. } | reads::Cursor::Store { scope, .. }) = &mut value;
+    if let reads::Scope::Tasks { query: held } = scope {
+        *held = query.clone();
+    } else {
+        return Err(super::problem(skein_codec::Reason::Tag));
+    }
+    wire_cursor(&value, limits)
 }

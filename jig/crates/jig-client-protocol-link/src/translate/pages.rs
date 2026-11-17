@@ -170,5 +170,5 @@ fn task_page_fields(value: &w::TaskPage, limits: &Limits) -> Result<c::TaskPage,
             cut: v.cut(),
         },
     };
-    Ok(c::TaskPage { ended_mark: 0, live, live_after, ended })
+    Ok(c::TaskPage { ended_mark: value.ended_mark(), live, live_after, ended })
 }

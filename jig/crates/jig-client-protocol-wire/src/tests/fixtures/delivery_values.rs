@@ -22,7 +22,7 @@ pub fn delivery_values(limits: &Limits) -> List<(&'static str, DeliveryValue)> {
     value!(values, limits, Tree, Tree, 17);
     value!(values, limits, Chips, Chips, 4);
     value!(values, limits, Inbox, Inbox, 36);
-    value!(values, limits, Tasks, Tasks, 5);
+    value!(values, limits, Tasks, Tasks, 13);
     value!(values, limits, RunState, RunState, 15);
     value!(values, limits, Deployment, Deployment, 149);
     values

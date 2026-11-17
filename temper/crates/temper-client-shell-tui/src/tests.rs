@@ -21,7 +21,7 @@ use crate::{
     limits,
 };
 use jig_client::{Message, Request};
-use jig_client_protocol_wire::v27 as w;
+use jig_client_protocol_wire as w;
 use jig_client_test_records as records;
 use skein_lib::{Duration, List, Reader, Secret, Time, Wall, Writer};
 use skein_ui_screen::{Rgb, Size};
@@ -290,7 +290,7 @@ fn reply(host: &mut Host, exchange: skein_lib::Token, message: Box<[u8]>) -> Dut
 }
 
 fn approval_bytes(code: &[u8], tail: &[u8]) -> Box<[u8]> {
-    use jig_client_protocol_wire::v27 as w;
+    use jig_client_protocol_wire as w;
     let record = w::ApprovalAskAnswer::Asked(
         w::ApprovalAsked::new(
             &w::CEILINGS,
@@ -384,7 +384,7 @@ fn approval_addresses_use_only_the_tuis_authority_and_a_valid_code() {
 
 #[test]
 fn approval_enter_replaces_only_an_ended_or_pasted_take() {
-    use jig_client_protocol_wire::v27 as w;
+    use jig_client_protocol_wire as w;
     for answer in [
         w::ApprovalSignInAnswer::Refused,
         w::ApprovalSignInAnswer::Expired,
@@ -456,7 +456,7 @@ fn approval_enter_replaces_only_an_ended_or_pasted_take() {
 
 #[test]
 fn approval_deadline_includes_the_views_tick() {
-    use jig_client_protocol_wire::v27 as w;
+    use jig_client_protocol_wire as w;
     let mut host = host();
     let exchange = ask(&start(&mut host, None));
     let duties = reply(&mut host, exchange, approval_bytes(b"WDJBMJHT", b""));
@@ -1399,7 +1399,8 @@ fn goal_tasks() -> w::Tasks {
     let row = w::TaskLine::new(&w::CEILINGS, row).expect("goal row");
     let mut writer = Writer::new(usize::try_from(row.measure()).expect("goal size"));
     row.encode(&mut writer).expect("goal fits");
-    w::Tasks::new(&w::CEILINGS, w::TasksParts { rows: pieces(&[writer.finish()]), more: false }).expect("goal")
+    w::Tasks::new(&w::CEILINGS, w::TasksParts { ended_mark: 0, rows: pieces(&[writer.finish()]), more: false })
+        .expect("goal")
 }
 
 fn goal_host() -> Host {
@@ -3832,7 +3833,7 @@ pub(crate) fn home_tasks(running: bool) -> w::Tasks {
         row.encode(&mut writer).expect("chat fits");
         rows.push(writer.finish());
     }
-    w::Tasks::new(&w::CEILINGS, w::TasksParts { rows: pieces(&rows), more: false }).expect("two chats")
+    w::Tasks::new(&w::CEILINGS, w::TasksParts { ended_mark: 0, rows: pieces(&rows), more: false }).expect("two chats")
 }
 
 pub(crate) fn home_subject(duties: &Duties) -> w::Subject {

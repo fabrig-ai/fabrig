@@ -268,7 +268,7 @@ fn a_request_pending_across_a_restart_that_stops_serving_its_family_stays_unsent
     assert!(story.run_until(|s| s.made(fixtures::FIRST_OWNER) == 1, PROOF_WAIT));
     assert_eq!(story.answered(FAMILY_REQUEST), vec![]);
     story.restart_serving(jig_client_kit::test::list([
-        jig_protocol_engine_clients::Served { family: None, first: 27, last: 27 },
+        jig_protocol_engine_clients::Served { family: None, first: 28, last: 28 },
         jig_protocol_engine_clients::Served { family: Some(1), first: 3, last: 3 },
     ]));
     assert!(story.run_until(|s| s.client.link().state == Link::Live, PROOF_WAIT));
@@ -581,6 +581,53 @@ fn a_task_query_watch_delivers_the_live_lines_its_keys_select() {
         fixtures::tracked_rows(&story, QUERY),
         vec![(fixtures::FIRST_QUERY_TASK, Some(1)), (fixtures::SECOND_QUERY_TASK, Some(2))]
     );
+}
+
+#[test]
+fn an_unserved_task_part_reaches_every_read_and_watched_row() {
+    let mut story = Story::live_batch(fixtures::SEED, true);
+    story.send(
+        CREATE,
+        Ask::Jig(Box::new(contract::Ask::Create { project: PROJECT_NUMBER, tasks: fixtures::tracked_tasks() })),
+    );
+    assert!(story.run_until(|s| !s.answered(CREATE).is_empty(), PROOF_WAIT));
+    let mut query = fixtures::task_query(PROJECT_NUMBER);
+    query.parts = skein_lib::List::from_boxed(Box::new([contract::PartAsk { owner: 65500, kind: 1, version: 1 }]));
+    story.watch(QUERY, Watchable::Jig(contract::Subject::Tasks { query: query.clone(), window: 2 }));
+    assert!(story.run_until(|s| fixtures::task_lines(s, QUERY).is_some(), PROOF_WAIT));
+    assert_unserved_parts(&fixtures::task_lines(&story, QUERY).unwrap().rows, 1);
+    story.read(PROJECT_PAGE, Readable::Jig(contract::Read::Tasks { query, live: None, ended: None }));
+    assert!(story.run_until(|s| !s.pages(PROJECT_PAGE).is_empty(), PROOF_WAIT));
+    let pages = story.pages(PROJECT_PAGE);
+    let [Readout::Jig(contract::ReadResult::Value(contract::ReadValue::Tasks(page)))] = pages.as_slice() else {
+        panic!("task page: {pages:?}")
+    };
+    assert_unserved_parts(&page.live, 1);
+    story.send(
+        QUERY_AMEND,
+        Ask::Jig(Box::new(contract::Ask::Amend {
+            project: PROJECT_NUMBER,
+            task: fixtures::SECOND_QUERY_TASK,
+            revision: None,
+            change: Box::new(fixtures::tracked_amendment(2)),
+            reason: contract::Text::new(b"track".as_slice().into(), 32).unwrap(),
+        })),
+    );
+    assert!(story.run_until(|s| fixtures::task_lines(s, QUERY).is_some_and(|tasks| tasks.rows.len() == 2), PROOF_WAIT));
+    assert_unserved_parts(&fixtures::task_lines(&story, QUERY).unwrap().rows, 2);
+}
+
+fn assert_unserved_parts(rows: &skein_lib::List<contract::TaskLine>, count: u32) {
+    assert_eq!(rows.len(), count);
+    for row in rows {
+        let [contract::RowPart::NotServed(why)] = row.parts.as_slice() else {
+            panic!("one not-served part: {:?}", row.parts)
+        };
+        assert_eq!(why.owner, contract::Owner::Family(65500));
+        assert!(
+            why.served.iter().any(|range| range.owner == contract::Owner::Jig && range.first == 28 && range.last == 28)
+        );
+    }
 }
 
 #[test]

@@ -1,4 +1,4 @@
-family jig-engine-cursor 1
+family jig-engine-cursor 2
 
 record Number { value: u64 }
 record Project { value: u32 }
@@ -27,9 +27,10 @@ record Reply { task: u64, activity: u64 }
 record Turn { task: u64, attempt: u64, number: u32 }
 record History { task: u64, subtree: bool }
 enum Requester { none, person: Number, task: Number }
+record PartAsk { owner: u16 kind: u32 version: u32 }
 record Query {
     project: option u32, requester: Requester, root: option u64, parent: option u64,
-    label: option u32, phase: option u32, executor: option u32, tracked: option u32, order: u32
+    label: option u32, phase: option u32, executor: option u32, tracked: option u32, order: u32, parts: list 4 PartAsk
 }
 enum Scope { task: Number, proposal: Proposal, escalation: Number, question: Question, person_task: Number, result: Number, reply: Reply, turn: Turn, ended_delegates: Number, history: History, activity: Number, inbox: Inbox, notes: Project, scoped_notes: ScopedNotes, spend: Project, tasks: Query
 }
