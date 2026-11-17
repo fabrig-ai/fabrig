@@ -32,7 +32,7 @@ impl Issuer {
             text(out, name, value);
         }
         let mut public = false;
-        for client in &self.clients {
+        for client in &self.settings.clients {
             public |= client.secret.is_none();
         }
         let methods: &[&[u8]] = if public {

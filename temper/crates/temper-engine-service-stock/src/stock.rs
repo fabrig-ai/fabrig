@@ -933,3 +933,27 @@ fn review_rule() -> temper_engine_domain_forge::settings::LandingRule {
         approvals: Box::default(),
     }
 }
+
+/// The welcome's default comes from the box flag at each start
+/// (temper/docs/design/protocol/configuration/settings.md, 2).
+#[must_use]
+pub fn with_welcome(
+    stock: Box<[temper_engine_domain_forge::settings::Stock]>,
+    shown: bool,
+) -> Box<[temper_engine_domain_forge::settings::Stock]> {
+    use temper_engine_domain_forge::settings;
+    let mut defaults = List::uncapped();
+    for row in stock {
+        defaults.push(row).expect("stock defaults");
+    }
+    let value = settings::Value::Welcome(settings::Welcome { shown });
+    defaults
+        .push(settings::Stock {
+            kind: 20,
+            scope: 0,
+            number: 1,
+            value: settings::SizedValue { size: temper_engine_smith::kinds::size(&value), value },
+        })
+        .expect("welcome default");
+    defaults.into_boxed()
+}

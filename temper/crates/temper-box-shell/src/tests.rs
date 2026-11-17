@@ -10,8 +10,7 @@ mod settings_fields;
 // jig/docs/design/protocol/client/sign-in.md; temper/docs/design/protocol/setup/box.md, 2.
 #[test]
 fn the_box_footer_hours_agree_with_the_small_profile() {
-    use jig_protocol_config::profile::{Profile, profile};
-    let span = profile(Profile::Small).clients.link_span;
+    let span = jig_protocol_config_fixtures::small().clients.link_span;
     let hour = skein_lib::Duration::from_secs(3600);
     let hours = span.as_nanos().div_euclid(hour.as_nanos());
     let words = format!("within {hours} hours");
@@ -162,8 +161,8 @@ fn the_standalone_operations_check_retains_no_descriptors() {
     drop(service);
     super::close(owned);
     assert_no_descriptors_in(&directory);
-    assert_eq!(fs::read(directory.join("worker-root/agent/temper")).expect("pinned program"), b"program at start");
-    assert_eq!(fs::read(directory.join("worker-root/agent/agent.json")).expect("pinned configuration"), agent);
+    assert_eq!(fs::read(directory.join("workspaces/agent/temper")).expect("pinned program"), b"program at start");
+    assert_eq!(fs::read(directory.join("workspaces/agent/agent.json")).expect("pinned configuration"), agent);
     fs::remove_file(&program).expect("remove configured program");
     let why =
         super::operations_in(&[], b"/", &configuration::directories(&directory), &document).expect_err("pin refused");
@@ -196,7 +195,7 @@ fn ctl_is_configured() {
 }
 
 #[test]
-fn fixed_sign_in_ports_are_checked_against_owned_and_fake_listeners() {
+fn fixed_sign_in_ports_are_checked_against_the_demo_listener() {
     // Resolve the fixture's data paths as a deployment does.
     let example = include_bytes!("../../../docs/examples/owned.json");
     let mut value: serde_json::Value = serde_json::from_slice(example).expect("owned JSON");
@@ -213,10 +212,7 @@ fn fixed_sign_in_ports_are_checked_against_owned_and_fake_listeners() {
     value["application"]["limits"]["overrides"]["git_component.operations"] = 1.into();
     value["application"]["limits"]["overrides"]["checkout.workspaces"] = 1.into();
     value["workers"][0]["slots"] = 1.into();
-    let mut fake = value.clone();
-    fake["application"]["machine"].as_object_mut().expect("machine").remove("owned");
-    configuration::fake_entry(&mut fake["application"]["machine"]["fake"], "127.0.0.1:3000");
-    let mut demo = fake.clone();
+    let mut demo = value.clone();
     demo["engine"]["llm"]["providers"][0]["sources"]["sign_in"]["redirect_port"] = 8370.into();
     let fixture = configuration::demo_document(std::path::Path::new("/config"), "127.0.0.1:8370");
     for field in ["providers", "endpoints"] {
@@ -232,14 +228,6 @@ fn fixed_sign_in_ports_are_checked_against_owned_and_fake_listeners() {
             &demo,
             "engine.llm.providers[0].sources.sign_in.redirect_port: fixed port conflicts with application.demo.llm.listen\n",
         ),
-        (
-            &value,
-            "engine.llm.providers[0].sources.sign_in.redirect_port: fixed port conflicts with application.machine.owned.listen\n",
-        ),
-        (
-            &fake,
-            "engine.llm.providers[0].sources.sign_in.redirect_port: fixed port conflicts with application.machine.fake.listen\n",
-        ),
     ] {
         assert_eq!(
             super::setup::check(
@@ -251,7 +239,6 @@ fn fixed_sign_in_ports_are_checked_against_owned_and_fake_listeners() {
         );
     }
     // The same API on a connected forge belongs to the remote peer, not this process.
-    value["application"]["machine"].as_object_mut().expect("machine").remove("owned");
     let deployment = super::setup::check(
         &serde_json::to_vec(&value).expect("connected JSON"),
         &jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").expect("fixture directories"),
@@ -337,6 +324,11 @@ fn forge_commands_refuse_the_recorded_fake_kind_for_owned_operations() {
     std::fs::write(scratch.path().join("temper.json"), serde_json::to_vec(&document).expect("JSON")).expect("document");
     std::fs::create_dir_all(scratch.path().join("box/groups")).expect("groups");
     std::fs::write(scratch.path().join("box/groups/1"), b"fake\n").expect("kind");
+    configuration::setup(
+        scratch.path(),
+        1,
+        serde_json::json!({"kind":"fake","listen":{"socket":"127.0.0.1:3000"},"remote":"http://127.0.0.1:3000","git":"demo/bin/git"}),
+    );
     let refused = super::forge::start(
         &configuration::directories(scratch.path()),
         &["run".into(), "1".into(), "forgejo".into()],
@@ -353,8 +345,7 @@ pub(crate) fn worker_document(directory: &std::path::Path) -> (Vec<u8>, serde_js
     let mut input: serde_json::Value = serde_json::from_slice(&input).expect("fixture document");
     input.as_object_mut().expect("document object").remove("engine");
     input["workers"][0]["engine"] = serde_json::json!({"socket":"127.0.0.1:7100"});
-    input["application"] =
-        serde_json::json!({"workers":input["application"]["workers"],"limits":input["application"]["limits"]});
+    input["application"] = serde_json::json!({"limits":input["application"]["limits"]});
     (agent, input)
 }
 #[test]
@@ -425,5 +416,5 @@ fn box_echo_resolves_its_default_and_flag_without_consuming_other_arguments() {
 // temper/docs/design/protocol/setup/owned.md, 6.
 #[test]
 fn the_launchers_io_is_the_small_profiles() {
-    assert_eq!(temper_launcher::IO, jig_protocol_config::profile(jig_protocol_config::Profile::Small).io,);
+    assert_eq!(temper_launcher::IO, jig_protocol_config_fixtures::small().io,);
 }

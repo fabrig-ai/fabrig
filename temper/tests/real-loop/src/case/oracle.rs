@@ -15,6 +15,8 @@ use std::{
 pub struct Observed {
     /// ctl's whole JSON document, by the act that read it; absent if that act failed.
     pub documents: BTreeMap<Read, Value>,
+    /// Page names served by a collected observation, not another submitted read.
+    pub activity_aliases: BTreeSet<Read>,
     /// Client completion/observation wall inputs, never the server read instant.
     pub observed_at: BTreeMap<Read, Wall>,
     /// Each LLM query in order, by its cue: its messages' texts and tool outputs.
@@ -106,6 +108,10 @@ impl Observed {
                 .insert(Read::RulesFreshBrief, serde_json::json!({"system": String::from_utf8_lossy(&fresh.system)}));
         }
         Self {
+            activity_aliases: reads
+                .iter()
+                .filter_map(|(read, index)| ran.calls().get(*index).filter(|call| call.tries == 0).map(|_| *read))
+                .collect(),
             documents,
             observed_at,
             commands: Vec::new(),
@@ -611,6 +617,7 @@ mod tests {
         }
         main.insert(DESIGN_DOC.as_bytes().to_vec(), DESIGN_WORDS.as_bytes().to_vec());
         Observed {
+            activity_aliases: std::collections::BTreeSet::new(),
             observed_at: BTreeMap::new(),
             documents,
             commands: Vec::new(),
@@ -904,6 +911,7 @@ mod account_tests {
     }
     fn refused_met() -> Observed {
         Observed {
+            activity_aliases: std::collections::BTreeSet::new(),
             observed_at: BTreeMap::new(),
             documents: BTreeMap::from([
                 (
@@ -1272,6 +1280,7 @@ mod pace_tests {
     }
     fn met() -> Observed {
         Observed {
+            activity_aliases: std::collections::BTreeSet::new(),
             observed_at: BTreeMap::new(),
             documents: BTreeMap::from([
                 (
@@ -1343,6 +1352,15 @@ mod pace_tests {
             assert!(misses.iter().any(|miss| miss.promise == promise));
         }
     }
+}
+
+// An alias has no extra journal positions. Calibration observations have no aliases,
+// so repeated or unordered positions in a submitted page remain a failed promise.
+fn observation_reads(observed: &Observed, reads: &[Read]) -> Vec<Read> {
+    reads.iter().copied().filter(|read| !observed.activity_aliases.contains(read)).collect()
+}
+fn joined_activity<'a>(observed: &'a Observed, reads: &[Read]) -> Vec<&'a Value> {
+    observation_reads(observed, reads).into_iter().flat_map(|read| check_activity(observed, read)).collect()
 }
 
 // ctl wraps the source journal lines in its decoded activity rows.
@@ -1535,14 +1553,16 @@ pub fn step_4_6(observed: &Observed) -> Vec<Miss> {
     use super::{HANG, HANG_REPORT, PHASE, PHASE_QUESTION_NUMBER, PHASE_REPORT};
     let mut misses = Vec::new();
     let reads = [Read::HangActivity, Read::HangActivityOlder, Read::HangActivityFirst];
-    let rows: Vec<_> =
-        reads.iter().flat_map(|read| document(observed, *read)["rows"].as_array().into_iter().flatten()).collect();
+    let rows: Vec<_> = observation_reads(observed, &reads)
+        .into_iter()
+        .flat_map(|read| document(observed, read)["rows"].as_array().into_iter().flatten())
+        .collect();
     let complete = reads.iter().all(|read| document(observed, *read)["cut"] == false)
         && document(observed, Read::HangActivityFirst)["before"].is_null();
     let ordered = rows
         .windows(2)
         .all(|pair| number(pair[0], "/position").zip(number(pair[1], "/position")).is_some_and(|(new, old)| new > old));
-    let activity: Vec<_> = reads.iter().flat_map(|read| check_activity(observed, *read)).collect();
+    let activity: Vec<_> = joined_activity(observed, &reads);
     let mut open = None;
     let mut sequenced = true;
     let mut attempts = Vec::new();
@@ -1720,6 +1740,7 @@ mod restart_tests {
             json!({"rows":[{"event":{"owner":{"source":{"line":{"turn":{"read":PHASE_QUESTION_NUMBER}}}}}}]}),
         );
         Observed {
+            activity_aliases: std::collections::BTreeSet::new(),
             observed_at: BTreeMap::new(),
             documents,
             commands: Vec::new(),
@@ -2110,6 +2131,7 @@ mod rules_tests {
         let mut later = fresh.clone();
         later.extend([assistant("Answer A."), user("Answer sent")]);
         Observed {
+            activity_aliases: std::collections::BTreeSet::new(),
             observed_at: BTreeMap::new(),
             documents: BTreeMap::from([
                 (
@@ -2462,6 +2484,7 @@ mod shape_tests {
         let shape = json!({"chip":{"task":SHAPE,"phase":"ended"},"project":PROJECT,
             "result":{"value":{"report":{"bytes":SHAPE_REPORT}}}});
         Observed {
+            activity_aliases: std::collections::BTreeSet::new(),
             observed_at: BTreeMap::new(),
             documents: BTreeMap::from([(Read::MoverEnded, a), (Read::ShapeEnded, shape)]),
             told: vec![
@@ -2686,10 +2709,7 @@ fn pause_stop(observed: &Observed, misses: &mut Vec<Miss>) {
         "A must finish without a hold or control decision",
     );
     let before = check_activity(observed, Read::BHeld);
-    let after: Vec<_> = check_activity(observed, Read::BEnded)
-        .into_iter()
-        .chain(check_activity(observed, Read::BEndedEarlier))
-        .collect();
+    let after: Vec<_> = joined_activity(observed, &[Read::BEnded, Read::BEndedEarlier]);
     let attempts =
         |rows: &[&Value]| rows.iter().filter_map(|row| number(row, "/line/run_began/attempt")).collect::<Vec<_>>();
     // The held snapshot's first attempt can be on an earlier page.
@@ -2810,10 +2830,7 @@ fn pause_children(observed: &Observed, misses: &mut Vec<Miss>) {
         );
     }
     let still = check_activity(observed, Read::BStillHeld);
-    let after: Vec<_> = check_activity(observed, Read::BEnded)
-        .into_iter()
-        .chain(check_activity(observed, Read::BEndedEarlier))
-        .collect();
+    let after: Vec<_> = joined_activity(observed, &[Read::BEnded, Read::BEndedEarlier]);
     let release = after
         .iter()
         .find(|row| number(row, "/line/decided/revision") == Some(super::B_HOLD))
@@ -2999,6 +3016,7 @@ mod pause_tests {
             credential: None,
         };
         Observed {
+            activity_aliases: std::collections::BTreeSet::new(),
             observed_at: BTreeMap::new(),
             documents,
             commands: Vec::new(),
@@ -3302,9 +3320,8 @@ fn plan_messages(observed: &Observed, misses: &mut Vec<Miss>) {
                     && contains(output, &format!("Message {PLAN_QUESTION_NUMBER} sent"))
             })
             && answers.is_empty()
-            && [Read::PlannerEnded, Read::PlannerEarlier, Read::PlannerFirst]
-                .iter()
-                .flat_map(|read| check_activity(observed, *read))
+            && joined_activity(observed, &[Read::PlannerEnded, Read::PlannerEarlier, Read::PlannerFirst])
+                .into_iter()
                 .filter(|row| {
                     number(row, "/line/words/message") == Some(PLAN_ANSWER_NUMBER)
                         && number(row, "/line/words/by/task") == Some(PLAN_DIRECTOR)
@@ -3416,7 +3433,7 @@ fn plan_note_recalled(observed: &Observed, agent: Agent, note: u64, description:
 }
 
 fn plan_attempts(observed: &Observed, reads: &[Read], task: u64, minimum: usize) -> bool {
-    let rows: Vec<_> = reads.iter().flat_map(|read| check_activity(observed, *read)).collect();
+    let rows: Vec<_> = joined_activity(observed, reads);
     plan_attempt_rows(observed, reads, task, minimum, &rows)
 }
 
@@ -3548,6 +3565,7 @@ mod plan_tests {
             &format!("Note {PLAN_NOTE_NUMBER} revision 1: {PLAN_NOTE}\n{PLAN_WORDS}\n"),
         ));
         Observed {
+            activity_aliases: std::collections::BTreeSet::new(),
             observed_at: BTreeMap::new(),
             documents,
             commands: Vec::new(),
@@ -4164,10 +4182,7 @@ fn direction_news(observed: &Observed, misses: &mut Vec<Miss>) {
         .collect();
     let stopped = number(held, "/activity");
     let ended = task_document(observed, Read::DirectionBEnded);
-    let rows: Vec<_> = check_activity(observed, Read::DirectionBEnded)
-        .into_iter()
-        .chain(check_activity(observed, Read::DirectionBFirst))
-        .collect();
+    let rows: Vec<_> = joined_activity(observed, &[Read::DirectionBEnded, Read::DirectionBFirst]);
     let release = rows
         .iter()
         .find(|row| number(row, "/line/decided/revision") == Some(OVERLAP_HOLD_REVISION))
@@ -4308,7 +4323,7 @@ fn direction_attempts(observed: &Observed, misses: &mut Vec<Miss>) {
         (OVERLAP_OWNER, b_reads.as_slice(), 2),
         (DIRECTION, director_reads.as_slice(), 1),
     ] {
-        let rows: Vec<_> = reads.iter().flat_map(|read| check_activity(observed, *read)).collect();
+        let rows: Vec<_> = joined_activity(observed, reads);
         step_check(
             misses,
             "5.4",
@@ -4543,6 +4558,7 @@ mod direction_tests {
             &format!("Note {DEFERRED_NOTE_NUMBER} revision 1: {DEFERRED_NOTE}\n{DEFERRED_WORDS}\n"),
         ));
         Observed {
+            activity_aliases: std::collections::BTreeSet::new(),
             observed_at: BTreeMap::new(),
             documents,
             commands: Vec::new(),
@@ -5300,7 +5316,7 @@ fn batch_journal(observed: &Observed, read: Read, task: u64) -> bool {
     batch_journal_pages(observed, &[read], task)
 }
 fn batch_journal_pages(observed: &Observed, reads: &[Read], task: u64) -> bool {
-    let rows: Vec<_> = reads.iter().flat_map(|read| check_activity(observed, *read)).collect();
+    let rows: Vec<_> = joined_activity(observed, reads);
     plan_attempt_rows(observed, reads, task, 1, &rows)
         && rows.last().is_some_and(|row| number(row, "/position") == Some(1))
         && rows.windows(2).all(|pair| {
@@ -5407,7 +5423,7 @@ fn budget_pages(read: Read) -> Vec<Read> {
     }
 }
 fn budget_rows(observed: &Observed, read: Read) -> Vec<&Value> {
-    budget_pages(read).iter().flat_map(|read| check_activity(observed, *read)).collect()
+    joined_activity(observed, &budget_pages(read))
 }
 fn budget_journal(observed: &Observed, read: Read, task: u64) -> bool {
     let pages = budget_pages(read);
@@ -5853,6 +5869,7 @@ mod budget_tests {
 
     fn met() -> Observed {
         let mut observed = Observed {
+            activity_aliases: std::collections::BTreeSet::new(),
             observed_at: BTreeMap::new(),
             documents: BTreeMap::new(),
             told: Vec::new(),
@@ -7169,6 +7186,7 @@ mod red_tests {
     }
     fn met() -> Observed {
         Observed {
+            activity_aliases: std::collections::BTreeSet::new(),
             observed_at: BTreeMap::new(),
             documents: met_documents(),
             told: met_queries(),
@@ -7854,6 +7872,7 @@ mod cap_tests {
     }
     fn met() -> Observed {
         let mut observed = Observed {
+            activity_aliases: std::collections::BTreeSet::new(),
             observed_at: BTreeMap::new(),
             documents: BTreeMap::new(),
             told: Vec::new(),
@@ -9129,6 +9148,7 @@ mod waiting_tests {
             );
         }
         Observed {
+            activity_aliases: std::collections::BTreeSet::new(),
             observed_at: BTreeMap::new(),
             documents: documents(),
             told: queries,
@@ -9796,6 +9816,7 @@ mod milestone_tests {
 
     fn empty() -> Observed {
         Observed {
+            activity_aliases: std::collections::BTreeSet::new(),
             documents: BTreeMap::new(),
             observed_at: BTreeMap::new(),
             told: Vec::new(),

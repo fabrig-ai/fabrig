@@ -224,13 +224,8 @@ pub fn short_waiting_steps(root: &Path) -> Vec<Step> {
 /// A separate disposable oracle token proves that the next handover revokes it.
 pub fn probe_admin_handover(paths: &[std::path::PathBuf; 3], client: &Path, older: &mut Option<String>) {
     let number = owned_forge(client)["number"].as_u64().expect("owned forge");
-    let document: Value =
-        serde_json::from_slice(&fs::read(paths[0].join("temper.json")).expect("configuration")).expect("JSON");
-    let address: std::net::SocketAddr = document["application"]["machine"]["owned"]["listen"]["socket"]
-        .as_str()
-        .expect("address")
-        .parse()
-        .expect("socket");
+    let setup = super::owned::setup_value(&paths[1], u16::try_from(number).expect("forge number"), "owned");
+    let address: std::net::SocketAddr = setup["listen"]["socket"].as_str().expect("address").parse().expect("socket");
     if let Some(token) = older.take() {
         assert!(
             super::owned::answer(address.port(), "/api/v1/user", Some(&token)).is_err(),
@@ -496,15 +491,11 @@ pub struct PlaygroundReads {
     pub panel: super::Ended,
 }
 #[must_use]
-pub fn playground_read_evidence(config: &Path, client: &Path) -> PlaygroundReads {
-    let document: Value =
-        serde_json::from_slice(&fs::read(config.join("temper.json")).expect("configuration")).expect("JSON");
+pub fn playground_read_evidence(data: &Path, client: &Path) -> PlaygroundReads {
+    let number = u16::try_from(owned_forge(client)["number"].as_u64().expect("forge number")).expect("forge u16");
+    let setup = super::owned::setup_value(data, number, "owned");
     PlaygroundReads {
-        address: document["application"]["machine"]["owned"]["listen"]["socket"]
-            .as_str()
-            .expect("forge address")
-            .parse()
-            .expect("socket"),
+        address: setup["listen"]["socket"].as_str().expect("forge address").parse().expect("socket"),
         producer: turns(client, "3"),
         panel: super::ctl::alone(client, Call::new(&["change", "show", "2", "--json"])),
     }
@@ -567,13 +558,8 @@ pub fn live_from_hands(config: &Path, data: &Path, client: &Path) -> Evidence {
     let login = lines.next().expect("person line after API").split_once("Forgejo: person ").expect("person label").1;
     let read = data.join(format!("forge-{number}/person_read.header"));
     let write = data.join(format!("forge-{number}/person_write.header"));
-    let document: Value =
-        serde_json::from_slice(&fs::read(config.join("temper.json")).expect("configuration")).expect("JSON");
-    assert_eq!(
-        Some(login),
-        document["application"]["machine"]["owned"]["person"]["login"].as_str(),
-        "init chose the person"
-    );
+    let setup = super::owned::setup_value(data, u16::try_from(number).expect("forge u16"), "owned");
+    assert_eq!(Some(login), setup["person"]["login"].as_str(), "set-up chose the person");
     let address: std::net::SocketAddr = api
         .strip_prefix("http://")
         .and_then(|url| url.strip_suffix("/api/v1"))
@@ -630,14 +616,10 @@ pub fn header_request(api: &str, header: &str, method: &str, route: &str, body: 
 #[must_use]
 pub fn live_for(config: &Path, data: &Path, client: &Path, task: Task) -> Evidence {
     use std::os::unix::fs::PermissionsExt;
-    let document: Value =
-        serde_json::from_slice(&fs::read(config.join("temper.json")).expect("configuration")).expect("JSON");
     let number = owned_forge(client)["number"].as_u64().expect("forge number");
-    let address: std::net::SocketAddr = document["application"]["machine"]["owned"]["listen"]["socket"]
-        .as_str()
-        .expect("forge address")
-        .parse()
-        .expect("socket");
+    let setup = super::owned::setup_value(data, u16::try_from(number).expect("forge u16"), "owned");
+    let address: std::net::SocketAddr =
+        setup["listen"]["socket"].as_str().expect("forge address").parse().expect("socket");
     let record = fs::metadata(data.join(format!("box/started/{number}"))).expect("started record");
     assert!(record.is_file(), "the box kept the owned forge's started record");
     assert_eq!(record.permissions().mode() & 0o777, 0o600, "private started record");
@@ -817,7 +799,7 @@ pub fn generated(root: &Path) {
             git: Some(b"/usr/bin/git"),
             claude: None,
             login: Some(b"qa-person"),
-            ports: Ports { clients: ports[0], owned: ports[1], forge: ports[2], llm: ports[3], webhooks: ports[4] },
+            ports: Ports { clients: ports[0], llm: ports[3], webhooks: ports[4] },
         },
         &Directories { config: root.as_os_str().as_bytes(), data: root.as_os_str().as_bytes() },
         &[7; 32],

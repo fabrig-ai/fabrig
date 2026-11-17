@@ -28,9 +28,8 @@ pub(super) fn run_with(
     load: bool,
     writes: Vec<protocol::Write>,
 ) -> Result<Rows, String> {
-    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
-    let own =
-        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small);
+    let jig = jig_protocol_config_fixtures::small();
+    let own = temper_limits_fixtures::small();
     let root = temper_engine_service_vocabulary::limits::engine(&jig, &own).ok_or("fixture engine limits")?;
     let limits = temper_engine_service_vocabulary::store::limits(&root, &root.forge, &jig.store)
         .ok_or("fixture store limits")?;

@@ -29,6 +29,8 @@ pub(crate) struct State {
     pub(crate) due: Map<u64, Wall>,
     pub(crate) receipts: Map<ReceiptKey, Receipt>,
     pub(crate) projects: Map<u32, ProjectLanding>,
+    pub(crate) settings: Map<u32, crate::settings::ProjectLanding>,
+    pub(crate) held: bool,
     pub(crate) pending: Map<Token, Pending>,
     pub(crate) keys: Map<Position, (api::Commit, Option<api::Commit>, policy::Key)>,
     pub(crate) main_keys: Map<RepositoryGate, KeyAt>,
@@ -46,7 +48,7 @@ pub(crate) struct Pending {
     retry: Retry,
     cached: bool,
     pub(crate) entry: u64,
-    heard: LandingHeard,
+    pub(crate) heard: LandingHeard,
     facts: Box<[policy::MemberFacts]>,
     stage: Stage,
     polled: List<ReceiptKey>,
@@ -151,6 +153,8 @@ impl State {
             due: Map::with_capacity(l.landings),
             receipts: Map::with_capacity(receipt_slots(l).expect("receipt bounds")),
             projects: Map::with_capacity(l.judge_projects),
+            settings: Map::with_capacity(l.judge_projects),
+            held: false,
             pending: Map::with_capacity(l.landings),
             keys: Map::with_capacity(slots),
             main_keys: Map::with_capacity(l.repositories.checked_mul(l.gates).expect("gate bounds")),
@@ -212,7 +216,108 @@ fn valid_tier(tier: &crate::Tier, limits: &Limits) -> bool {
     true
 }
 impl Domain {
-    /// A project's way and repository test gates (domain/landing.md, 13.1).
+    /// The operator's immutable start fact (domain/landing-settings.md, 1.3).
+    pub fn hold_landings(&mut self, held: bool) {
+        self.landing.held = held;
+    }
+    #[must_use]
+    pub fn landing_held(&self) -> bool {
+        self.landing.held
+    }
+    /// The landing built at restore, never the current proposed or committed setting.
+    #[must_use]
+    pub fn landing_settings(&self, project: u32) -> Option<&crate::settings::ProjectLanding> {
+        self.landing.settings.get(&project)
+    }
+    pub(crate) fn restore_landing_settings(&mut self) {
+        use crate::settings::{SettingSlot, Value};
+        let mut projects = Map::uncapped();
+        for (key, _) in &self.setting_rows {
+            if (key.kind == 4 || key.kind == 5) && (key.slot == SettingSlot::Change || key.slot == SettingSlot::Default)
+            {
+                projects.insert(key.scope, ()).expect("restored projects");
+            }
+        }
+        if let Some(stock) = &self.setting_stock {
+            for item in stock {
+                if item.kind == 4 || item.kind == 5 {
+                    projects.insert(item.scope, ()).expect("stock projects");
+                }
+            }
+        }
+        for (&project, ()) in &projects {
+            let settings = match self.setting(4, project, 1) {
+                Some(value) => match &value.value {
+                    Value::Landing(v) => v.clone(),
+                    Value::Gates(_)
+                    | Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Questions(_)
+                    | Value::Ways(_)
+                    | Value::Classes(_)
+                    | Value::CharterWords(_)
+                    | Value::ProjectWords(_)
+                    | Value::Goal(_)
+                    | Value::Follow(_)
+                    | Value::Dependency(_)
+                    | Value::ProjectAreas(_)
+                    | Value::ProjectTriager(_)
+                    | Value::Welcome(_) => unreachable!("kind 4 has landing value"),
+                },
+                None => crate::settings::ProjectLanding::default(),
+            };
+            let gates = match self.setting(5, project, 1) {
+                Some(value) => match &value.value {
+                    Value::Gates(v) => v.repositories.clone(),
+                    Value::Landing(_)
+                    | Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Questions(_)
+                    | Value::Ways(_)
+                    | Value::Classes(_)
+                    | Value::CharterWords(_)
+                    | Value::ProjectWords(_)
+                    | Value::Goal(_)
+                    | Value::Follow(_)
+                    | Value::Dependency(_)
+                    | Value::ProjectAreas(_)
+                    | Value::ProjectTriager(_)
+                    | Value::Welcome(_) => unreachable!("kind 5 has gates value"),
+                },
+                None => Box::new([]),
+            };
+            assert!(
+                self.project_landing(
+                    project,
+                    settings.by,
+                    gates,
+                    policy::Project {
+                        gate_retries: u32::from(settings.gate_retries),
+                        gate_timeout: skein_lib::Duration::from_millis(settings.gate_timeout_ms)
+                    },
+                    crate::AfterLanding {
+                        verdict: temper_engine_domain_forge_tiers::Settings {
+                            retries: u32::from(settings.tier_retries),
+                            suspects: temper_engine_domain_forge_tiers::Suspects::Bisect
+                        },
+                        bound: skein_lib::Duration::from_millis(settings.verification_bound_ms)
+                    }
+                ),
+                "judged restored landing settings"
+            );
+            if settings.batch != 1 {
+                assert!(self.project_batch(project, settings.batch), "judged restored batch");
+            }
+            if let Some(command) = &settings.merge_job {
+                assert!(self.project_merge_job(project, command.clone()), "restored merge job");
+            }
+            if let Some(command) = &settings.close_job {
+                assert!(self.project_close_job(project, command.clone()), "restored close job");
+            }
+            self.landing.settings.insert(project, settings).expect("restored project settings");
+        }
+    }
+    /// A project's way and repository test gates (domain/landing-settings.md, 1.1).
     pub fn project_landing(
         &mut self,
         project: u32,
@@ -310,7 +415,7 @@ impl Domain {
         }
         saved
     }
-    /// The project's forming cap, checked against its deployment (domain/landing.md, 13.1).
+    /// The project's forming cap, checked against its deployment (domain/landing-settings.md, 1.1).
     pub fn project_batch(&mut self, project: u32, batch: u16) -> bool {
         if batch == 0 || u32::from(batch) > self.landing.limits.landing_members {
             return false;
@@ -349,7 +454,7 @@ impl Domain {
         let (_, _, _, _, command, _, _) = self.landing.projects.get(&project)?;
         command.as_deref()
     }
-    /// A project's landing way: queue where its configuration gives none (domain/landing.md, 13.1).
+    /// A project's landing way: queue where its configuration gives none (domain/landing-settings.md, 1.1).
     #[must_use]
     pub fn landing_way(&self, project: u32) -> change::Way {
         self.landing.way(project)
@@ -876,9 +981,10 @@ fn pending_for(d: &Domain, task: u64) -> Option<Token> {
 }
 // A procedure consumes its result even when a prefix read is busy (domain/landing.md, 5.2).
 fn remember_preparation(d: &mut Domain, env: &Env<Limits>, task: u64, heard: &LandingHeard, out: &mut Queue<Request>) {
+    let preparation = heard.preparation.unwrap_or(policy::Preparation::Running);
     if heard.outcomes.is_empty()
-        && heard.preparation != policy::Preparation::Failed
-        && heard.preparation != policy::Preparation::Conflict
+        && preparation != policy::Preparation::Failed
+        && preparation != policy::Preparation::Conflict
     {
         return;
     }
@@ -948,6 +1054,10 @@ fn retire_preparation(
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one landing step keeps its admission and operator hold with the state handoff"
+)]
 pub(crate) fn step(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -959,6 +1069,22 @@ pub(crate) fn step(
     if d.stopping {
         return;
     }
+    if d.landing.held {
+        emit(
+            out,
+            Request::LandingDecision {
+                task,
+                decision: policy::Decision::Wait { until: None },
+                entry: None,
+                evidence: None,
+            },
+        );
+        return;
+    }
+    // The start leaves a real step's entry and hearing untouched (landing-preparing.md, 3).
+    if entry == 0 && pending_for(d, task).is_some() {
+        return;
+    }
     if let Some(job) = heard.job.take() {
         crate::job_history::heard(d, env.wall, task, job, out);
     }
@@ -967,7 +1093,14 @@ pub(crate) fn step(
     if let Some(row) = d.landing.rows.get(&task)
         && row.landing.phase == policy::Phase::Cancelled
     {
-        emit(out, Request::LandingDecision { task, decision: policy::Decision::Cancel, entry: None, evidence: None });
+        if entry == 0 {
+            emit(out, Request::WakeProcedure { task });
+        } else {
+            emit(
+                out,
+                Request::LandingDecision { task, decision: policy::Decision::Cancel, entry: None, evidence: None },
+            );
+        }
         return;
     }
     if let Some(token) = pending_for(d, task) {
@@ -987,7 +1120,7 @@ pub(crate) fn step(
             let repository = change.repository;
             row.landing.phase = policy::Phase::Waiting;
             save(d, row, out);
-            wait(d, task, env, repository, out);
+            wait(d, task, entry, env, repository, out);
             return;
         };
         member.pull = pull;
@@ -1139,7 +1272,12 @@ fn poll_at(d: &Domain, env: &Env<Limits>, task: u64) -> Wall {
 fn wall_at(env: &Env<Limits>, at: skein_lib::Time) -> Wall {
     Wall::from_nanos(env.wall.as_nanos().saturating_add(at.as_nanos().saturating_sub(env.now.as_nanos())))
 }
-fn wait(d: &Domain, task: u64, env: &Env<Limits>, repository: api::Repository, out: &mut Queue<Request>) {
+fn wait(d: &Domain, task: u64, entry: u64, env: &Env<Limits>, repository: api::Repository, out: &mut Queue<Request>) {
+    // Every end of the start's read is a wake, never a decision (landing-preparing.md, 3).
+    if entry == 0 {
+        emit(out, Request::WakeProcedure { task });
+        return;
+    }
     emit(
         out,
         Request::LandingDecision {
@@ -1280,11 +1418,11 @@ fn advance(
                                 }
                             };
                             let Some(head) = landed else {
-                                wait(d, p.task, env, p.repository, out);
+                                wait(d, p.task, p.entry, env, p.repository, out);
                                 return;
                             };
                             if member.left.is_none() && member.landed.is_none() && Some(head) != member.candidate {
-                                wait(d, p.task, env, p.repository, out);
+                                wait(d, p.task, p.entry, env, p.repository, out);
                                 return;
                             }
                             head
@@ -1296,7 +1434,7 @@ fn advance(
                 }
                 Stage::Main(_) => {
                     let Ok(api::Answer::Commit(main)) = answer else {
-                        wait(d, p.task, env, p.repository, out);
+                        wait(d, p.task, p.entry, env, p.repository, out);
                         return;
                     };
                     fact.main = main;
@@ -1319,7 +1457,7 @@ fn advance(
                 }
                 Stage::Pull(_) => {
                     let Ok(api::Answer::Pull(pull)) = answer else {
-                        wait(d, p.task, env, p.repository, out);
+                        wait(d, p.task, p.entry, env, p.repository, out);
                         return;
                     };
                     let evidence = &mut p.evidence.get_mut(usize::from(index)).expect("member evidence").facts;
@@ -1419,7 +1557,7 @@ fn advance(
         }
         Stage::CleanupPull => {
             let Ok(api::Answer::Pull(pull)) = answer else {
-                wait(d, p.task, env, p.repository, out);
+                wait(d, p.task, p.entry, env, p.repository, out);
                 return;
             };
             if pull.state == api::State::Closed {
@@ -1434,7 +1572,7 @@ fn advance(
                     p.facts.get_mut(usize::from(member)).expect("cleanup member").deleted = policy::Status::Passed;
                 }
                 Ok(_) | Err(_) => {
-                    wait(d, p.task, env, p.repository, out);
+                    wait(d, p.task, p.entry, env, p.repository, out);
                     return;
                 }
             }
@@ -1585,7 +1723,7 @@ fn advance(
         }
         Stage::Tree { member, gate, candidate, object, page, main, reading_base } => {
             let Ok(api::Answer::Tree { entries, more }) = answer else {
-                wait(d, p.task, env, p.repository, out);
+                wait(d, p.task, p.entry, env, p.repository, out);
                 return;
             };
             let repo = repository(row.landing.members.get(usize::from(member)).expect("member"));
@@ -1775,7 +1913,8 @@ fn gathered(
     }
     if row.landing.round.ending.is_some() {
         if row.landing.round.ending == Some(policy::RoundEnd::Stale)
-            && p.heard.preparation != policy::Preparation::Running
+            && let Some(preparation) = p.heard.preparation
+            && preparation != policy::Preparation::Running
         {
             round_member(d, env, owner, p, row, 0, out);
         } else {
@@ -1910,7 +2049,7 @@ fn round_read(
     let (stage, read) = match stage {
         RoundRead::Upstream => {
             let Ok(api::Answer::Commit(tip)) = answer else {
-                wait(d, p.task, env, p.repository, out);
+                wait(d, p.task, p.entry, env, p.repository, out);
                 return;
             };
             p.upstream = Some(tip);
@@ -1922,14 +2061,14 @@ fn round_read(
                 Ok(api::Answer::Commit(tip)) => Some(tip),
                 Err(api::Error::Missing) => None,
                 Ok(_) | Err(_) => {
-                    wait(d, p.task, env, p.repository, out);
+                    wait(d, p.task, p.entry, env, p.repository, out);
                     return;
                 }
             };
             let combined = crate::preparation::combined(&row.landing.round.failure, index);
             if chain && let Some(combined) = combined {
                 let Some(tip) = candidate else {
-                    wait(d, p.task, env, p.repository, out);
+                    wait(d, p.task, p.entry, env, p.repository, out);
                     return;
                 };
                 fact.candidate = Some((tip, combined));
@@ -1943,7 +2082,7 @@ fn round_read(
         }
         RoundRead::Prefix(page) => {
             if answer.is_err() {
-                wait(d, p.task, env, p.repository, out);
+                wait(d, p.task, p.entry, env, p.repository, out);
                 return;
             }
             let mut merge = false;
@@ -1985,7 +2124,7 @@ fn round_read(
                 change::Status::Passed => fact.candidate = Some((candidate.expect("prefix"), policy::Combine::Merge)),
                 change::Status::Failed => {}
                 change::Status::Unknown | change::Status::Pending => {
-                    wait(d, p.task, env, p.repository, out);
+                    wait(d, p.task, p.entry, env, p.repository, out);
                     return;
                 }
             }
@@ -2356,6 +2495,8 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
     if continue_retry(d, &mut row, p.entry, out) {
         return;
     }
+    // A hearing with none decides nothing about the prepare (landing-preparing.md, 3).
+    let preparation = p.heard.preparation.unwrap_or(policy::Preparation::Running);
     let outcomes = crate::preparation::outcomes(&row.landing.round.failure, env.limits.landing_members)
         .unwrap_or(p.heard.outcomes.clone());
     for (index, (member, fact)) in row.landing.members.iter().zip(p.facts.iter_mut()).enumerate() {
@@ -2389,7 +2530,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
                 }
             }
         }
-        fact.preparation = p.heard.preparation;
+        fact.preparation = preparation;
         if fact.deleted != policy::Status::Passed {
             fact.deleted = result(d, p.task, position, 0, 8);
         }
@@ -2502,7 +2643,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
         opened: p.opened,
         opening: result(d, p.task, top, 0, 6),
         closed: if p.closed == policy::Status::Passed { p.closed } else { round_closed(d, &row) },
-        preparation: p.heard.preparation,
+        preparation,
     };
     let project = match d.landing.projects.get(&row.landing.project) {
         Some((_, _, _, _, _, settings, _)) => *settings,
@@ -4174,7 +4315,7 @@ pub(crate) fn refresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request
                 dependencies: Box::new([]),
                 held: Box::new([]),
                 failure: Box::new([]),
-                preparation: temper_engine_domain_forge_landing::Preparation::Idle,
+                preparation: None,
                 released: false,
                 cancelled: false,
                 kept: Box::new([]),

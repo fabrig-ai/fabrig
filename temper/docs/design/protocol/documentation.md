@@ -310,7 +310,7 @@ in section 2.3's voice.
 | `settings-fields` | `FIELDS`, beside the settings form's decoder (`temper-settings-form`; `../client/ctl/tools.md`, 3) | a member of a shape |
 | `host-tools` | the host tools' declarations (`temper-engine-smith`; `../domain/agent/tools.md`; `../domain/agent/declarations.md`) | a host tool: its name, its description, whether it reads or writes, when a run is offered it, then each member of its input's whole form at every depth, a nested member indented under its parent, with its type, bound, whether it is required and its description, and, for a tool taking a `what`, each `what` with the members it requires and takes; in the one order the run's tool list has |
 | `see` | `see`'s addresses (`temper-engine-smith`; `../domain/agent/ask-temper.md`, 1) | an address: its form, each form the instructions' line brackets a row of its own (`settings charter N`, `task N tree`), a line on what it answers, and the addresses one level down, its `see:` line |
-| `limits` and `limits-engine` | the limits' names: `limits` temper's, those `application.limits.overrides` takes (`temper-service`'s, the setup's `setup.*` and the box's `box.*`), and `limits-engine` jig's, those `engine.limits.overrides` and a worker's `limits.overrides` take (`jig-protocol-config`) | a named limit: its dotted name, its unit (a count, bytes, milliseconds), the small profile's value, a line |
+| `limits` and `limits-engine` | the limits' names: `limits` temper's, those `application.limits.overrides` takes (`temper-service`'s, the setup's `setup.*` and the box's `box.*`), and `limits-engine` jig's, those `engine.limits.overrides` and a worker's `limits.overrides` take (`jig-protocol-config`) | a named limit: its dotted name, its unit (a count, bytes, milliseconds), the stock's value (`configuration/limits.md`, one stock), a line |
 | `configuration` and `configuration-engine` | the configuration document's members by shape, beside each decoder: `configuration` temper's, the document's top level and `application`'s shapes, beside temper's decoders; `configuration-engine` jig's, `engine`'s and a worker's shapes, beside `jig-protocol-config`'s (`configuration/README.md`) | a member of a shape, the shape's section naming every path it is read at: its type and bound, whether it is required, what `temper-box init --box` writes, a line; the members that left the document for the store (`engine.charters`, `templates`, `policies` and `rules`; `application.charter` and `application.landing`'s rules: `configuration/settings.md`, 4) are one row each, saying that a start refuses it and where it went, as the refusal says, and sending the reader to `settings` |
 
 - **`host-tools`' text is the run's:** the page renders the same
@@ -345,9 +345,9 @@ in section 2.3's voice.
 - **`limits` and `limits-engine`:** each parser of overrides looks a
   name up in its names table before anything else, refusing a name the
   table lacks as unknown, so that a name the parser takes is a row; a
-  step test applies every row's name at the small profile's value, so
+  step test applies every row's name at the stock's value, so
   that a row is a name the parser takes. A row reads its value from the
-  profile, never a copy of it. jig gives its own names as a list beside
+  stock, never a copy of it. jig gives its own names as a list beside
   its parser (`jig-protocol-config`'s `names` module), each with its
   unit, its line and its value's reader, generic to jig's applications,
   which temper renders as `limits-engine`; temper's table, in

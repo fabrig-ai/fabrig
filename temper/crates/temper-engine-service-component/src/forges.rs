@@ -10,6 +10,9 @@ pub(crate) fn record(engine: &mut crate::engine::Engine, record: temper_engine_d
         engine.forge_records.pending.push(record);
         return;
     }
+    if !crate::places::record(engine, &record) {
+        return;
+    }
     let kept = record.clone();
     let login_only = match engine.workers.forges.bots().get(&record.number) {
         Some(bot) => bot.name == record.bot.name && bot.email == record.bot.email,

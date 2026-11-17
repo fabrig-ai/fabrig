@@ -2,8 +2,8 @@
 use crate::{check, limits, problem};
 #[test]
 fn the_small_profile_passes_the_setup_limit_checks() {
-    assert_eq!(skein_forge_setup::limits::check(&limits::small()), Ok(()));
-    assert_eq!(check::limits(&[]).unwrap().0, limits::small());
+    assert_eq!(skein_forge_setup::limits::check(&limits::stock()), Ok(()));
+    assert_eq!(check::limits(&[]).unwrap().0, limits::stock());
 }
 #[test]
 fn a_backoff_past_its_maximum_names_both_limits() {
@@ -21,14 +21,14 @@ fn an_unknown_zero_or_overflowing_limit_is_refused() {
         (b"box.restarts".as_slice(), 1, limits::Refused::Unknown),
         (b"setup.deadline_ms", u64::MAX, limits::Refused::Range),
     ] {
-        assert_eq!(limits::apply(&mut limits::small(), name, value), Err(expected));
+        assert_eq!(limits::apply(&mut limits::stock(), name, value), Err(expected));
     }
 }
 #[test]
 fn host_counts_are_owned_by_the_small_profile_and_overrides_refuse_zero() {
     let mut host = limits::host();
     assert_eq!((host.runs, host.states), (8, 8));
-    assert_eq!(host.plan(), limits::small());
+    assert_eq!(host.plan(), limits::stock());
     for name in [b"setup.runs".as_slice(), b"setup.states"] {
         for value in [0, u64::MAX] {
             assert_eq!(limits::apply_host(&mut host, name, value), Err(limits::Refused::Range));
@@ -49,7 +49,7 @@ fn row_words(name: &str, line: &str) {
 
 #[test]
 fn every_row_is_a_name_the_parser_takes() {
-    let small = limits::small();
+    let small = limits::stock();
     for row in &limits::NAMES {
         row_words(row.name, row.line);
         let mut changed = small.clone();
@@ -74,7 +74,7 @@ fn every_row_is_a_name_the_parser_takes() {
         row_words(row.name, row.line);
         for value in [limits::FETCH_BYTES, limits::FETCH_BYTES + 1] {
             let (plan, fetch) = check::limits(&[(row.name.as_bytes().into(), value)]).expect("fetch override");
-            assert_eq!(plan, limits::small());
+            assert_eq!(plan, limits::stock());
             assert_eq!((row.value)(&fetch), value);
         }
     }
@@ -83,7 +83,7 @@ fn every_row_is_a_name_the_parser_takes() {
 #[test]
 fn an_unknown_name_is_refused() {
     for name in [b"".as_slice(), b"setup.absent", b"box.restarts", b"setup.deadline_ms.extra"] {
-        let small = limits::small();
+        let small = limits::stock();
         let mut plan = small.clone();
         assert_eq!(limits::apply(&mut plan, name, 1), Err(limits::Refused::Unknown));
         assert_eq!(plan, small);

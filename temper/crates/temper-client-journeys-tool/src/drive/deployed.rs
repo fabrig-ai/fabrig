@@ -53,18 +53,12 @@ impl DeploymentState {
                 self.line((*process, *output, line), activity.phase, plan, now, out)
             }
             Event::Exited { process, code, .. } if process.deployment_log().is_some() => {
-                self.exited(*process, *code, now, out)
+                self.exited(*process, *code, plan, now, out)
             }
             Event::DeploymentPatch(result) if self.stage == Stage::Reading => match result {
                 Ok(file) => {
                     self.patch = Some(file.clone());
-                    if activity.tui_running {
-                        self.stage = Stage::PatchTui;
-                        self.until = Some(now.saturating_add(super::LOOK));
-                        Progress::PatchTui
-                    } else {
-                        self.stop(true, now, out)
-                    }
+                    self.restart(activity.tui_running, plan, now, out)
                 }
                 Err(why) => {
                     self.patch_until = None;
@@ -73,10 +67,12 @@ impl DeploymentState {
                     Progress::Answer(Some(why.clone()))
                 }
             },
-            Event::TuiStopped | Event::TuiFailure(_) if self.stage == Stage::PatchTui => self.stop(true, now, out),
+            Event::TuiStopped | Event::TuiFailure(_) if self.stage == Stage::PatchTui => {
+                self.stop(true, plan, now, out)
+            }
             Event::Deadline if self.stage == Stage::PatchTui && self.until.is_some_and(|at| now >= at) => {
                 out.push(Action::StopTui);
-                self.stop(true, now, out)
+                self.stop(true, plan, now, out)
             }
             Event::DeploymentWritten(result) if self.stage == Stage::Writing => match result {
                 Ok(()) => self.start(Process::Engine, plan, now, out),
@@ -94,7 +90,7 @@ impl DeploymentState {
                     if patch {
                         Progress::Failed("patch stop deadline passed".into())
                     } else {
-                        self.stop(false, now, out)
+                        self.stop(false, plan, now, out)
                     }
                 } else {
                     Progress::Failed(format!("{:?}: deadline passed", self.stage))
@@ -213,7 +209,7 @@ impl DeploymentState {
             _ => Progress::None,
         }
     }
-    fn exited(&mut self, process: Process, code: i32, now: Time, out: &mut Vec<Action>) -> Progress {
+    fn exited(&mut self, process: Process, code: i32, plan: &Plan, now: Time, out: &mut Vec<Action>) -> Progress {
         if !self.live.contains(&process) {
             return Progress::None;
         }
@@ -228,17 +224,29 @@ impl DeploymentState {
             if patch && code != 0 {
                 Progress::Failed(format!("{process:?} exited {code} during patch"))
             } else {
-                self.stop(patch, now, out)
+                self.stop(patch, plan, now, out)
             }
         } else {
             Progress::Failed(format!("{process:?} exited {code}"))
         }
     }
-    pub fn stop(&mut self, patch: bool, now: Time, out: &mut Vec<Action>) -> Progress {
+    pub fn restart(&mut self, tui: bool, plan: &Plan, now: Time, out: &mut Vec<Action>) -> Progress {
+        if tui {
+            self.stage = Stage::PatchTui;
+            self.until = Some(now.saturating_add(super::LOOK));
+            Progress::PatchTui
+        } else {
+            self.stop(true, plan, now, out)
+        }
+    }
+    pub fn stop(&mut self, patch: bool, plan: &Plan, now: Time, out: &mut Vec<Action>) -> Progress {
         if patch && self.live.last() == Some(&Process::Model) {
-            self.stage = Stage::Writing;
-            out.push(Action::WriteDeploymentPatch(self.patch.take().expect("validated patch")));
-            return Progress::Waiting;
+            if let Some(file) = self.patch.take() {
+                self.stage = Stage::Writing;
+                out.push(Action::WriteDeploymentPatch(file));
+                return Progress::Waiting;
+            }
+            return self.start(Process::Engine, plan, now, out);
         }
         if let Some(process) = self.live.last().copied() {
             let seconds = if matches!(process, Process::Worker | Process::Engine) { 60 } else { 30 };

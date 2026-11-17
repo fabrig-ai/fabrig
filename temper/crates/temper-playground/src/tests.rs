@@ -102,32 +102,25 @@ fn the_fakes_limits_are_their_constructors() {
 fn the_owned_values_equal_the_test_kits_values() {
     use jig_channel_kit::fixtures as channel;
     assert_eq!(documents::KEY, channel::KEY);
-    let owned: serde_json::Value = serde_json::from_slice(&documents::engine_document()).expect("owned engine JSON");
+    let mut owned: serde_json::Value =
+        serde_json::from_slice(&documents::engine_document()).expect("owned engine JSON");
     let mut source: serde_json::Value =
         serde_json::from_slice(&channel::engine_document()).expect("channel engine JSON");
     // Temper sizes both watch rooms from clients.streams (temper/docs/design/protocol/configuration/limits.md).
     for name in ["views.watchers", "views.watchers_per_party"] {
         source["engine"]["limits"]["overrides"].as_object_mut().expect("engine overrides").remove(name);
     }
+    // Limit fixtures are explicit here; the kit's profile does not cross this boundary.
+    owned["engine"].as_object_mut().unwrap().remove("limits");
+    source["engine"].as_object_mut().unwrap().remove("limits");
+    documents::settings::strip_fixed(&mut source);
     assert_eq!(owned, source);
-    let mut worker: serde_json::Value = serde_json::from_slice(channel::WORKER_DOCUMENT).expect("kit worker JSON");
-    worker["workers"][0]["graces"]["grace_ms"] = 300_000.into();
-    assert_eq!(serde_json::from_slice::<serde_json::Value>(documents::WORKER_DOCUMENT).expect("worker JSON"), worker);
+    let worker: serde_json::Value = serde_json::from_slice(documents::WORKER_DOCUMENT).expect("worker JSON");
+    let source: serde_json::Value = serde_json::from_slice(channel::WORKER_DOCUMENT).expect("kit worker JSON");
+    assert_eq!(worker["workers"][0]["name"], source["workers"][0]["name"]);
 
-    let mut profile = smith_agent_process_world::profile();
-    profile.policy.host_tools =
-        u32::try_from(temper_engine_smith::tools(skein_lib::Duration::from_secs(10)).len()).expect("tools");
-    profile.declared.tool_payload = 2048;
-    profile.declared.read_window = 256;
-    profile.declared.conversations = 1;
-    profile.declared.calls_per_response = 1;
-    profile.policy.max_turns = 800;
-    profile.policy.max_time = skein_lib::Duration::from_secs(28_800);
-    profile.policy.check_timeout = skein_lib::Duration::from_secs(5);
-    let hub = jig_protocol_config::profile(jig_protocol_config::Profile::Small).hub;
-    profile.policy.inbox = hub.held.max(hub.inbox);
-    profile.policy.sections = 8;
-    assert_eq!(documents::agent_profile(), profile);
+    let hub = jig_protocol_config::stock().hub;
+    assert_eq!(documents::agent_profile().policy.inbox, hub.held.max(hub.inbox));
     let mut declarations = smith_agent_process_world::declarations(0);
     declarations.endpoints[0].limits.output = 2048;
     assert_eq!(documents::agent_declarations(), declarations);

@@ -42,6 +42,8 @@ temper-box-shell.workspace = true
 skein-fail-stop.workspace = true
 
 [dev-dependencies]
+temper-limits-fixtures.workspace = true
+jig-protocol-config-fixtures.workspace = true
 temper-client-journeys-tool.workspace = true
 temper-box-kit.workspace = true
 flate2.workspace = true
@@ -50,6 +52,7 @@ temper-engine-shell.workspace = true
 temper-shell.workspace = true
 temper-worker-shell.workspace = true
 temper-engine-domain-forge.workspace = true
+temper-engine-domain-forge-change.workspace = true
 temper-fake.workspace = true
 skein-fake-peers.workspace = true
 temper-init.workspace = true

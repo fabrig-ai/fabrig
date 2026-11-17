@@ -144,27 +144,28 @@ The host tools' contract (`../../protocol/wires.md`, 7) is the declared
 forms, rendered by `temper-engine-smith`'s `wire.rs` and carried as
 smith's `Grants.contract` (smith's `protocol/charter.md`, 2).
 
-- **It moves from version 4 to 5, its floor staying 1.** Versions 1 to 4
+- **It moves from version 5 to 6, its floor staying 1.** Versions 1 to 5
   keep their kept texts; every version from the floor is answered, not
   just the previous one (`../../protocol/wires.md`, 7;
-  `../../draft/redeploys.md`, 4.2). Version 4 is main's contract (refusing
-  zero-word reports to people or roles), landed while T2 was built.
-- **Every kept declaration that differs from 5 has an adapter** for each
-  version it differs in, 1, 2, 3 and 4: an identity adapter where only its
+  `../../draft/redeploys.md`, 4.2). Version 4 refuses
+  zero-word reports to people or roles; version 5 adds the welcome setting.
+  Both are main's landed contracts.
+- **Every kept declaration that differs from 6 has an adapter** for each
+  version it differs in, 1, 2, 3, 4 and 5: an identity adapter where only its
   declared form changed, since the decoders take the whole form (2); and,
   for each of the forge's former reads, the read its `what` gives
   (`tools.md`, *The forge's reads*), decoded and answered exactly as it was.
   `contract.rs` compares each kept declaration with the current one and
   requires an adapter wherever they differ, and its coverage test holds it.
-- **The former reads' names are decoded under 5 too,** though not
-  declared, each as its `what`. A run under 5 that calls one is refused by
+- **The former reads' names are decoded under 6 too,** though not
+  declared, each as its `what`. A run under 6 that calls one is refused by
   smith before the engine sees it, since smith offers a host tool exactly
   when it is declared (smith's `domain/run.md`, 5.1); so a charter's text names
   the reads as `tools.md` does, and the inventory (5) names the texts that
   don't.
 - **A run keeps its contract across a redeploy:** a run started under 1 to
-  4 is answered under it. A new attempt, resumed or fresh, is started
-  under 5 (`temper/crates/temper-engine-smith/src/start.rs`), and its
+  5 is answered under it. A new attempt, resumed or fresh, is started
+  under 6 (`temper/crates/temper-engine-smith/src/start.rs`), and its
   transcript's earlier calls stay as they were recorded.
 
 ## 5. What a charter loses: the inventory

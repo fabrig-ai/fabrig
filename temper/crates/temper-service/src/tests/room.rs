@@ -28,7 +28,7 @@ fn agent() -> crate::settings::Agent {
 fn start(room: u64, part: Option<usize>) -> Result<crate::Service, startup::Problems> {
     let mut agent = agent();
     // This fixture host bound leaves the other stock charters at least 2,048 bytes.
-    agent.run_limits.host_part = 65_748;
+    agent.run_limits.host_part = 64_000;
     // Rendered framing reaches its boundary while the fixed owned and encoded parts still leave the brief's floor.
     agent.run_limits.schema_costs.finish = agent.run_limits.schema_costs.finish.checked_add(13_560).unwrap();
     // The long instructions need the charter carriers, independently of the host-part bound.
@@ -92,7 +92,7 @@ fn defaults_leaving_2047_bytes_refuse_the_start() {
     let Err(found) = start(SHORT, None) else { panic!("a short charter refuses the start") };
     assert_eq!(
         startup::lines(&found).as_ref(),
-        b"charter 11: charter 11 leaves its brief 2,047 bytes of its host part's 65,748; it needs at least 2,048\n",
+        b"charter 11: charter 11 leaves its brief 2,047 bytes of its host part's 64,000; it needs at least 2,048\n",
     );
 }
 
@@ -106,7 +106,7 @@ fn default_parts_are_counted_before_start() {
     let Err(found) = start(4_000, Some(3_000)) else { panic!("the default's part takes its brief room") };
     assert_eq!(
         startup::lines(&found).as_ref(),
-        b"charter 11: charter 11 leaves its brief 998 bytes of its host part's 65,748; it needs at least 2,048\n"
+        b"charter 11: charter 11 leaves its brief 998 bytes of its host part's 64,000; it needs at least 2,048\n"
     );
     start(4_000, None).expect("without the part the default fits");
 }
@@ -119,8 +119,8 @@ fn default_parts_are_counted_before_start() {
 )]
 fn stock_charters_leave_at_least_2048_bytes() {
     let generated = super::stock::generated();
-    for (name, profile) in [("small", b"\"small\"".as_slice()), ("standard", b"\"standard\"")] {
-        let document = fixtures::with(&generated, b"engine.limits.profile", profile);
+    {
+        let document = generated;
         let engine = super::stock::engine(&document);
         let host = temper_engine_smith::room::host_part(
             Some(&agent().run_limits),
@@ -136,11 +136,7 @@ fn stock_charters_leave_at_least_2048_bytes() {
                 jig_domain_core::settings::charters::resolved(charter, &engine.llm.models, &engine.limits.core)
                     .unwrap();
             let room = host.room(&resolved);
-            std::eprintln!(
-                "stock charter {}: profile {name}, room {room}, bound {}",
-                charter.number,
-                host.bound.unwrap()
-            );
+            std::eprintln!("stock charter {}: stock, room {room}, bound {}", charter.number, host.bound.unwrap());
             assert!(room >= ENOUGH);
             if charter.number == 5 {
                 let mut without = resolved.clone();
@@ -163,8 +159,8 @@ fn stock_charters_pass_the_fixed_check_on_every_wake() {
     use jig_domain_tasks::{REASON_NAMES, Reasons};
     let generated = super::stock::generated();
     let agent = agent();
-    for profile in [b"\"small\"".as_slice(), b"\"standard\""] {
-        let document = fixtures::with(&generated, b"engine.limits.profile", profile);
+    {
+        let document = generated;
         let engine = super::stock::engine(&document);
         let host = temper_engine_smith::room::host_part(
             Some(&agent.run_limits),
@@ -173,8 +169,7 @@ fn stock_charters_pass_the_fixed_check_on_every_wake() {
             &engine.limits.core.brief_core_budgets,
         );
         std::eprintln!(
-            "stock profile {}: floor owned {}, encoded {}",
-            core::str::from_utf8(profile).unwrap(),
+            "stock: floor owned {}, encoded {}",
             host.floor.owned,
             host.floor.encoded
         );
@@ -228,6 +223,7 @@ fn alone_start(
         fixtures::forge_runtime(),
         None,
         &stock::Given::Own { jig: defaults, forge: Box::new([]), ways: stock::ways() },
+        Some(b"/usr/bin/git"),
     )
 }
 

@@ -71,6 +71,7 @@ pub(crate) fn kind(p: &Path, what: What) -> Refusal {
         What::CodecArithmetic => b"people-v13 codec bound arithmetic overflows",
         What::StoreCodec => b"effective limits exceed the combined store codec envelope",
         What::Json => b"invalid JSON",
+        What::Fixed => b"fixed by the application",
         What::Stored => b"settings live in the store; read them with temper ctl DIR settings show",
         What::Unknown => b"unknown member",
         What::Missing => b"missing",

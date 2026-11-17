@@ -16,6 +16,7 @@ name = "suite"
 path = "tests/suite/main.rs"
 
 [dependencies]
+temper-service-core.workspace = true
 skein-shell.workspace = true
 serde.workspace = true
 serde_json.workspace = true

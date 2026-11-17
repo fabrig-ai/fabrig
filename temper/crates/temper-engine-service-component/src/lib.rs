@@ -36,8 +36,10 @@ pub use temper_engine_domain::JournalStop;
 pub mod engine;
 pub use engine::Engine;
 mod opened;
+mod places;
 mod route;
 mod runtime;
+pub use places::PlaceIo;
 #[doc(hidden)]
 pub mod setup;
 mod start_refusal;

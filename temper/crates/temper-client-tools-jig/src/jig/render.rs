@@ -2,6 +2,7 @@
 mod activity;
 pub mod acts;
 pub mod document;
+pub(super) mod goal_title;
 pub mod holds;
 pub mod lists;
 mod notes;

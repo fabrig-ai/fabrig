@@ -16,6 +16,8 @@ const UMBRA: usize = 6;
 const CHAT: usize = 8;
 const PROCEDURE: u64 = 2;
 const DELIVERED: usize = 11;
+// The manifest flow retains the small profile's 16 KiB decoded document room.
+const MANIFEST_BODY_BYTES: u32 = 16_384;
 fn installed(body: &[u8]) {
     let said = b"temper has the installation; you may close this tab.";
     assert!(skein_lib::bytes::find(body, said).is_some(), "the setup page says so");
@@ -26,6 +28,10 @@ fn a_person_connects_their_app_and_a_chats_push_carries_its_installations_token(
     let mut fixture = github::fixture();
     fixture.connected = false;
     fixture.manifest = true;
+    // This flow carries an App manifest, beyond the fixture's small operation's marker.
+    fixture.configure = |document, _, _| {
+        document["application"]["limits"]["overrides"]["forge_component.body_bytes"] = MANIFEST_BODY_BYTES.into();
+    };
     fixture.unaccepted_after_install = true;
     fixture.keep_heads = true;
     let ran = run_github(fixture, |at| llm::cued(scripts(at)), steps);

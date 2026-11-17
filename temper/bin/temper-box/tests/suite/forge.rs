@@ -356,7 +356,7 @@ fn fake_preparation_writes_only_a_private_token_and_keeps_existing_bytes() {
         let directory = scratch.path().join("playground-1");
         let token = directory.join("admin_token");
         if let Some(bytes) = existing {
-            fs::create_dir(&directory).expect("directory");
+            fs::create_dir_all(&directory).expect("directory");
             fs::set_permissions(&directory, fs::Permissions::from_mode(0o700)).expect("private");
             support::write_private(&token, bytes);
         }
@@ -365,7 +365,7 @@ fn fake_preparation_writes_only_a_private_token_and_keeps_existing_bytes() {
         assert_eq!((output.stdout).len(), 0);
         assert_eq!((output.stderr).len(), 0);
         assert_eq!(fs::metadata(&directory).expect("directory").permissions().mode() & 0o777, 0o700);
-        assert_eq!(fs::read_dir(&directory).expect("directory").count(), 1);
+        assert_eq!(fs::read_dir(&directory).expect("directory").count(), 2, "setup and admin token");
         let bytes = fs::read(&token).expect("token");
         if let Some(expected) = existing {
             assert_eq!(bytes, expected);
@@ -386,7 +386,7 @@ fn fake_preparation_refuses_an_open_directory_and_run_still_refuses_fake() {
         let scratch = support::Scratch::new("fake_prepare_refused");
         fake_configuration(scratch.path());
         let directory = scratch.path().join("playground-1");
-        fs::create_dir(&directory).expect("directory");
+        fs::create_dir_all(&directory).expect("directory");
         fs::set_permissions(&directory, fs::Permissions::from_mode(0o755)).expect("open directory");
         let location = if names_directory { format!("{}: ", directory.display()) } else { String::new() };
         support::owned::refused(
@@ -394,13 +394,18 @@ fn fake_preparation_refuses_an_open_directory_and_run_still_refuses_fake() {
             verb,
             format!("temper forge {verb}: forge 1: {location}{reason}\n").as_bytes(),
         );
-        assert_eq!(fs::read_dir(directory).expect("untouched directory").count(), 0);
+        assert_eq!(fs::read_dir(directory).expect("untouched directory").count(), 1, "the setup file stays");
         scratch.remove();
     }
 }
 
 fn fake_configuration(directory: &std::path::Path) {
     let config = support::configuration::check_document(directory);
+    support::configuration::setup(
+        directory,
+        1,
+        serde_json::json!({"kind":"fake","listen":{"socket":"127.0.0.1:3001"},"remote":"http://127.0.0.1:3001","git":"demo/bin/git"}),
+    );
     fs::create_dir_all(directory.join("box/groups")).expect("groups");
     support::write_private(&directory.join("box/groups/1"), b"fake\n");
     fs::write(directory.join("temper.json"), serde_json::to_vec(&config).expect("document")).expect("document");
@@ -423,9 +428,7 @@ fn forge_fetch_command() {
                 person: "ada",
             },
         );
-        let path = scratch.path().join("temper.json");
-        let mut document: serde_json::Value =
-            serde_json::from_slice(&fs::read(&path).expect("document")).expect("JSON");
+        let mut setup = owned::setup_value(scratch.path(), 1, "owned");
         fs::rename(scratch.path().join("box/groups/1"), scratch.path().join("box/groups/3")).expect("numbered group");
         if row == "present-no-group" {
             fs::remove_dir_all(scratch.path().join("box")).expect("no box files");
@@ -435,16 +438,15 @@ fn forge_fetch_command() {
         let file = scratch.path().join("forgejo/17.0.1/forgejo");
         match row {
             "fake" => {
-                configuration::fake_entry(&mut document["application"]["machine"]["fake"], "127.0.0.1:3001");
+                setup = serde_json::json!({"kind":"fake","listen":{"socket":"127.0.0.1:3001"},"remote":"http://127.0.0.1:3001","git":"demo/bin/git"});
                 support::write_private(&scratch.path().join("box/groups/3"), b"fake\n");
             }
             "digest" | "present" | "present-no-group" | "missing-roots" => {
-                document["application"]["machine"]["owned"]["forgejo"] = "fetched".into();
+                setup["forgejo"] = "fetched".into();
                 if row == "digest" {
                     let peer = support::fetch::server();
                     let origin = format!("https://{}", peer.address);
-                    document["application"]["machine"]["owned"]["mirror"] =
-                        serde_json::json!({"forgejo":origin,"runner":origin});
+                    setup["mirror"] = serde_json::json!({"forgejo":origin,"runner":origin});
                     server = Some(peer);
                 }
                 if row == "present" || row == "present-no-group" {
@@ -455,7 +457,7 @@ fn forge_fetch_command() {
             "paths" | "usage" => {}
             _ => unreachable!(),
         }
-        fs::write(&path, serde_json::to_vec(&document).expect("JSON")).expect("document");
+        configuration::setup(scratch.path(), 3, setup);
         if row != "missing-roots" {
             support::fetch::roots(&root);
         }
@@ -585,7 +587,9 @@ fn forge_sign_in_prints_the_owned_command_with_public_forge_and_temper_origins()
     forge_sign_in::configure(directory, "127.0.0.1:3000", "127.0.0.1:31000", "127.0.0.1:31999");
     let path = directory.join("temper.json");
     let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-    value["application"]["machine"]["owned"]["public"] = "https://git.example.com".into();
+    let mut setup = support::owned::setup_value(directory, 1, "owned");
+    setup["public"] = "https://git.example.com".into();
+    support::configuration::setup(directory, 1, setup);
     value["application"]["clients"]["public"] = "https://temper.example.com".into();
     value["engine"]["clients"]["provider"]["clients"][0]["redirect_uri"] =
         "https://git.example.com/user/oauth2/temper/callback".into();
@@ -710,7 +714,9 @@ fn source_configuration(directory: &std::path::Path, port: u16) {
         "clients":[{"id":"forgejo","secret":null,"redirect_uri":"http://127.0.0.1:3000/user/oauth2/temper/callback"}]
     });
     value["application"]["clients"]["listener"] = serde_json::json!({"socket":format!("127.0.0.1:{port}")});
-    value["application"]["machine"]["owned"]["sign_in"] = "forgejo".into();
+    let mut setup = support::owned::setup_value(directory, 1, "owned");
+    setup["sign_in"] = "forgejo".into();
+    support::configuration::setup(directory, 1, setup);
     support::write_private(&path, &serde_json::to_vec(&value).expect("JSON"));
 }
 fn source_script(directory: &std::path::Path, extra: &str) {
@@ -838,7 +844,10 @@ fn source_answer(
     let path = directory.join("temper.json");
     let mut value: serde_json::Value =
         serde_json::from_slice(&fs::read(&path).expect("source configuration")).expect("source JSON");
-    value["application"]["machine"]["owned"]["listen"] = serde_json::json!({"socket":forge_address.to_string()});
+    let mut setup = support::owned::setup_value(directory, 1, "owned");
+    setup["listen"] = serde_json::json!({"socket":forge_address.to_string()});
+    setup["remote"] = format!("http://{forge_address}").into();
+    support::configuration::setup(directory, 1, setup);
     value["engine"]["clients"]["provider"]["clients"][0]["redirect_uri"] =
         format!("http://{forge_address}/user/oauth2/temper/callback").into();
     support::write_private(&path, &serde_json::to_vec(&value).expect("source JSON"));

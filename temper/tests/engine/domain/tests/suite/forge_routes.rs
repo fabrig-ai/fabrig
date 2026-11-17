@@ -70,7 +70,7 @@ mod producer_words;
 mod questions;
 
 #[path = "forge_routes/goal_closer.rs"]
-mod goal_closer;
+pub(crate) mod goal_closer;
 #[path = "forge_routes/goal_closes.rs"]
 mod goal_closes;
 #[path = "forge_routes/status.rs"]
@@ -109,7 +109,7 @@ mod contained_landing;
 #[path = "forge_routes/held_change.rs"]
 mod held_change;
 #[path = "forge_routes/landing.rs"]
-mod landing;
+pub(crate) mod landing;
 mod milestones;
 #[path = "forge_routes/producer_failure.rs"]
 mod producer_failure;
@@ -492,11 +492,7 @@ fn a_change_whose_ci_never_reports_is_stalled_and_held() {
 
 #[test]
 fn a_change_whose_ci_takes_minutes_lands_without_being_held() {
-    let stall =
-        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small)
-            .forge
-            .change_policy
-            .stall;
+    let stall = temper_limits_fixtures::small().forge.change_policy.stall;
     let world = World::configured_limits(
         true,
         true,
@@ -1131,10 +1127,7 @@ fn an_amendment_while_gathering_discards_the_old_brief_without_claiming() {
 #[test]
 #[expect(clippy::too_many_lines, reason = "one slow blocking review, its preparation and landing")]
 fn a_review_whose_forge_reads_take_seconds_is_prepared_once() {
-    let brief =
-        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small)
-            .root
-            .brief;
+    let brief = temper_limits_fixtures::small().root.brief;
     let world = World::configured_brief(
         true,
         true,
@@ -1255,10 +1248,7 @@ fn a_review_whose_forge_reads_take_seconds_is_prepared_once() {
 #[test]
 #[expect(clippy::too_many_lines, reason = "one delayed blocking review, wakes during preparation and its landing")]
 fn a_review_whose_forge_reads_take_seconds_is_prepared_once_and_merges() {
-    let brief =
-        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small)
-            .root
-            .brief;
+    let brief = temper_limits_fixtures::small().root.brief;
     let world = World::configured_brief(
         true,
         true,
@@ -2168,8 +2158,7 @@ fn task_brief(assignment: &engine::Assignment) -> &[u8] {
 
 #[test]
 fn a_chat_made_before_its_home_was_adopted_reads_the_home_and_says_why() {
-    let small =
-        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small);
+    let small = temper_limits_fixtures::small();
     let mut world =
         World::configured_brief(true, true, false, 1000, paths::Gate::default(), None, Some(small.root.brief));
     assert_eq!(world.env.limits.brief.budgets.task, 4608);

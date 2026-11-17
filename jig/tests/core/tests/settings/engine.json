@@ -1,6 +1,6 @@
 {
   "limits": {
-    "profile": "small"
+    "profile": "standard"
   },
   "llm": {
     "providers": [

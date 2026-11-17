@@ -287,6 +287,7 @@ fn outputs(
             | Request::ProjectReleased { .. }
             | Request::ForgeKept(_)
             | Request::ForgeGone { .. }
+            | Request::ChoosePlace { .. }
             | Request::BoxGroup { .. }
             | Request::BoxRemove { .. }
             | Request::LandingNews { .. }

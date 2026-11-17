@@ -33,7 +33,7 @@ pub fn settings() -> Settings {
         local_secret: None,
         approval: false,
         heartbeat: Duration::from_secs(5),
-        rows: jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.documents.rows,
+        rows: jig_protocol_config_fixtures::small().core.documents.rows,
         served,
         providers,
         seed: Secret::new(Box::new([7; 32])),
@@ -180,7 +180,7 @@ pub fn address() -> skein_io::Addr {
 }
 #[must_use]
 pub fn server_limits() -> jig_test_service::server::Limits {
-    let mut limits = jig_test_service::limits::profile_limits(jig_protocol_config::Profile::Small).server;
+    let mut limits = jig_test_service::limits::small(&jig_protocol_config_fixtures::small()).server;
     limits.connections = 8;
     limits.http = server_http();
     limits

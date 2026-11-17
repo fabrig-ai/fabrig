@@ -585,14 +585,14 @@ pub static PAGES: [Page; 75] = [
         name: "limits",
         kind: Kind::Reference,
         title: "Limits",
-        summary: "Every limit application.limits.overrides takes: its unit, the small profile's value and what it bounds.",
+        summary: "Every limit application.limits.overrides takes: its unit, the stock's value and what it bounds.",
         text: include_str!("../../../docs/help/reference/limits.md"),
     },
     Page {
         name: "limits-engine",
         kind: Kind::Reference,
         title: "Engine limits",
-        summary: "Every limit engine.limits.overrides and a worker's limits.overrides take: its unit, the small profile's value and what it bounds.",
+        summary: "Every limit engine.limits.overrides and a worker's limits.overrides take: its unit, the stock's value and what it bounds.",
         text: include_str!("../../../docs/help/reference/limits-engine.md"),
     },
     Page {
@@ -606,7 +606,7 @@ pub static PAGES: [Page; 75] = [
         name: "settings-fields",
         kind: Kind::Reference,
         title: "Settings fields",
-        summary: "Every member of a settings value: its type, its bound and what it does to work, as a settings file sets it and `settings show` prints it.",
+        summary: "Settings value types, bounds and effects, for settings files and `settings show`.",
         text: include_str!("../../../docs/help/reference/settings-fields.md"),
     },
 ];

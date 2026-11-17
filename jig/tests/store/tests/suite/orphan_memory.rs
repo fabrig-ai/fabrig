@@ -12,7 +12,7 @@ const OPEN_HEAP: u64 = 96_000;
 #[test]
 fn opening_a_store_reserves_nothing_for_orphans() {
     // jig's small profile: its orphan estimate alone is hundreds of MiB.
-    let limits = jig_protocol_config::profile(jig_protocol_config::Profile::Small).store;
+    let limits = jig_protocol_config_fixtures::small().store;
     let meter = Meter::new();
     meter.start();
     let mut world = World::unopened_observed(18, limits, None);
