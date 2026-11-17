@@ -105,10 +105,16 @@ struct Harness {
 }
 impl Harness {
     fn new(me: c::Me) -> Self {
+        Self::at(me, None)
+    }
+    fn at(me: c::Me, address: Option<Address>) -> Self {
         let limits = limits();
         let mut root = crate::unlinked(&limits, f::SEED);
         let watch = f::start(&mut root, List::with_capacity(0));
         let mut h = Self { root, limits, out: Queue::uncapped() };
+        if let Some(address) = address {
+            h.went(address);
+        }
         h.event(crate::Event::Client {
             event: jig_client::Event::Up {
                 up: Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) },
@@ -565,6 +571,77 @@ fn a_project_with_only_a_milestone_has_goals() {
     let read = ended_read(&h.down(), Some(LABEL), None);
     h.answer(read, page(&[done(M)], false));
     assert!(h.root.has_goals(PROJECT), "an ended milestone keeps the project fact");
+}
+
+#[test]
+fn milestone_facts_take_each_pages_list_and_keep_it_until_their_own_delivery() {
+    let mut identity = me();
+    let templates = &mut identity.projects.get_mut(0).unwrap().templates;
+    *templates = List::from_boxed(Box::new([templates.get(1).unwrap().clone()]));
+    for address in [
+        Address::Home { project: PROJECT },
+        Address::Work { project: PROJECT, filter: WorkFilter::All },
+        Address::Goals { project: PROJECT, filter: GoalsFilter::All },
+        Address::Changes { project: PROJECT },
+    ] {
+        let mut h = Harness::at(identity.clone(), Some(address));
+        let opened = h.down();
+        let listed = watch(&opened, Some(LABEL), None, WINDOW);
+        let read = ended_read(&opened, Some(LABEL), None);
+        assert_eq!(
+            opened
+                .iter()
+                .filter(|request| {
+                    if let Down::Open { subject: Watchable::Jig(c::Subject::Tasks { query, .. }), .. } = request {
+                        query.label == Some(LABEL)
+                    } else {
+                        false
+                    }
+                })
+                .count(),
+            1,
+            "no narrower milestone twin"
+        );
+        assert_eq!(
+            opened
+                .iter()
+                .filter(|request| {
+                    if let Down::Read { what: Readable::Jig(c::Read::Tasks { query, .. }), .. } = request {
+                        query.label == Some(LABEL)
+                    } else {
+                        false
+                    }
+                })
+                .count(),
+            1,
+            "the fact opens no ended read"
+        );
+        assert!(!h.root.has_goals(PROJECT));
+        h.answer(read, page(&[], false));
+        assert!(h.down().is_empty(), "no twin on the following step");
+        h.live(listed, &[line(M, WALL)]);
+        assert!(h.root.has_goals(PROJECT), "the list's live row supplies the fact");
+        h.down();
+        h.live(listed, &[]);
+        assert!(!h.root.has_goals(PROJECT));
+        let read = ended_read(&h.down(), Some(LABEL), None);
+        // An old ended milestone counts even when it is outside the drawn week.
+        let mut ended = done(M);
+        ended.ended_at = Some(Wall::EPOCH);
+        h.answer(read, page(&[ended], false));
+        assert!(h.root.has_goals(PROJECT), "the list's ended page supplies the fact");
+        h.down();
+        h.went(Address::Settings { project: PROJECT });
+        assert!(h.root.has_goals(PROJECT), "leaving a list cannot blink the entry off");
+        let opened = h.down();
+        let own = watch(&opened, Some(LABEL), None, 1);
+        assert!(opened.contains(&Down::Close { watch: listed }));
+        let read = ended_read(&opened, Some(LABEL), None);
+        h.answer(read, page(&[], false));
+        assert!(h.root.has_goals(PROJECT), "kept until the first own delivery");
+        h.live(own, &[]);
+        assert!(!h.root.has_goals(PROJECT));
+    }
 }
 
 #[test]

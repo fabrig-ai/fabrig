@@ -1439,7 +1439,6 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     if let Some(left_off) = &mut pages.left_off {
         left_off.configure(me, &env.limits, out);
     }
-    pages.has_goals.configure(me, pages.project, &mut pages.next, out);
     if let Address::Home { project } = pages.address
         && pages.home.is_some()
         && pages.has_goals(client, project)
@@ -1477,7 +1476,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     | Address::Home { project } = pages.address
         && let Some(goals) = &mut pages.goals
     {
-        goals.configure(me, project, client, &env.limits, out);
+        goals.configure(me, project, client, &env.limits, pages.needs.inbox_moves, out);
     }
     if let Address::Work { project, .. }
     | Address::Goals { project, .. }
@@ -1492,6 +1491,15 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             reads.requesters(pages.goals.as_ref(), client, &mut pages.next, out);
         }
     }
+    pages.has_goals.configure(
+        me,
+        pages.project,
+        pages.goals.as_ref(),
+        pages.milestones.as_ref(),
+        client,
+        &mut pages.next,
+        out,
+    );
     if let Some(inbox) = &mut pages.inbox {
         inbox.next = inbox.next.max(pages.next);
         inbox.configure(client, &env.limits, out);
@@ -1635,11 +1643,10 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
         pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
         return false;
     }
-    if pages.models.told(client, &told)
-        || pages.needs.told(&told)
-        || pages.choice.told(&told)
-        || crate::acts::told(pages, &told)
-    {
+    if pages.needs.told(&told) {
+        return true;
+    }
+    if pages.models.told(client, &told) || pages.choice.told(&told) || crate::acts::told(pages, &told) {
         pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
         return false;
     }

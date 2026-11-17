@@ -825,13 +825,13 @@ fn a_goal_decides_while_away_then_waits_on_home_after_overturn_and_off() {
     story.finish(&run);
     let view = story.view();
     assert!(
-        Temper::tree(&view)
+        !Temper::tree(&view)
             .nodes()
             .iter()
             .any(|node| node.role == Role::Region && node.name.as_deref() == Some(b"Chats"))
     );
     assert!(
-        !Temper::tree(&view)
+        Temper::tree(&view)
             .nodes()
             .iter()
             .any(|node| node.role == Role::Region && node.name.as_deref() == Some(b"Goals"))
