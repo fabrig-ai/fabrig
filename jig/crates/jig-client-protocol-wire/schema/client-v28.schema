@@ -1,4 +1,4 @@
-family jig-client-wire 27
+family jig-client-wire 28
 # Accounts.accounts/signing, AccountLine.sources and Account.sources: jig_client_domain::Limits::document_bytes; each item is a length-prefixed piece
 # AccountLine.uses and Account.uses: jig_domain_accounts::USES (16)
 # OutcomeAccountSignInStarted.address: jig_domain_people::ADDRESS (2048 bytes).
@@ -727,7 +727,7 @@ enum TaskRunWait { account: TaskWaitAccount, credential, host, refused: TaskRunW
 record TaskSettings { task: u32 run: option u32 newest: u32 }
 record Talk { party: u64 opened: u64 last: u64 }
 record Session { first: u64 last: u64 }
-record Task { concluded: option Concluded talk: option Talk session: option Session  settings: option TaskSettings label: u32 flags: TaskFlags last_activity: u64 made: u64 waits_on: WaitsOn chip: Chip goal: option u64 priority: option u32 lineage_chips: bytes 16777216 inputs: bytes 16777216 project: u32 requester: Requester lineage: list 32 u64 spec: SpecificationDocument spec_revision: Revision person_revision: option Revision taken_by: option u64 instructions: option DocumentText wake: WakePolicy subscriptions: Subscriptions result_contract: TaskContractDocument dependencies: bytes 16777216 references: bytes 16777216 cut: bool resources: bytes 16777216 budget: Budget authority: AuthorityDocument hold: option ChipHold proposals: list 32 ProposalKey activity: u64 changed: u64 acts: bytes 16777216 result: option TaskResult delegates: bytes 16777216 context: option TaskContext llm: option LlmChoice kept_account: option u32 run_wait: option TaskRunWait dependency_facts: list 32 Dependency }
+record Task { concluded: option Concluded talk: option Talk session: option Session  settings: option TaskSettings label: u32 flags: TaskFlags last_activity: u64 made: u64 waits_on: WaitsOn chip: Chip goal: option u64 priority: option u32 lineage_chips: bytes 16777216 inputs: bytes 16777216 project: u32 requester: Requester lineage: list 32 u64 spec: SpecificationDocument spec_revision: Revision person_revision: option Revision taken_by: option u64 instructions: option DocumentText wake: WakePolicy subscriptions: Subscriptions result_contract: TaskContractDocument dependencies: bytes 16777216 references: bytes 16777216 cut: bool resources: bytes 16777216 budget: Budget authority: AuthorityDocument tasks_left: u32 hold: option ChipHold proposals: list 32 ProposalKey activity: u64 changed: u64 acts: bytes 16777216 result: option TaskResult delegates: bytes 16777216 context: option TaskContext llm: option LlmChoice kept_account: option u32 run_wait: option TaskRunWait dependency_facts: list 32 Dependency }
 record ReadPosition { task: u64 through: u64 }
 record Tasks { rows: bytes 16777216 more: bool }
 record EndedRows { rows: bytes 16777216 after: option Cursor cut: bool }

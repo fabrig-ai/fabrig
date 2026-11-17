@@ -421,14 +421,14 @@ fn goal_choice_template(config: &mut engine::Config) {
     config.core.settings.models[0].effort = Some(b"low".as_slice().into());
     config.core.defaults.charters[0].policy.model = config.core.settings.models[0].clone();
     config.core.defaults.charters[0].policy.resume = false;
-    // This fixture admits the stock milestone and its two goals.
+    // The milestone leaves its goals room to delegate work of their own.
     let kinds: Box<[jig_domain_authority::Executor]> = Box::new([
         jig_domain_authority::Executor::Charter(1),
         jig_domain_authority::Executor::Procedure(jig_client::shapes::GATHERING),
     ]);
     let policy = &mut config.core.seed_projects[0].policy.policy;
     for authority in [&mut config.core.defaults.rules.ceiling, &mut policy.ceiling, &mut policy.roles[0].authority] {
-        authority.delegation = jig_domain_authority::Delegation { kinds: kinds.clone(), tasks: 4, depth: 2 };
+        authority.delegation = jig_domain_authority::Delegation { kinds: kinds.clone(), tasks: 8, depth: 4 };
     }
     let models = config
         .core
@@ -673,7 +673,7 @@ fn fixture_root(
             engine_limits.tasks.tasks = 3;
             engine_limits.tasks.project_tasks = 3;
             engine_limits.tasks.project_goals = 3;
-            engine_limits.tasks.tree_tasks = 3;
+            engine_limits.tasks.tree_tasks = 9;
             engine_limits.tasks.delegates = 2;
             engine_limits.people.inbox_tasks = 6;
             engine_limits.authority.executors = 2;

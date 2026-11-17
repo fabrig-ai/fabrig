@@ -2,10 +2,10 @@
 use super::Undecodable;
 use crate::Limits;
 use jig_client_domain::contract as c;
-use jig_client_protocol_wire::{VERSION, v27 as w};
+use jig_client_protocol_wire::{VERSION, v28 as w};
 use skein_lib::{Reader, Wall, length::len_u64};
 
-// Schema client-v27: ReadAnswer::Value, Owner::Jig, ReadValue::Turn,
+// Schema client-v28: ReadAnswer::Value, Owner::Jig, ReadValue::Turn,
 // TurnBytes::Carried. Generated-encoding boundary tests check this inspector.
 const VALUE: u8 = 1;
 const JIG: u8 = 0;

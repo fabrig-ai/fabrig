@@ -1,5 +1,5 @@
 //! Accounts watch records preserve every terminal outcome and optional wall.
-use jig_client_protocol_wire::v27 as w;
+use jig_client_protocol_wire::v28 as w;
 use skein_lib::{Reader, Writer};
 
 #[test]

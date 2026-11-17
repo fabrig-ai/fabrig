@@ -1,11 +1,11 @@
 ╭─ temper ─────────────────────────────────────────────────────────────────────╮
-│ Sign in this terminal to 127.0.0.1:43283                                     │
+│ Sign in this terminal to 127.0.0.1:39455                                     │
 │ A tab opened in your browser. Check it shows                                 │
-│ ZWMP-RSRW, then press Approve.                                               │
-│ No tab? Open http://127.0.0.1:43283/terminal?code=ZWMP-RSRW                  │
+│ SQPT-MRDF, then press Approve.                                               │
+│ No tab? Open http://127.0.0.1:39455/terminal?code=SQPT-MRDF                  │
 │ The code expires in 9 min.                                                   │
 │ Paste the link temper printed, then Enter.                                   │
-│ ❯ Link: http://127.0.0.1:43283/jig/v1/sign-in/link?secret=… (enter sends)    │
+│ ❯ Link: http://127.0.0.1:39455/jig/v1/sign-in/link?secret=… (enter sends)    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 

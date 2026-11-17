@@ -1120,21 +1120,24 @@ pub const GOAL_START: Tool = Tool {
     ]],
     keyed: Keyed::Required,
     area: 2,
-    notes: b"The template fills charter, contract, tracking, label, flags, models
+    notes: b"Template sets charter, contract, tracking, label, flags, models
 and symbolic resources. TEXT's first line is the goal's title, as Home
 and Work show it: at most 60 characters naming the work for a person,
 as \"Store shape S7: history in task logs\"; the rest of TEXT follows
-on the lines below. --charter is required only for a chosen executor.
-Given budget needs --budget or --as-allowed (alternatives); given
-deadline needs --deadline or --no-deadline. Absent controls keep defaults.
+on the lines below.
+Given budget: --budget or --as-allowed; given deadline: --deadline
+or --no-deadline. Defaults otherwise.
 A goal waiting on tasks counts its deadline from when it was made.
---effort needs --model; absent, its default is taken. --model wins
-each run, replacing the later choice too; sub-agents stay unless
---sub-agent replaces them. Without --model the choice holds whole.
+With --milestone, --as-allowed takes all the milestone has left, so
+a second --as-allowed goal in it is refused for its budget: give each
+goal in a milestone --budget AMOUNT.
+--effort needs --model, defaults if absent. --model wins each run
+and replaces the later choice; only --sub-agent replaces sub-agents.
+Without --model the choice holds whole.
 Refused model flags name value and bound; nothing made.
-Within bounds, created; past them but proposable, proposed (exit 0);
+Within bounds: created; past but proposable: proposed (exit 0);
 not offered or past ceilings, nothing sent (exit 1).
-Then task show TASK --until replied.
+task show TASK --until replied.
 ",
 };
 
