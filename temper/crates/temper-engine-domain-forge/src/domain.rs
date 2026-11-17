@@ -6528,7 +6528,10 @@ pub(crate) fn change_outcome(
         skein_forge_client::Outcome::Made { .. } => change::EffectResult::Made,
         skein_forge_client::Outcome::Failed(skein_forge::api::Error::Conflict) => change::EffectResult::Conflict,
         skein_forge_client::Outcome::Failed(
-            skein_forge::api::Error::Timeout | skein_forge::api::Error::Unavailable | skein_forge::api::Error::Stale,
+            skein_forge::api::Error::Timeout
+            | skein_forge::api::Error::Unavailable
+            | skein_forge::api::Error::Stale
+            | skein_forge::api::Error::BaseMoved { .. },
         ) if update => change::EffectResult::None,
         skein_forge_client::Outcome::Failed(_)
         | skein_forge_client::Outcome::Raced { .. }

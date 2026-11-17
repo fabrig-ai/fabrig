@@ -1577,6 +1577,7 @@ fn forge_error(text: &mut Text, error: api::Error) -> Result<(), Problem> {
         api::Error::NothingToMerge => text.add(b"nothing to merge"),
         api::Error::Closed => text.add(b"closed"),
         api::Error::Stale => text.add(b"stale head"),
+        api::Error::BaseMoved { .. } => text.add(b"base moved"),
         api::Error::Conflict => text.add(b"conflict"),
         api::Error::Protected => text.add(b"protected"),
         api::Error::Refused => text.add(b"refused"),

@@ -1445,6 +1445,10 @@ pub enum Path {
     RateLimitedAfter,
     /// Bytes after `RateLimited`.
     RateLimitedTail,
+    /// The `base` field of `BaseMoved`.
+    BaseMovedBase,
+    /// Bytes after `BaseMoved`.
+    BaseMovedTail,
     /// The tag of `Bound`.
     BoundTag,
     /// The `bound` field of `Excess`.
@@ -4815,6 +4819,8 @@ impl Path {
             Self::ProposedEffectTail => "ProposedEffect (tail)",
             Self::RateLimitedAfter => "RateLimited.after",
             Self::RateLimitedTail => "RateLimited (tail)",
+            Self::BaseMovedBase => "BaseMoved.base",
+            Self::BaseMovedTail => "BaseMoved (tail)",
             Self::BoundTag => "Bound (tag)",
             Self::ExcessBound => "Excess.bound",
             Self::ExcessLimit => "Excess.limit",
@@ -9624,6 +9630,37 @@ impl RateLimited {
 
 }
 
+/// Movable fields of `BaseMoved`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct BaseMovedParts {
+    /// The `base` field.
+    pub base: Option<[u8; 32]>,
+}
+
+/// `BaseMoved` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct BaseMoved {
+    base: Option<[u8; 32]>,
+}
+
+impl BaseMoved {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: BaseMovedParts) -> Result<Self, Problem> {
+        let BaseMovedParts { base } = parts;
+        let value = Self { base };
+        Ok(value)
+    }
+
+    /// Reads the `base` field.
+    #[must_use]
+    pub fn base(&self) -> &Option<[u8; 32]> { &self.base }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> BaseMovedParts { BaseMovedParts { base: self.base } }
+
+}
+
 /// `Bound` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Bound {
@@ -9740,6 +9777,8 @@ pub enum Error {
     Busy,
     /// `not_installed` without a payload.
     NotInstalled,
+    /// `base_moved` carrying `BaseMoved`.
+    BaseMoved(BaseMoved),
 }
 
 impl Error {
@@ -32781,6 +32820,45 @@ impl RateLimited {
     }
 }
 
+impl BaseMoved {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_base = &self.base;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_base.is_some() {
+        size = size.checked_add(32).expect("schema ceilings fit u32");
+        }
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_base = &self.base;
+        match field_base {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(some_0)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::BaseMovedTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_base = match reader.u8().ok_or(Problem { path: Path::BaseMovedBase, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::BaseMovedBase, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::BaseMovedBase, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { base: decoded_base })
+    }
+}
+
 impl Bound {
     /// Measures this variant's wire encoding.
     #[must_use]
@@ -32871,6 +32949,7 @@ impl Error {
         match self {
             Self::RateLimited(record) => 1_u32.checked_add(RateLimited::measure(record)).expect("schema ceilings fit u32"),
             Self::TooLarge(record) => 1_u32.checked_add(Excess::measure(record)).expect("schema ceilings fit u32"),
+            Self::BaseMoved(record) => 1_u32.checked_add(BaseMoved::measure(record)).expect("schema ceilings fit u32"),
             Self::Unavailable | Self::Timeout | Self::Forbidden | Self::Missing | Self::MissingJob | Self::Empty | Self::Full | Self::Exists | Self::NothingToMerge | Self::Closed | Self::Stale | Self::Conflict | Self::Protected | Self::Refused | Self::InvalidAnswer | Self::Busy | Self::NotInstalled => 1,
         }
     }
@@ -32897,6 +32976,7 @@ impl Error {
             Self::InvalidAnswer => writer.put(&[16_u8])?,
             Self::Busy => writer.put(&[17_u8])?,
             Self::NotInstalled => writer.put(&[18_u8])?,
+            Self::BaseMoved(record) => { writer.put(&[19_u8])?; record.encode(writer)?; }
         }
         Ok(())
     }
@@ -32930,6 +33010,7 @@ impl Error {
             16 => Self::InvalidAnswer,
             17 => Self::Busy,
             18 => Self::NotInstalled,
+            19 => Self::BaseMoved(BaseMoved::decode_from(limits, reader)?),
             _ => return Err(Problem { path: Path::ErrorTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -56054,6 +56135,34 @@ impl RateLimited {
     }
 }
 
+impl BaseMoved {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(1_u64.checked_add(u64::from(32_u32))?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
 impl Bound {
     /// Maximum encoded bytes among variants.
     #[must_use]
@@ -56121,6 +56230,7 @@ impl Error {
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut biggest = 0_u64;
         biggest = biggest.max(RateLimited::encoded_bound_within(limits)?).max(Excess::encoded_bound_within(limits)?);
+        biggest = biggest.max(BaseMoved::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
@@ -56134,6 +56244,7 @@ impl Error {
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut biggest = 0_u64;
         biggest = biggest.max(RateLimited::decoded_bound_within(limits)?).max(Excess::decoded_bound_within(limits)?);
+        biggest = biggest.max(BaseMoved::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }
@@ -69573,6 +69684,7 @@ fn encoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(EntryRow::encoded_bound_within(limits)?);
     biggest = biggest.max(ProposedEffect::encoded_bound_within(limits)?);
     biggest = biggest.max(RateLimited::encoded_bound_within(limits)?);
+    biggest = biggest.max(BaseMoved::encoded_bound_within(limits)?);
     biggest = biggest.max(Bound::encoded_bound_within(limits)?);
     biggest = biggest.max(Excess::encoded_bound_within(limits)?);
     biggest = biggest.max(Error::encoded_bound_within(limits)?);
@@ -69596,11 +69708,11 @@ fn encoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(BranchCreationValue::encoded_bound_within(limits)?);
     biggest = biggest.max(Kind::encoded_bound_within(limits)?);
     biggest = biggest.max(Provenance::encoded_bound_within(limits)?);
-    biggest = biggest.max(Summary::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(Summary::encoded_bound_within(limits)?);
     biggest = biggest.max(Comment::encoded_bound_within(limits)?);
     biggest = biggest.max(Review::encoded_bound_within(limits)?);
     biggest = biggest.max(ItemsAnswer::encoded_bound_within(limits)?);
@@ -69690,11 +69802,11 @@ fn encoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(ResultText::encoded_bound_within(limits)?);
     biggest = biggest.max(ChangeResult::encoded_bound_within(limits)?);
     biggest = biggest.max(ModelEffort::encoded_bound_within(limits)?);
-    biggest = biggest.max(LlmChoice::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(LlmChoice::encoded_bound_within(limits)?);
     biggest = biggest.max(Route::encoded_bound_within(limits)?);
     biggest = biggest.max(Held::encoded_bound_within(limits)?);
     biggest = biggest.max(Stands::encoded_bound_within(limits)?);
@@ -69784,11 +69896,11 @@ fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(LandingRepairAsk::encoded_bound_within(limits)?);
     biggest = biggest.max(LandingPrefix::encoded_bound_within(limits)?);
     biggest = biggest.max(LandingResolve::encoded_bound_within(limits)?);
-    biggest = biggest.max(LandingAsk::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(LandingAsk::encoded_bound_within(limits)?);
     biggest = biggest.max(LandingAskSlot::encoded_bound_within(limits)?);
     biggest = biggest.max(LandingOperation::encoded_bound_within(limits)?);
     biggest = biggest.max(LandingRun::encoded_bound_within(limits)?);
@@ -69878,11 +69990,11 @@ fn encoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(PathSet::encoded_bound_within(limits)?);
     biggest = biggest.max(ProjectClasses::encoded_bound_within(limits)?);
     biggest = biggest.max(CharterWords::encoded_bound_within(limits)?);
-    biggest = biggest.max(ProjectWords::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_4(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(ProjectWords::encoded_bound_within(limits)?);
     biggest = biggest.max(Dependency::encoded_bound_within(limits)?);
     biggest = biggest.max(FollowRepository::encoded_bound_within(limits)?);
     biggest = biggest.max(FollowSource::encoded_bound_within(limits)?);
@@ -69972,11 +70084,11 @@ fn encoded_bound_4(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(HistoryGateVerdict::encoded_bound_within(limits)?);
     biggest = biggest.max(HistoryGateEnded::encoded_bound_within(limits)?);
     biggest = biggest.max(HistoryProof::encoded_bound_within(limits)?);
-    biggest = biggest.max(HistoryProved::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_5(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(HistoryProved::encoded_bound_within(limits)?);
     biggest = biggest.max(HistorySearched::encoded_bound_within(limits)?);
     biggest = biggest.max(HistoryProbeEnded::encoded_bound_within(limits)?);
     biggest = biggest.max(HistoryTurn::encoded_bound_within(limits)?);
@@ -70131,6 +70243,7 @@ fn decoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(EntryRow::decoded_bound_within(limits)?);
     biggest = biggest.max(ProposedEffect::decoded_bound_within(limits)?);
     biggest = biggest.max(RateLimited::decoded_bound_within(limits)?);
+    biggest = biggest.max(BaseMoved::decoded_bound_within(limits)?);
     biggest = biggest.max(Bound::decoded_bound_within(limits)?);
     biggest = biggest.max(Excess::decoded_bound_within(limits)?);
     biggest = biggest.max(Error::decoded_bound_within(limits)?);
@@ -70154,11 +70267,11 @@ fn decoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(BranchCreationValue::decoded_bound_within(limits)?);
     biggest = biggest.max(Kind::decoded_bound_within(limits)?);
     biggest = biggest.max(Provenance::decoded_bound_within(limits)?);
-    biggest = biggest.max(Summary::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(Summary::decoded_bound_within(limits)?);
     biggest = biggest.max(Comment::decoded_bound_within(limits)?);
     biggest = biggest.max(Review::decoded_bound_within(limits)?);
     biggest = biggest.max(ItemsAnswer::decoded_bound_within(limits)?);
@@ -70248,11 +70361,11 @@ fn decoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(ResultText::decoded_bound_within(limits)?);
     biggest = biggest.max(ChangeResult::decoded_bound_within(limits)?);
     biggest = biggest.max(ModelEffort::decoded_bound_within(limits)?);
-    biggest = biggest.max(LlmChoice::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(LlmChoice::decoded_bound_within(limits)?);
     biggest = biggest.max(Route::decoded_bound_within(limits)?);
     biggest = biggest.max(Held::decoded_bound_within(limits)?);
     biggest = biggest.max(Stands::decoded_bound_within(limits)?);
@@ -70342,11 +70455,11 @@ fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(LandingRepairAsk::decoded_bound_within(limits)?);
     biggest = biggest.max(LandingPrefix::decoded_bound_within(limits)?);
     biggest = biggest.max(LandingResolve::decoded_bound_within(limits)?);
-    biggest = biggest.max(LandingAsk::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(LandingAsk::decoded_bound_within(limits)?);
     biggest = biggest.max(LandingAskSlot::decoded_bound_within(limits)?);
     biggest = biggest.max(LandingOperation::decoded_bound_within(limits)?);
     biggest = biggest.max(LandingRun::decoded_bound_within(limits)?);
@@ -70436,11 +70549,11 @@ fn decoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(PathSet::decoded_bound_within(limits)?);
     biggest = biggest.max(ProjectClasses::decoded_bound_within(limits)?);
     biggest = biggest.max(CharterWords::decoded_bound_within(limits)?);
-    biggest = biggest.max(ProjectWords::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_4(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(ProjectWords::decoded_bound_within(limits)?);
     biggest = biggest.max(Dependency::decoded_bound_within(limits)?);
     biggest = biggest.max(FollowRepository::decoded_bound_within(limits)?);
     biggest = biggest.max(FollowSource::decoded_bound_within(limits)?);
@@ -70530,11 +70643,11 @@ fn decoded_bound_4(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(HistoryGateVerdict::decoded_bound_within(limits)?);
     biggest = biggest.max(HistoryGateEnded::decoded_bound_within(limits)?);
     biggest = biggest.max(HistoryProof::decoded_bound_within(limits)?);
-    biggest = biggest.max(HistoryProved::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_5(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(HistoryProved::decoded_bound_within(limits)?);
     biggest = biggest.max(HistorySearched::decoded_bound_within(limits)?);
     biggest = biggest.max(HistoryProbeEnded::decoded_bound_within(limits)?);
     biggest = biggest.max(HistoryTurn::decoded_bound_within(limits)?);

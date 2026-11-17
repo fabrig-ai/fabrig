@@ -2125,7 +2125,13 @@ fn an_update_lost_or_overtaken_is_let_go_with_its_account() {
     use skein_forge_client::Outcome;
     use temper_engine_domain_forge_change::EffectResult;
     for preparing in [false, true] {
-        for error in [Error::Timeout, Error::Unavailable, Error::Stale] {
+        for error in [
+            Error::Timeout,
+            Error::Unavailable,
+            Error::Stale,
+            Error::BaseMoved { base: Some([6; 32]) },
+            Error::BaseMoved { base: None },
+        ] {
             let (mut d, entry) = updating_entry(preparing);
             settled_change(&mut d, Outcome::Failed(error));
             let row = d.change(fixtures::CHANGE).expect("settled update");
@@ -2237,15 +2243,21 @@ fn a_let_go_update_reads_the_base_it_asked_for_after_main_moves_on() {
 #[test]
 fn a_let_go_update_is_decided_again() {
     for preparing in [false, true] {
-        let (mut d, _) = updating_entry(preparing);
-        let settled = settled_change(&mut d, skein_forge_client::Outcome::Failed(skein_forge::api::Error::Timeout));
-        assert!(settled.contains(&Request::ChangeDecision {
-            task: fixtures::CHANGE,
-            decision: temper_engine_domain_forge_change::Decision::None,
-            entry: None,
-            evidence: None,
-        }));
-        decide_update_again(&mut d, preparing, 2);
+        for error in [
+            skein_forge::api::Error::Timeout,
+            skein_forge::api::Error::BaseMoved { base: Some([6; 32]) },
+            skein_forge::api::Error::BaseMoved { base: None },
+        ] {
+            let (mut d, _) = updating_entry(preparing);
+            let settled = settled_change(&mut d, skein_forge_client::Outcome::Failed(error));
+            assert!(settled.contains(&Request::ChangeDecision {
+                task: fixtures::CHANGE,
+                decision: temper_engine_domain_forge_change::Decision::None,
+                entry: None,
+                evidence: None,
+            }));
+            decide_update_again(&mut d, preparing, 2);
+        }
     }
 }
 

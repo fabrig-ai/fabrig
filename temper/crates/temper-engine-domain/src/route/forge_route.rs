@@ -6140,6 +6140,7 @@ fn adoption_failure(error: skein_forge::api::Error) -> people::Outcome {
         | skein_forge::api::Error::NothingToMerge
         | skein_forge::api::Error::Closed
         | skein_forge::api::Error::Stale
+        | skein_forge::api::Error::BaseMoved { .. }
         | skein_forge::api::Error::Conflict
         | skein_forge::api::Error::InvalidAnswer => people::Outcome::Refused(people::Refusal::Unknown),
     }
