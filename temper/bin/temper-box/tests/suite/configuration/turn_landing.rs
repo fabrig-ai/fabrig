@@ -212,7 +212,8 @@ fn the_turn_landing_settings_select_turn_two_and_its_blocking_gate() {
                 assert_eq!(gate.workflow.as_ref(), b"gate.yml");
                 assert!(gate.blocking);
             }
-            settings::Value::AgentFigures(_) | settings::Value::Welcome(_)
+            settings::Value::AgentFigures(_)
+            | settings::Value::Welcome(_)
             | settings::Value::Rule(_)
             | settings::Value::Charter(_)
             | settings::Value::Questions(_)
