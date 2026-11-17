@@ -364,6 +364,43 @@ runs as contained processes and whose output it parses.
   A push the forge refused (permissions, a
   protected branch, a hook) is a landing of its own, which a retry will
   not change.
+- **A task's own delivery outlives its hold**
+  (`../../draft/delivered-across-runs.md`, 2). A run that delivered and
+  then parked ends its hold, and its next run's hold starts with nothing
+  of its own pushed, at the head that run delivered. So the assignment
+  names, for each writable repository, the task's own delivery,
+  `delivered` (`README.md`, 4.1; `../../protocol/channel.md`, 4): the
+  head of this task's last checked push to that push branch, as the
+  engine recorded it (`../forge/change/questions.md`, 1, *A checked
+  head*), or none.
+  - **Its evidence.** The hold takes `delivered` as this task's work only
+    where the push branch's head fetched at prepare is that head and the
+    checkout starts on it: a start from the push branch, a producer's
+    merge start whose branch already contains its base among them, since
+    it goes on as a start from that branch does (*A merge in progress*,
+    above). Anywhere else it is no evidence, and nothing of it is read. A
+    clean tree alone is never evidence.
+  - **A checked push with nothing new pushes it again.** For a `deliver`
+    or a `finish` with a change, a repository with that evidence and
+    nothing new since the start is this task's delivered work, not
+    unchanged: the worker pushes its head again, requiring the remote to
+    equal the assignment's expected head, or the fetched start when none
+    was supplied, as for existing producer work (above). Only a
+    successful or verified push returns its landing, `Landed` at that
+    head, which is then this hold's last push, so a later `deliver` or
+    `finish` with nothing new is that landing again, as within one hold.
+    A branch that moved since prepare fails the push as moved.
+  - **Everything else as before.** With no `delivered`, or one the
+    fetched head is not (the branch moved past the task's delivery, or
+    holds another party's head), a clean tree is unchanged and a pushed
+    head the branch cannot take is moved. A `save` with nothing new
+    stays unchanged, and saved starts keep their own guarded first push
+    (*Saved work*, below). For an inherited producer the evidence comes
+    first: a head it does not cover goes to the landing tip's comparison
+    above, unchanged.
+  - **Nothing of it is kept on the worker.** Each hold reads its
+    assignment's `delivered` afresh, so a restart of the worker, or a
+    run placed on another, changes nothing.
 - **Pushes are never cancelled.** A push in flight runs to its end, which
   its deadline bounds, so one that lands is reported landed; one that
   ended ambiguously (out of time, broken, the forge lost on the way) is
@@ -526,6 +563,13 @@ wire carries, keeps its first 4,096, where the fields are.
   (jig's `domain/connectors.md`, 3.3), such a rewind is drift the forge
   looks for after the push (../forge/change/README.md, 3). Naming the head prepare saw
   needs a decision for a branch that did not exist then.
+- **A save as the task's own delivery** (*A task's own delivery outlives
+  its hold*): only a checked push is a task's own delivery, since the
+  engine's record is the change's last checked head and a save's tree
+  ran no check. A run that saved on its push branch after its last
+  delivery parks with a branch head no evidence covers, and its next
+  run's clean finish is nothing, as before. Default: so (2026-11-17);
+  counting a save would deliver an unchecked tree as checked.
 - **Code graph:** indexing a checkout for codebase-memory-mcp as part of
   preparing it, and keeping that index with the cache.
 - **Which queued preparation goes first.** Queued prepares are admitted in

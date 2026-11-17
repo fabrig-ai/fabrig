@@ -153,8 +153,15 @@ with `field=result` gives the producer's report whole, in pieces. A document's
 card shows what `documents.text_bytes` holds, marked as cut.
 
 The `no_change` verdict becomes jig's successful `NoChange` result. It
-retains the explanation, supplies no resource or landing, and ends the
-change without a hold or escalation. The requester receives that result.
+retains the explanation and supplies no resource or landing. A
+producer's ends its change without a hold or escalation, and the
+requester receives that result. A repair's or a resolution's is its
+change's to read (`../forge/change/repairs.md`): a CI repair's checks
+its head again (*A CI repair that changes nothing checks its head
+again*), and a landing's, a gate's, a review's or a resolution's holds
+the change, as a failed repair does. So a repair that delivered
+finishes as a change, in a later run as in the one that delivered
+(`README.md`, 5), never as `no_change`.
 A change contract's choice becomes jig's successful `Verdict` result with
 its code, and, like `no_change`, is refused where the run settled a
 change.

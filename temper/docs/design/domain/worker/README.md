@@ -303,6 +303,12 @@ temper's workspace items beside it:
     comparison for existing work, separate from the checkout start and the
     push's expected head; and on a merge in progress it marks a producer's
     start, as a goal's later run's does (`checkouts.md`);
+  - the task's own delivery, for a writable repository: the head of this
+    task's last checked push to its push branch, as the engine recorded
+    it (`../forge/change/questions.md`, 1, *A checked head*), or none; a
+    new hold starting on it holds the task's delivered work, so a
+    delivery with nothing new pushes it again (`checkouts.md`, *A task's
+    own delivery outlives its hold*);
   - the identity for every git operation on it: one of temper's
     application credentials (jig's `domain/engine/README.md`, 6.1), granted
     with the assignment, which the protocol layer maps to a token and a

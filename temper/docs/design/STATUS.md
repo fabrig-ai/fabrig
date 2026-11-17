@@ -309,6 +309,17 @@ change's regate, so the next landing at that key dispatches the gate
 afresh at the same content and its receipt replaces the failed one, with
 no commit made. A red again is repaired and counted as ever.
 
+A task's delivery stays delivered across its runs
+(`domain/worker/checkouts.md`, *A task's own delivery outlives its
+hold*; `draft/delivered-across-runs.status.md`): a change keeps, beside
+its last checked head, the delegate task whose push set it, and that
+task's next assignment names that head as its own delivery, so a
+producer, a repair or a resolution that delivered, asked and parked
+finishes as a change in its next run. Its new hold, starting on that
+head, pushes it again, leased on what prepare fetched, and answers
+delivered; a clean tree with no delivery of its own is still nothing,
+and smith still refuses it.
+
 A project's tiers after landing (`domain/after-landing.md`) are held and
 released by a person, `temper ctl tier hold` and `tier release`, the hold
 kept on the tier's record and said on a verifying change's line; a red
@@ -660,6 +671,7 @@ Drafts:
 - [`draft/crate-graph.md`](draft/crate-graph.status.md)
 - [`draft/dashboards.md`](draft/dashboards.status.md)
 - [`draft/deleted-repository-rows.md`](draft/deleted-repository-rows.status.md) — goal 3678: temper's job at open `deleted-repository-forge-rows` drops the forge rows a deleted project left naming a repository with no `Repository` row, and refuses, naming it, on any row it must keep; jobs at open count what they drop, printed on the `ran` line (`protocol/store.md`, 4; `protocol/binaries.md`, 2).
+- [`draft/delivered-across-runs.md`](draft/delivered-across-runs.status.md)
 - [`draft/delivery-checks.md`](draft/delivery-checks.status.md)
 - [`draft/deployment-binaries.md`](draft/deployment-binaries.status.md)
 - [`draft/design-economy.md`](draft/design-economy.status.md)
