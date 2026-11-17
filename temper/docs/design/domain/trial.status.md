@@ -2,8 +2,6 @@
 
 2026-11-17. Where temper's code lags or departs from [trial.md](trial.md).
 
-- **Not yet:** 4, *Its wait*, and 6, `run_wait`: no row carries its task's run wait, and its change marks nothing [in flight: change 6301].
-- **Not yet:** 6, *Why it waits*: the client watches the running row's task for its wait [in flight: change 6302].
 
 Unlisted sections have no known gap. Charter 10, the person's projectless
 task, the rows and wire, cancellation at the first ending or minute, and
