@@ -5463,6 +5463,7 @@ dependencies = [
  "temper-client-world",
  "temper-engine-domain",
  "temper-engine-domain-forge",
+ "temper-engine-domain-forge-change",
  "temper-engine-domain-world",
  "temper-engine-shell",
  "temper-engine-smith",

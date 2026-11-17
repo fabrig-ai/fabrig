@@ -201,3 +201,45 @@ fn full_patch_validates_then_stops_tui_and_reloads_before_answering() {
         assert!(!line(&mut machine, "ctl me").is_empty(), "deployment still takes lines");
     }
 }
+
+#[test]
+fn restart_keeps_documents_and_reloads_only_a_full_session() {
+    let mut boxed = super::super::ready();
+    let actions = line(&mut boxed, "deployment restart");
+    assert!(matches!(actions.as_slice(), [Action::Answer(answer)]
+        if answer.failed.as_deref() == Some("line 1: a box takes no deployment line")));
+    for ctl in [true, false] {
+        let mut machine = if ctl { deployment_ready() } else { ready_page() };
+        if !ctl {
+            running_tui(&mut machine);
+        }
+        let source = "deployment restart";
+        let actions = line(&mut machine, source);
+        if ctl {
+            stop(&actions, Process::Worker, false);
+        } else {
+            assert!(matches!(actions.as_slice(), [Action::StopTui]), "{actions:?}");
+            stop(&step(&mut machine, Event::TuiStopped), Process::Worker, false);
+        }
+        stop(&step(&mut machine, exited(Process::Worker, 0)), Process::Engine, false);
+        // No patch write: the next effect is starting the engine with the same documents.
+        assert_start(&step(&mut machine, exited(Process::Engine, 0)), Process::Engine);
+        assert_start(&engine_ready(&mut machine), Process::Worker);
+        let mut actions = process_line(&mut machine, Process::Worker, Output::Stderr, "linked worker\n");
+        if !ctl {
+            assert!(
+                matches!(actions.as_slice(), [Action::DeploymentLog { .. }, Action::Open(url)]
+                if url.as_ref() == b"http://127.0.0.1:4101/"),
+                "{actions:?}"
+            );
+            step(&mut machine, Event::FaceDone(Ok(())));
+            actions = step(&mut machine, Event::Found(Some(NodeId(1))));
+        }
+        assert!(answer(&actions).failed.is_none());
+        assert!(
+            actions.iter().any(|action| matches!(action, Action::Keep(kept) if kept.as_ref() == source.as_bytes()))
+        );
+        assert!(machine.ready());
+        assert!(!machine.tui_running);
+    }
+}

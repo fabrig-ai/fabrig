@@ -65,12 +65,22 @@ pub fn forge(deployment: &Value) -> Box<[temper_engine_domain_forge::settings::S
             projects.insert(project, landing_rules(&entry["rules"])).expect("world project rules");
         }
     }
-    temper_engine_domain::landing_stock(
+    let mut stock = temper_engine_domain::landing_stock(
         &deployment,
         &projects,
         u32::try_from(flags["forge_charter"].as_u64().unwrap_or(1)).expect("world change charter"),
         4,
     )
+    .into_vec();
+    if !flags["kinds"].is_null() {
+        stock.extend(
+            temper_playground::documents::settings::kind_defaults(
+                &serde_json::to_vec(&flags["kinds"]).expect("world application defaults"),
+            )
+            .into_vec(),
+        );
+    }
+    stock.into_boxed_slice()
 }
 fn landing_rules(values: &Value) -> Box<[temper_engine_domain::LandingRule]> {
     use temper_engine_domain::{Approval, Freshness, Gate, LandingRule};

@@ -270,12 +270,16 @@ machinery alone. A root recipe, at a deployment's place
   the cluster's story does; the project Hello and the fake Forgejo
   connected as its admin with its first repository `work/hello`, by the
   same ctl line as `project-landing`'s (section 2), waited until it is
-  adopted; then `deployment patch engine landing.json`, whose file sets
-  Hello's landing by `turn`, `batch` 2, its repository's gate `gate`,
-  workflow `gate.yml`, blocking, on the forge and repository numbers
-  those lines made (`deployment.md`, 6.2; `../../domain/landing-settings.md`,
-  1.1); its check, after `check`, ctl's reads of the project, its
-  forge and its repository.
+  adopted; then `ctl settings apply landing.json --against 1`, whose file
+  sets Hello's `project-landing` (`turn`, `batch` 2) and `project-gates`
+  (gate `gate`, workflow `gate.yml`, blocking), on the forge and repository
+  numbers those lines made (`../../client/drive.md`, 3.4). A fresh place
+  holds revision 1 there: adding the account, making the project and
+  adopting the repository make no settings decision. Then `deployment
+  restart`, since kinds 4 and 5 are taken at the next start
+  (`../../client/drive.md`, 3.8; `../../domain/landing-settings.md`, 1.1);
+  its check, after `check`, ctl's reads of the project, its forge and its
+  repository.
 - **Its gate by content:** a dispatched `gate.yml` at a landing's top
   passes unless the top's tree holds `.fake-forge/gate` reading `fail`,
   so a case makes a batch red by a member that writes that file, and

@@ -339,7 +339,7 @@ mod tests {
             assert!(seen.insert(address), "listeners must be distinct: {address}");
         }
         assert!(value["application"].get("machine").is_none());
-        assert!(value["engine"]["clients"].get("provider").is_none());
+        assert_eq!(value["engine"]["clients"]["provider"]["clients"], serde_json::json!([]));
     }
 
     #[test]
