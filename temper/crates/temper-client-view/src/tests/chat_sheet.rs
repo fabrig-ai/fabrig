@@ -31,8 +31,11 @@ struct Case {
 impl Case {
     const READY: Self =
         Self { body: Some(BODY), offered: true, repository: true, asking: false, linked: None, chip: true };
-    #[expect(clippy::too_many_lines, reason = "the fixture answers the chat's watches and reads through public events")]
     fn root(&self) -> Domain {
+        self.root_named(b"Keep working")
+    }
+    #[expect(clippy::too_many_lines, reason = "the fixture answers the chat's watches and reads through public events")]
+    fn root_named(&self, title: &[u8]) -> Domain {
         let mut limits = f::domain_limits();
         limits.client.domain.text = TEXT;
         limits.client.domain.long_text = TEXT;
@@ -123,8 +126,7 @@ impl Case {
                     assert_eq!(tasks.as_slice(), [GOAL]);
                     let mut chip = task.chip.clone();
                     chip.task = GOAL;
-                    chip.title =
-                        c::DocumentText::complete(c::Text::new(b"Keep working".as_slice().into(), TEXT).unwrap());
+                    chip.title = c::DocumentText::complete(c::Text::new(title.into(), TEXT).unwrap());
                     chip.phase = c::Phase::Running;
                     chip.details.phase = c::ChipPhase::Active(c::RunStage::Running { attempt: 1 });
                     Up::Watched {
@@ -369,6 +371,23 @@ fn the_line_stands_by_its_time() {
             assert!(tree.nodes()[index..end].iter().any(|node| node.styles.as_slice().contains(&look::TOOL_FILE)));
             let link = find(tree, Role::Link, b"Open").unwrap();
             assert_eq!(crate::href(&mut view, link).as_deref(), Some(b"/tasks/42".as_slice()));
+        }
+    }
+}
+
+#[test]
+fn the_goal_bar_and_started_fact_cut_their_goal_titles_in_both_shells() {
+    for (title, cut) in f::row_titles() {
+        let root = Case { linked: Some(MIDDLE), ..Case::READY }.root_named(title);
+        for words in [f::words(), f::browser_words()] {
+            let mut view = f::view_of(words);
+            let tree = f::build(&mut view, &root);
+            let link = skein_lib::bytes::concat(&[b"Goal ", cut, " →".as_bytes()]);
+            assert!(find(tree, Role::Link, &link).is_some());
+            assert_eq!(skein_lib::bytes::count(&f::text(tree), cut, 3), 2);
+            let index = tree.nodes().iter().position(|n| n.styles.as_slice().contains(&look::TURN_TOOL)).unwrap();
+            let fact = skein_lib::bytes::concat(&[b"Started goal", cut, b"RunningOpen"]);
+            assert_eq!(f::node_text(tree, index), fact);
         }
     }
 }

@@ -262,7 +262,7 @@ pub fn value(b: &mut Builder, result: &c::ResultValue, _words: &Words) {
     }
 }
 pub fn result(b: &mut Builder, result: &c::Result, words: &Words) {
-    text(b, Role::Heading { level: 3 }, result.task.title.bytes());
+    text(b, Role::Heading { level: 3 }, &crate::common::chat::row_title(result.task.title.bytes()));
     ending(b, &result.ending, words);
     if let Some(result) = &result.value {
         value(b, result, words);
