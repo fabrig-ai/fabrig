@@ -28,6 +28,9 @@
   "PROJECT › TN TITLE", for its own task alone, and its wait at the right
   (`../view.md`, 6). A proposal holds no proposing task's title, so its line stops at
   TN; questions, held tasks and person tasks use their documents' titles.
+  Every TITLE a card draws, on this page, on Home and in the inbox, its
+  milestone's and goal's in the from line among them, is cut past 80
+  characters (`README.md`, 2, *A task's title on a line*).
   A batch proposal keeps the mockup's Why, Goal, Landing and Budget rows:
   its reason quoted, its executor and specification, its landing resources
   and grants with priority, and its funding once. Template and charter
@@ -236,7 +239,9 @@
     the terminal's card), through the confirmation they have (`../README.md`, 3.6). A
     held task: its title and its words, its facts as the terminal's card
     has them, then Release (primary) and Leave held (plain, its reason's
-    textarea as Reject's). A task held because a task it waits on failed or
+    textarea as Reject's); words that are only the title are left out
+    (`README.md`, 2, *A task's words after its title*), as on the funds
+    and person task cards and the terminal's inbox cards. A task held because a task it waits on failed or
     was cancelled (jig's `HoldReason::Dependency { task, how }`) says which
     and what releasing needs as its question (`../../draft/milestones.md`,
     5.3): "S6 is held: S5, which it waits on, failed. Drop or replace that
@@ -296,8 +301,9 @@
   - *SHORT,* what a closed row or a Home line says of a card: a
     question's line, or a person task in words', from the document's bounded
     words; a proposal's reason's first
-    sentence; a held task's or another person task's title, a funds card's
-    "S of L used"; an approval's question.
+    sentence; a held task's or another person task's title, cut past 80
+    characters as TITLE is, a funds card's "S of L used"; an approval's
+    question.
   - *Answered,* under it when any: the section title "Answered", then
     the `.answered` lines.
   - *Only you,* after them, and in the done state after "Home", while an

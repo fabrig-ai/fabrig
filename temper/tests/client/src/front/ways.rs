@@ -188,7 +188,7 @@ fn configured(
                 (b"slow".as_slice(), temper_engine_domain_forge::Follows::Landing),
                 (b"goal".as_slice(), temper_engine_domain_forge::Follows::Goals),
             ]
-            .map(|(name, follows)| engine::TierCheck {
+            .map(|(name, follows)| temper_fixtures::landing::TierCheck {
                 name: name.into(),
                 workflow: name.into(),
                 ignored: Box::new([]),
@@ -198,32 +198,32 @@ fn configured(
                 span_ms: 0,
                 description: Box::default(),
             });
-            assert!(
-                config
-                    .landings
-                    .insert(
-                        1,
-                        engine::ProjectLanding {
-                            gate_retries: 2,
-                            batch: 1,
-                            combine_main: engine::Combine::Merge,
-                            combine_other: engine::Combine::Squash,
-                            gate_timeout: skein_lib::Duration::from_millis(3_600_000),
-                            landing_attempts: engine::LANDING_ATTEMPTS,
-                            check_timeout: None,
-                            by: engine::Way::Queue,
-                            close_job: None,
-                            merge_job: None,
-                            repositories: Box::new([engine::RepositoryChecks {
-                                repository: skein_forge::api::Repository { forge: fixtures::FORGE, repository: 7 },
-                                gates: Box::new([]),
-                                tiers: Box::new(tiers),
-                            }]),
-                            after: engine::AfterLandingCheck { tier_retries: 0, verification_bound_ms: 7_200_000 },
-                        }
-                    )
-                    .is_ok()
-            );
+            assert!({
+                temper_engine_domain_world::oracle::config::set_landing(
+                    &mut config,
+                    1,
+                    temper_fixtures::landing::ProjectLanding {
+                        gate_retries: 2,
+                        batch: 1,
+                        combine_main: engine::Combine::Merge,
+                        combine_other: engine::Combine::Squash,
+                        gate_timeout: skein_lib::Duration::from_millis(3_600_000),
+                        landing_attempts: engine::LANDING_ATTEMPTS,
+                        check_timeout: None,
+                        by: temper_fixtures::landing::Way::Queue,
+                        close_job: None,
+                        merge_job: None,
+                        repositories: Box::new([temper_fixtures::landing::RepositoryChecks {
+                            repository: skein_forge::api::Repository { forge: fixtures::FORGE, repository: 7 },
+                            gates: Box::new([]),
+                            tiers: Box::new(tiers),
+                        }]),
+                        tier_retries: 0,
+                        verification_bound_ms: 7_200_000,
+                    },
+                );
+                true
+            });
         }
         let restart = oracle::config::copy(&config);
         let component =

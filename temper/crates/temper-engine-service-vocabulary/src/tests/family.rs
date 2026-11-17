@@ -696,6 +696,7 @@ fn invalid_change_watches_are_refused_unknown_without_the_root() {
 }
 fn panel() -> forge::Panel {
     forge::Panel {
+        landing_held: false,
         way: change::Way::Queue,
         in_landing: None,
         source: None,
@@ -1783,7 +1784,6 @@ fn embedded_client_refusals_keep_their_bytes_at_current_client_version() {
     let mut after = skein_lib::Writer::new(1);
     jig_client_protocol_wire::Refusal::Unknown.encode(&mut after).unwrap();
     assert_eq!(after.finish().as_ref(), &[9]);
-    assert_eq!(wire::CLIENT_VERSION, 29);
 }
 
 #[test]

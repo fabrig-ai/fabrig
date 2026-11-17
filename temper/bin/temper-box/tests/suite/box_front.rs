@@ -183,7 +183,7 @@ fn a_fresh_front_hands_a_local_sign_in_and_stops_at_its_input_end() {
 }
 
 #[test]
-fn front_refuses_without_a_first_link_before_starting_steps() {
+fn front_refuses_a_fixed_link_member_before_starting_steps() {
     let scratch = support::Scratch::startup("box-front-no-link");
     let initialized = box_link::command(scratch.path(), "init").arg("--box").output().expect("init box");
     assert!(initialized.status.success());
@@ -195,7 +195,10 @@ fn front_refuses_without_a_first_link_before_starting_steps() {
     fs::write(&path, serde_json::to_vec(&document).expect("document bytes")).expect("disabled link");
     let mut pipes = Pipes::start(scratch.path(), &["--front"], None);
     assert_eq!(pipes.stop(), Exit::Code(1));
-    assert_eq!(pipes.bytes[1], b"temper-box: --front: no first sign-in link drawn\n");
+    assert_eq!(
+        pipes.bytes[1],
+        b"temper-box: engine.clients.link: moved: temper fixes the clients' heartbeat, printed link and approval\n"
+    );
     assert!(pipes.bytes[0].is_empty() && pipes.bytes[2].is_empty() && pipes.bytes[3].is_empty());
     assert!(!scratch.path().join("data/box/logs").exists(), "no host or steps started");
     drop(pipes);

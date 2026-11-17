@@ -608,6 +608,7 @@ fn panel(pull: Option<u64>) -> Box<temper_engine_domain_forge::Document> {
     use temper_engine_domain_forge as f;
     use temper_engine_domain_forge_change as c;
     Box::new(f::Document::Change(f::Panel {
+        landing_held: false,
         source: None,
         way: c::Way::Queue,
         in_landing: None,

@@ -237,6 +237,7 @@ fn alone_start(
         fixtures::forge_runtime(),
         None,
         &stock::Given::Own { jig: defaults, forge: Box::new([]), ways: stock::ways() },
+        Some(b"/usr/bin/git"),
     )
 }
 

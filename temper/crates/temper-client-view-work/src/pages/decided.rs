@@ -79,11 +79,14 @@ pub(crate) fn decision(
     }
     b.open(if w.shell == Shell::Terminal { Role::Paragraph } else { Role::Slot });
     let fallback = w.say(Word::Task, &[Hole::Number(row.task)]);
-    let title = row.title.as_deref().unwrap_or(&fallback);
+    let title = crate::common::chat::row_title(row.title.as_deref().unwrap_or(&fallback));
     let at = times.say(w, TimeForm::Clock, row.at);
     let title = match &row.milestone {
-        Some(milestone) => crate::accounts::words::join(&[milestone, " › ".as_bytes(), title]),
-        None => title.into(),
+        Some(milestone) => {
+            let milestone = crate::common::chat::row_title(milestone);
+            crate::accounts::words::join(&[&milestone, " › ".as_bytes(), &title])
+        }
+        None => title,
     };
     let title = crate::accounts::words::join(&[&title, &w.say(Word::ToolSeparator, &[]), &at]);
     let title = match name {

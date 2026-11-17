@@ -343,7 +343,7 @@ fn recovery_of_partial_preparation_and_each_phase_never_repeats_history() {
     world.prepare_subset(LANDING, false, &[0, 1]);
     world.restart();
     let mut heard = heard(Some((701, h::JobOutcome::Failed { class: h::JobFailure::Unknown })));
-    heard.preparation = landing::Preparation::Failed;
+    heard.preparation = Some(landing::Preparation::Failed);
     landings::step_landing_heard(&mut world, LANDING, 150, heard);
     assert!(world.landing(LANDING).landing.members[1].candidate.is_some());
     for change in 51..54 {

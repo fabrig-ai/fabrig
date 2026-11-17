@@ -62,7 +62,7 @@ fn first(state: v1::FirstState) -> v1::FirstRepository {
 #[test]
 fn setup_and_every_first_repository_state_round_trip_at_current_version() {
     use temper_client_protocol_wire as wire;
-    assert_eq!(wire::CLIENT_VERSION, 29);
+    assert_eq!(wire::CLIENT_VERSION, 32);
     let request = setup_request();
     assert_eq!(wire::decode_requesting(&wire::requesting(&request), &v1::CEILINGS), Some(request));
     for state in [

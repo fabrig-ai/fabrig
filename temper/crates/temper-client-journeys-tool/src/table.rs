@@ -168,7 +168,7 @@ const SESSION: Settings = Settings {
         Setting {
             name: "files",
             value: "DIR",
-            about: "Read-only directory of the files forge commit, forge push and deployment patch lines name.",
+            about: "Read-only directory of the files forge commit, forge push, deployment patch and ctl settings apply/propose lines name.",
             fallback: Fallback::Text(""),
             set: Set::Internal,
             twin: None,
@@ -202,7 +202,7 @@ pub(crate) const DRIVE: Command = Command {
         },
     ],
     variables: &[&CHROMIUM, &PATH],
-    notes: "Answers ready, then each web, tui, ctl, forge or deployment line with shown lines prefixed | and ok or failed. forge commit forgejo REPOSITORY MESSAGE PATH [PATH]... commits files from --files DIR; forge checks forgejo REPOSITORY waits on its checks. deployment patch DOCUMENT PATH merges a JSON object into engine, worker or agent, then restarts the deployment; a box refuses it. ctl fields {forgejo.api}, {forgejo.git}, {forgejo.admin}, {git} and {model.key} read the box’s values when run, or the deployment’s rendered documents. end or stdin's end stops the session. Exit 0: ended; 3: store refused; 4: box or deployment failed; 1: session failure. See temper/docs/design/client/drive.md.",
+    notes: "Answers ready, then each web, tui, ctl, forge or deployment line with shown lines prefixed | and ok or failed. forge commit forgejo REPOSITORY MESSAGE PATH [PATH]... commits files from --files DIR; forge checks forgejo REPOSITORY waits on its checks. deployment patch DOCUMENT PATH merges a JSON object into engine, worker or agent, then restarts the deployment; deployment restart keeps the documents unchanged. A box refuses deployment lines. ctl settings apply/propose resolve input files from --files DIR before ctl starts. ctl fields {forgejo.api}, {forgejo.git}, {forgejo.admin}, {git} and {model.key} read the box’s values when run, or the deployment’s rendered documents. end or stdin's end stops the session. Exit 0: ended; 3: store refused; 4: box or deployment failed; 1: session failure. See temper/docs/design/client/drive.md.",
     ..REPRINT
 };
 

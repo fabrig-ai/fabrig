@@ -392,6 +392,19 @@ record LandingRule { pattern: RulePattern enforce: bool ci: bool up_to_date: boo
 record CharterValue { number: u32 }
 record TemplateGoal { design: bool close_out: bool }
 record ProjectQuestions { route: Route }
+# Landing settings, taken at the next start (domain/landing-settings.md, 1.1).
+enum SettingsLandingWay { queue, turn }
+enum SettingsCombine { merge, squash }
+record ProjectLanding { by: SettingsLandingWay batch: u16 combine_main: SettingsCombine combine_other: SettingsCombine merge_job: option bytes 4096 close_job: option bytes 4096 landing_attempts: u8 check_timeout_ms: option u64 gate_retries: u8 gate_timeout_ms: u64 tier_retries: u8 verification_bound_ms: u64 }
+enum SettingsReportFormat { junit, lines }
+record SettingsGateReport { artifact: bytes 32 format: SettingsReportFormat fuzzy: option bytes 64 }
+record SettingsGate { name: bytes 32 workflow: bytes 255 ignored: list 1114240 bytes 1024 blocking: bool base: bool report: option SettingsGateReport }
+record SettingsBranch { name: bytes 1048576 }
+enum SettingsFollows { landing, goals, branch: SettingsBranch }
+record SettingsTier { name: bytes 32 workflow: bytes 255 ignored: list 1114240 bytes 1024 artifact: bytes 32 format: SettingsReportFormat follows: SettingsFollows span_ms: u64 description: bytes 120 }
+record RepositoryGates { forge: u16 repository: u32 gates: bytes 1114240 pieces SettingsGate tiers: bytes 1114240 pieces SettingsTier }
+record ProjectGates { repositories: bytes 1114240 pieces RepositoryGates }
+
 record ProjectWays { drafts: bool goals: bool changes: bool way: u32 }
 # What reaches a person (temper/docs/design/domain/forge/attention.md, 6).
 record ReachKindOf { kind: ReachKind }
@@ -580,8 +593,9 @@ record Area { name: text 32 words: text 480 owner: AreaOwner }
 record ProjectAreas { areas: list 16 Area }
 
 record ProjectTriager { owner: AreaOwner }
+record Welcome { shown: bool }
 
-enum SettingValue { rule: LandingRule, charter: CharterValue, questions: ProjectQuestions, ways: ProjectWays, goal: TemplateGoal, line: CharterWords, words: ProjectWords, classes: ProjectClasses, follow: Follow, dependency: Dependency, areas: ProjectAreas, triager: ProjectTriager }
+enum SettingValue { rule: LandingRule, charter: CharterValue, questions: ProjectQuestions, ways: ProjectWays, goal: TemplateGoal, line: CharterWords, words: ProjectWords, classes: ProjectClasses, follow: Follow, dependency: Dependency, areas: ProjectAreas, triager: ProjectTriager, welcome: Welcome, project_landing: ProjectLanding, project_gates: ProjectGates }
 record SizedValue { value: SettingValue size: u32 }
 enum SettingEdit { set: SizedValue, remove, reset }
 record SettingRow { kind: u32 scope: u32 number: u32 slot: SettingSlot edit: SettingEdit }
@@ -600,4 +614,5 @@ record Device { party: u64 number: u32 endpoint: bytes 1024 p256dh: fixed 65 aut
 enum Value { call: Call, proposed_effect: ProposedEffect, repository: Adopted, hold: Hold, names: Names, subscription: Subscriber, branch_head: BranchHead, pull_state: PullState, ci: CiState, landed: Landed, entry: EntryRow, client: ClientRow, issue: boxed IssueRow, release: ReleaseRow, application: Application, writer: ForgeWriter, binding: Binding, flight: Flight, landing: boxed LandingRow, receipt: ReceiptRow, forge: Forge, forge_number: ForgeNumber, playground: Playground, tier: boxed TierRow, verification: Verification, setting: SettingRow, dismissed: Dismissed, making: RepositoryMaking, landing_log: LandingLog, project_facts: ProjectFacts, looked: Looked, away: Away, decided: Decided, closer: Closer, landed_draft: LandedDraft, follow: boxed FollowRow, device: Device, finding: Finding, history_project: HistoryProject, history_event: HistoryEvent, history_change: HistoryChange, history_landing: HistoryLanding, history_last: HistoryLast, red: Red, red_number: RedNumber, red_pass: RedPass, change_cold: boxed ChangeCold, change_hot: boxed ChangeHot, milestone: MilestoneRow }
 
 versioned record Row { value: Value }
+
 

@@ -275,3 +275,41 @@ fn milestone_tag_count_and_state_words_keep_their_styles() {
         }
     }
 }
+
+#[test]
+fn milestone_rows_cut_the_title_at_eighty_but_goal_names_at_forty() {
+    for (title, cut) in f::row_titles() {
+        let mut listed = line(99, title);
+        listed.parts =
+            List::from_boxed(Box::new([f::milestones::part(None, totals(0, 0, 1), &[(line(7, title), None)], 0)]));
+        // The part's goal line carries the whole title, past the kit's text bound.
+        let mut limits = f::domain_limits();
+        limits.client.domain.text = 1024;
+        limits.client.domain.long_text = 1024;
+        limits.client.domain.turn_text = 1024;
+        let link = jig_client_protocol_link::Limits::new(limits.client.domain, limits.client.exchanges).unwrap();
+        let milestone = pure::Milestone::from_line(&listed, &link);
+        let goal_name = crate::common::chat::cut_title(title, 40, false);
+        for words in [f::browser_words(), f::words()] {
+            let mut b = Builder::new(&f::tree_limits());
+            let mut bindings = crate::bindings::Bindings::new(f::tree_limits().bindings);
+            milestones::row(
+                &mut b,
+                &words,
+                &mut bindings,
+                &listed,
+                &milestone,
+                &temper_client_domain::pages::goals::Goals::new(1),
+                &Names::new(),
+            );
+            let tree = b.finish();
+            let link = tree.nodes().iter().find(|node| node.role == Role::Link).unwrap();
+            assert!(skein_lib::bytes::find(link.name.as_deref().unwrap(), cut).is_some());
+            assert!(skein_lib::bytes::find(&f::text(&tree), cut).is_some());
+            let headline =
+                tree.nodes().iter().position(|node| node.styles.as_slice().contains(&look::GOALS_LINE)).unwrap();
+            assert!(skein_lib::bytes::find(&f::node_text(&tree, headline), &goal_name).is_some());
+            assert!(goal_name.len() < cut.len());
+        }
+    }
+}

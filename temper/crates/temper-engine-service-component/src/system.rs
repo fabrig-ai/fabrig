@@ -502,11 +502,6 @@ impl Service {
     }
 }
 
-/// Whether the deployment can set up an owned forge (temper/docs/design/client/forge/records.md).
-pub(crate) const fn deployment_owned(document_owned: bool, under_box: bool) -> bool {
-    document_owned && under_box
-}
-
 /// Render a checked socket's IP for a domain place.
 #[must_use]
 pub fn socket_host(address: core::net::SocketAddr) -> Box<[u8]> {
@@ -527,30 +522,5 @@ impl Service {
     }
     pub fn resolved(&mut self, forge: u16, address: Option<core::net::SocketAddr>) {
         self.engine_component().resolved(forge, address);
-    }
-}
-
-#[cfg(test)]
-mod box_tests {
-    use crate::tests::fixtures;
-
-    #[test]
-    fn machine_context_carries_only_the_owned_persons_login() {
-        let mut machine = fixtures::machine();
-        assert!(super::machine_config(&machine).owned_person.is_empty());
-        let temper_forge_setup::setup::Mode::Owned(owned) = fixtures::owned_setup(1).entry.mode else {
-            panic!("owned machine fixture")
-        };
-        machine.owned = Some(temper_forge_setup::machine::OwnedMachine {
-            sign_in: None,
-            listen: owned.listen,
-            remote: b"http://forge.example".as_slice().into(),
-            person: owned.person,
-            public: owned.public,
-            fetch: owned.fetch,
-            forgejo: owned.forgejo,
-            runner: owned.runner,
-        });
-        assert_eq!(super::machine_config(&machine).owned_person.as_ref(), b"owner");
     }
 }

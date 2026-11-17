@@ -76,7 +76,7 @@ fn stock_box(account: OneAccount) -> StockBox {
         },
         period_span: crate::stock::PERIOD_SPAN,
         core,
-        landings: application.landings,
+        landing_held: false,
         kinds_stock: crate::stock::forge(&limits),
         ways_stock: Box::default(),
         forge: temper_engine_domain_forge::Config { push: None, namespace: Box::new([31; 16]), writers: Box::new([]) },

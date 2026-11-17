@@ -366,6 +366,9 @@ impl Session {
                 break;
             }
             match action {
+                Action::ReadSettingsFiles { directory, args } => {
+                    self.event(Event::SettingsFiles(deployment::settings_files(directory.as_deref(), args)));
+                }
                 Action::PrepareDeployment => {
                     let result = deployment::prepare(&self.machine.plan).and_then(|values| {
                         for process in [Process::Forgejo, Process::Model, Process::Engine, Process::Worker] {

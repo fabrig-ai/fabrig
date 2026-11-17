@@ -60,6 +60,9 @@ fn limits() -> temper_client_domain::Limits {
     let mut limits = f::domain_limits();
     // The small whole project opens its lists together.
     limits.client.domain.handles = 64;
+    limits.client.domain.text = 1024;
+    limits.client.domain.long_text = 1024;
+    limits.client.domain.turn_text = 1024;
     limits.client.domain.reads = 32;
     limits.client.exchanges = 32;
     limits
@@ -178,10 +181,13 @@ impl Fixture {
         }
         reads.into_boxed()
     }
-    #[expect(clippy::too_many_lines, reason = "one fixture answers three lists and their per-row provenance")]
     fn populate(&mut self, full: bool) {
+        self.populate_named(full, None);
+    }
+    #[expect(clippy::too_many_lines, reason = "one fixture answers three lists and their per-row provenance")]
+    fn populate_named(&mut self, full: bool, title: Option<&[u8]>) {
         self.drafts(&[]);
-        let mut goal = line(GOAL, b"membership-handoff");
+        let mut goal = line(GOAL, title.unwrap_or(b"membership-handoff"));
         goal.label = 8;
         goal.tracked = Some(1);
         goal.delegates_done = 6;
@@ -193,9 +199,9 @@ impl Fixture {
             None,
         )]);
         self.live(self.goals, if full { core::slice::from_ref(&goal) } else { &[] });
-        let mut draft = line(DRAFT, b"Read barriers");
+        let mut draft = line(DRAFT, title.unwrap_or(b"Read barriers"));
         draft.parts = list(&[temper_fixtures::client_documents::chat_part(Some(b"Read barriers"))]);
-        let chat_lines = [line(CHAT, b"The comment is stale"), draft];
+        let chat_lines = [line(CHAT, title.unwrap_or(b"The comment is stale")), draft];
         self.live(self.chats, if full { &chat_lines } else { &[] });
         for (read, what) in self.reads() {
             if let c::Read::Tasks { .. } = what {
@@ -212,23 +218,20 @@ impl Fixture {
                 panic!("Work rows read no notes");
             }
         }
+        let goal_title = title.unwrap_or(b"membership-handoff");
         let mut queued = List::with_capacity(3);
         if full {
             for (task, title) in [
-                (QUEUED_GOAL, b"Witness retention".as_slice()),
-                (QUEUED_CHAT, b"Comment rewritten"),
-                (INDEPENDENT, b"Witness rejoin test"),
+                (QUEUED_GOAL, title.unwrap_or(b"Witness retention")),
+                (QUEUED_CHAT, title.unwrap_or(b"Comment rewritten")),
+                (INDEPENDENT, title.unwrap_or(b"Witness rejoin test")),
             ] {
                 queued
                     .push(
                         w::ChangesQueued::new(
                             &w::CEILINGS,
                             w::ChangesQueuedParts {
-                                goal: if task == QUEUED_GOAL {
-                                    Some(origin(GOAL, b"membership-handoff"))
-                                } else {
-                                    None
-                                },
+                                goal: if task == QUEUED_GOAL { Some(origin(GOAL, goal_title)) } else { None },
                                 chat: if task == QUEUED_CHAT { Some(origin(CHAT, b"chat")) } else { None },
                                 milestone: None,
                                 task,
@@ -246,14 +249,14 @@ impl Fixture {
             list(&[w::ChangesLanded::new(
                 &w::CEILINGS,
                 w::ChangesLandedParts {
-                    goal: Some(origin(GOAL, b"membership-handoff")),
+                    goal: Some(origin(GOAL, goal_title)),
                     chat: None,
                     milestone: None,
                     signed: List::with_capacity(8),
                     commit: [0xab; 32],
                     default_branch: true,
                     task: LANDED,
-                    title: b"Handoff states".as_slice().into(),
+                    title: title.unwrap_or(b"Handoff states").into(),
                     at: RECENT,
                 },
             )
@@ -1265,4 +1268,90 @@ fn a_placed_goal_uses_the_shared_live_row_while_the_milestones_read_catches_up()
 
 fn origin(task: u64, title: &[u8]) -> w::ChangeFrom {
     w::ChangeFrom::new(&w::CEILINGS, w::ChangeFromParts { task, title: title.into() }).unwrap()
+}
+
+#[test]
+fn work_cards_and_rows_cut_only_their_titles_in_both_shells() {
+    for (title, cut) in f::row_titles() {
+        let mut page = Fixture::new(None, false);
+        page.populate_named(true, Some(title));
+        page.drafts(&[landed_draft(b"docs/design/draft/another.md", title)]);
+        for words in [f::browser_words(), f::words()] {
+            let (tree, bindings) = page.tree(&words);
+            let mut title_quotes = 0_usize;
+            for quote in styled(&tree, look::WORK_QUOTE) {
+                if quote.name.as_deref() == Some(cut) {
+                    title_quotes += 1;
+                }
+            }
+            assert_eq!(title_quotes, 2, "the chat draft and landed draft titles");
+            for task in [GOAL, CHAT, QUEUED_GOAL, QUEUED_CHAT, INDEPENDENT] {
+                let link = title_link(
+                    &tree,
+                    &bindings,
+                    if task == CHAT { Address::Chat { task } } else { Address::Task { task } },
+                );
+                assert!(skein_lib::bytes::find(link.name.as_deref().unwrap(), cut).is_some());
+                assert!(skein_lib::bytes::find(&subtree_text(&tree, link), cut).is_some());
+            }
+            if title != cut {
+                assert!(skein_lib::bytes::find(&f::text(&tree), title).is_none());
+            }
+        }
+    }
+}
+
+#[test]
+fn milestone_groups_cut_their_from_and_goal_titles_in_both_shells() {
+    for (title, cut) in f::row_titles() {
+        let mut page = Fixture::new(None, false);
+        page.populate(false);
+        let running = milestone_goal(3, title);
+        page.live(page.goals, core::slice::from_ref(&running));
+        let watch = page.open_milestones();
+        let mut own = milestone_line();
+        own.chip.title = text(title);
+        page.live(watch, core::slice::from_ref(&own));
+        page.serve_milestone(&own, &[running], &[], true, Some(&milestone_totals(0, 0, 1)));
+        for words in [f::browser_words(), f::words()] {
+            let (tree, bindings) = page.tree(&words);
+            for task in [M, 3] {
+                let link = title_link(&tree, &bindings, Address::Task { task });
+                assert!(skein_lib::bytes::find(link.name.as_deref().unwrap(), cut).is_some());
+                assert!(skein_lib::bytes::find(&subtree_text(&tree, link), cut).is_some());
+            }
+        }
+    }
+}
+
+#[test]
+fn changes_rows_cut_the_change_and_origin_goal_titles_in_both_shells() {
+    for (title, cut) in f::row_titles() {
+        let mut page = Fixture::new(None, false);
+        page.populate_named(true, Some(title));
+        for words in [f::browser_words(), f::words()] {
+            let mut b = Builder::new(&f::tree_limits());
+            let mut bindings = Bindings::new(f::tree_limits().bindings);
+            crate::pages::changes::main(&mut b, &page.root, &words, &mut bindings, f::PROJECT, &mut Times::new(NOW));
+            let tree = b.finish();
+            let link = title_link(&tree, &bindings, Address::Task { task: QUEUED_GOAL });
+            assert_eq!(skein_lib::bytes::count(link.name.as_deref().unwrap(), cut, 3), 2);
+            assert_eq!(skein_lib::bytes::count(&subtree_text(&tree, link), cut, 3), 2);
+        }
+    }
+}
+
+fn title_link<'a>(tree: &'a Tree, bindings: &Bindings, address: Address) -> &'a skein_ui::Node {
+    for node in tree.nodes() {
+        if node.role == Role::Link
+            && let Some(binding) = node.binding
+            && bindings.decode(binding.token, skein_ui::Act::Press)
+                == Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Go {
+                    address: address.clone(),
+                }))
+        {
+            return node;
+        }
+    }
+    panic!("missing title link {address:?}");
 }

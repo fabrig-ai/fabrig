@@ -260,7 +260,7 @@ impl Judge {
         if engine["workers"] != serde_json::json!([]) {
             return Err("engine alone".to_owned());
         }
-        if engine["application"]["workers"] != serde_json::json!([]) {
+        if engine["application"].get("workers").is_some() {
             return Err(format!(
                 "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
                 engine["application"]["workers"],

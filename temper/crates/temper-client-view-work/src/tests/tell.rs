@@ -98,13 +98,19 @@ fn family(root: &mut d::Domain, watch: Token, bytes: Box<[u8]>) -> Queue<Request
     )
 }
 
-fn fill(root: &mut d::Domain, mut out: Queue<Request>) {
+fn fill_named(root: &mut d::Domain, mut out: Queue<Request>, title: &[u8]) {
     while let Some(request) = out.pop() {
         let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else { continue };
         let mut more = match down {
-            Down::Open { watch, subject: Watchable::Jig(c::Subject::Task { task: 52 }) } => {
-                deliver(root, watch, c::Delivery::Task(Box::new(task())))
-            }
+            Down::Open { watch, subject: Watchable::Jig(c::Subject::Task { task: 52 }) } => deliver(
+                root,
+                watch,
+                c::Delivery::Task(Box::new({
+                    let mut document = task();
+                    document.chip.title = f::delegation::document(title);
+                    document
+                })),
+            ),
             Down::Open { watch, subject: Watchable::Jig(c::Subject::Tasks { query, .. }) }
                 if query.label == Some(3) =>
             {
@@ -195,14 +201,17 @@ fn fill(root: &mut d::Domain, mut out: Queue<Request>) {
 }
 
 fn fixture(address: Address) -> d::Domain {
+    fixture_named(address, b"Prover")
+}
+fn fixture_named(address: Address, title: &[u8]) -> d::Domain {
     let (mut root, watch, _, _, _) =
         f::root_at_full(Address::Work { project: 2, filter: d::WorkFilter::All }, &limits(), b"shop");
     let me = f::asking_me(root.pages().me(root.client()).unwrap().clone());
     f::deliver_me(&mut root, watch, me);
     let out = go(&mut root, Address::Talk { project: 1, task: 52 });
-    fill(&mut root, out);
+    fill_named(&mut root, out, title);
     let out = go(&mut root, address);
-    fill(&mut root, out);
+    fill_named(&mut root, out, title);
     root
 }
 
@@ -263,4 +272,19 @@ fn tell_destinations_name_the_owner_triager_and_owners() {
         assert_eq!(crate::pages::tell::filed(&root, &w, 1, Some(&goes)).as_ref(), toast.as_bytes());
     }
     assert_eq!(crate::pages::tell::filed(&root, &w, 1, None).as_ref(), b"Filed.");
+}
+
+#[test]
+fn tells_about_line_cuts_the_remembered_tasks_title_in_both_shells() {
+    for (title, cut) in f::row_titles() {
+        let root = fixture_named(Address::Tell { project: 1 }, title);
+        for words in [f::browser_words(), f::words()] {
+            let mut b = skein_ui::Builder::new(&f::tree_limits());
+            let mut bindings = crate::bindings::Bindings::new(f::tree_limits().bindings);
+            crate::pages::tell::main(&mut b, &root, &words, &mut bindings, 1);
+            let tree = b.finish();
+            let line = skein_lib::bytes::concat(&[b"About shop", " · the page you were on, ".as_bytes(), cut]);
+            assert!(skein_lib::bytes::find(&f::text(&tree), &line).is_some(), "{:?}", f::text(&tree));
+        }
+    }
 }

@@ -1,6 +1,7 @@
 # budgets: status
 
-2026-11-16. Where the code lags or departs from [budgets.md](budgets.md).
+2026-11-17. Where the code lags or departs from [budgets.md](budgets.md).
 
-- **Not yet:** 4, 8: every process of a one-process run counts in its sums, the suite's, the layers' and a binary's figure at the head: no kind is left out, since no run has a `reference` or `empty` process yet [in flight: change 5752].
-- **Not yet:** 2, 7: `budgets()` refuses a profile's `reasons`; the ledger is version 1: `ledger()` reads no other version and no `alone`, and a run writes version 1 with no test's CPU alone [in flight: change 5753].
+- **Not yet:** 7, 8 and 9: the ledger's binaries keep one `cpu_s`, version 2, and `ledger()` refuses version 3; a binary's figure at main is its one last figure; the noise is the larger of a hundredth of a layer's figure at main and half a second; the fold's `lowest_s` takes the layer's figure at the head [in flight: change 6667].
+
+No other gaps.

@@ -645,11 +645,14 @@ provenance (who wrote it, or why) is never a tier.
 A slow tier's rule holds wherever it runs: after landing, through
 `tools/tiers/run`, or in anyone's own run. Slow tiers never run in the
 gate. **The focused and fuzzy suites' CPU budgets are judged at the merge
-gate:** a layer over its budget there is red, and every other run (the
-delivery check, a builder's, anyone's own) prints the same comparison as
-a warning naming the layer, its figure and its budget, since another
-machine's CPU, or a busy one's, isn't the gate's (the user, 11-16;
-`tools/tiers/budgets.md`, 5).
+gate:** a layer over its budget there is red. A delivery check on a
+builder that keeps main's ledgers judges the delivery as the gate will
+and refuses it there, so a goal hears it before its pull request (the
+user, 11-17). Every other run (a delivery check without them, a
+builder's own, anyone's) prints the same comparison as a warning naming
+the layer, its figure and its budget, since another machine's CPU, or a
+busy one's, isn't the gate's (the user, 11-16; `tools/tiers/budgets.md`,
+5).
 
 **The budget is CPU seconds:** user plus system time of the tests'
 processes, descendants included, summed per suite (a tree's tier):
@@ -693,7 +696,9 @@ its figure at main and at least 50 ms over it, and a flagged test is run
 alone at the head and at the base and judged by the two figures. A test
 may pass its reference by a line beside the budgets giving its figure and
 why, which the change's review judges; it still counts in its layer, so a
-reason never raises a budget. Every other run judges nothing alone
+reason never raises a budget. A delivery check with main's ledgers
+judges its tests so too, a flagged one by the ledger's figures alone,
+since it builds nothing at its base; every other run judges nothing alone
 (`tools/tiers/references.md`).
 
 **Every test binary is in one layer,** a tier of section 2, since a

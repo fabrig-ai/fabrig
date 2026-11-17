@@ -36,7 +36,7 @@ pub fn forge(row: &Row, w: &Words) -> Box<[u8]> {
 
 #[must_use]
 pub fn question(row: &Row, w: &Words) -> Box<[u8]> {
-    w.say(Word::ApprovalQuestion, &[Hole::Name(row.title.clone()), Hole::Name(forge(row, w))])
+    w.say(Word::ApprovalQuestion, &[Hole::Name(super::chat::row_title(&row.title)), Hole::Name(forge(row, w))])
 }
 
 #[must_use]

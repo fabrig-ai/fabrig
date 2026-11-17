@@ -321,8 +321,12 @@
     none, the count's words saying it.
   - *Its title,* past 80 characters, is cut at the last space that leaves
     it at most 80 with "…", or at a character's edge where there is none:
-    one function of the view's parts, which the chats' heading's cut
-    (`chat::short_title`, at 72) shares.
+    one function of the view's parts, `shared::row_title`, which the
+    chats' heading's cut (`chat::short_title`, at 72) shares, and which
+    every line, row and card naming a task by its title takes
+    (`README.md`, 2, *A task's title on a line*): Work's chat cards,
+    landed drafts, nested rows and from lines, and a milestone group's
+    rows, as this row.
 
   **A goal's state** is a pure function, `goals::state`, the first that matches:
 
