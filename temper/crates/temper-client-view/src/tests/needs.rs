@@ -1049,6 +1049,173 @@ fn held_row(h: c::Escalation) -> (c::ObjectKey, c::Read, c::ReadValue) {
     )
 }
 
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the view scenario constructs long titles and expected lines")]
+fn from_lines_cut_each_task_title_and_keep_eighty_characters() {
+    let long = "abcd ".repeat(20).trim_end().to_owned();
+    let cut = format!("{}…", vec!["abcd"; 16].join(" "));
+    for (title, expected) in [(long, cut), ("x".repeat(80), "x".repeat(80))] {
+        let mut task = milestone_task(true);
+        task.chip.title = words(&title);
+        for chip in task.lineage_chips.iter_mut() {
+            chip.title = words(&title);
+        }
+        let root = f::needs::with_task(task, d::address::Filter::ALL);
+        let view = f::browser_page_view(&root);
+        assert_eq!(
+            styled(&view, look::ASK_META).name.as_deref(),
+            Some(format!("Shop · {expected} › {expected} › {expected} · a question · under 1 min").as_bytes())
+        );
+        let from = super::inbox::subtree(view.tree(), super::inbox::styled(view.tree(), look::ASK_META));
+        let links: Vec<_> = from.iter().filter(|n| n.role == Role::Link).collect();
+        assert_eq!(links.len(), 3);
+        for link in links {
+            assert_eq!(link.name.as_deref(), Some(expected.as_bytes()));
+            let at = view.tree().nodes().iter().position(|n| n.id == link.id).unwrap();
+            assert_eq!(f::node_text(view.tree(), at).as_ref(), expected.as_bytes());
+        }
+        let terminal = f::page_view(&root);
+        assert!(has(&terminal, format!("Shop › {expected} › T9 {expected}").as_bytes()));
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the view scenario constructs long titles and expected lines")]
+fn held_person_and_funds_cards_cut_titles_before_joining_lines() {
+    let long = "abcd ".repeat(20).trim_end().to_owned();
+    let cut = format!("{}…", vec!["abcd"; 16].join(" "));
+    let mut held = held(Some(c::HoldCategory::Stalled));
+    held.task.chip.title = words(&long);
+    let mut funds = held.clone();
+    funds.task.hold.as_mut().unwrap().reason = c::HoldCategory::Budget;
+    let mut person = person();
+    person.task.title = words(&long);
+    for (row, heading) in [
+        (held_row(held), cut.as_str()),
+        (held_row(funds), "31 of 40 used."),
+        (
+            (
+                c::ObjectKey::PersonTask(person.task.task),
+                c::Read::PersonTask { task: person.task.task },
+                c::ReadValue::PersonTask(Box::new(person)),
+            ),
+            cut.as_str(),
+        ),
+    ] {
+        let number = crate::pages::inbox::source_task(row.0).unwrap();
+        let root = kinds(&[row]);
+        let view = f::browser_page_view(&root);
+        assert_eq!(styled(&view, look::FLOW_Q).name.as_deref(), Some(heading.as_bytes()));
+        assert!(f::find(view.tree(), Role::Link, cut.as_bytes()).is_some());
+        assert!(!has(&view, long.as_bytes()));
+        let terminal = f::page_view(&root);
+        assert!(has(&terminal, format!("T{number} {cut}").as_bytes()));
+        assert!(f::find(terminal.tree(), Role::Heading { level: 3 }, cut.as_bytes()).is_some());
+        assert!(!has(&terminal, long.as_bytes()));
+    }
+}
+
+#[test]
+fn title_only_card_words_are_omitted_but_bodies_and_partial_words_stay() {
+    for (written, cut, drawn) in [
+        ("Release the runner", false, false),
+        ("Release the runner\nIt waits on CI.", false, true),
+        ("Release the runner", true, true),
+    ] {
+        let mut held = held(Some(c::HoldCategory::Stalled));
+        held.task.chip.title = words("Release the runner");
+        held.task.spec.specification.words = words(written);
+        held.task.spec.specification.words.cut = cut;
+        let mut funds = held.clone();
+        funds.task.hold.as_mut().unwrap().reason = c::HoldCategory::Budget;
+        let mut person = person();
+        person.task.title = words("Release the runner");
+        person.spec.specification.words = words(written);
+        person.spec.specification.words.cut = cut;
+        for row in [
+            held_row(held),
+            held_row(funds),
+            (
+                c::ObjectKey::PersonTask(person.task.task),
+                c::Read::PersonTask { task: person.task.task },
+                c::ReadValue::PersonTask(Box::new(person)),
+            ),
+        ] {
+            let root = kinds(&[row]);
+            for view in [f::browser_page_view(&root), f::page_view(&root)] {
+                let paragraphs: Vec<_> = view
+                    .tree()
+                    .nodes()
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, n)| n.role == Role::Paragraph)
+                    .map(|(at, _)| f::nodes_text(super::inbox::subtree(view.tree(), at)))
+                    .collect();
+                assert_eq!(
+                    paragraphs.iter().any(|text| skein_lib::bytes::find(text, b"Release the runner").is_some()),
+                    drawn,
+                    "{written}, cut={cut}"
+                );
+                assert_eq!(has(&view, b"It waits on CI."), written.contains('\n'));
+            }
+        }
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the view scenario constructs long titles and expected lines")]
+fn a_reasonless_batch_uses_the_cut_title_without_cutting_reasons() {
+    let long = "abcd ".repeat(20).trim_end().to_owned();
+    let cut = format!("{}…", vec!["abcd"; 16].join(" "));
+    for reason in ["", long.as_str()] {
+        let mut proposal = proposal(c::Proposer::Task(9));
+        proposal.reason = words(reason);
+        let c::ProposalAction::Batch(tasks) = &mut proposal.action else { panic!("batch") };
+        tasks.get_mut(0).unwrap().spec.specification.words = words(&long);
+        let root = kinds(&[proposal_row(proposal)]);
+        let card = root.pages().inbox().unwrap().cards.get(0).unwrap();
+        for w in [f::browser_words(), f::words()] {
+            assert_eq!(crate::shared::proposal_line(card, &w).as_deref(), Some(cut.as_bytes()));
+        }
+        let view = f::browser_page_view(&root);
+        assert_eq!(
+            styled(&view, look::FLOW_Q).name.as_deref(),
+            Some(if reason.is_empty() { cut.as_bytes() } else { long.as_bytes() })
+        );
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the view scenario constructs long titles and expected lines")]
+fn answered_lines_cut_titles_not_answers_or_task_addresses() {
+    let long = "abcd ".repeat(20).trim_end().to_owned();
+    let cut = format!("{}…", vec!["abcd"; 16].join(" "));
+    let mut root = fixture_title(QUESTION, false, 1, false, d::address::Filter::ALL, Some(long.as_bytes()));
+    choose(&mut root, 1);
+    for w in [f::browser_words(), f::words()] {
+        let mut builder = skein_ui::Builder::new(&f::tree_limits());
+        let mut bindings = crate::frame::Bindings::new(128);
+        crate::pages::needs::main(
+            &mut builder,
+            &root,
+            &w,
+            &mut bindings,
+            4,
+            &mut crate::words::Times::new(f::NOW),
+            &crate::forge_sign_in::Forges::new(),
+        );
+        let tree = builder.finish();
+        let nodes = super::inbox::subtree(&tree, super::inbox::styled(&tree, look::ANSWERED));
+        let link = nodes.iter().find(|n| n.role == Role::Link).unwrap();
+        assert_eq!(link.name.as_deref(), Some(cut.as_bytes()));
+        assert!(skein_lib::bytes::find(&f::nodes_text(nodes), b"In the store").is_some());
+        assert_eq!(
+            bindings.decode(link.binding.unwrap().token, Act::Press),
+            Some(d::Action::Pages(pages::Act::Go { address: Address::Task { task: f::INBOX_TASK } }))
+        );
+    }
+}
+
 fn ordered(view: &crate::View) {
     let positions: Vec<_> = [look::ASK_META, look::FLOW_Q, look::ASK_CONTEXT, look::ASK_CHOICES]
         .iter()
@@ -1210,7 +1377,7 @@ fn held_parts_release_leave_held_and_missing_hold() {
         let mut view = f::browser_page_view(&root);
         ordered(&view);
         assert_eq!(styled(&view, look::FLOW_Q).name.as_deref(), Some(b"first-run-projects".as_slice()));
-        assert!(has(&view, b"Both halves of the store task run."));
+        assert!(!has(&view, b"Both halves of the store task run."));
         assert_eq!(has(&view, b"The Ready page waits"), reason.is_some());
         assert!(skein_lib::bytes::find(styled(&view, look::ASK_META).name.as_ref().unwrap(), b"held").is_some());
         assert_eq!(styled(&view, look::RECOMMENDED).name.as_deref(), Some(b"Release".as_slice()));
@@ -1265,7 +1432,7 @@ fn person_spec_and_plain_acts() {
     let mut view = f::browser_page_view(&root);
     ordered(&view);
     assert_eq!(styled(&view, look::FLOW_Q).name.as_deref(), Some(b"Review the plan".as_slice()));
-    assert!(has(&view, b"Read the proposed plan and record your review."));
+    assert!(!has(&view, b"Read the proposed plan and record your review."));
     assert!(!main(&view).iter().any(|n| n.styles.as_slice().contains(&look::RECOMMENDED)));
     for (name, act) in [(b"Take".as_slice(), c::ActKind::Take), (b"Hand back", c::ActKind::HandBack)] {
         assert_eq!(

@@ -61,13 +61,12 @@ fn title(b: &mut Builder, tasks: &skein_lib::List<c::ProposedTask>, words: &Word
     for task in tasks {
         let written = task.spec.specification.words.bytes();
         let end = skein_lib::bytes::find(written, b"\n").unwrap_or(written.len());
-        text(b, Role::Heading { level }, written.get(..end).expect("title prefix"));
-        if end < written.len() {
-            skein_ui::markdown::read(
-                written.get(end..).expect("spec body"),
-                level.checked_add(1).expect("proposal heading fits"),
-                b,
-            );
+        let first = written.get(..end).expect("title prefix");
+        let heading = crate::common::chat::row_title(first);
+        text(b, Role::Heading { level }, &heading);
+        let body = if heading.as_ref() == first { written.get(end..).expect("spec body") } else { written };
+        if !body.is_empty() {
+            skein_ui::markdown::read(body, level.checked_add(1).expect("proposal heading fits"), b);
         }
     }
 }
@@ -1170,7 +1169,9 @@ pub(crate) fn line(card: &temper_client_domain::pages::inbox::Card, _words: &Wor
     let title = if let Some(tasks) = batch(page)
         && let Some(task) = tasks.as_slice().first()
     {
-        task.spec.specification.words.bytes()
+        let written = task.spec.specification.words.bytes();
+        let end = skein_lib::bytes::find(written, b"\n").unwrap_or(written.len());
+        return Some(crate::common::chat::row_title(written.get(..end).expect("proposal first line")));
     } else if let c::ReadValue::Proposal(proposal) = page {
         proposal.reason.bytes()
     } else {
