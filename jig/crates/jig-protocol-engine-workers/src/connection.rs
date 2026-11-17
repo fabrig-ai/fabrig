@@ -20,6 +20,8 @@ pub(crate) enum Ending {
 #[expect(clippy::struct_excessive_bools, reason = "independent terminal, log and hello lifecycle facts")]
 pub(crate) struct Connection {
     pub machine: Machine,
+    pub in_process: bool,
+    pub opening: Option<Event>,
     pub phase: Phase,
     pub opening: jig_protocol_worker_wire::Opening,
     pub worker: Option<u32>,
@@ -43,11 +45,13 @@ pub(crate) struct Connection {
     pub ending: Ending,
 }
 impl Connection {
-    pub fn new(schema: Schema, limits: &Limits, now: Time) -> Self {
+    pub fn new(schema: Schema, limits: &Limits, now: Time, in_process: bool) -> Self {
         let channel = crate::limits::channel(limits).expect("checked limits");
         let machine = Machine::with_mode(schema, Role::Responder, channel, StreamMode::One).expect("checked schema");
         Self {
             machine,
+            in_process,
+            opening: None,
             phase: Phase::Opening,
             opening: jig_protocol_worker_wire::Opening::Link,
             worker: None,

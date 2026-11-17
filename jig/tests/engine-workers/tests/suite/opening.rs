@@ -155,7 +155,7 @@ mod opening {
             (ENGINE + 1, SECRET_A, APPLICATION_VERSION, Some(2)),
             (18_432_634, SECRET_A, APPLICATION_VERSION, Some(2)),
             (u32::MAX, SECRET_A, APPLICATION_VERSION, Some(2)),
-            (18_432_634, b"wrong".as_slice(), APPLICATION_VERSION, Some(256)),
+            (18_432_634, b"wrong".as_slice(), APPLICATION_VERSION, Some(260)),
             (18_432_634, SECRET_A, OTHER_VERSION, Some(257)),
         ] {
             let limits = jig_protocol_engine_workers::Limits { room: ENGINE, ..fixtures::limits() };
@@ -192,11 +192,11 @@ mod opening {
         }
     }
     #[test]
-    fn a_wrong_secret_is_refused_as_unauthorized() {
+    fn a_wrong_secret_is_refused_as_not_admitted() {
         let mut world = world();
         let connection = world.connect(fixtures::worker(WORKER_A, b"wrong", APPLICATION_VERSION));
         world.run();
-        assert_eq!(refused(&world, connection), 256);
+        assert_eq!(refused(&world, connection), 260);
         assert!(world.root().is_empty());
     }
     #[test]

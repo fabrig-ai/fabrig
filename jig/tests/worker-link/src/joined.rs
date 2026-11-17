@@ -247,8 +247,11 @@ impl Joined {
             stall: limits.stall,
         });
         let workers = Box::new([engine::Worker {
+            number: 1,
+            places: 4,
+            withdrawn: false,
             name: fixtures::WORKER_A.into(),
-            digest: skein_io::digest::digest(fixtures::SECRET_A),
+            digest: Some(skein_lib::sha256::digest(fixtures::SECRET_A)),
         }]);
         let (engine_wires, worker_wires) = wires.unwrap_or_else(|| (fixtures::spoken(), fixtures::spoken()));
         Self {
@@ -358,7 +361,7 @@ impl Joined {
                     self.pipe.as_mut().expect("new pipe").cap(0, room);
                     self.pipe.as_mut().expect("new pipe").cap(1, room);
                 }
-                self.engine_event(engine::Event::Accepted { connection: self.connection });
+                self.engine_event(engine::Event::Accepted { connection: self.connection, in_process: false });
                 self.worker_event(Event::Dialled { connection: self.connection });
             }
             Request::Lower { connection, lower } => self.lower(0, connection, lower),

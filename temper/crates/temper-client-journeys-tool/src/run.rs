@@ -346,6 +346,12 @@ fn refusal(why: Refusal) -> String {
         Refusal::MarkTimeout { name, mark, text } => {
             format!("{name}: mark {mark}: text {:?} not shown within 30 s", String::from_utf8_lossy(&text))
         }
+        Refusal::PageState { why, address, text } => format!(
+            "{}\ncurrent address: {}\ncurrent page:\n{}",
+            refusal(*why),
+            String::from_utf8_lossy(&address),
+            String::from_utf8_lossy(&text)
+        ),
         Refusal::Undecoded { name, line } => format!("{name} has an undecodable stream record at line {line}"),
         Refusal::Found { name, line, record, place, what } => {
             format!("{name} at line {line}, {record}, {}: found {}", place_message(place), what_message(what))

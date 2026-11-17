@@ -1,9 +1,5 @@
 //! The workers' host and temper's typed root handoff (jig/docs/design/protocol/service.md, 11.3).
-use crate::{
-    assignment::Encoding,
-    settings::{Files, Forge},
-    values::Values,
-};
+use crate::{assignment::Encoding, settings::Forge, values::Values};
 use alloc::boxed::Box;
 use jig_domain_host as host;
 use jig_protocol_config::{self as config, Problems, What};
@@ -29,9 +25,12 @@ pub struct Workers {
     pub(crate) bad_parts: u64,
     pub(crate) notes: Queue<crate::Note>,
     opening_limits: kit::Limits,
+<<<<<<< HEAD
     figures: temper_engine_service_vocabulary::figures::Composer,
     worker_names: List<Box<[u8]>>,
     copy: Option<AgentsCopy>,
+=======
+>>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
     opening_ends: Map<Option<Box<[u8]>>, kit::Loss>,
 }
 /// The box's shell keeps this copy after restore and each committed change.
@@ -45,7 +44,6 @@ struct AgentsCopy {
 impl Workers {
     pub fn new(
         config: &config::Engine,
-        files: &Files,
         encoding: Encoding,
         forges: Box<[Forge]>,
         own: &crate::limits::Limits,
@@ -56,16 +54,17 @@ impl Workers {
             connections: crate::tokens::prefix(Token::new(crate::tokens::WORKER_CONNECTIONS)),
         };
         let application = application(&encoding.limits).or(Err(kit::host::invalid(What::Bound)))?;
+<<<<<<< HEAD
         let host = kit::host::Workers::new(config, files, tokens, application, limits)?;
         let mut table = crate::forges::Forges::with_capacity(own.forge.forges);
+=======
+        let host = kit::host::Workers::new(config, tokens, application, limits)?;
+        let mut table = crate::forges::Forges::with_capacity(forge_limit);
+>>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
         for forge in forges {
             assert!(table.insert(forge), "unique fixture forges");
         }
-        let mut worker_names = List::with_capacity(limits.names);
-        for worker in &config.hosts.workers {
-            worker_names.push(worker.name.clone()).expect("configured worker names fit the host");
-        }
-        let opening_names = worker_names.len().checked_add(1).ok_or(kit::host::invalid(What::Bound))?;
+        let opening_names = limits.names.checked_add(1).ok_or(kit::host::invalid(What::Bound))?;
         Ok(Self {
             host,
             figures: temper_engine_service_vocabulary::figures::Composer::new(config, own),
@@ -74,8 +73,11 @@ impl Workers {
             bad_parts: 0,
             notes: Queue::uncapped(),
             opening_limits: *limits,
+<<<<<<< HEAD
             worker_names,
             copy: None,
+=======
+>>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
             opening_ends: Map::with_capacity(opening_names),
         })
     }
@@ -199,11 +201,7 @@ impl Workers {
         self.pull(events);
     }
     pub(crate) fn judgement(&self) -> crate::upgrade::Workers {
-        crate::upgrade::Workers {
-            names: self.worker_names.clone().into_boxed(),
-            room: self.opening_limits.room,
-            schema: self.host.component.full_schema().clone(),
-        }
+        crate::upgrade::Workers { room: self.opening_limits.room, schema: self.host.component.full_schema().clone() }
     }
     fn pull(&mut self, events: &mut Queue<root::Event>) {
         for _ in 0..self.host.pending() {
@@ -232,8 +230,9 @@ impl Workers {
                 self.notes.push(crate::Note::WorkerOpeningRefused { worker, reason, text });
             }
             kit::host::Output::Hello { channel, worker, hello } => {
-                let name = self.worker_names.get(worker).expect("hello's configured worker position");
-                let _last = self.opening_ends.remove(&Some(name.clone()));
+                let name =
+                    skein_lib::bytes::copy_of(self.host.component.worker_name(worker).expect("hello worker position"));
+                let _last = self.opening_ends.remove(&Some(name));
                 events.push(root::Event::Worker(root::WorkerInput::Link {
                     channel,
                     link: root::Link::Hello { worker, hello },
@@ -543,7 +542,6 @@ impl Workers {
         }
         let workers = Self::new(
             &settings.jig,
-            &settings.files,
             Encoding {
                 limits: crate::translate::limits(&settings.limits).ok_or(kit::host::invalid(What::Bound))?,
                 endpoints: smith_protocol_translate::Endpoints::new(endpoints),
@@ -587,6 +585,11 @@ mod tests {
             bounds: crate::tests::fixtures::worker_agent().bounds,
         };
         let mut events = Queue::uncapped();
+        service.engine.as_mut().expect("engine").workers.down(
+            Time::ZERO,
+            kit::Event::Workers(crate::tests::fixtures::opening_workers()),
+            &mut events,
+        );
         service
             .engine
             .as_mut()

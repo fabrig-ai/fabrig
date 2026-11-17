@@ -104,7 +104,7 @@ fn fixture() -> forge::Fixture {
                 ("documents.chips", 32),
                 ("authority.executors", 22),
                 ("tasks.executor_kinds", 22),
-                ("fleet.slots", 2),
+                ("fleet.slots", 4),
                 ("fleet.attempts", 2),
                 ("core.load_bytes", 131_072),
                 ("people.inbox_tasks", 48),

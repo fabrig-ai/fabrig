@@ -36,20 +36,6 @@ fn engine_alone(engine: &config::Engine, workers: &[config::Worker], problems: &
             problems.push(at(index, hosts.member(b"listener")), What::Half(crate::startup::EngineWhat::EngineAlone));
         }
     }
-    if engine.hosts.workers.is_empty() {
-        problems.push(hosts.member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone));
-    }
-    for (index, worker) in engine.hosts.workers.iter().enumerate() {
-        for previous in engine.hosts.workers.iter().take(index) {
-            if previous.digest == worker.digest {
-                problems.push(
-                    at(index, hosts.member(b"workers")).member(b"digest"),
-                    What::Half(crate::startup::EngineWhat::EngineAlone),
-                );
-                break;
-            }
-        }
-    }
 }
 pub fn standalone(
     engine: &config::Engine,
@@ -71,12 +57,10 @@ pub fn standalone(
         if engine.hosts.listener.len() != 1 || !in_process(engine.hosts.listener.first().expect("parsed listeners")) {
             problems.push(root.member(b"engine").member(b"hosts").member(b"listener"), What::Standalone);
         }
-        let hosts_match = match (engine.hosts.workers.first(), workers.first()) {
-            (Some(host), Some(worker)) => host.name == worker.name,
-            (None, _) | (_, None) => false,
-        };
-        if engine.hosts.workers.len() != 1 || !hosts_match {
-            problems.push(root.member(b"engine").member(b"hosts").member(b"workers"), What::Standalone);
+        if let Some(worker) = workers.first()
+            && worker.name.as_ref() != b"local"
+        {
+            problems.push(at(0, root.member(b"workers")).member(b"name"), What::Standalone);
         }
     }
     match clients.listener {

@@ -1,5 +1,9 @@
 use super::{Bound, Choice, Field, Form, Limit, Shape, Value, Width, Word};
+<<<<<<< HEAD
 pub static FORMS: [Form; 88] = [
+=======
+pub static FORMS: [Form; 85] = [
+>>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
     Form { shape: Shape::File, name: b"file", choice: Choice::Every, line: b"A settings file, as `settings apply` and `settings propose` read it." },
     Form { shape: Shape::Item, name: b"item", choice: Choice::Every, line: b"A `setting` and exactly one of `set`, `edit` and `overlay`." },
     Form { shape: Shape::Setting, name: b"setting", choice: Choice::Every, line: b"Which setting: its kind and number, or project for project settings." },
@@ -7,6 +11,7 @@ pub static FORMS: [Form; 88] = [
     Form { shape: Shape::Overlay, name: b"overlay", choice: Choice::Every, line: b"Optional default replacements and added text. Use charters or literal instructions/parts, never both." },
     Form { shape: Shape::CharterPart, name: b"charter-part", choice: Choice::Every, line: b"Instructions after shared text, read when run reasons meet `on`." },
     Form { shape: Shape::Document, name: b"document", choice: Choice::Every, line: b"Brief file at preparation branch head." },
+    Form { shape: Shape::Worker, name: b"worker", choice: Choice::Every, line: b"Stable name, places, secret digest. Removal keeps the name withdrawn; reset needs a default." },
     Form { shape: Shape::Catalogue, name: b"catalogue", choice: Choice::Every, line: b"Numbered runtime model and its display facts." },
     Form { shape: Shape::Model, name: b"model", choice: Choice::Every, line: b"Runtime model. Except `effort`, charter members must match its configured row or refuse `reference`. Model settings supply it whole." },
     Form { shape: Shape::Wake, name: b"wake", choice: Choice::Every, line: b"Wake by message kind; proposals, escalations and cancels always wake." },
@@ -122,7 +127,11 @@ pub static FORMS: [Form; 88] = [
     Form { shape: Shape::AgentEndpoints, name: b"agent-endpoints", choice: Choice::Every, line: b"An object of at most 64 endpoint names (64 UTF-8 bytes each) to agent-limits, each name once." },
     Form { shape: Shape::AgentLimits, name: b"agent-limits", choice: Choice::Every, line: b"An endpoint's limits; every integer is positive." },
 ];
+<<<<<<< HEAD
 pub static FIELDS: [Field; 306] = [
+=======
+pub static FIELDS: [Field; 302] = [
+>>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
     Field {
         shape: Shape::File,
         name: b"items",
@@ -154,6 +163,7 @@ pub static FIELDS: [Field; 306] = [
         name: b"kind",
         value: Value::Words(&[
             Word { word: b"model", line: b"" },
+            Word { word: b"worker", line: b"" },
             Word { word: b"charter", line: b"" },
             Word { word: b"template", line: b"" },
             Word { word: b"policy", line: b"" },
@@ -302,6 +312,11 @@ pub static FIELDS: [Field; 306] = [
     Field { shape: Shape::Document, name: b"branch", value: Value::Text(Bound::Limit(Limit::DocumentBranch)), list: None, null: false, line: b"Branch head to read; segments joined by `/`." },
     Field { shape: Shape::Document, name: b"path", value: Value::Text(Bound::Limit(Limit::DocumentPath)), list: None, null: false, line: b"The file's path in the repository, at most 256 bytes." },
     Field { shape: Shape::Document, name: b"heading", value: Value::Text(Bound::Limit(Limit::DocumentHeading)), list: None, null: true, line: b"Markdown heading: read through the next peer or ancestor heading; null reads the whole file." },
+    Field { shape: Shape::Worker, name: b"number", value: Value::Integer(Width::U32), list: None, null: false, line: b"Absent: the item's number." },
+    Field { shape: Shape::Worker, name: b"name", value: Value::Text(Bound::Most(128)), list: None, null: false, line: b"ASCII letters/digits/-/_/., first alphanumeric; also bounded by fleet.worker_name_bytes." },
+    Field { shape: Shape::Worker, name: b"places", value: Value::Integer(Width::U32), list: None, null: false, line: b"Concurrent runs: 1..fleet.slots; effective next opening." },
+    Field { shape: Shape::Worker, name: b"digest", value: Value::Hex(Bound::Most(32)), list: None, null: true, line: b"Secret's SHA-256: 64 lowercase hex digits; absent only over a digest-less in-process default." },
+    Field { shape: Shape::Worker, name: b"withdrawn", value: Value::Boolean, list: None, null: false, line: b"Absent: false; true is read-only. Withdraw by a removed edit." },
     Field { shape: Shape::Catalogue, name: b"number", value: Value::Integer(Width::U32), list: None, null: false, line: b"Permanent number, 1 to 64, matching setting.number." },
     Field { shape: Shape::Catalogue, name: b"model", value: Value::Shape(Shape::Model), list: None, null: false, line: b"The runtime model, whole." },
     Field { shape: Shape::Catalogue, name: b"shown", value: Value::Text(Bound::Limit(Limit::CatalogueEntryShownSome)), list: None, null: true, line: b"Its name for showing, or null." },

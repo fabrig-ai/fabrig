@@ -3,7 +3,7 @@ use crate::{Limits, Text};
 use alloc::boxed::Box;
 use skein_lib::Decimal;
 
-pub const INTRO: &[u8] = b"JSON shapes; bullets give fields, types, bounds and effects. The settings file is `file`. Read `settings show KIND N`, edit and set it whole. Ctl sends these bounds; the deployment may refuse with a fault: `shape`, `count`, `reference`, `rules`, `budget`, `grace` or `owner`. Spend uses deployment model-price units. Hex is lowercase hexadecimal bytes: `666f726765` is `forge`. Unsigned integers u8/u16/u32/u64 range from 0 through 255/65,535/4,294,967,295/18,446,744,073,709,551,615. bool is true or false; text[N] and hex[N] hold at most N bytes; list[N] holds at most N entries. ? means optional; ! means required. A value follows its setting.kind's named shape; project-policy uses policy.";
+pub const INTRO: &[u8] = b"JSON shapes; bullets give fields, types, bounds and effects. The settings file is `file`. Read `settings show KIND N`, edit and set it whole. Ctl sends these bounds; the deployment may refuse with a fault: `shape`, `count`, `reference`, `rules`, `budget`, `grace`, `owner` or `linked`. Spend uses deployment model-price units. Hex is lowercase hexadecimal bytes: `666f726765` is `forge`. Unsigned integers u8/u16/u32/u64 range from 0 through 255/65,535/4,294,967,295/18,446,744,073,709,551,615. bool is true or false; text[N] and hex[N] hold at most N bytes; list[N] holds at most N entries. ? means optional; ! means required. A value follows its setting.kind's named shape; project-policy uses policy.";
 
 #[must_use]
 pub fn page(limits: &Limits) -> Box<[u8]> {

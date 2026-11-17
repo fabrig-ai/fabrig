@@ -61,7 +61,10 @@ impl Driver {
         }
     }
     /// Replace a root together with the configuration used by its restart oracle.
-    pub fn replace_root(&mut self, configuration: engine::Config) {
+    pub fn replace_root(&mut self, mut configuration: engine::Config) {
+        for worker in &mut configuration.core.defaults.workers {
+            worker.places = self.env.limits.fleet.slots;
+        }
         self.restart_config = crate::oracle::config::copy(&configuration);
         self.protocol.models.clone_from(&configuration.core.settings.models);
         self.root = engine::Domain::new(configuration, &self.env.limits).expect("restart configuration");
@@ -109,7 +112,11 @@ impl Driver {
 
     /// An empty deployment for stories that exercise the real first-start cut itself.
     #[must_use]
-    pub fn cold(store: Store, config: engine::Config, limits: &engine::Limits) -> Driver {
+    pub fn cold(store: Store, mut config: engine::Config, limits: &engine::Limits) -> Driver {
+        // Nominal fixture workers offer the scenario's full fleet capacity.
+        for worker in &mut config.core.defaults.workers {
+            worker.places = limits.fleet.slots;
+        }
         let mut protocol = Protocol::default();
         protocol.models.clone_from(&config.core.settings.models);
         Driver {
@@ -300,6 +307,7 @@ impl Driver {
                 }
                 engine::Request::Stop => self.stopped = true,
                 engine::Request::Worker(engine::WorkerRequest::Host(request)) => self.host_requests.push(request),
+                engine::Request::Worker(engine::WorkerRequest::Settings(_)) => {}
                 other @ (engine::Request::Party(_)
                 | engine::Request::Worker(_)
                 | engine::Request::Store(_)

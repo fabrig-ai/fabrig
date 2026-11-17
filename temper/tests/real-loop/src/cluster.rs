@@ -181,8 +181,6 @@ impl Shape {
                 document["workers"] = json!([]);
 
                 document["engine"]["hosts"]["listener"] = json!([{"socket":"127.0.0.1:0"}]);
-                document["engine"]["hosts"]["workers"] =
-                    workers.iter().map(|name| json!({"name":name,"digest":format!("secrets/{name}.digest")})).collect();
                 // Every configured position admitted: the small profile admits two workers.
                 document["engine"]["limits"]["overrides"]["fleet.workers"] = workers.len().into();
                 // One attempt per one-slot worker: the fleet counts attempts across the whole fleet.
@@ -190,20 +188,28 @@ impl Shape {
                 document["engine"]["limits"]["overrides"]["hub.turns"] = 1.into();
                 document["engine"]["limits"]["overrides"]["link.ping_ms"] = ping_ms.into();
                 document["engine"]["limits"]["overrides"]["link.silence_ms"] = silence_ms.into();
+<<<<<<< HEAD
                 document["engine"]["limits"]["overrides"]["hub.held"] = 1.into();
                 document["engine"]["limits"]["overrides"]["hub.program_sources"] = 0.into();
                 if grace_ms >= 1_000 {
                     document["engine"]["limits"]["overrides"]["link.ceiling_ms"] = 1_000.into();
                 }
                 for name in workers {
+=======
+                let items: Vec<_> = workers.iter().enumerate().map(|(index, name)| {
+>>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
                     let secret = format!("{name}-fixture-secret");
                     let mut digest = String::new();
-                    for word in skein_io::digest::digest(secret.as_bytes()).0 {
-                        write!(digest, "{word:016x}").expect("fixture digest hex");
+                    for byte in skein_lib::sha256::digest(secret.as_bytes()) {
+                        write!(digest, "{byte:02x}").expect("fixture digest hex");
                     }
-                    fixtures::private(&data.join(format!("secrets/{name}.digest")), digest.as_bytes())
-                        .expect("fixture digest");
-                }
+                    json!({"setting":{"kind":"worker","number":index + 1},"set":{"name":name,"places":1,"digest":digest}})
+                }).collect();
+                fixtures::private(
+                    &data.join("worker-settings.json"),
+                    &serde_json::to_vec(&json!({"items":items})).expect("worker settings JSON"),
+                )
+                .expect("worker settings file");
             }
             Self::Worker { name, engine, .. } => {
                 let worker = document["workers"].as_array_mut().expect("workers").first_mut().expect("one worker");

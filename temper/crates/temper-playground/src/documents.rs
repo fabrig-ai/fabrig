@@ -154,11 +154,19 @@ pub fn world_document_with(edit: impl FnOnce(&mut serde_json::Value)) -> serde_j
     let worker: serde_json::Value = serde_json::from_slice(channel::WORKER_DOCUMENT).expect("worker JSON");
     value["workers"] = worker["workers"].clone();
     value["workers"][0]["engine"] = serde_json::json!({"in_process":"workers"});
+<<<<<<< HEAD
     value["workers"][0].as_object_mut().expect("worker").remove("agent");
     value["workers"][0].as_object_mut().expect("worker").remove("limits");
     value["engine"]["limits"]["overrides"]["hub.accounts"] = 4.into();
     value["engine"]["limits"]["overrides"]["hub.event_bytes"] = 1024.into();
     value["engine"]["limits"]["overrides"]["hub.run_calls"] = 1.into();
+=======
+    value["workers"][0]["name"] = "local".into();
+    value["engine"]["limits"]["overrides"]["fleet.slots"] = 4.into();
+    value["workers"][0]["agent"] = serde_json::json!({"program":"/opt/temper/bin/temper","configuration":"/opt/temper/agent.json","arguments":["internal", "agent","/opt/temper/agent.json"]});
+    value["workers"][0]["limits"]["overrides"]["hub.accounts"] = 4.into();
+    value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = 1024.into();
+>>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
     value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);
     for (name, count) in [
         ("core.load_slots", 8),

@@ -114,6 +114,12 @@ pub fn settings(root: &Path, calls: &[support::Ended]) -> Call {
     items.push(json!({"setting":{"kind":"landing-rule","project":1,"number":1},"set":{
         "pattern":{"segments":["6272616e6368"],"last":{"open":""}},
         "enforce":true,"ci":true,"up_to_date":true,"gates":[],"approvals":[]}}));
+    let workers = read(&root.join("engine/settings.json"));
+    for item in workers["items"].as_array().expect("fixture settings") {
+        if item["setting"]["kind"] == "worker" {
+            items.push(item.clone());
+        }
+    }
     let path = root.join("turn-settings.json");
     write(&path, &json!({"items":items}));
     ctl::settings_change(&calls[1], &path, "turn-settings")

@@ -10,7 +10,6 @@ pub const TOKEN: &[u8] = b"test-token";
 pub const KEY: &[u8] = b"test-key";
 /// The key's next generation, put while the attempt runs.
 pub const NEXT_KEY: &[u8] = b"test-key-2";
-const DIGEST: &[u8] = b"6fb46f7a92742970166379ed5195e79c4493a7cc5664280c039cfd4095ba5faf";
 const REPORT: &[u8] = br#"{"form":"report","text":"Hello","fields":{}}"#;
 
 #[must_use]
@@ -65,9 +64,6 @@ const ENGINE: &[u8] = br#"{
 }]
 },
 "hosts": {
-"workers": [
-{"name": "worker-a", "digest": "secrets/worker-a.digest"}
-],
 "listener": [{"socket": "127.0.0.1:7200"}]
 },
 "charters": [{
@@ -139,17 +135,24 @@ pub fn files(worker: bool) -> Files {
     let inputs: &[(&[u8], &[u8])] = if worker {
         &[(b"worker.secret", b"worker-secret"), (b"agent.json", b"{}")]
     } else {
-        &[
-            (b"charters/chat.txt", b"Reply to the person."),
-            (b"secrets/worker-a.digest", DIGEST),
-            (b"app.secret", b"application-token"),
-        ]
+        &[(b"charters/chat.txt", b"Reply to the person."), (b"app.secret", b"application-token")]
     };
     let mut entries = List::with_capacity(u32::try_from(inputs.len()).expect("fixture files"));
     for (name, bytes) in inputs {
         entries.push(((*name).into(), Secret::new((*bytes).into()))).expect("fixture files");
     }
     Files { entries }
+}
+/// This application's default membership, restored before the worker dials.
+#[must_use]
+pub fn workers() -> Box<[jig_domain_core::settings::WorkerSetting]> {
+    Box::new([jig_domain_core::settings::WorkerSetting {
+        number: 1,
+        name: b"worker-a".as_slice().into(),
+        places: 1,
+        digest: Some(skein_lib::sha256::digest(b"worker-secret")),
+        withdrawn: false,
+    }])
 }
 #[must_use]
 pub fn seeds() -> Seeds {

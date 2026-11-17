@@ -156,6 +156,7 @@ pub fn host_run() -> d::HostRun {
 }
 pub fn deployment_document() -> d::Deployment {
     d::Deployment {
+        worker_settings: List::with_capacity(0),
         providers: List::with_capacity(0),
         providers_cut: false,
         key_bytes: 256,

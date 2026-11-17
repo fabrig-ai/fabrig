@@ -43,6 +43,7 @@ use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
 use jig_domain_brief as brief;
+pub use jig_domain_core_vocabulary::limits::problems as worker_membership;
 use jig_domain_fleet as fleet;
 use jig_domain_link::Problem;
 use jig_domain_notes as notes;
@@ -311,7 +312,7 @@ impl Core {
     /// A configured worker count or name exceeds the priced membership bounds.
     #[expect(clippy::too_many_lines, reason = "construct all bounded children, bindings and subject marks together")]
     pub fn new(mut config: Config, limits: &Limits) -> Result<Core, Problem> {
-        let worker_names = limits::problems(core::mem::replace(&mut config.worker_names, Box::new([])), limits)?;
+        let worker_names = limits::problems(&config.defaults.workers, limits)?;
         assert!(limits.people.words <= limits.tasks.message_bytes, "party words fit one run message");
         assert!(limits.tasks.message_bytes >= 24, "projection refusal news fits one run message");
         assert!(config.settings.tools.valid(), "each engine tool has one configured authority bit");

@@ -523,6 +523,7 @@ pub fn deployment() -> Deployment {
         cut: false,
     };
     Deployment {
+        worker_settings: skein_lib::List::with_capacity(0),
         store: StoreFill { bytes: 1, mark: 1024 },
         census: None,
         hosts: list([host(1), host(2)]),

@@ -1191,6 +1191,9 @@ impl World {
             if kinds && index == 1 {
                 config.core.kinds = temper_engine_service_stock::stock::kinds(&limits, config.core.connectors[0]);
             }
+            for worker in &mut config.core.defaults.workers {
+                worker.places = limits.fleet.slots;
+            }
             for (project, landing) in &landings {
                 crate::oracle::config::set_landing(&mut config, *project, landing.clone());
             }
@@ -2138,7 +2141,10 @@ impl World {
         self.restart_domain(crate::oracle::config::copy(&self.restart_config), true);
     }
 
-    fn restart_domain(&mut self, config: engine::Config, with_change: bool) {
+    fn restart_domain(&mut self, mut config: engine::Config, with_change: bool) {
+        for worker in &mut config.core.defaults.workers {
+            worker.places = self.env.limits.fleet.slots;
+        }
         assert!(self.store.pending.is_empty(), "store answers precede a restart");
         assert!(self.pending.is_empty(), "API answers precede a restart");
         self.root =
@@ -2576,7 +2582,8 @@ impl World {
                         answer: Ok(()),
                     })));
                 }
-                engine::Request::Account(_)
+                engine::Request::Worker(engine::WorkerRequest::Settings(_))
+                | engine::Request::Account(_)
                 | engine::Request::ForgeKept(_)
                 | engine::Request::ForgeGone { .. }
                 | engine::Request::ChoosePlace { .. }

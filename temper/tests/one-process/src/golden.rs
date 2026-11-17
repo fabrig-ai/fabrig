@@ -743,6 +743,10 @@ fn startup_configuration(directory: &Path) -> (Vec<u8>, temper_service::stock::G
     }
     bridge_kept_profiles(&mut document);
     temper_playground::documents::settings::strip_fixed(&mut document);
+    // Workers are admitted through settings, not the document (protocol/cluster.md, 3).
+    document["engine"]["hosts"].as_object_mut().expect("kept hosts").remove("workers");
+    document["workers"][0]["name"] = "local".into();
+    document["engine"]["limits"]["overrides"]["fleet.slots"] = 4.into();
     let sections =
         document.pointer_mut("/engine/limits/overrides/brief.sections").expect("kept brief section override");
     *sections = sections.as_u64().expect("brief section count").max(u64::from(jig_domain_core::CORE_SECTIONS)).into();

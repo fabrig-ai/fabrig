@@ -889,6 +889,7 @@ fn world_in_layout(
                             let mut doc = deployment(w);
                             if let Then::Hosts { connected: true, .. } = then {
                                 doc.hosts = builders();
+                                doc.worker_settings = worker_settings(now(w));
                             }
                             Some(c::Delivery::Deployment(Box::new(doc)))
                         }
@@ -4827,6 +4828,7 @@ fn plan_tree(w: World, task: u64, window: u32, then: Then) -> c::Delivery {
 
 fn deployment(w: World) -> c::Deployment {
     c::Deployment {
+        worker_settings: List::with_capacity(0),
         store: c::StoreFill { bytes: 0, mark: 0 },
         census: None,
         hosts: List::with_capacity(0),
@@ -5582,6 +5584,26 @@ fn builders() -> List<c::Host> {
             cut: false,
         })
         .expect("three builders");
+    }
+    rows
+}
+
+/// Settings corresponding to the connected, draining and lost gallery hosts.
+fn worker_settings(since: Wall) -> List<c::WorkerState> {
+    let mut rows = List::with_capacity(3);
+    for (number, name, linked, digest) in
+        [(1, "Workshop", true, None), (2, "Finishing", true, Some([0xab; 32])), (3, "Away", false, Some([0xcd; 32]))]
+    {
+        rows.push(c::WorkerState {
+            number,
+            name: name.as_bytes().into(),
+            places: 2,
+            digest,
+            withdrawn: false,
+            linked,
+            since: Some(since),
+        })
+        .expect("three worker settings");
     }
     rows
 }

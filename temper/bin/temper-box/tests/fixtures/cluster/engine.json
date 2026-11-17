@@ -109,16 +109,6 @@
         {{
           "socket": "127.0.0.1:0"
         }}
-      ],
-      "workers": [
-        {{
-          "name": "w1",
-          "digest": "secrets/w1.digest"
-        }},
-        {{
-          "name": "w2",
-          "digest": "secrets/w2.digest"
-        }}
       ]
     }},
     "clients": {{}},

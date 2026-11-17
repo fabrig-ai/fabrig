@@ -778,6 +778,7 @@ fn key_values_reach_smith_at_their_bound_and_fit_the_workers_memory() {
 <<<<<<< HEAD
     settings.jig.limits.token = 1;
     let key_bytes = settings.jig.limits.token.min(jig_client_protocol_wire::v28::CEILINGS.keyed_value_some);
+<<<<<<< HEAD
 =======
     settings.jig.limits.as_mut().expect("checked worker limits").token = 1;
     let key_bytes = settings
@@ -788,6 +789,8 @@ fn key_values_reach_smith_at_their_bound_and_fit_the_workers_memory() {
         .token
         .min(jig_client_protocol_wire::v27::CEILINGS.keyed_value_some);
 >>>>>>> 0e77c1c72dd38151a2338a36e3339fbd622bd03f
+=======
+>>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
     let agent = fixtures::worker_agent();
     let limits = fixtures::worker_limits();
     let files = fixtures::worker_files();

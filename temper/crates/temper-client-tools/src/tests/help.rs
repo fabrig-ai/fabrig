@@ -55,6 +55,10 @@ const GOLDENS: &[(Option<u8>, &str)] = &[
     (Some(jig::rows::RESTORE_AT), "help_revision_restore"),
     (Some(jig::rows::PROJECT_SHOW_AT), "help_project_show"),
     (Some(jig::rows::PROJECT_FUND_AT), "help_project_fund"),
+    (Some(jig::rows::WORKER_LIST_AT), "help_worker_list"),
+    (Some(jig::rows::WORKER_ADD_AT), "help_worker_add"),
+    (Some(jig::rows::WORKER_PLACES_AT), "help_worker_places"),
+    (Some(jig::rows::WORKER_REMOVE_AT), "help_worker_remove"),
 ];
 #[test]
 fn the_help_is_the_page_ctl_then_the_tools() {
@@ -279,7 +283,11 @@ const USAGES: &[(u8, &[u8])] = &[
     (jig::rows::SIGN_IN_AT, b"sign-in FILE\nsign-in --service FILE\n"),
     (jig::rows::PARTY_MAKE_AT, b"party make --project PROJECT --role ROLE --out FILE TEXT [--key KEY]\n"),
     (jig::rows::HELP_AT, b"help [GROUP [VERB]]\n"),
+<<<<<<< HEAD
     (jig::rows::SETTING_AT, b"settings show charter|template|policy|model NUMBER [--revision REVISION]\nsettings show rules\nsettings show landing-rule NUMBER [--project PROJECT] [--revision REVISION]\nsettings show forge-charter NUMBER [--revision REVISION]\nsettings show project-ways|project-questions|project-classes|project-words|project-areas|project-triager PROJECT [--revision REVISION]\nsettings show charter-words NUMBER [--revision REVISION]\nsettings show template-goal NUMBER [--revision REVISION]\nsettings show follow NUMBER --project PROJECT [--revision REVISION]\nsettings show dependency NUMBER --project PROJECT [--revision REVISION]\nsettings show agents [--revision REVISION]\nsettings show welcome [--revision REVISION]\n"),
+=======
+    (jig::rows::SETTING_AT, b"settings show charter|template|policy|model|worker NUMBER [--revision REVISION]\nsettings show rules\nsettings show landing-rule NUMBER [--project PROJECT] [--revision REVISION]\nsettings show forge-charter NUMBER [--revision REVISION]\nsettings show project-ways|project-questions|project-classes|project-words|project-areas|project-triager PROJECT [--revision REVISION]\nsettings show charter-words NUMBER [--revision REVISION]\nsettings show template-goal NUMBER [--revision REVISION]\nsettings show follow NUMBER --project PROJECT [--revision REVISION]\nsettings show dependency NUMBER --project PROJECT [--revision REVISION]\nsettings show welcome [--revision REVISION]\n"),
+>>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
 ];
 #[test]
 fn a_tools_usage_reads_as_the_design_writes_it() {

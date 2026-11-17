@@ -118,7 +118,7 @@ pub fn domain() -> Domain {
             core: core::Config {
                 jobs: Box::new([]),
                 kept_starts: Box::new([]),
-                worker_names: Box::new([b"alpha".as_slice().into(), b"beta".as_slice().into()]),
+
                 deployment: [1; 16],
                 seed: 1,
                 workers_in_process: false,
@@ -156,6 +156,22 @@ pub fn domain() -> Domain {
                 },
                 kinds: Box::default(),
                 defaults: core::settings::Defaults {
+                    workers: Box::new([
+                        jig_domain_core::settings::WorkerSetting {
+                            number: 1,
+                            name: b"alpha".as_slice().into(),
+                            places: 1,
+                            digest: Some([7; 32]),
+                            withdrawn: false,
+                        },
+                        jig_domain_core::settings::WorkerSetting {
+                            number: 2,
+                            name: b"beta".as_slice().into(),
+                            places: 1,
+                            digest: Some([7; 32]),
+                            withdrawn: false,
+                        },
+                    ]),
                     models: Box::default(),
                     charters: Box::new([core::Charter {
                         parts: Box::new([]),

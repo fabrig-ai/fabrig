@@ -444,8 +444,11 @@ impl World {
         limits: fn(&mut engine::Limits),
     ) -> Self {
         let [(bootstrap, mut limits), (config, _)] = std::array::from_fn(|_| {
-            let (config, mut bounds) = configured_parts(config(seed), repository);
+            let (mut config, mut bounds) = configured_parts(config(seed), repository);
             limits(&mut bounds);
+            for worker in &mut config.core.defaults.workers {
+                worker.places = bounds.fleet.slots;
+            }
             (config, bounds)
         });
         let forge = repository_forge(seed);
@@ -806,7 +809,8 @@ impl World {
                 }
             }
             engine::Request::Drained => self.absence.drained = true,
-            engine::Request::Store(engine::StoreRequest::Catalogue { .. })
+            engine::Request::Worker(engine::WorkerRequest::Settings(_))
+            | engine::Request::Store(engine::StoreRequest::Catalogue { .. })
             | engine::Request::Party(engine::PartyRequest::Catalogue { .. }) => {}
             engine::Request::ToChild(released) => self.root_events.push_back(engine::Event::Released(released)),
             engine::Request::Store(engine::StoreRequest::Switch) => {

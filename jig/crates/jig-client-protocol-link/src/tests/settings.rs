@@ -539,7 +539,7 @@ fn settings_items_fit_at_the_count_and_byte_bounds() {
 
 // The standard inventory has 8 charters + 16 templates + 9 policies + the rules.
 const STANDARD_SETTINGS: u32 = 34;
-const MAX_SETTINGS: u32 = 256; // SettingsDocument.settings on client wire 23.
+const MAX_SETTINGS: u32 = w::CEILINGS.settings_document_settings;
 
 fn settings_inventory(count: u32) -> c::SettingsDocument {
     let mut settings = List::with_capacity(count);
@@ -751,4 +751,49 @@ fn overlays_round_trip_whole_and_obey_each_list_and_text_bound() {
     let wire = e::wire_setting_document(&document, limits.wire()).unwrap();
     assert_eq!(t::restore_setting_document(&wire, &limits), Ok(document));
     assert_eq!(t::restore_setting_follows(&w::SettingFollows::Overlay), Ok(c::SettingFollows::Overlay));
+}
+
+#[test]
+fn workers_and_linked_refusals_keep_their_client_identity_and_values() {
+    let limits = fixtures::limits();
+    let setting = c::Setting::Worker(c::SettingNumber { number: 2 });
+    let wire = t::wire_setting(&setting, limits.wire()).unwrap();
+    assert_eq!(t::restore_setting(&wire).unwrap(), setting);
+    for digest in [None, Some([9; 32])] {
+        let value = c::SettingValue::Worker(Box::new(c::WorkerSetting {
+            number: 2,
+            name: b"w1".as_slice().into(),
+            places: 4,
+            digest,
+            withdrawn: true,
+        }));
+        let wire = t::wire_setting_value(&value, limits.wire()).unwrap();
+        let mut bytes = Writer::new(usize::try_from(wire.measure()).unwrap());
+        wire.encode(&mut bytes).unwrap();
+        let wire = w::SettingValue::decode(limits.receiving(), &mut Reader::new(&bytes.finish())).unwrap();
+        assert_eq!(t::restore_setting_value(&wire, &limits).unwrap(), value);
+    }
+    let wire = w::Refusal::Malformed(
+        w::RefusalMalformed::new(
+            limits.wire(),
+            w::RefusalMalformedParts {
+                at: 1,
+                why: w::Malformed::Settings(
+                    w::MalformedSettings::new(
+                        limits.wire(),
+                        w::MalformedSettingsParts { setting: wire, fault: w::SettingFault::Linked, detail: None },
+                    )
+                    .unwrap(),
+                ),
+            },
+        )
+        .unwrap(),
+    );
+    assert_eq!(
+        translate::answers::refusal(&wire, &limits).unwrap(),
+        c::Refusal::Malformed {
+            at: 1,
+            why: c::Malformed::Settings(c::MalformedSettings { setting, fault: c::SettingFault::Linked, detail: None })
+        }
+    );
 }

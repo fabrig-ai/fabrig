@@ -1230,6 +1230,7 @@ fn worker_opening_ends_are_suppressed_by_name_and_reason_until_hello() {
             None => None,
         };
         let mut events = skein_lib::Queue::uncapped();
+        workers.down(Time::ZERO, jig_protocol_engine_workers::Event::Workers(fixtures::opening_workers()), &mut events);
         let why = Loss::Refused { reason: 256 };
         for _ in 0_u8..2 {
             workers.route(Output::Ended { worker: worker.clone(), channel: None, why }, &mut events);

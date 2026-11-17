@@ -613,10 +613,6 @@ pub fn lay(directory: &Path, owned: &Owned) {
         native_landing_settings(directory);
     }
     super::write_private(&directory.join("secrets/worker.secret"), b"worker-secret\n");
-    super::write_private(
-        &directory.join("secrets/worker.digest"),
-        b"6fb46f7a92742970166379ed5195e79c4493a7cc5664280c039cfd4095ba5faf\n",
-    );
 }
 
 // Reuse the shell's conversion without making a second public configuration API.

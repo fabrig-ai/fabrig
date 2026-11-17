@@ -794,6 +794,7 @@ mod list_tests {
                 crate::limits::schema(&fixtures::LIMITS).expect("schema"),
                 &fixtures::LIMITS,
                 Time::ZERO,
+                false,
             );
             state.channel = channel;
             state.phase = Phase::Open;

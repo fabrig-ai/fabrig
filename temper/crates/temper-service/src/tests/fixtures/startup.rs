@@ -37,12 +37,21 @@ pub fn document() -> Box<[u8]> {
         .unwrap()
         .replace(",\n{\"name\": \"worker-b\", \"digest\": \"secrets/worker-b.digest\"}", "");
     document.extend_from_slice(engine.as_bytes());
+<<<<<<< HEAD
     document.extend_from_slice(
         br#", "workers":[{
 "engine":{"in_process":"workers"},"name":"worker-a","secret":"worker-secret","slots":1,
 "memory_bytes":1152921504606846976}],"application":"#,
     );
     document.extend_from_slice(core::str::from_utf8(APPLICATION).unwrap().replace("\"overrides\":{}", "\"overrides\":{\"checkout.name_bytes\":600,\"checkout.repositories\":4,\"git_component.stdout_bytes\":131072,\"forge.name_bytes\":256,\"forge.resources_per_task\":4}").as_bytes());
+=======
+    document.extend_from_slice(br#", "workers":[{
+"engine":{"in_process":"workers"},"name":"local","secret":"worker-secret","slots":1,
+"agent":{"program":"/opt/temper/bin/temper","configuration":"/opt/temper/agent.json","arguments":["internal", "agent","/opt/temper/agent.json"]},
+"limits":{"overrides":{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.result_bytes":512,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}},
+"memory_bytes":1152921504606846976}],"application":"#);
+    document.extend_from_slice(core::str::from_utf8(APPLICATION).unwrap().replace("\"overrides\":{}", "\"overrides\":{\"checkout.name_bytes\":600,\"checkout.repositories\":4,\"git_component.stdout_bytes\":131072,\"forge.name_bytes\":256,\"forge.landing_members\":2,\"forge.resources_per_task\":4}").as_bytes());
+>>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
     document.extend_from_slice(b"}");
     let document = document.into_boxed_slice();
     let document = with(&document, b"engine.limits.overrides", engine_turn_limits().as_bytes());

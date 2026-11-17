@@ -751,6 +751,7 @@ fn settings_lines(b: &mut Builder, root: &temper_client_domain::Domain, facts: &
             c::Setting::Charter(_)
             | c::Setting::Template(_)
             | c::Setting::Policy(_)
+            | c::Setting::Worker(_)
             | c::Setting::Model(_)
             | c::Setting::Rules => {}
         }
@@ -1071,6 +1072,7 @@ fn setting_base(setting: c::Setting) -> Box<[u8]> {
         c::Setting::Template(n) => (b"template".as_slice(), Some(n.number)),
         c::Setting::Policy(n) => (b"policy".as_slice(), Some(n.number)),
         c::Setting::Model(n) => (b"model".as_slice(), Some(n.number)),
+        c::Setting::Worker(n) => (b"worker".as_slice(), Some(n.number)),
         c::Setting::Rules => (b"rules".as_slice(), None),
         c::Setting::ProjectPolicy { project } => (b"project policy".as_slice(), Some(project)),
         c::Setting::Application { kind: 1 | 2, number, .. } => (b"landing rule".as_slice(), Some(number)),

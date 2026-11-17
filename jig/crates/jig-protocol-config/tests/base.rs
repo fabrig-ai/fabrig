@@ -18,7 +18,7 @@ fn engine_connectors(limits: &[u8], connectors: &[u8]) -> Document {
         &skein_lib::bytes::concat(&[
             br#",
         "llm":{"endpoints":[],"providers":[]},
-        "hosts":{"workers":[],"listener":[]},
+        "hosts":{"listener":[]},
         "clients":{"heartbeat_ms":10000,"link":false},
         "deployment":{"directory":"state"},
         "providers":[{"number":1,"kind":"deployment"}],
@@ -97,6 +97,7 @@ fn unknown_profiles_are_refused_at_limits_profile() {
 fn refused_profiles_still_check_the_document_against_the_base() {
     let mut base = config::stock();
     base.core.connectors = 1;
+    base.core.fleet.worker_name_bytes = 1;
     base.link.name = 1;
     for limits in [br#"{"profile":"small"}"#.as_slice(), br#"{"profile":"large"}"#] {
         let engine = config::engine_over(

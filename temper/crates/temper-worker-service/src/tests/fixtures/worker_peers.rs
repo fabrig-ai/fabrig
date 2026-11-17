@@ -89,8 +89,13 @@ impl LinkPeer {
             component: engine_link::Component::new(
                 limits,
                 Box::new([engine_link::Worker {
+                    number: 1,
+                    places: 1,
+                    withdrawn: false,
                     name: settings.jig.name.clone(),
-                    digest: io::digest::digest(fixtures::worker_files().contents(b"worker-secret").unwrap()),
+                    digest: Some(skein_lib::sha256::digest(
+                        fixtures::worker_files().contents(b"worker-secret").unwrap(),
+                    )),
                 }]),
                 jig_protocol_worker_wire::spoken(),
                 {
@@ -118,7 +123,11 @@ impl LinkPeer {
         worker.iterate(self.now, Wall::EPOCH);
         worker.up(self.now, io::Event::Connecting { owner: self.owner, socket: Token::new(44) });
         worker.up(self.now, io::Event::Connected { owner: self.owner });
-        self.component.down(self.now, engine_link::Event::Accepted { connection: Token::new(1) }, &mut self.out);
+        self.component.down(
+            self.now,
+            engine_link::Event::Accepted { connection: Token::new(1), in_process: false },
+            &mut self.out,
+        );
         for _ in 0_u16..1000 {
             if let Some(engine_link::Request::Hello { .. }) = self.turn(worker) {
                 return;

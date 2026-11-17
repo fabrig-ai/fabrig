@@ -669,6 +669,7 @@ impl World {
                 }
                 engine::Request::Worker(engine::WorkerRequest::Deliver(delivery))
                 | engine::Request::Party(engine::PartyRequest::Deliver(delivery)) => self.delivery(delivery),
+                engine::Request::Worker(engine::WorkerRequest::Settings(_)) => {}
                 engine::Request::Stop => panic!("escalation root stopped: {:?}", self.trace),
                 other @ (engine::Request::Forge { .. }
                 | engine::Request::Worker(_)

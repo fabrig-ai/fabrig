@@ -51,10 +51,10 @@ fn a_run_takes_turns_and_progresses_before_its_answer() {
 }
 
 #[test]
-fn a_wrong_secret_is_refused_as_unauthorized() {
+fn a_wrong_secret_is_refused_as_not_admitted() {
     let outcome = run(Story::Opening(Opening::Secret));
     assert_eq!(outcome.verdict, Verdict::Passed);
-    assert_eq!(outcome.refusal, Some(256));
+    assert_eq!(outcome.refusal, Some(260));
     assert_eq!(outcome.turns_committed, 0);
 }
 

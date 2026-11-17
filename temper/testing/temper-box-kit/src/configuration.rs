@@ -57,11 +57,21 @@ pub fn documents(directory: &Path, _program: &str) -> (Vec<u8>, Vec<u8>) {
         worker.remove("programs");
     }
     value["workers"][0]["engine"] = serde_json::json!({"in_process":"workers"});
+<<<<<<< HEAD
     value["workers"][0].as_object_mut().expect("worker").remove("agent");
     value["workers"][0].as_object_mut().expect("worker").remove("limits");
     value["engine"]["limits"]["overrides"]["hub.accounts"] = 4.into();
     value["engine"]["limits"]["overrides"]["hub.event_bytes"] = 2046.into();
     value["engine"]["limits"]["overrides"]["hub.run_calls"] = 1.into();
+=======
+    value["workers"][0]["name"] = "local".into();
+    value["engine"]["limits"]["overrides"]["fleet.slots"] = 4.into();
+    value["workers"][0]["agent"]["program"] = program.into();
+    value["workers"][0]["agent"]["configuration"] = directory.join("agent.json").to_str().expect("agent path").into();
+    value["workers"][0]["agent"]["arguments"] = serde_json::json!(["internal", "agent", directory.join("agent.json")]);
+    value["workers"][0]["limits"]["overrides"]["hub.accounts"] = 4.into();
+    value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = 2046.into();
+>>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
     value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);
     value["engine"]["llm"]["endpoints"][0]["dialect"] = 3.into();
     value["engine"]["llm"]["endpoints"][0]["provider"] = "openai".into();

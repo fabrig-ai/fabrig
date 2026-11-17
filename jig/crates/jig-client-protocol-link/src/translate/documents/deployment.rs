@@ -81,7 +81,31 @@ pub(crate) fn deployment_fields(value: &w::Deployment, limits: &Limits) -> Resul
     for item in value.connectors() {
         list4.push(*item).expect("reserved supplied list");
     }
+    charge(
+        &mut room,
+        u64::from(value.worker_settings().len())
+            .checked_mul(u64::try_from(size_of::<c::WorkerState>()).expect("worker state size")),
+    )?;
+    let mut worker_settings = List::with_capacity(value.worker_settings().len());
+    for row in value.worker_settings() {
+        charge(&mut room, u64::try_from(row.name().len()).ok())?;
+        worker_settings
+            .push(c::WorkerState {
+                number: row.number(),
+                name: skein_lib::bytes::copy_of(row.name()),
+                places: row.places(),
+                digest: *row.digest(),
+                withdrawn: row.withdrawn(),
+                linked: row.linked(),
+                since: match *row.since() {
+                    Some(at) => Some(skein_lib::Wall::from_nanos(at)),
+                    None => None,
+                },
+            })
+            .expect("worker row count");
+    }
     Ok(c::Deployment {
+        worker_settings,
         providers: super::catalogue::offers(value.providers(), limits, &mut room)?,
         providers_cut: value.providers_cut(),
         key_bytes: value.key_bytes(),

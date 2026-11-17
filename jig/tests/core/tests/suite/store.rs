@@ -296,7 +296,8 @@ fn submit_delayed_turn(world: &mut World, task: u64, attempt: u64) {
     root::release(&mut world.domain, &env, &mut out);
     while let Some(request) = out.pop() {
         match request {
-            root::Request::StoreCatalogue { .. }
+            root::Request::Workers(_)
+            | root::Request::StoreCatalogue { .. }
             | root::Request::ClientsCatalogue { .. }
             | root::Request::Start { .. } => {}
             root::Request::Commit { number, mut writes } => {

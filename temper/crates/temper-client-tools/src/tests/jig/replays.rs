@@ -255,6 +255,9 @@ fn a_mismatched_ended_subject_cannot_route_an_act() {
 // Verbs without a retiring subject still send the same key and request, and
 // print its first refusal in both formats. This also guards future table rows.
 const DIRECT_CALLS: &[&[&str]] = &[
+    f::WORKER_ADD,
+    f::WORKER_PLACES,
+    f::WORKER_REMOVE,
     f::TIER_HOLD,
     f::TIER_RELEASE,
     f::FOLLOW_START,
@@ -366,6 +369,9 @@ fn direct(argv: &[&str]) {
                 None
             };
             let number = root.submit_prepared(parsed.clone(), json, value);
+            if (rows::WORKER_ADD_AT..=rows::WORKER_REMOVE_AT).contains(&parsed.tool) {
+                super::workers::serve(&mut root, number, vec![super::workers::row(1, "w1", false)]);
+            }
             let mut accounts = f::accounts();
             if parsed.tool == rows::DISCONNECT_AT {
                 accounts.accounts.get_mut(0).unwrap().sources.get_mut(0).unwrap().kind = c::AccountKind::SignIn;

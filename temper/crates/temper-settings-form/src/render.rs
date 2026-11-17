@@ -11,6 +11,7 @@ pub fn setting_text(setting: c::Setting, out: &mut Text) {
         c::Setting::Template(n) => (b"template".as_slice(), Some(n.number)),
         c::Setting::Policy(n) => (b"policy".as_slice(), Some(n.number)),
         c::Setting::Model(n) => (b"model".as_slice(), Some(n.number)),
+        c::Setting::Worker(n) => (b"worker".as_slice(), Some(n.number)),
         c::Setting::Application { kind: 1 | 2, scope, number } => {
             out.put(b"landing-rule ");
             out.number(u64::from(number));
@@ -105,6 +106,7 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
         c::Setting::Template(n) => (b"template".as_slice(), Some(n.number)),
         c::Setting::Policy(n) => (b"policy".as_slice(), Some(n.number)),
         c::Setting::Model(n) => (b"model".as_slice(), Some(n.number)),
+        c::Setting::Worker(n) => (b"worker".as_slice(), Some(n.number)),
         c::Setting::Application { kind, scope, number } => {
             out.object_start();
             out.key(b"kind");
@@ -211,6 +213,7 @@ fn named_value_text(
 pub fn encode_value(value: &c::SettingValue, out: &mut Encoder) {
     match value {
         c::SettingValue::Overlay(v) => values::encode_overlay(v, out),
+        c::SettingValue::Worker(v) => values::encode_worker(v, out),
         c::SettingValue::Model(v) => values::encode_catalogue(v, out),
         c::SettingValue::Charter(v) => values::encode_charter(v, out),
         c::SettingValue::Template(v) => values::encode_template(v, out),
@@ -288,6 +291,7 @@ fn value_details_text(value: &c::SettingValue, overlay: Option<&c::Overlay>, out
             }
         }
         c::SettingValue::Overlay(_)
+        | c::SettingValue::Worker(_)
         | c::SettingValue::Model(_)
         | c::SettingValue::Policy(_)
         | c::SettingValue::Application(_)
@@ -398,6 +402,7 @@ pub fn text(value: &c::ReadValue, requested: Option<u64>, limits: &Limits, out: 
                     c::Setting::Charter(_)
                     | c::Setting::Template(_)
                     | c::Setting::Policy(_)
+                    | c::Setting::Worker(_)
                     | c::Setting::Model(_)
                     | c::Setting::ProjectPolicy { .. }
                     | c::Setting::Rules
@@ -523,6 +528,7 @@ pub const fn fault_word(fault: c::SettingFault) -> &'static [u8] {
         c::SettingFault::Grace => b"grace",
         c::SettingFault::Judged => b"refused by its owner",
         c::SettingFault::Owner => b"owner",
+        c::SettingFault::Linked => b"linked: stop it first",
     }
 }
 
@@ -612,7 +618,8 @@ fn revision_text(answer: &c::RevisionAnswer, requested: u64, limits: &Limits, ou
 fn historical_setting(setting: c::Setting) -> bool {
     match setting {
         c::Setting::Charter(_) | c::Setting::Application { .. } => true,
-        c::Setting::Model(_)
+        c::Setting::Worker(_)
+        | c::Setting::Model(_)
         | c::Setting::Template(_)
         | c::Setting::Policy(_)
         | c::Setting::Rules

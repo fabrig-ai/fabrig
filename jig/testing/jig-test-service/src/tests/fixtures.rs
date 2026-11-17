@@ -30,10 +30,6 @@ const ENGINE: &[u8] = br#"{
 }]
 },
 "hosts": {
-"workers": [
-{"name": "worker-a", "digest": "secrets/worker-a.digest"},
-{"name": "worker-b", "digest": "secrets/worker-b.digest"}
-],
 "listener": [{"in_process": "workers"}]
 },
 "charters": [{
@@ -120,17 +116,11 @@ pub fn decimal(mut value: u64) -> Box<[u8]> {
     writer.finish()
 }
 
-pub const NAMES: [&[u8]; 4] =
-    [b"charters/chat.txt", b"secrets/worker-a.digest", b"secrets/worker-b.digest", b"app.secret"];
+pub const NAMES: [&[u8]; 2] = [b"charters/chat.txt", b"app.secret"];
 pub fn files(_document: &[u8]) -> Files {
     let mut entries = List::with_capacity(6);
     for name in NAMES {
-        let contents = match name {
-            b"secrets/worker-a.digest" => DIGEST_A,
-            b"secrets/worker-b.digest" => DIGEST_B,
-            _ => b"fixture contents",
-        };
-        entries.push((name.into(), Secret::new(contents.into()))).expect("named files");
+        entries.push((name.into(), Secret::new(b"fixture contents".as_slice().into()))).expect("named files");
     }
     Files { entries }
 }
@@ -320,8 +310,6 @@ pub fn engine(service: &mut Service) -> &mut crate::Engine {
 }
 
 pub const TOKEN: &[u8] = b"test-token";
-pub const DIGEST_A: &[u8] = b"8766b9cb08e6040b704f1e3ee1e186efccf2635b1d2634d6525333007e6aeae1";
-pub const DIGEST_B: &[u8] = b"ff492ef788c89b555e6f738b33d2422f57dbb6656af2402155672c5f123a90af";
 
 pub fn accounts_document() -> Box<[u8]> {
     with(&engine_document(), br#""components":[]"#, br#""components":["accounts"]"#)
@@ -368,7 +356,7 @@ pub fn values() -> crate::values::Values {
 }
 pub fn workers(config: &jig_protocol_config::Engine) -> crate::workers::Workers {
     let limits = crate::limits::small(&config.limits).workers;
-    crate::workers::Workers::new(config, &files(&[]), seeds().deployment, &limits).expect("fixture workers")
+    crate::workers::Workers::new(config, seeds().deployment, &limits).expect("fixture workers")
 }
 pub fn assignment(config: &jig_protocol_config::Engine) -> jig_test_domain::Assignment {
     use jig_domain_brief::{Core, GatherPlaced};

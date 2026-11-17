@@ -20,6 +20,7 @@ pub(crate) fn selector(call: &Call) -> c::Setting {
         Some(Value::Word(1)) => c::Setting::Template(number),
         Some(Value::Word(2)) => c::Setting::Policy(number),
         Some(Value::Word(3)) => c::Setting::Model(number),
+        Some(Value::Word(4)) => c::Setting::Worker(number),
         Some(_) | None => unreachable!("parsed setting kind"),
     }
 }
@@ -74,6 +75,7 @@ pub(crate) fn request(call: &Call, limits: &Limits) -> Result<c::ChangeSettings,
             | Value::Duration(_)
             | Value::Proposal(_)
             | Value::Digest(_)
+            | Value::Sha256(_)
             | Value::Condition(_)
             | Value::Switch
             | Value::Project(_)

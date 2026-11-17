@@ -151,13 +151,14 @@ pub(super) fn start_service(
 ) -> ServiceHost {
     let mut roots = List::with_capacity(1);
     roots.push(worker).expect("worker root");
-    let mut service = jig_test_service::startup(
+    let mut service = jig_test_service::startup_with_workers(
         document,
         &fixtures::files(),
         Some(&channel::agent()),
         &channel::seeds(),
         accounts,
         Some(jig_test_service::WorkerRuntime { roots }),
+        channel::workers(),
     )
     .expect("one-process startup");
     service.adopt_store(root, 1000).expect("actual deployment store");

@@ -295,6 +295,7 @@ fn authority_rules(ceiling: authority::Authority) -> authority::Rules {
 
 /// Real authority policy and an authenticated owner, rather than allow flags.
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "the story constructs the whole engine configuration and worker settings")]
 pub fn config(seed: u64) -> engine::Config {
     let ceiling = authority_value(1000, Box::new([authority::Executor::Charter(1)]));
     let rules = authority_rules(ceiling.clone());
@@ -329,7 +330,7 @@ pub fn config(seed: u64) -> engine::Config {
             workers_in_process: false,
             jobs: Box::new([]),
             kept_starts: Box::new([]),
-            worker_names: Box::new([Box::from(b"worker".as_slice())]),
+
             hub_turns: HUB_TURNS,
             owners: Box::new([people::InitialOwner {
                 project: 1,
@@ -338,6 +339,13 @@ pub fn config(seed: u64) -> engine::Config {
             grants: Box::new([]),
             kinds: Box::default(),
             defaults: jig_domain_core::settings::Defaults {
+                workers: Box::new([jig_domain_core::settings::WorkerSetting {
+                    number: 1,
+                    name: Box::from(b"worker".as_slice()),
+                    places: 1,
+                    digest: Some([7; 32]),
+                    withdrawn: false,
+                }]),
                 models: Box::default(),
                 rules,
                 charters: Box::new([charter()]),
@@ -864,6 +872,7 @@ impl World {
                 }
                 engine::Request::Worker(engine::WorkerRequest::Deliver(delivery))
                 | engine::Request::Party(engine::PartyRequest::Deliver(delivery)) => self.delivery(delivery),
+                engine::Request::Worker(engine::WorkerRequest::Settings(_)) => {}
                 engine::Request::Stop => panic!("walking story stopped: {:?}", self.trace),
                 other @ (engine::Request::Worker(_)
                 | engine::Request::Party(_)

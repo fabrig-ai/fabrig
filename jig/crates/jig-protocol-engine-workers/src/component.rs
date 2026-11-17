@@ -38,6 +38,8 @@ struct Sending {
 pub struct Component {
     pub(crate) limits: Limits,
     pub(crate) workers: Box<[Worker]>,
+    workers_ready: bool,
+    names: Map<u32, Box<[u8]>>,
     pub(crate) wires: List<wire::Spoken>,
     pub(crate) codec: wire::v16::Limits,
     pub(crate) connections: Map<Token, Connection>,
@@ -93,6 +95,15 @@ impl Component {
                 }
             }
         }
+        let mut names = Map::with_capacity(limits.names);
+        for worker in &workers {
+            if worker.number == 0 || worker.number > limits.names {
+                return Err(Unusable::Workers);
+            }
+            names
+                .insert(worker.number.checked_sub(1).expect("positive number"), worker.name.clone())
+                .or(Err(Unusable::Workers))?;
+        }
         let mut wires = List::uncapped();
         for wire in &jig {
             wires.push(wire.clone()).expect("uncapped wire list");
@@ -102,10 +113,17 @@ impl Component {
         }
         let translation = Box::new(wire::translation::Translation::new(application).or(Err(Unusable::Application))?);
         let connections = Map::with_capacity(limits.workers.checked_add(limits.opening).expect("checked limits"));
+        // The restore publishes even an empty initial table through Event::Workers.
+        let workers_ready = !workers.is_empty();
         Ok(Self {
             limits: *limits,
             workers,
+<<<<<<< HEAD
             figures: None,
+=======
+            workers_ready,
+            names,
+>>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
             wires,
             codec,
             connections,
@@ -119,6 +137,16 @@ impl Component {
             translation,
         })
     }
+    #[must_use]
+    pub fn workers(&self) -> &[Worker] {
+        &self.workers
+    }
+    /// Stable names survive withdrawal while an opening's diagnostics finish.
+    #[must_use]
+    pub fn worker_name(&self, position: u32) -> Option<&[u8]> {
+        Some(self.names.get(&position)?)
+    }
+
     /// The full opening table used by validation and upgrade judgements.
     #[must_use]
     pub fn full_schema(&self) -> &skein_channel::Schema {
@@ -127,8 +155,32 @@ impl Component {
 
     pub fn down(&mut self, now: Time, event: Event, out: &mut Queue<Request>) {
         match event {
+<<<<<<< HEAD
             Event::Figures { figures } => self.give_figures(now, figures, out),
             Event::Accepted { connection } => self.accepted(now, connection, out),
+=======
+            Event::Workers(workers) => {
+                for worker in &workers {
+                    self.names
+                        .insert(worker.number.checked_sub(1).expect("checked worker number"), worker.name.clone())
+                        .expect("checked worker table");
+                }
+                self.workers = workers;
+                self.workers_ready = true;
+                let mut waiting = List::uncapped();
+                for (connection, state) in &self.connections {
+                    if state.opening.is_some() {
+                        waiting.push(*connection).expect("uncapped waiting openings");
+                    }
+                }
+                for connection in waiting.into_boxed() {
+                    let mut state = self.connections.remove(&connection).expect("waiting opening exists");
+                    self.progress(now, connection, &mut state, out);
+                    self.keep(connection, state);
+                }
+            }
+            Event::Accepted { connection, in_process } => self.accepted(now, connection, in_process, out),
+>>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
             Event::Lower { connection, event } => self.lower(now, connection, event, out),
             Event::Gone { connection } => {
                 if let Some(mut state) = self.connections.remove(&connection) {
@@ -405,6 +457,7 @@ impl Component {
         }
         self.keep(connection, state);
     }
+<<<<<<< HEAD
     /// Whole owner input and each post-Agreed channel (protocol/channel/figures.md, 3).
     fn give_figures(&mut self, now: Time, figures: wire::Figures, out: &mut Queue<Request>) {
         self.figures = Some(figures);
@@ -459,6 +512,9 @@ impl Component {
         assert!(self.sending.is_none(), "send answered within its entrance");
     }
     fn accepted(&mut self, now: Time, connection: Token, out: &mut Queue<Request>) {
+=======
+    fn accepted(&mut self, now: Time, connection: Token, in_process: bool, out: &mut Queue<Request>) {
+>>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
         if self.life == Life::Closed
             || self.connections.len() == self.connections.capacity()
             || self.connections.contains_key(&connection)
@@ -470,7 +526,7 @@ impl Component {
             out.push(Request::TurnAway { connection });
             return;
         }
-        let mut state = Connection::new(self.schema.clone(), &self.limits, now);
+        let mut state = Connection::new(self.schema.clone(), &self.limits, now, in_process);
         out.push(Request::Take { connection });
         self.progress(now, connection, &mut state, out);
         self.keep(connection, state);
@@ -480,6 +536,15 @@ impl Component {
         assert!(replaced.is_none(), "one state per connection");
     }
     fn progress(&mut self, now: Time, connection: Token, state: &mut Connection, out: &mut Queue<Request>) {
+        // The settings restore resumes an opening, never extending its handshake deadline
+        // (domain/engine/workers.md, 4).
+        if self.workers_ready
+            && state.phase == Phase::Opening
+            && !expired(state.deadline, now)
+            && let Some(opening) = state.opening.take()
+        {
+            self.heard(now, connection, state, opening, out);
+        }
         // Up produces one owner event; a decision and poll can produce Ready or Closed.
         for _ in 0_u32..3 {
             for _ in 0..skein_channel::MAX_UP {
@@ -523,12 +588,16 @@ impl Component {
         out: &mut Queue<Request>,
     ) {
         match event {
-            ChannelEvent::Opening { credential, highest, .. } => {
-                let verdict = self.judge(&credential);
+            ChannelEvent::Opening { credential, lowest, highest } => {
                 if self.life != Life::Running {
                     self.refuse(now, connection, state, Reason::Stopping.code(), Box::new([]), out);
                     return;
                 }
+                if !self.workers_ready {
+                    state.opening = Some(ChannelEvent::Opening { credential, lowest, highest });
+                    return;
+                }
+                let verdict = self.judge(&credential, state.in_process);
                 let worker = match verdict {
                     Verdict::Refuse { worker, reason, text } => {
                         state.worker = worker;
@@ -1053,7 +1122,7 @@ mod bridge_tests {
     #[test]
     fn a_halted_running_message_is_discarded_with_its_channel_diagnostic() {
         let mut component = crate::tests::fixtures::component();
-        let mut state = Connection::new(component.schema.clone(), &component.limits, Time::ZERO);
+        let mut state = Connection::new(component.schema.clone(), &component.limits, Time::ZERO, false);
         state.worker = Some(0);
         state.channel = Token::new(17);
         state.version = 11;

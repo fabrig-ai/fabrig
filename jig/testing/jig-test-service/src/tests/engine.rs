@@ -945,6 +945,11 @@ fn pass_by_run() -> (fixtures::Driven, u64, u64) {
     use skein_lib::Duration;
     let document = fixtures::with(&fixtures::engine_document(), br#""sources":{"keys":true}"#, br#""sources":{}"#);
     let mut driven = fixtures::Driven::started(&document);
+    super::workers_settings::change(
+        &mut driven,
+        19,
+        core::settings::Edit::Set(core::settings::Value::Worker(Box::new(super::workers_settings::setting(1)))),
+    );
     // This story withholds pressure commits plus two admitted completions.
     driven.commits = skein_lib::Queue::uncapped();
     let engine = fixtures::engine(&mut driven.service);

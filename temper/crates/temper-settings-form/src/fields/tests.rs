@@ -5,7 +5,11 @@ use skein_json::writer::{Encoder, Limits as JsonLimits};
 use skein_lib::List;
 
 // T1 names every decoder shape, including the alternative-only objects.
+<<<<<<< HEAD
 const SHAPES: [Shape; 88] = [
+=======
+const SHAPES: [Shape; 85] = [
+>>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
     Shape::File,
     Shape::Item,
     Shape::Setting,
@@ -15,6 +19,7 @@ const SHAPES: [Shape; 88] = [
     Shape::Document,
     Shape::Model,
     Shape::Catalogue,
+    Shape::Worker,
     Shape::Wake,
     Shape::WakeRule,
     Shape::WakeBatch,
@@ -403,7 +408,9 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                     out.array_start();
                     stack.push(Action::EndArray).expect("schema stack bound");
                 }
-                if field.shape == Shape::Document && field.name == b"repository" {
+                if field.shape == Shape::Worker && field.name == b"digest" {
+                    out.string(b"0000000000000000000000000000000000000000000000000000000000000000");
+                } else if field.shape == Shape::Document && field.name == b"repository" {
                     out.string(b"owner/name");
                 } else {
                     stack.push(Action::Value(&field.value)).expect("schema stack bound");
@@ -463,6 +470,10 @@ fn matches_base(edit: Edit) -> bool {
     }
 }
 
+fn optional_worker(field: &Field) -> bool {
+    field.shape == Shape::Worker && [b"number".as_slice(), b"digest", b"withdrawn"].contains(&field.name)
+}
+
 fn optional_landing(field: &Field) -> bool {
     field.shape == Shape::ProjectLanding
         || field.shape == Shape::LandingCombineSettings
@@ -499,6 +510,7 @@ fn every_generated_file_decodes() {
             || (field.shape == Shape::Llm && field.name == b"later")
             || (field.shape == Shape::LlmLater && field.name == b"subagents")
             || (field.shape == Shape::ClassItem && field.name == b"words")
+            || optional_worker(field)
             || optional_follow(field)
             || optional_landing(field)
         {
@@ -531,6 +543,7 @@ fn a_member_left_out_is_refused_naming_it() {
             || (field.shape == Shape::Model && field.name == b"provider")
             || (field.shape == Shape::Document && field.name == b"heading")
             || (field.shape == Shape::ClassItem && [b"set".as_slice(), b"words"].contains(&field.name))
+            || optional_worker(field)
             || optional_follow(field)
             || optional_landing(field)
         {

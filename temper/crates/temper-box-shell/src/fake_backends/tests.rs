@@ -132,7 +132,6 @@ fn untouched_box_init_imports_with_and_without_sign_in() {
 
 fn assert_rebased_box_paths(temper: &Json, effective: &Directories, sign_in: bool) {
     for (pointer, name) in [
-        ("engine/hosts/workers/0/digest", "worker.digest"),
         ("workers/0/secret", "worker.secret"),
         ("application/demo/llm/key", "demo/llm.key"),
     ] {
@@ -666,7 +665,6 @@ fn fresh_preparation_is_private_and_isolates_imported_resources() {
         "config/oauth.json",
         "config/llm.json",
         "data/worker.secret",
-        "data/worker.digest",
     ] {
         assert_eq!(fs::symlink_metadata(root.join(name)).expect("private file").mode() & 0o777, 0o600, "{name}");
     }

@@ -1170,6 +1170,7 @@ pub enum StoreRequest {
 }
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum WorkerRequest {
+    Settings(Box<[core::settings::WorkerSetting]>),
     Host(Box<HostRequest>),
     /// Read an ended answer's opaque outcome in the protocol routing.
     ReadResult {

@@ -29,7 +29,6 @@ pub fn copy(config: &engine::Config) -> engine::Config {
         core: core::Config {
             jobs: c.jobs.clone(),
             kept_starts: Box::new([]),
-            worker_names: c.worker_names.clone(),
             deployment: c.deployment,
             seed: c.seed,
             workers_in_process: c.workers_in_process,
@@ -38,6 +37,7 @@ pub fn copy(config: &engine::Config) -> engine::Config {
             grants: c.grants.clone(),
             kinds: c.kinds.clone(),
             defaults: core::settings::Defaults {
+                workers: c.defaults.workers.clone(),
                 models: c.defaults.models.clone(),
                 charters: c.defaults.charters.clone(),
                 templates: c.defaults.templates.clone(),

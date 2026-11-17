@@ -706,7 +706,9 @@ pub fn resume(journal: &mut Journal, out: &mut Queue<Output>) {
                 out.push(Output::Deliver(Delivery::ForgeCall { call, repository, op }));
             }
             request @ (crate::Output::Worker(
-                crate::WorkerRequest::Host(_) | crate::WorkerRequest::ReadResult { .. },
+                crate::WorkerRequest::Settings(_)
+                | crate::WorkerRequest::Host(_)
+                | crate::WorkerRequest::ReadResult { .. },
             )
             | crate::Output::Party(
                 crate::PartyRequest::Catalogue { .. }

@@ -121,7 +121,7 @@ pub(crate) const GROUPS: &[Group] = &[
             Address {
                 form: "settings",
                 line: "Newest revision; settings and their last revisions, held revisions, waiting proposals; project repositories, people, forge accounts and offer.",
-                next: "settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings rules · settings landing-rule N · settings landing-rule N project · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings project-classes · revisions · help settings",
+                next: "settings charter N · settings template N · settings policy N · settings model N · settings worker N · settings forge-charter N · settings rules · settings landing-rule N · settings landing-rule N project · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings project-classes · revisions · help settings",
             },
             Address {
                 form: "settings charter N",
@@ -141,6 +141,11 @@ pub(crate) const GROUPS: &[Group] = &[
             Address {
                 form: "settings model N",
                 line: "The model whole, at the newest revision.",
+                next: "settings · revisions · help settings-fields",
+            },
+            Address {
+                form: "settings worker N",
+                line: "The worker whole, at the newest revision.",
                 next: "settings · revisions · help settings-fields",
             },
             Address {

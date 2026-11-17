@@ -745,7 +745,7 @@ fn checked_start_using(
     if !problems.is_empty() {
         return Err(problems);
     }
-    let mut core = config::core(&parsed.engine, seeds.deployment, seeds.seed);
+    let mut core = temper_engine_service::startup::core(&parsed.engine, seeds.deployment, seeds.seed);
     core.jobs = crate::limits::jobs(&parsed.engine.limits);
     let mut warnings = Problems::empty();
     if let Some(agent) = &declaration {

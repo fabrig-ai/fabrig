@@ -96,12 +96,6 @@
       ]
     },
     "hosts": {
-      "workers": [
-        {
-          "name": "worker",
-          "digest": "secrets/worker.digest"
-        }
-      ],
       "listener": [
         {
           "in_process": "workers"
@@ -122,7 +116,7 @@
       "engine": {
         "in_process": "workers"
       },
-      "name": "worker",
+      "name": "local",
       "secret": "secrets/worker.secret",
       "slots": 4
     }

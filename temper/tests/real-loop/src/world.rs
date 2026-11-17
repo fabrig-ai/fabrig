@@ -831,6 +831,7 @@ impl Judge {
             return Err("root admission order".into());
         };
         let (workers, children) = children.split_at_mut(self.workers.len());
+<<<<<<< HEAD
         // Open initial links in the fixture's order, independently of fetch timing.
         let mut preceding_linked = true;
         for proc in workers.iter_mut() {
@@ -843,7 +844,17 @@ impl Judge {
                     *engine = service.workers_address;
                 }
                 preceding_linked &= !*started || linked;
+=======
+        let mut prior_linked = true;
+        for proc in workers.iter_mut() {
+            let Kind::Service(worker) = &mut proc.kind else { return Err("worker root".into()) };
+            worker.address = peer.address();
+            if let Some(crate::cluster::Shape::Worker { engine, .. }) = &mut worker.cluster {
+                // Give the nominal workers their fleet order even when an opening redials before settings.
+                *engine = if prior_linked { service.workers_address } else { None };
+>>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
             }
+            prior_linked &= !worker_started(worker) || worker.linked() > 0;
         }
         if caller.stopping_engine() {
             if !service.stopping() {
@@ -915,7 +926,11 @@ impl Judge {
             github_cues(state, peer, service, caller, children)?;
         }
         service.address = peer.address();
-        Lifecycle::release(caller, service.links(), story_ready(service, workers));
+        Lifecycle::release(
+            caller,
+            service.links(),
+            service.fixture_ready() && (caller.setup() || story_ready(service, workers)),
+        );
         if !caller.released && service.is_empty() {
             self.fail_startup(service.early_exit(engine_index)?, caller, workers, caller_end);
             self.finish_peers(peer, children);
@@ -1074,7 +1089,7 @@ impl Referee<Proc> for Judge {
             || (peer.address().is_some() && service.address.is_none())
             || (service.links() != 0
                 && !caller.released
-                && story_ready(service, workers))
+                && service.fixture_ready() && (caller.setup() || story_ready(service, workers)))
             || (caller.watching.is_some() && (!service.watching() || service.delivered() && !caller.watched))
             || (caller.is_empty() && self.children.settled(children)? && !self.lifecycle.stopping)
             || (service.is_empty() && !self.lifecycle.finished && (!caller.released || caller.is_empty()))

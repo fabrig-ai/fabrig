@@ -14,7 +14,13 @@ Run temper long-term: engine behind a TLS proxy with Google sign-in and owned Fo
 - **Google client:** OAuth consent in Testing, members its test users,
   scopes `openid`, `email`, `profile`; a Web application client with one redirect URI
   `https://temper.example.com/sign-in/google/return`.
+<<<<<<< HEAD
 - `COMMIT`: same build's 12 hex digits on both Linux x86-64 hosts. On `engine`, set `binaries='temper-engine temper'` (`temper` is
+=======
+- `HEX`: `w1.digest`'s hex, not its path.
+- `COMMIT`: the build's twelve hex digits, the same on both Linux x86-64
+  hosts. On `engine`, set `binaries='temper-engine temper'` (`temper` is
+>>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
   ctl's client); on `worker`, `binaries='temper-worker temper-agent'`.
   On each:
 
@@ -35,10 +41,13 @@ Binaries are suffixless gzip; keep the checksum layout. Strip
 
 ## 1. Write the engine's configuration
 
+<<<<<<< HEAD
 Copy `owned.json` to `CONFIG/temper.json`; change:
+=======
+Copy `owned.json` to `CONFIG/temper.json`, `owned/` files to `CONFIG/`; edit:
+>>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
 
-- `engine.hosts`: `{"workers": [{"name": "w1", "digest":
-  "secrets/w1.digest"}], "listener": [{"socket": "127.0.0.1:8369"}]}`;
+- `engine.hosts`: `{"listener":[{"socket":"127.0.0.1:8369"}]}`;
   `workers` and `application.workers`: `[]`, an engine alone;
 - `application.clients`: `listener` `{"socket": "127.0.0.1:8367"}`,
   `public` `"https://temper.example.com"`;
@@ -49,7 +58,7 @@ Copy `owned.json` to `CONFIG/temper.json`; change:
   "CLIENT_ID", "secret": "secrets/google-client.secret", "endpoints":
   null}, "members": [{"address": "sam@example.com", "login": "sam"}]}`.
 
-Provider 3 owners must be members; add one by editing and restarting.
+Provider 3 owners must be members; edit and restart to add one.
 
 For Forgejo sign-in through temper, set
 `engine.clients.provider`: `{"key": "provider.key", "clients": [{"id":
@@ -63,14 +72,20 @@ to run once after step 4:
 temper-engine forge sign-in --config CONFIG --data DATA --cache CACHE 1
 ```
 
-`engine.memory_bytes` (1 GiB, `1073741824` in the example) budgets held
-transcripts and turns, not process memory. At its bound, due tasks await
-earlier turns' saves, even after restart. Only `0` refuses start:
+`engine.memory_bytes` budgets held transcripts/turns, not process memory
+(example: 1 GiB, `1073741824`). At the bound, due tasks await earlier turns'
+saves, even after restart. `0` alone refuses start:
 `engine.memory_bytes: past its bound` (temper help configuration).
 
+<<<<<<< HEAD
 For more runs, raise `workers[0].slots`, `hub.slots`, `fleet.slots`,
 `checkout.workspaces` and `git_component.operations`. A start names short
 limits. A slot is an agent process, up to the `agents` setting's `declared.memory`.
+=======
+More runs: raise `workers[0].slots`, `hub.slots`, `fleet.slots`,
+`checkout.workspaces` and `git_component.operations`. Starts name short limits.
+Each slot: an agent process, at most `agent.json`'s `declared.memory`.
+>>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
 
 Expect: valid JSON; nothing runs yet.
 
@@ -78,18 +93,35 @@ If not: step 3 names refused members.
 
 ## 2. Keep the secrets
 
+<<<<<<< HEAD
 As `temper`, type Google's secret without echo, chat or copying:
+=======
+As `temper`, enter Google's client secret without echo, chat or copying:
+>>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
 
 ```
 sudo -u temper bash -c 'umask 077; mkdir -p DATA/secrets; IFS= read -rsp "Google client secret: " s; echo; printf %s "$s" > DATA/secrets/google-client.secret; unset s'
 ```
 
 On `worker`, make data's `secrets/w1.secret`; copy SHA-256 of its digits
+<<<<<<< HEAD
 (no line end) to `engine`'s `DATA/secrets/w1.digest`:
+=======
+without the line end for the engine's worker setting:
+>>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
 
 ```
 umask 077; s=$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n'); printf '%s\n' "$s" > secrets/w1.secret; printf %s "$s" | sha256sum | cut -d' ' -f1 > w1.digest; unset s
 ```
+
+After engine sign-in, add without restart:
+
+```
+temper ctl DIR worker add w1 --places 4 --digest HEX --key KEY
+```
+
+Workers are store settings; `engine.hosts.workers` is refused.
+Places apply at next opening.
 
 Expect: `stat -c '%U %a' FILE` prints `temper 600` for each.
 
@@ -98,9 +130,9 @@ give it to `temper`, mode 0600.
 
 ## 3. Start Forgejo, then the engine
 
-Units under `temper`, each with `UMask=0077`, `ProtectSystem=strict`,
+Units run as `temper` with `UMask=0077`, `ProtectSystem=strict`,
 `PrivateTmp=yes`, `ReadWritePaths=/var/lib/temper`, `NoNewPrivileges=yes`.
-`strict` leaves `/tmp` read-only without `PrivateTmp`. Forgejo's:
+Without `PrivateTmp`, `strict` makes `/tmp` read-only. Forgejo:
 
 ```
 temper-engine forge prepare --config CONFIG --data DATA --cache CACHE 1 --listen 127.0.0.1:3000 --public https://git.example.com --runner-label w1-jobs:docker://docker.io/library/debian:trixie-slim --runner-path /usr/bin:/bin --person sam sam@example.com
@@ -131,7 +163,7 @@ Keep `DATA` unchanged; report it.
 
 ## 4. The TLS proxy
 
-Caddy alone faces the world, on 80 and 443:
+Caddy alone faces the world on 80/443:
 
 ```
 git.example.com {
@@ -149,7 +181,7 @@ temper.example.com {
 }
 ```
 
-Keep `Host`: it sets cookies' `Secure`. Add no retry.
+Keep `Host` for cookies' `Secure`; no retries.
 
 Expect: `https://temper.example.com/` answers 200; a `POST` to
 `/jig/v1/sign-in/link` answers 403; `/sign-in/google` answers 303 to
@@ -165,6 +197,7 @@ If not: 502: engine down or listening elsewhere; read its journal.
   and `10.88.0.1:3000` to the same ports on 127.0.0.1, with
   `FreeBind=yes`, admitted from `10.88.0.5` alone; on `worker`,
   `127.0.0.1:8369` and `127.0.0.1:3000` to `10.88.0.1`.
+<<<<<<< HEAD
 - `temper-worker serve`: three dirs. Use example's
   `workers[0]` with `engine` `{"socket":"127.0.0.1:8369"}`, `name` `"w1"`,
   `secret` `"secrets/w1.secret"`; top-level only `workers` and
@@ -182,15 +215,38 @@ If not: 502: engine down or listening elsewhere; read its journal.
   `[{"name":"PATH","value":"/usr/bin:/bin"}]` (temper help box).
 - Forgejo runner 13.2.1: separate user, `url` `http://127.0.0.1:3000`,
   `uuid`/secret: `DATA/forge-1/runner/`; rootless podman jobs.
+=======
+- Worker: three directories for `temper-worker serve`. Keep only top-level
+  `workers` and `application`'s `workers` and `limits`; omit top-level `engine`.
+  From the example's `workers[0]`, set `engine`: `{"socket":"127.0.0.1:8369"}`,
+  `name`: `"w1"`, `secret`: `"secrets/w1.secret"`,
+  `agent.program`: `"/usr/local/bin/temper-agent"`, `agent.configuration`: absolute
+  `agent.json` path, `agent.arguments`: `[that path]`.
+  Use step 3's unit with `KillMode=control-group` (no surviving agent/command)
+  and `TimeoutStopSec=360s` (326-second stop bound plus 34 seconds).
+  Raise this timeout with the bound. `ReadWritePaths`: its own home.
+  Without `PrivateTmp=yes`, Claude Code fails
+  `EROFS: read-only file system, mkdir '/tmp/claude-UID'`.
+  `agent.json`'s `environment` is a list, not a map:
+  `[{"name":"PATH","value":"/usr/bin:/bin"}]` (temper help box).
+- The runner, Forgejo runner 13.2.1 under a user of its own, its
+  `url` `http://127.0.0.1:3000`, its `uuid` and secret those of
+  `DATA/forge-1/runner/`; its jobs in rootless podman.
+>>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
 
 ```
 temper-worker serve --config CONFIG --data DATA --cache CACHE
 ```
 
+<<<<<<< HEAD
 Expect: stderr: `figures taken from ENGINE: P places, L limits, E endpoints`,
 then `linked w1` and engine address; Forgejo site administration: runner online.
+=======
+Expect: `worker` stderr: `linked w1` and the engine address;
+runner online in Forgejo site administration.
+>>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
 
-If not: limits below stock refuse before listeners open, naming limit,
+If not: limits below stock refuse before listening, naming limit,
 setting and required size: `engine.limits.overrides.core.policy_bytes:
 core.policy_bytes is 100; the stock's policy 1 needs 2390 bytes; raise
 it in engine.limits.overrides`; raise that override and start again.
@@ -211,7 +267,7 @@ origin, on `engine` as `temper`:
 journalctl -u temper -o cat | grep -o 'https://temper.example.com/jig/v1/sign-in/link?[^ ]*' | tail -1 | sed 's#^https://temper.example.com#http://127.0.0.1:8367#' | temper ctl DIR sign-in -
 ```
 
-In a browser, open that link through `ssh -L 8367:127.0.0.1:8367 engine`.
+Browser: open that link through `ssh -L 8367:127.0.0.1:8367 engine`.
 
 Connect Forgejo: without a record, `forge list` is empty; `forge setup`
 refuses. A new store's forge is 1:
@@ -228,8 +284,8 @@ Expect: `party 1 · sam · ` and the first `engine.owners` party's name.
 The page's `temper-forge-sign-in` meta needs a kept `forge connect`
 record. If a fresh page lacks it, restart once to make it from that record.
 
-If not: a signed-in directory refuses before sending, leaving the link
-unspent: `temper ctl DIR sign-out` first, or use another directory.
+If not: a signed-in directory refuses before sending; the link stays unspent.
+Run `temper ctl DIR sign-out` first, or use another directory.
 Sign-out empties even an engine-refused token; no answer keeps it (exit 1).
 `temper ctl: the sign-in link was refused` distinguishes `it was already
 used`, `it has expired`, and `temper does not know it, as another
@@ -242,8 +298,8 @@ Other refusals: temper help forgejo, step 2.
 ## 7. Redeploy from main
 
 Redeploy resets the store, keeping Forgejo, secrets and members.
-Before stopping, export each `sign_in` or `granted` account to a file
-kept across reset:
+Before stopping, export every `sign_in` or `granted` account to a file
+retained across reset:
 
 ```
 temper ctl DIR account list

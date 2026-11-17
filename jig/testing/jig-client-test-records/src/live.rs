@@ -57,6 +57,7 @@ pub fn owner_deployment_record() -> w::Deployment {
     w::Deployment::new(
         &lim,
         w::DeploymentParts {
+            worker_settings: List::with_capacity(0),
             skein_bools: [false, false, false, false],
             providers: Box::new([]),
             key_bytes: 256,

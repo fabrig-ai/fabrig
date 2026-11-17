@@ -33,6 +33,8 @@ pub struct Operation {
     /// Distinct submitted settings scopes, ordered with the deployment before projects.
     pub settings_scopes: Option<skein_lib::Set<u32>>,
     pub start_model: Option<start_model::Start>,
+    /// The live worker shorthand's name; the durable request remains a settings change.
+    pub worker: Option<Box<[u8]>>,
 }
 /// What a person task's contract asks of an answer past it (client/ctl/areas.md).
 #[derive(Debug)]
@@ -88,6 +90,14 @@ impl Operation {
     pub(crate) fn model_flags(&mut self, call: &crate::jig::call::Call) {
         if let Some(start) = &mut self.start_model {
             start.flags(call);
+        }
+    }
+    pub(crate) fn worker_name(&mut self, call: &crate::jig::call::Call) {
+        if (crate::jig::rows::WORKER_ADD_AT..=crate::jig::rows::WORKER_REMOVE_AT).contains(&call.tool) {
+            let Some(crate::jig::call::Value::Text(name)) = crate::jig::call::value(call, 0) else {
+                unreachable!("worker name argument")
+            };
+            self.worker = Some(name.clone());
         }
     }
     fn tool_name(&self) -> &'static [u8] {
@@ -226,6 +236,7 @@ impl Operation {
             proposal_decision,
             settings_scopes: settings_scopes(ask),
             start_model: start_model::Start::of(ask, word),
+            worker: None,
         }
     }
 }
@@ -423,6 +434,11 @@ fn text(
         }
         c::Answer::Done(c::Outcome::MovedToNewest(value)) => moved_text(operation, value, out),
         c::Answer::Done(c::Outcome::SettingsChanged(changed)) => {
+            if let Some(worker) = &operation.worker {
+                out.put(b"worker ");
+                out.put(worker);
+                out.put(b": ");
+            }
             out.put(b"revision ");
             out.number(u64::from(changed.revision));
         }
@@ -554,6 +570,7 @@ fn settings_scopes(ask: &Ask) -> Option<skein_lib::Set<u32>> {
                 c::Setting::Charter(_)
                 | c::Setting::Template(_)
                 | c::Setting::Policy(_)
+                | c::Setting::Worker(_)
                 | c::Setting::Model(_)
                 | c::Setting::Rules => 0,
                 c::Setting::ProjectPolicy { project } => project,
@@ -854,6 +871,9 @@ pub(crate) fn act_tool(tool: u8) -> &'static crate::jig::table::Tool {
         }
         rows::AMEND_AT => &rows::AMEND,
         rows::CHANGE_SETTINGS_AT => &rows::CHANGE_SETTINGS,
+        rows::WORKER_ADD_AT => &rows::WORKER_ADD,
+        rows::WORKER_PLACES_AT => &rows::WORKER_PLACES,
+        rows::WORKER_REMOVE_AT => &rows::WORKER_REMOVE,
         rows::PROPOSE_SETTINGS_AT => &rows::PROPOSE_SETTINGS,
         rows::MOVE_TO_NEWEST_AT => &rows::MOVE_TO_NEWEST,
         rows::RESTORE_AT => &rows::RESTORE,
@@ -1008,6 +1028,7 @@ fn moved_in(account: u32, renewed: bool, out: &mut Text) {
 
 mod ceiling;
 
+#[expect(clippy::too_many_lines, reason = "each refusal renders its own actionable outcome")]
 fn refused_text(
     operation: &Operation,
     refusal: &c::Refusal,
@@ -1016,6 +1037,9 @@ fn refused_text(
     prefix: &[u8],
     out: &mut Text,
 ) {
+    if worker_refusal(operation, refusal, out) {
+        return;
+    }
     if super::roles::refusal(operation.word, refusal, me, out) {
         return;
     }
@@ -1114,6 +1138,59 @@ fn refused_text(
             None => out.put(operation.tool_name()),
         }
     }
+}
+
+/// Worker refusals retain the settings answer's status and do not retry (client/ctl/workers.md, 2).
+fn worker_refusal(operation: &Operation, refusal: &c::Refusal, out: &mut Text) -> bool {
+    let Some(worker) = &operation.worker else { return false };
+    match refusal {
+        c::Refusal::Malformed { why: c::Malformed::Settings(value), .. } if value.fault == c::SettingFault::Linked => {
+            out.put(worker);
+            out.put(b" is linked: stop it first; its runs end interrupted");
+        }
+        c::Refusal::Malformed { why: c::Malformed::Settings(value), .. } if value.fault == c::SettingFault::Count => {
+            out.put(operation.tool_name());
+            out.put(b": configured workers' bound reached");
+        }
+        c::Refusal::Stale(value) => {
+            out.put(operation.tool_name());
+            out.put(b": stale; newest revision ");
+            out.number(u64::from(value.newest));
+            out.put(b"; run it again");
+        }
+        c::Refusal::Concluded { .. }
+        | c::Refusal::Judged { .. }
+        | c::Refusal::SignInRedirect { .. }
+        | c::Refusal::Forgotten { .. }
+        | c::Refusal::Full(_)
+        | c::Refusal::AccountMove { .. }
+        | c::Refusal::Circle { .. }
+        | c::Refusal::Dependency { .. }
+        | c::Refusal::Kept { .. }
+        | c::Refusal::Account { .. }
+        | c::Refusal::NoEscalationHolder
+        | c::Refusal::Provider
+        | c::Refusal::Malformed { .. }
+        | c::Refusal::Role { .. }
+        | c::Refusal::Taken { .. }
+        | c::Refusal::NotWaiting
+        | c::Refusal::NoFurther
+        | c::Refusal::Authority { .. }
+        | c::Refusal::Limit { .. }
+        | c::Refusal::Moved { .. }
+        | c::Refusal::Ended { .. }
+        | c::Refusal::Unknown
+        | c::Refusal::NameTaken
+        | c::Refusal::NotOffered
+        | c::Refusal::NoTerminal
+        | c::Refusal::LoginUnderWay
+        | c::Refusal::NotLending
+        | c::Refusal::ProgramNameReserved
+        | c::Refusal::KeyConflict
+        | c::Refusal::Llm { .. }
+        | c::Refusal::LiveTasks { .. } => return false,
+    }
+    true
 }
 
 fn milestone_budget_refusal(operation: &Operation, refusal: &c::Refusal, out: &mut Text) -> bool {

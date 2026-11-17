@@ -243,7 +243,6 @@ fn check_agent(dirs: &Directories, mut document: serde_json::Value) {
 fn check_files(dirs: &Directories, binary: &Path, written: &Written, row: &str) {
     let names = [
         ("worker.secret", true, Some(0o600)),
-        ("worker.digest", true, Some(0o600)),
         ("demo/llm.key", true, Some(0o600)),
         ("demo/bin/git", true, None),
         ("temper.json", false, Some(0o644)),
@@ -281,7 +280,6 @@ fn init_refusals_leave_every_file_and_directory_untouched() {
     for (row, data, dangling) in [
         ("temper.json", false, false),
         ("worker.secret", true, false),
-        ("worker.digest", true, false),
         ("demo/llm.key", true, false),
         ("demo/bin/git", true, true),
     ] {
@@ -394,7 +392,11 @@ fn a_bare_configuration_passes_the_same_checks_as_serve() {
         assert!(written.login.is_none());
         assert_eq!(
             written.paths,
+<<<<<<< HEAD
             [path(&dirs.data).join("worker.secret"), path(&dirs.data).join("worker.digest"), dirs.document()]
+=======
+            [path(&dirs.data).join("worker.secret"), path(&dirs.config).join("agent.json"), dirs.document()]
+>>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
         );
         let document: serde_json::Value = serde_json::from_slice(&bytes).expect("JSON");
         assert!(document["application"].get("welcome").is_none());

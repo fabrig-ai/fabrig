@@ -59,7 +59,13 @@ impl Channel {
         }
         let engine = engine::Component::new(
             &limits,
-            Box::new([engine::Worker { name: b"reader".as_slice().into(), digest: skein_io::digest::digest(secret) }]),
+            Box::new([engine::Worker {
+                number: 1,
+                name: b"reader".as_slice().into(),
+                places: 1,
+                digest: Some(skein_lib::sha256::digest(secret)),
+                withdrawn: false,
+            }]),
             jig_protocol_worker_wire::spoken(),
             application,
         )
@@ -97,7 +103,11 @@ impl Channel {
                 bounds: fixtures::worker_agent().bounds,
             }),
         };
-        channel.engine.down(Time::ZERO, engine::Event::Accepted { connection: CONNECTION }, &mut channel.engine_out);
+        channel.engine.down(
+            Time::ZERO,
+            engine::Event::Accepted { connection: CONNECTION, in_process: false },
+            &mut channel.engine_out,
+        );
         channel.worker.fire(Time::ZERO, &mut channel.worker_out);
         channel.settle();
         if version == payload::wire::VERSION {

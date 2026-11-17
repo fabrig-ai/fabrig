@@ -729,6 +729,8 @@ fn a_persons_plan_change_lands_on_the_owned_forge_and_is_found_after_a_restart()
 
 // protocol/cluster.md, 6: the description's first process stories.
 struct ClusterJudge {
+    seeded: bool,
+    client: std::path::PathBuf,
     finding: Option<String>,
     members: support::cluster::Members,
     deadline: skein_lib::Time,
@@ -736,7 +738,11 @@ struct ClusterJudge {
 }
 impl ClusterJudge {
     fn advance_world(&mut self, now: skein_lib::Time, hosts: &mut [support::cluster::Root]) -> Result<(), String> {
-        if self.members.is_up() {
+        if self.workers && !self.seeded && self.members.capture("engine", "link").is_some() {
+            support::cluster::admit_workers(&self.members, hosts.last_mut().ok_or("client root")?, &self.client)?;
+            self.seeded = true;
+        }
+        if self.members.is_up() && hosts.last().is_some_and(skein_shell::Host::is_empty) {
             if self.workers {
                 for worker in ["w1", "w2"] {
                     if self.members.capture(worker, "engine") != self.members.capture("engine", "workers") {
@@ -825,6 +831,8 @@ fn cluster_story(scratch: &std::path::Path, workers: bool) {
     members.up(if workers { &["w1", "w2"] } else { &["engine"] });
     let clock = skein_shell::Clock::new();
     let mut world = skein_world::real::World::new(ClusterJudge {
+        seeded: false,
+        client: scratch.join("client"),
         finding: None,
         members,
         deadline: clock.now().now.saturating_add(support::WITHIN),
@@ -833,6 +841,7 @@ fn cluster_story(scratch: &std::path::Path, workers: bool) {
     for host in hosts {
         world.spawn(|| host);
     }
+    world.spawn(support::cluster::Root::client);
     let outcome = world.run(&clock, support::WITHIN);
     assert!(outcome.procs.iter().all(skein_shell::Host::is_empty), "every cluster root settled");
 }
@@ -1043,6 +1052,7 @@ enum OwnedWorkerPhase {
     Stopping,
 }
 struct OwnedWorkerJudge {
+    client: std::path::PathBuf,
     finding: Option<String>,
     members: support::cluster::Members,
     deadline: skein_lib::Time,
@@ -1050,7 +1060,10 @@ struct OwnedWorkerJudge {
 }
 impl OwnedWorkerJudge {
     fn advance_world(&mut self, now: skein_lib::Time, hosts: &mut [support::cluster::Root]) -> Result<(), String> {
-        if self.members.is_up() {
+        if self.members.is_up()
+            && (!matches!(self.phase, OwnedWorkerPhase::Linked)
+                || hosts.last().is_some_and(skein_shell::Host::is_empty))
+        {
             match self.phase {
                 OwnedWorkerPhase::Engine => {
                     let directory = self.members.prepare("engine");
@@ -1076,6 +1089,11 @@ impl OwnedWorkerJudge {
                 }
                 OwnedWorkerPhase::Worker => {
                     prepare_owned_worker(&mut self.members)?;
+                    support::cluster::admit_workers(
+                        &self.members,
+                        hosts.last_mut().ok_or("client root")?,
+                        &self.client,
+                    )?;
                     self.members.up(&["w1"]);
                     self.phase = OwnedWorkerPhase::Linked;
                 }
@@ -1152,6 +1170,7 @@ fn a_worker_alone_with_the_owned_examples_worker_links_and_drains_on_a_signal() 
     members.up(&["llm"]);
     let clock = skein_shell::Clock::new();
     let mut world = skein_world::real::World::new(OwnedWorkerJudge {
+        client: scratch.path().join("client"),
         finding: None,
         members,
         deadline: clock.now().now.saturating_add(support::WITHIN),
@@ -1160,6 +1179,7 @@ fn a_worker_alone_with_the_owned_examples_worker_links_and_drains_on_a_signal() 
     for host in hosts {
         world.spawn(|| host);
     }
+    world.spawn(support::cluster::Root::client);
     let outcome = world.run(&clock, support::WITHIN);
     assert!(outcome.procs.iter().all(skein_shell::Host::is_empty), "every cluster root settled");
     scratch.remove();
@@ -2068,7 +2088,10 @@ impl ClusterChatJudge {
             self.stage = ClusterChatStage::Relinking;
             self.poll(client)?;
         }
-        if self.members.is_up() || self.members.ended("w1") {
+        if self.members.is_up()
+            || self.members.ended("w1")
+            || (matches!(self.stage, ClusterChatStage::Start) && self.members.capture("engine", "link").is_some())
+        {
             if matches!(self.stage, ClusterChatStage::Start) {
                 self.begin(client)?;
             } else if client.is_empty() && !matches!(self.stage, ClusterChatStage::Start | ClusterChatStage::Stopping) {

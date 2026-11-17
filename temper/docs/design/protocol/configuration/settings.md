@@ -484,6 +484,12 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
   settings live in the store; read them with `temper ctl settings show`".
   `engine.md`'s `landing` and `charter`, and `Config`'s `landing` and
   `forge_charter` fields, go with them, in 5's second step.
+- **The workers are settings too** (jig's `domain/engine/workers.md`;
+  `../../draft/config.md`, 6.7): `engine.hosts.workers` is refused by
+  name, "workers are settings in the store", and no digest file is
+  read. An engine alone's owner adds each worker with `temper ctl worker
+  add` (`../../client/ctl/workers.md`); the box passes its own, `local`
+  (`../cluster.md`, 1).
 - **A seeded project names its policy by number.** jig's
   `engine.projects` stays, but temper refuses a project whose policy is
   inline, naming its path: "`engine.projects[0].policy`: name a policy,

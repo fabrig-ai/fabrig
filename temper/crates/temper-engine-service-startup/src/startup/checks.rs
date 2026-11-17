@@ -92,20 +92,6 @@ fn engine_alone(engine: &config::Engine, workers: &[config::Worker], problems: &
             problems.push(at(index, hosts.member(b"listener")), What::Half(crate::startup::EngineWhat::EngineAlone));
         }
     }
-    if engine.hosts.workers.is_empty() {
-        problems.push(hosts.member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone));
-    }
-    for (index, worker) in engine.hosts.workers.iter().enumerate() {
-        for previous in engine.hosts.workers.iter().take(index) {
-            if previous.digest == worker.digest {
-                problems.push(
-                    at(index, hosts.member(b"workers")).member(b"digest"),
-                    What::Half(crate::startup::EngineWhat::EngineAlone),
-                );
-                break;
-            }
-        }
-    }
 }
 /// Standalone's requirements on jig's parts, on jig's parts.
 pub fn standalone(

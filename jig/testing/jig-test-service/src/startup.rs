@@ -27,6 +27,7 @@ pub(super) struct Parsed {
     clients: bool,
     listener: skein_io::Addr,
     bundle: Option<Box<[u8]>>,
+    worker_defaults: Box<[jig_domain_core::settings::WorkerSetting]>,
 }
 
 fn problem(path: Path, what: What) -> Problems {
@@ -209,6 +210,7 @@ fn parse_in(document: &Document) -> Result<Parsed, Problems> {
         clients,
         listener,
         bundle,
+        worker_defaults: Box::default(),
     })
 }
 
@@ -462,7 +464,7 @@ pub(super) fn engine_startup(
         None
     };
     let workers = if parsed.workers {
-        Some(crate::workers::Workers::new(&parsed.engine, files, seeds.deployment, &parsed.limits.workers)?)
+        Some(crate::workers::Workers::new(&parsed.engine, seeds.deployment, &parsed.limits.workers)?)
     } else {
         None
     };
@@ -474,7 +476,8 @@ pub(super) fn engine_startup(
             parsed.limits.accounts.client.document.token_bytes,
         ),
     };
-    let core = config::core(&parsed.engine, seeds.deployment, seeds.seed);
+    let mut core = config::core(&parsed.engine, seeds.deployment, seeds.seed);
+    core.defaults.workers = parsed.worker_defaults;
     let root = root::Config { core, first: parsed.first, second: parsed.second };
     let mut first_periods = List::with_capacity(parsed.limits.root.core.authority.projects);
     for project in &root.core.seed_projects {
@@ -652,11 +655,25 @@ pub fn startup(
     accounts: Option<crate::AccountsRuntime>,
     runtime: Option<crate::WorkerRuntime>,
 ) -> Result<Service, Problems> {
+    startup_with_workers(document, files, agent, seeds, accounts, runtime, Box::default())
+}
+
+/// Supply the application's default worker settings before the first store restore.
+pub fn startup_with_workers(
+    document: &[u8],
+    files: &Files,
+    agent: Option<&Agent>,
+    seeds: &Seeds,
+    accounts: Option<crate::AccountsRuntime>,
+    runtime: Option<crate::WorkerRuntime>,
+    workers: Box<[jig_domain_core::settings::WorkerSetting]>,
+) -> Result<Service, Problems> {
     let document = self::document(document)?;
     let (has_engine, specs) = worker_specs_in(&document)?;
     let mut bundle = None;
     let engine = if has_engine {
         let mut parsed = parse_in(&document)?;
+        parsed.worker_defaults = workers;
         bundle = parsed.bundle.take();
         Some(engine_startup(parsed, files, agent, seeds, accounts, !specs.is_empty())?)
     } else {

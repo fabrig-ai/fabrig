@@ -267,7 +267,25 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["draft", "list", "--project", "shop"],
     &["deployment", "census"],
     OPEN_CHANGE,
+    &["worker", "list"],
+    WORKER_ADD,
+    WORKER_PLACES,
+    WORKER_REMOVE,
 ];
+
+pub(crate) const WORKER_ADD: &[&str] = &[
+    "worker",
+    "add",
+    "w2",
+    "--places",
+    "4",
+    "--digest",
+    "00112233445566778899aabbccddeeff00112233445566778899aabbccddee00",
+    "--key",
+    "worker-add",
+];
+pub(crate) const WORKER_PLACES: &[&str] = &["worker", "places", "w1", "8", "--key", "worker-places"];
+pub(crate) const WORKER_REMOVE: &[&str] = &["worker", "remove", "w1", "--key", "worker-remove"];
 
 /// Parse the printer's bytes back without re-creating argv in each test.
 pub(crate) fn printed(call: &crate::jig::call::Call) -> crate::jig::call::Parsed {
@@ -755,6 +773,7 @@ impl Harness {
                 | crate::jig::rows::TASK_TEXT_AT
                 | crate::jig::rows::TASK_NOTES_AT
                 | crate::jig::rows::DEPLOYMENT_CENSUS_AT
+                | crate::jig::rows::WORKER_LIST_AT..=crate::jig::rows::WORKER_REMOVE_AT
                 | crate::jig::rows::MILESTONE_LIST_AT
                 | crate::jig::rows::MILESTONE_SHOW_AT
                 | crate::jig::rows::MILESTONE_WHOLE_AT
@@ -922,7 +941,7 @@ pub(crate) const UNKNOWN_ASKER: client::Asker = client::Asker(999);
 /// A stable stored request's engine key, unrelated to its client call prefix.
 const KEPT_KEY: skein_lib::RequestKey = [9; 16];
 /// One slot per row and form; fewer omits decide's second form.
-pub(super) const TOOL_FORMS: u32 = 128;
+pub(super) const TOOL_FORMS: u32 = 132;
 /// Exactly one example exercises each row and form; zero misses it entirely.
 pub(super) const EXAMPLES_PER_FORM: u32 = 1;
 /// One missing byte exercises the first refused destination; zero would fit.

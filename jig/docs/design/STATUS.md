@@ -106,6 +106,9 @@ within its archive bound (`domain/engine/settings.md`, 2;
 Later pages, changes to a known name's figures and catalogue-number reuse
 remain deferred (`domain/engine/README.md`, section 10).
 The omitted-count mark gap remains `domain/engine/settings.status.md`, 12.
+Workers are settings of the kind `worker`: each admitted at its opening
+against its setting's digest and at its places, a linked one never
+removed, and the engine's document lists none (`domain/engine/workers.md`).
 A person's task can carry an LLM choice, and `Core::account_llm` builds
 one held to a named account, at its model's default effort
 (`domain/authority.md`, 6.1; `domain/accounts.md`, 4.3).
@@ -197,6 +200,7 @@ Design documents:
 - [`domain/authority.md`](domain/authority.status.md)
 - [`domain/connectors.md`](domain/connectors.status.md)
 - [`domain/engine/README.md`](domain/engine/README.status.md)
+- [`domain/engine/workers.md`](domain/engine/workers.status.md)
 - [`domain/root.md`](domain/root.status.md)
 - [`domain/people/README.md`](domain/people/README.status.md)
 - [`domain/hosts/README.md`](domain/hosts/README.status.md)

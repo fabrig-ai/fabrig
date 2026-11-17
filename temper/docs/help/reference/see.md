@@ -86,7 +86,7 @@ Next: settings rules · settings landing · settings project-ways · settings pr
 
 Newest revision; settings and their last revisions, held revisions, waiting proposals; project repositories, people, forge accounts and offer.
 
-Next: settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings rules · settings landing-rule N · settings landing-rule N project · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings project-classes · revisions · help settings
+Next: settings charter N · settings template N · settings policy N · settings model N · settings worker N · settings forge-charter N · settings rules · settings landing-rule N · settings landing-rule N project · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings project-classes · revisions · help settings
 
 ## settings charter N
 
@@ -109,6 +109,12 @@ Next: settings · revisions · help settings-fields
 ## settings model N
 
 The model whole, at the newest revision.
+
+Next: settings · revisions · help settings-fields
+
+## settings worker N
+
+The worker whole, at the newest revision.
 
 Next: settings · revisions · help settings-fields
 

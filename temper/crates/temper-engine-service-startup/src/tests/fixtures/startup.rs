@@ -18,7 +18,7 @@ pub fn document() -> Box<[u8]> {
         .replace(",\n{\"name\": \"worker-b\", \"digest\": \"secrets/worker-b.digest\"}", "");
     document.extend_from_slice(engine.as_bytes());
     document.extend_from_slice(br#", "workers":[{
-"engine":{"in_process":"workers"},"name":"worker-a","secret":"worker-secret","slots":1,
+"engine":{"in_process":"workers"},"name":"local","secret":"worker-secret","slots":1,
 "agent":{"program":"/opt/temper/bin/temper","configuration":"/opt/temper/agent.json","arguments":["internal", "agent","/opt/temper/agent.json"]},
 "limits":{"overrides":{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.result_bytes":512,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}},
 "memory_bytes":1152921504606846976}],"application":"#);

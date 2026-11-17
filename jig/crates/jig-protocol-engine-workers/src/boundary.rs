@@ -1,16 +1,11 @@
 //! Routing (protocol/channel/README.md, sections 2, 3 and 7); Debug (jig/docs/design/protocol/service.md, 11.3).
 use alloc::boxed::Box;
+pub use jig_domain_core_vocabulary::settings::WorkerSetting as Worker;
 use jig_domain_host as host;
 use jig_domain_link::SourceName;
 use jig_protocol_worker_wire::Part;
 use skein_channel::{Lower, LowerEvent};
-use skein_io::digest::Digest;
 use skein_lib::{Duration, List, Secret, Token};
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Worker {
-    pub name: Box<[u8]>,
-    pub digest: Digest,
-}
 /// A grant's value: a credential with its scheme, an application's
 /// secret, or a program source's name.
 #[derive(Clone, Debug)]
@@ -27,6 +22,7 @@ pub enum Scheme {
 }
 /// `TurnBusy` is the fleet's busy answer, handled below the hub (protocol/channel/records.md, 2; domain/hosts/hub.md, 1).
 pub enum Event {
+<<<<<<< HEAD
     /// The owner gives whole figures; places are set from the fleet's per-worker slots.
     Figures {
         figures: jig_protocol_worker_wire::Figures,
@@ -60,6 +56,16 @@ pub enum Event {
     Restarting {
         wait: Duration,
     },
+=======
+    Workers(Box<[Worker]>),
+    Accepted { connection: Token, in_process: bool },
+    Lower { connection: Token, event: LowerEvent },
+    Gone { connection: Token },
+    Down { channel: Token, down: host::LinkDown, parts: Box<[Part]>, values: Box<[Option<GrantValue>]> },
+    TurnBusy { channel: Token, run: Token, attempt: Token, turn: u32 },
+    NotAdmitted { channel: Token, text: Box<[u8]> },
+    Restarting { wait: Duration },
+>>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
     Stop,
     Close,
     Abort,
@@ -178,8 +184,13 @@ pub enum Request {
 impl core::fmt::Debug for Event {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
+<<<<<<< HEAD
             Self::Figures { .. } => f.write_str("Figures"),
             Self::Accepted { connection } => f.debug_tuple("Accepted").field(connection).finish(),
+=======
+            Self::Workers(workers) => f.debug_tuple("Workers").field(&workers.len()).finish(),
+            Self::Accepted { connection, .. } => f.debug_tuple("Accepted").field(connection).finish(),
+>>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
             Self::Gone { connection } => f.debug_tuple("Gone").field(connection).finish(),
             Self::Lower { connection, event } => match event {
                 LowerEvent::Read(_) => f.debug_tuple("Lower::Read").field(connection).finish(),

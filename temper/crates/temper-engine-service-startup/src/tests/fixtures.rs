@@ -2,7 +2,7 @@ use crate::{limits, settings};
 pub const DIALECT: u32 = 3;
 
 pub const ENGINE: &[u8] = br#"{
-"limits": {"overrides": {"authority.requirements":3,"tasks.inbox_bytes":4096,"core.run_bytes":32768,"tasks.charters":13,"core.templates":7,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":22,"tasks.executor_kinds":22,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
+"limits": {"overrides": {"fleet.slots":4,"authority.requirements":3,"tasks.inbox_bytes":4096,"core.run_bytes":32768,"tasks.charters":13,"core.templates":7,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":22,"tasks.executor_kinds":22,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
 "llm": {
 "providers":[{"name":"fake-provider","number":1,"endpoint":"fake","sources":{"keys":true}}],
 "endpoints": [{
@@ -18,10 +18,6 @@ pub const ENGINE: &[u8] = br#"{
 }]
 },
 "hosts": {
-"workers": [
-{"name": "worker-a", "digest": "secrets/worker-a.digest"},
-{"name": "worker-b", "digest": "secrets/worker-b.digest"}
-],
 "listener": [{"in_process": "workers"}]
 },
 "clients": {

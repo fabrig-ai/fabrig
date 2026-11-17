@@ -26,6 +26,7 @@ const EDIT: &[u8] = b"Changed by temper.\n";
 pub fn settings_setup(client: &Path, following: Vec<ctl::Call>) -> Vec<ctl::Step> {
     use ctl::{Call, Step};
     let file = client.join("settings.json");
+    let workers = cluster::worker_settings(&client.parent().expect("story directory").join("engine/settings.json"));
     let mut steps = vec![
         Step::Run(Call::sign_in()),
         Step::Run(Call::new(&["settings", "show", "--json"])),
@@ -44,6 +45,7 @@ pub fn settings_setup(client: &Path, following: Vec<ctl::Call>) -> Vec<ctl::Step
             ]});
             let rules = client_landing_items(&file);
             change["items"].as_array_mut().expect("GitHub settings").extend(rules);
+            change["items"].as_array_mut().expect("GitHub settings").extend(workers);
             fs::write(&file, serde_json::to_vec(&change).expect("GitHub settings JSON")).expect("settings FILE");
             ctl::settings_change(&calls[1], &file, "github-settings")
         })),
@@ -182,7 +184,7 @@ impl Judge {
             self.members.up(&["w1"]);
             self.stage = Stage::Worker;
             self.members.act(now, hosts);
-        } else if matches!(self.stage, Stage::Worker) && self.members.is_up() {
+        } else if matches!(self.stage, Stage::Worker) && self.members.capture("engine", "link").is_some() {
             self.mark("engine and worker ready");
             self.begin(host)?;
         } else if matches!(self.stage, Stage::StopWorker) && self.members.ended("w1") {
@@ -267,18 +269,9 @@ impl Judge {
                 serde_json::json!([])
             ));
         }
-        let workers = engine["engine"]["hosts"]["workers"].as_array().ok_or_else(|| "worker positions".to_owned())?;
-        if workers.len() != 1 {
-            return Err(format!("assertion `left == right` failed\n  left: {:?}\n right: {:?}", workers.len(), 1));
-        }
-        if workers[0]["name"] != "w1" {
-            return Err(format!(
-                "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
-                workers[0]["name"], "w1"
-            ));
-        }
-        if self.members.linked("w1") != 1 {
-            return Err("the sole worker linked".to_owned());
+        let workers = cluster::worker_settings(&self.members.dir("engine").join("settings.json"));
+        if workers.len() != 1 || workers[0]["set"]["name"] != "w1" {
+            return Err("one w1 worker setting".into());
         }
         self.queue_steps(
             host,

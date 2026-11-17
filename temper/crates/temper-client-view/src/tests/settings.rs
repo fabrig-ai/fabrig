@@ -182,7 +182,7 @@ fn every_tab_draws_its_head_and_tabs_in_order() {
         (
             Address::Builders { project: f::PROJECT },
             "Where agents work.",
-            "The machines temper’s agents run on, each with its slots and how many are in use.",
+            "The machines temper’s agents run on, each with its places and whether it’s up. An owner adds one by its secret’s digest.",
             3,
         ),
         (

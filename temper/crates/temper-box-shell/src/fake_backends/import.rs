@@ -14,7 +14,6 @@ pub(super) struct Source {
     pub bundle_limits: temper_service::limits::Clients,
 }
 const RESOURCES: &[(&str, bool, &str)] = &[
-    ("engine/hosts/workers/0/digest", false, "worker.digest"),
     ("workers/0/secret", false, "worker.secret"),
     ("application/machine/fake/git", false, "demo/bin/git"),
     ("application/demo/llm/key", false, "demo/llm.key"),

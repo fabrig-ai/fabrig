@@ -1,7 +1,7 @@
 use crate::{Component, Limits, Worker};
 use alloc::boxed::Box;
 use jig_domain_link::{Form, Grant, Scheme};
-use skein_io::digest::digest;
+use skein_lib::sha256::digest;
 use skein_lib::{Duration, Secret, Writer};
 pub const WORKER_A: &[u8] = b"worker-a";
 pub const WORKER_B: &[u8] = b"worker-b";
@@ -103,8 +103,8 @@ pub const LIMITS: Limits = Limits {
 };
 pub fn workers() -> Box<[Worker]> {
     Box::new([
-        Worker { name: Box::from(WORKER_A), digest: digest(SECRET_A) },
-        Worker { name: Box::from(WORKER_B), digest: digest(SECRET_B) },
+        Worker { number: 1, name: Box::from(WORKER_A), places: 4, digest: Some(digest(SECRET_A)), withdrawn: false },
+        Worker { number: 2, name: Box::from(WORKER_B), places: 4, digest: Some(digest(SECRET_B)), withdrawn: false },
     ])
 }
 pub fn component() -> Component {

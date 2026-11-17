@@ -33,8 +33,8 @@ variable, else its default.
     (`engine.md`); the
     worker's agent's `configuration` is one in jig's parts, which
     standalone requires absolute (below);
-  - *data paths:* jig's `engine.deployment.directory`, each of
-    `engine.hosts.workers`' `digest` and the worker's `secret`; each of
+  - *data paths:* jig's `engine.deployment.directory` and the worker's
+    `secret`; each of
     `application.workers`' `root` (`README.md`, section 3); `application.machine`'s
     `fake.git` and `github.git` (`engine.md`); and `application.demo`'s
     `llm.key` (../setup/playground.md);
@@ -47,15 +47,14 @@ variable, else its default.
     `configuration` and `arguments` (`README.md`, section 4), which are installed
     programs and files, or the spawn's own; every path in smith's agent
     configuration, which is smith's format.
-- **No secret in the configuration directory:** a worker's secret and
-  its digest, an owned or fake forge's handover, every set-up forge's
+- **No secret in the configuration directory:** a worker's secret, an owned or fake forge's handover, every set-up forge's
   file and the scripted model's key are under data, and jig's secrets'
   store is in the deployment's directory.
 - **The box passes its three on** to each step, as flags, each absolute
   (../setup/box.md, 1).
 - **Each of the cluster's processes has its own three** (`../cluster.md`, 1):
-  an engine alone's data holds the deployment's directory and each
-  worker's digest; a worker alone's, its secret and its root. No two
+  an engine alone's data holds the deployment's directory, its
+  workers' digests being their settings'; a worker alone's, its secret and its root. No two
   processes share a data or cache directory.
 - **Tests give all three,** each a directory of the test's own: no test
   resolves a default under `$HOME` (`../../testing/README.md`).

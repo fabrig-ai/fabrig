@@ -4,7 +4,7 @@ Kind: reference
 
 Settings value types, bounds and effects, for settings files and `settings show`.
 
-JSON shapes; bullets give fields, types, bounds and effects. The settings file is `file`. Read `settings show KIND N`, edit and set it whole. Ctl sends these bounds; the deployment may refuse with a fault: `shape`, `count`, `reference`, `rules`, `budget`, `grace` or `owner`. Spend uses deployment model-price units. Hex is lowercase hexadecimal bytes: `666f726765` is `forge`. Unsigned integers u8/u16/u32/u64 range from 0 through 255/65,535/4,294,967,295/18,446,744,073,709,551,615. bool is true or false; text[N] and hex[N] hold at most N bytes; list[N] holds at most N entries. ? means optional; ! means required. A value follows its setting.kind's named shape; project-policy uses policy.
+JSON shapes; bullets give fields, types, bounds and effects. The settings file is `file`. Read `settings show KIND N`, edit and set it whole. Ctl sends these bounds; the deployment may refuse with a fault: `shape`, `count`, `reference`, `rules`, `budget`, `grace`, `owner` or `linked`. Spend uses deployment model-price units. Hex is lowercase hexadecimal bytes: `666f726765` is `forge`. Unsigned integers u8/u16/u32/u64 range from 0 through 255/65,535/4,294,967,295/18,446,744,073,709,551,615. bool is true or false; text[N] and hex[N] hold at most N bytes; list[N] holds at most N entries. ? means optional; ! means required. A value follows its setting.kind's named shape; project-policy uses policy.
 
 ## file
 A settings file, as `settings apply` and `settings propose` read it.
@@ -19,7 +19,7 @@ A `setting` and exactly one of `set`, `edit` and `overlay`.
 
 ## setting
 Which setting: its kind and number, or project for project settings.
-- `kind`: `"model"`, `"charter"`, `"template"`, `"policy"`, `"project-policy"`, `"rules"`, `"landing-rule"`, `"forge-charter"`, `"template-goal"`, `"follow"`, `"dependency"`, `"project-ways"`, `"project-questions"`, `"project-classes"`, `"charter-words"`, `"project-words"`, `"project-landing"`, `"project-gates"`, `"project-areas"`, `"project-triager"` or `"welcome"`. The setting's kind. `"project-policy"`: Project policy: `set` only, once per file alongside other settings. `"project-landing"`: At the next start. `"project-gates"`: At the next start.
+- `kind`: `"model"`, `"worker"`, `"charter"`, `"template"`, `"policy"`, `"project-policy"`, `"rules"`, `"landing-rule"`, `"forge-charter"`, `"template-goal"`, `"follow"`, `"dependency"`, `"project-ways"`, `"project-questions"`, `"project-classes"`, `"charter-words"`, `"project-words"`, `"project-landing"`, `"project-gates"`, `"project-areas"`, `"project-triager"` or `"welcome"`. The setting's kind. `"project-policy"`: Project policy: `set` only, once per file alongside other settings. `"project-landing"`: At the next start. `"project-gates"`: At the next start.
 - `number`: u32. Setting number, from 1; omit for rules, welcome and unnumbered project settings.
 - `project`: u32. Required for project settings, follow and dependency; absent for charter-words and welcome. Landing rule: from 1, or deployment-wide if absent.
 
@@ -68,6 +68,14 @@ Brief file at preparation branch head.
 - `branch`: text[131,075]. Branch head to read; segments joined by `/`.
 - `path`: text[256]. The file's path in the repository, at most 256 bytes.
 - `heading`: text[80], or null. Markdown heading: read through the next peer or ancestor heading; null reads the whole file.
+
+## worker
+Stable name, places, secret digest. Removal keeps the name withdrawn; reset needs a default.
+- `number`: u32. Absent: the item's number.
+- `name`: text[128]. ASCII letters/digits/-/_/., first alphanumeric; also bounded by fleet.worker_name_bytes.
+- `places`: u32. Concurrent runs: 1..fleet.slots; effective next opening.
+- `digest`: hex[32], or null. Secret's SHA-256: 64 lowercase hex digits; absent only over a digest-less in-process default.
+- `withdrawn`: bool. Absent: false; true is read-only. Withdraw by a removed edit.
 
 ## catalogue
 Numbered runtime model and its display facts.
