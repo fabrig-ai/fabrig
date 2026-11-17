@@ -553,6 +553,15 @@ recipient.
   for the client's own admission. A held opening the client closes ends
   closed, unsent (section 5). Only the engine's refusal ends an opening
   busy.
+- **A held read the client cancels is dropped unsent.** A read the
+  domain supersedes or ends while it waits for credit leaves the link's
+  queue: `jig-client` tells the link with `Link::cancel_read(read:
+  Token)`, an input with no output, public only because the link and the
+  client are separate crates. One already sent keeps its transport
+  credit to its terminal, whose answer fails its token match
+  (`../../client/domain/client/README.md`, section 9). So the reads the
+  link holds stay within the client's reads in flight, and the held
+  queue keeps the order asked across reads, openings and closings.
 - **The transport's:** an exchange's deadline, and what it buffers of the
   stream and of the small store's writes.
 - **The component's:** streams in all, whatever their sign-ins (`wire.md`, section 2
