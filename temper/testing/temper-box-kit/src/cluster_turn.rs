@@ -36,10 +36,9 @@ pub fn prepare(cluster: &mut Cluster, root: &Path, addresses: &[std::net::Socket
     }
     let engine_path = cluster.dir("engine").join("config/temper.json");
     let worker_path = cluster.dir("w1").join("config/temper.json");
-    let agent_path = cluster.dir("w1").join("config/agent.json");
     let mut engine = read(&engine_path);
-    let mut worker = read(&worker_path);
-    let mut agent = read(&agent_path);
+    let worker = read(&worker_path);
+    let agent = support::cluster::agent_configuration(&engine, &cluster.dir("w1").join("data"));
     // domain/worker/jobs.md, kind 1: the engine declares preparation only when
     // its spec and result fit. The worker and the agent must carry that result.
     let prepare = temper_service::limits::prepare_bound();
@@ -50,17 +49,17 @@ pub fn prepare(cluster: &mut Cluster, root: &Path, addresses: &[std::net::Socket
     ] {
         engine["engine"]["limits"]["overrides"][name] = bytes.into();
     }
-    let payload = prepare.result + 2; // the result and its JSON string quotes
-    agent["profile"]["declared"]["tool_payload"] = payload.into();
+    let payload = agent["profile"]["declared"]["tool_payload"]
+        .as_u64()
+        .expect("stock tool payload")
+        .max(u64::from(prepare.result) + 2);
     engine["engine"]["limits"]["overrides"]["hub.outcome_bytes"] = payload.into();
     engine["application"]["limits"]["overrides"]["forge.client.op_bytes"] = prepare.result.into();
-    worker["workers"][0]["limits"]["overrides"]["tasks.result_bytes"] = prepare.result.into();
-    worker["workers"][0]["limits"]["overrides"]["hub.outcome_bytes"] = payload.into();
-    worker["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = prepare.result.into();
-    worker["application"]["limits"]["overrides"]["checkout.message_bytes"] = payload.into();
+    engine["engine"]["limits"]["overrides"]["hub.event_bytes"] = (payload - 2).into();
+    engine["application"]["limits"]["overrides"]["checkout.message_bytes"] = payload.into();
     let turn = support::configuration::turn_bounds::turn_body(&agent);
     support::configuration::turn_bounds::apply(&mut engine, turn);
-    support::configuration::turn_bounds::apply(&mut worker, turn);
+
     write(
         &cluster.dir("engine").join("config/landing-settings.json"),
         &json!({"items":[
@@ -70,7 +69,6 @@ pub fn prepare(cluster: &mut Cluster, root: &Path, addresses: &[std::net::Socket
     );
     write(&engine_path, &engine);
     write(&worker_path, &worker);
-    write(&agent_path, &agent);
     // Stock charters need a model-priced reserve, not the small cluster fixture's spend.
     // Two runs fund production and leave room for its scripted turns after the reserve.
     let configured = temper_real_loop_world::settings::configuration(&engine);
@@ -118,6 +116,12 @@ pub fn settings(root: &Path, calls: &[support::Ended]) -> Call {
     items.push(json!({"setting":{"kind":"landing-rule","project":1,"number":1},"set":{
         "pattern":{"segments":["6272616e6368"],"last":{"open":""}},
         "enforce":true,"ci":true,"up_to_date":true,"gates":[],"approvals":[]}}));
+    let workers = read(&root.join("engine/settings.json"));
+    for item in workers["items"].as_array().expect("fixture settings") {
+        if item["setting"]["kind"] == "worker" {
+            items.push(item.clone());
+        }
+    }
     let path = root.join("turn-settings.json");
     write(&path, &json!({"items":items}));
     ctl::settings_change(&calls[1], &path, "turn-settings")

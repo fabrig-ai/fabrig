@@ -1,9 +1,12 @@
 # git: status
 
-2026-11-15. Where temper's code lags or departs from [git.md](git.md).
+2026-11-17. Where temper's code lags or departs from [git.md](git.md).
 
+- **Not yet:** 4.7: an empty listing still refuses with its words rather
+  than ending `ParentUnreachable { head, merging, parent }` [in flight:
+  change 6015].
 
-Section 4.7's delivery snapshot has no known implementation gap: it reads
+Section 4.7's delivery snapshot has no other known implementation gap: it reads
 HEAD and MERGE_HEAD, checks a second parent against freshly fetched remote
 branches and tags, preserves a local commit whose tree is delivered, and
 moves HEAD after a new delivery commit. The protocol step tests in

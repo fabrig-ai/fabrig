@@ -322,7 +322,12 @@ fn dropping_a_turns_log_erases_its_place_and_sweeps_orphans_after_reopen() {
     let mut store = fixtures::over(store.into_stores());
     fixtures::run(
         &mut store,
-        Request::Open { owner: OWNER, root: fixtures::ROOT, installation: fixtures::INSTALLATION },
+        Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: OWNER,
+            root: fixtures::ROOT,
+            installation: fixtures::INSTALLATION,
+        },
     );
     submit(&mut store, &[]);
     assert_eq!(own(&mut store, keys::Own::LogAttempt { task: LIVE, attempt: 1 }), None);

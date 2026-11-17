@@ -166,6 +166,27 @@ fn outcome(d: &mut Domain, entry: u64, outcome: skein_forge_client::Outcome) {
     d.entries.remove(&entry);
 }
 #[test]
+fn a_tier_waits_when_a_call_has_reserved_the_last_room() {
+    let mut d = configured(None);
+    baseline(&mut d);
+    attach(&mut d, 1, TIER_TASK);
+    settled_step(&mut d, OPEN, false);
+    made(&mut d, OPEN, skein_forge_client::Made::Branch(BASE));
+    for number in 100..100 + u64::from(LIMITS.entries - 1) {
+        outputs(&mut d, Event::Enqueue { entry: status(number, 7) });
+    }
+    let owner = Token::new(501);
+    assert!(d.reserve_call(&LIMITS, owner));
+    let waiting = tier_step(&mut d, DISPATCH, false);
+    assert_eq!(choice(&waiting), Some(&TierDecision::Wait { until: None }));
+    assert!(!d.entries.contains_key(&DISPATCH));
+    d.unreserve_call(&env(), owner, &mut Queue::uncapped());
+    let sent = tier_step(&mut d, DISPATCH, false);
+    assert!(sent.iter().any(|request| matches!(request, Request::Save { record: Stored::Entry { entry, .. }, .. } if entry.number == DISPATCH)));
+    assert!(matches!(d.entries.get(&DISPATCH).unwrap().entry.effect.write, api::Write::Dispatch { .. }));
+}
+
+#[test]
 fn a_tier_waits_for_a_gate_and_restored_tiers_reserve_the_workflow() {
     let mut d = configured(None);
     baseline(&mut d);

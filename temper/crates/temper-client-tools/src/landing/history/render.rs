@@ -550,9 +550,11 @@ fn fields(what: &w::HistoryWhat, out: &mut Fields<'_>) {
         }
         w::HistoryWhat::Update(value) => {
             out.word(b"style", update_style(value.style()));
+            out.optional_hash(b"forge_base", value.forge_base().as_ref());
         }
         w::HistoryWhat::Updated(value) => {
             out.word(b"outcome", update_outcome(value.outcome()));
+            out.optional_hash(b"forge_base", value.forge_base().as_ref());
         }
         w::HistoryWhat::Job(value) => {
             out.word(b"job", job(value.job()));

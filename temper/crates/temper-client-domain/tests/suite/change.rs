@@ -110,7 +110,7 @@ mod tests {
     fn document() -> c::Task {
         let mut parts = jig_client_test_records::task_record().into_parts();
         parts.chip = jig_client_test_records::owner_waiting_chip_record();
-        let record = jig_client_protocol_wire::v27::Task::new(&jig_client_protocol_wire::v27::CEILINGS, parts)
+        let record = jig_client_protocol_wire::Task::new(&jig_client_protocol_wire::CEILINGS, parts)
             .expect("checked task record");
         let limits = domain_limits();
         let link =
@@ -210,6 +210,7 @@ mod tests {
     }
     fn panel_parts(step: w::Step) -> w::ChangePanelParts {
         w::ChangePanelParts {
+            wait: None,
             source: None,
             way: w::Way::Queue,
             in_landing: None,
@@ -365,6 +366,7 @@ mod tests {
     }
     fn ended_page(cut: bool, after: bool) -> c::TaskPage {
         c::TaskPage {
+            ended_mark: 0,
             live: List::with_capacity(0),
             live_after: None,
             ended: c::EndedGroup::Rows {

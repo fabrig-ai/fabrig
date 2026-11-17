@@ -186,9 +186,9 @@ pub(crate) fn check_settings(limits: &crate::Limits, problems: &mut Problems) {
     if core.settings.proposals > wire.settings_document_pending {
         problems.push(path.member(b"core.settings.proposals"), crate::What::Bound);
     }
-    // Defaults and changes may name disjoint settings; model numbers share one 64-row range.
+    // Defaults and changes may name disjoint settings; model and worker numbers each share their bounded range.
     let inventory = match jig_domain_core_vocabulary::settings::capacity(core) {
-        Some(count) => inventory_settings(count),
+        Some(count) => inventory_settings(count, core.fleet.configured_workers),
         None => None,
     };
     if match inventory {
@@ -200,6 +200,12 @@ pub(crate) fn check_settings(limits: &crate::Limits, problems: &mut Problems) {
         problems.push(path.member(b"authority.projects"), crate::What::Bound);
     }
     for (name, value, maximum) in [
+        (b"fleet.configured_workers".as_slice(), core.fleet.configured_workers, wire.deployment_worker_settings),
+        (
+            b"fleet.worker_name_bytes".as_slice(),
+            core.fleet.worker_name_bytes,
+            wire.worker_setting_name.min(wire.worker_state_name),
+        ),
         (b"accounts.accounts".as_slice(), core.accounts.accounts, wire.me_model_accounts),
         (b"core.templates".as_slice(), core.templates, wire.me_project_defaults),
         (b"authority.roles".as_slice(), core.authority.roles, wire.setting_policy_roles),
@@ -226,8 +232,8 @@ pub(crate) fn check_settings(limits: &crate::Limits, problems: &mut Problems) {
         }
     }
 }
-fn inventory_settings(count: u32) -> Option<u32> {
-    count.checked_mul(2)?.checked_sub(jig_domain_tasks::MODELS)
+fn inventory_settings(count: u32, workers: u32) -> Option<u32> {
+    count.checked_mul(2)?.checked_sub(jig_domain_tasks::MODELS)?.checked_sub(workers)
 }
 
 #[cfg(test)]
@@ -344,12 +350,12 @@ mod settings_tests {
     #[test]
     fn inventory_counts_both_defaults_and_changes() {
         let mut limits = crate::stock();
-        // Stock has 25 other slots in each set and one shared 64-row model range.
-        limits.core.tasks.charters = 71;
+        // Stock has 25 other slots per set and shared ranges of 64 models and 64 workers.
+        limits.core.tasks.charters = 167;
         let mut problems = Problems::empty();
         check_settings(&limits, &mut problems);
         assert!(problems.is_empty());
-        limits.core.tasks.charters = 72;
+        limits.core.tasks.charters = 168;
         check_settings(&limits, &mut problems);
         assert_eq!(problems.problems.len(), 3);
     }
@@ -367,23 +373,23 @@ mod proposal_settings_tests {
     fn proposal_heads_and_review_fit_their_wire_ceilings() {
         // settings-v1's proposal holds 128 heads; the review shares Owned.record's document ceiling.
         for (proposal, retained, review, expected) in [
-            (128, 128, jig_client_protocol_wire::v27::CEILINGS.owned_record, None),
+            (128, 128, jig_client_protocol_wire::CEILINGS.owned_record, None),
             (
                 127,
                 128,
-                jig_client_protocol_wire::v27::CEILINGS.owned_record,
+                jig_client_protocol_wire::CEILINGS.owned_record,
                 Some(b"clients.wire.proposal_heads".as_slice()),
             ),
             (
                 128,
                 127,
-                jig_client_protocol_wire::v27::CEILINGS.owned_record,
+                jig_client_protocol_wire::CEILINGS.owned_record,
                 Some(b"clients.wire.proposal_heads".as_slice()),
             ),
             (
                 128,
                 128,
-                jig_client_protocol_wire::v27::CEILINGS.owned_record - 1,
+                jig_client_protocol_wire::CEILINGS.owned_record - 1,
                 Some(b"clients.wire.settings_review".as_slice()),
             ),
         ] {

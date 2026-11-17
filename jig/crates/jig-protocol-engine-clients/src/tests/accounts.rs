@@ -1,7 +1,7 @@
 //! Complete accounts watch translation and independent nested limits.
 use super::fixtures;
 use crate::translate::{accounts, watches};
-use jig_client_protocol_wire::v27 as w;
+use jig_client_protocol_wire as w;
 use jig_domain_accounts as a;
 use jig_domain_core_vocabulary::documents as d;
 use jig_domain_people::CapacityAction as A;
@@ -129,7 +129,7 @@ fn accounts_deliver_whole_with_every_terminal_outcome() {
     for (end, expected) in ends().into_iter().zip(jig_client_test_records::account_end_records()) {
         let source = d::Document::Accounts(Box::new(document(Some(end))));
         assert_eq!(
-            watches::delivery(&source, 0, 2, &[], &limits),
+            watches::delivery(&source, 0, 2, &[], &List::with_capacity(0), &limits),
             Ok(w::DeliveryValue::Accounts(jig_client_test_records::accounts_record(Some(expected))))
         );
     }

@@ -593,7 +593,7 @@ fn home_reads_its_projects_needs_and_releases_them() {
         let chats = f.root.pages().chats().unwrap();
         assert_eq!(chats.live.asker, crate::owner::Owner::Pages.asker());
         assert_eq!(chats.closed.number, chats.live.number + 1);
-        assert_eq!(inbox.entries.number, chats.live.number + 2);
+        assert_eq!(inbox.entries.number, chats.live.number + 3);
         up(&mut f.root, Up::Watched { watch: f.inbox, event: c::WatchEvent::Opened });
         let out = f::inbox_entries(&mut f.root, f.inbox, List::with_capacity(EMPTY));
         let reads = inbox_reads(&out);
@@ -705,6 +705,7 @@ fn home_hears_its_chats_and_its_inbox_alike() {
                     Up::ReadDone {
                         read: f.closed,
                         result: Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(c::TaskPage {
+                            ended_mark: 0,
                             live: List::with_capacity(EMPTY),
                             live_after: None,
                             ended: c::EndedGroup::Rows { rows: chat_rows(), after: None, cut: false },
@@ -754,6 +755,7 @@ fn chat_page(f: &mut Fixture, rows: List<c::TaskLine>, live: bool, after: Option
         Up::ReadDone {
             read: f.closed,
             result: Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(c::TaskPage {
+                ended_mark: 0,
                 live,
                 live_after: after,
                 ended,
@@ -787,7 +789,7 @@ fn ready(f: &mut Fixture) {
     deliver(
         &mut f.root,
         f.live,
-        c::Delivery::Tasks(Box::new(c::Tasks { rows: List::with_capacity(EMPTY), more: false })),
+        c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows: List::with_capacity(EMPTY), more: false })),
     );
     dismissal_rows(f, &[]);
     assert!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).to_begin());
@@ -817,7 +819,7 @@ fn an_asking_chat_marks_the_way_of_working_done() {
         let mut rows = List::with_capacity(ONE);
         rows.push(row).unwrap();
         if source == 0 {
-            deliver(&mut f.root, f.live, c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false })));
+            deliver(&mut f.root, f.live, c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows, more: false })));
         } else {
             chat_page(&mut f, rows, source == 1, None);
         }
@@ -832,7 +834,11 @@ fn a_stock_chat_marks_no_step() {
         for source in 0..CHAT_SOURCES {
             let mut f = fixture_with_me(me.clone());
             if source == 0 {
-                deliver(&mut f.root, f.live, c::Delivery::Tasks(Box::new(c::Tasks { rows: chat_rows(), more: false })));
+                deliver(
+                    &mut f.root,
+                    f.live,
+                    c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows: chat_rows(), more: false })),
+                );
             } else {
                 chat_page(&mut f, chat_rows(), source == 1, None);
             }
@@ -850,7 +856,7 @@ fn a_stock_chat_marks_no_step() {
             deliver(
                 &mut f.root,
                 f.live,
-                c::Delivery::Tasks(Box::new(c::Tasks { rows: List::with_capacity(EMPTY), more: true })),
+                c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows: List::with_capacity(EMPTY), more: true })),
             );
         } else {
             chat_page(
@@ -898,7 +904,11 @@ fn to_begin_waits_for_every_fact() {
     ready(&mut f);
     let mut chat_lines = chat_rows();
     chat_lines.get_mut(0).unwrap().chip.executor = c::ChipExecutor::Agent { charter: ASKING };
-    deliver(&mut f.root, f.live, c::Delivery::Tasks(Box::new(c::Tasks { rows: chat_lines, more: false })));
+    deliver(
+        &mut f.root,
+        f.live,
+        c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows: chat_lines, more: false })),
+    );
     assert!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).configured);
     up(&mut f.root, Up::WatchEnded { watch: f.live, end: c::WatchEnd::SubjectEnded });
     assert!(!home::facts(&f.root, f::PROJECT, Wall::EPOCH).configured, "ended live read leaves its step");
@@ -963,7 +973,7 @@ fn deliver_fact(f: &mut Fixture, fact: u32) {
             let out = deliver(
                 &mut f.root,
                 f.live,
-                c::Delivery::Tasks(Box::new(c::Tasks { rows: List::with_capacity(EMPTY), more: false })),
+                c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows: List::with_capacity(EMPTY), more: false })),
             );
             for request in &out {
                 if let Request::Unlinked {
@@ -1175,7 +1185,7 @@ fn enter_skipped() -> Fixture {
     deliver(
         &mut f.root,
         f.live,
-        c::Delivery::Tasks(Box::new(c::Tasks { rows: List::with_capacity(EMPTY), more: false })),
+        c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows: List::with_capacity(EMPTY), more: false })),
     );
     f
 }
@@ -1273,7 +1283,11 @@ fn a_last_step_sends_the_look() {
     let serial = f.root.pages().serial;
     ready(&mut f);
     rows(&mut f.root, f.forges, Box::new([adopted(row(FORGE), f::PROJECT, b"hello")]));
-    deliver(&mut f.root, f.live, c::Delivery::Tasks(Box::new(c::Tasks { rows: chat_rows(), more: false })));
+    deliver(
+        &mut f.root,
+        f.live,
+        c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows: chat_rows(), more: false })),
+    );
     assert!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).to_begin());
     assert_eq!(look_sends(&settings(&mut f, c::SettingFollows::Change)), 1);
     assert_eq!(f.root.pages().serial, serial + 1);
@@ -1311,7 +1325,7 @@ fn a_second_entry_looks_again() {
     let out = deliver(
         &mut f.root,
         f.live,
-        c::Delivery::Tasks(Box::new(c::Tasks { rows: List::with_capacity(EMPTY), more: false })),
+        c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows: List::with_capacity(EMPTY), more: false })),
     );
     assert_eq!(look_sends(&out), 1, "facts={:?}; output={out:?}", home::facts(&f.root, f::PROJECT, Wall::EPOCH));
     assert_eq!(look_sends(&settings(&mut f, c::SettingFollows::Default)), 0);

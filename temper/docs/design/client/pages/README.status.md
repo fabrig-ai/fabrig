@@ -4,6 +4,7 @@
 
 
 
+
 - **Not yet:** `Work { project, filter }`'s row: the subject `drafts` is
   not read, and no landed draft's card starts a goal [in flight: change 664].
 - **Not yet:** 2, *A task's title on a line* and *A task's words after its

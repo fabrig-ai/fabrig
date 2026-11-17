@@ -18,6 +18,7 @@ mod repositories;
 
 mod change;
 mod change_open;
+mod checkpoint;
 
 mod words;
 

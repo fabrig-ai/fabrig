@@ -11,23 +11,22 @@ use skein_forge_client::{Condition, Effect, Entry, Outcome};
 use skein_lib::{Duration, List, Queue, Time, Token};
 
 #[derive(Hash, Debug)]
-pub(super) struct Making {
-    task: u64,
-    name: Name,
+pub(crate) struct Making {
+    pub(crate) task: u64,
+    pub(crate) name: Name,
     entry: Option<u64>,
     default: bool,
     state: LostReadState,
     retry_at: Option<Time>,
     backoff: Duration,
-    outbox_wait: Option<RoomWait>,
+    pub(crate) outbox_wait: Option<RoomWait>,
 }
 
 /// Outbox room waits reserve no number; fresh numbers follow wait order
 /// (temper/docs/design/domain/forge/branches.md, 1).
 #[derive(Hash, Debug)]
-struct RoomWait {
-    order: u64,
-    asked: bool,
+pub(crate) struct RoomWait {
+    pub(crate) order: u64,
 }
 
 /// A taking retains its outbox number through branch reads and read retries,
@@ -367,7 +366,7 @@ fn make(
         released(d, pending.task, out);
         return;
     }
-    if d.entries.len() == env.limits.entries {
+    if !crate::room::check(d, &env.limits, Some(crate::room::Waiter::Making(owner))) {
         wait_for_room(d, owner, pending, out);
         return;
     }
@@ -384,6 +383,7 @@ fn make(
         failures: 0,
         queued: false,
     };
+    crate::room::leave(d, crate::room::Waiter::Making(owner));
     keep_entry(d, entry, Some(number), out);
 }
 
@@ -404,15 +404,9 @@ fn entry_in_use(number: u64) -> Box<[u8]> {
 /// A wait gives up its reservation without giving up its position
 /// (temper/docs/design/domain/forge/branches.md, 1).
 fn wait_for_room(d: &mut Domain, owner: Token, mut pending: Making, out: &mut Queue<Request>) {
-    if let Some(wait) = &mut pending.outbox_wait {
-        wait.asked = false;
-    } else {
-        let Some(order) = d.sequence.checked_add(1) else {
-            failed(pending.task, pending.name, b"goal branch wait sequence exhausted", out);
-            return;
-        };
-        d.sequence = order;
-        pending.outbox_wait = Some(RoomWait { order, asked: false });
+    crate::room::leave(d, crate::room::Waiter::Making(owner));
+    if pending.outbox_wait.is_none() {
+        pending.outbox_wait = Some(RoomWait { order: crate::room::next_place(d) });
     }
     pending.entry = None;
     pending.default = false;
@@ -469,7 +463,7 @@ pub(super) fn continue_making(d: &mut Domain, env: &Env<Limits>, task: u64, entr
     let mut selected = None;
     for (owner, pending) in &d.makings {
         let requested = match &pending.outbox_wait {
-            Some(wait) => wait.asked,
+            Some(_) => crate::room::asked(d, crate::room::Waiter::Making(*owner)),
             None => true,
         };
         if pending.task == task && pending.entry.is_none() && !pending.default && requested {
@@ -484,6 +478,7 @@ pub(super) fn continue_making(d: &mut Domain, env: &Env<Limits>, task: u64, entr
 }
 
 pub(super) fn retry_task(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
+    crate::room::stepping(d, task);
     let mut names = List::with_capacity(env.limits.holds);
     for (name, hold) in &d.holds {
         if hold.task == task && is_goal(d, name) {
@@ -589,52 +584,6 @@ pub(super) fn restart(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request
     for name in names.into_boxed() {
         start(d, env, name, None, out);
     }
-}
-
-/// A freed entry admits one waiter, including its number request and fresh read,
-/// before another waiter may use that room (domain/forge/branches.md, 1).
-fn next_room_waiter(d: &Domain) -> Option<Token> {
-    let mut occupied = d.entries.len();
-    let mut selected: Option<(u64, Token)> = None;
-    for (owner, pending) in &d.makings {
-        if let Some(wait) = &pending.outbox_wait {
-            if wait.asked {
-                occupied = occupied.saturating_add(1);
-            } else if match selected {
-                Some((order, _)) => wait.order < order,
-                None => true,
-            } {
-                selected = Some((wait.order, *owner));
-            }
-        }
-    }
-    if occupied >= d.entries.capacity() {
-        return None;
-    }
-    match selected {
-        Some((_, owner)) => Some(owner),
-        None => None,
-    }
-}
-
-pub(super) fn room_waiting(d: &Domain) -> bool {
-    next_room_waiter(d).is_some()
-}
-
-pub(super) fn resume_room(d: &mut Domain, out: &mut Queue<Request>) -> bool {
-    let Some(owner) = next_room_waiter(d) else { return false };
-    let pending = d.makings.get_mut(&owner).expect("selected room waiter");
-    let live = match d.holds.get(&pending.name) {
-        Some(hold) => hold.task == pending.task,
-        None => false,
-    };
-    if live {
-        pending.outbox_wait.as_mut().expect("selected room wait").asked = true;
-        emit(out, Request::ContinueGoalBranch { task: pending.task });
-    } else {
-        d.makings.remove(&owner);
-    }
-    true
 }
 
 /// Admission and disconnected reads wait without occupying client call room.

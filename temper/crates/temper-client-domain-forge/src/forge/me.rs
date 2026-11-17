@@ -11,7 +11,6 @@ pub(super) const DISMISSED: u64 = 2;
 pub(super) const SETTINGS: u64 = 3;
 pub(super) const AWAY: u64 = 4;
 pub(super) const TRIALS: u64 = 5;
-pub(super) const TRIAL_TASK: u64 = 6;
 pub(super) const APPROVALS: u64 = 7;
 #[must_use]
 pub fn handle() -> Handle {

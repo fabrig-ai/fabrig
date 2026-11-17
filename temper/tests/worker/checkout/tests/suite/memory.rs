@@ -114,6 +114,7 @@ impl Fill {
         let mut asked = Vec::new();
         while let Some(request) = self.out.pop() {
             asked.push(match request {
+                Request::DependencyLanded { .. } => panic!("this fixture starts on one branch"),
                 Request::Results { .. } | Request::ResultsEnd { .. } => panic!("this memory scenario has no checks"),
                 Request::Held { hold, .. } => Asked::Held { hold },
                 Request::Io { op, .. } => Asked::Io { op: op.kind() },

@@ -201,7 +201,7 @@ fn procedure_inputs_select_news_and_results_without_text_inference() {
 #[test]
 fn change_titles_and_words_have_independent_contract_bounds() {
     let limits = revisions::LIMITS;
-    let contract = crate::Contract::Change { connector: 1, kind: 2, words: 4 };
+    let contract = crate::Contract::Change { connector: 1, kind: 2, words: 4, choices: Box::new([]) };
     for (title, words, accepted) in [(4, 4, true), (5, 4, false), (4, 5, false), (4, 0, true)] {
         let result = crate::TaskResult::Change {
             connector: 1,
@@ -217,10 +217,59 @@ fn change_titles_and_words_have_independent_contract_bounds() {
 }
 
 #[test]
+fn change_verdicts_use_the_choices_code_fields_and_byte_bounds() {
+    use crate::{Contract, FieldRule, InvalidResult, ResultField, TaskResult, Verdict};
+    let limits = revisions::LIMITS;
+    let choices = Box::new([Verdict {
+        code: 1,
+        words: 5,
+        followups: 0,
+        fields: Box::new([FieldRule { name: b"why".as_slice().into(), max: 2 }]),
+    }]);
+    let contract = Contract::Change { connector: 1, kind: 2, words: 32, choices: choices.clone() };
+    let verdict = Contract::Verdict { choices };
+    let fields = Box::new([ResultField { name: b"why".as_slice().into(), value: b"ok".as_slice().into() }]);
+    let valid = TaskResult::Verdict { code: 1, fields: fields.clone(), words: b"flaky".as_slice().into() };
+    for (result, expected) in [
+        (valid.clone(), None),
+        (TaskResult::Verdict { code: 2, fields: fields.clone(), words: Box::new([]) }, Some(InvalidResult::Verdict)),
+        (TaskResult::Verdict { code: 1, fields, words: b"flaky!".as_slice().into() }, Some(InvalidResult::Words)),
+        (TaskResult::Verdict { code: 1, fields: Box::new([]), words: Box::new([]) }, Some(InvalidResult::Form)),
+    ] {
+        assert_eq!(crate::run::invalid_result(&contract, &result, &limits), expected);
+        assert_eq!(crate::run::invalid_result(&verdict, &result, &limits), expected);
+    }
+    // Five word bytes plus the field's three-byte name and two-byte value.
+    for (result_bytes, expected) in [(10, None), (9, Some(InvalidResult::Words))] {
+        assert_eq!(crate::run::invalid_result(&contract, &valid, &crate::Limits { result_bytes, ..limits }), expected);
+    }
+    let empty = Contract::Change { connector: 1, kind: 2, words: 32, choices: Box::new([]) };
+    assert_eq!(crate::run::invalid_result(&empty, &valid, &limits), Some(InvalidResult::Form));
+}
+
+#[test]
+fn change_contract_choices_are_optional_but_bounded_and_distinct() {
+    use crate::{Contract, Verdict};
+    let limits = revisions::LIMITS;
+    let mut contract = Contract::Change { connector: 1, kind: 2, words: 32, choices: Box::new([]) };
+    assert!(crate::batch::valid_contract(&limits, &contract));
+    let choice = Verdict { code: 1, words: 32, followups: 0, fields: Box::new([]) };
+    for (choices, expected) in [
+        (Box::<[Verdict]>::from([choice.clone()]), true),
+        (Box::<[Verdict]>::from([choice.clone(), choice.clone()]), false),
+        (Box::<[Verdict]>::from([Verdict { words: 33, ..choice }]), false),
+    ] {
+        contract = Contract::Change { connector: 1, kind: 2, words: 32, choices };
+        assert_eq!(crate::batch::valid_contract(&limits, &contract), expected);
+        assert!(!crate::batch::valid_contract(&crate::Limits { contract_choices: 0, ..limits }, &contract));
+    }
+}
+
+#[test]
 fn no_change_requires_a_change_contract_and_both_word_bounds() {
     use crate::{Contract, TaskResult};
     let limits = revisions::LIMITS;
-    let contract = Contract::Change { connector: 1, kind: 2, words: 4 };
+    let contract = Contract::Change { connector: 1, kind: 2, words: 4, choices: Box::new([]) };
     for length in [0, 4, 5] {
         let result = TaskResult::NoChange { words: skein_lib::bytes::zeroed(length) };
         assert_eq!(crate::run::valid_result(&contract, &result, &limits), length <= 4);

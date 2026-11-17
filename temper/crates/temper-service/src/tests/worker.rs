@@ -75,7 +75,7 @@ fn grant_sizes_take_credentials_source_names_and_generated_identities() {
         engine.jig.limits.token = credential;
         // Table capacity, not OAuth's separate parsing bound, sizes every credential scheme.
         engine.jig.limits.driver.client.document.token_bytes = 1;
-        worker.jig.limits.token = credential;
+        worker.jig.limits.as_mut().expect("checked worker limits").token = credential;
         let left = crate::workers::limits(&engine).unwrap();
         let right = worker_settings::link_limits(&worker.jig, &payload, fixtures::worker_limits().peer.forges).unwrap();
         let wire = crate::translate::limits(&engine.limits).unwrap();
@@ -97,7 +97,7 @@ fn grant_sizes_take_credentials_source_names_and_generated_identities() {
     }
     engine.jig.limits.hub.charter_bytes = u64::MAX;
     assert!(crate::workers::limits(&engine).is_none());
-    worker.jig.limits.hub.charter_bytes = u64::MAX;
+    worker.jig.limits.as_mut().expect("checked worker limits").hub.charter_bytes = u64::MAX;
     assert!(worker_settings::link_limits(&worker.jig, &payload, fixtures::worker_limits().peer.forges).is_none());
     worker_settings::prepare(&worker, &fixtures::worker_agent(), &fixtures::worker_limits())
         .expect_err("an unrepresentable charter envelope is refused");

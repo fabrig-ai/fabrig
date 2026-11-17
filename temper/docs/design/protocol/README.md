@@ -120,6 +120,9 @@ its tests, is `cluster.md`.
     agents and its clients: their versions moving with their layouts,
     what the opening states, a mismatch, the host tools' contract, and
     `versions`.
+19. **checkpoints.md:** a deployment's state at one commit, taken
+    while the engine serves by an owner's act, or over a stopped
+    deployment by the binaries' `checkpoint`, on jig's store.
 
 ## 3. Names
 

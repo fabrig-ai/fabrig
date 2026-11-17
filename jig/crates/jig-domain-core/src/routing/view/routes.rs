@@ -1,7 +1,7 @@
 //! Watch admission and construction in the core's vocabulary.
 //! Closed at once (jig/docs/design/domain/people/acts.md, 2).
 //! `client/domain/contract/requests.md`, section 2, and `client/domain/contract/README.md`, section 5. Documents are made when
-//! views asks and moved into held outputs; no document remains in the core.
+//! views asks and moved into held outputs; query documents wait in Pending while parts are made.
 //! The child owns pacing and provisional text, and knows no concrete subject.
 //!
 //! | Event | State change | Emits |
@@ -155,6 +155,10 @@ pub(crate) fn made_outputs(core: &mut Core, env: &Env<Limits>, mut child: Queue<
                     continue;
                 }
                 let outcome = match watch_document(core, &env.limits, watcher, env.now, env.wall) {
+                    Ok(documents::Document::Lines(lines)) if !lines.query.parts.is_empty() => {
+                        append_stream(crate::reads::parts::watch(core, env, watcher, lines), &mut out);
+                        continue;
+                    }
                     Ok(document) => {
                         let previous = documents.insert(watcher, document).expect("bounded construction scratch");
                         assert!(previous.is_none(), "one construction per watcher");
@@ -737,6 +741,36 @@ pub(crate) fn retained_made(
             | views::Request::Stream { .. } => unreachable!("construction emits delivery or ending"),
         }
     }
+    out
+}
+
+/// Finish a query construction after its connectors answered; the child may have closed meanwhile.
+pub(crate) fn query_made(
+    core: &mut Core,
+    env: &Env<Limits>,
+    watcher: Token,
+    document: Result<documents::Document, views::End>,
+) -> Queue<Request> {
+    let outcome = match &document {
+        Ok(_) => views::Made::Ready,
+        Err(why) => views::Made::Gone { why: *why },
+    };
+    let mut child = Queue::uncapped();
+    crate::routing::step::step_views(core, env, views::Event::Made { watcher, outcome }, &mut child);
+    let mut rest = Queue::uncapped();
+    let mut out = Queue::uncapped();
+    let mut document = document.ok();
+    while let Some(request) = child.pop() {
+        if let views::Request::Deliver { watcher } = request {
+            out.push(Request::Held(Box::new(Held::Delivery {
+                watcher: core.watcher(watcher).expect("bound query watcher"),
+                document: Box::new(document.take().expect("ready query document")),
+            })));
+        } else {
+            rest.push(request);
+        }
+    }
+    append_stream(made_outputs(core, env, rest), &mut out);
     out
 }
 

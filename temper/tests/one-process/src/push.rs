@@ -19,6 +19,7 @@ use temper_playground::{
 };
 const PEM: &[u8] = include_bytes!("fixtures/vapid.pem");
 const ORIGIN: &str = "http://127.0.0.1:31999";
+const SECOND_CHAT: u64 = 3;
 const DEADLINE: Time = Time::from_nanos(10_000_000_000);
 thread_local! { static ACTIVE: Cell<bool> = const { Cell::new(false) }; }
 pub(crate) fn configure(document: &mut serde_json::Value) {
@@ -96,6 +97,15 @@ struct Judge {
 impl Judge {
     fn chat(caller: &mut Caller, key: &[u8]) {
         caller.commands.push_back(Command::new(&[b"chat", b"start", b"--project", b"1", b"--key", key, b"@push"]));
+    }
+    fn second_parked(&self) -> bool {
+        self.store.borrow().rows.values().any(|row| {
+            matches!(row,
+                temper_engine_domain::Record::Core(jig_domain_core::Record::Tasks(jig_domain_tasks::Stored::Live(task)))
+                    if task.number == SECOND_CHAT && !task.activation_open
+                        && matches!(task.phase, jig_domain_tasks::Phase::Active(jig_domain_tasks::Active::Idle))
+            )
+        })
     }
     fn devices(&self) -> usize {
         self.store.borrow().rows.values().filter(|row| matches!(row,
@@ -236,7 +246,7 @@ impl Judge {
                 caller.commands.push_back(Command::new(&[b"push", b"list", b"--json"]));
                 self.stage = Stage::Empty;
             }
-            Stage::Empty if caller.answers.len() == 7 => {
+            Stage::Empty if caller.answers.len() == 7 && self.second_parked() => {
                 let document: serde_json::Value = serde_json::from_slice(&caller.answers[6].output)
                     .map_err(|why| format!("devices JSON: {why:?}"))?;
                 if !(document["devices"].as_array().ok_or_else(|| String::from("devices"))?.is_empty()) {

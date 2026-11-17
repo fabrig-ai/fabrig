@@ -176,6 +176,7 @@ fn a_later_row_past_the_bound_cuts_the_page_before_it() {
     );
     store.limits.joins = OWNER_JOINS;
     let query = core::documents::TaskQuery {
+        parts: skein_lib::List::with_capacity(0),
         project: Some(fixtures::PROJECT),
         requester: None,
         root: None,

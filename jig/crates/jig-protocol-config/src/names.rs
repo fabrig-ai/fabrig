@@ -21,7 +21,13 @@ pub struct Name {
 }
 
 /// Every name the engine and worker override parser takes, owner by owner in parser order.
-pub static NAMES: [Name; 247] = [
+pub static NAMES: [Name; 248] = [
+    Name {
+        name: "store.checkpoints.keep",
+        unit: Unit::Count,
+        line: "Bounds the newest completed checkpoints kept by the store.",
+        value: |limits| u64::from(limits.store.checkpoints.keep),
+    },
     Name {
         name: "tasks.placed_holds",
         unit: Unit::Count,

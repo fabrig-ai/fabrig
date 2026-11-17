@@ -149,7 +149,7 @@ impl Judge {
                 .map_err(|_| "LLM JSON".to_owned())?;
             value["asked"][0]["turns"].as_array_mut().ok_or_else(|| "chat turns".to_owned())?.insert(
                 2,
-                serde_json::json!({"lines":[{"call":"read_pull_for","arguments":{"head":"temper/1/c2","base":"main"}}],"finish":"tool_calls","tokens":20}),
+                serde_json::json!({"lines":[{"call":"read_issues","arguments":{"what":"pull_for","branch":"temper/1/c2","base":"main"}}],"finish":"tool_calls","tokens":20}),
             );
             super::write_private(&path, &serde_json::to_vec(&value).map_err(|_| "LLM JSON".to_owned())?);
             self.members.up(&["llm"]);
@@ -201,7 +201,7 @@ impl Judge {
             self.members.up(&["w1"]);
             self.stage = Stage::Worker;
             self.members.act(now, hosts);
-        } else if matches!(self.stage, Stage::Worker) && self.members.is_up() {
+        } else if matches!(self.stage, Stage::Worker) && self.members.capture("engine", "link").is_some() {
             self.mark("engine and worker ready");
             self.begin(host)?;
         } else if matches!(self.stage, Stage::StopWorker) && self.members.ended("w1") {
@@ -290,18 +290,9 @@ impl Judge {
                 serde_json::json!([])
             ));
         }
-        let workers = engine["engine"]["hosts"]["workers"].as_array().ok_or_else(|| "worker positions".to_owned())?;
-        if workers.len() != 1 {
-            return Err(format!("assertion `left == right` failed\n  left: {:?}\n right: {:?}", workers.len(), 1));
-        }
-        if workers[0]["name"] != "w1" {
-            return Err(format!(
-                "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
-                workers[0]["name"], "w1"
-            ));
-        }
-        if self.members.linked("w1") != 1 {
-            return Err("the sole worker linked".to_owned());
+        let workers = cluster::worker_settings(&self.members.dir("engine").join("settings.json"));
+        if workers.len() != 1 || workers[0]["set"]["name"] != "w1" {
+            return Err("one w1 worker setting".into());
         }
         self.queue_steps(
             host,
@@ -599,7 +590,7 @@ impl Judge {
             return Err(format!("chat heard the landed pull: {activity}"));
         }
         if !activity["rows"].to_string().contains("Pull 1 head ") {
-            return Err(format!("chat received its read_pull_for answer: {activity}"));
+            return Err(format!("chat received its read_issues what=pull_for answer: {activity}"));
         }
         self.queue(host, landing_reads())?;
         self.stage = Stage::BeforeRestart;

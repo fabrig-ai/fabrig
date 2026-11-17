@@ -59,6 +59,7 @@ fn encode_hold(value: d::Hold) -> w::ChangeHold {
         d::Hold::PullClosed => w::ChangeHold::PullClosed,
         d::Hold::Retargeted => w::ChangeHold::Retargeted,
         d::Hold::Failed => w::ChangeHold::Failed,
+        d::Hold::Flake => w::ChangeHold::Flake,
         d::Hold::Rejected => w::ChangeHold::Rejected,
         d::Hold::Authority(cause) => w::ChangeHold::Authority(
             w::AuthorityHold::new(
@@ -93,6 +94,7 @@ fn decode_hold(value: w::ChangeHold) -> d::Hold {
         w::ChangeHold::PullClosed => d::Hold::PullClosed,
         w::ChangeHold::Retargeted => d::Hold::Retargeted,
         w::ChangeHold::Failed => d::Hold::Failed,
+        w::ChangeHold::Flake => d::Hold::Flake,
         w::ChangeHold::Rejected => d::Hold::Rejected,
         w::ChangeHold::Authority(cause) => d::Hold::Authority(d::AuthorityHold {
             lack: match cause.lack() {
@@ -118,6 +120,7 @@ fn encode_effect_result(value: d::EffectResult) -> w::EffectResult {
         d::EffectResult::Made => w::EffectResult::Made,
         d::EffectResult::Conflict => w::EffectResult::Conflict,
         d::EffectResult::Failed => w::EffectResult::Failed,
+        d::EffectResult::Stale => w::EffectResult::Stale,
     }
 }
 fn decode_effect_result(value: w::EffectResult) -> d::EffectResult {
@@ -127,6 +130,7 @@ fn decode_effect_result(value: w::EffectResult) -> d::EffectResult {
         w::EffectResult::Made => d::EffectResult::Made,
         w::EffectResult::Conflict => d::EffectResult::Conflict,
         w::EffectResult::Failed => d::EffectResult::Failed,
+        w::EffectResult::Stale => d::EffectResult::Stale,
     }
 }
 pub(super) fn encode_below(below: Option<d::Below>) -> Option<w::LandingBelow> {
@@ -641,6 +645,7 @@ pub(super) fn encode_change(value: &d::Change) -> w::Change {
         repairs,
         resolutions,
         updates,
+        stale,
         since,
         clock,
         ready_since,
@@ -665,6 +670,10 @@ pub(super) fn encode_change(value: &d::Change) -> w::Change {
             repairs: *repairs,
             resolutions: *resolutions,
             updates: *updates,
+            stale: match stale {
+                Some(value) => Some(value.as_nanos()),
+                None => None,
+            },
             since: since.as_nanos(),
             clock: encode_clock(*clock),
             ready_since: match ready_since {
@@ -699,6 +708,7 @@ pub(super) fn decode_change(value: w::Change) -> d::Change {
         repairs,
         resolutions,
         updates,
+        stale,
         since,
         clock,
         ready_since,
@@ -722,6 +732,10 @@ pub(super) fn decode_change(value: w::Change) -> d::Change {
         repairs,
         resolutions,
         updates,
+        stale: match stale {
+            Some(value) => Some(Wall::from_nanos(value)),
+            None => None,
+        },
         since: Wall::from_nanos(since),
         clock: decode_clock(clock),
         ready_since: match ready_since {
@@ -854,6 +868,8 @@ pub(super) fn decode_change_cold(value: w::ChangeCold) -> top::ChangeCold {
 #[expect(clippy::too_many_lines, reason = "the hot change maps every durable progress field explicitly")]
 pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
     let top::ChangeHot {
+        regate,
+        room,
         kept,
         task_release,
         job,
@@ -871,6 +887,7 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
         effect,
         delegate,
         delegate_status,
+        delegate_flake,
         verdicts,
         gate_remarks,
         drift,
@@ -882,10 +899,22 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
         follow_check,
         merge_result,
         history,
+        delegate_head,
     } = value;
     w::ChangeHot::new(
         &w::CEILINGS,
         w::ChangeHotParts {
+            regate: match regate {
+                Some(value) => Some(
+                    w::Regate::new(
+                        &w::CEILINGS,
+                        w::RegateParts { receipt: super::landing::encode_receipt_key(&value.receipt), run: value.run },
+                    )
+                    .expect(FITS),
+                ),
+                None => None,
+            },
+            room: *room,
             kept: *kept,
             task_release: match task_release {
                 Some(release) => Some(
@@ -927,6 +956,8 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
                 None => None,
             },
             delegate_status: encode_status(*delegate_status),
+            delegate_flake: *delegate_flake,
+            delegate_head: *delegate_head,
             verdicts: encode_gate_reports(verdicts),
             gate_remarks: encode_gate_remarks(gate_remarks),
             drift: match drift {
@@ -965,6 +996,8 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
 }
 pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, super::Undecodable> {
     let w::ChangeHotParts {
+        regate,
+        room,
         kept,
         task_release,
         job,
@@ -982,6 +1015,7 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
         effect,
         delegate,
         delegate_status,
+        delegate_flake,
         verdicts,
         gate_remarks,
         drift,
@@ -993,8 +1027,11 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
         follow_check,
         merge_result,
         history,
+        delegate_head,
     } = value.into_parts();
     Ok(top::ChangeHot {
+        regate: decode_regate(regate),
+        room,
         kept,
         task_release: match task_release {
             Some(release) => {
@@ -1030,6 +1067,8 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
             None => None,
         },
         delegate_status: decode_status(delegate_status),
+        delegate_flake,
+        delegate_head,
         verdicts: decode_gate_reports(verdicts),
         gate_remarks: decode_gate_remarks(gate_remarks),
         drift: match drift {
@@ -1049,14 +1088,16 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
             Some(value) => Some(super::history::decode_change_history(value)),
             None => None,
         },
-        effect_account: match effect_account {
-            Some(account) => {
-                let w::EffectAccountParts { entry, words } = account.into_parts();
-                Some(top::EffectAccount { entry, words })
-            }
-            None => None,
-        },
+        effect_account: decode_effect_account(effect_account),
     })
+}
+fn decode_effect_account(value: Option<w::EffectAccount>) -> Option<top::EffectAccount> {
+    let w::EffectAccountParts { entry, words } = value?.into_parts();
+    Some(top::EffectAccount { entry, words })
+}
+fn decode_regate(value: Option<w::Regate>) -> Option<top::Regate> {
+    let w::RegateParts { receipt, run } = value?.into_parts();
+    Some(top::Regate { receipt: super::landing::decode_receipt_key(receipt), run })
 }
 fn encode_numbers(values: &[u64]) -> List<u64> {
     let mut result = List::with_capacity(u32::try_from(values.len()).expect("admitted count"));

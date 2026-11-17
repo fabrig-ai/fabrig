@@ -1,0 +1,8 @@
+worker remove WORKER --key KEY
+  WORKER (worker): a worker name: ASCII letters, digits, -, _ or ., starting with a letter or digit, at most 128 bytes; required. The live worker's name
+Remove a worker, withdrawn at its number
+Prints: `worker WORKER: revision R`, the new revision
+--json: the record change_settings.
+Key: --key KEY, required.
+Stop a linked worker first; its runs end interrupted.
+Changes one setting against the newest revision read; running work stays.

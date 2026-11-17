@@ -10,23 +10,21 @@ fn smiths_terminal_login_command_preserves_its_configured_process_contract() {
     let directory = std::env::temp_dir().join(format!("temper-login-command-{}", std::process::id()));
     std::fs::create_dir(&directory).expect("login command scratch");
     std::fs::set_permissions(&directory, std::fs::Permissions::from_mode(0o700)).expect("private scratch");
-    let executable = std::path::Path::new("/nonexistent/configured-claude");
+    let executable = directory.join("claude");
+    std::fs::write(&executable, b"#!/bin/sh\nexit 1\n").expect("backend");
+    std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o700)).expect("executable backend");
     let programs = directory.join("programs");
     let source = programs.join("source");
-    let (agent, deployment) = crate::tests::configuration::documents(&directory, "/fixture/temper");
-    let mut agent: serde_json::Value = serde_json::from_slice(&agent).expect("agent JSON");
-    agent["programs"] = serde_json::json!({"claude_code":{"path":executable,"directory":programs}});
-    std::fs::write(directory.join("agent.json"), serde_json::to_vec(&agent).expect("agent JSON")).expect("agent");
-    std::fs::write(directory.join("root.der"), skein_tls_kit::pki::ROOT).expect("public trust");
-    let configuration = directory.join("temper.json");
-    std::fs::write(&configuration, deployment).expect("non-UTF8 configuration path");
+    let (_, deployment) = crate::tests::configuration::documents(&directory, "/fixture/temper");
+    std::fs::write(directory.join("temper.json"), deployment).expect("configuration");
     let benign = OsString::from_vec(b"value-\xff".to_vec());
-    let command = temper_worker_shell::program_login::command(
+    let search = OsString::from(format!("{}:/bin", directory.display()));
+    let command = super::command(
         &crate::tests::configuration::directories(&directory),
         OsStr::new("source"),
         [
             ("HOME".into(), "/home/person".into()),
-            ("PATH".into(), "/bin".into()),
+            ("PATH".into(), search.clone()),
             ("BENIGN_SETTING".into(), benign.clone()),
             ("CLAUDE_CONFIG_DIR".into(), "/wrong".into()),
             ("ANTHROPIC_API_KEY".into(), "private".into()),
@@ -35,7 +33,6 @@ fn smiths_terminal_login_command_preserves_its_configured_process_contract() {
             ("AWS_BEARER_TOKEN_BEDROCK".into(), "private".into()),
             ("CLAUDE_CODE_USE_VERTEX".into(), "private".into()),
         ],
-        Some(super::deployment),
     )
     .expect("checked terminal command");
     assert_eq!(command.get_program(), executable.as_os_str());
@@ -48,7 +45,7 @@ fn smiths_terminal_login_command_preserves_its_configured_process_contract() {
     let anthropic = source.join("anthropic");
     for (name, value) in [
         ("HOME", OsStr::new("/home/person")),
-        ("PATH", OsStr::new("/bin")),
+        ("PATH", search.as_os_str()),
         ("BENIGN_SETTING", benign.as_os_str()),
         ("CLAUDE_CONFIG_DIR", source.as_os_str()),
         ("ANTHROPIC_CONFIG_DIR", anthropic.as_os_str()),

@@ -3,7 +3,7 @@ use crate::{
     Link, Message, Request, Signing, With,
     component::{Attempt, ExchangeKind},
 };
-use jig_client_protocol_wire::v27 as w;
+use jig_client_protocol_wire as w;
 use skein_lib::{Queue, Reader, Secret, Token, Wall, Writer};
 impl Link {
     #[must_use]
@@ -97,6 +97,7 @@ impl Link {
             .insert(
                 exchange,
                 Attempt {
+                    parts: skein_lib::List::with_capacity(0),
                     held,
                     token: exchange,
                     owner: w::Owner::Jig,

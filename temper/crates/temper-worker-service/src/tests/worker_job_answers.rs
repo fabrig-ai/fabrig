@@ -64,6 +64,7 @@ fn merge_git(op: root::checkout::git::Op) -> root::checkout::git::Done {
         Op::Brings { .. } => Done::Brings { brings: false },
         Op::IsAncestor { .. } => Done::IsAncestor { contains: true },
         Op::Reds { .. }
+        | Op::Reset { .. }
         | Op::Point { .. }
         | Op::Store { .. }
         | Op::Make { .. }
@@ -217,7 +218,7 @@ fn merge_link(
 /// Keep the prepare's fields whole on both sides of the test link.
 fn merge_worker_with_details() -> (Worker, fixtures::worker_peers::LinkPeer) {
     let mut settings = fixtures::worker_settings();
-    settings.jig.limits.hub.detail_bytes = 4096;
+    settings.jig.limits.as_mut().expect("checked worker limits").hub.detail_bytes = 4096;
     let agent = fixtures::worker_agent();
     let mut stand = fixtures::WorkerStand::new();
     stand.worker = Worker::new(
@@ -229,7 +230,7 @@ fn merge_worker_with_details() -> (Worker, fixtures::worker_peers::LinkPeer) {
             wires: None,
             root: io::kernel::Fd::new(9),
             path: b"/worker".as_slice().into(),
-            agent: fixtures::pinned_agent(&settings.jig.agent),
+            agent: fixtures::pinned_agent(settings.jig.agent.as_ref().expect("checked worker agent")),
         },
         7,
     )

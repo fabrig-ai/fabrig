@@ -337,7 +337,12 @@ fn job_upgrade_leaves_the_first_commits_floor_unchanged() {
     let mut disk = Disk::new(&disk.items());
     let mut upgraded = store(&disk, upgrade_sets(1));
     upgraded.build_name("test-build");
-    let request = Request::Open { owner: Token::new(1), root: disk.root(), installation: fixtures::INSTALLATION };
+    let request = Request::Open {
+        purpose: crate::Purpose::Serve,
+        owner: Token::new(1),
+        root: disk.root(),
+        installation: fixtures::INSTALLATION,
+    };
     traced_request(&mut disk, &mut upgraded, request, initial.clone());
     assert_eq!(floor(&mut upgraded), initial);
 }

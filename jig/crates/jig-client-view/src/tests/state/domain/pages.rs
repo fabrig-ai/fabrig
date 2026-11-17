@@ -330,6 +330,7 @@ fn goal_line(number: u64, priority: u32, phase: Phase, changed: u64) -> TaskLine
     chip.phase = phase;
     *chip.details = super::objects::phase_details(phase);
     TaskLine {
+        parts: List::with_capacity(0),
         chip,
         tracked: Some(priority),
         phases: PhaseCounts::ZERO,
@@ -375,7 +376,10 @@ fn goal_read_from_start_merges_live_watch_by_key() {
     drive(
         &mut domain,
         Time::ZERO,
-        Watched { watch, event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks { rows: live, more: false }))) },
+        Watched {
+            watch,
+            event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks { ended_mark: 0, rows: live, more: false }))),
+        },
     );
     let query = Read::Tasks { query: crate::state::queries::ended_goals(1, 2), live: None, ended: None };
     let rows = crate::tests::kit::list([goal_line(9, 99, Phase::Running, 1), goal_line(8, 1, Phase::Done, 1)]);
@@ -385,6 +389,7 @@ fn goal_read_from_start_merges_live_watch_by_key() {
         ReadPage {
             read: read_named(&opened, &query),
             result: ReadResult::Value(ReadValue::Tasks(Box::new(TaskPage {
+                ended_mark: 0,
                 live: List::with_capacity(0),
                 live_after: None,
                 ended: EndedGroup::Rows { rows, after: None, cut: false },
@@ -830,7 +835,10 @@ fn owner_goal_read_and_watch_keep_all_ten_counters_absent_clock_and_exact_budget
     drive(
         &mut domain,
         Time::ZERO,
-        Watched { watch, event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks { rows, more: false }))) },
+        Watched {
+            watch,
+            event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks { ended_mark: 0, rows, more: false }))),
+        },
     );
     let mut duplicate = row.clone();
     duplicate.changed = skein_lib::Wall::EPOCH;
@@ -845,6 +853,7 @@ fn owner_goal_read_and_watch_keep_all_ten_counters_absent_clock_and_exact_budget
                 &Read::Tasks { query: crate::state::queries::ended_goals(1, 2), live: None, ended: None },
             ),
             result: ReadResult::Value(ReadValue::Tasks(Box::new(TaskPage {
+                ended_mark: 0,
                 live: List::with_capacity(0),
                 live_after: None,
                 ended: EndedGroup::Rows { rows, after: None, cut: false },

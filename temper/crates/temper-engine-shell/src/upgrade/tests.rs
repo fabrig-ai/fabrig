@@ -6,9 +6,6 @@ use std::{
 };
 use temper_shell::directories::Directories;
 
-// A SHA-256 digest has 64 hexadecimal digits.
-const DIGEST_BYTES: usize = 64;
-
 fn copy(source: &Path, target: &Path) {
     std::fs::create_dir(target).expect("copy directory");
     std::fs::set_permissions(target, std::fs::Permissions::from_mode(0o700)).expect("private directory");
@@ -50,14 +47,6 @@ fn deployment() -> (skein_scratch::Scratch, Directories) {
     document["workers"] = serde_json::json!([]);
 
     document["engine"]["hosts"]["listener"] = serde_json::json!([{"socket":"127.0.0.1:7103"}]);
-    let mut workers = Vec::new();
-    for (name, digit) in [("worker-a", '0'), ("worker-b", '1'), ("worker-c", '2')] {
-        let digest = config.join(format!("{name}.digest"));
-        std::fs::write(&digest, digit.to_string().repeat(DIGEST_BYTES)).expect("fixture digest");
-        std::fs::set_permissions(&digest, std::fs::Permissions::from_mode(0o600)).expect("private digest");
-        workers.push(serde_json::json!({"name":name,"digest":digest}));
-    }
-    document["engine"]["hosts"]["workers"] = workers.into();
     let registration = serde_json::json!({
         "issuer":"http://127.0.0.1:7104", "client":"test-client", "scopes":["openid","read"],
         "authorization":"http://127.0.0.1:7104/authorize", "token":"http://127.0.0.1:7104/token",

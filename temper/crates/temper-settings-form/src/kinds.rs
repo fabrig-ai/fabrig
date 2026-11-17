@@ -6,6 +6,7 @@ use alloc::boxed::Box;
 use skein_json::writer::Encoder;
 use skein_lib::{List, Reader, Writer};
 use temper_client_protocol_wire::v1 as w;
+mod agents;
 mod follow;
 mod landing;
 
@@ -52,6 +53,15 @@ fn setting_value(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c::Set
             return Err(error(b"project", b"unknown member"));
         }
         return Ok(c::Setting::Application { kind: 20, scope: 0, number: 1 });
+    }
+    if kind == b"agents" {
+        if optional(fields, b"number").is_some() {
+            return Err(error(b"number", b"agents has no number"));
+        }
+        if optional(fields, b"project").is_some() {
+            return Err(error(b"project", b"agents has no project"));
+        }
+        return Ok(c::Setting::Application { kind: 21, scope: 0, number: 1 });
     }
     if [
         b"project-ways".as_slice(),
@@ -151,6 +161,9 @@ pub(super) fn value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Er
         let mut out = Writer::new(usize::try_from(record.measure()).expect("record length fits"));
         record.encode(&mut out).expect("measured record");
         return Ok(out.finish());
+    }
+    if kind == 21 {
+        return agents::value(d, at);
     }
     if kind == 14 || kind == 15 {
         return area_value(d, at, kind);
@@ -484,6 +497,7 @@ pub(super) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
             out.boolean(value.shown());
             out.object_end();
         }
+        21 => return agents::render(bytes, out),
         14 => {
             let Ok(value) = w::ProjectAreas::decode(&w::CEILINGS, &mut reader) else { return false };
             if !reader.is_empty() {

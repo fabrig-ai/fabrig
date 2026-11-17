@@ -726,10 +726,34 @@ fn startup_configuration(directory: &Path) -> (Vec<u8>, temper_service::stock::G
     let configuration = std::fs::read(directory.join("configuration.json")).expect("kept startup configuration");
     let mut document: serde_json::Value = serde_json::from_slice(&configuration).expect("kept configuration JSON");
     bridge_kept_profiles(&mut document);
+    // Kept deployment inputs use the current box shape; the stored generation stays untouched.
+    let mut inherited = Vec::new();
+    for worker in document["workers"].as_array_mut().expect("kept workers") {
+        let worker = worker.as_object_mut().expect("kept worker");
+        worker.remove("agent");
+        if let Some(limits) = worker.remove("limits") {
+            for (name, value) in limits["overrides"].as_object().expect("kept overrides") {
+                if name.starts_with("hub.") || name == "io.output" {
+                    inherited.push((name.clone(), value.clone()));
+                }
+            }
+        }
+    }
+    for (name, value) in inherited {
+        document["engine"]["limits"]["overrides"][name] = value;
+    }
     temper_playground::documents::settings::strip_fixed(&mut document);
+    // Workers are admitted through settings, not the document (protocol/cluster.md, 3).
+    document["engine"]["hosts"].as_object_mut().expect("kept hosts").remove("workers");
+    document["workers"][0]["name"] = "local".into();
+    document["engine"]["limits"]["overrides"]["fleet.slots"] = 4.into();
     let sections =
         document.pointer_mut("/engine/limits/overrides/brief.sections").expect("kept brief section override");
     *sections = sections.as_u64().expect("brief section count").max(u64::from(jig_domain_core::CORE_SECTIONS)).into();
+    temper_playground::documents::turn_bounds::apply(
+        &mut document,
+        temper_playground::documents::agent().limits.bodies.turn_body,
+    );
     let given = temper_playground::documents::given(&document);
     let temper_service::stock::Given::Own { jig, .. } = &given else { panic!("golden world defaults") };
     for (name, count) in [
@@ -793,7 +817,10 @@ fn restart_history(store: &Store) -> Result<(), String> {
 pub(crate) fn bridge_kept_profiles(document: &mut serde_json::Value) {
     let jig = jig_protocol_config_fixtures::small();
     for path in ["/engine/limits", "/workers/0/limits"] {
-        let limits = document.pointer_mut(path).expect("kept limits");
+        let Some(limits) = document.pointer_mut(path) else { continue };
+        if limits.get("profile").is_none() {
+            continue;
+        }
         assert_eq!(limits["profile"], "small");
         limits.as_object_mut().expect("kept object").remove("profile");
         let overrides = limits["overrides"].as_object_mut().expect("kept object");
@@ -805,6 +832,9 @@ pub(crate) fn bridge_kept_profiles(document: &mut serde_json::Value) {
     }
     let own = temper_limits_fixtures::small();
     let limits = document.pointer_mut("/application/limits").expect("kept application limits");
+    if limits.get("profile").is_none() {
+        return;
+    }
     assert_eq!(limits["profile"], "small");
     limits.as_object_mut().expect("kept object").remove("profile");
     let overrides = limits["overrides"].as_object_mut().expect("kept object");

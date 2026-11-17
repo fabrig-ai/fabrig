@@ -377,7 +377,12 @@ fn change_expands_the_only_repository_field_by_field() {
     );
     assert_eq!(
         row.contract,
-        tasks::Contract::Change { connector: 0, kind: 1, words: 512.min(world.env.limits.tasks.result_bytes) }
+        tasks::Contract::Change {
+            connector: 0,
+            kind: 1,
+            words: 512.min(world.env.limits.tasks.result_bytes),
+            choices: Box::new([])
+        }
     );
     assert_eq!(row.authority.tools, parent.authority.tools);
     assert_eq!(
@@ -431,7 +436,12 @@ fn change_expands_the_only_repository_field_by_field() {
     world.until(Until::SecondAssignment);
     assert!(
         world.assigned[1].run.contract
-            == tasks::Contract::Change { connector: 0, kind: 2, words: world.env.limits.tasks.result_bytes },
+            == tasks::Contract::Change {
+                connector: 0,
+                kind: 2,
+                words: world.env.limits.tasks.result_bytes,
+                choices: Box::new([])
+            },
         "the same code-2 procedure starts its producer"
     );
 }
@@ -940,14 +950,14 @@ fn a_chat_reads_the_job_attempt_printed_by_its_checks() {
     assert!(text.contains("/actions/runs/1/jobs/0\n"), "{text}");
     let line = text
         .lines()
-        .find(|line| line.starts_with("read_job "))
+        .find_map(|line| line.strip_prefix("read_ci what=job "))
         .unwrap_or_else(|| panic!("resolved job attempt: {text}"));
     let fields: Vec<_> = line.split_ascii_whitespace().collect();
-    assert_eq!(fields.len(), 9, "{line}");
-    assert_eq!([fields[0], fields[1], fields[3], fields[5], fields[7]], ["read_job", "head", "run", "job", "attempt"]);
-    assert_eq!(fields[6], "1", "the API job id differs from the link's index 0");
+    assert_eq!(fields.len(), 8, "{line}");
+    assert_eq!([fields[0], fields[2], fields[4], fields[6]], ["commit", "run", "job", "attempt"]);
+    assert_eq!(fields[5], "1", "the API job id differs from the link's index 0");
     let input =
-        format!(r#"{{"head":"{}","run":{},"job":{},"attempt":{}}}"#, fields[2], fields[4], fields[6], fields[8]);
+        format!(r#"{{"head":"{}","run":{},"job":{},"attempt":{}}}"#, fields[1], fields[3], fields[5], fields[7]);
     let job = named_read(&mut world, &chat, 94, b"read_job", input.as_bytes());
     assert!(
         matches!(&job, engine::CallAnswer::ForgeRead(result) if matches!(result.as_ref(), Ok(skein_forge::api::Answer::Job { .. }))),
@@ -1095,20 +1105,20 @@ fn a_pull_request_ci_repair_carries_the_failed_step_and_reads_its_named_attempt(
     let text = std::str::from_utf8(rendered.text()).expect("checks text");
     let line = text
         .lines()
-        .find(|line| line.starts_with("read_job "))
+        .find_map(|line| line.strip_prefix("read_ci what=job "))
         .unwrap_or_else(|| panic!("resolved attempt: {checks:?}: {text}"));
     let fields: Vec<_> = line.split_ascii_whitespace().collect();
-    assert_eq!(fields[2], digits);
-    assert_eq!(fields[4], run.id.to_string());
-    assert_ne!(fields[6], "0", "the link's index is not the job id");
+    assert_eq!(fields[1], digits);
+    assert_eq!(fields[3], run.id.to_string());
+    assert_ne!(fields[5], "0", "the link's index is not the job id");
     let input = format!(
         r#"{{"head":"{}","run":{},"job":{},"attempt":{},"max_bytes":4608}}"#,
-        fields[2], fields[4], fields[6], fields[8]
+        fields[1], fields[3], fields[5], fields[7]
     );
     let job = named_read(&mut world, &repair, 196, b"read_job", input.as_bytes());
     let rendered = temper_engine_smith::answer(&job);
     assert!(!rendered.error());
-    assert!(contains(rendered.text(), &pull_repair_log()), "read_job returns the complete diagnostic");
+    assert!(contains(rendered.text(), &pull_repair_log()), "read_ci what=job returns the complete diagnostic");
     world.close();
 }
 
@@ -1171,7 +1181,7 @@ fn a_decoded_job_zero_read_reaches_the_fake_and_is_answered() {
             break;
         }
     }
-    assert_eq!(world.call_errors.last().expect("host refusal").text.as_ref(), b"Forge read failed: job missing. No job attempt at head 0100000000000000000000000000000000000000, run 2, job 0, attempt 1, as asked. read_checks at this head names each Actions job's run, job and attempt as read_job takes them; a link's run number and its index of the job are not those ids.");
+    assert_eq!(world.call_errors.last().expect("host refusal").text.as_ref(), b"Forge read failed: job missing. No job attempt at head 0100000000000000000000000000000000000000, run 2, job 0, attempt 1, as asked. read_ci what=checks at this head names each Actions job's run, job and attempt as read_ci what=job takes them; a link's run number and its index of the job are not those ids.");
     let mut observed = false;
     while let Some(fact) = world.root.pop_fact() {
         if let engine::Fact::ReadRefused { task, attempt, tool, layer, error, job, .. } = fact {
@@ -1338,7 +1348,7 @@ fn handed_title(title: &[u8]) -> Box<[u8]> {
     let mut delegate =
         temper_engine_domain_world::fixtures::report_delegate(b"Context. The complete brief.", Box::new([]));
     delegate.executor = tasks::Executor::Procedure { connector: 0, code: 2 };
-    delegate.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 128 };
+    delegate.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 128, choices: Box::new([]) };
     delegate.authority = live(&world, chat.task).authority.clone();
     delegate.authority.budget.spend = 40;
     delegate.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };

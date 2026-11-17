@@ -3,6 +3,7 @@
 2026-11-16. Where temper's code lags or departs from [README.md](README.md).
 
 
+
 Section 4.1's approval card is present on Needs you, Home and a goal's
 band, with rule, the path sets it signs off, partial-read notice, Open and Later. A
 counting viewer gets a safe files-page review link, using the sign-in

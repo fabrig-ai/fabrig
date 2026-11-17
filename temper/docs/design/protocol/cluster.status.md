@@ -2,6 +2,7 @@
 
 2026-11-12. Where the tree's code lags or departs from [cluster.md](cluster.md).
 
+
 - **Not yet:** 6: the retained case 4.6 process story is ignored until
   its fixture stops expecting models in the startup configuration
   (`../testing/process-tier.status.md`); jig's fleet takes a draining

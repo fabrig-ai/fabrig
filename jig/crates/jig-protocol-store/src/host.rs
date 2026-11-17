@@ -1,4 +1,4 @@
-//! The store's three single-flight file drivers, adoption and close
+//! The store's four single-flight file drivers, adoption and close
 //! (jig/docs/design/protocol/store/README.md, 8; jig/docs/design/protocol/service.md, 11.5).
 use crate::Below;
 use skein_io::{
@@ -44,12 +44,15 @@ impl core::fmt::Debug for Hosted {
             .finish_non_exhaustive()
     }
 }
-/// Operation issued once its roots are adopted (protocol/store/opening.md, 5).
+/// Operation issued once its roots are adopted (protocol/store/opening.md, 5; checkpoints.md, 5–6).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Adoption {
     Open,
     Rehearse { scratch: Fd },
     Back,
+    Checkpoint { draw: [u8; 16] },
+    HoldCheckpoint { name: crate::CheckpointName },
+    RemoveCheckpoint { name: crate::CheckpointName },
 }
 
 impl Hosted {
@@ -103,7 +106,10 @@ impl Hosted {
                     self.above.push(event);
                 }
             }
-            request @ (crate::Request::Switch { .. }
+            request @ (crate::Request::Checkpoint { .. }
+            | crate::Request::HoldCheckpoint { .. }
+            | crate::Request::RemoveCheckpoint { .. }
+            | crate::Request::Switch { .. }
             | crate::Request::Rehearse { .. }
             | crate::Request::Back { .. }
             | crate::Request::Close { .. }
@@ -195,8 +201,11 @@ impl Hosted {
     }
     pub fn close(&mut self) {
         self.closing = true;
+        let in_flight = !self.drivers.drivers.get(Lane::Checkpoints.index()).expect("checkpoint lane").io.takes();
         self.drivers.close();
         self.above = Queue::uncapped();
+        crate::checkpoints::taking::cancel(&mut self.component, in_flight, &mut self.above);
+        self.component.phase = crate::Phase::Stopped;
         self.secrets = Queue::uncapped();
         self.sources = Queue::uncapped();
     }
@@ -204,8 +213,8 @@ impl Hosted {
 
 const ADOPT: Token = Token::new(u64::MAX - 1);
 const CLOSE: Token = Token::new(u64::MAX);
-/// Three drivers, each with at most four kernel records per transition.
-pub const KERNEL_HANDOFF_ENTRIES: u32 = 3 * 4;
+/// Four drivers, each with at most four kernel records per transition.
+pub const KERNEL_HANDOFF_ENTRIES: u32 = 4 * 4;
 
 /// Independent file-operation lanes; token namespaces belong to the owner.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -213,15 +222,17 @@ pub enum Lane {
     Store,
     Secrets,
     Transcripts,
+    Checkpoints,
 }
 impl Lane {
-    pub const ALL: [Self; 3] = [Self::Store, Self::Secrets, Self::Transcripts];
+    pub const ALL: [Self; 4] = [Self::Store, Self::Secrets, Self::Transcripts, Self::Checkpoints];
     #[must_use]
     pub const fn index(self) -> usize {
         match self {
             Self::Store => 0,
             Self::Secrets => 1,
             Self::Transcripts => 2,
+            Self::Checkpoints => 3,
         }
     }
     fn at(index: usize) -> Self {
@@ -291,22 +302,24 @@ impl Driver {
         Some(crate::Arrived { event, fd })
     }
 }
-/// Seed the same three drivers used for directory generation creation.
-fn seed(drivers: &mut [Driver; 3], value: u64) -> crate::Seeded {
-    let [store, secrets, transcripts] = drivers;
-    crate::seed([&mut store.io, &mut secrets.io, &mut transcripts.io], value)
+/// Seed the same four drivers used for directory generation creation.
+fn seed(drivers: &mut [Driver; 4], value: u64) -> crate::Seeded {
+    let [store, secrets, transcripts, checkpoints] = drivers;
+    crate::seed([&mut store.io, &mut secrets.io, &mut transcripts.io, &mut checkpoints.io], value)
 }
 
-#[expect(clippy::struct_field_names, reason = "the drivers part holds its three file drivers")]
+#[expect(clippy::struct_field_names, reason = "the drivers part holds its four file drivers")]
 pub struct Drivers {
     below: Below,
-    drivers: [Driver; 3],
+    drivers: [Driver; 4],
     submitted: Queue<Submission>,
     adopted: bool,
     started: bool,
     root: Option<Fd>,
     scratch: Option<crate::Root>,
     adoption: Adoption,
+    adoption_events: Queue<crate::Event>,
+    checkpoint_terminal: Option<crate::Event>,
     owner: Token,
     installation: [u8; 16],
     closing: bool,
@@ -320,10 +333,21 @@ impl core::fmt::Debug for Drivers {
 impl Drivers {
     #[must_use]
     pub fn new(limits: &crate::Limits, value: u64) -> Self {
-        let mut drivers = [driver(limits), driver(limits), driver(limits)];
+        let serving = serving_read(limits);
+        let mut drivers = [
+            driver(limits, serving),
+            driver(limits, serving),
+            driver(limits, serving),
+            driver(limits, serving.max(max_read(limits))),
+        ];
         let seeded = seed(&mut drivers, value);
         Self {
-            below: Below { store: Queue::uncapped(), secrets: Queue::uncapped(), transcripts: Queue::uncapped() },
+            below: Below {
+                store: Queue::uncapped(),
+                secrets: Queue::uncapped(),
+                transcripts: Queue::uncapped(),
+                checkpoints: Queue::uncapped(),
+            },
             drivers,
             submitted: Queue::with_capacity(KERNEL_HANDOFF_ENTRIES),
             adopted: false,
@@ -331,6 +355,8 @@ impl Drivers {
             root: None,
             scratch: None,
             adoption: Adoption::Open,
+            adoption_events: Queue::uncapped(),
+            checkpoint_terminal: None,
             owner: Token::new(0),
             installation: [0; 16],
             closing: false,
@@ -367,7 +393,7 @@ impl Drivers {
         self.adoption = mode;
         self.owner = owner;
         self.installation = installation;
-        for index in 0..3 {
+        for index in 0..4 {
             let driver = self.drivers.get_mut(index).expect("driver index");
             let placeholder = FileLimits { files: 1, read: 1, entries: 1, whole: 1, timeout: Duration::from_secs(1) };
             driver.io = core::mem::replace(&mut driver.io, FileIo::with_limits(&placeholder)).with_effective_user(user);
@@ -431,10 +457,10 @@ impl Drivers {
     }
     #[must_use]
     pub fn work_pending(&self, now: Time) -> bool {
-        if !self.submitted.is_empty() {
+        if !self.submitted.is_empty() || !self.adoption_events.is_empty() {
             return true;
         }
-        for index in 0..3 {
+        for index in 0..4 {
             let driver = self.drivers.get(index).expect("driver index");
             if driver.io.is_due(now)
                 || !self.drivers.get(index).expect("driver index").above.is_empty()
@@ -447,7 +473,11 @@ impl Drivers {
     }
     fn root_count(&self) -> u32 {
         match self.adoption {
-            Adoption::Open | Adoption::Back => 1,
+            Adoption::Open
+            | Adoption::Back
+            | Adoption::Checkpoint { .. }
+            | Adoption::HoldCheckpoint { .. }
+            | Adoption::RemoveCheckpoint { .. } => 1,
             Adoption::Rehearse { .. } => 2,
         }
     }
@@ -461,7 +491,10 @@ impl Drivers {
                     && self.drivers.get(1).expect("driver index").io.takes()
                     && self.drivers.get(2).expect("driver index").io.takes()
                     && self.drivers.get(1).expect("driver index").above.is_empty()
-                    && self.drivers.get(2).expect("driver index").above.is_empty())
+                    && self.drivers.get(2).expect("driver index").above.is_empty()
+                    && self.drivers.get(3).expect("driver index").handles.is_empty()
+                    && self.drivers.get(3).expect("driver index").io.takes()
+                    && self.drivers.get(3).expect("driver index").above.is_empty())
     }
     #[must_use]
     pub fn closed(&self) -> bool {
@@ -473,12 +506,13 @@ impl Drivers {
             && self.below.store.is_empty()
             && self.below.secrets.is_empty()
             && self.below.transcripts.is_empty()
+            && self.below.checkpoints.is_empty()
             && idle_drivers(&self.drivers)
     }
     pub fn close(&mut self) {
         self.closing = true;
         self.root = None;
-        for index in 0..3 {
+        for index in 0..4 {
             for _ in 0..self.queue(index).len() {
                 let _request = self.pop(index);
             }
@@ -503,8 +537,10 @@ impl Drivers {
             &self.below.store
         } else if index == 1 {
             &self.below.secrets
-        } else {
+        } else if index == 2 {
             &self.below.transcripts
+        } else {
+            &self.below.checkpoints
         }
     }
     fn pop(&mut self, index: usize) -> Option<file::Request> {
@@ -512,8 +548,10 @@ impl Drivers {
             self.below.store.pop()
         } else if index == 1 {
             self.below.secrets.pop()
-        } else {
+        } else if index == 2 {
             self.below.transcripts.pop()
+        } else {
+            self.below.checkpoints.pop()
         }
     }
     fn close_request(&mut self, index: usize) -> Option<file::Request> {
@@ -528,10 +566,129 @@ impl Drivers {
         None
     }
     pub fn iterate(&mut self, component: &mut crate::Store, env: &Env<crate::Limits>, above: &mut Queue<crate::Event>) {
+        let mut events = core::mem::replace(&mut self.adoption_events, Queue::uncapped());
+        self.iterate_inner(component, env, &mut events);
+        for _ in 0..events.len() {
+            let event = events.pop().expect("host events");
+            match self.adoption {
+                Adoption::Checkpoint { draw } => self.checkpoint_event(component, env, draw, event, above),
+                Adoption::Open
+                | Adoption::Rehearse { .. }
+                | Adoption::Back
+                | Adoption::HoldCheckpoint { .. }
+                | Adoption::RemoveCheckpoint { .. } => {
+                    above.push(event);
+                }
+            }
+        }
+    }
+    fn checkpoint_event(
+        &mut self,
+        component: &mut crate::Store,
+        env: &Env<crate::Limits>,
+        draw: [u8; 16],
+        event: crate::Event,
+        above: &mut Queue<crate::Event>,
+    ) {
+        match event {
+            crate::Event::Opened { .. } => {
+                crate::down(
+                    component,
+                    env,
+                    crate::Request::Checkpoint { owner: self.owner, draw },
+                    &mut self.adoption_events,
+                    &mut self.below,
+                );
+            }
+            crate::Event::Census { .. } => {}
+            terminal @ (crate::Event::Checkpointed { .. }
+            | crate::Event::CheckpointRefused { .. }
+            | crate::Event::OpenRefused { .. }) => {
+                if component.checkpoint_open.is_some() {
+                    self.checkpoint_terminal = Some(terminal);
+                    crate::down(
+                        component,
+                        env,
+                        crate::Request::Close { owner: self.owner },
+                        &mut self.adoption_events,
+                        &mut self.below,
+                    );
+                } else {
+                    above.push(terminal);
+                }
+            }
+            crate::Event::Closed { .. } => {
+                above.push(self.checkpoint_terminal.take().expect("checkpoint terminal retained through close"));
+            }
+            event @ (crate::Event::CheckpointHeld { .. }
+            | crate::Event::CheckpointRemoved { .. }
+            | crate::Event::Rehearsing { .. }
+            | crate::Event::Decoded { .. }
+            | crate::Event::Undecodable { .. }
+            | crate::Event::Back { .. }
+            | crate::Event::BackRefused { .. }
+            | crate::Event::Switched { .. }
+            | crate::Event::Committed { .. }
+            | crate::Event::Failed { .. }
+            | crate::Event::FrameTooLarge { .. }
+            | crate::Event::Page { .. }
+            | crate::Event::PageRefused { .. }
+            | crate::Event::Loaded { .. }
+            | crate::Event::Read { .. }
+            | crate::Event::Got { .. }
+            | crate::Event::Turns { .. }
+            | crate::Event::Unread { .. }
+            | crate::Event::SecretsNotReady { .. }
+            | crate::Event::Kept { .. }
+            | crate::Event::Carried { .. }
+            | crate::Event::Stale { .. }
+            | crate::Event::Erased { .. }
+            | crate::Event::Secret { .. }
+            | crate::Event::SecretsLoaded { .. }
+            | crate::Event::Corrupt { .. }
+            | crate::Event::Site { .. }
+            | crate::Event::Job { .. }
+            | crate::Event::Ran { .. }) => {
+                above.push(event);
+            }
+        }
+    }
+    fn adoption_request(&self, fd: Fd) -> crate::Request {
+        let root = crate::Root { token: Token::new(1), fd };
+        match self.adoption {
+            Adoption::Open => crate::Request::Open {
+                owner: self.owner,
+                root,
+                installation: self.installation,
+                purpose: crate::Purpose::Serve,
+            },
+            Adoption::Checkpoint { .. } => crate::Request::Open {
+                owner: self.owner,
+                root,
+                installation: self.installation,
+                purpose: crate::Purpose::Checkpoint,
+            },
+            Adoption::Rehearse { .. } => crate::Request::Rehearse {
+                owner: self.owner,
+                directory: root,
+                scratch: self.scratch.expect("adopted scratch"),
+                installation: self.installation,
+            },
+            Adoption::Back => crate::Request::Back { owner: self.owner, root },
+            Adoption::HoldCheckpoint { name } => crate::Request::HoldCheckpoint { owner: self.owner, root, name },
+            Adoption::RemoveCheckpoint { name } => crate::Request::RemoveCheckpoint { owner: self.owner, root, name },
+        }
+    }
+    fn iterate_inner(
+        &mut self,
+        component: &mut crate::Store,
+        env: &Env<crate::Limits>,
+        above: &mut Queue<crate::Event>,
+    ) {
         if self.adopted && !self.closing {
             crate::fire(component, env, above, &mut self.below);
         }
-        for index in 0..3 {
+        for index in 0..4 {
             let mut submitted = Queue::with_capacity(4);
             let driver = self.drivers.get_mut(index).expect("driver index");
             step::expire(&mut driver.io, &env.with(driver.file_limits), &mut submitted);
@@ -545,8 +702,14 @@ impl Drivers {
                     if fd.is_none() {
                         if self.root.take().is_some() {
                             above.push(match self.adoption {
-                                Adoption::Open | Adoption::Rehearse { .. } => {
+                                Adoption::Open | Adoption::Rehearse { .. } | Adoption::Checkpoint { .. } => {
                                     crate::Event::OpenRefused { owner: self.owner, why: crate::OpenRefusal::Failed }
+                                }
+                                Adoption::HoldCheckpoint { .. } | Adoption::RemoveCheckpoint { .. } => {
+                                    crate::Event::CheckpointRefused {
+                                        owner: self.owner,
+                                        why: crate::checkpoints::files::failure(b"checkpoints", &event),
+                                    }
                                 }
                                 Adoption::Back => {
                                     crate::Event::BackRefused { owner: self.owner, why: crate::BackRefusal::Unreadable }
@@ -558,29 +721,7 @@ impl Drivers {
                         && let Some(fd) = self.root.take()
                     {
                         self.started = true;
-                        crate::down(
-                            component,
-                            env,
-                            match self.adoption {
-                                Adoption::Open => crate::Request::Open {
-                                    owner: self.owner,
-                                    root: crate::Root { token: Token::new(1), fd },
-                                    installation: self.installation,
-                                },
-                                Adoption::Rehearse { .. } => crate::Request::Rehearse {
-                                    owner: self.owner,
-                                    directory: crate::Root { token: Token::new(1), fd },
-                                    scratch: self.scratch.expect("adopted scratch"),
-                                    installation: self.installation,
-                                },
-                                Adoption::Back => crate::Request::Back {
-                                    owner: self.owner,
-                                    root: crate::Root { token: Token::new(1), fd },
-                                },
-                            },
-                            above,
-                            &mut self.below,
-                        );
+                        crate::down(component, env, self.adoption_request(fd), above, &mut self.below);
                     }
                     continue;
                 }
@@ -589,10 +730,13 @@ impl Drivers {
                     crate::Io::Store(arrived)
                 } else if index == 1 {
                     crate::Io::Secrets(arrived)
-                } else {
+                } else if index == 2 {
                     crate::Io::Transcripts(arrived)
+                } else {
+                    crate::Io::Checkpoints(arrived)
                 };
-                if !self.closing {
+                if !self.closing || index == Lane::Checkpoints.index() && crate::checkpoints::taking::closing(component)
+                {
                     crate::up(component, env, event, above, &mut self.below);
                 }
             }
@@ -625,13 +769,17 @@ pub fn max_read(limits: &crate::Limits) -> u32 {
     limits
         .store
         .chunk
+        .max(crate::checkpoints::files::CHUNK)
         .max(limits.core.resume_bytes)
         .max(u32::try_from(limits.core.load_bytes.min(u64::from(u32::MAX))).expect("file read length"))
 }
 /// Whole-file room includes the manifest even when positioned reads are smaller.
 #[must_use]
 pub fn max_whole(limits: &crate::Limits) -> u32 {
-    max_read(limits).max(crate::sizes::MANIFEST_BYTES)
+    let checkpoint = crate::component_v3::Checkpoint::encoded_bound(&crate::component_v3::CEILINGS)
+        .expect("the checkpoint schema has a finite bound");
+    let checkpoint = u32::try_from(checkpoint).expect("checkpoint record fits io's whole-file bound");
+    max_read(limits).max(crate::sizes::MANIFEST_BYTES).max(checkpoint)
 }
 /// Reject a page larger than every positioned-read bound.
 #[must_use]
@@ -641,10 +789,17 @@ pub fn check_read_page(limits: &crate::Limits) -> Option<()> {
     }
     Some(())
 }
-fn driver(limits: &crate::Limits) -> Driver {
+fn serving_read(limits: &crate::Limits) -> u32 {
+    limits
+        .store
+        .chunk
+        .max(limits.core.resume_bytes)
+        .max(u32::try_from(limits.core.load_bytes.min(u64::from(u32::MAX))).expect("file read length"))
+        .max(limits.store.record.saturating_add(17))
+        .max(limits.secrets.record.saturating_add(17))
+}
+fn driver(limits: &crate::Limits, read: u32) -> Driver {
     let files = handles(limits).expect("store and payload file handles fit");
-    let read =
-        max_read(limits).max(limits.store.record.saturating_add(17)).max(limits.secrets.record.saturating_add(17));
     let whole = max_whole(limits);
     // Each open adds a log segment, and a store that seldom snapshots keeps them all: 32 entries stopped a store
     // with few writes after its 32nd start.
@@ -656,7 +811,7 @@ fn close(file: Token) -> file::Request {
     file::Request::Close { owner: CLOSE, file }
 }
 
-fn empty_handles(drivers: &[Driver; 3]) -> bool {
+fn empty_handles(drivers: &[Driver; 4]) -> bool {
     for driver in drivers {
         if !driver.handles.is_empty() {
             return false;
@@ -664,7 +819,7 @@ fn empty_handles(drivers: &[Driver; 3]) -> bool {
     }
     true
 }
-fn idle_drivers(drivers: &[Driver; 3]) -> bool {
+fn idle_drivers(drivers: &[Driver; 4]) -> bool {
     for driver in drivers {
         if !driver.io.takes() || !driver.above.is_empty() {
             return false;

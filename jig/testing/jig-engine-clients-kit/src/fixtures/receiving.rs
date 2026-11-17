@@ -71,9 +71,10 @@ fn configuration(limits: &core::Limits) -> core::Config {
         requirements: Box::new([]),
     };
     core::Config {
+        parts: Box::new([]),
         jobs: Box::new([]),
         kept_starts: Box::new([]),
-        worker_names: Box::new([]),
+
         deployment: [31; 16],
         seed: 31,
         workers_in_process: false,
@@ -111,6 +112,7 @@ fn configuration(limits: &core::Limits) -> core::Config {
         },
         kinds: Box::default(),
         defaults: core::settings::Defaults {
+            workers: Box::new([]),
             models: Box::default(),
             charters: Box::new([core::Charter {
                 parts: Box::new([]),

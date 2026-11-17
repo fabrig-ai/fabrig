@@ -15,8 +15,8 @@ Key: none.
 settings show KIND NUMBER --json prints one value to edit.
 settings apply and settings propose take the newest revision this
 prints as `--against`.
-settings show charter|template|policy|model NUMBER [--revision REVISION]
-  charter|template|policy|model (kind): one of charter, template, policy or model; required. The setting's kind
+settings show charter|template|policy|model|worker NUMBER [--revision REVISION]
+  charter|template|policy|model|worker (kind): one of charter, template, policy, model or worker; required. The setting's kind
   NUMBER (number): a number from 0 to 4294967295; required. The setting's number
   --revision REVISION: a number from 0 to 4294967295; optional. Its value at this revision; the newest when absent
 settings show rules
@@ -51,6 +51,9 @@ settings show dependency NUMBER --project PROJECT [--revision REVISION]
   dependency (kind): one of dependency; required. A project's dependency
   NUMBER (number): a number from 1 to 4294967295; required. The dependency's number
   --project PROJECT: a project's name or number; required. The dependent project
+  --revision REVISION: a number from 1 to 4294967295; optional. The value set by this retained revision; the current value when absent
+settings show agents [--revision REVISION]
+  agents (kind): one of agents; required. The agents' figures
   --revision REVISION: a number from 1 to 4294967295; optional. The value set by this retained revision; the current value when absent
 settings show welcome [--revision REVISION]
   welcome (kind): one of welcome; required. The deployment's welcome

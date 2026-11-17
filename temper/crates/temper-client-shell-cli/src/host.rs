@@ -190,6 +190,12 @@ impl OneShot {
         host.prepare_start();
         Ok(host)
     }
+    #[cfg(test)]
+    pub(crate) fn test_document_bytes(&mut self, bytes: u32) {
+        self.root_env.limits.domain.client.domain.document_bytes = u64::from(bytes);
+        self.root_env.limits.domain.client.domain.long_text = bytes;
+        self.root = root::Root::new(&self.root_env.limits, self.startup.seed).expect("fixture root limits");
+    }
     fn request(&mut self, request: io::Request) {
         assert!(self.io.takes() && self.raw.room() >= io::MAX_OUT_DOWN.submissions, "host request room");
         io::down(&mut self.io, &self.env, request, &mut self.raw);
@@ -439,7 +445,7 @@ impl OneShot {
                     .is_some_and(|shell| !shell.work_pending(self.env.now))
                 && let Some(Parsed::Call { call, json }) = self.call.take()
             {
-                self.until = Some(self.env.now.saturating_add(limits::DEADLINE));
+                self.until = Some(self.env.now.saturating_add(temper_client_tools::limits::call_deadline(&call)));
                 let named = call.key.is_some();
                 self.act =
                     if self.value.is_some() || self.exporting { Act::Once { named } } else { Act::Kept { named } };

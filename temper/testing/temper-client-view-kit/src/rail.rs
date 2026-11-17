@@ -83,7 +83,7 @@ pub fn with_goal_fact(root: &mut d::Domain, me_watch: Token, delivered: Option<b
             row.flags.conversation = false;
             rows.push(row).unwrap();
         }
-        deliver_document(root, watch, c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false })));
+        deliver_document(root, watch, c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows, more: false })));
     }
 }
 

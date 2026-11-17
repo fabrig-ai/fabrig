@@ -65,6 +65,7 @@ impl ProjectPage {
             ended_before: None,
             ended_after: None,
             task_filter: TaskQuery {
+                parts: List::with_capacity(0),
                 project: None,
                 requester: None,
                 root: None,
@@ -96,6 +97,7 @@ impl ProjectPage {
         self.ended_before = None;
         self.ended_after = None;
         self.task_filter = TaskQuery {
+            parts: List::with_capacity(0),
             project: None,
             requester: None,
             root: None,
@@ -181,7 +183,7 @@ pub(crate) fn tasks(
                 if watch.owner == (crate::state::page::shown::owner(domain))
                     && watch.subject
                         == (contract::Subject::Tasks {
-                            query: TaskQuery { project: Some(project), ..domain.project_page.task_filter },
+                            query: TaskQuery { project: Some(project), ..domain.project_page.task_filter.clone() },
                             window: lent.domain_limits().rows,
                         })
                 {
@@ -203,7 +205,7 @@ pub(crate) fn tasks(
     for id in old.into_boxed() {
         domain.release(id, out);
     }
-    domain.project_page.task_filter = filter;
+    domain.project_page.task_filter.clone_from(&filter);
     open(
         domain,
         contract::Subject::Tasks {

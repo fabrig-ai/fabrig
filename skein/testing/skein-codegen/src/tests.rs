@@ -348,3 +348,15 @@ fn every_bound_name_is_reserved() {
         }
     }
 }
+
+#[test]
+fn a_limits_field_does_not_shadow_constructor_bounds() {
+    let schema = parse(
+        "family endpoint 1\nrecord LimitsValue { window: u32 }\nrecord Endpoint { name: text 64 limits: LimitsValue }",
+    )
+    .unwrap();
+    let output = generate(&schema);
+    let constructor = output.rust.split_once("impl Endpoint {").unwrap().1.split_once("/// Reads").unwrap().0;
+    assert!(constructor.contains("new(skein_limits: &Limits"), "{constructor}");
+    assert!(constructor.contains("value.check(skein_limits)?"), "{constructor}");
+}

@@ -126,7 +126,7 @@ impl Goal {
     }
     fn read_line(&mut self, live: Option<c::Cursor>, ended: Option<c::Cursor>, out: &mut Queue<Request>) {
         self.pages = self.pages.checked_add(1).expect("at most eight goal pages");
-        read(self.line_handle, c::Read::Tasks { query: self.query, live, ended }, out);
+        read(self.line_handle, c::Read::Tasks { query: self.query.clone(), live, ended }, out);
     }
     pub(super) fn told(&mut self, now: Time, client: &Client, told: &Told, out: &mut Queue<Request>) -> bool {
         if let Some(requester) = &mut self.requester
@@ -282,6 +282,7 @@ fn read(handle: Handle, read: c::Read, out: &mut Queue<Request>) {
 #[must_use]
 pub fn own_line_query(task: &c::Task) -> c::TaskQuery {
     c::TaskQuery {
+        parts: skein_lib::List::with_capacity(0),
         project: Some(task.project),
         requester: Some(task.requester),
         label: Some(task.label),

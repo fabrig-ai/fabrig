@@ -54,6 +54,9 @@ bounds are section 9, and what they take of jig section 10; an MCP endpoint and 
   private file, and returns, and the agent follows it with `forge list
   --until settled`; `forge repositories` reads the picker's page, whose
   rows ride `repository adopt`.
+- **Workers are settings** (`workers.md`): `worker add`, `places` and
+  `remove`, each one settings change by an owner, and `worker list`,
+  each worker up or down and its runs.
 - **Grown by areas,** the first, the fifth and the sixth designed in
   full, the others named (`areas.md`); **later, named:** the MCP endpoint and
   the extraction into `jig-client-tools` (section 11).

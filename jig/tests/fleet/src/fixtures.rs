@@ -99,8 +99,14 @@ pub fn model_bounds(names: &[&[u8]]) -> Bounds {
 #[must_use]
 pub fn domain(limits: &jig_domain_fleet::Limits, needs: jig_domain_fleet::Needs) -> jig_domain_fleet::Domain {
     let mut domain = restored_fleet(limits, needs);
-    let names =
-        (0..limits.configured_workers).map(|index| format!("worker-{index}").into_bytes().into_boxed_slice()).collect();
+    let names = (0..limits.configured_workers)
+        .map(|index| jig_domain_link::Member {
+            number: index + 1,
+            name: format!("worker-{index}").into_bytes().into_boxed_slice(),
+            places: u32::MAX,
+            withdrawn: false,
+        })
+        .collect();
     let names =
         Membership::new(names, limits.configured_workers, limits.worker_name_bytes).expect("fixture membership");
     domain.configure_workers(names);

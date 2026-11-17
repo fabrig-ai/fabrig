@@ -26,6 +26,7 @@ use skein_lib::{Duration, List, Wall, bytes::copy_of};
 
 fn empty() -> Deployment {
     Deployment {
+        worker_settings: List::with_capacity(0),
         providers: List::with_capacity(0),
         providers_cut: false,
         key_bytes: 256,

@@ -7,6 +7,7 @@ extern crate alloc;
 pub mod assignment;
 pub mod clients;
 pub mod family;
+pub mod figures;
 pub mod forge;
 pub mod forges;
 pub mod limits;

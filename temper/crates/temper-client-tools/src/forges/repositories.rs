@@ -255,6 +255,8 @@ fn print(pending: &Pending, outcome: &Outcome, structured: bool, limits: &Limits
         | w::Outcome::OverturnRefused(_)
         | w::Outcome::Looked
         | w::Outcome::Dismissed
+        | w::Outcome::Checkpointed(_)
+        | w::Outcome::CheckpointRefused(_)
         | w::Outcome::EndRefused(_)
         | w::Outcome::StartFailed(_) => return render::failure(b"repositories decoding failed", structured, 1),
     };

@@ -15,21 +15,19 @@
   Choosing a filter is a move.
   - **Its reads** are the four lists it joins, the first three each as its
     own page reads it: the goals' (*Goals*: the goals' query, its live group
-    watched and its
-  
-    ended group read, a report per row, the project's needs);
-    the changes' (*Changes*: the subject `changes`, and a `task` per row of its queues,
-    its `landed` and its `landed_default`); the person's chats' (*The Chats page*: the chats' query and its
-    documents' notes); and the project's landed drafts, the subject `drafts`
+    watched and its ended group read, each row with its goal part, and the
+    project's needs);
+    the changes' (*Changes*: the subject `changes`, each row naming where it
+    came from and who signed it, `../forge/records.md`, *A project's
+    changes*); the person's chats' (*The Chats page*: the chats' query, each
+    row with its chat part); and the project's landed drafts, the subject `drafts`
     (`../forge/records.md`, *A project's landed drafts*), a watch refused or
-    ended counting as answered with none; and, to name who signed, the project's people, jig's
-    `Read::Project { project }` on opening and again on each `me`
-    delivery while none is pending, as Team reads them (`team.md`, 1,
-    *Its reads*), or the rail's read of it where one serves. Work under each filter, `Goals` and
+    ended counting as answered with none. No read is made per row
+    (`../forge/parts.md`, 5). Work under each filter, `Goals` and
     `Changes` open the same four, and a move among them keeps them open, as a
     move of Goals' filter keeps its reads; leaving them for any other page
-    closes them. With the goals' read, the project's milestones and their
-    drawn milestones' reads open and close (`milestone.md`, 1).
+    closes them. With the goals' read, the project's milestones open and
+    close, each row with its milestone part (`milestone.md`, 1).
   - **Its head,** on each of its filters: the kicker "PROJECT · Work"; the
     level-1 heading, counted from the list's sections (below): "N in
     flight", "N drafts" ("One draft") and "N landed this week", the parts at
@@ -94,10 +92,9 @@
     reads. It places each item by its own facts, never by the project's
     settings or its way, so that a move of the settings hides nothing that
     exists (`../../draft/surfaces.md`, sections 5 and 12):
-    - a change belongs to the goal its task's `goal` names, else to the chat
-      at the root of its `lineage_chips` on the project's chat template, as
-      *Changes*' *Where a change came from* reads it, else to nothing; while
-      its task is unread, to nothing;
+    - a change belongs to the goal its row's `goal` names, else to the chat
+      its row's `chat` names, as *Changes*' *Where a change came from* reads
+      them, else to nothing; while its row names neither, to nothing;
     - a goal belongs to the milestone `Milestones::of` names, where that
       milestone is drawn (`milestone.md`, 1), else to nothing; a live goal
       that belongs to a live milestone is placed on that milestone's card
@@ -211,17 +208,16 @@
     It names no repository, commit or chat: `temper ctl draft list` does
     (`../ctl/areas.md`, area 7).
   - **A landed row:** its landing's time in the mono face, in the clock
-    form; then a goal's row its goal's title, the title of the goal's chip
-    in its change's `lineage_chips`, else its change's title (a goal's
+    form; then a goal's row its goal's title, its row's `goal`'s title,
+    else its change's title (a goal's
     landing takes the goal's title as its words, `../../domain/forge/branches.md`,
     2), a link to the goal's `Task`; a change's row its change's title, a
     link to its change's `Task`; then " · signed by NAMES", in the
     byline's style, while the `landed_default` row the row was made from
     kept sign-offs, a goal's row its newest landing's (*Who signed*);
-    then, on a goal's row whose change's task document, as *Changes* reads
-    it, has a milestone in its lineage (`milestones::lineage`,
-    `milestone.md`, 1), " · in Store shape" in the byline's style, its
-    milestone's name, and " · in Store shape, now complete" on the row whose
+    then, on a goal's row whose row names a `milestone`
+    (`../forge/records.md`, *A project's changes*), " · in Store shape" in
+    the byline's style, its milestone's title, and " · in Store shape, now complete" on the row whose
     change is that milestone's totals' `last_landing` where the milestone is
     complete (`milestone.md`, 2) and its `ended` is in the same seven days
     (`../../draft/milestones.md`, 5.2); a milestone is never a row of its own; and
@@ -232,16 +228,17 @@
   - **Who signed** (`../../domain/forge/change/gates.md`, 2, *Sign-offs
     kept at landing*), as the whole story's `team/work.html` draws it: a
     landed row's `signed`, from the changes' `landed` or `landed_default`
-    row it was made from, named as Team names people (`team.md`, 1):
+    row it was made from, named as the engine names them in that row
+    (`../forge/records.md`, *A project's changes*, `ChangesSigned`'s
+    `name`), as Team names people (`team.md`, 1):
     "you" for the person reading, first, then the others in `signed`'s
-    order, each the member's name, or its login where the name is empty;
-    then, as one more item, the parties the project's document doesn't
-    list, "one other" or "N others", N in words from two to nine, then
+    order, each its `name`;
+    then, as one more item, the parties with no `name`, the project's
+    document not listing them, "one other" or "N others", N in words from two to nine, then
     digits. Two items are joined by " and ", more by ", " with " and "
     before the last: "signed by you", "signed by you and Sam", "signed by
     you, Sam and Kit", "signed by Sam and one other", "signed by two
-    others". While the project's people are unread, refused or failed, no
-    row says who signed. One pure function of the domain's,
+    others". Work reads no project's people for it. One pure function of the domain's,
     `temper_client_domain::pages::work::signed`, gives the words.
   - **Under Drafts,** Work's head and filters, then the Drafts section alone.
   - **Before an answer and with nothing:** a section claims nothing until its
@@ -293,10 +290,12 @@
     milestone's row prints as on Home, its goals' rows under it.
 
   What it reads: the query `TaskQuery { project, label: the template's,
-  tracked, by priority }`, the label template `shapes::GOAL`'s, its live group
-  watched and its ended group read by when each ended, as `Chats`; `listed`
-  puts goals in the project's index. One read per row, one at a time, as the
-  inbox's cards: its report (`goal.md`, 1, *A goal's report*). The needs are `inbox`'s
+  tracked, by priority, parts: [GOAL_PART] }`, the label template `shapes::GOAL`'s, its live group
+  watched and its ended group read by when each ended, as `Chats`, and read
+  again only as its mark grows (`../forge/parts.md`, 6); `listed`
+  puts goals in the project's index. Each row's goal part carries its
+  report's headline and when it was written (`goal.md`, 1, *A goal's
+  report*; `../forge/parts.md`, 3), with no read per row. The needs are `inbox`'s
   group for the project, read again as the watch or `me`'s `needs_total`
   moves, each row's `selection` naming its goals.
 

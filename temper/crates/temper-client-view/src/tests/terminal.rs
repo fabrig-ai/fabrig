@@ -615,7 +615,11 @@ fn the_commands_list_what_the_page_offers() {
             event: jig_client::Event::Up {
                 up: jig_client::Up::Watched {
                     watch: watch.expect("chats read asked"),
-                    event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false }))),
+                    event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                        ended_mark: 0,
+                        rows,
+                        more: false,
+                    }))),
                 },
             },
         },

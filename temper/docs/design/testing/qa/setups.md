@@ -104,8 +104,8 @@ and adds to them is `places.md`.
   takes `gpt-6.1-sol`, which the fake model serves.
 - **Its scripts:** `scripts.json` holds `cued` alone, one script: B0's
   twin's review (4.3), cued by `Review this change at the named head`,
-  its four turns the twin's, `read_pull`, `read_pull_files` and
-  `read_checks`, each taking the pull request's number and head from
+  its four turns the twin's, `read_issues what=pull`, `read_issues what=pull_files` and
+  `read_ci what=checks`, each taking the pull request's number and head from
   the review's brief (skein's `testing/fakes/llm.md`, 2.6), then
   `finish` with verdict `1`, approving, all but its text, which reads
   "Approve. QA's scripted review read the pull request, the files it

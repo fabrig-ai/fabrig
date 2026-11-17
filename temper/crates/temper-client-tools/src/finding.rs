@@ -387,6 +387,7 @@ pub(crate) fn told(state: &mut Findings, client: &Client, env: &Env<Limits>, tol
         Told::Link { .. } | Told::Pending { .. } | Told::Dropped { .. } | Told::Text { .. } => {}
     }
 }
+#[expect(clippy::too_many_lines, reason = "one exhaustive family outcome dispatcher refuses other request outcomes")]
 fn answered(
     state: &mut Findings,
     client: &Client,
@@ -469,6 +470,8 @@ fn answered(
         | w::Outcome::Removed
         | w::Outcome::RemoveRefused(_)
         | w::Outcome::Reset
+        | w::Outcome::Checkpointed(_)
+        | w::Outcome::CheckpointRefused(_)
         | w::Outcome::EndRefused(_)
         | w::Outcome::Dismissed
         | w::Outcome::MakeKept
@@ -545,6 +548,7 @@ fn restored(ask: &Ask, json: bool) -> Option<Pending> {
         | w::Request::FollowAct(_)
         | w::Request::AddDevice(_)
         | w::Request::RemoveDevice(_)
+        | w::Request::Checkpoint
         | w::Request::TryAccount(_) => return None,
     };
     Some(Pending { called: None, json, project, number, area, act })
