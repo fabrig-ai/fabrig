@@ -128,7 +128,7 @@ first failure, but where a row says otherwise.
 | `Write::Review { number, key, verdict, body }` | `POST R/pulls/<number>/reviews` `{event, body}`, `event` `APPROVED`, `REQUEST_CHANGES` or `COMMENT`, the body behind the key's marker | `Reviewed` from `id` |
 | `Write::Edit { number, title, body }` | `PATCH R/issues/<number>` `{title, body}`, each only when given | `Done` |
 | `Write::SetReviewers { number, reviewers }` | `GET R/pulls/<number>`; `POST R/pulls/<number>/requested_reviewers` `{reviewers: [logins]}` for those missing; `DELETE R/pulls/<number>/requested_reviewers` with the same body for those extra | `Done` |
-| `Write::Close { number }` | `PATCH R/issues/<number>` `{state: closed}` | `Done` |
+| `Write::Close { number }` | `PATCH R/issues/<number>` `{state: closed}`; where 1.4 makes its answer `Refused`, `GET R/issues/<number>` once | `Done`; `Done` too where that read finds the item closed, a merged pull request among them, else `Refused` (1.4, *A close of a closed item*) |
 | `Write::Reopen { number }` | `PATCH R/issues/<number>` `{state: open}` | `Done` |
 | `Write::Merge { number, head, how }` | `POST R/pulls/<number>/merge` `{Do, head_commit_id: <head>}`, `Do` the repository's style or `fast-forward-only`; for `Recorded { commit }`, `{Do: manually-merged, MergeCommitID: <commit>}`; `GET R/pulls/<number>` | `Merged` from `merge_commit_sha` (the merge answers with no body); a fast-forward-only merge whose head no longer contains the base's tip answers `500` ("DivergingFastForwardOnly"), the base unchanged, which the dialect keeps as `Timeout`, so the client settles it by its find (client.md, 7.5); a record whose commit the base lacks, or in a repository whose `allow_manual_merge` is off, is refused, `Refused` |
 | `Write::Update { number, style }` | `POST R/pulls/<number>/update?style=merge\|rebase` | `Done` |
@@ -448,6 +448,22 @@ call. An absent leaf alone keeps the row that answered.
   A `4xx` means Forgejo did not act, so a message the decoder does not
   know is `Refused` on a write, never a guess at which failure it was;
   on a read, `InvalidAnswer`.
+- **A close of a closed item.** Forgejo refuses a state edit of a
+  merged pull request, `412`, `cannot change state of this pull
+  request, it was already merged`, and changes nothing; it answers
+  `412` too where an open issue's dependencies forbid its close. A
+  `Close` answers `Done` (`README.md`, 3.3), and the fake's domain
+  closes a closed item so; a client closing a pull request merged by
+  another hand would otherwise be refused for good. So a `Close` whose
+  `PATCH` this table makes `Refused`, whatever its status and message,
+  reads its item once, `GET R/issues/<number>` (the request `Item`
+  starts with, its comments unread), and the call answers by what
+  the item's `state` says: `closed`, merged or not, is `Done`, the
+  state the write names holding (client.md, 7.3); `open` keeps
+  `Refused`. That read's own failure keeps `Refused` too: the close
+  was not made, and the read changes nothing. The call costs both
+  requests. `Reopen` gains no read: a merged pull request cannot be
+  reopened, and its refusal stands.
 - **Not errors:** a `409` on `CreateBranch` is `Branch(Exists)`, which
   the client follows with a read of the branch; a `404` on
   `DeleteBranch` is `Missing`, which the client counts as the branch
@@ -627,6 +643,10 @@ on. What no run records yet has its own bullet, near the end.
   sources alone, so no fact names it:
   - that an issue's comments and a review's comments take no page and
     come whole however many there are (1.2, `Item` and `Remarks`);
+  - that a state edit of a merged pull request (`PATCH issues/{index}`
+    with a `state`) answers `412`, `cannot change state of this pull
+    request, it was already merged`, and changes nothing (1.4, *A close
+    of a closed item*);
   - that a job no runner took has no steps, and that its log, and a log
     Forgejo no longer keeps, answer `404` (1.2, "A failed job's log");
   - that the open pull requests' listing honours `head` and `base`, an

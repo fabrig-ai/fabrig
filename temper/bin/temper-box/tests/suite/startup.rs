@@ -780,16 +780,16 @@ fn serve_refuses_an_explicit_call_bound_below_the_agents_call_input() {
     let path = scratch.path().join("temper.json");
     let mut document: serde_json::Value =
         serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-    // The owned agent declares tool_payload 10662; one below refuses, equality prepares.
+    // The owned agent declares tool_payload 63740; one below refuses, equality prepares.
     for (bound, expected) in [
         (
-            10661,
+            63739,
             Some(concat!(
-                "temper serve: engine.limits.overrides.core.call_answer_bytes: 10661 bytes, short of the agent's call input (profile.declared.tool_payload), 10662 bytes; raise it to at least 10662 bytes, or omit it to follow the agent's call input\n",
-                "temper serve: engine.limits.overrides.core.call_answer_bytes: call input 10662 bytes; wire answer 10661 bytes; smith host_reply_bytes 10662 bytes\n",
+                "temper serve: engine.limits.overrides.core.call_answer_bytes: 63739 bytes, short of the agent's call input (profile.declared.tool_payload), 63740 bytes; raise it to at least 63740 bytes, or omit it to follow the agent's call input\n",
+                "temper serve: engine.limits.overrides.core.call_answer_bytes: call input 63740 bytes; wire answer 63739 bytes; smith host_reply_bytes 63740 bytes\n",
             )),
         ),
-        (10662, None),
+        (63740, None),
     ] {
         document["engine"]["limits"]["overrides"]["core.call_answer_bytes"] = bound.into();
         support::write_private(&path, &serde_json::to_vec(&document).expect("configuration JSON"));
@@ -825,32 +825,26 @@ fn serve_checks_the_owned_agents_admission_at_each_bound() {
         ("max_turns", 800, None),
         (
             "check_timeout",
-            60001,
+            300_001,
             Some(
-                "engine.charters[1].reserve_time_ms: needs checks within 60000 ms; the agent's profile.policy.check_timeout is 60001 ms; raise charter 2's reserve_time (temper help settings) or lower the timeout\n",
+                "engine.charters[1].reserve_time_ms: needs checks within 300000 ms; the agent's profile.policy.check_timeout is 300001 ms; raise charter 2's reserve_time (temper help settings) or lower the timeout\n",
             ),
         ),
-        ("check_timeout", 60000, None),
-        (
-            "check_timeout",
-            300_000,
-            Some(
-                "engine.charters[1].reserve_time_ms: needs checks within 60000 ms; the agent's profile.policy.check_timeout is 300000 ms; raise charter 2's reserve_time (temper help settings) or lower the timeout\n",
-            ),
-        ),
+        ("check_timeout", 300_000, None),
+        ("check_timeout", 60_000, None),
         (
             "tool_payload",
-            10661,
+            63739,
             Some(
-                "engine.limits: needs 10660-byte messages (tasks.message_bytes); the agent offers 10659 (tool_payload less 2)\n",
+                "engine.limits: needs 63738-byte messages (tasks.message_bytes); the agent offers 63737 (tool_payload less 2)\n",
             ),
         ),
-        ("tool_payload", 10662, None),
+        ("tool_payload", 63740, None),
         (
             "tool_payload",
             600,
             Some(
-                "engine.limits: needs 10660-byte messages (tasks.message_bytes); the agent offers 598 (tool_payload less 2)\ntemper serve: workers[0].agent.profile.declared.tool_payload: 600 bytes, short of temper's documentation answer (read_docs), 2048 bytes\n",
+                "engine.limits: needs 63738-byte messages (tasks.message_bytes); the agent offers 598 (tool_payload less 2)\ntemper serve: workers[0].agent.profile.declared.tool_payload: 600 bytes, short of temper's documentation answer (read_docs), 2048 bytes\n",
             ),
         ),
     ] {
@@ -890,7 +884,7 @@ fn serve_checks_the_owned_agents_admission_at_each_bound() {
         temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(scratch.path()))
             .err()
             .expect("old tuple refused"),
-        "temper serve: engine.limits: needs 10660-byte messages (tasks.message_bytes); the agent offers 598 (tool_payload less 2)\ntemper serve: workers[0].agent.profile.declared.tool_payload: 600 bytes, short of temper's documentation answer (read_docs), 2048 bytes\n"
+        "temper serve: engine.limits: needs 63738-byte messages (tasks.message_bytes); the agent offers 598 (tool_payload less 2)\ntemper serve: workers[0].agent.profile.declared.tool_payload: 600 bytes, short of temper's documentation answer (read_docs), 2048 bytes\n"
     );
     scratch.remove();
 }

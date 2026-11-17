@@ -90,7 +90,8 @@ fn the_reference_settings_file_decodes() {
         assert_eq!(overlay.turns, Some(800));
         assert_eq!(overlay.time, Some(Duration::from_secs(28_800)));
         assert_eq!(overlay.reserve_turns, Some(1));
-        assert_eq!(overlay.reserve_time, Some(Duration::from_secs(60)));
+        // The reserve admits the stock agent's 300-second check timeout.
+        assert_eq!(overlay.reserve_time, Some(Duration::from_secs(300)));
         assert_eq!(overlay.spend, Some(4228));
         assert_eq!(overlay.shell, Some(shell));
     }

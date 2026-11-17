@@ -48,6 +48,7 @@ mod requires;
 pub(crate) mod restore_fit;
 mod runs;
 mod saved_close;
+mod seen_closed;
 mod settings;
 mod standing;
 mod stopping;

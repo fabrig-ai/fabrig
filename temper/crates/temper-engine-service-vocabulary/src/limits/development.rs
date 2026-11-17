@@ -10,7 +10,8 @@ const FABRIG_DEVELOPMENT_2026_11_16: &[(&str, &str, u64)] = &[
     ("engine", "engine.limits.overrides.clients_http.streams", 32),
     ("engine", "engine.limits.overrides.core.resume_bytes", 18_431_846),
     ("engine", "engine.limits.overrides.fleet.configured_workers", 8),
-    ("engine", "engine.limits.overrides.fleet.slots", 36),
+    // Its 36 is a document's ceiling, not a worker's places; its workers have at most 12.
+    ("engine", "engine.limits.overrides.fleet.slots", 12),
     ("engine", "engine.limits.overrides.fleet.workers", 3),
     ("engine", "engine.limits.overrides.hub.slots", 36),
     ("engine", "engine.limits.overrides.hub.transcript_bytes", 73_727_378),
@@ -65,7 +66,7 @@ fn the_stock_covers_fabrigs_development_of_2026_11_16() {
     let document =
         config::document(br#"{"overrides":{}}"#, &config::DocumentLimits { bytes: 1024, tokens: 128, depth: 8 })
             .unwrap();
-    let mut base = config::stock();
+    let mut base = derived::stock();
     derived::engine(&mut base, STOCK).unwrap();
     let parsed = config::overrides::parse_over(&document, 0, &config::Path::root().member(b"limits"), &base);
     assert!(parsed.problems.is_empty(), "{:?}", parsed.problems);

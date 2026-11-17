@@ -47,7 +47,6 @@ pub enum Deployment {
 pub enum Document {
     Engine,
     Worker,
-    Agent,
 }
 impl Document {
     #[must_use]
@@ -55,7 +54,6 @@ impl Document {
         match self {
             Self::Engine => "engine",
             Self::Worker => "worker",
-            Self::Agent => "agent",
         }
     }
     /// Relative to the scratch directory (testing/qa/deployment.md, 3).
@@ -64,7 +62,6 @@ impl Document {
         match self {
             Self::Engine => "config/engine/temper.json",
             Self::Worker => "config/worker/temper.json",
-            Self::Agent => "config/worker/agent.json",
         }
     }
 }
@@ -164,16 +161,12 @@ fn deployment(fields: &mut Fields) -> Result<Deployment, String> {
             String::from_utf8_lossy(&record)
         ));
     }
-    let name = word(fields, "DOCUMENT engine, worker or agent")?;
+    let name = word(fields, "DOCUMENT engine or worker")?;
     let document = match name.as_ref() {
         b"engine" => Document::Engine,
         b"worker" => Document::Worker,
-        b"agent" => Document::Agent,
         _ => {
-            return Err(format!(
-                "unknown DOCUMENT {}; expected engine, worker or agent",
-                String::from_utf8_lossy(&name)
-            ));
+            return Err(format!("unknown DOCUMENT {}; expected engine or worker", String::from_utf8_lossy(&name)));
         }
     };
     let field = fields.field().ok_or("expected PATH")?;

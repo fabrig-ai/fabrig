@@ -801,7 +801,10 @@ fn paths_are_resolved_by_kind_and_absolute_only_members_refuse_relative_values()
 fn a_standalone_check_reserve_shortfall_prepares_with_one_warning() {
     let mut agent = fixtures::startup_agent();
     agent.bounds.checks = skein_lib::Duration::from_millis(90_000);
-    let mut service = fixtures::start(
+    let mut defaults = crate::stock::with_models(Box::new([fixtures::small_model()]), 32);
+    defaults.charters.iter_mut().find(|charter| charter.number == 2).unwrap().policy.reserve_time =
+        skein_lib::Duration::from_secs(60);
+    let mut service = crate::startup::startup_with(
         &fixtures::document(),
         &config::Directories::working(),
         &fixtures::files(),
@@ -810,6 +813,7 @@ fn a_standalone_check_reserve_shortfall_prepares_with_one_warning() {
         None,
         fixtures::worker_runtime(),
         fixtures::forge_runtime(),
+        &crate::stock::Given::Own { jig: defaults, forge: Box::default(), ways: crate::stock::ways() },
     )
     .expect("a charter shortfall is a warning");
     assert_eq!(service.notes().pop(), Some(crate::Note::Engine(crate::EngineNote::StartupWarning {
@@ -1097,9 +1101,14 @@ fn capacity_overrides_name_the_failed_dependency() {
         (b"tasks.delegates", 82, &["tasks.delegates", "82", "people.operations", "83"]),
         (b"documents.lines", 8, &[][..]),
         (b"tasks.tree_tasks", 128, &[][..]),
-        (b"tasks.message_bytes", 874_121, &["tasks.message_bytes", "874121", "tasks.inbox_bytes", "874121"]),
+        (b"tasks.message_bytes", 63_739, &["tasks.message_bytes", "63739", "tasks.inbox_bytes", "63739"]),
         (b"authority.grants", 30, &["authority.grants", "30", "notes.scopes", "33"]),
     ] {
+        let initial = if member == b"tasks.message_bytes" {
+            super::stock::limited(&initial, b"tasks.inbox_bytes", 63_738)
+        } else {
+            initial.clone()
+        };
         let document = super::stock::limited(&initial, member, value);
         if causes.is_empty() {
             crate::named(&document, &config::Directories::working()).expect("independent init override is admitted");
