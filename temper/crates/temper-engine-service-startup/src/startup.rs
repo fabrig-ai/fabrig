@@ -241,7 +241,24 @@ pub fn engine_with(
     directories: &config::Directories,
     given: &crate::stock::Given,
 ) -> Result<config::Engine, config::Problems> {
-    let mut engine = config::engine(document, at, directories, config::Defaults::Passed)?;
+    engine_with_sources(document, at, directories, given, temper_service_core::derived::STOCK)
+}
+pub fn engine_with_sources(
+    document: &skein_json::Document,
+    at: u32,
+    directories: &config::Directories,
+    given: &crate::stock::Given,
+    sources: temper_service_core::derived::Sources,
+) -> Result<config::Engine, config::Problems> {
+    let mut base = config::stock();
+    if !temper_service_core::derived::small(document, at)
+        && let Err(found) = temper_service_core::derived::engine(&mut base, sources)
+    {
+        let mut problems = config::Problems::empty();
+        problems.push(found.path, found.what);
+        return Err(problems);
+    }
+    let mut engine = config::engine_over(document, at, directories, config::Defaults::Passed, &base)?;
     let stock = match given {
         crate::stock::Given::Stock => true,
         crate::stock::Given::Own { .. } => false,

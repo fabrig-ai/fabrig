@@ -32,7 +32,17 @@ pub fn parse(
     directories: &config::Directories,
     problems: &mut Problems,
 ) -> Option<Members> {
-    let engine = engine::parse(document, at, jig, directories, problems)?;
+    parse_over(document, at, jig, directories, temper_service_core::derived::STOCK, problems)
+}
+pub fn parse_over(
+    document: &Document,
+    at: u32,
+    jig: &config::Engine,
+    directories: &config::Directories,
+    sources: temper_service_core::derived::Sources,
+    problems: &mut Problems,
+) -> Option<Members> {
+    let engine = engine::parse_over(document, at, jig, directories, sources, problems)?;
     let mut object = read::Object::new(document, at).expect("checked application object");
     let workers = object.member(document, b"workers").expect("checked workers member");
     let ats = read::list(document, workers, jig.limits.core.fleet.workers).expect("checked application workers");

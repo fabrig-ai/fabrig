@@ -426,7 +426,7 @@ fn webhook_listeners_on_port_zero_do_not_clash() {
 #[test]
 fn hook_connections_past_the_process_sockets_are_refused() {
     let document =
-        fixtures::with(&fixtures::webhook_document(), b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":131072,"forge_component.hooks":228}"#);
+        fixtures::with(&fixtures::webhook_document(), b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":131072,"forge_component.hooks":236}"#);
     assert_eq!(
         &*lines(&crate::named(&document, &jig_protocol_config::Directories::working()).unwrap_err()),
         b"engine.limits.io.sockets: 257 bytes, past its bound of 256\n"

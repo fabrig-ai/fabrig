@@ -129,6 +129,7 @@ fn configured_limits(
     path: &Path,
     problems: &mut Problems,
     handed: &mut List<(Box<[u8]>, u64)>,
+    sources: temper_service_core::derived::Sources,
 ) -> Option<limits::Limits> {
     let mut object = read::object(document, at, "application-limits", path, problems)?;
     let profile = read::text(&mut object, document, b"profile", path, problems);
@@ -143,6 +144,10 @@ fn configured_limits(
         }
     };
     let mut limits = limits::profile(profile);
+    if profile == limits::Profile::Standard && limits::derive(&mut limits, sources).is_none() {
+        problems.push(path.clone(), What::Jig(config::What::Bound));
+        return None;
+    }
     let path = path.member(b"overrides");
     if let Some(at) = overrides
         && let Some(mut object) = read::overrides(document, at, &path, problems)
@@ -176,6 +181,21 @@ fn configured_limits(
         let mut found = config::Problems::empty();
         object.finish(document, &path, &mut found);
         problems.append(found, &Path::root());
+    }
+    let application = temper_service_core::startup::member(document, 0, b"application").unwrap_or(0);
+    if !temper_service_core::derived::overridden(document, application, b"forge_component.body_bytes") {
+        match temper_service_core::derived::forge_body(limits.forge.client.op_bytes) {
+            Some(body) => limits.forge_component.body_bytes = body,
+            None => problems.push(path.member(b"forge_component.body_bytes"), What::Jig(config::What::Bound)),
+        }
+    }
+    if let Some(slots) = temper_service_core::derived::slots(document) {
+        let mut shared = temper_service_core::limits::profile(profile);
+        shared.checkout = limits.checkout;
+        shared.git_component = limits.git_component;
+        temper_service_core::derived::places(document, application, slots, &mut shared);
+        limits.checkout = shared.checkout;
+        limits.git_component = shared.git_component;
     }
     // Both runtime startup and offline store readers pass here before sizing the store.
     let bound = temper_protocol_store::forge_changes_bound().expect("schema tier rows hold at least one landing");
@@ -254,6 +274,16 @@ pub fn parse(
     directories: &config::Directories,
     problems: &mut Problems,
 ) -> Option<Members> {
+    parse_over(document, at, jig, directories, temper_service_core::derived::STOCK, problems)
+}
+pub fn parse_over(
+    document: &Document,
+    at: u32,
+    jig: &config::Engine,
+    directories: &config::Directories,
+    sources: temper_service_core::derived::Sources,
+    problems: &mut Problems,
+) -> Option<Members> {
     let path = Path::root().member(b"application");
     let mut object = read::object(document, at, "application", &path, problems)?;
     let mut overrides = List::with_capacity(document.len());
@@ -261,7 +291,7 @@ pub fn parse(
     let demo_at = read::required(&mut object, document, b"demo", &path, problems);
     let limit_at = read::required(&mut object, document, b"limits", &path, problems);
     let limits = match limit_at {
-        Some(at) => configured_limits(document, at, &path.member(b"limits"), problems, &mut overrides),
+        Some(at) => configured_limits(document, at, &path.member(b"limits"), problems, &mut overrides, sources),
         None => None,
     };
     let bounds = limits.unwrap_or(limits::profile(limits::Profile::Small));

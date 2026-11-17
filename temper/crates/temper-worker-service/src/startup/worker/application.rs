@@ -111,6 +111,15 @@ pub(super) fn read(
     directories: &config::Directories,
     problems: &mut Problems,
 ) -> Option<(Worker, Limits)> {
+    read_over(document, entry, directories, temper_service_core::derived::STOCK, problems)
+}
+pub(super) fn read_over(
+    document: &Document,
+    entry: u32,
+    directories: &config::Directories,
+    sources: temper_service_core::derived::Sources,
+    problems: &mut Problems,
+) -> Option<(Worker, Limits)> {
     let path = Path::root().member(b"application");
     let mut object = object(document, entry, &path, problems)?;
     let ats = match required(&mut object, document, b"workers", &path, problems) {
@@ -136,11 +145,22 @@ pub(super) fn read(
         }
     }
     let limits = match required(&mut object, document, b"limits", &path, problems) {
-        Some(at) => temper_service_core::startup::configured_limits(document, at, &path.member(b"limits"), problems),
+        Some(at) => temper_service_core::startup::configured_limits_over(
+            document,
+            at,
+            &path.member(b"limits"),
+            sources,
+            problems,
+        ),
         None => None,
     };
     let limits = match limits {
-        Some(limits) => Some(Limits::shared(limits)),
+        Some(mut limits) => {
+            if let Some(slots) = temper_service_core::derived::slots(document) {
+                temper_service_core::derived::places(document, entry, slots, &mut limits);
+            }
+            Some(Limits::shared(limits))
+        }
         None => None,
     };
     if let Some(limits) = &limits {

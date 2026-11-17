@@ -125,6 +125,16 @@ pub fn configured_limits<E>(
     path: &config::Path,
     problems: &mut problems::Problems<problems::What<E>>,
 ) -> Option<crate::limits::Shared> {
+    configured_limits_over(document, at, path, crate::derived::STOCK, problems)
+}
+
+pub fn configured_limits_over<E>(
+    document: &skein_json::Document,
+    at: u32,
+    path: &config::Path,
+    sources: crate::derived::Sources,
+    problems: &mut problems::Problems<problems::What<E>>,
+) -> Option<crate::limits::Shared> {
     use crate::limits::{self, Profile, Refused};
     use problems::What;
     let mut object = match read::Object::new(document, at) {
@@ -163,6 +173,9 @@ pub fn configured_limits<E>(
         }
     };
     let mut limits = limits::profile(profile);
+    if profile == Profile::Standard {
+        limits.checkout.message_bytes = sources.payload;
+    }
     let path = path.member(b"overrides");
     if let Some(at) = overrides {
         let mut object = match read::Object::new(document, at) {

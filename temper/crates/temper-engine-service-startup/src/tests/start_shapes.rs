@@ -20,3 +20,67 @@ fn the_engine_service_refuses_the_other_document_shapes() {
     }
     assert!(failures.is_empty(), "wrong service shape acceptance: {failures:?}");
 }
+
+#[test]
+fn an_engine_without_an_agent_derives_from_stock() {
+    use super::{fixtures, stock};
+    use crate::{settings, startup};
+    use jig_protocol_config as config;
+    let input = fixtures::engine_part(&stock::generated());
+    let mut input: serde_json::Value = serde_json::from_slice(&input).unwrap();
+    let jig = input["engine"]["limits"]["overrides"].as_object_mut().unwrap();
+    for name in [
+        "core.resume_bytes",
+        "hub.turn_bytes",
+        "hub.transcript_bytes",
+        "hub.turn_queue_bytes",
+        "io.output",
+        "tasks.message_bytes",
+        "tasks.result_bytes",
+        "tasks.inbox_bytes",
+    ] {
+        jig.remove(name);
+    }
+    let own = input["application"]["limits"]["overrides"].as_object_mut().unwrap();
+    for name in [
+        "root.journal.transcript_bytes",
+        "root.loads.transcript_bytes",
+        "root.loads.bytes",
+        "root.loads.reply_bytes",
+        "root.loads.read_bytes",
+        "checkout.message_bytes",
+        "forge.client.op_bytes",
+        "forge.client.answer_bytes",
+        "forge_component.body_bytes",
+    ] {
+        own.remove(name);
+    }
+    let input = serde_json::to_vec(&input).unwrap();
+    let dirs = config::Directories::working();
+    let named = startup::named(&input, &dirs).unwrap();
+    let mut entries = List::with_capacity(u32::try_from(named.files.len()).unwrap());
+    for file in named.files {
+        entries.push((file.path, skein_lib::Secret::new(Box::new([b'0'; 64])))).unwrap();
+    }
+    let seeds = settings::Seeds {
+        deployment: [0; 16],
+        seed: 1,
+        crypto: skein_lib::Secret::new(Box::new([0; 32])),
+        link_secret: None,
+        local_secret: None,
+        installation: [1; 16],
+    };
+    let checked = startup::checked_start_with(
+        &input,
+        &dirs,
+        &settings::Files { entries },
+        None,
+        &seeds,
+        List::with_capacity(0),
+        None,
+        &crate::stock::Given::Stock,
+    )
+    .unwrap();
+    assert_eq!(checked.engine.jig.limits.hub.turn_bytes, 18_431_842);
+    assert_eq!(checked.engine.jig.limits.core.tasks.message_bytes, 63_738);
+}

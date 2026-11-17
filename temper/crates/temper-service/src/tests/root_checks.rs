@@ -296,23 +296,26 @@ fn judge_projects_past_the_wires_dismissals_name_both() {
 }
 
 fn complete_profile_startup(document: &[u8], agent: &crate::settings::Agent) {
+    drop(checked_profile(document, agent));
+}
+fn checked_profile(document: &[u8], agent: &crate::settings::Agent) -> crate::settings::Engine {
     let named = crate::named(document, &jig_protocol_config::Directories::working()).unwrap();
     let mut entries = skein_lib::List::with_capacity(u32::try_from(named.files.len()).unwrap());
     for file in named.files {
         entries.push((file.path, skein_lib::Secret::new(vec![b'0'; 64].into()))).unwrap();
     }
-    let found = crate::startup::check(
+    match crate::startup::checked_start_with(
         document,
         &jig_protocol_config::Directories::working(),
         &crate::settings::Files { entries },
-        agent,
+        Some(agent),
         &fixtures::seeds(),
-        None,
         skein_lib::List::with_capacity(0),
         None,
-    );
-    if let Err(problems) = found {
-        panic!("{}", String::from_utf8_lossy(&lines(&problems)));
+        &crate::stock::Given::Stock,
+    ) {
+        Ok(checked) => checked.engine,
+        Err(problems) => panic!("{}", String::from_utf8_lossy(&lines(&problems))),
     }
 }
 
@@ -580,4 +583,143 @@ fn landing_members_fits_the_prepare_prefixes_channel_envelope() {
     let words = root(&limits);
     assert!(!words.is_empty(), "a sixth prefix exceeds the wire envelope");
     assert!(String::from_utf8_lossy(&words).contains("forge.landing_members"));
+}
+
+#[test]
+fn init_documents_start_without_carrier_overrides() {
+    let generated = super::stock::generated();
+    let original: serde_json::Value = serde_json::from_slice(&generated).unwrap();
+    let mut input = original.clone();
+    let jig_names = [
+        "core.resume_bytes",
+        "hub.turn_bytes",
+        "hub.transcript_bytes",
+        "hub.turn_queue_bytes",
+        "io.output",
+        "tasks.message_bytes",
+        "tasks.result_bytes",
+        "tasks.inbox_bytes",
+        "hub.event_bytes",
+        "hub.outcome_bytes",
+        "core.call_answer_bytes",
+    ];
+    for at in ["/engine/limits/overrides", "/workers/0/limits/overrides"] {
+        let overrides = input.pointer_mut(at).unwrap().as_object_mut().unwrap();
+        for name in jig_names {
+            overrides.remove(name);
+        }
+    }
+    let own_names = [
+        "root.journal.transcript_bytes",
+        "root.loads.transcript_bytes",
+        "root.loads.bytes",
+        "root.loads.reply_bytes",
+        "root.loads.read_bytes",
+        "checkout.message_bytes",
+        "checkout.workspaces",
+        "git_component.operations",
+        "forge.client.op_bytes",
+        "forge.client.answer_bytes",
+        "forge_component.body_bytes",
+    ];
+    for name in own_names {
+        input["application"]["limits"]["overrides"].as_object_mut().unwrap().remove(name);
+    }
+    let agent = fixtures::parsed_agent(fixtures::stock_configuration(10_662, 8192).unwrap());
+    let bytes = serde_json::to_vec(&input).unwrap();
+    let checked = checked_profile(&bytes, &agent);
+    for name in jig_names {
+        if let Some(previous) = original["engine"]["limits"]["overrides"][name].as_u64() {
+            let named = jig_protocol_config::names::find(name.as_bytes()).unwrap();
+            assert_eq!((named.value)(&checked.jig.limits), previous, "engine {name}");
+        }
+    }
+    for name in own_names {
+        if let Some(previous) = original["application"]["limits"]["overrides"][name].as_u64() {
+            let named = crate::limits::find(name.as_bytes()).unwrap();
+            assert_eq!((named.value)(&checked.limits), previous, "application {name}");
+        }
+    }
+    let document = jig_protocol_config::document(
+        &bytes,
+        &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
+    )
+    .unwrap();
+    let workers = document.member(0, b"workers").unwrap();
+    let worker_at = *jig_protocol_config::read::list(&document, workers, document.len()).unwrap().get(0).unwrap();
+    let worker = temper_service_core::derived::worker_document(
+        &document,
+        worker_at,
+        &jig_protocol_config::Directories::working(),
+        temper_service_core::derived::Sources::agent(&agent.declaration()),
+    )
+    .unwrap();
+    for name in jig_names {
+        if let Some(previous) = original["workers"][0]["limits"]["overrides"][name].as_u64() {
+            let named = jig_protocol_config::names::find(name.as_bytes()).unwrap();
+            assert_eq!((named.value)(&worker.limits), previous, "worker {name}");
+        }
+    }
+}
+
+#[test]
+fn reference_overrides_stand_over_the_derived_base() {
+    let input = reference_document(&super::stock::generated());
+    let checked = checked_profile(&input, &reference_agent());
+    let document: serde_json::Value = serde_json::from_slice(&input).unwrap();
+    for (name, expected) in document["engine"]["limits"]["overrides"].as_object().unwrap() {
+        let named = jig_protocol_config::names::find(name.as_bytes()).unwrap();
+        assert_eq!((named.value)(&checked.jig.limits), expected.as_u64().unwrap(), "engine {name}");
+    }
+    for (name, expected) in document["application"]["limits"]["overrides"].as_object().unwrap() {
+        let named = crate::limits::find(name.as_bytes()).unwrap();
+        assert_eq!((named.value)(&checked.limits), expected.as_u64().unwrap(), "application {name}");
+    }
+}
+
+#[test]
+fn box_start_refuses_twice_the_stock_turn_without_panicking() {
+    let document = super::stock::generated();
+    let mut agent = fixtures::parsed_agent(fixtures::stock_configuration(10_662, 8192).unwrap());
+    agent.limits.bodies.turn_body = temper_service_core::derived::STOCK.turn * 2;
+    let found = crate::startup::checked_start_with(
+        &document,
+        &jig_protocol_config::Directories::working(),
+        &fixtures::files(),
+        Some(&agent),
+        &fixtures::seeds(),
+        skein_lib::List::with_capacity(0),
+        None,
+        &crate::stock::Given::Stock,
+    )
+    .err()
+    .unwrap();
+    assert_eq!(lines(&found).as_ref(), b"engine.limits.overrides.io.output: cannot derive from the agent's largest turn (T) within the worker wire's ceilings\nworkers[0].limits.overrides.io.output: cannot derive from the agent's largest turn (T) within the worker wire's ceilings\n");
+}
+
+#[test]
+fn forge_body_follows_the_effective_operation_unless_overridden() {
+    let jig = fixtures::guard_engine().jig;
+    for (overrides, expected) in [
+        (r#"{"forge.client.op_bytes":1000}"#, 2021),
+        (r#"{"forge.client.op_bytes":1000,"forge_component.body_bytes":3000}"#, 3000),
+    ] {
+        let input = fixtures::with(&fixtures::document(), b"application.limits.overrides", overrides.as_bytes());
+        let document = jig_protocol_config::document(
+            &input,
+            &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
+        )
+        .unwrap();
+        let mut problems = Problems::empty();
+        let own = crate::startup::application::parse(
+            &document,
+            document.member(0, b"application").unwrap(),
+            &jig,
+            &jig_protocol_config::Directories::working(),
+            &mut problems,
+        )
+        .unwrap();
+        assert!(problems.is_empty());
+        assert_eq!(own.limits.forge_component.body_bytes, expected);
+    }
 }

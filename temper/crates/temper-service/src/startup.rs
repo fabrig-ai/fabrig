@@ -162,8 +162,13 @@ pub fn store_limits(
     directories: &config::Directories,
     agent: Option<&Declaration>,
 ) -> Result<StoreLimits, Problems> {
-    let mut parsed =
-        load(document, directories, false)?.1.ok_or(problem(Path::root().member(b"engine"), What::Standalone))?;
+    let sources = match agent {
+        Some(agent) => temper_service_core::derived::Sources::agent(agent),
+        None => temper_service_core::derived::STOCK,
+    };
+    let mut parsed = load_with_sources(document, directories, false, &crate::stock::Given::Stock, sources)?
+        .1
+        .ok_or(problem(Path::root().member(b"engine"), What::Standalone))?;
     if !parsed.workers.is_empty() {
         let agent = agent.ok_or(problem(indexed(0).member(b"agent"), What::Half(EngineWhat::Agent)))?;
         parsed.compose(agent)?;
@@ -245,13 +250,22 @@ fn load_with(
     check_start: bool,
     given: &crate::stock::Given,
 ) -> Result<(Shape, Option<Parsed>), Problems> {
+    load_with_sources(input, directories, check_start, given, temper_service_core::derived::STOCK)
+}
+fn load_with_sources(
+    input: &[u8],
+    directories: &config::Directories,
+    check_start: bool,
+    given: &crate::stock::Given,
+    sources: temper_service_core::derived::Sources,
+) -> Result<(Shape, Option<Parsed>), Problems> {
     let length = u32::try_from(input.len()).or(Err(problem(Path::root(), What::Jig(config::What::Bound))))?;
     let document =
         match config::document(input, &config::DocumentLimits { bytes: 1_048_576, tokens: length, depth: 32 }) {
             Ok(document) => document,
             Err(found) => return Err(problem(found.path, What::Jig(found.what))),
         };
-    load_document(&document, directories, check_start, given)
+    load_document_over(&document, directories, check_start, given, sources)
 }
 // Refuse obsolete room settings and diagnose unrepresentable rooms before transport or store sizing.
 fn watch_rooms(document: &skein_json::Document, engine: u32, problems: &mut Problems) {
@@ -294,12 +308,22 @@ fn inline_seed_policies(document: &skein_json::Document, engine: u32, problems: 
         }
     }
 }
-#[expect(clippy::too_many_lines, reason = "one load pass accumulates all cross-part diagnostics")]
+#[cfg(test)]
 fn load_document(
     document: &skein_json::Document,
     directories: &config::Directories,
     check_start: bool,
     given: &crate::stock::Given,
+) -> Result<(Shape, Option<Parsed>), Problems> {
+    load_document_over(document, directories, check_start, given, temper_service_core::derived::STOCK)
+}
+#[expect(clippy::too_many_lines, reason = "one load pass accumulates all cross-part diagnostics")]
+fn load_document_over(
+    document: &skein_json::Document,
+    directories: &config::Directories,
+    check_start: bool,
+    given: &crate::stock::Given,
+    sources: temper_service_core::derived::Sources,
 ) -> Result<(Shape, Option<Parsed>), Problems> {
     let mut whole = match members::object(document, 0, "document") {
         Ok(object) => object,
@@ -332,16 +356,18 @@ fn load_document(
         }
     }
     let engine = match engine_at {
-        Some(at) => match engine_with(document, at, directories, given) {
-            Ok(mut engine) => {
-                engine.limits.clients.watches_per_stream = temper_engine_domain::WATCHES_PER_STREAM;
-                Some(engine)
+        Some(at) => {
+            match temper_engine_service::startup::engine_with_sources(document, at, directories, given, sources) {
+                Ok(mut engine) => {
+                    engine.limits.clients.watches_per_stream = temper_engine_domain::WATCHES_PER_STREAM;
+                    Some(engine)
+                }
+                Err(found) => {
+                    problems.append(found, &root.member(b"engine"));
+                    None
+                }
             }
-            Err(found) => {
-                problems.append(found, &root.member(b"engine"));
-                None
-            }
-        },
+        }
         None => None,
     };
     let ats = match worker_at {
@@ -363,7 +389,7 @@ fn load_document(
         if check_start {
             checks::raw_worker(document, *at, &indexed(index), &mut problems);
         }
-        match config::worker(document, *at, directories) {
+        match temper_service_core::derived::worker_document(document, *at, directories, sources) {
             Ok(worker) => {
                 workers.push(worker).expect("bounded workers");
                 worker_call_answers.push(CallAnswer::read(document, *at)).expect("bounded workers");
@@ -400,7 +426,7 @@ fn load_document(
     }
     let application = match &engine {
         Some(engine) => match application_at {
-            Some(at) => application::parse(document, at, engine, directories, &mut problems),
+            Some(at) => application::parse_over(document, at, engine, directories, sources, &mut problems),
             None => None,
         },
         None => None,
@@ -480,6 +506,7 @@ fn load_document(
     ))
 }
 
+#[cfg(test)]
 fn load(
     input: &[u8],
     directories: &config::Directories,
@@ -611,7 +638,13 @@ pub(crate) fn checked_start_with(
     _setup: Option<&temper_forge_setup::check::Checked>,
     given: &crate::stock::Given,
 ) -> Result<CheckedStart, Problems> {
-    let mut parsed = parse_with(document, directories, given)?;
+    let sources = match agent {
+        Some(agent) => temper_service_core::derived::Sources::agent(&agent.declaration()),
+        None => temper_service_core::derived::STOCK,
+    };
+    let mut parsed = load_with_sources(document, directories, true, given, sources)?
+        .1
+        .ok_or(problem(Path::root().member(b"engine"), What::Standalone))?;
     let agent = match parsed.workers.first() {
         Some(_) => Some(agent.ok_or(problem(indexed(0).member(b"agent"), What::Half(EngineWhat::Agent)))?),
         None => None,

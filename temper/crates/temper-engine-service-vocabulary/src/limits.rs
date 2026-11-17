@@ -466,6 +466,26 @@ pub fn profile(profile: Profile) -> Limits {
     limits.forge_component.token_bytes = shared.peer.token_bytes;
     limits
 }
+/// Apply temper's carriers before the document's overrides (configuration/derived.md, 5.1).
+pub fn derive(limits: &mut Limits, sources: temper_service_core::derived::Sources) -> Option<()> {
+    use temper_service_core::derived;
+    limits.checkout.message_bytes = sources.payload;
+    limits.root.journal.transcript_bytes = derived::resume(sources.turn)?;
+    limits.root.loads.transcript_bytes = sources.turn;
+    let record = u32::try_from(size_of::<engine::Record>()).ok()?;
+    limits.root.loads.bytes = derived::loaded(sources.turn, record)?;
+    limits.root.loads.reply_bytes = derived::loaded(sources.turn, record)?;
+    limits.root.loads.read_bytes = derived::read(
+        sources.turn,
+        u64::try_from(size_of::<jig_domain_core::reads::Row>()).ok()?,
+        u64::try_from(size_of::<jig_domain_core::Record>()).ok()?,
+    )?;
+    limits.forge.client.op_bytes = derived::message(sources.payload)?;
+    limits.forge_component.body_bytes = derived::forge_body(limits.forge.client.op_bytes)?;
+    let answer = derived::forge_answer(&limits.forge_component, limits.forge.client.answer_bytes)?;
+    apply(limits, b"forge.client.answer_bytes", u64::from(answer)).ok()?;
+    Some(())
+}
 /// Set one dotted field name byte for byte.
 pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), Refused> {
     let lifetime = limits.forge.client.lifetime;

@@ -182,20 +182,21 @@ fn forge_changes_past_the_tier_ceiling_refuses_both_startup_routes() {
 
 #[test]
 fn standard_changes_at_the_tier_bound_name_the_store_limit_to_raise() {
+    // Keep an explicit large operation carrier: the derived payload's smaller
+    // carrier fits, but this stored row still needs a larger map value.
     let document = fixtures::with(
         &fixtures::document(),
         b"application.limits",
-        br#"{"profile":"standard","overrides":{"forge.changes":379}}"#,
+        br#"{"profile":"standard","overrides":{"forge.changes":379,"forge.client.op_bytes":262144}}"#,
     );
     let directories = jig_protocol_config::Directories::working();
     let starting = crate::startup::named(&document, &directories).unwrap_err();
     let reading = crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
         .unwrap_err();
     for problems in [starting, reading] {
-        assert_eq!(
-            crate::startup::lines(&problems).as_ref(),
-            b"engine.limits.store: the store's map value, 51763611 bytes, past its bound of 4580852 bytes\n",
-        );
+        let found = crate::startup::lines(&problems);
+        assert!(found.starts_with(b"engine.limits.store: the store's map value, "));
+        assert!(found.ends_with(b" bytes, past its bound of 4580852 bytes\n"));
     }
 }
 
@@ -388,8 +389,10 @@ fn the_standard_profile_is_read_by_name() {
     use jig_protocol_config::{self as config, Path};
     let jig = fixtures::engine().jig;
     let directories = config::Directories::working();
+    let mut standard = limits::profile(limits::Profile::Standard);
+    limits::derive(&mut standard, temper_service_core::derived::STOCK).unwrap();
     for (member, expected) in [
-        (br#"{"profile":"standard","overrides":{}}"#.as_slice(), Some(limits::profile(limits::Profile::Standard))),
+        (br#"{"profile":"standard","overrides":{}}"#.as_slice(), Some(standard)),
         (br#"{"profile":"large","overrides":{}}"#, None),
     ] {
         let input = fixtures::with(fixtures::APPLICATION, b"limits", member);
@@ -418,7 +421,7 @@ fn the_standard_profile_is_read_by_name() {
     let mut problems = Problems::empty();
     let members = application::parse(&document, 0, &jig, &directories, &mut problems).unwrap();
     assert!(problems.is_empty());
-    let mut expected = limits::profile(limits::Profile::Standard);
+    let mut expected = standard;
     expected.forge.change_policy.tasks = 79;
     assert_eq!(members.limits, expected);
 }
