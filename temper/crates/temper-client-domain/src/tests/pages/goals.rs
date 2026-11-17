@@ -752,10 +752,13 @@ impl FactHarness {
         self.event(crate::Event::Went { place: crate::Place::Address(address) });
     }
     fn live(&mut self, watch: Token, lines: &[c::TaskLine]) {
+        self.live_at(watch, lines, 0);
+    }
+    fn live_at(&mut self, watch: Token, lines: &[c::TaskLine], ended_mark: u64) {
         self.up(Up::Watched {
             watch,
             event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
-                ended_mark: 0,
+                ended_mark,
                 rows: rows(lines),
                 more: false,
             }))),
@@ -854,7 +857,7 @@ fn pages_with_goals_ask_the_list_before_the_fact() {
         h.live(watch, &[line(GOAL, Wall::EPOCH)]);
         assert!(h.root.has_goals(fixtures::PROJECT), "a live list row supplies the fact");
         h.take();
-        h.live(watch, &[]);
+        h.live_at(watch, &[], 1);
         assert!(!h.root.has_goals(fixtures::PROJECT));
         let mut read = None;
         for request in h.take() {

@@ -770,7 +770,7 @@ fn milestone_facts_take_each_pages_list_and_keep_it_until_their_own_delivery() {
         h.live(listed, &[line(M, WALL)]);
         assert!(h.root.has_goals(PROJECT), "the list's live row supplies the fact");
         h.down();
-        h.live(listed, &[]);
+        h.live_at(listed, &[], 1);
         assert!(!h.root.has_goals(PROJECT));
         let read = ended_read(&h.down(), Some(LABEL), None);
         // An old ended milestone counts even when it is outside the drawn week.

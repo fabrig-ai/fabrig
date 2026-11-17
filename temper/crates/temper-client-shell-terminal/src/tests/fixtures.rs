@@ -262,10 +262,7 @@ fn populate_page(
             event: jig_client::Event::Up {
                 up: jig_client::Up::Watched {
                     watch: Token::new(0),
-                    event: WatchEvent::Delivered(Delivery::Me(Box::new(super::render::models_frame(
-                        address,
-                        jig_client_kit::stories::frame(1),
-                    )))),
+                    event: WatchEvent::Delivered(Delivery::Me(Box::new(page_frame(address)))),
                 },
             },
         },

@@ -2,7 +2,7 @@
 use super::*;
 use jig_client_protocol_wire as w;
     use jig_client_protocol_wire::VERSION;
-use skein_lib::{Duration, Reader};
+use skein_lib::Duration;
 use temper_client_protocol_wire as wire;
 
 fn exchange(host: &mut Host) -> (u32, Box<[u8]>) {

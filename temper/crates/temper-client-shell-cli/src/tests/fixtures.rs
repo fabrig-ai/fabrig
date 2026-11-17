@@ -739,7 +739,7 @@ impl Frame {
                 socket.reply.extend(format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n", body.len()).bytes());
                 socket.reply.extend(body.iter().copied());
             }
-            b"/jig/v1/stream?version=28" => self.hello(fd),
+            b"/jig/v1/stream?version=31" => self.hello(fd),
             b"/jig/v1/watch" => {
                 let open = w::Open::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&socket.request[end + 4..]))
                     .expect("watch record");

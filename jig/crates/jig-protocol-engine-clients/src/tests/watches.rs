@@ -544,7 +544,7 @@ fn an_untranslatable_me_document_also_names_its_sign_in() {
 
 fn opening_stream_me() -> (fixtures::Exchange, Token, Token) {
     let mut world = fixtures::Exchange::new();
-    let owner = world.stream_open_version(Some(28));
+    let owner = world.stream_open_version(Some(jig_client_protocol_wire::VERSION));
     world.authenticate();
     let watcher = world.take_watch();
     (world, owner, watcher)

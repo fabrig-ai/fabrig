@@ -469,7 +469,7 @@ fn a_served_stream_takes_one_watch_of_the_small_stream_room() {
 #[test]
 fn a_stream_refused_me_by_the_full_small_party_room_is_an_empty_409() {
     let (mut core, env, sign_in) = fixtures::signed_small_core();
-    let small = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    let small = jig_protocol_config_fixtures::small();
     for name in 0..small.core.views.watchers_per_party {
         drop(core::step(
             &mut core,
