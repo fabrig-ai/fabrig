@@ -43,6 +43,9 @@ class DeliverySelection(unittest.TestCase):
         source = Path(__file__).resolve().parents[1] / 'citations'
         for name in ('citations.py', 'sized.txt'):
             self.write('tools/citations/' + name, (source / name).read_text())
+        source = Path(__file__).resolve().parents[1] / 'outward'
+        for name in ('outward.py', 'names.txt'):
+            self.write('tools/outward/' + name, (source / name).read_text())
         for tree in ('skein', 'smith', 'jig', 'temper', 'hearth'):
             self.write(tree + '/count.txt', '0')
             self.write(tree + '/scripts/old_forms.py', """from pathlib import Path
@@ -78,7 +81,8 @@ sys.exit(int(count > 0))
 
     def deliver(self, packages=('api',), expected_bundle=None,
                 clippy_answer=(0, []), one_process_answer=(0, [], None), process_answer=None,
-                build_answer=(0, ''), events=None, directories=None, dependencies=None, formatting_answer=(), hold=None):
+                build_answer=(0, ''), events=None, directories=None, dependencies=None, formatting_answer=(), hold=None,
+                metadata_forbidden=False):
         calls = []
         events = [] if events is None else events
         data = self.metadata(packages, directories, dependencies)
@@ -123,7 +127,8 @@ sys.exit(int(count > 0))
         holder = (mock.patch.object(PRE_PR.runpy, 'run_path', return_value={'hold': hold})
                   if hold is not None else contextlib.nullcontext())
         with contextlib.chdir(self.root), mock.patch.dict(os.environ, self.env, clear=True), holder, \
-                mock.patch.object(PRE_PR, 'metadata', return_value=data), \
+                mock.patch.object(PRE_PR, 'metadata', return_value=data,
+                                  side_effect=AssertionError('cargo metadata ran') if metadata_forbidden else None), \
                 mock.patch.object(PRE_PR, 'formatting', return_value=list(formatting_answer)) as formatting, \
                 mock.patch.object(PRE_PR, 'clippy', side_effect=clippy_check) as clippy, \
                 mock.patch.object(PRE_PR, 'one_process', side_effect=test_check) as one_process, \
@@ -152,7 +157,7 @@ sys.exit(int(count > 0))
                     self.command('git', 'update-ref', 'refs/temper/landing', other)
                 else:
                     self.command('git', 'commit', '--allow-empty', '-qm', 'head')
-                self.write('temper/docs/addition.md', '# Delivery\n')
+                self.write('temper/addition.md', '# Delivery\n')
                 with mock.patch.object(PRE_PR, 'git', wraps=PRE_PR.git) as git:
                     result, log, calls, code = self.deliver()
                 self.assertEqual(result, 0, log)
@@ -195,11 +200,10 @@ sys.exit(int(count > 0))
             ('untracked', 'a/src/new.rs', 'B\n', '', ['A'], ['A', 'B']),
             ('deleted', 'a/src/lib.rs', 'B\n', '', ['A'], ['A', 'B']),
             ('root manifest', 'Cargo.toml', 'B\n', '', [], ['B']),
-            ('docs', 'temper/docs/selection.md', 'B\n', '', [], ['B']),
+            ('docs', 'temper/selection.md', 'B\n', '', [], ['B']),
             ('reader', 'a/src/lib.rs', 'B a/\n', '', ['A'], ['A', 'B']),
             ('reader only', 'temper/docs/selection.md', 'B temper/docs/\n',
              'temper/docs/selection.md\n', [], ['B']),
-            ('prefix-less', 'temper/docs/selection.md', 'B\n', '', [], ['B']),
             ('component boundary', 'a-sibling/new.rs', 'B\n', '', [], ['B']),
             ('unknown reader', 'shared/input.txt', 'missing shared/\n', '', [], []),
         )
@@ -1452,6 +1456,92 @@ sys.exit(int(count > 0))
                 self.assertTrue(any('--base' in args and '--head' in args for args, _ in calls))
                 self.assertIn('docs only: citations', log)
 
+    def test_prose_only_status_uses_text_checks_without_a_hold(self):
+        path = 'temper/docs/design/example.status.md'
+        self.write(path, '# Status\n')
+        self.pin()
+        self.write(path, '# Status\nImplementation complete.\n')
+        self.env['TIERS_HOLD'] = 'must-not-run'
+
+        def hold(*args, **kwargs):
+            self.fail('a prose-only delivery took a hold')
+
+        with mock.patch.object(PRE_PR, 'outward', wraps=PRE_PR.outward) as outward, \
+                mock.patch.object(PRE_PR, 'baselines', side_effect=AssertionError('counted baseline ran')):
+            result, log, calls, checks = self.deliver(('api', 'fabrig-boundary'), hold=hold,
+                                                    metadata_forbidden=True)
+        self.assertEqual(result, 0, log)
+        self.assertEqual(checks, (False, False, False))
+        self.assertEqual([args for args, _ in calls], [
+            ['python3', '-I', '-B', 'tools/citations/citations.py', '--base', mock.ANY, '--head', mock.ANY],
+            ['python3', '-I', '-B', 'tools/outward/outward.py']])
+        self.assertEqual(outward.call_count, 1)
+        self.assertNotEqual(outward.call_args.args[1]['GIT_INDEX_FILE'], str(self.root / '.git/index'))
+        self.assertIn(f'pre-pr: prose only: outward names, citations and design size limits (docs input {path!r})', log)
+        self.assertIn('pre-pr: boundary tests: none (prose only)', log)
+        self.assertIn('lints: \ntests: \n', log)
+
+    def test_prose_only_outward_finding_is_a_test_and_inherits(self):
+        entries = (self.root / 'tools/outward/names.txt').read_text().splitlines()
+        name = next(line[4:] for line in entries if line and not line.startswith('#'))
+        path = 'temper/docs/example.md'
+        self.write(path, f'# Example\n{name}\n')
+        for red in (False, True):
+            with self.subTest(red=red):
+                if red:
+                    self.write('.git/temper/reds',
+                               'temper-reds 1\n- test fabrig-boundary::outward no_file_names_the_lab\n')
+                with mock.patch.object(PRE_PR, 'failure', wraps=PRE_PR.failure) as failure:
+                    result, log, calls, checks = self.deliver(metadata_forbidden=True)
+                self.assertEqual(result, 0 if red else 1, log)
+                self.assertEqual(checks, (False, False, False))
+                failure.assert_any_call(
+                    'test fabrig-boundary::outward no_file_names_the_lab', mock.ANY,
+                    ('fabrig-boundary::outward', 'no_file_names_the_lab'))
+                if red:
+                    self.assertIn('inherited: test fabrig-boundary::outward no_file_names_the_lab', log)
+                    self.assertIn('pre-pr: outward: inherited,', log)
+                else:
+                    self.assertIn(f'{path}:2: {name}', log)
+                    self.assertIn('pre-pr: outward: failed,', log)
+                self.assertEqual(sum('tools/outward/outward.py' in args for args, _ in calls), 1)
+
+    def test_prose_only_outward_error_is_a_check(self):
+        self.write('tools/outward/names.txt', 'w x entry\n')
+        self.pin()
+        self.write('temper/docs/example.md', '# Example\n')
+        self.write('.git/temper/reds',
+                   'temper-reds 1\n- test fabrig-boundary::outward no_file_names_the_lab\n')
+        result, log, _, _ = self.deliver(metadata_forbidden=True)
+        self.assertEqual(result, 1, log)
+        self.assertIn('check outward\n', log)
+        self.assertIn('outward: names.txt:1: malformed entry', log)
+
+    def test_registered_markdown_and_other_docs_keep_cargo(self):
+        for row in ('glob', 'fixture', 'outside', 'mixed'):
+            with self.subTest(row=row):
+                self.setUp()
+                path = 'temper/docs/example.md'
+                if row == 'glob':
+                    self.write('.config/gate/read-by-tests.txt', '*/docs/*.md\n')
+                elif row == 'fixture':
+                    self.write('.config/fixture-readers.toml',
+                               '[[fixture]]\npaths = ["temper/docs/*.md"]\nreader = ["api"]\n')
+                elif row == 'outside':
+                    path = 'README.md'
+                if row in ('glob', 'fixture'):
+                    self.pin()
+                self.write(path, '# Example\n')
+                if row == 'mixed':
+                    self.write('temper/docs/drawing.svg', '<svg/>\n')
+                result, log, calls, checks = self.deliver(('api', 'fabrig-boundary'))
+                self.assertEqual(result, 0, log)
+                self.assertEqual(checks, (row in ('glob', 'fixture'), False, True))
+                self.assertIn('pre-pr: code and docs: format' if row in ('glob', 'fixture')
+                              else 'pre-pr: docs only: citations', log)
+                self.assertIn('pre-pr: boundary tests: fabrig-boundary', log)
+                self.assertFalse(any('tools/outward/outward.py' in args for args, _ in calls))
+
     def test_code_only(self):
         self.write('api/src/lib.rs', 'pub fn changed() {}\n')
         result, log, calls, code = self.deliver()
@@ -1497,7 +1587,8 @@ sys.exit(int(count > 0))
         self.assertEqual(result, 1, log)
         self.assertIn('missing.md', log)
         self.assertIn('1 new broken', log)
-        self.assertEqual(code, (False, False, True))
+        self.assertIn('pre-pr: prose only:', log)
+        self.assertEqual(code, (False, False, False))
 
     def test_inherited_broken_citation(self):
         self.write('skein/docs/guide.md', '# Guide\nSee `missing.md`, section 1.\n')
@@ -1560,7 +1651,7 @@ sys.exit(int(count > 0))
         result, log, _, code = self.deliver(('api', 'fabrig-boundary'))
         self.assertEqual(result, 1, log)
         self.assertIn('reader.md', log)
-        self.assertEqual(code, (False, False, True))
+        self.assertEqual(code, (False, False, False))
 
     def test_new_citation_is_not_hidden_by_inherited_findings(self):
         self.write('skein/docs/guide.md', '# Guide\nSee `missing.md`.\n')

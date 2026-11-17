@@ -3,6 +3,7 @@
 The private snapshot leaves the caller's index alone; only exceeded counts need a
 base worktree. Every tool streams before the bounded, final verdict.
 """
+import contextlib
 import fnmatch
 import hashlib
 import json
@@ -265,6 +266,17 @@ def citations(base_id, tree_id, root, env):
         error = failure(f'citations ({inherited_count} broken at base)', '')
         error['inherited'] = True
         errors.append(error)
+    return code, errors
+
+
+def outward(root, env):
+    """Key a name finding as the Rust test; tool errors are never inherited."""
+    code, log = run(['python3', '-I', '-B', 'tools/outward/outward.py'], root, env)
+    if code == 1:
+        errors = [failure('test fabrig-boundary::outward no_file_names_the_lab', log,
+                          ('fabrig-boundary::outward', 'no_file_names_the_lab'))]
+    else:
+        errors = [failure('check outward', log)] if code else []
     return code, errors
 
 
@@ -806,25 +818,33 @@ def main():
                 failures_tail = failures_tail.removeprefix('every key ')
             print('failures: a cached pass, none observed; ' + failures_tail, flush=True)
             return 0
-        runner = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'tiers/run'))
-        with runner['hold'](prefix, 'pre-pr', root, env, output=sys.stdout):
+        paths, selected = [], []
+        if base_id:
+            diff = git(['diff-tree', '-r', '--no-renames', '--name-only', '-z', base_id, tree_id], root, env)
+            if diff.returncode:
+                errors.append(failure('check selection', diff.stderr.decode(errors='replace')))
+            else:
+                paths = [os.fsdecode(p) for p in diff.stdout.split(b'\0') if p]
+            try:
+                selected = code_inputs(paths, {'packages': [], 'workspace_members': []}, root)
+            except (OSError, ValueError, RuntimeError) as error:
+                errors.append(failure('check selection', str(error)))
+        docs = any(documentation(path) for path in paths)
+        prose_only = bool(paths) and not selected and not errors and all(
+            path.endswith('.md') and 'docs' in Path(path).parts[:-1] for path in paths)
+        if prose_only:
+            hold = contextlib.nullcontext()
+        else:
+            runner = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'tiers/run'))
+            hold = runner['hold'](prefix, 'pre-pr', root, env, output=sys.stdout)
+        with hold:
             data = None
-            paths, selected = [], []
-            docs = False
             if not base_id:
                 print(f'pre-pr: no base ({why}): the format check and the counted baselines alone', flush=True)
                 code_checks = True
             else:
-                diff = git(['diff-tree', '-r', '--no-renames', '--name-only', '-z', base_id, tree_id], root, env)
-                if diff.returncode:
-                    errors.append(failure('check selection', diff.stderr.decode(errors='replace')))
-                else:
-                    paths = [os.fsdecode(p) for p in diff.stdout.split(b'\0') if p]
-                docs = any(documentation(path) for path in paths)
                 try:
-                    empty = {'packages': [], 'workspace_members': []}
-                    selected = code_inputs(paths, empty, root)
-                    if docs or selected or any(not documentation(path) for path in paths):
+                    if not prose_only and not errors and (docs or selected or any(not documentation(path) for path in paths)):
                         data = metadata(root, private)
                         selected = code_inputs(paths, data, root)
                 except (OSError, ValueError, RuntimeError) as error:
@@ -836,7 +856,12 @@ def main():
                           f'(code input {selected[0]!r})', flush=True)
                 if docs:
                     path = next(path for path in paths if documentation(path))
-                    print(f'pre-pr: {kind}: citations and design size limits (docs input {path!r})', flush=True)
+                    if prose_only:
+                        print(f'pre-pr: prose only: outward names, citations and design size limits '
+                              f'(docs input {path!r})', flush=True)
+                        print('pre-pr: boundary tests: none (prose only)', flush=True)
+                    else:
+                        print(f'pre-pr: {kind}: citations and design size limits (docs input {path!r})', flush=True)
                 if not code_checks and not docs:
                     print('pre-pr: no code or docs inputs changed', flush=True)
 
@@ -890,6 +915,9 @@ def main():
                         starved.append(warning)
             if docs:
                 _, found = timed('citations', lambda: citations(base_id, tree_id, root, env), pending)
+                errors += found
+            if prose_only:
+                _, found = timed('outward', lambda: outward(root, private), pending)
                 errors += found
             inherited(reds, errors)
             count_errors = [e for e in errors if e['name'].startswith('old-forms ') and e['key']]

@@ -492,7 +492,7 @@ fn the_base_is_the_pins_merge_base() {
     git(root, &["update-ref", "refs/temper/landing", &other]);
     git(root, &["commit", "--allow-empty", "-qm", "head"]);
     write(root, ".git/MERGE_HEAD", &other);
-    write(root, "temper/docs/addition.md", "# Delivery\n");
+    write(root, "temper/addition.md", "# Delivery\n");
     let output = deliver(root);
     let log = text(&output);
     assert!(output.status.success(), "{log}");
