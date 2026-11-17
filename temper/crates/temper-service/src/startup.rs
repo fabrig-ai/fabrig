@@ -117,9 +117,9 @@ pub use worker::NamedWorker;
 fn named_worker(worker: &config::Worker, own: &application::Worker) -> NamedWorker {
     NamedWorker {
         root: own.root.clone(),
-        agent: worker.agent.configuration.clone(),
-        program: worker.agent.program.clone(),
-        arguments: worker.agent.arguments.clone(),
+        agent: worker.agent.as_ref().expect("checked worker agent").configuration.clone(),
+        program: worker.agent.as_ref().expect("checked worker agent").program.clone(),
+        arguments: worker.agent.as_ref().expect("checked worker agent").arguments.clone(),
     }
 }
 
@@ -206,14 +206,18 @@ impl Parsed {
         checks::call_answer(Path::root().member(b"engine"), self.engine.limits.core.call_answer_bytes, &mut problems);
         for (index, worker) in self.workers.iter_mut().enumerate() {
             if let Err(what) = self.worker_call_answers.get(index).expect("one provenance per parsed worker").compose(
-                &mut worker.limits,
+                worker.limits.as_mut().expect("checked worker limits"),
                 agent.tool_payload,
                 agent.host_ask_input,
                 agent.host_reply_text,
             ) {
                 problems.push(call_input_path(indexed(index)), what.extend());
             }
-            checks::call_answer(indexed(index), worker.limits.core.call_answer_bytes, &mut problems);
+            checks::call_answer(
+                indexed(index),
+                worker.limits.as_ref().expect("checked worker limits").core.call_answer_bytes,
+                &mut problems,
+            );
         }
         if problems.is_empty() { Ok(()) } else { Err(problems) }
     }
@@ -365,6 +369,15 @@ fn load_document(
         }
         match config::worker(document, *at, directories) {
             Ok(worker) => {
+                if worker.agent.is_none() {
+                    problems.push(indexed(index).member(b"agent"), What::Jig(config::What::Missing));
+                }
+                if worker.limits.is_none() {
+                    problems.push(indexed(index).member(b"limits"), What::Jig(config::What::Missing));
+                }
+                if worker.agent.is_none() || worker.limits.is_none() {
+                    continue;
+                }
                 workers.push(worker).expect("bounded workers");
                 worker_call_answers.push(CallAnswer::read(document, *at)).expect("bounded workers");
             }
@@ -738,7 +751,10 @@ pub(crate) fn checked_start_with(
     }
     checked_store(&root, &engine.jig.limits.store, turn)?;
     let io = match &worker {
-        Some((worker, _)) => checks::process_io(&engine.jig.limits.io, Some(&worker.jig.limits.io)),
+        Some((worker, _)) => checks::process_io(
+            &engine.jig.limits.io,
+            Some(&worker.jig.limits.as_ref().expect("checked worker limits").io),
+        ),
         None => checks::process_io(&engine.jig.limits.io, None),
     }
     .ok_or(problem(Path::root().member(b"engine").member(b"limits").member(b"io"), What::Jig(config::What::Bound)))?;
@@ -923,7 +939,7 @@ fn checked_worker(
         let own = own.into_iter().next().expect("one application worker checked");
         let worker = settings::Worker { jig: worker, root: own.root, git: own.git };
         checks::worker(&crate::worker_settings::root_limits(&worker, agent, limits), &mut problems);
-        checks::grants(engine, &worker.jig.limits, agent, &mut problems);
+        checks::grants(engine, worker.jig.limits.as_ref().expect("checked worker limits"), agent, &mut problems);
         if !problems.is_empty() {
             return Err(problems);
         }

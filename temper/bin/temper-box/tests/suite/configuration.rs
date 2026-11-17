@@ -242,8 +242,8 @@ fn the_clusters_documents_check_as_their_shapes() {
                 let worker = &part.worker.jig;
                 let stop = jig_protocol_config::stop_bound(
                     &worker.graces,
-                    worker.limits.link.ping,
-                    worker.limits.link.silence,
+                    worker.limits.as_ref().expect("configured worker limits").link.ping,
+                    worker.limits.as_ref().expect("configured worker limits").link.silence,
                 )
                 .unwrap_or_else(|| {
                     panic!(

@@ -821,7 +821,7 @@ fn start_configured_worker(
     settings.jig.projects = configured.into_boxed();
     fill_files(&mut settings);
     if worker.is_some() {
-        settings.jig.limits.hub = worker_settings().jig.limits.hub;
+        settings.jig.limits.hub = worker_settings().jig.limits.expect("checked worker limits").hub;
         settings.limits.checkout = worker_limits().checkout;
         settings.files.entries.get_mut(0).unwrap().1 =
             Secret::new(b"8f7be71db3941de11249a5e3fba7750a41c7d9958083ef522cb79e9fd7822878".as_slice().into());
@@ -832,7 +832,8 @@ fn start_configured_worker(
         Some(store) => store,
         None => memory_store_for(&root, &settings.jig.limits.store, &seed.models),
     };
-    let worker_io = if worker.is_some() { Some(worker_settings().jig.limits.io) } else { None };
+    let worker_io =
+        if worker.is_some() { Some(worker_settings().jig.limits.expect("checked worker limits").io) } else { None };
     let io = crate::startup::checks::process_io(&settings.jig.limits.io, worker_io.as_ref()).unwrap();
     let endpoints = crate::forge::settings(
         &sources,

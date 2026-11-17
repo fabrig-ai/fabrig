@@ -25,6 +25,17 @@ pub fn with(input: &[u8], path: &[u8], json: &[u8]) -> Box<[u8]> {
     result.into_boxed_slice()
 }
 
+pub fn without(input: &[u8], path: &[u8]) -> Box<[u8]> {
+    let span = member_span(input, path);
+    let name = path.rsplit(|byte| *byte == b'.').next().unwrap();
+    let key = [b"\"".as_slice(), name, b"\"".as_slice()].concat();
+    let start = input[..span.start].windows(key.len()).rposition(|part| part == key).unwrap();
+    let comma =
+        input[span.end..].iter().position(|byte| !byte.is_ascii_whitespace()).unwrap().checked_add(span.end).unwrap();
+    assert_eq!(input[comma], b',', "the removed fixture member has a following member");
+    [input[..start].to_vec(), input[comma.checked_add(1).unwrap()..].to_vec()].concat().into_boxed_slice()
+}
+
 fn member_span(input: &[u8], path: &[u8]) -> core::ops::Range<usize> {
     let document = jig_protocol_config::document(
         input,

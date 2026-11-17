@@ -169,6 +169,9 @@ impl Workers {
                     statement: statement_to_root(statement),
                 }));
             }
+            kit::host::Output::FiguresTaken { worker } => {
+                self.notes.push(crate::Note::WorkerFiguresTaken { worker });
+            }
             kit::host::Output::Refused { worker, reason, text } => {
                 self.notes.push(crate::Note::WorkerOpeningRefused { worker, reason, text });
             }
@@ -214,6 +217,7 @@ impl Workers {
                         | jig_protocol_worker_wire::Kind::SignedOut
                         | jig_protocol_worker_wire::Kind::JobAnswer
                         | jig_protocol_worker_wire::Kind::Ask
+                        | jig_protocol_worker_wire::Kind::Figures
                         | jig_protocol_worker_wire::Kind::Asked
                         | jig_protocol_worker_wire::Kind::Wires => events
                             .push(root::Event::Worker(root::WorkerInput::Link { channel, link: root::Link::Mismatch })),

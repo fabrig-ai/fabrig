@@ -86,7 +86,7 @@ fn a_worker_alone_with_the_owned_examples_worker_fits_one_ring() {
         jig_protocol_worker_wire::sizes::largest_body(&link.sizes, jig_protocol_worker_wire::Kind::Turn).unwrap() + 8
     );
     let operations = temper_service_core::process::Process::operations_for(
-        &part.worker.jig.limits.io,
+        &part.worker.jig.limits.as_ref().expect("checked worker limits").io,
         crate::worker_settings::operations(&crate::worker_settings::git_component(part.limits.git_component)).unwrap(),
     )
     .unwrap();
@@ -122,4 +122,18 @@ fn a_worker_alone_applies_its_names_without_engine_range_checks() {
     )
     .unwrap();
     assert_eq!(service.worker.env.limits.checkout.conflicts, 7);
+}
+
+#[test]
+fn a_worker_part_still_requires_agent_and_limits_by_name() {
+    for name in [b"agent".as_slice(), b"limits".as_slice()] {
+        let input = fixtures::worker_alone_document();
+        let path = [b"workers[0].".as_slice(), name].concat();
+        let input = fixtures::without(&input, &path);
+        let found = crate::startup::worker_part(&input, &config::Directories::working()).unwrap_err();
+        assert_eq!(found.problems.len(), 1);
+        let got = found.problems.get(0).unwrap();
+        assert_eq!(got.path, Path::root().member(b"workers").child(Segment::Index(0)).member(name));
+        assert_eq!(got.what, What::Jig(config::What::Missing));
+    }
 }

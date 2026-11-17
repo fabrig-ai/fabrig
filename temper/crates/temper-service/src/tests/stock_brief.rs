@@ -468,13 +468,13 @@ fn measure_worker() {
     let transcript = resume.checked_add(12_u64.checked_mul(resume / 4).unwrap()).unwrap();
     let loaded = turn.checked_add(u64::try_from(size_of::<temper_engine_domain::Record>()).unwrap()).unwrap();
     assert_eq!(engine.limits.hub.turn_bytes, turn);
-    assert_eq!(worker.jig.limits.hub.turn_bytes, turn);
+    assert_eq!(worker.jig.limits.as_ref().expect("checked worker limits").hub.turn_bytes, turn);
     assert_eq!(u64::from(engine.limits.core.resume_bytes), resume);
     assert_eq!(u64::from(own.root.journal.transcript_bytes), resume);
     assert_eq!(engine.limits.hub.transcript_bytes, transcript);
-    assert_eq!(worker.jig.limits.hub.transcript_bytes, transcript);
+    assert_eq!(worker.jig.limits.as_ref().expect("checked worker limits").hub.transcript_bytes, transcript);
     assert_eq!(engine.limits.hub.turn_queue_bytes, 8 * turn);
-    assert_eq!(worker.jig.limits.hub.turn_queue_bytes, 8 * turn);
+    assert_eq!(worker.jig.limits.as_ref().expect("checked worker limits").hub.turn_queue_bytes, 8 * turn);
     assert_eq!(u64::from(own.root.loads.bytes), loaded);
     assert_eq!(u64::from(own.root.loads.reply_bytes), loaded);
     assert_eq!(own.root.loads.read_bytes, 2 * turn);
@@ -501,7 +501,7 @@ fn measure_worker() {
             wires: None,
             root: skein_io::kernel::Fd::new(9),
             path: b"/worker".as_slice().into(),
-            agent: fixtures::pinned_agent(&worker.jig.agent),
+            agent: fixtures::pinned_agent(worker.jig.agent.as_ref().expect("checked worker agent")),
         },
         7,
     )

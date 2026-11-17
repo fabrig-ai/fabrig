@@ -3,6 +3,16 @@ use crate::{Limits, Path, Problem, Problems, Profile, Segment, What, profile, re
 use skein_json::{Document, document::Kind};
 use skein_lib::{Duration, bytes};
 
+/// Every overridable limit by its dotted name (protocol/channel/figures.md, 2).
+#[must_use]
+pub fn list(limits: &Limits) -> skein_lib::List<(&'static str, u64)> {
+    let mut values = skein_lib::List::uncapped();
+    for name in &crate::names::NAMES {
+        values.push((name.name, (name.value)(limits))).expect("uncapped named limits");
+    }
+    values
+}
+
 /// Replace one whole scalar limit. The composed reader checks the resulting profile.
 pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), What> {
     if crate::names::find(name).is_none() {

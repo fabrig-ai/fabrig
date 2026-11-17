@@ -221,6 +221,7 @@ impl World {
                     );
                 }
             }
+            Request::Figures { .. } => self.root.push(request),
             Request::Ready => {
                 self.trace.push(Trace::Ready);
                 self.root.push(Request::Ready);

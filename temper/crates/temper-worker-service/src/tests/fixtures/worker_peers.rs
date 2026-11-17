@@ -53,7 +53,7 @@ impl LinkPeer {
     ) -> Self {
         let prepared = worker_settings::prepare(settings, agent, own).unwrap();
         let limits = engine_link::Limits {
-            room: settings.jig.limits.io.largest_room(),
+            room: settings.jig.limits.as_ref().expect("checked worker limits").io.largest_room(),
             sizes: prepared.link.sizes,
             names: 1,
             workers: 1,
@@ -226,6 +226,7 @@ impl LinkPeer {
                 }
                 other @ (engine_link::Request::TurnAway { .. }
                 | engine_link::Request::Lower { .. }
+                | engine_link::Request::FiguresTaken { .. }
                 | engine_link::Request::Closed) => panic!("engine request: {other:?}"),
             }
         }

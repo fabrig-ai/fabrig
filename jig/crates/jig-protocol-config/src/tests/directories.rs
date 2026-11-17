@@ -192,10 +192,18 @@ fn worker_paths() {
     let worker = worker(&bytes).unwrap();
     for (label, value, expected) in [
         ("secret", worker.secret.as_ref(), b"/d/secrets/worker-a.secret".as_slice()),
-        ("configuration", worker.agent.configuration.as_ref(), b"/c/agent.json"),
-        ("program", worker.agent.program.as_ref(), b"../program"),
-        ("argument", worker.agent.arguments.get(1).unwrap().as_ref(), b"charters/x"),
-        ("parent argument", worker.agent.arguments.get(2).unwrap().as_ref(), b"../x"),
+        ("configuration", worker.agent.as_ref().expect("configured agent").configuration.as_ref(), b"/c/agent.json"),
+        ("program", worker.agent.as_ref().expect("configured agent").program.as_ref(), b"../program"),
+        (
+            "argument",
+            worker.agent.as_ref().expect("configured agent").arguments.get(1).unwrap().as_ref(),
+            b"charters/x",
+        ),
+        (
+            "parent argument",
+            worker.agent.as_ref().expect("configured agent").arguments.get(2).unwrap().as_ref(),
+            b"../x",
+        ),
     ] {
         assert_eq!(value, expected, "{label}");
     }

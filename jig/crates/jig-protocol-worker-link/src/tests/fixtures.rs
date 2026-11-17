@@ -62,6 +62,7 @@ pub const LIMITS: Limits = Limits {
 };
 pub fn credential() -> Credential {
     Credential {
+        opening: jig_protocol_worker_wire::Opening::Link,
         name: WORKER_A.into(),
         secret: Secret::new(SECRET_A.into()),
         application: jig_protocol_worker_wire::Application::opaque(application()),
@@ -74,7 +75,7 @@ use skein_lib::{List, Token, Writer};
 pub const TOKEN_ONE: &[u8] = b"access";
 pub const RUN_SEVEN: Token = Token::new(7);
 pub const ATTEMPT_TWO: Token = Token::new(2);
-pub fn codec() -> wire::v14::Limits {
+pub fn codec() -> wire::v15::Limits {
     wire::sizes::limits(&SIZES).expect("small codec limits")
 }
 pub fn hello() -> Hello {

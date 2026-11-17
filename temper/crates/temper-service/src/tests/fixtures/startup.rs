@@ -88,7 +88,7 @@ pub fn worker_runtime() -> crate::WorkerRuntime {
         wires: None,
         root: skein_io::kernel::Fd::new(9),
         path: b"/worker".as_slice().into(),
-        agent: super::pinned_agent(&super::worker_settings().jig.agent),
+        agent: super::pinned_agent(super::worker_settings().jig.agent.as_ref().expect("checked worker agent")),
     }
 }
 pub fn startup_agent() -> settings::Agent {

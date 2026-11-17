@@ -316,8 +316,8 @@ fn apply_shape(
     engine.connectors = Box::new([1]);
     for worker in workers.iter_mut() {
         worker.engine = local.clone();
-        worker.agent.program = b"/opt/temper".as_slice().into();
-        worker.agent.configuration = b"/opt/agent.json".as_slice().into();
+        worker.agent.as_mut().expect("checked worker agent").program = b"/opt/temper".as_slice().into();
+        worker.agent.as_mut().expect("checked worker agent").configuration = b"/opt/agent.json".as_slice().into();
     }
     match shape {
         Shape::TwoWorkers => return 2,
@@ -335,8 +335,12 @@ fn apply_shape(
             engine.clients.link = false;
         }
         Shape::Connectors => engine.connectors = Box::new([1, 2]),
-        Shape::Program => workers[0].agent.program = b"temper".as_slice().into(),
-        Shape::Configuration => workers[0].agent.configuration = b"agent.json".as_slice().into(),
+        Shape::Program => {
+            workers[0].agent.as_mut().expect("checked worker agent").program = b"temper".as_slice().into();
+        }
+        Shape::Configuration => {
+            workers[0].agent.as_mut().expect("checked worker agent").configuration = b"agent.json".as_slice().into();
+        }
     }
     1
 }
@@ -647,7 +651,7 @@ fn direct_model_bounds_are_checked_as_well_as_the_program_way() {
 #[test]
 fn credential_capacity_is_checked_on_both_sides_and_against_smith() {
     let mut engine = fixtures::engine().jig;
-    let mut worker = fixtures::worker_settings().jig.limits;
+    let mut worker = fixtures::worker_settings().jig.limits.expect("checked worker limits");
     let agent = fixtures::worker_agent();
     let bound = agent.limits.bodies.credential_value_bytes;
     for (sent, received, accepted) in
@@ -681,7 +685,7 @@ fn configured_keys_use_the_token_bound_instead_of_the_moved_file_ceiling() {
     engine.limits.token = 1;
     let key = engine.limits.token;
     assert_eq!(crate::values::credential_bytes(&engine), key);
-    let mut worker = fixtures::worker_settings().jig.limits;
+    let mut worker = fixtures::worker_settings().jig.limits.expect("checked worker limits");
     worker.token = 1;
     let mut agent = fixtures::worker_agent();
     for bytes in [key - 1, key, key + 1] {
@@ -941,28 +945,28 @@ fn each_turn_bound_accepts_equality_and_names_one_byte_short() {
     for (index, (path, needs, of)) in rows.into_iter().enumerate() {
         engine.core.resume_bytes = TURN + 4;
         engine.hub.turn_bytes = u64::from(TURN);
-        worker.limits.hub.turn_bytes = u64::from(TURN);
+        worker.limits.as_mut().expect("checked worker limits").hub.turn_bytes = u64::from(TURN);
         engine.hub.transcript_bytes = window;
-        worker.limits.hub.transcript_bytes = window;
+        worker.limits.as_mut().expect("checked worker limits").hub.transcript_bytes = window;
         own.root.loads.transcript_bytes = TURN;
         own.root.loads.bytes = loaded;
         own.root.loads.reply_bytes = loaded;
         engine.hub.outcome_bytes = agent.host_limits.outcome_bytes;
-        worker.limits.hub.outcome_bytes = agent.host_limits.outcome_bytes;
+        worker.limits.as_mut().expect("checked worker limits").hub.outcome_bytes = agent.host_limits.outcome_bytes;
         own.forge.client.op_bytes = engine.core.tasks.result_bytes;
         let mut found = Problems::empty();
         checks::turns(Some(&engine), core::slice::from_ref(&worker), &own, Some(&agent.declaration()), &mut found);
         assert_eq!(&*lines(&found), b"", "{path} at equality");
         match index {
             0 => engine.hub.turn_bytes -= 1,
-            1 => worker.limits.hub.turn_bytes -= 1,
+            1 => worker.limits.as_mut().expect("checked worker limits").hub.turn_bytes -= 1,
             2 => engine.core.resume_bytes -= 1,
             3 => own.root.loads.transcript_bytes -= 1,
             4 => own.root.loads.bytes -= 1,
             5 => engine.hub.transcript_bytes -= 1,
-            6 => worker.limits.hub.transcript_bytes -= 1,
+            6 => worker.limits.as_mut().expect("checked worker limits").hub.transcript_bytes -= 1,
             7 => engine.hub.outcome_bytes -= 1,
-            8 => worker.limits.hub.outcome_bytes -= 1,
+            8 => worker.limits.as_mut().expect("checked worker limits").hub.outcome_bytes -= 1,
             9 => own.forge.client.op_bytes -= 1,
             _ => unreachable!("ten turn and payload relations"),
         }

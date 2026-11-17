@@ -922,7 +922,10 @@ fn shipped_bounds_fit_the_configured_charters_and_worker() {
             .expect("application override");
     }
     let own = &own;
-    assert!(worker.jig.limits.hub.event_bytes >= u64::from(agent.bounds.message_bytes));
+    assert!(
+        worker.jig.limits.as_ref().expect("configured worker limits").hub.event_bytes
+            >= u64::from(agent.bounds.message_bytes)
+    );
     assert!(u64::from(own.checkout.message_bytes) >= agent.host_limits.call_bytes);
     let prepared = service::worker_settings::prepare(worker, agent, &service::limits::worker(own))
         .expect("complete worker bounds");

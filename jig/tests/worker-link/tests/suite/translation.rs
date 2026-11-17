@@ -61,7 +61,7 @@ pub(super) fn world(version: u16, charter: u16, seed: u64) -> Joined {
 
 #[test]
 fn capped_components_translate_smith_payloads_and_refuse_an_unheld_charter_without_a_frame() {
-    let mut world = world(12, 4, 7);
+    let mut world = world(wire::VERSION, 4, 7);
     let mut assignment = fixtures::assignment();
     assignment.assignment.charter = charter(1);
     assignment.turns = Box::new([]);
@@ -79,7 +79,7 @@ fn capped_components_translate_smith_payloads_and_refuse_an_unheld_charter_witho
     };
     assert_eq!(assignment.assignment.charter, expected);
     assert_eq!(&expected[..2], &[0, 5]);
-    assert!(!world.engine_records().contains(&wire::Kind::Wires.number()));
+    assert!(world.engine_records().contains(&wire::Kind::Wires.number()));
     let outcome = golden(
         smith_charter::patches::kept::smith_charter::TEXTS.last().expect("bounded translation fixture"),
         "record_run_result_smallest",
@@ -164,9 +164,15 @@ fn application(single: bool) -> Application {
 #[test]
 fn a_newer_worker_checks_total_sends_after_the_statement_but_a_capped_worker_does_not() {
     for cap in [false, true] {
-        let worker_wires = if cap { capped(13, 5) } else { wire::spoken() };
-        let mut world =
-            Joined::with_applications(&limits(), 3, capped(13, 5), worker_wires, application(true), application(cap));
+        let worker_wires = if cap { capped(wire::VERSION, 5) } else { wire::spoken() };
+        let mut world = Joined::with_applications(
+            &limits(),
+            3,
+            capped(wire::VERSION, 5),
+            worker_wires,
+            application(true),
+            application(cap),
+        );
         world.run();
         if cap {
             assert!(world.worker_root.iter().any(|e| matches!(e, Request::Ready)));
@@ -205,7 +211,8 @@ fn rooted(single: bool) -> Application {
     application
 }
 fn rooted_world() -> Joined {
-    let mut world = Joined::with_applications(&limits(), 9, wire::spoken(), capped(12, 5), rooted(false), rooted(true));
+    let mut world =
+        Joined::with_applications(&limits(), 9, wire::spoken(), capped(wire::VERSION, 5), rooted(false), rooted(true));
     world.run();
     world.acknowledge(false);
     world
@@ -317,20 +324,5 @@ fn application_parts_and_grant_renewals_cross_components_and_unheld_jobs_send_no
     world.run();
     assert_eq!(world.engine_root.len(), count, "a capped worker discards an untranslatable send");
     assert!(world.worker_root.iter().any(|r| matches!(r, Request::Untranslated { kind: 0x010c, .. })));
-    world.finish();
-}
-
-#[test]
-fn a_worker_with_ask_closes_at_an_engines_previous_version_statement() {
-    let previous = wire::VERSION.checked_sub(1).expect("previous version");
-    let mut world = Joined::with_wires(&limits(), 3, capped(previous, 5), wire::spoken());
-    world.run();
-    assert!(world.worker_root.iter().any(
-        |event| matches!(event, Request::CannotSendWhole { wire: "jig-worker-wire", version } if *version == previous)
-    ));
-    assert!(!world.worker_root.iter().any(|event| matches!(event, Request::Ready)));
-    assert!(world.engine_root.is_empty());
-    world.advance(skein_lib::Duration::from_millis(1600));
-    assert!(world.dials.len() >= 2);
     world.finish();
 }

@@ -125,6 +125,8 @@ fn exercise(world: &mut Joined, seed: u64, version: u16) {
             world.run();
         }
     }
+    world.figures(fixtures::figures());
+    world.run();
     world.engine_busy();
     world.run();
 }

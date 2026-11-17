@@ -72,7 +72,7 @@ pub fn worker() -> crate::Worker {
             wires: None,
             root: skein_io::kernel::Fd::new(9),
             path: b"/worker".as_slice().into(),
-            agent: pinned_agent(&worker_settings().jig.agent),
+            agent: pinned_agent(worker_settings().jig.agent.as_ref().expect("checked worker agent")),
         },
         7,
     )
@@ -165,12 +165,12 @@ pub fn worker_settings() -> crate::settings::Worker {
                 save: skein_lib::Duration::from_secs(10),
             },
             stop_bound: skein_lib::Duration::from_secs(60),
-            agent: config::Agent {
+            agent: Some(config::Agent {
                 program: TEMPER.into(),
                 arguments: Box::new([b"internal".as_slice().into(), b"agent".as_slice().into(), AGENT_JSON.into()]),
                 configuration: AGENT_JSON.into(),
-            },
-            limits,
+            }),
+            limits: Some(limits),
             memory: None,
         },
         root: b"worker-root".as_slice().into(),

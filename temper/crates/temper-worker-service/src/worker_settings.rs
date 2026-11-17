@@ -48,7 +48,7 @@ pub(crate) fn problem(member: &[u8], what: What) -> Problems {
 
 /// Check the root, host adapter and link before any state is allocated.
 pub fn prepare(worker: &settings::Worker, agent: &Agent, own: &Limits) -> Result<Prepared, Problems> {
-    if !io::valid(&worker.jig.limits.io) {
+    if !io::valid(&worker.jig.limits.as_ref().expect("checked worker limits").io) {
         return Err(problem(b"limits", What::Bound));
     }
     let address = match worker.jig.engine {
@@ -73,9 +73,19 @@ pub fn prepare(worker: &settings::Worker, agent: &Agent, own: &Limits) -> Result
     }
     let prefix = crate::tokens::worker(0).ok_or(problem(b"slots", What::Bound))?;
     worker.jig.slots.checked_mul(4).ok_or(problem(b"slots", What::Bound))?;
-    worker.jig.limits.core.accounts.accounts.checked_add(1).ok_or(problem(b"limits", What::Bound))?;
+    worker
+        .jig
+        .limits
+        .as_ref()
+        .expect("checked worker limits")
+        .core
+        .accounts
+        .accounts
+        .checked_add(1)
+        .ok_or(problem(b"limits", What::Bound))?;
     let bodies = &agent.limits.bodies;
-    if credential_bytes(worker.jig.limits.token) > bodies.credential_value_bytes
+    if credential_bytes(worker.jig.limits.as_ref().expect("checked worker limits").token)
+        > bodies.credential_value_bytes
         || u32::try_from(smith_host_domain::SourceName::BYTES).expect("bounded source name") > bodies.program_value_name
     {
         return Err(problem(b"limits", What::Bound));
@@ -85,7 +95,7 @@ pub fn prepare(worker: &settings::Worker, agent: &Agent, own: &Limits) -> Result
 
 #[must_use]
 pub fn root_limits(worker: &settings::Worker, agent: &Agent, own: &Limits) -> root::Limits {
-    let mut host = worker.jig.limits.hub;
+    let mut host = worker.jig.limits.as_ref().expect("checked worker limits").hub;
     host.slots = worker.jig.slots;
     let largest = payload::largest(&v1::CEILINGS).expect("schema ceilings fit the channel");
     host.application_ask_bytes = largest.ask;
@@ -104,8 +114,8 @@ pub fn root_limits(worker: &settings::Worker, agent: &Agent, own: &Limits) -> ro
                 .jig
                 .stop_bound
                 .as_nanos()
-                .saturating_sub(worker.jig.limits.link.ping.as_nanos())
-                .saturating_sub(worker.jig.limits.link.silence.as_nanos())
+                .saturating_sub(worker.jig.limits.as_ref().expect("checked worker limits").link.ping.as_nanos())
+                .saturating_sub(worker.jig.limits.as_ref().expect("checked worker limits").link.silence.as_nanos())
                 .saturating_sub(worker.jig.graces.grace.as_nanos()),
         ),
         watermark: root::WATERMARK,
@@ -124,7 +134,7 @@ pub fn payload_limits(own: &Limits) -> Option<v1::Limits> {
 /// Jig's link profile, with every temper part priced by the generated codec.
 #[must_use]
 pub fn link_limits(worker: &config::Worker, payload: &v1::Limits, forges: u32) -> Option<link::Limits> {
-    let jig = &worker.limits;
+    let jig = worker.limits.as_ref()?;
     let core = jig.core;
     let hub = jig.hub;
     let profile = jig.link;
@@ -169,7 +179,7 @@ pub fn link_limits(worker: &config::Worker, payload: &v1::Limits, forges: u32) -
     Some(link::Limits {
         sizes,
         chunk: profile.chunk,
-        room: worker.limits.io.largest_room(),
+        room: jig.io.largest_room(),
         handshake: profile.handshake,
         ping: profile.ping,
         silence: profile.silence,
@@ -204,6 +214,7 @@ pub fn credential(
     limits: &v1::Limits,
 ) -> Result<link::Credential, skein_codec::bridge::BridgeError> {
     Ok(link::Credential {
+        opening: jig_protocol_worker_wire::Opening::Link,
         name: worker.jig.name.clone(),
         secret: config::secret(secret.into()),
         application: payload::application(limits)?,

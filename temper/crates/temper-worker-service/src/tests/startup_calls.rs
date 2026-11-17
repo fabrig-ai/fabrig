@@ -20,7 +20,7 @@ fn worker_only_runtime_and_checks_use_the_same_composed_limits() {
         fixtures::assert_worker_only(&service);
         let mut part = worker_part(&input, &directories).unwrap();
         check_worker_part(&mut part, &fixtures::files(), &agent).unwrap();
-        assert_eq!(part.worker.jig.limits.core.call_answer_bytes, expected);
+        assert_eq!(part.worker.jig.limits.as_ref().expect("checked worker limits").core.call_answer_bytes, expected);
         let payload = crate::worker_settings::payload_limits(&part.limits).unwrap();
         let wire = crate::worker_settings::link_limits(&part.worker.jig, &payload, part.limits.peer.forges).unwrap();
         assert_eq!((wire.sizes.call_input, wire.sizes.answer), (expected, expected));

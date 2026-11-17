@@ -34,12 +34,19 @@ impl Component {
         if let Err(text) = crate::statement::output(self.limits.room, statement.output) {
             return Verdict::OutputRoom { worker, output: statement.output, text };
         }
+        if *credential.opening() == jig_protocol_worker_wire::Opening::Figures {
+            return if self.figures.is_some() {
+                Verdict::Accept { worker, wires, statement }
+            } else {
+                Verdict::Refuse { worker: Some(worker), reason: Reason::Starting, text: Box::new([]) }
+            };
+        }
         let mut open = 0_u32;
         for (token, connection) in &self.connections {
-            if connection.worker == Some(worker) {
+            if connection.worker == Some(worker) && connection.opening == jig_protocol_worker_wire::Opening::Link {
                 return Verdict::Replace { worker, older: *token, wires, statement };
             }
-            if connection.worker.is_some() {
+            if connection.worker.is_some() && connection.opening == jig_protocol_worker_wire::Opening::Link {
                 open = open.saturating_add(1);
             }
         }

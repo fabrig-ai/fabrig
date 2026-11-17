@@ -500,13 +500,17 @@ fn a_real_job_has_only_its_environment_and_releases_its_group() {
             wires: None,
             root: Fd::new(root_fd.as_raw_fd()),
             path: scratch.path().as_os_str().as_bytes().into(),
-            agent: fixtures::pinned_agent(&settings.jig.agent),
+            agent: fixtures::pinned_agent(settings.jig.agent.as_ref().expect("checked worker agent")),
         },
         7,
     )
     .unwrap();
     let clock = Clock::new();
-    let mut env = Env { now: clock.now().now, wall: Wall::EPOCH, limits: settings.jig.limits.io };
+    let mut env = Env {
+        now: clock.now().now,
+        wall: Wall::EPOCH,
+        limits: settings.jig.limits.as_ref().expect("checked worker limits").io,
+    };
     let operations = io::operations(&env.limits).unwrap();
     let mut kernel = Kernel::open(Config { operations }).unwrap();
     let mut io = io::Io::new(&env.limits);

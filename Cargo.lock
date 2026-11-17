@@ -847,6 +847,7 @@ dependencies = [
  "jig-domain-host",
  "jig-domain-link",
  "jig-domain-tasks",
+ "jig-protocol-config",
  "jig-protocol-worker-wire",
  "serde_json",
  "skein-fake-llm-domain",

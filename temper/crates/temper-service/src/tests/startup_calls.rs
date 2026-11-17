@@ -250,7 +250,7 @@ fn explicit_short_call_inputs_refuse_every_standalone_entrance() {
             assert_eq!(parsed.engine.limits.core.call_answer_bytes, bytes);
         }
         if let Some(bytes) = worker {
-            assert_eq!(parsed.workers[0].limits.core.call_answer_bytes, bytes);
+            assert_eq!(parsed.workers[0].limits.as_ref().expect("checked worker limits").core.call_answer_bytes, bytes);
         }
     }
 }

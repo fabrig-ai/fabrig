@@ -156,8 +156,8 @@ fn the_small_worker_document_parses_whole() {
     assert_eq!(worker.slots, 2);
     assert_eq!(worker.graces, graces());
     assert_eq!(worker.stop_bound, Duration::from_secs(75));
-    assert_eq!(worker.agent.program.as_ref(), b"jig-test");
-    assert_eq!(worker.agent.arguments.as_ref(), &[Box::from(&b"agent"[..])]);
+    assert_eq!(worker.agent.as_ref().expect("configured agent").program.as_ref(), b"jig-test");
+    assert_eq!(worker.agent.as_ref().expect("configured agent").arguments.as_ref(), &[Box::from(&b"agent"[..])]);
     assert_eq!(worker.memory, Some(1_073_741_824));
 }
 fn an_agent_without_a_program_is_refused() {
@@ -276,7 +276,7 @@ fn a_worker_configures_its_local_login_check_interval() {
     let bytes = fixtures::with(fixtures::WORKER_SMALL, b"\"check_interval_ms\":60000", b"\"check_interval_ms\":1250");
     let parsed = worker(&bytes).expect("positive source interval");
     assert_eq!(parsed.check_interval, Duration::from_millis(1_250));
-    assert_eq!(parsed.limits.hub.source_interval, Duration::from_millis(1_250));
+    assert_eq!(parsed.limits.expect("configured limits").hub.source_interval, Duration::from_millis(1_250));
 }
 #[test]
 fn a_zero_login_check_interval_names_the_invalid_field() {
@@ -290,4 +290,27 @@ fn a_zero_login_check_interval_names_the_invalid_field() {
 #[test]
 fn a_missing_login_check_interval_names_the_missing_field() {
     refuses(b"\"check_interval_ms\":60000", b"", fixtures::path(&[b"programs", b"check_interval_ms"]), What::Missing);
+}
+
+#[test]
+fn worker_agent_and_limits_are_independently_optional() {
+    for (agent, limits) in [(false, true), (true, false), (false, false)] {
+        let mut input: Box<[u8]> = fixtures::WORKER_SMALL.into();
+        if !agent {
+            input = fixtures::with(
+                &input,
+                br#""agent": {"program": "jig-test", "arguments": ["agent"], "configuration": "agent.json"},"#,
+                b"",
+            );
+        }
+        if !limits {
+            input = fixtures::with(&input, br#""limits": {"profile": "small"},"#, b"");
+        }
+        let parsed = worker(&input).unwrap();
+        assert_eq!(parsed.agent.is_some(), agent);
+        assert_eq!(parsed.limits.is_some(), limits);
+        let files = crate::worker_files(&parsed);
+        assert_eq!(files.len(), if agent { 2 } else { 1 });
+        assert_eq!(files.first().unwrap().path.as_ref(), b"secrets/worker-a.secret");
+    }
 }

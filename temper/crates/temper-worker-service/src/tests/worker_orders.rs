@@ -24,7 +24,7 @@ const ADMITTED_FRAMES: usize = 1;
 const WITH_TURN: usize = ADMITTED_FRAMES + 1;
 const PROCESS_RECORDS: u32 = 3; // The two messages and cancellation.
 // One value per grant, then the assignment, in one link invocation.
-const ASSIGNMENT_GRANTS: u32 = jig_protocol_worker_wire::v14::CEILINGS.assignment_grants;
+const ASSIGNMENT_GRANTS: u32 = jig_protocol_worker_wire::v15::CEILINGS.assignment_grants;
 
 fn chat() -> (Token, Token) {
     let link::Request::Down { down: hub::LinkDown::Assign { assignment }, .. } = fixtures::chat_assignment() else {
@@ -177,9 +177,16 @@ fn finish_cancelled_agent(stand: &mut fixtures::WorkerStand, link: &mut LinkPeer
 fn window_stand() -> (fixtures::WorkerStand, crate::settings::Worker, crate::settings::Agent) {
     let mut settings = fixtures::worker_settings();
     settings.jig.engine = jig_protocol_config::Address::Addr(io::Addr::Ip(([127, 0, 0, 1], 7100).into()));
-    settings.jig.limits.hub.turns = WINDOW;
-    settings.jig.limits.hub.turn_queue_bytes =
-        settings.jig.limits.hub.turn_queue_bytes.checked_mul(u64::from(WINDOW)).expect("four turns fit");
+    settings.jig.limits.as_mut().expect("checked worker limits").hub.turns = WINDOW;
+    settings.jig.limits.as_mut().expect("checked worker limits").hub.turn_queue_bytes = settings
+        .jig
+        .limits
+        .as_ref()
+        .expect("checked worker limits")
+        .hub
+        .turn_queue_bytes
+        .checked_mul(u64::from(WINDOW))
+        .expect("four turns fit");
     let mut agent = fixtures::worker_agent();
     agent.host_limits.turns = WINDOW;
     agent.host_limits.unacknowledged_bytes =
@@ -242,8 +249,8 @@ fn the_hello_precedes_the_replayed_turns_at_a_reconnect() {
 fn a_link_invocations_whole_output_precedes_the_next_invocation() {
     let mut settings = fixtures::worker_settings();
     settings.jig.engine = jig_protocol_config::Address::Addr(io::Addr::Ip(([127, 0, 0, 1], 7100).into()));
-    settings.jig.limits.core.accounts.accounts = ASSIGNMENT_GRANTS;
-    settings.jig.limits.core.accounts.credentials = 0;
+    settings.jig.limits.as_mut().expect("checked worker limits").core.accounts.accounts = ASSIGNMENT_GRANTS;
+    settings.jig.limits.as_mut().expect("checked worker limits").core.accounts.credentials = 0;
     let mut own = fixtures::worker_limits();
     own.peer.forges = 0;
     let agent = fixtures::worker_agent();

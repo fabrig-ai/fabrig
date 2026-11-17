@@ -711,6 +711,8 @@ pub(crate) fn worker_redial_ceiling() -> Duration {
         jig_protocol_config::worker(&document, at, &jig_protocol_config::Directories::working())
             .expect("fixture worker")
             .limits
+            .as_ref()
+            .expect("configured worker limits")
             .link
             .ceiling
     })

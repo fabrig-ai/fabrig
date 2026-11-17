@@ -17,3 +17,5 @@ mod stopping;
 mod fuzzy {
     mod engine_side;
 }
+
+mod figures;

@@ -105,11 +105,14 @@ pub fn standalone(
         if !in_process(&worker.engine) {
             problems.push(path.member(b"engine"), What::Standalone);
         }
-        let command = match (worker.agent.arguments.first(), worker.agent.arguments.get(1)) {
+        let command = match (
+            worker.agent.as_ref().expect("checked worker agent").arguments.first(),
+            worker.agent.as_ref().expect("checked worker agent").arguments.get(1),
+        ) {
             (Some(first), Some(second)) => first.as_ref() == b"internal" && second.as_ref() == b"agent",
             _ => false,
         };
-        let old_command = match worker.agent.arguments.first() {
+        let old_command = match worker.agent.as_ref().expect("checked worker agent").arguments.first() {
             Some(first) => first.as_ref() == b"agent",
             None => false,
         };
@@ -119,23 +122,24 @@ pub fn standalone(
                 What::Half(crate::startup::EngineWhat::OldAgentCommand),
             );
         } else if command {
-            let absolute = match worker.agent.arguments.get(2) {
+            let absolute = match worker.agent.as_ref().expect("checked worker agent").arguments.get(2) {
                 Some(value) => value.starts_with(b"/"),
                 None => false,
             };
-            if worker.agent.arguments.len() != 3 || !absolute {
+            if worker.agent.as_ref().expect("checked worker agent").arguments.len() != 3 || !absolute {
                 problems.push(path.member(b"agent").member(b"arguments"), What::Absolute);
             }
         } else {
-            for (index, value) in worker.agent.arguments.iter().enumerate() {
+            for (index, value) in worker.agent.as_ref().expect("checked worker agent").arguments.iter().enumerate() {
                 if !value.starts_with(b"/") {
                     problems.push(at(index, path.member(b"agent").member(b"arguments")), What::Absolute);
                 }
             }
         }
-        for (name, value) in
-            [(b"program".as_slice(), &worker.agent.program), (b"configuration", &worker.agent.configuration)]
-        {
+        for (name, value) in [
+            (b"program".as_slice(), &worker.agent.as_ref().expect("checked worker agent").program),
+            (b"configuration", &worker.agent.as_ref().expect("checked worker agent").configuration),
+        ] {
             if !value.starts_with(b"/") {
                 problems.push(path.member(b"agent").member(name), What::Absolute);
             }
@@ -145,7 +149,7 @@ pub fn standalone(
 pub fn credentials(engine: &config::Engine, workers: &[config::Worker], forges: u32, problems: &mut Problems) {
     let mut bound = engine.limits.core.accounts.credentials;
     for worker in workers {
-        bound = bound.min(worker.limits.core.accounts.credentials);
+        bound = bound.min(worker.limits.as_ref().expect("checked worker limits").core.accounts.credentials);
     }
     if forges > bound {
         problems.push(own(b"forge.forges"), What::Half(crate::startup::EngineWhat::Credentials));
@@ -269,14 +273,14 @@ pub fn turns(
             short(
                 problems,
                 path.member(b"hub.outcome_bytes"),
-                worker.limits.hub.outcome_bytes,
+                worker.limits.as_ref().expect("checked worker limits").hub.outcome_bytes,
                 b"the agent's outcome (agent.json profile.declared.tool_payload)",
                 Some(agent.outcome_bytes),
             );
             short(
                 problems,
                 path.member(b"hub.turn_bytes"),
-                worker.limits.hub.turn_bytes,
+                worker.limits.as_ref().expect("checked worker limits").hub.turn_bytes,
                 b"the agent's largest turn",
                 Some(turn),
             );
@@ -296,7 +300,7 @@ pub fn turns(
             short(
                 problems,
                 path.member(b"hub.transcript_bytes"),
-                worker.limits.hub.transcript_bytes,
+                worker.limits.as_ref().expect("checked worker limits").hub.transcript_bytes,
                 b"the engine's resume window",
                 window,
             );
@@ -318,7 +322,10 @@ pub(super) fn sockets(
     members: &super::application::Members,
     problems: &mut Problems,
 ) {
-    match (socket_count(engine, worker, git, members), process_io(&engine.limits.io, Some(&worker.limits.io))) {
+    match (
+        socket_count(engine, worker, git, members),
+        process_io(&engine.limits.io, Some(&worker.limits.as_ref().expect("checked worker limits").io)),
+    ) {
         (Some(bytes), Some(io)) if bytes <= u64::from(io.sockets) => {}
         (Some(bytes), Some(io)) => problems.push(
             Path::root().member(b"engine").member(b"limits").member(b"io").member(b"sockets"),

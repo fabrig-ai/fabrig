@@ -130,7 +130,9 @@ fn render_row(
         out.put(b", ")?;
         out.put(row.bound.as_bytes())?;
     }
-    let required = row.required || engine && shape.name == "llm-provider" && row.name == "endpoint";
+    let required = row.required
+        || engine && shape.name == "llm-provider" && row.name == "endpoint"
+        || engine && shape.name == "worker" && (row.name == "agent" || row.name == "limits");
     out.put(if required { b"; required; " } else { b"; optional; " })?;
     let whole = row.name == "overrides" || row.kind == "address";
     let mut values = List::with_capacity(document.len());

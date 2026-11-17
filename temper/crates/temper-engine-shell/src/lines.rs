@@ -474,6 +474,9 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
             format!("listening {name} {addr}\n")
         }
 
+        temper_engine_service::Note::WorkerFiguresTaken { worker } => {
+            format!("{binary} serve: worker {} took its figures\n", String::from_utf8_lossy(&worker))
+        }
         temper_engine_service::Note::WorkerOpened { worker, wires } => {
             use std::fmt::Write as _;
             let mut line = format!("{binary} serve: worker {} opened: ", String::from_utf8_lossy(&worker));
@@ -534,6 +537,7 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
                 Kind::SignedOut => "signed-out",
                 Kind::Job => "job",
                 Kind::JobAnswer => "job-answer",
+                Kind::Figures => "figures",
                 Kind::Wires => "wires",
                 Kind::Ask => "ask",
                 Kind::Asked => "asked",
@@ -850,6 +854,7 @@ fn refusal(reason: temper_engine_service::Refusal) -> String {
             Some(Reason::Replaced) => "replaced".into(),
             Some(Reason::NotAdmitted) => "not-admitted".into(),
             Some(Reason::Stopping) => "stopping".into(),
+            Some(Reason::Starting) => "starting".into(),
             None => format!("code-{code}"),
         },
     }

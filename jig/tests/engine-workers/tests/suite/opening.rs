@@ -27,6 +27,7 @@ mod opening {
         let value = wire::Credential::new(
             &wire::CEILINGS,
             wire::CredentialParts {
+                opening: jig_protocol_worker_wire::Opening::Link,
                 name: WORKER_A.into(),
                 secret: skein_lib::Secret::new(SECRET_A.into()),
                 wires,
@@ -223,7 +224,7 @@ mod opening {
     #[test]
     fn another_version_is_refused_by_skein_as_version() {
         let mut schema = fixtures::schema();
-        let other = 9; // The previous channel is refused before reading its credential.
+        let other = 14; // The previous channel is refused before reading its credential.
         schema.versions.truncate(1);
         schema.versions.get_mut(0).expect("one version").version = other;
         let mut world = world();
@@ -237,11 +238,11 @@ mod opening {
         .expect("old worker");
         let connection = world.connect(peer);
         world.run();
-        assert_eq!(world.refusal(connection), Some((1, b"speaks 12..14, offered 9..9".as_slice().into())));
+        assert_eq!(world.refusal(connection), Some((1, b"speaks 15..15, offered 14..14".as_slice().into())));
         let [jig_protocol_engine_workers::Request::Refused { worker: None, reason: 1, text }] = world.openings() else {
             panic!("precredential refusal")
         };
-        assert_eq!(text.as_ref(), b"speaks 12..14, offered 9..9");
+        assert_eq!(text.as_ref(), b"speaks 15..15, offered 14..14");
         assert!(world.root().is_empty());
     }
     #[test]

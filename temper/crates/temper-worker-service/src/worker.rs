@@ -146,9 +146,10 @@ impl Worker {
             return Err(problem(b"root", What::Bound));
         }
         let config = &settings.jig;
+        let config_limits = config.limits.as_ref().expect("checked worker limits");
         let secret = files.contents(&config.secret).ok_or(problem(b"secret", What::Unreadable))?;
         let bytes = secret.strip_suffix(b"\n").unwrap_or(secret);
-        if bytes.len() > usize::try_from(config.limits.link.secret).expect("secret bound") {
+        if bytes.len() > usize::try_from(config_limits.link.secret).expect("secret bound") {
             return Err(problem(b"secret", What::Bound));
         }
         let mut credential = worker_settings::credential(settings, secret, &prepared.payload)
@@ -168,7 +169,7 @@ impl Worker {
         Ok(Self {
             git,
             jobs: jobs::Jobs::new(slots),
-            sources: crate::program_sources::Component::new(config.limits.hub.detail_bytes),
+            sources: crate::program_sources::Component::new(config_limits.hub.detail_bytes),
             root: worker_root(&prepared.root),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: prepared.root },
             agent: Agent {
@@ -199,8 +200,8 @@ impl Worker {
             entities: Map::with_capacity(slots.checked_mul(4).expect("process entities")),
             retired: List::with_capacity(slots),
             values: Table::new(
-                config.limits.core.accounts.accounts.checked_add(1).expect("account slots"),
-                worker_settings::credential_bytes(config.limits.token),
+                config_limits.core.accounts.accounts.checked_add(1).expect("account slots"),
+                worker_settings::credential_bytes(config_limits.token),
             ),
             identities: IdentityTable::new(limits.peer.forges),
             undecodable_values: 0,
@@ -532,6 +533,7 @@ impl Worker {
             link::Request::Untranslated { kind, halt } => {
                 self.notes.push(crate::worker_alone::Note::Untranslated { kind, halt });
             }
+            link::Request::Figures { .. } => {}
             link::Request::Ready => {
                 if let Connection::Socket(remote) = &mut self.connection {
                     remote.hello_pending = true;

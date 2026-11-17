@@ -259,6 +259,9 @@ pub enum Note {
         addr: core::net::SocketAddr,
     },
     /// An accepted opening's agreed versions (protocol/wires.md, 4).
+    WorkerFiguresTaken {
+        worker: Box<[u8]>,
+    },
     WorkerOpened {
         worker: Box<[u8]>,
         wires: skein_lib::List<jig_protocol_worker_wire::Agreed>,

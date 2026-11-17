@@ -139,12 +139,12 @@ fn a_read_bound_set_to_the_refusals_number_starts() {
             }
             let mut value: serde_json::Value = serde_json::from_str(&text).unwrap();
             let overrides = &mut value["workers"][0]["limits"]["overrides"];
-            let bodies = jig_protocol_worker_wire::v14::Limits {
+            let bodies = jig_protocol_worker_wire::v15::Limits {
                 turn_body: turn,
                 turn_refused: u32::try_from(overrides["tasks.run_inbox"].as_u64().unwrap()).unwrap(),
-                ..jig_protocol_worker_wire::v14::CEILINGS
+                ..jig_protocol_worker_wire::v15::CEILINGS
             };
-            overrides["io.output"] = (jig_protocol_worker_wire::v14::Turn::encoded_bound(&bodies).unwrap() + 8).into();
+            overrides["io.output"] = (jig_protocol_worker_wire::v15::Turn::encoded_bound(&bodies).unwrap() + 8).into();
             document = serde_json::to_vec(&value).unwrap().into_boxed_slice();
         }
         let store =
@@ -735,7 +735,7 @@ fn a_workers_missing_or_oversized_secret_keeps_its_absolute_path() {
 #[test]
 fn a_worker_secret_at_its_bound_excludes_its_final_newline() {
     let mut worker = fixtures::worker_settings();
-    worker.jig.limits.link.secret = 4;
+    worker.jig.limits.as_mut().expect("checked worker limits").link.secret = 4;
     let mut entries = List::with_capacity(1);
     entries.push((b"worker-secret".as_slice().into(), skein_lib::Secret::new(b"four\n".as_slice().into()))).unwrap();
     let made = crate::Worker::new(

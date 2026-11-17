@@ -107,7 +107,8 @@ fn turn_checks_use_only_what_each_process_knows() {
     let worker = fixtures::worker_settings().jig;
     let mut agent = fixtures::startup_agent();
     let mut found = Problems::empty();
-    agent.limits.bodies.turn_body = u32::try_from(worker.limits.hub.turn_bytes).unwrap();
+    agent.limits.bodies.turn_body =
+        u32::try_from(worker.limits.as_ref().expect("checked worker limits").hub.turn_bytes).unwrap();
     crate::startup::worker::checks::turns(core::slice::from_ref(&worker), &agent, &mut found);
     assert_eq!(&*lines(&found), b"");
     agent.limits.bodies.turn_body += 1;

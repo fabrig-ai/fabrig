@@ -321,6 +321,9 @@ impl Joined {
     fn engine_event(&mut self, event: engine::Event) {
         self.engine.down(self.now, event, &mut self.engine_out);
     }
+    pub fn figures(&mut self, figures: jig_protocol_worker_wire::Figures) {
+        self.engine_event(engine::Event::Figures { figures });
+    }
     pub fn worker_up(&mut self, up: host::LinkUp, parts: Box<[Part]>) {
         if let host::LinkUp::Turn { run, attempt, turn } = &up {
             assert_eq!((*run, *attempt), (fixtures::RUN_SEVEN, fixtures::ATTEMPT_TWO));
@@ -382,7 +385,8 @@ impl Joined {
                 self.worker_order.push("value");
                 self.values.push(request);
             }
-            Request::RelayCancelled { .. }
+            Request::Figures { .. }
+            | Request::RelayCancelled { .. }
             | Request::Lost
             | Request::GracePassed
             | Request::Closed
@@ -440,7 +444,9 @@ impl Joined {
                 }
             }
             engine::Request::Ended { .. } => self.engine_ended.push(request),
-            engine::Request::Opened { .. } | engine::Request::Refused { .. } => self.engine_openings.push(request),
+            engine::Request::FiguresTaken { .. } | engine::Request::Opened { .. } | engine::Request::Refused { .. } => {
+                self.engine_openings.push(request);
+            }
             engine::Request::Unsent { .. } | engine::Request::Lost { .. } | engine::Request::Closed => {
                 self.engine_root.push(request);
             }
@@ -527,6 +533,7 @@ impl Joined {
                 | engine::Request::Close { .. }
                 | engine::Request::Abort { .. }
                 | engine::Request::Up { .. }
+                | engine::Request::FiguresTaken { .. }
                 | engine::Request::Opened { .. }
                 | engine::Request::Refused { .. }
                 | engine::Request::Unsent { .. }

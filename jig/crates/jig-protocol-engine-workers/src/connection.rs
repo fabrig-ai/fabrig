@@ -21,6 +21,7 @@ pub(crate) enum Ending {
 pub(crate) struct Connection {
     pub machine: Machine,
     pub phase: Phase,
+    pub opening: jig_protocol_worker_wire::Opening,
     pub worker: Option<u32>,
     pub channel: Token,
     pub wires: List<jig_protocol_worker_wire::Agreed>,
@@ -48,6 +49,7 @@ impl Connection {
         Self {
             machine,
             phase: Phase::Opening,
+            opening: jig_protocol_worker_wire::Opening::Link,
             worker: None,
             channel: Token::new(0),
             wires: List::uncapped(),

@@ -462,14 +462,14 @@ pub fn turns(
             short(
                 problems,
                 path.member(b"hub.outcome_bytes"),
-                worker.limits.hub.outcome_bytes,
+                worker.limits.as_ref().expect("checked worker limits").hub.outcome_bytes,
                 b"the agent's outcome (agent.json profile.declared.tool_payload)",
                 Some(agent.outcome_bytes),
             );
             short(
                 problems,
                 path.member(b"hub.turn_bytes"),
-                worker.limits.hub.turn_bytes,
+                worker.limits.as_ref().expect("checked worker limits").hub.turn_bytes,
                 b"the agent's largest turn",
                 Some(turn),
             );
@@ -489,7 +489,7 @@ pub fn turns(
             short(
                 problems,
                 path.member(b"hub.transcript_bytes"),
-                worker.limits.hub.transcript_bytes,
+                worker.limits.as_ref().expect("checked worker limits").hub.transcript_bytes,
                 b"the engine's resume window",
                 window,
             );

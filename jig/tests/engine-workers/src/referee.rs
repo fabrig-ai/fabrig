@@ -45,6 +45,7 @@ pub fn judge(root: &[Request]) -> Result<(), &'static str> {
             | Request::TurnAway { .. }
             | Request::Lower { .. }
             | Request::Close { .. }
+            | Request::FiguresTaken { .. }
             | Request::Abort { .. } => return Err("only root outputs"),
         }
     }

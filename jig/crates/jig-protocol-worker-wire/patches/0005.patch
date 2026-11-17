@@ -1,0 +1,17 @@
+patch 1
+owner jig 5
+
+family jig-worker-wire 14 to 15
+add Opening
+add Credential.opening Opening link
+add Limit
+add Header
+add Tls
+add Transport
+add Oversized
+add EndpointLimits
+add AgentEndpoint
+add Agents
+add Figures
+add FromEngine.figures
+breaking "Credential carries the opening purpose; engines and workers move together at floor 15"

@@ -75,16 +75,18 @@ impl Worker {
         index: u32,
         seed: u64,
     ) -> Result<Self, Problems> {
+        let configured_agent = config.agent.as_ref().ok_or(problem(index, b"agent", What::Missing))?;
+        let settings = config.limits.as_ref().ok_or(problem(index, b"limits", What::Missing))?;
         let config::Address::Addr(address) = config.engine else { return Err(problem(index, b"engine", What::Form)) };
         let secret = files.contents(&config.secret).ok_or(problem(index, b"secret", What::Unreadable))?;
-        if secret.len() > skein_lib::length::usize_of(config.limits.link.secret) {
+        if secret.len() > skein_lib::length::usize_of(settings.link.secret) {
             return Err(problem(index, b"secret", What::Bound));
         }
         let bodies = &agent.limits.bodies;
-        if config.limits.token > bodies.credential_value_bytes {
+        if settings.token > bodies.credential_value_bytes {
             return Err(problem(index, b"limits", What::Bound));
         }
-        let mut limits = config.limits.hub;
+        let mut limits = settings.hub;
         limits.slots = config.slots;
         limits.source_interval = config.check_interval;
         let root_limits = root::Limits {
@@ -105,6 +107,7 @@ impl Worker {
             &link_limits,
             jig_protocol_worker_wire::spoken(),
             link::Credential {
+                opening: jig_protocol_worker_wire::Opening::Link,
                 name: config.name,
                 secret: config::secret(secret.into()),
                 application: jig_protocol_worker_wire::Application::opaque(List::with_capacity(0)),
@@ -133,22 +136,19 @@ impl Worker {
             owners: Map::with_capacity(slots),
             entities: Map::with_capacity(slots.checked_mul(4).expect("process entities")),
             retired: List::with_capacity(slots),
-            values: Table::new(
-                config.limits.core.accounts.accounts.checked_add(1).expect("account slots"),
-                config.limits.token,
-            ),
+            values: Table::new(settings.core.accounts.accounts.checked_add(1).expect("account slots"), settings.token),
             application: Table::new(
-                config.limits.core.accounts.credentials.checked_add(1).expect("credential slots"),
-                config.limits.token,
+                settings.core.accounts.credentials.checked_add(1).expect("credential slots"),
+                settings.token,
             ),
             io: Queue::uncapped(),
             address,
             socket: None,
             prefix,
             next: 2,
-            program: config.agent.program,
-            arguments: config.agent.arguments,
-            configuration: config.agent.configuration,
+            program: configured_agent.program.clone(),
+            arguments: configured_agent.arguments.clone(),
+            configuration: configured_agent.configuration.clone(),
             directory: Some(directory),
             root_close: None,
             submitted: Queue::with_capacity(1),
@@ -375,7 +375,8 @@ impl Worker {
                     }
                 }
                 link::Request::Closed => self.closed = true,
-                link::Request::Refused { .. }
+                link::Request::Figures { .. }
+                | link::Request::Refused { .. }
                 | link::Request::Fact { .. }
                 | link::Request::CannotSendWhole { .. }
                 | link::Request::Untranslated { .. } => {}
@@ -1089,7 +1090,7 @@ mod admission_tests {
                     )
                     .expect("four wires");
             }
-            let record = wire::v14::Agreed::new(&codec, wire::v14::AgreedParts { wires }).expect("statement");
+            let record = wire::v15::Agreed::new(&codec, wire::v15::AgreedParts { wires }).expect("statement");
             let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));
             record.encode(&mut body).expect("statement body");
             let mut frame = skein_channel::frame_writer(0x018d, record.measure()).expect("statement frame");

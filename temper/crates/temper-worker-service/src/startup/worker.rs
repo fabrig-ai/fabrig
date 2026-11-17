@@ -231,9 +231,9 @@ pub fn worker_part(input: &[u8], directories: &config::Directories) -> Result<Wo
         call_answer: CallAnswer::read(&document, *ats.get(0).expect("one worker")),
         named: NamedWorker {
             root: own.root.clone(),
-            agent: jig.agent.configuration.clone(),
-            program: jig.agent.program.clone(),
-            arguments: jig.agent.arguments.clone(),
+            agent: jig.agent.as_ref().expect("checked worker agent").configuration.clone(),
+            program: jig.agent.as_ref().expect("checked worker agent").program.clone(),
+            arguments: jig.agent.as_ref().expect("checked worker agent").arguments.clone(),
         },
         worker: settings::Worker { jig, root: own.root, git: own.git },
         limits,
@@ -262,14 +262,18 @@ pub fn check_worker_part(
 ) -> Result<(), Problems> {
     let mut problems = Problems::empty();
     if let Err(what) = part.call_answer.compose(
-        &mut part.worker.jig.limits,
+        part.worker.jig.limits.as_mut().expect("checked worker limits"),
         agent.tool_payload(),
         agent.host_ask_input(),
         agent.host_reply_text(),
     ) {
         problems.push(call_input_path(indexed(0)), what);
     }
-    call_answer(indexed(0), part.worker.jig.limits.core.call_answer_bytes, &mut problems);
+    call_answer(
+        indexed(0),
+        part.worker.jig.limits.as_ref().expect("checked worker limits").core.call_answer_bytes,
+        &mut problems,
+    );
     if !problems.is_empty() {
         return Err(problems);
     }
@@ -347,6 +351,12 @@ fn validate(
         }
         match config::worker(document, *at, directories) {
             Ok(worker) => {
+                if worker.agent.is_none() {
+                    problems.push(indexed(index).member(b"agent"), What::Jig(config::What::Missing));
+                }
+                if worker.limits.is_none() {
+                    problems.push(indexed(index).member(b"limits"), What::Jig(config::What::Missing));
+                }
                 workers.push(worker).expect("bounded workers");
             }
             Err(found) => problems.append(found, &indexed(index)),
