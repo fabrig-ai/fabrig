@@ -52,7 +52,8 @@ Pause, Resume and Close are `task`'s, as for any task.
   is not a milestone of the project (`task N is not a milestone of
   project P`) or one already whole (`milestone N is whole since TIME`);
   then fills template 2 as without it, its authority narrowed to what
-  the milestone has left (`../../domain/milestones.md`, section 4), and
+  the milestone has left (`../../domain/milestones.md`, section 4), its
+  tasks from the document it read, `tasks_left` less one, and
   sends a `Delegate { project, task, tasks }` with the one goal. A
   refusal at admission, a whole milestone's among them (*concluded*,
   naming when), prints as `goal start`'s refusals do, exit 2.
@@ -129,13 +130,17 @@ In the tools' step harness (`temper/crates/temper-client-tools`): each
 tool parses and prints back; `help milestone`'s golden files; `milestone
 new` filling template 8 with the gathering, its name refused past 60
 characters or on two lines, its required controls; `goal start
---milestone` sending a `Delegate` with the narrowed authority, refused
+--milestone` sending a `Delegate` with the narrowed authority, its
+tasks from the milestone's `tasks_left`, refused
 locally for a task that is not a milestone or is whole; `--after`'s
 dependencies in order; `--no-deadline` sent with none and refused under
 a deadline's bound; `milestone whole` a `Conclude`; `list` and `show`
 printing from fixtures. In the joined client world (`temper/tests/client`):
 a milestone made, two goals started in it, the second `--after` the
-first, said whole, and `milestone show` printing it.
+first, said whole, and `milestone show` printing it; and, under a
+delegation deep and wide enough that a goal in a milestone gets tasks of
+its own, two goals started in one milestone, each admitted, the second
+with an allowance one less than the first.
 
 ## 6. Open questions
 

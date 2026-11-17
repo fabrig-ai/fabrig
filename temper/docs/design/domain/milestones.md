@@ -104,14 +104,20 @@ section 5, is `../client/pages/milestone.md` and the pages it names.
   reports as any goal of its way does, and keeps its forge issue
   (`forge/issues.md`).
 - **Its authority** is template 2's fill from the party's creating
-  offer, narrowed to the milestone's: delegation depth at most the
-  milestone's less one, its delegation's tasks at most the milestone's
-  task allowance less one (the task document carries the allowance, not
-  what is left of it; jig charges a delegate its own allowance and one
-  more), and none where its depth is zero, its deadline no later than
-  the milestone's where it has one. jig checks it against both the party's role and what the
-  milestone has left, refusing at admission (jig's `domain/authority.md`,
-  8.4); the tool prints that refusal.
+  offer, narrowed to what the milestone has left: delegation depth at
+  most the milestone's less one; its delegation's tasks at most what the
+  milestone's tasks have left less one, its task document's `tasks_left`
+  (jig's `client/domain/contract/documents.md`, 1), and none where its
+  depth is zero; its deadline no later than the milestone's where it has
+  one. jig counts every task the milestone's subtree makes against its
+  allowance, reserving none, and admits a delegate whose tasks and one
+  more fit what is left (jig's `domain/authority.md`, 5), so a goal
+  narrowed to what is left less one leaves the next goal room, each
+  later goal's allowance one less, as a change's is narrowed to its
+  goal's (`agent/tools.md`, 1). jig checks
+  it against both the party's role and what the milestone has left,
+  refusing at admission (jig's `domain/authority.md`, 8.4); the tool
+  prints that refusal.
 - **Its budget** is carved from the milestone's when the goal is made,
   waiting or not: an amount, or `AsAllowed`, resolved against what the
   milestone has left (jig's `domain/authority.md`, 8.4). So the
