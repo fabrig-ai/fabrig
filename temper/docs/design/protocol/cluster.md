@@ -106,11 +106,15 @@ w1, w2       temper-box serve DIRS     after the engine: each a worker alone
   its digest in the engine's data, a fixed pair the description holds
   and renders into each process's directories (5); a test's, never a
   deployment's, and never copied from one.
-- **Short graces:** the description's are seconds, each worker's stop
-  bound below the engine's grace, so a lost worker's runs are placed
-  again within a test's time. Each worker's `graces.drain_ms` is given,
-  at most its link's notice and its grace together, so the drain's
-  default never enters its stop bound.
+- **The stock graces:** a worker's graces are the constants
+  `temper-box init` writes, a stop bound of 326 seconds, and the
+  engine's grace is derived above it, 360 seconds
+  (`configuration/moved.md`, 2): the description's documents carry
+  neither, and its engine's `fleet.grace_ms` override, where it gives
+  one, is at least the derived grace. A story that waits for a lost or
+  hung worker's runs to be placed again takes its patience, and its
+  chat charter's waiting and time, from that derived grace plus the
+  story's own allowance for its work, never from a figure of its own.
 - **Lines on stderr,** each one line, flushed once what it says holds;
   the cluster's contract, read by their literal prefixes:
 
