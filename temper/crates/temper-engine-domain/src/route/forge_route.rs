@@ -48,6 +48,7 @@ mod reads;
 use reads::read_answer;
 pub(crate) use reads::read_call;
 mod holds;
+pub(crate) mod limit_holds;
 mod relay;
 pub(crate) use holds::{hold as hold_reason, refused_step, start_refused};
 pub(crate) use relay::{ChangeStep, own_agents_words, refused as relay_refused};
@@ -1424,6 +1425,8 @@ pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, 
             }
             Work::GoalSubscribe(_)
             | Work::ForgeRestored
+            | Work::ForgeLimitHold { .. }
+            | Work::ForgeLimitRelease { .. }
             | Work::StartDone(_)
             | Work::Start(_)
             | Work::CheckResults { .. }
@@ -5627,13 +5630,24 @@ pub(crate) fn outputs(
             }
             forge::Request::ResourceRefused { task, operation, resource, cause } => {
                 if admission_refused(domain, task) {
-                    let words = holds::refused_words(domain, operation, resource.as_ref(), cause);
-                    holds::hold_as(domain, task, tasks::Hold::ResourceUnavailable, &words);
+                    let words = holds::refused_words(domain, Some(task), operation, resource.as_ref(), cause);
+                    match cause {
+                        forge::RefusalCause::Limit { member, .. } => {
+                            let set = limit_holds::set(member, operation, resource.as_ref());
+                            limit_holds::hold(domain, env, task, cause, set, words);
+                        }
+                        forge::RefusalCause::Unadopted
+                        | forge::RefusalCause::InvalidName
+                        | forge::RefusalCause::Backend(_) => {
+                            holds::hold_as(domain, task, tasks::Hold::ResourceUnavailable, &words);
+                        }
+                    }
                 }
             }
             forge::Request::HeadRefused { task, resource, configured, needed } => {
                 let words = holds::refused_words(
                     domain,
+                    task,
                     b"record branch head",
                     Some(&resource),
                     forge::RefusalCause::Limit { member: "forge.client.resources", configured, needed },
@@ -5642,7 +5656,14 @@ pub(crate) fn outputs(
                 if let Some(task) = task
                     && admission_refused(domain, task)
                 {
-                    holds::hold_as(domain, task, tasks::Hold::ResourceUnavailable, &words);
+                    limit_holds::hold(
+                        domain,
+                        env,
+                        task,
+                        forge::RefusalCause::Limit { member: "forge.client.resources", configured, needed },
+                        forge::LimitSet::Heads,
+                        words,
+                    );
                 }
             }
             forge::Request::MakeFailed { task, resource, reason } => {
@@ -6051,6 +6072,7 @@ pub(crate) fn outputs(
             }
         }
     }
+    limit_holds::room_freed(domain, &env.limits.forge);
     if !domain.run_workspaces.is_empty() {
         super::now::resume_workspaces(domain, env);
     }

@@ -1046,7 +1046,7 @@ fn ordinary_and_json_red_reads_keep_long_ids_and_many() {
 
 #[test]
 fn resource_holds_keep_full_names_and_recovery_in_both_ctl_forms() {
-    const WORDS: &[u8] = b"watch resources on branch temper/11/c13 in playground/widget: forge.client.resources = 8; required usage 9; reduce the named work or raise this limit in the deployment configuration, restart, then release";
+    const WORDS: &[u8] = b"watch resources on branch temper/11/c13 in playground/widget: forge.client.resources is 8, and this needs 9: a limit in temper-limits. Ask temper to raise it, or raise it from Needs you. This goes on by itself once room frees or the limit rises.";
     assert!(WORDS.len() > 128);
     for (command, json) in [("task", false), ("task", true), ("change", false), ("change", true)] {
         let mut root = f::signed_in(f::PARTY);

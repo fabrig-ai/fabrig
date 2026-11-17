@@ -511,7 +511,7 @@ pub fn language() -> Language {
                 Box::new([Segment::Text(copy_of(b"Engine admission limit: project live tasks"))])
             }
             JigPhrase::EngineLimitLiveTasks => {
-                Box::new([Segment::Text(copy_of(b"Engine admission limit: live tasks"))])
+                Box::new([Segment::Text(copy_of(b"Engine admission limit: live tasks (tasks.tasks)"))])
             }
             JigPhrase::EngineLimitTree => Box::new([Segment::Text(copy_of(b"Engine admission limit: tree"))]),
             JigPhrase::EngineLimitDepth => Box::new([Segment::Text(copy_of(b"Engine admission limit: depth"))]),

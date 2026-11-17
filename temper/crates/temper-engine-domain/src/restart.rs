@@ -518,6 +518,10 @@ pub(crate) fn restore_page_row(domain: &mut Domain, env: &Env<Limits>, row: Reco
             }
         }
         Record::Forge { row } => {
+            if let forge::Stored::LimitHold(row) = *row {
+                crate::route::forge_route::limit_holds::restore(domain, row);
+                return;
+            }
             if let forge::Stored::RefusedSetting(key) = row.as_ref()
                 && domain.start_phase().is_some()
             {

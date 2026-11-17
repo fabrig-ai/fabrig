@@ -179,7 +179,8 @@ impl Reconciliation {
             // Landing history outlives tasks (domain/forge/README.md, 5.2).
             // Bindings outlive members. End acts retry until the saved answer,
             // including after their target ended or was removed.
-            Stored::ChangeHot(_)
+            Stored::LimitHold(_)
+            | Stored::ChangeHot(_)
             | Stored::HistoryProject(_)
             | Stored::HistoryEvent(_)
             | Stored::HistoryChange(_)

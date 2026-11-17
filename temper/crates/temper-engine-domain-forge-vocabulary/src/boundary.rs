@@ -1638,6 +1638,8 @@ pub enum Stored {
     ProposedEffect(ProposedEffect),
     /// One adopted repository.
     Repository(Repository),
+    /// A task held on a configured limit (protocol/configuration/limit-settings.md, 6).
+    LimitHold(LimitHold),
     /// One held resource.
     Hold(Hold),
     /// A live task's resources, or a kept task's repositories (temper/docs/design/domain/forge/adoption.md, 1).
@@ -1737,6 +1739,37 @@ pub enum Stored {
     HistoryLanding(crate::history::LandingIndex),
     HistoryLast(crate::history::Last),
 }
+/// One durable limit hold; `room` is the operation's additional occupancy
+/// (temper/docs/design/protocol/configuration/limit-settings.md, 6).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct LimitHold {
+    pub task: u64,
+    pub member: Box<[u8]>,
+    pub configured: u64,
+    pub needed: u64,
+    pub revision: u64,
+    pub at: skein_lib::Wall,
+    pub order: u64,
+    pub room: u64,
+    pub set: LimitSet,
+}
+
+/// The occupancy a refused operation would add to; a setting can bound several sets.
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum LimitSet {
+    Operation,
+    Entries,
+    Holds,
+    Tasks,
+    Changes,
+    Steps,
+    Subscriptions,
+    Watches,
+    Heads,
+    Repositories,
+    DesignWriters(Name),
+}
+
 /// A bounded connector payload awaiting an authority holder's decision.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ProposedEffect {
@@ -1753,6 +1786,7 @@ pub enum Key {
     ProposedEffect(u64),
     Repository(skein_forge::api::Repository),
     Hold(Name),
+    LimitHold(u64),
     Names(u64),
     Subscription { task: u64, topic: Topic },
     BranchHead(Name),

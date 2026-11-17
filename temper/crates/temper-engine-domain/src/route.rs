@@ -408,6 +408,7 @@ fn route_core_with_job(
     requests: Queue<core::Request>,
     job_answer: Option<forge_route::job_history::Answer>,
 ) {
+    forge_route::limit_holds::reconcile(domain, env, decision);
     standing::saved(domain, env, decision, &requests);
     let mut output = requests;
     for _ in 0..output.len() {
@@ -501,6 +502,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                 route_core_requests(domain, env, decision, output);
                 if phase == core::start::Phase::Open && domain.start_phase().is_none() {
                     domain.opened = true;
+                    forge_route::limit_holds::restart(domain);
                     // Open admits task control; a later resume takes the first due task.
                     trials::restarted(domain);
                 }
@@ -541,6 +543,12 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             Work::Brief(event) => {
                 let routed = forge_route::step_core(domain, env, core::Event::Brief(event));
                 route_core_requests(domain, env, decision, routed);
+            }
+            Work::ForgeLimitHold { row, words } => {
+                forge_route::limit_holds::apply_hold(domain, env, decision, row, words);
+            }
+            Work::ForgeLimitRelease { task, revision } => {
+                forge_route::limit_holds::release(domain, env, decision, task, revision);
             }
             Work::ForgeRestored => {
                 settings_parts::restored(domain);

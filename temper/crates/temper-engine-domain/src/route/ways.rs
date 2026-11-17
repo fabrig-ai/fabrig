@@ -388,6 +388,7 @@ pub(crate) fn erased(domain: &mut Domain, key: &forge::Key) {
         forge::Key::Call(_)
         | forge::Key::ProposedEffect(_)
         | forge::Key::Hold(_)
+        | forge::Key::LimitHold(_)
         | forge::Key::Names(_)
         | forge::Key::Subscription { .. }
         | forge::Key::BranchHead(_)

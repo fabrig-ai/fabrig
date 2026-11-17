@@ -1224,6 +1224,8 @@ pub(crate) enum Work {
     Forge(forge::Event),
     ForgeSettings(skein_lib::Queue<forge::Request>),
     ForgeRestored,
+    ForgeLimitHold { row: forge::LimitHold, words: Box<[u8]> },
+    ForgeLimitRelease { task: u64, revision: u64 },
     ProjectGoal(Box<jig_domain_core::ProjectionFeed>),
     GoalSubscribe(forge::Subscriber),
     AgreedGoal(Box<GoalWords>),

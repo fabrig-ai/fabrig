@@ -879,12 +879,26 @@ fn control_entrance(
     let to = entrance(domain, to, number)?;
     let permitted = match by {
         Party::Deployment { project } => match record(domain, number) {
-            Some(task) => task.project == project && (cancelling || own_hold(task)),
+            Some(task) => task.project == project && (cancelling || own_hold(task) || connector_resource_hold(task)),
             None => false,
         },
         Party::Task(_) | Party::Person(_) => allowed(domain, number, by, env.limits.tasks),
     };
     if permitted { Ok(to) } else { Err((to, Refusal::Reference)) }
+}
+
+// A connector's resource account is released after the application checks its kept revision
+// (jig/docs/design/domain/tasks/changes.md, 1).
+fn connector_resource_hold(task: &crate::TaskRecord) -> bool {
+    if task.placed.is_some() {
+        return false;
+    }
+    if let Phase::Held { why: crate::Hold::ResourceUnavailable, source: Some(source), .. } = &task.phase
+        && let crate::HoldSource::Account { .. } = source.as_ref()
+    {
+        return true;
+    }
+    false
 }
 
 // A procedure's own hold, which its connector may find gone (jig/docs/design/domain/tasks/changes.md).

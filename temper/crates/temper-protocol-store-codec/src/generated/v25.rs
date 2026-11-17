@@ -24,6 +24,7 @@ pub struct Limits {
     pub retargeted_after: u32,
     pub hold_design_writers: u32,
     pub names_resources: u32,
+    pub limit_hold_member: u32,
     pub landings_topic_branch: u32,
     pub release_row_comment_some: u32,
     pub create_issue_key: u32,
@@ -352,6 +353,7 @@ pub const CEILINGS: Limits = Limits {
     retargeted_after: 4_096,
     hold_design_writers: 65_536,
     names_resources: 1_024,
+    limit_hold_member: 128,
     landings_topic_branch: 4_096,
     release_row_comment_some: 1_048_576,
     create_issue_key: 1_048_576,
@@ -661,7 +663,7 @@ pub const CEILINGS: Limits = Limits {
 };
 
 /// The limits' field names, in field order.
-pub const LIMIT_NAMES: [&str; 324] = [
+pub const LIMIT_NAMES: [&str; 325] = [
     "segment_name",
     "answer_name_name",
     "segments_segments",
@@ -680,6 +682,7 @@ pub const LIMIT_NAMES: [&str; 324] = [
     "retargeted_after",
     "hold_design_writers",
     "names_resources",
+    "limit_hold_member",
     "landings_topic_branch",
     "release_row_comment_some",
     "create_issue_key",
@@ -991,49 +994,49 @@ pub const LIMIT_NAMES: [&str; 324] = [
 impl Limits {
     /// The limits' values, in `LIMIT_NAMES` order.
     #[must_use]
-    pub fn values(&self) -> [u32; 324] {
+    pub fn values(&self) -> [u32; 325] {
         [
             self.segment_name, self.answer_name_name, self.segments_segments, self.protection_branch, self.protection_contexts, self.settings_default_branch, self.adopted_contexts, self.adopted_host,
             self.adopted_owner, self.adopted_name, self.adopted_prefix, self.adopted_checks, self.adopted_workflows, self.adopted_workflows_item, self.retargeted_before, self.retargeted_after,
-            self.hold_design_writers, self.names_resources, self.landings_topic_branch, self.release_row_comment_some, self.create_issue_key, self.create_issue_title, self.create_issue_body, self.open_pull_title,
-            self.open_pull_body, self.open_pull_head, self.open_pull_base, self.post_key, self.post_body, self.post_review_key, self.post_review_body, self.edit_title_some,
-            self.edit_body_some, self.set_reviewers_reviewers, self.dispatch_input_name, self.dispatch_input_value, self.dispatch_write_workflow, self.dispatch_write_branch, self.dispatch_write_inputs, self.set_status_context,
-            self.set_status_description, self.set_status_link, self.create_branch_branch, self.delete_branch_branch, self.merge_condition_base, self.pull_reviewers, self.pull_head, self.pull_base,
-            self.step_name, self.job_answer_log, self.file_answer_path, self.file_answer_bytes, self.directory_entry_name, self.directory_answer_path, self.directory_answer_entries, self.branches_answer_branches,
-            self.permission_value_login, self.summary_labels, self.summary_key_some, self.summary_title, self.summary_body, self.comment_key_some, self.comment_body, self.review_key_some,
-            self.review_body, self.items_answer_items, self.item_answer_comments, self.reviews_answer_reviews, self.status_context, self.status_description, self.status_url, self.remark_path,
-            self.remark_body, self.file_path, self.file_before_some, self.file_after_some, self.statuses_answer_statuses, self.remarks_answer_remarks, self.pull_files_answer_files, self.compare_answer_files,
-            self.compare_answer_files_item, self.checks_answer_statuses, self.collaborators_answer_collaborators, self.call_decided_took_some, self.live_branch_branch, self.live_record_comments, self.live_record_reviews, self.live_record_echoes,
-            self.landing_below_changes, self.gating_asked, self.no_change_words, self.judgement_branch, self.judgement_base, self.judging_asked, self.change_state_holds, self.gate_remark_words,
-            self.early_heads_heads, self.change_gates, self.change_clean, self.change_gate_failures, self.effect_account_words, self.result_text_bytes, self.llm_choice_subagents, self.held_answer,
-            self.open_line, self.open_words, self.waiting_words, self.answered_line, self.answered_answer, self.questions_open, self.questions_waiting, self.questions_answered,
-            self.change_failure_line, self.change_follows_commits, self.plan_item_text, self.milestone_text, self.goal_view_title, self.goal_view_goal_text, self.goal_view_plan, self.goal_view_milestones,
-            self.goal_view_finished_some, self.projected_milestones, self.application_adopted_owner, self.application_adopted_name, self.core_refused_refusal, self.making_key_org, self.making_key_name, self.copy_from_address,
-            self.make_into_host, self.making_failed_words, self.making_made_branch, self.follow_reason_act_reason, self.follow_merge_act_afters, self.follow_outcome_refusal_some, self.open_repository_owner, self.open_repository_name,
-            self.several_repositories_repositories, self.under_prefix_owner, self.under_prefix_name, self.under_prefix_prefix, self.binding_address, self.binding_subject, self.landing_member_gates, self.landing_member_branch,
-            self.failing_test_test_id, self.landing_selection_tests, self.landing_by_test_gates, self.landing_by_test_probed, self.landing_searched_changes, self.landing_round_branch, self.landing_round_failure, self.landing_state_members,
-            self.landing_state_branch, self.history_job_record_members, self.landing_row_asks, self.landing_row_entries, self.receipt_name_name, self.receipt_run_url, self.failed_tests_tests, self.tier_verification_tier,
-            self.verification_changes, self.verification_tiers, self.tier_flake_test, self.tier_tests_tests, self.tier_finding_flakes, self.tier_finding_blamed, self.tier_group_tests, self.tier_probe_waiting,
-            self.tier_run_landings, self.tier_record_flakes, self.tier_flight_pending, self.receipt_job_name, self.receipt_test_key, self.receipt_tests_tests, self.receipt_jobs, self.receipt_logs,
-            self.tier_goal_branch, self.tier_hold_reason, self.tier_posted_tests_tests, self.tier_posting_link, self.tier_posting_description, self.tier_posting_landings, self.tier_posting_comments, self.tier_row_observations,
-            self.tier_row_tier, self.tier_row_pending, self.tier_row_goals, self.address_host, self.address_tls_some, self.place_git, self.place_web_some, self.bot_login,
-            self.bot_name, self.bot_email, self.empty_intent_org, self.empty_intent_repository, self.empty_intent_label, self.copy_intent_addresses, self.copy_intent_addresses_item, self.forge_git_program_some,
-            self.rule_pattern_segments, self.landing_rule_gates, self.landing_rule_approvals, self.landing_rule_sets, self.project_landing_merge_job_some, self.project_landing_close_job_some, self.settings_gate_report_artifact, self.settings_gate_report_fuzzy_some,
-            self.settings_gate_name, self.settings_gate_workflow, self.settings_gate_ignored, self.settings_gate_ignored_item, self.settings_branch_name, self.settings_tier_name, self.settings_tier_workflow, self.settings_tier_ignored,
-            self.settings_tier_ignored_item, self.settings_tier_artifact, self.settings_tier_description, self.repository_gates_gates, self.repository_gates_tiers, self.project_gates_repositories, self.class_item_words, self.path_set_name,
-            self.path_set_patterns, self.path_set_patterns_item, self.project_classes_items, self.project_classes_sets, self.charter_words_line, self.project_words_headline, self.project_words_lede, self.follow_source_branch,
-            self.follow_source_paths, self.follow_source_paths_item, self.follow_target_branch, self.follow_check_workflow, self.follow_check_artifact, self.follow_producer_some, self.logged_change_signed, self.logged_change_title,
-            self.logged_landing_branch, self.logged_landing_changes, self.milestone_row_name, self.landing_log_landings, self.status_brief_sentence, self.status_brief_lede, self.decided_question, self.decided_options,
-            self.decided_options_item, self.decided_why, self.closing_tasks_tasks, self.closing_jobs_attempts, self.closing_line_line_some, self.closing_asked_answer_some, self.closing_question_words, self.closing_message_words,
-            self.closing_relay_replies, self.closer_close_changes, self.closer_landing_changes, self.closer_selections, self.landed_draft_path, self.landed_draft_branch, self.landed_draft_title, self.follow_commit_message,
-            self.follow_reason_reason, self.follow_files_files, self.follow_entry_commits, self.follow_skip_reason, self.follow_parity_run, self.follow_question_words, self.follow_question_answer_some, self.follow_row_branch,
-            self.follow_row_stopped_some, self.follow_row_queue, self.follow_row_skips, self.follow_row_questions, self.follow_check_progress_definition, self.follow_check_progress_held_some, self.history_project_marks, self.history_formed_members,
-            self.history_proved_proofs, self.history_hold_reason, self.change_source_branch, self.change_cold_branch, self.change_cold_base, self.change_cold_title, self.change_cold_body, self.change_cold_report,
-            self.change_cold_close_some, self.change_hot_signed, self.change_hot_repair_tasks, self.change_hot_resolution_tasks, self.change_hot_verdicts, self.change_hot_gate_remarks, self.change_hot_producer_failure_some, self.change_hot_merge_result_some,
-            self.subscriber_goal_tasks_some, self.subscriber_paths, self.subscriber_paths_item, self.finding_areas_names, self.finding_areas_names_item, self.finding_words_words, self.finding_reply_area_some, self.call_follow_refusal_some,
-            self.red_key, self.red_head, self.red_why, self.red_pass_key, self.red_recorded_head, self.red_reply_key, self.area_name, self.area_words,
-            self.project_areas_areas, self.finding_signature_source, self.finding_signature_ids, self.finding_signature_ids_item, self.finding_signature_first, self.finding_area_some, self.finding_title, self.finding_body,
-            self.finding_why_some, self.finding_reason_some, self.device_endpoint, self.device_label,
+            self.hold_design_writers, self.names_resources, self.limit_hold_member, self.landings_topic_branch, self.release_row_comment_some, self.create_issue_key, self.create_issue_title, self.create_issue_body,
+            self.open_pull_title, self.open_pull_body, self.open_pull_head, self.open_pull_base, self.post_key, self.post_body, self.post_review_key, self.post_review_body,
+            self.edit_title_some, self.edit_body_some, self.set_reviewers_reviewers, self.dispatch_input_name, self.dispatch_input_value, self.dispatch_write_workflow, self.dispatch_write_branch, self.dispatch_write_inputs,
+            self.set_status_context, self.set_status_description, self.set_status_link, self.create_branch_branch, self.delete_branch_branch, self.merge_condition_base, self.pull_reviewers, self.pull_head,
+            self.pull_base, self.step_name, self.job_answer_log, self.file_answer_path, self.file_answer_bytes, self.directory_entry_name, self.directory_answer_path, self.directory_answer_entries,
+            self.branches_answer_branches, self.permission_value_login, self.summary_labels, self.summary_key_some, self.summary_title, self.summary_body, self.comment_key_some, self.comment_body,
+            self.review_key_some, self.review_body, self.items_answer_items, self.item_answer_comments, self.reviews_answer_reviews, self.status_context, self.status_description, self.status_url,
+            self.remark_path, self.remark_body, self.file_path, self.file_before_some, self.file_after_some, self.statuses_answer_statuses, self.remarks_answer_remarks, self.pull_files_answer_files,
+            self.compare_answer_files, self.compare_answer_files_item, self.checks_answer_statuses, self.collaborators_answer_collaborators, self.call_decided_took_some, self.live_branch_branch, self.live_record_comments, self.live_record_reviews,
+            self.live_record_echoes, self.landing_below_changes, self.gating_asked, self.no_change_words, self.judgement_branch, self.judgement_base, self.judging_asked, self.change_state_holds,
+            self.gate_remark_words, self.early_heads_heads, self.change_gates, self.change_clean, self.change_gate_failures, self.effect_account_words, self.result_text_bytes, self.llm_choice_subagents,
+            self.held_answer, self.open_line, self.open_words, self.waiting_words, self.answered_line, self.answered_answer, self.questions_open, self.questions_waiting,
+            self.questions_answered, self.change_failure_line, self.change_follows_commits, self.plan_item_text, self.milestone_text, self.goal_view_title, self.goal_view_goal_text, self.goal_view_plan,
+            self.goal_view_milestones, self.goal_view_finished_some, self.projected_milestones, self.application_adopted_owner, self.application_adopted_name, self.core_refused_refusal, self.making_key_org, self.making_key_name,
+            self.copy_from_address, self.make_into_host, self.making_failed_words, self.making_made_branch, self.follow_reason_act_reason, self.follow_merge_act_afters, self.follow_outcome_refusal_some, self.open_repository_owner,
+            self.open_repository_name, self.several_repositories_repositories, self.under_prefix_owner, self.under_prefix_name, self.under_prefix_prefix, self.binding_address, self.binding_subject, self.landing_member_gates,
+            self.landing_member_branch, self.failing_test_test_id, self.landing_selection_tests, self.landing_by_test_gates, self.landing_by_test_probed, self.landing_searched_changes, self.landing_round_branch, self.landing_round_failure,
+            self.landing_state_members, self.landing_state_branch, self.history_job_record_members, self.landing_row_asks, self.landing_row_entries, self.receipt_name_name, self.receipt_run_url, self.failed_tests_tests,
+            self.tier_verification_tier, self.verification_changes, self.verification_tiers, self.tier_flake_test, self.tier_tests_tests, self.tier_finding_flakes, self.tier_finding_blamed, self.tier_group_tests,
+            self.tier_probe_waiting, self.tier_run_landings, self.tier_record_flakes, self.tier_flight_pending, self.receipt_job_name, self.receipt_test_key, self.receipt_tests_tests, self.receipt_jobs,
+            self.receipt_logs, self.tier_goal_branch, self.tier_hold_reason, self.tier_posted_tests_tests, self.tier_posting_link, self.tier_posting_description, self.tier_posting_landings, self.tier_posting_comments,
+            self.tier_row_observations, self.tier_row_tier, self.tier_row_pending, self.tier_row_goals, self.address_host, self.address_tls_some, self.place_git, self.place_web_some,
+            self.bot_login, self.bot_name, self.bot_email, self.empty_intent_org, self.empty_intent_repository, self.empty_intent_label, self.copy_intent_addresses, self.copy_intent_addresses_item,
+            self.forge_git_program_some, self.rule_pattern_segments, self.landing_rule_gates, self.landing_rule_approvals, self.landing_rule_sets, self.project_landing_merge_job_some, self.project_landing_close_job_some, self.settings_gate_report_artifact,
+            self.settings_gate_report_fuzzy_some, self.settings_gate_name, self.settings_gate_workflow, self.settings_gate_ignored, self.settings_gate_ignored_item, self.settings_branch_name, self.settings_tier_name, self.settings_tier_workflow,
+            self.settings_tier_ignored, self.settings_tier_ignored_item, self.settings_tier_artifact, self.settings_tier_description, self.repository_gates_gates, self.repository_gates_tiers, self.project_gates_repositories, self.class_item_words,
+            self.path_set_name, self.path_set_patterns, self.path_set_patterns_item, self.project_classes_items, self.project_classes_sets, self.charter_words_line, self.project_words_headline, self.project_words_lede,
+            self.follow_source_branch, self.follow_source_paths, self.follow_source_paths_item, self.follow_target_branch, self.follow_check_workflow, self.follow_check_artifact, self.follow_producer_some, self.logged_change_signed,
+            self.logged_change_title, self.logged_landing_branch, self.logged_landing_changes, self.milestone_row_name, self.landing_log_landings, self.status_brief_sentence, self.status_brief_lede, self.decided_question,
+            self.decided_options, self.decided_options_item, self.decided_why, self.closing_tasks_tasks, self.closing_jobs_attempts, self.closing_line_line_some, self.closing_asked_answer_some, self.closing_question_words,
+            self.closing_message_words, self.closing_relay_replies, self.closer_close_changes, self.closer_landing_changes, self.closer_selections, self.landed_draft_path, self.landed_draft_branch, self.landed_draft_title,
+            self.follow_commit_message, self.follow_reason_reason, self.follow_files_files, self.follow_entry_commits, self.follow_skip_reason, self.follow_parity_run, self.follow_question_words, self.follow_question_answer_some,
+            self.follow_row_branch, self.follow_row_stopped_some, self.follow_row_queue, self.follow_row_skips, self.follow_row_questions, self.follow_check_progress_definition, self.follow_check_progress_held_some, self.history_project_marks,
+            self.history_formed_members, self.history_proved_proofs, self.history_hold_reason, self.change_source_branch, self.change_cold_branch, self.change_cold_base, self.change_cold_title, self.change_cold_body,
+            self.change_cold_report, self.change_cold_close_some, self.change_hot_signed, self.change_hot_repair_tasks, self.change_hot_resolution_tasks, self.change_hot_verdicts, self.change_hot_gate_remarks, self.change_hot_producer_failure_some,
+            self.change_hot_merge_result_some, self.subscriber_goal_tasks_some, self.subscriber_paths, self.subscriber_paths_item, self.finding_areas_names, self.finding_areas_names_item, self.finding_words_words, self.finding_reply_area_some,
+            self.call_follow_refusal_some, self.red_key, self.red_head, self.red_why, self.red_pass_key, self.red_recorded_head, self.red_reply_key, self.area_name,
+            self.area_words, self.project_areas_areas, self.finding_signature_source, self.finding_signature_ids, self.finding_signature_ids_item, self.finding_signature_first, self.finding_area_some, self.finding_title,
+            self.finding_body, self.finding_why_some, self.finding_reason_some, self.device_endpoint, self.device_label,
         ]
     }
 }
@@ -1225,6 +1228,28 @@ pub enum Path {
     NamesResources,
     /// Bytes after `Names`.
     NamesTail,
+    /// The tag of `LimitSet`.
+    LimitSetTag,
+    /// The `task` field of `LimitHold`.
+    LimitHoldTask,
+    /// The `member` field of `LimitHold`.
+    LimitHoldMember,
+    /// The `configured` field of `LimitHold`.
+    LimitHoldConfigured,
+    /// The `needed` field of `LimitHold`.
+    LimitHoldNeeded,
+    /// The `revision` field of `LimitHold`.
+    LimitHoldRevision,
+    /// The `at` field of `LimitHold`.
+    LimitHoldAt,
+    /// The `room` field of `LimitHold`.
+    LimitHoldRoom,
+    /// The `set` field of `LimitHold`.
+    LimitHoldSet,
+    /// The `order` field of `LimitHold`.
+    LimitHoldOrder,
+    /// Bytes after `LimitHold`.
+    LimitHoldTail,
     /// The `repository` field of `LandingsTopic`.
     LandingsTopicRepository,
     /// The `branch` field of `LandingsTopic`.
@@ -4829,6 +4854,17 @@ impl Path {
             Self::NamesTask => "Names.task",
             Self::NamesResources => "Names.resources",
             Self::NamesTail => "Names (tail)",
+            Self::LimitSetTag => "LimitSet (tag)",
+            Self::LimitHoldTask => "LimitHold.task",
+            Self::LimitHoldMember => "LimitHold.member",
+            Self::LimitHoldConfigured => "LimitHold.configured",
+            Self::LimitHoldNeeded => "LimitHold.needed",
+            Self::LimitHoldRevision => "LimitHold.revision",
+            Self::LimitHoldAt => "LimitHold.at",
+            Self::LimitHoldRoom => "LimitHold.room",
+            Self::LimitHoldSet => "LimitHold.set",
+            Self::LimitHoldOrder => "LimitHold.order",
+            Self::LimitHoldTail => "LimitHold (tail)",
             Self::LandingsTopicRepository => "LandingsTopic.repository",
             Self::LandingsTopicBranch => "LandingsTopic.branch",
             Self::LandingsTopicTail => "LandingsTopic (tail)",
@@ -6620,6 +6656,7 @@ fn check_limits_0(limits: &Limits) -> Result<(), Problem> {
     if limits.retargeted_after > CEILINGS.retargeted_after { return Err(Problem { path: Path::RetargetedAfter, reason: skein_codec::Reason::Bound }); }
     if limits.hold_design_writers > CEILINGS.hold_design_writers { return Err(Problem { path: Path::HoldDesignWriters, reason: skein_codec::Reason::Bound }); }
     if limits.names_resources > CEILINGS.names_resources { return Err(Problem { path: Path::NamesResources, reason: skein_codec::Reason::Bound }); }
+    if limits.limit_hold_member > CEILINGS.limit_hold_member { return Err(Problem { path: Path::LimitHoldMember, reason: skein_codec::Reason::Bound }); }
     if limits.landings_topic_branch > CEILINGS.landings_topic_branch { return Err(Problem { path: Path::LandingsTopicBranch, reason: skein_codec::Reason::Bound }); }
     if limits.release_row_comment_some > CEILINGS.release_row_comment_some { return Err(Problem { path: Path::ReleaseRowComment, reason: skein_codec::Reason::Bound }); }
     if limits.create_issue_key > CEILINGS.create_issue_key { return Err(Problem { path: Path::CreateIssueKey, reason: skein_codec::Reason::Bound }); }
@@ -6691,11 +6728,11 @@ fn check_limits_0(limits: &Limits) -> Result<(), Problem> {
     if limits.live_record_reviews > CEILINGS.live_record_reviews { return Err(Problem { path: Path::LiveRecordReviews, reason: skein_codec::Reason::Bound }); }
     if limits.live_record_echoes > CEILINGS.live_record_echoes { return Err(Problem { path: Path::LiveRecordEchoes, reason: skein_codec::Reason::Bound }); }
     if limits.landing_below_changes > CEILINGS.landing_below_changes { return Err(Problem { path: Path::LandingBelowChanges, reason: skein_codec::Reason::Bound }); }
-    if limits.gating_asked > CEILINGS.gating_asked { return Err(Problem { path: Path::GatingAsked, reason: skein_codec::Reason::Bound }); }
     Ok(())
 }
 
 fn check_limits_1(limits: &Limits) -> Result<(), Problem> {
+    if limits.gating_asked > CEILINGS.gating_asked { return Err(Problem { path: Path::GatingAsked, reason: skein_codec::Reason::Bound }); }
     if limits.no_change_words > CEILINGS.no_change_words { return Err(Problem { path: Path::NoChangeWords, reason: skein_codec::Reason::Bound }); }
     if limits.judgement_branch > CEILINGS.judgement_branch { return Err(Problem { path: Path::JudgementBranch, reason: skein_codec::Reason::Bound }); }
     if limits.judgement_base > CEILINGS.judgement_base { return Err(Problem { path: Path::JudgementBase, reason: skein_codec::Reason::Bound }); }
@@ -6785,11 +6822,11 @@ fn check_limits_1(limits: &Limits) -> Result<(), Problem> {
     if limits.tier_goal_branch > CEILINGS.tier_goal_branch { return Err(Problem { path: Path::TierGoalBranch, reason: skein_codec::Reason::Bound }); }
     if limits.tier_hold_reason > CEILINGS.tier_hold_reason { return Err(Problem { path: Path::TierHoldReason, reason: skein_codec::Reason::Bound }); }
     if limits.tier_posted_tests_tests > CEILINGS.tier_posted_tests_tests { return Err(Problem { path: Path::TierPostedTestsTests, reason: skein_codec::Reason::Bound }); }
-    if limits.tier_posting_link > CEILINGS.tier_posting_link { return Err(Problem { path: Path::TierPostingLink, reason: skein_codec::Reason::Bound }); }
     Ok(())
 }
 
 fn check_limits_2(limits: &Limits) -> Result<(), Problem> {
+    if limits.tier_posting_link > CEILINGS.tier_posting_link { return Err(Problem { path: Path::TierPostingLink, reason: skein_codec::Reason::Bound }); }
     if limits.tier_posting_description > CEILINGS.tier_posting_description { return Err(Problem { path: Path::TierPostingDescription, reason: skein_codec::Reason::Bound }); }
     if limits.tier_posting_landings > CEILINGS.tier_posting_landings { return Err(Problem { path: Path::TierPostingLandings, reason: skein_codec::Reason::Bound }); }
     if limits.tier_posting_comments > CEILINGS.tier_posting_comments { return Err(Problem { path: Path::TierPostingComments, reason: skein_codec::Reason::Bound }); }
@@ -6879,11 +6916,11 @@ fn check_limits_2(limits: &Limits) -> Result<(), Problem> {
     if limits.follow_entry_commits > CEILINGS.follow_entry_commits { return Err(Problem { path: Path::FollowEntryCommits, reason: skein_codec::Reason::Bound }); }
     if limits.follow_skip_reason > CEILINGS.follow_skip_reason { return Err(Problem { path: Path::FollowSkipReason, reason: skein_codec::Reason::Bound }); }
     if limits.follow_parity_run > CEILINGS.follow_parity_run { return Err(Problem { path: Path::FollowParityRun, reason: skein_codec::Reason::Bound }); }
-    if limits.follow_question_words > CEILINGS.follow_question_words { return Err(Problem { path: Path::FollowQuestionWords, reason: skein_codec::Reason::Bound }); }
     Ok(())
 }
 
 fn check_limits_3(limits: &Limits) -> Result<(), Problem> {
+    if limits.follow_question_words > CEILINGS.follow_question_words { return Err(Problem { path: Path::FollowQuestionWords, reason: skein_codec::Reason::Bound }); }
     if limits.follow_question_answer_some > CEILINGS.follow_question_answer_some { return Err(Problem { path: Path::FollowQuestionAnswer, reason: skein_codec::Reason::Bound }); }
     if limits.follow_row_branch > CEILINGS.follow_row_branch { return Err(Problem { path: Path::FollowRowBranch, reason: skein_codec::Reason::Bound }); }
     if limits.follow_row_stopped_some > CEILINGS.follow_row_stopped_some { return Err(Problem { path: Path::FollowRowStopped, reason: skein_codec::Reason::Bound }); }
@@ -8050,6 +8087,142 @@ impl Names {
         for item_0 in self.resources.as_slice() {
         item_0.check(limits)?;
         }
+        Ok(())
+    }
+}
+
+/// `LimitSet` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum LimitSet {
+    /// `operation` without a payload.
+    Operation,
+    /// `entries` without a payload.
+    Entries,
+    /// `holds` without a payload.
+    Holds,
+    /// `tasks` without a payload.
+    Tasks,
+    /// `changes` without a payload.
+    Changes,
+    /// `steps` without a payload.
+    Steps,
+    /// `subscriptions` without a payload.
+    Subscriptions,
+    /// `watches` without a payload.
+    Watches,
+    /// `heads` without a payload.
+    Heads,
+    /// `repositories` without a payload.
+    Repositories,
+    /// `design_writers` carrying `Name`.
+    DesignWriters(Name),
+}
+
+impl LimitSet {
+    /// Checks the payload against the given limits.
+    pub fn new(limits: &Limits, value: Self) -> Result<Self, Problem> {
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        match self {
+            Self::DesignWriters(record) => Name::check(record, limits),
+            Self::Operation | Self::Entries | Self::Holds | Self::Tasks | Self::Changes | Self::Steps | Self::Subscriptions | Self::Watches | Self::Heads | Self::Repositories => Ok(()),
+        }?;
+        Ok(())
+    }
+}
+
+/// Movable fields of `LimitHold`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LimitHoldParts {
+    /// The `task` field.
+    pub task: u64,
+    /// The `member` field.
+    pub member: Box<[u8]>,
+    /// The `configured` field.
+    pub configured: u64,
+    /// The `needed` field.
+    pub needed: u64,
+    /// The `revision` field.
+    pub revision: u64,
+    /// The `at` field.
+    pub at: u64,
+    /// The `room` field.
+    pub room: u64,
+    /// The `set` field.
+    pub set: LimitSet,
+    /// The `order` field.
+    pub order: u64,
+}
+
+/// `LimitHold` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LimitHold {
+    task: u64,
+    member: Box<[u8]>,
+    configured: u64,
+    needed: u64,
+    revision: u64,
+    at: u64,
+    room: u64,
+    set: LimitSet,
+    order: u64,
+}
+
+impl LimitHold {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: LimitHoldParts) -> Result<Self, Problem> {
+        let LimitHoldParts { task, member, configured, needed, revision, at, room, set, order } = parts;
+        let value = Self { task, member, configured, needed, revision, at, room, set, order };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `task` field.
+    #[must_use]
+    pub fn task(&self) -> u64 { self.task }
+
+    /// Reads the `member` field.
+    #[must_use]
+    pub fn member(&self) -> &[u8] { &self.member }
+
+    /// Reads the `configured` field.
+    #[must_use]
+    pub fn configured(&self) -> u64 { self.configured }
+
+    /// Reads the `needed` field.
+    #[must_use]
+    pub fn needed(&self) -> u64 { self.needed }
+
+    /// Reads the `revision` field.
+    #[must_use]
+    pub fn revision(&self) -> u64 { self.revision }
+
+    /// Reads the `at` field.
+    #[must_use]
+    pub fn at(&self) -> u64 { self.at }
+
+    /// Reads the `room` field.
+    #[must_use]
+    pub fn room(&self) -> u64 { self.room }
+
+    /// Reads the `set` field.
+    #[must_use]
+    pub fn set(&self) -> &LimitSet { &self.set }
+
+    /// Reads the `order` field.
+    #[must_use]
+    pub fn order(&self) -> u64 { self.order }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> LimitHoldParts { LimitHoldParts { task: self.task, member: self.member, configured: self.configured, needed: self.needed, revision: self.revision, at: self.at, room: self.room, set: self.set, order: self.order } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.member.len() > usize::try_from(limits.limit_hold_member.min(CEILINGS.limit_hold_member)).expect("u32 fits usize") { return Err(Problem { path: Path::LimitHoldMember, reason: skein_codec::Reason::Bound }); }
+        self.set.check(limits)?;
         Ok(())
     }
 }
@@ -30667,6 +30840,8 @@ pub enum Value {
     ChangeHot(Box<ChangeHot>),
     /// `milestone` carrying `MilestoneRow`.
     Milestone(MilestoneRow),
+    /// `limit_hold` carrying `LimitHold`.
+    LimitHold(LimitHold),
 }
 
 impl Value {
@@ -30714,6 +30889,7 @@ impl Value {
             Self::ChangeCold(record) => ChangeCold::check(record, limits),
             Self::ChangeHot(record) => ChangeHot::check(record, limits),
             Self::Milestone(record) => MilestoneRow::check(record, limits),
+            Self::LimitHold(record) => LimitHold::check(record, limits),
             Self::Ci(_) | Self::Landed(_) | Self::Writer(_) | Self::Flight(_) | Self::ForgeNumber(_) | Self::Playground(_) | Self::Dismissed(_) | Self::Looked(_) | Self::Away(_) | Self::HistoryChange(_) | Self::HistoryLanding(_) | Self::HistoryLast(_) | Self::RedNumber(_) => Ok(()),
         }?;
         Ok(())
@@ -31883,6 +32059,126 @@ impl Names {
         let decoded_task = reader.u64().ok_or(Problem { path: Path::NamesTask, reason: skein_codec::Reason::Short })?;
         let decoded_resources = { let count = match skein_codec::read_count(reader, limits.names_resources.min(CEILINGS.names_resources)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::NamesResources, reason }), }; if count > reader.remaining() / 7 { return Err(Problem { path: Path::NamesResources, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Name::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { task: decoded_task, resources: decoded_resources })
+    }
+}
+
+impl LimitSet {
+    /// Measures this variant's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        match self {
+            Self::DesignWriters(record) => 1_u32.checked_add(Name::measure(record)).expect("schema ceilings fit u32"),
+            Self::Operation | Self::Entries | Self::Holds | Self::Tasks | Self::Changes | Self::Steps | Self::Subscriptions | Self::Watches | Self::Heads | Self::Repositories => 1,
+        }
+    }
+
+    /// Writes this variant's tag and payload.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        match self {
+            Self::Operation => writer.put(&[0_u8])?,
+            Self::Entries => writer.put(&[1_u8])?,
+            Self::Holds => writer.put(&[2_u8])?,
+            Self::Tasks => writer.put(&[3_u8])?,
+            Self::Changes => writer.put(&[4_u8])?,
+            Self::Steps => writer.put(&[5_u8])?,
+            Self::Subscriptions => writer.put(&[6_u8])?,
+            Self::Watches => writer.put(&[7_u8])?,
+            Self::Heads => writer.put(&[8_u8])?,
+            Self::Repositories => writer.put(&[9_u8])?,
+            Self::DesignWriters(record) => { writer.put(&[10_u8])?; record.encode(writer)?; }
+        }
+        Ok(())
+    }
+
+    /// Reads a whole variant and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::LimitSetTag, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: Path::LimitSetTag, reason: skein_codec::Reason::Short })?;
+        let value = match tag {
+            0 => Self::Operation,
+            1 => Self::Entries,
+            2 => Self::Holds,
+            3 => Self::Tasks,
+            4 => Self::Changes,
+            5 => Self::Steps,
+            6 => Self::Subscriptions,
+            7 => Self::Watches,
+            8 => Self::Heads,
+            9 => Self::Repositories,
+            10 => Self::DesignWriters(Name::decode_from(limits, reader)?),
+            _ => return Err(Problem { path: Path::LimitSetTag, reason: skein_codec::Reason::Tag }),
+        };
+        Ok(value)
+    }
+}
+
+impl LimitHold {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        let field_member = &self.member;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_member.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        let field_set = &self.set;
+        size = size.checked_add(field_set.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_task = &self.task;
+        writer.put(&field_task.to_be_bytes())?;
+        let field_member = &self.member;
+        writer.put(&u32::try_from(field_member.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_member.as_ref())?;
+        let field_configured = &self.configured;
+        writer.put(&field_configured.to_be_bytes())?;
+        let field_needed = &self.needed;
+        writer.put(&field_needed.to_be_bytes())?;
+        let field_revision = &self.revision;
+        writer.put(&field_revision.to_be_bytes())?;
+        let field_at = &self.at;
+        writer.put(&field_at.to_be_bytes())?;
+        let field_room = &self.room;
+        writer.put(&field_room.to_be_bytes())?;
+        let field_set = &self.set;
+        field_set.encode(writer)?;
+        let field_order = &self.order;
+        writer.put(&field_order.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::LimitHoldTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_task = reader.u64().ok_or(Problem { path: Path::LimitHoldTask, reason: skein_codec::Reason::Short })?;
+        let decoded_member = { let length = match skein_codec::read_len(reader, limits.limit_hold_member.min(CEILINGS.limit_hold_member)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::LimitHoldMember, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::LimitHoldMember, reason: skein_codec::Reason::Short })?) };
+        let decoded_configured = reader.u64().ok_or(Problem { path: Path::LimitHoldConfigured, reason: skein_codec::Reason::Short })?;
+        let decoded_needed = reader.u64().ok_or(Problem { path: Path::LimitHoldNeeded, reason: skein_codec::Reason::Short })?;
+        let decoded_revision = reader.u64().ok_or(Problem { path: Path::LimitHoldRevision, reason: skein_codec::Reason::Short })?;
+        let decoded_at = reader.u64().ok_or(Problem { path: Path::LimitHoldAt, reason: skein_codec::Reason::Short })?;
+        let decoded_room = reader.u64().ok_or(Problem { path: Path::LimitHoldRoom, reason: skein_codec::Reason::Short })?;
+        let decoded_set = LimitSet::decode_from(limits, reader)?;
+        let decoded_order = reader.u64().ok_or(Problem { path: Path::LimitHoldOrder, reason: skein_codec::Reason::Short })?;
+        Ok(Self { task: decoded_task, member: decoded_member, configured: decoded_configured, needed: decoded_needed, revision: decoded_revision, at: decoded_at, room: decoded_room, set: decoded_set, order: decoded_order })
     }
 }
 
@@ -55364,6 +55660,7 @@ impl Value {
             Self::ChangeCold(record) => 1_u32.checked_add(ChangeCold::measure(record)).expect("schema ceilings fit u32"),
             Self::ChangeHot(record) => 1_u32.checked_add(ChangeHot::measure(record)).expect("schema ceilings fit u32"),
             Self::Milestone(record) => 1_u32.checked_add(MilestoneRow::measure(record)).expect("schema ceilings fit u32"),
+            Self::LimitHold(record) => 1_u32.checked_add(LimitHold::measure(record)).expect("schema ceilings fit u32"),
         }
     }
 
@@ -55419,6 +55716,7 @@ impl Value {
             Self::ChangeCold(record) => { writer.put(&[46_u8])?; record.encode(writer)?; }
             Self::ChangeHot(record) => { writer.put(&[47_u8])?; record.encode(writer)?; }
             Self::Milestone(record) => { writer.put(&[48_u8])?; record.encode(writer)?; }
+            Self::LimitHold(record) => { writer.put(&[49_u8])?; record.encode(writer)?; }
         }
         Ok(())
     }
@@ -55482,6 +55780,7 @@ impl Value {
             46 => Self::ChangeCold(Box::new(ChangeCold::decode_from(limits, reader)?)),
             47 => Self::ChangeHot(Box::new(ChangeHot::decode_from(limits, reader)?)),
             48 => Self::Milestone(MilestoneRow::decode_from(limits, reader)?),
+            49 => Self::LimitHold(LimitHold::decode_from(limits, reader)?),
             _ => return Err(Problem { path: Path::ValueTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -56286,6 +56585,70 @@ impl Names {
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
         heap = heap.checked_add(0_u64)?.checked_add(List::<Name>::price(limits.names_resources)?.checked_add(u64::from(limits.names_resources).checked_mul(Name::decoded_bound_within(limits)?)?)?)?;
+        heap.checked_add(0)
+    }
+}
+
+impl LimitSet {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(Name::encoded_bound_within(limits)?);
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(Name::decoded_bound_within(limits)?);
+        biggest.checked_add(0)
+    }
+}
+
+impl LimitHold {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?.checked_add(4_u64.checked_add(u64::from(limits.limit_hold_member))?)?;
+        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
+        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
+        size = size.checked_add(8_u64)?.checked_add(LimitSet::encoded_bound_within(limits)?)?;
+        size = size.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.limit_hold_member))?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(LimitSet::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
 }
@@ -71190,7 +71553,7 @@ impl Value {
         biggest = biggest.max(HistoryLast::encoded_bound_within(limits)?).max(Red::encoded_bound_within(limits)?);
         biggest = biggest.max(RedNumber::encoded_bound_within(limits)?).max(RedPass::encoded_bound_within(limits)?);
         biggest = biggest.max(ChangeCold::encoded_bound_within(limits)?).max(ChangeHot::encoded_bound_within(limits)?);
-        biggest = biggest.max(MilestoneRow::encoded_bound_within(limits)?);
+        biggest = biggest.max(MilestoneRow::encoded_bound_within(limits)?).max(LimitHold::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
@@ -71227,7 +71590,7 @@ impl Value {
         biggest = biggest.max(HistoryLast::decoded_bound_within(limits)?).max(Red::decoded_bound_within(limits)?);
         biggest = biggest.max(RedNumber::decoded_bound_within(limits)?).max(RedPass::decoded_bound_within(limits)?);
         biggest = biggest.max(ChangeCold::decoded_bound_within(limits)?.checked_add(u64::try_from(size_of::<ChangeCold>()).ok()?)?).max(ChangeHot::decoded_bound_within(limits)?.checked_add(u64::try_from(size_of::<ChangeHot>()).ok()?)?);
-        biggest = biggest.max(MilestoneRow::decoded_bound_within(limits)?);
+        biggest = biggest.max(MilestoneRow::decoded_bound_within(limits)?).max(LimitHold::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }
@@ -71301,6 +71664,8 @@ fn encoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(DesignWriter::encoded_bound_within(limits)?);
     biggest = biggest.max(Hold::encoded_bound_within(limits)?);
     biggest = biggest.max(Names::encoded_bound_within(limits)?);
+    biggest = biggest.max(LimitSet::encoded_bound_within(limits)?);
+    biggest = biggest.max(LimitHold::encoded_bound_within(limits)?);
     biggest = biggest.max(LandingsTopic::encoded_bound_within(limits)?);
     biggest = biggest.max(CiTopic::encoded_bound_within(limits)?);
     biggest = biggest.max(NumberTopic::encoded_bound_within(limits)?);
@@ -71363,12 +71728,12 @@ fn encoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(PermissionValue::encoded_bound_within(limits)?);
     biggest = biggest.max(BranchCreationValue::encoded_bound_within(limits)?);
     biggest = biggest.max(Kind::encoded_bound_within(limits)?);
-    biggest = biggest.max(Provenance::encoded_bound_within(limits)?);
-    biggest = biggest.max(Summary::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(Provenance::encoded_bound_within(limits)?);
+    biggest = biggest.max(Summary::encoded_bound_within(limits)?);
     biggest = biggest.max(Comment::encoded_bound_within(limits)?);
     biggest = biggest.max(Review::encoded_bound_within(limits)?);
     biggest = biggest.max(ItemsAnswer::encoded_bound_within(limits)?);
@@ -71457,12 +71822,12 @@ fn encoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(EffectAccount::encoded_bound_within(limits)?);
     biggest = biggest.max(ResultText::encoded_bound_within(limits)?);
     biggest = biggest.max(ChangeResult::encoded_bound_within(limits)?);
-    biggest = biggest.max(ModelEffort::encoded_bound_within(limits)?);
-    biggest = biggest.max(LlmChoice::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(ModelEffort::encoded_bound_within(limits)?);
+    biggest = biggest.max(LlmChoice::encoded_bound_within(limits)?);
     biggest = biggest.max(Route::encoded_bound_within(limits)?);
     biggest = biggest.max(Held::encoded_bound_within(limits)?);
     biggest = biggest.max(Stands::encoded_bound_within(limits)?);
@@ -71551,12 +71916,12 @@ fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(LandingPrepare::encoded_bound_within(limits)?);
     biggest = biggest.max(LandingRepairAsk::encoded_bound_within(limits)?);
     biggest = biggest.max(LandingPrefix::encoded_bound_within(limits)?);
-    biggest = biggest.max(LandingResolve::encoded_bound_within(limits)?);
-    biggest = biggest.max(LandingAsk::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(LandingResolve::encoded_bound_within(limits)?);
+    biggest = biggest.max(LandingAsk::encoded_bound_within(limits)?);
     biggest = biggest.max(LandingAskSlot::encoded_bound_within(limits)?);
     biggest = biggest.max(LandingOperation::encoded_bound_within(limits)?);
     biggest = biggest.max(LandingRun::encoded_bound_within(limits)?);
@@ -71645,12 +72010,12 @@ fn encoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(SettingsReportFormat::encoded_bound_within(limits)?);
     biggest = biggest.max(SettingsGateReport::encoded_bound_within(limits)?);
     biggest = biggest.max(SettingsGate::encoded_bound_within(limits)?);
-    biggest = biggest.max(SettingsBranch::encoded_bound_within(limits)?);
-    biggest = biggest.max(SettingsFollows::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_4(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(SettingsBranch::encoded_bound_within(limits)?);
+    biggest = biggest.max(SettingsFollows::encoded_bound_within(limits)?);
     biggest = biggest.max(SettingsTier::encoded_bound_within(limits)?);
     biggest = biggest.max(RepositoryGates::encoded_bound_within(limits)?);
     biggest = biggest.max(ProjectGates::encoded_bound_within(limits)?);
@@ -71739,12 +72104,12 @@ fn encoded_bound_4(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(HistoryAsk::encoded_bound_within(limits)?);
     biggest = biggest.max(HistoryAsked::encoded_bound_within(limits)?);
     biggest = biggest.max(HistoryAnswer::encoded_bound_within(limits)?);
-    biggest = biggest.max(HistoryAnswered::encoded_bound_within(limits)?);
-    biggest = biggest.max(HistoryDelivered::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_5(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(HistoryAnswered::encoded_bound_within(limits)?);
+    biggest = biggest.max(HistoryDelivered::encoded_bound_within(limits)?);
     biggest = biggest.max(HistoryPause::encoded_bound_within(limits)?);
     biggest = biggest.max(HistoryPaused::encoded_bound_within(limits)?);
     biggest = biggest.max(HistoryMember::encoded_bound_within(limits)?);
@@ -71871,6 +72236,8 @@ fn decoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(DesignWriter::decoded_bound_within(limits)?);
     biggest = biggest.max(Hold::decoded_bound_within(limits)?);
     biggest = biggest.max(Names::decoded_bound_within(limits)?);
+    biggest = biggest.max(LimitSet::decoded_bound_within(limits)?);
+    biggest = biggest.max(LimitHold::decoded_bound_within(limits)?);
     biggest = biggest.max(LandingsTopic::decoded_bound_within(limits)?);
     biggest = biggest.max(CiTopic::decoded_bound_within(limits)?);
     biggest = biggest.max(NumberTopic::decoded_bound_within(limits)?);
@@ -71933,12 +72300,12 @@ fn decoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(PermissionValue::decoded_bound_within(limits)?);
     biggest = biggest.max(BranchCreationValue::decoded_bound_within(limits)?);
     biggest = biggest.max(Kind::decoded_bound_within(limits)?);
-    biggest = biggest.max(Provenance::decoded_bound_within(limits)?);
-    biggest = biggest.max(Summary::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(Provenance::decoded_bound_within(limits)?);
+    biggest = biggest.max(Summary::decoded_bound_within(limits)?);
     biggest = biggest.max(Comment::decoded_bound_within(limits)?);
     biggest = biggest.max(Review::decoded_bound_within(limits)?);
     biggest = biggest.max(ItemsAnswer::decoded_bound_within(limits)?);
@@ -72027,12 +72394,12 @@ fn decoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(EffectAccount::decoded_bound_within(limits)?);
     biggest = biggest.max(ResultText::decoded_bound_within(limits)?);
     biggest = biggest.max(ChangeResult::decoded_bound_within(limits)?);
-    biggest = biggest.max(ModelEffort::decoded_bound_within(limits)?);
-    biggest = biggest.max(LlmChoice::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(ModelEffort::decoded_bound_within(limits)?);
+    biggest = biggest.max(LlmChoice::decoded_bound_within(limits)?);
     biggest = biggest.max(Route::decoded_bound_within(limits)?);
     biggest = biggest.max(Held::decoded_bound_within(limits)?);
     biggest = biggest.max(Stands::decoded_bound_within(limits)?);
@@ -72121,12 +72488,12 @@ fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(LandingPrepare::decoded_bound_within(limits)?);
     biggest = biggest.max(LandingRepairAsk::decoded_bound_within(limits)?);
     biggest = biggest.max(LandingPrefix::decoded_bound_within(limits)?);
-    biggest = biggest.max(LandingResolve::decoded_bound_within(limits)?);
-    biggest = biggest.max(LandingAsk::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(LandingResolve::decoded_bound_within(limits)?);
+    biggest = biggest.max(LandingAsk::decoded_bound_within(limits)?);
     biggest = biggest.max(LandingAskSlot::decoded_bound_within(limits)?);
     biggest = biggest.max(LandingOperation::decoded_bound_within(limits)?);
     biggest = biggest.max(LandingRun::decoded_bound_within(limits)?);
@@ -72215,12 +72582,12 @@ fn decoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(SettingsReportFormat::decoded_bound_within(limits)?);
     biggest = biggest.max(SettingsGateReport::decoded_bound_within(limits)?);
     biggest = biggest.max(SettingsGate::decoded_bound_within(limits)?);
-    biggest = biggest.max(SettingsBranch::decoded_bound_within(limits)?);
-    biggest = biggest.max(SettingsFollows::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_4(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(SettingsBranch::decoded_bound_within(limits)?);
+    biggest = biggest.max(SettingsFollows::decoded_bound_within(limits)?);
     biggest = biggest.max(SettingsTier::decoded_bound_within(limits)?);
     biggest = biggest.max(RepositoryGates::decoded_bound_within(limits)?);
     biggest = biggest.max(ProjectGates::decoded_bound_within(limits)?);
@@ -72309,12 +72676,12 @@ fn decoded_bound_4(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(HistoryAsk::decoded_bound_within(limits)?);
     biggest = biggest.max(HistoryAsked::decoded_bound_within(limits)?);
     biggest = biggest.max(HistoryAnswer::decoded_bound_within(limits)?);
-    biggest = biggest.max(HistoryAnswered::decoded_bound_within(limits)?);
-    biggest = biggest.max(HistoryDelivered::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_5(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(HistoryAnswered::decoded_bound_within(limits)?);
+    biggest = biggest.max(HistoryDelivered::decoded_bound_within(limits)?);
     biggest = biggest.max(HistoryPause::decoded_bound_within(limits)?);
     biggest = biggest.max(HistoryPaused::decoded_bound_within(limits)?);
     biggest = biggest.max(HistoryMember::decoded_bound_within(limits)?);

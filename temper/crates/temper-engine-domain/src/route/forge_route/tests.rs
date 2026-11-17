@@ -1,6 +1,7 @@
 use super::{commit_text, landing_words, news_words};
 use alloc::boxed::Box;
 
+mod limit_holds;
 mod reds;
 mod room;
 mod settling;
@@ -896,10 +897,7 @@ fn saved_resources_keep_the_forge_in_their_path() {
     let tags = [forge::tag(1, 1), forge::tag(3, 1)];
     let resources = super::saved_resources(4, &tags).expect("valid tags");
     assert_ne!(resources[0].path, resources[1].path);
-    assert_eq!(
-        resources[0].path.as_ref(),
-        &[alloc::boxed::Box::from(1_u16.to_be_bytes()), alloc::boxed::Box::from(1_u32.to_be_bytes())]
-    );
+    assert_eq!(resources[0].path.as_ref(), &[Box::from(1_u16.to_be_bytes()), Box::from(1_u32.to_be_bytes())]);
     let decoded = super::saved_tags(&resources, 4).expect("valid saved paths");
     assert_eq!(decoded.as_ref(), tags.as_slice());
     let (domain, _) = two_forges();
@@ -908,7 +906,7 @@ fn saved_resources_keep_the_forge_in_their_path() {
     }
     assert!(super::saved_resources(4, &[0x0001_0001_0000_0001]).is_none());
     let mut malformed = resources.clone();
-    malformed[0].path[0] = alloc::boxed::Box::from(1_u32.to_be_bytes());
+    malformed[0].path[0] = Box::from(1_u32.to_be_bytes());
     assert!(super::saved_tags(&malformed, 4).is_none(), "a forge wider than u16 is invalid");
 }
 
@@ -5423,7 +5421,7 @@ fn follow_parameter_admission_names_missing_wrong_requester_and_live_commits() {
 #[test]
 fn head_refusal_logs_full_account_and_holds_only_a_concerned_task() {
     use super::{Work, forge, tasks};
-    const WORDS: &[u8] = b"record branch head on branch temper/2/c2 in org/repo: forge.client.resources = 2; required usage 3; reduce the named work or raise this limit in the deployment configuration, restart, then release";
+    const WORDS: &[u8] = b"record branch head on branch temper/2/c2 in org/repo: forge.client.resources is 2, and this needs 3: a limit in temper-limits. Ask temper to raise it, or raise it from Needs you. This goes on by itself once room frees or the limit rises.";
     for concerned in [false, true] {
         let (mut domain, env, task) = crate::tests::live_task(None, tasks::Executor::Agent { charter: 1 });
         let repository = adopted(1);
@@ -5459,10 +5457,10 @@ fn head_refusal_logs_full_account_and_holds_only_a_concerned_task() {
         assert_eq!(words.as_ref(), WORDS);
         assert!(domain.pop_fact().is_none());
         if let Some(task) = task {
-            let Some(Work::Tasks(event @ tasks::Event::HoldFrom { .. })) = domain.work.pop() else {
+            let Some(Work::ForgeLimitHold { row, words }) = domain.work.pop() else {
                 panic!("the concerned task is held");
             };
-            tasks::step(&mut domain.core.tasks, &env.with(env.limits.tasks), event, &mut skein_lib::Queue::uncapped());
+            super::limit_holds::apply_hold(&mut domain, &env, &mut decision, row, words);
             let tasks::Phase::Held { why, source: Some(source), .. } = &domain.core.tasks.task(task).unwrap().phase
             else {
                 panic!("retained resource hold");
@@ -5488,10 +5486,10 @@ fn a_configured_resource_limit_reaches_the_held_tasks_words() {
     });
     let mut decision = super::Decision::decide(&mut domain.journal, &env.limits.journal);
     super::outputs(&mut domain, &env, &mut decision, &mut out);
-    let Some(Work::Tasks(event @ tasks::Event::HoldFrom { .. })) = domain.work.pop() else {
+    let Some(Work::ForgeLimitHold { row, words }) = domain.work.pop() else {
         panic!("resource refusal routes a hold");
     };
-    tasks::step(&mut domain.core.tasks, &env.with(env.limits.tasks), event, &mut skein_lib::Queue::uncapped());
+    super::limit_holds::apply_hold(&mut domain, &env, &mut decision, row, words);
     let tasks::Phase::Held { why, source: Some(source), .. } = &domain.core.tasks.task(task).unwrap().phase else {
         panic!("refused task is held");
     };
@@ -5499,8 +5497,8 @@ fn a_configured_resource_limit_reaches_the_held_tasks_words() {
     let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("retained limit cause") };
     for text in [
         b"subscribe".as_slice(),
-        b"forge.paths_per_subscription = 4; required usage 5",
-        b"deployment configuration, restart, then release",
+        b"forge.paths_per_subscription is 4, and this needs 5",
+        b"This goes on by itself once room frees or the limit rises.",
     ] {
         let mut found = false;
         for part in words.windows(text.len()) {

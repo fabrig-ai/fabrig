@@ -357,6 +357,7 @@ fn key_is(key: &forge::Key, repository: Repository) -> bool {
         forge::Key::Call(_)
         | forge::Key::ProposedEffect(_)
         | forge::Key::Names(_)
+        | forge::Key::LimitHold(_)
         | forge::Key::Landed(_)
         | forge::Key::Entry(_)
         | forge::Key::Change(_)
@@ -484,6 +485,19 @@ fn names_repository(row: (&Key, &Record), repository: Repository) -> bool {
         }
         // These contain task, project, forge or setting identities, not repository identities.
         // ChangeHot's ownership is pinned with the cold part's key in assert_whole.
+        forge::Stored::LimitHold(row) => match &row.set {
+            forge::LimitSet::DesignWriters(name) => name_is(name, repository),
+            forge::LimitSet::Operation
+            | forge::LimitSet::Entries
+            | forge::LimitSet::Holds
+            | forge::LimitSet::Tasks
+            | forge::LimitSet::Changes
+            | forge::LimitSet::Steps
+            | forge::LimitSet::Subscriptions
+            | forge::LimitSet::Watches
+            | forge::LimitSet::Heads
+            | forge::LimitSet::Repositories => false,
+        },
         forge::Stored::RefusedSetting(_)
         | forge::Stored::Call { .. }
         | forge::Stored::Landed { .. }
