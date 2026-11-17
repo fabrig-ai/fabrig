@@ -126,6 +126,9 @@ fn document(f: &mut Fixture, newest: u32, lines: &[(u32, u32, Option<u32>, c::Se
     )
 }
 fn value(asked: Asked) -> Box<[u8]> {
+    value_at(asked, None)
+}
+fn value_at(asked: Asked, revision: Option<u32>) -> Box<[u8]> {
     let writer = match asked {
         Asked::Ways(value) => {
             let record = w::ProjectWays::new(
@@ -166,13 +169,18 @@ fn value(asked: Asked) -> Box<[u8]> {
     };
     // A whole typed setting, inside the forge's setting envelope.
     let bytes = writer.finish();
-    wire::setting_answer(&w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(bytes) }).unwrap())
+    wire::setting_answer(
+        &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(bytes), revision }).unwrap(),
+    )
 }
 fn page(root: &mut Domain, read: Token, record: Option<Box<[u8]>>) -> Queue<Request> {
     up(root, Up::ReadDone { read, result: Readout::Family { family: wire::FORGE, record } })
 }
 fn none() -> Box<[u8]> {
-    wire::setting_answer(&w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: None }).unwrap())
+    none_at(None)
+}
+fn none_at(revision: Option<u32>) -> Box<[u8]> {
+    wire::setting_answer(&w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: None, revision }).unwrap())
 }
 fn set(root: &mut Domain, asked: Asked) -> Queue<forge::Request> {
     let mut out = Queue::uncapped();
@@ -374,6 +382,7 @@ fn kind_six_is_read_on_the_tab_alone() {
         page(&mut f.root, found[0].0, Some(value(Asked::Questions(Route::Up))));
         assert_eq!(f.root.forge().questions(project), Some(Route::Up));
         assert!(reads(&go(&mut f.root, Address::Repositories { project }), 6).is_empty());
+        assert!(reads(&go(&mut f.root, Address::Settings { project }), 6).is_empty(), "the tab keeps its read");
     }
 }
 #[test]
@@ -390,7 +399,11 @@ fn no_value_is_the_stock() {
 #[test]
 fn a_refused_read_hides_and_a_malformed_value_too() {
     let malformed = wire::setting_answer(
-        &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(b"bad".as_slice().into()) }).unwrap(),
+        &w::SettingAnswer::new(
+            &w::CEILINGS,
+            w::SettingAnswerParts { revision: None, value: Some(b"bad".as_slice().into()) },
+        )
+        .unwrap(),
     );
     for result in [
         Readout::Limit,
@@ -416,26 +429,63 @@ fn a_refused_read_hides_and_a_malformed_value_too() {
     assert_eq!(f.root.forge().classes(f::PROJECT), None, "a decodable table must pass check");
 }
 #[test]
-fn a_changed_line_reads_again() {
+fn a_line_reads_again_only_for_a_newer_revision_or_a_reset() {
     for kind in [7, 6, 8] {
-        let mut f = fixture();
-        let out = go(&mut f.root, Address::Settings { project: f::PROJECT });
-        let read = initial_read(&f, kind, &out);
-        page(&mut f.root, read, Some(none()));
-        for (last, follows) in [
-            (Some(NEWEST), c::SettingFollows::Change),
-            (Some(NEXT), c::SettingFollows::Change),
-            (Some(NEXT), c::SettingFollows::Default),
-        ] {
-            let lines = [(kind, f::PROJECT, last, follows)];
-            let out = document(&mut f, NEXT, &lines);
-            let found = reads(&out, kind);
-            assert_eq!(found.len(), 1);
-            page(&mut f.root, found[0].0, Some(none()));
-            assert!(reads(&document(&mut f, NEXT, &lines), kind).is_empty(), "unchanged line");
+        for line_first in [false, true] {
+            for (read_revision, last, count) in [
+                (Some(4), Some(4), 0),
+                (Some(4), Some(3), 0),
+                (Some(4), Some(5), 1),
+                (Some(4), None, 1),
+                (None, None, 0),
+                (None, Some(4), 1),
+            ] {
+                let (mut f, _) = opened();
+                let out = go(&mut f.root, Address::Settings { project: f::PROJECT });
+                let read = initial_read(&f, kind, &out);
+                let lines = [(kind, f::PROJECT, last, c::SettingFollows::Change)];
+                let out = if line_first {
+                    assert!(reads(&document(&mut f, NEXT, &lines), kind).is_empty(), "read pending");
+                    page(&mut f.root, read, Some(none_at(read_revision)))
+                } else {
+                    assert!(reads(&page(&mut f.root, read, Some(none_at(read_revision))), kind).is_empty());
+                    document(&mut f, NEXT, &lines)
+                };
+                let found = reads(&out, kind);
+                assert_eq!(
+                    found.len(),
+                    count,
+                    "kind {kind}, line first {line_first}, read {read_revision:?}, line {last:?}"
+                );
+                if let Some((read, _)) = found.first() {
+                    assert!(reads(&page(&mut f.root, *read, Some(none_at(last))), kind).is_empty());
+                }
+                assert!(reads(&document(&mut f, NEXT, &lines), kind).is_empty(), "unchanged line");
+            }
         }
-        assert_eq!(reads(&document(&mut f, NEXT, &[]), kind).len(), 1, "removing a line reads the stock");
     }
+}
+#[test]
+fn a_follows_only_change_does_not_read_again() {
+    let (mut f, _) = opened();
+    assert!(reads(&page(&mut f.root, f.read, Some(value_at(Asked::Ways(SHOWN), Some(4)))), 7).is_empty());
+    for follows in [c::SettingFollows::Change, c::SettingFollows::Default] {
+        assert!(reads(&document(&mut f, NEXT, &[(7, f::PROJECT, Some(4), follows)]), 7).is_empty());
+    }
+    assert_eq!(f.root.forge().ways(f::PROJECT), Some(SHOWN));
+    let found = reads(&document(&mut f, NEXT, &[]), 7);
+    assert_eq!(found.len(), 1, "a missing line resets to the stock");
+    assert!(reads(&page(&mut f.root, found[0].0, Some(none())), 7).is_empty());
+}
+#[test]
+fn a_default_answer_consumes_the_line_its_read_was_asked_for() {
+    let (mut f, _) = opened();
+    document(&mut f, NEXT, &[(7, f::PROJECT, Some(4), c::SettingFollows::Change)]);
+    let found = reads(&page(&mut f.root, f.read, Some(none())), 7);
+    assert_eq!(found.len(), 1, "the line arrived while the first read was pending");
+    assert!(reads(&page(&mut f.root, found[0].0, Some(none())), 7).is_empty(), "one read for that line");
+    assert!(reads(&document(&mut f, NEXT, &[(7, f::PROJECT, None, c::SettingFollows::Default)]), 7).is_empty());
+    assert_eq!(reads(&document(&mut f, NEXT, &[(7, f::PROJECT, Some(5), c::SettingFollows::Change)]), 7).len(), 1);
 }
 #[test]
 fn one_read_at_a_time() {
@@ -451,7 +501,7 @@ fn one_read_at_a_time() {
         let out = page(&mut f.root, read, Some(none()));
         let found = reads(&out, kind);
         assert_eq!(found.len(), 1, "one follow-up for all changes");
-        assert!(reads(&page(&mut f.root, found[0].0, Some(value(asked.clone()))), kind).is_empty());
+        assert!(reads(&page(&mut f.root, found[0].0, Some(value_at(asked.clone(), Some(NEXT)))), kind).is_empty());
         assert_eq!(held(&f.root, control), Some(asked.clone()));
         let mut f = fixture();
         let read = initial_read(&f, kind, &Queue::uncapped());

@@ -469,7 +469,11 @@ fn shown_by_classes_or_an_on_row() {
             let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).unwrap());
             record.encode(&mut writer).unwrap();
             let record = wire::setting_answer(
-                &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(writer.finish()) }).unwrap(),
+                &w::SettingAnswer::new(
+                    &w::CEILINGS,
+                    w::SettingAnswerParts { revision: None, value: Some(writer.finish()) },
+                )
+                .unwrap(),
             );
             up(
                 &mut root,

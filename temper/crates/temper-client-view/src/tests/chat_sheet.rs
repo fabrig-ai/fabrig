@@ -107,7 +107,8 @@ impl Case {
                     } else {
                         None
                     };
-                    let answer = w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value }).unwrap();
+                    let answer =
+                        w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { revision: None, value }).unwrap();
                     Up::ReadDone {
                         read,
                         result: jig_client::Readout::Family {

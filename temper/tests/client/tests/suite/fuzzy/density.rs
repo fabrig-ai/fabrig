@@ -406,8 +406,11 @@ impl World {
             return Some(Readout::Family {
                 family: wire::FORGE,
                 record: Some(wire::setting_answer(
-                    &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(writer.finish()) })
-                        .expect("bounded density fixture"),
+                    &w::SettingAnswer::new(
+                        &w::CEILINGS,
+                        w::SettingAnswerParts { revision: None, value: Some(writer.finish()) },
+                    )
+                    .expect("bounded density fixture"),
                 )),
             });
         }

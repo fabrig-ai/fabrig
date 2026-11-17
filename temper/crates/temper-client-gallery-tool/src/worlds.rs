@@ -1004,8 +1004,11 @@ fn world_in_layout(
                                     Some(settings_bytes(name, setting.kind()))
                                 }
                             });
-                            let value = v1::SettingAnswer::new(&v1::CEILINGS, v1::SettingAnswerParts { value: bytes })
-                                .expect("stock setting");
+                            let value = v1::SettingAnswer::new(
+                                &v1::CEILINGS,
+                                v1::SettingAnswerParts { revision: None, value: bytes },
+                            )
+                            .expect("stock setting");
                             step(
                                 &mut root,
                                 Event::Client {
@@ -5092,8 +5095,9 @@ pub(super) fn project_ways(
         .expect("gallery project ways");
     let mut writer = skein_lib::Writer::new(usize::try_from(ways.measure()).expect("ways fit"));
     ways.encode(&mut writer).expect("measured ways");
-    let value = v::SettingAnswer::new(&v::CEILINGS, v::SettingAnswerParts { value: Some(writer.finish()) })
-        .expect("gallery setting answer");
+    let value =
+        v::SettingAnswer::new(&v::CEILINGS, v::SettingAnswerParts { revision: None, value: Some(writer.finish()) })
+            .expect("gallery setting answer");
     step(
         root,
         Event::Client {
@@ -5110,8 +5114,8 @@ pub(super) fn project_ways(
 
 pub(super) fn project_classes(root: &mut Domain, read: Token, out: &mut Queue<Request>) {
     use temper_client_protocol_wire::{self as wire, v1 as v};
-    let value =
-        v::SettingAnswer::new(&v::CEILINGS, v::SettingAnswerParts { value: None }).expect("stock project classes");
+    let value = v::SettingAnswer::new(&v::CEILINGS, v::SettingAnswerParts { revision: None, value: None })
+        .expect("stock project classes");
     step(
         root,
         Event::Client {

@@ -1383,8 +1383,8 @@ fn revision_setting_read_appends_after_the_deployment_tag() {
         .unwrap(),
     );
     for (read, bytes) in [
-        (v1::Read::Deployment, &[0, 28, 3][..]),
-        (revision, &[0, 28, 4, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4][..]),
+        (v1::Read::Deployment, &[0, 29, 3][..]),
+        (revision, &[0, 29, 4, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4][..]),
     ] {
         let record = v1::Reading::new(&limits, v1::ReadingParts { read }).unwrap();
         assert_eq!(crate::reading(&record).as_ref(), bytes);
@@ -1575,8 +1575,11 @@ fn settings_reads_and_answers_require_one_complete_bounded_record() {
         assert_eq!(wire::decode_reading(&bytes, &w::CEILINGS), Some(record));
         assert!(wire::decode_reading(&bytes[..bytes.len() - 1], &w::CEILINGS).is_none());
     }
-    let record =
-        w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(Box::new([6, 0, 0, 0])) }).unwrap();
+    let record = w::SettingAnswer::new(
+        &w::CEILINGS,
+        w::SettingAnswerParts { revision: None, value: Some(Box::new([6, 0, 0, 0])) },
+    )
+    .unwrap();
     let bytes = wire::setting_answer(&record);
     assert_eq!(wire::decode_setting_answer(&bytes, &w::CEILINGS), Some(record));
     let mut limits = w::CEILINGS;

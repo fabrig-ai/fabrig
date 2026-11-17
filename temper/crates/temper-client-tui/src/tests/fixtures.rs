@@ -275,7 +275,8 @@ fn ways_setting(drafts: bool, way: u32) -> Box<[u8]> {
     let mut writer = Writer::new(usize::try_from(value.measure()).unwrap());
     value.encode(&mut writer).unwrap();
     wire::setting_answer(
-        &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(writer.finish()) }).unwrap(),
+        &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { revision: None, value: Some(writer.finish()) })
+            .unwrap(),
     )
 }
 

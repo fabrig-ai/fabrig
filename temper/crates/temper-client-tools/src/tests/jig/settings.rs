@@ -2189,7 +2189,7 @@ fn forge_setting_page(value: Option<Box<[u8]>>) -> jig_client::Readout {
     jig_client::Readout::Family {
         family: wire::FORGE,
         record: Some(wire::setting_answer(
-            &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value }).unwrap(),
+            &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { revision: None, value }).unwrap(),
         )),
     }
 }

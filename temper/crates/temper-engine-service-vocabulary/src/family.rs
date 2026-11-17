@@ -2401,12 +2401,12 @@ pub fn forge_read(answer: root::ForgeReadAnswer, program_environment: &[u8], lim
             .ok()?;
             Some(wire::program_environment_answer(&record))
         }
-        root::ForgeReadAnswer::Setting(value) => {
+        root::ForgeReadAnswer::Setting { value, revision } => {
             let value = match value {
                 Some(value) => Some(temper_engine_smith::kinds::encode(&value.value)),
                 None => None,
             };
-            let record = w::SettingAnswer::new(limits, w::SettingAnswerParts { value }).ok()?;
+            let record = w::SettingAnswer::new(limits, w::SettingAnswerParts { value, revision }).ok()?;
             Some(wire::setting_answer(&record))
         }
         root::ForgeReadAnswer::ProposalItems { items: values, owned_approval } => {

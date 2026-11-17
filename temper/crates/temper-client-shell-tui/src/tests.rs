@@ -3289,7 +3289,8 @@ pub(crate) fn background_reply(request: &Request) -> Option<Report> {
     {
         use temper_client_protocol_wire::{self as wire, v1 as f};
         let record = wire::setting_answer(
-            &f::SettingAnswer::new(&f::CEILINGS, f::SettingAnswerParts { value: None }).expect("stock ways"),
+            &f::SettingAnswer::new(&f::CEILINGS, f::SettingAnswerParts { revision: None, value: None })
+                .expect("stock ways"),
         );
         w::ReadAnswer::Value(
             w::Owned::new(

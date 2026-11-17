@@ -551,7 +551,9 @@ pub fn root_at_with_classes(
                             },
                             _ => None,
                         };
-                        let answer = w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value }).unwrap();
+                        let answer =
+                            w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { revision: None, value })
+                                .unwrap();
                         temper_client_domain::step(
                             &mut root,
                             &env,

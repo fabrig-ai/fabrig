@@ -177,7 +177,10 @@ fn project_domain(second: Option<c::PartyKind>) -> Domain {
             ways.encode(&mut writer).expect("ways bytes");
             let answer = w::SettingAnswer::new(
                 &w::CEILINGS,
-                w::SettingAnswerParts { value: if setting.kind() == 7 { Some(writer.finish()) } else { None } },
+                w::SettingAnswerParts {
+                    revision: None,
+                    value: if setting.kind() == 7 { Some(writer.finish()) } else { None },
+                },
             )
             .expect("answer");
             up(

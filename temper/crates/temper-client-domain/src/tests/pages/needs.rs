@@ -1692,7 +1692,11 @@ fn stop_fixture(
         let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).unwrap());
         record.encode(&mut writer).unwrap();
         let bytes = wire::setting_answer(
-            &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(writer.finish()) }).unwrap(),
+            &w::SettingAnswer::new(
+                &w::CEILINGS,
+                w::SettingAnswerParts { revision: None, value: Some(writer.finish()) },
+            )
+            .unwrap(),
         );
         super::welcome::up(
             &mut root,
@@ -1830,7 +1834,8 @@ fn stop_show_elsewhere(root: &mut crate::Domain) {
     let mut writer = skein_lib::Writer::new(usize::try_from(classes.measure()).unwrap());
     classes.encode(&mut writer).unwrap();
     let record = wire::setting_answer(
-        &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(writer.finish()) }).unwrap(),
+        &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { revision: None, value: Some(writer.finish()) })
+            .unwrap(),
     );
     ways::told(
         &mut root.forge,

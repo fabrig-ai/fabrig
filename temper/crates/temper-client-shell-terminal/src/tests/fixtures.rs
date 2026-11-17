@@ -268,7 +268,9 @@ fn populate_page(
             } => {
                 use temper_client_protocol_wire::{self as wire, v1 as w};
                 if let w::Read::Setting(_) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read() {
-                    let value = w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: None }).unwrap();
+                    let value =
+                        w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { revision: None, value: None })
+                            .unwrap();
                     client::step(
                         root,
                         env,

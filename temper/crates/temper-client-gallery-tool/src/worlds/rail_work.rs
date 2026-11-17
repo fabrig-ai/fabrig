@@ -149,8 +149,9 @@ fn project_ways(root: &mut Domain, read: Token, drafts: bool, work: Work, out: &
     .expect("Work ways");
     let mut bytes = skein_lib::Writer::new(usize::try_from(ways.measure()).expect("ways fit"));
     ways.encode(&mut bytes).expect("measured ways");
-    let value = w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(bytes.finish()) })
-        .expect("setting answer");
+    let value =
+        w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { revision: None, value: Some(bytes.finish()) })
+            .expect("setting answer");
     step(
         root,
         Event::Client {

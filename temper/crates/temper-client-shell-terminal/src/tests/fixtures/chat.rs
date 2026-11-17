@@ -315,7 +315,11 @@ fn first_run_words(
                         result: jig_client::Readout::Family {
                             family: wire::FORGE,
                             record: Some(wire::setting_answer(
-                                &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: None }).unwrap(),
+                                &w::SettingAnswer::new(
+                                    &w::CEILINGS,
+                                    w::SettingAnswerParts { revision: None, value: None },
+                                )
+                                .unwrap(),
                             )),
                         },
                     })

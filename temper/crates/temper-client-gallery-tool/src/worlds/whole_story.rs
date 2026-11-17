@@ -618,7 +618,7 @@ pub(super) fn domain(name: &str, address: Address) -> Domain {
                         Some(wire::setting_answer(
                             &w::SettingAnswer::new(
                                 &w::CEILINGS,
-                                w::SettingAnswerParts { value: Some(writer.finish()) },
+                                w::SettingAnswerParts { revision: None, value: Some(writer.finish()) },
                             )
                             .expect("ways answer"),
                         ))

@@ -61,8 +61,11 @@ fn settle(host: &mut Host, duties: Duties, linked: bool, proposed: bool) {
                     let mut writer = Writer::new(usize::try_from(value.measure()).unwrap());
                     value.encode(&mut writer).unwrap();
                     let record = wire::setting_answer(
-                        &f::SettingAnswer::new(&f::CEILINGS, f::SettingAnswerParts { value: Some(writer.finish()) })
-                            .unwrap(),
+                        &f::SettingAnswer::new(
+                            &f::CEILINGS,
+                            f::SettingAnswerParts { revision: None, value: Some(writer.finish()) },
+                        )
+                        .unwrap(),
                     );
                     let answer = w::ReadAnswer::Value(family(record));
                     let mut writer = Writer::new(usize::try_from(answer.measure()).unwrap());

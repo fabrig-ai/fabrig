@@ -637,8 +637,11 @@ fn classes(root: &mut Domain, read: skein_lib::Token, name: &str, out: &mut Queu
     let record = classes_record(&classes).expect("gallery classes");
     let mut writer = Writer::new(usize::try_from(record.measure()).expect("classes bytes"));
     record.encode(&mut writer).expect("measured classes");
-    let document = w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(writer.finish()) })
-        .expect("classes answer");
+    let document = w::SettingAnswer::new(
+        &w::CEILINGS,
+        w::SettingAnswerParts { revision: root.forge().settings_newest(), value: Some(writer.finish()) },
+    )
+    .expect("classes answer");
     driver::step(
         root,
         Event::Client {

@@ -1783,7 +1783,7 @@ fn embedded_client_refusals_keep_their_bytes_at_current_client_version() {
     let mut after = skein_lib::Writer::new(1);
     jig_client_protocol_wire::v28::Refusal::Unknown.encode(&mut after).unwrap();
     assert_eq!(after.finish().as_ref(), &[9]);
-    assert_eq!(wire::CLIENT_VERSION, 28);
+    assert_eq!(wire::CLIENT_VERSION, 29);
 }
 
 #[test]
@@ -2711,13 +2711,24 @@ fn forge_settings_reads_reach_the_root_with_their_authorization_envelope() {
 fn forge_settings_answers_use_the_kinds_codec_and_preserve_proposal_edits() {
     use forge::settings::{Edit, SettingKey, SettingSlot, SizedValue, Value};
     let value = SizedValue { size: 4, value: Value::Charter(6) };
-    let record = family::forge_read(root::ForgeReadAnswer::Setting(Some(value.clone())), &[], &w::CEILINGS).unwrap();
+    let record = family::forge_read(
+        root::ForgeReadAnswer::Setting { value: Some(value.clone()), revision: Some(4) },
+        &[],
+        &w::CEILINGS,
+    )
+    .unwrap();
     assert_eq!(
         wire::decode_setting_answer(&record, &w::CEILINGS).unwrap().value().as_deref(),
         Some(temper_engine_smith::kinds::encode(&value.value).as_ref())
     );
-    let empty = family::forge_read(root::ForgeReadAnswer::Setting(None), &[], &w::CEILINGS).unwrap();
-    assert!(wire::decode_setting_answer(&empty, &w::CEILINGS).unwrap().value().is_none());
+    assert_eq!(wire::decode_setting_answer(&record, &w::CEILINGS).unwrap().revision(), &Some(4));
+    for revision in [Some(5), None] {
+        let empty =
+            family::forge_read(root::ForgeReadAnswer::Setting { value: None, revision }, &[], &w::CEILINGS).unwrap();
+        let answer = wire::decode_setting_answer(&empty, &w::CEILINGS).unwrap();
+        assert!(answer.value().is_none());
+        assert_eq!(answer.revision(), &revision);
+    }
     let items = Box::new([
         (SettingKey { kind: 3, scope: 0, number: 1, slot: SettingSlot::Proposal(7) }, Edit::Set(value.clone())),
         (SettingKey { kind: 2, scope: 9, number: 2, slot: SettingSlot::Proposal(7) }, Edit::Remove),
