@@ -1116,57 +1116,88 @@ fn held_person_and_funds_cards_cut_titles_before_joining_lines() {
 }
 
 #[test]
-fn complete_title_only_card_words_are_omitted() {
-    card_words("Release the runner", false, false);
+fn complete_title_only_held_card_words_are_omitted() {
+    held_card_words("Release the runner", false, false, c::HoldCategory::Stalled);
 }
 
 #[test]
-fn card_bodies_keep_the_title_and_body_words() {
-    card_words("Release the runner\nIt waits on CI.", false, true);
+fn complete_title_only_funds_card_words_are_omitted() {
+    held_card_words("Release the runner", false, false, c::HoldCategory::Budget);
 }
 
 #[test]
-fn partial_title_only_card_words_stay() {
-    card_words("Release the runner", true, true);
+fn complete_title_only_person_card_words_are_omitted() {
+    person_card_words("Release the runner", false, false);
 }
 
-fn card_words(written: &str, cut: bool, drawn: bool) {
-    let mut held = held(Some(c::HoldCategory::Stalled));
+#[test]
+fn held_card_bodies_keep_the_title_and_body_words() {
+    held_card_words("Release the runner\nIt waits on CI.", false, true, c::HoldCategory::Stalled);
+}
+
+#[test]
+fn funds_card_bodies_keep_the_title_and_body_words() {
+    held_card_words("Release the runner\nIt waits on CI.", false, true, c::HoldCategory::Budget);
+}
+
+#[test]
+fn person_card_bodies_keep_the_title_and_body_words() {
+    person_card_words("Release the runner\nIt waits on CI.", false, true);
+}
+
+#[test]
+fn partial_title_only_held_card_words_stay() {
+    held_card_words("Release the runner", true, true, c::HoldCategory::Stalled);
+}
+
+#[test]
+fn partial_title_only_funds_card_words_stay() {
+    held_card_words("Release the runner", true, true, c::HoldCategory::Budget);
+}
+
+#[test]
+fn partial_title_only_person_card_words_stay() {
+    person_card_words("Release the runner", true, true);
+}
+
+fn held_card_words(written: &str, cut: bool, drawn: bool, reason: c::HoldCategory) {
+    let mut held = held(Some(reason));
     held.task.chip.title = words("Release the runner");
     held.task.spec.specification.words = words(written);
     held.task.spec.specification.words.cut = cut;
-    let mut funds = held.clone();
-    funds.task.hold.as_mut().unwrap().reason = c::HoldCategory::Budget;
+    card_words(held_row(held), written, cut, drawn);
+}
+
+fn person_card_words(written: &str, cut: bool, drawn: bool) {
     let mut person = person();
     person.task.title = words("Release the runner");
     person.spec.specification.words = words(written);
     person.spec.specification.words.cut = cut;
-    for row in [
-        held_row(held),
-        held_row(funds),
-        (
-            c::ObjectKey::PersonTask(person.task.task),
-            c::Read::PersonTask { task: person.task.task },
-            c::ReadValue::PersonTask(Box::new(person)),
-        ),
-    ] {
-        let root = kinds(&[row]);
-        for view in [f::browser_page_view(&root), f::page_view(&root)] {
-            let paragraphs: Vec<_> = view
-                .tree()
-                .nodes()
-                .iter()
-                .enumerate()
-                .filter(|(_, n)| n.role == Role::Paragraph)
-                .map(|(at, _)| f::nodes_text(super::inbox::subtree(view.tree(), at)))
-                .collect();
-            assert_eq!(
-                paragraphs.iter().any(|text| skein_lib::bytes::find(text, b"Release the runner").is_some()),
-                drawn,
-                "{written}, cut={cut}"
-            );
-            assert_eq!(has(&view, b"It waits on CI."), written.contains('\n'));
-        }
+    let row = (
+        c::ObjectKey::PersonTask(person.task.task),
+        c::Read::PersonTask { task: person.task.task },
+        c::ReadValue::PersonTask(Box::new(person)),
+    );
+    card_words(row, written, cut, drawn);
+}
+
+fn card_words(row: (c::ObjectKey, c::Read, c::ReadValue), written: &str, cut: bool, drawn: bool) {
+    let root = kinds(&[row]);
+    for view in [f::browser_page_view(&root), f::page_view(&root)] {
+        let paragraphs: Vec<_> = view
+            .tree()
+            .nodes()
+            .iter()
+            .enumerate()
+            .filter(|(_, n)| n.role == Role::Paragraph)
+            .map(|(at, _)| f::nodes_text(super::inbox::subtree(view.tree(), at)))
+            .collect();
+        assert_eq!(
+            paragraphs.iter().any(|text| skein_lib::bytes::find(text, b"Release the runner").is_some()),
+            drawn,
+            "{written}, cut={cut}"
+        );
+        assert_eq!(has(&view, b"It waits on CI."), written.contains('\n'));
     }
 }
 
