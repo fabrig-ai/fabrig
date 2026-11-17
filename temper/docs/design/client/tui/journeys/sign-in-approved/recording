@@ -2,16 +2,16 @@ journey 2
 seed 11073284726658256119
 clocks 0 0
 screen 24 80 none
-version "0.0.0 (8ff45f39f92b)"
-address "127.0.0.1:37349"
+version "0.0.0 (000000000000)"
+address "127.0.0.1:10001"
 turn 629814488201096 1794944199260354421
 start
 send 1 approval-ask "" none
 deadline none
 turn 629814495061030 1794944199267212232
-reply 1 "\x00\x00\x00\x00 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxKMJXGPVV\x18\xE8\xEC\xC8\xEF\xAF\xE8\x8E"
+reply 1 "\x00\x00\x00\x00 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxBBBBBBBB\x18\xE8\xEC\xC8\xEF\xAF\xE8\x8E"
 send 2 sign-in-approval "\x00\x00\x00 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" none
-browse "http://127.0.0.1:37349/terminal?code=KMJX-GPVV"
+browse "http://127.0.0.1:10001/terminal?code=BBBB-BBBB"
 deadline 629874493888749
 turn 629814507724044 1794944199279875356
 opened done
@@ -41,7 +41,7 @@ send 7 read "\x01\x00\x01\x00\x00\x00#\x00\x00\x00\x0D\x01\x00\x00\x00\x00\x00\x
 send 8 read "\x01\x00\x01\x00\x00\x00#\x00\x00\x00\x0D\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00#\x00" "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 save "stream" "\x00\x1F\x00\x02\x00\x00\x00\x10\x90-\xB3\xA7\xC4\x16\xF2A\xE1\xB8\x9A\xFB-\x13\x9CS"
 note until 1795030600291891446
-signed "127.0.0.1:37349"
+signed "127.0.0.1:10001"
 deadline 629835536572453
 turn 629815539956726 1794944200312107918
 saved
