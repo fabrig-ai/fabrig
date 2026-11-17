@@ -820,7 +820,7 @@ fn every_row_is_a_name_the_parser_takes() {
     for (index, row) in limits::NAMES.iter().enumerate() {
         let mut changed = small;
         let value = (row.value)(&small);
-        let other = if row.name == "setup.state_life_ms" { value - 1 } else { value + 1 };
+        let other = if row.name == "setup.state_life_ms" || value == u64::MAX { value - 1 } else { value + 1 };
         assert_eq!(limits::find(row.name.as_bytes()).unwrap().name, row.name);
         assert_eq!(limits::apply(&mut changed, row.name.as_bytes(), other), Ok(()), "{}", row.name);
         assert_eq!((row.value)(&changed), other, "{}", row.name);

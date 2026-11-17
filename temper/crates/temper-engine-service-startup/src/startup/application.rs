@@ -118,6 +118,7 @@ pub struct Identity {
 pub struct Worker {
     pub root: Box<[u8]>,
 }
+#[expect(clippy::too_many_lines, reason = "one strict limits read applies overrides after deriving the sources")]
 fn configured_limits(
     document: &Document,
     at: u32,
@@ -144,11 +145,15 @@ fn configured_limits(
     {
         problems.push(path.member(b"profile"), What::Profile);
     }
-    let mut limits = limits::stock();
-    if limits::derive(&mut limits, sources).is_none() {
-        problems.push(path.clone(), What::Jig(config::What::Bound));
-        return None;
-    }
+    let (live_goals, tool_payload) = temper_service_core::derived::figures(document);
+    let sources = temper_service_core::derived::process_sources(document, sources);
+    let mut limits = match limits::base(live_goals, tool_payload, sources) {
+        Ok((_jig, own)) => own,
+        Err(found) => {
+            problems.push(path.clone(), What::Jig(found.what));
+            return None;
+        }
+    };
     let path = path.member(b"overrides");
     if let Some(at) = overrides
         && let Some(mut object) = read::overrides(document, at, &path, problems)
@@ -163,6 +168,13 @@ fn configured_limits(
             let Some(value_at) = object.member(document, name) else { continue };
             match config::read::integer(document, value_at, u64::MAX) {
                 Ok(value) => {
+                    if name == b"transcript_memory" {
+                        problems.push(
+                            path.member(name),
+                            What::Against { other: b"engine.memory_bytes, which sets transcript_memory for now" },
+                        );
+                        continue;
+                    }
                     if name == b"checkout.preparations" && value == 0 {
                         problems.push(path.member(name), What::Jig(config::What::Because(b"0; requires at least 1")));
                     }
@@ -184,6 +196,14 @@ fn configured_limits(
         problems.append(found, &Path::root());
     }
     let application = temper_service_core::startup::member(document, 0, b"application").unwrap_or(0);
+    if !temper_service_core::derived::overridden(document, application, b"forge.landing_members") {
+        limits.forge.landing_members = limits::stock().forge.landing_members.min(limits.forge.holds);
+    }
+    if !temper_service_core::derived::overridden(document, application, b"forge.landings")
+        && let Some(room) = limits.forge.holds.checked_div(limits.forge.landing_members)
+    {
+        limits.forge.landings = limits.forge.landings.min(room);
+    }
     if !temper_service_core::derived::overridden(document, application, b"forge_component.body_bytes") {
         match temper_service_core::derived::forge_body(limits.forge.client.op_bytes) {
             Some(body) => limits.forge_component.body_bytes = body,

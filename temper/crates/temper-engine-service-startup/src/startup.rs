@@ -173,7 +173,7 @@ pub fn engine_limits(
     check_memory_bytes(memory_bytes)?;
     jig.clients.wire.keyed_value_some = crate::limits::client_value_bytes(jig, own);
     let mut root = crate::limits::engine_candidate(jig, own);
-    root.memory_bytes = memory_bytes;
+    root.transcript_memory = memory_bytes;
     let mut problems = Problems::empty();
     checks::call_answer(Path::root().member(b"engine"), jig.core.call_answer_bytes, &mut problems);
     checks::engine_envelope(&root, &mut problems);
@@ -317,12 +317,17 @@ pub fn engine_with_sources(
     given: &crate::stock::Given,
     sources: temper_service_core::derived::Sources,
 ) -> Result<config::Engine, config::Problems> {
-    let mut base = config::stock();
-    if let Err(found) = temper_service_core::derived::engine(&mut base, sources) {
-        let mut problems = config::Problems::empty();
-        problems.push(found.path, found.what);
-        return Err(problems);
-    }
+    let (live_goals, tool_payload) = temper_service_core::derived::figures(document);
+    let sources = temper_service_core::derived::process_sources(document, sources);
+    let mut base = match crate::limits::base(live_goals, tool_payload, sources) {
+        Ok((jig, _own)) => jig,
+        Err(found) => {
+            let mut problems = config::Problems::empty();
+            problems.push(found.path, found.what);
+            return Err(problems);
+        }
+    };
+    temper_service_core::derived::follow_tasks(document, at, &mut base);
     let mut engine =
         config::engine_over(document, at, directories, config::Defaults::Passed, &fixed(directories)?, &base)?;
     let stock = match given {

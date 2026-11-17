@@ -66,7 +66,7 @@ fn stock_box(account: OneAccount) -> StockBox {
     .expect("init application");
     assert!(problems.is_empty());
     let mut limits = crate::limits::engine_candidate(&parsed.limits, &application.limits);
-    limits.memory_bytes = parsed.memory;
+    limits.transcript_memory = parsed.memory;
     let mut core = jig_protocol_config::core(&parsed, [31; 16], 91);
     core.kinds = crate::stock::kinds(&limits, 1);
     let config = engine::Config {

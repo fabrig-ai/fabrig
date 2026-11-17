@@ -236,6 +236,7 @@ const FORGE: forge::Limits = forge::Limits {
     sitting: temper_engine_domain_forge::SITTING,
 };
 const ROOT: Root = Root {
+    transcript_memory: u64::MAX,
     journal: engine::JournalLimits {
         // Commits awaiting durability, from the root world.
         commits: 3,
@@ -317,6 +318,8 @@ const CLIENTS: Clients = Clients {
 pub fn small() -> Limits {
     let shared = shared();
     Limits {
+        live_goals: 40,
+        tool_payload: 63_740,
         picker: Picker { page: 30 },
         routes: Routes { query_bytes: 2048 },
         setup: temper_forge_setup::limits::host(),

@@ -102,8 +102,13 @@ impl Driver {
 
     /// A cold root with a story's byte budget, shared by its construction and environment.
     #[must_use]
-    pub fn with_budget(store: Store, config: engine::Config, limits: &engine::Limits, memory_bytes: u64) -> Driver {
-        let limits = engine::Limits { memory_bytes, ..*limits };
+    pub fn with_budget(
+        store: Store,
+        config: engine::Config,
+        limits: &engine::Limits,
+        transcript_memory: u64,
+    ) -> Driver {
+        let limits = engine::Limits { transcript_memory, ..*limits };
         Self::cold(store, config, &limits)
     }
 

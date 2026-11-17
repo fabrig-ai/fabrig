@@ -887,7 +887,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
 /// turn bytes are under the budget (domain/root.md, 4.1). Only an
 /// activation asks; nothing else waits on bytes.
 pub(crate) fn within_budget(domain: &Domain, limits: &Limits) -> bool {
-    domain.held_bytes() < limits.memory_bytes
+    domain.held_bytes() < limits.transcript_memory
 }
 
 pub(crate) fn admits(domain: &Domain, limits: &Limits) -> bool {

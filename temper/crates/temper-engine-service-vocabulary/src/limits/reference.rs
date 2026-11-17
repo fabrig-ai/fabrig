@@ -1,5 +1,5 @@
 //! Named limits as checked-in reference pages (temper/docs/design/protocol/documentation.md, 8).
-use super::{NAMES, Unit, stock};
+use super::{Applies, NAMES, Unit, stock};
 use skein_lib::{Decimal, Overflow, Writer};
 use temper_forge_setup::limits as setup;
 
@@ -13,13 +13,29 @@ pub fn reference(out: &mut Writer) -> Result<(), Overflow> {
         if name.name.starts_with("setup.") {
             continue;
         }
-        row(name.name, unit(name.unit), (name.value)(&limits), name.line, &mut owner, out)?;
+        row(
+            name.name,
+            unit(name.unit),
+            (name.value)(&limits),
+            name.line,
+            ("temper-limits", name.applies),
+            &mut owner,
+            out,
+        )?;
     }
     let limits = setup::stock();
     for name in &setup::NAMES {
         // The shared forge client name is already rendered from the service's stock.
         if name.name.starts_with("setup.") {
-            row(name.name, setup_unit(name.unit), (name.value)(&limits), name.line, &mut owner, out)?;
+            row(
+                name.name,
+                setup_unit(name.unit),
+                (name.value)(&limits),
+                name.line,
+                ("temper-limits", Applies::NextStart),
+                &mut owner,
+                out,
+            )?;
         }
     }
     let limits = setup::host();
@@ -29,11 +45,27 @@ pub fn reference(out: &mut Writer) -> Result<(), Overflow> {
             shared |= plan.name == name.name;
         }
         if !shared {
-            row(name.name, setup_unit(name.unit), (name.value)(&limits), name.line, &mut owner, out)?;
+            row(
+                name.name,
+                setup_unit(name.unit),
+                (name.value)(&limits),
+                name.line,
+                ("temper-limits", Applies::NextStart),
+                &mut owner,
+                out,
+            )?;
         }
     }
     for name in &setup::FETCH_NAMES {
-        row(name.name, setup_unit(name.unit), (name.value)(&setup::FETCH_BYTES), name.line, &mut owner, out)?;
+        row(
+            name.name,
+            setup_unit(name.unit),
+            (name.value)(&setup::FETCH_BYTES),
+            name.line,
+            ("temper-limits", Applies::NextStart),
+            &mut owner,
+            out,
+        )?;
     }
     let limits = temper_box_machine::limits::stock();
     for name in &temper_box_machine::limits::NAMES {
@@ -42,7 +74,7 @@ pub fn reference(out: &mut Writer) -> Result<(), Overflow> {
             temper_box_machine::limits::Unit::Bytes => "bytes",
             temper_box_machine::limits::Unit::Milliseconds => "milliseconds",
         };
-        row(name.name, unit, (name.value)(&limits), name.line, &mut owner, out)?;
+        row(name.name, unit, (name.value)(&limits), name.line, ("temper-limits", Applies::NextStart), &mut owner, out)?;
     }
     Ok(())
 }
@@ -69,7 +101,7 @@ pub fn engine_reference_with(out: &mut Writer, introduction: &[u8]) -> Result<()
             jig_protocol_config::names::Unit::Bytes => "bytes",
             jig_protocol_config::names::Unit::Milliseconds => "milliseconds",
         };
-        row(name.name, unit, (name.value)(&limits), name.line, &mut owner, out)?;
+        row(name.name, unit, (name.value)(&limits), name.line, ("limits", Applies::NextStart), &mut owner, out)?;
     }
     Ok(())
 }
@@ -95,6 +127,7 @@ fn row(
     unit: &str,
     value: u64,
     line: &str,
+    setting: (&str, Applies),
     owner: &mut &'static str,
     out: &mut Writer,
 ) -> Result<(), Overflow> {
@@ -102,14 +135,14 @@ fn row(
     if prefix != *owner {
         out.put(b"\n## ")?;
         out.put(prefix.as_bytes())?;
-        out.put(b"\n\n")?;
+        out.put(b"\n\n| Name | Unit | Stock | Kind | Applies | Bounds |\n|---|---|---|---|---|---|\n")?;
         *owner = prefix;
     }
-    out.put(b"- `")?;
+    out.put(b"| `")?;
     out.put(name.as_bytes())?;
-    out.put(b"`: ")?;
+    out.put(b"` | ")?;
     out.put(unit.as_bytes())?;
-    out.put(b", ")?;
+    out.put(b" | ")?;
     let digits = Decimal::of(value);
     let digits = digits.as_bytes();
     for (index, digit) in digits.iter().enumerate() {
@@ -118,7 +151,14 @@ fn row(
         }
         out.put(core::slice::from_ref(digit))?;
     }
-    out.put(b". ")?;
+    out.put(b" | ")?;
+    out.put(setting.0.as_bytes())?;
+    out.put(b" | ")?;
+    out.put(match setting.1 {
+        Applies::AtOnce => b"at once",
+        Applies::NextStart => b"next start",
+    })?;
+    out.put(b" | ")?;
     out.put(line.as_bytes())?;
-    out.put(b"\n")
+    out.put(b" |\n")
 }

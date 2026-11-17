@@ -587,6 +587,7 @@ fn init_documents_start_without_carrier_overrides() {
     for name in own_names {
         input["application"]["limits"]["overrides"].as_object_mut().unwrap().remove(name);
     }
+    input["application"]["limits"]["overrides"]["tool_payload"] = 10_662_u32.into();
     let agent = fixtures::parsed_agent(fixtures::stock_configuration(10_662, 8192).unwrap());
     let bytes = serde_json::to_vec(&input).unwrap();
     let checked = checked_profile_with_files(&bytes, &agent, &super::stock::files());
@@ -607,15 +608,16 @@ fn init_documents_start_without_carrier_overrides() {
             assert_eq!((named.value)(&checked.limits), previous, "application {name}");
         }
     }
-    let worker_bytes = serde_json::to_vec(&input["workers"][0]).unwrap();
     let document = jig_protocol_config::document(
-        &worker_bytes,
+        &bytes,
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
     )
     .unwrap();
+    let workers =
+        jig_protocol_config::read::list(&document, document.member(0, b"workers").unwrap(), document.len()).unwrap();
     let worker = temper_service_core::derived::worker_document(
         &document,
-        0,
+        *workers.get(0).unwrap(),
         &jig_protocol_config::Directories::working(),
         temper_service_core::derived::Sources::agent(&agent.declaration()),
     )

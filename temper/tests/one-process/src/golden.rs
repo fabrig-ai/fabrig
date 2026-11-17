@@ -809,6 +809,9 @@ pub(crate) fn bridge_kept_profiles(document: &mut serde_json::Value) {
     limits.as_object_mut().expect("kept object").remove("profile");
     let overrides = limits["overrides"].as_object_mut().expect("kept object");
     for name in &temper_service::limits::NAMES {
+        if name.name == "transcript_memory" {
+            continue;
+        }
         overrides.entry(name.name).or_insert_with(|| (name.value)(&own).into());
     }
 }

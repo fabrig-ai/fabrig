@@ -121,7 +121,7 @@ fn due_tasks_activate_within_the_byte_budget_as_earlier_runs_drain() {
     assert_eq!(driver.root.held_bytes(), 2 * ALLOWANCE);
     driver.send(held.remove(0));
     hold_transcripts(&mut driver, &mut held);
-    assert!(driver.root.held_bytes() >= driver.env.limits.memory_bytes);
+    assert!(driver.root.held_bytes() >= driver.env.limits.transcript_memory);
     assert!(assigned(&driver) >= 1, "fleet places a completed preparation while bytes bind");
     assert_eq!(held.len(), 2, "the third activation follows the first preparation's drain");
     for event in held {

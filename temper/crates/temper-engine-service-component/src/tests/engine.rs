@@ -725,7 +725,7 @@ fn a_started_engines_root_uses_the_documents_engine_memory_bytes() {
     let memory = settings.jig.memory;
     fixtures::fill_files(&mut settings);
     let service = crate::Service::engine(settings, &fixtures::seeds(), None, fixtures::forge_runtime()).unwrap();
-    assert_eq!(service.engine.as_ref().expect("started engine").env.limits.memory_bytes, memory);
+    assert_eq!(service.engine.as_ref().expect("started engine").env.limits.transcript_memory, memory);
 }
 
 #[test]

@@ -17,7 +17,7 @@ fn startup_carries_the_components_stock_kinds_and_period_span() {
     .unwrap();
     let settings = start.engine;
     let mut limits = crate::limits::engine(&settings.jig.limits, &settings.limits).unwrap();
-    limits.memory_bytes = settings.jig.memory;
+    limits.transcript_memory = settings.jig.memory;
     limits.host_reply_bytes = settings.host_reply_bytes;
     let core = crate::system::core_config(&settings.jig, &seeds);
     let connector = *core.connectors.first().unwrap();

@@ -324,6 +324,7 @@ fn load_document_over(
     given: &crate::stock::Given,
     sources: temper_service_core::derived::Sources,
 ) -> Result<(Shape, Option<Parsed>), Problems> {
+    let sources = temper_service_core::derived::process_sources(document, sources);
     let mut whole = match members::object(document, 0, "document") {
         Ok(object) => object,
         Err(what) => return Err(problem(Path::root(), What::Jig(what))),

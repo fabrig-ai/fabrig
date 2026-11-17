@@ -5,7 +5,7 @@ mod names;
 mod reference;
 use alloc::boxed::Box;
 use jig_domain_link::{JobBound, JobKind};
-pub use names::{NAMES, Name, Unit, find};
+pub use names::{Applies, NAMES, Name, Unit, find};
 pub use reference::{engine_reference, engine_reference_with, reference};
 use skein_lib::{Duration, List};
 use temper_engine_domain as engine;
@@ -15,6 +15,7 @@ pub use temper_service_core::limits::{Checkout, GitComponent};
 /// Root's own limits, beyond jig's child limits.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Root {
+    pub transcript_memory: u64,
     pub journal: engine::JournalLimits,
     pub loads: engine::loads::Limits,
     pub brief: engine::BriefLimits,
@@ -46,6 +47,8 @@ pub struct Picker {
 /// Temper's domain limits, each under its owner's prefix.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Limits {
+    pub live_goals: u32,
+    pub tool_payload: u32,
     pub setup: temper_forge_setup::limits::Host,
     pub routes: Routes,
     pub records: Records,
@@ -265,6 +268,7 @@ const FORGE: forge::Limits = forge::Limits {
     sitting: temper_engine_domain_forge::SITTING,
 };
 const ROOT: Root = Root {
+    transcript_memory: 1_073_741_824,
     journal: engine::JournalLimits {
         // Three journal commit stages: queued, syncing and durable.
         commits: 3,
@@ -351,6 +355,8 @@ pub const SOCKETS: u32 = 256;
 pub fn stock() -> Limits {
     let shared = temper_service_core::limits::stock();
     Limits {
+        live_goals: temper_service_core::derived::LIVE_GOALS,
+        tool_payload: temper_service_core::derived::STOCK.payload,
         picker: Picker { page: 30 },
         routes: Routes { query_bytes: 2048 },
         setup: temper_forge_setup::limits::host(),
@@ -372,6 +378,42 @@ pub fn stock() -> Limits {
             secret_bytes: 512,
         },
     }
+}
+/// Steps 1–3 of configuration/derived.md, 4, shared by both document readers.
+pub fn base(
+    live_goals: u32,
+    tool_payload: u32,
+    sources: temper_service_core::derived::Sources,
+) -> Result<(jig_protocol_config::Limits, Limits), jig_protocol_config::Problem> {
+    let mut own = stock();
+    own.live_goals = live_goals;
+    own.tool_payload = tool_payload;
+    let mut counts = temper_service_core::derived::ForgeCounts {
+        tasks: own.forge.tasks,
+        holds: own.forge.holds,
+        subscriptions: own.forge.subscriptions,
+        entries: own.forge.entries,
+        client_entries: own.forge.client.entries,
+        client_resources: own.forge.client.resources,
+        issues: own.forge.issues,
+        landings: own.forge.landings,
+        landing_members: own.forge.landing_members,
+    };
+    let jig = temper_service_core::derived::base(live_goals, tool_payload, sources, &mut counts)?;
+    own.forge.tasks = counts.tasks;
+    own.forge.holds = counts.holds;
+    own.forge.subscriptions = counts.subscriptions;
+    own.forge.entries = counts.entries;
+    own.forge.client.entries = counts.client_entries;
+    own.forge.client.resources = counts.client_resources;
+    own.forge.issues = counts.issues;
+    own.forge.landings = counts.landings;
+    own.forge.landing_members = counts.landing_members;
+    derive(&mut own, sources.with_payload(tool_payload)).ok_or(jig_protocol_config::Problem {
+        path: jig_protocol_config::Path::root().member(b"limits"),
+        what: jig_protocol_config::What::Bound,
+    })?;
+    Ok((jig, own))
 }
 /// Apply temper's carriers before the document's overrides (configuration/derived.md, 5.1).
 pub fn derive(limits: &mut Limits, sources: temper_service_core::derived::Sources) -> Option<()> {
@@ -423,8 +465,8 @@ pub fn engine_candidate(jig: &jig_protocol_config::Limits, limits: &Limits) -> e
     engine::Limits {
         streams: jig.clients.streams,
         routes: jig.routes,
-        // The budget is the engine's own memory_bytes, set where it starts.
-        memory_bytes: u64::MAX,
+        // The start supplies engine.memory_bytes until the budget moves to settings.
+        transcript_memory: limits.root.transcript_memory,
         watermark: engine::default_watermark(&limits.root.journal),
         public_watermark: engine::default_watermark(&limits.root.journal).checked_div(2).expect("half the watermark"),
         public_reads: jig.clients.public.reads,

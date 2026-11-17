@@ -1103,16 +1103,12 @@ fn startup_requires_room_for_the_core_and_two_charter_documents() {
 fn capacity_overrides_name_the_failed_dependency() {
     let initial = super::stock::generated();
     for (member, value, causes) in [
-        (b"tasks.tasks".as_slice(), 129, &["tasks.exemptions", "768", "tasks.tasks"][..]),
-        (b"tasks.tasks", 769, &["tasks.tasks", "769", "people.inbox_tasks", "1538"][..]),
-        (b"tasks.project_tasks", 64, &[][..]),
+        (b"tasks.project_tasks".as_slice(), 64, &[][..]),
         (
             b"tasks.batch",
             1025,
             &["tasks.batch", "1025", "TaskInterests.result_followups", "1024", "schema ceiling", "reduce"],
         ),
-        (b"tasks.delegates", 81, &["tasks.delegates", "81", "people.operations", "82"]),
-        (b"tasks.delegates", 82, &["tasks.delegates", "82", "people.operations", "83"]),
         (b"documents.lines", 8, &[][..]),
         (b"tasks.tree_tasks", 128, &[][..]),
         (b"tasks.message_bytes", 874_121, &["tasks.message_bytes", "874121", "tasks.inbox_bytes", "874121"]),

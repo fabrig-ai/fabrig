@@ -150,6 +150,9 @@ pub const fn stock() -> Shared {
 }
 /// Every override known to a document, including the other owners' names.
 pub const NAMES: &[&str] = &[
+    "live_goals",
+    "tool_payload",
+    "transcript_memory",
     "sign_in.members",
     "sign_in.pending",
     "sign_in.deadline_ms",
