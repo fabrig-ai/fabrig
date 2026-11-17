@@ -820,6 +820,8 @@ pub enum DriftChange {
 /// Durable progress while a closing task releases its connector resources.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ReleaseRow {
+    /// Its durable place in the outbox line (domain/forge/room.md, 3–4).
+    pub room: Option<u64>,
     pub task: u64,
     pub root: u64,
     pub ending: ReleaseEnding,
@@ -1026,6 +1028,7 @@ pub struct ChangeSource {
 /// A change task's parameters and progress (temper/docs/design/domain/forge/change/README.md, 1, and temper/docs/design/domain/forge/branches.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeRow {
+    pub room: Option<u64>,
     pub source: Option<ChangeSource>,
     pub kept: Option<skein_forge::api::Commit>,
     pub regate: Option<Regate>,
@@ -1132,6 +1135,7 @@ pub struct ChangeCold {
 /// A change's hot store part (temper/docs/design/protocol/store.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeHot {
+    pub room: Option<u64>,
     pub kept: Option<skein_forge::api::Commit>,
     pub regate: Option<Regate>,
     pub task_release: Option<TaskRelease>,
@@ -1172,6 +1176,7 @@ impl ChangeRow {
     #[expect(clippy::too_many_lines, reason = "each field is moved explicitly into its cold or hot store part")]
     pub fn split(self) -> (ChangeCold, ChangeHot) {
         let Self {
+            room,
             source,
             kept,
             regate,
@@ -1245,6 +1250,7 @@ impl ChangeRow {
                 report,
             },
             ChangeHot {
+                room,
                 kept,
                 regate,
                 task_release,
@@ -1305,6 +1311,7 @@ impl ChangeRow {
             report,
         } = cold;
         let ChangeHot {
+            room,
             kept,
             regate,
             task_release,
@@ -1339,6 +1346,7 @@ impl ChangeRow {
         } = hot;
         assert_eq!(cold_task, task, "change parts name one task");
         Self {
+            room,
             source,
             kept,
             regate,
@@ -1489,6 +1497,7 @@ pub enum LandingRefusal {
 /// Family 23, committed together with its task's decision (domain/landing.md, 12).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingRow {
+    pub room: Option<u64>,
     pub job: Option<crate::history::JobRecord>,
     pub landing: landing::Landing,
     pub asks: Box<[Option<change::Ask>]>,
@@ -2346,10 +2355,19 @@ pub enum Event {
     Enqueue {
         entry: skein_forge_client::Entry,
     },
+    /// Keep an admitted call's entry into its flight's reserved room.
+    EnqueueCall {
+        owner: Token,
+        entry: skein_forge_client::Entry,
+    },
     /// Keep a projection candidate after core admission.
     KeepProjection {
         row: IssueRow,
         entry: skein_forge_client::Entry,
+    },
+    /// Return a projection flight's room when it ends without an entry.
+    DropProjection {
+        entry: u64,
     },
     /// A milestone's identity and end from the tracked-task projection (domain/milestones.md, 8).
     Milestone {
@@ -2467,6 +2485,10 @@ pub enum Event {
     },
     /// Re-derive the queue after the root keeps changed review facts (domain/forge/queues.md).
     ReviewsChanged {
+        task: u64,
+    },
+    /// The root cannot step an asked waiter while its task is held.
+    RoomUnavailable {
         task: u64,
     },
     /// Gather fresh forge facts and step one registered change.

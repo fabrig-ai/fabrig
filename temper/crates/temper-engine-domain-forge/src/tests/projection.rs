@@ -100,7 +100,7 @@ fn missing_comment() -> Answer {
     }
 }
 
-fn goal_view() -> issues::GoalView {
+pub(super) fn goal_view() -> issues::GoalView {
     issues::GoalView {
         phase: issues::Phase::Done,
         goal: GOAL,
@@ -171,7 +171,7 @@ fn a_projection_meeting_a_full_outbox_waits_for_room() {
             requests(&mut d, &environment, Some(Event::Enqueue { entry: status(n, 8) }));
             requests(&mut d, &environment, Some(Event::Committed { entry: n }));
         }
-        assert_eq!(d.effect_room(&LIMITS, 0), room, "{name}");
+        assert_eq!(d.effect_room(&LIMITS), room, "{name}");
         let issue = d.issue(GOAL).expect("saved desired projection").clone();
         let prior_deadline = d.next_wall_deadline();
         let when = Wall::from_nanos(environment.wall.as_nanos() + LIMITS.issue_policy.interval.as_nanos());
@@ -190,7 +190,7 @@ fn a_projection_meeting_a_full_outbox_waits_for_room() {
         assert!(!d.full_outbox_met(), "{name}: a new step clears the mark");
         if free {
             requests(&mut d, &environment, Some(Event::Withdraw { entry: FIRST }));
-            assert!(d.effect_room(&LIMITS, 0), "{name}: withdrawal frees room");
+            assert!(d.effect_room(&LIMITS), "{name}: withdrawal frees room");
             environment.wall = Wall::from_nanos(when.as_nanos() - 1);
             environment.now = Time::from_nanos(environment.wall.as_nanos());
             let early = fired(&mut d, &environment);

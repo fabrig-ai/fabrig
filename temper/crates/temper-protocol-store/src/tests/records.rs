@@ -1218,6 +1218,7 @@ fn release_comments_decode_only_within_the_deployment_byte_bound() {
             comment.push(b'x').expect("fixture bytes");
         }
         let row = forge::Stored::Release(forge::ReleaseRow {
+            room: None,
             task: 1,
             root: 1,
             ending: forge::ReleaseEnding::Cancelled,
@@ -1229,6 +1230,26 @@ fn release_comments_decode_only_within_the_deployment_byte_bound() {
             releasing: true,
         });
         assert_eq!(records::decode(&records::encode(&row), &bounds).is_ok(), fits, "{bytes}");
+    }
+}
+
+#[test]
+fn release_room_places_round_trip() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    for room in [None, Some(1), Some(u64::MAX)] {
+        let row = forge::Stored::Release(forge::ReleaseRow {
+            room,
+            task: 1,
+            root: 1,
+            ending: forge::ReleaseEnding::Cancelled,
+            close_pull: Some(3),
+            comment: Some(Box::from(b"cancelled".as_slice())),
+            pending: None,
+            failed: false,
+            effects_settled: true,
+            releasing: true,
+        });
+        assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
     }
 }
 
@@ -1426,7 +1447,11 @@ fn landing_rows_preserve_phases_proofs_asks_and_effects() {
                 Some(c::Ask::Repair { gate: 0, candidate: [1; 32], below: None }),
             ] {
                 let row = forge::Stored::Landing(forge::LandingRow {
+<<<<<<< HEAD
                     flake_reruns: Box::new([]),
+=======
+                    room: Some(11),
+>>>>>>> b8446ac2651a3173b1018dea8a2c5a9d50d622ee
                     job: Some(forge::history::JobRecord {
                         step: forge::history::JobStep {
                             task: 71,
@@ -1622,7 +1647,11 @@ fn landing_faults_and_own_holds_are_mutually_exclusive() {
             let row = v25::LandingRow::new(
                 &v25::CEILINGS,
                 v25::LandingRowParts {
+<<<<<<< HEAD
                     flake_reruns: List::with_capacity(0),
+=======
+                    room: None,
+>>>>>>> b8446ac2651a3173b1018dea8a2c5a9d50d622ee
                     landing,
                     asks: List::with_capacity(0),
                     entries: List::with_capacity(0),
@@ -3164,6 +3193,7 @@ fn change_parts_round_trip_agree_with_keys_and_join_the_generated_rows() {
         if row.task & 1 != 0 {
             use jig_domain_tasks::{LlmChoice, ModelEffort};
             use temper_engine_domain_forge_change::{Early, Open, Stands, StartedFrom};
+            row.room = Some(random.next_u64());
             let model = ModelEffort { model: 0, effort: None };
             row.producing_llm =
                 Some(LlmChoice { account: None, main: model, subagents: Box::new([model]), later: None });

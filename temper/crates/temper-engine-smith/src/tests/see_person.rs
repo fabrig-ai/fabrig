@@ -616,6 +616,7 @@ fn panel(pull: Option<u64>) -> Box<temper_engine_domain_forge::Document> {
         pull,
         step: f::PanelStep::Queued { place: 1, ahead: Box::new([]) },
         hold: Some(c::Hold::Repairs),
+        wait: None,
         runs: None,
         ci: c::Status::Passed,
         ci_required: true,

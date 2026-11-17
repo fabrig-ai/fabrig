@@ -796,6 +796,9 @@ Three kinds join `forge/README.md`'s section 4, each a row of its own:
   its own held branches). The prepare job's pushes are the worker's, under the landing's
   holds; the branches are released as the landing closes, by the release a
   change's branch takes (`forge/branches.md`).
+- **A full outbox is a wait:** a landing's write that finds no room
+  waits in the outbox's line, at the step its decision started from,
+  and decides again when asked (`forge/room.md`, 3), never a hold.
 - **The landing rules govern kind 19 as they govern kind 4,** the merge
   (`forge/change/gates.md`, 2): each requirement judged at the candidate, CI being
   the test gates by receipt.

@@ -33,6 +33,7 @@ mod link;
 mod make;
 mod making;
 mod milestones;
+mod outbox_room;
 mod panel;
 mod playground;
 mod projection;
@@ -41,6 +42,7 @@ pub(crate) mod records;
 pub(crate) mod reds;
 mod refusals;
 mod release;
+mod release_room;
 mod removal;
 mod requires;
 pub(crate) mod restore_fit;
@@ -247,7 +249,11 @@ fn the_connectors_own_reads_are_outside_the_roots_range() {
         &mut d,
         Event::Landing {
             row: LandingRow {
+<<<<<<< HEAD
                 flake_reruns: Box::new([]),
+=======
+                room: None,
+>>>>>>> b8446ac2651a3173b1018dea8a2c5a9d50d622ee
                 job: None,
                 landing: policy::Landing {
                     last_left: None,
@@ -1311,7 +1317,9 @@ fn a_held_effect_survives_a_restart_out_of_the_clients_outbox() {
     // Nothing is looked for: the client never had the held entry.
     assert_eq!(outputs(&mut d, Event::SettleOutbox).as_ref(), &[Request::RestartDone { stage: RestartStage::Settled }]);
     assert!(ready(&mut d).is_empty());
-    assert!(!d.effect_room(&LIMITS, 7), "the held entry keeps its room");
+    let mut limits = LIMITS;
+    limits.entries = 1;
+    assert!(!d.effect_room(&limits), "the held entry keeps its room");
 }
 
 #[test]
@@ -1330,7 +1338,7 @@ fn a_held_effect_asked_again_is_looked_for_first_even_with_an_otherwise_full_out
         outputs(&mut d, Event::Enqueue { entry: status(number, 8) });
         outputs(&mut d, Event::Committed { entry: number });
     }
-    assert!(!d.effect_room(&LIMITS, 0), "the outbox is full");
+    assert!(!d.effect_room(&LIMITS), "the outbox is full");
     assert_eq!(
         outputs(&mut d, Event::Resolve { entry: 11, again: true }).as_ref(),
         &[Request::Save {
@@ -1356,6 +1364,7 @@ fn a_held_effect_asked_again_is_looked_for_first_even_with_an_otherwise_full_out
 
 fn settling_release(comment: Option<Box<[u8]>>) -> ReleaseRow {
     ReleaseRow {
+        room: None,
         task: 7,
         root: 7,
         ending: ReleaseEnding::Done,

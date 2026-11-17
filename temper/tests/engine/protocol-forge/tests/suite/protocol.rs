@@ -11,6 +11,7 @@ use temper_engine_domain_forge_issues as issues;
 use temper_engine_protocol_forge_world::{fixtures, protocol::Protocol};
 fn change_row() -> top::ChangeRow {
     top::ChangeRow {
+        room: None,
         source: None,
         kept: None,
         regate: None,

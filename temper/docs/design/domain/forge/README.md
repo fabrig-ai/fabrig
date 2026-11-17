@@ -9,7 +9,8 @@ landing and the requirements its merge meets; landing queues, a forge's own merg
 queue among them; updates and conflicts; issues; following another
 project's branch (`follows.md`); depending on another project
 (`dependencies.md`); a goal's reds, the failures its branch carries
-(`reds.md`); and the ways temper takes part in what
+(`reds.md`); the outbox's room, and the line of writes waiting for it
+(`room.md`); and the ways temper takes part in what
 others own. Its protocol layer, the component that
 makes each call to a forge and hears its deliveries, is
 `../../protocol/forge/README.md`. What is still open is listed in section 11.
@@ -271,9 +272,18 @@ recovery are skein's `forge/client.md`, section 7. temper's effects:
 
 - **The outbox is bounded** by the connector's `entries` limit: no entry
   is committed past it, and room frees only as an entry leaves it, by its
-  write's outcome or its withdrawal. What asks for an effect while it is
-  full waits or is refused by its own rule; a goal's projection waits
-  (`issues.md`).
+  write's outcome or its withdrawal. A full outbox is a wait, never a
+  hold (`room.md`): a change's effect, a landing's write, release
+  cleanup and a goal branch's making that find no room wait in one line,
+  first come first served, and are admitted in order as entries leave,
+  each reading its facts afresh and admitted by its authority again; the
+  wait survives a restart in its place, and a cancel ends it. An agent's
+  call that finds no room is answered `Unavailable` at once, the room its
+  check finds reserved until its entry is kept (`room.md`, 5); a goal's
+  projection waits its interval (`issues.md`). Only a write that can
+  never be sent refuses: one its repository's adoption does not take,
+  an entry number in use, or one over `forge.client.op_bytes`
+  (`room.md`, 6).
 - **Each row is a kind of its own** (jig's `domain/connectors.md`,
   3.1): a policy that grants writing issues grants each kind it means.
 - **A write in flight is a row of its own,** `Flight { task, entry }`

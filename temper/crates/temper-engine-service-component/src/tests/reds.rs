@@ -80,6 +80,7 @@ pub(super) fn seed_reds(service: &mut crate::Service, task: u64) {
 
 pub(super) fn seed_check_change(service: &mut crate::Service, task: u64) {
     seed_reds(service, 77);
+<<<<<<< HEAD
     let row = check_change_row(task);
     for record in [forge::Stored::Change(Box::new(row)), forge::Stored::RedNumber { last: 2 }] {
         service.engine.as_mut().unwrap().step(root::Event::Forge(Box::new(forge::Event::Restore { record })));
@@ -90,6 +91,10 @@ pub(super) fn seed_check_change(service: &mut crate::Service, task: u64) {
 fn check_change_row(task: u64) -> forge::ChangeRow {
     use temper_engine_domain_forge_change as change;
     forge::ChangeRow {
+=======
+    let row = forge::ChangeRow {
+        room: None,
+>>>>>>> b8446ac2651a3173b1018dea8a2c5a9d50d622ee
         source: None,
         kept: None,
         regate: None,

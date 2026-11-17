@@ -456,6 +456,7 @@ fn add_releases(name: &top::Name, rows: &mut List<(&'static str, top::Stored)>) 
         rows.push((
             label,
             top::Stored::Release(top::ReleaseRow {
+                room: None,
                 task: 1,
                 root: 2,
                 ending,
@@ -891,6 +892,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         Change, Delegate, EffectResult, Freshness, Gate, GateKind, GateReport, Hold, Status,
     };
     top::ChangeRow {
+        room: None,
         source: None,
         kept: None,
         regate: None,

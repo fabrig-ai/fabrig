@@ -326,6 +326,13 @@ impl<'a> Change<'a> {
         line(self.panel)
     }
     #[must_use]
+    pub fn wait(self) -> Option<W> {
+        match self.panel.wait() {
+            Some(w::ChangeWait::OutboxRoom) => Some(W::OutboxRoom),
+            None => None,
+        }
+    }
+    #[must_use]
     pub fn hold(self) -> Option<(W, W, Box<[Hole]>)> {
         let cause = self.panel.hold().as_ref()?;
         let holes: Box<[Hole]> = if let w::Hold::Authority(value) = cause {

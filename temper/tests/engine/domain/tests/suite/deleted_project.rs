@@ -158,6 +158,7 @@ fn ended_change(repository: Repository) -> forge::Stored {
             last_checked: None,
             clock: None,
         },
+        room: None,
         task_release: None,
         job: None,
         signed: Box::new([]),

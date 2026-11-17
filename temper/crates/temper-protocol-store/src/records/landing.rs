@@ -435,7 +435,11 @@ pub(super) fn encode(row: &top::LandingRow) -> w::LandingRow {
             asks,
             entries,
             job: super::history::encode_job_record(row.job.as_ref()),
+<<<<<<< HEAD
             flake_reruns: encode_flake_reruns(&row.flake_reruns),
+=======
+            room: row.room,
+>>>>>>> b8446ac2651a3173b1018dea8a2c5a9d50d622ee
         },
     )
     .expect(FITS)
@@ -530,7 +534,11 @@ fn decode_run(run: w::LandingRun) -> top::LandingRun {
     top::LandingRun { id, attempt, ended, clock: super::change::decode_clock(clock) }
 }
 pub(super) fn decode(row: w::LandingRow) -> Result<top::LandingRow, super::Undecodable> {
+<<<<<<< HEAD
     let w::LandingRowParts { landing, asks, entries, job, flake_reruns } = row.into_parts();
+=======
+    let w::LandingRowParts { landing, asks, entries, job, room } = row.into_parts();
+>>>>>>> b8446ac2651a3173b1018dea8a2c5a9d50d622ee
     let w::LandingStateParts {
         task,
         project,
@@ -579,7 +587,11 @@ pub(super) fn decode(row: w::LandingRow) -> Result<top::LandingRow, super::Undec
             .expect(FITS);
     }
     Ok(top::LandingRow {
+<<<<<<< HEAD
         flake_reruns: decode_flake_reruns(flake_reruns),
+=======
+        room,
+>>>>>>> b8446ac2651a3173b1018dea8a2c5a9d50d622ee
         job: super::history::decode_job_record(job),
         landing: d::Landing {
             searched: match searched {

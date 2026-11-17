@@ -452,6 +452,8 @@
     request closed; its pull request retargeted; a delegate or effect
     failed; a person rejected a gate. A held change's step is the one it
     was held at;
+  - its wait: none, or why it waits, `ChangeWait`: for room in the
+    forge's outbox, `outbox_room` (`../../domain/forge/room.md`, 7);
   - the task its step runs: none, or its number (u64);
   - CI at its head: unknown, pending, passed or failed;
   - its gates, at most 64, each with its number (u64), its kind (review,

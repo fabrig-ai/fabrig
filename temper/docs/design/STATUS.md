@@ -274,6 +274,14 @@ reports to the engine, passed or refused. A change keeps the reds its
 passed checks passed, and they end when it lands into the goal's branch;
 each flake is filed or counted as a `flake` finding (`domain/findings.md`,
 4). Reds end too by the tool and with their goal (`draft/branch-reds.status.md`).
+A full forge outbox is a wait, not a hold: a change's effects, a
+landing's writes, release cleanup and goal branches' makings that find
+no room wait in one line, first come first served, their places kept on
+their records across a restart, each deciding again when asked; an
+agent's call is answered `Unavailable` at once, its room reserved from
+its check to its entry; a waiting change's panel says "Waiting for room
+in the forge outbox." on client wire 26 (`domain/forge/room.md`;
+`draft/outbox-room-wait.status.md`).
 Before its summary, the check writes every failure it found, with its
 key and class, to `target/temper/pre-pr-failures.json` under the
 checkout's root, outside the git directory, whose paths an agent's `read`
@@ -545,6 +553,7 @@ Design documents:
 - [`domain/forge/keeping-up.md`](domain/forge/keeping-up.status.md)
 - [`domain/forge/queues.md`](domain/forge/queues.status.md)
 - [`domain/forge/reds.md`](domain/forge/reds.status.md)
+- [`domain/forge/room.md`](domain/forge/room.status.md)
 - [`domain/forge/walkthrough.md`](domain/forge/walkthrough.status.md)
 - [`domain/landing.md`](domain/landing.status.md)
 - [`domain/landing-settings.md`](domain/landing-settings.status.md)
@@ -682,6 +691,7 @@ Drafts:
 - [`draft/model-catalogue.md`](draft/model-catalogue.status.md)
 - [`draft/model-check.md`](draft/model-check.status.md)
 - [`draft/one-owner.md`](draft/one-owner.status.md)
+- [`draft/outbox-room-wait.md`](draft/outbox-room-wait.status.md)
 - [`draft/own-way.md`](draft/own-way.status.md)
 - [`draft/page-round-trips.md`](draft/page-round-trips.status.md)
 - [`draft/panics.md`](draft/panics.status.md)

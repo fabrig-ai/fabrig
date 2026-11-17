@@ -46,6 +46,7 @@ fn a_merge_outcome_ends_passed_reds_but_not_a_later_generation_or_another_destin
 }
 fn merged_pull() -> PendingStep {
     PendingStep {
+        progress: List::uncapped(),
         task: CHANGE,
         retry_at: None,
         entry: OPEN,
@@ -116,7 +117,11 @@ fn a_landing_read_back_ends_only_red_generations_the_change_passed() {
                 .insert(
                     61,
                     LandingRow {
+<<<<<<< HEAD
                         flake_reruns: Box::new([]),
+=======
+                        room: None,
+>>>>>>> b8446ac2651a3173b1018dea8a2c5a9d50d622ee
                         job: None,
                         landing: landing::Landing {
                             task: 61,

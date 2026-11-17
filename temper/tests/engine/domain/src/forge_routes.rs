@@ -421,6 +421,16 @@ impl World {
         self
     }
 
+    /// A story's outbox bound, chosen before its root starts.
+    #[must_use]
+    pub fn with_forge_entries(mut self, entries: u32) -> Self {
+        assert_eq!(self.env.now, Time::ZERO);
+        self.env.limits.forge.entries = entries;
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("outbox room");
+        self
+    }
+
     #[must_use]
     pub fn configured_limits(
         with_read: bool,

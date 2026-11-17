@@ -2256,7 +2256,11 @@ const PHRASES: u32 = 2776;
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
 const SEGMENTS: u32 = 5154;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
+<<<<<<< HEAD
 const ENGLISH_BYTES: u32 = 65535;
+=======
+const ENGLISH_BYTES: u32 = 65544;
+>>>>>>> b8446ac2651a3173b1018dea8a2c5a9d50d622ee
 const ALL: [Word; 2054] = [
     Word::WorkMilestoneLede,
     Word::MsGoals,

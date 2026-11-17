@@ -600,7 +600,7 @@ pub(crate) fn effect_call(
     write: skein_forge::api::Write,
     proposal: Option<(Box<[u8]>, bool)>,
 ) {
-    let flight = match describe_agent(domain, env, key, repository, resource, write) {
+    let (owner, flight) = match describe_agent(domain, env, None, key, repository, resource, write) {
         Ok(flight) => flight,
         Err(skein_forge::api::Error::Busy) => {
             super::relay_call(domain, &env.limits, decision, to, CallAnswer::Unavailable);
@@ -611,7 +611,6 @@ pub(crate) fn effect_call(
             return;
         }
     };
-    let owner = effect_owner(domain);
     assert!(domain.forge_effects.insert(owner, flight).is_ok(), "admitted forge effect handoff");
     let deadline = skein_lib::Wall::from_nanos(
         // A call's timeout is its task's charter's (jig's `domain/engine/executors.md`, 1).
@@ -629,26 +628,14 @@ pub(crate) fn effect_call(
 }
 
 fn describe_agent(
-    domain: &Domain,
+    domain: &mut Domain,
     env: &Env<Limits>,
+    owner: Option<Token>,
     key: CallKey,
     repository: skein_forge::api::Repository,
     resource: forge::What,
     write: skein_forge::api::Write,
-) -> Result<EffectFlight, skein_forge::api::Error> {
-    let mut staged = 0_u32;
-    for (_, flight) in &domain.forge_effects {
-        match flight {
-            EffectFlight::Call { .. } => staged = staged.saturating_add(1),
-            EffectFlight::Procedure { .. }
-            | EffectFlight::Landing { .. }
-            | EffectFlight::Tier { .. }
-            | EffectFlight::Projection { .. } => {}
-        }
-    }
-    if !domain.forge.effect_room(&env.limits.forge, staged) {
-        return Err(skein_forge::api::Error::Busy);
-    }
+) -> Result<(Token, EffectFlight), skein_forge::api::Error> {
     let adopted = domain.forge.repository(repository).ok_or(skein_forge::api::Error::Missing)?;
     if !domain.core.connector_project(key.task, adopted.project) {
         return Err(skein_forge::api::Error::Forbidden);
@@ -695,7 +682,19 @@ fn describe_agent(
         form,
         recovery,
     };
-    Ok(EffectFlight::Call { description: Box::new(description), repository, effect: described.effect, key, resource })
+    // A staging owner belongs to the core until EffectStart, so allocate none for a refused description.
+    if !domain.forge.effect_room(&env.limits.forge) {
+        return Err(skein_forge::api::Error::Busy);
+    }
+    let owner = match owner {
+        Some(owner) => owner,
+        None => effect_owner(domain),
+    };
+    assert!(domain.forge.reserve_call(&env.limits.forge, owner), "room checked without an intervening write");
+    Ok((
+        owner,
+        EffectFlight::Call { description: Box::new(description), repository, effect: described.effect, key, resource },
+    ))
 }
 
 /// Resolve project-scoped subscription selection before the existing typed admission.
@@ -2578,6 +2577,7 @@ pub(super) fn start_recovered_change(
         let milestone = milestones::of(domain, goal);
         let registration = forge::Event::Change {
             row: forge::ChangeRow {
+                room: None,
                 kept: None,
                 regate: None,
                 source: source.clone(),
@@ -5461,6 +5461,29 @@ pub(crate) fn outputs(
                 }
             }
             forge::Request::WakeProcedure { task } => {
+                if domain.forge.room_asked(task) {
+                    let can_step = match domain.core.tasks.task(task) {
+                        Some(row) => match row.phase {
+                            tasks::Phase::Active(_) => row.placed.is_none(),
+                            tasks::Phase::Waiting
+                            | tasks::Phase::Held { .. }
+                            | tasks::Phase::Closing(_)
+                            | tasks::Phase::Ended(_) => false,
+                        },
+                        None => false,
+                    };
+                    if !can_step {
+                        domain.work.push(Work::Forge(forge::Event::RoomUnavailable { task }));
+                        continue;
+                    }
+                    if domain.core.tasks.procedure_due(task).is_some()
+                        && let Some(row) = domain.forge.change(task).cloned()
+                        && let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow)
+                    {
+                        let step = change_step(domain, env, task, entry, row.repository, &row.base, false);
+                        domain.work.push(Work::Forge(step));
+                    }
+                }
                 step_dependents(domain, env, task);
                 // A restored change also repairs names saved before its pull was known.
                 if let Some(row) = domain.forge.change(task).cloned() {
@@ -5737,6 +5760,7 @@ pub(crate) fn outputs(
                 )));
             }
             forge::Request::Outcome { entry, task, outcome, account } => {
+                domain.forge_effecting.remove(&entry);
                 if let Some(words) = account {
                     let procedure = match domain.core.tasks.task(task) {
                         Some(row) => match row.executor {
@@ -5796,6 +5820,18 @@ pub(crate) fn outputs(
                 )));
             }
             forge::Request::ContinueGoalBranch { task } => {
+                if domain.forge.room_asked(task)
+                    && let Some(record) = domain.core.tasks.task(task)
+                {
+                    let held = match record.phase {
+                        tasks::Phase::Held { .. } | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => true,
+                        tasks::Phase::Waiting | tasks::Phase::Active(_) => record.placed.is_some(),
+                    };
+                    if held {
+                        domain.work.push(Work::Forge(forge::Event::RoomUnavailable { task }));
+                        continue;
+                    }
+                }
                 if let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow) {
                     domain.work.push(Work::Forge(forge::Event::ContinueGoalBranch { task, entry }));
                 } else {
@@ -5803,6 +5839,18 @@ pub(crate) fn outputs(
                 }
             }
             forge::Request::ContinueRelease { task } => {
+                if domain.forge.room_asked(task)
+                    && let Some(record) = domain.core.tasks.task(task)
+                {
+                    let held = match record.phase {
+                        tasks::Phase::Held { .. } | tasks::Phase::Ended(_) => true,
+                        tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Closing(_) => false,
+                    };
+                    if held {
+                        domain.work.push(Work::Forge(forge::Event::RoomUnavailable { task }));
+                        continue;
+                    }
+                }
                 if let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow) {
                     domain.work.push(Work::Forge(forge::Event::ContinueRelease { task, entry }));
                 } else {
@@ -5858,8 +5906,12 @@ pub(crate) fn outputs(
                 }
             }
             forge::Request::ProjectionEffect { row, entry, description } => {
-                let Some(adopted) = domain.forge.repository(entry.repository) else { continue };
+                let Some(adopted) = domain.forge.repository(entry.repository) else {
+                    domain.work.push(Work::Forge(forge::Event::DropProjection { entry: entry.number }));
+                    continue;
+                };
                 let Some(name) = resource_name(adopted, &description.resource, env.limits.authority.segments) else {
+                    domain.work.push(Work::Forge(forge::Event::DropProjection { entry: entry.number }));
                     continue;
                 };
                 let access = match description.access {
@@ -6100,7 +6152,7 @@ pub(crate) fn outputs(
                 // A step that met the full outbox ends with a timer (temper/docs/design/domain/forge/issues.md).
                 if let Some(when) = when {
                     domain.forge.projection_after(goal, when);
-                } else if domain.forge.full_outbox_met() && !domain.forge.effect_room(&env.limits.forge, 0) {
+                } else if domain.forge.full_outbox_met() && !domain.forge.effect_room(&env.limits.forge) {
                     let when = skein_lib::Wall::from_nanos(
                         env.wall.as_nanos().saturating_add(env.limits.forge.issue_policy.interval.as_nanos()),
                     );
@@ -6220,6 +6272,12 @@ fn effect_owner(domain: &mut Domain) -> Token {
     domain.core.effect_owner()
 }
 
+fn return_call_room(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, owner: Token) {
+    let mut out = Queue::uncapped();
+    domain.forge.unreserve_call(&super::environment_forge(env), owner, &mut out);
+    outputs(domain, env, decision, &mut out);
+}
+
 /// Assemble connector evidence without replacing the core's status decision.
 pub(crate) fn effect_answer(domain: &Domain, key: CallKey, part: &jig_domain_core::CallPart) -> CallAnswer {
     match part {
@@ -6298,7 +6356,7 @@ pub(crate) fn effect_ask(
             )));
         }
         jig_domain_core::effects::connector::Ask::DescribeProposal { owner, proposal } => {
-            let flight = match domain.forge.proposed_effect(proposal) {
+            let flight = match domain.forge.proposed_effect(proposal).cloned() {
                 Some(row) => {
                     let key = match domain.core.tasks.proposal(row.entry.task, proposal) {
                         Some(pending) => match pending.action {
@@ -6318,16 +6376,17 @@ pub(crate) fn effect_ask(
                     describe_agent(
                         domain,
                         env,
+                        Some(owner),
                         key,
                         row.entry.repository,
-                        row.resource.clone(),
-                        row.entry.effect.write.clone(),
+                        row.resource,
+                        row.entry.effect.write,
                     )
                 }
                 None => Err(skein_forge::api::Error::Missing),
             };
             match flight {
-                Ok(flight) => {
+                Ok((owner, flight)) => {
                     assert!(domain.forge_effects.insert(owner, flight).is_ok(), "fresh proposal description");
                     effect_ask(
                         domain,
@@ -6349,6 +6408,7 @@ pub(crate) fn effect_ask(
         jig_domain_core::effects::connector::Ask::KeepProposal { owner, proposal, task, project: _ } => {
             match domain.forge_effects.remove(&owner) {
                 Some(EffectFlight::Call { repository, effect, resource, .. }) => {
+                    return_call_room(domain, env, decision, owner);
                     domain.work.push(Work::Forge(forge::Event::KeepProposedEffect {
                         row: forge::ProposedEffect {
                             number: proposal,
@@ -6401,7 +6461,8 @@ pub(crate) fn effect_ask(
                         domain.forge_effecting.insert(entry, (ReplyTo::new(owner), key)).is_ok(),
                         "admitted connector keep"
                     );
-                    domain.work.push(Work::Forge(forge::Event::Enqueue {
+                    domain.work.push(Work::Forge(forge::Event::EnqueueCall {
+                        owner,
                         entry: skein_forge_client::Entry {
                             number: entry,
                             task,
@@ -6488,7 +6549,8 @@ pub(crate) fn effect_ask(
                         }));
                     }
                 }
-                Some(EffectFlight::Projection { row, .. }) => {
+                Some(EffectFlight::Projection { row, entry, .. }) => {
+                    domain.work.push(Work::Forge(forge::Event::DropProjection { entry: entry.number }));
                     let closing = match &row.desired {
                         Some(view) => view.finished.is_some(),
                         None => false,
@@ -6518,7 +6580,8 @@ pub(crate) fn effect_ask(
                         domain.work.push(Work::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Effects }));
                     }
                 }
-                Some(EffectFlight::Call { .. }) | None => {}
+                Some(EffectFlight::Call { .. }) => return_call_room(domain, env, decision, owner),
+                None => {}
             }
         }
         jig_domain_core::effects::connector::Ask::Judge { owner, judge, state, resources: _ } => {

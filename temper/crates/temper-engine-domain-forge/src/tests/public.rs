@@ -220,6 +220,7 @@ fn configured() -> [Configured; 2] {
 fn change_row() -> ChangeRow {
     use temper_engine_domain_forge_change as change;
     ChangeRow {
+        room: None,
         source: None,
         kept: None,
         regate: None,
@@ -422,7 +423,11 @@ fn setup_with_limits(limits: &Limits) -> Domain {
         .insert(
             LANDING,
             LandingRow {
+<<<<<<< HEAD
                 flake_reruns: Box::new([]),
+=======
+                room: None,
+>>>>>>> b8446ac2651a3173b1018dea8a2c5a9d50d622ee
                 job: None,
                 landing: policy::Landing {
                     last_left: None,
@@ -920,7 +925,11 @@ fn maximal() -> (Domain, Limits, Box<[PublicTask]>) {
             .insert(
                 task,
                 LandingRow {
+<<<<<<< HEAD
                     flake_reruns: Box::new([]),
+=======
+                    room: None,
+>>>>>>> b8446ac2651a3173b1018dea8a2c5a9d50d622ee
                     job: None,
                     landing: policy::Landing {
                         last_left: None,

@@ -868,7 +868,11 @@ pub enum ChangeWord {
     TakingKept,
     ProbingByTest,
     ProbingByTestAt,
+<<<<<<< HEAD
     FlakeHold,
+=======
+    OutboxRoom,
+>>>>>>> b8446ac2651a3173b1018dea8a2c5a9d50d622ee
 }
 pub type ChangeRow = (ChangeWord, &'static [&'static [u8]], &'static [HoleKind]);
 pub const CHANGES: [ChangeRow; 142] = [
@@ -916,6 +920,7 @@ pub const CHANGES: [ChangeRow; 142] = [
     (ChangeWord::LandingLine, &[b"Merging at its head."], &[]),
     (ChangeWord::LandedLine, &[b"Landed \xc2\xb7 merge commit ", b""], &[Name]),
     (ChangeWord::Held, &[b"Held while ", b": ", b"."], &[Name, Name]),
+    (ChangeWord::OutboxRoom, &[b"Waiting for room in the forge outbox."], &[]),
     (ChangeWord::HeldProducing, &[b"producing"], &[]),
     (ChangeWord::HeldOpening, &[b"opening"], &[]),
     (ChangeWord::HeldRecreating, &[b"recreating"], &[]),
@@ -1165,6 +1170,7 @@ pub fn change_name_bytes(word: ChangeWord, index: usize) -> u32 {
         | ChangeWord::HeldCleared
         | ChangeWord::HeldUncleared
         | ChangeWord::Stalled
+        | ChangeWord::OutboxRoom
         | ChangeWord::RepairsSpent
         | ChangeWord::QuestionsSpent
         | ChangeWord::ResolutionsSpent

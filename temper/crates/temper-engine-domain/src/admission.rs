@@ -133,6 +133,8 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::KeepProposedEffect { .. }
             | forge::Event::DropProposedEffect { .. }
             | forge::Event::Enqueue { .. }
+            | forge::Event::EnqueueCall { .. }
+            | forge::Event::DropProjection { .. }
             | forge::Event::KeepProjection { .. }
             | forge::Event::Project { .. }
             | forge::Event::FailProjection { .. }
@@ -152,6 +154,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::StartConflicted { .. }
             | forge::Event::ReviewRequested { .. }
             | forge::Event::ReviewsChanged { .. }
+            | forge::Event::RoomUnavailable { .. }
             | forge::Event::StepChange { .. }
             | forge::Event::SavedWork { .. }
             | forge::Event::Closer { .. }
