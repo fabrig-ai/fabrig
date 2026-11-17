@@ -107,8 +107,11 @@ enum CheckpointWhy { NotOwner, InProgress, Unavailable, Files, Unrecognized { pa
   `protocol/store/checkpoints.md`, 3), and the refusals its
   `CheckpointRefusal`'s that a serving engine can meet, with
   `NotOwner`.
-- **The root:** admitted as an application of the deployment's scope,
-  then held to the deployment's owners alone: a person whose role over
+- **The root:** admitted as an application of the person's own scope
+  (`ApplicationScope::Own`: the deployment's scope would refuse a
+  person with no role over the deployment with jig's generic `Role`
+  before the root sees it), then held by the root to the deployment's
+  owners alone: a person whose role over
   the deployment is `Owner` (`people::DEPLOYMENT`), never a project's
   owner, and never a task's party, refused `NotOwner` with nothing
   asked of the store. Then it asks the store, `StoreRequest::Checkpoint`,
