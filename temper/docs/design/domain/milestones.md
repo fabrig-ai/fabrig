@@ -121,7 +121,13 @@ section 5, is `../client/pages/milestone.md` and the pages it names.
 - **Its budget** is carved from the milestone's when the goal is made,
   waiting or not: an amount, or `AsAllowed`, resolved against what the
   milestone has left (jig's `domain/authority.md`, 8.4). So the
-  milestone's budget must hold every goal made at once.
+  milestone's budget must hold every goal made at once. `AsAllowed`
+  means what it means for any goal, all that fits: a goal started so
+  takes all the milestone has left, within the role's spend, and a
+  second started so after it is refused for the milestone's budget. A
+  script that starts several goals in one milestone gives each its
+  amount, `--budget N` (the user, 2026-11-17: no hidden share, which
+  would give a script's goals less and less in an order nobody chose).
 - **Its waits:** its batch's dependencies, each a task the party
   reaches, a goal or a person task, in a milestone or not. One done adds
   no wait; one failed or cancelled refuses the start, naming how it

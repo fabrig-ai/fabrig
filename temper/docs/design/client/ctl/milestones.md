@@ -56,7 +56,12 @@ Pause, Resume and Close are `task`'s, as for any task.
   tasks from the document it read, `tasks_left` less one, and
   sends a `Delegate { project, task, tasks }` with the one goal. A
   refusal at admission, a whole milestone's among them (*concluded*,
-  naming when), prints as `goal start`'s refusals do, exit 2.
+  naming when), prints as `goal start`'s refusals do, exit 2, but for
+  one lacking budget: the milestone funds the goal, not the party's
+  pool, so it names the milestone, `goal start: refused: milestone M had
+  LEFT left, NEEDED needed; give each goal in it --budget AMOUNT`, from
+  jig's `Budget { needed, left }`, a second `--as-allowed` goal after a
+  first took all among them (`../../domain/milestones.md`, section 4).
 - **`--after TASK`**, repeatable, adds each task to the goal's
   dependencies, in order, once each, `TaskRef::Task`: a goal or a person
   task, in a milestone or not. jig judges each at admission: one done
@@ -72,7 +77,14 @@ Pause, Resume and Close are `task`'s, as for any task.
 - **Its output** is `goal start`'s, `done: task N, goal`, record
   `goal_create`, whether it is in a milestone or not.
 - **`help goal start`** says each flag in a line, and in its notes that
-  a goal waiting on tasks counts its deadline from when it was made.
+  a goal waiting on tasks counts its deadline from when it was made,
+  and, after that line:
+
+  ```
+  With --milestone, --as-allowed takes all the milestone has left, so
+  a second --as-allowed goal in it is refused for its budget: give each
+  goal in a milestone --budget AMOUNT.
+  ```
 
 ## 4. Whole, list and show
 
@@ -140,7 +152,9 @@ a milestone made, two goals started in it, the second `--after` the
 first, said whole, and `milestone show` printing it; and, under a
 delegation deep and wide enough that a goal in a milestone gets tasks of
 its own, two goals started in one milestone, each admitted, the second
-with an allowance one less than the first.
+with an allowance one less than the first; and a milestone made
+`--as-allowed`, a goal started in it `--as-allowed`, and a second so
+refused for the milestone's budget, naming the milestone, exit 2.
 
 ## 6. Open questions
 
