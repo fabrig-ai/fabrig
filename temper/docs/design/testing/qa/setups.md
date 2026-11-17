@@ -275,7 +275,12 @@ machinery alone. A root recipe, at a deployment's place
   workflow `gate.yml`, blocking, on the forge and repository numbers
   those lines made (`deployment.md`, 6.2; `../../domain/landing.md`,
   13.1); its check, after `check`, ctl's reads of the project, its
-  forge and its repository.
+  forge and its repository. The forge's read waits until it is
+  connected, `ctl forge list --until connected:1`, as the place's own
+  reads do: the engine the patch starts again, and the one a walk from
+  the setup's copy starts, each connects the forge afresh, showing it
+  connecting meanwhile, and its repositories are read only once it is
+  connected (`../../client/ctl/tools.md`, 4), never after a sleep.
 - **Its gate by content:** a dispatched `gate.yml` at a landing's top
   passes unless the top's tree holds `.fake-forge/gate` reading `fail`,
   so a case makes a batch red by a member that writes that file, and
