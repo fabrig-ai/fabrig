@@ -2,9 +2,11 @@
 
 2026-11-17. Where temper's code lags or departs from [landing.md](landing.md).
 
-- **Not yet:** 5.2 (*Lost or partial*), 15: a round at preparing read
-  afresh from jig's context at each step, and a start that decides
-  nothing (`landing-preparing.md`, 2 and 3).
+- **Not yet:** 5.2 (*Lost or partial*): a round at preparing read
+  afresh from jig's context at each step (`landing-preparing.md`, 2).
+  [in flight: change 6061]
+- **Not yet:** 15: a start that decides nothing
+  (`landing-preparing.md`, 3). [in flight: change 6062]
 
 
 Section 13.1 has no known gap in what a branch's path reads: the
