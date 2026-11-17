@@ -1007,14 +1007,7 @@ pub fn workers() -> crate::workers::Workers {
     let settings = engine();
     let encoding = encoding(&settings);
     let limits = crate::workers::limits(&settings).unwrap();
-    crate::workers::Workers::new(
-        &settings.jig,
-        encoding,
-        forges(),
-        &settings.limits,
-        &limits,
-    )
-    .unwrap()
+    crate::workers::Workers::new(&settings.jig, encoding, forges(), &settings.limits, &limits).unwrap()
 }
 
 pub fn settle_root(

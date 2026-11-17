@@ -339,14 +339,7 @@ fn workers(settings: &settings::Engine) -> Workers {
     forges[0].git = filled(remote.checked_sub(names.checked_mul(2).unwrap()).unwrap().checked_sub(6).unwrap());
     forges[0].git_program = Some(filled(usize::try_from(encoding.limits.repository_git_some).unwrap()));
     let jig = settings.jig.clone();
-    Workers::new(
-        &jig,
-        encoding,
-        forges,
-        &settings.limits,
-        &crate::workers::limits(settings).unwrap(),
-    )
-    .unwrap()
+    Workers::new(&jig, encoding, forges, &settings.limits, &crate::workers::limits(settings).unwrap()).unwrap()
 }
 
 #[expect(clippy::disallowed_macros, reason = "the past-the-room refusal names the measured frame bytes and room")]
