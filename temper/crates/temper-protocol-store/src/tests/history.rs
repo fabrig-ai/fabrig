@@ -209,30 +209,40 @@ fn update_history_written_without_the_forges_base_reads_with_none() {
         family.current.replace(" forge_base: option fixed 32 = none", "").replace(" forge_base: option fixed 32", "");
     let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
     let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
+    let mut plans = skein_lib::List::with_capacity(2);
+    for (source, target) in [(&new, &old), (&old, &new)] {
+        plans
+            .push(
+                skein_codec::layout::Plan::derive(
+                    source,
+                    source.root(b"HistoryEvent", None).unwrap(),
+                    &[],
+                    target,
+                    target.root(b"HistoryEvent", None).unwrap(),
+                    &[],
+                )
+                .unwrap(),
+            )
+            .unwrap();
+    }
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     for what in [
         What::Update { style: skein_forge::api::UpdateStyle::Merge, forge_base: None },
         What::Updated { outcome: UpdateOutcome::Failed, forge_base: None },
     ] {
         let stored = Stored::HistoryEvent(event(what));
-        let mut bytes = records::encode(&stored);
-        for (source, target) in [(&new, &old), (&old, &new)] {
-            let plan = skein_codec::layout::Plan::derive(
-                source,
-                source.root(b"Row", None).unwrap(),
-                &[],
-                target,
-                target.root(b"Row", None).unwrap(),
-                &[],
-            )
-            .unwrap();
+        let bytes = records::encode(&stored);
+        // Keep the row version and value tag; only the history event's layout changes.
+        let mut value: Box<[u8]> = bytes[3..].into();
+        for plan in &plans {
             let mut work = skein_codec::layout::Workspace::new();
-            assert!(work.fit(&plan));
+            assert!(work.fit(plan));
             let mut out = skein_lib::Buffer::with_capacity(131_072);
-            plan.convert(&bytes, &mut out, &mut work).unwrap();
-            bytes = out.as_slice().into();
+            plan.convert(&value, &mut out, &mut work).unwrap();
+            value = out.as_slice().into();
         }
-        let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
-        assert_eq!(records::decode(&bytes, &bounds), Ok(stored));
+        let restored = skein_lib::bytes::concat(&[&bytes[..3], &value]);
+        assert_eq!(records::decode(&restored, &bounds), Ok(stored));
     }
 }
 
