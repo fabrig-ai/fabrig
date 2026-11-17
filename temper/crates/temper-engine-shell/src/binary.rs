@@ -226,7 +226,7 @@ mod tests {
             ("smith-pieces", 1, 1),
             ("smith-charter", 4, 5),
             ("smith-transcript", 7, 7),
-            ("temper-worker-wire", 5, 9),
+            ("temper-worker-wire", 5, 10),
             ("temper-host-tools", 1, 5),
         ]) {
             assert_eq!((wire.name, wire.lowest, wire.highest()), (name, lowest, highest));

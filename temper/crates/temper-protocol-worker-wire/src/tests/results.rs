@@ -128,3 +128,31 @@ fn reds_cross_v8_and_v9_but_results_and_kept_cannot_go_back() {
         bridge.translate(9, 8, root, bytes).expect_err("no v8 form");
     }
 }
+
+#[test]
+fn v9_values_cross_v10_but_landed_values_cannot_go_back() {
+    let limits = fixtures::limits();
+    let application = crate::application(&limits).unwrap();
+    let mut bridge = application.kept.get(0).unwrap().bridge().unwrap();
+    assert_eq!(crate::wire::VERSION, 10);
+    assert_eq!(crate::wire::FLOOR, 5);
+    for (root, bytes) in [
+        (b"Ask".as_slice(), crate::ask(&v1::Ask::Reds)),
+        (b"Ask".as_slice(), crate::ask(&v1::Ask::Results(largest_report(&limits)))),
+        (b"Answer".as_slice(), crate::answer(&v1::Answer::Kept)),
+    ] {
+        assert_eq!(bridge.translate(9, 10, root, bytes.clone()).unwrap(), bytes);
+        assert_eq!(bridge.translate(10, 9, root, bytes.clone()).unwrap(), bytes);
+        assert_eq!(bridge.total(9, root), Some(false));
+    }
+    for (root, bytes) in [
+        (
+            b"Ask".as_slice(),
+            crate::ask(&v1::Ask::Landed(v1::Head::new(&limits, v1::HeadParts { head: [37; 32] }).unwrap())),
+        ),
+        (b"Answer".as_slice(), crate::answer(&v1::Answer::Landed)),
+        (b"Answer".as_slice(), crate::answer(&v1::Answer::Unlanded)),
+    ] {
+        bridge.translate(10, 9, root, bytes).expect_err("no v9 form");
+    }
+}

@@ -393,8 +393,8 @@ fn host_request(engine: &mut Engine, request: root::HostRequest) {
             let answer = match crate::translate::ask(&bytes, limits) {
                 Some(ask) => {
                     let answer = match ask {
-                        root::wire::Ask::Reds => {
-                            root::wire::answer(&engine.domain, run.raw(), attempt.raw(), root::wire::Ask::Reds)
+                        ask @ (root::wire::Ask::Reds | root::wire::Ask::Landed { .. }) => {
+                            root::wire::answer(&engine.domain, run.raw(), attempt.raw(), ask)
                         }
                         root::wire::Ask::Results(results) => {
                             engine.events.push(root::Event::Worker(root::WorkerInput::CheckResults {

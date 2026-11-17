@@ -1,5 +1,6 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 temper/tests/one-process/golden/settled/state/generations/1/store/log-00000000000000000001	TEMPER_INTERNAL_BUNDLE=none TEMPER_TEST_UPGRADE_IMAGE=1 cargo nextest run -p temper-one-process-world --test suite -E 'test(=upgrade::the_settled_image_matches_the_story)'
 =======
 # Pass 1: every path below was conflicted and was taken verbatim from main (96dfd9de54).
@@ -175,3 +176,6 @@ temper/tests/one-process/golden/settled/state/generations/1/store/logs/000000000
 =======
 temper/tests/one-process/golden/settled/client/private/store	TEMPER_INTERNAL_BUNDLE=none TEMPER_TEST_UPGRADE_IMAGE=1 cargo nextest run -p temper-one-process-world --test suite -E 'test(=upgrade::the_settled_image_matches_the_story)'
 >>>>>>> 7c19b4a53f57a93aea5a68ef75c29e5c0a9a57f0
+=======
+temper/tests/one-process/golden/settled/state/generations/1/store/log-00000000000000000001	TEMPER_INTERNAL_BUNDLE=none TEMPER_TEST_UPGRADE_IMAGE=1 cargo nextest run -p temper-one-process-world --test suite -E 'test(=upgrade::the_settled_image_matches_the_story)'
+>>>>>>> eef8645258921cecdb2de68ff46460f65d82b64b
