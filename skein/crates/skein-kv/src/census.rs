@@ -19,7 +19,7 @@ pub struct CensusRule {
     pub prefix: [u8; 256],
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Census {
     since: u64,
     keyspaces: Vec<Keyspace>,
@@ -28,7 +28,7 @@ pub struct Census {
 }
 
 #[expect(clippy::partial_pub_fields, reason = "the census contract exposes counts as fields and tables through slices")]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Keyspace {
     prefix: Box<[u8]>,
     pub rows: u64,
@@ -42,7 +42,7 @@ pub struct Keyspace {
     folded: u64,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Head {
     pub head: Option<u16>,
     pub rows: u64,

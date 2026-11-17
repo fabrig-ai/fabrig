@@ -108,12 +108,12 @@ pub(crate) struct Prepared {
     pub(crate) drops: Box<[u64]>,
     pub(crate) bytes: u64,
 }
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct End {
     at: u64,
     number: u64,
 }
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct Logs {
     pub(crate) rule: Option<LogRule>,
     record: u32,

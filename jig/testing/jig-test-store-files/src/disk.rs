@@ -46,6 +46,12 @@ impl Disk {
             forked: Vec::new(),
         }
     }
+    pub fn fork(&self, limits: &Limits) -> Self {
+        let mut machine = self.machine.fork();
+        let handle = machine.reopen_root(0);
+        let (sim, pid, root, host) = drivers(limits, handle, 0);
+        Self { machine, sim, pid, root, host, operations: 0, mutations: Vec::new(), cut: None, reached: false }
+    }
     pub fn root(&self) -> Root {
         self.root
     }

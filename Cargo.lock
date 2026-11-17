@@ -1332,8 +1332,10 @@ dependencies = [
  "jig-test-store-files",
  "jig-test-system",
  "sha2",
+ "skein-fork",
  "skein-lib",
  "skein-world",
+ "tempfile",
 ]
 
 [[package]]

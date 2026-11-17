@@ -272,6 +272,23 @@ impl Store {
         store
     }
 
+    /// Copy an in-memory store's committed storage, without its pending work.
+    /// Directory stores must instead be reopened over a copy of their files.
+    #[must_use]
+    pub fn fork_memory(&self, limits: &Limits) -> Option<Store> {
+        match self.state {
+            State::Memory => {
+                let mut store = Store::memory(limits);
+                store.last = self.last;
+                store.map = self.map.clone();
+                store.rule.clone_from(&self.rule);
+                store.logs = self.logs.clone();
+                Some(store)
+            }
+            State::Closed | State::Open { .. } => None,
+        }
+    }
+
     /// Enable the census before opening, or before the first in-memory commit
     /// (skein/docs/design/data/kv.md, 2.2). Prefix lengths are clamped to `1..=CENSUS_PREFIX`.
     pub fn count(&mut self, rule: CensusRule) {

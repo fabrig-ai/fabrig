@@ -373,6 +373,16 @@ impl Store {
         }
     }
 
+    /// Copy the committed storage of an in-memory component for a cold open.
+    /// Directory-backed components copy their filesystem instead.
+    #[must_use]
+    pub fn fork_memory(&self) -> Option<Stores> {
+        Some(Stores {
+            store: self.stores.store.fork_memory(&self.limits.store)?,
+            secrets: self.stores.secrets.fork_memory(&self.limits.secrets)?,
+        })
+    }
+
     #[must_use]
     pub fn into_stores(self) -> Stores {
         self.stores
