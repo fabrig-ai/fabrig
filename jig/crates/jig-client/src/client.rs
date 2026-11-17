@@ -26,6 +26,8 @@ pub enum Event {
     // A value carried either way: sent once under its name, never kept (client/domain/client/requests.md).
     Carry { key: Key, name: skein_lib::RequestKey, request: Ask, value: Option<Secret> },
     Reply { exchange: Token, message: Box<[u8]> },
+    Part { exchange: Token, message: Box<[u8]> },
+    Done { exchange: Token },
     Lost { exchange: Token },
     Streamed { message: Streamed },
     StreamGone,
@@ -42,6 +44,7 @@ pub enum Request {
     },
     OpenStream {
         credential: Option<Secret>,
+        replaces: Option<[u8; 16]>,
     },
     CloseStream,
     Save {
@@ -265,6 +268,8 @@ impl Client {
             Event::Reply { exchange, message } => {
                 self.link_step(now, link::Event::Reply { exchange, message });
             }
+            Event::Part { exchange, message } => self.link_step(now, link::Event::Part { exchange, message }),
+            Event::Done { exchange } => self.link_step(now, link::Event::Done { exchange }),
             Event::Lost { exchange } => self.link_step(now, link::Event::Lost { exchange }),
             Event::Streamed { message } => self.link_step(now, link::Event::Streamed { message }),
             Event::StreamGone => self.link_step(now, link::Event::StreamGone),
@@ -413,6 +418,8 @@ impl Client {
             Event::SignOutLost => self.sign_out_failed(),
             Event::Stored | Event::NotStored => {}
             Event::Start { .. }
+            | Event::Part { .. }
+            | Event::Done { .. }
             | Event::Reply { .. }
             | Event::Lost { .. }
             | Event::Streamed { .. }
@@ -647,9 +654,9 @@ impl Client {
                     out.push(Request::Exchange { exchange, credential, message });
                 }
             }
-            link::Request::OpenStream { credential } => {
+            link::Request::OpenStream { credential, replaces } => {
                 if self.domain.link() != Link::OutOfDate {
-                    out.push(Request::OpenStream { credential });
+                    out.push(Request::OpenStream { credential, replaces });
                 }
             }
             link::Request::CloseStream => out.push(Request::CloseStream),
@@ -758,6 +765,10 @@ impl core::fmt::Debug for Event {
             Self::Reply { exchange, message } => {
                 f.debug_struct("Reply").field("exchange", exchange).field("body_len", &message.len()).finish()
             }
+            Self::Part { exchange, message } => {
+                f.debug_struct("Part").field("exchange", exchange).field("body_len", &message.len()).finish()
+            }
+            Self::Done { exchange } => f.debug_struct("Done").field("exchange", exchange).finish(),
             Self::Lost { exchange } => f.debug_struct("Lost").field("exchange", exchange).finish(),
             Self::Streamed { message } => f.debug_struct("Streamed").field("message", message).finish(),
             Self::StreamGone => f.write_str("StreamGone"),

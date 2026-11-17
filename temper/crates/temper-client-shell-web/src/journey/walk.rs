@@ -88,7 +88,9 @@ pub fn still(earlier: &[u8], later: &[u8]) -> Result<bool, Unreadable> {
     for line in later {
         if let Line::Exchange { id, .. } = line {
             exchanges.insert(id);
-        } else if let Line::Heard(Heard::Answered { exchange, .. } | Heard::Failed { exchange })
+        } else if let Line::Heard(
+            Heard::Answered { exchange, .. } | Heard::Done { exchange } | Heard::Failed { exchange },
+        )
         | Line::Lost(exchange) = line
         {
             exchanges.remove(&exchange);

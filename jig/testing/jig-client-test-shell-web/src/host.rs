@@ -3,9 +3,8 @@ use jig_client_shell_web::adapter::{Asked, Heard};
 use jig_client_test_domain::{self as root, Address, Event, Request};
 use jig_client_test_view as view;
 use jig_client_view::address::{self, Place};
-use skein_lib::{Env, List, Queue, Secret, Time, Token, Wall};
+use skein_lib::{Env, List, Queue, Secret, Time, Wall};
 use skein_ui::{Act, NodeId, Patch};
-use std::collections::BTreeMap;
 
 pub struct Host {
     pub root: root::Domain,
@@ -16,7 +15,7 @@ pub struct Host {
     out: Queue<Request>,
     mapping: jig_client_protocol_http::Mapping,
     stream: jig_client_protocol_http::Stream,
-    tickets: BTreeMap<u32, Token>,
+    tickets: jig_client_shell_web::adapter::Exchanges,
     next: u32,
     pub show: Option<(Box<[u8]>, bool)>,
 }
@@ -39,7 +38,7 @@ impl Host {
                 record: 65536,
                 chunk: 4096,
             }),
-            tickets: BTreeMap::new(),
+            tickets: jig_client_shell_web::adapter::Exchanges::default(),
             next: 0,
             show: None,
         }
@@ -103,16 +102,11 @@ impl Host {
         use jig_client_protocol_http::Heard as H;
         let mut above = Queue::uncapped();
         match heard {
-            Heard::Answered { exchange, status, body, headers: _ } => {
-                if let Some(token) = self.tickets.remove(&exchange) {
-                    above.push(jig_client_protocol_http::answered(token, status, body));
-                }
-            }
-            Heard::Failed { exchange } => {
-                if let Some(exchange) = self.tickets.remove(&exchange) {
-                    above.push(H::Lost { exchange });
-                }
-            }
+            report @ (Heard::Answered { exchange, .. }
+            | Heard::Begun { exchange, .. }
+            | Heard::Part { exchange, .. }
+            | Heard::Done { exchange }
+            | Heard::Failed { exchange }) => self.tickets.heard(exchange, report, &mut above),
             Heard::StreamOpened => self.stream.opened(200, &mut above),
             Heard::StreamRefused { status } => self.stream.opened(status, &mut above),
             Heard::Piece { bytes } => self.stream.body(&bytes, &mut above),
@@ -123,6 +117,8 @@ impl Host {
         while let Some(heard) = above.pop() {
             self.client(match heard {
                 H::Reply { exchange, message } => jig_client::Event::Reply { exchange, message },
+                H::Part { exchange, message } => jig_client::Event::Part { exchange, message },
+                H::Done { exchange } => jig_client::Event::Done { exchange },
                 H::Lost { exchange } => jig_client::Event::Lost { exchange },
                 H::Streamed { message } => jig_client::Event::Streamed { message },
                 H::StreamGone => jig_client::Event::StreamGone,
@@ -159,22 +155,25 @@ impl Host {
                 }
                 Request::Client { request: jig_client::Request::Exchange { exchange, credential, message } } => {
                     self.next = self.next.checked_add(1).expect("fetch tickets fit");
-                    self.tickets.insert(self.next, exchange);
+                    let batch = matches!(message, jig_client::Message::Batch(_));
+                    let frame_limits = jig_client_protocol_http::Limits { record: 65536, chunk: 4096 };
+                    self.tickets.insert(self.next, exchange, batch.then_some(&frame_limits));
                     asked.push(Asked::Exchange {
                         id: self.next,
                         call: jig_client_protocol_http::exchange(&self.mapping, credential.as_ref(), message),
                         bound: 65536,
+                        pieces: batch.then_some(frame_limits.chunk),
                         cache: skein_ui_web::fetch::Cache::Browser,
                         keep: &[],
                     });
                 }
-                Request::Client { request: jig_client::Request::OpenStream { credential } } => {
+                Request::Client { request: jig_client::Request::OpenStream { credential, replaces } } => {
                     self.stream = jig_client_protocol_http::Stream::new(&jig_client_protocol_http::Limits {
                         record: 65536,
                         chunk: 4096,
                     });
                     asked.push(Asked::OpenStream {
-                        call: jig_client_protocol_http::stream(&self.mapping, credential.as_ref()),
+                        call: jig_client_protocol_http::stream(&self.mapping, credential.as_ref(), replaces),
                         piece: 4096,
                     });
                 }

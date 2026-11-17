@@ -554,6 +554,7 @@ impl Composition {
                     link::Message::Request(bytes) => clients::Message::Request(bytes),
                     link::Message::Read(bytes) => clients::Message::Read(bytes),
                     link::Message::Watch(bytes) => clients::Message::Watch(bytes),
+                    link::Message::Batch(_) => unreachable!("the link sends no batch"),
                     link::Message::Unwatch(bytes) => clients::Message::Unwatch(bytes),
                     link::Message::StreamGone(bytes) => clients::Message::Gone(bytes),
                     link::Message::SignInLink(bytes) => clients::Message::SignInLink(bytes),
@@ -568,7 +569,7 @@ impl Composition {
                 }));
                 return;
             }
-            link::Request::OpenStream { credential } => {
+            link::Request::OpenStream { credential, replaces: _ } => {
                 let stream = self.token();
                 self.streams.insert(client, stream);
                 self.event(Event::Transport(clients::FromTransport::StreamOpen { stream, credential }));

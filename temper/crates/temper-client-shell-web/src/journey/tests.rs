@@ -2,6 +2,7 @@ use super::*;
 use jig_client_shell_web::adapter::Heard;
 use skein_ui::Act;
 
+mod pieces;
 mod saving;
 
 #[test]
@@ -51,6 +52,7 @@ fn every_record_reads_back_as_written() {
         Line::Exchange {
             id: 4,
             bound: 100,
+            pieces: None,
             method: b"POST".as_slice().into(),
             path: bytes(),
             body: bytes(),
@@ -351,6 +353,7 @@ fn an_exchange_in_flight_is_not_still() {
         Line::Exchange {
             id: 7,
             bound: 100,
+            pieces: None,
             method: b"GET".as_slice().into(),
             path: b"/".as_slice().into(),
             body: Box::default(),

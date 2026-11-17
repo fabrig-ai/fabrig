@@ -63,6 +63,7 @@ fn an_approval_is_asked_read_and_decided_once_each() {
                 | Message::Request(_)
                 | Message::Read(_)
                 | Message::Watch(_)
+                | Message::Batch(_)
                 | Message::Unwatch(_)
                 | Message::StreamGone(_)
                 | Message::SignInLink(_)

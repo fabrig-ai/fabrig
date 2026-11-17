@@ -168,7 +168,7 @@ impl Host for Process {
             shell.iterate(now, wall);
             if !self.started && shell.loaded().is_some() {
                 self.started = true;
-                shell.down(client::Request::OpenStream { credential: None });
+                shell.down(client::Request::OpenStream { credential: None, replaces: None });
                 Self::exchange(shell, 1);
             }
             while let Some(event) = shell.events().pop() {
@@ -200,6 +200,8 @@ impl Host for Process {
                     | client::Event::SignOutLost
                     | client::Event::Watch { .. }
                     | client::Event::Unwatch { .. }
+                    | client::Event::Part { .. }
+                    | client::Event::Done { .. }
                     | client::Event::Read { .. }
                     | client::Event::Send { .. }
                     | client::Event::Carry { .. }

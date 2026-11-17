@@ -22,6 +22,24 @@ fn client() -> Client {
 }
 
 #[test]
+fn parts_and_done_without_a_batch_leave_an_ordinary_exchange_untouched() {
+    let mut client = client();
+    let occupied = client.read(Handle { number: 100, ..TASK });
+    client.step(Event::Read { handle: TASK, read: Readable::Jig(c::Read::Project { project: 9 }) });
+    assert_eq!(client.requests(), []);
+    for exchange in [occupied, skein_lib::Token::new(u64::MAX)] {
+        client.step(Event::Part { exchange, message: fixtures::unknown_read() });
+        assert!(client.requests().is_empty(), "a part answers no ordinary read");
+        client.step(Event::Done { exchange });
+        assert!(client.requests().is_empty(), "done releases no ordinary exchange");
+        assert_eq!(client.machine.admission().deferred_reads, 1);
+    }
+    client.step(Event::Reply { exchange: occupied, message: fixtures::unknown_read() });
+    assert_eq!(client.machine.admission().deferred_reads, 0);
+    assert_ne!(client.exchange(), occupied, "the ordinary reply still releases the deferred read");
+}
+
+#[test]
 fn a_conversations_original_read_leaves_once_when_an_exchange_slot_is_released() {
     let mut client = client();
     let occupied = client.read(Handle { number: 100, ..TASK });

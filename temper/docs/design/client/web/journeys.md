@@ -8,7 +8,7 @@ linked so that the same clicks walk them. The look is tuned on those
 pages, and the committed journeys are kept current by a test. They are not the mockups' journeys
 (`mockups/README.md`, 4), which are worlds walked in the mockups.
 The TUI's journeys are `../tui/journeys.md`'s, sharing this document's
-file (3.2), redaction (3.6) and last scan (3.7). Section 2 is the host on native, 3 the recording, 4 its replay, 5 the
+file (3.2), redaction (`journey-redaction.md`) and last scan (3.7). Section 2 is the host on native, 3 the recording, 4 its replay, 5 the
 print, 6 the tests, 7 editing the look, 8 a recording gone stale, 9 the
 journeys, 10 what is open.
 
@@ -59,7 +59,7 @@ journeys, 10 what is open.
   a real deployment `add` first takes out what must not be
   committed, proves the rest, and writes nothing until a last scan has
   passed; the scan knows what it knows, and the person reads the pages
-  for the rest (3.5 to 3.8).
+  for the rest (`journeys.md`, 3.5 and `journey-redaction.md` and `journeys.md`, 3.7 to 3.8).
 
 ## 2. The host on native
 
@@ -73,7 +73,7 @@ journeys, 10 what is open.
 - **The `journey` module** (the file, the recorder, the replay) builds
   on every target, the shipped bundle's among them; the redaction's and
   the last scan's shared code, which the TUI's journeys use too, is
-  `temper-client-redaction`'s (3.6, 3.7).
+  `temper-client-redaction`'s (`journey-redaction.md`, `journeys.md`, 3.7).
 - **The seam** is `host::Host`'s, and the shell's turn and the replay
   call it alike:
   - `clocks(now, wall)`, at the turn's start, as today;
@@ -147,16 +147,16 @@ journeys, 10 what is open.
   a new recording, and so does the page's load on a return from a
   departure, when the page records again (`README.md`, 2.1).
 - **No sign-in in the file.** Each save, Alt+Shift+S's and the one
-  before a departure, writes the recording with two of 3.6's originals
+  before a departure, writes the recording with two of `journey-redaction.md`'s originals
   replaced as `add` replaces them, an `x` a byte, in every field and in
   a stream's joined records alike: the *link*, the `secret` record's
   value, and the *stored*, each `stored` record's value and each `save`
   of the stream's record, a `Kept`'s head standing. So a saved
   recording is never a sign-in. Nothing else is replaced: a typed
   value, such as a key pasted into the page, and what agents wrote stay
-  for `add`, whose redaction and last scan are unchanged (3.6, 3.7); on
+  for `add`, whose redaction and last scan are unchanged (`journey-redaction.md`, `journeys.md`, 3.7); on
   a real deployment, as on a real box, the person types no key (3.5). A
-  recording whose streams don't decode (3.6) is written with those two
+  recording whose streams don't decode (`journey-redaction.md`) is written with those two
   replaced in every field and every `heard piece` all `x`s, its size
   kept: no such recording can be added, and none is a sign-in. The
   memory keeps the originals, so the recording goes on as it is, and
@@ -197,19 +197,21 @@ comment, no blank.
 | `stored` | a small-store record's key and value | one per record read at start |
 | `turn` | now and wall | each turn's clocks |
 | `start`, `due`, `place`, `heard`, `carried`, `act`, `copied` | the report | each report, in its turn's order |
-| `exchange`, `open`, `close`, `save`, `erase`, `writes`, `navigate`, `replace`, `show`, `copy` | what the host asked | after its report, in order |
+| `exchange`, `pieces`, `open`, `close`, `save`, `erase`, `writes`, `navigate`, `replace`, `show`, `copy` | what the host asked | after its report, in order |
 | `deadline` | nanoseconds, or `none` | each turn's end |
 | `mark` | the live page's html | before its act, or at the key, in a turn of its own (`turn`, `mark`, `deadline`) |
 | `end` | the live page's html | the last line |
 
 - **The reports:** `place PATH`; `heard answered EXCHANGE STATUS BODY`,
-  `heard failed EXCHANGE`, `heard opened`, `heard refused STATUS`,
+  `heard begun EXCHANGE STATUS`, `heard part EXCHANGE BYTES`,
+  `heard done EXCHANGE`, `heard failed EXCHANGE`, `heard opened`, `heard refused STATUS`,
   `heard piece BYTES`, `heard ended`; `carried WRITES`, then one line
   per carried report, `written KEY`, `unwritten KEY` or `lost
   EXCHANGE`; `act ACT [VALUE] EVENT NAME` (3.3); `copied TOKEN
   done|refused|failed`.
 - **The asks:** `exchange ID BOUND METHOD PATH BODY`, then its headers
-  as `NAME VALUE` pairs on the same line; `open PIECE PATH` and its
+  as `NAME VALUE` pairs on the same line; `pieces ID BOUND PIECE METHOD PATH BODY`,
+  then its headers as `exchange`'s are; `open PIECE PATH` and its
   headers; `close`; `save KEY VALUE`; `erase KEY`; `writes N`, when not
   zero; `navigate TO`; `replace TO`; `show PATH push|replace`; `copy
   TOKEN WORDS`, whose words a redaction replaces as it does a `navigate`'s.
@@ -236,7 +238,7 @@ comment, no blank.
 - The welcome's "Set up temper" is kept as `act press "Act { action:
   Pages(Go { address: ... }) }" "Set up temper"`; a typed secret's event
   shows its length alone (`AccountKey { value: Secret { len: 12 } }`),
-  its value being the act's until `add` takes it out (3.5, 3.6).
+  its value being the act's until `add` takes it out (`journeys.md`, 3.5, `journey-redaction.md`).
 
 ### 3.4 Marks
 
@@ -275,77 +277,7 @@ with `--record` (`README.md`, 2.2). The person uses public
 repositories and writes nothing private into the chats: the model's
 words are kept as they were given, and what agents wrote may stay in a
 recording. A saved file holds no sign-in (3.1); `add` redacts every
-recording alike, fake or real (3.6).
-
-### 3.6 Redaction
-
-`add` redacts before its first replay's proof (4.3). It reads the
-recording as its lines (3.2), and every byte field of each. It writes
-nothing and prints no original. A browser's saved file already holds
-the *link* and the *stored* replaced (3.1): their values are `x`s
-alone, which are no original, so `add` counts none of either, and its
-redaction of the rest is unchanged.
-
-- **The originals:**
-  - *link:* the `secret` record's value;
-  - *stored:* each `stored` record's value, and each `save` of the
-    stream's record (jig's `STREAM_KEY`), the same credential as it is
-    issued. Such a value is a `Kept`: its head stands, so that the host
-    still reads it, and its `record` is the original. A value that isn't
-    one is an original whole;
-  - *typed:* each value of an act whose event shows a secret's length
-    (`Secret { len: N }`, 3.3), such as a typed key or a pasted sign-in;
-  - *given:* each `--redact TEXT`; `again` also supplies its local binary,
-    bundle, scratch and cache paths, for both browser and TUI captures;
-  - *approval*, *credential* and *bearer:* the TUI's, the approval's
-    secret, the credential the TUI takes and the bearer every exchange
-    carries (`../tui/journeys.md`, section 5), which a browser's recording
-    never gives. They are sought as every original is, and reach the
-    shared code from the TUI's lines through `Originals::new` and
-    `redact_field`.
-- **The placeholder** is `x`s, one for each byte, so that every frame,
-  length prefix and base64 run keeps its size. Surrounding spaces, tabs,
-  CRs and LFs of a typed or given original stand, outside it: the client
-  trims them from a sign-in's paste before it carries the value, and a
-  key's field carries them with it.
-- **Where:** every original is sought in every field, longest first, in
-  these forms: its bytes; percent-encoded, either hex case, for a URL's
-  query; `dom::print`'s escapes, for a mark's html; and Rust's Debug
-  escapes, for an event's print. Its sha-256, with those spaces and
-  without them, is sought as well and becomes the placeholder's:
-  `AddKey`, `ReplaceKey` and `FinishSignIn` carry the digest of the value
-  they carry.
-- **A form's size:** in a framed field (a `heard answered` body, a
-  stream's record, an `exchange` body, a `save` or `stored` key or
-  value, and `written`, `unwritten` and `erase`) a form becomes `x`s of
-  its own length. In any other field, which no length prefix counts, it
-  becomes the placeholder.
-- **Typing:** typing is given an act at a time (8.1), so a typed value
-  shorter than 4 bytes, or the head of a longer typed value, is replaced
-  in its own act alone, and sought nowhere else. The view draws a secret
-  field's value empty, so no mark holds it.
-- **A stream's pieces are joined first.** A `heard piece` is a fetch's
-  chunk: it may end in the middle of a `data:` line, an original or a
-  base64 group. Between an `open` or `heard opened` and the next, the
-  pieces are one stream of bytes, cut into its lines; each `data:` line's
-  canonical base64 is decoded to its record, replaced there, encoded
-  back, and the bytes cut again where the pieces ended, so that the
-  replay is given the chunks it was given. A `data:` line that doesn't
-  decode refuses the recording, by the line of the piece it starts on. A
-  last line that the recording's end cuts short is decoded by its whole
-  groups, the rest kept as text.
-- **The rest is the proof's:** the host derives what it asks from what
-  it heard, so a consistent replacement replays as the original did. An
-  ask is proved, then: what is left of a typed value in an exchange
-  differs from what the replay asks, and is stale (4.2). A report is
-  only replaced and scanned (3.7).
-- **What `add` prints:** the count of each kind of original, and of the
-  places replaced.
-- **Not done, the user's word, 2026-11-05:** `temper box --bundle` on
-  real backends and its line under the sign-in block, since a real box's
-  own bundle records (3.5); email addresses, neither replaced
-  nor refused, since the account's email may stand in a committed
-  journey.
+recording alike, fake or real (`journey-redaction.md`).
 
 ### 3.7 The last scan
 
@@ -361,7 +293,7 @@ the replay drew on the way.
   replay drew at each turn's end, its escapes read back, so that what a
   page joins is seen, and each printed page.
 - **What it refuses:**
-  - *an original:* any form of a sought original (3.6), or its sha-256;
+  - *an original:* any form of a sought original (`journey-redaction.md`), or its sha-256;
   - *a key:* `sk-`, then at least 20 of `[A-Za-z0-9_-]`;
   - *a JWT:* three base64url parts joined by `.`, the first beginning
     `eyJ`, each at least 8 long;
@@ -441,7 +373,7 @@ and, for an act's mark, every node on it that gives the act's event.
 
 ### 4.3 The first replay's proof
 
-`add` replays the redacted recording (3.6) with its redacted live
+`add` replays the redacted recording (`journey-redaction.md`) with its redacted live
 prints: at each mark the replay's `Page::html()` is the recorded one,
 or the recording is refused, naming the mark and the first byte that
 differs. Such a replay is not faithful, and the defect is fixed in the
@@ -462,7 +394,7 @@ whose crate is `crates/temper-client-journeys-tool`, beside the gallery
 
 - `cargo run -p temper-client-journeys -- add [--redact TEXT]... NAME
   FILE` takes a saved recording as the journey NAME, replacing one of
-  that name, redacts it (3.6), proves it (4.3), scans it (3.7) and prints
+  that name, redacts it (`journey-redaction.md`), proves it (4.3), scans it (3.7) and prints
   it, in memory until the scan has passed. A NAME is `[a-z][a-z0-9-]*`.
 - `cargo run -p temper-client-journeys -- add --help` says what `add` takes
   out and what it leaves to the person (3.8).
@@ -595,7 +527,7 @@ python3 -m http.server 8766
   leaves the recording going on is the recorder's, tested natively: two
   saves of one walk, the first a whole recording that the second
   extends.
-- **The redaction, natively:** each kind of original (3.6) in each place
+- **The redaction, natively:** each kind of original (`journey-redaction.md`) in each place
   it can appear: a plain field, a piece's base64, split across two pieces
   at every byte, and a URL's query, each failing first. The host's world
   walks a typed key, pressed, through `add`'s steps, so that its digest

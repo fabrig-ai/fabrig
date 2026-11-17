@@ -118,6 +118,7 @@ fn exchange(h: &mut Harness, kind: u8) -> Token {
         | Message::Request(_)
         | Message::Read(_)
         | Message::Watch(_)
+        | Message::Batch(_)
         | Message::Unwatch(_)
         | Message::StreamGone(_)
         | Message::SignInLink(_)

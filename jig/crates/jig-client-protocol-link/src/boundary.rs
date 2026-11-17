@@ -59,6 +59,13 @@ pub enum Event {
         exchange: Token,
         message: Box<[u8]>,
     },
+    Part {
+        exchange: Token,
+        message: Box<[u8]>,
+    },
+    Done {
+        exchange: Token,
+    },
     Lost {
         exchange: Token,
     },
@@ -117,6 +124,7 @@ pub enum Request {
     },
     OpenStream {
         credential: Option<Secret>,
+        replaces: Option<[u8; 16]>,
     },
     Signing {
         signing: Signing,
@@ -194,6 +202,7 @@ pub enum Message {
     Read(Box<[u8]>),
     Watch(Box<[u8]>),
     Unwatch(Box<[u8]>),
+    Batch(Box<[u8]>),
     StreamGone(Box<[u8]>),
     SignInLink(Box<[u8]>),
     SignInService,
@@ -203,6 +212,8 @@ pub enum Message {
 #[derive(PartialEq, Eq)]
 pub enum Heard {
     Reply { exchange: Token, message: Box<[u8]> },
+    Part { exchange: Token, message: Box<[u8]> },
+    Done { exchange: Token },
     Lost { exchange: Token },
     Streamed { message: Streamed },
     StreamGone,
@@ -302,6 +313,7 @@ impl core::fmt::Debug for Message {
             Self::Request(body) => f.debug_struct("Request").field("body_len", &body.len()).finish(),
             Self::Read(body) => f.debug_struct("Read").field("body_len", &body.len()).finish(),
             Self::Watch(body) => f.debug_struct("Watch").field("body_len", &body.len()).finish(),
+            Self::Batch(body) => f.debug_struct("Batch").field("body_len", &body.len()).finish(),
             Self::Unwatch(body) => f.debug_struct("Unwatch").field("body_len", &body.len()).finish(),
             Self::StreamGone(body) => f.debug_struct("StreamGone").field("body_len", &body.len()).finish(),
             Self::SignInLink(body) => f.debug_struct("SignInLink").field("body_len", &body.len()).finish(),
@@ -339,6 +351,10 @@ impl core::fmt::Debug for Event {
             Self::Reply { exchange, message } => {
                 f.debug_struct("Reply").field("exchange", exchange).field("body_len", &message.len()).finish()
             }
+            Self::Part { exchange, message } => {
+                f.debug_struct("Part").field("exchange", exchange).field("body_len", &message.len()).finish()
+            }
+            Self::Done { exchange } => f.debug_struct("Done").field("exchange", exchange).finish(),
             Self::Lost { exchange } => f.debug_struct("Lost").field("exchange", exchange).finish(),
             Self::Open { watch, subject } => {
                 f.debug_struct("Open").field("watch", watch).field("subject", subject).finish()
@@ -360,6 +376,10 @@ impl core::fmt::Debug for Heard {
             Self::Reply { exchange, message } => {
                 f.debug_struct("Reply").field("exchange", exchange).field("body_len", &message.len()).finish()
             }
+            Self::Part { exchange, message } => {
+                f.debug_struct("Part").field("exchange", exchange).field("body_len", &message.len()).finish()
+            }
+            Self::Done { exchange } => f.debug_struct("Done").field("exchange", exchange).finish(),
             Self::Lost { exchange } => f.debug_struct("Lost").field("exchange", exchange).finish(),
             Self::Streamed { message } => f.debug_struct("Streamed").field("message", message).finish(),
             Self::StreamGone => f.write_str("StreamGone"),

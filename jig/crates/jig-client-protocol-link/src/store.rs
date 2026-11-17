@@ -57,6 +57,7 @@ impl Link {
     }
     pub(super) fn exchange(&mut self, exchange: Token, message: Message, out: &mut Queue<Request>) {
         let tracked = match &message {
+            Message::Batch(_) => unreachable!("the link sends no batch"),
             Message::Request(_) | Message::Read(_) | Message::Watch(_) => true,
             Message::Unwatch(_)
             | Message::StreamGone(_)
@@ -74,6 +75,7 @@ impl Link {
         }
         // A request carrying a value is never kept, so never waits on a write.
         let keyed = match &message {
+            Message::Batch(_) => unreachable!("the link sends no batch"),
             Message::Request(_) => match self.attempts.get(&exchange) {
                 Some(attempt) => !attempt.carrying(),
                 None => true,
@@ -111,6 +113,7 @@ impl Link {
         for _ in 0..count {
             match out.pop().expect("counted step outputs") {
                 Request::Exchange { exchange, message, credential } => match message {
+                    Message::Batch(_) => unreachable!("the link sends no batch"),
                     message @ (Message::ApprovalAsk(_)
                     | Message::ApprovalRead(_)
                     | Message::ApprovalDecide(_)

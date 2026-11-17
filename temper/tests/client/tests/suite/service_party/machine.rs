@@ -304,7 +304,7 @@ impl Machine {
             "/jig/v1/stream" => {
                 self.stream = Some(fd);
                 socket.reply.extend(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n\r\n");
-                self.front.carry(who, self.now, Request::OpenStream { credential });
+                self.front.carry(who, self.now, Request::OpenStream { credential, replaces: None });
                 self.hear(who);
                 return;
             }

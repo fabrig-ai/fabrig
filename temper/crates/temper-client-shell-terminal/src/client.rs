@@ -286,6 +286,8 @@ impl NativeClient {
             | jig_client::Event::StreamGone
             | jig_client::Event::Stored
             | jig_client::Event::NotStored
+            | jig_client::Event::Part { .. }
+            | jig_client::Event::Done { .. }
             | jig_client::Event::Up { .. }
             | jig_client::Event::Lost { .. } => None,
         };
@@ -339,6 +341,8 @@ impl NativeClient {
             | jig_client::Event::StreamGone
             | jig_client::Event::Stored
             | jig_client::Event::NotStored
+            | jig_client::Event::Part { .. }
+            | jig_client::Event::Done { .. }
             | jig_client::Event::Up { .. } => None,
         };
         if matches!(event, jig_client::Event::NotStored) {
@@ -406,6 +410,7 @@ impl NativeClient {
                             | jig_client::Message::Request(_)
                             | jig_client::Message::Read(_)
                             | jig_client::Message::Watch(_)
+                            | jig_client::Message::Batch(_)
                             | jig_client::Message::Unwatch(_)
                             | jig_client::Message::StreamGone(_) => None,
                         };

@@ -489,6 +489,7 @@ Design documents:
 - [`client/web/README.md`](client/web/README.status.md)
 - [`client/web/gallery.md`](client/web/gallery.status.md)
 - [`client/web/journeys.md`](client/web/journeys.status.md)
+- [`client/web/journey-redaction.md`](client/web/journey-redaction.status.md)
 - [`client/web/look-requests.md`](client/web/look-requests.status.md)
 - [`client/web/look.md`](client/web/look.status.md)
 - [`client/web/public.md`](client/web/public.status.md)

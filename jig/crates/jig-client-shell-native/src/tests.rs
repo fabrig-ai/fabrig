@@ -66,6 +66,44 @@ impl Peer {
     }
 }
 #[test]
+fn a_batch_part_reaches_the_client_before_the_body_ends() {
+    let mut peer = Peer::new();
+    peer.shell.down(
+        Time::ZERO,
+        client::Request::Exchange {
+            exchange: Token::new(EXCHANGE),
+            credential: None,
+            message: client::Message::Batch(b"batch".as_slice().into()),
+        },
+        &mut peer.below,
+    );
+    peer.respond(b"HTTP/1.1 200 OK\r\nContent-Length: 12\r\n\r\n\0\0\0\x03abc");
+    assert_eq!(
+        peer.up.pop(),
+        Some(client::Event::Part { exchange: Token::new(EXCHANGE), message: b"abc".as_slice().into() })
+    );
+    assert!(peer.up.is_empty(), "no terminal before the second piece");
+    peer.respond(b"\0\0\0\x01d");
+    assert_eq!(
+        peer.up.pop(),
+        Some(client::Event::Part { exchange: Token::new(EXCHANGE), message: b"d".as_slice().into() })
+    );
+    assert_eq!(peer.up.pop(), Some(client::Event::Done { exchange: Token::new(EXCHANGE) }));
+    assert!(peer.up.is_empty());
+
+    let mut ordinary = Peer::new();
+    ordinary.exchange();
+    ordinary.respond(b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nab");
+    assert!(ordinary.up.is_empty(), "an ordinary exchange still answers whole");
+    ordinary.respond(b"cd");
+    assert_eq!(
+        ordinary.up.pop(),
+        Some(client::Event::Reply { exchange: Token::new(EXCHANGE), message: b"abcd".as_slice().into() })
+    );
+    assert!(ordinary.up.is_empty());
+}
+
+#[test]
 fn an_exchange_carries_the_bearer_token() {
     let mut peer = Peer::new();
     peer.exchange();
@@ -111,7 +149,7 @@ fn a_connection_cut_mid_body_fails_the_exchange() {
 #[test]
 fn the_stream_s_bytes_reach_the_link_in_order() {
     let mut peer = Peer::new();
-    peer.shell.down(Time::ZERO, client::Request::OpenStream { credential: None }, &mut peer.below);
+    peer.shell.down(Time::ZERO, client::Request::OpenStream { credential: None, replaces: None }, &mut peer.below);
     peer.respond(b"HTTP/1.1 200 OK\r\n\r\ndata: Zmlyc3Q=\n\ndata: c2Vjb25k\n\n");
     let mut bytes = Vec::new();
     while let Some(event) = peer.up.pop() {
@@ -265,6 +303,8 @@ impl skein_shell::Host for Disk {
                 | client::Event::StartUnlinked { .. }
                 | client::Event::Send { .. }
                 | client::Event::Carry { .. }
+                | client::Event::Part { .. }
+                | client::Event::Done { .. }
                 | client::Event::Read { .. }
                 | client::Event::Reply { .. }
                 | client::Event::Watch { .. }
@@ -494,7 +534,7 @@ fn transport_tags_socket_events_and_waits_for_connection() {
         let mut transport = Transport::new(engine, &limits(), file_io_limits().sockets, tag);
         let mut events = Queue::with_capacity(1);
         let mut requests = Queue::with_capacity(1); // Exercise io output backpressure.
-        transport.down(Time::ZERO, client::Request::OpenStream { credential: None });
+        transport.down(Time::ZERO, client::Request::OpenStream { credential: None, replaces: None });
         transport.iterate(Time::ZERO, &mut events, &mut requests);
         let Some(skein_io::Request::Connect { owner, .. }) = requests.pop() else { panic!("connect first") };
         assert_eq!(owner, expected);
@@ -533,7 +573,7 @@ fn valid_refuses_each_unrepresentable_limit() {
 fn a_full_stream_refusal_without_a_line_ending_reaches_the_link() {
     use jig_client_protocol_wire as w;
     let mut peer = Peer::new();
-    peer.shell.down(Time::ZERO, client::Request::OpenStream { credential: None }, &mut peer.below);
+    peer.shell.down(Time::ZERO, client::Request::OpenStream { credential: None, replaces: None }, &mut peer.below);
     let record = w::StreamsFull::new(&w::CEILINGS, w::StreamsFullParts { bound: w::StreamBound::Transport, size: 2 })
         .expect("full record");
     let mut writer = Writer::new(usize::try_from(record.measure()).expect("fixed record"));

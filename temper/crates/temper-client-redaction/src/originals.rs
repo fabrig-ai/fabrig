@@ -1,4 +1,4 @@
-//! The originals of a recording (temper/docs/design/client/web/journeys.md, 3.3 and 3.6).
+//! The originals of a recording (temper/docs/design/client/web/journeys.md, 3.3 and temper/docs/design/client/web/journey-redaction.md).
 use skein_lib::sha256::digest;
 use std::{cmp::Reverse, fmt};
 
@@ -70,7 +70,7 @@ pub struct Originals {
     counted: Vec<(Kind, Box<[u8]>)>,
 }
 impl Originals {
-    /// The originals of the candidates given, then each given text (client/web/journeys.md, 3.6).
+    /// The originals of the candidates given, then each given text (client/web/journey-redaction.md).
     #[must_use]
     pub fn new(mut candidates: Vec<(Kind, Box<[u8]>)>, given: &[Box<[u8]>]) -> Self {
         candidates.extend(given.iter().map(|value| (Kind::Given, value.clone())));

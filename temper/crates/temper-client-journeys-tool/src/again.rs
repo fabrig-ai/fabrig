@@ -98,7 +98,7 @@ pub fn again(
     crate::add(journeys, name, &recording, &private_paths(paths)).map(|_| ())
 }
 
-/// Local capture paths are given originals for the shared redactor (client/web/journeys.md, 3.6).
+/// Local capture paths are given originals for the shared redactor (client/web/journey-redaction.md).
 pub(crate) fn private_paths(paths: &Paths) -> Vec<Box<[u8]>> {
     [&paths.temper, &paths.bundle, &paths.scratch]
         .into_iter()

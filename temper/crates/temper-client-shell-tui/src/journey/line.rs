@@ -100,6 +100,7 @@ impl Sent {
             Message::Request(bytes) => Self::Request(bytes.clone()),
             Message::Read(bytes) => Self::Read(bytes.clone()),
             Message::Watch(bytes) => Self::Watch(bytes.clone()),
+            Message::Batch(_) => unreachable!("the link sends no batch"),
             Message::Unwatch(bytes) => Self::Unwatch(bytes.clone()),
             Message::StreamGone(bytes) => Self::StreamGone(bytes.clone()),
             Message::SignInLink(bytes) => Self::SignInLink(bytes.clone()),

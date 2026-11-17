@@ -1,9 +1,9 @@
-//! Pure recording redaction (temper/docs/design/client/web/journeys.md, 3.6).
+//! Pure recording redaction (temper/docs/design/client/web/journey-redaction.md).
 use crate::Originals;
 use skein_lib::bytes::find_from;
 use std::{cmp::Reverse, collections::BTreeMap};
 
-/// Whether a length prefix counts a field's bytes (client/web/journeys.md, 3.6).
+/// Whether a length prefix counts a field's bytes (client/web/journey-redaction.md).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Framing {
     Framed,

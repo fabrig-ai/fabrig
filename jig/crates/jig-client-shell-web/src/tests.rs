@@ -180,6 +180,8 @@ fn an_answer_carries_its_kept_headers() {
     );
 }
 
+mod batches;
+
 #[test]
 fn debug_of_a_taken_link_shows_the_secrets_length_never_its_bytes() {
     const CANARY: &[u8; 32] = b"canary-jig-web-taken-6d94b7e2xyz";

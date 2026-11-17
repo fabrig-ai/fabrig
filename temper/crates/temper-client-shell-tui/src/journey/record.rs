@@ -182,6 +182,7 @@ impl Recorder {
 
 fn heard(event: &Event) -> Line {
     match event {
+        Event::Part { .. } | Event::Done { .. } => unreachable!("the link sends no batch"),
         Event::Reply { exchange, message } => Line::Reply { exchange: exchange.raw(), bytes: message.clone() },
         Event::Lost { exchange } => Line::Unanswered(exchange.raw()),
         Event::StreamGone => Line::Gone,
@@ -225,7 +226,7 @@ pub(super) fn asked(duties: &Duties) -> Vec<Line> {
                 message: Sent::of(message),
                 credential: credential.as_ref().map(|secret| secret.expose().into()),
             }),
-            Request::OpenStream { credential } => {
+            Request::OpenStream { credential, replaces: _ } => {
                 lines.push(Line::Stream(credential.as_ref().map(|secret| secret.expose().into())));
             }
             Request::CloseStream => lines.push(Line::Unstream),

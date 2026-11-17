@@ -1253,6 +1253,8 @@ impl Host {
             | jig_client::Event::Read { .. }
             | jig_client::Event::Send { .. }
             | jig_client::Event::Carry { .. }
+            | jig_client::Event::Part { .. }
+            | jig_client::Event::Done { .. }
             | jig_client::Event::Up { .. }
             | jig_client::Event::Stored
             | jig_client::Event::NotStored

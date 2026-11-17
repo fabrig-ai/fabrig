@@ -136,7 +136,7 @@ fn a_full_table_and_the_stream_s_name_start() {
     h.clear();
     h.open(fixtures::WATCH, fixtures::frame_subject());
     assert_eq!(h.gone_name(), fixtures::STREAM);
-    assert!(!h.has(&Request::OpenStream { credential: None }));
+    assert!(!h.has(&Request::OpenStream { credential: None, replaces: None }));
 }
 
 #[test]

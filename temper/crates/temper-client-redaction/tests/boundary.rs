@@ -1,4 +1,4 @@
-//! Shell-independent redaction (temper/docs/design/client/web/journeys.md, 3.6 and 3.7).
+//! Shell-independent redaction (temper/docs/design/client/web/journey-redaction.md and temper/docs/design/client/web/journeys.md, 3.7).
 use temper_client_redaction::{Framing, Kind, Originals, redact_field, scan};
 
 #[test]

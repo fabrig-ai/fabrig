@@ -1,4 +1,4 @@
-//! Pure recording redaction (temper/docs/design/client/web/journeys.md, 3.6).
+//! Pure recording redaction (temper/docs/design/client/web/journey-redaction.md).
 use super::{
     Framing, Line, Originals, Streams, Undecoded, Unreadable, fields_mut, lines, originals, placeholder, redact_field,
     typed,

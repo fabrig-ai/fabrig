@@ -523,7 +523,8 @@ impl World {
                 self.push(Edge::Unwatch);
                 return;
             }
-            other @ (Message::StreamGone(_)
+            other @ (Message::Batch(_)
+            | Message::StreamGone(_)
             | Message::SignInLink(_)
             | Message::SignInService
             | Message::SignOut

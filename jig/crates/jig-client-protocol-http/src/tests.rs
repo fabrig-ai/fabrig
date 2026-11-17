@@ -3,6 +3,7 @@ use jig_client_protocol_link::{Heard, Message};
 use skein_http::{Header, Method};
 use skein_lib::{Token, bytes};
 mod fixtures;
+mod frames;
 mod stream;
 use fixtures::{credential, mapping};
 const EXCHANGE: u64 = 11;

@@ -104,7 +104,8 @@ impl World {
                             self.traffic.push((self.steps.len(), "read", owner(read.owner())));
                         }
                         Message::Unwatch(_) => self.traffic.push((self.steps.len(), "close", 0)),
-                        Message::Request(_)
+                        Message::Batch(_)
+                        | Message::Request(_)
                         | Message::StreamGone(_)
                         | Message::SignInLink(_)
                         | Message::SignInService

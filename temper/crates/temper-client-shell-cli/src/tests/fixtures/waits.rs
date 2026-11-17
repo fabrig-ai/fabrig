@@ -63,6 +63,8 @@ impl Frame {
                 | jig_client::Event::StreamGone
                 | jig_client::Event::Stored
                 | jig_client::Event::NotStored
+                | jig_client::Event::Part { .. }
+                | jig_client::Event::Done { .. }
                 | jig_client::Event::Up { .. }) => other.push(event),
             }
         }

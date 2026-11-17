@@ -85,6 +85,7 @@ impl Wire {
             | Message::ApprovalRead(_)
             | Message::ApprovalDecide(_)
             | Message::Authorize(_)
+            | Message::Batch(_)
             | Message::Unwatch(_)
             | Message::StreamGone(_) => Kind::Other,
         };
@@ -235,7 +236,9 @@ impl Wire {
                 self.exchanges.remove(exchange);
                 vec![]
             }
-            Event::Start { .. }
+            Event::Part { .. }
+            | Event::Done { .. }
+            | Event::Start { .. }
             | Event::StartUnlinked { .. }
             | Event::SignIn { .. }
             | Event::AskApproval

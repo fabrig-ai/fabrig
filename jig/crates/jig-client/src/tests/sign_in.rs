@@ -16,7 +16,7 @@ fn a_watch_asked_before_signing_in_opens_once_signed_in() {
     c.step(Event::Watch { handle: TASK, subject: task() });
     assert_eq!((c.requests()).len(), 0);
     c.step(Event::SignIn { with: With::Held(fixtures::credential(&CREDENTIAL)) });
-    let [Request::Told { told }, Request::OpenStream { credential }] = c.requests() else {
+    let [Request::Told { told }, Request::OpenStream { credential, replaces: _ }] = c.requests() else {
         panic!("starting with held credential: {:?}", c.requests());
     };
     assert_eq!(*told, Told::Link { link: Link::Starting });
@@ -101,7 +101,7 @@ fn a_service_signs_in_with_its_credential_as_the_message_s() {
     assert_eq!(credential, &Some(fixtures::credential(&SERVICE_CREDENTIAL)));
     let exchange = *exchange;
     c.step(Event::Reply { exchange, message: fixtures::signed_in(&NEW_CREDENTIAL) });
-    let [Request::Told { told }, Request::OpenStream { credential }] = c.requests() else {
+    let [Request::Told { told }, Request::OpenStream { credential, replaces: _ }] = c.requests() else {
         panic!("starting with new credential: {:?}", c.requests());
     };
     assert_eq!(*told, Told::Link { link: Link::Starting });
@@ -111,7 +111,7 @@ fn a_service_signs_in_with_its_credential_as_the_message_s() {
 fn under_transport_exchanges_carry_no_credential() {
     let mut c = Client::new();
     c.step(Event::SignIn { with: With::Transport });
-    let [Request::Told { told }, Request::OpenStream { credential }] = c.requests() else {
+    let [Request::Told { told }, Request::OpenStream { credential, replaces: _ }] = c.requests() else {
         panic!("starting with transport credential: {:?}", c.requests());
     };
     assert_eq!(*told, Told::Link { link: Link::Starting });
@@ -236,7 +236,7 @@ fn a_link_sign_in_answered_not_ready_retries_until_signed_in() {
         assert_eq!(c.machine.link().credential, Some(&fixtures::credential(&NEW_CREDENTIAL)));
         let mut opened = false;
         for request in c.requests() {
-            if let Request::OpenStream { credential } = request {
+            if let Request::OpenStream { credential, replaces: _ } = request {
                 assert_eq!(credential, &Some(fixtures::credential(&NEW_CREDENTIAL)));
                 opened = true;
             }

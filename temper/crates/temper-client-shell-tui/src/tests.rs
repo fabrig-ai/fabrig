@@ -195,7 +195,7 @@ fn the_credential_is_kept_and_erased_as_the_link_says() {
         assert!(duties.keep.is_none());
         if held {
             assert!(duties.asked.iter().any(|request| matches!(request,
-                Request::OpenStream { credential: offered } if offered == &credential
+                Request::OpenStream { credential: offered, .. } if offered == &credential
             )));
         } else {
             ask(&duties);
@@ -3308,7 +3308,8 @@ pub(crate) fn background_reply(request: &Request) -> Option<Report> {
         Message::Watch(_) => w::OpenAnswer::Admitted.measure(),
         Message::Unwatch(_) => w::CloseAnswer::Closed.measure(),
         Message::Read(_) => read.measure(),
-        Message::Authorize(_)
+        Message::Batch(_)
+        | Message::Authorize(_)
         | Message::ApprovalAsk(_)
         | Message::ApprovalRead(_)
         | Message::ApprovalDecide(_)
@@ -3324,7 +3325,8 @@ pub(crate) fn background_reply(request: &Request) -> Option<Report> {
         Message::Watch(_) => w::OpenAnswer::Admitted.encode(&mut writer).expect("watch admitted"),
         Message::Unwatch(_) => w::CloseAnswer::Closed.encode(&mut writer).expect("watch closed"),
         Message::Read(_) => read.encode(&mut writer).expect("read answer"),
-        Message::Authorize(_)
+        Message::Batch(_)
+        | Message::Authorize(_)
         | Message::ApprovalAsk(_)
         | Message::ApprovalRead(_)
         | Message::ApprovalDecide(_)

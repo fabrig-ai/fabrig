@@ -144,6 +144,7 @@ impl Link {
                 self.transport.remove(&exchange);
                 self.answered(exchange, &message, out);
             }
+            Event::Part { .. } | Event::Done { .. } => return,
             Event::Lost { exchange } => {
                 self.transport.remove(&exchange);
                 if let Some(attempt) = self.attempts.remove(&exchange) {
@@ -511,7 +512,7 @@ impl Link {
     }
     fn begin_stream(&mut self, now: Time, out: &mut Queue<Request>) {
         self.stream = Some(crate::silence::Silence::new(self.limits.client().heartbeat, now));
-        out.push(Request::OpenStream { credential: self.credential.clone() });
+        out.push(Request::OpenStream { credential: self.credential.clone(), replaces: None });
     }
     fn send_open(&mut self, watch: Token, out: &mut Queue<Request>) {
         let Some(stream) = &self.stream else { return };

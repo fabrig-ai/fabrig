@@ -77,6 +77,7 @@ pub struct Shell<P: ShellPlatform> {
 pub trait ShellPlatform: platform::Platform {
     type Timer;
     fn clocks(&self) -> (skein_lib::Time, skein_lib::Wall);
+    fn read_on_exchange(&mut self, exchange: u32);
     fn fired(timer: &mut Self::Timer);
     fn end(&self, timer: &mut Self::Timer);
     fn timer(&self, timer: &mut Self::Timer, deadline: Option<skein_lib::Time>, now: skein_lib::Time);
@@ -84,6 +85,9 @@ pub trait ShellPlatform: platform::Platform {
 #[cfg(target_arch = "wasm32")]
 impl ShellPlatform for platform::Browser<Report> {
     type Timer = timer::web::Timer;
+    fn read_on_exchange(&mut self, exchange: u32) {
+        self.fetch.read_on_exchange(exchange);
+    }
     fn clocks(&self) -> (skein_lib::Time, skein_lib::Wall) {
         platform::clocks()
     }
@@ -295,6 +299,23 @@ impl<P: ShellPlatform> Shell<P> {
     }
     /// Carries one host report in order; navigation says whether a new page shows.
     pub fn report(&mut self, inbox: &Inbox<Report>, report: Report) -> Option<bool> {
+        let read_exchange = match &report {
+            Report::Fetch(report) => adapter::read_on_exchange(report),
+            Report::Push(_)
+            | Report::Start
+            | Report::Mark
+            | Report::Save
+            | Report::Due
+            | Report::TabRefused
+            | Report::Act(..)
+            | Report::Carried(..)
+            | Report::Copied(_)
+            | Report::Screen(_)
+            | Report::Place(_)
+            | Report::Returned(_)
+            | Report::Frame(_)
+            | Report::World(_) => None,
+        };
         let read_on = matches!(
             &report,
             Report::Fetch(
@@ -310,7 +331,7 @@ impl<P: ShellPlatform> Shell<P> {
         let document = web_sys::window().expect("window").document().expect("document");
         night(&document, self.host.night());
         let navigates = duties.show.is_some();
-        let shown = self.carry(inbox, duties, read_on);
+        let shown = self.carry(inbox, duties, read_on, read_exchange);
         navigates.then_some(shown)
     }
     pub fn draw(&mut self, new_page: bool, now: skein_lib::Time) {
@@ -363,7 +384,13 @@ impl<P: ShellPlatform> Shell<P> {
         .into()
     }
     /// Carries one report's requests, navigation, store writes and stream read; returns whether a new page shows.
-    fn carry(&mut self, inbox: &Inbox<Report>, duties: host::Duties, read_on: bool) -> bool {
+    fn carry(
+        &mut self,
+        inbox: &Inbox<Report>,
+        duties: host::Duties,
+        read_on: bool,
+        read_exchange: Option<u32>,
+    ) -> bool {
         // Push permission is asked inside the press event, before any asynchronous work.
         for duty in &duties.push {
             push::carry(Rc::clone(&self.push_inbox), *duty);
@@ -422,6 +449,9 @@ impl<P: ShellPlatform> Shell<P> {
         transport::carry(requests, &mut self.store, &mut self.platform, &mut carried);
         if duties.writes != 0 || !carried.is_empty() {
             inbox.raise(Report::Carried(carried, duties.writes));
+        }
+        if let Some(exchange) = read_exchange {
+            self.platform.read_on_exchange(exchange);
         }
         if read_on {
             platform::Platform::read_on(&mut self.platform);

@@ -206,8 +206,8 @@ impl Front {
                     &mut self.below,
                 );
             }
-            client::Request::OpenStream { credential } => {
-                self.connections.down(now, client::Request::OpenStream { credential }, &mut self.below);
+            client::Request::OpenStream { credential, replaces } => {
+                self.connections.down(now, client::Request::OpenStream { credential, replaces }, &mut self.below);
             }
             client::Request::CloseStream => {
                 self.connections.down(now, client::Request::CloseStream, &mut self.below);

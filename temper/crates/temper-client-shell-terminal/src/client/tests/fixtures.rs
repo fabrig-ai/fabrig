@@ -47,6 +47,7 @@ pub(super) fn link_chat(stored: Option<skein_lib::Secret>) -> (NativeClient, ske
                 | jig_client::Message::SignOut
                 | jig_client::Message::Request(_)
                 | jig_client::Message::Watch(_)
+                | jig_client::Message::Batch(_)
                 | jig_client::Message::Unwatch(_)
                 | jig_client::Message::StreamGone(_) => panic!("unexpected startup exchange"),
             }

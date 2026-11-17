@@ -59,6 +59,7 @@ pub fn exchange(mapping: &Mapping, credential: Option<&Secret>, message: Message
         Message::Request(body) => (b"/v1/request".as_slice(), body),
         Message::Read(body) => (b"/v1/read".as_slice(), body),
         Message::Watch(body) => (b"/v1/watch".as_slice(), body),
+        Message::Batch(body) => (b"/v1/batch".as_slice(), body),
         Message::Unwatch(body) => (b"/v1/unwatch".as_slice(), body),
         Message::StreamGone(body) => (b"/v1/stream-gone".as_slice(), body),
         Message::SignInLink(body) => (b"/v1/sign-in/link".as_slice(), body),
@@ -101,6 +102,24 @@ pub fn answered(exchange: Token, status: u16, body: Box<[u8]>) -> Heard {
 }
 
 #[must_use]
-pub fn stream(mapping: &Mapping, credential: Option<&Secret>) -> Call {
-    call(mapping, credential, Method::Get, b"/v1/stream", Box::new([]))
+pub fn stream(mapping: &Mapping, credential: Option<&Secret>, replaces: Option<[u8; 16]>) -> Call {
+    let mut result = call(mapping, credential, Method::Get, b"/v1/stream", Box::new([]));
+    if let Some(name) = replaces {
+        let mut path = Writer::new(result.path.len().checked_add(42).expect("bounded replacement query"));
+        path.put(&result.path).expect("measured path");
+        path.put(b"?replaces=").expect("measured query");
+        for byte in name {
+            for digit in [byte >> 4_u32, byte & 15] {
+                let digit = if digit < 10 {
+                    b'0'.checked_add(digit)
+                } else {
+                    b'a'.checked_add(digit.checked_sub(10).expect("hex letter"))
+                }
+                .expect("hex digit");
+                path.put(&[digit]).expect("measured stream name");
+            }
+        }
+        result.path = path.finish();
+    }
+    result
 }

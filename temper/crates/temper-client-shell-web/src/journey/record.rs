@@ -182,9 +182,10 @@ pub(super) fn asked(duties: &Duties) -> Vec<Line> {
     }
     for ask in &duties.asked {
         lines.push(match ask {
-            Asked::Exchange { id, call, bound, cache: _, keep: _ } => Line::Exchange {
+            Asked::Exchange { id, call, bound, pieces, cache: _, keep: _ } => Line::Exchange {
                 id: *id,
                 bound: *bound,
+                pieces: *pieces,
                 method: call.method.as_bytes().into(),
                 path: call.path.clone(),
                 body: call.body.clone(),

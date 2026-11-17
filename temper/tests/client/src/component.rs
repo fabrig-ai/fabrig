@@ -405,6 +405,7 @@ impl Composition {
                     link::Message::Request(bytes) => clients::Message::Request(bytes),
                     link::Message::Read(bytes) => clients::Message::Read(bytes),
                     link::Message::Watch(bytes) => clients::Message::Watch(bytes),
+                    link::Message::Batch(_) => unreachable!("the link sends no batch"),
                     link::Message::Unwatch(bytes) => clients::Message::Unwatch(bytes),
                     link::Message::StreamGone(bytes) => clients::Message::Gone(bytes),
                     link::Message::SignInLink(bytes) => clients::Message::SignInLink(bytes),
@@ -418,7 +419,7 @@ impl Composition {
                     message,
                 }));
             }
-            jig_client::Request::OpenStream { credential } => {
+            jig_client::Request::OpenStream { credential, replaces: _ } => {
                 let stream = self.token();
                 self.streams.insert(client, stream);
                 self.event(Event::Transport(clients::FromTransport::StreamOpen { stream, credential }));
@@ -442,6 +443,8 @@ impl Composition {
         if let Some(heard) = self.heard.get_mut(&client) {
             heard.push(match event {
                 link::Event::Reply { exchange, message } => jig_client::Event::Reply { exchange, message },
+                link::Event::Part { exchange, message } => jig_client::Event::Part { exchange, message },
+                link::Event::Done { exchange } => jig_client::Event::Done { exchange },
                 link::Event::Lost { exchange } => jig_client::Event::Lost { exchange },
                 link::Event::Streamed { message } => jig_client::Event::Streamed { message },
                 link::Event::StreamGone => jig_client::Event::StreamGone,
@@ -864,8 +867,8 @@ impl Composition {
                 self.carry(client, jig_client::Request::Exchange { exchange, credential, message });
                 return;
             }
-            link::Request::OpenStream { credential } => {
-                self.carry(client, jig_client::Request::OpenStream { credential });
+            link::Request::OpenStream { credential, replaces } => {
+                self.carry(client, jig_client::Request::OpenStream { credential, replaces });
                 return;
             }
             link::Request::CloseStream => {

@@ -51,6 +51,7 @@ fn exchange(body: &[u8]) -> Line {
     Line::Exchange {
         id: 1,
         bound: 256,
+        pieces: None,
         method: b"POST".as_slice().into(),
         path: b"/".as_slice().into(),
         body: body.into(),
@@ -102,7 +103,7 @@ type TextField = (&'static str, fn(Box<[u8]>) -> Line);
 
 #[expect(
     clippy::too_many_lines,
-    reason = "the table names each field, form and piece boundary of client/web/journeys.md, 3.6"
+    reason = "the table names each field, form and piece boundary of client/web/journey-redaction.md"
 )]
 fn places() -> Vec<Case> {
     let mut cases = vec![
@@ -217,7 +218,15 @@ fn places() -> Vec<Case> {
 }
 
 fn request(path: Box<[u8]>, headers: Vec<skein_ui_web::transport::Header>) -> Line {
-    Line::Exchange { id: 1, bound: 256, method: b"POST".as_slice().into(), path, body: Box::default(), headers }
+    Line::Exchange {
+        id: 1,
+        bound: 256,
+        pieces: None,
+        method: b"POST".as_slice().into(),
+        path,
+        body: Box::default(),
+        headers,
+    }
 }
 
 #[test]
@@ -274,6 +283,27 @@ fn each_kind_goes_from_each_place() {
     }
     eprintln!("kind/place table: {rows} rows, {failures} failures");
     assert_eq!(failures, 0, "each kind must go from each place");
+}
+
+#[test]
+fn a_batch_part_redacts_as_an_answered_body() {
+    // Percent forms keep their own encoded length in either kind of body.
+    let body = framed(UPPER);
+    let expected = framed(&vec![b'x'; UPPER.len()]);
+    let (_, lines) = changed(
+        &[
+            Line::Heard(Heard::Part { exchange: 7, bytes: body.clone() }),
+            Line::Heard(Heard::Answered { exchange: 8, status: 200, body, headers: Vec::new() }),
+        ],
+        &[VALUE.into()],
+    );
+    assert_eq!(
+        lines,
+        vec![
+            Line::Heard(Heard::Part { exchange: 7, bytes: expected.clone() }),
+            Line::Heard(Heard::Answered { exchange: 8, status: 200, body: expected, headers: Vec::new() }),
+        ]
+    );
 }
 
 #[test]

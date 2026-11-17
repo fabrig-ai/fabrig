@@ -1,6 +1,7 @@
 //! The host owns secret/clearing/target evidence; Chromium owns navigation and re-entry.
 use super::*;
 use jig_client::contract as c;
+use skein_lib::Token;
 use skein_ui::{EntryKind, Role};
 #[path = "host_tests_approve.rs"]
 mod approve;
