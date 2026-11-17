@@ -3,7 +3,7 @@
 use crate::{settings, worker_settings::Limits};
 use jig_protocol_config::{self as config, Path};
 use temper_protocol_worker_wire::v1 as payload;
-use temper_service_core::limits;
+use temper_service_core::derived::{checkout_answer as answer, checkout_payload as payload};
 use temper_service_core::startup::problems::{Problems, What};
 
 fn short(has: u64, needs: u64) -> Option<(u32, u32)> {
@@ -12,39 +12,6 @@ fn short(has: u64, needs: u64) -> Option<(u32, u32)> {
     } else {
         None
     }
-}
-
-/// The generated payload bounds need only the checkout's three capacity values.
-fn payload(checkout: &limits::Checkout) -> payload::Limits {
-    payload::Limits {
-        saved_repositories: checkout.repositories,
-        left_landed: checkout.repositories,
-        files_files: checkout.conflicts,
-        files_files_item: checkout.path_bytes,
-        ..payload::CEILINGS
-    }
-}
-
-/// Measure the same answer as jig's sizes, with its frame header. Other body
-/// fields remain at their ceilings: they do not occur in an Answer.
-fn answer(jig: &config::Limits, payload: &payload::Limits) -> Option<u64> {
-    use jig_protocol_worker_wire::{CEILINGS, v15};
-    let saved = payload::Saved::encoded_bound(payload)?;
-    let ceiling = u64::from(CEILINGS.work_saved_some);
-    let limits = v15::Limits {
-        work_left_some: u32::try_from(payload::Left::encoded_bound(payload)?).ok()?,
-        work_saved_some: u32::try_from(saved.min(ceiling)).ok()?,
-        answer_refused: jig.core.tasks.run_inbox,
-        ended_outcome: u32::try_from(jig.hub.outcome_bytes).ok()?,
-        failed_detail: jig.hub.detail_bytes,
-        invalid_start_why: jig.hub.detail_bytes,
-        resource_resource_some: u32::try_from(payload::Preparation::encoded_bound(payload)?).ok()?,
-        ..CEILINGS
-    };
-    // At the saved ceiling, the largest ending contains Work, not a refusal.
-    // Any excess extends that same byte field; measure even a ceiling shortfall
-    // so it cannot hide the rooms that must rise with it.
-    v15::Answer::encoded_bound(&limits)?.checked_add(saved.saturating_sub(ceiling))?.checked_add(8)
 }
 
 fn room(jig: Option<&config::Limits>, payload: &payload::Limits) -> Option<(u32, u32)> {

@@ -495,7 +495,7 @@ fn delegate(
     b.run(Run::Strong, &words.say(Word::DelegateNumber, &[Hole::Number(task)]));
     let fate = words.say(
         if cancel { Word::DelegateCancel } else { Word::DelegateMove },
-        &[Hole::Name(skein_lib::bytes::copy_of(title))],
+        &[Hole::Name(crate::common::chat::row_title(title))],
     );
     b.run(Run::Plain, if title.is_empty() { fate.get(1..).expect("fate starts with a space") } else { &fate });
     b.close();

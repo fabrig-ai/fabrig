@@ -6,7 +6,7 @@ use skein_lib::Duration;
 pub(super) fn peer(address: std::net::SocketAddr, registration: &serde_json::Value) -> oauth::Peer {
     let bytes =
         |member: &str| -> Box<[u8]> { registration[member].as_str().expect("registration member").as_bytes().into() };
-    let profile = jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Small);
+    let profile = jig_protocol_config_fixtures::small();
     let limits = skein_fake_oauth::Limits {
         document: profile.driver.client.document,
         uri_bytes: 1024,

@@ -255,7 +255,7 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     const OTHER: u32 = 768;
     let configuration = configured();
     let limits = configuration.service.limits.domain.run;
-    let brief = crate::limits::profile(crate::limits::Profile::Standard).root.brief;
+    let brief = crate::limits::stock().root.brief;
     assert!(brief.parts >= TASK_PARTS);
     let largest = temper_engine_smith::charter(&assignment(5, false, 0));
     let room = run::brief_room(&largest, Some(&workspace(true)), &limits).unwrap();
@@ -457,7 +457,7 @@ fn measure_worker() {
         .push((worker.jig.secret.clone(), skein_lib::Secret::new(b"worker-secret-value".as_slice().into())))
         .unwrap();
     let overrides = fixtures::value(&generated(), b"application.limits.overrides");
-    let mut own = crate::limits::profile(crate::limits::Profile::Small);
+    let mut own = temper_limits_fixtures::small();
     let overrides = jig_protocol_config::document(
         &overrides,
         &jig_protocol_config::DocumentLimits { bytes: 16_384, tokens: 4096, depth: 4 },
@@ -519,7 +519,7 @@ fn measure_worker() {
 
 fn measure_turn(number: u32) {
     let config = configured();
-    let body = usize::try_from(crate::limits::profile(crate::limits::Profile::Small).root.brief.brief_bytes).unwrap();
+    let body = usize::try_from(temper_limits_fixtures::small().root.brief.brief_bytes).unwrap();
     let assignment = assignment(number, false, body);
     let limits = config.service.limits.domain;
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };

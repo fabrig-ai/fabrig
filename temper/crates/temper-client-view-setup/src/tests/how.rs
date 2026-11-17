@@ -97,3 +97,29 @@ fn budgets_draw_the_period_in_reader_time_and_roles_before_goals() {
         }
     }
 }
+
+#[test]
+fn budget_rows_cut_the_standing_tasks_title_in_both_shells() {
+    use d::pages::how::{self, Facts, Read, Standing};
+    for (title, cut) in f::row_titles() {
+        let facts = Facts {
+            rules: List::uncapped(),
+            period: None,
+            standing: Box::new([Standing { number: 2, title: title.into(), left: 28, budget: 40 }]),
+            asking: false,
+            read: Read::Reading,
+            roles: false,
+            budget: None,
+            goals: false,
+            classes: false,
+            several: false,
+        };
+        for words in [f::browser_words(), f::words()] {
+            let mut b = skein_ui::Builder::new(&f::tree_limits());
+            crate::pages::how::draw_budgets(&mut b, &words, &how::parts(&facts));
+            let tree = b.finish();
+            named(tree.nodes(), Role::Text, cut);
+            assert!(skein_lib::bytes::find(&f::text(&tree), cut).is_some());
+        }
+    }
+}

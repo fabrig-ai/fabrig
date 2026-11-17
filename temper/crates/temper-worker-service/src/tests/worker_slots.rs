@@ -11,7 +11,7 @@ fn two_agents_run_at_once_under_the_real_host_limits() {
     assert_eq!(agent.host_limits.agents, 1, "smith sizes one agent's host");
     let mut settings = fixtures::worker_settings();
     settings.jig.slots = 2;
-    settings.jig.limits = jig_protocol_config::profile(jig_protocol_config::Profile::Standard);
+    settings.jig.limits = jig_protocol_config::stock();
     let hub = &mut settings.jig.limits.hub;
     hub.slots = 2;
     hub.accounts = agent.host_limits.accounts;

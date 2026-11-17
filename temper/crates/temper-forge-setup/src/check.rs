@@ -29,7 +29,7 @@ pub(crate) fn joined(parts: &[&[u8]]) -> Box<[u8]> {
 /// Applies the machine's setup limits (temper/docs/design/protocol/configuration/limits.md).
 pub fn limits(overrides: &[(Box<[u8]>, u64)]) -> Result<(Limits, u64), Problems> {
     let mut ps = Problems::empty();
-    let mut limits = limits::small();
+    let mut limits = limits::stock();
     let mut fetch_bytes = limits::FETCH_BYTES;
     let lp = Path::root().member(b"application").member(b"limits").member(b"overrides");
     for (name, value) in overrides {

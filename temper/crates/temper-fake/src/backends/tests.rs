@@ -510,7 +510,7 @@ fn adapter_and_machine_kinds_are_ordinary_and_no_forges_are_added() {
 
 #[test]
 fn backend_rewrite_keeps_creating_list_capacity() {
-    let standard = jig_protocol_config::profile(jig_protocol_config::Profile::Standard).core.documents.lines;
+    let standard = jig_protocol_config::stock().core.documents.lines;
     for (receiving, expected) in [(Some(2), 3), (Some(8), 8), (None, standard)] {
         let (mut temper, agent, paths, peers) = fixture();
         let overrides = temper["engine"]["limits"]["overrides"].as_object_mut().unwrap();
@@ -554,7 +554,7 @@ fn program_offer_has_a_runnable_model_route_in_both_documents() {
     let admitted = admit(&docs.temper);
     assert_eq!(
         admitted.limits.core.documents.lines,
-        jig_protocol_config::profile(jig_protocol_config::Profile::Standard).core.documents.lines,
+        jig_protocol_config::stock().core.documents.lines,
         "the rewrite preserves the profile's creating lists"
     );
     let effective = json(&docs.temper);
@@ -612,7 +612,7 @@ fn managed_admin_name_accepts_the_actual_fake_seeded_admin_and_token() {
     use skein_lib::{Queue, Secret};
     let (temper, agent, paths, peers) = fixture();
     let docs = write(&temper, &agent, &paths, &peers).expect("rewrite");
-    let limits = temper_forge_setup::limits::small();
+    let limits = temper_forge_setup::limits::stock();
     let entry = temper_forge_setup::setup::Entry {
         forge: 4,
         directory: Box::new([]),

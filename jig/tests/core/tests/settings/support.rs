@@ -20,12 +20,13 @@ pub(super) fn configuration() -> (root::Config, root::Limits) {
         &jig_protocol_config::DocumentLimits { bytes: 16384, tokens: 4096, depth: 16 },
     )
     .expect("settings story fixture");
-    let mut engine = jig_protocol_config::engine(
+    let mut engine = jig_protocol_config::engine_over(
         &document,
         0,
         &jig_protocol_config::Directories::working(),
         jig_protocol_config::Defaults::Document,
         &jig_protocol_config::Fixed::NONE,
+        &jig_protocol_config_fixtures::small(),
     )
     .expect("settings story fixture");
     engine.charters[0].policy.instructions = Box::from(b"Answer within the granted authority.".as_slice());
@@ -463,9 +464,9 @@ const REQUEST_HEAP_CEILING: u64 = 21_000_000;
 
 /// A stock profile's whole room of deciding requests answered, a cold
 /// restart, and the first request replayed (the heap ceiling checks each step).
-pub(super) fn whole_room_of_answers(profile: jig_protocol_config::Profile) {
+pub(super) fn whole_room_of_answers(profile: &jig_protocol_config::Limits) {
     let (config, mut limits) = configuration();
-    let people = jig_protocol_config::profile(profile).core.people;
+    let people = profile.core.people;
     limits.core.people.requests = people.requests;
     limits.core.people.request_retention = people.request_retention;
     let mut world = RequestWorld::new(config, &limits);

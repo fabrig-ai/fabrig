@@ -176,10 +176,13 @@ pub fn goal_view() -> temper_engine_domain_forge_issues::GoalView {
 /// Both byte-valued records' Debug and text-valued facts must hide the API token.
 #[must_use]
 pub fn token_absent(value: &impl core::fmt::Debug) -> bool {
+    static BYTES: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    let bytes = BYTES.get_or_init(|| {
+        let bytes = format!("{TOKEN:?}");
+        bytes[1..bytes.len() - 1].to_owned()
+    });
     let text = format!("{value:?}");
-    let bytes = format!("{TOKEN:?}");
-    !text.contains(core::str::from_utf8(TOKEN).expect("ASCII fixture token"))
-        && !text.contains(&bytes[1..bytes.len() - 1])
+    !text.contains(core::str::from_utf8(TOKEN).expect("ASCII fixture token")) && !text.contains(bytes)
 }
 
 /// The machine world's fake App and bot, supplied by temper's own fixture.

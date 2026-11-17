@@ -44,7 +44,7 @@ impl Rig {
         rig
     }
     pub fn running() -> Self {
-        let mut rig = Self::new(&limits::small());
+        let mut rig = Self::new(&limits::stock());
         rig.completed(PREPARE);
         rig.started(FORGEJO);
         rig.started(RUNNER);
@@ -205,7 +205,7 @@ impl Harness {
         stubborn: bool,
         buffer: u32,
     ) -> Self {
-        Self::configured(steps, items, stubborn, buffer, &limits::small())
+        Self::configured(steps, items, stubborn, buffer, &limits::stock())
     }
     pub fn configured(
         steps: temper_forge_setup::Steps,

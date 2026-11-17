@@ -102,7 +102,7 @@ fn words<E>(what: &What<E>, path: &config::Path) -> &'static [u8] {
             b"a worker alone takes one worker dialling a plaintext loopback socket, and only application.limits"
         }
         What::Absolute => b"must be an absolute path",
-        What::Profile => b"the only profile is \"small\"",
+        What::Profile => b"the only profile is \"standard\"",
         What::Override(limits::Refused::Unknown) => b"no limit of temper's has this name",
         What::Override(limits::Refused::Range) => b"outside its type",
         What::Against { .. } => b"must agree with ",

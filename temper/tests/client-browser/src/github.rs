@@ -30,7 +30,7 @@ pub(super) fn peer(address: SocketAddr) -> Peer {
 }
 
 pub(super) fn peer_repositories(address: SocketAddr, repositories: u32, page: u32) -> Peer {
-    let profile = jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Small);
+    let profile = jig_protocol_config_fixtures::small();
     let mut config = domain_config();
     config.limits.repositories = repositories;
     config.limits.commits = repositories;

@@ -1,7 +1,6 @@
 {{
   "engine": {{
     "limits": {{
-      "profile": "small",
       "overrides": {{
         "authority.executors": 22,
         "authority.grants": 15,
@@ -30,7 +29,7 @@
         "hub.turn_bytes": 1327470,
         "hub.turn_queue_bytes": 10619760,
         "hub.turns": 1,
-        "io.output": 1327857,
+        "io.output": 1328262,
         "link.ping_ms": 100,
         "link.silence_ms": 1000,
         "notes.entries_per_scope": 1,
@@ -56,6 +55,7 @@
         "tasks.delegates": 4,
         "tasks.dependencies": 1,
         "tasks.executor_kinds": 22,
+        "tasks.exemptions": 8,
         "tasks.funders": 4,
         "tasks.hold_bytes": 64,
         "tasks.hold_segments": 8,
@@ -67,6 +67,8 @@
         "tasks.saved_resources": 4,
         "tasks.spec_bytes": 512,
         "tasks.tasks": 8,
+        "tasks.inbox_bytes": 4096,
+        "tasks.run_inbox": 8,
         "tasks.tree_tasks": 8,
         "views.runs": 1,
         "views.text_bytes": 1024
@@ -135,11 +137,11 @@
     "test": {{"github": {{"api": {{"socket": "{proc.forge.ready.address}"}}, "transport": "plaintext", "remote": "http://{proc.forge.ready.address}", "web": "http://{proc.forge.ready.address}"}}}},
     "demo": null, "sign_in": null,
     "limits": {{
-      "profile": "small",
       "overrides": {{
         "checkout.message_bytes": 4096,
         "checkout.name_bytes": 256,
         "checkout.repositories": 2,
+        "forge.landing_members": 1,
         "forge.name_bytes": 64,
         "forge.resources_per_task": 2,
         "git_component.stdout_bytes": 131072,
