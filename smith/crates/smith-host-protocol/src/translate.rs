@@ -290,6 +290,7 @@ pub(crate) fn encode_reply(
         channel::Reply::Busy => wire::Reply::Busy,
         channel::Reply::Unavailable => wire::Reply::Unavailable,
         channel::Reply::Withdrawn => wire::Reply::Withdrawn,
+        channel::Reply::Unsent => wire::Reply::Unsent,
         channel::Reply::TooLarge => wire::Reply::TooLarge,
     };
     let record = wire::HostAnswer::new(limits, wire::HostAnswerParts { name, reply })?;

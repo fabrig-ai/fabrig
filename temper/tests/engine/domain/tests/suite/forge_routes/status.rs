@@ -301,6 +301,7 @@ fn a_look_after_a_landing_runs_the_agent_and_saves_its_brief() {
     let words = core::str::from_utf8(&live_task(&world, agent.task).spec.words).expect("status words are UTF-8");
     assert!(words.contains("Small fix"));
     assert!(words.contains("Make the widget fix: 0 of 1 delegates done"), "{words}");
+    assert!(!words.contains("Milestones:"));
     assert!(!words.contains("Standing roles:"));
     assert!(words.len() <= usize::try_from(world.env.limits.tasks.spec_bytes).expect("spec bound fits usize"));
     finish(&mut world, &agent);
@@ -684,6 +685,215 @@ fn status_findings_follow_signers_precede_roles_and_trim_from_the_end() {
                     assert!(!words.contains("Standing roles:"), "findings are cut after all roles: {words}");
                     assert!(words.ends_with("bbb..."), "the findings' end is cut: {words}");
                 }
+            }
+        }
+        let agent = run(&world);
+        finish(&mut world, &agent);
+        world.close();
+    }
+}
+
+fn milestone_record(world: &World, task: u64, name: &[u8]) -> tasks::TaskRecord {
+    let mut row = live_task(world, task).clone();
+    row.executor =
+        tasks::Executor::Procedure { connector: jig_domain_core::RECURRING, code: jig_domain_core::GATHERING };
+    row.label = 8;
+    row.tracked = Some(0);
+    row.flags.ended_by = tasks::EndedBy::Requester;
+    row.session = None;
+    row.activation_open = false;
+    row.llm = None;
+    row.kept_account = None;
+    row.spec.words = name.into();
+    row
+}
+
+fn live_record(row: tasks::TaskRecord) -> Record {
+    Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(Box::new(row))))
+}
+
+fn minute(hour: u64, minute: u64) -> Wall {
+    // 2026-11-16, UTC, with seconds to show the words discard them.
+    Wall::from_nanos((1_794_787_200 + hour * 3600 + minute * 60 + 17) * 1_000_000_000)
+}
+
+fn ended_milestone(task: u64, name: &[u8], at: Wall, outcome: forge_top::MilestoneOutcome) -> forge_top::MilestoneRow {
+    forge_top::MilestoneRow {
+        project: PROJECT,
+        task,
+        name: name.into(),
+        last_landing: None,
+        ended: Some(forge_top::MilestoneEnd { at, outcome, done: 5, failed: 0, closed: 1, spent: 0 }),
+    }
+}
+
+fn milestone_row(row: forge_top::MilestoneRow) -> Record {
+    Record::Forge { row: Box::new(forge_top::Stored::Milestone(row)) }
+}
+
+fn live_milestone_records(world: &World, goal: u64, store: u64, moves: u64, delegate: u64, moving: u64) -> Vec<Record> {
+    let mut goal = live_task(world, goal).clone();
+    goal.spec.words = b"S7 history in task logs".as_slice().into();
+    goal.requester = tasks::Party::Task(store);
+    goal.root = store;
+    goal.depth = 1;
+    goal.ended_delegates.done = 2;
+    goal.delegates = Box::new([delegate]);
+    let mut child = live_task(world, delegate).clone();
+    child.requester = tasks::Party::Task(goal.number);
+    child.root = store;
+    child.depth = 2;
+    child.label = 0;
+    child.flags = tasks::Flags::PLAIN;
+    let mut store = milestone_record(world, store, b"Store shape");
+    store.concluded = Some(tasks::Concluded { by: 1, at: minute(21, 37) });
+    store.ended_delegates.done = 7;
+    store.delegates = Box::new([goal.number]);
+    store.last_activity = minute(21, 38);
+    let mut moves = milestone_record(world, moves, b"Moves");
+    moves.ended_delegates = tasks::Endings { done: 2, failed: 1, cancelled: 0 };
+    moves.delegates = Box::new([moving]);
+    moves.last_activity = minute(21, 36);
+    let mut moving = live_task(world, moving).clone();
+    moving.requester = tasks::Party::Task(moves.number);
+    moving.root = moves.number;
+    moving.depth = 1;
+    moving.label = 0;
+    moving.flags = tasks::Flags::PLAIN;
+    vec![live_record(store), live_record(moves), live_record(goal), live_record(child), live_record(moving)]
+}
+
+#[test]
+fn status_names_milestone_goals_and_reports_live_and_recently_ended_milestones() {
+    let (mut world, requester) = roles_world();
+    let store = standing_role(&mut world, 110);
+    let moves = standing_role(&mut world, 111);
+    let delegate = standing_role(&mut world, 112);
+    let moving = standing_role(&mut world, 113);
+    let role = standing_role(&mut world, 114);
+    land(&mut world, &requester);
+    settle(&mut world);
+    drain_api(&mut world);
+    let mut saves = live_milestone_records(&world, requester.task, store, moves, delegate, moving);
+    let mut search = ended_milestone(200, b"Search", minute(21, 40), forge_top::MilestoneOutcome::Complete);
+    search.last_landing = Some(forge_top::MilestoneLanding { at: minute(21, 40), goal: 198, change: 199 });
+    let old = ended_milestone(201, b"Old", minute(19, 59), forge_top::MilestoneOutcome::Complete);
+    let mut facts = facts(&world).clone();
+    facts.brief = Some(forge_top::Brief {
+        sentence: b"Earlier brief".as_slice().into(),
+        lede: Box::new([]),
+        at: minute(20, 0),
+        landed: 0,
+        findings: None,
+    });
+    saves.extend([
+        milestone_row(forge_top::MilestoneRow {
+            project: PROJECT,
+            task: store,
+            name: b"Store shape".as_slice().into(),
+            last_landing: Some(forge_top::MilestoneLanding { at: minute(21, 38), goal: 10, change: 11 }),
+            ended: None,
+        }),
+        milestone_row(search),
+        milestone_row(old),
+        Record::Forge { row: Box::new(forge_top::Stored::ProjectFacts(facts)) },
+    ]);
+    for record in world.store.rows.values() {
+        if let Record::Forge { row } = record
+            && let forge_top::Stored::LandingLog(log) = row.as_ref()
+        {
+            let mut log = log.clone();
+            for landing in &mut log.landings {
+                for change in &mut landing.changes {
+                    landing.at = minute(21, 39);
+                    change.signed = Box::new([forge_top::SignOff { person: 4, head: landing.commit, at: landing.at }]);
+                }
+            }
+            saves.push(Record::Forge { row: Box::new(forge_top::Stored::LandingLog(log)) });
+        }
+        // The session remains live on the examples' wall date.
+        if let Record::Core(jig_domain_core::Record::People(people::Stored::SignIn { number, person, .. })) = record {
+            saves.push(Record::Core(jig_domain_core::Record::People(people::Stored::SignIn {
+                number: *number,
+                person: *person,
+                expires: minute(23, 0),
+            })));
+        }
+    }
+    world.store.seed(saves.into_boxed_slice(), Box::new([]));
+    restart_status_world(&mut world);
+    // The sitting is two hours after the previous brief.
+    world.env.now = world.env.now.saturating_add(forge_top::SITTING);
+    world.env.wall = minute(22, 0);
+    looked(&mut world, 171);
+    let words = status_words(&world);
+    assert!(words.contains("Live goals:\nStore shape › S7 history in task logs: 2 of 3 delegates done\nMilestones:\n- Store shape: whole; 7 of 8 goals done; last landing 2026-11-16T21:38Z\n- Moves: open; 2 of 4 goals done, 1 failed\n- Search: complete at 2026-11-16T21:40Z; 5 of 5 goals done, 1 closed; last landing 2026-11-16T21:40Z\nPeople who signed:\n- person 4: no longer a member\nOpen findings: none\nStanding roles:\n"), "{words}");
+    assert!(!words.contains("Old"), "{words}");
+    assert!(words.ends_with(&format!("Role {role}:\nno Now yet\n")), "{words}");
+    let agent = run(&world);
+    finish(&mut world, &agent);
+    world.close();
+}
+
+#[test]
+fn status_milestones_keep_eight_live_then_eight_ended_newest_first() {
+    let mut complete = String::new();
+    for bound in [None, Some(512)] {
+        let (mut world, requester) = roles_world_with_spec(bound);
+        land(&mut world, &requester);
+        settle(&mut world);
+        let prototype = standing_role(&mut world, 110);
+        let mut header = world.store.header();
+        let mut saves = Vec::new();
+        for n in 0..9u8 {
+            let activity = 8 - n;
+            let mut row = milestone_record(&world, prototype, format!("Live {activity}").as_bytes());
+            if n != 0 {
+                header.tasks += 1;
+                row.number = header.tasks;
+                row.root = row.number;
+                // Open gatherings need no run allotment or agent execution history.
+                row.numbers = tasks::Numbers { budget: 0, spent: 0, spent_below: 0, reserved: 0 };
+                row.authority.budget.spend = 0;
+                row.run_spent = 0;
+                row.run_reserved = 0;
+            }
+            row.last_activity = minute(21, u64::from(activity));
+            saves.push(live_record(row));
+            let mut row = ended_milestone(
+                208 - u64::from(n),
+                format!("Ended {n}").as_bytes(),
+                minute(21, u64::from(n)),
+                if n == 8 { forge_top::MilestoneOutcome::Ended } else { forge_top::MilestoneOutcome::Closed },
+            );
+            if n == 8 {
+                row.ended.as_mut().unwrap().failed = 1;
+            }
+            saves.push(milestone_row(row));
+        }
+        saves.push(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(header))));
+        world.store.seed(saves.into_boxed_slice(), Box::new([]));
+        restart_status_world(&mut world);
+        next_sitting(&mut world, 171);
+        let words = status_words(&world);
+        if let Some(bound) = bound {
+            let bound = usize::try_from(bound).expect("spec bound");
+            assert_eq!(words.len(), bound);
+            assert_eq!(words, format!("{}...", &complete[..bound - 3]));
+            assert!(words.contains("Milestones:\n- Live 8:"), "{words}");
+            assert!(!words.contains("Open findings:"), "the end is trimmed first: {words}");
+        } else {
+            complete = words.to_owned();
+            let milestones =
+                words.split_once("Milestones:\n").expect("milestone part").1.split_once("Open findings:").unwrap().0;
+            let lines: Vec<_> = milestones.lines().collect();
+            assert_eq!(lines.len(), 16, "{words}");
+            for (line, n) in lines[..8].iter().zip((1..9).rev()) {
+                assert_eq!(*line, format!("- Live {n}: open; 0 of 0 goals done"));
+            }
+            assert_eq!(lines[8], "- Ended 8: ended at 2026-11-16T21:08Z; 5 of 6 goals done, 1 failed, 1 closed");
+            for (line, n) in lines[9..].iter().zip((1..8).rev()) {
+                assert_eq!(*line, format!("- Ended {n}: closed at 2026-11-16T21:0{n}Z; 5 of 5 goals done, 1 closed"));
             }
         }
         let agent = run(&world);

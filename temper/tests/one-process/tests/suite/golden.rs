@@ -1,14 +1,19 @@
-//! The baseline's making story and its permanent upgrade reader.
+//! The floor's making story and its permanent reader.
 #[test]
-fn baseline_golden_store_refuses_retired_milestones() {
-    temper_one_process_world::golden::read(&std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("golden/baseline"));
+fn floor_golden_store_opens_and_serves_the_kept_person() {
+    temper_one_process_world::golden::read(&std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("golden/floor"));
 }
 
 #[test]
-fn baseline_making_story_stops_a_whole_deployment() {
-    let directory = std::path::Path::new(env!("CARGO_TARGET_TMPDIR")).join("baseline-making-story");
+fn floor_making_story_stops_a_whole_deployment() {
+    let directory = std::path::Path::new(env!("CARGO_TARGET_TMPDIR")).join("floor-making-story");
     if directory.exists() {
         std::fs::remove_dir_all(&directory).expect("previous temporary export");
     }
     temper_one_process_world::golden::make(&directory);
+}
+
+#[test]
+fn floorless_golden_store_is_refused_without_writing() {
+    temper_one_process_world::golden::refuse(&std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("golden/floor"));
 }

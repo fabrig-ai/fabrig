@@ -13,6 +13,23 @@ fn problem(bytes: &[u8], segments: &[&[u8]], what: What) {
 }
 
 #[test]
+fn restart_wait_defaults_and_overrides_are_bounded_by_name() {
+    assert_eq!(crate::stock().core.fleet.restart_wait.as_millis(), 1_200_000);
+    for (value, json) in [
+        (0, br#"{"overrides":{"fleet.restart_wait_ms":0}}"#.as_slice()),
+        (1_200_000, br#"{"overrides":{"fleet.restart_wait_ms":1200000}}"#),
+        (86_400_000, br#"{"overrides":{"fleet.restart_wait_ms":86400000}}"#),
+    ] {
+        assert_eq!(parse(json).unwrap().core.fleet.restart_wait.as_millis(), value);
+    }
+    problem(
+        br#"{"overrides":{"fleet.restart_wait_ms":86400001}}"#,
+        &[b"limits", b"overrides", b"fleet.restart_wait_ms"],
+        What::Override,
+    );
+}
+
+#[test]
 fn retention_horizons_default_in_every_profile() {
     let r = crate::stock().core.retention;
     assert_eq!(r.turns, skein_lib::Duration::from_secs(14 * 86_400));

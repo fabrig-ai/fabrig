@@ -206,7 +206,7 @@ pub fn owned_worker_agent() -> settings::Agent {
                 skip: 72_105_650,
                 output_bytes: 72_105_658,
                 output_frames: 26,
-                kinds: 21,
+                kinds: 22,
             },
             start_bytes: 72_105_650,
             calls: 1,

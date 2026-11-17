@@ -13,6 +13,13 @@ Generated from temper-qa's table (`skein/docs/design/runtime/shell.md`, 14.3): a
 - Watch main and triage its landings, one service per QA home.
 - **Notes:** Holds run.lock for its life; reads qa.json once at start.
 
+### `temper-qa wake`
+
+- **Set:** internal
+- **Forms:** ``
+- Wake the QA loop after moving main's ref.
+- **Notes:** Connects to run.sock and closes; no running loop is no error.
+
 ### `temper-qa build keep`
 
 - **Set:** internal
@@ -33,6 +40,29 @@ Generated from temper-qa's table (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Forms:** `FILE`
 - Queue a checked case, or join the queued case for its surface and page.
 - **Arguments:** `FILE`: A case JSON file, or - to read stdin.
+
+### `temper-qa triage gap`
+
+- **Set:** internal
+- **Forms:** `KIND WHY`
+- Record what keeps QA from judging the landing; file it without a goal.
+- **Arguments:** `KIND`: ctl, fake or qa.; `WHY`: One nonempty argument saying what a person would do or see and what is missing.
+- **Notes:** A gap may accompany cases; otherwise it answers the landing as gap.
+
+### `temper-qa pass gap`
+
+- **Set:** internal
+- **Forms:** `CASE KIND WHY`
+- Record why no line or setup reaches a case's state, and take it out of the queue.
+- **Arguments:** `CASE`: A case assigned to the session's pass.; `KIND`: ctl, fake or qa.; `WHY`: One nonempty argument saying what is missing.
+- **Notes:** Filed without a goal. A landing with QA-gap: N queues the case again.
+
+### `temper-qa gaps`
+
+- **Set:** internal
+- **Forms:** `[--open]`
+- List gaps newest first, with --open omitting closed gaps; each line at most 200 bytes.
+- **Arguments:** `[--open]`: Only gaps not closed, including filed ones.
 
 ### `temper-qa pass setup`
 
@@ -70,7 +100,7 @@ Generated from temper-qa's table (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Set:** internal
 - **Forms:** ``
 - End the drive session and print its kept lines.
-- **Notes:** Waits for the holder's exit; prints the session's end and kept lines: followed by box/session/lines. Exit 0: clean stop; 4: box failed; 1: no holder.
+- **Notes:** Waits for the holder's exit; prints the session's end and kept lines: followed by the place's box/session/lines or deployment/session/lines, by kind. Exit 0: clean stop; 4: box failed; 1: no holder.
 
 ### `temper-qa pass hold`
 

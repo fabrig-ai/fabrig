@@ -1,23 +1,31 @@
 //! The durable observer decodes registered rows through their retained layouts.
+//! See temper/docs/design/testing/README.md, 2.5 and temper/docs/design/testing/checks.md, 1.
 use jig_protocol_store::{KeptFamily, Owner, ValueType, keys, registry_v1 as wire};
 use skein_codec::{
     layout::{Misconverted, Plan, Workspace},
     schema::{self, Schema},
 };
 use skein_lib::{Buffer, Reader};
-use std::collections::BTreeMap;
+use std::{cell::RefCell, collections::BTreeMap, rc::Rc};
 
-#[derive(Clone)]
 struct Decoder {
     from: u16,
     to: u16,
     plan: Plan,
 }
 
+#[derive(Default)]
+struct Prepared {
+    texts: BTreeMap<[u8; 32], Rc<Schema>>,
+    decoders: BTreeMap<Vec<u8>, Rc<Decoder>>,
+}
+
 #[derive(Clone, Default)]
 pub(super) struct Layouts {
     rows: BTreeMap<Vec<u8>, Box<[u8]>>,
-    decoders: BTreeMap<Vec<u8>, Decoder>,
+    // A tentative observation can teach the committed view how to read the same
+    // registry. A changed registry gets its own preparation before any decoding.
+    prepared: Rc<RefCell<Prepared>>,
 }
 
 impl Layouts {
@@ -32,7 +40,16 @@ impl Layouts {
             if !matches!(keys::decode_own(key), Some(keys::Own::Layout { .. } | keys::Own::Text(_))) {
                 continue;
             }
-            self.decoders.clear();
+            let changed = match op {
+                skein_kv::Op::Put { key, value } => self.rows.get(key.as_ref()) != Some(value),
+                skein_kv::Op::Erase { key } => self.rows.contains_key(key.as_ref()),
+                skein_kv::Op::Append { .. } | skein_kv::Op::Drop { .. } => {
+                    unreachable!("decoded commit frames contain map operations")
+                }
+            };
+            if changed {
+                self.prepared = Rc::default();
+            }
             match op {
                 skein_kv::Op::Append { .. } | skein_kv::Op::Drop { .. } => {
                     unreachable!("decoded commit frames contain map operations")
@@ -47,12 +64,17 @@ impl Layouts {
         }
     }
 
-    fn text(&self, digest: [u8; 32]) -> Result<Schema, String> {
+    fn text(&self, digest: [u8; 32]) -> Result<Rc<Schema>, String> {
+        if let Some(schema) = self.prepared.borrow().texts.get(&digest) {
+            return Ok(schema.clone());
+        }
         let key = keys::encode_own(&keys::Own::Text(digest), 1024).expect("registry text key");
         let bytes = self.rows.get(key.as_ref()).ok_or("registered text present")?;
         let text = wire::Text::decode(&wire::CEILINGS, &mut Reader::new(bytes))
             .map_err(|why| format!("registry text: {why:?}"))?;
-        schema::parse(text.text()).map_err(|why| format!("registry schema: {why:?}"))
+        let schema = Rc::new(schema::parse(text.text()).map_err(|why| format!("registry schema: {why:?}"))?);
+        self.prepared.borrow_mut().texts.insert(digest, schema.clone());
+        Ok(schema)
     }
 
     fn decoder(&self, family: &KeptFamily, ty: &ValueType, key: &[u8]) -> Result<Decoder, String> {
@@ -60,27 +82,18 @@ impl Layouts {
             .map_err(|why| format!("registry layout: {why:?}"))?;
         let old = self.text(*layout.text())?;
         let old_held = layout.held().iter().map(|digest| self.text(*digest)).collect::<Result<Vec<_>, _>>()?;
-        let new = schema::parse(family.current.as_bytes()).map_err(|why| format!("binary schema: {why:?}"))?;
-        let mut new_held = Vec::new();
-        for set in temper_engine_service::store::PATCH_SETS.sets {
-            for family in set.families {
-                if !family.current.is_empty() {
-                    new_held.push(
-                        schema::parse(family.current.as_bytes())
-                            .map_err(|why| format!("held binary schema: {why:?}"))?,
-                    );
-                }
-            }
-        }
+        let binary = binary_schemas()?;
+        let new = &binary.iter().find(|(text, _)| *text == family.current).expect("binary family present").1;
+        let new_held = binary.iter().map(|(_, schema)| schema).collect::<Vec<_>>();
         let old_root = old.root(layout.root(), layout.variant().as_deref()).ok_or("stored root present")?;
         let new_root = new.root(ty.root.as_bytes(), ty.variant.map(str::as_bytes)).ok_or("binary root present")?;
         let plan = Plan::derive(
             &old,
             old_root,
-            &old_held.iter().collect::<Vec<_>>(),
-            &new,
+            &old_held.iter().map(AsRef::as_ref).collect::<Vec<_>>(),
+            new,
             new_root,
-            &new_held.iter().collect::<Vec<_>>(),
+            &new_held,
         )
         .map_err(|why| format!("registered value readable: {why:?}"))?;
         Ok(Decoder { from: old.version(), to: new.version(), plan })
@@ -95,10 +108,14 @@ impl Layouts {
         if !self.rows.contains_key(key.as_ref()) {
             return Ok(bytes);
         }
-        if !self.decoders.contains_key(key.as_ref()) {
-            self.decoders.insert(key.to_vec(), self.decoder(family, ty, &key)?);
-        }
-        let decoder = self.decoders.get(key.as_ref()).expect("planned stored layout");
+        let prepared = self.prepared.borrow().decoders.get(key.as_ref()).cloned();
+        let decoder = if let Some(decoder) = prepared {
+            decoder
+        } else {
+            let decoder = Rc::new(self.decoder(family, ty, &key)?);
+            self.prepared.borrow_mut().decoders.insert(key.to_vec(), decoder.clone());
+            decoder
+        };
         if decoder.plan.keeps() {
             bytes.get_mut(..2).expect("stored head").copy_from_slice(&decoder.to.to_be_bytes());
             return Ok(bytes);
@@ -123,8 +140,30 @@ impl Layouts {
     }
 }
 
+/// Only the binary's immutable schemas are shared between worlds, never stored registry rows.
+fn binary_schemas() -> Result<&'static [(&'static str, Schema)], String> {
+    type Schemas = Result<Box<[(&'static str, Schema)]>, String>;
+    static SCHEMAS: std::sync::OnceLock<Schemas> = std::sync::OnceLock::new();
+    SCHEMAS
+        .get_or_init(|| {
+            let mut schemas = Vec::new();
+            for set in temper_engine_service::store::OWNER_SETS.sets {
+                for family in set.families {
+                    if !family.current.is_empty() {
+                        let schema = schema::parse(family.current.as_bytes())
+                            .map_err(|why| format!("binary schema: {why:?}"))?;
+                        schemas.push((family.current, schema));
+                    }
+                }
+            }
+            Ok(schemas.into_boxed_slice())
+        })
+        .as_deref()
+        .map_err(Clone::clone)
+}
+
 fn resolve(key: &[u8]) -> Option<(&'static KeptFamily, &'static ValueType)> {
-    for set in temper_engine_service::store::PATCH_SETS.sets {
+    for set in temper_engine_service::store::OWNER_SETS.sets {
         let relative = match set.owner {
             Owner::Application => key.strip_prefix(&[keys::APPLICATION]),
             Owner::Skein | Owner::Smith | Owner::Jig => Some(key),
@@ -157,9 +196,8 @@ mod tests {
         out.finish()
     }
 
-    #[test]
-    fn stored_layout_heads_reach_the_durable_observer_as_family_versions() {
-        let row = core::Record::Tasks(tasks::Stored::Attempt(tasks::AttemptRow {
+    fn attempt() -> core::Record {
+        core::Record::Tasks(tasks::Stored::Attempt(tasks::AttemptRow {
             task: 1,
             attempt: 2,
             claimed: None,
@@ -167,7 +205,11 @@ mod tests {
             ended: None,
             end: None,
             phases: None,
-        }));
+        }))
+    }
+
+    fn registered_attempt() -> (Layouts, Box<[u8]>, Box<[u8]>) {
+        let row = attempt();
         let key = keys::encode(&row.key(), 1024).expect("task key");
         let (family, ty) = resolve(&key).expect("registered task value");
         let schema = schema::parse(family.current.as_bytes()).expect("binary schema");
@@ -207,7 +249,40 @@ mod tests {
         let limits = fixtures::codec();
         let mut bytes = codec::encode(&row, &limits, fixtures::store_names()).expect("task row");
         bytes.get_mut(..2).expect("head").copy_from_slice(&91_u16.to_be_bytes());
+        (layouts, key, bytes)
+    }
+
+    #[test]
+    fn stored_layout_heads_reach_the_durable_observer_as_family_versions() {
+        let (mut layouts, key, bytes) = registered_attempt();
         let bytes = layouts.serving(&key, bytes).expect("read registered value");
-        assert_eq!(codec::decode(&row.key(), &bytes, &limits, fixtures::store_names()), Some(row));
+        let row = attempt();
+        assert_eq!(codec::decode(&row.key(), &bytes, &fixtures::codec(), fixtures::store_names()), Some(row));
+    }
+
+    #[test]
+    fn a_registry_edit_detaches_preparation_from_the_unchanged_observation() {
+        let (mut committed, key, bytes) = registered_attempt();
+        // Learn the decoder through a tentative view, just as pending commits do.
+        let mut pending = committed.clone();
+        let current = pending.serving(&key, bytes.clone()).expect("pending registered value");
+        assert_eq!(committed.serving(&key, bytes.clone()).expect("committed registered value"), current);
+        for (registry_key, value) in committed.rows.clone() {
+            let mut pending = committed.clone();
+            pending.observe(&[skein_kv::Op::Put { key: registry_key.clone().into(), value: value.clone() }]);
+            assert_eq!(pending.serving(&key, bytes.clone()).expect("same registry row"), current);
+            pending.observe(&[skein_kv::Op::Put { key: registry_key.clone().into(), value: Box::default() }]);
+            assert!(pending.serving(&key, bytes.clone()).is_err(), "a changed registry row must be checked");
+            assert_eq!(committed.serving(&key, bytes.clone()).expect("unchanged observation"), current);
+            pending.observe(&[skein_kv::Op::Put { key: registry_key.clone().into(), value }]);
+            assert_eq!(pending.serving(&key, bytes.clone()).expect("restored registry row"), current);
+            pending.observe(&[skein_kv::Op::Erase { key: registry_key.clone().into() }]);
+            if matches!(keys::decode_own(&registry_key), Some(keys::Own::Layout { .. })) {
+                assert_eq!(pending.serving(&key, bytes.clone()).expect("unregistered value"), bytes);
+            } else {
+                assert!(pending.serving(&key, bytes.clone()).is_err(), "a missing schema cannot use the cached text");
+            }
+        }
+        assert_eq!(Layouts::default().serving(&key, bytes.clone()).expect("fresh world"), bytes);
     }
 }

@@ -474,7 +474,7 @@ call. An absent leaf alone keeps the row that answered.
 
 What the component and the client rely on of Forgejo, on the pinned
 release (`README.md`, 4.3). Each is named by its fact in the conformance's record
-(../testing/fakes/forge.md, section 7), where it `holds`; a fact marked *fails* is
+(../testing/fakes/throwaway.md, section 2), where it `holds`; a fact marked *fails* is
 phrased the other way there, and its failing is what the dialect relies
 on. What no run records yet has its own bullet, near the end.
 

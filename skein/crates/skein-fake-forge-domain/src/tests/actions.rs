@@ -75,7 +75,10 @@ fn a_commits_run_is_found_by_its_number_and_its_jobs_by_run() {
         Ok(Answer::Jobs(Box::new([Job {
             state: crate::api::RunState::Running,
             conclusion: None,
-            steps: Box::new([]),
+            steps: Box::new([
+                Step { number: 0, name: copy_of(b"Set up job"), status: StepStatus::Success, log: Box::new([]) },
+                Step { number: 1, name: copy_of(b"Run ci"), status: StepStatus::Running, log: Box::new([]) },
+            ]),
             ..ci_job(2, 2, 0, 1)
         }])))
     );
@@ -423,6 +426,7 @@ fn ci_run(id: u64, number: u64, commit: u64) -> Run {
         event: crate::api::RunEvent::Push,
         user: ENGINE,
         cancelled_by: None,
+        wait: None,
         state: crate::api::RunState::Completed,
         conclusion: Some(crate::api::Conclusion::Failure),
         created: Time::ZERO,
@@ -920,4 +924,58 @@ fn a_context_opening_begins_its_jobs_whole_log() {
     assert!(full.starts_with(OPENING));
     assert!(full.ends_with(WHOLE_LOG));
     assert_eq!(full.len() - WHOLE_LOG.len(), usize::try_from(LIMITS.content_bytes).unwrap());
+}
+
+#[test]
+fn a_dispatched_declared_workflow_waits_then_runs_its_declared_span() {
+    let mut config = calm();
+    config.latency_min = Duration::ZERO;
+    config.latency_max = Duration::ZERO;
+    config.limits.content_bytes = 128;
+    let mut h = dispatch_harness(config, &[b"ci"]);
+    let id = h.domain.id(REPOSITORY);
+    h.domain.repositories.get_mut(id).unwrap().workflows[0].cue = Some(Cue::Declared { path: copy_of(b"ci") });
+    let head = h.commit(FIRST, &[(b"ci", b"wait 10m run 1m pass")]);
+    h.push(ENGINE, MAIN, head).unwrap();
+    h.ok(ENGINE, dispatch());
+    let run = workflow_runs(&h)[0].id;
+    for (seconds, wait, state) in [
+        (0, Some(crate::api::JobWait::Runner), crate::api::RunState::Running),
+        (599, Some(crate::api::JobWait::Runner), crate::api::RunState::Running),
+        (600, None, crate::api::RunState::Running),
+        (659, None, crate::api::RunState::Running),
+        (660, None, crate::api::RunState::Completed),
+    ] {
+        h.until(Time::from_nanos(Duration::from_secs(seconds).as_nanos()));
+        let Answer::Run(view) = h.inspect(&Read::Run { run }).unwrap() else { panic!("run") };
+        assert_eq!((view.wait, view.state), (wait, state), "at {seconds}");
+        let job = &run_jobs(&h, run)[0];
+        assert_eq!((job.wait, job.state), (wait, state));
+        if wait.is_some() {
+            assert!(job.steps.is_empty());
+        } else if state == crate::api::RunState::Running {
+            assert_eq!(job.steps.len(), 2);
+            assert_eq!(job.steps[0].status, StepStatus::Success);
+            assert_eq!(job.steps[1].status, StepStatus::Running);
+        } else {
+            assert_eq!(view.conclusion, Some(crate::api::Conclusion::Success));
+        }
+    }
+}
+
+#[test]
+fn a_dispatched_run_is_blocked_when_only_needs_are_left() {
+    let mut h = dispatch_harness(calm(), &[b"ci", b"cd"]);
+    let id = h.domain.id(REPOSITORY);
+    h.domain.repositories.get_mut(id).unwrap().workflows[0].requirements = Box::new([
+        crate::api::JobRequirements { job: copy_of(b"ci"), labels: Box::new([]), needs: names(&[b"cd"]) },
+        crate::api::JobRequirements { job: copy_of(b"cd"), labels: Box::new([]), needs: names(&[b"ci"]) },
+    ]);
+    h.ok(ENGINE, dispatch());
+    let run = &workflow_runs(&h)[0];
+    assert_eq!(run.wait, Some(crate::api::JobWait::Needs));
+    for job in run_jobs(&h, run.id) {
+        assert_eq!(job.wait, Some(crate::api::JobWait::Needs));
+        assert!(job.steps.is_empty());
+    }
 }

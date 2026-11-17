@@ -76,30 +76,6 @@ fn tier_posting_round_trips_its_cursor_blame_and_comment_purposes() {
 }
 
 #[test]
-fn v24_rows_start_with_no_posting() {
-    use super::catch_up::patched;
-    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
-    for run in [false, true] {
-        let mut row = fixtures::tier_row();
-        if run {
-            // v24's linear probe has no previously bisected groups.
-            let p::Part::Probe { landing, low, waiting, .. } = &mut row.record.run.as_mut().unwrap().part else {
-                panic!("probe fixture")
-            };
-            *low = *landing;
-            *waiting = Box::new([]);
-        } else {
-            row.record.run = None;
-            row.probe = None;
-        }
-        let bytes = super::catch_up::current_row(b"tier", patched(24, 13, b"Row", before_controls(&row, 24)));
-        let d::Stored::Tier(decoded) = records::decode(&bytes, &bounds).unwrap() else { panic!("tier") };
-        assert!(decoded.posting.is_none());
-        assert_eq!(decoded, row);
-    }
-}
-
-#[test]
 fn tier_records_keep_the_whole_policy_and_all_parts() {
     let full = fixtures::tier_row();
     let run = full.record.run.as_ref().unwrap();
@@ -155,91 +131,6 @@ fn waiting_groups_and_a_persons_independent_hold_round_trip() {
     row.record.run = None;
     row.probe = None;
     round_trip(d::Stored::Tier(row), 28);
-}
-
-// Omit the controls' additions; the patcher decodes bytes with either kept schema.
-fn before_controls(row: &d::TierRow, version: u8) -> Box<[u8]> {
-    use super::catch_up::{kept_schema, kept_value};
-    use crate::patches::kept::temper_store::p0014::new as fields;
-    let schema = kept_schema(25);
-    let bytes = super::catch_up::kept_row(b"tier", records::encode(&d::Stored::Tier(row.clone())));
-    let (value, root) = kept_value(&schema, b"Row", bytes);
-    let tier = value.payload(value.field(root, fields::row::VALUE).unwrap()).unwrap().unwrap();
-    let mut omitted = skein_lib::List::with_capacity(5);
-    let record = value.field(tier, fields::tier_row::RECORD).unwrap();
-    if let Some(run) = value.some(value.field(record, fields::tier_record::RUN).unwrap()).unwrap() {
-        let part = value.field(run, fields::tier_run::PART).unwrap();
-        if value.tag(part).unwrap() == fields::tier_part::PROBE {
-            let probe = value.payload(part).unwrap().unwrap();
-            for field in [fields::tier_probe::LOW, fields::tier_probe::HIGH, fields::tier_probe::WAITING] {
-                omitted.push(value.span(value.field(probe, field).unwrap()).unwrap()).unwrap();
-            }
-        }
-    }
-    omitted.push(value.span(value.field(tier, fields::tier_row::HOLD).unwrap()).unwrap()).unwrap();
-    omitted.push(value.span(value.field(tier, fields::tier_row::POSTING).unwrap()).unwrap()).unwrap();
-    let mut length = value.bytes().len();
-    for span in omitted.as_slice() {
-        length = length.checked_sub(usize::try_from(span.end.checked_sub(span.start).unwrap()).unwrap()).unwrap();
-    }
-    let mut before = skein_lib::Writer::new(length);
-    before.put(&[0, version]).unwrap();
-    let mut from = 2;
-    for span in omitted.as_slice() {
-        before.put(&value.bytes()[from..usize::try_from(span.start).unwrap()]).unwrap();
-        from = usize::try_from(span.end).unwrap();
-    }
-    before.put(&value.bytes()[from..]).unwrap();
-    before.finish()
-}
-
-#[test]
-fn v23_probes_resume_the_unsearched_suffix_and_rows_have_no_hold() {
-    use super::catch_up::patched;
-    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
-    for part in 0_u8..6 {
-        let mut row = fixtures::tier_row();
-        let run = row.record.run.as_mut().unwrap();
-        match part {
-            0 => row.record.run = None,
-            1 => run.part = p::Part::Whole,
-            2 => run.part = p::Part::Rerun { failed: Box::new([Box::from(b"a".as_slice())]) },
-            3..=5 => {
-                let p::Part::Probe { landing, low, high, waiting, .. } = &mut run.part else { panic!("probe") };
-                *landing = match part {
-                    3 => 0,
-                    4 => 5,
-                    5 => u32::try_from(run.landings.len().checked_sub(1).unwrap()).unwrap(),
-                    _ => unreachable!(),
-                };
-                *low = *landing;
-                *high = u32::try_from(run.landings.len().checked_sub(1).unwrap()).unwrap();
-                *waiting = Box::new([]);
-            }
-            _ => unreachable!(),
-        }
-        if row.record.run.is_none() {
-            row.probe = None;
-        }
-        // An old row cannot carry a person's hold, even when all its other fields are present.
-        row.hold = None;
-        let before = before_controls(&row, 23);
-        let bytes = super::catch_up::current_row(b"tier", patched(24, 13, b"Row", patched(23, 12, b"Row", before)));
-        let d::Stored::Tier(decoded) = records::decode(&bytes, &bounds).unwrap() else { panic!("tier") };
-        assert!(decoded.hold.is_none(), "v23 has no person's hold");
-        if part >= 3 {
-            let run = decoded.record.run.as_ref().unwrap();
-            let p::Part::Probe { landing, low, high, waiting, .. } = &run.part else { panic!("probe") };
-            assert_eq!(low, landing, "the unsearched suffix starts at the old probe");
-            assert_eq!(
-                usize::try_from(*high).unwrap(),
-                run.landings.len().checked_sub(1).unwrap(),
-                "the run supplies the last landing"
-            );
-            assert!(waiting.is_empty());
-        }
-        assert_eq!(decoded, row, "part {part}");
-    }
 }
 
 #[test]

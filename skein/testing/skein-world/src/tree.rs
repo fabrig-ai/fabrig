@@ -775,6 +775,7 @@ impl LinuxTree {
         }
     }
 
+    #[expect(clippy::too_many_lines, reason = "Tree settlement keeps group and descendant teardown in one path.")]
     fn finish_wait(&mut self, leader: Fd, expectation: Expectation, wait: LeaderWait) -> Result<Counts, Failure> {
         let mut kernel = Kernel::open(Config { operations: 4 }).map_err(|error| format!("tree ring: {error}"))?;
         let mut deadline = Deadline::arm("the Linux tree settlement", Duration::from_secs(2));
@@ -801,7 +802,12 @@ impl LinuxTree {
         if expectation != Expectation::Supervise {
             ignore_signal_error(call(
                 &mut kernel,
-                Op::Signal { pidfd: leader, signal: Signal::Kill, to: Target::Group },
+                Op::Signal {
+                    pidfd: leader,
+                    signal: Signal::Kill,
+                    to: Target::Group,
+                    reason: skein_io::kernel::Reason::Closed,
+                },
                 &deadline,
             ))?;
         }
@@ -817,7 +823,12 @@ impl LinuxTree {
                 if expectation != Expectation::Supervise {
                     ignore_signal_error(call(
                         &mut kernel,
-                        Op::Signal { pidfd: descriptor, signal: Signal::Kill, to: Target::Child },
+                        Op::Signal {
+                            pidfd: descriptor,
+                            signal: Signal::Kill,
+                            to: Target::Child,
+                            reason: skein_io::kernel::Reason::Closed,
+                        },
                         &deadline,
                     ))?;
                 }

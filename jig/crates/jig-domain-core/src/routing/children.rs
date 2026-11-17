@@ -115,6 +115,12 @@ pub(crate) fn tag_fleet(
     for _ in 0..env.limits.routes {
         let Some(next) = pending.pop() else { break };
         let request = match next {
+            fleet::Request::Discharged => {
+                if !core.restart_said && core.counters.deployment.restart_wait_ms.take().is_some() {
+                    core.counters.header = crate::numbers::Header::Dirty;
+                }
+                continue;
+            }
             fleet::Request::ProgramEmail { name, email } => {
                 append_account(core, env, accounts::Event::ProgramSaid { name, email }, &mut out);
                 continue;
@@ -805,6 +811,7 @@ pub(crate) fn route_fleet(
         | fleet::Event::Cancel { .. }
         | fleet::Event::Interrupt { .. }
         | fleet::Event::Acknowledge { .. }
+        | fleet::Event::Restarting { .. }
         | fleet::Event::Loaded
         | fleet::Event::Hello { .. }
         | fleet::Event::Lost { .. }
@@ -891,6 +898,7 @@ fn host_shape(event: &fleet::Event) -> bool {
         | fleet::Event::Check { .. }
         | fleet::Event::SignOut { .. }
         | fleet::Event::SignedOut { .. }
+        | fleet::Event::Restarting { .. }
         | fleet::Event::Loaded
         | fleet::Event::Hello { .. }
         | fleet::Event::Lost { .. } => true,

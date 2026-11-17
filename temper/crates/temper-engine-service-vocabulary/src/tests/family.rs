@@ -449,7 +449,7 @@ fn an_outcome_past_its_retention_is_encoded_unknown() {
 }
 #[test]
 fn a_core_refusal_uses_jigs_refusal_record() {
-    use jig_client_protocol_wire::v26 as j;
+    use jig_client_protocol_wire::v27 as j;
     let limits = fixtures::engine().jig.limits.clients.wire;
     for (row, input, expected) in [
         ("unknown", people::Refusal::Unknown, j::Refusal::Unknown),
@@ -1380,7 +1380,7 @@ fn expected_forge_row(
 
 #[test]
 fn an_exceeded_hold_refusal_keeps_each_bound_and_its_configured_value() {
-    use jig_client_protocol_wire::v26 as j;
+    use jig_client_protocol_wire::v27 as j;
     for (bound, expected) in [
         (people::Bound::Reasoning, j::Bound::Reasoning),
         (people::Bound::Metadata, j::Bound::Metadata),
@@ -1781,9 +1781,9 @@ fn installations_and_the_last_connect_end_encode_unchanged() {
 fn embedded_client_refusals_keep_their_bytes_at_current_client_version() {
     // Embedded jig refusal tags keep their bytes at this forge family version.
     let mut after = skein_lib::Writer::new(1);
-    jig_client_protocol_wire::v26::Refusal::Unknown.encode(&mut after).unwrap();
+    jig_client_protocol_wire::v27::Refusal::Unknown.encode(&mut after).unwrap();
     assert_eq!(after.finish().as_ref(), &[9]);
-    assert_eq!(wire::CLIENT_VERSION, 27);
+    assert_eq!(wire::CLIENT_VERSION, 28);
 }
 
 #[test]
@@ -4860,6 +4860,9 @@ fn findings_watches_are_project_scoped_and_documents_keep_the_rows() {
         .is_none()
     );
 }
+
+#[path = "milestones.rs"]
+mod milestones;
 
 #[test]
 fn finding_reads_keep_their_scope_detail_and_absence() {

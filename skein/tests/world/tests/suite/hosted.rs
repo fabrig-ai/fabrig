@@ -302,6 +302,59 @@ fn cutting_world() -> World<CuttingScript, CuttingJudge, CuttingMachine> {
     world
 }
 
+struct ObservedCut {
+    controls: skein_world::Controls,
+    asked: bool,
+    restarted: bool,
+}
+
+impl Referee<Script> for ObservedCut {
+    fn act(&mut self, _now: Time, procs: &mut [Script]) {
+        if !self.asked && procs[0].results.len() == 1 {
+            self.controls.cut(0, Cut::Kill);
+            self.asked = true;
+        }
+    }
+
+    fn watch(&mut self, _now: Time, procs: &[Script]) -> Result<(), String> {
+        if self.asked && !self.restarted {
+            if procs[0].iterations != 1 || !procs[0].results.is_empty() {
+                return Err(String::from("the observed cut restarts before the next process turn"));
+            }
+            self.restarted = true;
+        }
+        Ok(())
+    }
+
+    fn passed(&self) -> bool {
+        self.restarted
+    }
+}
+
+fn observed_child(inherited: &Inherited) -> Script {
+    Script::child(
+        inherited,
+        &[Act::AppendFile(0, b"one"), Act::Pause(Time::from_nanos(10_000)), Act::AppendFile(0, b"two")],
+    )
+}
+
+#[test]
+fn a_referees_observed_cut_restarts_before_the_next_turn_retaining_completed_writes() {
+    use skein_world_tests::fixtures::startup::{RestartFiles, restart_appends, restart_roots, trace_bytes};
+
+    let mut world = World::new_controlled(53, Config::calm(), Memory::Checked, |controls| ObservedCut {
+        controls,
+        asked: false,
+        restarted: false,
+    })
+    .with_machine(RestartFiles::default());
+    world.spawn_restartable_startup(restart_roots(), restart_appends(b"trace"), observed_child);
+    let mut outcome = world.run();
+    assert_eq!(trace_bytes(&mut outcome.machine.roots), b"oneonetwo", "the completed prefix survives the kill");
+    assert_eq!(outcome.procs.len(), 1, "the root restarts in place");
+    assert!(outcome.procs[0].is_empty(), "the restarted root drains");
+}
+
 #[test]
 fn a_power_loss_drops_hosted_children_and_restarts_the_roots() {
     let mut world = cutting_world();

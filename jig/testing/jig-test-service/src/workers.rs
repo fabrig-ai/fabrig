@@ -155,6 +155,7 @@ impl Workers {
                         | jig_protocol_worker_wire::Kind::SignedOut
                         | jig_protocol_worker_wire::Kind::JobAnswer
                         | jig_protocol_worker_wire::Kind::Ask
+                        | jig_protocol_worker_wire::Kind::Restarting
                         | jig_protocol_worker_wire::Kind::Asked
                         | jig_protocol_worker_wire::Kind::Wires => events.push(root::Event::Core(
                             jig_domain_core::Event::Fleet(jig_domain_fleet::Event::Mismatch { channel }),
@@ -162,7 +163,8 @@ impl Workers {
                     },
                 },
                 Some(
-                    kit::host::Output::Opened { .. }
+                    kit::host::Output::Told { .. }
+                    | kit::host::Output::Opened { .. }
                     | kit::host::Output::Refused { .. }
                     | kit::host::Output::Ended { .. },
                 )

@@ -1,0 +1,9 @@
+recipe 1
+after "turn-landing"
+web reload "/projects/1"
+web see "work/hello is in Hello"
+tui see "Ask temper"
+check
+ctl project show Hello
+web see "Nothing needs you."
+tui see "Ask temper"

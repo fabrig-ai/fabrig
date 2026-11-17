@@ -540,6 +540,77 @@ fn the_standing_role_resumes_in_parts_and_keeps_its_period_budget() {
 }
 
 #[test]
+fn the_milestone_is_a_tracked_requester_ended_gathering_template() {
+    use jig_domain_people::{TemplateBudget, TemplateDeadline, TemplateExecutor};
+    use jig_domain_tasks::{Contract, EndedBy, Flags, Retention};
+    let engine = single_engine();
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    let template = defaults.templates.iter().find(|template| template.number == 8).expect("milestone template");
+    assert_eq!(
+        *template,
+        jig_domain_core::Template {
+            number: 8,
+            name: b"milestone".as_slice().into(),
+            executor: TemplateExecutor::Chosen,
+            contract: Contract::Report { words: engine.limits.core.tasks.result_bytes },
+            shallower: 1,
+            budget: TemplateBudget::Given,
+            deadline: TemplateDeadline::None,
+            tracked: Some(1),
+            flags: Flags {
+                ended_by: EndedBy::Requester,
+                conversation: false,
+                listed: true,
+                retention: Retention::Kept
+            },
+            label: 4,
+            grace: None,
+            llm: None,
+            resources: Box::new([]),
+        }
+    );
+    for role in &defaults.policies.get(&1).unwrap().policy.roles {
+        if role.number <= 2 {
+            assert!(role.authority.delegation.kinds.contains(&jig_domain_authority::Executor::Procedure(2)));
+        }
+    }
+    let current = jig_domain_core::settings::Current::new(defaults, &engine.limits.core, &[]);
+    let core = config::core(&engine, [1; 16], 7);
+    assert_eq!(
+        jig_domain_core::settings::check(&current, &core.settings, &core.connectors, &engine.limits.core),
+        Ok(())
+    );
+}
+
+#[test]
+fn the_stocks_ways_are_two_and_four_never_eight() {
+    use jig_client::contract as c;
+    use jig_domain_tasks::EndedBy;
+    use temper_client_view_kit as view;
+    let engine = single_engine();
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    let root = view::root_in_project(Some(view::PROJECT));
+    let mut me = root.pages().me(root.client()).unwrap().clone();
+    let project = me.projects.get_mut(0).unwrap();
+    project.templates = skein_lib::List::uncapped();
+    for template in &defaults.templates {
+        let mut client = view::goals::template(template.number, &template.name, template.tracked.is_some());
+        client.flags.ended_by = match template.flags.ended_by {
+            EndedBy::Requester => c::EndedBy::Requester,
+            EndedBy::Result => c::EndedBy::Result,
+            EndedBy::Standing => c::EndedBy::Standing,
+            EndedBy::Closer(closer) => c::EndedBy::Closer(c::Closer { connector: closer.connector, code: closer.code }),
+        };
+        project.templates.push(client).unwrap();
+    }
+    for words in [view::words(), view::browser_words()] {
+        let ways = temper_client_view_parts::common::goals::ways(&me, view::PROJECT, &words);
+        let numbers: Box<[_]> = ways.iter().map(|way| way.number).collect();
+        assert_eq!(numbers.as_ref(), [2, 4]);
+    }
+}
+
+#[test]
 fn the_porter_owns_and_controls_its_follows() {
     let engine = single_engine();
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
@@ -2113,7 +2184,7 @@ fn the_status_charters_words_are_the_requests() {
     let words = include_str!("../stock/status.txt");
     assert_eq!(
         words,
-        "You write the few lines at the top of a project's home page, from the facts in your task. Write one sentence on what landed, starting with the count, or, where nothing landed, on what changed among the open findings. Then a blank line, then at most three plain sentences on what stands out: what finished, what is stuck and why, and what the open findings are about. Name findings by what they are about, grouped, as: \"Seven of the 11 findings are about tests: four fail only beside other tests, and three CI runs failed with no fault in the change they checked.\" Say only what the facts say. No greetings, no lists, no advice."
+        "You write the few lines at the top of a project's home page, from the facts in your task. Write one sentence on what landed, starting with the count, or, where nothing landed, on what changed among the open findings. Then a blank line, then at most three plain sentences on what stands out: what finished, what is stuck and why, and what the open findings are about. Name findings by what they are about, grouped, as: \"Seven of the 11 findings are about tests: four fail only beside other tests, and three CI runs failed with no fault in the change they checked.\" Name a goal by its milestone where it has one, and say when a milestone completed and when its last goal landed. Say only what the facts say. No greetings, no lists, no advice."
     );
     let engine = single_engine();
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);

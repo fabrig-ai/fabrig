@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-14. Where the tree's code lags or departs from [testing.md](testing.md).
+2026-11-16. Where the tree's code lags or departs from [testing.md](testing.md).
 
 
 - **Not yet:** 2, 3, 6: the tier holds twelve test functions. Its merged
@@ -45,20 +45,6 @@
   1,048,576-byte bound. The passing long browser story spans three small
   windows, while the unanchored position history stays within one; neither
   substitutes for that whole-bound check (`README.md`, section 3).
-- **Not yet:** 3, 6: story 14 has failed after landing in two ways
-  since `red-82-chat-opening` stopped a chat's opening reads at a screen
-  and a half (`../pages/chat/conversation.md`, 2, *Opening history*), and their cause is
-  unknown. Once at `0599201e87`, `long`'s words moved across a read, from
-  y=519 to y=558 (`held`); in a run and its rerun at `23261749d4`,
-  `unanchored`'s kept box "Position paragraph 02." was missing at step 76.
-  The repair `red-87-reading` ran the story by name, alone, 30 times, and
-  every run passed: ten unloaded and ten under 16 CPU busy loops at
-  `2a399129fe`, ten under that load at `23261749d4`. `unanchored` held its
-  anchor at its opening measurement, y=151 across its earlier read, and
-  `long` held "Reading paragraph 07." and reply 8's end, its earlier pair
-  at y=144 and its later from 557 to 558. Neither the product nor the
-  story changed; whether they recur is for the tier's runs after landing
-  to show, and a red comes back as a repair.
 - **Not yet:** 6: the request `browser-trim` has a person's page slower to settle as
   the answer most wanted. Settled chat and task pages stood still and no product cause
   was found, but a chat closed on the box took 8.539 s to reach the Closed filter, a

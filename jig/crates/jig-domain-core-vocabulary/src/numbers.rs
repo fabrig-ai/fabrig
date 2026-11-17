@@ -35,6 +35,8 @@ pub struct Deployment {
     pub commits: u64,
     /// Largest seeded or allocated project number.
     pub projects: u64,
+    /// The longest restart wait still kept (domain/engine/restart.md, 1).
+    pub restart_wait_ms: Option<u64>,
 }
 
 /// Core-selected counter for `fresh`; each is a separate checked `u64` high-water
@@ -94,6 +96,7 @@ impl Counters {
             applications: 0,
             commits: 0,
             projects: 0,
+            restart_wait_ms: None,
         };
         Counters { deployment, header: Header::Dirty }
     }

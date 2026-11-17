@@ -126,13 +126,22 @@ impl Harness {
         )
     }
     pub fn with_checks(config: Config, hooked: bool, fake_config: fake::Config, checks: a::Checks) -> Self {
+        Self::with_actions(config, hooked, fake_config, checks, Box::new([]))
+    }
+    pub fn with_actions(
+        config: Config,
+        hooked: bool,
+        fake_config: fake::Config,
+        checks: a::Checks,
+        workflows: Box<[a::Workflow]>,
+    ) -> Self {
         let limits = limits();
         let mut domain = fake::Domain::new(&fake_config, 3);
         fake::repository(
             &mut domain,
             &fake_config,
             a::Setup {
-                workflows: Box::new([]),
+                workflows,
                 id: 2,
                 name: boxed(b"org/repo"),
                 default: boxed(b"main"),

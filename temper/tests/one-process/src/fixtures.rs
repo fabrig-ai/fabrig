@@ -89,7 +89,6 @@ pub(crate) fn world_document() -> serde_json::Value {
     crate::lower::github::configure(&mut value);
     crate::m15::configure(&mut value);
     crate::public::configure(&mut value);
-    crate::review_delivery::configure(&mut value);
     if crate::stories::model_list() {
         value["engine"]["llm"]["providers"][0]["keep"] = serde_json::json!(["*"]);
     }

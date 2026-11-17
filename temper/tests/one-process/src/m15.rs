@@ -195,9 +195,9 @@ pub fn refused_replayed_pastes() -> Counts {
     stories::setup_settings(world::Phase::Story);
     let store = Rc::new(RefCell::new(Store::new()));
     world::lower_store(Some(store.clone()));
-    let (_forge, mut peer) = github::peer();
+    let (forge, mut peer) = github::peer();
     let (app, files) = observer::input(&mut peer);
-    let transport = stories::forge(Story::Adopt);
+    let transport = temper_fake_git_hosted::Typed::new(forge, &stories::forge_table());
     let mut disk = temper_playground::machine::fresh();
     let input = disk.lay(&files);
     disk.close(input);

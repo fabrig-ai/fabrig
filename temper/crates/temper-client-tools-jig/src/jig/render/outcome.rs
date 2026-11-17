@@ -20,6 +20,8 @@ pub struct Operation {
     /// The declaration's provider and program name, retained from its durable ask.
     pub declaration: Option<(u32, Box<[u8]>)>,
     pub task: Option<u64>,
+    /// The funder of a goal start beneath a milestone (client/ctl/milestones.md, 3).
+    pub milestone: Option<u64>,
     pub ended_task: Option<c::Phase>,
     pub asked: Option<Asked>,
     pub to: Option<c::Recipient>,
@@ -63,7 +65,23 @@ pub struct Account {
 impl Operation {
     #[must_use]
     pub fn for_call(ask: &Ask, tool: &'static crate::jig::table::Tool) -> Self {
-        let mut operation = Self::of(ask);
+        let mut operation = if tool.name == crate::jig::rows::GOAL_START.name {
+            Self::with_words(ask, b"goal", None)
+        } else {
+            Self::of(ask)
+        };
+        if tool.name == crate::jig::rows::GOAL_START.name
+            && let Ask::Jig(ask) = ask
+            && let c::Ask::Delegate { task, .. } = ask.as_ref()
+        {
+            operation.milestone = Some(*task);
+        }
+        if tool.name == crate::jig::rows::MILESTONE_NEW.name {
+            operation.word = b"milestone";
+        }
+        if tool.name == crate::jig::rows::MILESTONE_WHOLE.name {
+            operation.word = b"whole";
+        }
         operation.tool = Some(tool);
         operation
     }
@@ -124,7 +142,7 @@ impl Operation {
                 c::Ask::Lift { .. } => (b"lift", None),
                 c::Ask::Release { task, .. } => (b"release", Some(*task)),
                 c::Ask::Stop { task, .. } => (b"stop", Some(*task)),
-                c::Ask::Conclude { task, .. } => (b"conclude", Some(*task)),
+                c::Ask::Conclude { task, .. } => (b"whole", Some(*task)),
                 c::Ask::Cancel { task, .. } => (b"cancel", Some(*task)),
                 c::Ask::Take { task, .. } => (b"take", Some(*task)),
                 c::Ask::HandBack { task, .. } => (b"hand-back", Some(*task)),
@@ -197,6 +215,7 @@ impl Operation {
             account: None,
             declaration: None,
             task,
+            milestone: None,
             ended_task: None,
             asked: None,
             to: None,
@@ -814,6 +833,8 @@ pub(crate) fn act_tool(tool: u8) -> &'static crate::jig::table::Tool {
     match tool {
         rows::CHAT_CREATE_AT => &rows::CHAT_CREATE,
         rows::GOAL_START_AT => &rows::GOAL_START,
+        rows::MILESTONE_NEW_AT => &rows::MILESTONE_NEW,
+        rows::MILESTONE_WHOLE_AT => &rows::MILESTONE_WHOLE,
         rows::ROLE_START_AT => &rows::ROLE_START,
         rows::NEED_ASK_AT => &rows::NEED_ASK,
         rows::ROLE_TALK_AT => &rows::ROLE_TALK,
@@ -1015,7 +1036,7 @@ fn refused_text(
         out.put(b" has ended");
         return;
     }
-    if operation.word == b"cancel"
+    if (operation.word == b"cancel" || operation.word == b"whole")
         && ended_refusal(refusal, operation.ended_task.is_some())
         && let Some(task) = operation.task
     {
@@ -1036,6 +1057,9 @@ fn refused_text(
         && operation.word == b"project fund"
     {
         ceiling::text(project, *holder, *dimension, *value, limits.application, out);
+        return;
+    }
+    if milestone_budget_refusal(operation, refusal, out) {
         return;
     }
     if let (Some(project), c::Refusal::Authority { lacking: c::Lacking::Budget { needed, left }, .. }) =
@@ -1090,6 +1114,23 @@ fn refused_text(
             None => out.put(operation.tool_name()),
         }
     }
+}
+
+fn milestone_budget_refusal(operation: &Operation, refusal: &c::Refusal, out: &mut Text) -> bool {
+    if let (Some(milestone), c::Refusal::Authority { lacking: c::Lacking::Budget { needed, left }, .. }) =
+        (operation.milestone, refusal)
+    {
+        out.put(operation.tool_name());
+        out.put(b": refused: milestone ");
+        out.number(milestone);
+        out.put(b" had ");
+        out.number(*left);
+        out.put(b" left, ");
+        out.number(*needed);
+        out.put(b" needed; give each goal in it --budget AMOUNT");
+        return true;
+    }
+    false
 }
 
 /// Account refusals with one actionable meaning (client/ctl/areas.md).
@@ -1297,7 +1338,7 @@ fn moved_text(operation: &Operation, value: &c::OutcomeMovedToNewest, out: &mut 
 }
 
 fn ended_json(operation: &Operation, refusal: &c::Refusal, out: &mut Encoder) {
-    if operation.word == b"cancel"
+    if (operation.word == b"cancel" || operation.word == b"whole")
         && ended_refusal(refusal, operation.ended_task.is_some())
         && let Some(phase) = operation.ended_task
     {
@@ -1365,6 +1406,11 @@ fn owner_lack(lacking: &c::Lacking) -> bool {
 fn creation_word(tasks: &skein_lib::List<c::NewTask>) -> &'static [u8] {
     match tasks.get(0) {
         Some(task) if task.flags.ended_by == c::EndedBy::Standing => b"role",
+        Some(c::NewTask {
+            executor:
+                c::Executor::Procedure { connector: jig_client::shapes::RECURRING, code: jig_client::shapes::GATHERING },
+            ..
+        }) => b"milestone",
         Some(c::NewTask { executor: c::Executor::Person(_), .. }) => b"need",
         Some(task) if !task.flags.conversation => b"goal",
         Some(_) | None => b"chat",

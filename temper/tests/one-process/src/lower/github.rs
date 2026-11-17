@@ -282,6 +282,7 @@ struct Judge {
     store: Rc<RefCell<Store>>,
     forge: Rc<RefCell<Forge>>,
     answers: usize,
+    context_cursor: usize,
     calls: usize,
     stopping: bool,
     ended: bool,
@@ -452,10 +453,15 @@ impl skein_world::Referee<Proc> for Judge {
         self.ended = procs.iter().any(|proc| matches!(proc, Proc::Service(service) if service.service.end().is_some()));
         for proc in procs {
             if let Proc::Peer(peer) = proc {
-                self.read |= peer.observations().iter().any(|seen| {
+                let observations = peer.observations();
+                let added = observations
+                    .get(self.context_cursor..)
+                    .ok_or_else(|| String::from("LLM observations are a prefix"))?;
+                self.read |= added.iter().any(|seen| {
                 let skein_fake_peers::llm::Observation::Query { query, .. } = seen else { return false };
                 query.messages.iter().flat_map(|message| message.parts.iter()).any(|part| matches!(part, skein_fake_llm_domain::api::Part::ToolOutput { output, is_error: false, .. } if output.windows(b"Scope fixture".len()).any(|bytes| bytes == b"Scope fixture")))
             });
+                self.context_cursor = observations.len();
             }
         }
 
@@ -529,7 +535,7 @@ pub fn run(scenario: Scenario) {
     let store = Rc::new(RefCell::new(Store::new()));
     world::lower_store(Some(store.clone()));
     let (forge, peer) = peer();
-    let transport = stories::forge(Story::Adopt);
+    let transport = temper_fake_git_hosted::Typed::new(forge.clone(), &stories::forge_table());
     let mut disk = temper_playground::machine::fresh();
     let pem = layer::keys::pem(layer::keys::KEYS[APP.key]).expect("fake App PEM");
     let setup = disk.lay(&[
@@ -552,6 +558,7 @@ pub fn run(scenario: Scenario) {
                 store,
                 forge,
                 answers: 0,
+                context_cursor: 0,
                 calls: 0,
                 stopping: false,
                 ended: false,

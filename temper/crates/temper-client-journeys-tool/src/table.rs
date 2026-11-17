@@ -123,7 +123,7 @@ const SESSION: Settings = Settings {
         Setting {
             name: "bin",
             value: "DIR",
-            about: "Directory holding executable temper-box, fake-claude and temper.",
+            about: "Directory holding executable temper-box, fake-claude and temper; with --deployment, also temper-engine, temper-worker and temper-agent.",
             fallback: Fallback::Text(""),
             set: Set::Internal,
             twin: None,
@@ -136,7 +136,7 @@ const SESSION: Settings = Settings {
             fallback: Fallback::Text(""),
             set: Set::Internal,
             twin: None,
-            notes: "Required.",
+            notes: "Required without --deployment.",
         },
         Setting {
             name: "scratch",
@@ -150,7 +150,7 @@ const SESSION: Settings = Settings {
         Setting {
             name: "scripts",
             value: "FILE",
-            about: "A fake model script given to the box; repeats in order.",
+            about: "A fake model script; repeats in order.",
             fallback: Fallback::Text(""),
             set: Set::Internal,
             twin: None,
@@ -159,32 +159,41 @@ const SESSION: Settings = Settings {
         Setting {
             name: "ports",
             value: "LIST",
-            about: "Nine distinct nonzero ports, joined by commas, for a new sandbox.",
+            about: "Nine distinct nonzero ports, joined by commas.",
             fallback: Fallback::Text(""),
             set: Set::Internal,
             twin: None,
-            notes: "Given only to the box as TEMPER_INTERNAL_FAKE_BOX_PORTS; a retained sandbox keeps its own ports.",
+            notes: "Required with --deployment. On a box, given as TEMPER_INTERNAL_FAKE_BOX_PORTS; a retained sandbox keeps its own ports.",
         },
         Setting {
             name: "files",
             value: "DIR",
-            about: "Read-only directory of the files forge commit lines name.",
+            about: "Read-only directory of the files forge commit, forge push and deployment patch lines name.",
             fallback: Fallback::Text(""),
             set: Set::Internal,
             twin: None,
             notes: "Optional. Must be an existing directory.",
+        },
+        Setting {
+            name: "deployment",
+            value: "DIR",
+            about: "Deployment documents, in place of a box; browser and TUI use the engine’s origin.",
+            fallback: Fallback::Text(""),
+            set: Set::Internal,
+            twin: None,
+            notes: "Needs --ports. --ctl selects a ctl session without Chromium; otherwise a full session. --bundle is optional unless a document names {place.bundle}.",
         },
     ],
 };
 pub(crate) const DRIVE: Command = Command {
     reach: Reach::Words(&["drive"]),
     forms: &[
-        "--bin DIR --bundle DIR --scratch DIR [--scripts FILE]... [--strict] [--ports LIST] [--files DIR] [--ctl]",
+        "--bin DIR [--bundle DIR] --scratch DIR [--scripts FILE]... [--strict] [--ports LIST] [--files DIR] [--ctl] [--deployment DIR]",
     ],
-    line: "Drive a signed-in fake box from a given build, one stdin line at a time.",
+    line: "Drive a signed-in box or deployment from a given build, one stdin line at a time.",
     settings: &[&SESSION],
     switches: &[
-        Switch { name: "strict", set: Set::Internal, line: "Give --strict to the box's fake model.", notes: "" },
+        Switch { name: "strict", set: Set::Internal, line: "Give --strict to the session's fake model.", notes: "" },
         Switch {
             name: "ctl",
             set: Set::Internal,
@@ -193,7 +202,7 @@ pub(crate) const DRIVE: Command = Command {
         },
     ],
     variables: &[&CHROMIUM, &PATH],
-    notes: "Answers ready, then each web, tui, ctl or forge line with shown lines prefixed | and ok or failed. forge commit forgejo REPOSITORY MESSAGE PATH [PATH]... commits files from --files DIR; forge checks forgejo REPOSITORY waits on its checks. ctl fields {forgejo.api}, {forgejo.git}, {forgejo.admin} and {git} read the box’s values when run. end or stdin's end stops the box. Exit 0: ended; 3: store refused; 4: box failed; 1: session failure. See temper/docs/design/client/drive.md.",
+    notes: "Answers ready, then each web, tui, ctl, forge or deployment line with shown lines prefixed | and ok or failed. forge commit forgejo REPOSITORY MESSAGE PATH [PATH]... commits files from --files DIR; forge checks forgejo REPOSITORY waits on its checks. deployment patch DOCUMENT PATH merges a JSON object into engine, worker or agent, then restarts the deployment; a box refuses it. ctl fields {forgejo.api}, {forgejo.git}, {forgejo.admin}, {git} and {model.key} read the box’s values when run, or the deployment’s rendered documents. end or stdin's end stops the session. Exit 0: ended; 3: store refused; 4: box or deployment failed; 1: session failure. See temper/docs/design/client/drive.md.",
     ..REPRINT
 };
 
@@ -248,13 +257,13 @@ pub(crate) const RECIPE_LIST: Command = Command {
 };
 pub(crate) const RECIPE_WALK: Command = Command {
     reach: Reach::Words(&["recipe", "walk"]),
-    forms: &["NAME --bin DIR --bundle DIR --scratch DIR [--from ANCESTOR] [--strict] [--ports LIST] [--setups DIR]"],
+    forms: &["NAME --bin DIR [--bundle DIR] --scratch DIR [--from ANCESTOR] [--strict] [--ports LIST] [--setups DIR]"],
     line: "Walk a recipe's chain through one drive session, stopping at its first failed line.",
     arguments: RECIPE_HASH.arguments,
     settings: &[&RECIPES, &RECIPE_SESSION],
     switches: &[DRIVE.switches[0]],
     variables: DRIVE.variables,
-    notes: "Chain scripts go to the box root first. Answers carry recipe and file line, or walk: for resets. Exit 0: walked NAME HASH; 5: stopped at NAME:N: WHY. Session statuses 3, 4 and 1 pass through. No build. See temper/docs/design/client/recipe.md, 5.",
+    notes: "A box needs --bundle. A deployment uses its root’s config/ and needs --ports; with web or tui lines it also needs --bundle and runs a full session with resets. With none it runs --ctl --deployment without resets, passing --bundle where given. Chain scripts go to the session root first. Answers carry recipe and file line, or walk: for resets. Exit 0: walked NAME HASH; 5: stopped at NAME:N: WHY. Session statuses 3, 4 and 1 pass through. No build. See temper/docs/design/client/recipe.md, 5.",
     ..REPRINT
 };
 

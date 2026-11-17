@@ -5,20 +5,9 @@
 //! and other untracked build output are never listed. A symlink's text is its
 //! target's path, as git stores it.
 //!
-//! Three things are left out and nothing else: the directories
-//! `*/docs/plan/<draft>/`, the transient run files of whoever runs a plan, each
-//! of which leaves main when its plan retires; this file, which spells the
-//! names; and binary files, a NUL byte in the first 8000 bytes, as git decides.
-//!
-//! Names match ASCII case-insensitively, with ASCII word boundaries where
-//! required: `fabrig-ai/agents`, `agents repo`, `agents repos`, `agents
-//! repository`, `agents repositories`, `fab`, `FAB_HOME`, `heavy cargo`,
-//! `heavy env`, `heavy --`, `"heavy"`, `'heavy'`, `hel8`, `hetzner` followed
-//! by digits, `debian-16gb`, `status.fabrig.ai`, `~/src/fabrig/`,
-//! `~/src/rust/tmp/`, `/home/free/`, `fabrig/qa`, `fabrig/dogfood`,
-//! `fabrig/debt`, `agents/loop`, `agents/status`, `agents/creds`, `agents/ops`.
-//! A bare `director`, a bare `heavy` and a generic `/home/<user>/` are left
-//! off on purpose: they have product meanings.
+//! The list, matching, left-out paths and verdict are tools/outward/design.md, 2–4.
+//! Names live in tools/outward/names.txt, which both this test and the build-free
+//! text check read. Only that list and this file's cases spell names.
 //!
 //! A file it cannot read is a failure, never a skip.
 
@@ -27,37 +16,70 @@ use std::fmt::Write;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
+use std::sync::OnceLock;
 
 const OWN: &str = "tests/boundary/tests/outward.rs";
 
-/// Each fixed name, and whether its left and right ends need word boundaries.
-const FIXED: &[(&[u8], bool, bool)] = &[
-    (b"fabrig-ai/agents", false, true),
-    (b"agents repository", true, true),
-    (b"agents repositories", true, true),
-    (b"agents repos", true, true),
-    (b"agents repo", true, true),
-    (b"fab", true, true),
-    (b"fab_home", true, true),
-    (b"heavy cargo", true, true),
-    (b"heavy env", true, true),
-    (b"heavy --", true, false),
-    (b"\"heavy\"", false, false),
-    (b"'heavy'", false, false),
-    (b"hel8", true, true),
-    (b"debian-16gb", true, true),
-    (b"status.fabrig.ai", true, true),
-    (b"~/src/fabrig/", false, false),
-    (b"~/src/rust/tmp/", false, false),
-    (b"/home/free/", false, false),
-    (b"fabrig/qa", true, true),
-    (b"fabrig/dogfood", true, true),
-    (b"fabrig/debt", true, true),
-    (b"agents/loop", true, true),
-    (b"agents/status", true, true),
-    (b"agents/creds", true, true),
-    (b"agents/ops", true, true),
-];
+const LIST: &str = "tools/outward/names.txt";
+const LIST_TEXT: &str = include_str!("../../../tools/outward/names.txt");
+
+#[derive(Clone, Copy)]
+enum Right {
+    Word,
+    Any,
+    Digits,
+}
+
+struct Name {
+    text: Vec<u8>,
+    left: bool,
+    right: Right,
+}
+
+fn parse(text: &str) -> Result<Vec<Name>, String> {
+    let mut result = Vec::new();
+    for (number, line) in text.split('\n').enumerate() {
+        let malformed = || format!("names.txt:{}: malformed entry", number + 1);
+        if !line.is_ascii() {
+            return Err(malformed());
+        }
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let bytes = line.as_bytes();
+        let Some((&left, rest)) = bytes.split_first() else { return Err(malformed()) };
+        let (Some(b' '), Some(&right), Some(b' '), Some(name)) =
+            (rest.first(), rest.get(1), rest.get(2), rest.get(3..))
+        else {
+            return Err(malformed());
+        };
+        let left = match left {
+            b'w' => true,
+            b'-' => false,
+            _ => return Err(malformed()),
+        };
+        let right = match right {
+            b'w' => Right::Word,
+            b'-' => Right::Any,
+            b'd' => Right::Digits,
+            _ => return Err(malformed()),
+        };
+        if name.is_empty()
+            || name.first() == Some(&b' ')
+            || name.last() == Some(&b' ')
+            || name.iter().any(|byte| !(0x20..=0x7e).contains(byte) || byte.is_ascii_uppercase())
+        {
+            return Err(malformed());
+        }
+        result.push(Name { text: name.to_vec(), left, right });
+    }
+    Ok(result)
+}
+
+fn entries() -> &'static [Name] {
+    static ENTRIES: OnceLock<Vec<Name>> = OnceLock::new();
+    ENTRIES.get_or_init(|| parse(LIST_TEXT).unwrap_or_else(|why| panic!("{why}")))
+}
 
 fn word(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || byte == b'_'
@@ -70,21 +92,20 @@ fn names(line: &[u8]) -> Vec<&[u8]> {
     while start < line.len() {
         let left = start == 0 || !word(line[start - 1]);
         let rest = &line[start..];
-        let fixed = FIXED.iter().filter(|(name, _, _)| name[0].eq_ignore_ascii_case(&rest[0])).find_map(
-            |&(name, before, after)| {
-                let end = start + name.len();
-                (rest.get(..name.len()).is_some_and(|text| text.eq_ignore_ascii_case(name))
-                    && (!before || left)
-                    && (!after || end == line.len() || !word(line[end])))
-                .then_some(name.len())
-            },
-        );
-        let length = fixed.or_else(|| {
-            if !left || !rest.get(..7).is_some_and(|text| text.eq_ignore_ascii_case(b"hetzner")) {
+        let length = entries().iter().filter(|entry| entry.text[0].eq_ignore_ascii_case(&rest[0])).find_map(|entry| {
+            let name = &entry.text;
+            if (entry.left && !left) || !rest.get(..name.len()).is_some_and(|text| text.eq_ignore_ascii_case(name)) {
                 return None;
             }
-            let digits = rest[7..].iter().take_while(|byte| byte.is_ascii_digit()).count();
-            (digits > 0).then_some(7 + digits)
+            let end = start + name.len();
+            match entry.right {
+                Right::Any => Some(name.len()),
+                Right::Word => (end == line.len() || !word(line[end])).then_some(name.len()),
+                Right::Digits => {
+                    let digits = line[end..].iter().take_while(|byte| byte.is_ascii_digit()).count();
+                    (digits > 0).then_some(name.len() + digits)
+                }
+            }
         });
         if let Some(length) = length {
             result.push(&line[start..start + length]);
@@ -96,27 +117,21 @@ fn names(line: &[u8]) -> Vec<&[u8]> {
     result
 }
 
-/// Every name contains one of these four-byte prefixes, or ends in `fab`.
+fn prefix_key(bytes: &[u8]) -> u32 {
+    bytes.iter().fold(0, |key, byte| (key << 8) | u32::from(byte.to_ascii_lowercase()))
+}
+
+/// A case-folded prefix set derived from the list, never another list of names.
 fn may_hold_name(text: &[u8]) -> bool {
-    text.get(text.len().saturating_sub(3)..).is_some_and(|tail| tail.eq_ignore_ascii_case(b"fab"))
-        || text.windows(4).any(|part| {
-            matches!(
-                [
-                    part[0].to_ascii_lowercase(),
-                    part[1].to_ascii_lowercase(),
-                    part[2].to_ascii_lowercase(),
-                    part[3].to_ascii_lowercase()
-                ],
-                [b'f', b'a', b'b', _]
-                    | [b'a', b'g', b'e', b'n']
-                    | [b'h', b'e', b'a', b'v']
-                    | [b'h', b'e', b'l', b'8']
-                    | [b'h', b'e', b't', b'z']
-                    | [b'd', b'e', b'b', b'i']
-                    | [b'~', b'/', b's', b'r']
-                    | [b'/', b'h', b'o', b'm']
-            )
-        })
+    static PREFIXES: OnceLock<(usize, Vec<u32>)> = OnceLock::new();
+    let (width, prefixes) = PREFIXES.get_or_init(|| {
+        let width = entries().iter().map(|entry| entry.text.len()).min().unwrap_or(1).min(4);
+        let mut prefixes: Vec<u32> = entries().iter().map(|entry| prefix_key(&entry.text[..width])).collect();
+        prefixes.sort_unstable();
+        prefixes.dedup();
+        (width, prefixes)
+    });
+    text.windows(*width).any(|part| prefixes.binary_search(&prefix_key(part)).is_ok())
 }
 
 /// Every name in a file's `text`: its line, from 1, and its text.
@@ -133,11 +148,11 @@ fn found(text: &[u8]) -> Vec<(usize, String)> {
         .collect()
 }
 
-/// Whether the check leaves out `path` (from the root, `/`-separated): its own file, and
+/// Whether the check leaves out `path` (from the root, `/`-separated): the list, its own file, and
 /// anything inside a plan's directory, `*/docs/plan/<draft>/`.
 fn left_out(path: &str) -> bool {
     let parts: Vec<&str> = path.split('/').collect();
-    path == OWN || matches!(parts.as_slice(), [_, "docs", "plan", _, _, ..])
+    path == LIST || path == OWN || matches!(parts.as_slice(), [_, "docs", "plan", _, _, ..])
 }
 
 /// Whether a file's `bytes` are binary: a NUL among the first 8000.
@@ -205,6 +220,74 @@ fn verdict(found: &BTreeMap<String, Vec<(usize, String)>>) -> Result<(), String>
         }
     }
     Err(failure)
+}
+
+#[test]
+fn malformed_lists_name_the_line() {
+    for line in [
+        "x w name",
+        "w x name",
+        "w w",
+        "w w ",
+        "w  w name",
+        "w w name ",
+        "w w é",
+        "w w Name",
+        "w w name\r",
+        "w w na\tme",
+        "# é",
+    ] {
+        let text = format!("# list\n\n{line}\n");
+        let Err(error) = parse(&text) else { panic!("a malformed line must fail") };
+        assert_eq!(error, "names.txt:3: malformed entry", "{line:?}");
+    }
+    assert_eq!(parse("# list\n\nw w name\n").expect("a valid entry").len(), 1);
+}
+
+#[test]
+fn the_text_check_and_rust_give_one_verdict() {
+    let scratch = skein_scratch::Scratch::new("outward-agreement");
+    let root = scratch.path();
+    git(root, &["init", "-q"]);
+    let mut text = String::new();
+    for entry in entries() {
+        let name = std::str::from_utf8(&entry.text).expect("ASCII name");
+        let suffix = match entry.right {
+            Right::Digits => "123suffix",
+            Right::Any | Right::Word => "",
+        };
+        writeln!(text, "({}{suffix})\r", name.to_ascii_uppercase()).expect("writing text");
+        writeln!(text, "x{name}{suffix}!").expect("writing text with a left word neighbour");
+        writeln!(text, "!{name}{suffix}_").expect("writing text with a right word neighbour");
+    }
+    text.push_str("fab and hel8\n");
+    fs::write(root.join("names.md"), &text).expect("names of every entry kind");
+    fs::write(root.join("binary"), [b"\0".as_slice(), text.as_bytes()].concat()).expect("a binary file");
+    let plan = root.join("temper/docs/plan/example");
+    fs::create_dir_all(&plan).expect("a plan directory");
+    fs::write(plan.join("run.md"), &text).expect("a plan's names");
+    fs::create_dir_all(root.join("tools/outward")).expect("the list's directory");
+    fs::write(root.join(LIST), LIST_TEXT).expect("the list");
+    std::os::unix::fs::symlink("/home/free/elsewhere", root.join("link")).expect("a target with a name");
+    git(root, &["add", "."]);
+    let command = skein_scratch::paths::workspace().join("tools/outward/outward.py");
+    let check =
+        || Command::new("python3").args(["-I", "-B"]).arg(&command).current_dir(root).output().expect("the text check");
+    let rust = scan(root).expect("scanning the scratch repository");
+    let failure = verdict(&rust.found).expect_err("the names must fail");
+    let python = check();
+    assert_eq!(python.status.code(), Some(1), "{}", String::from_utf8_lossy(&python.stderr));
+    assert_eq!(String::from_utf8(python.stdout).expect("UTF-8 verdict"), failure);
+    assert_eq!(python.stderr.as_slice(), b"");
+
+    fs::write(root.join("names.md"), "Product prose\n").expect("taking the names out");
+    fs::remove_file(root.join("link")).expect("taking out the symlink's name");
+    std::os::unix::fs::symlink("product/elsewhere", root.join("link")).expect("a product target");
+    assert_eq!(verdict(&scan(root).expect("scanning clean text").found), Ok(()));
+    let python = check();
+    assert_eq!(python.status.code(), Some(0), "{}", String::from_utf8_lossy(&python.stderr));
+    assert_eq!(python.stdout.as_slice(), b"");
+    assert_eq!(python.stderr.as_slice(), b"");
 }
 
 #[test]
@@ -295,6 +378,7 @@ fn the_check_leaves_out_plan_directories_and_its_own_file() {
         ("temper/docs/plan/outward-rule/inputs/request.md", true),
         ("smith/docs/plan/sign-in-wait/plan.toml", true),
         (OWN, true),
+        (LIST, true),
         ("temper/docs/plan/a.md", false),
         ("docs/plan/a/b.md", false),
         ("temper/crates/a/docs/plan/b/c.md", false),

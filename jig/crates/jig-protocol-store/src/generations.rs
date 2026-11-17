@@ -58,8 +58,8 @@ pub(crate) fn number(name: &[u8]) -> Option<u64> {
 pub(crate) fn manifest(
     generation: u64,
     from: Option<u64>,
-    before: crate::patching::plan::Levels,
-    after: crate::patching::plan::Levels,
+    before: crate::upgrade::admission::Levels,
+    after: crate::upgrade::admission::Levels,
     counts: &[crate::codec::component::Count],
     commits: (u64, Option<u64>),
     written: skein_lib::Wall,

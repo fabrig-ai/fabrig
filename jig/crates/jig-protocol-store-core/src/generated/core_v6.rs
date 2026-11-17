@@ -545,6 +545,8 @@ pub enum Path {
     DeploymentCommits,
     /// The `projects` field of `Deployment`.
     DeploymentProjects,
+    /// The `restart_wait_ms` field of `Deployment`.
+    DeploymentRestartWaitMs,
     /// Bytes after `Deployment`.
     DeploymentTail,
     /// The `value` field of `PhaseBytes`.
@@ -785,6 +787,361 @@ pub enum Path {
     RowVersion,
     /// Bytes after `Row`.
     RowTail,
+}
+
+impl Path {
+    /// The path as the schema spells it (skein/docs/design/data/codec/README.md, 4).
+    #[must_use]
+    #[expect(clippy::too_many_lines, reason = "each schema path has one exhaustive naming arm")]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::MovedPlacedHoldRevision => "MovedPlacedHold.revision",
+            Self::MovedPlacedHoldTail => "MovedPlacedHold (tail)",
+            Self::HoldOwnerPartyPerson => "HoldOwnerParty.person",
+            Self::HoldOwnerPartyTail => "HoldOwnerParty (tail)",
+            Self::HoldOwnerTaskTask => "HoldOwnerTask.task",
+            Self::HoldOwnerTaskTail => "HoldOwnerTask (tail)",
+            Self::HoldOwnerTag => "HoldOwner (tag)",
+            Self::CallPartHoldOwnerTask => "CallPartHoldOwner.task",
+            Self::CallPartHoldOwnerHold => "CallPartHoldOwner.hold",
+            Self::CallPartHoldOwnerRevision => "CallPartHoldOwner.revision",
+            Self::CallPartHoldOwnerOwner => "CallPartHoldOwner.owner",
+            Self::CallPartHoldOwnerTail => "CallPartHoldOwner (tail)",
+            Self::ProposerTaskValue => "ProposerTask.value",
+            Self::ProposerTaskTail => "ProposerTask (tail)",
+            Self::ProposerPartyValue => "ProposerParty.value",
+            Self::ProposerPartyTail => "ProposerParty (tail)",
+            Self::ProposerTag => "Proposer (tag)",
+            Self::ProposalChoiceTag => "ProposalChoice (tag)",
+            Self::EscalationDecisionRejectReason => "EscalationDecisionReject.reason",
+            Self::EscalationDecisionRejectTail => "EscalationDecisionReject (tail)",
+            Self::EscalationDecisionTag => "EscalationDecision (tag)",
+            Self::ProposalKindTag => "ProposalKind (tag)",
+            Self::EscalationOutcomePassedRevision => "EscalationOutcomePassed.revision",
+            Self::EscalationOutcomePassedTail => "EscalationOutcomePassed (tail)",
+            Self::EscalationOutcomeTag => "EscalationOutcome (tag)",
+            Self::ProposalOutcomeTag => "ProposalOutcome (tag)",
+            Self::SourceTag => "Source (tag)",
+            Self::LacksTools => "Lacks.tools",
+            Self::LacksGrants => "Lacks.grants",
+            Self::LacksExecutors => "Lacks.executors",
+            Self::LacksTasks => "Lacks.tasks",
+            Self::LacksDepth => "Lacks.depth",
+            Self::LacksSpend => "Lacks.spend",
+            Self::LacksDeadline => "Lacks.deadline",
+            Self::LacksNotes => "Lacks.notes",
+            Self::LacksModels => "Lacks.models",
+            Self::LacksTail => "Lacks (tail)",
+            Self::JudgeConnector => "Judge.connector",
+            Self::JudgeRequirement => "Judge.requirement",
+            Self::JudgeParameters => "Judge.parameters",
+            Self::JudgeTail => "Judge (tail)",
+            Self::AnswerTag => "Answer (tag)",
+            Self::FindingAuthoritySource => "FindingAuthority.source",
+            Self::FindingAuthorityLacks => "FindingAuthority.lacks",
+            Self::FindingAuthorityTail => "FindingAuthority (tail)",
+            Self::FindingExecutorSource => "FindingExecutor.source",
+            Self::FindingExecutorTail => "FindingExecutor (tail)",
+            Self::FindingTasksSource => "FindingTasks.source",
+            Self::FindingTasksTail => "FindingTasks (tail)",
+            Self::FindingSpendSource => "FindingSpend.source",
+            Self::FindingSpendTail => "FindingSpend (tail)",
+            Self::FindingGrantSource => "FindingGrant.source",
+            Self::FindingGrantTail => "FindingGrant (tail)",
+            Self::FindingPriceSource => "FindingPrice.source",
+            Self::FindingPriceTail => "FindingPrice (tail)",
+            Self::FindingScopeSource => "FindingScope.source",
+            Self::FindingScopeTail => "FindingScope (tail)",
+            Self::FindingRequiredJudge => "FindingRequired.judge",
+            Self::FindingRequiredTail => "FindingRequired (tail)",
+            Self::FindingFailedJudge => "FindingFailed.judge",
+            Self::FindingFailedTail => "FindingFailed (tail)",
+            Self::FindingUnguardedJudge => "FindingUnguarded.judge",
+            Self::FindingUnguardedTail => "FindingUnguarded (tail)",
+            Self::FindingTag => "Finding (tag)",
+            Self::HostKindTag => "HostKind (tag)",
+            Self::OutboxOutcomeHeldEntry => "OutboxOutcomeHeld.entry",
+            Self::OutboxOutcomeHeldTail => "OutboxOutcomeHeld (tail)",
+            Self::OutboxOutcomeTag => "OutboxOutcome (tag)",
+            Self::DeliveryOutcomeTag => "DeliveryOutcome (tag)",
+            Self::SettledAnswerHostError => "SettledAnswerHost.error",
+            Self::SettledAnswerHostBody => "SettledAnswerHost.body",
+            Self::SettledAnswerHostTail => "SettledAnswerHost (tail)",
+            Self::SettledAnswerDeliveryOutcome => "SettledAnswerDelivery.outcome",
+            Self::SettledAnswerDeliveryEvidence => "SettledAnswerDelivery.evidence",
+            Self::SettledAnswerDeliveryTail => "SettledAnswerDelivery (tail)",
+            Self::SettledAnswerTag => "SettledAnswer (tag)",
+            Self::SettledCallSerial => "SettledCall.serial",
+            Self::SettledCallTool => "SettledCall.tool",
+            Self::SettledCallAnswer => "SettledCall.answer",
+            Self::SettledCallTail => "SettledCall (tail)",
+            Self::CallKeyTask => "CallKey.task",
+            Self::CallKeyAttempt => "CallKey.attempt",
+            Self::CallKeyCompletion => "CallKey.completion",
+            Self::CallKeyPosition => "CallKey.position",
+            Self::CallKeyTail => "CallKey (tail)",
+            Self::CallPartEffectConnector => "CallPartEffect.connector",
+            Self::CallPartEffectEntry => "CallPartEffect.entry",
+            Self::CallPartEffectDeadline => "CallPartEffect.deadline",
+            Self::CallPartEffectOutcome => "CallPartEffect.outcome",
+            Self::CallPartEffectTail => "CallPartEffect (tail)",
+            Self::CallPartConnectorConnector => "CallPartConnector.connector",
+            Self::CallPartConnectorTail => "CallPartConnector (tail)",
+            Self::CallPartEffectDeniedAnswer => "CallPartEffectDenied.answer",
+            Self::CallPartEffectDeniedFindings => "CallPartEffectDenied.findings",
+            Self::CallPartEffectDeniedTail => "CallPartEffectDenied (tail)",
+            Self::CallPartToolDeniedAnswer => "CallPartToolDenied.answer",
+            Self::CallPartToolDeniedFindings => "CallPartToolDenied.findings",
+            Self::CallPartToolDeniedTail => "CallPartToolDenied (tail)",
+            Self::CallPartEscalationDecidedTask => "CallPartEscalationDecided.task",
+            Self::CallPartEscalationDecidedRevision => "CallPartEscalationDecided.revision",
+            Self::CallPartEscalationDecidedOutcome => "CallPartEscalationDecided.outcome",
+            Self::CallPartEscalationDecidedTail => "CallPartEscalationDecided (tail)",
+            Self::NumberValue => "Number.value",
+            Self::NumberTail => "Number (tail)",
+            Self::PolicyHolderProject => "PolicyHolder.project",
+            Self::PolicyHolderKind => "PolicyHolder.kind",
+            Self::PolicyHolderTail => "PolicyHolder (tail)",
+            Self::ProposalHolderTag => "ProposalHolder (tag)",
+            Self::CallPartProposedProposal => "CallPartProposed.proposal",
+            Self::CallPartProposedHolder => "CallPartProposed.holder",
+            Self::CallPartProposedTail => "CallPartProposed (tail)",
+            Self::CallPartProposalDecidedProposal => "CallPartProposalDecided.proposal",
+            Self::CallPartProposalDecidedOutcome => "CallPartProposalDecided.outcome",
+            Self::CallPartProposalDecidedTail => "CallPartProposalDecided (tail)",
+            Self::CallPartControlDeniedAnswer => "CallPartControlDenied.answer",
+            Self::CallPartControlDeniedTail => "CallPartControlDenied (tail)",
+            Self::CallPartSentMessage => "CallPartSent.message",
+            Self::CallPartSentTail => "CallPartSent (tail)",
+            Self::CallPartSubscribedSubscription => "CallPartSubscribed.subscription",
+            Self::CallPartSubscribedTail => "CallPartSubscribed (tail)",
+            Self::CallPartDelegationDeniedAnswer => "CallPartDelegationDenied.answer",
+            Self::CallPartDelegationDeniedFindings => "CallPartDelegationDenied.findings",
+            Self::CallPartDelegationDeniedTail => "CallPartDelegationDenied (tail)",
+            Self::CallPartNoteDeletedName => "CallPartNoteDeleted.name",
+            Self::CallPartNoteDeletedTail => "CallPartNoteDeleted (tail)",
+            Self::CallPartNoteWrittenName => "CallPartNoteWritten.name",
+            Self::CallPartNoteWrittenRevision => "CallPartNoteWritten.revision",
+            Self::CallPartNoteWrittenLines => "CallPartNoteWritten.lines",
+            Self::CallPartNoteWrittenAdded => "CallPartNoteWritten.added",
+            Self::CallPartNoteWrittenRemoved => "CallPartNoteWritten.removed",
+            Self::CallPartNoteWrittenFirst => "CallPartNoteWritten.first",
+            Self::CallPartNoteWrittenTail => "CallPartNoteWritten (tail)",
+            Self::TaskBytesValue => "TaskBytes.value",
+            Self::TaskBytesTail => "TaskBytes (tail)",
+            Self::CallPartEscalationRefusedValue => "CallPartEscalationRefused.value",
+            Self::CallPartEscalationRefusedTail => "CallPartEscalationRefused (tail)",
+            Self::CallPartProposalRefusedValue => "CallPartProposalRefused.value",
+            Self::CallPartProposalRefusedTail => "CallPartProposalRefused (tail)",
+            Self::CallPartControlRefusedValue => "CallPartControlRefused.value",
+            Self::CallPartControlRefusedTail => "CallPartControlRefused (tail)",
+            Self::CallPartMessageRefusedValue => "CallPartMessageRefused.value",
+            Self::CallPartMessageRefusedTail => "CallPartMessageRefused (tail)",
+            Self::CallPartSubscriptionRefusedValue => "CallPartSubscriptionRefused.value",
+            Self::CallPartSubscriptionRefusedTail => "CallPartSubscriptionRefused (tail)",
+            Self::CallPartDelegationRefusedValue => "CallPartDelegationRefused.value",
+            Self::CallPartDelegationRefusedTail => "CallPartDelegationRefused (tail)",
+            Self::MadeTask => "Made.task",
+            Self::MadeRevision => "Made.revision",
+            Self::MadeGiven => "Made.given",
+            Self::MadeTail => "Made (tail)",
+            Self::CallPartDelegatedValue => "CallPartDelegated.value",
+            Self::CallPartDelegatedTail => "CallPartDelegated (tail)",
+            Self::NoteBytesValue => "NoteBytes.value",
+            Self::NoteBytesTail => "NoteBytes (tail)",
+            Self::CallPartNoteRecalledEntries => "CallPartNoteRecalled.entries",
+            Self::CallPartNoteRecalledMore => "CallPartNoteRecalled.more",
+            Self::CallPartNoteRecalledTail => "CallPartNoteRecalled (tail)",
+            Self::NoteRefusalMovedRevision => "NoteRefusalMoved.revision",
+            Self::NoteRefusalMovedTail => "NoteRefusalMoved (tail)",
+            Self::NoteRefusalPastEndLines => "NoteRefusalPastEnd.lines",
+            Self::NoteRefusalPastEndTail => "NoteRefusalPastEnd (tail)",
+            Self::NoteRefusalPastBoundBytes => "NoteRefusalPastBound.bytes",
+            Self::NoteRefusalPastBoundBound => "NoteRefusalPastBound.bound",
+            Self::NoteRefusalPastBoundTail => "NoteRefusalPastBound (tail)",
+            Self::NoteRefusalTag => "NoteRefusal (tag)",
+            Self::CallPartNoteRefusedValue => "CallPartNoteRefused.value",
+            Self::CallPartNoteRefusedTail => "CallPartNoteRefused (tail)",
+            Self::CallPartRevisedTask => "CallPartRevised.task",
+            Self::CallPartRevisedRevision => "CallPartRevised.revision",
+            Self::CallPartRevisedTail => "CallPartRevised (tail)",
+            Self::FailureClassTag => "FailureClass (tag)",
+            Self::HoldReasonFailuresClass => "HoldReasonFailures.class",
+            Self::HoldReasonFailuresTail => "HoldReasonFailures (tail)",
+            Self::HoldReasonDependencyTask => "HoldReasonDependency.task",
+            Self::HoldReasonDependencyTail => "HoldReasonDependency (tail)",
+            Self::HoldReasonPlacedHold => "HoldReasonPlaced.hold",
+            Self::HoldReasonPlacedTail => "HoldReasonPlaced (tail)",
+            Self::HoldReasonUncertainEntry => "HoldReasonUncertain.entry",
+            Self::HoldReasonUncertainTail => "HoldReasonUncertain (tail)",
+            Self::HoldReasonPoolLostPool => "HoldReasonPoolLost.pool",
+            Self::HoldReasonPoolLostTail => "HoldReasonPoolLost (tail)",
+            Self::BoundTag => "Bound (tag)",
+            Self::ExceededBound => "Exceeded.bound",
+            Self::ExceededValue => "Exceeded.value",
+            Self::ExceededTail => "Exceeded (tail)",
+            Self::HoldReasonTag => "HoldReason (tag)",
+            Self::MovedHoldRevision => "MovedHold.revision",
+            Self::MovedHoldReason => "MovedHold.reason",
+            Self::MovedHoldTail => "MovedHold (tail)",
+            Self::MovedSpecRevision => "MovedSpec.revision",
+            Self::MovedSpecTail => "MovedSpec (tail)",
+            Self::MovedPersonRevision => "MovedPerson.revision",
+            Self::MovedPersonTail => "MovedPerson (tail)",
+            Self::MovedNoteRevision => "MovedNote.revision",
+            Self::MovedNoteTail => "MovedNote (tail)",
+            Self::MovedTag => "Moved (tag)",
+            Self::CallPartMovedTask => "CallPartMoved.task",
+            Self::CallPartMovedNow => "CallPartMoved.now",
+            Self::CallPartMovedTail => "CallPartMoved (tail)",
+            Self::CallPartAgainTask => "CallPartAgain.task",
+            Self::CallPartAgainRequired => "CallPartAgain.required",
+            Self::CallPartAgainTail => "CallPartAgain (tail)",
+            Self::CallPartPassedUpTask => "CallPartPassedUp.task",
+            Self::CallPartPassedUpTail => "CallPartPassedUp (tail)",
+            Self::CallPartEffectRefusedValue => "CallPartEffectRefused.value",
+            Self::CallPartEffectRefusedTail => "CallPartEffectRefused (tail)",
+            Self::SettingsRefusalValue => "SettingsRefusal.value",
+            Self::SettingsRefusalTail => "SettingsRefusal (tail)",
+            Self::CallPartTag => "CallPart (tag)",
+            Self::CallRecordKey => "CallRecord.key",
+            Self::CallRecordPart => "CallRecord.part",
+            Self::CallRecordSettled => "CallRecord.settled",
+            Self::CallRecordTail => "CallRecord (tail)",
+            Self::DeploymentId => "Deployment.id",
+            Self::DeploymentTasks => "Deployment.tasks",
+            Self::DeploymentPeople => "Deployment.people",
+            Self::DeploymentSignIns => "Deployment.sign_ins",
+            Self::DeploymentMessages => "Deployment.messages",
+            Self::DeploymentRuns => "Deployment.runs",
+            Self::DeploymentCalls => "Deployment.calls",
+            Self::DeploymentConnectorRows => "Deployment.connector_rows",
+            Self::DeploymentApplications => "Deployment.applications",
+            Self::DeploymentCommits => "Deployment.commits",
+            Self::DeploymentProjects => "Deployment.projects",
+            Self::DeploymentRestartWaitMs => "Deployment.restart_wait_ms",
+            Self::DeploymentTail => "Deployment (tail)",
+            Self::PhaseBytesValue => "PhaseBytes.value",
+            Self::PhaseBytesTail => "PhaseBytes (tail)",
+            Self::ChangeBytesValue => "ChangeBytes.value",
+            Self::ChangeBytesTail => "ChangeBytes (tail)",
+            Self::EndBytesValue => "EndBytes.value",
+            Self::EndBytesTail => "EndBytes (tail)",
+            Self::PartyTaskValue => "PartyTask.value",
+            Self::PartyTaskTail => "PartyTask (tail)",
+            Self::PartyPersonValue => "PartyPerson.value",
+            Self::PartyPersonTail => "PartyPerson (tail)",
+            Self::PartyDeploymentProject => "PartyDeployment.project",
+            Self::PartyDeploymentTail => "PartyDeployment (tail)",
+            Self::PartyTag => "Party (tag)",
+            Self::MilestoneLifecycleTask => "MilestoneLifecycle.task",
+            Self::MilestoneLifecyclePosition => "MilestoneLifecycle.position",
+            Self::MilestoneLifecycleTail => "MilestoneLifecycle (tail)",
+            Self::MilestoneRevisionTask => "MilestoneRevision.task",
+            Self::MilestoneRevisionRevision => "MilestoneRevision.revision",
+            Self::MilestoneRevisionTail => "MilestoneRevision (tail)",
+            Self::MilestoneIdTag => "MilestoneId (tag)",
+            Self::ProjectionMilestoneIdentity => "ProjectionMilestone.identity",
+            Self::ProjectionMilestonePhase => "ProjectionMilestone.phase",
+            Self::ProjectionMilestoneChange => "ProjectionMilestone.change",
+            Self::ProjectionMilestoneWords => "ProjectionMilestone.words",
+            Self::ProjectionMilestoneTail => "ProjectionMilestone (tail)",
+            Self::ConnectorValue => "Connector.value",
+            Self::ConnectorTail => "Connector (tail)",
+            Self::ProjectionMilestoneRowGoal => "ProjectionMilestoneRow.goal",
+            Self::ProjectionMilestoneRowMilestone => "ProjectionMilestoneRow.milestone",
+            Self::ProjectionMilestoneRowTail => "ProjectionMilestoneRow (tail)",
+            Self::ProjectionGoalHotNumber => "ProjectionGoalHot.number",
+            Self::ProjectionGoalHotProject => "ProjectionGoalHot.project",
+            Self::ProjectionGoalHotPriority => "ProjectionGoalHot.priority",
+            Self::ProjectionGoalHotPhase => "ProjectionGoalHot.phase",
+            Self::ProjectionGoalHotPending => "ProjectionGoalHot.pending",
+            Self::ProjectionGoalHotChanged => "ProjectionGoalHot.changed",
+            Self::ProjectionGoalHotFedAt => "ProjectionGoalHot.fed_at",
+            Self::ProjectionGoalHotTail => "ProjectionGoalHot (tail)",
+            Self::ProjectionTaskHotGoal => "ProjectionTaskHot.goal",
+            Self::ProjectionTaskHotNumber => "ProjectionTaskHot.number",
+            Self::ProjectionTaskHotRequester => "ProjectionTaskHot.requester",
+            Self::ProjectionTaskHotPhase => "ProjectionTaskHot.phase",
+            Self::ProjectionTaskHotTail => "ProjectionTaskHot (tail)",
+            Self::ProjectionWordsGoal => "ProjectionWords.goal",
+            Self::ProjectionWordsTask => "ProjectionWords.task",
+            Self::ProjectionWordsWords => "ProjectionWords.words",
+            Self::ProjectionWordsTail => "ProjectionWords (tail)",
+            Self::ProjectionRecordTag => "ProjectionRecord (tag)",
+            Self::TerminalRecordTask => "TerminalRecord.task",
+            Self::TerminalRecordAttempt => "TerminalRecord.attempt",
+            Self::TerminalRecordCumulative => "TerminalRecord.cumulative",
+            Self::TerminalRecordEnd => "TerminalRecord.end",
+            Self::TerminalRecordTail => "TerminalRecord (tail)",
+            Self::TurnProofTurn => "TurnProof.turn",
+            Self::TurnProofCumulative => "TurnProof.cumulative",
+            Self::TurnProofRead => "TurnProof.read",
+            Self::TurnProofTail => "TurnProof (tail)",
+            Self::WindowAttempt => "Window.attempt",
+            Self::WindowTurn => "Window.turn",
+            Self::WindowClosed => "Window.closed",
+            Self::WindowTail => "Window (tail)",
+            Self::CredentialValue => "Credential.value",
+            Self::CredentialTail => "Credential (tail)",
+            Self::AccountBindingProvider => "AccountBinding.provider",
+            Self::AccountBindingAccount => "AccountBinding.account",
+            Self::AccountBindingSource => "AccountBinding.source",
+            Self::AccountBindingTail => "AccountBinding (tail)",
+            Self::RunProofTask => "RunProof.task",
+            Self::RunProofAttempt => "RunProof.attempt",
+            Self::RunProofConversation => "RunProof.conversation",
+            Self::RunProofAccounts => "RunProof.accounts",
+            Self::RunProofPlacement => "RunProof.placement",
+            Self::RunProofAccountFailure => "RunProof.account_failure",
+            Self::RunProofAccountTerminal => "RunProof.account_terminal",
+            Self::RunProofCredentials => "RunProof.credentials",
+            Self::RunProofWindow => "RunProof.window",
+            Self::RunProofCrossed => "RunProof.crossed",
+            Self::RunProofHost => "RunProof.host",
+            Self::RunProofOffered => "RunProof.offered",
+            Self::RunProofOutstanding => "RunProof.outstanding",
+            Self::RunProofTurn => "RunProof.turn",
+            Self::RunProofTerminal => "RunProof.terminal",
+            Self::RunProofTail => "RunProof (tail)",
+            Self::TurnRecordOpensWindow => "TurnRecord.opens_window",
+            Self::TurnRecordTask => "TurnRecord.task",
+            Self::TurnRecordAttempt => "TurnRecord.attempt",
+            Self::TurnRecordTurn => "TurnRecord.turn",
+            Self::TurnRecordSpent => "TurnRecord.spent",
+            Self::TurnRecordRead => "TurnRecord.read",
+            Self::TurnRecordAt => "TurnRecord.at",
+            Self::TurnRecordTranscript => "TurnRecord.transcript",
+            Self::TurnRecordVersion => "TurnRecord (version)",
+            Self::TurnRecordTail => "TurnRecord (tail)",
+            Self::CreatedFirst => "Created.first",
+            Self::CreatedLast => "Created.last",
+            Self::CreatedTail => "Created (tail)",
+            Self::ProposalDecisionRecordProject => "ProposalDecisionRecord.project",
+            Self::ProposalDecisionRecordProposer => "ProposalDecisionRecord.proposer",
+            Self::ProposalDecisionRecordProposal => "ProposalDecisionRecord.proposal",
+            Self::ProposalDecisionRecordKind => "ProposalDecisionRecord.kind",
+            Self::ProposalDecisionRecordBy => "ProposalDecisionRecord.by",
+            Self::ProposalDecisionRecordAt => "ProposalDecisionRecord.at",
+            Self::ProposalDecisionRecordChoice => "ProposalDecisionRecord.choice",
+            Self::ProposalDecisionRecordCreated => "ProposalDecisionRecord.created",
+            Self::ProposalDecisionRecordTail => "ProposalDecisionRecord (tail)",
+            Self::EscalationDecisionRecordProject => "EscalationDecisionRecord.project",
+            Self::EscalationDecisionRecordRequester => "EscalationDecisionRecord.requester",
+            Self::EscalationDecisionRecordTask => "EscalationDecisionRecord.task",
+            Self::EscalationDecisionRecordRevision => "EscalationDecisionRecord.revision",
+            Self::EscalationDecisionRecordBy => "EscalationDecisionRecord.by",
+            Self::EscalationDecisionRecordAt => "EscalationDecisionRecord.at",
+            Self::EscalationDecisionRecordDecision => "EscalationDecisionRecord.decision",
+            Self::EscalationDecisionRecordTail => "EscalationDecisionRecord (tail)",
+            Self::ProjectionValueValue => "ProjectionValue.value",
+            Self::ProjectionValueTail => "ProjectionValue (tail)",
+            Self::ValueTag => "Value (tag)",
+            Self::RowValue => "Row.value",
+            Self::RowVersion => "Row (version)",
+            Self::RowTail => "Row (tail)",
+        }
+    }
 }
 
 /// A decoding or bound failure at a schema path.
@@ -4137,6 +4494,8 @@ pub struct DeploymentParts {
     pub commits: u64,
     /// The `projects` field.
     pub projects: u64,
+    /// The `restart_wait_ms` field.
+    pub restart_wait_ms: Option<u64>,
 }
 
 /// `Deployment` in this codec family.
@@ -4153,13 +4512,14 @@ pub struct Deployment {
     applications: u64,
     commits: u64,
     projects: u64,
+    restart_wait_ms: Option<u64>,
 }
 
 impl Deployment {
     /// Makes a value within the given limits.
     pub fn new(_limits: &Limits, parts: DeploymentParts) -> Result<Self, Problem> {
-        let DeploymentParts { id, tasks, people, sign_ins, messages, runs, calls, connector_rows, applications, commits, projects } = parts;
-        let value = Self { id, tasks, people, sign_ins, messages, runs, calls, connector_rows, applications, commits, projects };
+        let DeploymentParts { id, tasks, people, sign_ins, messages, runs, calls, connector_rows, applications, commits, projects, restart_wait_ms } = parts;
+        let value = Self { id, tasks, people, sign_ins, messages, runs, calls, connector_rows, applications, commits, projects, restart_wait_ms };
         Ok(value)
     }
 
@@ -4207,9 +4567,13 @@ impl Deployment {
     #[must_use]
     pub fn projects(&self) -> u64 { self.projects }
 
+    /// Reads the `restart_wait_ms` field.
+    #[must_use]
+    pub fn restart_wait_ms(&self) -> &Option<u64> { &self.restart_wait_ms }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> DeploymentParts { DeploymentParts { id: self.id, tasks: self.tasks, people: self.people, sign_ins: self.sign_ins, messages: self.messages, runs: self.runs, calls: self.calls, connector_rows: self.connector_rows, applications: self.applications, commits: self.commits, projects: self.projects } }
+    pub fn into_parts(self) -> DeploymentParts { DeploymentParts { id: self.id, tasks: self.tasks, people: self.people, sign_ins: self.sign_ins, messages: self.messages, runs: self.runs, calls: self.calls, connector_rows: self.connector_rows, applications: self.applications, commits: self.commits, projects: self.projects, restart_wait_ms: self.restart_wait_ms } }
 
 }
 
@@ -9093,6 +9457,11 @@ impl Deployment {
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
+        let field_restart_wait_ms = &self.restart_wait_ms;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_restart_wait_ms.is_some() {
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        }
         size
     }
 
@@ -9120,6 +9489,14 @@ impl Deployment {
         writer.put(&field_commits.to_be_bytes())?;
         let field_projects = &self.projects;
         writer.put(&field_projects.to_be_bytes())?;
+        let field_restart_wait_ms = &self.restart_wait_ms;
+        match field_restart_wait_ms {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         Ok(())
     }
 
@@ -9142,7 +9519,8 @@ impl Deployment {
         let decoded_applications = reader.u64().ok_or(Problem { path: Path::DeploymentApplications, reason: skein_codec::Reason::Short })?;
         let decoded_commits = reader.u64().ok_or(Problem { path: Path::DeploymentCommits, reason: skein_codec::Reason::Short })?;
         let decoded_projects = reader.u64().ok_or(Problem { path: Path::DeploymentProjects, reason: skein_codec::Reason::Short })?;
-        Ok(Self { id: decoded_id, tasks: decoded_tasks, people: decoded_people, sign_ins: decoded_sign_ins, messages: decoded_messages, runs: decoded_runs, calls: decoded_calls, connector_rows: decoded_connector_rows, applications: decoded_applications, commits: decoded_commits, projects: decoded_projects })
+        let decoded_restart_wait_ms = match reader.u8().ok_or(Problem { path: Path::DeploymentRestartWaitMs, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::DeploymentRestartWaitMs, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::DeploymentRestartWaitMs, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { id: decoded_id, tasks: decoded_tasks, people: decoded_people, sign_ins: decoded_sign_ins, messages: decoded_messages, runs: decoded_runs, calls: decoded_calls, connector_rows: decoded_connector_rows, applications: decoded_applications, commits: decoded_commits, projects: decoded_projects, restart_wait_ms: decoded_restart_wait_ms })
     }
 }
 
@@ -13174,7 +13552,7 @@ impl Deployment {
         size = size.checked_add(8_u64)?.checked_add(8_u64)?;
         size = size.checked_add(8_u64)?.checked_add(8_u64)?;
         size = size.checked_add(8_u64)?.checked_add(8_u64)?;
-        size = size.checked_add(8_u64)?;
+        size = size.checked_add(8_u64)?.checked_add(1_u64.checked_add(8_u64)?)?;
         size.checked_add(0)
     }
 
@@ -13192,7 +13570,7 @@ impl Deployment {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
 }

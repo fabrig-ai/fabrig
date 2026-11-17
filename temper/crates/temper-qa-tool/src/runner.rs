@@ -1,12 +1,14 @@
 //! A single-home service, with ordered saved steps per tick (qa/README.md, 4–5).
 use crate::faces::{ClockFace, Environment, GitFace, Moment, ProcessCommand, Processes, Signal};
 use crate::{
-    Exit, Home, Ledger, PassState, Refusal, SessionKind, brief::Inputs, pass_brief, pass_files, refused, watch::watch,
+    Exit, Home, Ledger, PassState, Refusal, SessionKind, brief::Inputs, pass_brief, pass_files, refused,
+    watch::watch_with_fetch,
 };
 use std::{
     collections::BTreeMap,
     fs::{self, File, OpenOptions, TryLockError},
     os::unix::fs::OpenOptionsExt,
+    os::unix::net::UnixListener,
     path::PathBuf,
 };
 
@@ -21,6 +23,7 @@ struct Active {
 struct Failure {
     since: u64,
     lined: bool,
+    retry_at: u64,
 }
 
 pub struct Run<G, P, C> {
@@ -29,6 +32,12 @@ pub struct Run<G, P, C> {
     pub processes: P,
     pub clock: C,
     environment: Environment,
+    events: crate::events::Events,
+    listener: Option<UnixListener>,
+    next_fetch: Option<u64>,
+    place_retry: Option<u64>,
+    state_retry: Option<u64>,
+    holders: Vec<PathBuf>,
     _lock: File,
     active: BTreeMap<u64, Active>,
     trees: Vec<PathBuf>,
@@ -54,12 +63,22 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
             }
             Err(TryLockError::Error(why)) => return Err(refused(format!("run.lock: {why}"))),
         }
+        let listener = crate::events::bind(&home.directory)?;
+        let events = crate::events::Events::default();
+        let mut processes = processes;
+        processes.wake_on_exit(events.waker());
         let mut run = Self {
             home,
             git,
             processes,
             clock,
             environment,
+            events,
+            listener: Some(listener),
+            next_fetch: None,
+            place_retry: None,
+            state_retry: None,
+            holders: Vec::new(),
             _lock: lock,
             active: BTreeMap::new(),
             trees: Vec::new(),
@@ -70,7 +89,7 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
         };
         let now = run.clock.now();
         let home = run.home.clone();
-        home.transact(|ledger| {
+        home.transact_loop(|ledger| {
             let numbers: Vec<_> = ledger.running_sessions().iter().map(|session| session.number).collect();
             for number in numbers {
                 let output = fs::read_to_string(home.session_directory(number).join("output")).unwrap_or_default();
@@ -83,70 +102,119 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
         Ok(run)
     }
 
-    /// The process probes are outside the ledger lock: the fake, like an agent's
-    /// commands, may commit answers through Home before reporting its exit.
+    /// Exit results are collected outside the ledger lock: the fake, like an
+    /// agent's commands, may commit answers before reporting its exit.
     pub fn tick(&mut self) {
         let now = self.clock.now();
         let home = self.home.clone();
-        let result = home.transact(|ledger| watch(&mut self.git, &home.configuration.git, ledger, now.wall));
+        let fetch = home.configuration.git.fetch.is_some() && self.next_fetch.is_none_or(|due| now.monotonic >= due);
+        if fetch {
+            self.next_fetch = Some(now.monotonic.saturating_add(home.configuration.bounds.poll));
+        }
+        let result = home
+            .transact_loop(|ledger| watch_with_fetch(&mut self.git, &home.configuration.git, ledger, now.wall, fetch));
         self.outcome("watch", result, now);
         let result =
-            self.probe().and_then(|()| home.transact(|ledger| Ok(self.triage(ledger))).and_then(|result| result));
+            self.probe().and_then(|()| home.transact_loop(|ledger| Ok(self.triage(ledger))).and_then(|result| result));
         self.outcome("triage", result, now);
         let result = self.passes();
         self.outcome("passes", result, now);
         let result = home
-            .transact(|ledger| {
+            .transact_loop(|ledger| {
                 Ok(crate::requests::step(&home, ledger, &mut self.processes, &self.environment, now.wall))
             })
             .and_then(|result| result);
         self.outcome("requests", result, now);
-        let result = home.transact(|ledger| {
+        let result = home.transact_loop(|ledger| {
             ledger.waiting_lines(home.configuration.bounds.build_wait, now.wall, &home.configuration.owner);
             Ok(())
         });
         self.outcome("waiting cases", result, now);
         // Files already removed and sessions already ended must stay recorded
         // even if a later effect in their step fails.
-        let result = home.transact(|ledger| Ok(self.delete_builds(ledger, now.wall))).and_then(|result| result);
+        let result = home.transact_loop(|ledger| Ok(self.delete_builds(ledger, now.wall))).and_then(|result| result);
         self.outcome("builds", result, now);
-        let result = home.transact(|ledger| Ok(self.give_lines(ledger))).and_then(|result| result);
+        let result = home.transact_loop(|ledger| Ok(self.give_lines(ledger))).and_then(|result| result);
         self.outcome("lines", result, now);
+        let result = home.read(|ledger| {
+            self.place_retry =
+                ledger.place_waits.last().filter(|wait| wait.to.is_none()).map(|_| now.monotonic.saturating_add(60));
+            self.state_retry = (home.configuration.request.state.is_some()
+                && ledger.passes.iter().any(|pass| {
+                    pass.state == PassState::Waiting
+                        && pass.requests.last().is_some_and(|request| {
+                            request.ended.is_none()
+                                && request
+                                    .goal
+                                    .is_some_and(|goal| !ledger.landings.iter().any(|landing| landing.goal == goal))
+                        })
+                }))
+            .then(|| now.monotonic.saturating_add(60));
+            Ok(())
+        });
+        self.outcome("waits", result, now);
     }
 
-    /// One-second probes wake a full tick at an exit or a deadline, rather than
-    /// waiting for poll. No probe waits for the agent's words.
+    /// Accepts and child waiters feed one coalescing channel; only deadlines time out.
     pub fn serve(&mut self) -> Result<(), Refusal> {
+        let listener = self.listener.take().expect("one serving loop");
+        let waker = self.waker();
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "blocking socket accepts feed the std QA loop (temper/docs/design/testing/qa/README.md, 4)"
+        )]
+        std::thread::spawn(move || {
+            loop {
+                if let Err(why) = crate::events::accept(&listener, &waker) {
+                    eprintln!("temper-qa: {why}");
+                    waker.poke();
+                    break;
+                }
+            }
+        });
+        self.tick();
         loop {
             self.cycle();
         }
     }
 
-    /// A tick and its wait, exposed so a fake clock can drive the service's cadence.
+    #[must_use]
+    pub fn waker(&self) -> crate::events::Waker {
+        self.events.waker()
+    }
+
+    /// Wait for one coalesced event or the nearest deadline, then run one tick.
     pub fn cycle(&mut self) {
-        let started = self.clock.now().monotonic;
+        let timeout = self.wait_timeout().unwrap_or_else(|why| {
+            eprintln!("temper-qa: wait: {why}");
+            Some(60)
+        });
+        self.clock.wait(&self.events, timeout);
         self.tick();
-        if self.home.configuration.bounds.poll == 0 {
-            return;
-        }
-        let mut probe_failed = false;
-        loop {
-            self.clock.sleep(1);
-            let now = self.clock.now().monotonic;
-            if now.saturating_sub(started) >= self.home.configuration.bounds.poll {
-                break;
-            }
-            if !probe_failed {
-                match self.probe() {
-                    Ok(()) if self.active.values().any(|active| active.exit.is_some()) => break,
-                    Ok(()) => (),
-                    Err(why) => {
-                        eprintln!("temper-qa: sessions: {why}");
-                        probe_failed = true;
-                    }
-                }
-            }
-        }
+    }
+
+    pub fn wait_timeout(&self) -> Result<Option<u64>, Refusal> {
+        let now = self.clock.now();
+        let deadline = self
+            .active
+            .values()
+            .filter(|active| active.exit.is_none() && !active.bounded)
+            .map(|active| active.started.saturating_add(active.bound))
+            .chain(self.kills.iter().map(|(_, due)| *due))
+            .chain(self.next_fetch)
+            .chain(self.place_retry)
+            .chain(self.state_retry)
+            .chain(self.failures.values().map(|failure| {
+                let line = failure.since.saturating_add(3600);
+                failure.retry_at.min(if failure.lined || line <= now.monotonic { u64::MAX } else { line })
+            }))
+            .min();
+        self.home.read(|ledger| {
+            let build = ledger
+                .build_wait_deadline(self.home.configuration.bounds.build_wait)
+                .map(|wall| now.monotonic.saturating_add(wall.saturating_sub(now.wall)));
+            Ok(deadline.into_iter().chain(build).min().map(|due| due.saturating_sub(now.monotonic)))
+        })
     }
 
     fn probe(&mut self) -> Result<(), Refusal> {
@@ -185,24 +253,29 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
                 now.wall,
                 &self.home.configuration.owner,
             )?;
-            self.trees.push(self.home.session_directory(number).join("tree"));
             self.active.remove(&number);
         }
         self.clean_trees()?;
         if self.active.values().any(|active| active.kind == SessionKind::Triage) {
             return Ok(());
         }
+        crate::watch::close_gaps(&mut self.git, ledger, now.wall)?;
         let Some(landing) = ledger.next_landing().cloned() else { return Ok(()) };
-        let inputs = Inputs::read(&mut self.git, &landing)?;
+        let build =
+            ledger.triage_build(landing.number).map_or_else(|| landing.commit.clone(), |build| build.commit.clone());
+        let configuration = &self.home.configuration;
+        let kinds: Vec<_> = configuration.places.iter().map(|place| configuration.place_kind(place)).collect();
+        let inputs = Inputs::read(&mut self.git, &landing, &configuration.surfaces, &kinds, &build)?;
         let number = ledger.start_session(
             landing.number,
             &self.home.configuration.agent.triage,
             inputs.pages.clone(),
             inputs.setups.clone(),
+            inputs.deployments.clone(),
             now.wall,
         )?;
         let directory = self.home.session_directory(number);
-        let tree = directory.join("tree");
+        let tree = self.home.triage_tree();
         let start = || -> Result<ProcessCommand, Refusal> {
             fs::create_dir_all(&directory).map_err(|why| refused(format!("sessions/{number}: {why}")))?;
             let brief = directory.join("brief");
@@ -210,10 +283,10 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
                 .map_err(|why| refused(format!("brief: {why}")))?;
             fs::write(directory.join("diff.patch"), inputs.patch)
                 .map_err(|why| refused(format!("diff.patch: {why}")))?;
-            Ok(self.agent_command(number, &self.home.configuration.agent.triage))
+            Ok(self.agent_command(number, &self.home.configuration.agent.triage, tree.clone()))
         };
         let result = start().and_then(|command| {
-            self.git.add_tree(&tree, &landing.commit)?;
+            self.prepare_tree(&tree, &build)?;
             self.processes.start(&command)
         });
         match result {
@@ -232,16 +305,12 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
             }
             Err(why) => {
                 ledger.end_session(number, Exit::Unstarted, None, now.wall, &self.home.configuration.owner)?;
-                self.trees.push(tree);
-                if let Err(cleanup) = self.clean_trees() {
-                    eprintln!("temper-qa: triage cleanup: {cleanup}");
-                }
                 return Err(why);
             }
         }
         Ok(())
     }
-    fn agent_command(&self, number: u64, effort: &str) -> ProcessCommand {
+    fn agent_command(&self, number: u64, effort: &str, tree: PathBuf) -> ProcessCommand {
         let directory = self.home.session_directory(number);
         let mut environment = self.environment.clone();
         environment.retain(|(name, _)| {
@@ -259,7 +328,7 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
                 .iter()
                 .map(|argument| argument.replace("{effort}", effort))
                 .collect(),
-            directory: directory.join("tree"),
+            directory: tree,
             stdin: directory.join("brief"),
             output: directory.join("output"),
             environment,
@@ -270,7 +339,7 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
     /// Keep pending effects until they succeed, including after an unstarted end.
     fn passes(&mut self) -> Result<(), Refusal> {
         let home = self.home.clone();
-        home.transact(|ledger| {
+        home.transact_loop(|ledger| {
             let ended: Vec<_> = self
                 .active
                 .iter()
@@ -301,17 +370,17 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
         for place in home.configuration.places.clone() {
             // An effect failure must not undo an earlier session's end, or an
             // unstarted rollback, in this step.
-            let result = home.transact(|ledger| Ok(self.start_pass(ledger, &place)))?;
+            let result = home.transact_loop(|ledger| Ok(self.start_pass(ledger, &place)))?;
             let cleanup = self.clean_passes();
             result?;
             cleanup?;
         }
-        home.transact(|ledger| {
+        home.transact_loop(|ledger| {
             let mut free = false;
             for place in &home.configuration.places {
                 if !ledger.passes.iter().any(|pass| pass.state == PassState::Running && &pass.place == place) {
                     let directory = home.configuration.place_directory(&home.directory, place)?;
-                    if pass_files::free_lock(&directory)?.is_some() {
+                    if pass_files::free_lock(&directory, home.configuration.place_kind(place))?.is_some() {
                         free = true;
                         break;
                     }
@@ -338,12 +407,17 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
             } else {
                 pass_files::changed_setups(&mut self.git, &pass.build, &pass_files::setups(&self.home, number))?
             };
+            let place = self.home.configuration.place_directory(&self.home.directory, &pass.place)?;
             ledger.end_pass_session(session.number, exit, tokens, now, &self.home.configuration.owner, &recipes)?;
+            self.holders.push(place);
             self.reports.push(number);
         } else {
             ledger.end_session(number, exit, tokens, now, &self.home.configuration.owner)?;
         }
-        self.trees.push(self.home.session_directory(number).join("tree"));
+        let legacy = self.home.session_directory(number).join("tree");
+        if legacy.exists() {
+            self.trees.push(legacy);
+        }
         Ok(())
     }
 
@@ -355,26 +429,33 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
         let now = self.clock.now();
         // Run the ledger's selection on a snapshot. Preparation failures record
         // nothing; no caller duplicates the ledger's eligibility rules.
+        let kind = configuration.place_kind(place);
         let mut recorded = ledger.clone();
         let Some(start) = recorded
-            .resume_pass(place, &configuration.surfaces, &configuration.agent.pass, now.wall)
-            .or_else(|| recorded.start_pass(place, &configuration.surfaces, &configuration.agent.pass, now.wall))
+            .resume_pass(place, kind, &configuration.surfaces, &configuration.agent.pass, now.wall)
+            .or_else(|| recorded.start_pass(place, kind, &configuration.surfaces, &configuration.agent.pass, now.wall))
         else {
             return Ok(());
         };
         let directory = configuration.place_directory(&self.home.directory, place)?;
-        let Some(lock) = pass_files::free_lock(&directory)? else { return Ok(()) };
-        pass_files::install(&self.home.builds.join(&start.build), &start.build, &directory)?;
+        let Some(lock) = pass_files::free_lock(&directory, kind)? else { return Ok(()) };
+        crate::installation::install(
+            &self.home.builds.join(&start.build),
+            &start.build,
+            &directory,
+            kind,
+            &mut crate::faces::RealBuildFiles { environment: self.environment.clone() },
+        )?;
         pass_files::write_setups(&mut self.git, &start.build, &pass_files::setups(&self.home, start.pass))?;
         pass_files::prepare_files(&self.home, start.pass)?;
         *ledger = recorded;
-        let command = self.agent_command(start.session, &configuration.agent.pass);
+        let command = self.agent_command(start.session, &configuration.agent.pass, self.home.pass_tree(place));
         let mut prepare = || -> Result<(), Refusal> {
             let directory = self.home.session_directory(start.session);
             fs::create_dir_all(&directory).map_err(|why| refused(format!("{}: {why}", directory.display())))?;
             let brief = pass_brief::render(&mut self.git, &self.home, &start, ledger)?;
             fs::write(&command.stdin, brief).map_err(|why| refused(format!("brief: {why}")))?;
-            self.git.add_tree(&command.directory, &start.build)
+            self.prepare_tree(&command.directory, &start.build)
         };
         let result = prepare().and_then(|()| self.processes.start(&command));
         drop(lock);
@@ -401,6 +482,9 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
     }
 
     fn clean_passes(&mut self) -> Result<(), Refusal> {
+        for place in std::mem::take(&mut self.holders) {
+            crate::hold::end_from_loop(place, self.waker());
+        }
         while let Some(&number) = self.reports.first() {
             self.home.write_pass_report(number)?;
             self.reports.remove(0);
@@ -409,11 +493,34 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
     }
 
     fn clean_trees(&mut self) -> Result<(), Refusal> {
-        while let Some(tree) = self.trees.first() {
-            self.git.remove_tree(tree)?;
-            self.trees.remove(0);
+        if self.trees.is_empty() {
+            return Ok(());
         }
-        self.git.prune()
+        for tree in &self.trees {
+            self.git.remove_tree(tree)?;
+        }
+        self.git.prune()?;
+        self.trees.clear();
+        Ok(())
+    }
+
+    fn prepare_tree(&mut self, tree: &std::path::Path, commit: &str) -> Result<(), Refusal> {
+        if let Some(parent) = tree.parent() {
+            crate::private::directory(parent)?;
+        }
+        if tree.exists() {
+            if self.git.move_tree(tree, commit).is_ok() {
+                return Ok(());
+            }
+            self.git.remove_tree(tree)?;
+            self.git.prune()?;
+        }
+        if let Err(why) = self.git.add_tree(tree, commit) {
+            self.git.remove_tree(tree)?;
+            self.git.prune()?;
+            return Err(why);
+        }
+        Ok(())
     }
     fn delete_builds(&self, ledger: &mut Ledger, now: u64) -> Result<(), Refusal> {
         let mut builds: Vec<_> =
@@ -477,9 +584,14 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
             }
             Err(why) => {
                 eprintln!("temper-qa: {step}: {why}");
-                let failure = self.failures.entry(step).or_insert(Failure { since: now.monotonic, lined: false });
+                let failure = self.failures.entry(step).or_insert(Failure {
+                    since: now.monotonic,
+                    lined: false,
+                    retry_at: now.monotonic.saturating_add(60),
+                });
+                failure.retry_at = now.monotonic.saturating_add(60);
                 if !failure.lined && now.monotonic.saturating_sub(failure.since) >= 3600 {
-                    match self.home.transact(|ledger| {
+                    match self.home.transact_loop(|ledger| {
                         ledger.add_line(
                             &self.home.configuration.owner,
                             &format!("{step} has failed for an hour: {why}"),

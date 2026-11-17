@@ -857,6 +857,104 @@ fn configured_public_index_bounds_reach_the_core() {
     assert_eq!(temper_engine_domain::core_limits(&configured).public, config.jig.limits.core.public);
 }
 
+/// The deployment's public figures (temper/docs/design/protocol/sign-in.md, 8).
+#[test]
+#[expect(
+    clippy::type_complexity,
+    clippy::disallowed_methods,
+    reason = "the startup table pairs deployment JSON edits with their diagnostic path and optional count"
+)]
+fn each_broken_public_relation_refuses_the_start() {
+    const ANSWER: u64 = 67_405;
+    const BYTES: u64 = ANSWER * 2 + 1;
+    let mut value: serde_json::Value = serde_json::from_slice(&fixtures::document()).expect("deployment JSON");
+    value["application"]["clients"]["public"] = "https://one.example".into();
+    value["application"]["limits"]["overrides"]["forge.judge_projects"] = 3_u32.into();
+    for (name, count) in [
+        ("clients.public.reads", 4),
+        ("clients_http.public_calls", 4),
+        ("clients.public.rate", 8),
+        ("clients.public.rate_burst", 8),
+        ("clients.public.bytes", BYTES),
+        ("clients.public.bytes_burst", BYTES),
+        ("clients.public.answer_bytes", ANSWER),
+        ("clients.public.max_age", 2),
+        ("core.public.goals", 4),
+        ("core.public.ended", 4),
+        ("core.public.lines", 8),
+        ("core.public.depth", 4),
+        ("people.projects", 4),
+        ("authority.projects", 3),
+    ] {
+        value["engine"]["limits"]["overrides"][name] = count.into();
+    }
+    let cases: &[(&str, &[(&str, u64)], Option<usize>)] = &[
+        ("", &[], Some(0)),
+        ("clients.public.rate_burst", &[("clients.public.rate_burst", 7)], None),
+        ("clients.public.bytes_burst", &[("clients.public.bytes_burst", BYTES - 1)], None),
+        ("clients.public.answer_bytes", &[("clients.public.answer_bytes", BYTES + 1)], None),
+        ("clients_http.public_calls", &[("clients_http.public_calls", 5)], None),
+        ("clients.public.max_age", &[("clients.public.max_age", 61)], None),
+        ("clients.public.answer_bytes", &[("clients.public.answer_bytes", ANSWER - 1)], None),
+        ("core.public.goals", &[("core.public.goals", 0)], None),
+        ("core.public.ended", &[("core.public.ended", 0)], None),
+        ("core.public.lines", &[("core.public.lines", 0)], None),
+        ("core.public.depth", &[("core.public.depth", 0)], None),
+        ("clients.public.reads", &[("clients.public.reads", 0), ("clients_http.public_calls", 0)], None),
+        (
+            "core.public.lines",
+            &[
+                ("core.public.goals", u64::from(u16::MAX)),
+                ("core.public.ended", u64::from(u16::MAX)),
+                ("core.public.lines", u64::from(u16::MAX)),
+            ],
+            None,
+        ),
+        (
+            "core.public.lines",
+            &[
+                ("core.public.goals", 256),
+                ("core.public.ended", 256),
+                ("core.public.lines", 256),
+                ("people.projects", 4096),
+                ("clients.public.answer_bytes", u64::from(u32::MAX)),
+                ("clients.public.bytes", u64::from(u32::MAX)),
+                ("clients.public.bytes_burst", u64::from(u32::MAX)),
+            ],
+            Some(1),
+        ),
+        ("clients.public.answer_bytes", &[("core.public.lines", 257)], None),
+    ];
+    for (name, changes, count) in cases {
+        let mut document = value.clone();
+        for (key, value) in *changes {
+            document["engine"]["limits"]["overrides"][key] = (*value).into();
+        }
+        let found = match fixtures::start(
+            &serde_json::to_vec(&document).expect("deployment JSON"),
+            &jig_protocol_config::Directories::working(),
+            &fixtures::files(),
+            &fixtures::startup_agent(),
+            &fixtures::seeds(),
+            None,
+            fixtures::worker_runtime(),
+            fixtures::forge_runtime(),
+        ) {
+            Ok(_) => crate::startup::Problems::empty(),
+            Err(problems) => problems,
+        };
+        let lines = crate::startup::lines(&found);
+        let diagnostic = core::str::from_utf8(&lines).expect("diagnostic UTF-8");
+        if !name.is_empty() {
+            assert!(!found.is_empty(), "broken public relation started");
+            assert!(diagnostic.contains(name), "{name}: {diagnostic}");
+        }
+        if let Some(count) = count {
+            assert_eq!(diagnostic.lines().count(), *count, "{diagnostic}");
+        }
+    }
+}
+
 // jig/docs/design/domain/engine/briefs.md, 2: recall loads a document's whole stored row.
 #[test]
 #[expect(clippy::disallowed_macros, reason = "ordinary test builds note text at each configured bound")]

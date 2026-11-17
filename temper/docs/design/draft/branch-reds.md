@@ -68,7 +68,7 @@ A delivery's check builds and tests nothing at its base, so it can't tell a fail
 
 ## 10. Upgrades
 
-- **A new stored family,** the goal's reds and the changes' kept observations, with its version and patch (`../protocol/store.md`, 2 and 4).
+- **A new stored family,** the goal's reds and the changes' kept observations, registered with defaults (`../protocol/store.md`, 2 and 4).
 - **The worker's wire** gains the read of a goal's reds and the results' report: it moves its version and the newer side bridges the previous one (`redeploys.md`, 4.1 and 4.2). A worker of the previous version reads and reports nothing: its checks have no reds file, as a tree without the list has none today. A hold of a goal with reds is placed on a worker that speaks the new version (`redeploys.md`, 4.3).
 - **The host tools** gain `red`, versioned as the host tools' contract is (`../protocol/wires.md`). The run's channel to its host is unchanged: it already tells checks' start and end.
 

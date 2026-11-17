@@ -290,6 +290,23 @@ impl Component {
         Ok(())
     }
 
+    /// Tell the live run whether the host can renew its grants.
+    pub fn send_renewals(
+        &mut self,
+        held: bool,
+        token: Token,
+        to_service: &mut Queue<Received>,
+        below: &mut Queue<Lower>,
+    ) -> Result<(), Error> {
+        if self.state != State::Started && self.state != State::Admitted {
+            return Err(Error::Order);
+        }
+        let record = smith_channel::Renewals::new(&self.bodies, smith_channel::RenewalsParts { held })?;
+        let frame = smith_channel::frame(smith_channel::Body::Renewals(record))?;
+        self.send_frame(token, frame, to_service, below);
+        Ok(())
+    }
+
     /// Ask the agent to stop politely once, preserving answers owed to calls.
     pub fn send_cancel(
         &mut self,

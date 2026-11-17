@@ -54,14 +54,9 @@ pub fn wires() -> List<jig_protocol_worker_wire::Spoken> {
         .expect("six wire slots");
     wires
 }
-/// Owners kept by every engine shape, upstream first (protocol/baseline.md, 4).
-pub const PATCH_SETS: protocol::PatchSets = protocol::PatchSets {
-    sets: &[
-        protocol::SKEIN_PATCH_SET,
-        protocol::SMITH_PATCH_SET,
-        jig_protocol_accounts::JIG_PATCH_SET,
-        temper_protocol_store::PATCH_SET,
-    ],
+/// Owners kept by every engine shape, upstream first (protocol/floor.md, 3).
+pub const OWNER_SETS: protocol::OwnerSets = protocol::OwnerSets {
+    sets: &[protocol::SKEIN_SET, protocol::SMITH_SET, jig_protocol_accounts::JIG_SET, temper_protocol_store::OWNER_SET],
 };
 // Widen each version while the static wire row is evaluated.
 const fn wire_version(version: u16) -> u32 {

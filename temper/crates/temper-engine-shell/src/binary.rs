@@ -168,7 +168,7 @@ fn refuse_document(command: &Command, directories: &Directories) -> Result<(), S
 pub fn versions() -> String {
     use std::fmt::Write;
     let mut text = String::new();
-    let levels = jig_protocol_store::levels(&temper_engine_service::store::PATCH_SETS);
+    let levels = jig_protocol_store::levels(&temper_engine_service::store::OWNER_SETS);
     for (owner, level) in
         [("skein", levels.skein), ("smith", levels.smith), ("jig", levels.jig), ("temper", levels.application)]
     {
@@ -222,12 +222,12 @@ mod tests {
         let wires = temper_engine_service::wires();
         assert_eq!(wires.len(), 6);
         for (wire, (name, lowest, highest)) in wires.iter().zip([
-            ("jig-worker-wire", 12, 14),
+            ("jig-worker-wire", 12, 15),
             ("smith-pieces", 1, 1),
             ("smith-charter", 4, 5),
             ("smith-transcript", 7, 7),
             ("temper-worker-wire", 5, 9),
-            ("temper-host-tools", 1, 3),
+            ("temper-host-tools", 1, 4),
         ]) {
             assert_eq!((wire.name, wire.lowest, wire.highest()), (name, lowest, highest));
             assert_eq!(lines.next(), Some(format!("wire {name} {lowest} {highest}").as_str()));

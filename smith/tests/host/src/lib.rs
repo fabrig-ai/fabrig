@@ -334,6 +334,7 @@ impl World {
             Input::Parent(
                 parent::Event::Spawn { .. }
                 | parent::Event::Message { .. }
+                | parent::Event::Renewals { .. }
                 | parent::Event::Grant { .. }
                 | parent::Event::Drain { .. }
                 | parent::Event::Stop { .. },
@@ -349,6 +350,7 @@ impl World {
                 | parent::Event::Message { .. }
                 | parent::Event::Answer { .. }
                 | parent::Event::Acknowledge { .. }
+                | parent::Event::Renewals { .. }
                 | parent::Event::Grant { .. }
                 | parent::Event::Drain { .. }
                 | parent::Event::Stop { .. }
@@ -398,6 +400,7 @@ impl World {
                         }
                         Down::Answer { .. }
                         | Down::Acknowledge { .. }
+                        | Down::Renewals { .. }
                         | Down::Grant { .. }
                         | Down::Cancel
                         | Down::Drain => {}

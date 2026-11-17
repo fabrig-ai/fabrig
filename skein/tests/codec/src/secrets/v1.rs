@@ -42,6 +42,18 @@ pub enum Path {
     CredentialTail,
 }
 
+impl Path {
+    /// The path as the schema spells it (skein/docs/design/data/codec/README.md, 4).
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::CredentialName => "Credential.name",
+            Self::CredentialValue => "Credential.value",
+            Self::CredentialTail => "Credential (tail)",
+        }
+    }
+}
+
 /// A decoding or bound failure at a schema path.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Problem {

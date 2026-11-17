@@ -124,6 +124,7 @@ pub(super) const FLEET: fleet::Limits = fleet::Limits {
     // max(5 + 15 + 300, 180) + max(5, 1) + 1 = 326 s. The engine-away grace
     // dominates the bound; keep a margin (jig/docs/design/domain/engine/fleet.md).
     grace: Duration::from_secs(360),
+    restart_wait: Duration::from_millis(1_200_000),
     facts: 32,
     history: 8,
 };
@@ -349,7 +350,7 @@ pub(super) const CLIENTS: jig_protocol_engine_clients::Limits = jig_protocol_eng
     exchanges_per_client: 2,
     // One full moved file and its keyed account-change envelope.
     message_bytes: 131_328,
-    wire: jig_client_protocol_wire::v26::CEILINGS,
+    wire: jig_client_protocol_wire::v27::CEILINGS,
     link_span: Duration::from_secs(7200),
 };
 

@@ -1,0 +1,65 @@
+{
+  "workers": [
+    {
+      "engine": {
+        "socket": "{place.workers}"
+      },
+      "name": "worker",
+      "secret": "{place.data}/worker/secrets/worker.secret",
+      "slots": 2,
+      "programs": {
+        "check_interval_ms": 60000
+      },
+      "graces": {
+        "grace_ms": 1000,
+        "drain_ms": 1000,
+        "agent_stop_ms": 100,
+        "delivery_ms": 100,
+        "save_ms": 100
+      },
+      "agent": {
+        "program": "{place.bin}/temper-agent",
+        "configuration": "{place.config}/worker/agent.json",
+        "arguments": [
+          "{place.config}/worker/agent.json"
+        ]
+      },
+      "limits": {
+        "profile": "standard",
+        "overrides": {
+          "hub.slots": 2,
+          "hub.accounts": 4,
+          "hub.inbox": 8,
+          "tasks.result_bytes": 4096,
+          "hub.event_bytes": 10660,
+          "hub.outcome_bytes": 10662,
+          "tasks.message_bytes": 10660,
+          "hub.transcript_bytes": 16777216,
+          "hub.turn_bytes": 1334031,
+          "hub.turn_queue_bytes": 10672248,
+          "io.output": 1334823
+        }
+      },
+      "memory_bytes": 4503599627370496
+    }
+  ],
+  "application": {
+    "workers": [
+      {
+        "root": "{place.data}/worker/workspaces",
+        "git": "{place.git}"
+      }
+    ],
+    "limits": {
+      "profile": "standard",
+      "overrides": {
+        "checkout.message_bytes": 10662,
+        "root.journal.transcript_bytes": 4194304,
+        "root.loads.bytes": 1334279,
+        "root.loads.reply_bytes": 1334279,
+        "root.loads.read_bytes": 2668062,
+        "root.loads.transcript_bytes": 1334031
+      }
+    }
+  }
+}

@@ -474,13 +474,18 @@ one world to `Small`'s request bound and restarts it; fuzzy drives
 worlds check every answer, the last request and the first request's
 replay after a cold restart.
 
-The store's generation, patch, check and frame scenarios are focused tests
+The store's generation, registry, job, check and frame scenarios are focused tests
 in `jig-store-world::suite`, on the simulated disk. Focused cuts each a few
 times, chosen for what a cut there can lose: a first start's first directory
 and its switch, a stray's first and last removal, the drop, the copy and the
-switch of a patch, the seal and the check, a patched read's first and last file
-operation. Their whole sweeps are under `fuzzy::` in the same binary, each with
-its focused cuts' body. Layout,
+switch of an upgrade, the seal and the check, a frame read's first and last file
+operation, and the wires' commit that ends going back
+(`../protocol/store/opening.md`, 2, step 8), cut before and after it is
+durable: a commit the cut lost leaves going back open, which opens the previous
+generation as it was, and the next start of the new sets opens the switched one
+without running the job again and commits its wires; a durable one makes going back
+refuse as committed. Their whole sweeps are under
+`fuzzy::` in the same binary, each with its focused cuts' body. Layout,
 manifest and admission cases are data rows of their behaviour's table;
 copy mutations and check/switch cuts have one owner each. These are
 component-world scenarios, not a separate tier. `jig-test::process` also

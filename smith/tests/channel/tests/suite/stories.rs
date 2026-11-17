@@ -978,6 +978,25 @@ fn a_withdrawn_host_call_still_returns_under_its_live_relay() {
 }
 
 #[test]
+fn an_unsent_host_call_returns_under_its_live_relay() {
+    let mut world = World::admitted();
+    let name = smith_domain::run::CallName { activation: 1, completion: 1, position: 0 };
+    let relay = smith_domain::run::RelayName { owner: skein_lib::Token::new(40), attempt: 1 };
+    world.agent_calls_host(name, relay);
+    world.settle();
+    world.agent_withdraws(relay);
+    world.settle();
+    assert!(world.observations().contains(&Observation::HostWithdraw { call: skein_lib::Token::new(1) }));
+    world.host_answers(skein_lib::Token::new(1), smith_host_domain::channel::Reply::Unsent);
+    world.settle();
+    assert!(
+        world
+            .observations()
+            .contains(&Observation::AgentHostReturned { relay, reply: smith_domain::run::HostReply::Unsent })
+    );
+}
+
+#[test]
 fn a_delivery_keeps_fields_and_a_settled_landing_or_stale_terminal() {
     let mut world = World::admitted();
     let owner = skein_lib::Token::new(50);
@@ -1466,4 +1485,29 @@ fn a_program_failure_report_reaches_the_host_with_and_without_status() {
             })
         );
     }
+}
+
+#[test]
+fn renewals_and_resent_grants_reach_the_domain_without_reinstalling_values() {
+    let mut world = world_with_initial_grant();
+    world.host_renewals(true);
+    world.settle();
+    world.host_renewals(false);
+    world.settle();
+    world.host_refreshes_grant(3, 4, initial_grant());
+    world.settle();
+    let notices = world
+        .observations()
+        .iter()
+        .filter(|notice| matches!(notice, Observation::AgentRenewals { .. } | Observation::AgentGrantResent { .. }))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        notices,
+        [
+            &Observation::AgentRenewals { held: true },
+            &Observation::AgentRenewals { held: false },
+            &Observation::AgentGrantResent { account: 3, generation: 4 }
+        ]
+    );
+    assert_eq!(world.agent_grant_value(3, 4), Some(initial_grant()));
 }

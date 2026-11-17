@@ -23,18 +23,21 @@ pub(super) fn provider() -> skein_fake_peers::llm::Peer {
         .iter_mut()
         .find(|s| s["cue"] == "## Task\n\nGolden coding in flight")
         .expect("coding script");
-    coding["turns"][0]["lines"][0] =
-        serde_json::json!({"call":"read_task", "arguments":{"task":5,"field":"specification"}});
-    coding["turns"][0]["lines"]
-        .as_array_mut()
-        .expect("lines")
-        .insert(0, serde_json::json!({"text":"upgrade-tail-marker"}));
     coding["turns"].as_array_mut().expect("coding turns").insert(1, serde_json::json!({"lines":[{"pieces":[{"text":"Write after the remembered message.","hold":"upgrade-write"}]},{"call":"effect_forge", "arguments":{"repository":{"forge":1,"repository":1},"resource":{"kind":"repository"},"write":{"kind":"create_issue","key":"upgrade-write","title":"Upgrade once","body":"kept across starts"}}}],"finish":"tool_calls","tokens":7}));
     if STATE.with(|s| s.borrow().upgrade) {
-        coding["turns"] = serde_json::json!([{"lines":[{"call":"finish","arguments":{"form":"report","text":"Fresh after upgrade","fields":{}}}],"finish":"tool_calls","tokens":1}]);
+        // The retained conversation may already hold assistant turns.
+        coding["inputs"] = serde_json::json!([{"cue":"", "turn":0}]);
+        coding["turns"] = serde_json::json!([{"lines":[{"call":"finish","arguments":{"form":"report","text":"Continued after upgrade","fields":{}}}],"finish":"tool_calls","tokens":1}]);
     }
     if STATE.with(|s| s.borrow().upgrade) {
-        scripts["asked"][0]["turns"] = serde_json::json!([{"lines":[{"text":"Paused chat resumed"},{"call":"wait","arguments":{}}],"finish":"tool_calls","tokens":2}]);
+        scripts["cued"].as_array_mut().expect("system scripts").push(serde_json::json!({
+            "cue":"## Task\n\nAdd CSV export to widget",
+            "inputs":[{"cue":"Resume paused chat", "turn":0}, {"cue":"", "turn":1}],
+            "turns":[
+                {"lines":[{"text":"Paused chat resumed"},{"call":"wait","arguments":{}}],"finish":"tool_calls","tokens":2},
+                {"lines":[{"call":"wait","arguments":{}}],"finish":"tool_calls","tokens":1}
+            ]
+        }));
     }
     let document =
         temper_fake::llm::Document::decode(&serde_json::to_vec(&scripts).expect("scripts")).expect("LLM scripts");
@@ -103,40 +106,19 @@ pub(super) fn mutations(ledger: &[skein_fake_forge_domain::Observation]) -> Vec<
 
 pub(super) fn continued(store: &referee::Store) -> Result<(), String> {
     let (task, old_attempt) = STATE.with(|s| (s.borrow().task, s.borrow().attempt));
-    let (start, conversation) = store
+    let start = store
         .agent_records
         .iter()
         .find_map(|row| match row {
-            referee::AgentRecord::Start { task: t, attempt, conversation, input: Some(input), .. }
+            referee::AgentRecord::Start { task: t, attempt, input: Some(input), .. }
                 if *t == task && *attempt > old_attempt =>
             {
-                Some((input, *conversation))
+                Some(input)
             }
             _ => None,
         })
         .ok_or_else(|| String::from("mid-run task gets a new attempt"))?;
-    match (&(conversation), &(start.activation())) {
-        (left, right) if left != right => {
-            let finding = String::from("the new attempt opens a fresh conversation");
-            return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
-        }
-        _ => {}
-    }
-    if !(start.transcript().is_empty()) {
-        return Err(String::from("fresh attempt, not the closed conversation"));
-    }
-    let charter =
-        smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut skein_lib::Reader::new(start.charter()))
-            .map_err(|why| format!("charter: {why:?}"))?;
-    if !(charter
-        .brief()
-        .as_slice()
-        .iter()
-        .any(|section| skein_lib::bytes::find(section.body(), b"upgrade-tail-marker").is_some()))
-    {
-        return Err(String::from("fresh brief carries the closed window's tail"));
-    }
-    if store.rows.values().any(|row| matches!(row, temper_engine_domain::Record::Forge {row} if matches!(row.as_ref(),temper_engine_domain_forge::Stored::Flight {task:t,..} if *t == task))) { return Err(String::from("crossed claim's forge write settled")); }
+    if store.rows.values().any(|row| matches!(row, temper_engine_domain::Record::Forge {row} if matches!(row.as_ref(),temper_engine_domain_forge::Stored::Flight {task:t,..} if *t == task))) { return Err(String::from("recovered claim's forge write settled")); }
     let new = store
         .rows
         .values()

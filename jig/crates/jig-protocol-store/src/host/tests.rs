@@ -259,32 +259,32 @@ fn a_store_whose_reads_are_below_its_page_is_refused() {
     }
 }
 
-fn patching_world() -> World {
-    const BASE: crate::PatchSet = crate::PatchSet {
-        jobs: &[],
-        owner: crate::Owner::Application,
-        name: "fixture",
-        families: &[crate::KeptFamily {
-            retired: &[],
-            current: jig_test_patches::patches::kept::fixture_label::TEXTS[0],
-            types: &[],
-            name: "fixture-label",
-            texts: &[jig_test_patches::patches::kept::fixture_label::TEXTS[0]],
-            map: crate::KeptMap::Store,
-            keys: &[],
-            frames: None,
-            flights: &[],
+#[test]
+fn a_registry_upgrade_without_a_logs_directory_opens() {
+    use jig_test_layouts::layouts::{CURRENT, KEPT};
+    const FAMILY: crate::KeptFamily = crate::KeptFamily {
+        name: "fixture-layouts",
+        current: KEPT,
+        retired: &[],
+        frames: None,
+        map: crate::KeptMap::Store,
+        keys: &[crate::Keys { from: b"a", to: b"b", root: "Growing" }],
+        types: &[crate::ValueType {
+            number: 0,
+            root: "Growing",
+            variant: None,
+            keys: &[crate::KeyRange { from: b"a", to: b"b" }],
         }],
-        level: Some(0),
-        patches: &[],
-        fresh: Some("fresh"),
     };
-    const BEFORE: crate::PatchSets = crate::PatchSets { sets: &[BASE] };
-    const AFTER: crate::PatchSets = crate::PatchSets {
-        sets: &[crate::PatchSet { level: Some(1), patches: &["patch 1\nowner fixture 1\nmark fresh\n"], ..BASE }],
+    const SET: crate::OwnerSet = crate::OwnerSet {
+        owner: crate::Owner::Application,
+        name: "fixture-layouts",
+        families: &[FAMILY],
+        level: Some(0),
+        jobs: &[],
     };
     let mut world = World::new();
-    world.store.patch_sets(BEFORE);
+    world.store.owner_sets(crate::OwnerSets { sets: &[SET] });
     world.open();
     world.host.down(
         &mut world.store,
@@ -293,89 +293,21 @@ fn patching_world() -> World {
         &mut world.above,
     );
     world.settle();
-    world.above = Queue::uncapped();
+    let Some(Event::Committed { number: 1, .. }) = world.above.pop() else { panic!("first registration") };
+    assert!(world.above.is_empty());
     world.close();
     let handle = world.machine.reopen_root(0);
     world.fd = world.sim.root(world.pid, Handle::new(handle.raw()));
     world.host = Drivers::new(&fixtures::store_limits(), 2);
     world.store = Store::on_directory(&fixtures::store_limits(), fixtures::APPLICATION, &[], world.host.seeded());
-    world.store.patch_sets(AFTER);
+    world.store.owner_sets(crate::OwnerSets {
+        sets: &[crate::OwnerSet { families: &[crate::KeptFamily { current: CURRENT, ..FAMILY }], ..SET }],
+    });
     world.adopt();
-    world
-}
-
-#[test]
-fn a_yielded_patch_walk_keeps_the_host_runnable_without_a_timer() {
-    let mut world = patching_world();
-    let mut yielded = false;
-    for _ in 0_u32..1000 {
-        world.step();
-        if crate::patching::phase::ready(&world.store) && !world.host.work_pending(fixtures::env().now) {
-            let hosted = Hosted {
-                component: world.store,
-                drivers: world.host,
-                above: Queue::uncapped(),
-                secrets: Queue::uncapped(),
-                sources: Queue::uncapped(),
-                env: fixtures::env(),
-                not_ready: NotReady::Above,
-                closing: false,
-            };
-            assert!(
-                hosted.work_pending(fixtures::env().now),
-                "a yielded patch pass must wake the host without IO or a timer"
-            );
-            world.store = hosted.component;
-            world.host = hosted.drivers;
-            yielded = true;
-            break;
-        }
-    }
-    assert!(yielded, "the marked patch exercises a yielded pass: {:?}", world.above);
     world.settle();
-    let mut opened = false;
-    for event in &world.above {
-        if let Event::Opened { pending: true, .. } = event {
-            opened = true;
-        }
-    }
-    assert!(opened, "copy opens before the switch");
-    world.close();
-}
-
-#[test]
-fn a_patched_copy_without_a_logs_directory_opens_and_keeps_the_host_runnable() {
-    let mut world = patching_world();
-    let mut opened = false;
-    let mut runnable = false;
-    for _ in 0_u32..1000 {
-        world.step();
-        if crate::patching::phase::ready(&world.store) && !world.host.work_pending(fixtures::env().now) {
-            let hosted = Hosted {
-                component: world.store,
-                drivers: world.host,
-                above: Queue::uncapped(),
-                secrets: Queue::uncapped(),
-                sources: Queue::uncapped(),
-                env: fixtures::env(),
-                not_ready: NotReady::Above,
-                closing: false,
-            };
-            assert!(hosted.work_pending(fixtures::env().now));
-            world.store = hosted.component;
-            world.host = hosted.drivers;
-            runnable = true;
-        }
-        for event in &world.above {
-            if let Event::Opened { pending: true, .. } = event {
-                opened = true;
-            }
-        }
-        if opened {
-            break;
-        }
-    }
-    assert!(opened && runnable, "copy recovers and runs its patch: {:?}", world.above);
+    let Some(Event::Opened { pending: true, .. }) = world.above.pop() else { panic!("copy opens: {:?}", world.above) };
+    let Some(Event::Census { .. }) = world.above.pop() else { panic!("opened census") };
+    assert!(world.above.is_empty());
     let root = world.machine.reopen_root(0);
     for path in [b"generations/1/store/logs".as_slice(), b"generations/2/store/logs".as_slice()] {
         assert_eq!(world.machine.open(root, path, How::Directory), Err(skein_fake_machine::Refusal::NotFound));

@@ -16,7 +16,7 @@
 use alloc::boxed::Box;
 use skein_lib::{Id, List, Queue, Token};
 
-use crate::kernel::{self, Done, Fd, Op, Signal, Spawn, Submit, Target, Way};
+use crate::kernel::{self, Done, Fd, Op, Reason, Signal, Spawn, Submit, Target, Way};
 use crate::layer::{Entity, Io, Landed, Purpose};
 use crate::records::{Error, Event};
 
@@ -289,7 +289,7 @@ pub(crate) fn landed(io: &mut Io, landed: Landed, up: &mut Queue<Event>, subs: &
     release(io, id, subs);
 }
 
-pub(crate) fn signal(io: &mut Io, token: Token, signal: Signal, to: Target, subs: &mut Queue<Submit>) {
+pub(crate) fn signal(io: &mut Io, token: Token, signal: Signal, to: Target, reason: Reason, subs: &mut Queue<Submit>) {
     let id = Id::<Entity>::from_token(token);
     let Some(Entity::Child(child)) = io.entities.get(id) else { return };
     match child.phase {
@@ -302,7 +302,7 @@ pub(crate) fn signal(io: &mut Io, token: Token, signal: Signal, to: Target, subs
     let Some(pidfd) = child.pidfd else { return };
     let Some(Entity::Child(child)) = io.entities.get_mut(id) else { unreachable!("a live child remains") };
     child.signalling = Signalling::Owner;
-    io.tables.submit(subs, id, Purpose::Signal, Op::Signal { pidfd, signal, to });
+    io.tables.submit(subs, id, Purpose::Signal, Op::Signal { pidfd, signal, to, reason });
 }
 
 pub(crate) fn close(io: &mut Io, id: Id<Entity>, subs: &mut Queue<Submit>) {
@@ -326,7 +326,7 @@ fn begin_close(io: &mut Io, id: Id<Entity>, subs: &mut Queue<Submit>) {
     let pidfd = child.pidfd.expect("a closing child has its pidfd");
     let to = if child.alone { Target::Child } else { Target::Group };
     child.signalling = Signalling::Closing;
-    io.tables.submit(subs, id, Purpose::Signal, Op::Signal { pidfd, signal: Signal::Kill, to });
+    io.tables.submit(subs, id, Purpose::Signal, Op::Signal { pidfd, signal: Signal::Kill, to, reason: Reason::Closed });
 }
 
 pub(crate) fn release(io: &mut Io, id: Id<Entity>, subs: &mut Queue<Submit>) {

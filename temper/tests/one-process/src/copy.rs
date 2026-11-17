@@ -38,7 +38,6 @@ pub struct Outcome {
     pub adopted: usize,
     pub copies: usize,
     pub deletions: usize,
-    cut: Option<u32>,
 }
 
 #[derive(Default)]
@@ -96,53 +95,88 @@ pub(crate) struct Source {
 }
 const SOURCES: &[Source] = &[Source { address: SOURCE, repository: b"acme/app", branch: BRANCH }];
 
-fn peer(transport: &temper_fake_git_hosted::Typed, fill: Fill, partial: bool) -> Peer {
-    catalogue_peer(transport, SOURCES, fill, partial)
-}
-
 pub(crate) fn catalogue_peer(
     transport: &temper_fake_git_hosted::Typed,
     sources: &[Source],
     fill: Fill,
     partial: bool,
 ) -> Peer {
-    let mut table = temper_playground::fakes::forge_table();
-    let mut repositories = List::with_capacity(16);
-    for (index, source) in sources.iter().enumerate() {
-        repositories
-            .push(skein_fake_forge_forgejo::Repository {
-                id: fixtures::REPOSITORY + u32::try_from(index).expect("catalogue size"),
-                full: source.repository.into(),
-                protected: None,
+    PeerTables::new(sources).into_peer(transport, fill, partial)
+}
+
+struct PeerTables {
+    table: skein_fake_forge_forgejo::Config,
+    limits: skein_fake_peers::Limits,
+    protocol: skein_fake_forge_forgejo::Limits,
+}
+
+impl PeerTables {
+    fn new(sources: &[Source]) -> Self {
+        let mut table = temper_playground::fakes::forge_table();
+        let mut repositories = List::with_capacity(16);
+        for (index, source) in sources.iter().enumerate() {
+            repositories
+                .push(skein_fake_forge_forgejo::Repository {
+                    id: fixtures::REPOSITORY + u32::try_from(index).expect("catalogue size"),
+                    full: source.repository.into(),
+                    protected: None,
+                })
+                .expect("source repository");
+        }
+        table.repositories = repositories;
+        table.sources = sources
+            .iter()
+            .map(|source| skein_fake_forge_forgejo::Source {
+                address: source.address.into(),
+                repository: source.repository.into(),
+                private: false,
+                fill: Fill::Whole,
             })
-            .expect("source repository");
+            .collect();
+        Self { table, limits: fixtures::peer_limits(), protocol: fixtures::forge_limits() }
     }
-    if partial {
-        repositories
-            .push(skein_fake_forge_forgejo::Repository { id: 3, full: DESTINATION.into(), protected: None })
-            .expect("partial copy");
+
+    fn peer(&self, transport: &temper_fake_git_hosted::Typed, fill: Fill, partial: bool) -> Peer {
+        let table = skein_fake_forge_forgejo::Config {
+            sources: self
+                .table
+                .sources
+                .iter()
+                .map(|source| skein_fake_forge_forgejo::Source {
+                    address: source.address.clone(),
+                    repository: source.repository.clone(),
+                    private: source.private,
+                    fill: source.fill,
+                })
+                .collect(),
+            hooks: None,
+            base: self.table.base.clone(),
+            tokens: self.table.tokens.clone(),
+            users: self.table.users.clone(),
+            repositories: self.table.repositories.clone(),
+            max_response_items: self.table.max_response_items,
+            default_paging_num: self.table.default_paging_num,
+            faults: self.table.faults,
+        };
+        Self { table, limits: self.limits, protocol: self.protocol }.into_peer(transport, fill, partial)
     }
-    table.repositories = repositories;
-    table.sources = sources
-        .iter()
-        .map(|source| skein_fake_forge_forgejo::Source {
-            address: source.address.into(),
-            repository: source.repository.into(),
-            private: false,
-            fill,
-        })
-        .collect();
-    let mut peer = Peer::new(
-        fixtures::FORGE,
-        fixtures::peer_limits(),
-        table,
-        fixtures::forge_limits(),
-        transport.forge.clone(),
-        fixtures::SEED,
-    )
-    .expect("catalogue peer");
-    temper_playground::fakes::setup_peer(&mut peer);
-    peer
+
+    fn into_peer(mut self, transport: &temper_fake_git_hosted::Typed, fill: Fill, partial: bool) -> Peer {
+        for source in &mut self.table.sources {
+            source.fill = fill;
+        }
+        if partial {
+            self.table
+                .repositories
+                .push(skein_fake_forge_forgejo::Repository { id: 3, full: DESTINATION.into(), protected: None })
+                .expect("partial copy");
+        }
+        let mut peer =
+            Peer::new(fixtures::FORGE, self.limits, self.table, self.protocol, transport.forge.clone(), fixtures::SEED)
+                .expect("catalogue peer");
+        temper_playground::fakes::setup_peer(&mut peer);
+        peer
+    }
 }
 
 fn source(workflow: bool) -> temper_fake_git_hosted::Typed {
@@ -254,22 +288,30 @@ fn acted(store: &Store) -> usize {
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum SourceStage {
-    Slow,
+    Restart,
     Cut,
     Closing,
     Whole,
     BesideRepository,
+}
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Migration {
+    Waiting,
+    Started,
+    Observed,
 }
 struct Judge {
     finding: Option<String>,
     controls: skein_world::Controls,
     store: Rc<RefCell<Store>>,
     transport: temper_fake_git_hosted::Typed,
+    tables: Option<PeerTables>,
     seen: Rc<RefCell<Outcome>>,
     source: SourceStage,
     handed: bool,
     answers: usize,
     peer_seen: usize,
+    migration: Migration,
     stopped: bool,
     last_commit: u64,
 }
@@ -490,6 +532,12 @@ impl Judge {
     }
     fn calls(&mut self, peer: &Peer) {
         for record in &peer.observations()[self.peer_seen..] {
+            if self.migration == Migration::Waiting
+                && let Observation::Head { call, .. } = record
+                && call.target.as_ref() == b"/api/v1/repos/migrate"
+            {
+                self.migration = Migration::Started;
+            }
             if let Observation::Call { op: Op::Write(write), .. } = record {
                 match write {
                     Write::Copy { .. } => self.seen.borrow_mut().copies += 1,
@@ -532,14 +580,8 @@ impl Judge {
         if let Some(row) = row {
             self.seen.borrow_mut().copying |= row.copying;
         }
-        let migrating = peer_host.observations().iter().any(|record| {
-            matches!(record,
-                Observation::Head { call, .. } if call.target.as_ref() == b"/api/v1/repos/migrate"
-            )
-        });
         if self.source != SourceStage::BesideRepository
-            && migrating
-            && self.seen.borrow().cut.is_none()
+            && self.migration == Migration::Started
             && self.transport.forge.borrow().domain.metadata(DESTINATION).is_ok()
         {
             if !(row.is_some_and(|row| row.copying)) {
@@ -548,7 +590,10 @@ impl Judge {
             if self.transport.forge.borrow().domain.branch(DESTINATION, BRANCH).is_some() {
                 return Err(String::from("the source is still copying"));
             }
-            self.seen.borrow_mut().cut = Some(service.observer.submitted);
+            self.migration = Migration::Observed;
+            if self.source == SourceStage::Restart {
+                self.controls.cut(0, skein_world::Cut::Kill);
+            }
         }
         self.seen.borrow_mut().restarted = restarted;
         if matches!(self.source, SourceStage::Cut | SourceStage::Closing)
@@ -569,7 +614,8 @@ impl Judge {
                 peer_host.shutdown();
                 self.source = SourceStage::Closing;
             } else if peer_host.is_empty() {
-                let mut whole = peer(&self.transport, Fill::Whole, true);
+                let mut whole =
+                    self.tables.take().expect("retained cut-copy tables").into_peer(&self.transport, Fill::Whole, true);
                 std::mem::swap(whole.setup_mut(), peer_host.setup_mut());
                 **peer_host = SignalHost::new(whole, None);
                 self.peer_seen = 0;
@@ -699,10 +745,16 @@ impl skein_world::Referee<Proc> for Judge {
     }
 }
 
-fn run(fill: Fill, cut: Option<u32>, stage: SourceStage) -> Outcome {
+fn run(fill: Fill, stage: SourceStage) -> Outcome {
     stories::set(Story::Chat { words: b"Hello" });
     stories::setup_settings(world::Phase::Story);
     let transport = source(stage == SourceStage::BesideRepository);
+    let tables = PeerTables::new(SOURCES);
+    let (peer, tables) = if stage == SourceStage::Cut {
+        (tables.peer(&transport, fill, false), Some(tables))
+    } else {
+        (tables.into_peer(&transport, fill, false), None)
+    };
     let store = Rc::new(RefCell::new(Store::new()));
     STARTS.with(|starts| {
         *starts.borrow_mut() = Starts { lives: 0, store: Some(store.clone()), transport: Some(transport.clone()) }
@@ -726,11 +778,13 @@ fn run(fill: Fill, cut: Option<u32>, stage: SourceStage) -> Outcome {
                 controls,
                 store,
                 transport: transport.clone(),
+                tables,
                 seen: seen.clone(),
                 source: stage,
                 handed: false,
                 answers: 0,
                 peer_seen: 0,
+                migration: Migration::Waiting,
                 stopped: false,
                 last_commit: 0,
             },
@@ -753,33 +807,32 @@ fn run(fill: Fill, cut: Option<u32>, stage: SourceStage) -> Outcome {
         world.spawn_root(skein_sim::Handle::new(client.raw()), |root| {
             Proc::Other(HarnessProcess::Calls(Box::new(Caller::scripted(root))))
         });
-        world.spawn(|| Proc::Forge(Box::new(SignalHost::new(peer(&transport, fill, false), None))));
-        if let Some(before) = cut {
-            world.cut(0, before, skein_world::Cut::Kill);
-        }
+        world.spawn(|| Proc::Forge(Box::new(SignalHost::new(peer, None))));
         world.run()
     });
     assert!(outcome.procs.iter().all(Host::is_empty), "copy world drains every process");
     world::lower_store(None);
-    STARTS.with(|starts| *starts.borrow_mut() = Starts::default());
+    STARTS.with(|starts| {
+        assert_eq!(starts.borrow().lives, if stage == SourceStage::Restart { 2 } else { 1 }, "service starts");
+        *starts.borrow_mut() = Starts::default();
+    });
     Rc::try_unwrap(seen).expect("released copy referee").into_inner()
 }
 
 /// Kill the engine under a slow source, retaining the peer and the disk.
 #[must_use]
 pub fn restart() -> Outcome {
-    let measured = run(Fill::Slow(SLOW), None, SourceStage::Slow);
-    run(Fill::Slow(SLOW), Some(measured.cut.expect("migration cut point")), SourceStage::Slow)
+    run(Fill::Slow(SLOW), SourceStage::Restart)
 }
 
 /// Give the same source first a cut transfer, then a whole transfer.
 #[must_use]
 pub fn cut_short() -> Outcome {
-    run(Fill::Cut, None, SourceStage::Cut)
+    run(Fill::Cut, SourceStage::Cut)
 }
 
 /// Copy through ctl into the first repository's project, preserving the source workflow.
 #[must_use]
 pub fn beside_repository() -> Outcome {
-    run(Fill::Whole, None, SourceStage::BesideRepository)
+    run(Fill::Whole, SourceStage::BesideRepository)
 }

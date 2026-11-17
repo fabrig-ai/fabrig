@@ -250,6 +250,15 @@ Generated from the tree's test table (`skein/docs/design/runtime/shell.md`, 14.3
 - Delay the fake managed sitting before reading the adopted-card confirmation; a developer sets it for proof-live-github-managed.py.
 - **Notes:** A nonnegative integer; ignored in live mode.
 
+### `TEMPER_TEST_UPGRADE_IMAGE`
+
+- **Set:** test
+- **Reads**
+- **Form:** 1
+- **Absent:** Compare with the kept image.
+- Rewrite the settled upgrade image from its story; a developer sets it for the drift test alone.
+- **Notes:** Only 1 enables rewriting.
+
 ### `TEMPER_TEST_WRAPPER`
 
 - **Set:** test

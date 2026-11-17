@@ -151,7 +151,20 @@ fn filters(b: &mut Builder, root: &Domain, filter: Filter, words: &Words, bindin
     project_filter(b, root, filter, words, bindings);
     b.open(Role::Disclosure);
     b.style(look::KIND_MENU);
+    let milestone = match root.pages().inbox() {
+        Some(inbox) => match &inbox.goal {
+            Some(read) => match &read.document {
+                Some(task) if temper_client_domain::milestones::is(&task.chip) => Some(task.chip.title.bytes()),
+                Some(_) | None => None,
+            },
+            None => None,
+        },
+        None => None,
+    };
     let chosen = match filter.goal {
+        Some(_) if milestone.is_some() => {
+            words.say(Word::MilestoneFilter, &[Hole::Name(milestone.expect("milestone title").into())])
+        }
         Some(goal) => words.say(
             Word::ModelEffort,
             &[Hole::Name(words.say(Word::Goal, &[])), Hole::Name(words.say(Word::TaskWho, &[Hole::Number(goal)]))],
@@ -294,6 +307,14 @@ fn entry(
                 .unwrap_or(words.say(Word::Project, &[Hole::Number(u64::from(project))]));
             b.open(Role::Text);
             b.run(Run::Plain, &name);
+            b.run(Run::Plain, " › ".as_bytes());
+            b.close();
+        }
+        if let Some(task) = card.document()
+            && let Some(lineage) = temper_client_domain::milestones::lineage(task)
+        {
+            b.open(Role::Text);
+            b.run(Run::Plain, lineage.milestone.title.bytes());
             b.run(Run::Plain, " › ".as_bytes());
             b.close();
         }

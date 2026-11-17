@@ -37,11 +37,11 @@ next only once the root says this one is done (../root.md, section 8).
    settled its agent claims of both kinds as interrupted already (1),
    so those left are a crash's, or a job's. Claims on other workers reach the
    fleet, which adopts each attempt a worker reports as it dials in,
-   keeps waiting for one within its grace, and cancels any it does not
-   name (`fleet.md`). A claim an upgrade across a fresh mark crossed (its
-   run proof's `crossed`) is never adopted, so that no attempt goes on
-   across that mark (`executors.md`, 2): one in the engine or on in-process workers
-   is settled at once, as above; one on another worker ends lost as a
+   keeps waiting for one within its grace, or its hold after a stop
+   that said it restarts (1, *Held across starts*), and cancels any it
+   does not name (`fleet.md`). A claim whose stored run proof is
+   `crossed` is never adopted (`executors.md`, 2): one in the engine or
+   on in-process workers is settled at once, as above; one on another worker ends lost as a
    claim lost with its worker does, its run stopped when its worker
    lists it, and the claim lost once that run has stopped or once the
    engine's grace has passed with none listing it, so that no next
@@ -66,9 +66,14 @@ Workers keep the answers and turns they were not acknowledged for, and
 send them again after their hello; the core commits any it does not
 have, and acknowledges each.
 
-**After an upgrade.** jig's store patches a copy of a store behind the
-binary's patch levels before the root starts (`../../protocol/store/opening.md`,
-2), and the restart restores from that copy before it becomes the
+**After an upgrade.** At or above the floor and at the build's owner
+levels, jig's store registers the build's layouts and runs declared
+jobs in a new generation before the root starts (`../../protocol/store/opening.md`,
+2). Values are converted at read from the registry's texts
+(`../../protocol/store/layouts.md`, 4). A store without the floor,
+below it or behind the levels is refused, naming `FLOOR_BRIDGE`; a
+non-empty store without a registry is refused too (`../../protocol/store/opening.md`,
+1.8). The restart restores from the upgraded copy before it becomes the
 generation `active` names: the store's open answers that a generation
 is pending, and the script asks, after the connectors' records (step
 2) and before the runs adopted (step 3), for one step more,
@@ -94,7 +99,7 @@ before it. Over a generation with nothing pending, the step switches
 nothing and commits the wires alone.
 
 **Load, then link** (the user, 10-27; temper's `draft/upgrades.md`,
-6.4). A start, over the active generation or a patched copy alike,
+6.4). A start, over the active generation or an upgraded copy alike,
 judges no record. It loads every record of the live ranges that decodes
 under its codec within its bounds, and the live sets must fit the
 limits: a set past limits lowered since refuses the start, saying
@@ -152,8 +157,8 @@ one rule for every child and the store:
   naming what it lacks, a person
   whose identity another person's row holds (the second row naming
   the first).
-- **It no longer checks** a family's rules, a record's shape beyond its
-  codec, who wrote it, or a patch's counts, which the manifest keeps
+- **It does not check** a family's rules, a record's shape beyond its
+  codec, who wrote it, or a job's counts, which the manifest keeps
   and the tests compare (`../../protocol/store/opening.md`, 2).
 - **A link that cannot be made** refuses the start as `Failure::Link`,
   naming the record's key and what it links to (`Linked`: a record's
@@ -171,19 +176,19 @@ one rule for every child and the store:
   and a release that repairs the writer, or the store, starts it.
 - **The checks are tests** (`README.md`, section 9): every world story ends with a
   cold restart that restores and reads back what it wrote, and a record
-  left out fails a test build; each patch is proved over sample stores
+  left out fails a test build; registry changes and declared jobs are
+  proved over stores at the floor
   (`../../protocol/store/opening.md`, 2, and `../../protocol/store/README.md`, 9).
 
-A restart refused before the switch leaves the
-generation patched from active and unchanged (`../../protocol/store/opening.md`, 2, step 7);
-one refused after it, at a later step, leaves the patched generation
+A restart refused before the switch leaves the source generation
+active and unchanged (`../../protocol/store/opening.md`, 2, step 7);
+one refused after it, at a later step, leaves the upgraded generation
 active and the one before it as `active` − 1, for the operator to go
 back to before its first commit of its own (temper's
-`draft/upgrades.md`, 3.2). A patch marked fresh has closed every live
-task's window in the copy (`../../protocol/store/opening.md`, 2, step 4) and marked every
-claim crossed, so the restart restores the windows closed, adopts no
-crossed claim (step 3), and each task's next attempt starts fresh
-(`executors.md`, 2).
+`draft/upgrades.md`, 3.2). The restart restores a stored closed window
+as closed and adopts no claim whose proof is crossed (step 3); the
+next attempt starts fresh (`executors.md`, 2). Registration and the
+jobs' runner do not infer those marks or close windows.
 
 **The start's interface** (`jig_domain_core::start`). The root drives
 the start; the core owns its order. `Core::start_begin(pending, at)`
@@ -283,6 +288,58 @@ the core makes no new work and takes every commit:
 `Stopping` after it goes on as above, and `Stopping` alone, for a root
 that does not settle, is as before. A crash while settling leaves the
 store as any crash does.
+
+**Saying it restarts** (temper's `draft/redeploys.md`, 5.2). A settled
+stop tells the workers that the engine restarts, so that each keeps its
+runs through the restart wait rather than its grace
+(`../../protocol/channel/restart.md`):
+
+- **Kept first.** At `Stopping` after `Settling`, the core keeps the
+  word in the decision its stop makes, with the claims it settles as
+  interrupted or alone: the longer of the configured restart wait
+  (`fleet.restart_wait`, `fleet.md`, *A restart said holds its runs*)
+  and a word still kept from an earlier stop (*Held across starts*,
+  below), so that a later word never shortens a hold outstanding.
+- **Then said.** Once that decision is durable, the core asks its root
+  to tell the workers, `Held::Restarting { wait }`, `wait` the
+  configured restart wait, a `Duration`. The root has its workers'
+  component send it on each channel whose version has it, and closes
+  the workers' part only at `Held::Drained`, which the journal releases
+  after it (temper's `domain/root.md`, 8.2).
+- **Kept as** the deployment's numbers record's `restart_wait_ms`, the
+  wait in milliseconds, `option u64 = none` in `jig-store-core`: a
+  registered family's field with its default, so no version moves and
+  no patch comes (`../../protocol/store/layouts.md`). It is saved with
+  the decision's header, as the numbers are.
+- **Only a settled stop says it,** and only to workers that may outlive
+  the engine: `Stopping` alone keeps and says nothing, as a crash says
+  nothing; nor does a stop whose configuration says its workers are in
+  its process (step 3), or whose restart wait is zero.
+
+**Held across starts** (temper's `draft/redeploys.md`, 5.3):
+
+- **Read with the core's records** (step 1): a word kept is the start's
+  hold.
+- **Each claim on a worker the start adopts or crosses** (step 3) is
+  held for the word's wait and the fleet's grace after it, counted from
+  its adoption, rather than for the grace alone, and keeps that hold
+  through its worker's hello and any loss after it, until its worker
+  has heard the engine again (`fleet.md`, *A restart said holds its
+  runs*). So no next attempt is placed while a worker that heard the
+  word may still host the last.
+- **Discharged** once no claim the start held is held any more: each has
+  ended, been lost at its hold's end and so placed again, or had its
+  worker hear the engine. The fleet says so once, and the core clears
+  the kept word in a decision. A start that holds none clears it once
+  the runs are adopted. A discharge heard after this stop's word is kept
+  clears nothing.
+- **A crash or a stop before then** leaves the word kept, so the next
+  start holds every claim it restores on a worker again, for the
+  longest wait said, from its own start: two restarts in a row, a crash
+  between them or a shorter wait on the second, shorten no hold.
+- **A build that doesn't know the word** holds for its grace alone, so
+  going back past the build that brings it is every part together, each
+  worker drained first (temper's `draft/redeploys.md`, 7.3).
 
 Finishing continues while stopping. After routing previously accepted work,
 a Resume at which the core owes finishing closes without taking a new input,

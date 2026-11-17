@@ -41,6 +41,7 @@ pub struct Run {
     pub user: u64,
     pub cancelled_by: Option<u64>,
     pub state: RunState,
+    pub wait: Option<JobWait>,
     pub conclusion: Option<Conclusion>,
     pub created: Time,
     pub inputs: Box<[crate::api::WorkflowInput]>,
@@ -88,6 +89,7 @@ pub(crate) fn start(
         user,
         cancelled_by: None,
         state: RunState::Running,
+        wait: None,
         conclusion: None,
         created: domain::clock(env).max(domain.floor),
         inputs: Box::new([]),
@@ -129,6 +131,7 @@ pub(crate) fn verdict(repository: &mut Repository, commit: u64, context: u32, st
     let kept = repository.runs.get_mut(&commit).expect("CI run");
     let job = kept.jobs.get_mut(context).expect("CI job");
     job.state = RunState::Completed;
+    job.wait = None;
     job.conclusion = Some(match state {
         Check::Passed | Check::Skipped => Conclusion::Success,
         Check::Failed => Conclusion::Failure,
@@ -141,18 +144,37 @@ pub(crate) fn verdict(repository: &mut Repository, commit: u64, context: u32, st
 
 pub(crate) fn complete(kept: &mut Kept) {
     let mut conclusion = Conclusion::Success;
+    let mut pending = false;
+    let mut running = false;
+    let mut runner = false;
     for job in &kept.jobs {
         if job.state == RunState::Running {
-            kept.run.state = RunState::Running;
-            kept.run.conclusion = None;
-            return;
+            pending = true;
+            match job.wait {
+                None => running = true,
+                Some(JobWait::Runner) => runner = true,
+                Some(JobWait::Needs) => {}
+            }
         }
         if job.conclusion != Some(Conclusion::Success) {
             conclusion = Conclusion::Failure;
         }
     }
-    kept.run.state = RunState::Completed;
-    kept.run.conclusion = Some(conclusion);
+    if pending {
+        kept.run.state = RunState::Running;
+        kept.run.conclusion = None;
+        kept.run.wait = if running {
+            None
+        } else if runner {
+            Some(JobWait::Runner)
+        } else {
+            Some(JobWait::Needs)
+        };
+    } else {
+        kept.run.state = RunState::Completed;
+        kept.run.wait = None;
+        kept.run.conclusion = Some(if kept.run.cancelled_by.is_some() { Conclusion::Cancelled } else { conclusion });
+    }
 }
 
 pub(crate) fn runs(
@@ -214,34 +236,43 @@ pub(crate) fn jobs(domain: &Domain, limits: &crate::Limits, repository: &Reposit
     let kept = run(repository, id)?;
     let mut answer = List::with_capacity(kept.jobs.len());
     for job in &kept.jobs {
-        let mut view = job.clone();
-        if kept.run.workflow.is_none() && job.state == RunState::Completed {
-            let state = match job.conclusion {
-                Some(Conclusion::Success) => Check::Passed,
-                Some(Conclusion::Failure | Conclusion::Cancelled) => Check::Failed,
-                None => unreachable!("a completed CI job has a conclusion"),
-            };
-            let failing = *repository.failing.get(usize_of(job.index)).expect("CI context");
-            let cue = crate::ci::effective(
-                domain,
-                kept.run.commit,
-                &job.name,
-                crate::ci::cue(&repository.checks, &job.name),
-                kept.pull,
-                limits,
-            );
-            view.steps = outcome_steps(
-                &job.name,
-                state,
-                failing,
-                cue.as_ref(),
-                kept.pull,
-                repository.opening.get(usize_of(job.index)).expect("CI context"),
-            );
-        }
+        let view = view(domain, limits, repository, kept, job.clone());
         answer.push(view).expect("one entry per job");
     }
     Ok(Answer::Jobs(answer.into_boxed()))
+}
+
+/// Commit CI derives its steps on both the listing and the individual read.
+pub(crate) fn view(domain: &Domain, limits: &crate::Limits, repository: &Repository, kept: &Kept, mut job: Job) -> Job {
+    if kept.run.workflow.is_none() && job.wait.is_none() {
+        let state = match job.conclusion {
+            Some(Conclusion::Success) => Check::Passed,
+            Some(Conclusion::Failure | Conclusion::Cancelled) => Check::Failed,
+            None => Check::Pending,
+        };
+        let cue = crate::ci::effective(
+            domain,
+            kept.run.commit,
+            &job.name,
+            crate::ci::cue(&repository.checks, &job.name),
+            kept.pull,
+            limits,
+        );
+        let opening = repository.opening.get(usize_of(job.index)).expect("CI context");
+        job.steps = if job.state == RunState::Running {
+            running_steps(&job.name, cue.as_ref(), kept.pull, opening)
+        } else {
+            outcome_steps(
+                &job.name,
+                state,
+                *repository.failing.get(usize_of(job.index)).expect("CI context"),
+                cue.as_ref(),
+                kept.pull,
+                opening,
+            )
+        };
+    }
+    job
 }
 
 pub(crate) fn latest(repository: &Repository, id: u64) -> Result<(u64, Job), Error> {
@@ -304,6 +335,19 @@ fn append(out: &mut List<u8>, bytes: &[u8]) {
     for &byte in bytes {
         out.push(byte).expect("bounded bytes");
     }
+}
+
+pub(crate) fn running_steps(context: &[u8], cue: Option<&Cue>, pull: Option<u64>, opening: &[u8]) -> Box<[Step]> {
+    let completed = steps(context, Failing::Workflow, cue, pull, opening);
+    let mut running = List::with_capacity(2);
+    for mut step in completed.into_iter().take(2) {
+        if step.number == WORKFLOW_STEP {
+            step.status = StepStatus::Running;
+        }
+        step.log = Box::new([]);
+        running.push(step).expect("setup and workflow step");
+    }
+    running.into_boxed()
 }
 
 pub(crate) fn outcome_steps(

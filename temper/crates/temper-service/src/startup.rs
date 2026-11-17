@@ -713,13 +713,11 @@ pub(crate) fn checked_start_with(
         own,
         &mut problems,
     );
-    let mut host_part = None;
+    let host_part = settings::host_part(&parsed.engine, declaration.as_ref());
     if let Some(agent) = &declaration {
-        let measured = temper_engine_smith::room::host_part(&agent.run_limits);
         checks::agent(&parsed.engine, agent, &mut problems);
-        checks::room(&parsed.engine, measured, &mut problems);
-        host_part = Some(measured);
     }
+    checks::room(&parsed.engine, host_part, &mut problems);
     if !problems.is_empty() {
         return Err(problems);
     }

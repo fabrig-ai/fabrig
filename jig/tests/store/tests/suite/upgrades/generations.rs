@@ -155,7 +155,7 @@ fn an_older_builds_refusal_names_the_whole_layout_to_move() {
     let words = OpenRefusal::OlderBuild { why: Older::Directory }.words().join("<deployment>");
     assert_eq!(
         words,
-        "<deployment> holds a store from an older build, in the layout before generations (`store/`, `secrets/` or `transcripts/` at its top), and this start has changed nothing in it. Before the first release a store is not translated, so every start refuses this one until it is moved. To start afresh, stop the service, move `store/`, `secrets/` and `transcripts/` out of <deployment> together, and start again: nothing is deleted, and the next start makes a new, empty store. The new store has no tasks, sign-ins, accounts or keys, and every client signs in again."
+        "<deployment> holds a store from an older build, in the layout before generations (`store/`, `secrets/` or `transcripts/` at its top), and this start has changed nothing in it. No build translates a store from before generations, build `<bridge>` included, so every start refuses this one until it is moved. To start afresh, stop the service, move `store/`, `secrets/` and `transcripts/` out of <deployment> together, and start again: nothing is deleted, and the next start makes a new, empty store. The new store has no tasks, sign-ins, accounts or keys, and every client signs in again.".replace("<bridge>", jig_protocol_store::FLOOR_BRIDGE)
     );
 }
 

@@ -157,6 +157,7 @@ fn text() -> contract::Text {
 }
 fn document(number: u64) -> contract::Task {
     contract::Task {
+        tasks_left: 0,
         concluded: None,
         talk: None,
         session: None,

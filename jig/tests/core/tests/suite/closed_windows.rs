@@ -1,6 +1,6 @@
-//! Independent QA from domain/engine/executors.md 2, through real store closing.
+//! Independent QA from domain/engine/executors.md 2, over planted crossed proofs and closed windows.
 
-use super::fresh_windows as windows;
+use super::closed_proofs as windows;
 
 use jig_core_world::fixtures;
 use jig_core_world::world;
@@ -25,7 +25,8 @@ fn closed_window_starts_fresh_with_only_its_tail() {
     let tries = windows::tries(&world);
     let task = windows::proof(&world).task;
     let refused = fixtures::live_row(&world, task).refusals;
-    windows::restart(&mut world, windows::AFTER);
+    windows::close(&mut world);
+    windows::restart(&mut world);
     closed(&world);
     wake(&mut world);
     windows::fresh(&world);
@@ -37,8 +38,9 @@ fn closed_window_starts_fresh_with_only_its_tail() {
 fn repeated_restart_retains_closed_window_and_tail() {
     let mut world = windows::parked();
     let tries = windows::tries(&world);
-    windows::restart(&mut world, windows::AFTER);
-    windows::restart(&mut world, windows::AFTER);
+    windows::close(&mut world);
+    windows::restart(&mut world);
+    windows::restart(&mut world);
     closed(&world);
     wake(&mut world);
     windows::fresh(&world);
@@ -52,7 +54,8 @@ fn unread_closed_tail_starts_without_counting_a_failure() {
     let task = windows::proof(&world).task;
     let tries = windows::tries(&world);
     let refused = fixtures::live_row(&world, task).refusals;
-    windows::restart(&mut world, windows::AFTER);
+    windows::close(&mut world);
+    windows::restart(&mut world);
     world.store.unread_transcript(task);
     let assignments = world.assignments.len();
     wake(&mut world);
@@ -71,14 +74,15 @@ fn unread_closed_tail_starts_without_counting_a_failure() {
 #[test]
 fn transient_ending_keeps_closed_tail_for_the_retry() {
     let mut world = windows::parked();
-    // End the attempt the full upgrade stops as transient instead of parked.
+    // End the resumed attempt as transient instead of parked.
     world.say(88);
     world.end(tasks::End::Failed(tasks::Class::Transient), 0);
     let mut tries = windows::tries(&world);
-    tries.transient = 1; // The scripted transient ending, with no additional upgrade charge.
+    tries.transient = 1; // The scripted transient ending, with no additional restart charge.
     let task = windows::proof(&world).task;
     let refused = fixtures::live_row(&world, task).refusals;
-    windows::restart(&mut world, windows::AFTER);
+    windows::close(&mut world);
+    windows::restart(&mut world);
     world.retry_due();
     windows::fresh(&world);
     assert_eq!(windows::tail(&world), Some(windows::TAIL));
@@ -88,7 +92,8 @@ fn transient_ending_keeps_closed_tail_for_the_retry() {
 #[test]
 fn first_turn_after_closed_window_opens_a_resumable_conversation() {
     let mut world = windows::parked();
-    windows::restart(&mut world, windows::AFTER);
+    windows::close(&mut world);
+    windows::restart(&mut world);
     wake(&mut world);
     let assignment = world.assigned.as_ref().expect("fresh assignment");
     let attempt = assignment.attempt;
@@ -96,7 +101,7 @@ fn first_turn_after_closed_window_opens_a_resumable_conversation() {
     world.turn(1, 1, Some(message), &windows::turn(b"fresh conversation"));
     assert_eq!(windows::proof(&world).window, Some(core::CurrentWindow { attempt, turn: 1, closed: false }));
     world.end(tasks::End::Parked, 1);
-    windows::restart(&mut world, windows::AFTER);
+    windows::restart(&mut world);
     world.say(89);
     let assignment = world.assigned.as_ref().expect("resumed assignment");
     assert!(assignment.run.policy.resume);
@@ -108,7 +113,7 @@ fn first_turn_after_closed_window_opens_a_resumable_conversation() {
 #[test]
 fn closed_tail_loads_past_the_resume_limit() {
     let mut world = windows::parked();
-    world.store.patch_sets(windows::AFTER);
+    windows::close(&mut world);
     let mut config = world::fixture(windows::SEED, false).0;
     config.core.settings.resume_bytes = 1;
     world.restart_with(config);

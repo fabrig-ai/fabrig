@@ -180,6 +180,8 @@ pub struct World {
     pub issue_write_times: Vec<Wall>,
     /// The durable commit number observed when the root drained.
     pub drained: Option<u64>,
+    /// Each restart notice paired with the durable decision observed before it.
+    pub restarting: Vec<(Duration, u64)>,
     pub unsettled: Vec<engine::Unsettled>,
     pub busy_calls: u32,
     /// Time per normal tick; short-stall stories can drive reads with less shell latency.
@@ -395,6 +397,17 @@ impl World {
         self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
         self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
             .expect("project policy");
+        self
+    }
+
+    /// Configure the stop before either root starts.
+    #[must_use]
+    pub fn with_restart_wait(mut self, wait: Duration, workers_in_process: bool) -> Self {
+        assert_eq!(self.env.now, Time::ZERO);
+        self.env.limits.fleet.restart_wait = wait;
+        self.restart_config.core.workers_in_process = workers_in_process;
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("restart wait configuration");
         self
     }
 
@@ -1446,6 +1459,7 @@ impl World {
             fail_open_writes: false,
             issue_write_times: Vec::new(),
             drained: None,
+            restarting: Vec::new(),
             unsettled: Vec::new(),
             busy_calls: 0,
             tick_interval: Duration::from_millis(100),
@@ -1700,10 +1714,24 @@ impl World {
     }
     fn complete_prepare(&mut self) {
         let Some(index) = self.jobs.iter().position(|job| job.kind == jig_domain_link::JobKind(1)) else { return };
+        let result = self.push_prepare();
         let job = self.jobs.remove(index);
+        let event = self.protocol.answer_job(
+            Token::new(7),
+            job.run.raw(),
+            job.attempt.raw(),
+            host::JobEnding::Finished { result, work: host::Work { left: None, saved: None } },
+        );
+        self.send(event);
+    }
+
+    /// Push the worker's prefixes without answering, for a lost or delayed answer.
+    pub fn push_prepare(&mut self) -> Box<[u8]> {
+        let job = self.jobs.iter().find(|job| job.kind == jig_domain_link::JobKind(1)).expect("prepare job");
         let workspace = self.job_workspaces.get(&job.run.raw()).expect("typed prepare items").clone();
         let item = &workspace.repositories[0];
         let landing = job.workspace.as_ref().expect("prepare workspace").workstream;
+        let spec = job.spec.clone();
         let row = self
             .store
             .rows
@@ -1718,7 +1746,7 @@ impl World {
             .expect("job's landing");
         let spec = temper_protocol_worker_wire::v1::JobSpec::decode(
             &temper_protocol_worker_wire::v1::CEILINGS,
-            &mut skein_lib::Reader::new(&job.spec),
+            &mut skein_lib::Reader::new(&spec),
         )
         .expect("prepare spec");
         assert_eq!(spec.command(), b"");
@@ -1767,25 +1795,29 @@ impl World {
             )
             .expect("prepared commit");
             let repository = if item.provider.repository == 2 { b"org/repo".as_slice() } else { b"org/lib".as_slice() };
-            assert_eq!(
-                self.external_at(
-                    repository,
-                    1,
-                    raw::Op::Git(raw::Git::PushNew { branch: saved.branch.clone(), commit: candidate })
-                ),
-                raw::Answer::PushNew { existing: None }
-            );
+            if let Some(existing) = self.fake.branch(repository, &saved.branch) {
+                assert_eq!(
+                    self.fake.object(existing).expect("existing prefix").tree.iter().collect::<Vec<_>>(),
+                    self.fake.object(candidate).expect("rebuilt prefix").tree.iter().collect::<Vec<_>>(),
+                    "reuse the whole tree"
+                );
+                assert!(self.fake.is_ancestor(base, existing), "prefix contains the one below");
+                assert!(squash || self.fake.is_ancestor(head, existing), "merge prefix contains the member");
+                base = existing;
+            } else {
+                assert_eq!(
+                    self.external_at(
+                        repository,
+                        1,
+                        raw::Op::Git(raw::Git::PushNew { branch: saved.branch.clone(), commit: candidate })
+                    ),
+                    raw::Answer::PushNew { existing: None }
+                );
+                base = candidate;
+            }
             combined.push(serde_json::json!({"member": position + 1, "by": if squash { "squash" } else { "merge" }}));
-            base = candidate;
         }
-        let result = serde_json::to_vec(&serde_json::json!({"combined": combined})).expect("result");
-        let event = self.protocol.answer_job(
-            Token::new(7),
-            job.run.raw(),
-            job.attempt.raw(),
-            host::JobEnding::Finished { result: result.into(), work: host::Work { left: None, saved: None } },
-        );
-        self.send(event);
+        serde_json::to_vec(&serde_json::json!({"combined": combined})).expect("result").into()
     }
 
     /// Configure the project's delivery checks' bound before startup.
@@ -2594,6 +2626,10 @@ impl World {
                 engine::Request::Unsettled(write) => {
                     assert!(self.drained.is_none(), "unfinished entries precede Drained");
                     self.unsettled.push(write);
+                }
+                engine::Request::Restarting { wait } => {
+                    assert!(self.drained.is_none(), "the restart word precedes Drained");
+                    self.restarting.push((wait, self.store.header().commits));
                 }
                 engine::Request::Drained => {
                     assert!(self.drained.is_none(), "drained once");

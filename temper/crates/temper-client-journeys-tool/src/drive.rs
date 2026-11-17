@@ -1,15 +1,17 @@
 //! The complete event/action session policy, without io (client/drive.md, 2–6).
 use crate::line::{Line, Record, Web};
+use skein_browser::boundary::Trouble;
 use skein_fake_person::{Doing, Find};
 use skein_lib::{Duration, Time};
 use skein_ui::{Act, NodeId, Role};
-use std::{
-    os::unix::ffi::OsStrExt,
-    path::{Path, PathBuf},
-};
+use std::{fmt::Write, path::PathBuf};
+mod deployed;
+pub mod deployment;
 mod forge;
 mod io;
 mod options;
+mod place;
+use place::{Place, Progress};
 mod tui;
 mod values;
 pub use io::Session;
@@ -57,6 +59,10 @@ impl Exit {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Process {
     Box,
+    Forgejo,
+    Model,
+    Engine,
+    Worker,
     SignIn,
     Ctl,
 }
@@ -67,6 +73,26 @@ pub enum Output {
 }
 #[derive(Debug)]
 pub enum Action {
+    PrepareDeployment,
+    ReadDeploymentPatch {
+        document: crate::line::Document,
+        path: Box<[u8]>,
+    },
+    WriteDeploymentPatch(deployment::RenderedFile),
+    SignInFile {
+        link: Box<[u8]>,
+        program: Program,
+    },
+    RemoveLink,
+    DeploymentLog {
+        process: Process,
+        line: Box<[u8]>,
+    },
+    Stop {
+        process: Process,
+        force: bool,
+    },
+    DeploymentLogs,
     ReadBoxLog {
         path: PathBuf,
     },
@@ -110,20 +136,23 @@ pub enum Action {
     CancelFace,
     StopCtl,
     Log {
-        output: Output,
         line: Box<[u8]>,
     },
     Keep(Box<[u8]>),
     Answer(Answer),
     Ready,
     CloseBrowser,
-    TerminateBox,
-    KillBox,
+    ForceBrowser,
     Classify,
     Finished(Exit),
 }
 #[derive(Debug)]
 pub enum Event {
+    DeploymentPrepared(Result<deployment::Values, String>),
+    DeploymentPatch(Result<deployment::RenderedFile, String>),
+    DeploymentWritten(Result<(), String>),
+    ProcessLine { process: Process, output: Output, line: Box<[u8]> },
+    DeploymentLogs(Vec<Vec<Box<[u8]>>>),
     BoxLog(Result<Box<[u8]>, String>),
     ForgeFiles(Result<Vec<Box<[u8]>>, String>),
     ForgeResponse { status: u16, body: Box<[u8]> },
@@ -140,15 +169,16 @@ pub enum Event {
     Exited { process: Process, code: i32, stdout: Box<[u8]>, stderr: Box<[u8]> },
     Found(Option<NodeId>),
     FaceDone(Result<(), String>),
+    PageTrouble { trouble: Trouble, text: Box<[u8]>, url: Box<[u8]> },
     Snapshot(Box<[u8]>),
     Description(Box<[u8]>),
     Logs { serve: Vec<Box<[u8]>>, forges: Vec<Box<[u8]>>, box_tail: Vec<Box<[u8]>> },
     Deadline,
     OwnFailure(String),
 }
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Phase {
-    Link,
+    Place,
     SignIn,
     Spent,
     FreshLink,
@@ -181,12 +211,11 @@ enum Phase {
     TuiStopping,
     ClosingTui,
     ClosingBrowser,
-    Stopping,
-    Classifying,
     Finished,
 }
 pub struct Machine {
     plan: Plan,
+    place: Place,
     phase: Phase,
     until: Option<Time>,
     poll: Option<Time>,
@@ -195,8 +224,7 @@ pub struct Machine {
     first: Option<Box<[u8]>>,
     fresh: Option<Box<[u8]>>,
     origin: Box<[u8]>,
-    box_exited: bool,
-    box_failed: Option<String>,
+    sign_in: Option<place::SignIn>,
     diagnostic: String,
     shown: Vec<String>,
     forge: Option<forge::Pending>,
@@ -209,20 +237,20 @@ pub struct Machine {
 impl Machine {
     #[must_use]
     pub fn start(plan: Plan, now: Time) -> (Self, Vec<Action>) {
-        let action = Action::Start { process: Process::Box, program: plan.box_program() };
+        let (place, action) = Place::start(&plan, now);
         (
             Self {
                 plan,
-                phase: Phase::Link,
-                until: Some(now.saturating_add(STEP)),
+                place,
+                phase: Phase::Place,
+                until: None,
                 poll: None,
                 number: 0,
                 current: None,
                 first: None,
                 fresh: None,
                 origin: Box::new([]),
-                box_exited: false,
-                box_failed: None,
+                sign_in: None,
                 diagnostic: String::new(),
                 shown: vec![],
                 forge: None,
@@ -241,10 +269,28 @@ impl Machine {
     }
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
-        self.until.into_iter().chain(self.poll).chain(self.save_until).min()
+        if self.phase == Phase::Finished {
+            return None;
+        }
+        self.until.into_iter().chain(self.poll).chain(self.save_until).chain(self.place.deadline()).min()
     }
     pub fn step(&mut self, event: Event, now: Time) -> Vec<Action> {
         let mut out = vec![];
+        if let Some(progress) = self.place.event(
+            &event,
+            place::Activity { phase: self.phase, busy: self.current.is_some(), tui_running: self.tui_running },
+            &self.plan,
+            now,
+            &mut out,
+        ) {
+            if matches!(event, Event::TuiStopped | Event::TuiFailure(_))
+                || matches!(progress, Progress::Waiting) && self.phase == Phase::TuiStopping
+            {
+                self.tui_running = false;
+            }
+            self.progress(progress, now, &mut out);
+            return out;
+        }
         match event {
             Event::BoxLog(result) if self.phase == Phase::CtlValues => self.ctl_values(result, now, &mut out),
             Event::BoxLog(_) | Event::ForgeFiles(_) | Event::ForgeResponse { .. } | Event::ForgeFailure(_) => {
@@ -258,12 +304,13 @@ impl Machine {
             | Event::BrowserAddress(_) => self.tui_event(event, now, &mut out),
             Event::Line(bytes) => self.line(&bytes, now, &mut out),
             Event::End => self.end(now, &mut out),
-            Event::BoxLine { output, line } => self.box_line(output, &line, now, &mut out),
+
             Event::Exited { process, code, stdout, stderr } => {
                 self.exited(process, code, &stdout, &stderr, now, &mut out);
             }
             Event::Found(node) => self.found(node, now, &mut out),
             Event::FaceDone(result) => self.face_done(result, now, &mut out),
+            Event::PageTrouble { trouble, text, url } => self.page_trouble(trouble, &text, &url, now, &mut out),
             Event::Snapshot(text) if self.phase == Phase::Snapshot => {
                 self.shown.extend(shown_lines(&text));
                 self.answer(None, &mut out);
@@ -272,11 +319,9 @@ impl Machine {
                 let text = String::from_utf8_lossy(text.get(..4096).unwrap_or(&text));
                 self.answer(Some(format!("{}; shown instead: {text}", self.diagnostic)), &mut out);
             }
-            Event::Logs { serve, forges, box_tail } if self.phase == Phase::Classifying => {
-                self.classify(&serve, &forges, &box_tail, &mut out);
-            }
             Event::Deadline => self.deadline(now, &mut out),
             Event::OwnFailure(why) => {
+                let force = self.place.own_failure(&mut out);
                 self.phase = Phase::Finished;
                 self.until = None;
                 self.poll = None;
@@ -288,11 +333,19 @@ impl Machine {
                     Action::StopTui,
                     Action::CancelFace,
                     Action::StopCtl,
-                    Action::KillBox,
+                    force,
                     Action::Finished(Exit::own(why)),
                 ]);
             }
-            Event::Snapshot(_) | Event::Description(_) | Event::Logs { .. } => {}
+            Event::DeploymentPrepared(_)
+            | Event::DeploymentPatch(_)
+            | Event::DeploymentWritten(_)
+            | Event::BoxLine { .. }
+            | Event::ProcessLine { .. }
+            | Event::DeploymentLogs(_)
+            | Event::Snapshot(_)
+            | Event::Description(_)
+            | Event::Logs { .. } => {}
         }
         out
     }
@@ -311,39 +364,57 @@ impl Machine {
             Err(why) => {
                 out.push(Action::Answer(Answer {
                     shown: vec![],
-                    failed: Some(format!("line {}: {why}", self.number)),
+                    failed: Some(
+                        self.place.early_exit().map_or_else(|| format!("line {}: {why}", self.number), str::to_owned),
+                    ),
                 }));
                 return;
             }
         };
         let record = self.current.as_ref().expect("current line").record();
-        if self.plan.options.ctl && matches!(record, Record::Web(_) | Record::Tui(_)) {
+        if let Some(why) = self.place.early_exit().filter(|_| !matches!(record, Record::End)) {
+            if let Some(line) = self
+                .current
+                .take()
+                .filter(|line| line.kept() && !matches!(line.record(), Record::Web(_) | Record::Tui(_)))
+            {
+                out.push(Action::Keep(line.print().into()));
+            }
+            out.push(Action::Answer(Answer { shown: vec![], failed: Some(why.into()) }));
+            return;
+        }
+        if let Some(why) = self.place.refuse_line(record, self.plan.options.ctl) {
             self.current = None;
-            self.answer(Some("this session takes ctl and forge lines alone".into()), out);
+            self.answer(Some(why.into()), out);
             return;
         }
         if matches!(record, Record::End) {
             self.end(now, out);
             return;
         }
-        if self.box_exited {
-            self.answer(Some("the box exited".into()), out);
+        if let Some(why) = self.place.exited_line() {
+            self.answer(Some(why.into()), out);
             return;
         }
         match record {
             Record::Empty => self.answer(None, out),
             Record::End => unreachable!("end dispatched"),
+            Record::Deployment(patch) => {
+                let crate::line::Deployment::Patch { document, path } = patch;
+                let patch = crate::line::Deployment::Patch { document: *document, path: path.clone() };
+                self.place.patch(&patch, now, out);
+                self.wait_for_place();
+            }
             Record::Forge(_) => self.forge_start(now, out),
             Record::Tui(_) => self.tui(now, out),
-            Record::Ctl(args) => {
-                if args.iter().any(|arg| crate::line::BoxValue::parse(arg).is_some()) {
+            Record::Ctl(args) => match self.place.ctl_values(args, None) {
+                Ok(Some(args)) => self.ctl_start(&args, now, out),
+                Ok(None) => {
                     self.wait(Phase::CtlValues, now, STEP);
-                    out.push(Action::ReadBoxLog { path: self.plan.options.scratch.join("session/box.log") });
-                } else {
-                    let args = args.clone();
-                    self.ctl_start(&args, now, out);
+                    out.push(Place::read_values(&self.plan));
                 }
-            }
+                Err(why) => self.answer(Some(why), out),
+            },
             Record::Web(Web::Act { role, name, order, .. }) => {
                 let find = Find::exactly_named(*role, name).nth(*order);
                 self.wait(Phase::Finding, now, STEP);
@@ -373,16 +444,10 @@ impl Machine {
     }
     fn ctl_values(&mut self, result: Result<Box<[u8]>, String>, now: Time, out: &mut Vec<Action>) {
         let Some(Record::Ctl(args)) = self.current.as_ref().map(Line::record) else { return };
-        let resolved = result.and_then(|log| {
-            args.iter()
-                .map(|arg| match crate::line::BoxValue::parse(arg) {
-                    Some(value) => values::read(&log, value),
-                    None => Ok(arg.clone()),
-                })
-                .collect::<Result<Vec<_>, _>>()
-        });
+        let resolved = result.and_then(|log| self.place.ctl_values(args, Some(&log)));
         match resolved {
-            Ok(args) => self.ctl_start(&args, now, out),
+            Ok(Some(args)) => self.ctl_start(&args, now, out),
+            Ok(None) => unreachable!("values supplied"),
             Err(why) => self.answer(Some(why), out),
         }
     }
@@ -401,94 +466,33 @@ impl Machine {
             out.push(Action::Keep(line.print().into()));
         }
         out.push(Action::Answer(Answer { shown: std::mem::take(&mut self.shown), failed }));
+        self.place.line_finished();
         self.phase = Phase::Ready;
         self.until = None;
         self.poll = None;
         self.save_until = None;
         self.forge = None;
     }
-    fn box_line(&mut self, output: Output, line: &[u8], now: Time, out: &mut Vec<Action>) {
-        out.push(Action::Log { output, line: line.into() });
-        if output == Output::Stderr
-            && (line.windows(11).any(|s| s == b"; giving up") || line.windows(13).any(|s| s == b"; restarting "))
-        {
-            if matches!(
-                self.phase,
-                Phase::Link
-                    | Phase::SignIn
-                    | Phase::Spent
-                    | Phase::FreshLink
-                    | Phase::Fresh
-                    | Phase::Root
-                    | Phase::Main
-            ) {
-                self.fail_box(String::from_utf8_lossy(line).into_owned(), now, out);
-            }
-            return;
-        }
-        if output != Output::Stdout || !line.starts_with(b"http://") {
-            return;
-        }
-        let line: Box<[u8]> = line.strip_suffix(b"\n").unwrap_or(line).into();
-        match self.phase {
-            Phase::Link => {
-                let Some(origin) = origin(&line) else {
-                    self.fail_box("invalid first link".into(), now, out);
-                    return;
-                };
-                self.origin = origin;
-                self.first = Some(line.clone());
-                let mut input = line.to_vec();
-                input.push(b'\n');
-                let program =
-                    self.plan.ctl(&[b"sign-in".as_slice().into(), b"-".as_slice().into()], Input::Bytes(input.into()));
-                self.wait(Phase::SignIn, now, STEP);
-                out.push(Action::Start { process: Process::SignIn, program });
-            }
-            Phase::Spent => self.fresh = Some(line),
-            Phase::FreshLink => {
-                self.wait(Phase::Fresh, now, STEP);
-                out.push(Action::Open(line));
-            }
-            _ => {}
-        }
-    }
     fn exited(&mut self, process: Process, code: i32, stdout: &[u8], stderr: &[u8], now: Time, out: &mut Vec<Action>) {
         match process {
-            Process::Box => {
-                self.box_exited = true;
-                if self.phase == Phase::Stopping {
-                    if code == 0 && self.box_failed.is_none() {
-                        self.finish(Exit { status: 0, shown: vec!["ended".into()], error: None }, out);
-                    } else {
-                        self.classifying(format!("box exited {code}"), out);
-                    }
-                } else if self.phase == Phase::Ready {
-                    self.box_failed.get_or_insert_with(|| format!("box exited {code}"));
-                } else if !matches!(self.phase, Phase::Finished | Phase::Classifying | Phase::ClosingBrowser) {
-                    if self.current.is_some() {
-                        if self.forge.take().is_some() {
-                            out.push(Action::CancelForge);
-                        }
-                        out.extend([Action::CancelFace, Action::StopCtl]);
-                        self.answer(Some("the box exited".into()), out);
-                        self.box_failed = Some(format!("box exited {code}"));
-                    } else {
-                        self.fail_box(before_ready(code, stderr), now, out);
-                    }
-                }
-            }
             Process::SignIn if self.phase == Phase::SignIn => {
-                if code != 0 {
-                    self.fail_box(format!("ctl sign-in exited {code}: {}", String::from_utf8_lossy(stderr)), now, out);
+                out.push(Action::RemoveLink);
+                let rules = self.sign_in.expect("sign-in rules");
+                if rules.strict_deadline && self.until.is_some_and(|at| now >= at) {
+                    self.fail_place("ctl sign-in deadline passed".into(), now, out);
+                } else if code != 0 {
+                    let why = if rules.stderr {
+                        format!("ctl sign-in exited {code}: {}", String::from_utf8_lossy(stderr))
+                    } else {
+                        format!("ctl sign-in exited {code}")
+                    };
+                    self.fail_place(why, now, out);
                 } else if self.plan.options.ctl {
                     self.first = None;
-                    self.phase = Phase::Ready;
-                    self.until = None;
-                    out.push(Action::Ready);
+                    self.session_ready(out);
                 } else {
                     self.wait(Phase::Spent, now, Duration::from_secs(30));
-                    out.push(Action::Open(self.first.clone().expect("first link")));
+                    out.push(Action::Open(self.first.take().expect("first link")));
                 }
             }
             Process::Ctl if self.phase == Phase::Ctl => {
@@ -496,7 +500,13 @@ impl Machine {
                 self.shown.extend(shown_lines(stdout));
                 self.answer(if code == 0 { None } else { Some(format!("exit {code}")) }, out);
             }
-            Process::SignIn | Process::Ctl => {}
+            Process::Box
+            | Process::Forgejo
+            | Process::Model
+            | Process::Engine
+            | Process::Worker
+            | Process::SignIn
+            | Process::Ctl => {}
         }
     }
     fn found(&mut self, node: Option<NodeId>, now: Time, out: &mut Vec<Action>) {
@@ -518,12 +528,8 @@ impl Machine {
             return;
         }
         match self.phase {
-            Phase::Main => {
-                self.phase = Phase::Ready;
-                self.until = None;
-                self.poll = None;
-                out.push(Action::Ready);
-            }
+            Phase::MainLine if self.patch_line() => self.patched(out),
+            Phase::Main => self.session_ready(out),
             Phase::MainLine | Phase::Seeing => self.answer(None, out),
             Phase::Finding => {
                 let Some(Record::Web(Web::Act { act, .. })) = self.current.as_ref().map(Line::record) else {
@@ -537,18 +543,31 @@ impl Machine {
             _ => {}
         }
     }
+    fn page_trouble(&mut self, trouble: Trouble, text: &[u8], url: &[u8], now: Time, out: &mut Vec<Action>) {
+        if self.patch_line() {
+            return;
+        }
+        if matches!(self.phase, Phase::Spent | Phase::FreshLink | Phase::Fresh | Phase::Root | Phase::Main)
+            && trouble == Trouble::Log
+            && text.windows(b"status of 401".len()).any(|part| part == b"status of 401")
+            && resource(url).strip_prefix(self.origin.as_ref()) == Some(b"/jig/v1/sign-in/link".as_slice())
+        {
+            return;
+        }
+        self.face_done(Err(trouble_words(trouble, text, url)), now, out);
+    }
     fn face_done(&mut self, result: Result<(), String>, now: Time, out: &mut Vec<Action>) {
         if self.tui_face_done(&result, now, out) {
             return;
         }
         if let Err(why) = result {
             if self.phase == Phase::ClosingBrowser {
-                self.stop_box(now, out);
+                self.stop_place(now, out);
             } else if self.current.is_some() {
                 out.push(Action::CancelFace);
                 self.answer(Some(format!("{}: {why}", self.sought())), out);
             } else if self.phase != Phase::Ready {
-                self.fail_box(why, now, out);
+                self.fail_place(why, now, out);
             }
             return;
         }
@@ -581,7 +600,7 @@ impl Machine {
                 self.phase = Phase::Snapshot;
                 out.push(Action::Snapshot);
             }
-            Phase::ClosingBrowser => self.stop_box(now, out),
+            Phase::ClosingBrowser => self.stop_place(now, out),
             _ => {}
         }
     }
@@ -598,7 +617,7 @@ impl Machine {
             return;
         }
         if self.until.is_some_and(|until| now >= until) {
-            if self.current.is_some() && !matches!(self.phase, Phase::ClosingBrowser | Phase::Stopping) {
+            if self.current.is_some() && !matches!(self.phase, Phase::ClosingBrowser) {
                 out.push(Action::CancelFace);
                 if self.phase == Phase::Ctl {
                     out.push(Action::StopCtl);
@@ -614,15 +633,16 @@ impl Machine {
                 } else {
                     self.answer(Some(format!("{}: deadline passed", self.sought())), out);
                 }
-            } else if self.phase == Phase::Stopping {
-                out.push(Action::KillBox);
-                self.classifying("box did not stop within 60 s".into(), out);
             } else if self.phase == Phase::ClosingBrowser {
-                self.box_failed.get_or_insert("browser did not close within 60 s".into());
-                out.push(Action::KillBox);
-                self.stop_box(now, out);
-            } else if !matches!(self.phase, Phase::Finished | Phase::Classifying) {
-                self.fail_box(format!("{:?}: deadline passed", self.phase), now, out);
+                self.place.browser_close_expired(out);
+                self.stop_place(now, out);
+            } else if self.phase != Phase::Finished {
+                let why = if self.phase == Phase::SignIn {
+                    self.sign_in.expect("sign-in rules").deadline.into()
+                } else {
+                    format!("{:?}: deadline passed", self.phase)
+                };
+                self.fail_place(why, now, out);
             }
             return;
         }
@@ -648,78 +668,106 @@ impl Machine {
         }
     }
     fn end(&mut self, now: Time, out: &mut Vec<Action>) {
-        if matches!(
-            self.phase,
-            Phase::Finished | Phase::Classifying | Phase::ClosingTui | Phase::ClosingBrowser | Phase::Stopping
-        ) {
+        if matches!(self.phase, Phase::Finished | Phase::ClosingTui | Phase::ClosingBrowser) || self.place.ending() {
             return;
         }
         self.current = None;
         if self.forge.take().is_some() {
             out.push(Action::CancelForge);
         }
+        self.place.begin_end(out);
+        self.close_clients(now, out);
+    }
+    fn close_clients(&mut self, now: Time, out: &mut Vec<Action>) {
         self.save_until = None;
         if self.tui_running {
             self.wait(Phase::ClosingTui, now, LOOK);
             out.extend([Action::CancelFace, Action::StopCtl, Action::StopTui]);
         } else if self.plan.options.ctl {
             out.push(Action::StopCtl);
-            self.stop_box(now, out);
+            self.stop_place(now, out);
         } else {
             self.wait(Phase::ClosingBrowser, now, STEP);
             out.extend([Action::CancelFace, Action::StopCtl, Action::CloseBrowser]);
         }
     }
-    fn fail_box(&mut self, why: String, now: Time, out: &mut Vec<Action>) {
-        self.box_failed.get_or_insert(why);
-        self.end(now, out);
-    }
-    fn stop_box(&mut self, now: Time, out: &mut Vec<Action>) {
-        if self.box_exited {
-            self.classifying(self.box_failed.clone().unwrap_or_else(|| "the box exited".into()), out);
-        } else {
-            self.wait(Phase::Stopping, now, STEP);
-            out.push(Action::TerminateBox);
+    fn fail_place(&mut self, why: String, now: Time, out: &mut Vec<Action>) {
+        let progress = self.place.failed(why, self.current.is_some(), self.phase, out);
+        if self.forge.take().is_some() {
+            out.push(Action::CancelForge);
         }
+        self.progress(progress, now, out);
     }
-    fn classifying(&mut self, why: String, out: &mut Vec<Action>) {
-        self.box_failed.get_or_insert(why);
-        self.phase = Phase::Classifying;
+    fn stop_place(&mut self, now: Time, out: &mut Vec<Action>) {
+        let progress = self.place.stop(now, out);
+        self.progress(progress, now, out);
+    }
+    fn wait_for_place(&mut self) {
+        self.phase = Phase::Place;
         self.until = None;
         self.poll = None;
-        out.push(Action::Classify);
     }
-    fn classify(&mut self, serve: &[Box<[u8]>], forges: &[Box<[u8]>], box_tail: &[Box<[u8]>], out: &mut Vec<Action>) {
-        let scratch = self.plan.options.scratch.as_os_str().as_encoded_bytes();
-        let refusal = serve.iter().find_map(|line| {
-            let line = strip_log_time(line);
-            if line.starts_with(b"temper serve: ") && names_scratch(line, scratch) {
-                Some(String::from_utf8_lossy(line).into_owned())
-            } else {
-                None
+    fn session_ready(&mut self, out: &mut Vec<Action>) {
+        self.phase = Phase::Ready;
+        self.until = None;
+        self.poll = None;
+        out.push(Action::Ready);
+    }
+    fn patch_line(&self) -> bool {
+        self.place.patch_deadline().is_some()
+    }
+    fn patched(&mut self, out: &mut Vec<Action>) {
+        if let Some(Record::Deployment(crate::line::Deployment::Patch { document, .. })) =
+            self.current.as_ref().map(Line::record)
+        {
+            self.shown.push(format!("patched {}", document.name()));
+        }
+        self.answer(None, out);
+    }
+    fn progress(&mut self, progress: Progress, now: Time, out: &mut Vec<Action>) {
+        match progress {
+            Progress::None => {}
+            Progress::Waiting => self.wait_for_place(),
+            Progress::First(first) => {
+                self.first = Some(first.link.strip_suffix(b"\n").unwrap_or(&first.link).into());
+                self.origin = first.origin;
+                self.sign_in = Some(first.sign_in);
+                self.wait(Phase::SignIn, now, STEP);
+                out.push(Action::SignInFile { link: first.link, program: self.plan.deployment_sign_in() });
             }
-        });
-        let refusal = refusal.or_else(|| {
-            forges.iter().find_map(|line| {
-                let line = strip_log_time(line);
-                forge_state_refused(line, scratch).then(|| String::from_utf8_lossy(line).into_owned())
-            })
-        });
-        let (status, shown) = if let Some(line) = refusal {
-            (3, vec![format!("refused: {line}")])
-        } else {
-            let mut shown = vec![format!(
-                "box failed: {}",
-                self.box_failed.as_deref().unwrap_or("the box exited").replace(['\r', '\n'], " ")
-            )];
-            for lines in [box_tail, serve] {
-                for line in lines.iter().skip(lines.len().saturating_sub(20)) {
-                    shown.push(format!("| {}", String::from_utf8_lossy(line).trim_end_matches('\n')));
+            Progress::Link { link, replace } => match self.phase {
+                Phase::Spent if replace || self.fresh.is_none() => self.fresh = Some(link),
+                Phase::FreshLink => {
+                    self.wait(Phase::Fresh, now, STEP);
+                    out.push(Action::Open(link));
+                }
+                _ => {}
+            },
+            Progress::Failed(why) => self.fail_place(why, now, out),
+            Progress::LostLine(why) => {
+                if self.forge.take().is_some() {
+                    out.push(Action::CancelForge);
+                }
+                out.extend([Action::CancelFace, Action::StopCtl]);
+                self.answer(Some(why), out);
+            }
+            Progress::End => self.end(now, out),
+            Progress::Answer(why) => self.answer(why, out),
+            Progress::PatchTui => {
+                self.wait(Phase::TuiStopping, now, LOOK);
+                out.push(Action::StopTui);
+            }
+            Progress::Patched => {
+                if self.plan.options.ctl {
+                    self.patched(out);
+                } else {
+                    self.wait(Phase::Reloading, now, STEP);
+                    self.until = self.until.into_iter().chain(self.place.patch_deadline()).min();
+                    out.push(Action::Open([self.origin.as_ref(), b"/"].concat().into()));
                 }
             }
-            (4, shown)
-        };
-        self.finish(Exit { status, shown, error: None }, out);
+            Progress::Finished(exit) => self.finish(exit, out),
+        }
     }
     fn finish(&mut self, exit: Exit, out: &mut Vec<Action>) {
         self.phase = Phase::Finished;
@@ -737,34 +785,19 @@ fn copy_act(act: &Act) -> Act {
         Act::Near { .. } | Act::Drawing { .. } => unreachable!("no drive line gives an internal act"),
     }
 }
+fn resource(url: &[u8]) -> &[u8] {
+    url.split(|byte| b"?#".contains(byte)).next().unwrap_or_default()
+}
+fn trouble_words(trouble: Trouble, text: &[u8], url: &[u8]) -> String {
+    let mut words = format!("{trouble:?}: {}", String::from_utf8_lossy(text));
+    let url = resource(url);
+    if !url.is_empty() {
+        write!(words, " ({})", String::from_utf8_lossy(url)).expect("string write");
+    }
+    words
+}
 fn shown_lines(bytes: &[u8]) -> Vec<String> {
     String::from_utf8_lossy(bytes).lines().map(str::to_owned).collect()
-}
-fn origin(link: &[u8]) -> Option<Box<[u8]>> {
-    let rest = link.strip_prefix(b"http://")?;
-    let end = rest.iter().position(|b| b"/?#".contains(b)).unwrap_or(rest.len());
-    if end == 0 { None } else { Some(link.get(..end.checked_add(7)?)?.into()) }
-}
-fn strip_log_time(line: &[u8]) -> &[u8] {
-    if line.get(10) == Some(&b'T') && line.get(19..21) == Some(b"Z ") { line.get(21..).unwrap_or(line) } else { line }
-}
-fn forge_state_refused(line: &[u8], scratch: &[u8]) -> bool {
-    let Some(rest) = line.strip_prefix(b"temper-box fake forge: state ") else { return false };
-    let Some(at) = rest.windows(b" refused: ".len()).position(|part| part == b" refused: ") else { return false };
-    let path = Path::new(std::ffi::OsStr::from_bytes(&rest[..at]));
-    path.starts_with(Path::new(std::ffi::OsStr::from_bytes(scratch)))
-        && path != Path::new(std::ffi::OsStr::from_bytes(scratch))
-        && !path.components().any(|part| part == std::path::Component::ParentDir)
-}
-fn names_scratch(line: &[u8], scratch: &[u8]) -> bool {
-    !scratch.is_empty()
-        && line.windows(scratch.len()).enumerate().any(|(at, part)| {
-            let before = at.checked_sub(1).and_then(|at| line.get(at));
-            let after = line.get(at + scratch.len());
-            part == scratch
-                && before.is_none_or(|b| b.is_ascii_whitespace() || b"\"'`(".contains(b))
-                && after.is_none_or(|b| *b == b'/' || b.is_ascii_whitespace() || b"\"'`,)".contains(b))
-        })
 }
 fn ctl_bound(args: &[Box<[u8]>]) -> Duration {
     if !args.iter().any(|arg| [b"--until".as_slice(), b"--since"].contains(&arg.as_ref())) {
@@ -785,17 +818,6 @@ fn duration(bytes: &[u8]) -> Option<u64> {
         (text, 1)
     };
     n.parse::<u64>().ok()?.checked_mul(scale).filter(|n| *n <= 3600)
-}
-/// A box's exit before its ready line, with the last of what it said that no
-/// log line took: a start that failed says why there (client/drive.md, 2.5).
-fn before_ready(code: i32, stderr: &[u8]) -> String {
-    let words = String::from_utf8_lossy(stderr);
-    let words = words.trim();
-    if words.is_empty() {
-        return format!("box exited {code} before ready");
-    }
-    let cut = words.char_indices().rev().nth(511).map_or(0, |(at, _)| at);
-    format!("box exited {code} before ready: {}", &words[cut..])
 }
 #[cfg(test)]
 pub(crate) mod tests;

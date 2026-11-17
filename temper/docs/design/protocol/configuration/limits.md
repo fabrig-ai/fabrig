@@ -45,7 +45,7 @@
   `root.brief.brief_bytes` and `root.journal.result_bytes` are equal,
   so gathering and journalling hold the same brief. The stock host part
   holds the authorised brief whole at `temper-box init`'s models
-  (`../../domain/agent/tools.md`); trimming is the fallback. Where a limit
+  (`../../domain/agent/room.md`, 1); trimming is the fallback. Where a limit
   of temper's is a quantity jig's profile also sets, its constant cites
   jig's profile's.
 - **Sized from what** (`../../draft/config.md`, 5.2):

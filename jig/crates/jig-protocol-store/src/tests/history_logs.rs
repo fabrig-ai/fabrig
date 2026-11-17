@@ -1,4 +1,4 @@
-//! Hand-moved history exercises the serving view before writers append history.
+//! History reads through the serving view (protocol/store/logs.md, 4).
 #![expect(
     clippy::disallowed_methods,
     clippy::disallowed_macros,
@@ -11,39 +11,6 @@ use jig_domain_core_vocabulary::{self as core, Key, Record, reads};
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Queue, Set, Token};
 
-pub(super) fn move_history(store: &mut Store, task: u64) {
-    let ops = move_operations(store, task);
-    raw_commit(store, ops);
-}
-fn move_operations(store: &mut Store, task: u64) -> Box<[skein_kv::Op]> {
-    let mut rows = List::uncapped();
-    let mut start: Box<[u8]> = Box::new([1]);
-    loop {
-        let mut above = Queue::uncapped();
-        let mut below = Queue::uncapped();
-        skein_kv::down(
-            &mut store.stores.store,
-            &crate::memory_env(store.limits.store),
-            skein_kv::Request::Load {
-                owner: Token::new(0),
-                range: skein_kv::Range { start, end: Some(Box::new([2])) },
-                max: store.limits.store.page,
-            },
-            &mut above,
-            &mut below,
-        );
-        assert!(below.is_empty());
-        let Some(skein_kv::Event::Loaded { rows: page, next, .. }) = above.pop() else { panic!("map page") };
-        for row in page {
-            if keys::logged(&row.key) == Some(task) {
-                rows.push((row.key, Some(row.value))).unwrap();
-            }
-        }
-        let Some(next) = next else { break };
-        start = next;
-    }
-    append_operations(store, task, rows.into_boxed(), true)
-}
 pub(super) fn append(store: &mut Store, task: u64, rows: Box<[logs::record::Row]>, erase_map: bool) {
     let ops = append_operations(store, task, rows, erase_map);
     raw_commit(store, ops);
@@ -98,16 +65,7 @@ pub(super) fn read(store: &mut Store, range: reads::Range) -> reads::Loaded {
     result
 }
 pub(super) fn equal(before: &reads::Loaded, after: &reads::Loaded) {
-    assert!(format!("{before:?}") == format!("{after:?}"), "read answers differ over map and log");
-}
-pub(super) fn same(store: &mut Store, tasks: &[u64], range: reads::Range) -> reads::Loaded {
-    let before = read(store, range.clone());
-    for &task in tasks {
-        move_history(store, task);
-    }
-    let after = read(store, range);
-    equal(&before, &after);
-    after
+    assert!(format!("{before:?}") == format!("{after:?}"), "read answers differ");
 }
 #[test]
 fn dropping_history_without_a_log_commits_harmlessly() {
@@ -169,19 +127,21 @@ fn got(store: &mut Store) -> Option<Record> {
     }
 }
 #[test]
-fn an_ended_get_and_its_terminal_read_match_the_map() {
+fn an_ended_get_and_its_terminal_read_come_from_the_log() {
     let mut store = child_store();
-    let before = got(&mut store);
-    let range = fixtures::read(ALICE, reads::Scope::Task { task: CHILD });
-    let page = read(&mut store, range.clone());
-    move_history(&mut store, CHILD);
-    assert_eq!(before, got(&mut store));
-    equal(&page, &read(&mut store, range));
+    assert_eq!(got(&mut store), Some(fixtures::ended_of(CHILD, tasks::Party::Person(ALICE))));
+    let reads::Loaded::Page { rows, next: None } =
+        read(&mut store, fixtures::read(ALICE, reads::Scope::Task { task: CHILD }))
+    else {
+        panic!("task page")
+    };
+    let [row] = rows.as_ref() else { panic!("one task") };
+    assert_eq!(row.value, fixtures::ended_of(CHILD, tasks::Party::Person(ALICE)));
+    assert_eq!(row.related, Some(fixtures::terminal(CHILD, 1)));
 }
 #[test]
 fn a_later_erase_hides_a_fetched_key_and_none_names_no_ended_record() {
     let mut store = child_store();
-    move_history(&mut store, CHILD);
     let key = keys::encode(&Key::Tasks(tasks::Key::Ended(CHILD)), store.limits.store.key).unwrap();
     append(&mut store, CHILD, Box::new([(key, None)]), false);
     assert_eq!(got(&mut store), None);
@@ -248,14 +208,10 @@ fn restart_census_joins_positions_results_and_question_lines_from_logs() {
             fixtures::save(fixtures::question_line(GRANDCHILD, 7, 5)),
         ]),
     );
-    let before = restored(&mut store);
-    assert_eq!(before.len(), 4);
-    for task in [CHILD, GOAL, GRANDCHILD] {
-        move_history(&mut store, task);
-    }
-    let after = restored(&mut store);
-    assert_eq!(before.len(), after.len());
-    assert_eq!(before, after);
+    let found = restored(&mut store);
+    assert_eq!(found.len(), 4);
+    assert!(found.contains(&fixtures::question_line(GRANDCHILD, 7, 5)));
+    assert!(found.contains(&fixtures::ended_of(GOAL, tasks::Party::Person(ALICE))));
 }
 #[test]
 fn fetch_bytes_cut_a_party_read_and_refuse_a_restart_page() {
@@ -264,7 +220,6 @@ fn fetch_bytes_cut_a_party_read_and_refuse_a_restart_page() {
         &mut store,
         Box::new([fixtures::header(2), fixtures::save(fixtures::question_line(CHILD, 7, 1))]),
     );
-    move_history(&mut store, CHILD);
     store.limits.fetch = 1;
     let range = fixtures::read(ALICE, reads::Scope::Task { task: CHILD });
     equal(&read(&mut store, range), &crate::reads::empty());
@@ -333,10 +288,6 @@ fn log_places_ids_extents_and_census_names_round_trip() {
     }
     assert_eq!(logs::extent_key(2).as_ref(), &[0, 9, 0, 0, 0, 0, 0, 0, 0, 2]);
     assert_eq!(crate::census::name(&logs::EXTENTS, crate::Keyspaces::NONE), "component.logs");
-}
-
-pub(super) fn page_signature(rows: &[reads::Row], next: Option<&reads::Position>) -> Box<str> {
-    format!("{rows:?} {next:?}").into_boxed_str()
 }
 
 mod disk;
@@ -426,5 +377,10 @@ fn ended_erasure_pages_find_logged_records_by_their_summaries() {
         ]),
     );
     store.limits.joins = 0;
-    same(&mut store, &[CHILD], fixtures::read(ALICE, reads::Scope::EndedTasks));
+    let reads::Loaded::Page { rows, next: None } = read(&mut store, fixtures::read(ALICE, reads::Scope::EndedTasks))
+    else {
+        panic!("ended page")
+    };
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].value, fixtures::ended_of(CHILD, tasks::Party::Person(ALICE)));
 }

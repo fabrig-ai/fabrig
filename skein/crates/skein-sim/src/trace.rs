@@ -261,7 +261,7 @@ impl Summary {
                 Summary::Spawn { root: spawn.root, program: Text::of(&spawn.program), pipes: spawn.pipes.len() }
             }
             Op::Wait { pidfd, reap } => Summary::Wait { pidfd: *pidfd, reap: *reap },
-            Op::Signal { pidfd, signal, to } => Summary::Signal {
+            Op::Signal { pidfd, signal, to, .. } => Summary::Signal {
                 pidfd: *pidfd,
                 to: *to,
                 signal: match signal {

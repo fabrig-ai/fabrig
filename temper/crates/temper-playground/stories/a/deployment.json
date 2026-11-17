@@ -111,7 +111,7 @@
         "core.policy_bytes": 8192,
         "core.resume_bytes": 998048,
         "core.run_bytes": 32768,
-        "core.templates": 6,
+        "core.templates": 7,
         "documents.chips": 1,
         "documents.lines": 12,
         "documents.rows": 2,

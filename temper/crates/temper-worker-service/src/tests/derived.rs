@@ -149,12 +149,12 @@ fn git_operations_follow_workspaces() {
 }
 #[test]
 fn output_carrier() {
-    use jig_protocol_worker_wire::{self as wire, v14};
+    use jig_protocol_worker_wire::{self as wire, v15};
     let mut worker = fixtures::worker_settings();
     worker.jig.limits = config::stock();
     let mut sources = STOCK;
-    let zero = v14::Limits { turn_body: 0, turn_refused: worker.jig.limits.core.tasks.run_inbox, ..wire::CEILINGS };
-    let overhead = u32::try_from(v14::Turn::encoded_bound(&zero).unwrap()).unwrap() + 8;
+    let zero = v15::Limits { turn_body: 0, turn_refused: worker.jig.limits.core.tasks.run_inbox, ..wire::CEILINGS };
+    let overhead = u32::try_from(v15::Turn::encoded_bound(&zero).unwrap()).unwrap() + 8;
     assert_eq!(overhead + 2 * STOCK.turn, 36_864_476);
     for turn in [STOCK.turn, wire::CEILINGS.assignment_transcript / 4 - 4] {
         sources.turn = turn;

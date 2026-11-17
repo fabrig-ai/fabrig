@@ -95,7 +95,10 @@ fn creating_executors(
     if core.projections.len() < limits.tasks.tasks {
         for kind in &role.authority.delegation.kinds {
             let authority::Executor::Procedure(procedure) = kind else { continue };
-            for &connector in &core.connectors {
+            for connector in core.connectors.iter().copied().chain(core::iter::once(crate::RECURRING)) {
+                if connector == crate::RECURRING && *procedure != crate::GATHERING {
+                    continue;
+                }
                 let executor = tasks::Executor::Procedure { connector, code: *procedure };
                 let supported = create_start(
                     core,
@@ -294,7 +297,9 @@ pub(crate) fn create_start(
         }
         tasks::Executor::Job { .. } | tasks::Executor::Person(_) => return Err(people::Refusal::NotOffered),
         tasks::Executor::Procedure { connector, code } => {
-            if code == 0 || !core.connectors.contains(&connector) {
+            if code == 0
+                || !(core.connectors.contains(&connector) || connector == crate::RECURRING && code == crate::GATHERING)
+            {
                 return Err(people::Refusal::NotOffered);
             }
             given.tools = authority::Tools(0);

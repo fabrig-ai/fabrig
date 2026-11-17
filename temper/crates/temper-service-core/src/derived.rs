@@ -69,12 +69,12 @@ pub fn call_answer(payload: u32, stock: u32) -> u32 {
 /// measured over the base's owners before any document override.
 #[must_use]
 pub fn output(limits: &Limits) -> Option<u32> {
-    use jig_protocol_worker_wire::{CEILINGS, sizes, v14};
+    use jig_protocol_worker_wire::{CEILINGS, sizes, v15};
     let own = crate::limits::stock();
     let payload = temper_protocol_worker_wire::limits(&checkout_bounds(&own.checkout, &own.peer))?;
     let sizes = worker_sizes(limits, limits.hub.slots, &payload, own.peer.forges)?;
     let bodies = sizes::limits(&sizes)?;
-    let mut room = u32::try_from(v14::Credential::encoded_bound(&bodies)?).ok()?.checked_add(22)?.max(270);
+    let mut room = u32::try_from(v15::Credential::encoded_bound(&bodies)?).ok()?.checked_add(22)?.max(270);
     for rule in jig_protocol_worker_wire::KINDS {
         // Assignments and job specs are fitted to the peer's room by the engine.
         if rule.body != jig_protocol_worker_wire::Kind::Assignment && rule.body != jig_protocol_worker_wire::Kind::Job {
@@ -293,10 +293,10 @@ pub fn checkout_payload(checkout: &crate::limits::Checkout) -> temper_protocol_w
 /// fields remain at their ceilings: they do not occur in an Answer.
 #[must_use]
 pub fn checkout_answer(jig: &Limits, payload: &temper_protocol_worker_wire::v1::Limits) -> Option<u64> {
-    use jig_protocol_worker_wire::{CEILINGS, v14};
+    use jig_protocol_worker_wire::{CEILINGS, v15};
     let saved = temper_protocol_worker_wire::v1::Saved::encoded_bound(payload)?;
     let ceiling = u64::from(CEILINGS.work_saved_some);
-    let limits = v14::Limits {
+    let limits = v15::Limits {
         work_left_some: u32::try_from(temper_protocol_worker_wire::v1::Left::encoded_bound(payload)?).ok()?,
         work_saved_some: u32::try_from(saved.min(ceiling)).ok()?,
         answer_refused: jig.core.tasks.run_inbox,
@@ -310,5 +310,5 @@ pub fn checkout_answer(jig: &Limits, payload: &temper_protocol_worker_wire::v1::
     // At the saved ceiling, the largest ending contains Work, not a refusal.
     // Any excess extends that same byte field; measure even a ceiling shortfall
     // so it cannot hide the rooms that must rise with it.
-    v14::Answer::encoded_bound(&limits)?.checked_add(saved.saturating_sub(ceiling))?.checked_add(8)
+    v15::Answer::encoded_bound(&limits)?.checked_add(saved.saturating_sub(ceiling))?.checked_add(8)
 }

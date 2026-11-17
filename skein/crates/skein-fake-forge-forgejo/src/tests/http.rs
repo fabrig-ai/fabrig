@@ -686,3 +686,99 @@ fn forgejo_fake_pull_size_reaches_both_dialect_reads() {
         assert_eq!(pull.head.sha, Some(crate::routes::object(head)));
     }
 }
+
+#[test]
+fn a_declared_heads_actions_routes_read_waiting_running_and_success() {
+    use skein_lib::Duration;
+    let checks = a::Checks {
+        contexts: Box::new([boxed(b"build")]),
+        cues: Box::new([]),
+        latency_min: Duration::from_secs(5),
+        latency_max: Duration::from_secs(5),
+        silent: 0,
+        passes: 0,
+        reruns: 0,
+        cue: Some(a::Cue::Declared { path: boxed(b"ci") }),
+    };
+    let mut h = Harness::with_checks(fixtures::config(), false, fixtures::fake_config(), checks);
+    let commit = skein_fake_forge_domain::commit(
+        &mut h.domain,
+        &h.fake_env.limits,
+        1,
+        Box::new([a::File { path: boxed(b"ci"), content: boxed(b"wait 40m run 5m pass") }]),
+        b"phases",
+    )
+    .unwrap()
+    .unwrap();
+    h.call(fixtures::PERSON, Op::Git(a::Git::Push { branch: boxed(b"work"), commit, expected: None })).unwrap();
+    for (seconds, status) in [(0, b"waiting".as_slice()), (2400, b"running".as_slice()), (2700, b"success".as_slice())]
+    {
+        h.fake_env.now = Time::from_nanos(Duration::from_secs(seconds).as_nanos());
+        for request in [
+            Request::Run { at: fixtures::at(), run: 1 },
+            Request::Jobs { at: fixtures::at(), run: 1 },
+            Request::Job { at: fixtures::at(), job: 1 },
+        ] {
+            h.send(&request);
+            assert_eq!(h.status(), 200);
+            let expected = bytes::concat(&[b"\"status\":\"", status, b"\""]);
+            assert!(bytes::find(&h.body(), &expected).is_some(), "at {seconds}: {:?}", h.body());
+        }
+        let body = h.body();
+        if seconds == 0 {
+            assert!(h.decoded(&Request::Job { at: fixtures::at(), job: 1 }).rows.is_empty());
+        } else if seconds == 2400 {
+            for step in [
+                b"{\"number\":0,\"name\":\"Set up job\",\"status\":\"success\"}".as_slice(),
+                b"{\"number\":1,\"name\":\"Run build\",\"status\":\"running\"}",
+            ] {
+                assert!(bytes::find(&body, step).is_some(), "{body:?}");
+            }
+        }
+    }
+}
+
+#[test]
+fn a_dispatched_blocked_run_uses_forgejos_blocked_state() {
+    use skein_lib::Duration;
+    let checks = a::Checks {
+        contexts: Box::new([]),
+        cues: Box::new([]),
+        latency_min: Duration::ZERO,
+        latency_max: Duration::ZERO,
+        silent: 0,
+        passes: 1000,
+        reruns: 0,
+        cue: None,
+    };
+    let names = [boxed(b"ci"), boxed(b"cd")];
+    let workflow = a::Workflow {
+        file: boxed(b"wf"),
+        jobs: Box::new(names.clone()),
+        latency_min: Duration::from_secs(5),
+        latency_max: Duration::from_secs(5),
+        silent: 0,
+        passes: 1000,
+        cue: None,
+        fails: Box::new([]),
+        flaky: Box::new([]),
+        report: None,
+        select: None,
+        requirements: Box::new([
+            a::JobRequirements { job: names[0].clone(), labels: Box::new([]), needs: Box::new([names[1].clone()]) },
+            a::JobRequirements { job: names[1].clone(), labels: Box::new([]), needs: Box::new([names[0].clone()]) },
+        ]),
+    };
+    let mut fake = fixtures::fake_config();
+    fake.limits.workflows = 1;
+    fake.limits.workflow_runs = 1;
+    let mut h = Harness::with_actions(fixtures::config(), false, fake, checks, Box::new([workflow]));
+    h.call(
+        fixtures::PERSON,
+        Op::Write(Write::Dispatch { workflow: boxed(b"wf"), branch: boxed(b"main"), inputs: Box::new([]) }),
+    )
+    .unwrap();
+    h.send(&Request::Run { at: fixtures::at(), run: 1 });
+    assert_eq!(h.status(), 200);
+    assert!(bytes::find(&h.body(), b"\"status\":\"blocked\"").is_some(), "{:?}", h.body());
+}

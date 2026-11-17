@@ -1,7 +1,7 @@
 //! Whole-task erasure reads (jig/docs/design/protocol/store/README.md, 6.1;
 //! jig/docs/design/protocol/store/README.md, 4.3, and jig/docs/design/protocol/store/loads.md, 3, and jig/docs/design/protocol/store/README.md, 6.1).
 use super::fixtures;
-use crate::{Event, Request, Store, Write, codec, keys};
+use crate::{Event, Request, Store, Write, keys};
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::{self as core, Record, reads};
 use jig_domain_people as people;
@@ -81,7 +81,10 @@ fn ended_store() -> Store {
     let mut store = fixtures::opened_with_budget(1_048_576);
     // Save out of order and include other families next to the ended records.
     for number in [8, 6, 7] {
-        save(&mut store, fixtures::ended_task(number));
+        let record = fixtures::ended_task(number);
+        let Record::Tasks(tasks::Stored::Ended(owner)) = &record else { panic!("ended") };
+        save(&mut store, Record::Tasks(tasks::Stored::Summary(Box::new(tasks::TaskSummary::of(owner)))));
+        save(&mut store, record);
     }
     save(&mut store, fixtures::live_task(5));
     save(&mut store, fixtures::history(TASK, 1));
@@ -106,21 +109,10 @@ fn ended_tasks_continue_from_a_cut_page() {
     assert!(next.is_none());
     let first = rows.first().expect("ended rows");
     let decoded_bytes = row_bytes(first);
-    let record = &first.value;
-    let encoded_bytes = keys::encode(&record.key(), fixtures::KEY_LIMIT)
-        .expect("key")
-        .len()
-        .checked_add(codec::encode(record, &store.codec_limits, &store.names).expect("value").len())
-        .expect("encoded row size");
-    for (row_bound, byte_bound, encoded_bound) in [
-        (1, range.bytes, store.limits.store.page.bytes),
-        (range.rows, decoded_bytes, store.limits.store.page.bytes),
-        (range.rows, range.bytes, u32::try_from(encoded_bytes).expect("encoded page bound")),
-    ] {
+    for (row_bound, byte_bound) in [(1, range.bytes), (range.rows, decoded_bytes)] {
         let mut cut = range.clone();
         cut.rows = row_bound;
         cut.bytes = byte_bound;
-        store.limits.store.page.bytes = encoded_bound;
         let (page, next) = load(&mut store, cut.clone());
         assert_eq!(page.len(), 1);
         assert_eq!(next, Some(reads::Position::Owner(fixtures::ended_task(6).key())));
@@ -174,13 +166,9 @@ fn task_rows_name_only_their_task() {
     let mut store = task_store();
     let mut range = fixtures::read(fixtures::ALICE, reads::Scope::TaskRows { task: TASK });
     range.rows = PAGE_ROWS;
-    let before = all(&mut store, range.clone());
+    assert_eq!(all(&mut store, range), task_rows(TASK));
     let own = fixtures::read(fixtures::ALICE, reads::Scope::TaskOwnRows { task: TASK });
-    let own_before = all(&mut store, own.clone());
-    super::history_logs::move_history(&mut store, TASK);
-    assert_eq!(before, all(&mut store, range));
-    assert_eq!(own_before, all(&mut store, own));
-    assert_eq!(before, task_rows(TASK));
+    assert_eq!(all(&mut store, own), task_rows(TASK));
 }
 
 #[test]
@@ -260,24 +248,10 @@ fn task_rows_continue_across_families_after_byte_cuts() {
     let (rows, next) = load(&mut store, range.clone());
     assert!(next.is_none());
     let mut decoded_bound = 0;
-    let mut encoded_bound = 0;
     for row in rows {
         decoded_bound = decoded_bound.max(row_bytes(&row));
-        let record = &row.value;
-        let bytes = keys::encode(&record.key(), fixtures::KEY_LIMIT)
-            .expect("key")
-            .len()
-            .checked_add(codec::encode(record, &store.codec_limits, &store.names).expect("value").len())
-            .expect("encoded row size");
-        encoded_bound = encoded_bound.max(u32::try_from(bytes).expect("encoded page bound"));
     }
     range.bytes = decoded_bound;
-    let (first, next) = load(&mut store, range.clone());
-    assert!(!first.is_empty());
-    assert!(next.is_some());
-    assert_eq!(all(&mut store, range.clone()), task_rows(TASK));
-    range.bytes = 65_536;
-    store.limits.store.page.bytes = encoded_bound;
     let (first, next) = load(&mut store, range.clone());
     assert!(!first.is_empty());
     assert!(next.is_some());
