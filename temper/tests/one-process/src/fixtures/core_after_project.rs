@@ -94,34 +94,65 @@ impl Harness for Incident {
     }
 }
 
-thread_local! { static PARAMETERS: RefCell<Option<programs::Parameters>> = const { RefCell::new(None) }; }
+// Only immutable inputs cross the stop: each open, provider and client starts fresh.
+struct Inputs {
+    deployment: Box<[u8]>,
+    given: temper_service::stock::Given,
+    codec: jig_protocol_store::codec::View,
+    families: temper_protocol_store::Bounds,
+    agent: temper_service::settings::Agent,
+    llm: temper_fake::llm::Document,
+}
+impl Inputs {
+    fn new() -> Self {
+        let mut document: Value = serde_json::from_slice(&fixtures::document()).expect("deployment JSON");
+        Incident::configure(&mut document);
+        let given = Incident::given(&document);
+        let parsed = temper_playground::documents::settings::configuration(&document);
+        let codec = jig_protocol_store::codec::limits(&parsed.limits.core).expect("incident record bounds");
+        let families = temper_protocol_store::bounds(
+            &temper_service::limits::profile(temper_service::limits::Profile::Small).forge,
+            parsed.limits.core.tasks.spec_bytes,
+        )
+        .expect("incident forge bounds");
+        temper_playground::documents::settings::strip_models(&mut document);
+        document.as_object_mut().expect("deployment object").remove("world_settings");
+        let mut agent = temper_playground::documents::agent();
+        agent.programs = Box::new([temper_service::settings::Program {
+            adapter: temper_service::settings::Adapter::ClaudeCode,
+            path: b"/usr/bin/claude".as_slice().into(),
+            directory: b"/worker/programs".as_slice().into(),
+        }]);
+        Self {
+            deployment: serde_json::to_vec(&document).expect("deployment bytes").into(),
+            given,
+            codec,
+            families,
+            agent,
+            llm: provider_document(),
+        }
+    }
+    fn provider(&self) -> skein_fake_peers::llm::Peer {
+        let configuration = temper_fake::llm::configuration(&self.llm, fixtures::LLM_TOKEN, 17);
+        if crate::across_versions::active() {
+            temper_fake::llm::recording_peer(configuration).expect("recorded provider")
+        } else {
+            temper_fake::llm::peer(configuration).expect("provider")
+        }
+    }
+}
+thread_local! {
+    static CONTEXT: RefCell<Option<(programs::Parameters, Rc<Inputs>)>> = const { RefCell::new(None) };
+}
 fn service(inherited: &skein_world::Inherited) -> Proc {
-    let parameters = PARAMETERS.with(|parameters| parameters.borrow().as_ref().expect("incident parameters").clone());
+    let (parameters, inputs) = CONTEXT.with(|at| at.borrow().as_ref().expect("incident context").clone());
     let root = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"state").expect("state root").1;
     let worker = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"worker").expect("worker root").1;
-    let mut document: Value = serde_json::from_slice(&parameters.deployment).expect("deployment JSON");
-    Incident::configure(&mut document);
-    let given = Incident::given(&document);
-    let parsed = temper_playground::documents::settings::configuration(&document);
-    let codec = jig_protocol_store::codec::limits(&parsed.limits.core).expect("incident record bounds");
-    let families = temper_protocol_store::bounds(
-        &temper_service::limits::profile(temper_service::limits::Profile::Small).forge,
-        parsed.limits.core.tasks.spec_bytes,
-    )
-    .expect("incident forge bounds");
-    temper_playground::documents::settings::strip_models(&mut document);
-    document.as_object_mut().expect("deployment object").remove("world_settings");
-    let mut agent = temper_playground::documents::agent();
-    agent.programs = Box::new([temper_service::settings::Program {
-        adapter: temper_service::settings::Adapter::ClaudeCode,
-        path: b"/usr/bin/claude".as_slice().into(),
-        directory: b"/worker/programs".as_slice().into(),
-    }]);
     let mut service = temper_service::startup::with_setup_given(
-        &serde_json::to_vec(&document).expect("deployment bytes"),
+        &inputs.deployment,
         &jig_protocol_config::Directories::working(),
         &Incident::files(),
-        Some(&agent),
+        Some(&inputs.agent),
         &Incident::seeds(parameters.seed),
         None,
         Some(temper_service::WorkerRuntime {
@@ -134,20 +165,21 @@ fn service(inherited: &skein_world::Inherited) -> Proc {
         None,
         None,
         None,
-        &given,
+        &inputs.given,
         Box::new([]),
     )
     .unwrap_or_else(|problems| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&problems))));
     let parent =
         inherited.roots.iter().find(|(name, _)| name.as_ref() == b"programs_parent").expect("programs parent").1;
-    let resources = temper_service::program_sources::configured(&agent.programs[0], Box::new([]), 1000, Some(parent))
-        .expect("synthetic program resources");
+    let resources =
+        temper_service::program_sources::configured(&inputs.agent.programs[0], Box::new([]), 1000, Some(parent))
+            .expect("synthetic program resources");
     service.configure_program_sources(resources).expect("worker program source");
     service.adopt_store(root, 1000).expect("same service store");
     service.adopt_signals(inherited.signal).expect("service signal");
     Proc::Service(Box::new(ServiceHost::new(
         service,
-        ServiceObserver::started(root, inherited).with_codec(&codec, &families),
+        ServiceObserver::started(root, inherited).with_codec(&inputs.codec, &inputs.families),
         parameters,
     )))
 }
@@ -155,7 +187,7 @@ fn service(inherited: &skein_world::Inherited) -> Proc {
 fn call(name: &str, arguments: &Value) -> Value {
     json!({"lines":[{"call":name,"arguments":arguments}],"finish":"tool_calls","tokens":1})
 }
-fn provider() -> skein_fake_peers::llm::Peer {
+fn provider_document() -> temper_fake::llm::Document {
     let mut value: Value = serde_json::from_slice(temper_playground::stories::A.llm).expect("fixture provider");
     value["cued"] = json!([
         {"cue":"@incident-goal","turns":[
@@ -176,14 +208,7 @@ fn provider() -> skein_fake_peers::llm::Peer {
     value["asked"] = json!([]);
     value["otherwise"] = json!([call("finish", &json!({"form":"report","text":"Done","fields":{}}))]);
     value["pace"]["reply_ms"] = 0.into();
-    let document = temper_fake::llm::Document::decode(&serde_json::to_vec(&value).expect("provider bytes"))
-        .expect("provider document");
-    let configuration = temper_fake::llm::configuration(&document, fixtures::LLM_TOKEN, 17);
-    if crate::across_versions::active() {
-        temper_fake::llm::recording_peer(configuration).expect("recorded provider")
-    } else {
-        temper_fake::llm::peer(configuration).expect("provider")
-    }
+    temper_fake::llm::Document::decode(&serde_json::to_vec(&value).expect("provider bytes")).expect("provider document")
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -373,13 +398,18 @@ impl Judge {
         let Proc::Other(HarnessProcess::Calls(caller)) = &mut callers[0] else {
             return Err(String::from("caller second"));
         };
-        let (people, rest) = rest.split_at_mut(1);
-        let Proc::Other(HarnessProcess::Client(person)) = &mut people[0] else {
-            return Err(String::from("native person third"));
-        };
-        let (fresh_callers, peers) = rest.split_at_mut(1);
-        let Proc::Other(HarnessProcess::Calls(fresh)) = &mut fresh_callers[0] else {
-            return Err(String::from("fresh caller fourth"));
+        let (mut person, mut fresh, peers) = if crate::across_versions::active() {
+            (None, None, rest)
+        } else {
+            let (people, rest) = rest.split_at_mut(1);
+            let Proc::Other(HarnessProcess::Client(person)) = &mut people[0] else {
+                return Err(String::from("native person third"));
+            };
+            let (fresh_callers, peers) = rest.split_at_mut(1);
+            let Proc::Other(HarnessProcess::Calls(fresh)) = &mut fresh_callers[0] else {
+                return Err(String::from("fresh caller fourth"));
+            };
+            (Some(person), Some(fresh), peers)
         };
         if !self.handed
             && let Some(link) = service.service.links().pop()
@@ -591,6 +621,7 @@ impl Judge {
                     self.calls(caller);
                 }
                 Stage::Calls => {
+                    let fresh = fresh.as_mut().ok_or_else(|| String::from("incident fresh caller"))?;
                     let domain = service.service.engine_domain().ok_or_else(|| String::from("engine root"))?;
                     if !(domain.ready()) {
                         return Err(String::from("root ready after answering the calls"));
@@ -610,6 +641,8 @@ impl Judge {
                     self.stage = Stage::Native;
                 }
                 Stage::Native => {
+                    let fresh = fresh.as_mut().ok_or_else(|| String::from("incident fresh caller"))?;
+                    let person = person.as_mut().ok_or_else(|| String::from("incident native person"))?;
                     if !fresh.answers.is_empty() && self.fresh_at == 0 {
                         if self.warm {
                             self.fresh_at = 1;
@@ -676,11 +709,12 @@ impl Judge {
         }
         if self.stage == Stage::Done && !self.stopping {
             caller.closed = true;
-            fresh.closed = true;
-            if crate::across_versions::active() {
-                person.saved();
+            if let Some(fresh) = fresh {
+                fresh.closed = true;
             }
-            person.finish();
+            if let Some(person) = person {
+                person.finish();
+            }
             self.controls.signal(0, ServiceSignal::Terminate);
             for proc in peers {
                 match proc {
@@ -745,18 +779,26 @@ fn phase(
     mut disk: skein_fake_machine::Machine,
     store: Rc<RefCell<Store>>,
     transport: &temper_fake_git_hosted::Typed,
+    inputs: &Rc<Inputs>,
 ) -> (skein_fake_machine::Machine, Outcome) {
     world::lower_store(Some(store.clone()));
     if warm {
         store.borrow_mut().recovering();
     }
     let caller = disk.reopen_root(2);
-    let native = disk.reopen_root(2);
-    let fresh = disk.reopen_root(2);
+    // The bridged goal reads only the scripted caller, not the incident's two later clients.
+    let clients = (!crate::across_versions::active()).then(|| (disk.reopen_root(2), disk.reopen_root(2)));
     let machine = Machine::new(disk);
     let seen = Rc::new(RefCell::new(Outcome::default()));
-    let parameters = world::parameters(&machine, transport.clone());
-    PARAMETERS.with(|at| *at.borrow_mut() = Some(parameters.clone()));
+    let parameters = programs::Parameters {
+        deployment: inputs.deployment.clone(),
+        seed: fixtures::SEED,
+        links: temper_playground::Links::Keep,
+        forge: transport.clone(),
+        route: None,
+        disk: machine.0.clone(),
+    };
+    CONTEXT.with(|at| *at.borrow_mut() = Some((parameters.clone(), inputs.clone())));
     let outcome = programs::with(parameters, || {
         let mut simulation = skein_world::World::new_controlled(
             fixtures::SEED,
@@ -819,34 +861,36 @@ fn phase(
         simulation.spawn_root(skein_sim::Handle::new(caller.raw()), |root| {
             Proc::Other(HarnessProcess::Calls(Box::new(Caller::scripted(root))))
         });
-        simulation.spawn_root(skein_sim::Handle::new(native.raw()), |root| {
-            let steps = vec![
-                skein_fake_person::Step::Go { address: temper_client_domain::Address::Home { project: 3 } },
-                skein_fake_person::Step::See {
-                    find: skein_fake_person::Find::text(PROJECT.as_bytes()),
-                    within: fixtures::PERSON_WAIT,
-                },
-            ];
-            Proc::Other(HarnessProcess::Client(Box::new(SignalHost::new(Person::pages(root, steps.into()), None))))
-        });
-        simulation.spawn_root(skein_sim::Handle::new(fresh.raw()), |root| {
-            Proc::Other(HarnessProcess::Calls(Box::new(Caller::at_directory(
-                root,
-                if warm { b"/client/restarted-private" } else { b"/client/fresh-private" },
-            ))))
-        });
+        if let Some((native, fresh)) = clients {
+            simulation.spawn_root(skein_sim::Handle::new(native.raw()), |root| {
+                let steps = vec![
+                    skein_fake_person::Step::Go { address: temper_client_domain::Address::Home { project: 3 } },
+                    skein_fake_person::Step::See {
+                        find: skein_fake_person::Find::text(PROJECT.as_bytes()),
+                        within: fixtures::PERSON_WAIT,
+                    },
+                ];
+                Proc::Other(HarnessProcess::Client(Box::new(SignalHost::new(Person::pages(root, steps.into()), None))))
+            });
+            simulation.spawn_root(skein_sim::Handle::new(fresh.raw()), |root| {
+                Proc::Other(HarnessProcess::Calls(Box::new(Caller::at_directory(
+                    root,
+                    if warm { b"/client/restarted-private" } else { b"/client/fresh-private" },
+                ))))
+            });
+        }
         simulation.spawn(|| {
             Proc::Forge(Box::new(SignalHost::new(
                 temper_playground::fakes::forge_peer(transport, fixtures::SEED),
                 None,
             )))
         });
-        simulation.spawn(|| Proc::Peer(Box::new(SignalHost::new(provider(), None))));
+        simulation.spawn(|| Proc::Peer(Box::new(SignalHost::new(inputs.provider(), None))));
         simulation.run()
     });
     assert!(outcome.procs.iter().all(Host::is_empty), "incident world drains every process");
     world::lower_store(None);
-    PARAMETERS.with(|at| *at.borrow_mut() = None);
+    CONTEXT.with(|at| *at.borrow_mut() = None);
     let disk = std::mem::replace(&mut *outcome.machine.0.borrow_mut(), temper_playground::machine::fresh());
     (disk, Rc::try_unwrap(seen).expect("released referee").into_inner())
 }
@@ -869,8 +913,9 @@ fn run_sequence(whole: bool, legacy: bool) -> [Outcome; 2] {
     let store = Rc::new(RefCell::new(Store::new()));
     let mut disk = temper_playground::machine::fresh();
     temper_playground::machine::setup(&mut disk);
-    let (disk, before) = phase(false, whole, legacy, disk, store.clone(), &transport);
-    let (_, after) = phase(true, whole, false, disk, store, &transport);
+    let inputs = Rc::new(Inputs::new());
+    let (disk, before) = phase(false, whole, legacy, disk, store.clone(), &transport, &inputs);
+    let (_, after) = phase(true, whole, false, disk, store, &transport, &inputs);
     [before, after]
 }
 
@@ -882,7 +927,8 @@ pub(crate) fn bridged_goal() {
     let store = Rc::new(RefCell::new(Store::new()));
     let mut disk = temper_playground::machine::fresh();
     temper_playground::machine::setup(&mut disk);
-    phase(false, true, false, disk, store, &transport);
+    let inputs = Rc::new(Inputs::new());
+    phase(false, true, false, disk, store, &transport, &inputs);
 }
 
 fn bridged_readback(procs: &[Proc]) -> Result<(), String> {

@@ -151,9 +151,9 @@ impl engine::Engine {
         self.store.build_name(name);
     }
     /// Test seam: replace this service's patch sets before `adopt_store`
-    /// (protocol/baseline.md, 4). Production keeps the binary's sets.
-    pub fn patch_sets(&mut self, sets: jig_protocol_store::PatchSets) {
-        self.store.patch_sets(sets);
+    /// (protocol/floor.md, 3). Production keeps the binary's sets.
+    pub fn owner_sets(&mut self, sets: jig_protocol_store::OwnerSets) {
+        self.store.owner_sets(sets);
     }
     /// Rehearse the configured restart over a copy, without adopting a worker or listeners.
     pub fn rehearse_store(&mut self, directory: Fd, scratch: Fd, user: u32) -> Result<(), Fd> {

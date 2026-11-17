@@ -774,8 +774,7 @@ record OpenAttempt { attempt: u64 claimed: option u64 started: option u64 from: 
   that change's position less `from`; and `open_attempt` clears. An
   attempt costs three puts of one row.
 - **A task restored** whose phase names an attempt its record keeps no
-  `open_attempt` for (one claimed before the upgrade that folded its
-  milestones, 12.4) takes `open_attempt { attempt, claimed: none,
+  `open_attempt` for takes `open_attempt { attempt, claimed: none,
   started: none, from: 0, end: none }`; at its close its row is put
   whole with what it knows, `claimed`, `started` and `phases` none.
 
@@ -812,49 +811,20 @@ record HoldRow { task: u64 position: u64 held: Held at: u64 }
   identity `{ task, position }` with its held phase; and a task's end,
   as its ended record is saved, as `{ task, position }` its record's
   `milestone`, with its ended phase. Attempts are not fed. The
-  identities are those the milestones of the same phase changes had, so
-  what a projection has already written of a task is not written again.
+  identities are stable phase-change positions, so what a projection
+  has already written of a task is not written again.
 - **A task's erasure** erases its attempts and holds with its other
   rows.
 
-### 12.4 From milestones
+### 12.4 Stores at the floor
 
-Every store at or past dev.fabrig.ai's has run the job this section
-describes, so since store-floor's F0 (temper's `draft/store-floor.md`,
-section 2) the tasks' milestone variant is gone from the schema, its
-value type is retired with its range (`../../protocol/store/layouts.md`,
-2), and the job is no longer declared: a store that still holds a
-milestone is refused at open. What it did:
+No store this build opens holds milestone rows. The tasks family's
+`Row` has no milestone variant, no value type declares one, and the
+range `[01 01 0a, 01 01 0b)` lies outside the family's keys. Its value
+type's number is never given again (`../../protocol/store/layouts.md`,
+2). Attempts and holds are the records of 12.1 and 12.2; projections
+use 12.3's identities.
 
-A store written before this design holds a row per phase change,
-`Milestone { task, position, phase, at }` at `01 01 0a <task>
-<position>`. jig's job at open `milestones`
-(`../../protocol/store/jobs.md`, 1) folds them into attempts and holds
-and erases them, so that no milestone is left once it is done:
-
-- **Its range** is `[01 01 0a, 01 01 0b)`; each task's milestones are
-  contiguous, in position order.
-- **Each held milestone** is a hold row at its position, its held phase
-  and its `at`.
-- **Attempts** follow 12.1's rules over the milestones in order: an
-  attempt opens at the first milestone naming it, `claimed` its `at`;
-  starts at its first running milestone; closes at the first milestone
-  after it that no longer names it, `ended` that milestone's `at` and
-  `phases` the milestones between. `end` is none: the kind of a run's
-  end before the fold is its activity's `RunEnded` line. An attempt the
-  task's last milestone still names is put open, with no end.
-- **Its answer** erases every milestone it consumed and puts the rows
-  they fold into, within the page's room (`../../protocol/store/jobs.md`,
-  3). It consumes whole tasks, leaving the page's last task to the next
-  page; a task longer than the room is cut after a milestone that names
-  no attempt, so that no attempt spans two pages; failing that, it
-  consumes what fits, and an attempt so cut is put again by the next
-  page from what that page holds.
-- **Nothing else moves:** the activity's lines and the tasks' records
-  keep their positions, which now name the hold rows, and the projections'
-  identities stay as they were.
-- **The `milestone` variant stays** in the tasks family's `Row` and its
-  value type stays declared, holding no value once the job is done: the
-  live and ended tasks' value types are the `Row` whole, whose stored
-  layouts a dropped variant would leave with no derived plan (skein's
-  `data/codec/layouts.md`, 2). No binary writes one.
+No job converts milestones at open. A store without the floor, below
+it or behind the build's levels is refused, naming `FLOOR_BRIDGE`
+(`../../protocol/store/opening.md`, 1.8); this build upgrades none of it.

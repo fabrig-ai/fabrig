@@ -109,6 +109,7 @@ impl Component {
             State::Started(mut active) => {
                 match kind {
                     kind::MESSAGE => self.message(body, to_service)?,
+                    kind::RENEWALS => self.renewals(body, to_service)?,
                     kind::CANCEL => cancel(&mut active.cancellation, body, &self.bodies, to_service)?,
                     kind::DRAIN => drain(&mut active.cancellation, body, &self.bodies, to_service)?,
                     _ => return Err(Broken),
@@ -118,6 +119,7 @@ impl Component {
             State::Admitted(mut active) => {
                 match kind {
                     kind::MESSAGE => self.message(body, to_service)?,
+                    kind::RENEWALS => self.renewals(body, to_service)?,
                     kind::HOST_ANSWER => self.host_answer(body, to_service)?,
                     kind::ACKNOWLEDGE => acknowledge(&mut active.turns, body, &self.bodies, to_service)?,
                     kind::GRANT_REFRESH => self.refresh(body, to_service)?,
@@ -175,6 +177,12 @@ impl Component {
         Ok(State::Started(active))
     }
 
+    fn renewals(&self, body: &[u8], to_service: &mut Queue<Heard>) -> Result<(), Broken> {
+        let record = smith_channel::Renewals::decode(&self.bodies, &mut Reader::new(body)).or(Err(Broken))?;
+        to_service.push(Heard::Event { event: Box::new(smith_domain::Event::Renewals { held: record.held() }) });
+        Ok(())
+    }
+
     fn message(&self, body: &[u8], to_service: &mut Queue<Heard>) -> Result<(), Broken> {
         let message = smith_channel::Message::decode(&self.bodies, &mut Reader::new(body)).or(Err(Broken))?;
         to_service.push(Heard::Message {
@@ -204,6 +212,7 @@ impl Component {
                 | smith_channel::Reply::Busy
                 | smith_channel::Reply::Unavailable
                 | smith_channel::Reply::Withdrawn
+                | smith_channel::Reply::Unsent
                 | smith_channel::Reply::TooLarge => return Err(Broken),
             },
         }
@@ -213,6 +222,12 @@ impl Component {
     fn refresh(&mut self, body: &[u8], to_service: &mut Queue<Heard>) -> Result<(), Broken> {
         let refresh = smith_channel::GrantRefresh::decode(&self.bodies, &mut Reader::new(body)).or(Err(Broken))?;
         let grant = refresh.grant();
+        if self.credentials.value(grant.account(), grant.generation()).is_some() {
+            to_service.push(Heard::Event {
+                event: Box::new(smith_domain::Event::Grant { grant: smith_protocol_translate::refreshed_grant(grant) }),
+            });
+            return Ok(());
+        }
         let value = crate::GrantValue::from_wire(grant.value()).or(Err(Broken))?;
         self.credentials.keep(grant.account(), grant.generation(), value).or(Err(Broken))?;
         to_service.push(Heard::Grant { grant: smith_protocol_translate::refreshed_grant(grant) });

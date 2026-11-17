@@ -202,7 +202,8 @@ document says what temper adds. What is open is listed in `README.md`, section 9
 - **Templates are jig's two defaults,** chat (template 1, label 1) and
   goal (template 2, label 2), as jig's `protocol/configuration.md`,
   3.1 gives them, the chat's executor the charter chats run under;
-  temper defines no template of its own. One flag departs from jig's
+  temper's own, templates 4 to 8, are the stock's (`stock.md`), template
+  8 a milestone's (`../../domain/milestones.md`, section 2). One flag departs from jig's
   defaults: the chat is ended by its requester, `"ended_by":
   "requester"` (jig's `protocol/configuration.md`, 3.2), so that a chat
   stays open past its run's turn until its person closes it
@@ -298,11 +299,23 @@ long a worker keeps hosting its runs with no engine that has admitted
 its hello (jig's `domain/hosts/hub.md`, 6; `../../domain/worker/README.md`, section
 2). `temper-box init` writes 300,000, five minutes
 (`../../draft/redeploys.md`, 5.3), so that an engine's restart (its
-settled stop, the swap, its store's patching, its switch, its listeners
+settled stop, the swap, its store's registry commit and jobs, its switch, its listeners
 again) passes within it and each run is adopted where it stands; a
 deployment whose engine takes longer to start raises it, and the
 engine's grace with it (below). The playground's worker document
 writes the same.
+
+**The restart wait** is jig's engine override `fleet.restart_wait_ms`
+(jig's `domain/engine/fleet.md`, *A restart said holds its runs*): how
+long the engine's settled stop asks its workers to keep their runs after
+their links drop, 1,200,000, twenty minutes, in both of jig's profiles
+(`../../draft/redeploys.md`, 5.3 and 12), with room over every engine
+restart measured so far. `temper-box init` writes none. One setting
+serves every worker, each of which keeps its runs for the longer of it
+and its own grace (`../../domain/worker/README.md`, section 2); the
+engine holds their claims as long at its next start. It bounds a lost
+link, not a stop, so the worker's stop bound and its service manager's
+stop timeout are unchanged.
 
 - **The drain's bound** is jig's worker member `graces.drain_ms`: how
   long a worker told to stop lets its runs end their turns before it
@@ -775,8 +788,8 @@ one owned Forgejo's place, with its own values (../setup/init.md, 1).
 - **A repository renamed or moved after adoption.** Default: its
   resource path, which landing patterns match, and its remote keep the
   owner and name of its adoption; Forgejo redirects the old path, and
-  git follows the redirect (skein's conformance, `skein/docs/design/testing/fakes/forge.md`,
-  section 7: `moved-repository-is-a-redirect`;
+  git follows the redirect (skein's conformance, `skein/docs/design/testing/fakes/throwaway.md`,
+  section 2: `moved-repository-is-a-redirect`;
   `crates/temper-git-transcripts-tool/facts.txt`,
   `git-follows-a-renamed-repository-redirect`).
 - Profiles' numbers: `limits.md`, section 1.

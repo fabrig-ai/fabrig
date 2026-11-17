@@ -130,6 +130,8 @@ pub struct Start {
 /// one host answer; each lower terminal echoes the owner of its pending request.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
+    /// The host cannot renew grants, or can again (domain/session.md, 4).
+    Renewals { held: bool },
     /// Terminal for one host relay attempt; old callbacks are inert.
     HostReturned {
         /// Live attempt identity, distinct from durable operation scope.
@@ -313,6 +315,8 @@ pub enum Operation {
     Completion,
     /// The root reports an issued session command; its IO terminal ends this span.
     Command,
+    /// A completion awaits a renewable grant; its next grant or close ends this span.
+    Grant,
 }
 
 /// Provider and machine terminals returned to the root or its inline owner.

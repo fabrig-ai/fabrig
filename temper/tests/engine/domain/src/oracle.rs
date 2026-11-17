@@ -331,6 +331,7 @@ impl Driver {
             | Delivery::PublicWait { .. }
             | Delivery::Document { .. }
             | Delivery::WatchEnded { .. }
+            | Delivery::Restarting { .. }
             | Delivery::Drained
             | Delivery::Refuse { .. }
             | Delivery::TurnBusy { .. }

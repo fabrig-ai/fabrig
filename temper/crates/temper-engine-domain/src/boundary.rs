@@ -820,6 +820,10 @@ pub const TRIALS_SUBJECT: u64 = temper_engine_domain_trials::TRIALS_SUBJECT;
 /// Forge reads through party authorization (temper/docs/design/client/forge/records.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeRead {
+    Milestone {
+        project: u32,
+        task: u64,
+    },
     History(forge::history::Query),
     Finding {
         project: u32,
@@ -851,6 +855,7 @@ pub enum ForgeRead {
 /// Typed forge read answers, encoded at the clients' boundary.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeReadAnswer {
+    Milestone(Option<forge::MilestoneTotals>),
     History(forge::history::Reply),
     Finding(Option<forge::FindingAnswer>),
     View(Box<temper_engine_domain_ways::View>),
@@ -1116,6 +1121,10 @@ pub enum Request {
     /// A forge input the drain does not decide, returned to its owner (jig's
     /// `domain/engine/restart.md`, 1).
     Busy(Box<forge::Event>),
+    /// Tell workers after the word is durable and before closing their links (domain/root.md, 8.2).
+    Restarting {
+        wait: skein_lib::Duration,
+    },
     /// Every commit before the drain is durable (jig's `domain/engine/restart.md`, 1).
     Drained,
     Stop,
@@ -1378,6 +1387,7 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
         | Delivery::SourceSignedOut { .. }
         | Delivery::Result { .. }) => Request::Party(PartyRequest::Deliver(delivery)),
         Delivery::ReadLoad { load, range } => Request::Store(StoreRequest::Read { load, range }),
+        Delivery::Restarting { wait } => Request::Restarting { wait },
         Delivery::Drained => Request::Drained,
         Delivery::Bound { request, answer } => Request::Bound { request, answer },
         Delivery::ForgeCall { call, repository, op } => Request::Forge { call, repository, op },

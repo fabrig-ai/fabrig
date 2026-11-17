@@ -74,7 +74,10 @@ fn generated() -> (engine::Config, engine::Limits) {
         demo: parsed.application.demo,
         welcome: false,
         program_environment: Box::new([]),
-        host_part: None,
+        host_part: temper_engine_domain::room::HostPart {
+            allowance: u64::MAX,
+            ..temper_engine_domain::room::HostPart::EMPTY
+        },
         ways_stock: crate::stock::ways(),
         kinds: Box::default(),
         period_span: crate::stock::PERIOD_SPAN,
@@ -91,7 +94,10 @@ fn generated() -> (engine::Config, engine::Limits) {
     let forges = Box::new([]);
     (
         engine::Config {
-            host_part: None,
+            host_part: temper_engine_domain::room::HostPart {
+                allowance: u64::MAX,
+                ..temper_engine_domain::room::HostPart::EMPTY
+            },
             kinds_stock: crate::stock::forge(&limits),
             ways_stock: Box::default(),
             machine: Some(crate::system::machine_config(&settings.machine)),
@@ -214,7 +220,10 @@ fn a_fresh_box_me_lists_the_stock_charters_at_fabrig_scale() {
     let project = frame.projects.iter().find(|project| project.project == 1).expect("first made project");
     let offered = project.creating.as_ref().expect("owner may start a chat");
     let core::acts::Bounds::Create { procedures, charters, .. } = &offered.within else { panic!("create bounds") };
-    assert_eq!(procedures.iter().map(|procedure| procedure.code).collect::<Vec<_>>(), [2, 3, 4, 6]);
+    assert_eq!(
+        procedures.iter().map(|procedure| (procedure.connector, procedure.code)).collect::<Vec<_>>(),
+        [(1, 2), (core::RECURRING, core::GATHERING), (1, 3), (1, 4), (1, 6)]
+    );
     assert_eq!(charters.as_slice(), &[1, 2, 4, 5, 9, 11, 12, 13, 14, 15, 16]);
     let charters = charters.as_slice().to_vec();
     for (number, (turns, seconds)) in charters.into_iter().zip([

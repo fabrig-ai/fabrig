@@ -1035,9 +1035,18 @@ impl Referee {
                 jig_test_domain::Record::Core(_) | jig_test_domain::Record::Connector { .. } => None,
             })
             .max();
+        // A compaction can reopen the activation before its parked terminal is observed.
+        // Send a person's wake only if that task is still idle.
         if matches!(self.story, crate::stories::Story::Window | crate::stories::Story::InvalidTranscript)
             && (!matches!(self.story, crate::stories::Story::InvalidTranscript) || self.resumed_attempt == 0)
             && parked.is_some_and(|at| at > self.resumed_attempt)
+            && (!matches!(self.story, crate::stories::Story::Window)
+                || self.store.borrow().rows.values().any(|row| {
+                    matches!(row,
+                jig_test_domain::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Live(task)))
+                if task.phase == jig_domain_tasks::Phase::Active(jig_domain_tasks::Active::Idle)
+                    && Some(task.attempt) == parked)
+                }))
             && self.party.quiescent()
         {
             self.injected = true;

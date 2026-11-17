@@ -31,7 +31,7 @@ pub enum Output {
 pub enum Signal {
     /// Polite tree-wide termination.
     Terminate,
-    /// Final tree-wide kill.
+    /// Final tree-wide kill, only once a terminate's grace has passed (domain/host.md, 4).
     Kill,
 }
 

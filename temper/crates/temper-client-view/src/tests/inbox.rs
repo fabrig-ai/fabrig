@@ -705,6 +705,17 @@ fn the_project_filter_row_appears_only_for_two_or_more_projects() {
 }
 
 #[test]
+fn goal_menu_names_a_read_milestone() {
+    let mut task = super::needs::milestone_task(false);
+    task.chip.title = super::needs::words("Store shape");
+    task.chip.details.details.executor =
+        c::Executor::Procedure { connector: jig_client::shapes::RECURRING, code: jig_client::shapes::GATHERING };
+    let root = fixtures::needs::with_task(task, Filter { goal: Some(fixtures::INBOX_TASK), ..Filter::ALL });
+    let view = fixtures::page_view(&root);
+    assert!(fixtures::find(view.tree(), Role::Disclosure, "Milestone · Store shape".as_bytes()).is_some());
+}
+
+#[test]
 fn project_and_goal_menus_follow_new_chat_and_precede_kind() {
     for (filter, projects, goals) in [
         (Filter::ALL, b"All projects".as_slice(), b"All goals".as_slice()),

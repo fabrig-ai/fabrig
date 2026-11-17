@@ -1,6 +1,6 @@
 //! The shared component bridge machine (jig/docs/design/protocol/channel/bridges.md, 5 and 9).
 use crate::translation::Translation;
-use crate::{self as channel, Agreed, Application, Carried, Kept, Root, Spoken, v15 as wire};
+use crate::{self as channel, Agreed, Application, Carried, Kept, Root, Spoken, v16 as wire};
 use skein_channel::{Frame, frame_writer};
 use skein_codec::{
     bridge::Bridge,

@@ -1,5 +1,5 @@
 //! The format row and header checked before restart (protocol/store/records.md, 3 and protocol/store/opening.md).
-use crate::patching::{machines, phase::Pending, plan};
+use crate::upgrade::admission;
 use crate::{Event, Family, Older, OpenRefusal, Phase, Store, codec, format, keys, restore};
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::{CoreKey, CoreRecord, Key, Record};
@@ -11,13 +11,12 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
         refuse(store, owner, OpenRefusal::Failed, above);
         return;
     }
-    store.history_routing = false;
     crate::rehearsal::announce(store, above);
-    if let Err(why) = crate::jobs::admission::check(&store.patch_sets) {
-        return refuse(store, owner, OpenRefusal::Set { owner: why.owner, patch: why.patch }, above);
+    if let Err(why) = crate::jobs::admission::check(&store.owner_sets) {
+        return refuse(store, owner, OpenRefusal::Set { owner: why }, above);
     }
-    if let Err(why) = plan::check_levels(&store.patch_sets) {
-        return refuse(store, owner, OpenRefusal::Set { owner: why.owner, patch: why.patch }, above);
+    if let Err(why) = admission::checked(store) {
+        return refuse(store, owner, OpenRefusal::Set { owner: why }, above);
     }
     let format_key = keys::encode_own(&keys::Own::Format, store.limits.store.key).expect("format key fits");
     let header_key = keys::encode(&Key::Core(CoreKey::Deployment), store.limits.store.key).expect("header key fits");
@@ -52,63 +51,55 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
         }
         return;
     };
-    let binary = plan::binary(&store.patch_sets);
+    let binary = admission::binary(&store.owner_sets);
     let Some(found) = decode(store, owner, &found, binary.jig, above) else { return };
-    let found_levels = match found_levels(store, owner, &found, binary) {
-        Ok(levels) => levels,
-        Err(why) => return refuse(store, owner, why, above),
-    };
-    let compared = match format::compare(found_levels, binary) {
-        Ok(compared) => compared,
-        Err(why) => return refuse(store, owner, why, above),
-    };
-    if !crate::rehearsal::records(store, owner, found_levels, above) {
+    let found_levels = found.levels;
+    let compared = format::compare(found_levels, binary);
+    if let Err(why) = &compared
+        && *why != (OpenRefusal::OlderBuild { why: Older::Behind })
+    {
+        return refuse(store, owner, why.clone(), above);
+    }
+    if !floor(store, owner, above) {
+        return;
+    }
+    if let Err(why) = compared {
+        return refuse(store, owner, why, above);
+    }
+    // Compare the families' versions before reading the registry (protocol/store/records.md, 3).
+    let wanted = format::current(store.application.version, found.deployment);
+    if let Err(why) = format::check_versions(&found, &wanted) {
+        return refuse(store, owner, why, above);
+    }
+    if !crate::rehearsal::records(store, owner, above) {
         return;
     }
     let jobs = match crate::jobs::kept::pending(store) {
         Ok(pending) => pending,
         Err(why) => return refuse(store, owner, why, above),
     };
-    if (compared == format::Compared::Behind || jobs)
-        && let Err(why) = pending(store, found_levels, binary)
-    {
-        return refuse(store, owner, why, above);
-    }
-    // Compare the families' versions before reading the registry (protocol/store/records.md, 3).
-    let wanted = wanted(store, found_levels, binary, found.deployment);
-    if let Err(why) = format::check_versions(&found, &wanted, compared) {
-        refuse(store, owner, why, above);
-        return;
+    if jobs {
+        store.directory.patch = Some(Box::new(found_levels));
     }
     let registry = match crate::registry::open(store, false) {
         Ok(writing) => writing,
         Err(why) => return refuse(store, owner, why, above),
     };
-    if registry
-        && store.directory.patch.is_none()
-        && let Err(why) = pending(store, found_levels, binary)
-    {
-        return refuse(store, owner, why, above);
+    if registry && store.directory.patch.is_none() {
+        store.directory.patch = Some(Box::new(found_levels));
     }
-    if compared == format::Compared::Same
-        && let Err(why) = check_layouts(store, owner, found_levels, binary)
-    {
-        refuse(store, owner, why, above);
-        return;
-    }
-    let Some(header) = header else {
+    if header.is_none() {
         refuse(store, owner, OpenRefusal::Numbers { store: last, header: 0 }, above);
         return;
-    };
-    let Some(header) = codec::decode(&Key::Core(CoreKey::Deployment), &header, &store.codec_limits, &store.names)
-    else {
+    }
+    let Some(header) = decode_header(store) else {
         corrupt_header(store, owner, restore::DecodeFailure::Value, above);
         return;
     };
     match header {
         Record::Core(CoreRecord::Deployment(header)) => {
             let wanted = codec::component::Format { deployment: header.id, ..wanted };
-            if let Err(why) = format::check_versions(&found, &wanted, compared) {
+            if let Err(why) = format::check_versions(&found, &wanted) {
                 refuse(store, owner, why, above);
             } else if header.commits != last {
                 refuse(store, owner, OpenRefusal::Numbers { store: last, header: header.commits }, above);
@@ -135,68 +126,42 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
     }
 }
 
-fn wanted(store: &Store, found: plan::Levels, binary: plan::Levels, deployment: [u8; 16]) -> codec::component::Format {
-    if found.jig < binary.jig {
-        let pending = store.directory.patch.as_ref().expect("behind open planned");
-        format::at_level(store.application.version, deployment, &pending.machines)
-    } else {
-        format::current(store.application.version, deployment)
-    }
-}
-
-fn found_levels(
-    store: &mut Store,
-    owner: Token,
-    found: &codec::component::Format,
-    binary: plan::Levels,
-) -> Result<plan::Levels, OpenRefusal> {
-    let baseline_layouts = if found.levels == format::NONE {
-        let key = keys::encode_own(&keys::Own::Layouts, store.limits.store.key).expect("layouts key fits");
-        match get_open(store, owner, key)? {
-            Some(bytes) => codec::component::Layouts::decode(&bytes).ok(),
-            None => None,
+/// The floor precedes planning and rehearsal decoding (protocol/store/records.md, 3).
+fn floor(store: &mut Store, owner: Token, above: &mut Queue<Event>) -> bool {
+    let key = keys::encode_own(&keys::Own::Floor, store.limits.store.key).expect("floor key fits");
+    let bytes = match get_open(store, owner, key.clone()) {
+        Ok(bytes) => bytes,
+        Err(why) => {
+            refuse(store, owner, why, above);
+            return false;
         }
+    };
+    let number = if let Some(bytes) = bytes {
+        let Ok(row) =
+            crate::component_v3::Floor::decode(&crate::component_v3::CEILINGS, &mut skein_lib::Reader::new(&bytes))
+        else {
+            data(store, &key, restore::DecodeFailure::Value);
+            corrupt(store, owner, above);
+            return false;
+        };
+        Some(row.number())
     } else {
         None
     };
-    Ok(format::found_levels(found, baseline_layouts.as_ref(), binary))
-}
-
-fn pending(store: &mut Store, found: plan::Levels, binary: plan::Levels) -> Result<(), OpenRefusal> {
-    let checked = match plan::checked(store) {
-        Ok(checked) => checked,
-        Err(why) => return Err(OpenRefusal::Set { owner: why.owner, patch: why.patch }),
-    };
-    let plan = match plan::plan(&store.patch_sets, checked, &found, &binary) {
-        Ok(plan) => plan,
-        Err(why) => return Err(OpenRefusal::Set { owner: why.owner, patch: why.patch }),
-    };
-    let machines = match machines::make(&store.patch_sets, &plan, &found, machines::Rooms::of(&store.limits)) {
-        Ok(machines) => machines,
-        Err(why) => return Err(OpenRefusal::Set { owner: why.owner, patch: why.patch }),
-    };
-    let flights = plan::flights(store, &plan, &machines);
-    // Retain the plan on refusal too: its machines and named flight keys
-    // belong to the patching peak, including the step that planned them.
-    store.directory.patch = Some(Box::new(Pending { plan, machines, found }));
-    flights
-}
-
-fn check_layouts(
-    store: &mut Store,
-    owner: Token,
-    found_levels: plan::Levels,
-    binary: plan::Levels,
-) -> Result<(), OpenRefusal> {
-    if !format::needs_layouts(found_levels, binary) {
-        return Ok(());
+    if number < Some(crate::FLOOR) {
+        refuse(store, owner, OpenRefusal::OlderBuild { why: Older::Floor }, above);
+        return false;
     }
-    let key = keys::encode_own(&keys::Own::Layouts, store.limits.store.key).expect("layouts key fits");
-    let bytes = get_open(store, owner, key)?.ok_or(OpenRefusal::OlderBuild { why: Older::Unrecorded })?;
-    let Ok(found) = codec::component::Layouts::decode(&bytes) else {
-        return Err(OpenRefusal::OlderBuild { why: Older::Layout(Family::Component) });
-    };
-    format::check_unleveled_layouts(&found, &store.layouts, found_levels, binary)
+    true
+}
+
+/// The header's registered layout may add defaults before this open writes.
+pub(crate) fn decode_header(store: &mut Store) -> Option<Record> {
+    let key = Key::Core(CoreKey::Deployment);
+    let encoded = keys::encode(&key, store.limits.store.key)?;
+    let mut bytes = crate::view::get(store, encoded.clone()).ok()??;
+    crate::registry::header(store, &encoded, &mut bytes);
+    codec::decode(&key, &bytes, &store.codec_limits, &store.names)
 }
 
 /// The identifier kept by the first commit replaces the drawn one (4.4); a
@@ -275,23 +240,21 @@ fn ready(
         refuse(store, owner, OpenRefusal::Failed, above);
         return;
     };
-    if let Err(why) = plan::checked(store) {
-        refuse(store, owner, OpenRefusal::Set { owner: why.owner, patch: why.patch }, above);
+    if let Err(why) = admission::checked(store) {
+        refuse(store, owner, OpenRefusal::Set { owner: why }, above);
         return;
     }
-    // A behind open crosses Ready on its way to the copy. Its map machines
-    // already exist; the copy's serving machines are made after its check.
+    // The copy's serving machines are made after its check.
     if store.directory.patch.is_none() {
-        store.transcripts.machines = match crate::transcripts::patches::make(&store.patch_sets, &store.limits) {
+        store.transcripts.machines = match crate::transcripts::patches::make(&store.owner_sets, &store.limits) {
             Ok(machines) => machines,
             Err(why) => {
-                refuse(store, owner, OpenRefusal::Set { owner: why.owner, patch: 0 }, above);
+                refuse(store, owner, OpenRefusal::Set { owner: why }, above);
                 return;
             }
         };
-        // Serving codecs read the catalogue only after pending patches have
-        // brought the model rows to the binary's levels (protocol/store/opening.md, 2).
-        if let Err(failure) = codec::catalogue(store) {
+        // Serving codecs read the catalogue after the registry's commit and jobs (protocol/store/opening.md, 2).
+        if let Err(failure) = crate::catalogue::catalogue(store) {
             store.open_failed(restore::OpenFailure::Data(failure));
             corrupt(store, owner, above);
             return;

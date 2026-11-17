@@ -1,5 +1,5 @@
 //! Shared generation files, never shared writes (protocol/store/opening.md, 2, 4 and 5).
-use jig_protocol_store::{Event, PatchSet, PatchSets, Write};
+use jig_protocol_store::{Event, OwnerSets, Write};
 use jig_store_world::{
     World,
     patches::{self, BASE, Records, SETS},
@@ -11,24 +11,15 @@ use skein_io::kernel::Error;
 use std::collections::BTreeMap;
 
 const SEED: u64 = 0x4c49_4e4b;
-const MID: PatchSets = PatchSets {
-    sets: &[
-        PatchSet {
-            families: &[SETS.sets[0].families[0], BASE.sets[0].families[1], BASE.sets[0].families[2]],
-            level: Some(1),
-            patches: &[jig_test_patches::patches::PATCHES[0]],
-            ..SETS.sets[0]
-        },
-        BASE.sets[1],
-    ],
-};
+const MID: OwnerSets = SETS;
+const AFTER: OwnerSets = patches::NEXT;
 type Contents = BTreeMap<Vec<u8>, Option<Vec<u8>>>;
 
 /// A snapshot, then commits on two later opens: both sealed and newest segments stand.
 fn previous() -> World {
     let mut initial = patches::limits();
     initial.store.snapshot_after = 1;
-    let mut world = Records::story().committed_with(SEED, BASE, 1, initial, &[]);
+    let mut world = Records::story().committed_with(SEED, BASE, initial, &[]);
     world.restart_with_limits(SEED, patches::limits());
     for last in 1..=2 {
         assert_eq!(world.open_switched(), Some(last));
@@ -55,9 +46,9 @@ fn pending_copy_links_sealed_store_files_and_copies_the_rest_privately() {
     for name in ["snapshot.tmp", "log-1"] {
         world.lay(&[Item::file(format!("generations/1/store/{name}").as_bytes(), name.as_bytes()).mode(0o600)]);
     }
-    world.patch_sets(SETS);
+    world.owner_sets(SETS);
     world.trace_writes();
-    world.open().expect("pending patched copy");
+    world.open().expect("pending upgraded copy");
     assert!(world.pending);
     assert_eq!(world.active(), b"1\n");
     let source = files(&mut world, 1);
@@ -87,7 +78,7 @@ fn pending_copy_links_sealed_store_files_and_copies_the_rest_privately() {
         let to = [b"generations/2/", suffix].concat();
         assert_eq!(world.links(path), links, "source {}", String::from_utf8_lossy(path));
         assert_eq!(world.links(&to), links, "copy {}", String::from_utf8_lossy(&to));
-        // Recovery may reuse the copied newest empty segment for patch commits.
+        // Recovery may reuse the copied newest empty segment for job commits.
         if links == 2 || suffix == b"store/snapshot.tmp" || suffix == b"store/log-1" {
             assert_eq!(target.get(&to), Some(bytes), "same bytes: {}", String::from_utf8_lossy(path));
         }
@@ -98,7 +89,7 @@ fn pending_copy_links_sealed_store_files_and_copies_the_rest_privately() {
     {
         assert_eq!(mode, if directory { 0o700 } else { 0o600 }, "{}", String::from_utf8_lossy(&path));
     }
-    Records::story().check_public(&mut world, 2, &"pending linked copy");
+    Records::story().check_public(&mut world, &"pending linked copy");
 }
 
 #[test]
@@ -107,7 +98,7 @@ fn cross_device_links_fall_back_to_single_link_files_and_all_records() {
     let before = files(&mut world, 1);
     world.refuse_links(Some(Error::Other(18))); // EXDEV
     world.trace_writes();
-    world.patch_sets(SETS);
+    world.owner_sets(SETS);
     world.open_switched().expect("copy fallback upgrades");
     assert!(world.changes().iter().any(|(_, change)| *change == Change::Link), "refusal seam exercised");
     patches::kept(&before, &files(&mut world, 1), &"refused links");
@@ -116,11 +107,11 @@ fn cross_device_links_fall_back_to_single_link_files_and_all_records() {
         assert_eq!(world.links(path), 1, "{}", String::from_utf8_lossy(path));
     }
     patches::whole(&mut world);
-    Records::story().check(&mut world, 2, &"EXDEV upgrade");
+    Records::story().check(&mut world, &"EXDEV upgrade");
 }
 
 #[test]
-fn back_after_patch_snapshots_keeps_the_shared_previous_files_whole() {
+fn back_after_job_snapshots_keeps_the_shared_previous_files_whole() {
     let mut world = previous();
     let before = files(&mut world, 1);
     let replay: u64 = before
@@ -128,16 +119,16 @@ fn back_after_patch_snapshots_keeps_the_shared_previous_files_whole() {
         .filter(|(path, _)| path.starts_with(b"generations/1/store/log-"))
         .map(|(_, bytes)| u64::try_from(bytes.as_ref().expect("segment bytes").len()).expect("small fixture"))
         .sum();
-    // The source replay stays below the ceiling; the first patch commit crosses it.
+    // The source replay stays below the ceiling; the first job commit crosses it.
     let mut limits = patches::limits();
     limits.store.snapshot_after = replay + 1;
     world.restart_with_limits(SEED, limits);
-    world.patch_sets(SETS);
+    world.owner_sets(SETS);
     world.trace_writes();
-    world.open_switched().expect("patch snapshots and switch");
+    world.open_switched().expect("job snapshots and switch");
     assert!(
         world.changes().iter().filter(|(_, change)| *change == Change::Link).count() >= 3,
-        "snapshot and sealed segments were linked before patch snapshots replaced them"
+        "snapshot and sealed segments were linked before job snapshots replaced them"
     );
     let after = files(&mut world, 2);
     let old = before.get(b"generations/1/store/snapshot".as_slice()).expect("previous snapshot");
@@ -150,26 +141,26 @@ fn back_after_patch_snapshots_keeps_the_shared_previous_files_whole() {
         assert!(!after.contains_key(&to), "snapshot dropped the copy's sealed segment");
         assert_eq!(world.links(path), 1);
     }
-    patches::kept(&before, &files(&mut world, 1), &"patch snapshots");
+    patches::kept(&before, &files(&mut world, 1), &"job snapshots");
     world.crash(SEED);
     let events = world.back();
     assert!(matches!(events.as_slice(), [Event::Back { to: 1, .. }]), "{events:?}");
     world.restart_with_limits(SEED, patches::limits());
-    world.patch_sets(BASE);
+    world.owner_sets(BASE);
     assert_eq!(world.open_switched(), Some(3));
     patches::kept(&before, &files(&mut world, 1), &"back after snapshots");
     assert!(!world.paths().iter().any(|path| path.starts_with(b"generations/2")));
     world.accept_recovery(3);
-    Records::story().check(&mut world, 1, &"previous records");
+    Records::story().check(&mut world, &"previous records");
 }
 
 #[test]
 fn second_upgrade_drops_only_shared_names_then_links_the_survivors() {
     let mut trace = super::logs::source(SEED);
-    trace.patch_sets(MID);
+    trace.owner_sets(MID);
     trace.open_switched().expect("first upgrade");
     trace.crash(SEED);
-    trace.patch_sets(SETS);
+    trace.owner_sets(AFTER);
     trace.trace_writes();
     trace.open_switched().expect("second upgrade");
     let drop = patches::first_change(&trace, Change::Rename);
@@ -181,14 +172,14 @@ fn second_upgrade_drops_only_shared_names_then_links_the_survivors() {
         .0;
 
     let mut world = super::logs::source(SEED);
-    world.patch_sets(MID);
+    world.owner_sets(MID);
     world.open_switched().expect("first upgrade");
     let before = files(&mut world, 2);
     let counts = link_counts(&mut world, &before);
     let shared: Vec<_> = counts.iter().filter(|(_, links)| **links == 2).map(|(path, _)| path.clone()).collect();
     assert!(shared.iter().any(|path| path.starts_with(b"generations/2/store/logs/")), "task logs shared");
     world.crash(SEED);
-    world.patch_sets(SETS);
+    world.owner_sets(AFTER);
     world.trace_writes();
     world.cut_at(copy);
     assert_eq!(world.open(), None);
@@ -201,13 +192,13 @@ fn second_upgrade_drops_only_shared_names_then_links_the_survivors() {
     world.crash(SEED);
     world.open_switched().expect("second upgrade resumes");
     assert_eq!(world.active(), b"3\n");
-    Records::story().check(&mut world, 2, &"two upgrades");
+    Records::story().check(&mut world, &"two upgrades");
 }
 
 #[test]
 fn cuts_at_each_link_remove_partial_names_and_retry_from_whole_source() {
     let mut trace = previous();
-    trace.patch_sets(SETS);
+    trace.owner_sets(SETS);
     trace.trace_writes();
     trace.open_switched().expect("discover link cuts");
     let links: Vec<_> =
@@ -219,7 +210,7 @@ fn cuts_at_each_link_remove_partial_names_and_retry_from_whole_source() {
         let mut world = previous();
         let before = files(&mut world, 1);
         let counts = link_counts(&mut world, &before);
-        world.patch_sets(SETS);
+        world.owner_sets(SETS);
         world.trace_writes();
         world.cut_at(cut);
         assert_eq!(world.open(), None);
@@ -232,7 +223,7 @@ fn cuts_at_each_link_remove_partial_names_and_retry_from_whole_source() {
         world.crash(SEED);
         patches::kept(&before, &files(&mut world, 1), &cut);
         assert_eq!(link_counts(&mut world, &before), counts, "unsynced links lost at cut {cut}");
-        world.open_switched().expect("partial copy removed and patched afresh");
+        world.open_switched().expect("partial copy removed and upgraded afresh");
         patches::kept(&before, &files(&mut world, 1), &cut);
         patches::whole(&mut world);
         // No partial generation leaks another name beside the successful copy.
@@ -240,14 +231,14 @@ fn cuts_at_each_link_remove_partial_names_and_retry_from_whole_source() {
         for links in link_counts(&mut world, &source).values() {
             assert!(*links <= 2);
         }
-        Records::story().check(&mut world, 2, &cut);
+        Records::story().check(&mut world, &cut);
     }
 }
 
 #[test]
 fn rehearsal_copies_even_a_sources_shared_files_without_changing_its_links() {
     let mut world = previous();
-    world.patch_sets(SETS);
+    world.owner_sets(SETS);
     world.open_switched().expect("source contains linked generations");
     world.crash(SEED);
     let before = world.contents();
@@ -261,5 +252,5 @@ fn rehearsal_copies_even_a_sources_shared_files_without_changing_its_links() {
     }
     assert_eq!(world.contents(), before);
     assert_eq!(link_counts(&mut world, &before), counts);
-    Records::story().check_public(&mut world, 2, &"rehearsal copy");
+    Records::story().check_public(&mut world, &"rehearsal copy");
 }

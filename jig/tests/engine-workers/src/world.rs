@@ -88,7 +88,8 @@ impl World {
                     self.net(connection).gone = true;
                     self.component.down(self.now, Event::Gone { connection }, &mut self.out);
                 }
-                Request::Unsent { .. }
+                Request::Told { .. }
+                | Request::Unsent { .. }
                 | Request::Hello { .. }
                 | Request::Up { .. }
                 | Request::Lost { .. }

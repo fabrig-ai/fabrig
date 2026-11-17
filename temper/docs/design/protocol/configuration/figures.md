@@ -28,7 +28,7 @@ it are jig's (jig's `protocol/channel/figures.md`).
 - **A worker's document loses its copies** (7). Its `limits`, its
   `agent`, a worker alone's `application.limits` and an `agent.json`
   are each refused by name.
-- **Breaking.** `jig-worker-wire` 15 is declared breaking, so an engine
+- **Breaking.** `jig-worker-wire` 16 is declared breaking, so an engine
   and its workers redeploy together (8).
 
 ## 2. What the engine sends
@@ -226,7 +226,7 @@ written as JSON by the worker's start:
 
 ## 8. Upgrades
 
-- **`jig-worker-wire` 15 is breaking.** An engine and a worker of
+- **`jig-worker-wire` 16 is breaking.** An engine and a worker of
   different floors refuse each other by version, so dev.fabrig.ai's
   engine and its workers redeploy together. Before the redeploy, each
   worker's document loses its limits and `agent`, and its `agent.json`

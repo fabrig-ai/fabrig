@@ -10,7 +10,6 @@ mod oracle;
 pub mod referee;
 pub mod replay;
 mod restart_control;
-pub mod review_delivery;
 mod stories;
 pub mod world;
 
@@ -23,6 +22,5 @@ pub mod lower;
 pub mod m15;
 pub mod public;
 
-pub mod claude_keys;
 pub mod model_list;
 pub mod push;

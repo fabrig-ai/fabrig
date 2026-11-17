@@ -73,7 +73,7 @@ Draft, 2026-11-15, asked for by the user that day. When a landing's round of sev
 
 - **Kind 5's gate** gains `report`: the artifact's name and its format, `junit` or `lines`, none by default (`../domain/landing.md`, 13.1). Until kind 5 is a setting, it is in the document's `landing` member, as the gates are.
 - **Adoption under `turn`** (`../domain/landing.md`, 13.2): for a gate with a report, whether its workflow declares `temper_tests`, or says otherwise in words.
-- **The store:** a gate's failed receipt keeps its ids or "many"; each run in flight keeps its inputs; the round's search keeps each gate's selection, each probe's passes by test, and whether it went whole, until the round ends; the landing keeps the last search's line until the next pull request takes it. In place, before the first release (`../protocol/store.md`, section 2), with the golden store's line (`../protocol/baseline.md`, 7).
+- **The store:** a gate's failed receipt keeps its ids or "many"; each run in flight keeps its inputs; the round's search keeps each gate's selection, each probe's passes by test, and whether it went whole, until the round ends; the landing keeps the last search's line until the next pull request takes it. The fields are added to the registered family with defaults, with no version move or patch (`../protocol/store.md`, section 2).
 - **Restart:** a probe by test's run is found again as a proof's is (`../domain/landing.md`, section 15), its inputs read from the store.
 
 ## 9. What a project gives

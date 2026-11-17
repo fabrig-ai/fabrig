@@ -2,7 +2,7 @@
 use super::fixtures;
 use crate::{figures, limits};
 use jig_protocol_config as config;
-use jig_protocol_worker_wire::v15 as w;
+use jig_protocol_worker_wire::v16 as w;
 use skein_lib::{Duration, List};
 use temper_client_protocol_wire::v1 as s;
 

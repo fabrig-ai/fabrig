@@ -389,17 +389,11 @@ fn from(
     };
     b.open(Role::Text);
     b.style(look::ASK_META);
-    b.name(&skein_lib::bytes::concat(&[&prefix, &title, &suffix]));
+    b.name(&skein_lib::bytes::concat(&[&prefix, &ask::from_name(need, &title), &suffix]));
     if let Some(name) = project {
         ask::text(b, Role::Text, &name, look::CHIP);
     }
-    if linked && let Some(task) = source {
-        ask::link(b, bindings, &title, Address::Task { task });
-    } else {
-        b.open(Role::Text);
-        b.text(Run::Plain, &title);
-        b.close();
-    }
+    ask::from_title(b, need, &title, source, bindings, linked);
     b.open(Role::Text);
     b.text(Run::Plain, &suffix);
     b.close();

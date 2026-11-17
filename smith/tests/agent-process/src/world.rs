@@ -317,6 +317,7 @@ impl Host for Parent {
                 pidfd: self.pidfd.expect("admitted child"),
                 to: kernel::Target::Child,
                 signal: kernel::Signal::Terminate,
+                reason: skein_io::kernel::Reason::Unknown,
             });
         }
         if !self.reading

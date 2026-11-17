@@ -5,7 +5,7 @@ use jig_domain_link::SourceName;
 use jig_protocol_worker_wire::Part;
 use skein_channel::{Lower, LowerEvent};
 use skein_io::digest::Digest;
-use skein_lib::{List, Secret, Token};
+use skein_lib::{Duration, List, Secret, Token};
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Worker {
     pub name: Box<[u8]>,
@@ -56,6 +56,9 @@ pub enum Event {
     NotAdmitted {
         channel: Token,
         text: Box<[u8]>,
+    },
+    Restarting {
+        wait: Duration,
     },
     Stop,
     Close,
@@ -109,6 +112,11 @@ pub enum Bound {
 pub enum Request {
     FiguresTaken {
         worker: u32,
+    },
+    Told {
+        worker: Box<[u8]>,
+        version: u16,
+        wait: Option<Duration>,
     },
     /// Opening accepted, with the worker's statement and agreed versions in its order.
     Opened {
@@ -183,6 +191,7 @@ impl core::fmt::Debug for Event {
                 f.debug_tuple("TurnBusy").field(channel).field(run).field(attempt).field(turn).finish()
             }
             Self::NotAdmitted { channel, text } => f.debug_tuple("NotAdmitted").field(&(channel, text.len())).finish(),
+            Self::Restarting { wait } => f.debug_tuple("Restarting").field(wait).finish(),
             Self::Stop => f.write_str("Stop"),
             Self::Close => f.write_str("Close"),
             Self::Abort => f.write_str("Abort"),
@@ -193,6 +202,9 @@ impl core::fmt::Debug for Request {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::FiguresTaken { worker } => f.debug_tuple("FiguresTaken").field(worker).finish(),
+            Self::Told { worker, version, wait } => {
+                f.debug_tuple("Told").field(worker).field(version).field(wait).finish()
+            }
             Self::Take { connection } => f.debug_tuple("Take").field(connection).finish(),
             Self::TurnAway { connection } => f.debug_tuple("TurnAway").field(connection).finish(),
             Self::Close { connection } => f.debug_tuple("Close").field(connection).finish(),

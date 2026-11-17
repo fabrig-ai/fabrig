@@ -28,7 +28,7 @@ the application's (temper's `protocol/configuration/figures.md`).
 - **The owner gives them, as data.** jig's engine host sends what its
   owner last gave it. Until it's been given figures, it refuses a figures
   opening as *starting*.
-- **`jig-worker-wire` 15, declared breaking.** Its floor is 15, so an
+- **`jig-worker-wire` 16, declared breaking.** Its floor is 16, so an
   engine and its workers move together (5).
 - **A worker part's `agent` and `limits` may be absent**
   (`../configuration.md`, section 4). jig's reference binary still
@@ -36,7 +36,7 @@ the application's (temper's `protocol/configuration/figures.md`).
 
 ## 2. The record
 
-`jig-worker-wire` 15 adds, after 14's text:
+`jig-worker-wire` 16 adds, after 15's text:
 
 ```
 enum Opening { link, figures }
@@ -58,7 +58,7 @@ record Figures { places: u32 limits: list 1024 Limit agents: Agents }
 ```
 
 `Credential` gains `opening`, its last member. `FromEngine` gains
-`figures: Figures` after `asked`, so its kind is `0x0180` plus that tag.
+`figures: Figures` after `restarting`, so its kind is `0x0180` plus that tag.
 Each text bound written as a letter above is at least the bound jig's
 configuration reader gives the member it carries
 (`jig/crates/jig-protocol-config/src/llm.rs`). The landing that adds
@@ -134,10 +134,10 @@ them picks each one, and the schema then fixes it.
 
 ## 5. Its version
 
-- **`jig-worker-wire` 15 is declared breaking** (skein's
-  `data/codec/bridges.md`, 3): `Credential` changes, so a worker of 14
-  can't be read by an engine of 15. Its floor in `schema/wires` rises
-  to 15. Its kept texts stay, and patch `0005` takes 14 to 15.
+- **`jig-worker-wire` 16 is declared breaking** (skein's
+  `data/codec/bridges.md`, 3): `Credential` changes, so a worker of 15
+  can't be read by an engine of 16. Its floor in `schema/wires` rises
+  to 16. Its kept texts stay, and patch `0006` takes 15 to 16.
 - **A worker of another floor is refused by version** at the opening,
   as skein's channel refuses one (skein's `net/channel.md`, 5.2). Each
   side's log names both ranges, so an operator sees which moved.
@@ -163,8 +163,8 @@ Focused, in the link's and the host's tests and jig's channel world:
 - **A link opening** hears `figures` right after `Agreed`, then sends
   its hello. New figures given to the host reach every linked worker.
 - **Refusals:** a wrong secret is refused *unauthorized*, and a worker
-  of 14 is refused by version.
-- **The record:** each new record's golden bytes, and patch `0005`'s
+  of 15 is refused by version.
+- **The record:** each new record's golden bytes, and patch `0006`'s
   breaking declaration, held by the wire's patch tests and
   `fabrig-boundary`'s `patches` test.
 

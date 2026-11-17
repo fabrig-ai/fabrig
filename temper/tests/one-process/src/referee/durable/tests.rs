@@ -5,34 +5,44 @@ use skein_fake_machine::{How, Item, Machine};
 
 fn generation_snapshot(old: bool, malformed: bool) -> Vec<u8> {
     let mut format = jig_protocol_store::format::current(temper_protocol_store::STORE_VERSION, [7; 16]);
-    format.levels = jig_protocol_store::levels(&temper_engine_service::store::PATCH_SETS);
-    if old {
-        format.tasks = 9;
-        format.settings = 1;
-        format.levels.jig = Some(0);
-        format.levels.application = Some(0);
-    }
+    format.levels = jig_protocol_store::levels(&temper_engine_service::store::OWNER_SETS);
     let root::Record::Core(row) = fixture::row() else { unreachable!() };
     let value = if malformed {
         Box::default()
     } else {
         codec::encode(&row, &fixtures::codec(), fixtures::store_names()).expect("current row")
     };
-    fixture::bytes_with_ops(
-        true,
-        Box::new([
-            skein_kv::Op::Put {
-                key: keys::encode_own(&keys::Own::Format, 64).expect("format key"),
-                value: format.encode().expect("format bytes"),
-            },
-            skein_kv::Op::Put { key: keys::encode(&row.key(), 64).expect("row key"), value },
-        ]),
-    )
-    .snapshot
+    let mut ops = vec![
+        skein_kv::Op::Put {
+            key: keys::encode_own(&keys::Own::Format, 64).expect("format key"),
+            value: format.encode().expect("format bytes"),
+        },
+        skein_kv::Op::Put { key: keys::encode(&row.key(), 64).expect("row key"), value },
+    ];
+    for set in temper_engine_service::store::OWNER_SETS.sets {
+        for job in set.jobs {
+            if old && set.owner == jig_protocol_store::Owner::Application && job.name == crate::upgrade::JOB {
+                continue;
+            }
+            let job_row = jig_protocol_store::registry_v1::Job::new(
+                &jig_protocol_store::registry_v1::CEILINGS,
+                jig_protocol_store::registry_v1::JobParts { ended: 1 },
+            )
+            .expect("done job");
+            let mut out = skein_lib::Writer::new(usize::try_from(job_row.measure()).expect("job size"));
+            job_row.encode(&mut out).expect("job bytes");
+            ops.push(skein_kv::Op::Put {
+                key: keys::encode_own(&keys::Own::Job { owner: set.owner, name: job.name.into() }, 1024)
+                    .expect("job key"),
+                value: out.finish(),
+            });
+        }
+    }
+    fixture::bytes_with_ops(true, ops.into_boxed_slice()).snapshot
 }
 
 #[test]
-fn old_generation_rows_are_opaque_until_switch_and_current_rows_must_decode() {
+fn pending_job_at_equal_levels_keeps_rows_opaque_until_switch_and_current_rows_must_decode() {
     fn start() -> Store {
         let mut store = Store::new();
         store.recovering();
@@ -88,6 +98,54 @@ fn old_generation_rows_are_opaque_until_switch_and_current_rows_must_decode() {
     let mut malformed = start();
     let failed = switch(&mut malformed, true).expect_err("malformed current-generation row");
     assert_eq!(failed, "real stored row decodes");
+}
+
+#[test]
+fn a_copied_log_arriving_after_new_commits_keeps_untouched_rows_and_newer_writes() {
+    let row = |task, cumulative| {
+        let root::Record::Core(core::Record::Core(core::CoreRecord::Terminal(mut row))) = fixture::row() else {
+            unreachable!()
+        };
+        row.task = task;
+        row.cumulative = cumulative;
+        root::Record::Core(core::Record::Core(core::CoreRecord::Terminal(row)))
+    };
+    let put = |row: &root::Record| {
+        let root::Record::Core(row) = row else { unreachable!() };
+        skein_kv::Op::Put {
+            key: keys::encode(&row.key(), 64).expect("terminal key"),
+            value: codec::encode(row, &fixtures::codec(), fixtures::store_names()).expect("terminal value"),
+        }
+    };
+    let copied = fixture::bytes_with_ops(false, Box::new([put(&row(1, 1)), put(&row(2, 1)), put(&row(3, 1))]));
+    let root::Key::Core(erased) = row(2, 1).key() else { unreachable!() };
+    let mut newer = fixture::bytes_with_ops(
+        false,
+        Box::new([put(&row(1, 2)), skein_kv::Op::Erase { key: keys::encode(&erased, 64).expect("terminal key") }]),
+    )
+    .frames
+    .remove(0);
+    newer[6..14].copy_from_slice(&3_u64.to_be_bytes());
+    let checksum = newer.len() - 4;
+    let crc = transcripts::frame::crc32c(&newer[..checksum]);
+    newer[checksum..].copy_from_slice(&crc.to_be_bytes());
+    let copy = b"generations/2/store/log-00000000000000000001".to_vec();
+    let log = b"generations/2/store/log-00000000000000000003".to_vec();
+    let mut store = Store::new();
+    store.sets = Some(jig_protocol_store::OwnerSets { sets: &[] });
+    let mut events = vec![
+        Observed::Bytes { path: b"active".to_vec(), at: 0, bytes: b"1\n".to_vec() },
+        Observed::Bytes { path: log.clone(), at: 0, bytes: newer },
+        Observed::Sync(log),
+        Observed::Bytes { path: copy.clone(), at: 0, bytes: copied.frames.concat() },
+        Observed::Sync(copy),
+        Observed::Bytes { path: b"active.tmp".to_vec(), at: 0, bytes: b"2\n".to_vec() },
+        Observed::Renamed { from: b"active.tmp".to_vec(), to: b"active".to_vec() },
+        Observed::Sync(Vec::new()),
+    ];
+    store.observe(&mut events, &fixtures::codec(), fixtures::store_names(), &fixture::bounds()).expect("copy switches");
+    assert_eq!(store.applied, 3);
+    assert_eq!(store.rows, BTreeMap::from([(row(1, 2).key(), row(1, 2)), (row(3, 1).key(), row(3, 1))]));
 }
 
 #[test]

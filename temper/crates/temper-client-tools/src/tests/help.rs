@@ -2,6 +2,10 @@ use super::fixtures;
 use crate::{jig, table};
 use skein_lib::List;
 const GOLDENS: &[(Option<u8>, &str)] = &[
+    (Some(jig::rows::MILESTONE_NEW_AT), "help_milestone_new"),
+    (Some(jig::rows::MILESTONE_WHOLE_AT), "help_milestone_whole"),
+    (Some(jig::rows::MILESTONE_LIST_AT), "help_milestone_list"),
+    (Some(jig::rows::MILESTONE_SHOW_AT), "help_milestone_show"),
     (Some(jig::rows::FINDING_LIST_AT), "help_finding_list"),
     (Some(jig::rows::FINDING_SHOW_AT), "help_finding_show"),
     (Some(jig::rows::FINDING_FILE_AT), "help_finding_file"),

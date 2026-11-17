@@ -1,6 +1,6 @@
 //! Payload-free opening steps and driver counts (protocol/store/opening.md, 1 and 5).
 use super::Hosted;
-use crate::{directory::Opening, patching::phase::Patching};
+use crate::{directory::Opening, upgrade::phase::Patching};
 
 #[derive(Debug)]
 pub struct Wait {
@@ -81,12 +81,11 @@ fn opening(step: &Opening) -> &'static str {
         Opening::TranscriptsMade => "make transcripts directory",
         Opening::TranscriptsOpen => "open transcripts directory",
         Opening::Patching(step) => match step.as_ref() {
-            Patching::Closing { .. } => "close maps before patching",
+            Patching::Closing { .. } => "close maps before upgrading",
             Patching::Dropping(_) => "drop previous generation",
             Patching::Copying(_) => "copy patch generation",
             Patching::Mapping { .. } => "open patch directories",
             Patching::Recovering { .. } => "recover patch maps",
-            Patching::Walking(_) => "walk patches",
             Patching::Jobs(_) => "run jobs",
             Patching::Sealing { .. } => "seal patches",
             Patching::Checking(_) => "check patched records",

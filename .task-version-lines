@@ -1,0 +1,83 @@
++                            up: jig_client::Up::Served { served: self.engine.versions().contains(26), versions: None },
++                        served: self.engine.versions().contains(26),
++                    version: 26,
++                    w::ServedParts { owner: w::Owner::Jig, first: 26, last: 26 },
++                exchange.send(crate::Message::Read(f::owned_read(w::Owner::Jig, 26, f::encoded_read(&w::Read::Me))));
++                version: 26,
++                versions: VersionRange { first: 26, last: 26 },
++                versions: core::documents::Versions { minimum: 26, maximum: 26 },
++            Served { family: None, first: 26, last: 26 },
++            assert_eq!(value.version(), 26);
++            clients::Served { family: None, first: 26, last: 26 },
++            exchange.send(crate::Message::Request(f::keyed(w::Owner::Jig, 26, f::encode_ask(&value))));
++            let mut front = Transport::new(VersionRange { first: 26, last: 26 });
++            version: 26,
++            versions: jig_client_domain::contract::VersionRange { first: 26, last: 26 },
++            w::KeyedParts { key: [5; 16], owner: w::Owner::Jig, version: 26, request: encoded.clone(), value: None },
++            w::Owned::new(&limits, w::OwnedParts { owner: w::Owner::Jig, version: 26, record: encoded!(&read) })
++            w::Owned::new(&w::CEILINGS, w::OwnedParts { owner: w::Owner::Jig, version: 26, record: bytes.finish() })
++            w::Owned::new(&w::CEILINGS, w::OwnedParts { owner: w::Owner::Jig, version: 26, record: out.finish() })
++            w::OwnedParts { owner: w::Owner::Jig, version: 26, record: record.finish() },
++            w::Served::new(&lim, w::ServedParts { owner: w::Owner::Jig, first: 26, last: 26 }).expect("literal range"),
++        ("bound_kept_record", || bound((Path::KeptRecord, skein_codec::Reason::Bound), &Limits { kept_record: 3, ..CEILINGS }, &[0, 26, 0, 0, 0, 0, 0, 3, 0, 0, 0], &[0, 26, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match Kept::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
++        ("record_kept_full", || { let value = Kept::new(&CEILINGS, KeptParts { store_version: u16::MAX, record: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 26, 255, 255, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Kept::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
++        ("record_kept_smallest", || { let value = Kept::new(&CEILINGS, KeptParts { store_version: 0_u16, record: Box::from([].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 26, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Kept::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
++        .push(Served::new(&lim, ServedParts { owner: Owner::Jig, first: 26, last: 26 }).expect("range"))
++        .push(w::Served::new(&w::CEILINGS, w::ServedParts { owner: w::Owner::Jig, first: 26, last: 26 }).unwrap())
++        if version != 26 { return Err(Problem { path: Path::KeptVersion, reason: skein_codec::Reason::Version }); }
++        jig_protocol_engine_clients::Served { family: None, first: 26, last: 26 },
++        let mut front = Transport::new(VersionRange { first: 26, last: 26 });
++        let owner = exchange.send(crate::Message::Read(f::owned_read(w::Owner::Jig, 26, f::encoded_read(&value))));
++        let owner = exchange.send(crate::Message::Request(f::keyed(w::Owner::Jig, 26, bytes)));
++        let owner = exchange.send(crate::Message::Request(f::keyed(w::Owner::Jig, 26, f::encode_ask(&wire))));
++        let owner = self.send(crate::Message::Read(owned_read(w::Owner::Jig, 26, encoded_read(value))));
++        let owner = self.send(crate::Message::Request(keyed(w::Owner::Jig, 26, encode_ask(&ask))));
++        rows.push((keyed_value(w::Owner::Jig, 26, f::encode_ask(&ask), value), kind)).expect("account row");
++        self.ask_version(26)
++        up: Up::Served { served: true, versions: Some(contract::VersionRange { first: 26, last: 26 }) },
++        up: client::Up::Served { served: true, versions: Some(c::VersionRange { first: 26, last: 26 }) },
++        w::Keyed::new(limits, w::KeyedParts { key: [5; 16], owner: w::Owner::Jig, version: 26, request, value: None })
++        w::KeyedParts { key, owner: w::Owner::Jig, version: 26, request: out.finish(), value: None },
++        w::KeyedParts { key: [1; 16], owner: w::Owner::Jig, version: 26, request: bytes.finish(), value: None },
++        w::KeyedParts { key: [5; 16], owner: w::Owner::Jig, version: 26, request: bytes.finish(), value: None },
++        w::KeyedParts { key: [5; 16], owner: w::Owner::Jig, version: 26, request: encoded, value: None },
++        w::KeyedParts { key: [5; 16], owner: w::Owner::Jig, version: 26, request: out.finish(), value: None },
++        w::KeyedParts { key: [7; 16], owner: w::Owner::Jig, version: 26, request: encoded!(&ask), value: None },
++        w::KeyedParts { key: [7; 16], owner: w::Owner::Jig, version: 26, request: encoded!(ask), value: None },
++        w::KeyedParts { key: [9; 16], owner: w::Owner::Jig, version: 26, request: bytes.finish(), value: None },
++        w::KeyedParts { key: [attempt; 16], owner: w::Owner::Jig, version: 26, request: bytes.finish(), value: None },
++        w::KeyedParts { owner: w::Owner::Jig, version: 26, request: writer.finish(), key: [key; 16], value: None },
++        w::Owned::new(&limits, w::OwnedParts { owner: w::Owner::Jig, version: 26, record: out.finish() })
++        w::Owned::new(limits().wire(), w::OwnedParts { owner: w::Owner::Jig, version: 26, record: Box::from([255]) })
++        w::Owned::new(limits().wire(), w::OwnedParts { owner: w::Owner::Jig, version: 26, record: bytes.finish() })
++        w::Owned::new(limits.wire(), w::OwnedParts { owner: w::Owner::Jig, version: 26, record: bytes.finish() })
++        w::Owned::new(limits.wire(), w::OwnedParts { owner: w::Owner::Jig, version: 26, record: encoded!(&answer) })
++        w::OwnedParts { owner: w::Owner::Jig, version: 26, record: encoded!(&w::Subject::Settings) },
++        w::Owner::Jig => (f::encode_ask(&f::start(&f::wire())), 26),
++    assert!(h.has(&Request::Hello { family: Some(19), versions: Some(c::VersionRange { first: 26, last: 26 }) }));
++    assert!(harness.has(&Request::Hello { family: None, versions: Some(c::VersionRange { first: 26, last: 26 }) }));
++    assert!(serves(c::VersionRange { first: 26, last: 26 }));
++    assert_eq!(answer.version(), 26);
++    for (owner, first, last) in [(w::Owner::Jig, 26, 26), (family, 2, 2)] {
++    let body = f::keyed(w::Owner::Jig, 26, f::encode_ask(&f::start(&f::wire())));
++    let document = w::Owned::new(&lim, w::OwnedParts { owner: w::Owner::Jig, version: 26, record: record.finish() })
++    let envelope = w::Owned::new(&limits, w::OwnedParts { owner: w::Owner::Jig, version: 26, record: bytes.finish() })
++    let owned = w::Owned::new(&lim, w::OwnedParts { owner: w::Owner::Jig, version: 26, record: Box::new([0]) })
++    let owned = w::Owned::new(limits.wire(), w::OwnedParts { owner: w::Owner::Jig, version: 26, record })
++    let owner = exchange.send(Message::Request(f::keyed(w::Owner::Jig, 26, f::encode_ask(&ask))));
++    let owner = exchange.send(crate::Message::Request(f::keyed(w::Owner::Jig, 26, f::encode_ask(ask))));
++    let record = w::Owned::new(&lim, w::OwnedParts { owner: w::Owner::Jig, version: 26, record: bytes.finish() })
++    let value = w::Owned::new(&limits, w::OwnedParts { owner: w::Owner::Jig, version: 26, record: bytes.finish() })
++    let value = w::Owned::new(&limits, w::OwnedParts { owner: w::Owner::Jig, version: 26, record: record.finish() })
++    served.push(Served { family: None, first: 26, last: 26 }).expect("one range");
++    served.push(crate::Served { family: None, first: 26, last: 26 }).expect("one jig range");
++    served.push(w::Served::new(&lim, w::ServedParts { owner: owner.clone(), first: 26, last: 26 }).unwrap()).unwrap();
++    served.push(w::Served::new(&lim, w::ServedParts { owner: w::Owner::Jig, first: 26, last: 26 }).unwrap()).unwrap();
++    settings.served.push(Served { family: None, first: 26, last: 26 }).expect("jig");
++    w::Owned::new(&w::CEILINGS, w::OwnedParts { owner: w::Owner::Jig, version: 26, record: writer.finish() })
++    w::Owned::new(&wire(), w::OwnedParts { owner: w::Owner::Jig, version: 26, record: bytes.finish() })
++    wire::Owned::new(&wire::CEILINGS, wire::OwnedParts { owner: wire::Owner::Jig, version: 26, record: Box::default() })
++exchange 26 33554432 POST "/jig/v1/read" "\x00\x00\x00\x00\x1a\x00\x00\x00\x0a\x0b\x00\x01\x00\x00\x00\x01\x00\x00\x00" "Content-Type" "application/octet-stream"
++heard answered 26 200 "\x01\x00\x00\x00\x00\x1a\x00\x00\x00\x0d\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
++pub const SERVICE_ANSWER: [u8; 25] = [1, 0, 0, 0, 0, 26, 0, 0, 0, 15, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0];
++pub const VERSION: u32 = 26;

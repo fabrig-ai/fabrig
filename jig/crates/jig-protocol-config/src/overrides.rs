@@ -337,6 +337,7 @@ fn set_fleet(limits: &mut jig_domain_fleet::Limits, name: &[u8], value: u64) -> 
         progress_bytes,
         turns,
         grace,
+        restart_wait,
         facts,
         history,
     } = limits;
@@ -357,6 +358,12 @@ fn set_fleet(limits: &mut jig_domain_fleet::Limits, name: &[u8], value: u64) -> 
         b"progress_bytes" => *progress_bytes = value,
         b"turns" => *turns = count(value)?,
         b"grace_ms" => *grace = millis(value)?,
+        b"restart_wait_ms" => {
+            if value > 86_400_000 {
+                return Err(What::Override);
+            }
+            *restart_wait = millis(value)?;
+        }
         b"facts" => *facts = count(value)?,
         b"history" => *history = count(value)?,
         _ => return Err(What::Override),

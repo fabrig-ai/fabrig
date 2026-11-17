@@ -256,7 +256,8 @@ impl World {
                 Request::Drop { payload } => {
                     self.payloads.remove(&payload).expect("one body handoff");
                 }
-                Request::Placed { .. }
+                Request::Discharged
+                | Request::Placed { .. }
                 | Request::Listed { .. }
                 | Request::Cancel { .. }
                 | Request::Answered { .. }

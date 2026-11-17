@@ -326,6 +326,9 @@ pub(crate) fn needs_decisions(project: u32) -> Box<[u8]> {
     )
 }
 pub(crate) fn needs_task(task: u64) -> c::Task {
+    if task == 1 {
+        return base_task(task, "first-run-projects");
+    }
     let mut document = base_task(task, decision(task).1);
     document.project = if task == 102 { 2 } else { 1 };
     document.chip.details.details.project = document.project;
@@ -381,6 +384,11 @@ fn decisions(name: &str, project: u32) -> Box<[u8]> {
     )
 }
 fn task(name: &str, number: u64) -> c::Task {
+    if number == 1 {
+        let mut task = base_task(number, "");
+        task.chip = question(name).task;
+        return task;
+    }
     let mut task = base_task(number, if name == "home-step-team" { "coupons goal" } else { decision(number).1 });
     task.project = if across(name) { decision(number).0 } else { 1 };
     task.chip.details.details.project = task.project;

@@ -275,7 +275,7 @@ By the user's word for this draft (`notes.md`, section 21): until v0.1.0 has use
 - **No build reads a member that moved.** One is refused as unknown, naming it, and the `configuration` page says where each went (6.5). Once the TOML file lands, a `temper.json` is refused by name.
 - **Each milestone lands compatible with dev.fabrig.ai, or with its operators' steps.** Its row in the execution file says which. The steps are edits to dev's documents before its redeploy, and settings made by `temper ctl` after it. Several landings' steps are taken together at dev's next redeploy.
 - **A wire changed is declared breaking** (6.3), so dev's engine and workers redeploy together.
-- **The store's changes bring their patches,** as every stored format's do (`upgrades.md`). The new kinds start empty, over their defaults, and need none.
+- **The registered store's changes use defaults, former names or a written job,** with no version move or patch (jig's `protocol/store/layouts.md`). The new kinds start empty, over their defaults, and need none.
 - **A box's file is written again by hand:** one line, from its help.
 - **dev.fabrig.ai's 133 overrides become none** with this stock, and its operators drop them.
 

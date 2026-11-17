@@ -171,6 +171,11 @@ pub enum Request {
 /// ). These requests carry no process or channel vocabulary.
 #[derive(PartialEq, Eq, Debug)]
 pub enum ToAgent {
+    /// The engine link cannot renew grants, or can again.
+    Renewals {
+        agent: Token,
+        held: bool,
+    },
     /// Pass a named message with its sender label and words.
     Message {
         agent: Token,
@@ -400,6 +405,8 @@ pub enum CallAnswer {
     /// The run withdrew the relayed call: nothing more is done for it, and
     /// the engine's answer, if one comes, is dropped.
     Withdrawn,
+    /// The run withdrew a relay the link never carried (domain/hosts/hub.md, 6).
+    Unsent,
     /// The run has as many calls in flight as it may, or a delivery in flight
     /// already: nothing was done. Calls answered within the loop's current
     /// iteration keep their slots until its reclaim point, so a busy call may

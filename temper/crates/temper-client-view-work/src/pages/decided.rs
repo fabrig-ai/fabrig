@@ -81,7 +81,11 @@ pub(crate) fn decision(
     let fallback = w.say(Word::Task, &[Hole::Number(row.task)]);
     let title = row.title.as_deref().unwrap_or(&fallback);
     let at = times.say(w, TimeForm::Clock, row.at);
-    let title = crate::accounts::words::join(&[title, &w.say(Word::ToolSeparator, &[]), &at]);
+    let title = match &row.milestone {
+        Some(milestone) => crate::accounts::words::join(&[milestone, " › ".as_bytes(), title]),
+        None => title.into(),
+    };
+    let title = crate::accounts::words::join(&[&title, &w.say(Word::ToolSeparator, &[]), &at]);
     let title = match name {
         Some(name) => crate::accounts::words::join(&[name, &w.say(Word::ToolSeparator, &[]), &title]),
         None => title,

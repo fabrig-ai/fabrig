@@ -187,6 +187,16 @@ pub fn of_application(bytes: &[u8]) -> Option<&[u8]> {
     Some(key)
 }
 
+/// Log-held ranges, including milestones which no writer puts (protocol/store/logs.md, 2).
+pub(crate) const LOGGED: &[crate::KeyRange] = &[
+    crate::KeyRange { from: &[1, 0, 5], to: &[1, 0, 6] },
+    crate::KeyRange { from: &[1, 0, 6, 0], to: &[1, 0, 6, 1] },
+    crate::KeyRange { from: &[1, 0, 7], to: &[1, 0, 8] },
+    crate::KeyRange { from: &[1, 1, 6], to: &[1, 1, 7] },
+    crate::KeyRange { from: &[1, 1, 9], to: &[1, 1, 12] },
+    crate::KeyRange { from: &[1, 1, 22], to: &[1, 1, 24] },
+];
+
 /// The task whose history log holds this key (protocol/store/logs.md, 2).
 #[must_use]
 pub fn logged(key: &[u8]) -> Option<u64> {

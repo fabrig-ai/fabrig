@@ -182,10 +182,18 @@ impl Process {
         }
         let Some(child) = self.child else { return };
         let request = match self.story {
-            Story::SignalRunning => Request::Signal { child, signal: Signal::Kill, to: Target::Group },
-            Story::SignalExited if self.lifecycle == Lifecycle::Exited => {
-                Request::Signal { child, signal: Signal::Kill, to: Target::Group }
-            }
+            Story::SignalRunning => Request::Signal {
+                child,
+                signal: Signal::Kill,
+                to: Target::Group,
+                reason: skein_io::kernel::Reason::Unknown,
+            },
+            Story::SignalExited if self.lifecycle == Lifecycle::Exited => Request::Signal {
+                child,
+                signal: Signal::Kill,
+                to: Target::Group,
+                reason: skein_io::kernel::Reason::Unknown,
+            },
             Story::CloseExited if self.lifecycle == Lifecycle::Exited => Request::Close { entity: child },
             Story::Megabyte if self.lifecycle == Lifecycle::Exited && self.pipe_closed == 2 => {
                 Request::Close { entity: child }

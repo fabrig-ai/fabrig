@@ -43,6 +43,10 @@ fn assert_answer(peer: &Peer, socket: Token, status: &str, body: &str, fields: &
     let mut lines = head.split("\r\n");
     assert_eq!(lines.next(), Some(status), "wire seeds 1,2");
     let got: Vec<_> = lines.map(|line| line.split_once(": ").expect("wire seeds 1,2: header")).collect();
+    assert!(
+        !got.iter().any(|(name, _)| name.to_ascii_lowercase().starts_with("access-control-")),
+        "no CORS on {status}"
+    );
     let mut expected = vec![("Date", "Thu, 01 Jan 1970 00:00:00 GMT")];
     expected.extend_from_slice(fields);
     for (name, value) in FIELDS {
@@ -69,8 +73,11 @@ fn public_reads_with_no_credential_and_with_a_signed_in_cookie_are_answered_alik
     cookie.extend_from_slice(token);
     let plain = answer(&mut peer, PublicReply::Unknown, Time::ZERO);
     let plain = peer.public_http_bytes(plain).to_vec();
-    for extra in [vec![(b"cookie".as_slice(), cookie.as_slice())], vec![(b"authorization".as_slice(), bearer.as_ref())]]
-    {
+    for extra in [
+        vec![(b"cookie".as_slice(), cookie.as_slice())],
+        vec![(b"authorization".as_slice(), bearer.as_ref())],
+        vec![(b"cookie".as_slice(), cookie.as_slice()), (b"authorization".as_slice(), bearer.as_ref())],
+    ] {
         let (socket, messages) = peer.public_http(Method::Get, PATH, headers(&extra));
         let exchange = admitted(&messages);
         peer.public_http_answer(Time::ZERO, ToTransport::Public { exchange, reply: PublicReply::Unknown });
@@ -144,7 +151,20 @@ fn a_late_answer_carries_a_shortened_max_age() {
 #[test]
 fn malformed_public_paths_are_404() {
     for (name, path) in [
-        ("overflow", "/jig/v1/public/65536/1/1"),
+        ("owner overflow", "/jig/v1/public/65536/1/1"),
+        ("version overflow", "/jig/v1/public/0/65536/1"),
+        ("kind overflow", "/jig/v1/public/0/1/65536"),
+        ("owner leading zero", "/jig/v1/public/00/1/1"),
+        ("kind leading zero", "/jig/v1/public/0/1/01"),
+        ("short project id", "/jig/v1/public/0/1/2/123456789abcdef"),
+        ("long project id", "/jig/v1/public/0/1/2/123456789abcdef01"),
+        ("uppercase project id", "/jig/v1/public/0/1/2/123456789ABCDEFA"),
+        ("encoded slash", "/jig/v1/public/0/1/2/%2F123456789abcde"),
+        ("encoded letter", "/jig/v1/public/0/1/2/%61123456789abcde"),
+        ("empty owner", "/jig/v1/public//1/1"),
+        ("empty version", "/jig/v1/public/0//1/1"),
+        ("dot version", "/jig/v1/public/0/./1/1"),
+        ("bare query", "/jig/v1/public/0/1/1?query"),
         ("leading zero", "/jig/v1/public/0/01/1"),
         ("uppercase id", "/jig/v1/public/0/1/1/0123456789abcdeF"),
         ("short id", "/jig/v1/public/0/1/1/0"),
@@ -236,4 +256,57 @@ fn public_and_signed_in_calls_each_have_their_own_room() {
     peer.public_http_answer(Time::ZERO, ToTransport::Reply { exchange: *exchange, reply: Reply::Record(Box::new([])) });
     assert_eq!(peer.status(signed), Some(200), "wire seeds 1,2");
     peer.public_http_answer(Time::ZERO, ToTransport::Public { exchange: public_exchange, reply: PublicReply::Unknown });
+}
+
+#[test]
+fn an_unknown_of_each_owner_is_the_same_404_byte_for_byte() {
+    let mut baseline = None;
+    // Jig, an application's first family, and the largest owner number.
+    for owner in [0, 1, u16::MAX] {
+        let mut peer = peer();
+        let path = format!("/jig/v1/public/{owner}/1/65535");
+        let (socket, messages) = peer.public_http(Method::Get, path.as_bytes(), headers(&[]));
+        let [FromTransport::PublicRead { exchange, read }] = messages.as_slice() else {
+            panic!("owner {owner}: public call: {messages:?}");
+        };
+        assert_eq!(*read, PublicRead { owner, version: 1, kind: 65535, ids: Box::new([]) });
+        peer.public_http_answer(Time::ZERO, ToTransport::Public { exchange: *exchange, reply: PublicReply::Unknown });
+        assert_answer(
+            &peer,
+            socket,
+            "HTTP/1.1 404 Not Found",
+            "",
+            &[("cache-control", "public, max-age=5, must-revalidate"), ("x-content-type-options", "nosniff")],
+            false,
+        );
+        let bytes = peer.public_http_bytes(socket);
+        if let Some(baseline) = &baseline {
+            assert_eq!(bytes, baseline, "owner {owner}: one unknown answer");
+        } else {
+            baseline = Some(bytes.to_vec());
+        }
+    }
+}
+
+#[test]
+fn a_read_with_the_wrong_content_type_is_415_with_no_access_control_header() {
+    let mut peer = peer();
+    let (socket, messages) = peer.public_http(
+        Method::Post,
+        b"/jig/v1/read",
+        headers(&[(b"origin", b"https://another.example"), (b"access-control-request-method", b"GET")]),
+    );
+    assert!(messages.is_empty(), "wrong content type reaches no component");
+    assert_answer(
+        &peer,
+        socket,
+        "HTTP/1.1 415 Unsupported Media Type",
+        "",
+        &[
+            ("content-type", "application/octet-stream"),
+            ("cache-control", "no-store"),
+            ("x-content-type-options", "nosniff"),
+        ],
+        false,
+    );
 }

@@ -31,6 +31,7 @@ pub const LIMITS: Limits = Limits {
     progress_bytes: 64,
     turns: 0,
     grace: Duration::from_secs(20),
+    restart_wait: Duration::from_millis(1_200_000),
     facts: 64,
     history: 8,
 };
@@ -124,6 +125,8 @@ pub struct Settings {
     /// Engine restarts, before `horizon`, and how long the parent takes to
     /// read its claims back after one.
     pub restarts: u32,
+    /// Per mille the starts supplied with a kept restart word.
+    pub restart_words: u32,
     pub read: Span,
     /// How long a worker out of contact keeps its runs: no more than the
     /// fleet's grace less a channel's latency and a wind-down, so that what
@@ -172,6 +175,7 @@ impl Settings {
             away: Span::millis(1000, 30_000),
             quick: 0,
             restarts: 0,
+            restart_words: 0,
             read: Span::millis(100, 5000),
             worker_grace: Duration::from_secs(15),
         }
@@ -230,7 +234,8 @@ impl Settings {
     #[must_use]
     pub fn bound(&self) -> Duration {
         let faults = u64::from(self.drops + self.restarts + 1);
-        let fault = self.limits.grace.saturating_add(self.latency.max.saturating_mul(4));
+        let wait = if self.restart_words == 0 { Duration::ZERO } else { self.limits.restart_wait };
+        let fault = self.limits.grace.saturating_add(wait).saturating_add(self.latency.max.saturating_mul(4));
         self.timeout
             .saturating_mul(2)
             .saturating_add(self.read.max)
@@ -274,6 +279,10 @@ pub struct Stats {
 /// Something on its way, delivered at its time.
 #[derive(Debug)]
 pub(crate) enum Delivery {
+    /// The first inventory answers sources sent after hello.
+    Logins {
+        channel: u64,
+    },
     /// A worker's message reaches the fleet, if its channel is still open.
     Up {
         channel: u64,
@@ -507,6 +516,7 @@ pub struct World {
     trace: Trace,
     last_grant: Option<(Token, Token, Token, Grant)>,
     grants_sent: u64,
+    restart_holds: crate::restart::Holds,
 }
 
 impl World {
@@ -542,6 +552,7 @@ impl World {
             trace: Trace::default(),
             last_grant: None,
             grants_sent: 0,
+            restart_holds: crate::restart::Holds::default(),
             settings,
         };
         for worker in 0..settings.workers {
@@ -611,6 +622,12 @@ impl World {
         (fleet.ends, fleet.sent)
     }
 
+    /// Counts the held adoptions, losses checked and placements checked at the boundary.
+    #[must_use]
+    pub fn restart_checks(&self) -> (u64, u64, u64) {
+        (self.restart_holds.adopted, self.restart_holds.lost, self.restart_holds.placements)
+    }
+
     /// Runs until nothing is left to happen, then checks the invariants of a
     /// settled world. Panics if it takes more than `iterations`.
     pub fn run(&mut self, iterations: u32) {
@@ -650,6 +667,7 @@ impl World {
         }
         while let Some(event) = self.stage.next_event() {
             self.log(format!("fleet <- {}", describe(&event)));
+            self.restart_holds.event(now, self.settings.limits.grace, &event);
             fleet::step(&mut self.domain, &self.stage.env, event, &mut self.stage.out);
         }
         while self.domain.is_due(now) {
@@ -787,6 +805,7 @@ impl World {
         self.loaded = false;
         self.domain = crate::fixtures::domain(&self.settings.limits, crate::fixtures::needs());
         self.stage.inbox.clear();
+        self.restart_holds.restart();
         self.calls = Ledger::new("start or adoption");
         self.relays = Ledger::new("relayed call");
         self.payloads = Ledger::new("payload");
@@ -819,6 +838,11 @@ impl World {
 
     fn deliver(&mut self, delivery: Delivery) {
         match delivery {
+            Delivery::Logins { channel } => {
+                if self.channels[&channel].open && self.channels[&channel].epoch == self.epoch {
+                    self.stage.push(Event::Logins { channel: Token::new(channel), logins: Box::new([]) });
+                }
+            }
             Delivery::Up { channel, up } => {
                 if self.channels[&channel].open {
                     self.up(channel, up);
@@ -947,10 +971,17 @@ impl World {
 
     #[expect(clippy::too_many_lines, reason = "one exhaustive translation of fleet requests to the scripted workers")]
     fn request(&mut self, request: Request) {
+        self.restart_holds.request(self.now, &request).unwrap_or_else(|finding| {
+            panic!("seed {}: {finding}", self.settings.seed);
+        });
         match request {
             Request::Sources { channel, sources } => {
                 assert!(sources.is_empty(), "worker fixture has no program sources");
-                self.stage.push(Event::Logins { channel, logins: Box::new([]) });
+                if self.settings.restart_words == 0 {
+                    self.stage.push(Event::Logins { channel, logins: Box::new([]) });
+                } else {
+                    self.after(self.settings.latency, Delivery::Logins { channel: channel.raw() });
+                }
             }
             Request::Ask { .. } | Request::Asked { .. } => {
                 unreachable!("the script does not make application asks")
@@ -986,7 +1017,10 @@ impl World {
                 self.down(channel, Message::Relayed { run: run.raw(), attempt: attempt.raw(), call });
             }
             Request::Grant { channel, run, attempt, grant } => self.record_grant(channel, run, attempt, grant),
-            Request::Unauthorized { .. } | Request::Limited { .. } | Request::AccountRefused { .. } => {}
+            Request::Discharged
+            | Request::Unauthorized { .. }
+            | Request::Limited { .. }
+            | Request::AccountRefused { .. } => {}
             Request::Assign { channel, run, attempt, .. } | Request::AssignJob { channel, run, attempt } => {
                 self.assignment_sent(channel, run, attempt);
             }
@@ -1305,6 +1339,9 @@ impl World {
     /// After a restart, the parent adopts every attempt its records hold
     /// open, the oldest first, and cancels again those it had cancelled.
     fn adopt(&mut self) {
+        if self.settings.restart_words > 0 && self.rng.chance(self.settings.restart_words) {
+            self.stage.push(Event::Restarting { wait: self.settings.limits.restart_wait });
+        }
         for item in 0..self.items.len() {
             let run = Token::new(self.items[item].run);
             let stale: Vec<(u64, bool)> = self.items[item]
@@ -1400,6 +1437,7 @@ fn describe(event: &Event) -> String {
         | Event::Relay { .. }
         | Event::Observe { .. }
         | Event::Acknowledge { .. }
+        | Event::Restarting { .. }
         | Event::Loaded => format!("{event:?}"),
     }
 }

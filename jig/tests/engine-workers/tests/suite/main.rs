@@ -11,6 +11,7 @@ mod opening;
 mod prepared;
 mod records;
 mod relinks;
+mod restarting;
 mod sources;
 mod stopping;
 

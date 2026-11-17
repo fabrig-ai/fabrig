@@ -182,6 +182,7 @@ impl Fetch {
                 }
                 link::Request::Untranslated { kind, halt } => self.notes.push(Note::Untranslated { kind, halt }),
                 link::Request::Ready
+                | link::Request::Restarting { .. }
                 | link::Request::RelayCancelled { .. }
                 | link::Request::Resend { .. }
                 | link::Request::Lost

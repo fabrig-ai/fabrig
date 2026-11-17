@@ -456,15 +456,6 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
                 crate::upgrade::job_counts(&counts)
             )
         }
-        temper_engine_service::Note::Patched { of, patch, counts } => {
-            let binary = if binary == "temper" { "temper-box" } else { binary };
-            format!(
-                "{binary} serve: patched {} {patch}: {} records in {} commits\n",
-                crate::upgrade::owner(of),
-                counts.records,
-                counts.commits
-            )
-        }
         temper_engine_service::Note::Listening { listener, addr } => {
             let name = match listener {
                 temper_engine_service::Listening::Clients => "clients",
@@ -481,6 +472,17 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
         }
         temper_engine_service::Note::WorkerFiguresTaken { worker } => {
             format!("{binary} serve: worker {} took its figures\n", String::from_utf8_lossy(&worker))
+        }
+        temper_engine_service::Note::WorkerTold { worker, version, wait } => {
+            let worker = String::from_utf8_lossy(&worker);
+            match wait {
+                Some(wait) => {
+                    format!("{binary} serve: worker {worker} told the engine restarts: wait {} ms\n", wait.as_millis())
+                }
+                None => format!(
+                    "{binary} serve: worker {worker} not told the engine restarts: jig-worker-wire {version}; it keeps its grace\n"
+                ),
+            }
         }
         temper_engine_service::Note::WorkerOpened { worker, wires } => {
             use std::fmt::Write as _;
@@ -545,6 +547,7 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
                 Kind::Figures => "figures",
                 Kind::Wires => "wires",
                 Kind::Ask => "ask",
+                Kind::Restarting => "restarting",
                 Kind::Asked => "asked",
             };
             let bound = match unsent.bound {

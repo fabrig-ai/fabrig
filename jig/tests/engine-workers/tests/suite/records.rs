@@ -56,6 +56,7 @@ mod records {
             | Request::Lower { .. }
             | Request::Close { .. }
             | Request::Abort { .. }
+            | Request::Told { .. }
             | Request::Opened { .. }
             | Request::Refused { .. }
             | Request::Ended { .. }
@@ -70,11 +71,24 @@ mod records {
     fn an_unencodable_assignment_returns_a_terminal_refusal() {
         use jig_domain_host as host;
         use jig_protocol_engine_workers::Event;
-        for detail in [0, fixtures::SIZES.detail] {
+        for detail in [0, fixtures::SIZES.detail, 128] {
             let mut limits = fixtures::limits();
             limits.sizes.detail = detail;
             let mut world = World::new(&limits, &fixtures::workers(), 1);
-            let (connection, channel) = world.reporting(WORKER_A, SECRET_A);
+            let codec = jig_protocol_worker_wire::sizes::limits(&limits.sizes).expect("fixture codec");
+            let schema = jig_protocol_worker_wire::schema(&codec).expect("fixture schema");
+            let mut peer = fixtures::peer(
+                schema,
+                jig_protocol_worker_wire::VERSION,
+                WORKER_A,
+                SECRET_A,
+                fixtures::APPLICATION_VERSION,
+            );
+            peer.play(fixtures::hello_frame());
+            let connection = world.connect(peer);
+            world.run();
+            let Request::Hello { channel, .. } = world.root().last().expect("hello") else { panic!("hello") };
+            let channel = *channel;
             let mut valid = fixtures::assignment_down(channel);
             let jig_protocol_engine_workers::Event::Down { down: host::LinkDown::Assign { assignment }, .. } =
                 &mut valid
@@ -110,10 +124,8 @@ mod records {
                 panic!("invalid start refusal");
             };
             assert_eq!(*cause, host::StartCause::Other);
-            assert_eq!(
-                why.as_ref(),
-                &b"assignment cannot encode"[..usize::try_from(detail).expect("fixture detail bound")]
-            );
+            let words = b"assignment cannot encode: Assignment.charter 17, bound 16, wire ceiling 67,108,864";
+            assert_eq!(why.as_ref(), &words[..words.len().min(usize::try_from(detail).expect("fixture detail bound"))]);
             assert_eq!(world.observed(connection).len(), 2, "invalid assignment never reaches worker");
             world.down(fixtures::assignment_down(channel));
             world.run();

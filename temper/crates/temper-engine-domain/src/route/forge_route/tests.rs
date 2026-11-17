@@ -740,6 +740,40 @@ fn change_goal_holdings(
 }
 
 #[test]
+fn tracked_ancestry_skips_gatherings_and_plain_goals_have_no_milestone() {
+    use super::tasks;
+    let executor = tasks::Executor::Procedure { connector: 0, code: 1 };
+    let (domain, env, number) = crate::tests::live_task(Some(1), executor);
+    assert_eq!(super::tracked_ancestor(&domain, tasks::Party::Task(number)), Some(number));
+    assert_eq!(super::milestones::of(&domain, Some(number)), None);
+    let mut gathering = domain.core.tasks.task(number).unwrap().clone();
+    gathering.executor =
+        tasks::Executor::Procedure { connector: jig_domain_core::RECURRING, code: jig_domain_core::GATHERING };
+    gathering.flags.ended_by = tasks::EndedBy::Requester;
+    let mut domain = crate::Domain::new(crate::tests::resume_fixture::config(7), &env.limits).unwrap();
+    let mut out = skein_lib::Queue::uncapped();
+    tasks::step(
+        &mut domain.core.tasks,
+        &env.with(env.limits.tasks),
+        tasks::Event::Restore { record: tasks::Stored::Live(Box::new(gathering.clone())) },
+        &mut out,
+    );
+    assert_eq!(super::tracked_ancestor(&domain, tasks::Party::Task(number)), None);
+    let mut goal = gathering;
+    goal.number = number + 1;
+    goal.requester = tasks::Party::Task(number);
+    goal.executor = executor;
+    tasks::step(
+        &mut domain.core.tasks,
+        &env.with(env.limits.tasks),
+        tasks::Event::Restore { record: tasks::Stored::Live(Box::new(goal)) },
+        &mut out,
+    );
+    assert_eq!(super::tracked_ancestor(&domain, tasks::Party::Task(number + 1)), Some(number + 1));
+    assert_eq!(super::milestones::of(&domain, Some(number + 1)), Some(number));
+}
+
+#[test]
 fn a_change_into_a_goal_branch_from_outside_its_goal_is_refused_naming_the_goal() {
     let (mut domain, env) = goal_holds_branch();
     for parent in [None, Some(GOAL_ROOT)] {
@@ -1331,6 +1365,7 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
         delegate: None,
         delegate_status: change::Status::Unknown,
         verdicts: Box::new([]),
+        milestone: None,
         goal: None,
         ending: None,
         repair_tasks: Box::new([]),
@@ -5928,6 +5963,8 @@ fn a_prepare_intent_and_an_earlier_suffix_are_not_an_admitted_job() {
         written: true,
     });
     assert!(domain.core.tasks.task(100).is_none(), "ended jobs need no live delegate");
+    check(&mut domain, &row, Preparation::Absent);
+    row.landing.round.failure = br#"{"combined":[{"member":2,"by":"merge"}]}"#.as_slice().into();
     check(&mut domain, &row, Preparation::Idle);
     row.landing.members[0].candidate = Some(SHA1);
     check(&mut domain, &row, Preparation::Absent);
@@ -5935,6 +5972,199 @@ fn a_prepare_intent_and_an_earlier_suffix_are_not_an_admitted_job() {
     check(&mut domain, &row, Preparation::Idle);
     row.landing.preparation = 2;
     check(&mut domain, &row, Preparation::Absent);
+}
+
+fn unprepared_round() -> (super::Domain, skein_lib::Env<super::Limits>, super::forge::LandingRow) {
+    use super::forge::history::{Job, JobOutcome, JobRecord, JobStep};
+    let (domain, env, mut row) = reserved_turn_landing();
+    row.landing.preparation = 1;
+    row.landing.members[0].asked = Some(1);
+    let mut second = row.landing.members[0].clone();
+    second.change = 8;
+    row.landing.members = Box::new([row.landing.members[0].clone(), second]);
+    row.job = Some(JobRecord {
+        step: JobStep { task: 100, attempt: 1, job: Job::Prepare, outcome: Some(JobOutcome::Done), head: None },
+        round: 1,
+        members: Box::new([0, 1]),
+        head: None,
+        written: true,
+    });
+    (domain, env, row)
+}
+
+fn read_preparation(
+    domain: &mut super::Domain,
+    env: &skein_lib::Env<super::Limits>,
+    row: &super::forge::LandingRow,
+    context: &super::tasks::RunContext,
+) -> temper_engine_domain_forge_landing::Preparation {
+    use super::forge;
+    forge::step(
+        &mut domain.forge,
+        &super::super::environment_forge(env),
+        forge::Event::Restore { record: forge::Stored::Landing(row.clone()) },
+        &mut skein_lib::Queue::uncapped(),
+    );
+    super::landing_route::preparation(domain, context)
+}
+
+#[test]
+fn a_prepare_that_ended_without_an_answer_is_absent_even_with_a_kept_report() {
+    use super::forge::history::{JobFailure, JobOutcome};
+    use temper_engine_domain_forge_landing::Preparation;
+    let (mut domain, env, mut row) = unprepared_round();
+    let context = domain.core.tasks.run_context(row.landing.task).expect("landing context");
+    assert!(domain.core.tasks.task(100).is_none());
+    for outcome in
+        [JobOutcome::Lost, JobOutcome::Cancelled, JobOutcome::Timeout, JobOutcome::Failed { class: JobFailure::Run }]
+    {
+        row.job.as_mut().unwrap().step.outcome = Some(outcome);
+        for report in [b"".as_slice(), br#"{"combined":[{"member":1,"by":"merge"}]}"#] {
+            row.landing.round.failure = report.into();
+            assert_eq!(read_preparation(&mut domain, &env, &row, &context), Preparation::Absent, "{outcome:?}");
+        }
+    }
+}
+
+#[test]
+fn an_ended_prepares_record_needs_an_answer_kept_for_its_suffix() {
+    use super::forge::history::JobOutcome;
+    use temper_engine_domain_forge_landing::Preparation;
+    let (mut domain, env, mut row) = unprepared_round();
+    let context = domain.core.tasks.run_context(row.landing.task).expect("landing context");
+    for outcome in [Some(JobOutcome::Done), Some(JobOutcome::Conflict), None] {
+        row.job.as_mut().unwrap().step.outcome = outcome;
+        for (report, expected) in [
+            (b"".as_slice(), Preparation::Absent),
+            (b"job failed".as_slice(), Preparation::Absent),
+            (br#"{"combined":[{"member":1,"by":"merge"}]}"#.as_slice(), Preparation::Idle),
+            (br#"{"conflicts":[{"member":2,"with":"member","files":["code"]}]}"#.as_slice(), Preparation::Idle),
+        ] {
+            row.landing.round.failure = report.into();
+            assert_eq!(read_preparation(&mut domain, &env, &row, &context), expected, "{outcome:?}");
+        }
+    }
+    row.landing.members[0].candidate = Some(SHA1);
+    row.job.as_mut().unwrap().members = Box::new([1]);
+    row.landing.round.failure = br#"{"combined":[{"member":1,"by":"merge"}]}"#.as_slice().into();
+    assert_eq!(read_preparation(&mut domain, &env, &row, &context), Preparation::Absent);
+}
+
+fn prepare_child(
+    domain: &mut super::Domain,
+    env: &skein_lib::Env<super::Limits>,
+    task: u64,
+    phase: super::tasks::Phase,
+) {
+    use super::tasks;
+    let mut parent = domain.core.tasks.task(task).unwrap().clone();
+    parent.delegates = Box::new([100]);
+    let mut child = parent.clone();
+    child.number = 100;
+    child.requester = tasks::Party::Task(task);
+    child.delegates = Box::new([]);
+    child.executor = tasks::Executor::Job { kind: super::forge::PREPARE_KIND };
+    child.spec.words = Box::new([]);
+    child.spec.parameters = Box::new([]);
+    child.spec.inputs = Box::new([]);
+    child.spec.asks = false;
+    child.spec.job =
+        Some(Box::new(tasks::JobSpec { bytes: Box::new([]), deadline: skein_lib::Duration::from_secs(10) }));
+    child.contract = tasks::Contract::Job { bytes: env.limits.tasks.result_bytes };
+    child.phase = phase.clone();
+    domain.core.tasks = tasks::Domain::new(
+        &env.limits.tasks,
+        tasks::Kept { revisions: env.limits.settings.revisions, versions: env.limits.settings.versions },
+        101,
+        0,
+        Box::new([]),
+        Box::new([]),
+    );
+    let mut out = skein_lib::Queue::uncapped();
+    for task in [parent, child] {
+        tasks::step(
+            &mut domain.core.tasks,
+            &env.with(env.limits.tasks),
+            tasks::Event::Restore { record: tasks::Stored::Live(Box::new(task)) },
+            &mut out,
+        );
+    }
+    assert!(domain.core.tasks.task(100).is_some(), "{phase:?}: {out:?}");
+}
+
+#[test]
+fn a_prepare_inbox_answer_precedes_a_live_child_without_a_record() {
+    use super::tasks;
+    use temper_engine_domain_forge_landing::Preparation;
+    let (mut domain, env, mut row) = unprepared_round();
+    row.job = None;
+    let mut context = domain.core.tasks.run_context(row.landing.task).expect("landing context");
+    context.inbox = Box::new([tasks::Word {
+        number: 1,
+        from: tasks::Party::Task(100),
+        kind: tasks::MessageKind::Result(tasks::ResultKind::Job),
+        words: br#"{"combined":[{"member":1,"by":"merge"}]}"#.as_slice().into(),
+        at: env.wall,
+        hits: 1,
+        eligible: true,
+    }]);
+    assert_eq!(read_preparation(&mut domain, &env, &row, &context), Preparation::Idle);
+    prepare_child(&mut domain, &env, row.landing.task, tasks::Phase::Active(tasks::Active::Due));
+    assert_eq!(read_preparation(&mut domain, &env, &row, &context), Preparation::Idle);
+    context.inbox[0].words = b"unreadable report".as_slice().into();
+    assert_eq!(read_preparation(&mut domain, &env, &row, &context), Preparation::Failed);
+    context.inbox[0].words = br#"{"conflicts":[{"member":1,"with":"branch","files":["code"]}]}"#.as_slice().into();
+    row.landing.round.branch = Box::new([]);
+    assert_eq!(read_preparation(&mut domain, &env, &row, &context), Preparation::Conflict);
+    let revision = domain.core.tasks.task(100).unwrap().revisions.hold;
+    prepare_child(
+        &mut domain,
+        &env,
+        row.landing.task,
+        tasks::Phase::Held {
+            was: tasks::Was::Active(tasks::Active::Due),
+            why: tasks::Hold::Failures(tasks::Class::Run),
+            source: None,
+        },
+    );
+    context.inbox[0].kind = tasks::MessageKind::Escalation { task: 100, revision };
+    assert_eq!(read_preparation(&mut domain, &env, &row, &context), Preparation::Failed);
+}
+
+#[test]
+fn a_live_prepare_counts_whatever_round_asked_it() {
+    use super::tasks;
+    use temper_engine_domain_forge_landing::Preparation;
+    for (phase, expected) in [
+        (tasks::Phase::Active(tasks::Active::Due), Preparation::Running),
+        (
+            tasks::Phase::Active(tasks::Active::BackingOff { until: skein_lib::Wall::from_nanos(100) }),
+            Preparation::Running,
+        ),
+        (tasks::Phase::Active(tasks::Active::Running { attempt: 1 }), Preparation::Running),
+        (tasks::Phase::Waiting, Preparation::Running),
+        (
+            tasks::Phase::Closing(tasks::Closing {
+                stage: tasks::Stage::Effects,
+                ending: tasks::Ending::Failed { reason: Box::new([]) },
+            }),
+            Preparation::Running,
+        ),
+        (
+            tasks::Phase::Held {
+                was: tasks::Was::Active(tasks::Active::Due),
+                why: tasks::Hold::Failures(tasks::Class::Run),
+                source: None,
+            },
+            Preparation::Failed,
+        ),
+    ] {
+        let (mut domain, env, mut row) = unprepared_round();
+        row.job.as_mut().unwrap().round = 0;
+        prepare_child(&mut domain, &env, row.landing.task, phase.clone());
+        let context = domain.core.tasks.run_context(row.landing.task).expect("landing context");
+        assert_eq!(read_preparation(&mut domain, &env, &row, &context), expected, "{phase:?}");
+    }
 }
 
 fn report_tests() -> super::forge::ReceiptReport {

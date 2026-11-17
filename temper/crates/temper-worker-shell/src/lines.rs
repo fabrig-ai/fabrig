@@ -25,6 +25,13 @@ pub fn note_line(binary: &str, note: service::Note) -> String {
         service::Note::FiguresChanged => {
             "the engine's figures changed; they apply at this worker's next start\n".into()
         }
+        service::Note::Cancelling { run, attempt } => {
+            format!("{binary} worker: run {run} attempt {attempt} cancelled by the engine\n")
+        }
+        service::Note::Restarting { keep } => format!(
+            "{binary} worker: the engine said it restarts: runs kept up to {} ms after the link drops\n",
+            keep.as_millis()
+        ),
         service::Note::ResultsIgnored { owner, tag, reason } => {
             run_detail_line(format!("{binary} worker: owner {owner} repository {tag} check results ignored: "), &reason)
         }

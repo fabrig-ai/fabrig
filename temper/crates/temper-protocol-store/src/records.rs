@@ -23,6 +23,7 @@ mod issues;
 mod landing;
 mod landing_log;
 mod making;
+mod milestones;
 mod names;
 mod settings;
 mod status;
@@ -59,6 +60,7 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
         d::Stored::RefusedSetting(_) => unreachable!("a refused setting is never saved"),
         d::Stored::Setting(row) => w::Value::Setting(settings::encode(row)),
         d::Stored::Tier(row) => w::Value::Tier(Box::new(tiers::encode(row))),
+        d::Stored::Milestone(row) => w::Value::Milestone(milestones::encode(row)),
         d::Stored::LandingLog(row) => w::Value::LandingLog(landing_log::encode(row)),
         d::Stored::Verification(row) => w::Value::Verification(verification::encode(row)),
         d::Stored::Forge(row) => w::Value::Forge(forges::encode(row)),
@@ -153,6 +155,7 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
         w::Value::Making(row) => d::Stored::Making(making::decode(row)),
         w::Value::Setting(row) => d::Stored::Setting(settings::decode(row, bounds)?),
         w::Value::Tier(row) => d::Stored::Tier(tiers::decode(*row)?),
+        w::Value::Milestone(row) => d::Stored::Milestone(milestones::decode(row)),
         w::Value::LandingLog(row) => d::Stored::LandingLog(landing_log::decode(row)),
         w::Value::Verification(row) => d::Stored::Verification(verification::decode(row)?),
         w::Value::Forge(row) => d::Stored::Forge(forges::decode(row)?),

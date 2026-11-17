@@ -130,6 +130,7 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
             let drain = engine.drain.as_mut().expect("settling follows the service’s stop");
             drain.unsettled.push(write).expect("at most one unfinished write per forge entry");
         }
+        root::Request::Restarting { wait } => engine.workers.restarting(wait, &mut engine.events),
         root::Request::Drained => stop::drained(engine),
         root::Request::Stop => stop::root(engine),
         root::Request::Worker(request) => worker(engine, request),
@@ -389,6 +390,7 @@ fn worker(engine: &mut Engine, request: root::WorkerRequest) {
             | root::Delivery::NotesLoad { .. }
             | root::Delivery::Start(_)
             | root::Delivery::Load { .. }
+            | root::Delivery::Restarting { .. }
             | root::Delivery::Drained => stop::unavailable(engine, b"workers"),
         },
     }

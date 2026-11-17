@@ -127,7 +127,7 @@ impl Engine {
     pub(crate) fn new(
         config: root::Config,
         limits: &root::Limits,
-        mut store: crate::store::Store,
+        store: crate::store::Store,
         children: Children,
         values: crate::values::Values,
         first_periods: List<(u32, u64)>,
@@ -136,7 +136,6 @@ impl Engine {
         let Children { accounts, workers, mut clients, demo, forge, setup, notes, limits: own } = children;
         clients.query_bytes = own.routes.query_bytes;
         let credentials = values.identities.numbers();
-        store.routes.patch_context().executors.clone_from(&config.core.defaults.rules.ceiling.delegation.kinds);
         let mut domain = match root::Domain::new(config, limits) {
             Ok(domain) => Box::new(domain),
             Err(problem) => {
@@ -787,12 +786,6 @@ pub(crate) fn answer(engine: &mut Engine) {
                 }
                 state.report.events.push(event);
             }
-            jig_protocol_store::Event::Patched { owner, of, patch, counts } => {
-                if let Some(state) = &mut engine.upgrade {
-                    state.report.events.push(jig_protocol_store::Event::Patched { owner, of, patch, counts });
-                }
-                engine.notes.try_push(crate::Note::Patched { of, patch, counts }).expect("patch progress note room");
-            }
             jig_protocol_store::Event::Ran { owner, of, job, rows, commits, counts } => {
                 if let Some(state) = &mut engine.upgrade {
                     state.report.events.push(jig_protocol_store::Event::Ran {
@@ -931,9 +924,7 @@ fn open_refused(engine: &mut Engine, why: jig_protocol_store::OpenRefusal) {
         why @ OpenRefusal::Ahead { .. } => stop::open(engine, &why),
         why @ OpenRefusal::Job { .. } => stop::open(engine, &why),
         why @ OpenRefusal::Layout { .. } => stop::open(engine, &why),
-        why @ OpenRefusal::Patch { .. } => stop::open(engine, &why),
         why @ OpenRefusal::Set { .. } => stop::open(engine, &why),
-        why @ OpenRefusal::InFlight { .. } => stop::open(engine, &why),
         why @ OpenRefusal::Check { .. } => stop::open(engine, &why),
     }
 }

@@ -190,7 +190,12 @@ fn the_first_stop_closes_life_and_the_second_signals_the_child() {
     child.stop(Stop::Second);
     assert!(matches!(
         child.requests.pop(),
-        Some(io::Request::Signal { child: PROCESS, signal: Signal::Terminate, to: Target::Child })
+        Some(io::Request::Signal {
+            child: PROCESS,
+            signal: Signal::Terminate,
+            to: Target::Child,
+            reason: skein_io::kernel::Reason::Unknown
+        })
     ));
     assert!(child.requests.is_empty());
     assert!(child.ended.is_none(), "both stops wait on the box");

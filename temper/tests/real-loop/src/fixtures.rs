@@ -370,7 +370,7 @@ fn stock_document(value: &mut serde_json::Value) {
         ("notes.scopes", 32),
         // Nine slots hold the stock charters.
         ("tasks.charters", 16),
-        ("core.templates", 6),
+        ("core.templates", 7),
     ] {
         let held = value["engine"]["limits"]["overrides"][name].as_u64().unwrap_or(0);
         value["engine"]["limits"]["overrides"][name] = held.max(count).into();

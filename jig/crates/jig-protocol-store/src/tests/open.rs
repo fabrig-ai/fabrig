@@ -20,8 +20,8 @@ fn planted(ops: &[skein_kv::Op]) -> Store {
     fixtures::over(stores)
 }
 
-// Format, Layouts, deployment header and installation identifier.
-const OPENED_ROWS: usize = 4;
+// Format, floor, layouts, deployment header and installation identifier.
+const OPENED_ROWS: usize = 5;
 const LARGE_RESULT_BYTES: u32 = 2048;
 
 #[test]
@@ -51,6 +51,7 @@ fn the_settings_verdict_piece_ceiling_is_one_mebibyte() {
 
 fn opened_rows() -> [skein_kv::Op; OPENED_ROWS] {
     [
+        fixtures::floor_put(),
         fixtures::format_put(fixtures::DEPLOYMENT),
         fixtures::layouts_put(),
         fixtures::header_put(fixtures::DEPLOYMENT, 1),
@@ -297,65 +298,21 @@ fn the_callers_two_stores_are_handed_back_without_changes() {
 }
 
 #[test]
-fn a_store_without_recorded_layouts_refuses_before_decoding_its_header() {
-    let mut store = planted(&[fixtures::format_put(fixtures::DEPLOYMENT), corrupt_header()]);
-    assert_refusal(&open(&mut store), OpenRefusal::OlderBuild { why: Older::Unrecorded });
-}
-
-fn layouts_put(layouts: &codec::component::Layouts) -> skein_kv::Op {
-    skein_kv::Op::Put {
-        key: keys::encode_own(&keys::Own::Layouts, fixtures::KEY_LIMIT).expect("layouts key fits"),
-        value: layouts.encode(),
-    }
-}
-
-#[test]
-fn each_different_family_layout_refuses_before_decoding_its_header() {
-    let layouts = crate::format::layouts();
-    let mut component = layouts;
-    component.component[0] ^= 1;
-    let mut core = layouts;
-    core.core[0] ^= 1;
-    let mut tasks = layouts;
-    tasks.tasks[0] ^= 1;
-    let mut people = layouts;
-    people.people[0] ^= 1;
-    let mut notes = layouts;
-    notes.notes[0] ^= 1;
-    let mut accounts = layouts;
-    accounts.accounts[0] ^= 1;
-    let mut settings = layouts;
-    settings.settings[0] ^= 1;
-    let mut secrets = layouts;
-    secrets.secrets[0] ^= 1;
-    let mut skein_oauth = layouts;
-    skein_oauth.skein_oauth[0] ^= 1;
-    let mut smith_transcript = layouts;
-    smith_transcript.smith_transcript[0] ^= 1;
-    for (family, changed) in [
-        (Family::Settings, settings),
-        (Family::Component, component),
-        (Family::Core, core),
-        (Family::Tasks, tasks),
-        (Family::People, people),
-        (Family::Notes, notes),
-        (Family::Accounts, accounts),
-        (Family::Secrets, secrets),
-        (Family::SkeinOauth, skein_oauth),
-        (Family::SmithTranscript, smith_transcript),
-    ] {
-        let mut store = planted(&[fixtures::format_put(fixtures::DEPLOYMENT), layouts_put(&changed), corrupt_header()]);
-        assert_refusal(&open(&mut store), OpenRefusal::OlderBuild { why: Older::Layout(family) });
-    }
+fn undecodable_floor_is_corrupt_at_its_key() {
+    let key = keys::encode_own(&keys::Own::Floor, fixtures::KEY_LIMIT).expect("floor key");
+    let mut store = replacing(skein_kv::Op::Put { key: key.clone(), value: Box::new([255]) });
+    let events = open(&mut store);
+    let [Event::Corrupt { .. }] = events.as_ref() else { panic!("{events:?}") };
+    let Some(crate::restore::OpenFailure::Data(failure)) = store.start_open_failure() else {
+        panic!("floor data failure")
+    };
+    assert_eq!(failure.row.as_ref().expect("floor site").key, key);
 }
 
 #[test]
 fn undecodable_component_rows_refuse_as_an_older_component_layout() {
-    for (key, value) in [
-        (keys::Own::Layouts, Box::from([])),
-        (keys::Own::Layouts, Box::from([0, 3])),
-        (keys::Own::Format, Box::from([0, 3])),
-    ] {
+    {
+        let (key, value) = (keys::Own::Format, Box::from([0, 3]));
         let mut store = replacing(skein_kv::Op::Put {
             key: keys::encode_own(&key, fixtures::KEY_LIMIT).expect("own key fits"),
             value,
@@ -392,18 +349,11 @@ fn rows(store: &mut Store) -> Box<[skein_kv::Op]> {
 
 #[test]
 fn older_build_refusals_leave_every_row_and_commit_unchanged() {
-    let mut changed = crate::format::layouts();
-    changed.core[0] ^= 1;
-    let key = keys::encode_own(&keys::Own::Layouts, fixtures::KEY_LIMIT).expect("own key fits");
-    for replacement in [
-        skein_kv::Op::Erase { key: key.clone() },
-        skein_kv::Op::Put { key, value: Box::from([]) },
-        layouts_put(&changed),
-        skein_kv::Op::Put {
+    {
+        let replacement = skein_kv::Op::Put {
             key: keys::encode_own(&keys::Own::Format, fixtures::KEY_LIMIT).expect("own key fits"),
             value: Box::from([0, 3]),
-        },
-    ] {
+        };
         let mut store = replacing(replacement);
         let before = rows(&mut store);
         let last = store.stores.store.last();
@@ -417,66 +367,4 @@ fn older_build_refusals_leave_every_row_and_commit_unchanged() {
         assert_eq!(store.stores.store.used(), used);
         assert!(store.stores.secrets.is_empty());
     }
-}
-
-#[test]
-fn a_build_before_held_turns_and_closed_windows_is_refused() {
-    // core-v6 at ae4ec55e0, before the two in-place words of protocol/store/transcripts.md 6.
-    const BEFORE: [u8; 32] = [
-        0xd3, 0xe9, 0x3c, 0xe9, 0x13, 0xdd, 0x3c, 0x94, 0x90, 0x47, 0x43, 0xea, 0xe3, 0xf0, 0x87, 0x70, 0x07, 0x52,
-        0xbe, 0x24, 0x99, 0xc3, 0xff, 0xfb, 0x3b, 0x82, 0x65, 0x31, 0x2e, 0xe5, 0xd5, 0x40,
-    ];
-    let mut layouts = crate::layouts::LAYOUTS;
-    layouts.core = BEFORE;
-    let key = keys::encode_own(&keys::Own::Layouts, fixtures::KEY_LIMIT).expect("layouts key");
-    let mut store = replacing(skein_kv::Op::Put { key, value: layouts.encode() });
-    assert_refusal(&open(&mut store), OpenRefusal::OlderBuild { why: Older::Layout(Family::Core) });
-}
-
-#[test]
-fn seven_field_layouts_refuse_before_a_secret_read() {
-    // The former row was version u16 followed by seven fixed 32-byte digests.
-    const BEFORE_BYTES: usize = 226;
-    let current = crate::format::layouts();
-    let mut bytes = skein_lib::Writer::new(BEFORE_BYTES);
-    bytes.put(&3_u16.to_be_bytes()).expect("component version");
-    for digest in [
-        current.component,
-        current.core,
-        current.tasks,
-        current.people,
-        current.notes,
-        current.accounts,
-        current.settings,
-    ] {
-        bytes.put(&digest).expect("former digest");
-    }
-    let mut store = replacing(skein_kv::Op::Put {
-        key: keys::encode_own(&keys::Own::Layouts, fixtures::KEY_LIMIT).expect("layouts key"),
-        value: bytes.finish(),
-    });
-    // A secret request would fail key admission if it reached the reader.
-    store.limits.secrets.key = 0;
-    assert_refusal(&open(&mut store), OpenRefusal::OlderBuild { why: Older::Layout(Family::Component) });
-    assert!(
-        fixtures::run(
-            &mut store,
-            Request::Secrets {
-                owner: Token::new(1),
-                request: crate::Secrets::Get { owner: crate::SecretOwner::SignIn, number: 1 }
-            }
-        )
-        .is_empty()
-    );
-}
-
-#[test]
-fn a_people_v13_store_is_refused_not_migrated() {
-    let format = version_put(crate::format::current(fixtures::APPLICATION.version, fixtures::DEPLOYMENT).tasks, 13, 6);
-    let mut store = planted(&[format.clone(), fixtures::header_put(fixtures::DEPLOYMENT, 1)]);
-    assert_refusal(&open(&mut store), OpenRefusal::Format { family: Family::People, found: 13, wanted: 17 });
-    assert_eq!(store.phase, Phase::Stopped);
-    let skein_kv::Op::Put { key, value } = format else { panic!("format is a put") };
-    assert_eq!(fixtures::get_kv(&mut store, &key), Some(value));
-    assert_eq!(store.into_stores().store.last(), 1);
 }

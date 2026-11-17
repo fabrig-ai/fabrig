@@ -694,6 +694,7 @@ impl World {
                 | engine::Request::Setup { .. }
                 | engine::Request::Busy(_)
                 | engine::Request::Unsettled(_)
+                | engine::Request::Restarting { .. }
                 | engine::Request::Drained) => panic!("unexpected escalation output {other:?}"),
             }
         }
@@ -828,6 +829,7 @@ impl World {
             | Delivery::Read { .. }
             | Delivery::Document { .. }
             | Delivery::WatchEnded { .. }
+            | Delivery::Restarting { .. }
             | Delivery::Drained
             | Delivery::Refuse { .. }
             | Delivery::TurnBusy { .. } => panic!("unexpected escalation delivery {delivery:?}"),

@@ -24,6 +24,7 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
             }
         }
         core::Held::PublicRead { .. } => {}
+        core::Held::Restarting { wait } => emit(decision, &env.limits, Delivery::Restarting { wait }),
         core::Held::PublicWait { read } => emit(decision, &env.limits, Delivery::PublicWait { read }),
         core::Held::ReadList { channel, read, endpoint, grant } => {
             emit(

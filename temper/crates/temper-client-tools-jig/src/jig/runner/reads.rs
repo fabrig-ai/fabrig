@@ -174,6 +174,7 @@ fn start_overview(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut r
     runner.active.insert(reading.called.call_number, reading);
 }
 
+#[expect(clippy::too_many_lines, reason = "read dispatch keeps each tool beside its opening read")]
 fn start_detail(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut reading: Reading, out: &mut Queue<Out>) {
     let task = number(&reading.called.call, 0).unwrap_or(0);
     match reading.called.call.tool {
@@ -203,7 +204,16 @@ fn start_detail(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut rea
             let live = cursor(&reading.called.call, 1);
             read(runner, &mut reading, 1, c::Read::Tasks { query, live, ended: None }, out);
         }
-        rows::ROLE_SHOW_AT => read(runner, &mut reading, 1, c::Read::Task { task }, out),
+        rows::MILESTONE_LIST_AT => {
+            let Some(me) = super::acts::me(runner, client) else { return };
+            let Some(what) = super::milestone::list(&reading.called.call, me) else {
+                let printed = render::failure(b"project or milestone template 8 not offered", reading.called.json, 1);
+                finish(reading, printed, out);
+                return;
+            };
+            read(runner, &mut reading, 1, what, out);
+        }
+        rows::MILESTONE_SHOW_AT | rows::ROLE_SHOW_AT => read(runner, &mut reading, 1, c::Read::Task { task }, out),
         rows::DEPLOYMENT_CENSUS_AT => read(runner, &mut reading, 1, c::Read::Deployment, out),
         rows::TASK_TEXT_AT => {
             let what = task_text_read(&reading.called.call);
@@ -572,6 +582,14 @@ fn complete(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut reading
     }
 
     if reading.pending != 0 {
+        runner.active.insert(reading.called.call_number, reading);
+        return;
+    }
+    if let Some((local, what)) = reading.parts.extra_read(&reading) {
+        reading.pending |= 1u8.checked_shl(local).expect("host read slot");
+        out.push(Out::Client {
+            event: Event::Read { handle: handle(runner, reading.called.call_number, local), read: what },
+        });
         runner.active.insert(reading.called.call_number, reading);
         return;
     }

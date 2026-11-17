@@ -65,8 +65,8 @@ pub fn reserve_listeners<const N: usize>(taken: &[SocketAddr]) -> [std::net::Tcp
     temper_fixtures::ports::reserve(taken)
 }
 
-/// Gives every listener an init-made document names a chosen
-/// address, so that no story depends on init's preferred ports.
+/// Reserves every listener an init-made document names and moves its socket and HTTP URLs,
+/// keeping URL paths, so that no story depends on init's preferred ports.
 pub fn own_listeners(document: &mut serde_json::Value) {
     fn replace(value: &mut serde_json::Value, moves: &[(String, String)]) {
         match value {
@@ -74,8 +74,10 @@ pub fn own_listeners(document: &mut serde_json::Value) {
                 for (before, after) in moves {
                     if text == before {
                         text.clone_from(after);
-                    } else if text.strip_prefix("http://") == Some(before.as_str()) {
-                        *text = format!("http://{after}");
+                    } else if let Some(tail) = text.strip_prefix("http://").and_then(|url| url.strip_prefix(before))
+                        && (tail.is_empty() || tail.starts_with('/'))
+                    {
+                        *text = format!("http://{after}{tail}");
                     } else {
                         continue;
                     }

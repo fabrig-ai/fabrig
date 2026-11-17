@@ -1,0 +1,129 @@
+{
+  "engine": {
+    "limits": {
+      "profile": "standard",
+      "overrides": {
+        "authority.executors": 22,
+        "authority.grants": 15,
+        "tasks.executor_kinds": 22,
+        "tasks.authority_grants": 15,
+        "tasks.charters": 16,
+        "notes.scopes": 18,
+        "fleet.engine_slots": 0,
+        "tasks.spec_bytes": 16384,
+        "tasks.result_bytes": 4096,
+        "tasks.message_bytes": 10660,
+        "tasks.inbox_bytes": 874120,
+        "hub.transcript_bytes": 67215250,
+        "hub.turn_bytes": 16803810,
+        "hub.turn_queue_bytes": 134430480,
+        "io.output": 16804602,
+        "core.resume_bytes": 16803814,
+        "hub.accounts": 4,
+        "hub.event_bytes": 10660,
+        "hub.run_calls": 48
+      }
+    },
+    "llm": {
+      "providers": [
+        {
+          "name": "openai",
+          "number": 1,
+          "endpoint": "fake",
+          "sources": {
+            "keys": true
+          }
+        }
+      ],
+      "endpoints": [
+        {
+          "name": "fake",
+          "number": 0,
+          "dialect": 3,
+          "provider": "openai",
+          "address": {
+            "socket": "{place.model}"
+          },
+          "transport": "plaintext",
+          "headers": [],
+          "connect_ms": 10000,
+          "handshake_ms": 10000
+        }
+      ]
+    },
+    "hosts": {
+      "listener": [
+        {
+          "socket": "{place.workers}"
+        }
+      ],
+      "workers": [
+        {
+          "name": "worker",
+          "digest": "{place.data}/engine/secrets/worker.digest"
+        }
+      ]
+    },
+    "clients": {
+      "heartbeat_ms": 10000,
+      "link": true
+    },
+    "deployment": {
+      "directory": "{place.data}/engine/state",
+      "seed": 7
+    },
+    "owners": [
+      {
+        "provider": 1,
+        "subject": "owner-a"
+      }
+    ],
+    "providers": [
+      {
+        "number": 1,
+        "kind": "link"
+      },
+      {
+        "number": 2,
+        "kind": "deployment"
+      }
+    ],
+    "connectors": [
+      1
+    ],
+    "memory_bytes": 4503599627370496,
+    "projects": []
+  },
+  "workers": [],
+  "application": {
+    "webhooks": {
+      "listener": {
+        "socket": "{place.webhooks}"
+      }
+    },
+    "clients": {
+      "listener": {
+        "socket": "{place.clients}"
+      },
+      "bundle": "{place.bundle}",
+      "public": null
+    },
+    "machine": {},
+    "demo": null,
+    "sign_in": null,
+    "limits": {
+      "profile": "standard",
+      "overrides": {
+        "forge.judge_projects": 8,
+        "forge.client.op_bytes": 4096,
+        "root.journal.transcript_bytes": 16803814,
+        "root.loads.bytes": 16804058,
+        "root.loads.reply_bytes": 16804058,
+        "root.loads.read_bytes": 33607620,
+        "root.loads.transcript_bytes": 16803810,
+        "checkout.message_bytes": 10662
+      }
+    },
+    "workers": []
+  }
+}

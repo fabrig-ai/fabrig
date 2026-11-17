@@ -1,0 +1,9 @@
+milestone show TASK
+  TASK (task): a number; required. The milestone's task number
+Read a milestone's facts, totals and goals
+Prints: Its name, whole time, words, maker, counts, spend and last landing or end; then its goals in task order
+--json: the record milestone_show.
+Key: none.
+Goals merge live and ended delegates, each with its number, title
+and state: live, done, failed or closed. A list past one page prints
+read on with: task list. Where forge totals are gone, totals: none.

@@ -146,6 +146,7 @@ pub(crate) fn document(
                 | core::Held::TaskTurnKept { .. }
                 | core::Held::AcknowledgeTurn { .. }
                 | core::Held::Drained
+                | core::Held::Restarting { .. }
                 | core::Held::Cancel { .. }
                 | core::Held::ReadList { .. }
                 | core::Held::Sources { .. }

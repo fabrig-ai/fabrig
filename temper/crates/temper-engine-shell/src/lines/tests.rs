@@ -161,7 +161,14 @@ fn older_store_refusals_use_jigs_recovery_words_and_the_store_path() {
     let arguments =
         [b"--config".as_slice(), b"/configuration", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from);
     let (directories, _) = temper_shell::directories::resolve(&arguments, &[], b"/").expect("resolved directories");
-    for older in [Older::Unleveled, Older::Unrecorded, Older::Layout(Family::Application), Older::Directory] {
+    for older in [
+        Older::Unleveled,
+        Older::Floor,
+        Older::Unregistered,
+        Older::Behind,
+        Older::Layout(Family::Application),
+        Older::Directory,
+    ] {
         let why = OpenRefusal::OlderBuild { why: older };
         for store in ["/data/deployment", "/elsewhere/store"] {
             let expected = format!("temper serve: {}\n", why.words().join(store));
@@ -175,8 +182,15 @@ fn older_store_refusals_use_jigs_recovery_words_and_the_store_path() {
             );
             assert_eq!(line, expected);
             assert!(line.contains("this start has changed nothing"));
-            assert!(line.contains("together"));
-            assert!(line.contains("every client signs in again"));
+            match older {
+                Older::Floor | Older::Behind | Older::Unregistered => {
+                    assert!(line.contains(&format!("build `{}`", jig_protocol_store::FLOOR_BRIDGE)));
+                }
+                Older::Unleveled | Older::Layout(_) | Older::Directory => {
+                    assert!(line.contains("together"));
+                    assert!(line.contains("every client signs in again"));
+                }
+            }
             assert_eq!(code, 1);
         }
     }
@@ -1406,4 +1420,26 @@ fn a_version_refusal_names_the_wire_and_both_versions() {
         note_line("temper", refused_run_note(reason)),
         "temper serve: task 3 run 7 attempt 2 refused: version mismatch: smith-charter 5, the worker reads 4..4\n"
     );
+}
+
+#[test]
+fn restart_lines_name_the_wait_or_the_workers_older_wire() {
+    use temper_engine_service::Note;
+    for (wait, version, expected) in [
+        (
+            Some(skein_lib::Duration::from_millis(1_200_000)),
+            15,
+            "custom serve: worker worker-a told the engine restarts: wait 1200000 ms\n",
+        ),
+        (
+            None,
+            14,
+            "custom serve: worker worker-a not told the engine restarts: jig-worker-wire 14; it keeps its grace\n",
+        ),
+    ] {
+        assert_eq!(
+            note_line("custom", Note::WorkerTold { worker: b"worker-a".as_slice().into(), version, wait }),
+            expected
+        );
+    }
 }

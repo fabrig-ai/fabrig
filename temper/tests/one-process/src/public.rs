@@ -3,7 +3,6 @@ mod abandoned;
 mod checks;
 mod deployment;
 mod http;
-mod identifiers;
 mod load;
 mod observation;
 mod owners;
@@ -18,7 +17,6 @@ mod visitor;
 mod wire;
 
 use std::cell::Cell;
-thread_local! { static TRACKED: Cell<bool> = const { Cell::new(true) }; }
 thread_local! { static ACTIVE: Cell<bool> = const { Cell::new(false) }; }
 // The forge's largest public record is PublicLandings; two reservations fit, three do not.
 pub(super) const PUBLIC_ANSWER_BYTES: u32 = 67_405;
@@ -111,9 +109,7 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
 /// Replay a visitor's negative walk with failures naming its seed.
 pub fn walk(seed: u64, name: &str) {
     eprintln!("public walk {name}, seed {seed}");
-    if name == "each_broken_relation_refuses_the_start" {
-        deployment::relations();
-    } else if name.starts_with("the_proxy_")
+    if name.starts_with("the_proxy_")
         || matches!(
             name,
             "a_stopped_upstream_serves_copies_until_their_freshness_ends"
@@ -124,15 +120,6 @@ pub fn walk(seed: u64, name: &str) {
         checks::run(seed, name);
     } else if name == "a_store_written_before_public_reading_reads_every_project_private" {
         previous::run(seed);
-    } else if name == "every_inaccessible_identifier_is_one_unknown_byte_for_byte" {
-        TRACKED.with(|tracked| tracked.set(true));
-        service::run(seed, "every_owner_version_and_kind_answers_as_declared");
-        TRACKED.with(|tracked| tracked.set(false));
-        for proxied in [false, true] {
-            identifiers::PROXIED.with(|flag| flag.set(proxied));
-            service::run(seed, name);
-        }
-        TRACKED.with(|tracked| tracked.set(true));
     } else {
         service::run(seed, name);
     }

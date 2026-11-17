@@ -1,6 +1,7 @@
 # configuration: status
 
-2026-11-13. Where temper's code lags or departs from [README.md](README.md).
+2026-11-16. Where temper's code lags or departs from [README.md](README.md).
+
 
 
 
@@ -179,8 +180,8 @@ it unchanged, while temper's own translation refusal counts from 1.
 `reference.md`'s delivery hook batches format roots by edition and
 configuration, runs every baseline with the private snapshot index, names
 its checks and uses the worker's landing pin for package selection and
-inherited failures. Its cache is keyed by tree and base
-(`tools/pre-pr/design.status.md`). The delivery check's tests
+inherited failures. Its cache is keyed by tree, base, the goal's reds and
+main's ledgers (`tools/pre-pr/design.md`, 7; `tools/pre-pr/design.status.md`). The delivery check's tests
 (`tools/pre-pr/design.md`, 9) exercise these rules; they do not measure a deployment under load. `README.md`, section 9's
 60-second `check_timeout` remains unchanged.
 

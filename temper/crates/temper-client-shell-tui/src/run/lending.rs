@@ -77,6 +77,7 @@ impl Lending {
                 child: self.child.expect("running loan"),
                 signal: Signal::Terminate,
                 to: Target::Group,
+                reason: io::kernel::Reason::Unknown,
             });
         }
     }

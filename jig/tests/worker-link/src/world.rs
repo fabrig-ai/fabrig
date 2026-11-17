@@ -32,6 +32,7 @@ pub struct World {
     connection: Token,
     next: u64,
     dials: Vec<Time>,
+    losses: Vec<Time>,
     root: Vec<Request>,
     facts: Vec<Loss>,
     heard_refusals: Vec<(u16, Box<[u8]>)>,
@@ -64,6 +65,7 @@ impl World {
             connection: Token::new(0),
             next: 1,
             dials: Vec::new(),
+            losses: Vec::new(),
             root: Vec::new(),
             facts: Vec::new(),
             heard_refusals: Vec::new(),
@@ -172,9 +174,15 @@ impl World {
         }
         panic!("a world iteration settles within its bound");
     }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the world routes the complete worker link boundary, including figures and restart notices"
+    )]
     fn route(&mut self, request: Request) {
         match request {
-            request @ (Request::CannotSendWhole { .. } | Request::Untranslated { .. }) => self.root.push(request),
+            request @ (Request::Restarting { .. } | Request::CannotSendWhole { .. } | Request::Untranslated { .. }) => {
+                self.root.push(request);
+            }
             Request::Dial => {
                 self.dial = DialState::Pending;
                 self.dials.push(self.now);
@@ -230,6 +238,7 @@ impl World {
                 }
             }
             Request::Lost => {
+                self.losses.push(self.now);
                 self.trace.push(Trace::Lost);
                 self.root.push(Request::Lost);
             }
@@ -366,6 +375,10 @@ impl World {
     #[must_use]
     pub fn now(&self) -> Time {
         self.now
+    }
+    #[must_use]
+    pub fn losses(&self) -> &[Time] {
+        &self.losses
     }
     #[must_use]
     pub fn dials(&self) -> &[Time] {

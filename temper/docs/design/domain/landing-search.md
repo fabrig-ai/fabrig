@@ -285,13 +285,11 @@ top dispatches, reads and writes for it as for the round's top.
   members' gate states at their prefixes, which `Landing` already keeps.
 - **A member's leaving** gains `blamed`: the gate, its run, the red
   prefix and the green one.
-- **Gone with M2's fallback:** a change's mark to land alone, and the
-  leaving `red round of N units at TOP: landing one at a time`. The
-  store's patch drops the mark and reads a stored fallback leaving as
-  `held`, the public reading it already had.
-- **Patched in place,** before the first release (`../protocol/store.md`,
-  section 2), by the store's patch and the golden store's line
-  (`../protocol/baseline.md`, 7).
+- **The registered store** keeps these fields through its registry
+  layouts, defaults, former names and written jobs where needed, with
+  no patch or version move (`../protocol/store.md`, 4;
+  `../protocol/floor.md`, 6). It serves no fallback form from below
+  the floor.
 - **By test,** the search keeps how it probes, its selections and its
   passes by test (`landing-search-by-test.md`, 9).
 

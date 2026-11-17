@@ -195,6 +195,7 @@ pub fn held_event(held: core::Held) -> Option<Event> {
         core::Held::CarriedUnused { number } => Event::Application(clients::FromApplication::Unused { number }),
         core::Held::Acted { .. }
         | core::Held::Drained
+        | core::Held::Restarting { .. }
         | core::Held::ApplicationDelivery { .. }
         | core::Held::ApplicationWatchEnded { .. }
         | core::Held::ReadLoad { .. }

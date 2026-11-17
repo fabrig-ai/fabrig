@@ -1,4 +1,4 @@
-//! Stored changes bring their patches (temper/docs/design/protocol/baseline.md, 7).
+//! Wires and formats outside the registry keep their patches (skein/docs/design/data/codec/command.md, 2).
 //! Landed files come from git, as in skein/docs/design/data/codec/command.md, 8;
 //! the owner inventory also covers every crate with `schema/kept/`.
 
@@ -16,9 +16,7 @@ const OWNERS: &[&str] = &[
     "smith/crates/smith-charter",
     "smith/crates/smith-channel",
     "jig/crates/jig-protocol-worker-wire",
-    "jig/crates/jig-protocol-store",
     "jig/crates/jig-protocol-accounts",
-    "temper/crates/temper-protocol-store",
     "temper/crates/temper-protocol-records",
     "temper/crates/temper-protocol-worker-wire",
 ];
@@ -178,18 +176,18 @@ fn channel_kind_layout_changes_require_a_version_move() {
         let scratch = Scratch::new("boundary-channel-kinds");
         copy_directory(&source, scratch.path());
         let landed = Landed::read(scratch.path()).expect("scratch wire's baseline");
-        let path = scratch.path().join("schema/worker-wire-v15.schema");
+        let path = scratch.path().join("schema/worker-wire-v16.schema");
         let text = fs::read_to_string(&path).expect("current channel schema");
         let mut changed = text.replace(old, new);
         if name == "other_direction" {
             changed = changed.replace("    assignment: Assignment, message: Inbound", "    message: Inbound");
         }
         assert_ne!(changed, text, "{name} changes the kinds' layout");
-        assert!(changed.starts_with("family jig-worker-wire 15\n"), "{name} keeps the version unmoved");
+        assert!(changed.starts_with("family jig-worker-wire 16\n"), "{name} keeps the version unmoved");
         fs::write(&path, changed).expect("mutate channel kind without moving its version");
         let findings = patch::check(scratch.path(), &landed).expect("check mutated channel kinds");
         assert!(findings.iter().any(|finding| matches!(finding,
-            Finding::Version { family, verdict: Version::Unmoved, kept: 15, current: 15 } if family == "jig-worker-wire"
+            Finding::Version { family, verdict: Version::Unmoved, kept: 16, current: 16 } if family == "jig-worker-wire"
         )), "{name} must move the wire's version: {findings:?}");
     }
 }

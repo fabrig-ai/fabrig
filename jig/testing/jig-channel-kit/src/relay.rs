@@ -201,7 +201,7 @@ impl Peer {
         }
     }
     pub(crate) fn figures_taken(&self) -> bool {
-        self.ended && self.scripted.observed().iter().map(|record| record.kind).collect::<Vec<_>>() == [0x018d, 0x018f]
+        self.ended && self.scripted.observed().iter().map(|record| record.kind).collect::<Vec<_>>() == [0x018d, 0x0190]
     }
     pub(crate) fn shutdown(&mut self) {
         if !self.closing

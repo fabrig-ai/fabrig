@@ -21,7 +21,7 @@ fn place_waits_need_a_takeable_build_and_no_free_place_and_read_q3() {
     ledger.update_place_wait(&surfaces, false, 4);
     assert_eq!(ledger.place_waits, [temper_qa_tool::PlaceWait { from: 4, to: None }]);
     assert_eq!(Ledger::decode(&ledger.encode().expect("encode")).expect("roundtrip"), ledger);
-    ledger.start_pass("place", &surfaces, "high", 5).expect("take");
+    ledger.start_pass("place", temper_qa_tool::Kind::Box, &surfaces, "high", 5).expect("take");
     ledger.update_place_wait(&surfaces, false, 6);
     assert_eq!(ledger.place_waits, [temper_qa_tool::PlaceWait { from: 4, to: Some(6) }]);
     assert_eq!(Ledger::decode(&ledger.encode().expect("encode")).expect("closed roundtrip"), ledger);
@@ -33,9 +33,9 @@ fn triage_starts_only_the_next_landing_and_never_overlaps() {
     landing(&mut ledger, 1);
     landing(&mut ledger, 2);
     assert_eq!(ledger.next_landing().expect("next").number, 1);
-    assert!(ledger.start_session(2, "low", super::pages(), vec!["fresh".into()], 0).is_err());
+    assert!(ledger.start_session(2, "low", super::pages(), vec!["fresh".into()], Vec::new(), 0).is_err());
     let first = session(&mut ledger, 1);
-    assert!(ledger.start_session(1, "low", super::pages(), vec!["fresh".into()], 0).is_err());
+    assert!(ledger.start_session(1, "low", super::pages(), vec!["fresh".into()], Vec::new(), 0).is_err());
     ledger.add_case(first, &case(), 1).expect("first case");
     assert_eq!(ledger.next_landing().expect("not triaged until end").number, 1);
     ledger.end_session(first, Exit::Code(0), None, 2, "qa").expect("end");
@@ -106,6 +106,62 @@ fn cases_fit_the_session_and_refuse_unknown_fields_without_mutation() {
         ledger.add_case(number, &input, 1).expect_err("in-memory check").to_string(),
         "case refused: step 1 has no expectation"
     );
+}
+
+fn ctl_session() -> (Ledger, u64) {
+    let mut ledger = Ledger::default();
+    landing(&mut ledger, 1);
+    let pages = [("ctl".into(), vec!["task".into()])].into();
+    let number = ledger
+        .start_session(1, "low", pages, vec!["fresh".into(), "ctl-chain".into()], Vec::new(), 0)
+        .expect("ctl triage");
+    (ledger, number)
+}
+
+#[test]
+fn triage_cases_refuse_surfaces_and_setups_outside_the_session() {
+    let (mut ledger, number) = ctl_session();
+    for (surface, page, setup, words) in [
+        ("web", "work", "fresh", "surface web is not configured; triage takes surfaces: ctl"),
+        ("tui", "chat", "fresh", "surface tui is not configured; triage takes surfaces: ctl"),
+        (
+            "ctl",
+            "task",
+            "web-chain",
+            "setup web-chain is not in the catalogue; ctl-only triage takes fresh and recipe chains with no web or tui lines; setups: fresh, ctl-chain",
+        ),
+        (
+            "ctl",
+            "task",
+            "tui-chain",
+            "setup tui-chain is not in the catalogue; ctl-only triage takes fresh and recipe chains with no web or tui lines; setups: fresh, ctl-chain",
+        ),
+    ] {
+        let mut input = case();
+        input.surface = surface.into();
+        input.page = page.into();
+        input.setup = setup.into();
+        let before = ledger.clone();
+        assert_eq!(
+            ledger.add_case(number, &input, 1).expect_err("outside session").to_string(),
+            format!("case refused: {words}")
+        );
+        assert_eq!(ledger, before);
+    }
+}
+
+#[test]
+fn ctl_only_triage_records_fresh_and_ctl_chain_cases() {
+    let (mut ledger, number) = ctl_session();
+    for setup in ["fresh", "ctl-chain"] {
+        let mut input = case();
+        input.surface = "ctl".into();
+        input.page = "task".into();
+        input.setup = setup.into();
+        ledger.add_case(number, &input, 1).expect("ctl setup accepted");
+    }
+    assert_eq!(ledger.cases[0].asks.iter().map(|ask| ask.setup.as_str()).collect::<Vec<_>>(), ["fresh", "ctl-chain"]);
+    assert_eq!(Ledger::decode(&ledger.encode().expect("encode")).expect("decode"), ledger);
 }
 
 #[test]
@@ -315,7 +371,7 @@ fn ctl_findings_survive_the_ledger_round_trip() {
     let mut ledger = Ledger::default();
     super::passes::queue(&mut ledger, "task", "ctl");
     super::passes::build(&mut ledger, "build", &[1], 1);
-    let pass = ledger.start_pass("places/1", &["ctl".into()], "high", 2).expect("ctl pass");
+    let pass = ledger.start_pass("places/1", temper_qa_tool::Kind::Box, &["ctl".into()], "high", 2).expect("ctl pass");
     let mut finding = super::passes::finding(1);
     finding.lines = vec!["ctl task list".into()];
     finding.evidence.clear();

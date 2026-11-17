@@ -390,6 +390,7 @@ pub(crate) fn adopt(
         );
         let id = *domain.names.get(&(run, attempt)).expect("inserted above");
         domain.attempts.get_mut(id).expect("inserted above").kept = kept;
+        hold(domain, env, run, attempt);
         return true;
     };
     let entry = domain.attempts.get(id).expect("a named attempt is tracked");
@@ -438,7 +439,49 @@ pub(crate) fn adopt(
         | State::Closed => unreachable!("only a stray or a kept answer is adopted, as matched above"),
     };
     follow(domain, id, before);
+    hold(domain, env, run, attempt);
     true
+}
+
+/// A kept restart word holds each restored worker claim through hello and loss
+/// until that channel's first logins (domain/engine/fleet.md).
+pub(crate) fn hold(domain: &mut Domain, env: &Env<Limits>, run: Token, attempt: Token) {
+    let Some(wait) = domain.restart_wait else { return };
+    if domain.loaded {
+        return;
+    }
+    let Some(&id) = domain.names.get(&(run, attempt)) else { return };
+    let entry = domain.attempts.get_mut(id).expect("named adoption");
+    let before = implied(&entry.state);
+    if !before.held || !before.claim {
+        return;
+    }
+    if let Some(channel) = before.on
+        && domain.channels.get(channel).expect("located claim").sources.heard()
+    {
+        return;
+    }
+    let end = env.now.saturating_add(wait).saturating_add(env.limits.grace);
+    let room = domain.restart_holds.insert(id, end);
+    assert!(room.is_ok(), "one restart hold per tracked attempt");
+    match &mut entry.state {
+        State::Adopted { until, .. }
+        | State::Claimed { at: Where::Adrift { until }, .. }
+        | State::Cancelled { at: Where::Adrift { until }, .. }
+        | State::Crossed { at: Where::Adrift { until }, .. }
+        | State::Fenced { at: Where::Adrift { until } } => *until = (*until).max(end),
+        State::Claimed { at: Where::On(_), .. }
+        | State::Cancelled { at: Where::On(_), .. }
+        | State::Crossed { at: Where::On(_), .. }
+        | State::Fenced { at: Where::On(_) } => {}
+        State::Waiting { .. }
+        | State::Handed { .. }
+        | State::Acknowledged { .. }
+        | State::Stray { .. }
+        | State::Kept { .. }
+        | State::Closed => unreachable!("a restored held claim"),
+    }
+    follow(domain, id, before);
 }
 
 /// Cross: fence a restored claim across a fresh mark, keeping its call
@@ -468,6 +511,7 @@ pub(crate) fn cross(
             Assignment { turns: Token::new(0), answered: Token::new(0) },
             State::Crossed { to, at, listed: false, worked },
         );
+        hold(domain, env, run, attempt);
         return;
     };
     let entry = domain.attempts.get(id).expect("a named attempt is tracked");
@@ -513,6 +557,7 @@ pub(crate) fn cross(
         | State::Closed => unreachable!("only a stray or a kept answer is crossed, as matched above"),
     };
     follow(domain, id, before);
+    hold(domain, env, run, attempt);
 }
 
 /// Cancel, from the parent. An attempt the fleet no longer tracks, or whose
@@ -826,6 +871,7 @@ pub(crate) fn adrift(domain: &mut Domain, id: Id<Attempt>, channel: Token, until
     entry.lost_host = Some(channel);
     let before = implied(&entry.state);
     let state = mem::replace(&mut entry.state, State::Closed);
+    let until = domain.restart_holds.get(&id).copied().unwrap_or(until).max(until);
     let at = Where::Adrift { until };
     entry.state = match state {
         State::Claimed { claiming, at: _ } => State::Claimed { claiming, at },
@@ -1319,6 +1365,9 @@ fn follow(domain: &mut Domain, id: Id<Attempt>, before: Implied) {
     domain.turning = !domain.turns.is_empty();
     let entry = domain.attempts.get(id).expect("an attempt lives until it is reclaimed");
     let after = implied(&entry.state);
+    if !after.held {
+        domain.restart_holds.remove(&id);
+    }
     let run = entry.run;
     let attempt = entry.token;
     let listed = entry.listed;

@@ -676,6 +676,45 @@ fn a_replay_answers_the_same_after_the_switch_moved() {
 }
 
 #[test]
+fn a_milestones_goal_judges_for_its_maker_or_no_person() {
+    for (requester, away_on, kind, expected) in [
+        (tasks::Party::Person(1), false, Kind::Implementation, Some(reach(Kind::Implementation, Class::Ask, false))),
+        (tasks::Party::Person(1), true, Kind::Implementation, Some(reach(Kind::Implementation, Class::Ask, true))),
+        (tasks::Party::Deployment { project: 1 }, true, Kind::Implementation, None),
+    ] {
+        let case = case("milestone's goal", Caller::ServedGoal, kind, Class::Decide, away_on, "");
+        let (mut world, run) = caller(&case);
+        world.until(Until::Ready);
+        let tasks::Party::Task(parent) = live_task(&world, run.task).requester else { panic!("goal requester") };
+        // Restore the same task tree with a gathering in the requester's place.
+        let mut milestone = live_task(&world, parent).clone();
+        milestone.executor = tasks::Executor::Procedure { connector: u16::MAX, code: 2 };
+        milestone.requester = requester;
+        milestone.flags.conversation = false;
+        milestone.flags.ended_by = tasks::EndedBy::Requester;
+        milestone.phase = tasks::Phase::Active(tasks::Active::Idle);
+        milestone.tracked = Some(1);
+        world.store.seed(
+            Box::new([Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(Box::new(milestone))))]),
+            Box::new([]),
+        );
+        world.restart_same();
+        world.until(Until::Ready);
+        away(&mut world, away_on, None);
+        let answer = world.scripted_call(&run, CALL, tool(kind));
+        assert_eq!(last_how(&world), engine::AskHow::Message);
+        let reason = if expected.is_none() {
+            "no person is asked through you"
+        } else {
+            "implementation asks your person while they are here"
+        };
+        assert_answer(&world, &answer, expected, reason);
+        assert_row(&world, &run, expected);
+        world.close();
+    }
+}
+
+#[test]
 fn an_advisor_is_beyond_authority() {
     let (mut world, goal) = start(true, b"Make a small fix");
     let engine::CallAnswer::Delegated(made) = world.scripted_call(

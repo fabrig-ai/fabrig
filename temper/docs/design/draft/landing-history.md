@@ -104,7 +104,7 @@ temper keeps what a change and a landing are now, not how they got there. A chan
 
 ## 9. Upgrades
 
-- **A new stored family,** demand-loaded, with its version and patch, in the landing that adds it (`../protocol/store.md`, 2 and 4). There is no history before it: a change live at the upgrade has a partial history, and nothing is rebuilt or backdated.
+- **A new stored family,** demand-loaded, registered with defaults, in the landing that adds it (`../protocol/store.md`, 2 and 4). There is no history before it: a change live at the upgrade has a partial history, and nothing is rebuilt or backdated.
 - **`ctl`'s wire** moves its version for the new reads (`../protocol/wires.md`, 8).
 
 ## 10. Acceptance

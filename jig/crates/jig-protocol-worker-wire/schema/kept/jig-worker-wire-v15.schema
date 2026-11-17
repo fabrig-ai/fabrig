@@ -1,10 +1,8 @@
 family jig-worker-wire 15
 
-enum Opening { link, figures }
-
 # The worker's credential (protocol/channel/README.md, 4.1).
 record Wire { name: text 32 lowest: u16 layouts: list 16 fixed 32 }
-record Credential { name: text 256 secret: secret 1024 wires: list 16 Wire output: u32 opening: Opening }
+record Credential { name: text 256 secret: secret 1024 wires: list 16 Wire output: u32 }
 
 # The worker's hello and agent bounds (protocol/channel/records.md, 1).
 record JobBound { kind: u32 spec: u32 result: u32 deadline: duration }
@@ -217,20 +215,7 @@ record AskBytes { bytes: bytes 1048576 }
 enum AskAnswer { bytes: AskBytes, refused }
 record Asked { run: u64 attempt: u64 number: u64 answer: AskAnswer }
 
-# The worker's figures (protocol/channel/figures.md, 2).
-record Limit { name: text 64 value: u64 }
-record Header { name: text 4096 value: text 4096 }
-record Tls { server_name: text 4096 trust: option text 4096 }
-enum Transport { tls: Tls, plaintext }
-enum Oversized { fail, drop }
-record EndpointLimits { window: u32 output: u32 reasoning_item: u32 head: duration idle: duration oversized: Oversized }
-record AgentEndpoint {
-    name: text 4096 number: u32 dialect: u32 provider: text 4096 program: option text 4096
-    host: text 4096 port: u16 transport: Transport headers: list 16 Header
-    connect: duration handshake: duration limits: EndpointLimits
-}
-record Agents { profile: list 128 Limit endpoints: list 64 AgentEndpoint }
-record Figures { places: u32 limits: list 1024 Limit agents: Agents }
+record Restarting { wait_ms: u64 }
 
 # The channel's kinds (protocol/channel/wires.md, 4).
 enum FromWorker {
@@ -242,5 +227,5 @@ enum FromWorker {
 enum FromEngine {
     assignment: Assignment, message: Inbound, relayed: Relayed, turn_kept: TurnKept,
     turn_busy: TurnBusy, acknowledge: Acknowledge, cancel: Cancel, grant: Granted,
-    sources: Sources, check: Check, sign_out: SignOut, job: Job, read_list: ReadList, wires: Agreed, asked: Asked, figures: Figures
+    sources: Sources, check: Check, sign_out: SignOut, job: Job, read_list: ReadList, wires: Agreed, asked: Asked, restarting: Restarting
 }

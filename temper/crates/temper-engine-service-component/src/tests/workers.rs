@@ -232,10 +232,11 @@ fn an_assignment_that_cannot_encode_its_items_is_refused() {
     let encoding = fixtures::encoding(&settings);
     let assignment = fixtures::assignment_with(fixtures::repository(7, b"acme", b"shop"));
     let values = fixtures::values_with_identity(1, b"forge-token-1234");
-    assert!(
+    let reason =
         crate::assignment::down(assignment, &fixtures::forge_table(&[]), &encoding, &values, Token::new(8), Time::ZERO)
-            .is_none()
-    );
+            .unwrap_err();
+    assert_eq!(reason.field, "Repository.remote");
+    assert_eq!(reason.reason, Some(skein_codec::Reason::Bound));
 }
 #[test]
 fn a_bad_or_missing_answer_part_discards_all_of_its_parts() {
@@ -469,9 +470,94 @@ fn an_assignment_that_cannot_encode_is_answered_invalid_through_the_link() {
         answer.ending,
         host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Start {
             cause: host::StartCause::Other,
-            why: b"assignment cannot encode".as_slice().into(),
+            why: b"assignment cannot encode: Repository.remote too large".as_slice().into(),
         }))
     );
+}
+
+#[test]
+fn a_first_goal_over_its_room_is_answered_with_its_fixed_ownership() {
+    // temper/docs/design/draft/tools-by-role.md, 9: first wake joins the first three parts.
+    let mut settings = fixtures::engine();
+    let mut subagent = fixtures::small_model();
+    subagent.number = 2;
+    subagent.model.name = b"small-subagent".as_slice().into();
+    settings.jig.llm.models = Box::new([fixtures::small_model(), subagent]);
+    let mut assignment = fixtures::assignment_with_settings(fixtures::repository(7, b"acme", b"shop"), &settings);
+    assignment.charter = 5;
+    for charter in &settings.jig.charters {
+        if charter.number == 5 {
+            assignment.run.policy = charter.policy.clone();
+        }
+    }
+    assignment.run.policy.alternatives = Box::new([settings.jig.llm.models[1].model.clone()]);
+    assignment.run.sources = Box::new([Some(1), Some(1)]);
+    assignment.run.authority.tools = tasks::Tools(settings.jig.policies[0].policy.ceiling.tools.0);
+    let shared = Box::new([b's'; 9_910]);
+    let parts: [Box<[u8]>; 4] =
+        [Box::new([b'a'; 11_031]), Box::new([b'b'; 3_655]), Box::new([b'c'; 1_597]), Box::new([b'd'; 649])];
+    let mut size = shared.len();
+    for part in parts.iter().take(3) {
+        size = size.checked_add(2).unwrap().checked_add(part.len()).unwrap();
+    }
+    let mut instructions = skein_lib::Writer::new(size);
+    instructions.put(shared.as_slice()).unwrap();
+    for part in parts.iter().take(3) {
+        instructions.put(b"\n\n").unwrap();
+        instructions.put(part).unwrap();
+    }
+    assignment.run.policy.instructions = instructions.finish();
+    assignment.run.policy.modify = true;
+    assignment.workspace.repositories[0].delivers = true;
+    assignment.sections = Box::new([root::BriefSection {
+        kind: root::BriefKind::Core(jig_domain_brief::Core::Task),
+        body: root::BriefBody::Text(Box::new([b't'; 2_342])),
+    }]);
+    let mut charter = temper_engine_smith::charter(&assignment);
+    assert_eq!(charter.grants.host_tools.len(), 42, "stock goal's first offer");
+    assert_eq!(charter.models.len(), 1, "one sub-agent beside the task's main model");
+    assert!(charter.grants.deliver.is_some());
+    charter.brief.sections = Box::new([]);
+    let owned = charter.owned_bytes().unwrap();
+    let mut workers = fixtures::workers();
+    assert_eq!(workers.encoding.charter_bytes, 65_536);
+    assert!(owned > workers.encoding.charter_bytes, "synthetic fixed ownership {owned} must exceed its allowance");
+    let expected = jig_protocol_engine_workers::Unencoded {
+        field: "charter.fixed_owned",
+        reason: None,
+        figure: Some(owned),
+        bound: Some(65_536),
+        ceiling: Some(67_108_864),
+    }
+    .words(b"assignment");
+    let mut events = skein_lib::Queue::uncapped();
+    workers.assignment(
+        Time::ZERO,
+        Token::new(8),
+        assignment,
+        &fixtures::values_with_identity(1, b"forge-token-1234"),
+        &mut events,
+    );
+    let Some(root::Event::Worker(root::WorkerInput::Link {
+        channel,
+        link: root::Link::Up { up: host::LinkUp::Answer { run, attempt, answer }, parts },
+    })) = events.pop()
+    else {
+        panic!("invalid start answer")
+    };
+    assert_eq!(channel, Token::new(8));
+    assert_eq!((run, attempt), (Token::new(7), Token::new(2)));
+    assert_eq!(parts, root::Parts::none());
+    assert_eq!((answer.turns, answer.spent, answer.read), (0, 0, None));
+    assert!(answer.refused.is_empty());
+    assert_eq!(
+        answer.ending,
+        host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Start {
+            cause: host::StartCause::Other,
+            why: expected,
+        }))
+    );
+    assert!(events.is_empty());
 }
 
 #[test]
@@ -571,7 +657,7 @@ fn a_worker_assignment_uses_the_services_configured_forges() {
         answer.ending,
         host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Start {
             cause: host::StartCause::Other,
-            why: b"assignment cannot encode".as_slice().into(),
+            why: b"assignment cannot encode: Repository.remote too large".as_slice().into(),
         }))
     );
     assert_eq!(parts, root::Parts::none());
@@ -896,7 +982,9 @@ fn refused_answer_reason_reaches_operator_once() {
         host::Refusal::Invalid(host::Invalid::Charter),
         host::Refusal::Invalid(host::Invalid::Start {
             cause: host::StartCause::Other,
-            why: b"charter".as_slice().into(),
+            why: b"assignment cannot encode: charter.fixed_owned 82,884, bound 65,536, wire ceiling 67,108,864"
+                .as_slice()
+                .into(),
         }),
         host::Refusal::Invalid(host::Invalid::Start {
             cause: host::StartCause::Other,
@@ -1257,4 +1345,18 @@ fn worker_loss_notes_wait_for_the_operator_sink_without_blocking_the_link() {
     assert_eq!(engine.notes.pop(), Some(crate::Note::WorkerOpeningEnded { worker: None, why: Loss::NoRoom }));
     assert!(engine.workers.notes.is_empty());
     assert!(engine.notes.is_empty());
+}
+
+#[test]
+fn each_workers_restart_outcome_reaches_a_shell_note() {
+    use jig_protocol_engine_workers::host::Output;
+    let mut service = fixtures::started();
+    let workers = &mut service.engine.as_mut().unwrap().workers;
+    let worker: Box<[u8]> = b"worker-a".as_slice().into();
+    let mut events = skein_lib::Queue::uncapped();
+    for (version, wait) in [(15, Some(skein_lib::Duration::from_millis(1_200_000))), (14, None)] {
+        workers.route(Output::Told { worker: worker.clone(), version, wait }, &mut events);
+        assert_eq!(workers.notes.pop(), Some(crate::Note::WorkerTold { worker: worker.clone(), version, wait }));
+        assert!(events.is_empty(), "the outcome is a log note, not a domain input");
+    }
 }

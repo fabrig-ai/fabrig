@@ -23,7 +23,7 @@ impl Long {
                 self.checks_pending = true;
                 true
             }
-            Operation::Completion | Operation::Command => false,
+            Operation::Completion | Operation::Command | Operation::Grant => false,
         }
     }
 

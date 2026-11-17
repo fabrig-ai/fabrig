@@ -245,6 +245,7 @@ fn counts() -> ImpactCounts {
 }
 fn task() -> Task {
     Task {
+        tasks_left: 0,
         concluded: None,
         talk: None,
         session: None,

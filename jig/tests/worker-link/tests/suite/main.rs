@@ -17,11 +17,13 @@ mod memory;
 mod prepared;
 mod records;
 mod relays;
+mod restarting;
 mod sources;
 mod statement;
 mod translation;
 
 mod fuzzy {
+    mod restarting;
     mod translation;
     mod worker_side;
 }

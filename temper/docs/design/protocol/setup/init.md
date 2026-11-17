@@ -561,7 +561,7 @@ override.
   and its output 8,192, so the scripted model leaves every charter the
   room luna leaves it: smith's host part, at the owned threshold, 4/5,
   holds the largest stock charter's tools and the authorised brief with
-  a whole spec (`../../domain/agent/tools.md` and `../../domain/agent/charter.md`, 5). The message bound is
+  a whole spec (`../../domain/agent/room.md`, 1, and `../../domain/agent/charter.md`, 5). The message bound is
   the agent's (1), and a request at the threshold stays within the
   fake's request bound; its source a key. The agent's configuration
   declares it too (2).

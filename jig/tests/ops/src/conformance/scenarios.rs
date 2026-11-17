@@ -122,7 +122,7 @@ impl State {
                 }
                 vec![Input::Event(root::Event::Agent(host::FromAgent::Gone { owner: agent, detail: Box::new([]) }))]
             }
-            host::ToAgent::Grant { .. } | host::ToAgent::Answer { .. } => Vec::new(),
+            host::ToAgent::Renewals { .. } | host::ToAgent::Grant { .. } | host::ToAgent::Answer { .. } => Vec::new(),
         }
     }
     pub(super) fn poll(&mut self, clock: Clock) -> Inputs {

@@ -7,7 +7,7 @@ Draft, 2026-11-15. The user asked for it after dev.fabrig.ai's upgrade of 11-15,
 **Today**
 
 - **A backup is a copy taken with the engine stopped** (`upgrades.md`, 3.3; jig's `protocol/store/README.md`, section 2). On dev.fabrig.ai it is 1.7 GB, made in about 5 s at every redeploy, and seven of them hold 7.5 GB beside 1.4 GB of live state.
-- **The upgrade's check runs over that backup,** so it runs while dev.fabrig.ai is down (`../redeploy.md`, 4.2). On 11-15 the check took 6 min 41 s and the start 6 min 51 s, each doing the same patches and jobs, out of 15 minutes down.
+- **The upgrade's check runs over that backup,** so it runs while dev.fabrig.ai is down (`../redeploy.md`, 4.2). On 11-15 the check took 6 min 41 s and the start 6 min 51 s, each doing the same jobs, out of 15 minutes down.
 - **A copy of a serving deployment is consistent only by luck.** `cp -a` of the state directory while the engine served passed the check once on 11-15 and failed on 11-14. Between two files a copy can:
   - miss a snapshot's rename and the segments it deletes;
   - catch a frame half written;
@@ -135,8 +135,8 @@ Whatever reads a checkpoint holds its lock (io's `Lock`, as a deployment's is he
 
 `temper-engine upgrade --check` runs over a checkpoint, holding its lock. The rehearsal copies its input into its scratch file by file and never writes it (jig's `protocol/store/opening.md`, 5), so neither the checkpoint nor the live store changes.
 
-- **It proves C:** every record decoded, the patches, the jobs and the restores, and the worker verdict (`../redeploy.md`, 4.2).
-- **What the start then does:** it repeats the real path over the stopped state: patches, jobs, the open and the restore. It refuses before its switch for any failure that path detects, and leaves the active generation's state as it was (jig's `protocol/store/opening.md`, 2).
+- **It proves C:** every record decoded, the jobs and the restores, and the worker verdict (`../redeploy.md`, 4.2).
+- **What the start then does:** it repeats the real path over the stopped state: jobs, the open and the restore. It refuses before its switch for any failure that path detects, and leaves the active generation's state as it was (jig's `protocol/store/opening.md`, 2).
 - **What nothing repeats:** the rehearsal's walk of every cold record, for what was committed after C. Those records come from the same build, in the same types and layouts, so a bad one is unlikely, not impossible. Such a record fails later, when read. The workers' facts the verdict used are checked again at the stop (6).
 
 ### 5.3 Restore
@@ -170,19 +170,19 @@ This replaces the backup and moves the check in `../redeploy.md`, 4.2 and 4.3, a
 1. **While the old build serves:** a checkpoint, then the new build's full `upgrade --check` over it, keeping its worker verdict. A check that refuses ends the redeploy before anything stops.
 2. **For the verdict:**
    - **yes:** only the engine stops;
-   - **no or unknown, or a patch marked fresh:** the workers are drained while the old engine still serves, then it stops, as `../redeploy.md`, 4.5 takes every part together.
+   - **no or unknown:** the workers are drained while the old engine still serves, then it stops, as `../redeploy.md`, 4.5 takes every part together.
 3. **The settled stop,** then `temper-engine checkpoint` over the stopped deployment as the backup. Only links and the small copies of 3.1 are made, with no deployment copied whole.
-4. **The verdict's inputs checked again** over the stop's checkpoint: the engine's wires, whether a pending patch is fresh, the configured workers and the workers' openings. This reads those rows alone, with no second rehearsal. Any changed input is judged again by the same compatibility rules, or sends the redeploy down the together path, restarting the old engine first where draining needs it, as `../redeploy.md`, 4.2 does.
+4. **The verdict's inputs checked again** over the stop's checkpoint: the engine's wires, the configured workers and the workers' openings. This reads those rows alone, with no second rehearsal. Any changed input is judged again by the same compatibility rules, or sends the redeploy down the together path, restarting the old engine first where draining needs it, as `../redeploy.md`, 4.2 does.
 5. **The swap and the start,** with `../redeploy.md`'s opening waits, grace and failure recovery as they stand. The outage is:
    - the stop and its checkpoint;
    - the check of step 4;
-   - the start's own patches and jobs;
+   - the start's own jobs;
    - for the together path, the workers' return.
 6. **Going back:**
    - **before the new generation's first commit:** `temper upgrade --back`, as today;
    - **after it:** `temper-engine restore` of the stop's checkpoint, with the previous build.
 
-Patching ahead of the stop, and a switch that adopts the check's rehearsed generation, stay later work (8). No patch file has landed since S4 (`store-shape.md`, section 3), so an upgrade's start work is now the open and its jobs.
+A switch that adopts the check's rehearsed generation stays later work (8). An upgrade's start work is the open and its jobs.
 
 ## 7. What it is not
 
@@ -193,8 +193,7 @@ Patching ahead of the stop, and a switch that adopts the check's rehearsed gener
 ## 8. Later
 
 - **A schedule** (a checkpoint every N hours) and a size alarm when checkpoints hold more than a share of the disk.
-- **The switch adopting the check's rehearsed generation,** for an upgrade with a long patch or job, so that the start does none of it again. The stopped deployment's state is exactly the check's input when the check runs over the stop's checkpoint.
-- **Patching ahead** on a checkpoint while the old build serves, with the commits since C caught up at the stop.
+- **The switch adopting the check's rehearsed generation,** for an upgrade with a long job, so that the start does none of it again. The stopped deployment's state is exactly the check's input when the check runs over the stop's checkpoint.
 
 ## 9. Open questions
 

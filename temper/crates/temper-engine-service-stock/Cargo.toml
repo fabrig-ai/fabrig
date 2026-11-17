@@ -28,6 +28,9 @@ temper-protocol-reaches.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true
+jig-client.workspace = true
+temper-client-view-parts.workspace = true
+temper-client-view-kit.workspace = true
 skein-world.workspace = true
 jig-protocol-store.workspace = true
 settings-form.workspace = true

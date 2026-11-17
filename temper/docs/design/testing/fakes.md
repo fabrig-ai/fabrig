@@ -268,7 +268,11 @@ loopback (skein's `testing/fakes/forge.md`, section 5). temper's worlds add:
   (skein's `testing/fakes/forge.md`, 4, `Config.made_checks`); absent,
   they report none, as before. So the box's fake forges let a person's
   commit decide a head's checks by what it holds
-  (`../protocol/setup/box.md`, 5; `../draft/landed-qa.md`, 6).
+  (`../protocol/setup/box.md`, 5; `../draft/landed-qa.md`, 6), and how
+  long its run waits for a runner and runs before its verdict: a rule
+  may open with phases, as `wait 40m run 5m pass`, so a change's wait
+  for a runner shows on a box (skein's `testing/fakes/forge.md`, 2.3;
+  `../domain/forge/change/stalls.md`, 2).
 - **Its gates and its merges, as a process:** the document of `temper-box
   fake forge --document FILE` may name, beside its repositories:
   - **`workflows`,** dispatch-only workflows (skein's

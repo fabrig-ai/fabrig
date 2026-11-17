@@ -54,9 +54,10 @@ pub struct ServiceHost {
 
     pub(crate) cluster: Option<crate::cluster::Shape>,
     pub(crate) workers_address: Option<SocketAddr>,
-    pub(crate) notes: Vec<temper_service::Note>,
+    pub(crate) notes: Vec<(Time, temper_service::Note)>,
     pub(crate) runs: crate::cluster::Runs,
     pub(crate) tries: std::collections::BTreeMap<u64, jig_domain_tasks::Tries>,
+    pub(crate) cancel_history: crate::cancel_kills::History,
     started_at: Option<Time>,
     pub(crate) service: Option<Driven>,
     fetch: Option<temper_worker_service::fetch::Fetch>,
@@ -101,6 +102,10 @@ impl ServiceHost {
     pub(crate) fn with_issuer(path: PathBuf, signals: Fd, issuer: SocketAddr) -> Self {
         Self::with_shape(path, signals, None, false, None, None, Some(issuer))
     }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the hosted service composes the selected cluster shape and figures startup"
+    )]
     fn with_shape(
         path: PathBuf,
         signals: Fd,
@@ -181,6 +186,7 @@ impl ServiceHost {
             notes: Vec::new(),
             runs: crate::cluster::Runs::default(),
             tries: std::collections::BTreeMap::new(),
+            cancel_history: crate::cancel_kills::History::default(),
             started_at: None,
             service: None,
             fetch: None,
@@ -574,10 +580,31 @@ impl ServiceHost {
     }
 }
 
-fn record_tries(tries: &mut std::collections::BTreeMap<u64, jig_domain_tasks::Tries>, service: &Driven) {
+fn record_tries(
+    tries: &mut std::collections::BTreeMap<u64, jig_domain_tasks::Tries>,
+    history: &mut crate::cancel_kills::History,
+    service: &Driven,
+    now: Time,
+) {
+    use jig_domain_tasks::{Ending, Executor, Party, Phase, Was};
     if let Some(engine) = service.engine_domain() {
         for row in &engine.tasks().view_tasks() {
             let task = engine.tasks().task(row.number).expect("view task");
+            history.tasks.entry(row.number).or_insert_with(|| crate::cancel_kills::Task {
+                requester: match task.requester {
+                    Party::Task(number) => Some(number),
+                    Party::Person(_) | Party::Deployment { .. } => None,
+                },
+                agent: matches!(task.executor, Executor::Agent { .. }),
+            });
+            if let Phase::Closing(closing) | Phase::Held { was: Was::Closing(closing), .. } = &task.phase
+                && let Ending::Cancelled { by, .. } = &closing.ending
+            {
+                history
+                    .cancellations
+                    .entry(row.number)
+                    .or_insert(crate::cancel_kills::Cancellation { by: *by, at: now });
+            }
             let seen = tries.entry(row.number).or_insert(jig_domain_tasks::Tries::NONE);
             seen.transient = seen.transient.max(task.tries.transient);
             seen.permanent = seen.permanent.max(task.tries.permanent);
@@ -699,7 +726,7 @@ impl Host for ServiceHost {
             }
             temper_worker_service::fetch::iterate(fetch, now, wall);
             while let Some(note) = fetch.notes().pop() {
-                self.notes.push(note.into());
+                self.notes.push((now, note.into()));
             }
             if fetch.is_empty() {
                 let figures = fetch.take().expect("fetch took figures");
@@ -735,7 +762,7 @@ impl Host for ServiceHost {
                 }
             }
             service.iterate(now, wall);
-            record_tries(&mut self.tries, service);
+            record_tries(&mut self.tries, &mut self.cancel_history, service, now);
             while let Some(note) = service.take_listening() {
                 if let temper_service::Note::Engine(temper_service::EngineNote::Listening { listener, addr }) = note {
                     if self.records_seeded && matches!(self.cluster, Some(crate::cluster::Shape::Engine { .. })) {
@@ -760,14 +787,14 @@ impl Host for ServiceHost {
                     note,
                     temper_service::Note::Worker(temper_service::worker_alone::Note::Linked { .. })
                 ));
-                self.notes.push(note);
+                self.notes.push((now, note));
             }
             while let Some(note) = service.take_note() {
                 self.linked += usize::from(matches!(
                     note,
                     temper_service::Note::Worker(temper_service::worker_alone::Note::Linked { .. })
                 ));
-                self.notes.push(note);
+                self.notes.push((now, note));
             }
             while let Some(link) = service.take_link() {
                 if !self.records_seeded {

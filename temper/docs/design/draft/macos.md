@@ -273,7 +273,7 @@ or less sophisticated on macOS, and rough edges are fine.
   checked when its pin is taken. The rule that a fetched binary is the
   build the conformance checked, byte for byte, stays Linux's: a bottle
   is the same version and another build. 2.4's story is what checks it,
-  and skein's forge conformance (skein's `testing/fakes/forge.md`, section 7)
+  and skein's forge conformance (skein's `testing/fakes/throwaway.md`, section 2)
   joins the workflow with skein's suites.
 - **A bottle gone:** Homebrew promises nothing about old blobs. The
   fetch refuses, naming the URL and saying what answers it: a binary
