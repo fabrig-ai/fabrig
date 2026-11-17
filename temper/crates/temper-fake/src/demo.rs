@@ -1,10 +1,9 @@
-//! The playground's LLM, read before files (temper/docs/design/protocol/configuration/engine.md).
-use crate::{Refusal, limits, llm, read};
+//! The box's scripted provider and embedded scripts (temper/docs/design/protocol/configuration/providers.md, 4).
+use crate::{Refusal, llm, read};
 use alloc::boxed::Box;
 use core::net::SocketAddr;
 use jig_protocol_config::{self as config, Directory, Path};
 use skein_fake_llm_domain::api;
-use skein_json::Document as Json;
 use skein_lib::{List, bytes};
 
 pub(crate) const SCRIPTED_WINDOW: u32 = 1_048_576;
@@ -44,7 +43,7 @@ pub fn key(file: &[u8]) -> Result<&[u8], KeyRefused> {
     Ok(key)
 }
 
-/// The deployment's demo, checked against the document (protocol/setup/playground.md).
+/// The binary's scripts at the checked scripted provider's endpoint (protocol/setup/playground.md).
 #[derive(Debug)]
 pub struct Demo {
     llm: llm::Document,
@@ -68,32 +67,56 @@ pub struct Facts<'a> {
     pub listeners: &'a [SocketAddr],
     pub directories: &'a config::Directories,
 }
-/// `null` is no demo. Every refusal's path is rooted at `application.demo`.
-pub fn read(document: &Json, at: u32, facts: &Facts<'_>) -> Result<Option<Demo>, Refusal> {
-    if read::is_null(document, at) {
-        return Ok(None);
+/// The box's scripted provider, when its checked catalogue holds it.
+pub fn read(facts: &Facts<'_>) -> Result<Option<Demo>, Refusal> {
+    let p = Path::root().member(b"demo");
+    let mut found = None;
+    for provider in &facts.llm.providers {
+        if provider.number == 3 && provider.name.as_ref() == b"demo" {
+            found = Some(provider);
+        }
     }
-    let p = Path::root().member(b"application").member(b"demo");
-    let mut o = read::object(document, at, &p)?;
-    let llm_at = read::required(&mut o, document, b"llm", &p)?;
-    read::finish(o, document, &p)?;
-    let lp = p.member(b"llm");
-    let mut o = read::object(document, llm_at, &lp)?;
-    let listen_at = read::required(&mut o, document, b"listen", &lp)?;
-    let provider_at = read::required(&mut o, document, b"provider", &lp)?;
-    let key_at = read::required(&mut o, document, b"key", &lp)?;
+    let Some(provider) = found else { return Ok(None) };
+    let mut listen = None;
+    for endpoint in &facts.llm.endpoints {
+        if Some(&endpoint.name) == provider.endpoint.as_ref() {
+            listen = match &endpoint.address {
+                config::Address::Addr(a) => a.socket(),
+                config::Address::Host { .. } => None,
+            };
+        }
+    }
+    let listen = listen.ok_or(read::why(&p, b"must name a loopback socket address"))?;
+    if !listen.ip().is_loopback() {
+        return Err(read::why(&p, b"must name a loopback socket address"));
+    }
+    unique_listen(listen, facts, &p)?;
+    let models = models(3, listen, facts.llm, &p)?;
+    let key = match facts.directories.join(Directory::Data, b"demo/llm.key") {
+        Ok(path) => path,
+        Err(what) => return Err(read::kind(&p, what)),
+    };
+    let llm = llm::Document::checked(listen, key, None, models, scripts()?, &p)?;
+    Ok(Some(Demo { llm, provider: 3 }))
+}
+
+/// The playground's scripts, embedded and checked as protocol/setup/playground.md requires.
+#[expect(clippy::disallowed_macros, reason = "the playground's scripts are the binary's constant")]
+pub const SCRIPTS: &[u8] = include_bytes!("demo/scripts.json");
+
+pub fn scripts() -> Result<api::Scripts, Refusal> {
+    decode_scripts(SCRIPTS)
+}
+
+pub(crate) fn decode_scripts(bytes: &[u8]) -> Result<api::Scripts, Refusal> {
+    let document = read::document(bytes)?;
+    let document = &document;
+    let lp = Path::root().member(b"demo");
+    let mut o = read::object(document, 0, &lp)?;
     let asked_at = read::required(&mut o, document, b"asked", &lp)?;
     let cued_at = o.member(document, b"cued");
     let otherwise_at = read::required(&mut o, document, b"otherwise", &lp)?;
     read::finish(o, document, &lp)?;
-    let listen = read::listen(document, listen_at, &lp.member(b"listen"))?;
-    unique_listen(listen, facts, &lp.member(b"listen"))?;
-    let pp = lp.member(b"provider");
-    let provider = read::integer(document, provider_at, u64::from(u32::MAX), &pp)?;
-    let provider = u32::try_from(provider).expect("u32 bound");
-    let models = models(provider, listen, facts.llm, &pp)?;
-    let key = data_path(document, key_at, facts.directories, &lp.member(b"key"))?;
-    read::absolute(&key, &lp.member(b"key"))?;
     let asked = llm::scripts(document, asked_at, &lp.member(b"asked"))?;
     let cp = lp.member(b"cued");
     let cued = match cued_at {
@@ -113,15 +136,8 @@ pub fn read(document: &Json, at: u32, facts: &Facts<'_>) -> Result<Option<Demo>,
     }
     let scripts =
         api::Scripts { cued, asked, otherwise: llm::turns(document, otherwise_at, &lp.member(b"otherwise"))? };
-    let llm = llm::Document::checked(listen, key, None, models, scripts, &lp)?;
-    Ok(Some(Demo { llm, provider }))
-}
-fn data_path(d: &Json, at: u32, directories: &config::Directories, p: &Path) -> Result<Box<[u8]>, Refusal> {
-    let text = read::text(d, at, limits::PATH_BYTES, p)?;
-    match directories.join(Directory::Data, &text) {
-        Ok(path) => Ok(path),
-        Err(what) => Err(read::kind(p, what)),
-    }
+    llm::check_scripts(&scripts, &lp.member(b"otherwise"))?;
+    Ok(scripts)
 }
 fn unique_listen(listen: SocketAddr, facts: &Facts<'_>, p: &Path) -> Result<(), Refusal> {
     if facts.listeners.contains(&listen) {

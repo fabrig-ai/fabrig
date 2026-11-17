@@ -252,9 +252,8 @@ pub(super) fn csv_scripts() -> Box<[Script]> {
     delegate["batch"][0]["spec"]["words"] = "@hello-readme Add CSV export to widget in work/hello".into();
     *arguments = serde_json::to_vec(&delegate).expect("delegate JSON").into_boxed_slice();
     let mut coder = scripts[1].turns.to_vec();
-    let template: Value = serde_json::from_str(include_str!("../../../crates/temper-init/template/temper.json"))
-        .expect("shipped template");
-    let edit = &template["application"]["demo"]["llm"]["cued"][0]["turns"][1]["lines"][0]["arguments"]["edits"][0];
+    let template: Value = serde_json::from_slice(temper_fake::demo::SCRIPTS).expect("shipped template");
+    let edit = &template["cued"][0]["turns"][1]["lines"][0]["arguments"]["edits"][0];
     let seed = std::str::from_utf8(temper_fake::forge::FILES[1].1).expect("widget source");
     let source = seed.replace(edit["old"].as_str().expect("old main"), edit["new"].as_str().expect("CSV main"));
     let _ = coder.pop().expect("coder finish");
@@ -802,7 +801,6 @@ pub fn generated(root: &Path) {
         },
         &Directories { config: root.as_os_str().as_bytes(), data: root.as_os_str().as_bytes() },
         &[7; 32],
-        &[8; 32],
     )
     .expect("generated deployment");
     for file in answer.files {

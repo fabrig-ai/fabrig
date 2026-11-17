@@ -13,10 +13,7 @@ pub(super) struct Source {
     pub bundle: Option<PathBuf>,
     pub bundle_limits: temper_service::limits::Clients,
 }
-const RESOURCES: &[(&str, bool, &str)] = &[
-    ("workers/0/secret", false, "worker.secret"),
-    ("application/demo/llm/key", false, "demo/llm.key"),
-];
+const RESOURCES: &[(&str, bool, &str)] = &[("workers/0/secret", false, "worker.secret")];
 impl Source {
     pub(super) fn read(dirs: &Directories, environment: &[crate::EnvironmentEntry]) -> Result<Self, String> {
         let config = crate::path(&dirs.config);
@@ -83,7 +80,6 @@ fn expected_documents(
         },
         &temper_init::Directories { config: &dirs.config, data: &dirs.data },
         &[0; 32],
-        &[0; 32],
     )
     .map_err(|why| format!("source init shape: {why:?}"))?;
     documents(generated)
@@ -118,7 +114,7 @@ fn port(value: &Json, pointer: &str) -> Result<NonZeroU16, String> {
 fn ports(value: &Json) -> Result<temper_init::Ports, String> {
     Ok(temper_init::Ports {
         clients: port(value, "application/clients/listener/socket")?,
-        llm: port(value, "application/demo/llm/listen/socket")?,
+        llm: port(value, "engine/llm/endpoints/3/address/socket")?,
         webhooks: port(value, "application/webhooks/listener/socket")?,
     })
 }

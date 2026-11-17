@@ -181,8 +181,7 @@ pub(crate) fn write_bare(
 fn check_destinations(directories: &Directories, boxed: bool) -> Result<(), String> {
     let mut destinations = vec![directories.document(), path(&directories.data).join("worker.secret")];
     if boxed {
-        destinations
-            .extend([path(&directories.data).join("demo/llm.key"), path(&directories.data).join("demo/bin/git")]);
+        destinations.push(path(&directories.data).join("demo/bin/git"));
     }
     for destination in destinations {
         match std::fs::symlink_metadata(&destination) {
@@ -228,7 +227,6 @@ fn write_deployment(
             None
         };
         let (files, person, login) = if boxed {
-            let demo_key = skein_shell::crypto_seed().map_err(|errno| format!("random demo key: errno {errno}"))?;
             let login = crate::login(skein_shell::effective_user()).ok();
             let answer = temper_init::files(
                 &temper_init::Facts {
@@ -245,7 +243,6 @@ fn write_deployment(
                 },
                 &directories_facts,
                 secret.expose().try_into().expect("32-byte seed"),
-                demo_key.expose().try_into().expect("32-byte seed"),
             )
             .map_err(|why| format!("{:?}: {:?}", why.fact, why.reason))?;
             (answer.files, answer.person, login)

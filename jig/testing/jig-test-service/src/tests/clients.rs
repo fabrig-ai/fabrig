@@ -532,12 +532,8 @@ fn waiting_workers(engine: &mut crate::Engine) {
     let config = f::config();
     assert!(engine.events.is_empty());
     engine.workers = Some(
-        crate::workers::Workers::new(
-            &config,
-            f::seeds().deployment,
-            &crate::limits::small(&config.limits).workers,
-        )
-        .expect("workers fixture"),
+        crate::workers::Workers::new(&config, f::seeds().deployment, &crate::limits::small(&config.limits).workers)
+            .expect("workers fixture"),
     );
 }
 

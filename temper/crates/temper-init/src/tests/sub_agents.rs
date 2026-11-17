@@ -128,7 +128,7 @@ fn check_results(world: &World) -> bool {
 
 #[test]
 fn stock_profile_runs_two_inspect_only_children_side_by_side() {
-    let generated = crate::files(&fixtures::facts(), &DIRECTORIES, &[0; 32], &[0xab; 32]).expect("init files");
+    let generated = crate::files(&fixtures::facts(), &DIRECTORIES, &[0; 32]).expect("init files");
     let mut world = world(temper_fixtures::agent::configuration(&parse(content(&generated, b"temper.json"))));
     let before = world.disk().tree(b"work");
     world.run(10_000);

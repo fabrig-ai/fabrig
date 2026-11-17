@@ -29,8 +29,7 @@ pub(super) fn limited(document: &[u8], name: &[u8], value: u64) -> Box<[u8]> {
 #[test]
 fn the_stock_passes_jigs_one_check() {
     let init = generated();
-    let without_demo = fixtures::with(&init, b"application.demo", b"null");
-    for (row, document) in [("init", without_demo), ("single model", single_model()), ("demo", init)] {
+    for (row, document) in [("init", init), ("single model", single_model())] {
         crate::named(&document, &config::Directories::working()).expect("stock passes startup parsing");
         let engine = engine(&document);
         let core = config::core(&engine, [1; 16], 7);
@@ -380,7 +379,6 @@ pub(super) fn generated() -> Box<[u8]> {
         },
         &temper_init::Directories { config: b"/config", data: b"/data" },
         &[0; 32],
-        &[1; 32],
     )
     .unwrap();
     for file in answer.files {
@@ -403,16 +401,11 @@ fn single_model() -> Box<[u8]> {
     let document = fixtures::Json::new(&bytes);
     let providers = [b"[".as_slice(), document.value(b"engine.llm.providers[0]"), b"]"].concat();
     let endpoints = [b"[".as_slice(), document.value(b"engine.llm.endpoints[0]"), b"]"].concat();
-    document.with(&[
-        (b"engine.llm.providers", &providers),
-        (b"engine.llm.endpoints", &endpoints),
-        (b"application.demo", b"null"),
-    ])
+    document.with(&[(b"engine.llm.providers", &providers), (b"engine.llm.endpoints", &endpoints)])
 }
 
 fn without_projects() -> Box<[u8]> {
-    let document = generated();
-    fixtures::Json::new(&document).with(&[(b"application.demo", b"null")])
+    generated()
 }
 
 #[path = "stock_brief.rs"]

@@ -25,7 +25,6 @@ pub(super) fn generated() -> Box<[u8]> {
         },
         &temper_init::Directories { config: b"/config", data: b"/data" },
         &[0; 32],
-        &[1; 32],
     )
     .unwrap();
     for file in answer.files {
@@ -41,11 +40,7 @@ fn single_model() -> Box<[u8]> {
     let document = fixtures::Json::new(&bytes);
     let providers = [b"[".as_slice(), document.value(b"engine.llm.providers[0]"), b"]"].concat();
     let endpoints = [b"[".as_slice(), document.value(b"engine.llm.endpoints[0]"), b"]"].concat();
-    document.with(&[
-        (b"engine.llm.providers", &providers),
-        (b"engine.llm.endpoints", &endpoints),
-        (b"application.demo", b"null"),
-    ])
+    document.with(&[(b"engine.llm.providers", &providers), (b"engine.llm.endpoints", &endpoints)])
 }
 pub(super) fn engine(document: &[u8]) -> config::Engine {
     let mut base = config::stock();
@@ -60,8 +55,7 @@ fn single_engine() -> config::Engine {
     engine
 }
 fn without_projects() -> Box<[u8]> {
-    let document = generated();
-    fixtures::Json::new(&document).with(&[(b"application.demo", b"null")])
+    generated()
 }
 
 #[test]

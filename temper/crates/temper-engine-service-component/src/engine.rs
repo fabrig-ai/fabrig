@@ -511,6 +511,9 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
         engine.forge.serving = Some(());
     }
     engine.clients.playground = engine.domain.playground().copied();
+    if engine.domain.quiescent() && engine.events.is_empty() && engine.pending.is_none() {
+        engine.clients.playground_admitted();
+    }
     engine.clients.starting = if open { None } else { Some(()) };
     engine.clients.iterate(
         now,

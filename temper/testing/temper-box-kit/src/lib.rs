@@ -92,7 +92,7 @@ pub fn own_listeners(document: &mut serde_json::Value) {
 
     let old = [
         "/application/clients/listener/socket",
-        "/application/demo/llm/listen/socket",
+        "/engine/llm/endpoints/3/address/socket",
         "/application/webhooks/listener/socket",
     ]
     .map(|pointer| {

@@ -186,7 +186,6 @@
       }
     },
     "sign_in": null,
-    "demo": null,
     "limits": {
       "profile": "standard",
       "overrides": {

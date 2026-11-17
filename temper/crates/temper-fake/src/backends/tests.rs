@@ -33,7 +33,6 @@ fn fixture_claude(claude: Option<&[u8]>) -> (Value, Paths, Peers) {
         },
         &temper_init::Directories { config: b"/source/config", data: b"/source/data" },
         &[7; 32],
-        &[9; 32],
     )
     .expect("init fixture");
     let mut temper = Value::Null;
@@ -205,7 +204,8 @@ fn the_fake_box_keeps_the_demos_two_document_turns() {
     crate::llm::Document::decode(&docs.llm).expect("document scripts fit the model format");
     let model = json(&docs.llm);
     let scripts = model["cued"].as_array().expect("fake box cues");
-    let demo = temper["application"]["demo"]["llm"]["cued"].as_array().expect("demo cues");
+    let constant: Value = serde_json::from_slice(crate::demo::SCRIPTS).expect("binary scripts");
+    let demo = constant["cued"].as_array().expect("demo cues");
     for cue in ["Write this up as a draft beside us.", "Add what happens to a running goal."] {
         let mut expected = demo.iter().find(|script| script["cue"] == cue).expect("demo document cue").clone();
         // The signed-in box tries its model as T1 before its first chat, T2.

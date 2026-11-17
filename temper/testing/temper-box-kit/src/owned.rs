@@ -825,7 +825,6 @@ fn bounded_template_profile(directory: &Path, overlays: &[(&str, &[u8])], room: 
         },
         &Directories { config: directory.as_os_str().as_bytes(), data: directory.as_os_str().as_bytes() },
         &[7; 32],
-        &[8; 32],
     )
     .expect("template files");
     for file in answer.files {

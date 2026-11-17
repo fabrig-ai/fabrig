@@ -53,7 +53,7 @@ fn edit_world(document: serde_json::Value, replacement: &str) -> World {
 
 #[test]
 fn stock_and_reference_profiles_accept_a_4487_byte_design_edit() {
-    let generated = crate::files(&fixtures::facts(), &DIRECTORIES, &[0; 32], &[0xab; 32]).expect("init files");
+    let generated = crate::files(&fixtures::facts(), &DIRECTORIES, &[0; 32]).expect("init files");
     // The reference overlays engine settings and limits, retaining the stock agent.
     // Check the owned profile too: init adds its scripted model to this profile.
     let replacement = "d".repeat(EDIT_BYTES);

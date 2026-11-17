@@ -199,7 +199,7 @@ fn check_listeners(document: &serde_json::Value, _agent: &serde_json::Value, wri
     }
     assert!(application.get("machine").is_none());
     let llm = serde_json::json!({"socket": addresses[1].to_string()});
-    assert_eq!(application["demo"]["llm"]["listen"], llm, "{row}");
+    assert!(application.get("demo").is_none(), "{row}");
     assert_eq!(document["engine"]["llm"]["endpoints"][3]["address"], llm, "{row}");
     assert_eq!(written.listeners.len(), ports.len(), "{row}: three held descriptors");
     for (fd, port) in &written.listeners {
@@ -231,12 +231,8 @@ fn check_agent(dirs: &Directories, mut document: serde_json::Value) {
 }
 
 fn check_files(dirs: &Directories, binary: &Path, written: &Written, row: &str) {
-    let names = [
-        ("worker.secret", true, Some(0o600)),
-        ("demo/llm.key", true, Some(0o600)),
-        ("demo/bin/git", true, None),
-        ("temper.json", false, Some(0o644)),
-    ];
+    let names =
+        [("worker.secret", true, Some(0o600)), ("demo/bin/git", true, None), ("temper.json", false, Some(0o644))];
     let expected: Vec<_> =
         names.iter().map(|(name, data, _)| path(if *data { &dirs.data } else { &dirs.config }).join(name)).collect();
     assert_eq!(written.paths, expected, "{row}: file order");
@@ -248,10 +244,7 @@ fn check_files(dirs: &Directories, binary: &Path, written: &Written, row: &str) 
             None => assert_eq!(fs::read_link(file).expect("git link"), binary, "{row}"),
         }
     }
-    let key = fs::read(path(&dirs.data).join("demo/llm.key")).expect("demo key");
-    assert_eq!(key.len(), 65, "{row}: 64 digits and newline");
-    assert!(key[..64].iter().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(byte)), "{row}");
-    assert_eq!(key[64], b'\n', "{row}");
+    assert!(!path(&dirs.data).join("demo/llm.key").exists(), "{row}: key belongs to the playground start");
     for directory in ["demo", "demo/bin"] {
         assert_eq!(
             fs::metadata(path(&dirs.data).join(directory)).expect("demo directory").mode() & 0o777,
@@ -267,12 +260,9 @@ fn check_files(dirs: &Directories, binary: &Path, written: &Written, row: &str) 
 
 #[test]
 fn init_refusals_leave_every_file_and_directory_untouched() {
-    for (row, data, dangling) in [
-        ("temper.json", false, false),
-        ("worker.secret", true, false),
-        ("demo/llm.key", true, false),
-        ("demo/bin/git", true, true),
-    ] {
+    for (row, data, dangling) in
+        [("temper.json", false, false), ("worker.secret", true, false), ("demo/bin/git", true, true)]
+    {
         let root = scratch(&row.replace('/', "-"));
         let dirs = directories(&root);
         let env = environment(&root, false);
@@ -294,6 +284,20 @@ fn init_refusals_leave_every_file_and_directory_untouched() {
         assert_eq!(snapshot(&root), before, "{row}: every file and directory untouched");
         fs::remove_dir_all(root).expect("cleanup");
     }
+}
+
+#[test]
+fn init_leaves_an_existing_playground_key_alone() {
+    let root = scratch("existing-playground-key");
+    let dirs = directories(&root);
+    let env = environment(&root, false);
+    let key = path(&dirs.data).join("demo/llm.key");
+    fs::create_dir_all(key.parent().expect("demo directory")).expect("directory");
+    fs::write(&key, b"kept").expect("existing fixture");
+    let written = write(&dirs, &env, &root.join("bin/temper"), [0; 3]).expect("key is not an init destination");
+    assert_eq!(fs::read(&key).expect("existing fixture"), b"kept");
+    crate::close(written.listeners.into_iter().map(|(fd, _)| fd).collect());
+    fs::remove_dir_all(root).expect("cleanup");
 }
 
 fn snapshot(root: &Path) -> Vec<(PathBuf, u32, Vec<u8>)> {

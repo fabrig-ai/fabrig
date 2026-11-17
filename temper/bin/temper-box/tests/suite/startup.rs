@@ -18,7 +18,6 @@ fn a_stock_policy_past_its_limit_refuses_before_listening() {
     let path = scratch.path().join("temper.json");
     let mut document: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
     document["engine"]["limits"]["overrides"]["core.policy_bytes"] = 100.into();
-    document["application"]["demo"] = serde_json::Value::Null;
     fs::write(&path, serde_json::to_vec(&document).expect("JSON")).expect("deployment");
     let output = std::process::Command::new(skein_scratch::paths::binary("temper-box"))
         .arg("serve")
@@ -1611,7 +1610,7 @@ fn init_prints_written_files_account_guidance_and_explicit_start_flags_on_stderr
         let lines = String::from_utf8(output.stderr).expect("init lines");
         let mut expected = String::new();
         let names = if boxed {
-            vec!["worker.secret", "demo/llm.key", "demo/bin/git", "temper.json"]
+            vec!["worker.secret", "demo/bin/git", "temper.json"]
         } else {
             vec!["worker.secret", "temper.json"]
         };

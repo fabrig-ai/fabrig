@@ -21,7 +21,7 @@ pub(super) fn init_document() -> Box<[u8]> {
         login: Some(b"person"),
     };
     let directories = temper_init::Directories { config: b"/etc/temper", data: b"/var/lib/temper" };
-    let answer = temper_init::files(&facts, &directories, &[0; 32], &[1; 32]).expect("init fixture");
+    let answer = temper_init::files(&facts, &directories, &[0; 32]).expect("init fixture");
     for file in answer.files {
         if file.name == b"temper.json" {
             let temper_init::Content::Bytes { bytes, .. } = file.content else { panic!("document bytes") };

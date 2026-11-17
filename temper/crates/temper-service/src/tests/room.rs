@@ -168,11 +168,7 @@ fn stock_charters_pass_the_fixed_check_on_every_wake() {
             &crate::settings::charter_endpoints(&engine),
             &engine.limits.core.brief_core_budgets,
         );
-        std::eprintln!(
-            "stock: floor owned {}, encoded {}",
-            host.floor.owned,
-            host.floor.encoded
-        );
+        std::eprintln!("stock: floor owned {}, encoded {}", host.floor.owned, host.floor.encoded);
         assert!(host.floor.owned > 13_312);
         assert!(host.floor.encoded > 13_312);
         for charter in &engine.charters {

@@ -175,7 +175,7 @@ pub fn world_document_with(edit: impl FnOnce(&mut serde_json::Value)) -> serde_j
     value["application"] = serde_json::json!({
         "webhooks":{"listener":{"socket":"127.0.0.1:0"}},
 "clients":{"listener":{"socket":CLIENTS.to_string()},"public":null,"bundle":null},
-        "demo":null,"sign_in":null,
+        "sign_in":null,
         "limits":{"overrides":{"forge.client.answer_bytes":65_536,"forge.client.op_bytes":512,"forge_component.body_bytes":16_384,"checkout.name_bytes":256,"checkout.repositories":2,"checkout.message_bytes":4096,"forge.name_bytes":64,"forge.landing_members":2,"forge.resources_per_task":3,"git_component.stdout_bytes":131_072}}});
     settings::stage_policies(&mut value);
     for member in ["charters", "templates", "policies", "rules"] {
@@ -441,6 +441,22 @@ pub fn settings_file() -> Vec<u8> {
     charter["waiting"] = (u64::from(CHAT_WAIT_MS) * 1_000_000 / 2).into();
     serde_json::to_vec(&serde_json::json!({"items":[settings::item("charter", 1, charter)]})).expect("settings FILE")
 }
+/// The story composition's playground is typed configuration, not a document member.
+#[must_use]
+pub fn playground(document: &serde_json::Value) -> Option<temper_service::settings::Demo> {
+    if document["world_settings"]["playground"] != true {
+        return None;
+    }
+    let scripts = temper_fake::demo::scripts().expect("binary scripts");
+    Some(temper_service::settings::Demo {
+        provider: 1,
+        key_file: b"/setup/demo/llm.key".as_slice().into(),
+        owner: b"playground".as_slice().into(),
+        name: b"widget".as_slice().into(),
+        landing: b"main".as_slice().into(),
+        cues: scripts.asked.into_vec().into_iter().map(|script| script.cue).collect(),
+    })
+}
 /// Typed defaults from the stock settings and composition policy.
 #[must_use]
 pub fn given(document: &serde_json::Value) -> temper_service::stock::Given {
@@ -451,14 +467,21 @@ pub fn given(document: &serde_json::Value) -> temper_service::stock::Given {
 pub fn given_with(document: &serde_json::Value, stock: bool, read_wait: bool) -> temper_service::stock::Given {
     let mut document = document.clone();
     if document["world_settings"].is_null() {
-        document["world_settings"] = world_document()["world_settings"].clone();
+        document["world_settings"] = serde_json::json!({});
+    }
+    for (name, value) in world_document()["world_settings"].as_object().expect("world defaults") {
+        document["world_settings"]
+            .as_object_mut()
+            .expect("world settings")
+            .entry(name)
+            .or_insert_with(|| value.clone());
     }
     let engine = settings::configuration(&document);
     let mut defaults =
         temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     if read_wait {
         defaults.charters[0].policy.waiting = skein_lib::Duration::from_millis(u64::from(CHAT_WAIT_MS));
-    } else if document["application"]["demo"].is_null() {
+    } else if document["world_settings"]["playground"] != true {
         defaults.templates[0].flags.ended_by = jig_domain_tasks::EndedBy::Result;
     }
     let seed = engine.projects.first().expect("world policy");
@@ -499,12 +522,12 @@ pub fn given_with(document: &serde_json::Value, stock: bool, read_wait: bool) ->
         charter.policy.turns = CHARTER_TURNS;
         charter.spend = PRODUCER_SPEND;
     }
-    let forge = if document["application"]["demo"].is_null() {
-        settings::forge(&document)
-    } else {
+    let forge = if document["world_settings"]["playground"] == true {
         let limits = temper_service::limits::engine(&engine.limits, &temper_service::limits::stock())
             .expect("playground engine limits");
         temper_service::stock::forge(&limits)
+    } else {
+        settings::forge(&document)
     };
     temper_service::stock::Given::Own { jig: defaults, forge, ways: temper_service::stock::ways() }
 }

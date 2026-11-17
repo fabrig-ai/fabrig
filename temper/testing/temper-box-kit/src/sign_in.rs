@@ -54,7 +54,7 @@ pub fn patch_configuration(directory: &Path) -> oauth::Peer {
     let taken = [
         "/application/clients/listener/socket",
         "/application/webhooks/listener/socket",
-        "/application/demo/llm/listen/socket",
+        "/engine/llm/endpoints/3/address/socket",
     ]
     .map(|pointer| {
         value.pointer(pointer).expect("init listener").as_str().expect("socket string").parse().expect("socket")

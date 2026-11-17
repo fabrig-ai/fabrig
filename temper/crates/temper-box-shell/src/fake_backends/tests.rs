@@ -95,7 +95,6 @@ fn stock_box_source(scratch: &Scratch, sign_in: bool) -> Directories {
         },
         &temper_init::Directories { config: &source.config, data: &source.data },
         &[0; 32],
-        &[0; 32],
     )
     .expect("stock box files");
     for file in answer.files {
@@ -131,7 +130,8 @@ fn untouched_box_init_imports_with_and_without_sign_in() {
 }
 
 fn assert_rebased_box_paths(temper: &Json, effective: &Directories, sign_in: bool) {
-    for (pointer, name) in [("workers/0/secret", "worker.secret"), ("application/demo/llm/key", "demo/llm.key")] {
+    {
+        let (pointer, name) = ("workers/0/secret", "worker.secret");
         assert_eq!(
             resolved(crate::path(&effective.data), temper.string(pointer).expect("resource path")).expect("resolved"),
             crate::path(&effective.data).join(name),
@@ -761,7 +761,7 @@ fn reservations_avoid_every_port_the_peer_check_refuses() {
     for pointer in [
         "/application/clients/listener/socket",
         "/application/webhooks/listener/socket",
-        "/application/demo/llm/listen/socket",
+        "/engine/llm/endpoints/2/address/socket",
     ] {
         let socket = document.pointer(pointer).unwrap().as_str().expect("socket");
         let port = socket.parse::<SocketAddr>().expect("address").port();
@@ -1258,7 +1258,7 @@ fn prepared_ports(prepared: &Prepared) -> [u16; 7] {
     let document = read_json(&prepared.directories.document());
     let listeners = [
         "/application/clients/listener/socket",
-        "/application/demo/llm/listen/socket",
+        "/engine/llm/endpoints/2/address/socket",
         "/application/webhooks/listener/socket",
     ]
     .map(|pointer| {

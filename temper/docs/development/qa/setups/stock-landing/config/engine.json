@@ -80,7 +80,6 @@
       "bundle": "{place.bundle}",
       "public": null
     },
-    "demo": null,
     "sign_in": null,
     "limits": {
       "profile": "standard",

@@ -42,7 +42,6 @@ pub(super) fn generated() -> Box<[u8]> {
         },
         &temper_init::Directories { config: b"/config", data: b"/data" },
         &[0; 32],
-        &[1; 32],
     )
     .unwrap();
     for file in answer.files {

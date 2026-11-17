@@ -140,7 +140,6 @@
         "web": "http://{proc.forge.ready.address}"
       }}
     }},
-    "demo": null,
     "sign_in": null,
     "limits": {{
       "overrides": {{

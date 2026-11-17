@@ -1,4 +1,5 @@
 {
+  "world_settings": {"playground": true},
   "application": {
     "clients": {
       "bundle": null,
@@ -6,30 +7,6 @@
         "socket": "127.0.0.1:7102"
       },
       "public": null
-    },
-    "demo": {
-      "llm": {
-        "asked": [
-          {
-            "cue": "Add CSV export to widget"
-          },
-          {
-            "cue": "Add a dark theme to widget"
-          },
-          {
-            "cue": "Fix widget's empty search state"
-          }
-        ],
-        "cued": [],
-        "key": "/setup/llm.key",
-        "listen": {
-          "socket": "127.0.0.1:443"
-        },
-        "otherwise": [
-          "The story's scripts are in its LLM document."
-        ],
-        "provider": 1
-      }
     },
     "limits": {
       "overrides": {

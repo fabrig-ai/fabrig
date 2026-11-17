@@ -206,16 +206,9 @@ fn fixed_sign_in_ports_are_checked_against_the_demo_listener() {
         let member = fixture["engine"]["llm"][field].as_array().expect("LLM table").last().expect("demo member");
         demo["engine"]["llm"][field].as_array_mut().expect("LLM table").push(member.clone());
     }
-    demo["application"]["demo"] = fixture["application"]["demo"].clone();
-    let mut bad_demo = demo.clone();
-    bad_demo["application"]["demo"]["project"] = 9.into();
-    for (document, expected) in [
-        (&bad_demo, "application.demo.project: unknown member\n"),
-        (
-            &demo,
-            "engine.llm.providers[0].sources.sign_in.redirect_port: fixed port conflicts with application.demo.llm.listen\n",
-        ),
-    ] {
+    {
+        let document = &demo;
+        let expected = "engine.llm.providers[0].sources.sign_in.redirect_port: fixed port conflicts with engine.llm (scripted provider)\n";
         assert_eq!(
             super::setup::check(
                 &serde_json::to_vec(document).expect("local JSON"),
@@ -392,4 +385,32 @@ fn box_echo_resolves_its_default_and_flag_without_consuming_other_arguments() {
 #[test]
 fn the_launchers_io_is_the_small_profiles() {
     assert_eq!(temper_launcher::IO, jig_protocol_config_fixtures::small().io,);
+}
+
+#[test]
+fn the_box_builds_its_playground_from_the_scripted_provider_but_an_engine_alone_has_none() {
+    let directories = jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").expect("directories");
+    let mut value = configuration::demo_document(std::path::Path::new("/config"), "127.0.0.1:8370");
+    assert!(value["application"].get("demo").is_none());
+    let bytes = serde_json::to_vec(&value).expect("fixture");
+    let boxed = super::setup::check(&bytes, &directories).expect("box");
+    let fake = boxed.demo.expect("scripted provider");
+    assert_eq!(fake.llm().listen().to_string(), "127.0.0.1:8370");
+    let demo = super::setup::playground(&fake);
+    assert_eq!(demo.provider, 3);
+    assert_eq!(demo.key_file.as_ref(), b"/data/demo/llm.key");
+    assert_eq!(
+        demo.cues.iter().map(AsRef::as_ref).collect::<Vec<_>>(),
+        [b"Add CSV export to widget".as_slice(), b"Add a dark theme to widget", b"Fix widget's empty search state",]
+    );
+    let mut engine = value.clone();
+    engine["workers"] = serde_json::json!([]);
+    engine["engine"]["hosts"]["listener"] = serde_json::json!([{"socket":"127.0.0.1:7200"}]);
+    let engine = serde_json::to_vec(&engine).expect("engine fixture");
+    assert!(temper_engine_shell::setup::check(&engine, &directories).expect("engine alone").demo.is_none());
+    for field in ["providers", "endpoints"] {
+        value["engine"]["llm"][field].as_array_mut().expect("LLM table").retain(|row| row["number"] != 3);
+    }
+    let bytes = serde_json::to_vec(&value).expect("fixture without scripted provider");
+    assert!(super::setup::check(&bytes, &directories).expect("box without scripted provider").demo.is_none());
 }

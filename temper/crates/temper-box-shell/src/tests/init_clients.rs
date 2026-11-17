@@ -13,7 +13,7 @@ fn every_client_receives_the_text_inits_documents_allow() {
         ports: temper_init::Ports { clients: port, llm: port, webhooks: port },
     };
     let directories = temper_init::Directories { config: b"/etc/temper", data: b"/var/lib/temper" };
-    let boxed = temper_init::files(&facts, &directories, &[0; 32], &[1; 32]).expect("box init");
+    let boxed = temper_init::files(&facts, &directories, &[0; 32]).expect("box init");
     let bare = temper_init::bare(
         &temper_init::Bare {
             binary: facts.binary,

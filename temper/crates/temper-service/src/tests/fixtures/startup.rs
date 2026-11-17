@@ -11,26 +11,8 @@ pub const APPLICATION: &[u8] = br#"{
 "webhooks":null,
 "clients":{"listener":{"socket":"127.0.0.1:7100"},"public":null,"bundle":null},
 
-"demo":null,"sign_in":null,"limits":{"profile":"standard","overrides":{}}
+"sign_in":null,"limits":{"profile":"standard","overrides":{}}
 }"#;
-pub const DEMO: &str = r#""demo":{"llm":{"listen":{"socket":"$llm"},"provider":3,"key":"demo/llm.key",
-"asked":[{"cue":"Add CSV export to widget","turns":["CSV"]},
-{"cue":"Add a dark theme to widget","turns":["Theme"]},
-{"cue":"Fix widget's empty search state","turns":["Search"]}],
-"cued":[{"cue":"Export widget's table as CSV","turns":["Code"]}],"otherwise":["Demo"]}}"#;
-pub const DEMO_SETUP: &str = r#""setup":[{"forge":1,"directory":"demo/forge",
-"bot":{"login":"temper","email":"temper@example.test"},"mode":{"fake":{
-"listen":{"socket":"$forge"},"git":"demo/bin/git","owner":"demo",
-"repositories":[{"name":"widget","landing":"main"},{"name":"other","landing":"main"}]}}}]"#;
-pub fn demo_application() -> Box<[u8]> {
-    core::str::from_utf8(APPLICATION)
-        .unwrap()
-        .replace("\"setup\":[]", DEMO_SETUP)
-        .replace("\"demo\":null", DEMO)
-        .into_bytes()
-        .into_boxed_slice()
-}
-
 pub fn document() -> Box<[u8]> {
     let mut document = Vec::from(b"{\"engine\":".as_slice());
     let engine = core::str::from_utf8(super::ENGINE)

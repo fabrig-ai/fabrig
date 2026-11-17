@@ -539,16 +539,7 @@ fn refused_deployment_start(root: &Path) {
     }
     let bound = usize::try_from(temper_fake::demo::KEY_FILE_BYTES).expect("key file bound");
     for (name, kind, demo, file, mode, extra, reason, names_file) in [
-        (
-            "llm_null",
-            "llm",
-            false,
-            None,
-            0o600,
-            false,
-            "application.demo is null: the deployment has no demo".to_owned(),
-            false,
-        ),
+        ("llm_null", "llm", false, None, 0o600, false, "engine.llm has no scripted provider".to_owned(), false),
         ("llm_absent", "llm", true, None, 0o600, false, "absent".to_owned(), true),
         (
             "llm_public",
@@ -568,7 +559,8 @@ fn refused_deployment_start(root: &Path) {
         fs::create_dir(&dir).expect("case directory");
         let mut config = support::configuration::demo_document(&dir, "127.0.0.1:8370");
         if !demo {
-            config["application"]["demo"] = Value::Null;
+            config["engine"]["llm"]["providers"].as_array_mut().expect("providers").retain(|p| p["number"] != 3);
+            config["engine"]["llm"]["endpoints"].as_array_mut().expect("endpoints").retain(|p| p["number"] != 3);
         }
         document(&dir.join("temper.json"), &config);
         let path = dir.join("demo/llm.key");
@@ -981,7 +973,7 @@ fn llm_run() {
             let key = b"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_vec();
             support::write_private(&path, &[key.as_slice(), b"\n"].concat());
             let run = Running::command(deployment_command("llm", dir), None).unwrap_or_else(|why| panic!("{why}"));
-            assert_eq!(run.address, listen, "ready on application.demo.llm.listen");
+            assert_eq!(run.address, listen, "ready on the scripted provider endpoint");
             (run, path, key)
         } else {
             let run = Running::start("llm", &doc, None).unwrap_or_else(|why| panic!("{why}"));
@@ -994,7 +986,7 @@ fn llm_run() {
         let before = snapshot(dir);
         let auth = format!("Bearer {}", std::str::from_utf8(&key).expect("valid fixture"));
         for (credential, status, text) in [
-            (&*auth, b"HTTP/1.1 200".as_slice(), "hello from QA"),
+            (&*auth, b"HTTP/1.1 200".as_slice(), if demo { "I am the scripted model" } else { "hello from QA" }),
             ("Bearer wrong", b"HTTP/1.1 401", "invalid_api_key"),
         ] {
             let response = if tls {
@@ -1049,7 +1041,11 @@ fn llm_run() {
                 &serde_json::to_vec(&other).expect("valid fixture"),
             );
             assert!(response.starts_with(b"HTTP/1.1 200"));
-            assert!(String::from_utf8_lossy(&response).contains("hello from QA"));
+            assert!(String::from_utf8_lossy(&response).contains(if demo {
+                "I am the scripted model"
+            } else {
+                "hello from QA"
+            }));
         }
         let mut other: Value = serde_json::from_slice(&chat).expect("valid fixture");
         other["instructions"] = json!("");
@@ -1064,7 +1060,11 @@ fn llm_run() {
                 &serde_json::to_vec(&other).expect("valid fixture"),
             );
             assert!(response.starts_with(b"HTTP/1.1 200"));
-            assert!(String::from_utf8_lossy(&response).contains("fallback"));
+            assert!(String::from_utf8_lossy(&response).contains(if demo {
+                "I am the scripted model"
+            } else {
+                "fallback"
+            }));
         }
         run.stop();
         assert_eq!(snapshot(dir), before, "{name}: files and modes retained after stop");

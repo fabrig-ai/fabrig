@@ -51,7 +51,7 @@ pub fn configuration(deployment: &Value) -> jig_protocol_config::Engine {
     if value["llm"].get("models").is_none() {
         let original = if deployment["world_settings"]["llm"].is_object() {
             deployment["world_settings"]["llm"].clone()
-        } else if deployment["application"]["demo"].is_object() {
+        } else if deployment["world_settings"]["playground"] == true {
             serde_json::from_slice(include_bytes!("../../stories/a/catalogue.json")).expect("story catalogue")
         } else {
             super::world_document()["engine"]["llm"].clone()
@@ -313,6 +313,7 @@ pub fn strip_fixed(deployment: &mut Value) {
         application.remove("workers");
         application.remove("machine");
         application.remove("welcome");
+        application.remove("demo");
     }
     strip_engine(&mut deployment["engine"]);
 }
@@ -336,7 +337,7 @@ pub fn seed_configuration(engine: &mut jig_protocol_config::Engine, document: &V
             may: Box::new([jig_domain_people::ActKind::Adopt]),
         }]);
     }
-    if document["world_settings"]["empty_projects"] == true || !document["application"]["demo"].is_null() {
+    if document["world_settings"]["empty_projects"] == true || document["world_settings"]["playground"] == true {
         return;
     }
     let mut document = document.clone();

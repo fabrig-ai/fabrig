@@ -19,7 +19,7 @@ fn own_listener_files_moves_each_listener_below_the_ephemeral_range() {
     assert!(document["application"].get("machine").is_none(), "a forge chooses its listener at set-up");
     for pointer in [
         "/application/clients/listener/socket",
-        "/application/demo/llm/listen/socket",
+        "/engine/llm/endpoints/3/address/socket",
         "/application/webhooks/listener/socket",
     ] {
         let address: SocketAddr =

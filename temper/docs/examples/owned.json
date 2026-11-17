@@ -134,7 +134,6 @@
         "socket": "127.0.0.1:7101"
       }
     },
-    "demo": null,
     "sign_in": null,
     "limits": {
       "profile": "standard",

@@ -68,7 +68,7 @@ Shape: `endpoint`. Paths: `engine.llm.endpoints[]`. A model endpoint and its tra
 
 ## engine.llm.endpoints[].address
 
-Shape: `address`. Paths: `engine.llm.endpoints[].address` `engine.hosts.listener[]` `workers[].engine` `application.clients.listener` `application.webhooks.listener` `application.demo.llm.listen`. One socket address, host and port, or in-process name.
+Shape: `address`. Paths: `engine.llm.endpoints[].address` `engine.hosts.listener[]` `workers[].engine` `application.clients.listener` `application.webhooks.listener`. One socket address, host and port, or in-process name.
 
 - `socket`: text, 128 bytes; exclusive with host and in_process; optional; init writes "127.0.0.1:8370" | "127.0.0.1:8367" | "127.0.0.1:8371". Gives an IPv4 or IPv6 socket address.
 - `host`: text, 253 bytes; exclusive with socket and in_process; optional; init writes "api.openai.com" | "api.anthropic.com". Names a host the shell resolves at startup.

@@ -1284,7 +1284,14 @@ fn poll_at(d: &Domain, env: &Env<Limits>, task: u64) -> Wall {
 fn wall_at(env: &Env<Limits>, at: skein_lib::Time) -> Wall {
     Wall::from_nanos(env.wall.as_nanos().saturating_add(at.as_nanos().saturating_sub(env.now.as_nanos())))
 }
-fn wait(d: &mut Domain, task: u64, entry: u64, env: &Env<Limits>, repository: api::Repository, out: &mut Queue<Request>) {
+fn wait(
+    d: &mut Domain,
+    task: u64,
+    entry: u64,
+    env: &Env<Limits>,
+    repository: api::Repository,
+    out: &mut Queue<Request>,
+) {
     if let Some(mut row) = d.landing.rows.get(&task).cloned()
         && row.room.is_some()
     {
@@ -4416,7 +4423,13 @@ fn count_gate_flakes(d: &mut Domain, env: &Env<Limits>, task: u64, key: &Receipt
 
 /// The root supplies one entry per decision. Persist the remaining jobs beside that
 /// entry, draining them without spending `gate_retries` (domain/landing-regate.md, 2).
-fn continue_flake_rerun(d: &mut Domain, env: &Env<Limits>, row: &mut LandingRow, entry: u64, out: &mut Queue<Request>) -> bool {
+fn continue_flake_rerun(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    row: &mut LandingRow,
+    entry: u64,
+    out: &mut Queue<Request>,
+) -> bool {
     let mut pending = None;
     for rerun in &row.flake_reruns {
         if !rerun.ended && (!rerun.pending.is_empty() || rerun.redispatch) && d.landing.flights.contains_key(&rerun.key)

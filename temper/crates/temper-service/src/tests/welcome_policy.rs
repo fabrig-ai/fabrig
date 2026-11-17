@@ -28,7 +28,6 @@ fn generated_files() -> temper_init::Answer {
         },
         &temper_init::Directories { config: b"/config", data: b"/data" },
         &[0; 32],
-        &[1; 32],
     )
     .expect("actual init producer")
 }

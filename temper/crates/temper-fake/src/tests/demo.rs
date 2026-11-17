@@ -18,17 +18,17 @@ pub(super) fn fixture() -> Value {
     d["engine"]["llm"]["providers"].as_array_mut().unwrap().push(json!({
         "name":"demo", "number":3, "endpoint":"demo", "sources":{"keys":true}
     }));
-    d["application"]["demo"] = json!({"llm":{
+    d["scripts"] = json!({
         "listen":{"socket":"127.0.0.1:8370"}, "provider":3, "key":"demo/llm.key",
         "asked":[{"cue":"Add CSV export to widget","turns":["Export CSV",{
             "lines":[{"text":"Done"}],"finish":"stop","tokens":1
-        }]}],"otherwise":["demo model"]}});
+        }]}],"otherwise":["demo model"]});
     d
 }
 fn member(d: &skein_json::Document, at: u32, name: &[u8]) -> u32 {
     config::read::Object::new(d, at).unwrap().member(d, name).unwrap()
 }
-pub(super) fn read(value: &Value) -> Result<Option<demo::Demo>, crate::Refusal> {
+pub(super) fn read(value: &Value) -> Result<Option<llm::Document>, crate::Refusal> {
     let bytes = serde_json::to_vec(value).unwrap();
     let d = config::document(&bytes, &config::DocumentLimits { bytes: 1 << 20, tokens: 1 << 20, depth: 32 }).unwrap();
     let directories = config::Directories::given(b"/config", b"/data", b"/cache").unwrap();
@@ -47,14 +47,32 @@ pub(super) fn read(value: &Value) -> Result<Option<demo::Demo>, crate::Refusal> 
         .collect();
     assert!(ps.is_empty());
     listeners.push("127.0.0.1:3000".parse().unwrap());
-    demo::read(
-        &d,
-        member(&d, app, b"demo"),
-        &demo::Facts { llm: &engine.llm, listeners: &listeners, directories: &directories },
-    )
+    let Some(checked) =
+        demo::read(&demo::Facts { llm: &engine.llm, listeners: &listeners, directories: &directories })?
+    else {
+        return Ok(None);
+    };
+    // Script-edge tests use the same decoder as the embedded constant, without a startup member.
+    let m = &value["scripts"];
+    if m.is_null() {
+        return Ok(None);
+    }
+    let mut scripts = m.clone();
+    for name in ["listen", "provider", "key"] {
+        scripts.as_object_mut().unwrap().remove(name);
+    }
+    let scripts = demo::decode_scripts(&serde_json::to_vec(&scripts).unwrap())?;
+    let llm = llm::Document::checked(
+        checked.llm().listen(),
+        checked.llm().key().into(),
+        None,
+        checked.llm().models().into(),
+        scripts,
+        &Path::root().member(b"demo"),
+    )?;
+    Ok(Some(llm))
 }
 #[test]
-#[expect(clippy::too_many_lines, reason = "one refusal table covers the member and its document relationships")]
 fn demo_refusals() {
     let sign_in = json!({"issuer":"https://issuer.example", "client":"client", "scopes":[],
         "authorization":"https://issuer.example/auth", "token":"https://issuer.example/token",
@@ -63,94 +81,54 @@ fn demo_refusals() {
     let scripts = json!([{"cue":"x","turns":["x"]}]);
     // Each row edits a fresh document before either real parser sees it.
     let mut rows: Vec<Row> = vec![
-        (vec![("/application/demo/extra", Some(json!(1)))], "application.demo.extra: unknown member\n"),
-        (vec![("/application/demo/llm/extra", Some(json!(1)))], "application.demo.llm.extra: unknown member\n"),
-        (vec![("/application/demo/client", Some(json!("demo/client")))], "application.demo.client: unknown member\n"),
-        (vec![("/application/demo", Some(json!([])))], "application.demo: wrong value kind\n"),
-        (
-            vec![("/application/demo/llm/provider", Some(json!("3")))],
-            "application.demo.llm.provider: wrong value kind\n",
-        ),
-        (
-            vec![("/application/demo/llm/listen/socket", Some(json!("192.0.2.1:8370")))],
-            "application.demo.llm.listen: must be a loopback socket address\n",
-        ),
-        (
-            vec![("/application/demo/llm/listen/socket", Some(json!("127.0.0.1:7100")))],
-            "application.demo.llm.listen: must be unique\n",
-        ),
-        (
-            vec![("/application/demo/llm/listen/socket", Some(json!("127.0.0.1:7101")))],
-            "application.demo.llm.listen: must be unique\n",
-        ),
-        (
-            vec![("/application/demo/llm/listen/socket", Some(json!("127.0.0.1:3000")))],
-            "application.demo.llm.listen: must be unique\n",
-        ),
-        (
-            vec![("/application/demo/llm/provider", Some(json!(9)))],
-            "application.demo.llm.provider: names no LLM provider\n",
-        ),
         (
             vec![
                 ("/engine/llm/providers/1/sources/sign_in", Some(sign_in.clone())),
                 ("/engine/llm/providers/1/signed_in_plan", Some(json!(false))),
             ],
-            "application.demo.llm.provider: must offer a key alone\n",
+            "demo: must offer a key alone\n",
         ),
         (
             vec![
                 ("/engine/llm/providers/1/sources/programs", Some(json!(["claude_code"]))),
                 ("/engine/llm/providers/1/manage_usage", Some(json!("https://example.test/usage"))),
             ],
-            "application.demo.llm.provider: must offer a key alone\n",
+            "demo: must offer a key alone\n",
         ),
         (
             vec![("/engine/llm/providers/1/sources/keys", Some(json!(false)))],
-            "application.demo.llm.provider: must offer a key alone\n",
+            "demo: must offer a key alone\n",
         ),
         (
-            vec![("/engine/llm/providers/1/number", Some(json!(9))), ("/application/demo/llm/provider", Some(json!(9)))],
-            "application.demo.llm.provider: names a provider with no models\n",
-        ),
-        (
-            vec![("/engine/llm/endpoints/1/address/socket", Some(json!("127.0.0.1:8371")))],
-            "application.demo.llm.provider: names an endpoint not at llm.listen\n",
+            vec![("/engine/llm/endpoints/1/address/socket", Some(json!("127.0.0.1:7100")))],
+            "demo: must be unique\n",
         ),
         (
             vec![
                 ("/engine/llm/endpoints/1/transport", Some(json!("tls"))),
                 ("/engine/llm/endpoints/1/server_name", Some(json!("localhost"))),
             ],
-            "application.demo.llm.provider: names an endpoint with TLS\n",
+            "demo: names an endpoint with TLS\n",
         ),
         (
             vec![("/engine/llm/endpoints/1/dialect", Some(json!(2)))],
-            "application.demo.llm.provider: names an endpoint not in OpenAI's dialect\n",
+            "demo: names an endpoint not in OpenAI's dialect\n",
         ),
         (
-            vec![("/application/demo/llm/key", Some(json!("")))],
-            "application.demo.llm.key: relative path must be non-empty with no .. component\n",
+            vec![("/scripts/asked", Some(json!((0..17).map(|_| scripts[0].clone()).collect::<Vec<_>>())))],
+            "demo.asked: past its bound\n",
         ),
         (
-            vec![("/application/demo/llm/key", Some(json!("k".repeat(4097))))],
-            "application.demo.llm.key: past its bound\n",
+            vec![("/scripts/asked", Some(json!([scripts[0].clone(), scripts[0].clone()])))],
+            "demo.asked[1].cue: must be unique\n",
         ),
         (
-            vec![("/application/demo/llm/asked", Some(json!((0..17).map(|_| scripts[0].clone()).collect::<Vec<_>>())))],
-            "application.demo.llm.asked: past its bound\n",
-        ),
-        (
-            vec![("/application/demo/llm/asked", Some(json!([scripts[0].clone(), scripts[0].clone()])))],
-            "application.demo.llm.asked[1].cue: must be unique\n",
-        ),
-        (
-            vec![("/application/demo/llm/otherwise", Some(json!([])))],
-            "application.demo.llm.otherwise: must be non-empty\n",
+            vec![("/scripts/otherwise", Some(json!([])))],
+            "demo.otherwise: must be non-empty\n",
         ),
         (
             vec![(
-                "/application/demo/llm/asked",
+                "/scripts/asked",
                 Some(json!(
                     (0..8)
                         .map(
@@ -159,10 +137,8 @@ fn demo_refusals() {
                         .collect::<Vec<_>>()
                 )),
             )],
-            "application.demo.llm.otherwise: scripts past their joint byte bound\n",
+            "demo.otherwise: scripts past their joint byte bound\n",
         ),
-        (vec![("/application/demo/forge", Some(json!(2)))], "application.demo.forge: unknown member\n"),
-        (vec![("/application/demo/project", Some(json!(9)))], "application.demo.project: unknown member\n"),
     ];
     rows.push((
         vec![
@@ -170,11 +146,7 @@ fn demo_refusals() {
             ("/engine/llm/providers/1/signed_in_plan", Some(json!(true))),
             ("/engine/llm/providers/1/manage_usage", Some(json!("https://example.test/usage"))),
         ],
-        "application.demo.llm.provider: must offer a key alone\n",
-    ));
-    rows.push((
-        vec![("/application/demo/llm/key", Some(json!("demo/\u{0}")))],
-        "application.demo.llm.key: must be an absolute path without NUL\n",
+        "demo: must offer a key alone\n",
     ));
     for (changes, expected) in rows {
         let mut d = fixture();
@@ -202,12 +174,12 @@ fn demo_acceptance() {
     for (enabled, cued) in [(false, false), (true, false), (true, true)] {
         let mut value = fixture();
         if cued {
-            value["application"]["demo"]["llm"]["cued"] = json!([
+            value["scripts"]["cued"] = json!([
                 {"cue":"coding brief","turns":["coding answer"]}
             ]);
         }
         if !enabled {
-            value["application"]["demo"] = Value::Null;
+            value["scripts"] = Value::Null;
         }
         let demo = read(&value).unwrap();
         if !enabled {
@@ -215,13 +187,12 @@ fn demo_acceptance() {
             continue;
         }
         let demo = demo.unwrap();
-        let m = &value["application"]["demo"]["llm"];
+        let m = &value["scripts"];
         let standalone = json!({"listen":m["listen"], "key":"/data/demo/llm.key", "tls":null,
             "models":[{"name":"demo","window":1_048_576,"output":8192}], "cued":m.get("cued").cloned().unwrap_or(json!([])),
             "asked":m["asked"], "otherwise":m["otherwise"]});
-        assert_eq!(demo.llm(), &llm::Document::decode(&serde_json::to_vec(&standalone).unwrap()).unwrap());
-        assert_eq!(demo.provider(), 3);
-        let route = crate::wire::llm_config(demo.llm().models());
+        assert_eq!(&demo, &llm::Document::decode(&serde_json::to_vec(&standalone).unwrap()).unwrap());
+        let route = crate::wire::llm_config(demo.models());
         let body = route.list.expect("the fake route serves its advertised list");
         assert_eq!(
             serde_json::from_slice::<Value>(&body).unwrap(),
@@ -258,16 +229,16 @@ fn demo_acceptance() {
 #[test]
 fn cued_scripts_keep_their_system_placement() {
     let mut value = fixture();
-    value["application"]["demo"]["llm"]["cued"] = json!([
+    value["scripts"]["cued"] = json!([
         {"cue":"coding brief","turns":["coding answer"]}
     ]);
     let demo = read(&value).unwrap().unwrap();
-    let m = &value["application"]["demo"]["llm"];
+    let m = &value["scripts"];
     let standalone = json!({"listen":m["listen"], "key":"/data/demo/llm.key", "tls":null,
         "models":[{"name":"demo","window":1_048_576,"output":8192}],
         "cued":m["cued"],"asked":m["asked"],"otherwise":m["otherwise"]});
-    assert_eq!(demo.llm(), &llm::Document::decode(&serde_json::to_vec(&standalone).unwrap()).unwrap());
-    let answer = super::answer(demo.llm(), 23, super::query(b"coding brief", b"Begin"));
+    assert_eq!(&demo, &llm::Document::decode(&serde_json::to_vec(&standalone).unwrap()).unwrap());
+    let answer = super::answer(&demo, 23, super::query(b"coding brief", b"Begin"));
     assert_eq!(answer.parts.as_ref(), &[Part::Text { text: b"coding answer".as_slice().into() }]);
 }
 
@@ -275,36 +246,33 @@ fn cued_scripts_keep_their_system_placement() {
 fn cued_refusals_and_shared_bounds() {
     let scripts: Vec<_> = (0..16).map(|i| json!({"cue":i.to_string(),"turns":["x"]})).collect();
     for (cued, expected) in [
-        (json!(null), "application.demo.llm.cued: wrong value kind\n"),
-        (json!({}), "application.demo.llm.cued: wrong value kind\n"),
-        (json!([{"cue":"","turns":["x"]}]), "application.demo.llm.cued[0].cue: must be non-empty\n"),
-        (json!([{"cue":"x".repeat(257),"turns":["x"]}]), "application.demo.llm.cued[0].cue: past its bound\n"),
-        (json!([{"cue":"x","turns":[]}]), "application.demo.llm.cued[0].turns: must be non-empty\n"),
-        (json!([{"cue":"x","turns":vec!["x";17]}]), "application.demo.llm.cued[0].turns: past its bound\n"),
-        (
-            json!([{"cue":"Add CSV export to widget","turns":["x"]}]),
-            "application.demo.llm.cued[0].cue: must be unique\n",
-        ),
-        (json!([scripts[0], scripts[0]]), "application.demo.llm.cued[1].cue: must be unique\n"),
+        (json!(null), "demo.cued: wrong value kind\n"),
+        (json!({}), "demo.cued: wrong value kind\n"),
+        (json!([{"cue":"","turns":["x"]}]), "demo.cued[0].cue: must be non-empty\n"),
+        (json!([{"cue":"x".repeat(257),"turns":["x"]}]), "demo.cued[0].cue: past its bound\n"),
+        (json!([{"cue":"x","turns":[]}]), "demo.cued[0].turns: must be non-empty\n"),
+        (json!([{"cue":"x","turns":vec!["x";17]}]), "demo.cued[0].turns: past its bound\n"),
+        (json!([{"cue":"Add CSV export to widget","turns":["x"]}]), "demo.cued[0].cue: must be unique\n"),
+        (json!([scripts[0], scripts[0]]), "demo.cued[1].cue: must be unique\n"),
         (
             json!((0..7).map(|i| json!({"cue":i.to_string(),"turns":vec!["x".repeat(10_000);8]})).collect::<Vec<_>>()),
-            "application.demo.llm.otherwise: scripts past their joint byte bound\n",
+            "demo.otherwise: scripts past their joint byte bound\n",
         ),
-        (json!(scripts), "application.demo.llm.cued: past its bound\n"),
-        (json!(vec![scripts[0].clone(); 17]), "application.demo.llm.cued: past its bound\n"),
+        (json!(scripts), "demo.cued: past its bound\n"),
+        (json!(vec![scripts[0].clone(); 17]), "demo.cued: past its bound\n"),
     ] {
         let mut value = fixture();
-        value["application"]["demo"]["llm"]["cued"] = cued;
+        value["scripts"]["cued"] = cued;
         assert_eq!(read(&value).unwrap_err().line().as_ref(), expected.as_bytes());
     }
     for cued in [json!([]), json!(&scripts[..15]), json!([{"cue":"x".repeat(256),"turns":vec!["x";8]}])] {
         let mut value = fixture();
-        value["application"]["demo"]["llm"]["cued"] = cued;
+        value["scripts"]["cued"] = cued;
         assert!(read(&value).unwrap().is_some());
     }
     let mut value = fixture();
-    value["application"]["demo"]["llm"]["asked"] = json!([]);
-    value["application"]["demo"]["llm"]["cued"] = json!(scripts);
+    value["scripts"]["asked"] = json!([]);
+    value["scripts"]["cued"] = json!(scripts);
     assert!(read(&value).unwrap().is_some());
 }
 
@@ -334,7 +302,7 @@ fn key_file() {
 fn demo_answers_the_latest_request() {
     let mut value = fixture();
     // These fixtures are the fake's own and need not be the template's.
-    value["application"]["demo"]["llm"]["asked"] = json!([
+    value["scripts"]["asked"] = json!([
         {"cue":"Add CSV export to widget","turns":[{
             "lines":[{"text":"Export CSV"},{"call":"finish","arguments":{
                 "form":"report","text":"The playground changes nothing.","fields":{}
@@ -364,10 +332,10 @@ fn demo_answers_the_latest_request() {
     ] {
         let mut query = super::query(system.as_bytes(), user.as_bytes());
         if said {
-            let previous = super::answer(demo.llm(), 23, query.clone());
+            let previous = super::answer(&demo, 23, query.clone());
             query.messages = after_answer(query.messages, &previous).into_boxed_slice();
         }
-        let answer = super::answer(demo.llm(), 23, query);
+        let answer = super::answer(&demo, 23, query);
         let mut parts = vec![Part::Text { text: text.as_bytes().into() }];
         if finish == Finish::ToolCalls {
             parts.push(Part::ToolCall {
@@ -384,10 +352,11 @@ fn demo_answers_the_latest_request() {
 }
 
 fn template() -> Value {
-    let template: Value = serde_json::from_slice(include_bytes!("../../../temper-init/template/temper.json")).unwrap();
     let mut value = fixture();
-    value["application"]["demo"] = template["application"]["demo"].clone();
-    value["application"]["demo"]["llm"]["listen"]["socket"] = json!("127.0.0.1:8370");
+    let scripts: Value = serde_json::from_slice(demo::SCRIPTS).unwrap();
+    for name in ["asked", "cued", "otherwise"] {
+        value["scripts"][name] = scripts[name].clone();
+    }
     value
 }
 
@@ -396,7 +365,13 @@ const CHAT: &str = "Add CSV export to widget";
 const CODING: &str = "Read only what the change needs, then write it in its files: your turns are few. Finish with a clear change summary. You can run nothing; a file the change drops, remove once you have read it. The change has no pull request yet: once you finish, your work is committed, its pull request opened and its checks run; what fails there, or needs the pull request's number, comes back as a repair that names it. So write only files the change keeps, and no placeholder for what you can't know yet. Change only what your words ask: if what they name as broken or to fix is not in the code, write nothing and finish with a failure saying what the code has instead; never add a feature in a fix's place. Where your words describe the code otherwise than it is, build what they ask to add in the code there is, under its names; finish with a failure only when it cannot be built there.\n\n## Task\n\nExport widget's table as CSV\n[Change connector 1, kind 2, at most 4096 bytes]\n[This task: 3, in project 1]\n[Requested by task 2]\n\n";
 
 #[test]
-fn the_templates_demo_fits_the_fakes_bounds() {
+fn the_binary_scripts_fit_the_fakes_bounds_and_keep_the_cues_in_order() {
+    let scripts = demo::scripts().unwrap();
+    assert_eq!(
+        scripts.asked.iter().map(|s| s.cue.as_ref()).collect::<Vec<_>>(),
+        [b"Add CSV export to widget".as_slice(), b"Add a dark theme to widget", b"Fix widget's empty search state",]
+    );
+    assert_eq!(scripts.asked[0].turns.len(), 3);
     assert!(read(&template()).unwrap().is_some());
 }
 
@@ -408,7 +383,7 @@ fn answers(words: &str, mode: run::Mode, count: usize) -> Vec<api::Answer> {
     query.max_tokens = 8192;
     let mut answers = Vec::new();
     for _ in 0..count {
-        let answer = super::answer(demo.llm(), 23, query.clone());
+        let answer = super::answer(&demo, 23, query.clone());
         query.messages = after_answer(query.messages, &answer).into_boxed_slice();
         answers.push(answer);
     }
@@ -495,13 +470,13 @@ fn the_csv_coding_agent_reads_edits_and_finishes_the_change() {
 fn the_csv_cues_select_only_their_own_agents_briefs() {
     let value = template();
     for (list, own, other, tool) in [("asked", CHAT, CODING, b"delegate".as_slice()), ("cued", CODING, CHAT, b"read")] {
-        let cue = value["application"]["demo"]["llm"][list][0]["cue"].as_str().unwrap();
+        let cue = value["scripts"][list][0]["cue"].as_str().unwrap();
         assert!(own.contains(cue));
         assert!(!other.contains(cue));
         let mut only = value.clone();
-        only["application"]["demo"]["llm"]["asked"] = json!([]);
-        only["application"]["demo"]["llm"]["cued"] = json!([]);
-        only["application"]["demo"]["llm"][list] = json!([value["application"]["demo"]["llm"][list][0]]);
+        only["scripts"]["asked"] = json!([]);
+        only["scripts"]["cued"] = json!([]);
+        only["scripts"][list] = json!([value["scripts"][list][0]]);
         let demo = read(&only).unwrap().unwrap();
         for (words, selected) in [(own, true), (other, false)] {
             let mode = if list == "asked" { run::Mode::Open } else { run::Mode::Finite };
@@ -509,7 +484,7 @@ fn the_csv_cues_select_only_their_own_agents_briefs() {
             let mut query = super::query(&opening.system, &opening.prompt);
             query.model = b"demo".as_slice().into();
             query.max_tokens = 8192;
-            let answer = super::answer(demo.llm(), 23, query);
+            let answer = super::answer(&demo, 23, query);
             if selected {
                 call(&answer, tool);
             } else {
@@ -618,11 +593,11 @@ fn a_persons_new_request_restarts_the_chat_script() {
     let opening = opening(CHAT, run::Mode::Open);
     let mut query = super::query(&opening.system, &opening.prompt);
     query.max_tokens = 8192;
-    let first = super::answer(demo.llm(), 23, query.clone());
+    let first = super::answer(&demo, 23, query.clone());
     let mut messages = after_answer(query.messages, &first);
     messages.push(Message { role: Role::User, parts: Box::new([Part::Text { text: opening.prompt }]) });
     query.messages = messages.into_boxed_slice();
-    let restarted = super::answer(demo.llm(), 23, query);
+    let restarted = super::answer(&demo, 23, query);
     assert_eq!(restarted.parts, first.parts);
     assert_eq!(restarted.finish, first.finish);
     assert_eq!(restarted.usage.output, first.usage.output);
@@ -662,7 +637,7 @@ fn a_chat_document_request_calls_note_from_smiths_opening() {
         &[Part::Text { text: b"I added how a running goal continues and waits for your decisions.".as_slice().into() }]
     );
     let template = template();
-    let scripts = &template["application"]["demo"]["llm"];
+    let scripts = &template["scripts"];
     let asked = scripts["asked"].as_array().unwrap();
     let cued = scripts["cued"].as_array().unwrap();
     assert!(asked.len() + cued.len() <= 8);

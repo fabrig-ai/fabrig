@@ -107,7 +107,7 @@ pub fn documents(directory: &Path, _program: &str) -> (Vec<u8>, Vec<u8>) {
     value["application"] = serde_json::json!({
         "webhooks":null,
 "clients":{"listener":{"socket":"127.0.0.1:0"},"public":null,"bundle":null},
-        "demo":null,"sign_in":null,
+        "sign_in":null,
         "limits":{"overrides":{"forge.client.answer_bytes":65_536,"forge.client.op_bytes":512,"forge_component.body_bytes":16_384,"root.journal.run_bytes":32_768,"checkout.name_bytes":256,"checkout.repositories":2,
             "checkout.message_bytes":4096,"forge.name_bytes":64,"forge.judge_projects":3,"forge.landing_members":3,"forge.resources_per_task":4,"git_component.stdout_bytes":131_072}}});
     turn_bounds::apply(&mut value, turn_bounds::turn_body(&agent));
@@ -195,8 +195,5 @@ pub fn demo_document(directory: &Path, listen: &str) -> serde_json::Value {
             .expect("LLM table")
             .extend(llm[field].as_array().expect("demo table").iter().cloned());
     }
-    value["application"]["demo"] = serde_json::json!({"llm":{
-        "listen":{"socket":listen}, "provider":3, "key":"demo/llm.key",
-        "asked":[{"cue":"say hello", "turns":["hello from QA"]}], "otherwise":["fallback"]}});
     value
 }

@@ -45,7 +45,7 @@ fn story_a_decodes_within_the_fakes_bounds() {
     assert!(deployment["application"]["forges"].is_null());
     assert!(deployment["application"].get("machine").is_none());
     assert_eq!(deployment["engine"]["llm"]["endpoints"][0]["address"]["socket"], llm.listen().to_string());
-    assert_eq!(deployment["application"]["demo"]["llm"]["key"], "/setup/llm.key");
+    assert!(deployment["application"].get("demo").is_none());
     let [model] = llm.models() else { panic!("one model") };
     assert!(deployment["engine"]["llm"].get("models").is_none());
     assert!(deployment["engine"]["llm"]["providers"][0].get("models").is_none());
@@ -208,7 +208,8 @@ fn story_as_deployment_offers_its_llm_cues_in_order() {
     let llm: Value = serde_json::from_slice(A.llm).expect("story LLM");
     let cues: Vec<_> =
         llm["asked"].as_array().expect("asked scripts").iter().map(|script| json!({"cue": script["cue"]})).collect();
-    assert_eq!(deployment["application"]["demo"]["llm"]["asked"], json!(cues));
+    let demo = documents::playground(&deployment).expect("story playground");
+    assert_eq!(demo.cues.iter().map(|cue| json!({"cue":core::str::from_utf8(cue).unwrap()})).collect::<Vec<_>>(), cues);
 }
 
 #[test]
@@ -253,12 +254,11 @@ fn story_as_task_bounds_hold_the_chat_owners_authority() {
 }
 
 #[test]
-fn story_as_scripts_are_the_templates() {
+fn story_as_scripts_are_the_binarys() {
     let story: Value = serde_json::from_slice(A.llm).expect("story LLM");
-    let template: Value =
-        serde_json::from_slice(include_bytes!("../../../temper-init/template/temper.json")).expect("template");
+    let template: Value = serde_json::from_slice(temper_fake::demo::SCRIPTS).expect("binary scripts");
     for scripts in ["asked", "cued"] {
-        let templates = template["application"]["demo"]["llm"][scripts].as_array().expect("template scripts");
+        let templates = template[scripts].as_array().expect("template scripts");
         for script in story[scripts].as_array().expect("story scripts") {
             let matching = templates.iter().find(|candidate| candidate["cue"] == script["cue"]).expect("template cue");
             let mut expected = matching.clone();

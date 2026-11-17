@@ -492,7 +492,7 @@ fn llm_configuration(arguments: &Arguments, created: &mut Created) -> Result<llm
         Source::Demo { directories } => {
             let bytes = read_document(&directories.document(), super::CONFIG_BYTES)?;
             let deployment = super::setup::check(&bytes, &jig_directories(directories))?;
-            let demo = deployment.demo.ok_or("application.demo is null: the deployment has no demo")?;
+            let demo = deployment.demo.ok_or("engine.llm has no scripted provider")?;
             let path = super::path(demo.llm().key());
             let file = skein_shell::read_private_file(path, demo::KEY_FILE_BYTES, skein_shell::effective_user())
                 .map_err(|why| format!("{}: {}", path.display(), super::unread(why)))?;

@@ -727,6 +727,7 @@ fn startup_configuration(directory: &Path) -> (Vec<u8>, temper_service::stock::G
     let mut document: serde_json::Value = serde_json::from_slice(&configuration).expect("kept configuration JSON");
     bridge_kept_profiles(&mut document);
     // Kept deployment inputs use the current box shape; the stored generation stays untouched.
+    document["world_settings"]["playground"] = true.into();
     let mut inherited = Vec::new();
     for worker in document["workers"].as_array_mut().expect("kept workers") {
         let worker = worker.as_object_mut().expect("kept worker");

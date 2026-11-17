@@ -105,6 +105,7 @@ fn start(inherited: &skein_world::Inherited) -> SignalHost<Tool> {
         }
     }
     let files = fixtures::files();
+    document.as_object_mut().expect("world document").remove("world_settings");
     let mut service = temper_service::startup::restoring_with(
         &serde_json::to_vec(&document).expect("configuration"),
         &jig_protocol_config::Directories::working(),

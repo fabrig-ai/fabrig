@@ -100,7 +100,7 @@ pub(crate) fn documents(directory: &Path, bundle: &Path) -> (Box<[u8]>, Box<[u8]
     value["application"] = serde_json::json!({
         "webhooks":null,
         "clients":{"listener":{"socket":"127.0.0.1:0"},"public":null,"bundle":bundle},
-        "demo":null,"sign_in":null,
+        "sign_in":null,
         "limits":{"overrides":{"forge.client.answer_bytes":65_536,"forge.client.op_bytes":512,"forge_component.body_bytes":16_384,"checkout.name_bytes":256,"checkout.repositories":2,
             "checkout.message_bytes":4096,"forge.name_bytes":64,"forge.landing_members":1,"forge.resources_per_task":2,"git_component.stdout_bytes":131_072}}});
     turn_bounds::apply(&mut value, turn_bounds::turn_body(&agent));
@@ -188,7 +188,7 @@ pub(crate) fn demo(directory: &Path, program: &Path, bundle: &Path) {
 fn own_demo_listeners(value: &mut serde_json::Value) {
     let sockets = [
         "/application/clients/listener/socket",
-        "/application/demo/llm/listen/socket",
+        "/engine/llm/endpoints/3/address/socket",
         "/application/webhooks/listener/socket",
     ]
     .map(|pointer| {
@@ -320,7 +320,7 @@ mod tests {
             },
         };
         let directories = temper_init::Directories { config: b"/test/config", data: b"/test/state" };
-        let answer = temper_init::files(&facts, &directories, &[0; 32], &[1; 32]).expect("demo init");
+        let answer = temper_init::files(&facts, &directories, &[0; 32]).expect("demo init");
         assert!(!answer.files.iter().any(|file| file.name == b"agent.json"));
         let file = answer.files.iter().find(|file| file.name == b"temper.json").expect("init file");
         let temper_init::Content::Bytes { bytes, .. } = &file.content else { panic!("document bytes") };
@@ -334,7 +334,7 @@ mod tests {
         let mut seen = std::collections::BTreeSet::new();
         for pointer in [
             "/application/clients/listener/socket",
-            "/application/demo/llm/listen/socket",
+            "/engine/llm/endpoints/3/address/socket",
             "/application/webhooks/listener/socket",
         ] {
             let address: std::net::SocketAddr =

@@ -26,7 +26,7 @@ fn a_fresh_fake_box_writes_none_of_the_persons_preferred_ports() {
             .expect("deployment JSON");
     for pointer in [
         "/application/clients/listener/socket",
-        "/application/demo/llm/listen/socket",
+        "/engine/llm/endpoints/2/address/socket",
         "/application/webhooks/listener/socket",
     ] {
         let address: SocketAddr = document
