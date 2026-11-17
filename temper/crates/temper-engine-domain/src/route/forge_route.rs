@@ -3552,6 +3552,7 @@ pub(super) fn chat_change(
             connector: domain.config.forge_connector,
             kind: 1,
             words: env.limits.tasks.result_bytes,
+            choices: Box::new([]),
         },
         authority,
         llm: None,
@@ -3754,6 +3755,7 @@ fn change_delegate(
         connector: domain.config.forge_connector,
         kind: 2,
         words: env.limits.tasks.result_bytes,
+        choices: Box::new([]),
     };
     let (executor, mut words, contract, llm) = match kind {
         forge_change::Delegate::Merge { .. } | forge_change::Delegate::Close => return None,
@@ -4512,6 +4514,7 @@ fn start_queue_repair(domain: &mut Domain, env: &Env<Limits>, task: u64) -> bool
             connector: domain.config.forge_connector,
             kind: 1,
             words: env.limits.tasks.result_bytes,
+            choices: Box::new([]),
         },
         holdings,
     }));

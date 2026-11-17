@@ -377,7 +377,12 @@ fn change_expands_the_only_repository_field_by_field() {
     );
     assert_eq!(
         row.contract,
-        tasks::Contract::Change { connector: 0, kind: 1, words: 512.min(world.env.limits.tasks.result_bytes) }
+        tasks::Contract::Change {
+            connector: 0,
+            kind: 1,
+            words: 512.min(world.env.limits.tasks.result_bytes),
+            choices: Box::new([])
+        }
     );
     assert_eq!(row.authority.tools, parent.authority.tools);
     assert_eq!(
@@ -431,7 +436,12 @@ fn change_expands_the_only_repository_field_by_field() {
     world.until(Until::SecondAssignment);
     assert!(
         world.assigned[1].run.contract
-            == tasks::Contract::Change { connector: 0, kind: 2, words: world.env.limits.tasks.result_bytes },
+            == tasks::Contract::Change {
+                connector: 0,
+                kind: 2,
+                words: world.env.limits.tasks.result_bytes,
+                choices: Box::new([])
+            },
         "the same code-2 procedure starts its producer"
     );
 }
@@ -1340,7 +1350,7 @@ fn handed_title(title: &[u8]) -> Box<[u8]> {
     let mut delegate =
         temper_engine_domain_world::fixtures::report_delegate(b"Context. The complete brief.", Box::new([]));
     delegate.executor = tasks::Executor::Procedure { connector: 0, code: 2 };
-    delegate.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 128 };
+    delegate.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 128, choices: Box::new([]) };
     delegate.authority = live(&world, chat.task).authority.clone();
     delegate.authority.budget.spend = 40;
     delegate.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };

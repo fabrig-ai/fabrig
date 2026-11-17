@@ -96,7 +96,7 @@ pub(super) fn contract(limits: &Limits, value: &tasks::Contract) -> Result<Contr
         }
         tasks::Contract::Job { bytes } => ContractLine::Job { bytes: *bytes },
         tasks::Contract::Report { words } => ContractLine::Report { words: *words },
-        tasks::Contract::Change { connector, kind, words } => {
+        tasks::Contract::Change { connector, kind, words, .. } => {
             ContractLine::Change { connector: *connector, kind: *kind, words: *words }
         }
         tasks::Contract::Verdict { choices } => {

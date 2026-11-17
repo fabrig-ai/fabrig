@@ -221,7 +221,7 @@ fn the_whole_check_refuses_unconfigured_contract_connectors() {
     let config = config(1);
     let mut current = Current::new(config.defaults, &limits(), &[]);
     let mut value = template();
-    value.contract = tasks::Contract::Change { connector: u16::MAX, kind: 1, words: 1 };
+    value.contract = tasks::Contract::Change { connector: u16::MAX, kind: 1, words: 1, choices: Box::new([]) };
     current
         .changes
         .insert(Setting::Template(1), Changed { value: Some(Value::Template(Box::new(value))), revision: 2 })

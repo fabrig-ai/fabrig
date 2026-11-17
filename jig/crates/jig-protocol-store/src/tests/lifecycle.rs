@@ -88,6 +88,46 @@ fn task_runs_written_without_open_attempt_read_with_none() {
     assert!(read.open_attempt().is_none());
 }
 
+#[test]
+fn change_contracts_written_without_choices_read_with_an_empty_list() {
+    let mut text = None;
+    for family in crate::JIG_STORE_SET.families {
+        if family.name == "jig-store-tasks" {
+            text = Some(family.current);
+        }
+    }
+    let text = text.unwrap();
+    let old_text = text
+        .replace(" words: u32 choices: list 64 Verdict = []", " words: u32")
+        .replace(" words: u32 choices: list 64 Verdict", " words: u32");
+    assert!(old_text != text, "old layout omits choices");
+    let old = skein_codec::schema::parse(old_text.as_bytes()).unwrap();
+    let new = skein_codec::schema::parse(text.as_bytes()).unwrap();
+    let plan = skein_codec::layout::Plan::derive(
+        &old,
+        old.root(b"Contract", None).unwrap(),
+        &[],
+        &new,
+        new.root(b"Contract", None).unwrap(),
+        &[],
+    )
+    .unwrap();
+    let limits = tasks_limits();
+    let contract = d::Contract::Change { connector: 1, kind: 2, words: 32, choices: Box::new([]) };
+    let value = tasks::value::contract(&contract, &limits).unwrap();
+    let mut writer = Writer::new(usize::try_from(value.measure()).unwrap());
+    value.encode(&mut writer).unwrap();
+    let bytes = writer.finish();
+    // The old layout ends after words; the new one appends the empty list's count.
+    let old_bytes = bytes.get(..bytes.len() - 4).unwrap();
+    let mut out = Buffer::with_capacity(u32::try_from(bytes.len()).unwrap());
+    let mut work = skein_codec::layout::Workspace::new();
+    assert!(work.fit(&plan));
+    plan.convert(old_bytes, &mut out, &mut work).unwrap();
+    let read = wire::Contract::decode(&limits, &mut Reader::new(out.as_slice())).unwrap();
+    assert_eq!(tasks::value::read_contract(read, &limits), Ok(contract));
+}
+
 fn tasks_limits() -> wire::Limits {
     tasks::limits(&fixtures::TASKS_LIMITS).expect("within the schema's ceilings")
 }

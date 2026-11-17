@@ -99,25 +99,30 @@ fn contract(value: &Contract, limits: &Limits) -> Result<(), RestoreCause> {
                 }
             }
         }
-        Contract::Report { words } | Contract::Change { words, .. } => {
+        Contract::Report { words } => {
             bound(RestoreBound::ResultBytes, u64::from(*words), u64::from(limits.result_bytes))
         }
-        Contract::Verdict { choices } => {
-            count(RestoreBound::ContractChoices, choices.len(), limits.contract_choices)?;
-            for choice in choices {
-                count(RestoreBound::ResultFields, choice.fields.len(), limits.result_bytes)?;
-                bound(RestoreBound::Batch, u64::from(choice.followups), u64::from(limits.batch))?;
-                let mut bytes = skein_lib::length::usize_of(choice.words);
-                for field in &choice.fields {
-                    bytes = bytes.checked_add(field.name.len()).ok_or(RestoreCause::Accounting)?;
-                    bytes =
-                        bytes.checked_add(skein_lib::length::usize_of(field.max)).ok_or(RestoreCause::Accounting)?;
-                }
-                count(RestoreBound::ResultBytes, bytes, limits.result_bytes)?;
-            }
-            Ok(())
+        Contract::Change { words, choices, .. } => {
+            bound(RestoreBound::ResultBytes, u64::from(*words), u64::from(limits.result_bytes))?;
+            contract_choices(choices, limits)
         }
+        Contract::Verdict { choices } => contract_choices(choices, limits),
     }
+}
+
+fn contract_choices(choices: &[crate::Verdict], limits: &Limits) -> Result<(), RestoreCause> {
+    count(RestoreBound::ContractChoices, choices.len(), limits.contract_choices)?;
+    for choice in choices {
+        count(RestoreBound::ResultFields, choice.fields.len(), limits.result_bytes)?;
+        bound(RestoreBound::Batch, u64::from(choice.followups), u64::from(limits.batch))?;
+        let mut bytes = skein_lib::length::usize_of(choice.words);
+        for field in &choice.fields {
+            bytes = bytes.checked_add(field.name.len()).ok_or(RestoreCause::Accounting)?;
+            bytes = bytes.checked_add(skein_lib::length::usize_of(field.max)).ok_or(RestoreCause::Accounting)?;
+        }
+        count(RestoreBound::ResultBytes, bytes, limits.result_bytes)?;
+    }
+    Ok(())
 }
 
 fn fields(value: &[ResultField]) -> Result<usize, RestoreCause> {

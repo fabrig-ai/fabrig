@@ -354,7 +354,7 @@ fn encode_contract(value: &tasks::Contract, limits: &wire::Limits) -> Result<wir
             }
             wire::Contract::Verdict(wire::VerdictChoices::new(limits, wire::VerdictChoicesParts { choices: list_3 })?)
         }
-        tasks::Contract::Change { connector, kind, words } => wire::Contract::Change(wire::Change::new(
+        tasks::Contract::Change { connector, kind, words, .. } => wire::Contract::Change(wire::Change::new(
             limits,
             wire::ChangeParts { connector: *connector, kind: *kind, words: *words },
         )?),
@@ -381,7 +381,7 @@ fn decode_contract(value: wire::Contract, limits: &wire::Limits) -> Result<tasks
         }
         wire::Contract::Change(entry) => {
             let wire::ChangeParts { connector, kind, words } = entry.into_parts();
-            tasks::Contract::Change { connector, kind, words }
+            tasks::Contract::Change { connector, kind, words, choices: Box::new([]) }
         }
     })
 }

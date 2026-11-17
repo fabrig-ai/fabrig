@@ -868,7 +868,12 @@ fn a_change_created_with_a_dependency_does_not_join_a_formed_landing() {
         },
         tasks::Parameter::Bytes { name: 2, value: b"main".as_slice().into() },
     ]);
-    change.contract = tasks::Contract::Change { connector: 0, kind: 1, words: world.env.limits.tasks.result_bytes };
+    change.contract = tasks::Contract::Change {
+        connector: 0,
+        kind: 1,
+        words: world.env.limits.tasks.result_bytes,
+        choices: Box::new([]),
+    };
     change.authority = live_task(&world, chat.task).authority.clone();
     change.authority.delegation.depth = change.authority.delegation.depth.saturating_sub(1);
     change.authority.delegation.tasks = 6;

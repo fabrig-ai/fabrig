@@ -514,7 +514,7 @@ fn modify_needs_a_delivery() {
     // The task fixture's contract text bound.
     const WORDS: u32 = 64;
     let fixture = assignment_fixture(b"Modify", WORDS, 20, 4);
-    let change = tasks::Contract::Change { connector: 1, kind: 1, words: WORDS };
+    let change = tasks::Contract::Change { connector: 1, kind: 1, words: WORDS, choices: Box::new([]) };
     let verdict = tasks::Contract::Verdict {
         choices: Box::new([tasks::Verdict { code: 1, followups: 0, words: WORDS, fields: Box::new([]) }]),
     };
@@ -544,7 +544,7 @@ fn delivery_follows_contract_policy_and_workspace() {
     // A whole-spec report bound (jig/docs/design/domain/hosts/charters.md).
     const LARGE_WORDS: u32 = 131_070;
     let report = Contract::Report { words: WORDS };
-    let change = Contract::Change { connector: 1, kind: 1, words: WORDS };
+    let change = Contract::Change { connector: 1, kind: 1, words: WORDS, choices: Box::new([]) };
     let verdict = Contract::Verdict {
         choices: Box::new([jig_domain_tasks::Verdict { code: 1, followups: 0, words: WORDS, fields: Box::new([]) }]),
     };
@@ -629,7 +629,7 @@ fn contract_text_is_bounded_and_change_checks_are_required() {
         let mut value = assignment_fixture(b"Contract", words, 20, 4);
         let report = crate::assignment(value.clone(), Box::new([]), Box::new([]), false).expect("report");
         assert_eq!(report.contract.report.expect("report text").max, words.min(crate::CONTRACT_TEXT_MAX));
-        value.contract = tasks::Contract::Change { connector: 1, kind: 1, words };
+        value.contract = tasks::Contract::Change { connector: 1, kind: 1, words, choices: Box::new([]) };
         let change = crate::assignment(value, Box::new([]), Box::new([]), false).expect("change");
         assert_eq!(change.contract.failure.expect("failure text").max, words.min(crate::CONTRACT_TEXT_MAX));
         let no_change = &change.contract.verdicts[0];
@@ -662,6 +662,35 @@ fn alternative_models_keep_their_source_bindings_and_efforts() {
     assert_eq!(assembled.models[0].model.effort.as_deref(), Some(b"high".as_slice()));
     value.sources = Box::new([None]);
     assert_eq!(crate::assignment(value, Box::new([]), Box::new([]), false), None);
+}
+
+#[test]
+fn change_choices_add_numbered_verdicts_beside_the_unchanged_rules() {
+    use jig_domain_tasks as tasks;
+    let mut value = assignment_fixture(b"Change", 512, 20, 4);
+    value.contract = tasks::Contract::Change { connector: 1, kind: 2, words: 512, choices: Box::new([]) };
+    let before = crate::assignment(value.clone(), Box::new([]), Box::new([]), false).expect("change").contract;
+    let choices = Box::new([tasks::Verdict {
+        code: 12,
+        words: 256,
+        followups: 0,
+        fields: Box::new([tasks::FieldRule { name: b"reason".as_slice().into(), max: 80 }]),
+    }]);
+    value.contract = tasks::Contract::Change { connector: 1, kind: 2, words: 512, choices: choices.clone() };
+    let after = crate::assignment(value.clone(), Box::new([]), Box::new([]), false).expect("change choices").contract;
+    value.contract = tasks::Contract::Verdict { choices };
+    let verdict = crate::assignment(value, Box::new([]), Box::new([]), false).expect("verdict").contract;
+    assert_eq!(before.verdicts.len(), 1);
+    assert_eq!(after.change, before.change);
+    assert_eq!(after.failure, before.failure);
+    assert_eq!(after.report, before.report);
+    assert_eq!(after.verdicts.len(), 2);
+    assert_eq!(after.verdicts[0], before.verdicts[0]);
+    assert_eq!(after.verdicts[1], verdict.verdicts[0]);
+    let choice = &after.verdicts[1];
+    assert_eq!(choice.name.as_ref(), b"12");
+    assert_eq!(choice.text_max, 256);
+    assert_eq!(choice.fields[0], crate::FieldRule { name: b"reason".as_slice().into(), max: 80 });
 }
 
 #[test]
