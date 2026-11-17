@@ -10,16 +10,22 @@ use serde_json::{Value, json};
 
 const TREES: [&str; 5] = ["skein", "smith", "jig", "temper", "hearth"];
 
+// Unobserved git commands use git directly, without a Python fixture launch.
+const GIT: &str = r#"#!/bin/sh
+case "$1" in
+    merge-base|worktree|checkout|clean) exec "$(dirname "$0")/record/git" "$@" ;;
+    *) exec /usr/bin/git "$@" ;;
+esac
+"#;
+
 // Twelve formatter launches cost 69,758 ms; the baselines cost 17,000 ms.
 // Each launch pays 5,500 ms plus its share of source work. No real time passes.
 const PROGRAM: &str = r"#!/usr/bin/python3
 import json
 import os
 from pathlib import Path
-import signal
 import subprocess
 import sys
-import xml.etree.ElementTree as ET
 
 name = Path(sys.argv[0]).name
 args = sys.argv[1:]
@@ -32,9 +38,8 @@ state_path = git_dir / 'budget.json'
 if name == 'git':
     if state_path.exists():
         state = json.loads(state_path.read_text())
-        if args[0] in ('merge-base', 'worktree', 'checkout', 'clean'):
-            state['events'].append(['git', args])
-            state_path.write_text(json.dumps(state))
+        state['events'].append(['git', args])
+        state_path.write_text(json.dumps(state))
     os.execv('/usr/bin/git', ['git'] + args)
 state = json.loads(state_path.read_text())
 side = 'base' if 'temper-pre-pr/base' in str(Path.cwd()) else 'head'
@@ -56,6 +61,7 @@ def format_files(paths):
         print('format fault', file=sys.stderr)
         sys.exit(1)
     if fail == 'interrupt':
+        import signal
         os.kill(os.getpid(), signal.SIGTERM)
 if name == 'hold':
     assert Path.cwd() == root
@@ -152,6 +158,7 @@ elif name == 'one-process':
              and t.get('profile', 'default') == profile]
     if profile == 'fuzzy':
         ledger = ledger.get('fuzzy', {})
+    import xml.etree.ElementTree as ET
     document = ET.Element('testsuites')
     for test in tests:
         suite = ET.SubElement(document, 'testsuite', name=test['binary'])
@@ -255,8 +262,10 @@ fn fixture() -> skein_scratch::Scratch {
             write(root, path, &source);
         }
     }
-    for name in ["cargo", "rustfmt", "git", "hold"] {
-        write(root, &format!(".git/bin/{name}"), PROGRAM);
+    for (name, program) in
+        [("cargo", PROGRAM), ("rustfmt", PROGRAM), ("git", GIT), ("record/git", PROGRAM), ("hold", PROGRAM)]
+    {
+        write(root, &format!(".git/bin/{name}"), program);
         fs::set_permissions(root.join(format!(".git/bin/{name}")), fs::Permissions::from_mode(0o700))
             .expect("executable check");
     }
