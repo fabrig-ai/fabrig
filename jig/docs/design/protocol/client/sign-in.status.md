@@ -1,6 +1,8 @@
 # sign-in: status
 
-2026-11-11. Where the tree's code lags or departs from [sign-in.md](sign-in.md).
+2026-11-17. Where the tree's code lags or departs from [sign-in.md](sign-in.md).
+
+- **Not yet:** the whole document, *The asked link*: the clients' component keeps no asked link, and `LinkAsk` has no route [in flight: change 6834].
 
 - **Departs:** the whole document, *Never taken, nothing made*: a take admitted before
   expiry remains reserved until the core answers, even past the approval's

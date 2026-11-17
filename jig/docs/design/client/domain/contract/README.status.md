@@ -5,6 +5,7 @@
 
 - **Not yet:** 3: the refusal *live tasks*, absent from the contract's `Refusal`, the client wire and jig's words [in flight: change 628].
 - **Not yet:** 4: a deleted project's read answers unknown, not gone [in flight: change 629].
+- **Not yet:** 2: the asked link among the built-in ways of signing in [in flight: change 6834].
 
 Section 3 has no known gap in a program declaration's name-taken
 refusal: the accounts child and core carry it through the existing
