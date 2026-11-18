@@ -6,19 +6,11 @@ pub(super) use moving::move_chat;
 
 use super::{Domain, Pending, Start, decided, role};
 use crate::{
-    Again, Ask, Counts, Entry, EntryKind, Key, Limits, Needs, Outcome, ReplyRef, Request, ResultRef, Role, Seen,
-    Stored, Update, Whom,
+    Again, Ask, Counts, Entry, EntryKind, Key, Limits, NeedSource, Needs, Outcome, Proposer, ReplyRef, Request,
+    ResultRef, Role, Seen, Stored, Update, Whom,
 };
 use alloc::boxed::Box;
 use skein_lib::{Env, Id, List, Map, Queue, Token, Wall};
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub(crate) struct Need {
-    pub(super) project: u32,
-    pub(super) whom: Whom,
-    pub(super) kind: EntryKind,
-    pub(super) at: Wall,
-}
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub(crate) struct ChatTotal {
@@ -37,7 +29,7 @@ impl Domain {
     /// The person who must answer this received question (domain/people/README.md, 5).
     #[must_use]
     pub fn question_person(&self, task: u64, question: u64) -> Option<u64> {
-        let needs = self.needs.get(&task)?;
+        let needs = self.needs.get(&NeedSource::Task(task))?;
         for need in needs {
             if need.kind == (EntryKind::Question { message: question }) {
                 match need.whom {
@@ -113,18 +105,10 @@ impl Domain {
     #[must_use]
     pub fn inbox_needs(&self, person: u64) -> Option<Box<[Entry]>> {
         let mut entries = List::with_capacity(self.needs(person)?);
-        for (task, needs) in &self.needs {
+        for (_, needs) in &self.needs {
             for &need in needs {
                 if addressed(self, person, need) {
-                    entries
-                        .push(Entry {
-                            task: *task,
-                            project: need.project,
-                            whom: need.whom,
-                            kind: need.kind,
-                            at: need.at,
-                        })
-                        .expect("addressed subset of the live need census");
+                    entries.push(need).expect("addressed subset of the live need census");
                 }
             }
         }
@@ -148,7 +132,7 @@ impl Domain {
                     Update::ChatReply(reply) => unread_reply(self, person, reply.entry),
                     Update::Reply(entry) => {
                         let mut present = false;
-                        if let Some(entries) = self.replies.get(&entry.task) {
+                        if let Some(entries) = self.replies.get(&NeedSource::Task(entry.task)) {
                             for old in entries {
                                 present |= *old == entry;
                             }
@@ -211,10 +195,10 @@ impl Domain {
         count
     }
 
-    /// Whether this task currently contributes to the party's exact need count.
+    /// Whether this source currently contributes to the party's exact need count.
     #[must_use]
-    pub fn task_needs(&self, person: u64, task: u64) -> bool {
-        match self.needs.get(&task) {
+    pub fn source_needs(&self, person: u64, source: NeedSource) -> bool {
+        match self.needs.get(&source) {
             Some(tallies) => {
                 for tally in tallies {
                     if addressed(self, person, *tally) {
@@ -654,10 +638,10 @@ fn forget_chat(domain: &mut Domain, limits: &Limits, task: u64, out: &mut Queue<
         let _old = domain.conversations_seen.remove(&(party, task));
         out.push(Request::Erase { key: Key::ReadConversation { party, task } });
     }
-    drop(domain.replies.remove(&task));
+    drop(domain.replies.remove(&NeedSource::Task(task)));
 }
 
-fn addressed(domain: &Domain, person: u64, need: Need) -> bool {
+fn addressed(domain: &Domain, person: u64, need: Entry) -> bool {
     let Some(held) = role(domain, person, need.project) else { return false };
     match need.whom {
         Whom::Person(owner) => owner == person,
@@ -665,11 +649,27 @@ fn addressed(domain: &Domain, person: u64, need: Need) -> bool {
     }
 }
 
-fn replace_needs(domain: &mut Domain, limits: &Limits, task: u64, entries: &[Entry]) {
+// The recipient cache is a secondary index; its replacement key is the same
+// source as the census, derived from the entry rather than its task link.
+fn entry_source(entry: Entry) -> NeedSource {
+    match entry.kind {
+        EntryKind::Proposal { proposer, number } => match proposer {
+            Proposer::Party(party) => NeedSource::Proposal { party, number },
+            Proposer::Task(task) => NeedSource::Task(task),
+        },
+        EntryKind::Question { .. }
+        | EntryKind::Escalation { .. }
+        | EntryKind::PersonTask
+        | EntryKind::Reply { .. }
+        | EntryKind::ChatReply { .. } => NeedSource::Task(entry.task),
+    }
+}
+
+fn replace_needs(domain: &mut Domain, limits: &Limits, source: NeedSource, entries: &[Entry]) {
     assert!(entries.len() <= skein_lib::length::usize_of(limits.inbox_recipients), "root bounds each task projection");
-    let mut tallies: List<Need> = List::with_capacity(limits.inbox_recipients);
+    let mut tallies: List<Entry> = List::with_capacity(limits.inbox_recipients);
     for entry in entries {
-        if entry.task != task || entry.project == 0 {
+        if entry_source(*entry) != source || entry.project == 0 {
             continue;
         }
         match entry.kind {
@@ -679,31 +679,33 @@ fn replace_needs(domain: &mut Domain, limits: &Limits, task: u64, entries: &[Ent
             | EntryKind::Question { .. }
             | EntryKind::PersonTask => {}
         }
-        tallies
-            .push(Need { project: entry.project, whom: entry.whom, kind: entry.kind, at: entry.at })
-            .expect("root bounds each task's need recipients");
+        tallies.push(*entry).expect("root bounds each task's need recipients");
     }
-    drop(domain.needs.remove(&task));
+    drop(domain.needs.remove(&source));
     if !tallies.is_empty() {
-        assert!(domain.needs.insert(task, tallies.into_boxed()).is_ok(), "one tally per live task");
+        assert!(domain.needs.insert(source, tallies.into_boxed()).is_ok(), "one tally per live source");
     }
 }
 
 pub(super) fn replace_waiting(
     domain: &mut Domain,
     limits: &Limits,
-    task: u64,
+    source: NeedSource,
     entries: &[Entry],
     out: &mut Queue<Request>,
 ) {
-    if task == 0 || domain.start == Start::Failed {
+    let valid = match source {
+        NeedSource::Task(task) => task != 0,
+        NeedSource::Proposal { party, number } => party != 0 && number != 0,
+    };
+    if !valid || domain.start == Start::Failed {
         return;
     }
-    let old = domain.needs.get(&task).cloned();
-    replace_needs(domain, limits, task, entries);
+    let old = domain.needs.get(&source).cloned();
+    replace_needs(domain, limits, source, entries);
     // The census and link rebuild projections without telling arrivals.
     if domain.ready() {
-        arrivals(domain, task, old.as_deref().unwrap_or(&[]), out);
+        arrivals(domain, source, old.as_deref().unwrap_or(&[]), out);
     }
     for &entry in entries {
         if let (Whom::Person(party), EntryKind::Reply { .. }) = (entry.whom, entry.kind) {
@@ -713,7 +715,9 @@ pub(super) fn replace_waiting(
     let mut replies = List::with_capacity(limits.inbox_recipients);
     for &entry in entries {
         match entry.kind {
-            EntryKind::Reply { .. } | EntryKind::ChatReply { .. } if entry.task == task && entry.project != 0 => {
+            EntryKind::Reply { .. } | EntryKind::ChatReply { .. }
+                if entry_source(entry) == source && entry.project != 0 =>
+            {
                 replies.push(entry).expect("bounded reply projection");
             }
             EntryKind::Reply { .. }
@@ -724,9 +728,9 @@ pub(super) fn replace_waiting(
             | EntryKind::PersonTask => {}
         }
     }
-    drop(domain.replies.remove(&task));
+    drop(domain.replies.remove(&source));
     if !replies.is_empty() {
-        assert!(domain.replies.insert(task, replies.into_boxed()).is_ok(), "one reply projection per task");
+        assert!(domain.replies.insert(source, replies.into_boxed()).is_ok(), "one reply projection per source");
     }
     let mut recipients = List::with_capacity(domain.waiting.capacity());
     for (whom, _) in &domain.waiting {
@@ -736,7 +740,7 @@ pub(super) fn replace_waiting(
         let Some(old) = domain.waiting.remove(&whom) else { continue };
         let mut kept = List::with_capacity(limits.inbox_entries);
         for entry in old {
-            if entry.task != task {
+            if entry_source(entry) != source {
                 kept.push(entry).expect("cached subset fits");
             }
         }
@@ -746,7 +750,7 @@ pub(super) fn replace_waiting(
         }
     }
     for &entry in entries {
-        if entry.task != task || entry.project == 0 {
+        if entry_source(entry) != source || entry.project == 0 {
             continue;
         }
         // A role with no holder has no party inbox to cache. The number of distinct held
@@ -775,24 +779,27 @@ pub(super) fn replace_waiting(
 
 /// Tell only newly reached needs; a refreshed timestamp is not a new need
 /// (domain/people/README.md, section 8).
-fn arrivals(domain: &Domain, task: u64, old: &[Need], out: &mut Queue<Request>) {
-    let Some(needs) = domain.needs.get(&task) else { return };
+fn arrivals(domain: &Domain, source: NeedSource, old: &[Entry], out: &mut Queue<Request>) {
+    let Some(needs) = domain.needs.get(&source) else { return };
     for &need in needs {
         let mut unchanged = false;
         for prior in old {
-            unchanged |= prior.project == need.project && prior.whom == need.whom && prior.kind == need.kind;
+            unchanged |= prior.task == need.task
+                && prior.project == need.project
+                && prior.whom == need.whom
+                && prior.kind == need.kind;
         }
         if unchanged {
             continue;
         }
         match need.whom {
-            Whom::Person(party) => tell_arrival(domain, task, need, party, out),
+            Whom::Person(party) => tell_arrival(domain, need, party, out),
             Whom::Role { project, role } => {
                 // Project holdings have their existing bound, not a role-holder index.
                 if let Some(holdings) = domain.roles.get(&project) {
                     for holding in holdings {
                         if holding.role.number() == role {
-                            tell_arrival(domain, task, need, holding.person, out);
+                            tell_arrival(domain, need, holding.person, out);
                         }
                     }
                 }
@@ -801,12 +808,12 @@ fn arrivals(domain: &Domain, task: u64, old: &[Need], out: &mut Queue<Request>) 
     }
 }
 
-fn tell_arrival(domain: &Domain, task: u64, need: Need, party: u64, out: &mut Queue<Request>) {
+fn tell_arrival(domain: &Domain, need: Entry, party: u64, out: &mut Queue<Request>) {
     if addressed(domain, party, need) {
         out.push(Request::NeedArrived {
             party,
             project: need.project,
-            task,
+            task: need.task,
             needs: domain.project_needs(party, need.project),
         });
     }

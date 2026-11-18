@@ -33,7 +33,7 @@ pub(super) fn scope(call: &Call, document: &c::ReadValue) -> Result<Scope, Faile
         if settings_history(call, document) {
             return Ok(Scope::Project(0));
         }
-        return Ok(retained_scope(history));
+        return retained_scope(history);
     }
     if let c::ReadValue::PersonTask(person) = document
         && expected(call) == c::ObjectKey::PersonTask(person.task.task)
@@ -64,16 +64,29 @@ pub(super) fn scope(call: &Call, document: &c::ReadValue) -> Result<Scope, Faile
 
     Err(Failed::Fixed(b"tools' bug; unexpected act document; report it as a finding"))
 }
-fn retained_scope(history: &c::Ended) -> Scope {
-    match &history.value {
+fn retained_scope(history: &c::Ended) -> Result<Scope, Failed> {
+    Ok(match &history.value {
         c::EndedValue::Task { document, .. } | c::EndedValue::Escalation { task: document, .. } => {
             Scope::Project(document.project)
         }
         c::EndedValue::Question { question, .. } => chip_scope(&question.task),
-        c::EndedValue::Proposal(proposal) => Scope::Task(proposal.proposer),
+        c::EndedValue::Proposal(proposal) => {
+            match render::ended_proposal(history).expect("validated proposal history").proposer {
+                c::Proposer::Party(_) => match &proposal.action {
+                    c::RetainedAction::Amend { task, .. } => Scope::Task(*task),
+                    c::RetainedAction::Settings(_) => Scope::Project(0),
+                    c::RetainedAction::Batch(_)
+                    | c::RetainedAction::Effect { .. }
+                    | c::RetainedAction::ProcedureEffect { .. }
+                    | c::RetainedAction::Widen { .. }
+                    | c::RetainedAction::Release { .. } => return Err(Failed::Fixed(b"project unavailable")),
+                },
+                c::Proposer::Task(_) => Scope::Task(proposal.proposer),
+            }
+        }
         c::EndedValue::PersonProposal { proposal, .. } => Scope::Project(proposal.project),
         c::EndedValue::PersonTask { document, .. } => chip_scope(&document.task),
-    }
+    })
 }
 fn chip_scope(chip: &c::Chip) -> Scope {
     Scope::Project(chip_project(chip))

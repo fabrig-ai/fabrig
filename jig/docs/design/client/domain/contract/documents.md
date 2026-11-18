@@ -174,7 +174,18 @@
     2). A retained task-origin proposal keeps its original reason, at the
     live reason's bound, and its decision state; one of settings also keeps
     its items and `projects`, so a client can draw it after a reload while
-    its record is retained;
+    its record is retained. Every proposal the domain makes has its form
+    here, whoever made it and whatever its action: a party's pending
+    amendment is whole as a task's is, its target and the amendment's
+    state before and after (`ProposalActionAmend`), read, listed and decided
+    alike by its maker and by whoever may decide it. A party's retained
+    proposal is its `PersonProposal` with its decision record while it is
+    a batch of one goal, accepted or rejected; any other, an amendment in
+    any state, a withdrawn one or a batch of more goals, is a retained
+    proposal (`ProposalHistory`) under the party's key, as a party's
+    proposal of settings is, its proposer the party's number, its action
+    and state a task-origin one's. Neither form moves the client wire's
+    version;
   - *an activity line:* one of a task's words, run boundaries, turns,
     results heard, news heard, decisions, in commit order; a line of a change
     to a proposal of the task's names that proposal's number and says whether

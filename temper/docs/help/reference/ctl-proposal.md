@@ -2,7 +2,7 @@
 
 Kind: reference
 
-Proposals: read one, decide it.
+Proposals: read, decide or withdraw one.
 
 ## proposal decide
 
@@ -35,4 +35,23 @@ A settings proposal includes landing rules and the forge's charters,
 each set whole, removed or reset.
 A decided proposal prints how it was decided. Decide a live one
 with proposal decide.
+```
+
+## proposal withdraw
+
+```
+proposal withdraw PROPOSAL --project PROJECT [--key KEY]
+  PROPOSAL (proposal): a proposal, tN/K or pN/K; required. Your party's proposal, pN/K
+  --project PROJECT: a project's name or number; required. The project printed with the proposal
+Withdraw your own pending proposal
+Prints: `done: withdraw`, or `decided first:`, by whom, how and when, if its decision is retained
+--json: the record withdraw.
+Key: --key KEY, optional.
+Sends without reading the proposal. Only the signed-in party's pN/K
+may be withdrawn; a task's or another party's key is usage, exit 1,
+nothing sent. A withdrawal asked again under its key prints its first
+answer. A retained decision, including withdrawal, answers `decided first:`
+with exit 0 and changes nothing. An unknown proposal or one of another
+project answers exit 2: this proposal isn't waiting; it may have been
+decided or replaced. A proposal's acts offer withdrawal to its maker alone.
 ```

@@ -10,7 +10,7 @@ fn each_need_kind_counts_beyond_cache_and_rechecks_current_recipients() {
     }
     let kinds = [
         EntryKind::Question { message: 1 },
-        EntryKind::Proposal { number: 2 },
+        EntryKind::Proposal { proposer: Proposer::Task(0), number: 2 },
         EntryKind::Escalation { revision: 3 },
         EntryKind::PersonTask,
     ];
@@ -18,9 +18,17 @@ fn each_need_kind_counts_beyond_cache_and_rechecks_current_recipients() {
     for kind in kinds {
         for project in [1, 2] {
             task += 1;
+            let kind = match kind {
+                EntryKind::Proposal { number, .. } => EntryKind::Proposal { proposer: Proposer::Task(task), number },
+                other @ (EntryKind::Question { .. }
+                | EntryKind::Escalation { .. }
+                | EntryKind::PersonTask
+                | EntryKind::Reply { .. }
+                | EntryKind::ChatReply { .. }) => other,
+            };
             let whom = if project == 1 { Whom::Person(1) } else { Whom::Role { project, role: Role::Member.number() } };
             test.send(Event::Waiting {
-                task,
+                source: NeedSource::Task(task),
                 entries: Box::new([Entry { task, project, whom, kind, at: Wall::from_nanos(task) }]),
             });
         }
@@ -31,7 +39,7 @@ fn each_need_kind_counts_beyond_cache_and_rechecks_current_recipients() {
     assert_eq!(test.d.need_counts(99), None);
     test.send(Event::Roles { project: 2, holdings: Box::new([]) });
     assert_eq!(test.d.need_counts(1), Some(Needs { questions: 1, proposals: 1, escalations: 1, person_tasks: 1 }));
-    test.send(Event::Waiting { task: 1, entries: Box::new([]) });
+    test.send(Event::Waiting { source: NeedSource::Task(1), entries: Box::new([]) });
     assert_eq!(test.d.need_counts(1), Some(Needs { questions: 0, proposals: 1, escalations: 1, person_tasks: 1 }));
     assert_eq!(test.d.needs(1), Some(3));
 }

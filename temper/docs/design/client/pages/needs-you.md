@@ -255,7 +255,15 @@
     *Tell it something else* alone. A proposal's question line is its reason's first
     sentence, without a heading's marks, its facts and rows as `.ctx` beneath, then Accept (primary,
     with no "recommended") and Reject (plain, its reason's textarea as on
-    the terminal's card), through the confirmation they have (`../README.md`, 3.6). A
+    the terminal's card), through the confirmation they have (`../README.md`, 3.6).
+    A party's amendment is drawn as a task's: "Amend task N", its
+    specification, and its authority before and after. Its maker's card,
+    on this page and in a chat, adds Withdraw (plain), offered to the
+    maker alone, as the document's acts offer it, and through its
+    confirmation, "Withdraw this proposal?", which sends `Withdraw` from
+    the card's key and project with no read of its own; a card whose
+    read was refused offers it too, when its key names the signed-in
+    party. Answered, the card leaves the rows with the entry. A
     held task: why it's held as its question (*Why it's held*, below),
     then its words, then Release (primary) and Leave held (plain, its
     reason's textarea as Reject's). Its title is its from line's, and
@@ -929,3 +937,9 @@
   kicker reads "Needs you · all projects" and each item "PROJECT ›",
   though the switcher names the project. A look question for the user.
   Default: as they are.
+- **A maker's own pending proposals, listed** (1, *By its kind*; the
+  draft `../../draft/proposal-reach.md`, 2): a party's proposal waits in
+  the inbox of those who may decide it, so a maker who decides none of
+  its own finds no card for it, and its Withdraw is reached from ctl's
+  `proposal withdraw` alone. Default: no listing of a party's own
+  proposals; the card's Withdraw is where the card is drawn.

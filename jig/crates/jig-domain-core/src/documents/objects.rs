@@ -6,6 +6,7 @@
 pub use jig_domain_core_vocabulary::documents::objects::*;
 
 mod party;
+pub(crate) use party::retained as party_proposal_history;
 
 use crate::{
     Core, Limits,
@@ -700,35 +701,9 @@ pub fn retained_action(limits: &Limits, number: u64, value: &tasks::ProposalActi
                 purpose: *purpose,
             }
         }
-        tasks::ProposalAction::Amend { task, amendment: change, .. } => RetainedAction::Amend {
-            task: *task,
-            change: Box::new(AmendmentChange {
-                addressed: change.addressed,
-                instructions: match &change.instructions {
-                    Some(value) => Some(super::small::text(value, limits.documents.text_bytes)),
-                    None => None,
-                },
-                release: change.release,
-                spec: match &change.spec {
-                    Some(value) => Some(spec(limits, value)),
-                    None => None,
-                },
-                authority: match &change.authority {
-                    Some(value) => Some(super::act_authority(limits, value)?),
-                    None => None,
-                },
-                wake: change.wake,
-                dependencies: match &change.dependencies {
-                    Some(value) => Some(numbers(limits, value)),
-                    None => None,
-                },
-                reason: super::small::text(&change.reason, limits.documents.text_bytes),
-                cut: match &change.dependencies {
-                    Some(value) => value.len() > bound(limits),
-                    None => false,
-                },
-            }),
-        },
+        tasks::ProposalAction::Amend { task, amendment: change, .. } => {
+            RetainedAction::Amend { task: *task, change: Box::new(retained_amendment(limits, change)?) }
+        }
         tasks::ProposalAction::Widen { task, authority } => {
             RetainedAction::Widen { task: *task, authority: super::act_authority(limits, authority)? }
         }
@@ -737,6 +712,35 @@ pub fn retained_action(limits: &Limits, number: u64, value: &tasks::ProposalActi
         }
     })
 }
+pub(super) fn retained_amendment(limits: &Limits, change: &tasks::Amendment) -> Result<AmendmentChange, Missing> {
+    Ok(AmendmentChange {
+        addressed: change.addressed,
+        instructions: match &change.instructions {
+            Some(value) => Some(super::small::text(value, limits.documents.text_bytes)),
+            None => None,
+        },
+        release: change.release,
+        spec: match &change.spec {
+            Some(value) => Some(spec(limits, value)),
+            None => None,
+        },
+        authority: match &change.authority {
+            Some(value) => Some(super::act_authority(limits, value)?),
+            None => None,
+        },
+        wake: change.wake,
+        dependencies: match &change.dependencies {
+            Some(value) => Some(numbers(limits, value)),
+            None => None,
+        },
+        reason: super::small::text(&change.reason, limits.documents.text_bytes),
+        cut: match &change.dependencies {
+            Some(value) => value.len() > bound(limits),
+            None => false,
+        },
+    })
+}
+
 /// Convert a held phase (domain/tasks/lifecycle.md, 12.2).
 pub fn hold_from_row(limits: &Limits, value: &tasks::HoldRow) -> Result<HoldLine, Missing> {
     let tasks::Held { was, why, source } = &value.held;

@@ -238,7 +238,7 @@ fn a_partys_settings_proposal_neither_tells_nor_counts_in_task_arrivals() {
         &mut core,
         &limits,
         Event::People(people::Event::Waiting {
-            task: 7,
+            source: people::NeedSource::Task(7),
             entries: Box::new([people::Entry {
                 task: 7,
                 project: 1,

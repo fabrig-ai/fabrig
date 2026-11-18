@@ -26,6 +26,8 @@ pub struct Card {
     pub unread: Option<contract::Count>,
     pub handle: Handle,
     pub page: Option<ReadValue>,
+    /// A refused proposal read still lets its signed-in maker withdraw by key.
+    pub withdraw_unread: bool,
     pub whole: Option<Whole>,
     pub task: Option<TaskRead>,
     pub words: Option<contract::Text>,
@@ -40,6 +42,32 @@ pub enum QuestionWords<'a> {
     Cut(&'a [u8]),
 }
 impl Card {
+    #[must_use]
+    pub fn withdrawn(&self) -> bool {
+        if let Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(contract::Answer::Done(
+            contract::Outcome::Document(contract::DocumentOutcome::Withdrawn { .. }),
+        )))) = &self.outcome
+        {
+            return true;
+        }
+        false
+    }
+    pub(crate) fn receive(&mut self, page: Readout, source: &Client) {
+        self.withdraw_unread = false;
+        match page {
+            Readout::Jig(ReadResult::Value(value)) => self.page = Some(value),
+            Readout::Jig(ReadResult::None(contract::ReadNone::Refused | contract::ReadNone::Malformed)) => {
+                self.page = None;
+                if let ObjectKey::Proposal(contract::ProposalKey { proposer: contract::Proposer::Party(maker), .. }) =
+                    self.object
+                    && let Some(me) = super::accounts::current_me(source)
+                {
+                    self.withdraw_unread = me.party.number == maker;
+                }
+            }
+            Readout::Limit | Readout::NotServed { .. } | Readout::Jig(_) | Readout::Family { .. } => {}
+        }
+    }
     /// The task named by the from line; proposals deliberately name none.
     #[must_use]
     pub fn source(&self) -> Option<u64> {
@@ -358,6 +386,37 @@ impl Inbox {
         }
         self.previous.clear();
     }
+    fn withdrawn_and_gone(&self, card: &Card) -> bool {
+        if !card.withdrawn() {
+            return false;
+        }
+        for row in &self.rows {
+            if row.card_key() == card.object {
+                return false;
+            }
+        }
+        true
+    }
+    /// A watch may remove the entry before the withdrawing ask answers.
+    pub(super) fn discard_withdrawn(&mut self, out: &mut Queue<Request>) {
+        let mut removed = false;
+        for card in &self.cards {
+            removed |= self.withdrawn_and_gone(card);
+        }
+        if !removed {
+            return;
+        }
+        let mut previous = List::with_capacity(self.cards.capacity());
+        core::mem::swap(&mut self.cards, &mut previous);
+        for card in previous.into_boxed() {
+            if self.withdrawn_and_gone(&card) {
+                client(out, jig_client::Event::Unwatch { handle: card.handle });
+                self.pending.remove(&card.handle);
+            } else {
+                self.cards.push(card).expect("retained cards fit");
+            }
+        }
+    }
     fn replace(&mut self, out: &mut Queue<Request>) {
         for card in self.cards.iter_mut() {
             client(out, jig_client::Event::Unwatch { handle: card.handle });
@@ -371,7 +430,7 @@ impl Inbox {
         core::mem::swap(&mut self.cards, &mut self.previous);
         // A send still awaiting confirmation keeps its Pending card.
         for old in &self.previous {
-            if old.key.is_some() {
+            if old.key.is_some() && !old.withdrawn() {
                 self.cards.push(old.clone()).expect("previous cards fit");
             }
         }
@@ -468,6 +527,7 @@ impl Inbox {
                 unread,
                 handle,
                 page: None,
+                withdraw_unread: false,
                 whole: None,
                 task: None,
                 words: None,
@@ -481,6 +541,7 @@ impl Inbox {
                 let index = self.cards.len().checked_sub(1).expect("new card");
                 let card = self.cards.get_mut(index).expect("new card");
                 card.page = old.page.take();
+                card.withdraw_unread = old.withdraw_unread;
                 card.whole = old.whole.take();
                 card.task = old.task.take();
                 card.words = old.words.take();
@@ -636,17 +697,16 @@ impl Inbox {
                 self.apply(out);
             }
         } else {
-            let Readout::Jig(ReadResult::Value(value)) = page else { return answered };
             for index in 0..self.cards.len() {
                 let card = self.cards.get_mut(index).expect("bounded card index");
                 if card.handle == handle {
-                    card.page = Some(value);
+                    card.receive(page, source);
                     self.read_whole(index, out);
                     self.read_task(index, out);
                     return true;
                 }
             }
-            return false;
+            return answered;
         }
         true
     }
