@@ -17,7 +17,13 @@ impl Memory {
     pub(crate) fn new(engine: Addr, limits: &jig_client_shell_native::Limits) -> Self {
         let sockets = limits.exchanges.checked_add(1).expect("connections fit");
         Self {
-            transport: Transport::new(engine, limits, sockets, OWNER),
+            transport: Transport::new(
+                engine,
+                limits,
+                sockets,
+                OWNER,
+                jig_client_protocol_http::Mapping::new(b"/jig").expect("default mapping"),
+            ),
             events: Queue::uncapped(),
             requests: Queue::uncapped(),
             connected: BTreeSet::new(),

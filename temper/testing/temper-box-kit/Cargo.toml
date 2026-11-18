@@ -12,6 +12,7 @@ test = false
 doctest = false
 
 [dependencies]
+jig-client-protocol-http.workspace = true
 temper-settings-form = { path = "../../crates/temper-settings-form" }
 skein-json.workspace = true
 temper-worker-service.workspace = true

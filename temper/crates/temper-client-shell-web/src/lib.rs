@@ -140,7 +140,8 @@ fn start_signed_in(settings: internal::Internal) {
         return;
     }
     // Replace the printed secret's address before starting anything that can send.
-    let secret = sign_in::web::take_from_page(&sign_in::Route { path: b"/jig/v1/sign-in/link", home: b"/welcome" });
+    let secret =
+        sign_in::web::take_from_page(&sign_in::Route { path: b"/jig/v1/sign-in/link", page: None, home: b"/welcome" });
     let window = web_sys::window().expect("window");
     let document = window.document().expect("document");
     let ways = document

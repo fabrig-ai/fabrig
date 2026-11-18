@@ -1672,6 +1672,7 @@ dependencies = [
  "jig-channel-kit",
  "jig-client",
  "jig-client-domain",
+ "jig-client-protocol-http",
  "jig-client-protocol-kit",
  "jig-client-shell-native",
  "jig-conformance",
@@ -1818,6 +1819,7 @@ dependencies = [
  "jig-client",
  "jig-client-domain",
  "jig-client-kit",
+ "jig-client-protocol-http",
  "jig-client-protocol-kit",
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
@@ -2471,6 +2473,7 @@ version = "0.0.0"
 dependencies = [
  "jig-channel-kit",
  "jig-client",
+ "jig-client-protocol-http",
  "jig-client-protocol-kit",
  "jig-client-shell-native",
  "jig-protocol-accounts-kit",
@@ -5583,6 +5586,7 @@ version = "0.0.0"
 dependencies = [
  "jig-channel-kit",
  "jig-client",
+ "jig-client-protocol-http",
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
  "jig-client-shell-native",

@@ -193,7 +193,11 @@ impl Life {
             .replace_state_with_url(&JsValue::NULL, "", Some(path))
             .expect("printed link on this page");
         // As in the shipped starter, erase the secret before the host can send.
-        let secret = sign_in::web::take_from_page(&sign_in::Route { path: b"/jig/v1/sign-in/link", home: b"/welcome" });
+        let secret = sign_in::web::take_from_page(&sign_in::Route {
+            path: b"/jig/v1/sign-in/link",
+            page: None,
+            home: b"/welcome",
+        });
         let path = window.location().pathname().expect("path") + &window.location().search().expect("query");
         let platform = self.worker.take().expect("the waiting world's worker");
         let (now, wall) = platform.clocks();
