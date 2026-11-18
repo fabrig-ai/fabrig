@@ -3,6 +3,9 @@
 2026-11-18. Where the tree's code lags or departs from [binaries.md](binaries.md).
 
 - **Not yet:** 1 and 2: `upgrade --check` has no per-job timing: each `Event::Ran` job line ends `time unavailable` (`temper-engine-shell/src/upgrade/report.rs`). The whole rehearsal/tool time is printed separately.
+- **Not yet:** 2: `upgrade --workers`' rehearsal copies the active generation's maps file by file into its scratch, rather than linking the snapshot and every segment but the newest [in flight: change 8414]
+- **Not yet:** 2: `upgrade --workers`' report is the whole check's renderer behind a flag (`render(..., only_workers)` in `temper-engine-shell/src/upgrade/report.rs`), so a line added to `--check` reaches `--workers` unless guarded [in flight: change 8417]
+- **Not yet:** 2: that `temper-box upgrade --check` and `--workers` over a checkpoint take only its lock and write nothing under `--data` is tested for `temper-engine`'s alone [in flight: change 8416]
 
 
 - **Not yet:** 1, 4 and 5: `temper-service`'s worker half is its `worker` feature, which `temper-worker-shell`, the box and the worlds switch on, so `temper-worker`'s closure holds the engine's domain, `temper-engine-smith` and `temper-box-machine` as its row's exceptions, and the rows exclude neither `temper-service` nor, from the worker, `temper-forge-setup` and `temper-protocol-records-forge` (`services.status.md`)
