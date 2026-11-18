@@ -388,6 +388,13 @@ credential.
   beside the page's. A watch or read that needs what `me` says (a
   deployment role, a template's label, the party's number) still asks
   in that step, from the hello's `me`.
+- **Nothing of the frame's or a page's before the hello.** Their reads,
+  as their watches, are asked once the link is live, in the step that
+  hears the hello, never at start before it: the rail's `Read::Project`
+  of Team's (`pages/team.md`, 1, *Its reads*) among them. So a cold
+  open sends the stream alone first, and the kept keyed requests on
+  their own routes, and everything else in one batch after the hello
+  (`pages/work.md`, 1, *Its budget*).
 - **Another party's kept work** stays parked and is not shown (jig's
   `client/domain/client/README.md`, section 8); the terminal says so in a line
   of its own (`line.md`, 6).
