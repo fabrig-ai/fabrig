@@ -8,17 +8,29 @@ const PROJECT: u32 = 1;
 const SENTENCE: &[u8] = b"The widget fix has landed.";
 const REPORT: &[u8] = b"The widget fix has landed.\n\nThe review passed and the branch is ready.";
 
+#[path = "status/shared.rs"]
+mod shared;
+
 fn status_world(allowed: bool, funded: bool) -> World {
     status_world_with_spec(allowed, funded, None)
 }
 fn status_world_with_spec(allowed: bool, funded: bool, spec_bytes: Option<u32>) -> World {
+    status_world_with_sessions(allowed, funded, spec_bytes, Duration::from_secs(7200))
+}
+fn status_world_with_sessions(allowed: bool, funded: bool, spec_bytes: Option<u32>, lifetime: Duration) -> World {
     let mut limits = temper_engine_domain_world::forge_routes::box_limits();
     if let Some(bytes) = spec_bytes {
         limits.tasks.spec_bytes = bytes;
     }
-    status_world_with_limits(allowed, funded, limits)
+    limits.people.sign_in_lifetime = lifetime;
+    configured_status_world(allowed, funded, &limits)
 }
 fn status_world_with_limits(allowed: bool, funded: bool, mut limits: engine::Limits) -> World {
+    // The same signed-in person returns for the next sitting.
+    limits.people.sign_in_lifetime = Duration::from_secs(7200);
+    configured_status_world(allowed, funded, &limits)
+}
+fn configured_status_world(allowed: bool, funded: bool, limits: &engine::Limits) -> World {
     let model = walking::models()[0].clone();
     let llm = jig_protocol_config::Llm {
         models: (Box::new([model.clone()]))
@@ -40,8 +52,6 @@ fn status_world_with_limits(allowed: bool, funded: bool, mut limits: engine::Lim
         endpoints: Box::new([]),
         providers: Box::new([]),
     };
-    // The same signed-in person returns for the next sitting.
-    limits.people.sign_in_lifetime = Duration::from_secs(7200);
     let mut defaults = temper_engine_service_stock::stock::with_models(llm.models.clone(), limits.tasks.result_bytes);
     // Scripted workers use the same small run bounds as the other forge stories.
     for charter in &mut defaults.charters {
@@ -80,10 +90,10 @@ fn status_world_with_limits(allowed: bool, funded: bool, mut limits: engine::Lim
                 .collect();
         }
     }
-    World::configured_stock_limits(&defaults, &model, &limits)
+    World::configured_stock_limits(&defaults, &model, limits)
 }
 fn settle(world: &mut World) {
-    world.until(Until::Ready);
+    world.oracle_settle();
     assert!(world.store.pending.is_empty());
 }
 fn look_request(world: &mut World, number: u8) {
@@ -168,12 +178,21 @@ fn land_and_look(world: &mut World, requester: &engine::Assignment) {
     next_sitting(world, 171);
 }
 fn land(world: &mut World, requester: &engine::Assignment) {
-    let change = super::questions::make_change(world, requester, 93, engine::ChangeQuestions::None);
+    assert!(world.assigned.iter().all(|run| run.charter != 9), "the first look never spends");
+    land_numbered(world, requester, 93, 1);
+}
+fn land_numbered(world: &mut World, requester: &engine::Assignment, number: u64, landed: u64) {
+    let change = super::questions::make_change(world, requester, number, engine::ChangeQuestions::None);
     let producer = super::questions::next_producer(world, change);
     let branch = super::questions::row(world, change).branch.clone();
-    assert!(world.assigned.iter().all(|run| run.charter != 9), "the first look never spends");
-    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
-    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"widget fixed", 1)
+    let raw::Answer::Commit(base) =
+        world.external(1, raw::Op::Read(raw::Read::Branch { branch: b"main".as_slice().into() }))
+    else {
+        panic!("landing head")
+    };
+    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: base }));
+    let body = format!("widget fixed {number}");
+    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", body.as_bytes(), 1)
         .expect("producer pushed");
     let reviewer_index = world.assigned.len();
     answer(
@@ -210,12 +229,19 @@ fn land(world: &mut World, requester: &engine::Assignment) {
     for _ in 0..200 {
         world.tick();
         if world.store.rows.contains_key(&Key::Forge(forge_top::Key::ProjectFacts { project: PROJECT }))
+            && facts(world).landed == landed
             && world.store.pending.is_empty()
         {
             break;
         }
     }
-    assert_eq!(facts(world).landed, 1);
+    assert_eq!(
+        facts(world).landed,
+        landed,
+        "change={:?}; replies={:?}",
+        super::questions::row(world, change),
+        world.call_errors
+    );
 }
 fn run(world: &World) -> engine::Assignment {
     world
