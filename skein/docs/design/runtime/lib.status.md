@@ -2,7 +2,6 @@
 
 2026-11-17. Where skein's code lags or departs from [lib.md](lib.md).
 
-- **Not yet:** 5: `raise` on the containers. [in flight: change 6965]
 
 - **Not yet:** 3: `Slab::get2_mut`. 6: a carrier's lengths, beyond
   skein-http's heads, skein-channel's frames and the oauth crates' bodies
