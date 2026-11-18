@@ -716,6 +716,7 @@ Drafts:
 - [`draft/home-for-a-person.md`](draft/home-for-a-person.status.md) — B1: the status agent's words carry the project's open findings, counted by kind and severity with the high ones' titles, after the goals and before the roles' Nows; a sitting starts a run when they changed since the last brief, kept as the brief's mark, a project that has landed nothing included; its instructions name findings by what they are about (`domain/forge/attention.md`, 2 and 3).
 - [`draft/journey-clock.md`](draft/journey-clock.status.md)
 - [`draft/journey-placeholders.md`](draft/journey-placeholders.status.md)
+- [`draft/journey-walks.md`](draft/journey-walks.status.md)
 - [`draft/kept-change-answers.md`](draft/kept-change-answers.status.md)
 - [`draft/landed-qa.md`](draft/landed-qa.status.md)
 - [`draft/landing-history.md`](draft/landing-history.status.md)
