@@ -837,6 +837,7 @@ fn a_completed_dependency_loaded_for_amendment_restores_without_an_optional_stub
     let call = reply_to.into_token().raw();
     source.send(Event::Amend {
         operation: tasks::Amend {
+            funder: None,
             task: 2,
             message: 1,
             stop_run: false,
@@ -856,7 +857,6 @@ fn a_completed_dependency_loaded_for_amendment_restores_without_an_optional_stub
         reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(call)),
         places: Box::new([place]),
         by: Party::Person(1),
-        funder: None,
     });
     assert_eq!(source.replies[&call], Reply::Done);
     assert_eq!(source.record(2).dependencies.as_ref(), [1]);

@@ -168,21 +168,15 @@ pub(super) fn amend(core: &Core, limits: &Limits, party: u64, task: u64, held: O
     }
     let held = held.expect("amend admission found role");
     let role = core.authority.role(row.project, held.number()).expect("amend admission found role policy");
-    // Amendment admission uses an already-opened pool; a configured future
-    // pool is not available until a goal opens it.
-    let source = tasks::Funder::Pool { project: row.project, person: party, period: core.period(row.project) };
-    let pool = match core.tasks.funding(source) {
-        Some(row) => row.numbers,
-        None => tasks::Numbers { budget: 0, spent: 0, spent_below: 0, reserved: 0 },
-    };
+    let (source, pool) = core.person_pool(row.project, party);
+    let credit = amendment_credit(source, row.funder, row.numbers);
     let pool_left =
         pool.budget.saturating_sub(pool.spent.saturating_add(pool.spent_below).saturating_add(pool.reserved));
-    let budget_left = role.authority.budget.spend.min(pool_left).saturating_sub(row.authority.budget.spend);
     let mut given = crate::task_authority(&role.authority);
-    given.budget.spend = given.budget.spend.min(pool_left);
+    given.budget.spend = given.budget.spend.min(pool_left.saturating_add(credit));
+    let budget_left = given.budget.spend.saturating_sub(row.authority.budget.spend);
     let policy = core.authority.policy(row.project).expect("role belongs to policy");
     let mut hard = crate::task_authority(&policy.ceiling);
-    hard.budget.spend = hard.budget.spend.min(pool_left);
     // Period permission is a fixed preflight, not an editable amount. Existing
     // authority may still narrow; no widening draft is supported here.
     if pool.budget > role.period_spend {
@@ -444,18 +438,16 @@ pub(crate) fn amendment_admit_places_in(
     if authority::at_most(&after, &before, implies) {
         return Ok(stop_run);
     }
-    let pool = tasks::Funder::Pool { project, person, period: core.period(project) };
-    let numbers = match admission.funding(pool) {
-        Some(numbers) => numbers,
-        None => tasks::Numbers { budget: 0, spent: 0, spent_below: 0, reserved: 0 },
-    };
+    let (pool, unopened) = core.person_pool(project, person);
+    let numbers = admission.funding(pool).unwrap_or(unopened);
+    let credit = amendment_credit(pool, context.funder, context.numbers);
     let mut findings = Queue::uncapped();
     let ask = authority::PersonAsk {
         project,
         role: role.number(),
         pool: translate::authority_numbers(numbers),
         tasks_left: role_policy.authority.delegation.tasks,
-        request: authority::PersonRequest::Amend(after),
+        request: authority::PersonRequest::Amend { authority: after, credit },
     };
     let checked = authority::check_request_with_standing(&core.authority, &ask, standing, &mut findings);
     match checked.answer {
@@ -465,6 +457,11 @@ pub(crate) fn amendment_admit_places_in(
             Err(core.request_refusal(&ask, checked.answer, &mut findings))
         }
     }
+}
+
+/// What a widening already holds, under the funding rule (domain/authority.md, 7).
+fn amendment_credit(source: tasks::Funder, funder: tasks::Funder, numbers: tasks::Numbers) -> u64 {
+    if source == funder { numbers.budget } else { numbers.spent.saturating_add(numbers.spent_below) }
 }
 
 /// The same static absence of accepting authority is reported before a draft

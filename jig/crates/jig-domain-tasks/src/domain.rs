@@ -677,8 +677,8 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Release { reply_to, by, operation } => {
             crate::control::release(domain, env, reply_to, by, operation, out);
         }
-        Event::Amend { reply_to, by, operation, funder, places } => {
-            crate::control::amend(domain, env, reply_to, (by, funder), operation, &places, out);
+        Event::Amend { reply_to, by, operation, places } => {
+            crate::control::amend(domain, env, reply_to, by, operation, &places, out);
         }
         Event::Move { reply_to, operation, person, period, pool_budget, period_budget } => {
             let funding = crate::moving::Funding { person, period, pool_budget, period_budget };

@@ -20,6 +20,8 @@ smith-channel.workspace = true
 skein-lib.workspace = true
 
 [dev-dependencies]
+jig-client-domain.workspace = true
+jig-client-protocol-link.workspace = true
 jig-protocol-config-fixtures.workspace = true
 jig-client-test-records = { path = "../../testing/jig-client-test-records" }
 jig-conformance.workspace = true

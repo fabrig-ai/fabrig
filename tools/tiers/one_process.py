@@ -340,7 +340,7 @@ def binary_environment(env, cargo, suite, package, build, profile, host_libdir):
     directories = []
     for base in build.get('base-output-directories', ['debug']):
         directories.extend([str(target / base / 'deps'), str(target / base)])
-    directories.extend(str(target / path) for path in build.get('linked-paths', {}))
+    directories.extend(str(target / path) for path in build.get('linked-paths', []))
     directories.append(host_libdir)
     key = 'DYLD_FALLBACK_LIBRARY_PATH' if sys.platform == 'darwin' else 'LD_LIBRARY_PATH'
     if result.get(key):
@@ -802,11 +802,12 @@ def merge_listings(listings):
         for directory in extra.get('base-output-directories', ['debug']):
             if directory not in directories:
                 directories.append(directory)
-        for key in ('non-test-binaries', 'linked-paths'):
-            combined = build.setdefault(key, {})
-            for name, values in extra.get(key, {}).items():
-                entries = combined.setdefault(name, [])
-                entries.extend(value for value in values if value not in entries)
+        binaries = build.setdefault('non-test-binaries', {})
+        for name, values in extra.get('non-test-binaries', {}).items():
+            entries = binaries.setdefault(name, [])
+            entries.extend(value for value in values if value not in entries)
+        paths = build.setdefault('linked-paths', [])  # nextest lists them
+        paths.extend(path for path in extra.get('linked-paths', []) if path not in paths)
         build.setdefault('build-script-out-dirs', {}).update(extra.get('build-script-out-dirs', {}))
     return listing
 

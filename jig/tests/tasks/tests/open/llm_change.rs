@@ -38,6 +38,7 @@ fn amend(w: &mut World, llm: LlmChoice, instructions: Option<Box<[u8]>>) {
     let call = reply_to.into_token();
     w.send(Event::Amend {
         operation: tasks::Amend {
+            funder: None,
             task: 1,
             message: w.record(1).last_message + 1,
             stop_run: false,
@@ -46,7 +47,6 @@ fn amend(w: &mut World, llm: LlmChoice, instructions: Option<Box<[u8]>>) {
         places: Box::new([]),
         reply_to: skein_lib::ReplyTo::new(call),
         by: Party::Person(1),
-        funder: None,
     });
     assert_eq!(w.replies[&call.raw()], Reply::Done);
 }
@@ -271,6 +271,7 @@ fn compounded_llm_only_amendments_also_say_nothing() {
         .enumerate()
         .map(|(at, llm)| {
             Operation::Amend(tasks::Amend {
+                funder: None,
                 task: 1,
                 message: u64::try_from(at).expect("two amendments") + 1,
                 stop_run: false,

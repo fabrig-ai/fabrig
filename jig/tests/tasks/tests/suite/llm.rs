@@ -37,6 +37,7 @@ fn amend(world: &mut World, task: u64, authority: Option<Authority>, llm: Option
     let message = world.record(task).last_message + 1;
     world.send(Event::Amend {
         operation: tasks::Amend {
+            funder: None,
             task,
             message,
             stop_run: false,
@@ -54,7 +55,6 @@ fn amend(world: &mut World, task: u64, authority: Option<Authority>, llm: Option
             }),
         },
         places: Box::new([]),
-        funder: None,
         reply_to,
         by: LLM_REQUESTER,
     });

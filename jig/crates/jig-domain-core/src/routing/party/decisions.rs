@@ -88,11 +88,10 @@ pub(crate) fn goal_decide(
                         return;
                     };
                     tasks::Event::Amend {
-                        operation: tasks::Amend { task, message, stop_run, amendment },
+                        operation: tasks::Amend { funder: Some(source), task, message, stop_run, amendment },
                         places: Box::new([]),
                         reply_to: ReplyTo::new(request),
                         by: tasks::Party::Person(proposer),
-                        funder: Some(source),
                     }
                 }
             };
@@ -346,9 +345,14 @@ pub(crate) fn person_proposal_accept(
             let before = crate::translate::tasks_authority(&current.authority);
             let stop_run = !authority::at_most(&before, &after, &core.authority.rules().implies);
             tasks::Event::Amend {
-                operation: tasks::Amend { task, message: amend_message, stop_run, amendment: Box::new(amendment) },
+                operation: tasks::Amend {
+                    funder: Some(source),
+                    task,
+                    message: amend_message,
+                    stop_run,
+                    amendment: Box::new(amendment),
+                },
                 places: Box::new([]),
-                funder: Some(source),
                 reply_to: ReplyTo::new(request),
                 by: tasks::Party::Person(person),
             }
@@ -360,6 +364,7 @@ pub(crate) fn person_proposal_accept(
             };
             tasks::Event::Amend {
                 operation: tasks::Amend {
+                    funder: Some(source),
                     task,
                     message: amend_message,
                     stop_run: false,
@@ -377,7 +382,6 @@ pub(crate) fn person_proposal_accept(
                     }),
                 },
                 places: Box::new([]),
-                funder: Some(source),
                 reply_to: ReplyTo::new(request),
                 by: tasks::Party::Person(person),
             }
