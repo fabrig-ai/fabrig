@@ -260,7 +260,7 @@ fn committed_qa_recipes_read_chain_and_end_on_their_own_checks() {
     assert_eq!(turn.kind(), Kind::Deployment);
     assert_eq!(turn.names().collect::<Vec<_>>(), ["turn-landing"]);
     let recipe = turn.recipes.first().expect("deployment root");
-    assert_eq!(recipe.config.len(), 4);
+    assert_eq!(recipe.config.len(), crate::drive::deployment::inputs().len());
     assert_eq!(
         recipe.check.iter().map(|line| line.line.print()).collect::<Vec<_>>(),
         [b"ctl project show Hello".as_slice(), b"ctl forge list --until connected:1", b"ctl forge repositories 1"]
@@ -852,7 +852,7 @@ fn walk_success_and_session_failures_keep_their_statuses() {
     }
 }
 fn config(files: &mut Files, name: &str) {
-    for document in ["engine.json", "worker.json", "forgejo.json", "model.json"] {
+    for document in ["engine.json", "worker.json", "forgejo.json", "model.json", "providers.json"] {
         put(files, name, &format!("config/{document}"), b"opaque, not parsed here");
     }
 }
@@ -870,7 +870,7 @@ fn deployment_config_requires_exactly_four_bounded_documents_without_parsing() {
     assert_eq!(chain.kind(), Kind::Deployment);
     assert_eq!(chain.names().collect::<Vec<_>>(), ["root", "child"]);
     assert_eq!(chain.config_dir(Path::new("/recipes")), Some("/recipes/root/config".into()));
-    for document in ["engine.json", "worker.json", "forgejo.json", "model.json"] {
+    for document in ["engine.json", "worker.json", "forgejo.json", "model.json", "providers.json"] {
         let mut missing = files.clone();
         let path = format!("config/{document}");
         missing.get_mut("root").expect("root").remove(OsStr::new(&path));
@@ -964,7 +964,7 @@ fn deployment_hash_frames_config_after_files_in_name_byte_order() {
     let files = deployment_chain();
     let mut chain = read(&files, "child").expect("deployment");
     let hash = chain.hash();
-    assert_eq!(hex(hash), "b3252aab163faf658eb37cfb6e0bce5997a544a160467e63273fdd90cf3019bd");
+    assert_eq!(hex(hash), "566d0e9fb9a9b8af083f76d548abf138d5036f8e07039b34991d318365883e1b");
     let mut changed = files.clone();
     put(&mut changed, "root", "config/engine.json", b"Opaque, not parsed here");
     assert_ne!(read(&changed, "child").expect("one changed byte").hash(), hash);

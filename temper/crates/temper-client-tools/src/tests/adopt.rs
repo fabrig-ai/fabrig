@@ -6,14 +6,28 @@ fn adopt_prints_adopted_in_the_forges_words() {
     let (mut root, call) = fixtures::adopt_root(&[]);
     root.adoption_answer(call, fixtures::adopted_with_unknown_protection());
     let printed = root.answer(call).expect("answered once durable");
-    assert_eq!((printed.status, &*printed.stdout), (0, fixtures::golden("adopt_adopted").as_ref()));
+    assert_eq!(printed.status, 0);
+    fixtures::check_golden("adopt_adopted", &printed.stdout);
 }
 #[test]
 fn adopt_json_preserves_the_adopted_record() {
     let (mut root, call) = fixtures::adopt_root(fixtures::JSON_FLAG);
     root.adoption_answer(call, fixtures::adopted_with_unknown_protection());
     let printed = root.answer(call).expect("answered once durable");
-    assert_eq!((printed.status, printed.stdout.as_ref()), (0, b"{\"adopted\":{\"forge\":1,\"repository\":7,\"owner\":\"o\",\"name\":\"n\",\"role\":\"owned\",\"home\":true,\"kinds\":{\"read\":true,\"push\":true,\"open\":true,\"land\":true,\"review\":true,\"status\":true,\"comment\":true,\"issue\":true,\"branch\":true},\"protection\":{\"unknown\":{}}}}".as_slice()));
+    assert_eq!((printed.status, printed.stdout.as_ref()), (0, b"{\"adopted\":{\"forge\":1,\"repository\":7,\"owner\":\"o\",\"name\":\"n\",\"landing\":\"staging\",\"role\":\"owned\",\"home\":true,\"kinds\":{\"read\":true,\"push\":true,\"open\":true,\"land\":true,\"review\":true,\"status\":true,\"comment\":true,\"issue\":true,\"branch\":true},\"protection\":{\"unknown\":{}}}}".as_slice()));
+}
+#[test]
+fn an_adopted_outcome_without_landing_omits_its_sentence() {
+    let w::Outcome::Adopted(adopted) = fixtures::adopted_with_unknown_protection() else { panic!("adopted") };
+    let mut parts = adopted.into_parts();
+    parts.landing = Box::new([]);
+    let outcome = w::Outcome::Adopted(w::Adopted::new(&w::CEILINGS, parts).expect("adopted"));
+    let (mut root, call) = fixtures::adopt_root(&[]);
+    root.adoption_answer(call, outcome);
+    let printed = root.answer(call).expect("answered");
+    assert_eq!(printed.status, 0);
+    assert!(printed.stdout.starts_with(b"Adopted o/n on forge 1 as owned.\nIt is the project's home.\n"));
+    assert!(skein_lib::bytes::find(&printed.stdout, b"It lands into").is_none());
 }
 #[test]
 fn each_broken_mark_exits_1_with_nothing_sent() {
@@ -405,6 +419,7 @@ fn a_read_only_adoption_says_so() {
             w::Adopted::new(
                 &limits,
                 w::AdoptedParts {
+                    landing: b"main".as_slice().into(),
                     forge: 1,
                     repository: 7,
                     owner: b"o".as_slice().into(),

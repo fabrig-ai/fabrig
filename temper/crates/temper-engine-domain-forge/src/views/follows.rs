@@ -1,4 +1,5 @@
 //! A project's follows, from settings and retained facts (domain/forge/follows.md, 7).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
 use crate::{Domain, Limits};
 use alloc::boxed::Box;
 use skein_lib::{List, Writer};
@@ -48,13 +49,13 @@ impl Domain {
                     setting: setting.clone(),
                     source: name(&source.owner, &source.name),
                     source_branch: if setting.source.branch.is_empty() {
-                        source.settings.default_branch.clone()
+                        source.landing.clone()
                     } else {
                         setting.source.branch.clone()
                     },
                     target: name(&target.owner, &target.name),
                     target_branch: if setting.target.branch.is_empty() {
-                        target.settings.default_branch.clone()
+                        target.landing.clone()
                     } else {
                         setting.target.branch.clone()
                     },

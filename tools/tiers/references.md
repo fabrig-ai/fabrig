@@ -4,7 +4,7 @@ Provisional, 2026-11-16. How the gate holds each test of the focused and fuzzy s
 
 ## 1. In one page
 
-- **A reference for each test** (`tools/tiers/budgets.md`, 6): its layer's per-test figure, its tree's own where it sets one, or a line with a reason (section 2).
+- **A reference for each test** (`tools/tiers/budgets.md`, 6): its layer's per-test figure, its tree's own where it sets one, or a line with a reason, which the user writes, never a change (section 2).
 - **Only a run of its own measures a test** (`tools/tiers/design.md`, 11): a shared process's CPU can't be divided among its tests. So a test is measured where it matters: run alone, in a process of its own, its CPU that process's less its binary's run selecting no test (section 4).
 - **Which tests run alone** (section 3): with main's ledger, a new test, one the ledger lacks, and a flagged one, whose wall in the shared run is past twice its figure at main and at least 50 ms over it. Without a ledger nothing runs alone: every run but the gate's and a delivery check's with main's ledgers stays as it is.
 - **After the suite** (section 4): in the same run, under its wall, once the suite's processes have ended; their CPU counts in no layer.
@@ -32,7 +32,9 @@ why = "it runs a whole chat, its agents, git and ctl, as checks.md, 1 allows a w
 
 - **A line stands for the test's reference,** in both of section 6's rules: a new test within the line's figure, an existing one within the larger of it and half again its CPU at main. Past it, it is red again.
 - **A line never raises a budget:** the test's CPU in the suite still counts in its layer (`tools/tiers/budgets.md`, 4).
-- **Who writes one:** the change that adds a test past its reference, or grows one past its limit, with its reason; the review reads the reason against the tree's testing document. A guide above its layer's reference in a testing document (`temper/docs/design/testing/checks.md`, 1, a whole-chat story's 3 s) is such a test's figure, and its line is written when the test is new or grows.
+- **Who writes one: the user,** never the change. A line is the user's figure, as a budget is (`temper/docs/design/draft/test-budgets.md`, 6; the user, 11-18): the gate refuses a change that adds a line or raises one's `cpu_s`, and passes one that lowers or drops it (`tools/tiers/budgets.md`, 10.1).
+  - **A test past its reference,** new or grown past its limit, is repaired by the strategy's 8.1, as its red's last line says: placed in the tier it belongs to, or made cheaper; failing both, its goal takes its measurements to the user, who decides. A line the user gives lands by a change that touches `tools/tiers/budgets.toml` alone, written on their word, which the gate passes whatever it does there (`tools/tiers/budgets.md`, 10.1). Its `why` says what the test checks, for the review.
+  - **A guide above its layer's reference** in a testing document (`temper/docs/design/testing/checks.md`, 1, a whole-chat story's 3 s) is a figure the user has given for such a test: its line is still the user's to write, asked for with the test's measurements when the test is new or grows.
 
 ## 3. Which tests run alone
 
@@ -82,7 +84,7 @@ A flagged test is run alone at the head and at the base, as the gate already rer
   
   Where `R` is null (no line, and no reference), the test has no limit and isn't judged.
 - **Over** where its figure and its limit aren't null and the figure is more than the limit. An example in temper's focused step tests, reference 0.04 s: a new test at 0.050 s is over, and within with a line of 0.1 s; a flagged one at 0.120 s whose base gives 0.100 s is within its limit of 0.150 s, and at 0.160 s over it.
-- **Its line in the verdict:** `test over its reference: BINARY_ID TEST_NAME: FIGURE CPU s alone, limit LIMIT s`, the figure and the limit with three decimals; the code may continue it with what set the limit (new, the reference, its line, its figure at main and whence). It goes in `over_budget` with `gate`, so the verdict is `over budget` and the exit 1, and in `warnings` without, as a layer over its budget does (`tools/tiers/budgets.md`, 4).
+- **Its line in the verdict:** `test over its reference: BINARY_ID TEST_NAME: FIGURE CPU s alone, limit LIMIT s`, the figure and the limit with three decimals; the code may continue it with what set the limit (new, the reference, its line, its figure at main and whence). It goes in `over_budget` with `gate`, so the verdict is `over budget` and the exit 1, and in `warnings` without, as a layer over its budget does (`tools/tiers/budgets.md`, 4). In `over_budget` its entry ends with the repair line, on a line of its own (`tools/tiers/budgets.md`, 10.1), so the test's goal reads where its repair starts: the strategy, then 8.1's three questions, never a line of its own.
 - **Warnings, never red:**
   - `test not measured alone: BINARY_ID TEST_NAME: OUTCOME`, for an entry whose `cpu_s` is null;
   - `test flagged without its figure at main: BINARY_ID TEST_NAME: FIGURE CPU s alone, reference REFERENCE s`, for a flagged test with no line and no figure at main whose figure is past its reference. Once the runner passes `--base`, the base gives it.

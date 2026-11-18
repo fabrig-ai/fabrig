@@ -107,8 +107,8 @@ own, never a change's:
   cannot take a hold once active (jig's `domain/tasks/holds.md`, 2), so the
   choice is made with the goal.
 - **Held by its goal for its whole life,** an exclusive hold that
-  refuses, and made at the home's default branch's tip as the hold is
-  taken, as the taking's effect. A making that fails for good holds the
+  refuses, and made at the tip of the home's landing branch, the one its
+  adoption names (`adoption.md`, 8), as the hold is taken, as the taking's effect. A making that fails for good holds the
   goal, its words naming the branch and what the forge answered.
   A making waits for the outbox's room and never fails for it: with the
   outbox full (`forge.entries`), it holds nothing and polls nothing, as a
@@ -119,7 +119,7 @@ own, never a change's:
   the changes, landings and releases that wait (`room.md`, 3), its place
   kept in memory with the making. Once an entry frees, the waiters go on
   in the order of their places, each making taking a fresh number
-  and reading the default branch's tip afresh, as a restart's making
+  and reading the landing branch's tip afresh, as a restart's making
   with no entry does; fresh numbers follow that order, so the client's
   entries stay in increasing order. A making that meets a full outbox
   again waits again, keeping its place.
@@ -141,7 +141,7 @@ own, never a change's:
   answering not found sending it again at its commit; missing, with no
   entry (the restart cut its making before it committed one), the
   connector asks the root for a fresh entry number, as a taking's effect
-  is given one, reads the default branch's tip and makes it there. A
+  is given one, reads the landing branch's tip and makes it there. A
   forge away while it is made is ridden (`keeping-up.md`, 5), never a failure. A goal
   held for its making that fails for good is made again when a person
   releases that hold: the release reads the branch, as a restart does,
@@ -218,7 +218,7 @@ section 6).
      branch into its base, as the goal's `"branch": "mine"` would make
      it (`change/README.md`, 1), made by the closer on the goal's behalf: its branch the
      goal's, held by the goal and not by the closer or the change; its
-     landing branch the repository's default branch; its words the
+     landing branch the repository's (`adoption.md`, 8); its words the
      goal's title, the first line of the goal's words, then a blank
      line and `Draft: PATH`, where the goal's words hold a line
      `Draft: PATH`, as a goal started from a draft's do, and nothing

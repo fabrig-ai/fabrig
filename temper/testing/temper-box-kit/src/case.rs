@@ -556,7 +556,8 @@ impl Judge {
         if addresses.next().is_some() {
             return Err("only provider and control addresses".into());
         }
-        value["engine"]["llm"]["endpoints"][0]["address"] = json!({"socket":llm.to_string()});
+        temper_agent_fixtures::providers::input(&mut value)["endpoints"][0]["address"] =
+            json!({"socket":llm.to_string()});
         agent["endpoints"][0]["address"] = llm.to_string().into();
         value["workers"] = ws["workers"].clone();
         base(&mut value);

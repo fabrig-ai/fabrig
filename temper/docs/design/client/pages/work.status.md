@@ -2,6 +2,10 @@
 
 2026-11-18. Where the tree's code lags or departs from [work.md](work.md).
 
+- **Not yet:** 1, *Work*: a landing is marked the main one by the forge's
+  default branch rather than the repository's landing branch [in flight:
+  change 8087].
+
 - **Not yet:** 1, *Its budget*: no constant or focused test holds a cold
   open to its budget, and it takes more: Team's `Project` read leaves
   beside the stream before the hello, and the chats' chips watch and an

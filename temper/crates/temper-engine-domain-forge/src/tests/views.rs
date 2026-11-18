@@ -725,12 +725,25 @@ fn changes_limits_accept_the_bounds_and_refuse_outside() {
 }
 
 #[test]
+fn changes_history_marks_the_adopted_landing_not_the_forge_default() {
+    let mut d = changes_setup(&[]);
+    d.repositories.get_mut(&REPO).unwrap().landing = b"staging".as_slice().into();
+    assert_eq!(changes(&d).landing.as_ref(), b"staging", "the empty panel names the landing");
+    log(&mut d, REPO, Box::new([logged(10, 10, 10, b"staging"), logged(20, 20, 20, b"main")]));
+    let got = changes(&d);
+    assert_eq!(got.landed.len(), 2);
+    assert_eq!((got.landed[0].task, got.landed[0].default_branch), (20, false));
+    assert_eq!((got.landed[1].task, got.landed[1].default_branch), (10, true));
+    assert_eq!(got.landed_default.as_ref(), &[got.landed[1].clone()]);
+}
+
+#[test]
 fn changes_history_keeps_default_landings_apart_with_their_commit_and_branch_kind() {
     let mut d = changes_setup(&[]);
     let mut repository = adopted();
     repository.provider = OTHER_REPO;
     repository.home = false;
-    repository.settings.default_branch = b"trunk".as_slice().into();
+    repository.landing = b"trunk".as_slice().into();
     outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
     let mut outside = logged(90, 90, 90, b"main");
     outside.changes = Box::new([]);

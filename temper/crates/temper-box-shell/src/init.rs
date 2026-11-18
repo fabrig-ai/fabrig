@@ -157,7 +157,7 @@ pub(crate) fn write(
     directories: &Directories,
     environment: &[EnvironmentEntry],
     binary: &Path,
-    preferred: [u16; 3],
+    preferred: [u16; 2],
 ) -> Result<Written, String> {
     write_with_program(directories, environment, binary, preferred, None)
 }
@@ -165,7 +165,7 @@ pub(crate) fn write_with_program(
     directories: &Directories,
     environment: &[EnvironmentEntry],
     binary: &Path,
-    preferred: [u16; 3],
+    preferred: [u16; 2],
     program: Option<&Path>,
 ) -> Result<Written, String> {
     write_deployment(directories, environment, binary, &preferred, program, true)
@@ -181,8 +181,7 @@ pub(crate) fn write_bare(
 fn check_destinations(directories: &Directories, boxed: bool) -> Result<(), String> {
     let mut destinations = vec![directories.document(), path(&directories.data).join("worker.secret")];
     if boxed {
-        destinations
-            .extend([path(&directories.data).join("demo/llm.key"), path(&directories.data).join("demo/bin/git")]);
+        destinations.push(path(&directories.data).join("demo/bin/git"));
     }
     for destination in destinations {
         match std::fs::symlink_metadata(&destination) {
@@ -228,7 +227,6 @@ fn write_deployment(
             None
         };
         let (files, person, login) = if boxed {
-            let demo_key = skein_shell::crypto_seed().map_err(|errno| format!("random demo key: errno {errno}"))?;
             let login = crate::login(skein_shell::effective_user()).ok();
             let answer = temper_init::files(
                 &temper_init::Facts {
@@ -237,15 +235,10 @@ fn write_deployment(
                     claude,
                     login: login.as_deref(),
                     sign_in: no_sign_in.is_none(),
-                    ports: temper_init::Ports {
-                        clients: listeners[0].1,
-                        llm: listeners[1].1,
-                        webhooks: listeners[2].1,
-                    },
+                    ports: temper_init::Ports { clients: listeners[0].1, webhooks: listeners[1].1 },
                 },
                 &directories_facts,
                 secret.expose().try_into().expect("32-byte seed"),
-                demo_key.expose().try_into().expect("32-byte seed"),
             )
             .map_err(|why| format!("{:?}: {:?}", why.fact, why.reason))?;
             (answer.files, answer.person, login)
@@ -304,7 +297,7 @@ fn write_deployment(
 }
 pub(crate) fn core(directories: &Directories, environment: &[crate::EnvironmentEntry]) -> Result<Written, String> {
     let binary = std::env::current_exe().map_err(|why| why.to_string())?;
-    write(directories, environment, &binary, [8367, 8370, 8371])
+    write(directories, environment, &binary, [8367, 8371])
 }
 pub(crate) fn bare(directories: &Directories, environment: &[crate::EnvironmentEntry]) -> Result<Written, String> {
     let binary = std::env::current_exe().map_err(|why| why.to_string())?;

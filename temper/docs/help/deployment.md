@@ -30,11 +30,11 @@ are made with mode 0700.
 
 **`CONFIG/temper.json` has three members:**
 
-- `engine`: limits, model providers, admitted workers, listeners,
+- `engine`: limits, admitted workers, listeners,
   owners, sign-in and first-start projects, each naming `"policy": 1`;
 - `workers`: engine addresses, names, secret files and slots; agent programs are derived;
 - `application`: managed and fake forge locations, landing rules,
-  client and webhook listeners, sign-in, scripted model and application limits.
+  client and webhook listeners, sign-in and application limits.
 
 Forges are made through setup or connect and kept in the store
 (temper help forge). Charters, templates, policies and rules are
@@ -42,6 +42,9 @@ settings in the store (temper help settings). Writing them into this
 configuration is refused; an inline project policy is refused as
 `engine.projects[0].policy: name a policy, policy: 1; change it with
 temper ctl settings apply`.
+LLM providers are settings in the store (temper help settings): see them with
+`temper ctl settings show provider`, change them with `temper ctl settings apply`;
+a change is taken at the engine's next start.
 
 ## How it changes
 
@@ -82,10 +85,15 @@ temper ctl settings apply`.
 
 **Offering another model** (for example, `claude-haiku-5-5`):
 
-1. Set the provider's `keep` patterns for names to read and `drop` patterns
-   for names to exclude in `engine.llm.providers` in `CONFIG/temper.json`.
-   Without `keep`, that provider reads no list. Drain the stop and restart
-   with the same `CONFIG`, `DATA` and `CACHE`. Where the provider has a list,
+1. Read `temper ctl settings show provider N`, where N is the provider's
+   number. Copy its whole value to FILE in this settings form:
+   `{"items": [{"setting": {"kind": "provider", "number": N}, "set": VALUE}]}`.
+   In VALUE, set `keep` patterns for names to read and `drop` patterns for
+   names to exclude; preserve `sources` and `endpoints`. Without `keep`,
+   that provider reads no list. Apply with
+   `temper ctl settings apply FILE --against REVISION --key KEY`, using the
+   newest revision (temper help settings). Drain the stop and restart with
+   the same `CONFIG`, `DATA` and `CACHE`. Where the provider has a list,
    temper reads it as an account becomes usable, once a day and on
    **Read again** in **Deployment**, **Models**.
 2. For what a list doesn't show, including a new Claude subscription model,
@@ -96,9 +104,12 @@ temper ctl settings apply`.
    A task keeps the model it has. Adding or changing a model needs no restart.
    `model list` reads the models offered to a project; a charter or policy
    may restrict which it can use (temper help charter; temper help settings).
-4. For a local model, its provider's `endpoint` in `engine.llm.providers`
-   names the configured endpoint serving it. Providers and endpoints stay
-   in `CONFIG/temper.json`.
+4. For a local model, read its provider with `temper ctl settings show provider N`.
+   Its `endpoint` names an entry in its `endpoints` list; set that entry's
+   `address.socket` to the local server's address. Keep the other members,
+   including `sources`. Write the whole provider setting and apply FILE as
+   in step 1, then drain the stop and restart with the same `CONFIG`, `DATA`
+   and `CACHE`.
 5. For a larger output than an agent's endpoint's limits allow, raise those
    limits in the `agents` setting and restart, then change the model.
    Preserve endpoint addresses, transports and sign-in settings. The endpoint's

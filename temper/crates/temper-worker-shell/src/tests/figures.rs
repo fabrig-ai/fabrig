@@ -10,14 +10,21 @@ fn stock_figures() -> jig_protocol_worker_wire::Figures {
     configured_figures(&input)
 }
 fn configured_figures(input: &serde_json::Value) -> jig_protocol_worker_wire::Figures {
+    configured_figures_with(input, &temper_service::stock::Given::Stock)
+}
+fn configured_figures_with(
+    input: &serde_json::Value,
+    given: &temper_service::stock::Given,
+) -> jig_protocol_worker_wire::Figures {
     let input = serde_json::to_vec(&input["engine"]).expect("engine JSON");
     let document = jig_protocol_config::document(
         &input,
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 1_048_576, depth: 32 },
     )
     .expect("engine document");
-    let engine = temper_service::startup::engine(&document, 0, &jig_protocol_config::Directories::working())
-        .expect("stock engine");
+    let engine =
+        temper_service::startup::engine_with(&document, 0, &jig_protocol_config::Directories::working(), given)
+            .expect("stock engine");
     let own = temper_limits_fixtures::small();
     temper_engine_service_vocabulary::figures::Composer::new(&engine, &own).compose(&temper_service::stock::agents())
 }
@@ -30,9 +37,12 @@ fn the_workers_watchdog_covers_stock_agent_figures_and_a_sixty_minute_tool() {
         serde_json::from_slice(include_bytes!("../../../temper-init/template/temper.json"))
             .expect("stock box document");
     input["engine"]["clients"]["provider"] = serde_json::Value::Null;
-    input["engine"]["llm"]["endpoints"][3]["address"]["socket"] = "127.0.0.1:8370".into();
+    let given = temper_service::stock::Given::Stock.with_providers(
+        temper_service::stock::providers(),
+        Box::new([temper_service::stock::scripted(([127, 0, 0, 1], 8370).into())]),
+    );
     for (override_ms, expected_seconds) in [(None, 1205), (Some(3_600_000), 3605)] {
-        let mut parts = configured_figures(&input).into_parts();
+        let mut parts = configured_figures_with(&input, &given).into_parts();
         if let Some(value) = override_ms {
             let mut agents = parts.agents.into_parts();
             let mut profile = skein_lib::List::with_capacity(agents.profile.len() + 1);
@@ -76,8 +86,11 @@ fn a_boxs_demo_endpoint_keeps_its_name_and_uses_smiths_openai_provider() {
     let mut input: serde_json::Value =
         serde_json::from_slice(include_bytes!("../../../temper-init/template/temper.json")).expect("box document");
     input["engine"]["clients"]["provider"] = serde_json::Value::Null;
-    input["engine"]["llm"]["endpoints"][3]["address"]["socket"] = "127.0.0.1:8370".into();
-    let figures = configured_figures(&input);
+    let given = temper_service::stock::Given::Stock.with_providers(
+        temper_service::stock::providers(),
+        Box::new([temper_service::stock::scripted(([127, 0, 0, 1], 8370).into())]),
+    );
+    let figures = configured_figures_with(&input, &given);
     assert_eq!(figures.agents().endpoints().get(3).expect("demo endpoint").provider(), b"demo");
     let scratch = skein_scratch::Scratch::new("demo-agent-endpoint");
     let bytes = agent::figures::configuration(&figures, None, scratch.path(), &[]).expect("written agent");

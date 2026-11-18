@@ -22,6 +22,7 @@ pub(crate) fn projects(items: &[super::Item]) -> Box<[u32]> {
             Setting::Charter(_)
             | Setting::Template(_)
             | Setting::Policy(_)
+            | Setting::Provider(_)
             | Setting::Worker(_)
             | Setting::Model(_)
             | Setting::Rules => people::DEPLOYMENT,
@@ -59,6 +60,7 @@ pub(crate) fn check(core: &Core, items: &[super::Item]) -> Result<(), Failure> {
                 | super::Value::Charter(_)
                 | super::Value::Template(_)
                 | super::Value::Policy(_)
+                | super::Value::Provider(_)
                 | super::Value::Worker(_)
                 | super::Value::Model(_)
                 | super::Value::Rules(_),
@@ -90,6 +92,7 @@ fn same_scope(setting: Setting, kind: u32, scope: u32) -> bool {
         Setting::Charter(_)
         | Setting::Template(_)
         | Setting::Policy(_)
+        | Setting::Provider(_)
         | Setting::Worker(_)
         | Setting::Model(_)
         | Setting::Rules
@@ -117,6 +120,7 @@ fn named(setting: Setting) -> Option<Name> {
         Setting::Charter(_)
         | Setting::Template(_)
         | Setting::Policy(_)
+        | Setting::Provider(_)
         | Setting::Worker(_)
         | Setting::Model(_)
         | Setting::Rules
@@ -134,6 +138,7 @@ fn translate(item: &super::Item) -> Option<Item> {
             | super::Value::Charter(_)
             | super::Value::Template(_)
             | super::Value::Policy(_)
+            | super::Value::Provider(_)
             | super::Value::Worker(_)
             | super::Value::Model(_)
             | super::Value::Rules(_),
@@ -180,6 +185,7 @@ pub(crate) fn project_templates(core: &Core, owner: Token, project: u32) -> Box<
                 super::Value::Overlay(_)
                 | super::Value::Charter(_)
                 | super::Value::Template(_)
+                | super::Value::Provider(_)
                 | super::Value::Worker(_)
                 | super::Value::Model(_)
                 | super::Value::Rules(_)

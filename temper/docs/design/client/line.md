@@ -246,7 +246,7 @@ numbered link (5), never by a page's address: `temper-box open` takes the
 engine's address or the sign-in link (1). A browser opens a page by
 its address: a reload, or `/tasks/N` typed or opened, is a new client
 at that address (`web/README.md`, 2.3), and an inbox's address holds its
-filter, so that `/?kind=question` opens the inbox filtered. Of that
+filter, so that `/needs?kind=question` opens the inbox filtered. Of that
 open, the path and its load are the browser's; the rest is the client
 root's, the same under both shells: a root started at a page's address,
 its pages opening that page, asking its reads and drawing it once they

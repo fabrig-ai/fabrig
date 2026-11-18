@@ -419,19 +419,30 @@ fn assert_history(store: &Store) -> Result<(), String> {
 pub(crate) fn configuration(deployment: &[u8]) -> Box<[u8]> {
     let mut document: serde_json::Value = serde_json::from_slice(deployment).expect("deployment");
     document["engine"]["limits"]["overrides"]["people.inbox_tasks"] = 16.into();
-    let mut provider = document["engine"]["llm"]["providers"][0].clone();
+    if document["world_settings"]["llm"].is_null() {
+        let source: serde_json::Value =
+            serde_json::from_slice(temper_playground::stories::A.deployment).expect("story deployment");
+        document["world_settings"]["llm"] = source["world_settings"]["llm"].clone();
+    }
+    let mut provider = document["world_settings"]["llm"]["providers"][0].clone();
     provider["number"] = 2.into();
     provider["name"] = "golden-provider".into();
     provider["models"] = serde_json::json!(["fake-key"]);
+    provider["endpoint"] = "golden".into();
+    let mut endpoint = document["world_settings"]["llm"]["endpoints"][0].clone();
+    endpoint["name"] = "golden".into();
+    endpoint["number"] = 2.into();
+    endpoint["provider"] = "golden-provider".into();
+    document["world_settings"]["llm"]["endpoints"].as_array_mut().expect("endpoints").push(endpoint);
     let catalogue: serde_json::Value =
         serde_json::from_slice(include_bytes!("../../../crates/temper-playground/stories/a/catalogue.json"))
             .expect("story catalogue");
-    document["engine"]["llm"]["models"] = catalogue["models"].clone();
+    document["world_settings"]["llm"]["models"] = catalogue["models"].clone();
     let mut model = catalogue["models"][0].clone();
     model["name"] = "fake-key".into();
-    document["engine"]["llm"]["models"].as_array_mut().expect("models").push(model);
-    document["engine"]["llm"]["providers"][0]["models"] = serde_json::json!(["fake"]);
-    document["engine"]["llm"]["providers"].as_array_mut().expect("providers").push(provider);
+    document["world_settings"]["llm"]["models"].as_array_mut().expect("models").push(model);
+    document["world_settings"]["llm"]["providers"][0]["models"] = serde_json::json!(["fake"]);
+    document["world_settings"]["llm"]["providers"].as_array_mut().expect("providers").push(provider);
     for name in ["tasks.tasks", "tasks.project_tasks"] {
         document["engine"]["limits"]["overrides"][name] = 8.into();
     }
@@ -743,7 +754,21 @@ fn startup_configuration(directory: &Path) -> (Vec<u8>, temper_service::stock::G
     let configuration = std::fs::read(directory.join("configuration.json")).expect("kept startup configuration");
     let mut document: serde_json::Value = serde_json::from_slice(&configuration).expect("kept configuration JSON");
     bridge_kept_profiles(&mut document);
+    if let Some(legacy) = document["engine"].as_object_mut().expect("kept engine").remove("llm") {
+        document["world_settings"]["llm"] = legacy;
+    }
+    // The kept providers share a dial; each provider setting owns its numbered endpoint.
+    let llm = &mut document["world_settings"]["llm"];
+    if llm["endpoints"].as_array().expect("kept endpoints").len() == 1 {
+        let mut endpoint = llm["endpoints"][0].clone();
+        endpoint["name"] = "golden".into();
+        endpoint["number"] = 2.into();
+        endpoint["provider"] = "golden-provider".into();
+        llm["endpoints"].as_array_mut().expect("kept endpoints").push(endpoint);
+        llm["providers"][1]["endpoint"] = "golden".into();
+    }
     // Kept deployment inputs use the current box shape; the stored generation stays untouched.
+    document["world_settings"]["playground"] = true.into();
     let mut inherited = Vec::new();
     for worker in document["workers"].as_array_mut().expect("kept workers") {
         let worker = worker.as_object_mut().expect("kept worker");

@@ -310,7 +310,7 @@ person's projects:
   links), then "2. Next";
 - *money and any other kind:* its row's words the head; "1. Open it on
   the web", which opens Needs you for the need's project on the web
-  (`/?project=P`, `address::print`) through the opener, then "2. Next".
+  (`/needs?project=P`, `address::print`) through the opener, then "2. Next".
 
 A choice taken, or "Next", shows the next need the walk has not shown;
 with none left the walk ends and the TUI notes "Nothing else needs you."

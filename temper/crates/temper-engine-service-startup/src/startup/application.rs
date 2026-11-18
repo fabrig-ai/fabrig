@@ -1,6 +1,5 @@
 //! Machine and client settings, read strictly (temper/docs/design/protocol/configuration/engine.md).
 //! A box's sign-in is exclusive (temper/docs/design/protocol/openid-provider.md, 9).
-mod demo;
 pub mod push;
 mod read;
 pub mod sign_in;
@@ -277,7 +276,9 @@ pub fn parse_over(
         problems.push(path.member(b"machine"), What::Jig(config::What::Fixed));
     }
     let test_at = object.member(document, b"test");
-    let demo_at = read::required(&mut object, document, b"demo", &path, problems);
+    if object.member(document, b"demo").is_some() {
+        problems.push(path.member(b"demo"), What::Jig(config::What::Fixed));
+    }
     let limit_at = read::required(&mut object, document, b"limits", &path, problems);
     let limits = match limit_at {
         Some(at) => configured_limits(document, at, &path.member(b"limits"), problems, &mut overrides, sources),
@@ -316,7 +317,6 @@ pub fn parse_over(
     if let Some(sign_in) = &sign_in {
         sign_in::check_forges(&sign_in.forges, jig, problems);
     }
-    let demo = demo::parse(document, demo_at, directories, problems);
     if !problems.is_empty() {
         return None;
     }
@@ -326,7 +326,7 @@ pub fn parse_over(
         push,
         webhooks,
         test_github,
-        demo,
+        demo: None,
         workers: workers.into_boxed(),
         environment,
         limits: limits?,

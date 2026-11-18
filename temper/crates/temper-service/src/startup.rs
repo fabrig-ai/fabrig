@@ -81,8 +81,7 @@ fn redirects(engine: &config::Engine) -> Box<[RedirectPort]> {
                 .push(RedirectPort {
                     port,
                     path: Path::root()
-                        .member(b"engine")
-                        .member(b"llm")
+                        .member(b"providers.setting")
                         .member(b"providers")
                         .child(Segment::Index(u32::try_from(index).expect("bounded providers")))
                         .member(b"sources")
@@ -466,7 +465,8 @@ fn load_document_over(
         }
     }
     if check_start && let Some(engine) = &engine {
-        match given {
+        match given.source() {
+            crate::stock::Given::Running { .. } => unreachable!("unwrapped source"),
             crate::stock::Given::Stock => checks::stock(engine, &mut problems),
             crate::stock::Given::Own { .. } => {}
         }
@@ -572,6 +572,14 @@ fn all_files(parsed: &Parsed) -> Box<[config::File]> {
             let mut path = prefix.clone();
             for segment in &file.at.segments {
                 path = path.child(segment.clone());
+            }
+            if prefix == Path::root().member(b"engine")
+                && file.at.segments.as_slice().first() == Some(&Segment::Member(b"llm".as_slice().into()))
+            {
+                path = Path::root().member(b"providers.setting");
+                for segment in file.at.segments.iter().skip(1) {
+                    path = path.child(segment.clone());
+                }
             }
             file.at = path;
             files.push(file).expect("capacity includes every named file");
@@ -882,7 +890,8 @@ fn checked_start_using(
         kinds: Box::default(),
         period_span: crate::stock::PERIOD_SPAN,
         kinds_stock: Box::default(),
-        ways_stock: match given {
+        ways_stock: match given.source() {
+            crate::stock::Given::Running { .. } => unreachable!("unwrapped source"),
             crate::stock::Given::Stock => crate::stock::ways(),
             crate::stock::Given::Own { ways, .. } => ways.clone(),
         },
@@ -892,7 +901,8 @@ fn checked_start_using(
     if let Some(&connector) = core.connectors.first() {
         engine.kinds = crate::stock::kinds(&root, connector);
     }
-    engine.kinds_stock = match given {
+    engine.kinds_stock = match given.source() {
+        crate::stock::Given::Running { .. } => unreachable!("unwrapped source"),
         crate::stock::Given::Stock => crate::stock::forge(&root),
         crate::stock::Given::Own { forge, .. } => forge.clone(),
     };
