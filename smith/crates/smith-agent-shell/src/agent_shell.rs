@@ -520,8 +520,17 @@ pub fn given_up_line(given_up: smith_protocol_events::GivenUp) -> String {
 }
 
 fn program_diagnostic_line(owner: Token, fault: smith_domain::run::Fault) -> String {
-    let smith_domain::run::Fault::Program { name, exit, detail } = fault else {
-        unreachable!("the operator program drain retains only program faults")
+    let (name, exit, detail) = match fault {
+        smith_domain::run::Fault::Program { name, exit, detail } => (name, exit, detail),
+        smith_domain::run::Fault::Untooled { name, detail } => (name, None, detail),
+        smith_domain::run::Fault::Completion { .. }
+        | smith_domain::run::Fault::Unauthorized { .. }
+        | smith_domain::run::Fault::Limited { .. }
+        | smith_domain::run::Fault::Refused { .. }
+        | smith_domain::run::Fault::Provider
+        | smith_domain::run::Fault::Declined
+        | smith_domain::run::Fault::Truncated
+        | smith_domain::run::Fault::Malformed => unreachable!("the operator program drain retains only program faults"),
     };
     let exit = match exit {
         Some(exit) => exit.to_string(),

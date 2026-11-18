@@ -460,7 +460,14 @@ fn read_start(read: &Read, party: u64) -> Option<ReadStart> {
             if Some(scope) != target.as_ref() {
                 return None;
             }
-            stored = true;
+            if let Scope::Inbox { group, .. } = scope
+                && !group.updates()
+                && let Some(Position::Inbox { at, task, object, .. }) = after
+            {
+                after_live = Some(documents::Cursor::Inbox { at: *at, task: *task, object: *object });
+            } else {
+                stored = true;
+            }
             after_store.clone_from(after);
         }
         None => {}

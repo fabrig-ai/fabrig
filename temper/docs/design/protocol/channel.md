@@ -455,11 +455,11 @@ Within the suites' budgets (`../testing/README.md`, section 2):
   handoff is jig's protocol world's rule; these stories hold temper's
   composition to it.
 
-- **Step tests in `temper-protocol-worker-wire`,** those skein's
-  `data/codec/README.md`, section 6 generates for each record, and `Identity`'s
-  `Debug` holding no byte of its tokens, of either kind. Golden bytes
-  fail when an encoding changes; before the first release they are
-  updated in place under section 3's version rule.
+- **Codec tests,** as skein's `data/codec/README.md`, section 6: records
+  drift and refusal of unpinned constructs, built-value round trips and
+  bounds, with no family golden files or generated tests. skein's `every`
+  pins the bytes. `Identity`'s `Debug` holds no byte of its tokens, of
+  either kind. Section 3's version rule holds for an encoding change.
 - **Step tests of the translation** in `temper-service`: each function
   both ways for every variant; an engine's workspace through `Items` to
   the worker's, field for field, with its remote made from the base, the
@@ -468,7 +468,7 @@ Within the suites' budgets (`../testing/README.md`, section 2):
   `composed/link.rs`'s own tests hold); each preparation reaching
   `Parts.preparation`; a part that does not decode, on each side.
 - **Fuzz targets,** in the fuzzy suite: each record's decoder, on
-  arbitrary bytes and on mutated golden bytes.
+  arbitrary bytes and on mutations of fixed-rule values built from the schema.
 - **Through bytes,** the one-process world carries every part on jig's
   channel joined in process: each story that prepares a workspace,
   pushes, saves or fails to prepare (`../testing/README.md`, 2.5). jig's channel

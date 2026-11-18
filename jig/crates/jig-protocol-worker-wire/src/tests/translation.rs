@@ -93,7 +93,7 @@ fn worker_value(frame: &Frame) -> wire::FromWorker {
     wire::FromWorker::decode(&wire::CEILINGS, &mut Reader::new(&bytes)).unwrap()
 }
 fn golden(text: &str, name: &str) -> Box<[u8]> {
-    for golden in skein_codegen::generate(&skein_codegen::parse(text).unwrap()).goldens {
+    for golden in skein_codegen::goldens(&skein_codegen::parse(text).unwrap()) {
         if golden.name.strip_suffix(".bin") == Some(name) {
             return golden.bytes.into_boxed_slice();
         }

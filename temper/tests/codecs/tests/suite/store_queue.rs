@@ -24,19 +24,13 @@ fn entry(queued: bool) -> Stored {
     }
 }
 #[test]
-fn queued_and_unqueued_entries_have_v25_golden_bytes_and_round_trip() {
+fn queued_and_unqueued_entries_round_trip_at_v25() {
     let bounds =
         temper_protocol_store::bounds(&fixture::LIMITS, fixture::LIMITS.client.op_bytes).expect("fixture bounds");
     assert_eq!(STORE_VERSION, 25);
     for queued in [false, true] {
         let value = entry(queued);
         let bytes = records::encode(&value);
-        let name = if queued { "merge-queued.bin" } else { "merge-unqueued.bin" };
-        let path = skein_scratch::paths::package().join("../../crates/temper-protocol-store/golden/v25").join(name);
-        if temper_test_env::rewrite() {
-            std::fs::write(&path, &bytes).expect("write queue golden");
-        }
-        assert_eq!(std::fs::read(path).expect("committed queue golden").as_slice(), bytes.as_ref());
         assert_eq!(records::decode(&bytes, &bounds), Ok(value));
     }
 }

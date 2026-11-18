@@ -37,23 +37,16 @@ fn peer(label: &[u8]) -> Box<[u8]> {
     writer.finish()
 }
 #[test]
-fn forgejo_admin_without_first_round_trips_its_golden() {
-    golden(None, "connect_forgejo_admin_without_first.bin");
+fn forgejo_admin_without_first_round_trips() {
+    round_trip(None);
 }
 #[test]
-fn forgejo_admin_with_first_round_trips_its_golden() {
-    golden(Some(first(b"docker").unwrap()), "connect_forgejo_admin_with_first.bin");
+fn forgejo_admin_with_first_round_trips() {
+    round_trip(Some(first(b"docker").unwrap()));
 }
-fn golden(first: Option<v1::FirstAsk>, name: &str) {
+fn round_trip(first: Option<v1::FirstAsk>) {
     let record = request(first);
-    let path = skein_scratch::paths::package().join("golden").join(name);
-    let encoded = crate::requesting(&record);
-    let write = temper_test_env::rewrite();
-    if write {
-        std::fs::write(&path, &encoded).unwrap();
-    }
-    let bytes = std::fs::read(path).unwrap();
-    assert_eq!(encoded.as_ref(), bytes);
+    let bytes = crate::requesting(&record);
     assert_eq!(crate::decode_requesting(&bytes, &fixtures::limits()), Some(record));
 }
 #[test]

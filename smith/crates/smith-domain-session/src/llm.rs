@@ -560,6 +560,9 @@ pub enum Failure {
     SignedOut,
     /// The backend program failed, with its exit code when known.
     Program { exit: Option<u32> },
+    /// The program started without smith's tools: its host's program fault,
+    /// never the run's own and never retried.
+    Untooled,
     /// The program cannot resume this window; the session carries it over once.
     SessionGone,
     /// The provider refused the account; this call is never retried.

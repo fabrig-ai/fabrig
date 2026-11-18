@@ -27,6 +27,7 @@ pub(super) fn restartable(failure: llm::Failure) -> bool {
         | llm::Failure::Invalid
         | llm::Failure::SignedOut
         | llm::Failure::Program { .. }
+        | llm::Failure::Untooled
         | llm::Failure::Refused
         | llm::Failure::Unsupported
         | llm::Failure::Exhausted { .. } => false,

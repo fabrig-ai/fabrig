@@ -42,6 +42,7 @@ fn class(failure: Failure) -> Class {
         | Failure::Refused
         | Failure::SignedOut
         | Failure::Program { .. }
+        | Failure::Untooled
         | Failure::Unsupported
         | Failure::Invalid
         | Failure::Exhausted { .. } => Class::Lasting,

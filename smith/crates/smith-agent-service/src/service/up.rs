@@ -329,8 +329,13 @@ fn text_arrived(service: &mut Stages, frame: Option<&mut Frame>, bytes: u32) {
 }
 
 fn program_failure(frame: Option<&mut Frame>, owner: Token, failure: domain::llm::Failure, detail: &[u8]) {
-    let exit = match failure {
-        domain::llm::Failure::Program { exit } => exit,
+    let Some(frame) = frame else { return };
+    let from = detail.len().saturating_sub(smith_events::DETAIL_BYTES);
+    let detail = detail.get(from..).expect("bounded diagnostic suffix").into();
+    let name = b"claude_code".as_slice().into();
+    let fault = match failure {
+        domain::llm::Failure::Program { exit } => run::Fault::Program { name, exit, detail },
+        domain::llm::Failure::Untooled => run::Fault::Untooled { name, detail },
         domain::llm::Failure::Limit { .. }
         | domain::llm::Failure::ApplicationLimit
         | domain::llm::Failure::Protocol
@@ -348,10 +353,6 @@ fn program_failure(frame: Option<&mut Frame>, owner: Token, failure: domain::llm
         | domain::llm::Failure::Unsupported
         | domain::llm::Failure::Exhausted { .. } => return,
     };
-    let Some(frame) = frame else { return };
-    let from = detail.len().saturating_sub(smith_events::DETAIL_BYTES);
-    let detail = detail.get(from..).expect("bounded diagnostic suffix").into();
-    let fault = run::Fault::Program { name: b"claude_code".as_slice().into(), exit, detail };
     frame.program_diagnostics.push((owner, fault));
 }
 

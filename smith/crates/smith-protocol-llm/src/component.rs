@@ -687,6 +687,7 @@ impl Component {
             | llm::Failure::ContextTooLong
             | llm::Failure::SignedOut
             | llm::Failure::Program { .. }
+            | llm::Failure::Untooled
             | llm::Failure::SessionGone
             | llm::Failure::Refused
             | llm::Failure::Unsupported

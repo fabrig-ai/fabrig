@@ -1,4 +1,5 @@
 //! Arbitrary and mutated forge-family records (skein's data/codec/README.md, section 6).
+use super::super::values;
 use skein_lib::{List, Reader, Rng, Writer};
 use temper_client_protocol_wire::v1;
 
@@ -53,7 +54,7 @@ fn client_wire_decoders_never_panic_and_reencode_the_same() {
         finding_answer,
     ];
     let mut rng = Rng::new(0x7e3d_0302);
-    let goldens = temper_codecs_world::goldens("crates/temper-client-protocol-wire/golden");
+    let goldens = values::client();
     for _ in 0..2_000 {
         let request = v1::Requesting::new(&v1::CEILINGS, v1::RequestingParts { request: drawn_request(&mut rng) })
             .expect("bounded request");
@@ -149,7 +150,8 @@ fn client_wire_decoders_never_panic_and_reencode_the_same() {
             decode(&bytes);
         }
     }
-    for golden in &goldens {
+    for golden in goldens {
+        let golden = &golden.bytes;
         for decode in decoders {
             decode(golden);
         }
@@ -359,9 +361,7 @@ fn drawn_makings(rng: &mut Rng) -> v1::Forges {
     // All unrelated fields stay at the generated smallest row's values.
     let mut parts = v1::ForgeRow::decode(
         &v1::CEILINGS,
-        &mut Reader::new(include_bytes!(
-            "../../../../../crates/temper-client-protocol-wire/golden/record_forge_row_smallest.bin"
-        )),
+        &mut Reader::new(values::named(values::client(), "record_forge_row_smallest.bin")),
     )
     .expect("drawn fields fit the schema ceilings")
     .into_parts();
