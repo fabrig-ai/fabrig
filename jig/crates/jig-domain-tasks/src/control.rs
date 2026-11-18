@@ -888,7 +888,7 @@ fn control_entrance(
 }
 
 // A connector's resource account is released after the application checks its kept revision
-// (jig/docs/design/domain/tasks/changes.md, 1).
+// (`jig/docs/design/domain/tasks/changes.md`, *Who may*).
 fn connector_resource_hold(task: &crate::TaskRecord) -> bool {
     if task.placed.is_some() {
         return false;
