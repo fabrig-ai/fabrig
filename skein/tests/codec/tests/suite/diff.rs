@@ -133,7 +133,7 @@ mod wire {
                 for seed in 0..DRAWS {
                     let bytes = generated::draw(&drawn_schema, root.name, &mut Rng::new(seed));
                     match (root.decode)(&bytes) {
-                        generated::Decoded::Value { debug, bytes: encoded } => {
+                        generated::Decoded::Value { debug, bytes: encoded, .. } => {
                             assert_eq!(encoded, bytes, "{} {}, seed {seed}", family.name, root.name);
                             assert_eq!(
                                 decoded(&current, root.name, &bytes),

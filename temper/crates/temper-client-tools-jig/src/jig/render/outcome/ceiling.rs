@@ -20,7 +20,7 @@ pub(super) fn text(
                 out.put(b"'s period spend");
             }
         }
-        scalar(value, out);
+        scalar(value, dimension, out);
         match holder {
             c::CeilingHolder::Rules => {
                 out.put(b"; raise the rules first with ");
@@ -65,7 +65,7 @@ pub(super) fn text(
         c::CeilingDimension::Deadline => b"deadline",
         c::CeilingDimension::Notes => b"notes",
     });
-    scalar(value, out);
+    scalar(value, dimension, out);
     match holder {
         c::CeilingHolder::Rules => {
             out.put(b"; raise the rules with ");
@@ -79,9 +79,13 @@ pub(super) fn text(
         }
     }
 }
-fn scalar(value: Option<u64>, out: &mut Text) {
+fn scalar(value: Option<u64>, dimension: c::CeilingDimension, out: &mut Text) {
     if let Some(value) = value {
         out.put(b", ");
-        out.number(value);
+        if dimension == c::CeilingDimension::Spend || dimension == c::CeilingDimension::PeriodSpend {
+            super::super::amount(value, out);
+        } else {
+            out.number(value);
+        }
     }
 }

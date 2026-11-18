@@ -9,8 +9,11 @@ A budget is what a task may spend, in units its models' prices make of their usa
 - **Spend** is counted in whole units. A model's prices turn its
   usage, fresh input, output, cache reads and cache writes, into units;
   reasoning is output and counts once. A unit has no currency.
-- **Two scales in ctl:** `me` prints units as they are, `budget 40`;
-  a task prints them divided by 100, `spent 0.01 of 0.40`.
+- **One scale in ctl:** argv reads and text prints spend in hundreds of
+  units, with two decimals: `spent 0.01 of 0.40` is 1 of 40 units, and
+  `--budget 130` gives 13,000 units. Amounts take at most two decimals,
+  as `130` or `1.25`. JSON, settings files and model prices keep whole
+  spend units.
 - **A task's budget** is the spend its authority allows, and its
   deadline, a wall time, where it has one.
 - **A project's period** funds all of its work: temper may spend up

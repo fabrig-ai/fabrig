@@ -38,10 +38,23 @@ fn setup(projects: u32) -> (Domain, Token, Box<[(u32, Token)]>) {
 }
 #[expect(clippy::type_complexity, reason = "the fixture returns the inbox token and the two kinds of project watches")]
 fn setup_watches(projects: u32) -> (Domain, Token, Box<[(u32, Token)]>, Box<[(u32, Token)]>) {
-    let mut root = crate::unlinked(&f::limits(), f::SEED);
+    setup_watches_with(projects, &f::limits())
+}
+#[expect(clippy::type_complexity, reason = "the fixture returns the inbox and both project watches")]
+fn setup_watches_with(
+    projects: u32,
+    limits: &crate::Limits,
+) -> (Domain, Token, Box<[(u32, Token)]>, Box<[(u32, Token)]>) {
+    let mut root = crate::unlinked(limits, f::SEED);
     let watch = f::start(&mut root, List::with_capacity(0));
     let mut out = super::welcome::deliver(&mut root, watch, c::Delivery::Me(Box::new(me(projects))));
-    let mut opening = event(&mut root, Event::Went { place: Place::Address(Address::Inbox { filter: Filter::ALL }) });
+    let mut opening = Queue::uncapped();
+    crate::step(
+        &mut root,
+        &f::env(limits),
+        Event::Went { place: Place::Address(Address::Inbox { filter: Filter::ALL }) },
+        &mut opening,
+    );
     while let Some(request) = opening.pop() {
         out.push(request);
     }
@@ -554,8 +567,8 @@ fn open_findings(out: &Queue<Request>) -> Option<Token> {
     }
     found
 }
-fn group_setup(person: bool, words: &[u8]) -> (Domain, Token, Token, Option<Token>) {
-    let (mut root, inbox, mine, decisions) = setup_watches(2);
+fn group_inbox(limits: &crate::Limits) -> (Domain, Token, Token) {
+    let (mut root, inbox, mine, decisions) = setup_watches_with(2, limits);
     for (project, watch) in decisions {
         let document = w::Decisions::new(
             &w::CEILINGS,
@@ -578,6 +591,16 @@ fn group_setup(person: bool, words: &[u8]) -> (Domain, Token, Token, Option<Toke
             },
         );
     }
+    let mut own = None;
+    for (project, watch) in mine {
+        if project == 2 {
+            own = Some(watch);
+        }
+    }
+    (root, inbox, own.unwrap())
+}
+fn group_setup(person: bool, words: &[u8]) -> (Domain, Token, Token, Option<Token>) {
+    let (mut root, inbox, own) = group_inbox(&f::limits());
     let object = if person { c::ObjectKey::PersonTask(f::acts::TASK) } else { f::acts::QUESTION };
     let entries = List::from_boxed(Box::new([f::inbox_entry(object, c::InboxGroup::Questions, 2, 1)]));
     let out = f::inbox_entries(&mut root, inbox, entries);
@@ -602,13 +625,7 @@ fn group_setup(person: bool, words: &[u8]) -> (Domain, Token, Token, Option<Toke
             }
         }
     }
-    let mut own = None;
-    for (project, watch) in mine {
-        if project == 2 {
-            own = Some(watch);
-        }
-    }
-    (root, inbox, own.unwrap(), open)
+    (root, inbox, own, open)
 }
 fn closed(out: &Queue<Request>, token: Token) -> bool {
     for request in out {
@@ -683,6 +700,136 @@ fn groups_watch_whole_questions_hold_then_match_rows_in_line_order() {
         let out = f::inbox_entries(&mut root, inbox, List::with_capacity(0));
         assert!(closed(&out, open));
         assert!(!closed(&out, mine));
+    }
+}
+
+fn read_value(root: &mut Domain, read: Token, value: c::ReadValue) -> Queue<Request> {
+    event(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: Up::ReadDone { read, result: jig_client::Readout::Jig(c::ReadResult::Value(value)) },
+            },
+        },
+    )
+}
+
+fn standing_task(number: u64) -> c::Task {
+    let mut standing = f::chat::task();
+    standing.chip.task = number;
+    standing.chip.title = f::chat::document_text(b"Triager");
+    standing.chip.executor = c::ChipExecutor::Agent { charter: 1 };
+    standing.chip.details.details.executor = c::Executor::Agent { charter: 1 };
+    standing.flags.ended_by = c::EndedBy::Standing;
+    standing.project = 2;
+    standing.requester = c::Requester::Person(f::PARTY);
+    standing.priority = None;
+    standing.goal = None;
+    standing.lineage = List::with_capacity(0);
+    standing.lineage_chips = List::with_capacity(0);
+    standing
+}
+
+#[test]
+fn standing_person_groups_read_whole_words_then_open_in_line_order() {
+    const STANDING: u64 = 55;
+    for cut in [false, true] {
+        let mut limits = f::limits();
+        limits.client.domain.long_text = 512;
+        let (mut root, inbox, _) = group_inbox(&limits);
+        let object = c::ObjectKey::PersonTask(f::acts::TASK);
+        let out = f::inbox_entries(
+            &mut root,
+            inbox,
+            List::from_boxed(Box::new([f::inbox_entry(object, c::InboxGroup::PersonTasks, 2, 1)])),
+        );
+        let mut person_read = None;
+        for request in &out {
+            if let Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: Down::Read { read, what: jig_client::Readable::Jig(c::Read::PersonTask { task }) },
+                    },
+            } = request
+            {
+                assert_eq!(*task, f::acts::TASK);
+                assert!(person_read.replace(*read).is_none());
+            }
+        }
+        let read = person_read.expect("the inbox reads its person task");
+        let c::ReadValue::PersonTask(mut person) = group_page(true, GROUP_WORDS) else { panic!("person fixture") };
+        person.requester = c::Requester::Task(STANDING);
+        person.task.details.details.executor = c::Executor::Person(person.address);
+        person.spec.specification.words.cut = cut;
+        let out = read_value(&mut root, read, c::ReadValue::PersonTask(person));
+        let mut open = open_findings(&out);
+        let mut whole = None;
+        let mut source = None;
+        for request in &out {
+            if let Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down { down: Down::Read { read, what: jig_client::Readable::Jig(what) } },
+            } = request
+            {
+                if let c::Read::Task { task } = what {
+                    assert_eq!(*task, STANDING);
+                    source = Some(*read);
+                } else if let c::Read::TaskText { task, field, from } = what {
+                    assert_eq!((*task, *field, *from), (f::acts::TASK, c::TaskTextField::Specification, 0));
+                    whole = Some(*read);
+                } else {
+                    panic!("unexpected read {what:?}");
+                }
+            }
+        }
+        let standing = standing_task(STANDING);
+        read_value(
+            &mut root,
+            source.expect("read the standing requester"),
+            c::ReadValue::Task(Box::new(standing.clone())),
+        );
+        assert_eq!(root.pages().inbox().unwrap().cards.get(0).unwrap().document(), Some(&standing));
+        assert_eq!(whole.is_some(), cut);
+        if cut {
+            assert!(open.is_none(), "cut words must be read whole before watching findings");
+            assert!(root.pages().needs().findings().group(group_need(&root)).is_none());
+            let out = read_value(
+                &mut root,
+                whole.unwrap(),
+                c::ReadValue::TaskText(Box::new(c::TaskText {
+                    task: f::acts::TASK,
+                    field: c::TaskTextField::Specification,
+                    from: 0,
+                    total: u64::try_from(GROUP_WORDS.len()).unwrap(),
+                    next: None,
+                    text: c::Text::new(GROUP_WORDS.into(), 512).unwrap(),
+                })),
+            );
+            open = open_findings(&out);
+        }
+        assert!(!group_need(&root).ready(&root), "wait for the project's open findings");
+        deliver(
+            &mut root,
+            open.expect("whole standing question watches open findings"),
+            document(
+                2,
+                Box::new([severity_row(8, 10, w::Severity::Low), severity_row(2, 30, w::Severity::High)]),
+                false,
+            ),
+        );
+        let store = root.pages().needs().findings();
+        let need = group_need(&root);
+        assert!(need.ready(&root));
+        let open = root.pages().needs().open(root.pages().inbox().unwrap());
+        let [card] = open.as_ref() else { panic!("one open person card") };
+        assert_eq!(card.object, object);
+        let group = store.group(need).expect("a standing role's person task is a group");
+        assert_eq!(group.project, 2);
+        assert_eq!(&*group.noun, b"bugs");
+        assert_eq!(&*group.phrase, b"in temper");
+        let [first, second] = group.rows.as_ref() else { panic!("two findings") };
+        assert_eq!((first.number(), second.number()), (2, 8));
+        assert_eq!(need.severity(store), Some(w::Severity::High));
     }
 }
 

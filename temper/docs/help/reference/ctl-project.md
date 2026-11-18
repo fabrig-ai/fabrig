@@ -13,7 +13,7 @@ Read a project, its public page, roles and spends, its open period and each part
 Prints: The project, whether it is public and its public page's path, its homes and spend per period, each role, its open period and each pool
 --json: the record project.
 Key: none.
-Amounts are in the deployment's unit. Spent includes what ended tasks spent. A missing next start or open period says so. A deleted project prints project N was deleted on stderr, exit 2; an unknown one prints unknown.
+Amounts are as task show prints budgets. Spent includes what ended tasks spent. A missing next start or open period says so. A deleted project prints project N was deleted on stderr, exit 2; an unknown one prints unknown.
 ```
 
 ## project fund
@@ -21,7 +21,7 @@ Amounts are in the deployment's unit. Spent includes what ended tasks spent. A m
 ```
 project fund PROJECT AMOUNT [--role ROLE] --key KEY
   PROJECT (project): a project's name or number; required. The project
-  AMOUNT (amount): a number from 0 to 18446744073709551615; required. The spend per period, in the deployment's unit
+  AMOUNT (amount): an amount with at most two decimals, as 130 or 1.25; required. The spend per period, as task show prints budgets
   --role ROLE: a number from 0 to 4294967295; optional. Set this role's spend per period
 Set a project's spend per period, or a role's, resizing the open period at once
 Prints: The spend edit as answered; then now: the open period's budget and what is left, with --role its pools too
