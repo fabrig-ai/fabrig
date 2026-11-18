@@ -546,7 +546,7 @@ fn has_styled_name(nodes: &[Node], style: skein_ui::Style, name: &[u8]) -> bool 
 }
 #[test]
 fn section_counts_use_listed_cards_and_the_sources_cut_fact() {
-    for (cut, needs, updates) in [(false, b"4".as_slice(), b"2 new".as_slice()), (true, b"4+", b"2+ new")] {
+    for (cut, needs, updates) in [(false, b"4".as_slice(), b"2 new".as_slice()), (true, b"4", b"2+ new")] {
         let root = fixtures::inbox_facts(Filter::ALL, None, c::Proposer::Task(fixtures::INBOX_TASK), cut, None);
         let view = fixtures::page_view(&root);
         for (section, expected) in [(b"Needs you".as_slice(), needs), (b"Updates".as_slice(), updates)] {

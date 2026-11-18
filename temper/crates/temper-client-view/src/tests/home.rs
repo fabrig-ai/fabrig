@@ -257,7 +257,7 @@ fn a_home_with_no_trial_reads_as_today() {
     }
 }
 
-fn printed(view: &crate::View) -> Box<[u8]> {
+pub(super) fn printed(view: &crate::View) -> Box<[u8]> {
     let mut print = skein_ui_text::Print::new(&view.limits().tree).expect("terminal bounds");
     skein_ui_text::render(view.tree(), b"temper", None, &mut print);
     skein_lib::bytes::copy_of(print.text.as_slice())
@@ -2434,7 +2434,12 @@ fn to_begin_cuts_the_rail_on_home_and_ask_alone() {
             let entries: Vec<_> = rows.iter().map(|node| (node.role, node.name.as_deref())).collect();
             let mut expected = vec![(Role::Link, Some(b"Home".as_slice()))];
             if !cut {
-                expected.extend([(Role::Link, Some(b"Needs you".as_slice())), (Role::Link, Some(b"Work".as_slice()))]);
+                let needs = if address == (Address::Home { project: f::PROJECT }) {
+                    b"Needs you 1".as_slice()
+                } else {
+                    b"Needs you".as_slice()
+                };
+                expected.extend([(Role::Link, Some(needs)), (Role::Link, Some(b"Work".as_slice()))]);
             }
             expected.extend([
                 (Role::Link, Some(b"Ask temper".as_slice())),
@@ -2470,7 +2475,12 @@ fn to_begin_cuts_the_rail_on_home_and_ask_alone() {
             if cut {
                 vec![b"Home".as_slice(), b"Ask temper", b"Deployment"]
             } else {
-                vec![b"Home".as_slice(), b"Needs", b"Work", b"Ask temper"]
+                let needs = if address == (Address::Home { project: f::PROJECT }) {
+                    b"Needs 1".as_slice()
+                } else {
+                    b"Needs".as_slice()
+                };
+                vec![b"Home".as_slice(), needs, b"Work", b"Ask temper"]
             },
             "{address:?}"
         );
@@ -3720,6 +3730,118 @@ fn a_landing_never_stands_under_nothing_needs_you_alone() {
                 }
             }
         }
+    }
+}
+
+pub(super) fn needs_section(page: &f::ReadPage, group: c::InboxReadGroup) -> Token {
+    for (token, read) in page.reads.iter().rev() {
+        if let c::Read::Inbox { group: asked, .. } = read
+            && *asked == group
+        {
+            return *token;
+        }
+    }
+    panic!("section read")
+}
+pub(super) fn answer_needs(page: &mut f::ReadPage, count: u32, after: Option<c::Cursor>) {
+    let mut rows = List::with_capacity(count);
+    for number in 1..=count {
+        rows.push(temper_fixtures::client_documents::entry(
+            c::ObjectKey::Question { task: f::INBOX_TASK, message: u64::from(number) },
+            f::PROJECT,
+            u64::from(number),
+            f::NOW,
+            None,
+        ))
+        .unwrap();
+    }
+    let read = needs_section(page, c::InboxReadGroup::Needs);
+    page.answer(
+        read,
+        c::ReadResult::Value(c::ReadValue::Inbox(Box::new(c::InboxPage {
+            rows,
+            after,
+            before: None,
+            cut: false,
+            selection: None,
+        }))),
+    );
+}
+pub(super) fn four_needs_page(address: Address) -> f::ReadPage {
+    let mut page = f::ReadPage::new(address);
+    page.refresh_inbox();
+    let updates = needs_section(&page, c::InboxReadGroup::Updates);
+    page.answer(
+        updates,
+        c::ReadResult::Value(c::ReadValue::Inbox(Box::new(c::InboxPage {
+            rows: List::with_capacity(0),
+            after: None,
+            before: None,
+            cut: false,
+            selection: None,
+        }))),
+    );
+    answer_needs(&mut page, 4, None);
+    let reads = page.reads.clone().into_boxed();
+    for (read, what) in reads {
+        if let c::Read::Question { task, message } = what {
+            page.answer(read, c::ReadResult::Value(f::home::home_need_page(c::ObjectKey::Question { task, message })));
+        }
+    }
+    assert!(page.root.pages().inbox().unwrap().known());
+    page
+}
+fn four_needs_words(root: &d::Domain) {
+    for view in [f::page_view(root), f::browser_page_view(root)] {
+        main_find(view.tree(), Role::Heading { level: 1 }, b"Four things need you.");
+        main_find(view.tree(), Role::Heading { level: 2 }, "Needs you · 4".as_bytes());
+        contains(&printed(&view), "Four things need you.");
+        contains(&printed(&view), "Needs you · 4");
+        absent(&printed(&view), "4+");
+    }
+}
+#[test]
+fn home_keeps_the_whole_count_and_words_when_needs_refresh_is_busy() {
+    for failure in [
+        jig_client::Readout::Limit,
+        jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Busy)),
+        jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Unreachable)),
+        jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)),
+    ] {
+        let mut page = four_needs_page(Address::Home { project: f::PROJECT });
+        four_needs_words(&page.root);
+        page.refresh_inbox();
+        four_needs_words(&page.root);
+        let read = needs_section(&page, c::InboxReadGroup::Needs);
+        page.up(jig_client::Up::ReadDone { read, result: failure });
+        page.collect();
+        page.sections(false);
+        four_needs_words(&page.root);
+        page.refresh_inbox();
+        answer_needs(&mut page, 4, None);
+        page.sections(false);
+        four_needs_words(&page.root);
+    }
+}
+#[test]
+fn home_names_the_project_until_the_needs_chain_answers_whole() {
+    let mut page = f::ReadPage::new(Address::Home { project: f::PROJECT });
+    page.refresh_inbox();
+    answer_needs(&mut page, 2, Some(c::Cursor::new(b"next".as_slice().into(), 4).unwrap()));
+    let read = needs_section(&page, c::InboxReadGroup::Needs);
+    page.answer(read, c::ReadResult::None(c::ReadNone::Busy));
+    page.sections(false);
+    // Any card reads a stopped chain emitted must not make its partial count known.
+    let reads = page.reads.clone().into_boxed();
+    for (read, what) in reads {
+        if let c::Read::Question { task, message } = what {
+            page.answer(read, c::ReadResult::Value(f::home::home_need_page(c::ObjectKey::Question { task, message })));
+        }
+    }
+    for view in [f::page_view(&page.root), f::browser_page_view(&page.root)] {
+        main_find(view.tree(), Role::Heading { level: 1 }, b"Shop");
+        absent(&printed(&view), "things need you.");
+        absent(&printed(&view), "2+");
     }
 }
 
