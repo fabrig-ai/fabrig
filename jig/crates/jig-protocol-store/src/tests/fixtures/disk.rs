@@ -178,6 +178,25 @@ impl Disk {
         let mut above = Queue::with_capacity(QUEUE);
         let mut below = below();
         crate::down(store, &env(), request, &mut above, &mut below);
+        self.settle(store, above, below)
+    }
+    pub fn restore(
+        &mut self,
+        store: &mut Store,
+        owner: Token,
+        source: crate::CheckpointName,
+        draw: [u8; 16],
+    ) -> Box<[Event]> {
+        let mut above = Queue::with_capacity(QUEUE);
+        let mut below = below();
+        // Restore owns and closes its deployment descriptor on the adopted lanes.
+        let handle = self.machine.open(self.handle, b".", How::Directory).expect("restore root");
+        let fd = self.sim.root(self.pid, Handle::new(handle.raw()));
+        let root = self.adopt_root(fd);
+        crate::restoring::begin(store, &env(), owner, root, source, draw, &mut above, &mut below);
+        self.settle(store, above, below)
+    }
+    fn settle(&mut self, store: &mut Store, mut above: Queue<Event>, mut below: Below) -> Box<[Event]> {
         for _ in 0_u32..10_000 {
             crate::fire(store, &env(), &mut above, &mut below);
             let drove = self.drive_one(&mut below, |io, below| crate::up(store, &env(), io, &mut above, below));
@@ -268,15 +287,18 @@ impl Disk {
     pub fn scratch_root(&mut self) -> Root {
         let handle = self.machine.lay(&[]);
         let fd = self.sim.root(self.pid, Handle::new(handle.raw()));
+        self.adopt_root(fd)
+    }
+    fn adopt_root(&mut self, fd: skein_io::kernel::Fd) -> Root {
         let mut token = None;
         for io in &mut self.io {
-            let found = io.adopt_root(fd).expect("scratch root fits");
+            let found = io.adopt_root(fd).expect("additional root fits");
             if let Some(token) = token {
                 assert_eq!(found, token);
             }
             token = Some(found);
         }
-        Root { token: token.expect("three drivers"), fd }
+        Root { token: token.expect("file drivers"), fd }
     }
     /// Another descriptor of the same deployment, with its own driver token.
     pub fn second_root(&mut self) -> Root {
