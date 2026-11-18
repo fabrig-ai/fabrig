@@ -63,7 +63,7 @@ cpu_s = 72
   - **Its tree:** the first directory of its package's `manifest_path` below the metadata's `workspace_root`, when that directory is `skein`, `smith`, `jig`, `temper` or `hearth` (`tools/tiers/layers.md`, 3). Otherwise it is `repository`.
   - **Its layer,** in this order:
     1. `checks` for a binary of `repository`, whatever its kind: the repository's checks are every test binary of a package outside the trees (`tools/tiers/layers.md`, 4);
-    2. `step` for a library's own tests (an id with no `::`), a binary's own (an id with `::bin/`), and a crate's generated codec tests (an id ending `::generated`);
+    2. `step` for a library's own tests (an id with no `::`) and a binary's own (an id with `::bin/`);
     3. otherwise the layer of its line under its tree's table;
     4. otherwise none: an unplaced binary, which the boundary check refuses (`tools/tiers/layers.md`, 7).
   - **When the layers file is absent,** rules 1 and 2 still place what they place, and every other binary is unplaced. The run goes on either way: a missing line is the boundary check's to refuse, never a run's.
