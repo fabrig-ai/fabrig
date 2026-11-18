@@ -1155,7 +1155,7 @@ fn describe(step: &calls::Step) -> String {
         Step::TrialEnded => "TrialEnded".into(),
         Step::Return => "Return".into(),
         Step::Terminal(_) => "Terminal".into(),
-        Step::ReleaseHold { name } => format!("ReleaseHold {}", String::from_utf8_lossy(name)),
+        Step::ReleaseHold { name, .. } => format!("ReleaseHold {}", String::from_utf8_lossy(name)),
         Step::Advance => "Advance".into(),
         Step::Push { path, .. } => format!("Push {}", String::from_utf8_lossy(path)),
         Step::AddWorker { name } => format!("AddWorker {name}"),
