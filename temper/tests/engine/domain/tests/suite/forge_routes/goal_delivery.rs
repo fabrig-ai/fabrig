@@ -190,9 +190,7 @@ fn design_first_waits_for_confirmed_landing_before_coding() {
     let (base, head, design) = pending_design_delivery(&mut world, &goal, &branch);
     let changes = change_keys(&world);
     let assigned = world.assigned.len();
-    for _ in 0..WAIT_TICKS {
-        world.tick();
-    }
+    world.advance_ticks(WAIT_TICKS);
     assert!(ended(&world, design).is_none(), "a pushed delivery is not a confirmed landing");
     assert_eq!(branch_tip(&mut world, &branch), base);
     assert_eq!(change_keys(&world), changes, "the scripted lead waits without dispatching coding");
@@ -445,9 +443,7 @@ fn a_goals_run_branch_is_not_watched_after_claim_or_restart() {
         assert!(forge_hold(&world, &r).is_some(), "the unused run branch remains held");
         assert!(!kept_branch(&world, &r), "a workspace claim must not keep r");
         assert!(kept_branch(&world, &branch), "g remains watched");
-        for _ in 0..STEPS {
-            world.tick();
-        }
+        world.advance_ticks(STEPS);
         assert_eq!(branch_reads(&world, &r), 0, "no run-branch reads, restart={restart}");
         assert!(branch_reads(&world, &branch) > 0);
     }

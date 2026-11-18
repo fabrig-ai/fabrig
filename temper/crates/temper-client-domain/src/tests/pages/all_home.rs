@@ -259,6 +259,7 @@ impl Across {
         limits.client.domain.handles = READ_HANDLES;
         limits.client.domain.watches = READ_HANDLES;
         limits.client.domain.reads = READ_HANDLES;
+        limits.client.domain.rows = 8;
         limits.client.domain.projects = all_home::ACROSS + 1;
         limits.client.domain.requests.requests = READ_HANDLES;
         limits.client.domain.text = 512;
@@ -797,6 +798,15 @@ fn all_home_counts_unfiltered_cards_and_every_approval() {
             {
                 fixture
                     .up(Up::ReadDone { read: *read, result: Readout::Jig(c::ReadResult::Value(f::acts::question())) });
+            }
+            if let Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: Down::Read { read, what: jig_client::Readable::Jig(c::Read::Inbox { .. }) },
+                    },
+            } = request
+            {
+                fixture.up(Up::ReadDone { read: *read, result: Readout::Jig(c::ReadResult::None(c::ReadNone::Busy)) });
             }
         }
         let approvals = fixture.watch(forge::approvals::watch(&fixture.limits.forge).unwrap());

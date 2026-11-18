@@ -28,7 +28,6 @@ pub enum Arg {
     Delegate(usize),
     Digest(usize),
     ActivityBefore(usize),
-    InboxAfter(usize),
     Number(u64),
     GithubApp,
     File(&'static str),
@@ -433,11 +432,6 @@ pub fn digest(call: usize) -> Arg {
 pub fn activity_before(call: usize) -> Arg {
     Arg::ActivityBefore(call)
 }
-/// The needs continuation supplied by an earlier inbox page.
-#[must_use]
-pub fn inbox_after(call: usize) -> Arg {
-    Arg::InboxAfter(call)
-}
 fn delegate_number(stdout: &[u8]) -> u64 {
     let value: serde_json::Value = serde_json::from_slice(stdout).expect("task tree JSON");
     if let Some(children) = value.get("task").unwrap_or(&value).get("delegates").and_then(serde_json::Value::as_array) {
@@ -547,6 +541,7 @@ enum Recording {
     Fixture,
     Story,
 }
+type ReadVersion = (u64, Option<(u64, u64)>);
 #[expect(clippy::struct_excessive_bools, reason = "admission, shutdown, directory probe and watch are independent")]
 pub(crate) struct Caller {
     recording: Recording,
@@ -571,6 +566,9 @@ pub(crate) struct Caller {
     pub(crate) held: Cell<bool>,
     pub(crate) links: Cell<u32>,
     retry_link: Option<u32>,
+    read_version: Cell<ReadVersion>,
+    read_at: ReadVersion,
+    retry_after: Option<ReadVersion>,
     pub(crate) calls: Vec<Called>,
     pub(crate) terminal: crate::terminal::Typist,
     steps: Vec<Step>,
@@ -602,6 +600,25 @@ fn is_settings(argv: &Argv) -> bool {
     matches!(argv.0.as_slice(), [Arg::Lit("settings"), Arg::Lit("apply"), ..])
 }
 impl Caller {
+    pub(crate) fn observe_read_version(&self, engine: &temper_engine_domain::Domain) {
+        let version = if let Some(Step::Until { argv, .. }) = self.steps.get(self.next)
+            && let [Arg::Lit("chat"), Arg::Lit("show"), task, ..] = argv.0.as_slice()
+        {
+            let task = match task {
+                Arg::Lit(word) => word.parse().expect("chat task number"),
+                Arg::Number(number) => *number,
+                Arg::Task(call) => task_number(&self.calls[*call].stdout),
+                Arg::Delegate(call) => delegate_number(&self.calls[*call].stdout),
+                _ => panic!("chat task number"),
+            };
+            (engine.commit_position(), engine.live_text_revision(task))
+        } else {
+            // Other reads include task runtime and forge diagnostics not covered
+            // by the conversation's source position. Keep their conservative revision.
+            (engine.revision(), None)
+        };
+        self.read_version.set(version);
+    }
     pub(crate) fn position(&self) -> (bool, usize) {
         (self.setup(), self.next)
     }
@@ -736,9 +753,6 @@ impl Caller {
                 Arg::ActivityBefore(index) => self
                     .diagnostic_pointer(*index, &["/activity/before/value", "/before/value"])
                     .unwrap_or_else(|| format!("<activity cursor from call {index}>")),
-                Arg::InboxAfter(index) => self
-                    .diagnostic_pointer(*index, &["/needs/after/value"])
-                    .map_or_else(|| format!("<inbox cursor from call {index}>"), |cursor| format!("00{cursor}")),
             })
             .collect()
     }
@@ -916,6 +930,9 @@ impl Caller {
             held: Cell::new(false),
             links: Cell::new(0),
             retry_link: None,
+            read_version: Cell::new((0, None)),
+            read_at: (0, None),
+            retry_after: None,
             calls: Vec::with_capacity(count),
             terminal: crate::terminal::Typist::default(),
             steps,
@@ -1022,15 +1039,6 @@ impl Caller {
                     })
                     .into_bytes()
                     .into(),
-                Arg::InboxAfter(call) => {
-                    let value: serde_json::Value =
-                        serde_json::from_slice(&self.calls[*call].stdout).expect("inbox JSON");
-                    let cursor = value
-                        .pointer("/needs/after/value")
-                        .and_then(serde_json::Value::as_str)
-                        .expect("next needs page");
-                    format!("00{cursor}").into_bytes().into()
-                }
                 Arg::GithubApp => self.github_app.expect("person made the App").to_string().into_bytes().into(),
                 Arg::Number(number) => number.to_string().into_bytes().into(),
                 Arg::File(name) => self.scratch.join(name).as_os_str().as_bytes().into(),
@@ -1039,6 +1047,7 @@ impl Caller {
         words
     }
     fn spawn(&mut self, now: Time, index: usize) {
+        self.read_at = self.read_version.get();
         let args = self.words().into_boxed_slice();
         if matches!(self.steps[self.next], Step::SameParty { .. }) && self.current.is_none() {
             self.retry_link = Some(self.links.get());
@@ -1510,7 +1519,18 @@ impl Caller {
         if let Step::Until { holds, early, .. } = step
             && !holds.matches(&call.stdout)
         {
-            call.early += u32::from(occurrences(&call.stdout, early) != 0);
+            if self.retry_after.is_none() {
+                call.early += u32::from(occurrences(&call.stdout, early) != 0);
+            }
+            if holds.watch_after(&call.stdout).is_none() {
+                // Keep the position from before the read: progress during the
+                // command may already have changed what its next read will see.
+                let after = self.retry_after.get_or_insert(self.read_at);
+                if self.read_version.get() == *after {
+                    return Ok(false);
+                }
+            }
+            self.retry_after = None;
             self.spawn(now, index);
             return Ok(false);
         }
@@ -1648,6 +1668,9 @@ impl Caller {
             Some(Step::Join { call }) => self.running[*call].is_none(),
             Some(Step::Start { .. }) => {
                 self.current.is_none_or(|i| self.running[i].as_ref().is_some_and(|r| r.started))
+            }
+            Some(Step::Until { .. }) if self.retry_after.is_some() => {
+                self.retry_after.is_some_and(|after| after != self.read_version.get())
             }
             Some(_) => self.current.is_none_or(|i| self.running[i].is_none()),
         }
@@ -2023,6 +2046,44 @@ mod read_condition_tests {
         finding
     }
     #[test]
+    fn until_without_a_watch_retries_only_after_its_read_version_moves() {
+        let mut caller = Caller::new(
+            vec![until(D1, crate::argv!["chat", "show", "1"], b"ready", b"pending")],
+            PathBuf::new(),
+            Fd::new(0),
+        );
+        caller.released = true;
+        caller.advance(Time::ZERO);
+        caller.running[0] = None;
+        caller.calls[0].exit = Some(Exit::Code(0));
+        caller.calls[0].stdout = b"pending".to_vec();
+        caller.advance(Time::from_nanos(1));
+        assert_eq!(caller.calls[0].tries, 1, "an unchanged read must not respawn a client");
+        assert_eq!(caller.calls[0].early, 1, "the intermediate response is still checked");
+        assert!(!caller.work_pending(Time::from_nanos(2)), "waiting must let the loop sleep");
+        caller.read_version.set((1, None));
+        assert!(caller.work_pending(Time::from_nanos(3)));
+        caller.advance(Time::from_nanos(3));
+        assert_eq!(caller.calls[0].tries, 2);
+        assert_eq!(caller.calls[0].early, 1, "waking does not check the same response twice");
+        caller.running[0] = None;
+        caller.calls[0].exit = Some(Exit::Code(0));
+        caller.calls[0].stdout = b"pending".to_vec();
+        caller.advance(Time::from_nanos(4));
+        assert!(!caller.work_pending(Time::from_nanos(5)));
+        caller.read_version.set((1, Some((1, 1))));
+        assert!(caller.work_pending(Time::from_nanos(6)), "streaming needs no durable commit");
+        caller.advance(Time::from_nanos(6));
+        assert_eq!(caller.calls[0].tries, 3);
+        assert_eq!(caller.calls[0].early, 2);
+        caller.running[0] = None;
+        caller.calls[0].exit = Some(Exit::Code(0));
+        caller.calls[0].stdout = b"ready".to_vec();
+        caller.advance(Time::from_nanos(7));
+        assert_eq!(caller.next, 1);
+        assert_eq!(caller.calls[0].stdout, b"ready");
+    }
+    #[test]
     fn real_loop_until_retries_initial_due_and_retains_exact_matching_response() {
         let mut caller = Caller::new(
             vec![until_matching(
@@ -2041,6 +2102,7 @@ mod read_condition_tests {
             serde_json::to_vec(&json!({"chip":{"task":crate::case::A,"phase":"due"},"run_wait":null}))
                 .expect("initial due JSON");
         caller.calls[0].observed_at = Some(Wall::from_nanos(2));
+        caller.read_version.set((1, None));
         caller.advance(Time::from_nanos(3));
         assert_eq!(caller.next, 0, "initial admission must not advance to accounts");
         assert_eq!(caller.calls[0].tries, 2);

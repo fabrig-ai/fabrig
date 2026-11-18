@@ -120,6 +120,87 @@ fn builds_learn_holds_only_when_the_observed_head_contains_them() {
     assert_eq!(git.calls, ["head refs/heads/main"], "known holds are final");
 }
 
+fn check_landing_base(parents: &[u64], branch_parent: u64, main_parent: u64, previous: bool, base: u64) {
+    let world = World::new();
+    let mut git = baseline();
+    git.commit(1, &[0], "earlier change");
+    git.merge(2, &[0, 1], 7);
+    git.commit(3, &[branch_parent], "branch change\n\nQA: branch behaviour\n");
+    git.commit(4, &[main_parent], "main change\n\nQA: main behaviour\n");
+    git.merge(5, parents, 8);
+    for parent in parents {
+        let path = format!("temper/docs/design/draft/from-{parent}.md");
+        git.file_at(5, &path, b"# Promise\n");
+        git.nodes.get_mut(&id(5)).expect("landing").ranges.insert(
+            id(*parent),
+            super::world::Range {
+                patch: format!("diff from {parent}\n").into_bytes(),
+                stat: vec![Changed { path: format!("from-{parent}.rs"), added: Some(*parent), deleted: Some(0) }],
+                paths: vec![path],
+            },
+        );
+    }
+    world
+        .home
+        .transact(|ledger| {
+            ledger.record_head(&id(if parents.contains(&4) { 4 } else { 2 }));
+            if previous {
+                ledger.record_landing(&id(2), 7, None, "earlier landing", 0);
+                let session = super::session(ledger, 1);
+                ledger.answer_none(session, "already triaged")?;
+                ledger.end_session(session, Exit::Code(0), None, 0, "qa")?;
+            }
+            Ok(())
+        })
+        .expect("previous landing");
+    let mut run = world.start(git, &[]);
+    run.tick();
+    let ledger = world.ledger();
+    let session = ledger.running_sessions().into_iter().next().expect("triage");
+    let directory = world.home.session_directory(session.number);
+    let brief = fs::read_to_string(directory.join("brief")).expect("brief");
+    assert_eq!(fs::read(directory.join("diff.patch")).expect("patch"), format!("diff from {base}\n").as_bytes());
+    assert!(brief.contains(&format!("from-{base}.rs | +{base} -0")), "{brief}");
+    assert!(brief.contains(&format!("temper/docs/design/draft/from-{base}.md")), "{brief}");
+    for other in parents.iter().filter(|parent| **parent != base) {
+        assert!(!brief.contains(&format!("from-{other}.rs")), "{brief}");
+        assert!(!brief.contains(&format!("temper/docs/design/draft/from-{other}.md")), "{brief}");
+    }
+    let (included, excluded) = if base == 3 { ("main", "branch") } else { ("branch", "main") };
+    assert!(brief.contains(&format!("QA: {included} behaviour")), "{brief}");
+    assert!(!brief.contains(&format!("QA: {excluded} behaviour")), "{brief}");
+    for operation in ["diff", "stat", "paths", "qa"] {
+        assert!(run.git.calls.contains(&format!("{operation} {} {}", id(base), id(5))));
+    }
+}
+
+#[test]
+fn by_hand_landing_reads_inputs_against_main_as_second_parent() {
+    check_landing_base(&[3, 2], 0, 2, true, 2);
+    check_landing_base(&[3, 4], 0, 2, true, 4);
+}
+
+#[test]
+fn forge_landing_reads_inputs_against_main_as_first_parent() {
+    check_landing_base(&[2, 3], 0, 2, true, 2);
+    check_landing_base(&[4, 3], 0, 2, true, 4);
+}
+
+#[test]
+fn first_landing_reads_inputs_against_first_parent() {
+    check_landing_base(&[3, 4], 0, 2, false, 3);
+}
+
+#[test]
+fn both_parents_holding_previous_landing_reads_inputs_against_first_parent() {
+    check_landing_base(&[3, 4], 2, 2, true, 3);
+}
+
+#[test]
+fn neither_parent_holding_previous_landing_reads_inputs_against_first_parent() {
+    check_landing_base(&[3, 4], 0, 0, true, 3);
+}
+
 #[test]
 #[expect(
     clippy::too_many_lines,
@@ -132,7 +213,7 @@ fn triage_is_serial_and_its_brief_and_environment_are_the_merges_inputs() {
     land(&mut run, 2, 7);
     land(&mut run, 4, 8);
     run.git.nodes.get_mut(&id(2)).expect("merge").message =
-        "Goal 7's title\n\nDraft: `temper/docs/design/draft/x.execution.md`\n\nGoal: 7\nPull-request: 12\n".into();
+        "Goal 7's title\n\nDraft: `temper/docs/design/draft/x.execution.md`\n\nGoal: 7\nPull-request: 12\nQA: Work lists drafts\nQA: Work lists drafts\n".into();
     for (path, bytes) in [
         ("temper/docs/design/draft/x.md", b"# Promise\n".as_slice()),
         ("temper/docs/design/draft/other.md", b"# Other\n".as_slice()),

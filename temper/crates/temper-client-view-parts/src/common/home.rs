@@ -39,7 +39,7 @@ pub fn kicker(w: &Words, previous: Option<u64>, times: &mut Times) -> Box<[u8]> 
     kicker
 }
 
-/// The complete findings-only read counts findings; every other read counts cards.
+/// The complete findings-only read counts findings; every other read counts open needs.
 #[must_use]
 pub fn needs_count(needs: Needs) -> (u32, bool) {
     match needs {

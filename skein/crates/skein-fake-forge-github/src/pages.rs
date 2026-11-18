@@ -9,7 +9,7 @@ use crate::{
 };
 pub(crate) mod image;
 use alloc::boxed::Box;
-use skein_forge::github::{document, request::Method, server};
+use skein_forge::github::{document, request::Method};
 use skein_lib::{Decimal, Duration, List, Map, Rng, Secret, Wall, Writer, bytes};
 
 /// One hour on the forge's clock; the expiry instant is excluded.
@@ -282,11 +282,7 @@ pub(crate) fn convert(service: &mut Service, code: &[u8], body: &[u8], now: Wall
     let Ok(capacity) = usize::try_from(limits.response) else {
         return answers::failed();
     };
-    let mut out = Writer::new(capacity);
-    if server::conversion(&conversion, &mut out).is_err() {
-        return answers::failed();
-    }
-    let Some(body) = answers::finish(out) else {
+    let Some(body) = answers::finish(capacity, &answers::Body::Conversion(&conversion)) else {
         return answers::failed();
     };
     let hook = match &manifest.hook_attributes {

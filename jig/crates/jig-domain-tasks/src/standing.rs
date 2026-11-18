@@ -23,13 +23,7 @@ pub(crate) fn after_run(domain: &mut Domain, env: &Env<Limits>, number: u64, out
     if task.flags.ended_by != EndedBy::Standing {
         return;
     }
-    let mut latest = 0;
-    for (source, _) in &domain.funding {
-        match *source {
-            Funder::Period { project, period } if project == task.project => latest = latest.max(period),
-            Funder::Task(_) | Funder::Pool { .. } | Funder::Recurring { .. } | Funder::Period { .. } => {}
-        }
-    }
+    let latest = crate::funders::newest_period(domain, task.project).unwrap_or(0);
     renew(domain, env, number, latest, out);
 }
 

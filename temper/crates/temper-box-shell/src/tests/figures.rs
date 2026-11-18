@@ -89,9 +89,11 @@ fn startup_pins_composed_default_file_and_fallback_figures() {
             "corrupt" => fs::write(&copy, b"not a setting").expect("bad copy"),
             _ => {}
         }
-        let operations =
-            serve::operations_in("temper-box", &[], b"/", &dirs, &serde_json::to_vec(&document).expect("JSON"))
-                .unwrap_or_else(|why| panic!("{case}: {why}"));
+        let mut owned = Vec::new();
+        let checked = crate::prepare(&[], b"/", &dirs, &serde_json::to_vec(&document).expect("JSON"), &mut owned)
+            .map(|service| service.operations());
+        crate::close(owned);
+        let operations = checked.unwrap_or_else(|why| panic!("{case}: {why}"));
         assert!(operations > 0);
         let pinned = root.join("workspaces/agent/agent.json");
         let actual: serde_json::Value =

@@ -207,6 +207,25 @@ policy.
   the no-progress deadline exceeds the longest of their deadlines
   (protocol/limits.md, `watchdog-over-silence`). A separate bound covers
   wall time.
+- **The no-progress deadline is derived from the run's own bounds,**
+  never configured: the longest of the silence bound (io's short
+  operations and the run's own steps: `file_timeout`, io's `close`, the
+  event stream's `write_deadline`), the profile's `tool_deadline`, and
+  each declared endpoint's `head` plus `idle`; plus one io `close`, the
+  margin for the report that ends the silence. So a tool call within its
+  deadline, and a model turn within its endpoint's bounds, is never
+  stopped for silence, whether or not it writes output or reports a long
+  operation (a program's own tools report none), and a run with no call
+  running and no turn coming is stopped once it has been silent past the
+  longest of them. `host_limits`, the host's share of the profile
+  (protocol/limits.md, 3.8), computes it from the profile, the agent's
+  limits and the endpoints' declarations (smith's `EndpointLimits`, the
+  `limits` of `smith-domain`'s `Config`), each term checked, an overflow
+  refused as `derived` naming `no_progress`. At the `standard` profile,
+  whose 20-minute `tool_deadline` is above every shipped endpoint's
+  `head` plus `idle`, it is 20 minutes and 5 seconds; at a 60-minute
+  `tool_deadline`, 60 minutes and 5 seconds. A long operation's span
+  still stretches it, as above, and its pauses still hold.
 - **Cancel, then kill.** A cancel goes down the channel first, and the
   run winds down on its own (run.md, section 9); past a grace the
   process tree is terminated, then killed. Wall time ends the same polite
@@ -598,6 +617,12 @@ trees. Its stories add:
   signalled;
 - a completion that outlasts the no-progress deadline, reported as a
   long operation, and not stopped;
+- under the deadline `host_limits` derives (section 4), a tool call that
+  reports no long operation, silent past the old bound (the silence
+  bound plus one `close`) and within its `tool_deadline`, then answered
+  and the run going on; and a run that reports nothing after its
+  admission, no call and no turn, stopped as no progress exactly at the
+  derived deadline;
 - a message one byte over the run's bound as the run reads it, refused
   typed;
 - a run awaiting its first message, its waiting naming no fence;
@@ -644,6 +669,11 @@ budgets.
 
 ## 12. Open questions
 
+- **A retry's wait past the no-progress deadline:** a provider's
+  `Retry-After` or an exhausted account's reset longer than the derived
+  deadline (section 4) stops the run, since a retry's wait reports no long
+  operation. Whether it should report one, as a grant's wait does, or
+  answer as limited, is open.
 - **A host without a durable record** and host tools that write: refused
   by rule, as section 2 says, or allowed with a warning to the LLM.
 - **Containment in one process:** whether commands may still run under a

@@ -233,8 +233,12 @@ impl Shape {
 /// The worker promises the configured host's cancel, terminate and exit tail.
 fn agent_stop_bound(agent: &serde_json::Value) -> skein_lib::Duration {
     let configured = smith_agent_shell::config::from_value(agent.clone()).expect("cluster agent configuration");
-    let host = smith_agent_profile::host_limits(&configured.profile, &configured.service.limits)
-        .expect("cluster host supervision");
+    let host = smith_agent_profile::host_limits(
+        &configured.profile,
+        &configured.service.limits,
+        &configured.service.domain.limits,
+    )
+    .expect("cluster host supervision");
     host.cancel_grace
         .checked_add(host.kill_after)
         .and_then(|bound| bound.checked_add(host.exit_grace))

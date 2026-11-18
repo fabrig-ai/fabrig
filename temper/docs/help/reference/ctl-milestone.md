@@ -12,8 +12,8 @@ milestone new --project PROJECT NAME [--words TEXT] [--priority PRIORITY] [--bud
   NAME (name): text, at most 1048576 bytes; required. Its name, 1 to 60 characters on one line, no control character
   --words TEXT: text, at most 1048576 bytes, or - to read stdin; optional. Its words; - reads stdin
   --priority PRIORITY: a number from 0 to 4294967295; optional. Override the template's tracked priority
-  --budget AMOUNT: a number; optional. Spend in the deployment's unit; required for a given budget unless --as-allowed
-  --as-allowed: a switch. Take as much as allowed instead of a named budget
+  --budget AMOUNT: an amount with at most two decimals, as 130 or 1.25; optional. The spend, as task show prints budgets; required for a given budget unless --as-allowed
+  --as-allowed: a switch. Take all you may give from your pool instead of a named budget: none is left for your next start while this milestone is live
   --deadline TIME: text, at most 1048576 bytes; optional. UTC to the minute, as 2026-10-24T17:00Z
 Make a milestone from project template 8
 Prints: `done: task N, milestone`, or `proposed: PROPOSAL, to RECIPIENT`

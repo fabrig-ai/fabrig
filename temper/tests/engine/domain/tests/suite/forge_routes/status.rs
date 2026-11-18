@@ -12,6 +12,13 @@ fn status_world(allowed: bool, funded: bool) -> World {
     status_world_with_spec(allowed, funded, None)
 }
 fn status_world_with_spec(allowed: bool, funded: bool, spec_bytes: Option<u32>) -> World {
+    let mut limits = temper_engine_domain_world::forge_routes::box_limits();
+    if let Some(bytes) = spec_bytes {
+        limits.tasks.spec_bytes = bytes;
+    }
+    status_world_with_limits(allowed, funded, limits)
+}
+fn status_world_with_limits(allowed: bool, funded: bool, mut limits: engine::Limits) -> World {
     let model = walking::models()[0].clone();
     let llm = jig_protocol_config::Llm {
         models: (Box::new([model.clone()]))
@@ -33,12 +40,8 @@ fn status_world_with_spec(allowed: bool, funded: bool, spec_bytes: Option<u32>) 
         endpoints: Box::new([]),
         providers: Box::new([]),
     };
-    let mut limits = temper_engine_domain_world::forge_routes::box_limits();
     // The same signed-in person returns for the next sitting.
     limits.people.sign_in_lifetime = Duration::from_secs(7200);
-    if let Some(bytes) = spec_bytes {
-        limits.tasks.spec_bytes = bytes;
-    }
     let mut defaults = temper_engine_service_stock::stock::with_models(llm.models.clone(), limits.tasks.result_bytes);
     // Scripted workers use the same small run bounds as the other forge stories.
     for charter in &mut defaults.charters {
@@ -967,6 +970,112 @@ fn a_refused_run_lets_the_next_sitting_try() {
     assert!(facts(&world).running.is_none());
     world.close();
 }
+#[test]
+fn a_project_task_limit_refusal_lets_the_next_sitting_try() {
+    admission_refusal_retries(true);
+}
+
+#[test]
+fn a_live_task_limit_refusal_lets_the_next_sitting_try() {
+    admission_refusal_retries(false);
+}
+
+fn admission_refusal_retries(project_limit: bool) {
+    const TASKS: u32 = 6;
+    let mut limits = temper_engine_domain_world::forge_routes::box_limits();
+    assert!(limits.tasks.tasks > TASKS);
+    assert!(limits.tasks.project_tasks > TASKS);
+    if project_limit {
+        limits.tasks.project_tasks = TASKS;
+    } else {
+        limits.tasks.tasks = TASKS;
+        limits.tasks.exemptions = limits.tasks.exemptions.min(TASKS);
+        limits.people.operations = limits.people.operations.min(TASKS);
+    }
+    let (mut world, requester) = opened_chat_in(status_world_with_limits(true, true, limits));
+    land(&mut world, &requester);
+    settle(&mut world);
+    let mut fillers = Vec::new();
+    for key in 180..186 {
+        let live = world
+            .store
+            .rows
+            .values()
+            .filter(|record| {
+                matches!(record,
+            Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))
+            if row.project == PROJECT)
+            })
+            .count();
+        if live == usize::try_from(TASKS).expect("fixture task bound fits usize") {
+            break;
+        }
+        let people::Ask::Create { project, mut batch } = world.chat(PROJECT, b"Keep a place until the next sitting")
+        else {
+            panic!("filler task template")
+        };
+        let filler = &mut batch[0];
+        filler.executor = people::TaskExecutor::Person(people::PersonAddress::Role(0));
+        filler.flags.conversation = false;
+        filler.budget = people::Budget::Named;
+        filler.authority.spend = 32;
+        filler.authority.delegation = people::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
+        world.send(engine::Event::Party(engine::PartyInput::Ask {
+            models: Box::new([]),
+            reply_to: ReplyTo::new(Token::new(u64::from(key))),
+            sign_in: world.signed_in.expect("owner session"),
+            key: [key; 16],
+            ask: people::Ask::Create { project, batch },
+        }));
+        settle(&mut world);
+        let task = world.store.header().tasks;
+        assert_eq!(live_task(&world, task).executor, tasks::Executor::Person(tasks::PersonAddress::Role(0)));
+        fillers.push(task);
+    }
+    assert!(fillers.len() >= 2, "two places can return to the status procedure and its delegate");
+    assert_eq!(
+        world
+            .store
+            .rows
+            .values()
+            .filter(|record| matches!(record, Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(_)))))
+            .count(),
+        usize::try_from(TASKS).expect("fixture task bound fits usize")
+    );
+
+    next_sitting(&mut world, 171);
+    assert_eq!(facts(&world).running, None);
+    assert_eq!(facts(&world).brief, None);
+    assert!(world.assigned.iter().all(|run| run.charter != 9));
+    assert!(world.store.rows.values().all(|record| !matches!(record,
+        Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row) | tasks::Stored::Ended(row)))
+        if row.executor == (tasks::Executor::Procedure { connector: 1, code: 5 }))));
+
+    // Return two places without changing either admission bound.
+    for (at, task) in fillers.into_iter().take(2).enumerate() {
+        let key = 190_u8 + u8::try_from(at).expect("two filler cancellations");
+        world.send(engine::Event::Party(engine::PartyInput::Ask {
+            models: Box::new([]),
+            reply_to: ReplyTo::new(Token::new(u64::from(key))),
+            sign_in: world.signed_in.expect("owner session"),
+            key: [key; 16],
+            ask: people::Ask::Cancel {
+                project: PROJECT,
+                task,
+                reason: b"Make room for status".as_slice().into(),
+                grace: None,
+            },
+        }));
+        settle(&mut world);
+    }
+    next_sitting(&mut world, 172);
+    let agent = run(&world);
+    assert_eq!(agent.charter, 9);
+    finish(&mut world, &agent);
+    assert_brief(&mut world);
+    world.close();
+}
+
 #[test]
 fn a_restart_mid_run_still_saves_the_brief() {
     let mut world = ready(true);

@@ -48,7 +48,7 @@ pub fn configure(directory: &Path, forge: &Throwaway) -> String {
         For a change review task, finish with {{\"form\":\"verdict\",\"label\":\"1\",\"text\":\"Checked\",\"fields\":{{}},\"items\":[]}}.",
         std::str::from_utf8(arguments).expect("delegate JSON").replace("@coding", "\\u0040coding")
     );
-    super::configuration::turn_bounds::apply(&mut value, super::configuration::turn_bounds::turn_body(&agent));
+    super::configuration::turn_bounds::apply_with_stock(&mut value, &agent);
     write_private(&path, &serde_json::to_vec(&value).expect("live configuration JSON"));
     temper_fixtures::agent::install(directory, &agent);
     instructions

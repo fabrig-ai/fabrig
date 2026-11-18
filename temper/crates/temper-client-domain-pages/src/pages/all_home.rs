@@ -371,14 +371,7 @@ pub fn facts(root: &dyn Root, wall: Wall) -> Facts {
     }
     let needs = match root.pages().inbox() {
         Some(inbox) if inbox.filter == Filter::ALL && inbox.known() => {
-            let open = root.pages().needs().all(inbox, root.forge().approvals());
-            Needs::Count {
-                count: u32::try_from(open.len()).expect("inbox cards fit"),
-                cut: *inbox.cut.first().expect("needs cut")
-                    || root.forge().approvals().more() > 0
-                    || root.pages().needs().findings().cut_for(inbox.filter),
-                findings: super::findings::counted(root.pages().needs().findings(), &open),
-            }
+            root.pages().needs().counted(inbox, root.forge().approvals())
         }
         Some(_) | None => Needs::Unknown,
     };

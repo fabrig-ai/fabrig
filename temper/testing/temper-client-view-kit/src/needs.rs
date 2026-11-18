@@ -11,6 +11,7 @@ pub const QUESTION: &str = "Fix the dropped watch in jig’s store, or keep it a
 pub fn limits() -> d::Limits {
     let mut limits = f::domain_limits();
     limits.client.domain.reads = 8;
+    limits.client.domain.rows = 4;
     limits.client.domain.text = 512;
     limits.client.domain.turn_text = 512;
     limits.client.domain.long_text = 4096;
@@ -224,10 +225,29 @@ fn fixture_with_task(
         if let d::Request::Unlinked {
             request:
                 jig_client::UnlinkedRequest::Down {
-                    down: jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Inbox { group, .. }) },
+                    down:
+                        jig_client::Down::Read {
+                            read,
+                            what: jig_client::Readable::Jig(c::Read::Inbox { group, after, .. }),
+                        },
                 },
         } = &request
         {
+            if after.is_some() {
+                event(
+                    &mut root,
+                    Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::ReadDone {
+                                read: *read,
+                                result: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Busy)),
+                            },
+                        },
+                    },
+                    &mut out,
+                );
+                continue;
+            }
             let rows = if *group == c::InboxReadGroup::Needs { entries.clone() } else { List::with_capacity(0) };
             event(
                 &mut root,
@@ -236,7 +256,17 @@ fn fixture_with_task(
                         up: jig_client::Up::ReadDone {
                             read: *read,
                             result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Inbox(Box::new(
-                                c::InboxPage { selection: None, before: None, rows, after: None, cut: more },
+                                c::InboxPage {
+                                    selection: None,
+                                    before: None,
+                                    rows,
+                                    after: if more && *group == c::InboxReadGroup::Needs {
+                                        Some(c::Cursor::new(b"next".as_slice().into(), 4).unwrap())
+                                    } else {
+                                        None
+                                    },
+                                    cut: more,
+                                },
                             )))),
                         },
                     },

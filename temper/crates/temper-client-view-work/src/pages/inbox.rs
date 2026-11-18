@@ -78,7 +78,13 @@ pub fn main(
                 count = count.checked_add(1).expect("listed cards fit");
             }
         }
-        let limited = *inbox.cut.get(usize::from(updates)).expect("two sections");
+        let mut limited = *inbox.cut.get(usize::from(updates)).expect("two sections");
+        if !updates {
+            let counted = root.pages().needs().counted(inbox, root.forge().approvals());
+            let (needs, cut) = super::home::needs_count(counted);
+            count = u64::from(needs);
+            limited = cut;
+        }
         let answered = inbox.answered(if updates {
             jig_client::contract::InboxReadGroup::Updates
         } else {
@@ -444,7 +450,7 @@ fn has_facts(page: &ReadValue) -> bool {
     let proposal = match page {
         ReadValue::Proposal(_) => true,
         ReadValue::Task(task) => task.hold.is_some(),
-        ReadValue::Escalation(held) => held.task.hold.is_some(),
+        ReadValue::Escalation(_) => return false,
         ReadValue::Question(_)
         | ReadValue::PersonTask(_)
         | ReadValue::Result(_)
@@ -488,7 +494,21 @@ fn body(b: &mut Builder, page: &ReadValue, words: &Words) {
 
         ReadValue::Escalation(held) => {
             title(b, held.task.chip.title.bytes());
-            crate::cards::specification_after_title(b, &held.task.spec, words);
+            if let Some(hold) = &held.task.hold
+                && hold.reason == jig_client::contract::HoldCategory::Budget
+            {
+                let numbers = held.task.budget.numbers;
+                text(
+                    b,
+                    Role::Paragraph,
+                    &words.say(Word::NeedsFundsUsed, &[Hole::Number(numbers.spent), Hole::Number(numbers.budget)]),
+                );
+                crate::cards::specification_words(b, &held.task.spec, words, false);
+                crate::cards::hold(b, held.task.chip.task, &hold.reason, words);
+            } else {
+                text(b, Role::Paragraph, &crate::shared::hold_sentence(Some(&held.task), words));
+                crate::cards::specification_words(b, &held.task.spec, words, false);
+            }
         }
 
         ReadValue::PersonTask(task) => {

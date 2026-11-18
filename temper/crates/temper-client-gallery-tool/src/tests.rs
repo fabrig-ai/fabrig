@@ -2538,7 +2538,10 @@ static HOLDS: [Holds; samples::N] = [
         name: "needs-held",
         heading: "Three things need you.",
         parts: &[
-            Part::Named { role: Role::Heading { level: 1 }, name: "first-run-projects" },
+            Part::Named {
+                role: Role::Heading { level: 1 },
+                name: "Without release the goal stops after they land, with the Ready page undone.",
+            },
             Part::Named { role: Role::Button, name: "Release" },
             Part::Named { role: Role::Disclosure, name: "Leave held" },
             Part::Named { role: Role::TextArea, name: "Reason" },

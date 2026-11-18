@@ -281,6 +281,26 @@ fn a_broken_task_link_refuses_at_link() {
     }
 }
 
+#[test]
+fn a_missing_ledger_requires_zero_budget_and_a_newer_project_period() {
+    for (project, period, budget) in [(1, 0, 1), (1, 1, 0), (1, 2, 0), (2, 0, 0)] {
+        for funder in [
+            crate::Funder::Period { project, period },
+            crate::Funder::Pool { project, person: PERSON, period },
+            crate::Funder::Recurring { project, task: DUE, period },
+        ] {
+            let mut source = one_task();
+            source.send(Event::OpenPeriod { reply_to: super::revisions::to(), project: 1, period: 1, budget: 1000 });
+            let row = live_row(&mut source);
+            row.funder = funder;
+            row.numbers.budget = budget;
+            source.stored.remove(&Key::Ledger(funder));
+            let mut cold = cold(&source);
+            link_refused(&mut cold, Key::Live(DUE), crate::RestoreCause::Link { target: Key::Ledger(funder) });
+        }
+    }
+}
+
 fn live_row(source: &mut Harness) -> &mut crate::TaskRecord {
     let Some(Stored::Live(row)) = source.stored.get_mut(&Key::Live(DUE)) else { panic!("live fixture") };
     row

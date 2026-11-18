@@ -265,11 +265,9 @@ impl Store {
                 rows.push(entry.row.clone()).expect("page room");
             }
         }
-        let mut out = Writer::new(usize_of(limits.response));
-        if server::deliveries(rows.as_slice(), &mut out).is_err() {
+        let Some(body) = answers::finish(usize_of(limits.response), &answers::Body::Deliveries(rows.as_slice())) else {
             return answers::failed();
-        }
-        let Some(body) = answers::finish(out) else { return answers::failed() };
+        };
         let link = if more {
             let id = rows.last().expect("nonempty page").id;
             let target = request::encode(
@@ -280,13 +278,13 @@ impl Store {
                 &limits.github,
             );
             let Ok(target) = target else { return answers::failed() };
-            let mut link = Writer::new(usize_of(limits.response));
-            for part in [b"<".as_slice(), base, &target.target, b">; rel=\"next\""] {
-                if link.put(part).is_err() {
-                    return answers::failed();
-                }
-            }
-            answers::finish(link)
+            let Some(link) = answers::finish(
+                usize_of(limits.response),
+                &answers::Body::Parts(&[b"<", base, &target.target, b">; rel=\"next\""]),
+            ) else {
+                return answers::failed();
+            };
+            Some(link)
         } else {
             None
         };
@@ -306,11 +304,10 @@ impl Store {
     pub(crate) fn get(&self, id: u64, limits: &crate::Limits) -> Response {
         for entry in self.entries.as_slice().iter().flatten() {
             if entry.row.id == id && entry.listed {
-                let mut out = Writer::new(usize_of(limits.response));
-                if server::logged(&entry.row, &entry.payload, &entry.signature, &mut out).is_err() {
-                    return answers::failed();
-                }
-                return match answers::finish(out) {
+                return match answers::finish(
+                    usize_of(limits.response),
+                    &answers::Body::Logged(&entry.row, &entry.payload, &entry.signature),
+                ) {
                     Some(body) => Response {
                         location: None,
                         rate: None,

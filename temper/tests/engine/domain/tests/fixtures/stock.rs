@@ -5,10 +5,15 @@ pub fn box_model() -> temper_engine_domain::Model {
 }
 
 pub fn defaults(words: u32) -> jig_domain_core::settings::Defaults {
-    temper_engine_service_stock::stock::with_models(engine().llm.models, words)
+    temper_engine_service_stock::stock::with_models(engine().llm.models.clone(), words)
 }
 
-fn engine() -> jig_protocol_config::Engine {
+fn engine() -> &'static jig_protocol_config::Engine {
+    static ENGINE: std::sync::OnceLock<jig_protocol_config::Engine> = std::sync::OnceLock::new();
+    ENGINE.get_or_init(parse_engine)
+}
+
+fn parse_engine() -> jig_protocol_config::Engine {
     let document = jig_protocol_config::document(
         include_bytes!("../../../../../crates/temper-init/template/bare.json"),
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },

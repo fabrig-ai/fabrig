@@ -166,14 +166,15 @@ pub(crate) struct Inputs {
 impl Inputs {
     pub fn read(
         git: &mut impl GitFace,
+        ledger: &Ledger,
         landing: &Landing,
         configured: &[String],
         kinds: &[Kind],
         build: &str,
     ) -> Result<Self, Refusal> {
         let commit = &landing.commit;
-        let parent = format!("{commit}^1");
-        let drafts = landing_drafts(git, landing)?;
+        let parent = crate::watch::landing_base(git, ledger, landing)?;
+        let drafts = landing_drafts(git, landing, &parent)?;
         let mut pages = Pages::new();
         let mut surfaces = String::new();
         if configured.iter().any(|surface| surface == "ctl") {
@@ -341,7 +342,7 @@ impl Inputs {
     }
 }
 
-pub(crate) fn landing_drafts(git: &mut impl GitFace, landing: &Landing) -> Result<Vec<String>, Refusal> {
+pub(crate) fn landing_drafts(git: &mut impl GitFace, landing: &Landing, base: &str) -> Result<Vec<String>, Refusal> {
     let commit = &landing.commit;
     let message = git.message(commit)?;
     let mut drafts = present_drafts(
@@ -350,7 +351,7 @@ pub(crate) fn landing_drafts(git: &mut impl GitFace, landing: &Landing) -> Resul
         message.split(|c: char| !(c.is_alphanumeric() || matches!(c, '/' | '.' | '-' | '_'))).filter_map(draft_path),
     )?;
     if drafts.is_empty() {
-        let paths = git.changed_paths(&format!("{commit}^1"), commit)?;
+        let paths = git.changed_paths(base, commit)?;
         drafts = present_drafts(git, commit, paths.into_iter().filter_map(|path| draft_path(&path)))?;
     }
     Ok(drafts)

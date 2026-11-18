@@ -697,7 +697,7 @@ fn route_events(service: &mut Service) {
     }
 }
 
-fn startup_operations(io: &io::Limits, worker_operations: u32) -> Option<u32> {
+pub(crate) fn startup_operations(io: &io::Limits, worker_operations: u32) -> Option<u32> {
     temper_engine_service::system::startup_operations(io)?.checked_add(worker_operations)
 }
 

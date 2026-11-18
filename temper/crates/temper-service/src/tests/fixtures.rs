@@ -540,7 +540,8 @@ pub fn stock_configuration(payload: u32, output: u32) -> Result<smith_agent_shel
 pub fn parsed_agent(config: smith_agent_shell::config::Configuration) -> settings::Agent {
     use std::os::unix::ffi::OsStrExt;
     let limits = config.service.limits;
-    let host_limits = smith_local_service::profile::host_limits(&config.profile, &limits).unwrap();
+    let host_limits =
+        smith_local_service::profile::host_limits(&config.profile, &limits, &config.service.domain.limits).unwrap();
     let mut protocol = smith_host_protocol::Limits {
         bodies: limits.channel.bodies,
         charter: limits.channel.charter,
