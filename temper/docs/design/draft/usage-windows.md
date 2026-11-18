@@ -27,6 +27,9 @@ idle, we spawn one from time to time".
   command, which makes no model call, as Claude Code's `/usage` prints
   each window's share. No agent is started for it: a read spends no
   budget, no slot and no turn.
+- **The pace is the last hour's:** a rolling one-hour rate, from the
+  window's readings of the last hour kept in memory, with the window's
+  average since it opened until an hour's readings exist (section 5).
 - **Drawn on Accounts:** the user's look request `accounts-usage` draws
   the windows wherever kind 7 holds one (`../client/pages/accounts.md`).
   Where none is held, nothing is drawn and nothing is guessed.
@@ -76,11 +79,29 @@ idle, we spawn one from time to time".
   (`../client/pages/accounts.md`: "temper reads no plan's windows").
 - **No key:** an API key's limits are rates, not windows, and aren't
   drawn.
-- **No history:** the pace on Accounts comes from the fact alone, its
-  share over the time since the window opened. A recent rate needs an
-  earlier figure kept, and is section 6's.
 
-## 5. What changes where
+## 5. The pace
+
+The user: a recent rate, over one hour, rolling.
+
+- **The rate is the last hour's:** the share a window used over about
+  the last hour, as a share per hour. It's taken from the oldest reading
+  of the window kept from the last 60 minutes, to the newest, so it moves
+  on as readings come.
+- **What's kept for it:** for each window, its readings of the last 60
+  minutes, at most one every 5 minutes, held in the core's memory beside
+  the fact and never stored. A restart starts them again. A reset, a share
+  lower than the one before, clears them.
+- **Served beside the window:** the accounts document gives each window's
+  rate with its fact. The client draws it as the pace ("2.0%/h"), and
+  "full in" is the share left at that rate, shown where it comes before
+  the reset.
+- **Until an hour's readings exist:** while the oldest reading kept is
+  less than 30 minutes old, the rate is the window's average since it
+  opened, its share over the time since its reset less its length, as the
+  look request's default.
+
+## 6. What changes where
 
 - smith's `protocol/programs.md`, 5.6: every `rate_limit_event` is
   reported, its window read as section 2 says.
@@ -89,12 +110,11 @@ idle, we spawn one from time to time".
   section 3's.
 - jig's hosts' design: a worker's program adapter offers a usage read for
   a program source.
+- jig's accounts document: each window's rate beside its fact (section 5).
 
-## 6. Open questions
+## 7. Open questions
 
 - **The read's interval.** Default: 30 minutes since the account's last
   report.
-- **A recent rate for the pace,** from an earlier figure kept beside the
-  fact. Default: none; the pace is the fact's own.
 - **The window's share when an event carries none.** Default: the share
   held is kept.
