@@ -156,7 +156,8 @@ fn spawn(
     root: skein_io::kernel::Fd,
 ) -> Result<skein_io::kernel::Spawn, ()> {
     use skein_io::kernel::{Pipe, Spawn, Way};
-    let program = program(command.first().ok_or(())?, environment, working).ok_or(())?;
+    let (name, args) = command.split_first().ok_or(())?;
+    let program = program(name, environment, working).ok_or(())?;
     let mut env: Vec<Box<[u8]>> = environment
         .iter()
         .filter(|(name, _)| name.as_ref() != DIRECTORY.name.as_bytes())
@@ -165,7 +166,7 @@ fn spawn(
     env.push([DIRECTORY.name.as_bytes(), b"=", checkpoint.as_os_str().as_bytes()].concat().into());
     Ok(Spawn {
         program,
-        args: command.into(),
+        args: args.into(),
         env: env.into(),
         root,
         dir: Box::from(b".".as_slice()),

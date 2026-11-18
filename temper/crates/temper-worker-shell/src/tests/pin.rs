@@ -113,7 +113,7 @@ fn the_checked_agent_and_source_environment_need_no_second_configuration_read() 
     assert_eq!(prepared.bytes.as_ref(), bytes);
     assert_eq!(prepared.agent.bounds.program_endpoints.as_ref(), [1]);
     assert_eq!(prepared.agent.bounds.turns, 800);
-    assert_eq!(prepared.agent.tool_payload, 4096);
+    assert_eq!(prepared.agent.tool_payload, 63_740);
     assert_eq!(prepared.environment.as_ref(), [Box::from(b"PINNED_ENV=at-start".as_slice())]);
     fs::remove_file(directory.join("agent.json")).expect("pin fixture");
     fs::write(directory.join("worker.secret"), b"worker-secret").expect("pin fixture");

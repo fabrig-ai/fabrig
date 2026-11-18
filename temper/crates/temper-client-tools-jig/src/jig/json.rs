@@ -200,7 +200,7 @@ fn decode_value(table: &[&Tool], doc: &Document, at: u32, spec: &Argument, limit
     }
     let kind = doc.token(at).ok_or(Usage::Json)?.kind;
     match spec.kind {
-        Kind::Number | Kind::NumberRange { .. } | Kind::Count | Kind::Places | Kind::Duration => {
+        Kind::Amount | Kind::Number | Kind::NumberRange { .. } | Kind::Count | Kind::Places | Kind::Duration => {
             require(doc, at, JsonKind::Number)?;
         }
         Kind::Project { .. } if kind == JsonKind::Number => {}
@@ -236,6 +236,9 @@ fn decode_value(table: &[&Tool], doc: &Document, at: u32, spec: &Argument, limit
                 return Err(Usage::Json);
             }
         }
+    }
+    if spec.kind == Kind::Amount {
+        return argv::value::decode(table, Kind::Number, Bound::None, bytes).ok_or(Usage::Json);
     }
     argv::value::decode(table, spec.kind, bound(spec, limits), bytes).ok_or(Usage::Json)
 }
@@ -361,6 +364,7 @@ pub fn encode_tool(tool: &Tool, limits: &Limits, out: &mut Encoder) {
 fn kind_word(kind: Kind) -> &'static [u8] {
     match kind {
         Kind::Number | Kind::NumberRange { .. } => b"number",
+        Kind::Amount => b"amount",
         Kind::Count | Kind::Places => b"count",
         Kind::Word { .. } => b"word",
         Kind::Text => b"text",
@@ -473,6 +477,7 @@ fn encode_argument(spec: &Argument, limits: &Limits, out: &mut Encoder) {
             out.unsigned(max);
         }
         Kind::Number
+        | Kind::Amount
         | Kind::Count
         | Kind::Places
         | Kind::Text

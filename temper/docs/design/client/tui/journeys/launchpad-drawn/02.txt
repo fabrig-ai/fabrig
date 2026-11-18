@@ -2,13 +2,13 @@
 
 ✦ A CSV export question waits for you.
 
-✦ T3 · csv-export: comma or semicolon?
-  Choice: Comma (recommended)
-  Choice: Semicolon
-
-✦ Hello from the local fake model.
-
 ✦ T3 · REPORT · Choose the CSV export delimiter. · Running
+
+
+
+
+
+
 
 
 

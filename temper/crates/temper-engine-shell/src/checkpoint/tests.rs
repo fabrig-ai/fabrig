@@ -146,8 +146,12 @@ fn path_resolution_requires_an_executable_and_spawn_uses_the_invocation() {
         path(working).join("./local").as_os_str().as_bytes()
     );
     let fd = skein_shell::open_root(path(working)).unwrap();
-    let child = spawn(&words(&[b"cmd", b"--arg"]), &env, working, &root.join("checkpoint"), fd).unwrap();
-    assert_eq!(child.args, words(&[b"cmd", b"--arg"]));
+    let child = spawn(&words(&[b"cmd", b"-c", b"exit 3", b"x"]), &env, working, &root.join("checkpoint"), fd).unwrap();
+    assert_eq!(child.program.as_ref(), path(working).join("../second/cmd").as_os_str().as_bytes());
+    assert_eq!(child.args, words(&[b"-c", b"exit 3", b"x"]));
+    let no_arguments = spawn(&words(&[b"./local"]), &[], working, &root.join("checkpoint"), fd).unwrap();
+    assert_eq!(no_arguments.program.as_ref(), path(working).join("./local").as_os_str().as_bytes());
+    assert!(no_arguments.args.is_empty());
     assert_eq!(child.root, fd);
     assert_eq!(child.dir.as_ref(), b".");
     assert_eq!(child.env.iter().filter(|entry| entry.starts_with(b"TEMPER_CHECKPOINT=")).count(), 1);

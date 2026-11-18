@@ -1,8 +1,9 @@
 # tools: status
 
-2026-11-17. Remaining gaps between temper's code and [README.md](README.md).
+2026-11-18. Remaining gaps between temper's code and [README.md](README.md).
 
 
+- **Not yet:** 5: the spent-pool refusal's figures in ctl's amount, and its `reserved:` line [in flight: change 7671].
 
 `tools.md`, sections 2 and 3 have no known gap in a project's classes, by plan
 `ui-reaches`: `temper ctl settings show project-classes` and a settings

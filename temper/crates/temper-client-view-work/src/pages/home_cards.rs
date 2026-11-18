@@ -62,13 +62,13 @@ fn existing(
         } else {
             from(b, root, *need, across, w, bindings, times);
         }
-        let (_, mut question, _) = super::home::need_words(need, w);
-        if let needs::Need::Card(card) = need
-            && let ask::Kind::Funds { spent, limit } = ask::read(card, w).kind
-        {
-            question = w.say(Word::NeedsFundsUsed, &[Hole::Number(spent), Hole::Number(limit)]);
+        let question = match need {
+            needs::Need::Card(card) => ask::question(&ask::read(card, w), w),
+            needs::Need::Approval(_) => Some(super::home::need_words(need, w).1),
+        };
+        if let Some(question) = question {
+            ask::text(b, Role::Paragraph, &question, look::ASK_QUESTION);
         }
-        ask::text(b, Role::Paragraph, &question, look::ASK_QUESTION);
         if let Some(group) = &group {
             super::findings::group_rows(b, group, w, bindings, times);
             if let needs::Need::Card(card) = need {

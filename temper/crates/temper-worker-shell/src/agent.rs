@@ -15,7 +15,8 @@ pub fn read(configuration: &Path) -> Result<Agent, String> {
 fn settings(configuration: smith_agent_document::config::Configuration) -> Result<Agent, String> {
     let limits = &configuration.service.limits;
     let host_limits =
-        smith_agent_document::host_limits(&configuration.profile, limits).map_err(|_| "agent host limits refused")?;
+        smith_agent_document::host_limits(&configuration.profile, limits, &configuration.service.domain.limits)
+            .map_err(|_| "agent host limits refused")?;
     let channel = limits.channel;
     let mut protocol = smith_host_protocol::Limits {
         bodies: channel.bodies,
