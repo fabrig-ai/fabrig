@@ -6912,6 +6912,7 @@ dependencies = [
  "temper-engine-domain-forge",
  "temper-engine-service",
  "temper-fake",
+ "temper-fixtures",
  "temper-forge-setup",
  "temper-forge-setup-shell",
  "temper-limits-fixtures",

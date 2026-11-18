@@ -151,7 +151,7 @@ pub(super) fn configure_batch(root: &Path, repository: u64, batch: u16) {
     // Let the call carriers follow the agent's declared payload.
     config["engine"]["limits"]["overrides"].as_object_mut().expect("engine overrides").remove("core.call_answer_bytes");
     config["engine"]["limits"]["overrides"].as_object_mut().expect("worker overrides").remove("core.call_answer_bytes");
-    super::configuration::turn_bounds::apply(&mut config, super::configuration::turn_bounds::turn_body(&agent));
+    super::configuration::turn_bounds::apply_with_stock(&mut config, &agent);
     temper_fixtures::agent::apply(&mut config, root, &agent);
     write_private(&path, &serde_json::to_vec(&config).expect("configuration JSON"));
     let path = root.join("native-landing-settings.json");
