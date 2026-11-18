@@ -67,7 +67,7 @@ Expect: `init: wrote DATA/worker.secret`; last line: box command.
 Default worker: `local`, 4 places, no digest. Init writes no `worker.digest` or `engine.hosts.workers`.
 
 **Claude Code:** init adds Anthropic's provider and endpoint beside
-OpenAI's, using the worker entry’s `claude`, else `claude` on `PATH` at start, else fetching its pinned
+OpenAI's, using `claude` on the worker's `PATH` at start, else fetching its pinned
 build on first use. Logins: `DATA/programs`, apart from your Claude Code configuration.
 `PROGRAMS`: `DATA/programs` or an existing login’s parent (step 5).
 
@@ -76,10 +76,11 @@ Use it in step 5; keep the demo model within init's limits.
 
 If not: `temper-box init: CONFIG/temper.json: already exists` (exit 1): empty directories needed.
 
-**Coding runs:** edit `application.workers[0].environment` in `CONFIG/temper.json` before step 2;
-preserve the rest of the document. Absent, the array is empty. Commands and
-checks get exactly the configured environment, independent of unit and
-runner PATHs. Use deployment-specific absolute paths; no `~` or `$HOME` expansion:
+**Coding runs:** edit `application.environment` in `CONFIG/temper.json` before step 2;
+preserve the rest of the document. Absent: the worker's own
+`HOME` and `PATH`. A list gives exactly its entries, with the worker's own
+`HOME` and `PATH` added where it omits them; no other process variables.
+Use deployment-specific absolute paths; no `~` or `$HOME` expansion:
 
 ```json
 {"environment": [
@@ -88,9 +89,9 @@ runner PATHs. Use deployment-specific absolute paths; no `~` or `$HOME` expansio
 ]}
 ```
 
-Install project tools on this PATH: Rust's `cargo` in `.cargo/bin` and
+Install tools on this PATH: Rust's `cargo` in `.cargo/bin` and
 its toolchain. Run user: usable `HOME`; exclude credentials.
-After edits, stop (step 8); restart the box (step 2).
+Stop (step 8); restart the box (step 2).
 
 ## 2. Start the box
 

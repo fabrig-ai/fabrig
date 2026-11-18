@@ -703,6 +703,7 @@ impl Bounded {
                 &self.document,
                 &jig_protocol_config::Directories::working(),
                 None,
+                &[],
             )
             .expect("worker fixture");
             let checked = temper_worker_service::figures::apply(&mut part, figures.clone()).and_then(|_| {
@@ -892,6 +893,10 @@ fn bounded_template_profile(directory: &Path, overlays: &[(&str, &[u8])], room: 
 
 /// Checked-in process fixture profile with local destinations and synthetic named files.
 /// Numeric allowances and policies are left exactly as shipped.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one fixture profile pass; this change only supplies the worker's environment input"
+)]
 #[must_use]
 pub fn deployment_profile(directory: &Path, relative: &str) -> Bounded {
     let source = skein_scratch::paths::tree().join(relative);
@@ -956,10 +961,11 @@ pub fn deployment_profile(directory: &Path, relative: &str) -> Bounded {
         }
         (named.files, setup, forges.into_boxed())
     } else {
-        let part = temper_service::startup::worker_part(&document, &jig_protocol_config::Directories::working(), None)
-            .unwrap_or_else(|why| {
-                panic!("{relative}: {}", String::from_utf8_lossy(&temper_service::startup::lines(&why)))
-            });
+        let part =
+            temper_service::startup::worker_part(&document, &jig_protocol_config::Directories::working(), None, &[])
+                .unwrap_or_else(|why| {
+                    panic!("{relative}: {}", String::from_utf8_lossy(&temper_service::startup::lines(&why)))
+                });
         (
             part.files,
             temper_forge_setup::check::Checked {

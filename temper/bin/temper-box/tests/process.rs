@@ -1072,6 +1072,7 @@ fn prepare_owned_worker(members: &mut support::cluster::Members) -> Result<(), S
         &serde_json::to_vec(&document).map_err(|why| format!("worker JSON: {why:?}"))?,
         &directories,
         None,
+        &[],
     )
     .map_err(|why| format!("owned worker: {why:?}"))?;
     let engine: serde_json::Value = serde_json::from_slice(

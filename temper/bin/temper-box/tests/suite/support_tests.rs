@@ -60,7 +60,7 @@ fn cluster_turn_setup_declares_the_paced_gate_and_prepare_job() {
                 startup::named(&bytes, &directories).expect("checked engine alone");
             }
             startup::Shape::WorkerAlone => {
-                startup::worker_part(&bytes, &directories, None).expect("checked worker alone");
+                startup::worker_part(&bytes, &directories, None, &[]).expect("checked worker alone");
             }
             startup::Shape::Standalone => panic!("separate deployment processes"),
         }

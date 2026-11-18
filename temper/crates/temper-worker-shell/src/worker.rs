@@ -23,6 +23,7 @@ pub fn alone(
         bytes,
         &jig_directories(directories),
         temper_shell::lookup::find(environment, b"git").as_ref().map(|path| path.as_os_str().as_bytes()),
+        environment,
     )
     .map_err(|why| String::from_utf8_lossy(&temper_service_core::startup::problems::lines(&why)).into_owned())?;
     inputs(&mut part, directories, &std::env::current_exe().map_err(|why| why.to_string())?)?;

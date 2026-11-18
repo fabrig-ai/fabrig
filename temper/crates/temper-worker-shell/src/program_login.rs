@@ -47,10 +47,12 @@ pub fn command(
     let bytes = directories.read()?;
     let worker = match temper_service_core::startup::nearest(&bytes) {
         Some(temper_service_core::startup::Shape::WorkerAlone) | None => {
-            let part = temper_worker_service::startup::worker_part(&bytes, &jig_directories(directories), None)
+            let own: Vec<EnvironmentEntry> =
+                environment.iter().map(|(name, value)| (name.as_bytes().into(), value.as_bytes().into())).collect();
+            let part = temper_worker_service::startup::worker_part(&bytes, &jig_directories(directories), None, &own)
                 .map_err(|why| {
-                    String::from_utf8_lossy(&temper_service_core::startup::problems::lines(&why)).into_owned()
-                })?;
+                String::from_utf8_lossy(&temper_service_core::startup::problems::lines(&why)).into_owned()
+            })?;
             let executable = std::env::current_exe().map_err(|why| why.to_string())?;
             let agent = executable.parent().ok_or("worker executable has no directory")?.join("temper-agent");
             return from_machine(&part, directories, name, environment, &agent);

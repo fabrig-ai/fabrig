@@ -20,4 +20,5 @@ mod startup;
 mod startup_calls;
 mod worker_declaration;
 
+mod environment;
 mod figures;

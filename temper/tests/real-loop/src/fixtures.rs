@@ -133,7 +133,7 @@ pub fn write(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> std::io::R
 pub(crate) type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
 /// Machine programs are found through PATH, as in the shipped worker.
 pub(crate) fn environment(directory: &Path) -> Vec<EnvironmentEntry> {
-    let path = if crate::claude::configured(directory) {
+    let path = if directory.join("bin").is_dir() {
         format!("{}:/usr/bin:/bin", directory.join("bin").display())
     } else {
         "/usr/bin:/bin".into()

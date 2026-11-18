@@ -99,7 +99,7 @@ fn workspaces_follow_slots() {
     let stock = config::stock().hub.slots;
     for slots in [stock, stock * 2, 12, 24] {
         let input = slots_input(slots);
-        let part = crate::startup::worker_part(&input, &config::Directories::working(), None).unwrap();
+        let part = crate::startup::worker_part(&input, &config::Directories::working(), None, &[]).unwrap();
         assert_eq!(part.limits.checkout.workspaces, slots);
         assert_eq!(part.worker.jig.limits.as_ref().unwrap().hub.slots, slots);
         let mut root = root(STOCK.payload, STOCK.turn);
@@ -112,6 +112,7 @@ fn workspaces_follow_slots() {
             &serde_json::to_vec(&overridden).unwrap(),
             &config::Directories::working(),
             None,
+            &[],
         )
         .unwrap_err();
         assert_eq!(
@@ -125,7 +126,7 @@ fn git_operations_follow_workspaces() {
     let stock = config::stock().hub.slots;
     for slots in [stock, stock * 2, 12, 24] {
         let input = slots_input(slots);
-        let part = crate::startup::worker_part(&input, &config::Directories::working(), None).unwrap();
+        let part = crate::startup::worker_part(&input, &config::Directories::working(), None, &[]).unwrap();
         assert_eq!(part.limits.git_component.operations, slots);
         let mut problems = Problems::empty();
         worker::git_limits(&part.limits, &part.limits.git_component, &mut problems);
@@ -136,6 +137,7 @@ fn git_operations_follow_workspaces() {
             &serde_json::to_vec(&overridden).unwrap(),
             &config::Directories::working(),
             None,
+            &[],
         )
         .unwrap_err();
         names(&lines(&problems), b"application.limits", worker::MOVED_LIMITS);
@@ -221,7 +223,7 @@ fn output_carrier() {
 #[test]
 fn worker_start_refuses_a_turn_past_the_wire_ceiling() {
     let input = fixtures::worker_alone_document();
-    let mut part = crate::startup::worker_part(&input, &config::Directories::working(), None).unwrap();
+    let mut part = crate::startup::worker_part(&input, &config::Directories::working(), None, &[]).unwrap();
     let mut agent: settings::Agent = fixtures::startup_agent();
     agent.limits.bodies.turn_body = STOCK.turn * 2;
     let found = worker::check_worker_part(&mut part, &fixtures::files(), &agent).unwrap_err();

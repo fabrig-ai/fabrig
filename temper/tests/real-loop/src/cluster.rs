@@ -73,8 +73,23 @@ pub fn run_cluster_forge(
     rules: fn() -> Box<[Box<[skein_fake_llm_domain::api::Rule]>]>,
     steps: impl FnOnce() -> Vec<calls::Step>,
 ) -> Cluster {
+    run_cluster_forge_prepared(workers, late, fixture, scripts, rules, |_| {}, steps)
+}
+
+/// Prepare the services' private filesystem and process inputs before any start.
+#[must_use]
+pub fn run_cluster_forge_prepared(
+    workers: &[&'static str],
+    late: &[&str],
+    fixture: forge::Fixture,
+    scripts: fn(SocketAddr) -> Box<[skein_fake_llm_domain::api::Script]>,
+    rules: fn() -> Box<[Box<[skein_fake_llm_domain::api::Rule]>]>,
+    prepare: impl FnOnce(&[crate::Scratch]),
+    steps: impl FnOnce() -> Vec<calls::Step>,
+) -> Cluster {
     assert!(late.iter().all(|name| workers.contains(name)), "configured late workers");
     run_with(workers, None, |scratch| {
+        prepare(scratch);
         crate::Outcome::Forge(world::run_cluster_forge(workers, late, scratch, fixture, scripts, rules, steps))
     })
 }
