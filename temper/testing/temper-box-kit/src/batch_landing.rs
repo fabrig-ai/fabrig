@@ -34,9 +34,7 @@ pub(super) fn hold(name: &[u8]) -> Line {
 }
 
 fn scripts(root: &Path, forge: &Throwaway) -> Box<[Script]> {
-    let value = temper_playground::documents::Configuration::from_jig(
-        serde_json::from_slice(&fs::read(root.join("temper.json")).expect("configuration")).expect("JSON"),
-    );
+    let value = super::limit_settings::configuration(root);
     let engine = temper_real_loop_world::settings::configuration(&value);
     let stock = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     scripted_batch(landing_scripts(super::ANSWER, forge).into_vec(), stock.rules.maximum_run_spend)
@@ -177,9 +175,7 @@ pub fn configure(root: &Path, repository: u64) -> temper_playground::documents::
     let path = root.join("temper.json");
     turn_restart::selected_gate(root);
     value["workers"][0]["slots"] = 8.into();
-    for name in ["checkout.workspaces", "git_component.operations"] {
-        value.temper_over(name, 8);
-    }
+    value.derive_places();
     // Three readiness gathers run beside repository polls and the held latch.
     value.temper_over("forge.client.pending", 16);
     value.temper_over("forge.client.calls", 8);
@@ -187,6 +183,7 @@ pub fn configure(root: &Path, repository: u64) -> temper_playground::documents::
     message_room(root, &mut value);
     turn_restart::staging_limits(&mut value);
     super::write_private(&path, &serde_json::to_vec(&value).expect("configuration JSON"));
+    super::limit_settings::remember(root, &value);
     value
 }
 
@@ -222,7 +219,6 @@ pub fn message_room(root: &Path, value: &mut temper_playground::documents::Confi
     limits["hub.slots"] = slots;
     limits["hub.event_bytes"] = 8190.into();
     limits["hub.outcome_bytes"] = 8192.into();
-    value.temper_over("checkout.message_bytes", 8192);
     value.temper_over("forge.client.op_bytes", 4096);
     // Turn read-back observes Forgejo's asynchronous manual-merge mark.
     // Use the shipped paces, within this story's wall bound.

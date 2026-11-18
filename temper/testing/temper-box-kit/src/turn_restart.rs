@@ -68,6 +68,7 @@ pub fn configure(root: &Path, repository: u64) -> temper_playground::documents::
     super::batch_landing::message_room(root, &mut value);
     staging_limits(&mut value);
     write_private(&path, &serde_json::to_vec(&value).expect("configuration JSON"));
+    super::limit_settings::remember(root, &value);
     value
 }
 
@@ -89,7 +90,6 @@ const STAGING_LIFETIME: skein_lib::Duration = skein_lib::Duration::from_secs(300
 /// Staging's deployment limits, shared by the owned Forgejo stories.
 /// temper/docs/design/protocol/configuration/limits.md.
 pub fn staging_limits(value: &mut temper_playground::documents::Configuration) {
-    value.temper_over("checkout.message_bytes", 63_740);
     value.temper_over("forge.client.lifetime_ms", STAGING_LIFETIME.as_millis());
     value.temper_over("forge.client.op_bytes", 63_738);
     value.temper_over("forge_component.body_bytes", 127_497);
@@ -115,9 +115,7 @@ pub fn staging_limits(value: &mut temper_playground::documents::Configuration) {
 /// Share the owned turn setup while selecting the story's batch bound.
 pub(super) fn configure_batch(root: &Path, repository: u64, batch: u16) -> temper_playground::documents::Configuration {
     let path = root.join("temper.json");
-    let mut config = temper_playground::documents::Configuration::from_jig(
-        serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON"),
-    );
+    let mut config = super::limit_settings::configuration(root);
     let settings = json!({"items":[
         {"setting":{"kind":"project-landing","project":1},"set":{"by":"turn","batch":batch}},
         {"setting":{"kind":"project-gates","project":1},"set":{"repositories":[{"forge":1,"repository":repository,"gates":[{"name":"gate","workflow":"gate.yml","ignored":["docs"],"blocking":true,"base":true}],"tiers":[]}]}}
@@ -149,7 +147,6 @@ pub(super) fn configure_batch(root: &Path, repository: u64, batch: u16) -> tempe
     config.jig_over("hub.outcome_bytes", tool_payload);
     config["workers"][0]["limits"]["overrides"]["hub.outcome_bytes"] = tool_payload.into();
     config["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = prepare.result.into();
-    config.temper_over("checkout.message_bytes", tool_payload);
     // Let the call carriers follow the agent's declared payload.
     config.jig_over("core.call_answer_bytes", jig_protocol_config::stock().core.call_answer_bytes);
     config["workers"][0]["limits"]["overrides"]
@@ -159,6 +156,7 @@ pub(super) fn configure_batch(root: &Path, repository: u64, batch: u16) -> tempe
     super::configuration::turn_bounds::apply(&mut config, super::configuration::turn_bounds::turn_body(&agent));
     write_private(&agent_path, &serde_json::to_vec(&agent).expect("agent JSON"));
     write_private(&path, &serde_json::to_vec(&config).expect("configuration JSON"));
+    super::limit_settings::remember(root, &config);
     let path = root.join("native-landing-settings.json");
     let mut settings: Value =
         serde_json::from_slice(&fs::read(&path).expect("native landing settings")).expect("settings JSON");

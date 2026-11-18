@@ -19,6 +19,7 @@ pub mod github;
 pub mod github_land;
 pub mod held_login;
 pub mod landing_by_turn;
+pub mod limit_settings;
 pub mod owned;
 pub mod socket;
 pub mod terminal;
@@ -156,12 +157,17 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>) -> temper_playground::
     write_private(&directory.join("agent.json"), &agent);
     forgejo::configuration(directory, forge, &mut value);
     write_private(&directory.join("temper.json"), &serde_json::to_vec(&value).expect("deployment JSON"));
+    limit_settings::remember(directory, &value);
     value
 }
 
 /// A subprocess story without a limit boundary uses the shipped agent's figures.
 pub fn stock_agent(directory: &Path) {
     use std::os::unix::fs::PermissionsExt;
+    let pending = directory.join("fixture-limits.json");
+    if pending.exists() {
+        fs::remove_file(pending).expect("stock fixture has no limit change");
+    }
     let stock: serde_json::Value =
         serde_json::from_slice(include_bytes!("../../../docs/examples/owned/agent.json")).expect("stock agent");
     let path = directory.join("agent.json");
@@ -235,6 +241,7 @@ use skein_world::{
 
 #[must_use]
 pub fn serve(directory: &Path) -> Binary {
+    limit_settings::install(directory);
     Binary::start(serve_command(directory), Mode::Pipes, 65_536).expect("temper serve starts")
 }
 fn serve_command(directory: &Path) -> Command {
@@ -817,9 +824,7 @@ const HINTED_SETTLE_MS: u64 = 3000;
 /// and shortens the hinted story's settle.
 pub fn raise_paces(directory: &Path) {
     let path = directory.join("temper.json");
-    let mut value = temper_playground::documents::Configuration::from_jig(
-        serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON"),
-    );
+    let mut value = limit_settings::configuration(directory);
     for name in [
         "forge.client.poll_ms",
         "forge.client.poll_max_ms",
@@ -832,6 +837,7 @@ pub fn raise_paces(directory: &Path) {
     value.temper_over("forge.change_policy.runner_wait_ms", RAISED_MS.saturating_mul(8));
     value.temper_over("forge.client.settle_ms", HINTED_SETTLE_MS);
     write_private(&path, &serde_json::to_vec(&value).expect("configuration JSON"));
+    limit_settings::remember(directory, &value);
 }
 #[must_use]
 pub fn run_until_landed(
@@ -883,6 +889,7 @@ fn run_story(
     if let Some(peer) = &peer {
         peer.configure(directory);
     }
+    limit_settings::install(directory);
     let mut binary = match ending {
         Ending::Stop => serve(directory),
         Ending::Box => sign_in::start(directory),

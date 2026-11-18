@@ -535,9 +535,7 @@ impl Judge {
     fn configure(&mut self) -> Result<(), String> {
         let engine_dir = self.members.prepare("engine");
         let ws_dir = self.members.prepare("ws");
-        let mut value = temper_playground::documents::Configuration::from_jig(read_document(
-            &engine_dir.join("config/temper.json"),
-        )?);
+        let mut value = super::limit_settings::configuration(&engine_dir.join("config"));
         let ws = read_document(&ws_dir.join("config/temper.json"))?;
         let mut agent = read_document(&ws_dir.join("config/agent.json"))?;
         // With a control listener, the fake's ready line names provider then control.
@@ -633,6 +631,7 @@ impl Judge {
         value["workers"] = json!([]);
 
         write(&engine_dir.join("config/temper.json"), &value);
+        super::limit_settings::remember(&engine_dir.join("config"), &value);
         super::forgejo::bootstrap(&engine_dir.join("config"), &engine_dir.join("data"), &engine_dir.join("cache"));
         seed_forge(&engine_dir.join("data"), forge, &self.admin_token);
 

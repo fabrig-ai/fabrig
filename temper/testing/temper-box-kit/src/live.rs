@@ -17,9 +17,7 @@ use temper_box_shell::directories::jig_directories;
 #[must_use]
 pub fn configure(directory: &Path, forge: &Throwaway) -> String {
     let path = directory.join("temper.json");
-    let mut value = temper_playground::documents::Configuration::from_jig(
-        serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON"),
-    );
+    let mut value = super::limit_settings::configuration(directory);
     let owned: Value = serde_json::from_slice(super::owned::EXAMPLE).expect("owned example");
     value["engine"]["llm"] = owned["engine"]["llm"].clone();
     value.jig_over("documents.rows", 32);
@@ -38,7 +36,6 @@ pub fn configure(directory: &Path, forge: &Throwaway) -> String {
     }
     agent["profile"]["policy"]["max_turns"] = 16.into();
     value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = 4096.into();
-    value.temper_over("checkout.message_bytes", 4098);
     let scripts = super::landing_scripts(super::ANSWER, forge);
     let skein_fake_llm_domain::api::Line::Call { arguments, .. } = &scripts[0].turns[0].lines[0] else {
         panic!("the process fixture delegates the coding procedure");
@@ -53,6 +50,7 @@ pub fn configure(directory: &Path, forge: &Throwaway) -> String {
     );
     super::configuration::turn_bounds::apply(&mut value, super::configuration::turn_bounds::turn_body(&agent));
     write_private(&path, &serde_json::to_vec(&value).expect("live configuration JSON"));
+    super::limit_settings::remember(directory, &value);
     write_private(&agent_path, &serde_json::to_vec(&agent).expect("live agent JSON"));
     instructions
 }

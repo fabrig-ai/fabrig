@@ -61,6 +61,38 @@ pub fn prepare(directory: &Path, forge: u16) -> Output {
         super::boxed::BOX_DEADLINE,
     )
 }
+/// Run the forge command in this process, keeping its real source commands and
+/// capturing only its two output descriptors. Nextest gives each story one process.
+#[must_use]
+pub fn prepare_with_reader(directory: &Path, reader: temper_engine_shell::forge::Reader) -> Output {
+    use std::{io::Write, os::unix::process::ExitStatusExt};
+    let stdout = rustix::io::dup(rustix::stdio::stdout()).expect("save stdout");
+    let stderr = rustix::io::dup(rustix::stdio::stderr()).expect("save stderr");
+    let out_path = directory.join("prepare.stdout");
+    let err_path = directory.join("prepare.stderr");
+    let out = fs::File::create(&out_path).expect("stdout file");
+    let err = fs::File::create(&err_path).expect("stderr file");
+    rustix::stdio::dup2_stdout(&out).expect("capture stdout");
+    rustix::stdio::dup2_stderr(&err).expect("capture stderr");
+    let code = temper_engine_shell::forge::run_with_reader(
+        "temper",
+        &super::configuration::directories(directory),
+        &["prepare".into(), "1".into()],
+        None,
+        &[],
+        reader,
+    );
+    std::io::stdout().flush().expect("flush stdout");
+    std::io::stderr().flush().expect("flush stderr");
+    rustix::stdio::dup2_stdout(stdout).expect("restore stdout");
+    rustix::stdio::dup2_stderr(stderr).expect("restore stderr");
+    Output {
+        status: std::process::ExitStatus::from_raw(i32::from(code) << 8),
+        stdout: fs::read(out_path).expect("stdout bytes"),
+        stderr: fs::read(err_path).expect("stderr bytes"),
+    }
+}
+
 #[must_use]
 pub fn prepare_no_registration(directory: &Path, forge: u16) -> Output {
     super::story_command::standalone(

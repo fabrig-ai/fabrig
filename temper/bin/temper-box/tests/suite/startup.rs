@@ -827,7 +827,6 @@ fn the_owned_example_is_named_without_a_problem() {
 }
 
 #[test]
-#[ignore = "needs setup.backoff_ms=6000 as limit settings inside the box: change 7339 (temper/docs/design/protocol/configuration/limit-settings.md, 8)"]
 fn every_command_checks_setup_before_reading_files() {
     let scratch = owned_example("every-command-setup");
     support::owned::setup(
@@ -841,13 +840,11 @@ fn every_command_checks_setup_before_reading_files() {
         },
     );
     let path = scratch.path().join("temper.json");
-    let mut value = temper_playground::documents::Configuration::from_jig(
-        serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON"),
-    );
-    value.temper_over("setup.backoff_ms", 6000);
+    let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
+    value["application"]["limits"] = serde_json::json!({"overrides":{"setup.backoff_ms":6000}});
     let bytes = serde_json::to_vec(&value).expect("configuration JSON");
     support::write_private(&path, &bytes);
-    let line = "application.limits.overrides.setup.backoff_ms: must agree with application.limits.overrides.setup.backoff_max_ms\n";
+    let line = "application.limits: moved: temper's limits are the setting temper-limits; ask temper, or use temper ctl settings apply\n";
     for (command, refused) in [
         (
             "serve",

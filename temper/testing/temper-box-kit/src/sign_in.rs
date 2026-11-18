@@ -216,6 +216,7 @@ pub(super) fn issuer(
 
 pub(super) fn start(directory: &Path) -> skein_world::end_to_end::Binary {
     use skein_world::end_to_end::{Binary, Command, Mode};
+    super::limit_settings::install(directory);
     // A fresh init's demo forge is prepared by box before it starts serve.
     Binary::start(
         Command {

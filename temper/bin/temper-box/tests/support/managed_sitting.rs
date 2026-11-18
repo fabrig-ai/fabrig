@@ -164,6 +164,8 @@ fn configure(root: &Path, api: SocketAddr, git: SocketAddr, upstream: SocketAddr
     private_directory(&root.join("config/charters"));
     super::write_private(&root.join("config/charters/chat.txt"), b"No model calls in this sitting.\n");
     super::write_private(&root.join("config/temper.json"), &serde_json::to_vec(&value).expect("engine JSON"));
+    temper_box_kit::limit_settings::remember(&root.join("config"), &value);
+    temper_box_kit::limit_settings::install_paths(&[root.join("config"), root.join("data"), root.join("cache")]);
 }
 
 fn connect(root: &Path, binary: &Path, clients: SocketAddr, peers: &[(SocketAddr, u32); 2]) {

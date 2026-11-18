@@ -359,6 +359,7 @@ pub fn bootstrap(config: &Path, data: &Path, cache: &Path) {
     // A delivery story keeps this listener bound in the enclosing test.
     document["application"]["webhooks"] = Value::Null;
     write_private(&path, &serde_json::to_vec(&document).expect("bootstrap JSON"));
+    super::limit_settings::install_paths(&[config.into(), data.into(), cache.into()]);
     let binary = Binary::start(
         Command {
             program: skein_scratch::paths::binary("temper-box"),

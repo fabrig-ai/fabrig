@@ -179,7 +179,8 @@ fn configure(root: &Path, forge: &Forge<'_>) {
     let Forge::Throwaway { api, git, .. } = forge else { panic!("elsewhere fixture") };
     let path = config.join("temper.json");
     let bytes = fs::read_to_string(&path).expect("configuration").replace("\"acme\"", "\"elsewhere\"");
-    let mut value = temper_playground::documents::Configuration::from_jig(serde_json::from_str(&bytes).expect("JSON"));
+    let mut value = super::limit_settings::configuration(&config);
+    value.document = serde_json::from_str(&bytes).expect("JSON");
     assert!(
         value.pointer("/application/webhooks/listener/socket").and_then(Value::as_str).is_some(),
         "listener configured for the hooks' URL"
@@ -193,6 +194,7 @@ fn configure(root: &Path, forge: &Forge<'_>) {
     fs::rename(config.join("worker.secret"), root.join("data/worker.secret")).expect("data worker secret");
     fs::remove_dir_all(config.join("secrets")).expect("remove obsolete file credentials");
     write_private(&path, &serde_json::to_vec(&value).expect("managed configuration"));
+    super::limit_settings::remember(&config, &value);
     super::forgejo::bootstrap(&config, &root.join("data"), &root.join("cache"));
     let mut record = temper_real_loop_world::fixtures::forgejo_record(*api);
     record.place.git = git.as_bytes().into();

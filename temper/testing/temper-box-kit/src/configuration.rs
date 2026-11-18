@@ -26,11 +26,11 @@ pub fn typed_documents(directory: &Path, program: &str) -> (Vec<u8>, temper_play
     let agent = serde_json::json!({
         "profile":{"name":"standard","declared":{"memory":2_147_483_648_u64,"tool_payload":2048,"read_window":256,
             "conversations":1,"calls_per_response":1},
-            "policy":{"max_turns":800,"check_timeout":60000,"group_stop":10,"inbox":8,"unacknowledged":8}},
+            "policy":{"max_turns":800,"check_timeout":60_000,"group_stop":10,"inbox":8,"unacknowledged":8}},
         "endpoints":[{"name":"fake","number":1,"dialect":3,"provider":"openai",
             "address":"127.0.0.1:0","transport":"tls","server_name":"skein.test","trust_der":directory.join("root.der"),
             "connect":1000,"handshake":1000,
-            "limits": {"window":1_048_576,"output":8192,"reasoning_item":64,"head":60000,"idle":30000}}],
+            "limits": {"window":1_048_576,"output":8192,"reasoning_item":64,"head":60_000,"idle":30_000}}],
         "environment":[]});
     let mut value = temper_playground::documents::Configuration::from_jig(
         serde_json::from_slice(&jig_channel_kit::fixtures::engine_document()).expect("engine JSON"),
@@ -110,14 +110,10 @@ pub fn typed_documents(directory: &Path, program: &str) -> (Vec<u8>, temper_play
     value.temper_over("forge.client.op_bytes", 512_u64);
     value.temper_over("forge_component.body_bytes", 16_384_u64);
     value.temper_over("root.journal.run_bytes", 32_768_u64);
-    value.temper_over("checkout.name_bytes", 256_u64);
-    value.temper_over("checkout.repositories", 2_u64);
-    value.temper_over("checkout.message_bytes", 4096_u64);
     value.temper_over("forge.name_bytes", 64_u64);
     value.temper_over("forge.judge_projects", 3_u64);
     value.temper_over("forge.landing_members", 3_u64);
     value.temper_over("forge.resources_per_task", 4_u64);
-    value.temper_over("git_component.stdout_bytes", 131_072_u64);
 
     turn_bounds::apply(&mut value, turn_bounds::turn_body(&agent));
     (serde_json::to_vec(&agent).expect("agent JSON"), value)
@@ -138,6 +134,114 @@ pub fn use_stock(value: &mut temper_playground::documents::Configuration) {
     // The standing charters, closer procedure and close job are delegation targets.
     value.jig_over("tasks.executor_kinds", 22);
     value.jig_over("documents.lines", 12);
+}
+
+/// The cluster's engine figures; worker-alone documents retain their own limits.
+#[expect(clippy::too_many_lines, reason = "the three subprocess worlds share one retained numeric fixture")]
+pub fn cluster_limits(value: &mut temper_playground::documents::Configuration, turn: bool, github: bool) {
+    for (name, figure) in [
+        ("authority.executors", 22),
+        ("authority.grants", 15),
+        ("authority.projects", 2),
+        ("authority.requirements", 3),
+        ("authority.roles", 4),
+        ("authority.segments", 8),
+        ("brief.briefs", 2),
+        ("brief.sections", 10),
+        ("core.call_answer_bytes", 4096),
+        ("core.load_bytes", 8192),
+        ("core.load_slots", 8),
+        ("core.policy_bytes", 8192),
+        ("core.resume_bytes", 4_194_304),
+        ("core.run_bytes", 32_768),
+        ("core.templates", 7),
+        ("documents.chips", 2),
+        ("documents.lines", 12),
+        ("documents.rows", 32),
+        ("documents.text_bytes", 128),
+        ("fleet.attempts", if turn { 4 } else { 2 }),
+        ("fleet.calls", 1),
+        ("fleet.grace_ms", 360_000),
+        ("fleet.turns", 8),
+        ("hub.transcript_bytes", 16_777_216),
+        ("hub.turn_bytes", 1_327_470),
+        ("hub.turn_queue_bytes", 10_619_760),
+        ("hub.turns", 1),
+        ("io.output", if turn { 1_327_857 } else { 1_328_262 }),
+        ("link.ping_ms", 100),
+        ("link.silence_ms", 1000),
+        ("notes.entries_per_scope", 1),
+        ("notes.party_entries", 1),
+        ("notes.recalled", 1),
+        ("notes.scopes", 18),
+        ("people.amendment_bytes", 2048),
+        ("people.holdings", 1),
+        ("people.inbox_tasks", 16),
+        ("people.operations", 5),
+        ("people.pending", 4),
+        ("people.people", 1),
+        ("people.projects", 2),
+        ("people.sign_ins", 2),
+        ("people.waiters", 4),
+        ("people.words", 512),
+        ("tasks.authority_bytes", 512),
+        ("tasks.authority_grants", 15),
+        ("tasks.authority_segments", 9),
+        ("tasks.batch", 1),
+        ("tasks.charters", 16),
+        ("tasks.contract_choices", 2),
+        ("tasks.delegates", 4),
+        ("tasks.dependencies", 1),
+        ("tasks.executor_kinds", 22),
+        ("tasks.exemptions", 8),
+        ("tasks.funders", 4),
+        ("tasks.hold_bytes", 64),
+        ("tasks.hold_segments", 8),
+        ("tasks.message_bytes", 4094),
+        ("tasks.parameters", 5),
+        ("tasks.project_goals", 1),
+        ("tasks.project_tasks", 8),
+        ("tasks.result_bytes", 128),
+        ("tasks.saved_resources", 4),
+        ("tasks.spec_bytes", 512),
+        ("tasks.tasks", 8),
+        ("tasks.inbox_bytes", 4096),
+        ("tasks.run_inbox", 8),
+        ("tasks.tree_tasks", 8),
+        ("views.runs", if turn { 2 } else { 1 }),
+        ("views.text_bytes", 1024),
+    ] {
+        value.jig_over(name, figure);
+    }
+    if !github {
+        value.jig_over("fleet.engine_slots", 0);
+    }
+    for (name, figure) in [
+        ("checkout.message_bytes", 4096),
+        ("checkout.name_bytes", 256),
+        ("checkout.repositories", 2),
+        ("forge.landing_members", 1),
+        ("forge.name_bytes", 64),
+        ("forge.resources_per_task", 2),
+        ("git_component.stdout_bytes", 131_072),
+        ("root.journal.transcript_bytes", 4_194_304),
+        ("root.loads.bytes", 1_327_718),
+        ("root.loads.read_bytes", 2_654_940),
+        ("root.loads.reply_bytes", 1_327_718),
+        ("root.loads.transcript_bytes", 1_327_470),
+        ("tool_payload", 4096),
+        ("transcript_memory", 4_503_599_627_370_496_u64),
+    ] {
+        value.temper_over(name, figure);
+    }
+    if !github {
+        value.temper_over("forge.client.calls", 4);
+        value.temper_over("forge.client.pending", 8);
+        value.temper_over("forge_component.connections", 4);
+    }
+    if turn {
+        value.temper_over("forge.client.poll_ms", 50);
+    }
 }
 
 /// All directories are explicit and belong to this fixture's scratch.
@@ -196,7 +300,7 @@ pub fn demo_document(directory: &Path, listen: &str) -> serde_json::Value {
         "providers":[{"name":"demo", "number":3, "endpoint":"demo", "sources":{"keys":true}}],
         "endpoints":[{"name":"demo", "number":3, "dialect":3, "provider":"demo",
             "address":{"socket":listen}, "transport":"plaintext", "headers":[],
-            "connect_ms":10000, "handshake_ms":10000}]
+            "connect_ms":10_000, "handshake_ms":10_000}]
     });
     for field in ["providers", "endpoints"] {
         value["engine"]["llm"][field]

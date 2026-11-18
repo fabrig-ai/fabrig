@@ -308,6 +308,18 @@ impl Cluster {
                 }
             }
         }
+        if process == "engine" {
+            let config = self.dir(process).join("config");
+            let mut value = temper_playground::documents::Configuration::from_jig(
+                serde_json::from_slice(&fs::read(config.join("temper.json")).expect("cluster engine")).expect("JSON"),
+            );
+            super::configuration::cluster_limits(
+                &mut value,
+                self.experiment.ends_with("cluster-turn"),
+                self.experiment.ends_with("github"),
+            );
+            super::limit_settings::remember(&config, &value);
+        }
         let settings = self.experiment.join("settings.json");
         if process == "engine" && settings.exists() {
             let mut value: Value =
@@ -329,6 +341,10 @@ impl Cluster {
     fn command(&self, process: &str) -> Command {
         if !self.prepared.contains(process) {
             self.render_files(process);
+        }
+        if process == "engine" && !self.dir(process).join("data/fixture-limits-applied.json").exists() {
+            let root = self.dir(process);
+            super::limit_settings::install_paths(&[root.join("config"), root.join("data"), root.join("cache")]);
         }
         let spec = &self.specs[self.index(process)];
         let argv: Vec<_> = list(&spec["argv"]).iter().map(|v| self.render(string(v))).collect();

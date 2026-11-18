@@ -297,9 +297,10 @@ impl Judge<'_> {
         if self.stage == Stage::Llm && self.members.is_up() {
             self.members.prepare("engine");
             let path = self.members.dir("engine").join("config/temper.json");
-            let mut value = temper_playground::documents::Configuration::from_jig(read_document(&path)?);
+            let mut value = super::limit_settings::configuration(&self.members.dir("engine").join("config"));
             configure_engine(&mut value, &self.inputs.owner, self.relay.api, self.relay.git, self.workers);
             save(&path, &value)?;
+            super::limit_settings::remember(&self.members.dir("engine").join("config"), &value);
             save(
                 &self.inputs.scratch.join("landing-settings.json"),
                 &json!({"items":github_land::landing_settings(self.relay.git, &self.inputs.owner, REPOSITORY)}),

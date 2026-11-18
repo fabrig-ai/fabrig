@@ -131,7 +131,7 @@ pub fn deployment(paths: &[PathBuf; 3]) -> temper_playground::documents::Configu
     super::live_deployment(paths, super::LiveModel::ChatGpt { account: None });
     let config = paths[0].join("temper.json");
     let agent = paths[0].join("agent.json");
-    let mut value = temper_playground::documents::Configuration::from_jig(read_json(&config));
+    let mut value = crate::limit_settings::configuration(&paths[0]);
     let mut worker = read_json(&agent);
     for table in ["providers", "endpoints"] {
         value["engine"]["llm"][table].as_array_mut().expect("LLM table").retain(|row| row["name"] != "anthropic");
@@ -156,6 +156,7 @@ pub fn deployment(paths: &[PathBuf; 3]) -> temper_playground::documents::Configu
     assert_eq!(worker["endpoints"][0]["limits"]["output"], 32_000);
     assert_eq!(worker["endpoints"][0]["limits"]["reasoning_item"], 32_768);
     write_json(&config, &value);
+    crate::limit_settings::remember(&paths[0], &value);
     write_json(&agent, &worker);
     let mut directories = super::super::configuration::directories(paths[0].parent().expect("deployment root"));
     directories.config = paths[0].as_os_str().as_bytes().into();
@@ -619,6 +620,7 @@ pub fn green_light() {
 }
 
 fn start_box(binary: &Path, store: &Path, paths: &[PathBuf; 3], offline: bool) -> Child {
+    crate::limit_settings::install_paths(paths);
     let command = skein_world::end_to_end::Command {
         program: binary.into(),
         arguments: super::deployment_flags(paths)

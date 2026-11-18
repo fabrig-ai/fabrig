@@ -2331,8 +2331,6 @@ fn a_default_box_with_a_sign_in_registration_starts_without_dns() {
     let mut document = temper_playground::documents::Configuration::from_jig(
         serde_json::from_slice(&fs::read(&document_path).expect("default document")).expect("JSON"),
     );
-    document.temper_over("git_component.operations", 1);
-    document.temper_over("checkout.workspaces", 1);
     document["workers"][0]["slots"] = 1.into();
     fs::write(document_path, serde_json::to_vec(&document).expect("sign-in fixture")).expect("registered sign-in");
     // The private network has only loopback. Files-only name lookup and a private /run

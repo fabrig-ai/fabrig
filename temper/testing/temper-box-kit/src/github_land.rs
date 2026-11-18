@@ -168,10 +168,7 @@ impl Judge {
                 return Err("Must: no seeded forge records".to_owned());
             }
             self.members.prepare("engine");
-            let mut document = temper_playground::documents::Configuration::from_jig(
-                serde_json::from_slice(&fs::read(&self.engine).map_err(|_| "engine configuration".to_owned())?)
-                    .map_err(|_| "engine JSON".to_owned())?,
-            );
+            let mut document = super::limit_settings::configuration(&self.members.dir("engine").join("config"));
             // Restart retains the worker's files. Reserve its engine endpoint,
             // as the clients' endpoint is reserved for the App's setup URL.
             document["engine"]["hosts"]["listener"][0]["socket"] = self.workers.to_string().into();
@@ -191,6 +188,7 @@ impl Judge {
             fs::write(&self.engine, serde_json::to_vec(&document).map_err(|_| "engine JSON".to_owned())?)
                 .map_err(|_| "fixed workers listener".to_owned())?;
             let directory = self.members.dir("engine");
+            super::limit_settings::remember(&directory.join("config"), &document);
             super::forgejo::bootstrap(&directory.join("config"), &directory.join("data"), &directory.join("cache"));
             // temper/docs/design/protocol/setup/github.md, 7; temper/docs/design/protocol/forge/engine.md, 1.
             let mut record = temper_real_loop_world::fixtures::forgejo_record(address);

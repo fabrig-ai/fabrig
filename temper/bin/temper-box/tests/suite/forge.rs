@@ -785,7 +785,6 @@ fn a_refused_update_leaves_prepare_succeeding_with_one_line() {
 }
 
 #[test]
-#[ignore = "needs setup.deadline_ms=200, setup.backoff_ms=1, setup.backoff_max_ms=100 as limit settings inside the box: change 7339 (temper/docs/design/protocol/configuration/limit-settings.md, 8)"]
 fn source_deadlines_and_spawn_failures_leave_preparation_succeeding() {
     for (command, spawn) in [("list", false), ("update-oauth", false), ("list", true), ("update-oauth", true)] {
         let scratch = support::Scratch::new("forge_source_host_failure");
@@ -804,15 +803,7 @@ fn source_deadlines_and_spawn_failures_leave_preparation_succeeding() {
             format!("if [ \"$5 $6 $7\" = 'admin auth {command}' ]; then exec sleep 60; fi")
         };
         source_script(directory, &extra);
-        let path = directory.join("temper.json");
-        let mut value = temper_playground::documents::Configuration::from_jig(
-            serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON"),
-        );
-        for (name, number) in [("setup.deadline_ms", 200_u64), ("setup.backoff_ms", 1), ("setup.backoff_max_ms", 100)] {
-            value.temper_over(name, number);
-        }
-        support::write_private(&path, &serde_json::to_vec(&value).expect("JSON"));
-        let output = support::owned::prepare(directory, 1);
+        let output = support::owned::prepare_with_reader(directory, source_setup);
         support::forge_sign_in::success(&output);
         let line = String::from_utf8(output.stderr).expect("source diagnostic");
         assert_eq!(line.lines().count(), 1, "{command}, spawn={spawn}: {line}");
@@ -822,6 +813,24 @@ fn source_deadlines_and_spawn_failures_leave_preparation_succeeding() {
         scratch.remove();
     }
 }
+fn source_setup(
+    bytes: &[u8],
+    directories: &jig_protocol_config::Directories,
+) -> Result<temper_engine_shell::setup::Deployment, String> {
+    let stock = temper_playground::documents::Configuration::stock(serde_json::Value::Null);
+    let (jig, mut own) = (stock.jig, stock.limits);
+    for (name, value) in [("setup.deadline_ms", 200), ("setup.backoff_ms", 1), ("setup.backoff_max_ms", 100)] {
+        temper_service::limits::apply(&mut own, name.as_bytes(), value).expect("setup figure");
+    }
+    let temper_box_shell::setup::Deployment { named, checked, limits, demo } = temper_box_shell::setup::check_over(
+        bytes,
+        directories,
+        &temper_service::stock::Given::Stock,
+        Some((&jig, &own)),
+    )?;
+    Ok(temper_engine_shell::setup::Deployment { named: named.into_engine(), checked, limits, demo })
+}
+
 /// Fake HTTP peers share this test's loop with the source command.
 fn source_answer(
     case: &str,

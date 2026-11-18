@@ -41,7 +41,7 @@ pub fn prepare(
     let engine_path = cluster.dir("engine").join("config/temper.json");
     let worker_path = cluster.dir("w1").join("config/temper.json");
     let agent_path = cluster.dir("w1").join("config/agent.json");
-    let mut engine = temper_playground::documents::Configuration::from_jig(read(&engine_path));
+    let mut engine = support::limit_settings::configuration(&cluster.dir("engine").join("config"));
     let mut worker = temper_playground::documents::Configuration::from_jig(read(&worker_path));
     let mut agent = read(&agent_path);
     // domain/worker/jobs.md, kind 1: the engine declares preparation only when
@@ -61,6 +61,7 @@ pub fn prepare(
     agent["profile"]["declared"]["tool_payload"] = payload.into();
     engine.jig_over("hub.outcome_bytes", payload);
     engine.temper_over("forge.client.op_bytes", prepare.result);
+    engine.temper_over("tool_payload", payload);
     worker["workers"][0]["limits"]["overrides"]["tasks.result_bytes"] = prepare.result.into();
     worker["workers"][0]["limits"]["overrides"]["hub.outcome_bytes"] = payload.into();
     worker["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = prepare.result.into();
@@ -76,6 +77,7 @@ pub fn prepare(
         ]}),
     );
     write(&engine_path, &engine);
+    support::limit_settings::remember(&cluster.dir("engine").join("config"), &engine);
     write(&worker_path, &worker);
     write(&agent_path, &agent);
     // Stock charters need a model-priced reserve, not the small cluster fixture's spend.

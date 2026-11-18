@@ -369,6 +369,45 @@ fn cluster_the_retained_charter_overrides_name_no_documents() {
 }
 
 #[test]
+fn fixture_limits_are_applied_before_the_subprocess_restart() {
+    let scratch = support::Scratch::startup("small-limits-settings");
+    support::configuration(scratch.path(), &support::Forge::Unreached);
+    support::limit_settings::install(scratch.path());
+    let seen = support::ctl::run(support::ctl::Story::new(
+        scratch.path(),
+        vec![
+            support::ctl::Step::Run(support::ctl::Call::sign_in()),
+            support::ctl::Step::Run(support::ctl::Call::new(&["settings", "show", "limits", "--json"])),
+            support::ctl::Step::Run(support::ctl::Call::new(&["settings", "show", "temper-limits", "--json"])),
+        ],
+    ));
+    assert_eq!(
+        support::ctl::json(&seen.calls[1])["value"]
+            .as_array()
+            .expect("jig limits")
+            .iter()
+            .find(|item| item["name"] == "tasks.message_bytes")
+            .expect("message")["value"],
+        2046
+    );
+    assert_eq!(
+        support::ctl::json(&seen.calls[2])["value"]
+            .as_array()
+            .expect("temper limits")
+            .iter()
+            .find(|item| item["name"] == "tool_payload")
+            .expect("payload")["value"],
+        2048
+    );
+    scratch.remove();
+}
+
+#[test]
+fn ctl_limit_settings_apply_both_kinds_in_one_revision() {
+    support::ctl::read_condition_tests::limit_settings_apply_both_kinds_in_one_revision();
+}
+
+#[test]
 fn ctl_a_box_call_consumes_captured_stderr_once_without_busy_waiting() {
     support::ctl::read_condition_tests::a_box_call_consumes_captured_stderr_once_without_busy_waiting();
 }
