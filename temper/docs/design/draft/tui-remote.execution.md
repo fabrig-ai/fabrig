@@ -66,6 +66,8 @@ the nearest thing, and says so in the draft's status.
 - **After landing:** `temper https://dev.fabrig.ai` from the user's
   laptop reaches the sign-in screen, and signs in by a typed code once
   M2 is on dev.fabrig.ai.
+- **Left:** signed out, a build refused shows only once signed in
+  (`tui-remote.status.md`, 7): a follow-up once M2 has landed.
 
 ### M2. Approval across the internet
 
