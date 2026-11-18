@@ -379,6 +379,10 @@ pub(super) fn committed_chat() -> NativeClient {
                     }
                 }
             }
+            if opens.is_empty() {
+                work.push(request);
+                continue;
+            }
             for open in &opens {
                 if open.subject().owner() == &w::Owner::Jig {
                     let subject =
@@ -393,7 +397,25 @@ pub(super) fn committed_chat() -> NativeClient {
             let answer = w::OpenAnswer::Admitted;
             let mut body = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("answer length"));
             answer.encode(&mut body).expect("opening answer");
-            host.transport(jig_client::Event::Reply { exchange: *exchange, message: body.finish() });
+            let body = body.finish();
+            if let jig_client::Message::Batch(bytes) = message {
+                let batch = w::Batch::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("batch");
+                for (index, member) in batch.members().into_iter().enumerate() {
+                    if let w::Member::Open(_) = member {
+                        let part = w::BatchReply::new(&w::CEILINGS, w::BatchReplyParts {
+                            member: u16::try_from(index).expect("batch index"), reply: Some(body.clone()),
+                        }).expect("opening part");
+                        let mut bytes = skein_lib::Writer::new(usize::try_from(part.measure()).expect("part size"));
+                        part.encode(&mut bytes).expect("opening part fits");
+                        host.transport(jig_client::Event::Part { exchange: *exchange, message: bytes.finish() });
+                    }
+                }
+                if batch.members().len() == opens.len() {
+                    host.transport(jig_client::Event::Done { exchange: *exchange });
+                }
+            } else {
+                host.transport(jig_client::Event::Reply { exchange: *exchange, message: body });
+            }
         } else {
             work.push(request);
         }

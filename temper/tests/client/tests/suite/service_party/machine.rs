@@ -287,18 +287,21 @@ impl Machine {
             return;
         }
         let path = head.split_whitespace().nth(1).expect("HTTP route");
-        let (path, replaces) = if let Some((path, hex)) = path.split_once("?replaces=") {
-            let name: Vec<u8> = hex
-                .as_bytes()
-                .as_chunks::<2>()
-                .0
-                .iter()
-                .map(|pair| u8::from_str_radix(std::str::from_utf8(pair).expect("hex"), 16).expect("hex name"))
-                .collect();
-            (path, Some(<[u8; 16]>::try_from(name.as_slice()).expect("stream name")))
-        } else {
-            (path, None)
-        };
+        let (path, query) = path.split_once('?').unwrap_or((path, ""));
+        let mut replaces = None;
+        let mut version = None;
+        for field in query.split('&') {
+            if let Some(hex) = field.strip_prefix("replaces=") {
+                let name: Vec<u8> = hex.as_bytes().as_chunks::<2>().0.iter().map(|pair| {
+                    u8::from_str_radix(std::str::from_utf8(pair).expect("hex"), 16).expect("hex name")
+                }).collect();
+                replaces = Some(<[u8; 16]>::try_from(name.as_slice()).expect("stream name"));
+            } else if let Some(value) = field.strip_prefix("version=") {
+                version = Some(value.parse::<u32>().expect("wire version"));
+            } else {
+                assert!(field.is_empty(), "query outside service-party story");
+            }
+        }
         let credential = head.lines().find_map(|line| {
             line.strip_prefix("Authorization: Bearer ")
                 .map(|value| Secret::new(base64::decode(Alphabet::Url, value.as_bytes(), 40).expect("bearer")))
@@ -317,7 +320,8 @@ impl Machine {
             }
             "/jig/v1/unwatch" => Message::Unwatch(body),
             "/jig/v1/stream-gone" => Message::StreamGone(body),
-            path if path == format!("/jig/v1/stream?version={}", jig_client_protocol_wire::VERSION) => {
+            "/jig/v1/stream" => {
+                assert_eq!(version, Some(jig_client_protocol_wire::VERSION));
                 self.stream = Some(fd);
                 socket.reply.extend(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n\r\n");
                 self.front.carry(

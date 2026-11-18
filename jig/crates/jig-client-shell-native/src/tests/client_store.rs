@@ -3,7 +3,7 @@ use super::*;
 use client::{Ask, Asker, Event, Key, Message, Request, contract};
 use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::VERSION;
-use skein_lib::{Duration, List, Reader, Wall};
+use skein_lib::{Duration, List, Wall};
 
 const FIRST: Key = Key { asker: Asker::JIG, number: 1 };
 const NEXT: Key = Key { asker: Asker::JIG, number: 2 };

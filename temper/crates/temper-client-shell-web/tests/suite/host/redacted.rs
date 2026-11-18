@@ -240,7 +240,7 @@ fn a_stored_stream_replays() {
     let before = lines(&recording).expect("stored walk lines");
     assert!(
         before.iter().any(|line| matches!(line, Line::Open { path, .. }
-        if path.as_ref() == b"/jig/v1/stream?replaces=07070707070707070707070707070707")),
+        if path.as_ref() == format!("/jig/v1/stream?version={}&replaces=07070707070707070707070707070707", w::VERSION).as_bytes())),
         "start names the stored predecessor"
     );
     let result = redacted(&recording);
@@ -249,7 +249,7 @@ fn a_stored_stream_replays() {
     let records = lines(&proved).expect("proved stored lines");
     assert!(
         records.iter().any(|line| matches!(line, Line::Open { path, .. }
-        if path.as_ref() == b"/jig/v1/stream?replaces=78787878787878787878787878787878")),
+        if path.as_ref() == format!("/jig/v1/stream?version={}&replaces=78787878787878787878787878787878", w::VERSION).as_bytes())),
         "the replacement query carries the placeholder's lowercase hex"
     );
 }

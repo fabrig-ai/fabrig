@@ -342,6 +342,11 @@ fn link_consequences_precede_the_next_domain_request() {
         });
         if task == 20 {
             old_exchanges.push(client.exchange()).unwrap();
+        } else {
+            let answer = w::OpenAnswer::Admitted;
+            let mut bytes = Writer::new(usize::try_from(answer.measure()).unwrap());
+            answer.encode(&mut bytes).unwrap();
+            client.step(Event::Reply { exchange: client.exchange(), message: bytes.finish() });
         }
     }
     let blockers = [Handle { number: 200, ..TASK }, Handle { number: 201, ..TASK }];
@@ -352,7 +357,8 @@ fn link_consequences_precede_the_next_domain_request() {
         client.step(Event::Read { handle, read: Readable::Jig(c::Read::Project { project: 1 }) });
     }
     client.step(Event::SignIn { with: With::Held(fixtures::credential(&fixtures::NEW_CREDENTIAL)) });
-    let Some(Request::CloseStream) = client.requests().first() else { panic!("the old stream closes first") };
+    let closing = client.requests().iter().position(|request| matches!(request, Request::CloseStream))
+        .expect("the old stream closes");
     let mut opening = None;
     for (index, request) in client.requests().iter().enumerate() {
         if let Request::OpenStream { .. } = request {
@@ -360,6 +366,7 @@ fn link_consequences_precede_the_next_domain_request() {
         }
     }
     let opening = opening.expect("new stream");
+    assert!(closing < opening, "the old stream closes before its replacement opens");
     for handle in [TASK, fixtures::ME, Handle { number: 200, ..TASK }, Handle { number: 201, ..TASK }] {
         let mut ending = None;
         for (index, request) in client.requests().iter().enumerate() {
