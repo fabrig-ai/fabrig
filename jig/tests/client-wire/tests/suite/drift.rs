@@ -46,16 +46,8 @@ fn the_hello_alone_keeps_version_27_bytes() {
         255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
     ];
     for (expected, golden) in [
-        (
-            full,
-            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/enum_stream_event_hello_full.bin")
-                .as_slice(),
-        ),
-        (
-            [0_u8; 29].as_slice(),
-            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/enum_stream_event_hello_smallest.bin")
-                .as_slice(),
-        ),
+        (full, super::client_values::value("enum_stream_event_hello_full.bin")),
+        ([0_u8; 29].as_slice(), super::client_values::value("enum_stream_event_hello_smallest.bin")),
     ] {
         assert_eq!(golden, expected);
         let value = w::StreamEvent::decode(&w::CEILINGS, &mut Reader::new(expected)).expect("version 27 hello");

@@ -49,6 +49,7 @@ pub struct Domain {
     /// count that orders them.
     pub(crate) waiting: Map<u64, Id<Attempt>>,
     pub(crate) serial: u64,
+    pub(crate) untooled_order: u64,
     /// An alarm per attempt, as its state says.
     pub(crate) alarms: Deadlines<Id<Attempt>>,
     /// Relayed calls the parent has yet to answer.
@@ -168,6 +169,7 @@ impl Domain {
                 shutting_down: false,
                 mismatched: false,
                 untranslated: List::uncapped(),
+                untooled: Map::uncapped(),
                 hosts: skein_lib::Set::with_capacity(limits.engine_slots),
                 workstreams: Map::with_capacity(0),
                 uses: 0,
@@ -195,6 +197,7 @@ impl Domain {
             runs: Map::with_capacity(tracked),
             waiting: Map::with_capacity(tracked),
             serial: 0,
+            untooled_order: 0,
             alarms: Deadlines::with_capacity(tracked),
             calls: Slab::with_capacity(limits.calls),
             turns: Map::with_capacity(limits.turns),
@@ -553,6 +556,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             }
         }
         Event::Draining { channel } => channel::draining(domain, channel),
+        Event::Untooled { run, channel, source } => crate::untooled::record(domain, run, channel, source),
         Event::Needs(needs) => {
             crate::needs::replace(domain, &env.limits, needs);
             channel::needs_restored(domain, env, out);

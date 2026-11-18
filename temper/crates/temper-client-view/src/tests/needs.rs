@@ -4,6 +4,7 @@
     clippy::disallowed_types,
     reason = "ordinary tests inspect semantic subtrees and actions"
 )]
+mod row_paging;
 use super::{documents, fixtures as f};
 
 use crate::look;
@@ -947,7 +948,7 @@ fn list_keeps_one_card_and_opens_rows_in_place() {
             })
             .collect();
         assert_eq!(shapes, ["closed", "open", "closed"]);
-        assert_eq!(styled(&view, look::NEEDS_BAR_AT).name.as_deref(), Some(b"1 of 3".as_slice()));
+        assert_eq!(styled(&view, look::NEEDS_BAR_AT).name.as_deref(), Some(b"2 of 3".as_slice()));
         assert!(!has(&view, b"Next:"));
     }
 }

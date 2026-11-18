@@ -506,6 +506,14 @@ each page. Times stand, and a framed field takes a placeholder of the
 original's width alone (`client/journey-placeholders.md`;
 `draft/journey-placeholders.status.md`).
 
+`again` walks a journey on one fixed start, 2026-01-06T09:00:00Z and
+seed 7: the fake box's engine, worker and fake peers, the page and the
+TUI take it, and each one's clock moves only to its own deadlines, so
+two walks of one journey make the same recording and prints but where
+real processes decide. The box's own loop, which fetches over TLS, and
+its agents keep the host's clock; a recording walked by hand keeps its
+times (`client/journey-clock.md`; `draft/journey-clock.status.md`).
+
 Design documents:
 - [`README.md`](README.status.md)
 - [`cli/README.md`](cli/README.status.md)
@@ -530,6 +538,7 @@ Design documents:
 - [`client/forge/records.md`](client/forge/records.status.md)
 - [`client/forge/repositories.md`](client/forge/repositories.status.md)
 - [`client/forge/served.md`](client/forge/served.status.md)
+- [`client/journey-clock.md`](client/journey-clock.status.md)
 - [`client/journey-placeholders.md`](client/journey-placeholders.status.md)
 - [`client/line.md`](client/line.status.md)
 - [`client/pages/README.md`](client/pages/README.status.md)
@@ -731,6 +740,7 @@ Drafts:
 - [`draft/held-landing-recovery.md`](draft/held-landing-recovery.status.md)
 - [`draft/home-for-a-person.md`](draft/home-for-a-person.status.md) — A1, goal 4273: the stock charters' words for a goal's or a change's title line, `decided`'s question and options, and a goal's report headline, written for a person, and `help goal start`'s for a goal's title.
 - [`draft/home-for-a-person.md`](draft/home-for-a-person.status.md) — B1: the status agent's words carry the project's open findings, counted by kind and severity with the high ones' titles, after the goals and before the roles' Nows; a sitting starts a run when they changed since the last brief, kept as the brief's mark, a project that has landed nothing included; its instructions name findings by what they are about (`domain/forge/attention.md`, 2 and 3).
+- [`draft/journey-clock.md`](draft/journey-clock.status.md)
 - [`draft/journey-placeholders.md`](draft/journey-placeholders.status.md)
 - [`draft/kept-change-answers.md`](draft/kept-change-answers.status.md)
 - [`draft/landed-qa.md`](draft/landed-qa.status.md)

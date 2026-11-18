@@ -742,7 +742,7 @@ fn claim_keeps_pin_and_bindings(world: &World, task: u64, attempt: u64, account:
     })
 }
 
-fn program_configuration(seed: u64) -> (root::Config, root::Limits) {
+pub(super) fn program_configuration(seed: u64) -> (root::Config, root::Limits) {
     let (mut config, mut limits) = jig_core_world::world::fixture(seed, false);
     config.core.settings.models[0].program = Some(b"claude_code".as_slice().into());
     config.core.settings.endpoints[0].program = Some(b"claude_code".as_slice().into());

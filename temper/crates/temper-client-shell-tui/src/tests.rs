@@ -14,6 +14,8 @@ mod own;
 mod goal;
 #[path = "tests/lending.rs"]
 mod lending;
+#[path = "tests/playground.rs"]
+mod playground;
 pub(crate) use lending::terminal_document;
 
 use crate::{

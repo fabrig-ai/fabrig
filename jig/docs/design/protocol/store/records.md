@@ -201,9 +201,11 @@ follow from the limits that bound each kind (4).
   and `question_woken`, a `u64`: the newest question number that has
   woken it once at a park while it held a timer or a task watch, 0 for
   none, never lowered (`../../domain/tasks/lifecycle.md`, 2).
-- **Golden bytes** in one set per family, for its current schema
-  (skein's `data/codec/README.md`, section 5); a fuzz target per
-  family's decoder; bounds at their limit and one past it.
+- **Fixed-rule values** built in memory from each family's current schema,
+  not stored codec bytes (skein's `data/codec/README.md`, section 6);
+  hand-written tests may use constructors. A fuzz target per family's
+  decoder uses the full fixed-rule values; bounds at their limit and one
+  past it.
 - **What jig's records hold, said** (skein's `data/codec/README.md`, section 3),
   each word part of its family's layout (3): the core's
   `TaskBytes`, `PhaseBytes`, `ChangeBytes` and `EndBytes` hold the tasks

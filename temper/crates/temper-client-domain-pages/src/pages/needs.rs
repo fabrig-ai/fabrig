@@ -779,6 +779,17 @@ fn undoable(session: &Session, object: ObjectKey, now: Time) -> Option<u32> {
     }
     None
 }
+/// A Home row's At and a press on Needs you use the same card read.
+pub(super) fn read_at(pages: &mut Pages, out: &mut Queue<Request>) {
+    if let Address::Inbox { .. } = pages.address
+        && let Some(object) = pages.needs.at
+        && let Some(inbox) = &mut pages.inbox
+    {
+        inbox.next = inbox.next.max(pages.next);
+        inbox.open(object, out);
+        pages.next = pages.next.max(inbox.next);
+    }
+}
 #[expect(
     clippy::too_many_lines,
     reason = "the Needs acts share one exhaustive dispatch, including session toast variants"
@@ -902,7 +913,10 @@ pub(crate) fn act(
             pages.needs.findings.shown = None;
             pages.needs.at = Some(object);
             match pages.address {
-                Address::Inbox { .. } => return,
+                Address::Inbox { .. } => {
+                    read_at(pages, out);
+                    return;
+                }
                 Address::Home { .. }
                 | Address::Team { .. }
                 | Address::AllHome

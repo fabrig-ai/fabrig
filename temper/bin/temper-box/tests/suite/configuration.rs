@@ -67,6 +67,73 @@ fn the_process_document_holds_the_agent_after_the_store_restores_stock() {
 }
 
 #[test]
+fn the_process_workers_figures_follow_the_agents_setting() {
+    use temper_client_protocol_wire::v1 as w;
+
+    for (case, forge) in [
+        (
+            "forgejo",
+            support::Forge::Throwaway {
+                forgejo: std::path::Path::new("/fixture/forgejo"),
+                api: "127.0.0.1:3000".parse().expect("fixture forge"),
+                git: "http://127.0.0.1:3000/".into(),
+            },
+        ),
+        ("unreached", support::Forge::Unreached),
+    ] {
+        let scratch = support::Scratch::startup(&format!("process-worker-figures-{case}"));
+        support::configuration(scratch.path(), &forge);
+        let path = scratch.path().join("temper.json");
+        let mut document: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&path).expect("process document")).expect("deployment JSON");
+        let mut agent = temper_fixtures::agent::read(scratch.path());
+        for payload in [63_740, 8192] {
+            agent["profile"]["declared"]["tool_payload"] = payload.into();
+            temper_fixtures::agent::apply(&mut document, scratch.path(), &agent);
+            let setting = std::fs::read(scratch.path().join("agents.setting")).expect("agents setting");
+            let agents =
+                w::AgentFigures::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&setting)).expect("agents figures");
+            let part = temper_service::startup::box_worker(
+                &serde_json::to_vec(&document).expect("deployment JSON"),
+                &jig_directories(&support::configuration::directories(scratch.path())),
+                &temper_service::stock::Given::Stock,
+                &agents,
+                &[],
+            )
+            .expect("box composition")
+            .expect("box worker");
+            let bytes = temper_worker_shell::agent::figures::configuration(
+                part.figures.as_ref().expect("composed figures"),
+                None,
+                scratch.path(),
+                &[],
+            )
+            .expect("agent document");
+            let agent = temper_worker_shell::agent::prepare_bytes(bytes).expect("composed agent").agent;
+            let part = temper_service::startup::box_worker_with_agent(
+                &serde_json::to_vec(&document).expect("deployment JSON"),
+                &jig_directories(&support::configuration::directories(scratch.path())),
+                &temper_service::stock::Given::Stock,
+                &agents,
+                &[],
+                &agent.declaration(),
+            )
+            .expect("derived box composition")
+            .expect("box worker");
+            let limits = temper_service::worker_settings::root_limits(&part.worker, &agent, &part.limits);
+            let mut problems = temper_worker_service::startup::Problems::empty();
+            temper_worker_service::startup::worker::worker(&limits, &mut problems);
+            assert!(
+                problems.is_empty(),
+                "{case}, payload {payload}: {}",
+                String::from_utf8_lossy(&temper_worker_service::startup::lines(&problems))
+            );
+        }
+        scratch.remove();
+    }
+}
+
+#[test]
 fn the_browsers_client_bounds_are_the_terminals() {
     assert_eq!(
         temper_client_shell_web::limits::client(),

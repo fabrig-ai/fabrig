@@ -159,11 +159,11 @@ fn completion_classes_are_named_but_other_model_faults_are_not() {
             Some(named(kind, host::ModelEvidence::Unsent, None)),
         );
     }
-    for fault in [
-        agent::ModelFault::Provider,
-        agent::ModelFault::Declined,
-        agent::ModelFault::Program { name: Box::new([]), exit: None, detail: Box::new([]) },
-        agent::ModelFault::Untooled { name: Box::new([]), detail: Box::new([]) },
+    for (fault, expected) in [
+        (agent::ModelFault::Provider, host::RunFailure::Model),
+        (agent::ModelFault::Declined, host::RunFailure::Model),
+        (agent::ModelFault::Program { name: Box::new([]), exit: None, detail: Box::new([]) }, host::RunFailure::Model),
+        (agent::ModelFault::Untooled { name: Box::new([]), detail: Box::new([]) }, host::RunFailure::Untooled),
     ] {
         let mut h = Harness::new();
         let (_, source) = h.decode(Box::new([]));
@@ -174,7 +174,7 @@ fn completion_classes_are_named_but_other_model_faults_are_not() {
         let crate::hand_out::Finish::Failed { failure, model } = crate::hand_out::Finish::of(&result, &names) else {
             panic!("failed")
         };
-        assert_eq!(failure, host::RunFailure::Model);
+        assert_eq!(failure, expected);
         assert_eq!(model, None);
     }
 }

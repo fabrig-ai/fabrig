@@ -2,7 +2,6 @@
 
 2026-11-14. Where skein's code lags or departs from [lib.md](lib.md).
 
-
 - **Not yet:** 3: `Slab::get2_mut`. 6: a carrier's lengths, beyond
   skein-http's heads, skein-channel's frames and the oauth crates' bodies
   and URLs (http.md, 2; ../net/channel.md, 3; ../oauth/README.md, 4). These still derive `Debug` over what they carry, as the request of

@@ -114,6 +114,7 @@ fn dispatch(command: &Command, arguments: &[Box<[u8]>], captured: &Capture) -> R
                     &directories,
                     &captured.environment,
                     crate::served::SERVED,
+                    &skein_shell::Clock::new(),
                     |_| Ok(()),
                     |bytes, owned, ()| {
                         crate::worker::alone(&directories, bytes, owned, &captured.environment).map(|service| {

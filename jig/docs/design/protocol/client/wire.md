@@ -169,9 +169,9 @@ template with one, in its project's `defaults` by the template's number, a
 template's own record being a setting's too; and in each project's `models`
 the offer alone, each `MeModel` with its `effort`, `shown`, `accounts` and
 `picker` (`../../client/domain/contract/documents.md`, 1). The schema, generated
-codecs,
-translations, golden records and served-version declarations carry those
-fields (`README.md`, sections 6 and 11). The
+codecs, translations and served-version declarations carry those fields
+(`README.md`, sections 6 and 11). Tests build their values from schema text
+or constructors, without golden files (skein's `data/codec/README.md`, 6). The
 preview says what a run's check would take now for a task keeping no
 account (`../../domain/accounts.md`, 4.3), never task intent or a reservation;
 no store family carries it or the offer, and application families' versions

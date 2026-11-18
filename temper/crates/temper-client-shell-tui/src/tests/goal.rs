@@ -150,7 +150,7 @@ fn one(
             let watch = wire::decode_watching(envelope.record(), &f::CEILINGS).unwrap();
 
             let bytes = if watch.watch() == &f::Watch::Forges {
-                Some(forges())
+                Some(forges(f::Mode::Owned))
             } else if watch.watch() == &f::Watch::Dismissed {
                 Some(dismissed(linked))
             } else {
@@ -172,7 +172,7 @@ fn one(
     }
 }
 
-fn family(record: Box<[u8]>) -> w::Owned {
+pub(super) fn family(record: Box<[u8]>) -> w::Owned {
     w::Owned::new(
         &w::CEILINGS,
         w::OwnedParts {
@@ -258,14 +258,14 @@ fn document(scope: w::NoteScope) -> w::ReadValue {
         .unwrap(),
     )
 }
-fn forges() -> Box<[u8]> {
+pub(super) fn forges(mode: f::Mode) -> Box<[u8]> {
     let row = f::ForgeRow::new(
         &f::CEILINGS,
         f::ForgeRowParts {
             number: 2,
             host: b"git.example".as_slice().into(),
             kind: f::Kind::Forgejo,
-            mode: f::Mode::Owned,
+            mode,
             connection: f::Connection::Connected(
                 f::Connected::new(&f::CEILINGS, f::ConnectedParts { id: 1, login: b"temper".as_slice().into() })
                     .unwrap(),

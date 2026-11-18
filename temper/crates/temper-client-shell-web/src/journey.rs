@@ -30,8 +30,10 @@ pub use walk::{Step, Unwalkable, differs, still, walk};
 #[cfg(test)]
 mod tests;
 
-/// The start's facts, as the shell reads them (client/web/journeys.md, 3.2).
+/// The start's facts, as the shell reads them (client/web/journeys.md, 3.2;
+/// temper/docs/design/client/journey-clock.md, 4.2).
 pub struct Facts {
+    pub fixed: bool,
     pub seed: u64,
     pub now: Time,
     pub wall: Wall,

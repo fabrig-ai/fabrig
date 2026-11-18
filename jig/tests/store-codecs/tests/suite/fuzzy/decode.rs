@@ -1,7 +1,7 @@
 //! Arbitrary and mutated family bytes (protocol/store/records.md, section 1, and protocol/store/README.md, section 9).
+use super::super::values;
 use jig_protocol_store::{accounts_v2, component_v3, notes_v1, people_v17};
 use skein_lib::{Reader, Rng, Writer, length::len_u64};
-use std::{fs, path::Path};
 
 fn notes(bytes: &[u8]) {
     if let Ok(scope) = notes_v1::Scope::decode(&notes_v1::CEILINGS, &mut Reader::new(bytes)) {
@@ -60,20 +60,13 @@ fn arbitrary(seed: u64, check: fn(&[u8])) {
         check(buffer.get(..length).expect("within buffer"));
     }
 }
-fn mutated(family: &str, seed: u64, check: fn(&[u8])) {
-    let root = skein_scratch::paths::tree().join("crates/jig-protocol-store/golden").join(family);
-    mutate_goldens(&root, seed, check);
-}
-fn mutate_goldens(root: &Path, seed: u64, check: fn(&[u8])) {
+fn mutated(text: &str, seed: u64, check: fn(&[u8])) {
+    let schema = skein_codegen::parse(text).expect("family schema");
+    let mut goldens = skein_codegen::goldens(&schema);
+    goldens.sort_by(|left, right| left.name.cmp(&right.name));
     let mut rng = Rng::new(seed);
-    let mut paths: Vec<_> =
-        fs::read_dir(root).expect("golden directory").map(|entry| entry.expect("golden entry").path()).collect();
-    paths.sort();
-    for path in paths {
-        if !path.file_name().expect("file name").to_string_lossy().ends_with("_full.bin") {
-            continue;
-        }
-        let golden = fs::read(path).expect("golden readable");
+    for golden in goldens.into_iter().filter(|value| value.name.ends_with("_full.bin")) {
+        let golden = golden.bytes;
         check(&golden);
         for _ in 0_u32..100 {
             let mut bytes = golden.clone();
@@ -90,24 +83,24 @@ fn arbitrary_notes_rows_never_panic_and_round_trip_when_they_decode() {
     arbitrary(0x5701_e014, notes);
 }
 #[test]
-fn mutated_notes_goldens_never_panic() {
-    mutated("notes", 0x5702_e014, notes);
+fn mutated_notes_fixed_rule_values_never_panic() {
+    mutated(values::NOTES, 0x5702_e014, notes);
 }
 #[test]
 fn arbitrary_component_rows_never_panic_and_round_trip_when_they_decode() {
     arbitrary(0x5703_e014, component);
 }
 #[test]
-fn mutated_component_goldens_never_panic() {
-    mutated("component", 0x5704_e014, component);
+fn mutated_component_fixed_rule_values_never_panic() {
+    mutated(values::COMPONENT, 0x5704_e014, component);
 }
 #[test]
 fn arbitrary_accounts_rows_never_panic_and_round_trip_when_they_decode() {
     arbitrary(0x570a_e014, accounts);
 }
 #[test]
-fn mutated_accounts_goldens_never_panic() {
-    mutated("accounts", 0x570b_e014, accounts);
+fn mutated_accounts_fixed_rule_values_never_panic() {
+    mutated(values::ACCOUNTS, 0x570b_e014, accounts);
 }
 
 fn tasks(bytes: &[u8]) {
@@ -123,8 +116,8 @@ fn arbitrary_tasks_rows_never_panic_and_round_trip_when_they_decode() {
     arbitrary(0x5705_e014, tasks);
 }
 #[test]
-fn mutated_tasks_goldens_never_panic() {
-    mutated("tasks", 0x5706_e014, tasks);
+fn mutated_tasks_fixed_rule_values_never_panic() {
+    mutated(values::TASKS, 0x5706_e014, tasks);
 }
 
 fn people(bytes: &[u8]) {
@@ -145,8 +138,8 @@ fn arbitrary_people_rows_never_panic_and_round_trip_when_they_decode() {
     arbitrary(0x5701_e019, people);
 }
 #[test]
-fn mutated_people_goldens_never_panic() {
-    mutated("people", 0x5702_e019, people);
+fn mutated_people_fixed_rule_values_never_panic() {
+    mutated(values::PEOPLE, 0x5702_e019, people);
 }
 
 fn core(bytes: &[u8]) {
@@ -167,8 +160,8 @@ fn arbitrary_core_rows_never_panic_and_round_trip_when_they_decode() {
     arbitrary(0x5703_e019, core);
 }
 #[test]
-fn mutated_core_goldens_never_panic() {
-    mutated("core", 0x5704_e019, core);
+fn mutated_core_fixed_rule_values_never_panic() {
+    mutated(values::CORE, 0x5704_e019, core);
 }
 
 fn frames(bytes: &[u8]) {
@@ -239,9 +232,8 @@ fn arbitrary_test_connector_rows_never_panic_and_round_trip_when_they_decode() {
 }
 
 #[test]
-fn mutated_test_connector_goldens_never_panic() {
-    let root = skein_scratch::paths::tree().join("testing/jig-test-store/golden");
-    mutate_goldens(&root, 0x5702_e018, test_connector);
+fn mutated_test_connector_fixed_rule_values_never_panic() {
+    mutated(values::TEST_CONNECTOR, 0x5702_e018, test_connector);
 }
 
 fn settings(bytes: &[u8]) {
@@ -280,5 +272,5 @@ fn settings(bytes: &[u8]) {
 #[test]
 fn arbitrary_and_mutated_settings_records_never_panic_and_round_trip() {
     arbitrary(0x57aa_0191, settings);
-    mutated("settings", 0x57aa_0192, settings);
+    mutated(values::SETTINGS, 0x57aa_0192, settings);
 }

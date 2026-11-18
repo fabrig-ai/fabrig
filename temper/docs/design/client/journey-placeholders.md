@@ -32,9 +32,9 @@ take them, 5 a print's ids, 6 the code, 7 its tests, 8 what is open.
   recordings are normalised once, by `normalise`, and the print's test
   holds every committed recording to its own normalisation (4.3).
 - **What stays:** times, the seed and the turns, which the replay needs
-  as they were (2.4). So two walks' prints are the same bytes except
-  where a page draws a time; their recordings still differ in their
-  clocks and seed. A print reads the recording's clocks, never the
+  as they were (2.4). `again` walks on a fixed start, so two of its
+  walks hold the same ones but where real processes decide
+  (`journey-clock.md`). A print reads the recording's clocks, never the
   printing host's, so one recording prints the same bytes on any day.
 - **A print's ids:** skein-ui's ids follow the order the page's nodes
   were made, which the walk's turns decide; the browser's print numbers
@@ -89,13 +89,12 @@ take them, 5 a print's ids, 6 the code, 7 its tests, 8 what is open.
   draws a time in forms no substitution maps back ("Tuesday, 16:06",
   "today 16:07"), and the engine's times sit in wire bytes as bare
   numbers that nothing marks, so a shifted clock could neither be found
-  whole nor proved (`web/journeys.md`, 4.3). So two walks' prints are
-  the same bytes except where a page draws a time, and their recordings
-  still differ in their clocks and seed. This departs from the draft,
-  whose two recordings of one journey are byte-identical, prints
-  included; the user agreed on 2026-11-17
-  (`../draft/journey-placeholders.status.md`). A fixed clock and seed
-  for `again`'s walks would close it (section 8).
+  whole nor proved (`web/journeys.md`, 4.3). No placeholder takes a
+  time: `again` fixes them at their source instead, walking every part
+  on one fixed start and a clock that moves only to its deadlines, so
+  that two of its walks hold the same times, prints that draw one
+  included, but where real processes decide (`journey-clock.md`, 5). A
+  recording walked by hand keeps its walk's times.
 - **A print reads no host's clock:** the replay that prints takes each
   turn's clocks and the browser's `zone` from the recording
   (`web/journeys.md`, 4.1; `tui/journeys.md`, 4.1), and the print adds
@@ -104,8 +103,9 @@ take them, 5 a print's ids, 6 the code, 7 its tests, 8 what is open.
   committed recording on whatever day it runs (4.3).
 - **The seed and the turns** stand: the host draws from the seed, and
   the turns' clocks, deadlines and a stream's pieces are when things
-  happened, which the replay gives back as they were. Two walks never
-  share them, so their recordings differ there.
+  happened, which the replay gives back as they were. Two of `again`'s
+  walks share the seed and the clocks, from its fixed start
+  (`journey-clock.md`, 2 and 3).
 - **What the fake box makes the same each time** needs nothing: a fresh
   box numbers its projects, chats and tasks alike.
 
@@ -320,11 +320,6 @@ no fuzzy test, no browser, terminal or box.
 
 ## 8. Open questions
 
-- **A fixed clock and seed** for the fake box `again` starts and the
-  browser it drives: what would make two walks' recordings the same
-  bytes, and their prints that draw a time too, with no placeholder for
-  a time (2.4; `web/journeys.md`, 10). The user takes it up as its own
-  follow-up.
 - **Keeping a recording that still holds:** `again` could keep the
   committed recording when it still replays and the new walk prints the
   same pages, so that a recording changes only when its exchange does.

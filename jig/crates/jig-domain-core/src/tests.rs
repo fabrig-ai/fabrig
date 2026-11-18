@@ -3651,6 +3651,7 @@ fn an_answer_payload_for_a_replaced_attempt_is_dropped() {
         saved: None,
         invalid_saved: false,
         unusable_history: false,
+        untooled: false,
     };
     let mut out = step(&mut core, &env, event);
     let Request::Now(answer) = out.pop().unwrap() else { panic!("payload drop") };

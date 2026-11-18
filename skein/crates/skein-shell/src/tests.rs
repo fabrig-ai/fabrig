@@ -37,6 +37,21 @@ fn an_iteration_environment_keeps_the_clocks_and_limits() {
 }
 
 #[test]
+fn a_fixed_clock_starts_at_the_supplied_times() {
+    let start = crate::FixedStart { wall: Wall::from_nanos(1_767_690_000_000_000_000), seed: 7 };
+    let clock = crate::Clock::fixed(&start);
+    assert_eq!(clock.now(), crate::Now { now: crate::FixedStart::NOW, wall: start.wall });
+}
+
+#[test]
+fn the_host_clock_passes_deadlines_through() {
+    let clock = crate::Clock::new();
+    let deadline = clock.now().now;
+    assert_eq!(clock.until(Some(deadline)), Some(deadline));
+    assert_eq!(clock.until(None), None);
+}
+
+#[test]
 fn startup_process_id_is_this_process() {
     assert_eq!(crate::process_id(), std::process::id());
 }

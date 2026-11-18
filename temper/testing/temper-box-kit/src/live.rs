@@ -34,8 +34,6 @@ pub fn configure(directory: &Path, forge: &Throwaway) -> String {
         }
     }
     agent["profile"]["policy"]["max_turns"] = 16.into();
-    value["engine"]["limits"]["overrides"]["hub.event_bytes"] = 4096.into();
-    value["application"]["limits"]["overrides"]["checkout.message_bytes"] = 4098.into();
     let scripts = super::landing_scripts(super::ANSWER, forge);
     let skein_fake_llm_domain::api::Line::Call { arguments, .. } = &scripts[0].turns[0].lines[0] else {
         panic!("the process fixture delegates the coding procedure");
@@ -48,7 +46,7 @@ pub fn configure(directory: &Path, forge: &Throwaway) -> String {
         For a change review task, finish with {{\"form\":\"verdict\",\"label\":\"1\",\"text\":\"Checked\",\"fields\":{{}},\"items\":[]}}.",
         std::str::from_utf8(arguments).expect("delegate JSON").replace("@coding", "\\u0040coding")
     );
-    super::configuration::turn_bounds::apply_with_stock(&mut value, &agent);
+    super::configuration::use_derived(&mut value);
     write_private(&path, &serde_json::to_vec(&value).expect("live configuration JSON"));
     temper_fixtures::agent::install(directory, &agent);
     instructions

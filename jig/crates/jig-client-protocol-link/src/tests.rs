@@ -123,3 +123,9 @@ mod answers;
 mod encoders;
 
 mod approval;
+
+#[path = "../../../tests/client-values.rs"]
+#[expect(clippy::disallowed_macros, reason = "test values embed the client family's schema text")]
+#[expect(clippy::disallowed_types, reason = "fixed-rule test values use ordinary Rust under jig/tests/clippy.toml")]
+#[expect(clippy::disallowed_methods, reason = "fixed-rule test values use ordinary Rust under jig/tests/clippy.toml")]
+mod client_values;

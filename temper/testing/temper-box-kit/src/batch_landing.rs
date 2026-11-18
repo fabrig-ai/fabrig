@@ -204,15 +204,10 @@ pub fn message_room(root: &Path, value: &mut Value) {
         "core.call_records":8,
         "authority.projects":3,
         "tasks.spec_bytes":prepare.spec,
-        "tasks.result_bytes":prepare.result,
-        "tasks.message_bytes":8190,
         "people.words":4096,
-        "tasks.inbox_bytes":65536,
         "tasks.run_inbox":8,
-        "core.call_answer_bytes":8192,
         "fleet.slots":value["workers"][0]["slots"],
-        "hub.inbox":agent["profile"]["policy"]["inbox"],
-        "hub.outcome_bytes":8192
+        "hub.inbox":agent["profile"]["policy"]["inbox"]
     }});
     // Both ends declare the same assignment and job carriers at opening.
     value["engine"]["limits"] = value["engine"]["limits"].clone();
@@ -220,10 +215,6 @@ pub fn message_room(root: &Path, value: &mut Value) {
     let limits = &mut value["engine"]["limits"]["overrides"];
     limits["hub.accounts"] = 4.into();
     limits["hub.slots"] = slots;
-    limits["hub.event_bytes"] = 8190.into();
-    limits["hub.outcome_bytes"] = 8192.into();
-    value["application"]["limits"]["overrides"]["checkout.message_bytes"] = 8192.into();
-    value["application"]["limits"]["overrides"]["forge.client.op_bytes"] = 4096.into();
     // Turn read-back observes Forgejo's asynchronous manual-merge mark.
     // Use the shipped paces, within this story's wall bound.
     let overrides = value["application"]["limits"]["overrides"].as_object_mut().expect("application overrides");
@@ -233,16 +224,7 @@ pub fn message_room(root: &Path, value: &mut Value) {
     // A heard delivery's fallback also bounds prepare retries and merge read-back.
     overrides.insert("forge.client.fallback_ms".into(), 5000.into());
     turn_restart::staging_limits(value);
-    super::configuration::turn_bounds::apply_with_stock(value, &agent);
-    // A task's retained inbox also crosses the record load edge.
-    for name in ["root.loads.bytes", "root.loads.reply_bytes"] {
-        let current = value["application"]["limits"]["overrides"][name].as_u64().expect("load bound");
-        value["application"]["limits"]["overrides"][name] = current.max(8_388_608).into();
-    }
-    for (name, floor) in [("root.loads.read_bytes", 16_777_216), ("root.journal.transcript_bytes", 8_388_608)] {
-        let current = value["application"]["limits"]["overrides"][name].as_u64().expect("transcript carrier");
-        value["application"]["limits"]["overrides"][name] = current.max(floor).into();
-    }
+    super::configuration::use_derived(value);
     temper_fixtures::agent::apply(value, root, &agent);
 }
 

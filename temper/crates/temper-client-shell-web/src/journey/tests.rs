@@ -2,6 +2,7 @@ use super::*;
 use jig_client_shell_web::adapter::Heard;
 use skein_ui::Act;
 
+mod fixed;
 mod pieces;
 mod saving;
 
@@ -15,6 +16,7 @@ fn every_record_reads_back_as_written() {
         Line::Journey { version: 2 },
         Line::Seed(u64::MAX),
         Line::Clocks { now: Time::ZERO, wall: Wall::EPOCH },
+        Line::Fixed,
         Line::Primary(Primary::Control),
         Line::Primary(Primary::Meta),
         Line::Zone(120),
@@ -149,6 +151,7 @@ fn a_malformed_line_is_unreadable() {
 
 pub(super) fn facts() -> Facts {
     Facts {
+        fixed: false,
         seed: 11,
         now: Time::ZERO,
         wall: Wall::EPOCH,

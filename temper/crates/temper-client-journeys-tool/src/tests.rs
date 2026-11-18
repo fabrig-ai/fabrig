@@ -293,6 +293,7 @@ fn fixture_recording() -> Box<[u8]> {
 
 fn fixture_with_secret(secret: Option<Box<[u8]>>) -> Box<[u8]> {
     let facts = journey::Facts {
+        fixed: false,
         seed: 11,
         now: Time::ZERO,
         wall: Wall::EPOCH,

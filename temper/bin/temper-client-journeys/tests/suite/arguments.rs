@@ -21,6 +21,7 @@ fn again_without_a_name_is_usage() {
 fn a_stale_recording_prints_no_line_of_its_own() {
     let scratch = Scratch::new("temper-client-journeys-stale-message");
     let facts = journey::Facts {
+        fixed: false,
         seed: 11,
         now: Time::ZERO,
         wall: Wall::EPOCH,
@@ -78,6 +79,32 @@ fn a_stale_recording_prints_no_line_of_its_own() {
     );
     assert!(output.stderr == expected.as_bytes(), "the stale refusal names the turn, line and record kinds alone");
     assert!(!directory.exists(), "a refused add creates no journey");
+}
+
+/// The tool sets the TUI's start (temper/docs/design/client/journey-clock.md, 4.4).
+#[test]
+fn again_declares_and_explains_the_tuis_fixed_start() {
+    use temper_client_journeys_tool::TABLE;
+    let name = "TEMPER_INTERNAL_FIXED_START";
+    let variable = TABLE.variables.iter().find(|variable| variable.name == name).expect("fixed-start declaration");
+    assert_eq!(variable.way, skein_shell::Way::Sets);
+    assert_eq!(variable.set, skein_shell::Set::Internal);
+    assert_eq!(variable.form, "SECONDS,SEED");
+    let absent = "The tool always sets again's fixed start for temper's TUI when recording again.";
+    assert_eq!(variable.absent, absent);
+    let environment = TABLE.environment_document(&[&TABLE]);
+    assert!(environment.contains(&format!(
+        "### `{name}`\n\n- **Set:** internal\n- **Sets**\n- **Form:** SECONDS,SEED\n- **Absent:** {absent}"
+    )));
+    let output =
+        Command::new(paths::binary("temper-client-journeys")).args(["again", "--help"]).output().expect("again help");
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(output.stderr.len(), 0);
+    let help = String::from_utf8(output.stdout).expect("help text");
+    assert!(super::internal(&help), "again retains its internal command help");
+    for name in [name, "TEMPER_INTERNAL_RECORD"] {
+        assert!(!help.contains(name), "help offers no input knob for the tool-set {name}");
+    }
 }
 
 #[test]

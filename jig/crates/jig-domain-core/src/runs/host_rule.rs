@@ -77,4 +77,22 @@ impl Core {
             }
         }
     }
+
+    /// A program fault narrows this task's usable places, never its account or other tasks.
+    pub(crate) fn run_host_facts(&self, task: u64, placement: PlacementConstraint, out: &mut List<HostSource>) {
+        self.host_facts(placement, self.host_rule(placement), out);
+        if let Some(logins) = self.fleet.program_logins(placement.channel) {
+            for login in logins {
+                if self.fleet.untooled_on(skein_lib::Token::new(task), placement.channel, &login.name)
+                    && let Some((source, _)) = accounts::programs::issued(&self.accounts, login.name.as_bytes())
+                {
+                    for fact in out.iter_mut() {
+                        if fact.source == source {
+                            fact.usable = false;
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

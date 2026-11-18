@@ -24,9 +24,9 @@ pub struct Config {
 pub enum Wait {
     /// Submit and return: work is pending above.
     No,
-    /// Block until a completion arrives or the deadline passes, a monotonic
-    /// [`Time`] read from the [`Clock`](crate::Clock): the earliest deadline
-    /// over every layer (programming-model.md, section 9).
+    /// Block until a completion arrives or the native monotonic deadline passes:
+    /// the earliest deadline over every layer, translated by [`crate::Clock::until`]
+    /// (skein/docs/design/runtime/shell.md, 5).
     Until(Time),
     /// Block until a completion arrives: no deadline is armed. Asserts that
     /// something is in flight or ready, since otherwise it never returns.

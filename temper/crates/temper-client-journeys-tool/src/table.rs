@@ -44,6 +44,13 @@ const RECORD: Variable = Variable {
     ..temper_shell::environment::INTERNAL_RECORD
 };
 
+/// The TUI's walk start (temper/docs/design/client/journey-clock.md, 4.4).
+const FIXED_START: Variable = Variable {
+    way: Way::Sets,
+    absent: "The tool always sets again's fixed start for temper's TUI when recording again.",
+    ..temper_shell::environment::INTERNAL_FIXED_START
+};
+
 pub(crate) const CAUTION: &str = "These aren't all a secret could be: any other private text stands unless --redact names it, so read the pages before you commit them.";
 const ADD_NOTES: &str = concat!(
     "add takes out the link secret, stored credentials, typed secrets and each --redact TEXT, replacing their bytes with x's. ",
@@ -117,7 +124,7 @@ pub(crate) const AGAIN: Command = Command {
     settings: &[&PREPARED],
     line: "Record journey NAME again while its acts hold, then add it.",
     arguments: &[Argument { shown: "NAME", line: "The journey to record again." }],
-    variables: &[&CHROMIUM, &BUNDLE, &RECORD, &PATH, &TARGET],
+    variables: &[&CHROMIUM, &BUNDLE, &RECORD, &FIXED_START, &PATH, &TARGET],
     notes: "Unwalkable journeys and invalid setups are refused before any build or child starts.",
     ..REPRINT
 };
@@ -281,6 +288,6 @@ pub const TABLE: Table = Table {
     commit: "",
     commands: &[REPRINT, ADD, NORMALISE, AGAIN, DRIVE, RECIPE_WALK, RECIPE_HASH, RECIPE_LIST],
     settings: &[],
-    variables: &[&CHROMIUM, &BUNDLE, &RECORD, &PATH, &TARGET],
+    variables: &[&CHROMIUM, &BUNDLE, &RECORD, &FIXED_START, &PATH, &TARGET],
     more: "temper-client-journeys COMMAND --help prints a command; read temper/docs/design/client/web/journeys.md, section 5.1.",
 };
