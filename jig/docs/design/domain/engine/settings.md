@@ -47,14 +47,16 @@ section 17; the records are `../../protocol/store/README.md`, 4.4.
   `jig-domain-people`'s settings vocabulary. So a release's new default
   never lands on a number a deployment holds.
   - *A deployment's own item* is a setting of those kinds that no
-    default has, a withdrawn model included, since it keeps its number
-    (11). One below 33 is refused. So is any setting of those kinds past
-    64, a default's too, and a default past 32: a start refuses defaults
-    that break the line as it refuses any default out of shape.
+    default has and that the settings offer. One below 33 is refused. So
+    is any offered setting of those kinds past 64, a default's too, and a
+    default past 32: a start refuses defaults that break the line as it
+    refuses any default out of shape.
   - *A change over a default* stays at the default's number, set,
     removed or reset as any change is, whatever its number.
   - *A removal or a reset* at a number no default has offers nothing,
-    and is never refused.
+    and is never refused; nor is a withdrawn model, which keeps its
+    number for the tasks that hold it and offers nothing (11), so that
+    an owner can always clear what is out of range.
   - *The kinds' counts stay counts:* `tasks.charters`, `templates` and
     the policies' limit cap how many a kind holds, never its numbers.
   - *Judged by the one check* below, as its fault *range*: at a set, at a
