@@ -203,10 +203,12 @@
       not `../view.md`, 6's short span: "a minute", "2 minutes", "an hour", "9
       hours", "a day", "3 days", each rounded down;
     - *the headline:* the landed sentence, then a space and the needs
-      sentence, by the project's open cards (`needs-you.md`, 1, *What the client
-      keeps*): "Nothing needs you.", "One thing needs you.", "Two things
-      need you." and so on in number words to "Nine", digits after,
-      "N+ things need you." where the read is cut, the
+      sentence, by the project's open cards, each open need once whether
+      its card is read or not, as `me` counts them, never the first
+      page's (`needs-you.md`, 1, *What the client keeps*, *The needs' rows*
+      and *Later*): "Nothing needs you.", "One thing needs you.", "Two things
+      need you." and so on in number words to "Nine", digits after, "29
+      things need you.", "N+ things need you." where the read is cut, the
       project's name until its needs have answered. Where every open card
       concerns findings (1, **Findings, drawn**, *Counted*) and the read
       is not cut, "finding" stands for "thing" and the number is the
@@ -238,7 +240,9 @@
     open the region is left out, the headline above having said "Nothing
     needs you." (`../../draft/surfaces.md`, 14: no part is drawn empty). Its
     head is the level-2 heading "Needs you · N", N in the signal colour,
-    the findings' `Counted::total` where the headline's number is it;
+    the headline's number: every open need, or the findings'
+    `Counted::total` where the headline's number is it, "N+" where the
+    read is cut;
     then, while an open card concerns findings, their severities counted,
     `temper-home-sevs`, "2 high · 4 medium · 5 low", each its glyph then
     its count and word (1, **Findings, drawn**, *The head's counts*); and
@@ -451,7 +455,9 @@
       away SINCE to OFF", both by `../view.md`, 6's *clock*, the newest such spell;
     - *the headline:* the landed sentence across projects, then a space
       and the needs sentence, Home's words over every open card across
-      projects, "N+" where the inbox or `approvals` is cut. With N the sum
+      projects, each open need once (`needs-you.md`, 1, *What the client
+      keeps*, *The needs' rows*), "N+" where the needs' rows or
+      `approvals` is cut. With N the sum
       over the projects shown of `landed` less `seen`, and P the number of
       them where it is above 0: "N changes landed across P projects.",
       P in number words to "nine", digits after; with P one, "N changes

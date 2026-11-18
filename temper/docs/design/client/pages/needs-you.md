@@ -7,9 +7,12 @@
   updates, each entry its card (`../README.md`, section 1), under two headings, each
   with how many entries it lists beside it, the updates' as new ones
   since what is read leaves them (below): "Needs you 2", "Updates 2
-  new", or "0"; "2+" and "2+ new" where the inbox's document says its
-  list was cut (jig's `more`, an owner inbox's next page, a filtered
-  page's `cut`), so that a count never says less than there is; with
+  new", or "0". The needs' count is every open need, each row of every
+  page the needs' read holds (1, **What the client keeps**, *The needs'
+  rows*), "2+" where that read is cut; the updates' "2+ new" where the
+  inbox's document says its list was cut (jig's `more`, an owner inbox's
+  next page, a filtered page's `cut`), so that a count never says less
+  than there is; with
   none, once that section's read has answered, "Nothing needs you." or "No
   updates.", and no count before it. Its first heading's
   row holds "+ New chat", a link to `NewChat` (`/chats/new`, its text area
@@ -53,7 +56,8 @@
   leaves `new` or stops being theirs.
 - **A group of findings** (`../../draft/home-for-a-person.md`, 5;
   `../../domain/areas.md`, 6, *Its groups*): a question, by `message` or
-  a person task in words, whose whole words name findings in their line
+  a person task in words, asked under a goal, a chat or a standing role
+  alike (the triager's runs ask under theirs), whose whole words name findings in their line
   form (`../../domain/agent/agents.md`, 2, a `Findings:` line) is a
   group's card, on this page and on Home (`home.md`, 1, **Findings,
   drawn**, *A group's card*), where one of them at least is read. It is
@@ -147,11 +151,20 @@
   leave the browser's page and no page replaces them; `Seen` marking
   stays as it is. Its unfiltered address, `/`, works across projects,
   each card's from line opening with its project's chip. On a wide page
-  it is a list of the open cards (1, *What the client keeps*), in
+  it is a list of the open cards (1, *What the client keeps*), every
+  open need among them, whether its card is read or not, in
   their order, oldest first as the inbox orders them: the shown one, the
   one a Home row asked for, else the first, open as *The card*; each other
   closed, a `temper-need-row`, its from line and its SHORT (below), the
   whole a button that opens it (`needs::Act::Open`), closing the one open.
+  A need whose card is not read (1, *What the client keeps*, *The needs'
+  rows*) is a closed row drawn from its row alone: its from line, the
+  project's chip on the unfiltered address, its task's TITLE from the
+  row's task link, "TN" where the link holds no title, its kind and its
+  age; no SHORT. Opening it reads its card, and it opens as *The card*
+  once that read answers, closed until then. In the terminal's inbox
+  such a need is its row alone, its kind's tag, "PROJECT › TN TITLE" and
+  its wait, with "Open TN ↗".
   On a phone it is one card at a time, the shown one, as below. Until the
   inbox has answered, the column is empty, so that "Nothing needs you."
   never flashes, and what it said stands through each refresh after that.
@@ -160,15 +173,17 @@
   - *Its intro,* `temper-needs-intro`, while a card is open: the kicker
     "Needs you · all projects" unfiltered, "Needs you · PROJECT" filtered
     by a project; the level-1 heading, Home's needs sentence over the open
-    cards, then with a Decided for you row showing " Four were decided for
+    needs (1, *What the client keeps*, *The open cards*' count), then with a Decided for you row showing " Four were decided for
     you." or " One was decided for you.", in number words to "Nine",
     digits after. What reaches the person, the lede `needs.html` draws, is
     `../../draft/what-reaches-you.md`, section 2's, and joins the intro with
     its classes.
   - *Its head,* on a wide page: the level-2 heading "Needs you · N", N in
-    the signal colour, "N+" where the read is cut, and at its right "oldest
+    the signal colour, the headline's number (`home.md`, 1, *the
+    headline*: every open need, or the findings' `Counted::total` where
+    the sentence counts findings), "N+" where the read is cut, and at its right "oldest
     first", muted. Its place, "2 of 3": the total is what is answered of
-    this session's page plus the open; where the read is cut, "2 of 3+",
+    this session's page plus the open needs; where the read is cut, "2 of 3+",
     drawn in the phone's bar (*On a phone,* below).
   - *On a phone* (the whole story's `phone-need.html`;
     `../../draft/surfaces.md`, section 10), the browser's alone, at 760 px and
@@ -645,8 +660,28 @@
   stored record, and at most 64 each of the cards marked later, the answered
   lines, the refused answers and the proposals of settings, the oldest going
   first, a line still held never:
+  - *The needs' rows,* `Inbox::rows`, beside its cards: every row of the
+    needs' groups its address selects, read a page at a time through to
+    the last (jig's `domain/people/README.md`, section 5, *Bounded*), at
+    most 64, in the inbox's order, oldest first. A filtered address reads
+    its needs' pages with `Read::Inbox`, each answer's `after` read on at
+    once until none; the unfiltered address takes the watched document's
+    window and, where its needs run past it (its `next` set and no update
+    in the window), reads the needs as a filtered address does, from the
+    first page. Each refresh reads them again; the rows read before stand
+    until the new read's last page has answered, so no count falls back
+    while it reads, and before any read has finished what has answered so
+    far stands, cut. The read is *cut* where it stops before its last
+    page: at 64 rows, or at a page refused, failed or ended; `Inbox::cut`'s
+    needs' half says so. The rows are what is counted; cards are read for
+    the first of them in the inbox's order, as many as the needs' share
+    of `card_capacity` (half, the updates' window holding the rest), and,
+    on *Needs you*, for the open one (1, **Needs you**), which takes the
+    place of the last of them. A row whose card is not read has no
+    severity and concerns no findings (`home.md`, 1, **Findings, drawn**,
+    *Counted*).
   - *Later,* the cards marked later. *The open cards* are the needs'
-    groups as `Inbox` reads them, less those answered, with the approvals
+    rows, each with its card where it is read, less those answered, with the approvals
     (1, *An approval*) and the findings the person holds (1, *A finding
     that is the person's*), in one order, `findings::Session::all`'s, which
     Home, Home on All projects and this page share
@@ -660,6 +695,12 @@
     findings, ranked by its highest and placed by when it was asked. So a medium finding filed an hour ago comes after a
     question asked a minute ago, and before a low finding filed a day
     ago. The head's "oldest first" stays: within a severity, it holds.
+    Their count, which Home's headline and head, Home on All projects'
+    headline, this page's intro and head and the terminal's "Needs you N"
+    say, is every open card: each open need once, its card read or not,
+    as `me` counts its needs, with the approvals and the findings the
+    person holds; "N+" only where the needs' rows, `approvals` or the
+    findings' read is cut, never because fewer cards are read than rows.
   - *Answered,* a bounded list: each card's object, project, title,
     label and when. The label is the choice's words, or `Replied: “…”`,
     its words cut at 57 characters plus "…" past 60. A line shows on
