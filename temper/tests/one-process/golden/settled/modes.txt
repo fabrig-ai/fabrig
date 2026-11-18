@@ -80,6 +80,8 @@ f 600 1000 client/private/store
 f 600 1000 client/private/token
 d 755 1000 setup
 f 600 1000 setup/admin.token
+d 700 1000 setup/demo
+f 600 1000 setup/demo/llm.key
 d 755 1000 setup/forge-1
 f 600 1000 setup/forge-1/admin_token
 f 600 1000 setup/llm.key

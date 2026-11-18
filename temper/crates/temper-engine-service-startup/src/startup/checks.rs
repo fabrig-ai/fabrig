@@ -31,7 +31,7 @@ pub fn room(engine: &config::Engine, host: domain::room::HostPart, problems: &mu
 /// The binary's stock fits before any listener opens (protocol/configuration/stock.md).
 /// The caller selects `Given::Stock`; worlds size their own defaults.
 pub fn stock(engine: &config::Engine, problems: &mut Problems) {
-    if engine.defaults == config::Defaults::Passed
+    if engine.defaults != config::Defaults::Document
         && let Err(floor) = crate::stock::floors(
             &crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes),
             &engine.limits,
@@ -610,7 +610,7 @@ pub fn figures(engine: &config::Engine, problems: &mut Problems) {
     let count = u32::try_from(engine.llm.endpoints.len()).expect("document bounds endpoints");
     if count > temper_engine_service_vocabulary::figures::ENDPOINTS {
         problems.push(
-            Path::root().member(b"engine").member(b"llm"),
+            Path::root().member(b"providers.setting"),
             What::Half(crate::startup::EngineWhat::FigureEndpoints { count }),
         );
     }
@@ -628,7 +628,7 @@ pub fn agent(engine: &config::Engine, agent: &Declaration, problems: &mut Proble
                 problems.push(
                     at(
                         offered,
-                        at(index, Path::root().member(b"engine").member(b"llm").member(b"providers"))
+                        at(index, Path::root().member(b"providers.setting").member(b"providers"))
                             .member(b"sources")
                             .member(b"programs"),
                     ),

@@ -219,6 +219,19 @@ fn exchange(asks: Vec<Asked>) -> u32 {
         })
         .expect("keyed request left the linked host")
 }
+pub(super) fn project_frame() -> Box<[u8]> {
+    let mut walk = linked();
+    let value = w::DeliveryValue::Me(jig_client_test_records::frame_two_projects_record());
+    walk.streamed(&w::StreamEvent::Delivery(
+        w::Delivery::new(
+            &w::CEILINGS,
+            w::DeliveryParts { watch: 0, document: owned(encoded(value.measure(), |writer| value.encode(writer))) },
+        )
+        .expect("project frame"),
+    ));
+    walk.turn(vec![Report::Place { path: b"/projects/3/work".as_slice().into() }]);
+    walk.recorder.save(&walk.page)
+}
 pub(super) fn walked() -> Box<[u8]> {
     walked_with_no_event(false)
 }
@@ -376,7 +389,11 @@ fn accounts(ended: bool) -> w::DeliveryValue {
         w::Accounts::new(
             &w::CEILINGS,
             w::AccountsParts {
-                skein_bools: [false; 5],
+                lendable: false,
+                usable: false,
+                settled: false,
+                cut: false,
+                readiness_cut: false,
                 lending: None,
                 lent_end: None,
                 program_hosts: Box::default(),
@@ -518,7 +535,7 @@ fn me_with_openai_key() -> w::DeliveryValue {
     let mut reader = Reader::new(&me.providers);
     reader.u32().expect("provider's length");
     let mut provider = w::ProviderOffer::decode(&w::CEILINGS, &mut reader).expect("provider").into_parts();
-    provider.skein_bools[2] = true;
+    provider.programs_cut = true;
     let provider = w::ProviderOffer::new(&w::CEILINGS, provider).expect("key provider");
     me.providers = encoded(provider.measure() + 4, |writer| {
         writer.put(&provider.measure().to_be_bytes())?;
@@ -538,7 +555,11 @@ fn me_with_openai() -> w::DeliveryValue {
                 w::DocumentTextParts { bytes: b"openai".as_slice().into(), cut: false },
             )
             .expect("name"),
-            skein_bools: [true, true, false, false, true],
+            sign_in: true,
+            key: true,
+            programs_cut: false,
+            none: false,
+            signed_in_plan: true,
             programs: List::with_capacity(0),
             manage_usage: None,
             key_bytes: 4096,

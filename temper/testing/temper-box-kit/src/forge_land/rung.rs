@@ -127,9 +127,12 @@ pub fn deployment(paths: &[PathBuf; 3]) {
     super::live_deployment(paths, super::LiveModel::ChatGpt { account: None });
     let config = paths[0].join("temper.json");
     let mut value = read_json(&config);
-    let mut worker = temper_fixtures::agent::read(&paths[0]);
+    let mut worker = temper_agent_fixtures::read(&paths[0]);
     for table in ["providers", "endpoints"] {
-        value["engine"]["llm"][table].as_array_mut().expect("LLM table").retain(|row| row["name"] != "anthropic");
+        temper_agent_fixtures::providers::input(&mut value)[table]
+            .as_array_mut()
+            .expect("LLM table")
+            .retain(|row| row["name"] != "anthropic");
     }
     worker["endpoints"].as_array_mut().expect("endpoints").retain(|endpoint| endpoint["name"] != "anthropic");
     // Keep the stock endpoint ceiling: its response holds the escaped stock tool payload.
@@ -151,7 +154,7 @@ pub fn deployment(paths: &[PathBuf; 3]) {
     assert_eq!(worker["endpoints"][0]["limits"]["output"], 48_000);
     assert_eq!(worker["endpoints"][0]["limits"]["reasoning_item"], 32_768);
     write_json(&config, &value);
-    temper_fixtures::agent::apply(&mut value, &paths[1], &worker);
+    temper_agent_fixtures::apply(&mut value, &paths[1], &worker);
     value["engine"]["limits"]["overrides"]["hub.run_calls"] = 1.into();
     write_json(&config, &value);
     let mut directories = super::super::configuration::directories(paths[0].parent().expect("deployment root"));
@@ -763,11 +766,10 @@ fn fake_account(root: &Path, paths: &[PathBuf; 3], file: &Path) {
     assert_eq!(outcome.exit, Some(Exit::Code(0)));
     assert!(outcome.checked.is_some() && outcome.left.as_ref().is_none_or(Vec::is_empty), "donor drained");
     let registration =
-        read_json(&donor_paths[0].join("temper.json"))["engine"]["llm"]["providers"][0]["sources"]["sign_in"].clone();
-    let config = paths[0].join("temper.json");
-    let mut destination = read_json(&config);
-    destination["engine"]["llm"]["providers"][0]["sources"]["sign_in"] = registration;
-    write_json(&config, &destination);
+        temper_agent_fixtures::providers::read(&donor_paths[1])["providers"][0]["sources"]["sign_in"].clone();
+    let mut destination = temper_agent_fixtures::providers::read(&paths[1]);
+    destination["providers"][0]["sources"]["sign_in"] = registration;
+    temper_agent_fixtures::providers::write(&paths[1], &destination);
 }
 
 struct TwinPeers {

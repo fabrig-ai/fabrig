@@ -83,6 +83,7 @@ impl PublicHost {
             | Place::Address(_)
             | Place::Authorize { .. }
             | Place::AuthorizeMalformed
+            | Place::Root
             | Place::Missing => Public::Projects,
         };
         self.tickets.clear();

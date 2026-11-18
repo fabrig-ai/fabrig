@@ -47,7 +47,6 @@ pub struct Bare<'a> {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Ports {
     pub clients: NonZeroU16,
-    pub llm: NonZeroU16,
     pub webhooks: NonZeroU16,
 }
 
@@ -126,15 +125,10 @@ pub enum Reason {
 }
 
 /// The files of protocol/setup/init.md 2, in its table's order: `worker.secret`,
-/// `demo/llm.key` (data, private), `demo/bin/git`
+/// `demo/bin/git`
 /// (data, a link), `temper.json` (config), the
 /// document last.
-pub fn files(
-    facts: &Facts<'_>,
-    directories: &Directories<'_>,
-    secret: &[u8; 32],
-    demo_key: &[u8; 32],
-) -> Result<Answer, Refusal> {
+pub fn files(facts: &Facts<'_>, directories: &Directories<'_>, secret: &[u8; 32]) -> Result<Answer, Refusal> {
     check(facts.binary, facts.git, facts.claude, directories)?;
 
     let digits = hex::digits(secret);
@@ -147,11 +141,6 @@ pub fn files(
                 directory: Directory::Data,
                 name: b"worker.secret",
                 content: Content::Bytes { bytes: line(&digits), private: true },
-            },
-            File {
-                directory: Directory::Data,
-                name: b"demo/llm.key",
-                content: Content::Bytes { bytes: line(&hex::digits(demo_key)), private: true },
             },
             File {
                 directory: Directory::Data,

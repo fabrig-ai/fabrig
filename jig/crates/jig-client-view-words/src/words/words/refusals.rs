@@ -146,6 +146,7 @@ impl Words {
                 self.setting(b, &value.setting);
                 let phrase = match value.fault {
                     SettingFault::Linked => JigPhrase::SettingFaultLinked,
+                    SettingFault::Accounts => JigPhrase::SettingFaultAccounts,
                     SettingFault::Shape => JigPhrase::SettingFaultShape,
                     SettingFault::Count => JigPhrase::SettingFaultCount,
                     SettingFault::Reference => JigPhrase::SettingFaultReference,
@@ -286,6 +287,11 @@ impl Words {
             Setting::Worker(n) => {
                 let number = skein_lib::Decimal::of(u64::from(n.number));
                 let text = skein_lib::bytes::concat(&[b"Worker ", number.as_bytes()]);
+                b.text(skein_ui::Run::Plain, &text);
+            }
+            Setting::Provider(n) => {
+                let number = skein_lib::Decimal::of(u64::from(n.number));
+                let text = skein_lib::bytes::concat(&[b"Provider ", number.as_bytes()]);
                 b.text(skein_ui::Run::Plain, &text);
             }
             Setting::Rules => self.text(b, JigPhrase::SettingRules, &[]),

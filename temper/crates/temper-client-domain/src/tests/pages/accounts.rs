@@ -113,8 +113,9 @@ pub(super) fn frame(role: c::HeldRole, party: u64) -> c::WatchEvent {
 }
 pub(super) fn opened(role: c::HeldRole) -> (crate::Domain, Token, Token) {
     let mut root = crate::unlinked(&fixtures::limits(), fixtures::SEED);
-    let (me, accounts) = fixtures::start_accounts(&mut root, List::with_capacity(0));
-    deliver(&mut root, me, frame(role, fixtures::PARTY));
+    let me = fixtures::start(&mut root, List::with_capacity(0));
+    let out = deliver(&mut root, me, frame(role, fixtures::PARTY));
+    let accounts = fixtures::accounts_watch(&out);
     event(&mut root, Event::Went { place: crate::Place::Address(Address::Accounts) });
     (root, me, accounts)
 }
@@ -294,9 +295,9 @@ fn account_availability_forgets_its_document_when_the_person_signs_out() {
 fn account_availability_returns_after_signing_in_with_fresh_deliveries() {
     let (mut root, _, _) = current_accounts(c::HeldRole::Member);
     event(&mut root, Event::SignedOut);
-    let mut opened =
-        event(&mut root, Event::Client { event: jig_client::Event::SignIn { with: jig_client::With::Transport } });
+    event(&mut root, Event::Client { event: jig_client::Event::SignIn { with: jig_client::With::Transport } });
     let me = Token::new(0);
+    let mut opened = deliver(&mut root, me, frame(c::HeldRole::Member, fixtures::PARTY));
     let mut accounts = None;
     while let Some(request) = opened.pop() {
         if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Open { watch, subject } } } =
@@ -306,8 +307,7 @@ fn account_availability_returns_after_signing_in_with_fresh_deliveries() {
             accounts = Some(watch);
         }
     }
-    deliver(&mut root, me, frame(c::HeldRole::Member, fixtures::PARTY));
-    deliver(&mut root, accounts.expect("accounts reopened"), document(false));
+    deliver(&mut root, accounts.expect("accounts reopened after me"), document(false));
     assert_eq!(root.pages().availability(root.client()), Some(false));
 }
 #[test]
@@ -599,7 +599,7 @@ fn another_partys_restored_account_work_is_not_shown() {
         },
     })
     .unwrap();
-    let (me, _) = fixtures::start_accounts(&mut root, kept);
+    let me = fixtures::start(&mut root, kept);
     event(&mut root, Event::Went { place: crate::Place::Address(Address::Accounts) });
     assert!(root.pages().accounts().is_none());
     deliver(&mut root, me, frame(c::HeldRole::Member, fixtures::PARTY));

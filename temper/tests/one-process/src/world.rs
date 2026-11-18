@@ -222,7 +222,7 @@ impl Harness for OneProcess {
         fixtures::files()
     }
     fn configure_engine(engine: &mut jig_protocol_config::Engine, document: &serde_json::Value) {
-        if REFUSE_START.with(std::cell::Cell::get) {
+        if REFUSE_START.with(std::cell::Cell::get) || stories::playground() {
             return;
         }
         let world = fixtures::world_document();

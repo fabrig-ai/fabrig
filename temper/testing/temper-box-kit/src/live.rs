@@ -19,9 +19,11 @@ pub fn configure(directory: &Path, forge: &Throwaway) -> String {
     let path = directory.join("temper.json");
     let mut value: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
     let owned: Value = serde_json::from_slice(super::owned::EXAMPLE).expect("owned example");
-    value["engine"]["llm"] = owned["engine"]["llm"].clone();
+    let providers = temper_agent_fixtures::providers::input(&mut value);
+    providers["providers"].as_array_mut().expect("providers").retain(|provider| provider["number"] == 1);
+    providers["endpoints"].as_array_mut().expect("endpoints").retain(|endpoint| endpoint["provider"] == "openai");
     value["engine"]["limits"]["overrides"]["documents.rows"] = 32.into();
-    let mut agent: Value = temper_fixtures::agent::configuration(&owned);
+    let mut agent: Value = temper_agent_fixtures::configuration(&owned);
     if let Some(program) = agent["programs"].get_mut("claude_code") {
         let claude = temper_test_env::value(&temper_shell::environment::PATH).and_then(|path| {
             std::env::split_paths(&path).map(|directory| directory.join("claude")).find(|program| program.is_file())
@@ -48,7 +50,7 @@ pub fn configure(directory: &Path, forge: &Throwaway) -> String {
     );
     super::configuration::use_derived(&mut value);
     write_private(&path, &serde_json::to_vec(&value).expect("live configuration JSON"));
-    temper_fixtures::agent::install(directory, &agent);
+    temper_agent_fixtures::install(directory, &agent);
     instructions
 }
 

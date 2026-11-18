@@ -95,6 +95,7 @@ fn charters(domain: &Domain) -> Box<[SeeName]> {
             }
             Setting::Template(_)
             | Setting::Policy(_)
+            | Setting::Provider(_)
             | Setting::Worker(_)
             | Setting::Model(_)
             | Setting::Rules

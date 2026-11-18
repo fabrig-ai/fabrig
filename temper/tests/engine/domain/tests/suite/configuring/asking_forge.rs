@@ -9,7 +9,7 @@ fn an_asking_chat_reads_the_forge() {
     temper_engine_domain_world::oracle::config::set_landing(
         &mut config,
         PROJECT,
-        temper_fixtures::landing::ProjectLanding {
+        temper_landing_fixtures::ProjectLanding {
             gate_retries: 2,
             batch: 1,
             combine_main: engine::Combine::Merge,
@@ -17,14 +17,14 @@ fn an_asking_chat_reads_the_forge() {
             gate_timeout: skein_lib::Duration::from_millis(3_600_000),
             landing_attempts: engine::LANDING_ATTEMPTS,
             check_timeout: None,
-            by: temper_fixtures::landing::Way::Queue,
+            by: temper_landing_fixtures::Way::Queue,
             close_job: None,
             merge_job: Some(b"scripts/merge".as_slice().into()),
             tier_retries: 2,
             verification_bound_ms: 7_200_000,
-            repositories: Box::new([temper_fixtures::landing::RepositoryChecks {
+            repositories: Box::new([temper_landing_fixtures::RepositoryChecks {
                 repository: skein_forge::api::Repository { forge: 1, repository: 2 },
-                gates: Box::new([temper_fixtures::landing::GateCheck {
+                gates: Box::new([temper_landing_fixtures::GateCheck {
                     name: b"tests".as_slice().into(),
                     workflow: b"tests.yml".as_slice().into(),
                     ignored: Box::new([b"docs".as_slice().into()]),

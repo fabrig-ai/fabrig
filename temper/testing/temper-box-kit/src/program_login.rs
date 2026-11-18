@@ -32,7 +32,12 @@ pub fn configuration(directory: &Path, programs: Option<&Path>, executable: &Pat
         std::os::unix::fs::symlink(executable, bin.join("claude")).expect("program lookup");
     }
     fs::write(directory.join("temper.json"), deployment).expect("deployment configuration");
-    temper_fixtures::agent::install(directory, &agent);
+    temper_agent_fixtures::install(directory, &agent);
+    let document = directory.join("temper.json");
+    let mut value = serde_json::from_slice(&fs::read(&document).expect("deployment")).expect("deployment JSON");
+    let composed = temper_agent_fixtures::read(directory);
+    super::configuration::turn_bounds::apply(&mut value, super::configuration::turn_bounds::turn_body(&composed));
+    super::write_private(&document, &serde_json::to_vec(&value).expect("deployment JSON"));
     fs::write(directory.join("root.der"), skein_tls_kit::pki::ROOT).expect("public trust");
 }
 

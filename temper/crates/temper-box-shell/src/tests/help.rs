@@ -175,7 +175,7 @@ fn server_walk_says_when_a_forges_sign_in_meta_appears() {
 }
 
 fn coding_run_agent_document() -> serde_json::Value {
-    let mut document = temper_fixtures::agent::stock(true);
+    let mut document = temper_agent_fixtures::stock(true);
     // Inert endpoints keep configuration parsing independent of DNS, trust files and services.
     for endpoint in document["endpoints"].as_array_mut().expect("init endpoints") {
         endpoint["address"] = "127.0.0.1:9".into();
@@ -268,14 +268,8 @@ fn tester_stock() -> jig_domain_core::settings::Defaults {
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16384, depth: 32 },
     )
     .expect("engine document");
-    let engine = jig_protocol_config::engine(
-        &document,
-        0,
-        &jig_protocol_config::Directories::working(),
-        jig_protocol_config::Defaults::Passed,
-        &temper_service::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
-    )
-    .expect("engine configuration");
+    let engine = temper_service::startup::engine(&document, 0, &jig_protocol_config::Directories::working())
+        .expect("engine configuration");
     temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes)
 }
 
@@ -798,7 +792,7 @@ fn account_and_deployment_help_explain_offering_another_model() {
     let account = account.split_whitespace().collect::<Vec<_>>().join(" ");
     assert!(account.contains("temper help deployment"), "{account}");
     assert!(account.contains("Offering another model"), "{account}");
-    assert!(account.contains("The providers are the configuration's and the models are settings"), "{account}");
+    assert!(account.contains("Providers and models are settings"), "{account}");
     let deployment = help::answer(&configured(&["help", "deployment"])).expect("deployment help");
     assert!(!deployment.contains("```json"), "model declarations belong in settings: {deployment}");
     let guidance = deployment
@@ -825,8 +819,15 @@ fn account_and_deployment_help_explain_offering_another_model() {
         "A task keeps the model it has",
         "no restart",
         "local model",
-        "`endpoint` in `engine.llm.providers`",
-        "`CONFIG/temper.json`",
+        "temper ctl settings show provider N",
+        "\"setting\": {\"kind\": \"provider\", \"number\": N}",
+        "\"set\": VALUE",
+        "temper ctl settings apply FILE --against REVISION --key KEY",
+        "`keep`",
+        "`drop`",
+        "`sources`",
+        "`endpoint` names an entry in its `endpoints` list",
+        "`address.socket`",
         "`CONFIG/temper.json`",
         "claude-haiku-5-5",
         "output",

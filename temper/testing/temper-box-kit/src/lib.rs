@@ -25,7 +25,7 @@ pub mod socket;
 pub mod terminal;
 pub mod turn_restart;
 pub mod webhooks;
-pub const WITHIN: skein_lib::Duration = skein_lib::Duration::from_secs(60);
+pub use temper_process_guard::WITHIN;
 pub mod forge_land;
 pub mod forge_parent;
 pub mod forge_sign_in;
@@ -38,7 +38,7 @@ pub mod forgejo_sign_in;
 pub mod live;
 pub mod live_github;
 pub mod llm;
-pub mod parent;
+pub use temper_process_guard as parent;
 pub mod patience;
 pub mod person;
 pub mod playground;
@@ -91,15 +91,10 @@ pub fn own_listeners(document: &mut serde_json::Value) {
         }
     }
 
-    let old = [
-        "/application/clients/listener/socket",
-        "/application/demo/llm/listen/socket",
-        "/application/webhooks/listener/socket",
-    ]
-    .map(|pointer| {
+    let old = ["/application/clients/listener/socket", "/application/webhooks/listener/socket"].map(|pointer| {
         document.pointer(pointer).expect("init listener").as_str().expect("socket string").parse().expect("socket")
     });
-    let drawn = free_addresses::<3>(&old);
+    let drawn = free_addresses::<2>(&old);
     let moves: Vec<_> =
         old.into_iter().zip(drawn).map(|(before, after)| (before.to_string(), after.to_string())).collect();
     replace(document, &moves);
@@ -119,7 +114,18 @@ pub enum Forge<'a> {
     Throwaway { forgejo: &'a Path, api: std::net::SocketAddr, git: String },
 }
 pub fn write_private(path: &Path, bytes: &[u8]) {
-    fs::write(path, bytes).expect("fixture file");
+    let mut rendered = None;
+    if path.file_name().is_some_and(|name| name == "temper.json")
+        && let Ok(mut document) = serde_json::from_slice::<serde_json::Value>(bytes)
+        && document.get("world_providers").is_some()
+    {
+        let root = path.parent().expect("fixture root");
+        let data =
+            if root.ends_with("config") { root.parent().expect("fixture parent").join("data") } else { root.into() };
+        temper_agent_fixtures::providers::keep(&mut document, &data);
+        rendered = Some(serde_json::to_vec(&document).expect("deployment JSON"));
+    }
+    fs::write(path, rendered.as_deref().unwrap_or(bytes)).expect("fixture file");
     fs::set_permissions(path, fs::Permissions::from_mode(0o600)).expect("private fixture");
 }
 pub fn configuration(directory: &Path, forge: &Forge<'_>) {
@@ -142,7 +148,9 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>) {
         configuration::documents(directory, skein_scratch::paths::binary("temper-box").to_str().expect("a UTF-8 path"));
     let mut value: serde_json::Value = serde_json::from_slice(&value).expect("deployment JSON");
     forgejo::configuration(directory, forge, &mut value);
-    temper_fixtures::agent::apply(&mut value, directory, &serde_json::from_slice(&agent).expect("agent JSON"));
+    temper_agent_fixtures::apply(&mut value, directory, &serde_json::from_slice(&agent).expect("agent JSON"));
+    let composed = temper_agent_fixtures::at(&value, directory);
+    configuration::turn_bounds::apply(&mut value, configuration::turn_bounds::turn_body(&composed));
     write_private(&directory.join("temper.json"), &serde_json::to_vec(&value).expect("deployment JSON"));
 }
 
@@ -200,6 +208,7 @@ pub fn serve(directory: &Path) -> Binary {
     Binary::start(serve_command(directory), Mode::Pipes, 65_536).expect("temper serve starts")
 }
 fn serve_command(directory: &Path) -> Command {
+    temper_agent_fixtures::providers::restore(directory);
     Command {
         program: skein_scratch::paths::binary("temper-box"),
         arguments: std::iter::once("serve".into()).chain(configuration::flags(directory)).collect(),
@@ -210,6 +219,7 @@ fn serve_command(directory: &Path) -> Command {
 /// Serve the cluster fixture's engine directory on the deployment's engine binary (protocol/binaries.md, 2).
 #[must_use]
 pub fn serve_engine(directory: &Path) -> Binary {
+    temper_agent_fixtures::providers::restore(&directory.join("data"));
     let engine = skein_scratch::paths::binary("temper-box").with_file_name("temper-engine");
     assert!(engine.is_file(), "build the deployment's binary: cargo build -p temper-engine --bin temper-engine");
     Binary::start(
@@ -823,7 +833,11 @@ fn native_settings_setup(directory: &Path, agents: Option<serde_json::Value>) ->
         Step::Then(Box::new(move |calls| {
             // These scripts deliver their answer through finish; preserve the
             // inherited result ending before the native client makes its chat.
-            ctl::setting_change_file(&file, &calls[2], |value| value["flags"]["ended_by"] = "result".into());
+            ctl::setting_change_file(&file, &calls[2], |value| {
+                value["flags"]["ended_by"] = "result".into();
+                // This world's standalone peer, rather than the box's scripted default, answers the chat.
+                value["llm"] = serde_json::json!({"account":null, "main":{"model":"gpt-6.1-sol", "effort":"high"}, "subagents":[]});
+            });
             let directory = file.parent().expect("settings directory");
             if let Some(value) = agents {
                 let mut change: serde_json::Value =

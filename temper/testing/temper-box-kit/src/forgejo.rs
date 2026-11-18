@@ -420,7 +420,7 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>, value: &mut Value) {
     // The creation offer carries nine stock charters and four procedures.
     value["engine"]["limits"]["overrides"]["documents.lines"] = 12.into();
     super::configuration::use_derived(value);
-    temper_fixtures::agent::apply(value, directory, &agent);
+    temper_agent_fixtures::apply(value, directory, &agent);
 }
 
 #[must_use]
@@ -449,7 +449,13 @@ pub(super) fn native_scripts(
         panic!("delegate call")
     };
     let mut delegate: Value = serde_json::from_slice(arguments).expect("delegate JSON");
-    delegate["batch"][0]["authority"]["budget"]["spend"] = json!(100_000);
+    let models = temper_service::stock::models(&jig_protocol_config::Llm {
+        providers: Box::new([]),
+        endpoints: Box::new([]),
+        models: Box::new([]),
+    });
+    let stock = temper_service::stock::with_models(models, 10_660);
+    delegate["batch"][0]["authority"]["budget"]["spend"] = json!(stock.rules.maximum_run_spend * 2);
     *arguments = serde_json::to_vec(&delegate).expect("funded delegate JSON").into_boxed_slice();
     let mut initial = super::chat_script(answer);
     initial.cue = b"Hello".as_slice().into();

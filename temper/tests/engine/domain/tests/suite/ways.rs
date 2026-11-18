@@ -400,7 +400,7 @@ fn view_driver() -> (Driver, engine::Assignment) {
     temper_engine_domain_world::oracle::config::set_landing(
         &mut config,
         PROJECT,
-        temper_fixtures::landing::ProjectLanding {
+        temper_landing_fixtures::ProjectLanding {
             gate_retries: 2,
             batch: 1,
             combine_main: engine::Combine::Merge,
@@ -408,13 +408,13 @@ fn view_driver() -> (Driver, engine::Assignment) {
             gate_timeout: skein_lib::Duration::from_millis(3_600_000),
             landing_attempts: engine::LANDING_ATTEMPTS,
             check_timeout: None,
-            by: temper_fixtures::landing::Way::Queue,
+            by: temper_landing_fixtures::Way::Queue,
             close_job: None,
             merge_job: None,
-            repositories: Box::new([temper_fixtures::landing::RepositoryChecks {
+            repositories: Box::new([temper_landing_fixtures::RepositoryChecks {
                 repository: skein_forge::api::Repository { forge: FORGE, repository: 2 },
                 gates: Box::new([]),
-                tiers: Box::new([temper_fixtures::landing::TierCheck {
+                tiers: Box::new([temper_landing_fixtures::TierCheck {
                     name: b"focused".as_slice().into(),
                     workflow: b"checks.yml".as_slice().into(),
                     ignored: Box::new([]),
@@ -766,7 +766,7 @@ fn path_driver(ci_and_tiers: bool, equal_paths: bool) -> Driver {
     }
     if ci_and_tiers {
         let tiers = [(b"slow".as_slice(), forge::Follows::Landing), (b"goal".as_slice(), forge::Follows::Goals)].map(
-            |(name, follows)| temper_fixtures::landing::TierCheck {
+            |(name, follows)| temper_landing_fixtures::TierCheck {
                 name: name.into(),
                 workflow: name.into(),
                 ignored: Box::new([]),
@@ -781,7 +781,7 @@ fn path_driver(ci_and_tiers: bool, equal_paths: bool) -> Driver {
             temper_engine_domain_world::oracle::config::set_landing(
                 &mut config,
                 PROJECT,
-                temper_fixtures::landing::ProjectLanding {
+                temper_landing_fixtures::ProjectLanding {
                     gate_retries: 2,
                     batch: 1,
                     combine_main: engine::Combine::Merge,
@@ -789,10 +789,10 @@ fn path_driver(ci_and_tiers: bool, equal_paths: bool) -> Driver {
                     gate_timeout: skein_lib::Duration::from_millis(3_600_000),
                     landing_attempts: engine::LANDING_ATTEMPTS,
                     check_timeout: None,
-                    by: temper_fixtures::landing::Way::Queue,
+                    by: temper_landing_fixtures::Way::Queue,
                     close_job: None,
                     merge_job: Some(b"merge".as_slice().into()),
-                    repositories: Box::new([temper_fixtures::landing::RepositoryChecks {
+                    repositories: Box::new([temper_landing_fixtures::RepositoryChecks {
                         repository: skein_forge::api::Repository { forge: FORGE, repository: 2 },
                         gates: Box::new([]),
                         tiers: Box::new(tiers),

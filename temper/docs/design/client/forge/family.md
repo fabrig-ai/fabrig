@@ -343,8 +343,12 @@ client removes no account and closes no chat of its own.
   before a start over, stays theirs: it is not the playground's, and
   its reset leaves it.
 - **One `deployment` watch,** for a person whose deployment role is
-  owner alone, while `me` says the role and a playground is read; once
-  either ends, the side drops it. For any other person it opens none.
+  owner alone, while `me` says the role, a playground is read, and the
+  page open judges a model usable by it (the welcome, Ready and the
+  composer's line, above); once any of them ends, the side drops it.
+  For any other person, and on any other page, Work's among them, it
+  opens none, so that it never holds a page's drawing a wave past its
+  batch (`../pages/work.md`, 1, *Its budget*).
 - **What shows:** while the playground runs, or is leaving, the
   banner's one line above the main of `Chats` and `NewChat`, and while it
   is leaving on every other page as well (`../view.md`, 1, `../pages/welcome.md`, 2); the playground's start,

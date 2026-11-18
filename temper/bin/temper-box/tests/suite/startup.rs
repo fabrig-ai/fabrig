@@ -18,7 +18,6 @@ fn a_stock_policy_past_its_limit_refuses_before_listening() {
     let path = scratch.path().join("temper.json");
     let mut document: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
     document["engine"]["limits"]["overrides"]["core.policy_bytes"] = 100.into();
-    document["application"]["demo"] = serde_json::Value::Null;
     fs::write(&path, serde_json::to_vec(&document).expect("JSON")).expect("deployment");
     let output = std::process::Command::new(skein_scratch::paths::binary("temper-box"))
         .arg("serve")
@@ -802,7 +801,8 @@ fn serve_refuses_an_explicit_call_bound_below_the_agents_call_input() {
 #[test]
 fn serve_checks_the_owned_agents_admission_at_each_bound() {
     let scratch = owned_example("owned-admission-bounds");
-    let original = temper_fixtures::agent::read(scratch.path());
+    temper_agent_fixtures::providers::remember(scratch.path(), &temper_service::stock::providers());
+    let original = temper_agent_fixtures::read(scratch.path());
     for (member, value, expected) in [
         (
             "max_turns",
@@ -848,7 +848,7 @@ fn serve_checks_the_owned_agents_admission_at_each_bound() {
         let mut agent = original.clone();
         let section = if member == "tool_payload" { "declared" } else { "policy" };
         agent["profile"][section][member] = value.into();
-        temper_fixtures::agent::install(scratch.path(), &agent);
+        temper_agent_fixtures::install(scratch.path(), &agent);
         let result = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(scratch.path()));
         match expected {
             Some(line) if member != "tool_payload" => {
@@ -876,7 +876,7 @@ fn serve_checks_the_owned_agents_admission_at_each_bound() {
     agent["profile"]["policy"]["max_turns"] = 5.into();
     agent["profile"]["policy"]["check_timeout"] = 300_000.into();
     agent["profile"]["declared"]["tool_payload"] = 600.into();
-    temper_fixtures::agent::install(scratch.path(), &agent);
+    temper_agent_fixtures::install(scratch.path(), &agent);
     assert_eq!(
         temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(scratch.path()))
             .err()
@@ -1435,9 +1435,9 @@ fn programs_directories_are_checked_at_the_name_before_startup_effects() {
             symlink(&real, &target).expect("leaf link");
         }
         let path = target.clone();
-        let mut agent = temper_fixtures::agent::read(directory);
+        let mut agent = temper_agent_fixtures::read(directory);
         agent["programs"] = serde_json::json!({"claude_code":{"path":"/usr/bin/true", "directory":path}});
-        temper_fixtures::agent::install(directory, &agent);
+        temper_agent_fixtures::install(directory, &agent);
         // A later missing secret proves that the preflight neither creates nor inspects a login.
         fs::remove_file(directory.join("worker.secret")).expect("absent peer");
         let refused = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(directory))
@@ -1602,7 +1602,7 @@ fn init_prints_written_files_account_guidance_and_explicit_start_flags_on_stderr
         let lines = String::from_utf8(output.stderr).expect("init lines");
         let mut expected = String::new();
         let names = if boxed {
-            vec!["worker.secret", "demo/llm.key", "demo/bin/git", "temper.json"]
+            vec!["worker.secret", "demo/bin/git", "temper.json"]
         } else {
             vec!["worker.secret", "temper.json"]
         };
@@ -1672,7 +1672,7 @@ fn box_initializes_only_absent_or_empty_configuration_directories() {
             assert!(!cache.exists());
         } else {
             let (first, held, _) = result.expect("initialization");
-            assert_eq!(held.len(), 3, "init retains its three deployment listeners");
+            assert_eq!(held.len(), 2, "init retains clients and webhooks");
             assert!(data.join("worker.secret").exists());
             assert!(cache.is_dir());
             let (second, reopened, _) = temper_box_shell::box_command::configuration(&dirs, &[]).expect("second read");
@@ -2000,11 +2000,11 @@ fn turn_bounds() {
         ["crates/temper-init/template/temper.json", "crates/temper-init/template/bare.json", "docs/examples/owned.json"]
     {
         let agent = if deployment.ends_with("temper.json") {
-            temper_fixtures::agent::stock(true)
+            temper_agent_fixtures::stock(true)
         } else if deployment.ends_with("bare.json") {
-            temper_fixtures::agent::stock(false)
+            temper_agent_fixtures::stock(false)
         } else {
-            temper_fixtures::agent::configuration(
+            temper_agent_fixtures::configuration(
                 &serde_json::from_slice(&fs::read(root.join(deployment)).expect("owned document")).expect("JSON"),
             )
         };
@@ -2094,7 +2094,7 @@ fn the_template_agent_refuses_jigs_small_hub_turn_bound_before_serving() {
         .args(support::configuration::flags(scratch.path()))
         .output()
         .expect("serve");
-    let agent = temper_fixtures::agent::read(scratch.path());
+    let agent = temper_agent_fixtures::read(scratch.path());
     let turn = support::configuration::turn_bounds::turn_body(&agent);
     assert!(!output.status.success());
     assert!(String::from_utf8_lossy(&output.stderr).lines().find(|line| line.starts_with("temper serve:")).expect("startup problem").starts_with(&format!(
@@ -2417,7 +2417,7 @@ fn a_fresh_box_offers_chatgpt_and_claude_with_no_claude_on_path() {
     );
     eprintln!("fresh box Model step: {} ms", clock.now().now.as_nanos().saturating_sub(began.as_nanos()) / 1_000_000);
     assert!(seen.finished, "{}", String::from_utf8_lossy(&seen.stderr));
-    let agent = temper_fixtures::agent::read(scratch.path());
+    let agent = temper_agent_fixtures::read(scratch.path());
     assert_eq!(agent["programs"]["claude_code"]["path"], "fetched");
     scratch.remove();
 }
@@ -2437,7 +2437,7 @@ fn a_fetched_program_runs_through_its_launcher() {
         .output()
         .unwrap();
     assert!(init.status.success(), "{}", String::from_utf8_lossy(&init.stderr));
-    let agent = temper_fixtures::agent::read(directory);
+    let agent = temper_agent_fixtures::read(directory);
     assert_eq!(agent["programs"]["claude_code"]["path"], "fetched");
     let build = claude_code::build(
         if cfg!(target_os = "macos") {

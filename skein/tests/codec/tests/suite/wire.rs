@@ -191,9 +191,15 @@ mod tests {
     }
 
     #[test]
-    fn grouped_boolean_fields_keep_their_wire_order() {
-        let parts =
-            HostToolParts { skein_bools: [true, false, true, false], max_tokens: 7, payload: Box::from(&b"x"[..]) };
+    fn named_boolean_fields_keep_their_wire_order() {
+        let parts = HostToolParts {
+            inspect: true,
+            modify: false,
+            shell: true,
+            agents: false,
+            max_tokens: 7,
+            payload: Box::from(&b"x"[..]),
+        };
         let value = HostTool::new(&LINT_CEILINGS, parts).expect("within limits");
         assert!(value.inspect());
         assert!(!value.modify());
@@ -204,6 +210,7 @@ mod tests {
         value.encode(&mut writer).expect("measured room");
         assert_eq!(writer.finish().as_ref(), wire);
         let decoded = HostTool::decode(&LINT_CEILINGS, &mut Reader::new(&wire)).expect("canonical bytes");
-        assert_eq!(decoded.into_parts().skein_bools, [true, false, true, false]);
+        let parts = decoded.into_parts();
+        assert_eq!([parts.inspect, parts.modify, parts.shell, parts.agents], [true, false, true, false]);
     }
 }

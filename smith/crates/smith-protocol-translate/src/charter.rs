@@ -65,12 +65,10 @@ pub fn encode_charter(
             families: match wire::Families::new(
                 limits,
                 wire::FamiliesParts {
-                    skein_bools: [
-                        source.grants.tools.inspect,
-                        source.grants.tools.modify,
-                        source.grants.tools.shell,
-                        source.grants.agents,
-                    ],
+                    inspect: source.grants.tools.inspect,
+                    modify: source.grants.tools.modify,
+                    shell: source.grants.tools.shell,
+                    agents: source.grants.agents,
                 },
             ) {
                 Ok(value) => value,

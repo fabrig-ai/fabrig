@@ -79,7 +79,7 @@ pub mod wire {
     pub const FAMILY: &str = "smith-transcript";
 
     /// The version named by the current schema's header.
-    pub const VERSION: u16 = 7;
+    pub const VERSION: u16 = crate::v7::VERSION;
 
     /// The lowest version this build speaks.
     pub const FLOOR: u16 = crate::patches::kept::smith_transcript::FLOOR;

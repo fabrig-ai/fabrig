@@ -32,6 +32,8 @@ pub fn documents(_directory: &Path, llm: SocketAddr, forge: SocketAddr) -> (serd
     let mut value: serde_json::Value =
         serde_json::from_slice(&jig_channel_kit::fixtures::engine_document()).expect("engine JSON");
     value.as_object_mut().expect("whole object").remove("service");
+    value["world_settings"]["llm"] =
+        value["engine"].as_object_mut().expect("engine").remove("llm").expect("world catalogue");
     for name in ["views.watchers", "views.watchers_per_party"] {
         value["engine"]["limits"]["overrides"].as_object_mut().expect("engine overrides").remove(name);
     }
@@ -69,8 +71,8 @@ pub fn documents(_directory: &Path, llm: SocketAddr, forge: SocketAddr) -> (serd
     value["workers"][0]["name"] = "local".into();
     value["engine"]["limits"]["overrides"]["fleet.slots"] = 4.into();
     value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);
-    value["engine"]["llm"]["endpoints"][0]["dialect"] = 3.into();
-    value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":llm.to_string()});
+    value["world_settings"]["llm"]["endpoints"][0]["dialect"] = 3.into();
+    value["world_settings"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":llm.to_string()});
     value["engine"]["limits"]["overrides"]["core.load_slots"] = 8.into();
     value["engine"]["limits"]["overrides"]["documents.rows"] = 2.into();
     value["engine"]["limits"]["overrides"]["documents.lines"] = 2.into();
@@ -81,7 +83,7 @@ pub fn documents(_directory: &Path, llm: SocketAddr, forge: SocketAddr) -> (serd
     value["application"] = serde_json::json!({
         "webhooks":null,
 "clients":{"listener":{"socket":"127.0.0.1:0"},"public":null,"bundle":null},
-        "demo":null,"sign_in":null,
+        "sign_in":null,
         "limits":{"overrides":{"forge.client.answer_bytes":65_536,"forge.client.op_bytes":512,"forge_component.body_bytes":16_384,"root.journal.run_bytes":32768,"checkout.name_bytes":256,"checkout.repositories":2,
             "checkout.message_bytes":4096,"forge.name_bytes":64,"forge.landing_members":1,"forge.resources_per_task":2,"git_component.stdout_bytes":131_072}}});
     value["world_settings"]["forge"] = forge.to_string().into();
@@ -95,11 +97,13 @@ pub fn documents(_directory: &Path, llm: SocketAddr, forge: SocketAddr) -> (serd
 pub(crate) fn sign_in_documents(directory: &Path, issuer: SocketAddr) -> std::io::Result<()> {
     let path = directory.join("temper.json");
     let mut config: serde_json::Value = serde_json::from_slice(&std::fs::read(&path)?)?;
-    config["engine"]["llm"]["providers"] = serde_json::json!([{
+    config["world_settings"] = serde_json::from_slice(&std::fs::read(directory.join("world-settings.json"))?)?;
+    config["world_settings"]["llm"]["providers"] = serde_json::json!([{
         "name":"openai", "number":1, "signed_in_plan":true, "manage_usage":format!("https://{issuer}/settings/usage"), "endpoint":"fake",
         "sources":{"keys":true,"sign_in":crate::issuer::registration(issuer)}
     }]);
-    private(&path, &serde_json::to_vec(&config)?)
+    config["world_settings"]["llm"]["endpoints"][0]["provider"] = "openai".into();
+    finish_configuration(directory, &mut config)
 }
 
 /// Create the standalone tree; every private directory and file has its final mode.
@@ -127,8 +131,12 @@ pub fn write(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> std::io::R
         program_documents(directory, &mut agent, &mut config);
     }
     private(&directory.join("world-agent.json"), &serde_json::to_vec(&agent)?)?;
-    temper_fixtures::agent::apply(&mut config, directory, &agent);
-    private(&directory.join("temper.json"), &serde_json::to_vec(&config)?)
+    temper_service_shell::providers::write(
+        &directory.join("providers.setting"),
+        &jig_protocol_config::llm::provider_values(&crate::settings::configuration(&config).llm),
+    )?;
+    temper_agent_fixtures::apply(&mut config, directory, &agent);
+    finish_configuration(directory, &mut config)
 }
 pub(crate) type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
 /// Machine programs are found through PATH, as in the shipped worker.
@@ -153,7 +161,7 @@ fn program_documents(directory: &Path, agent: &mut serde_json::Value, config: &m
     endpoint["provider"] = "anthropic".into();
     endpoint["program"] = "claude_code".into();
     agent["endpoints"].as_array_mut().expect("agent endpoints").push(endpoint);
-    let llm = &mut config["engine"]["llm"];
+    let llm = &mut config["world_settings"]["llm"];
     let mut endpoint = llm["endpoints"][0].clone();
     endpoint["name"] = "fake-claude".into();
     endpoint["number"] = 2.into();
@@ -180,7 +188,7 @@ pub(crate) fn bind(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> std:
     config["world_settings"] = serde_json::from_slice(&std::fs::read(directory.join("world-settings.json"))?)?;
     bind_documents(&mut agent, &mut config, llm, forge);
     private(&agent_path, &serde_json::to_vec(&agent)?)?;
-    temper_fixtures::agent::apply(&mut config, directory, &agent);
+    temper_agent_fixtures::apply(&mut config, directory, &agent);
     finish_configuration(directory, &mut config)
 }
 
@@ -198,7 +206,7 @@ fn bind_documents(agent: &mut serde_json::Value, config: &mut serde_json::Value,
         }
     }
     agent["endpoints"][0]["address"] = llm.to_string().into();
-    config["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":llm.to_string()});
+    config["world_settings"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":llm.to_string()});
 }
 
 fn bind_forge(value: &mut serde_json::Value, addresses: [(&str, &str); 2]) {
@@ -340,13 +348,14 @@ pub(crate) fn key_documents(directory: &Path) -> std::io::Result<()> {
     agent["endpoints"][0]["dialect"] = 3.into();
     let config_path = directory.join("temper.json");
     let mut config: serde_json::Value = serde_json::from_slice(&std::fs::read(&config_path)?)?;
-    config["engine"]["llm"]["endpoints"][0]["dialect"] = 3.into();
+    config["world_settings"] = serde_json::from_slice(&std::fs::read(directory.join("world-settings.json"))?)?;
+    config["world_settings"]["llm"]["endpoints"][0]["dialect"] = 3.into();
     config["engine"]["limits"]["overrides"]["people.projects"] = 2.into();
     config["engine"]["limits"]["overrides"]["authority.projects"] = 2.into();
     // Each project needs its period and the owner's pool in the tasks ledger.
     config["engine"]["limits"]["overrides"]["tasks.funders"] = 4.into();
     config["world_settings"]["requester"] = true.into();
-    private(&config_path, &serde_json::to_vec(&config)?)?;
+    finish_configuration(directory, &mut config)?;
     private(&path, &serde_json::to_vec(&agent)?)
 }
 
@@ -434,6 +443,13 @@ pub fn listed(value: &mut serde_json::Value) {
 pub(crate) fn finish_configuration(directory: &Path, value: &mut serde_json::Value) -> std::io::Result<()> {
     stock_document(value);
     temper_playground::documents::settings::strip_models(value);
+    let running = crate::settings::configuration(value);
+    temper_service_shell::providers::write(
+        &directory.join("providers.setting"),
+        &jig_protocol_config::llm::provider_values(&running.llm),
+    )?;
+    let agent = temper_agent_fixtures::at(value, directory);
+    turn_bounds::apply(value, turn_bounds::turn_body(&agent));
     let mut flags =
         value.as_object_mut().expect("configuration").remove("world_settings").unwrap_or(serde_json::json!({}));
     if directory.join("standing-chats").exists() {
@@ -573,6 +589,7 @@ fn defaults_for(values: &serde_json::Value, engine: &jig_protocol_config::Engine
     let flags = &values["world_settings"];
     let mut defaults =
         temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    defaults.providers = jig_protocol_config::llm::provider_values(&engine.llm);
     let stock_period_spend = defaults.rules.period_spend;
     // Charter 1 also produces finite changes in this world; the Smith boundary keeps Open chats inspecting.
     defaults.charters[0].policy.modify = true;

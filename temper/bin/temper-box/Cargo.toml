@@ -92,6 +92,7 @@ temper-fetch.workspace = true
 jig-client-kit.workspace = true
 temper-engine-domain-world = { path = "../../tests/engine/domain" }
 temper-fixtures.workspace = true
+temper-agent-fixtures.workspace = true
 temper-playground.workspace = true
 jig-domain-people.workspace = true
 jig-test-profile.workspace = true

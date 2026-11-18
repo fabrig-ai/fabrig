@@ -28,8 +28,8 @@ fn project_policy(world: &World) -> &people::PolicyValue {
     value
 }
 
-fn landing(by: temper_fixtures::landing::Way) -> temper_fixtures::landing::ProjectLanding {
-    temper_fixtures::landing::ProjectLanding {
+fn landing(by: temper_landing_fixtures::Way) -> temper_landing_fixtures::ProjectLanding {
+    temper_landing_fixtures::ProjectLanding {
         by,
         batch: 1,
         combine_main: engine::Combine::Merge,
@@ -42,9 +42,9 @@ fn landing(by: temper_fixtures::landing::Way) -> temper_fixtures::landing::Proje
         merge_job: None,
         tier_retries: 2,
         verification_bound_ms: 7_200_000,
-        repositories: Box::new([temper_fixtures::landing::RepositoryChecks {
+        repositories: Box::new([temper_landing_fixtures::RepositoryChecks {
             repository: forge_world::REPO,
-            gates: Box::new([temper_fixtures::landing::GateCheck {
+            gates: Box::new([temper_landing_fixtures::GateCheck {
                 name: b"gate".as_slice().into(),
                 workflow: b"gate.yml".as_slice().into(),
                 ignored: Box::new([]),
@@ -97,7 +97,7 @@ pub(crate) fn a_project_with_its_own_roles_goes_live_by_turn_with_running_stays(
         &limits,
         StoryLimits {
             project_policy: Some(initial),
-            project_landing: Some((1, landing(temper_fixtures::landing::Way::Queue))),
+            project_landing: Some((1, landing(temper_landing_fixtures::Way::Queue))),
             settings_owner: Some(forge_top::user_key(1, 7)),
             ..StoryLimits::default()
         },
@@ -115,7 +115,7 @@ pub(crate) fn a_project_with_its_own_roles_goes_live_by_turn_with_running_stays(
     let policy_before = project_policy(&world).clone();
     assert_eq!(policy_before.permissions, own.permissions);
     assert_eq!(policy_before.roles.iter().find(|role| role.number == 1).expect("own member").requests, 185);
-    let (next, _) = landing(temper_fixtures::landing::Way::Turn).values();
+    let (next, _) = landing(temper_landing_fixtures::Way::Turn).values();
     let items =
         Box::new([temper_engine_domain_world::kinds::item(4, 1, 1, &forge_top::settings::Value::Landing(next))]);
     world.send(temper_engine_domain_world::kinds::change(world.signed_in.expect("owner"), prior, 94, items));

@@ -780,6 +780,7 @@ pub fn form_setting(v: c::Setting) -> n::Setting {
         c::Setting::Application { kind, scope, number } => n::Setting::Application { kind, scope, number },
         c::Setting::Model(x) => n::Setting::Model(form_setting_number(x)),
         c::Setting::Worker(x) => n::Setting::Worker(form_setting_number(x)),
+        c::Setting::Provider(x) => n::Setting::Provider(form_setting_number(x)),
         c::Setting::Rules => n::Setting::Rules,
     }
 }
@@ -791,6 +792,7 @@ pub fn client_setting(v: n::Setting) -> c::Setting {
         n::Setting::Application { kind, scope, number } => c::Setting::Application { kind, scope, number },
         n::Setting::Model(x) => c::Setting::Model(client_setting_number(x)),
         n::Setting::Worker(x) => c::Setting::Worker(client_setting_number(x)),
+        n::Setting::Provider(x) => c::Setting::Provider(client_setting_number(x)),
         n::Setting::Rules => c::Setting::Rules,
         n::Setting::ProjectPolicy { project } => c::Setting::ProjectPolicy { project },
     }
@@ -835,6 +837,7 @@ pub fn form_setting_fault(v: c::SettingFault) -> n::SettingFault {
         c::SettingFault::Grace => n::SettingFault::Grace,
         c::SettingFault::Judged => n::SettingFault::Judged,
         c::SettingFault::Linked => n::SettingFault::Linked,
+        c::SettingFault::Accounts => n::SettingFault::Accounts,
         c::SettingFault::Owner => n::SettingFault::Owner,
     }
 }
@@ -1024,6 +1027,7 @@ pub fn client_setting_set(v: &n::SettingSet) -> c::SettingSet {
 }
 pub fn form_setting_value(v: &c::SettingValue) -> n::SettingValue {
     match v {
+        c::SettingValue::Provider(x) => n::SettingValue::Provider(Box::new(form_provider_setting(x))),
         c::SettingValue::Overlay(x) => n::SettingValue::Overlay(Box::new(form_overlay(x))),
         c::SettingValue::Worker(x) => n::SettingValue::Worker(Box::new(n::WorkerSetting {
             number: x.number,
@@ -1042,6 +1046,7 @@ pub fn form_setting_value(v: &c::SettingValue) -> n::SettingValue {
 }
 pub fn client_setting_value(v: &n::SettingValue) -> c::SettingValue {
     match v {
+        n::SettingValue::Provider(x) => c::SettingValue::Provider(Box::new(client_provider_setting(x))),
         n::SettingValue::Overlay(x) => c::SettingValue::Overlay(Box::new(client_overlay(x))),
         n::SettingValue::Worker(x) => c::SettingValue::Worker(Box::new(c::WorkerSetting {
             number: x.number,
@@ -1559,5 +1564,211 @@ fn client_catalogue(v: &n::CatalogueEntry) -> c::CatalogueEntry {
             n::ModelSource::List => c::ModelSource::List,
             n::ModelSource::Person => c::ModelSource::Person,
         },
+    }
+}
+
+// Retention across the neutral settings form, without a provider editor.
+fn form_provider_setting(value: &c::ProviderSetting) -> n::ProviderSetting {
+    let provider = form_provider(&value.provider);
+    let mut endpoints = List::with_capacity(u32::try_from(value.endpoints.len()).expect("bounded provider list"));
+    for item in &value.endpoints {
+        let item = form_endpoint(item);
+        endpoints.push(item).expect("same list length");
+    }
+    let endpoints = endpoints.into_boxed();
+    let withdrawn = value.withdrawn;
+    n::ProviderSetting { provider, endpoints, withdrawn }
+}
+fn form_provider(value: &c::Provider) -> n::Provider {
+    let name = value.name.clone();
+    let number = value.number;
+    let endpoint = value.endpoint.clone();
+    let direct = value.direct.clone();
+    let list = match &value.list {
+        Some(value) => Some(form_provider_list(value)),
+        None => None,
+    };
+    let signed_in_plan = value.signed_in_plan;
+    let manage_usage = value.manage_usage.clone();
+    let sign_in = match &value.sign_in {
+        Some(value) => Some(form_registration(value)),
+        None => None,
+    };
+    let keys = value.keys;
+    let programs = value.programs.clone();
+    n::Provider { name, number, endpoint, direct, list, signed_in_plan, manage_usage, sign_in, keys, programs }
+}
+fn form_provider_list(value: &c::ProviderList) -> n::ProviderList {
+    let keep = value.keep.clone();
+    let drop = value.drop.clone();
+    n::ProviderList { keep, drop }
+}
+fn form_registration(value: &c::Registration) -> n::Registration {
+    let issuer = value.issuer.clone();
+    let client = value.client.clone();
+    let scopes = value.scopes.clone();
+    let name_hint = value.name_hint.clone();
+    let authorization = value.authorization.clone();
+    let token = value.token.clone();
+    let revocation = value.revocation.clone();
+    let keys = value.keys.clone();
+    let endpoint_transport = form_transport(&value.endpoint_transport);
+    let must_grant = value.must_grant.clone();
+    let resource = value.resource.clone();
+    let redirect_path = value.redirect_path.clone();
+    let redirect_port = value.redirect_port;
+    n::Registration {
+        issuer,
+        client,
+        scopes,
+        name_hint,
+        authorization,
+        token,
+        revocation,
+        keys,
+        endpoint_transport,
+        must_grant,
+        resource,
+        redirect_path,
+        redirect_port,
+    }
+}
+fn form_endpoint(value: &c::Endpoint) -> n::Endpoint {
+    let name = value.name.clone();
+    let number = value.number;
+    let dialect = value.dialect;
+    let provider = value.provider.clone();
+    let program = value.program.clone();
+    let address = form_endpoint_address(&value.address);
+    let transport = form_transport(&value.transport);
+    let mut headers = List::with_capacity(u32::try_from(value.headers.len()).expect("bounded provider list"));
+    for item in &value.headers {
+        let item = form_header(item);
+        headers.push(item).expect("same list length");
+    }
+    let headers = headers.into_boxed();
+    let connect = value.connect;
+    let handshake = value.handshake;
+    n::Endpoint { name, number, dialect, provider, program, address, transport, headers, connect, handshake }
+}
+fn form_header(value: &c::Header) -> n::Header {
+    let name = value.name.clone();
+    let value = value.value.clone();
+    n::Header { name, value }
+}
+fn form_transport(value: &c::Transport) -> n::Transport {
+    match value {
+        c::Transport::Plaintext => n::Transport::Plaintext,
+        c::Transport::Tls { server_name, trust } => {
+            n::Transport::Tls { server_name: server_name.clone(), trust: trust.clone() }
+        }
+    }
+}
+fn form_endpoint_address(value: &c::EndpointAddress) -> n::EndpointAddress {
+    match value {
+        c::EndpointAddress::Socket(socket) => n::EndpointAddress::Socket(*socket),
+        c::EndpointAddress::Host { name, port } => n::EndpointAddress::Host { name: name.clone(), port: *port },
+    }
+}
+fn client_provider_setting(value: &n::ProviderSetting) -> c::ProviderSetting {
+    let provider = client_provider(&value.provider);
+    let mut endpoints = List::with_capacity(u32::try_from(value.endpoints.len()).expect("bounded provider list"));
+    for item in &value.endpoints {
+        let item = client_endpoint(item);
+        endpoints.push(item).expect("same list length");
+    }
+    let endpoints = endpoints.into_boxed();
+    let withdrawn = value.withdrawn;
+    c::ProviderSetting { provider, endpoints, withdrawn }
+}
+fn client_provider(value: &n::Provider) -> c::Provider {
+    let name = value.name.clone();
+    let number = value.number;
+    let endpoint = value.endpoint.clone();
+    let direct = value.direct.clone();
+    let list = match &value.list {
+        Some(value) => Some(client_provider_list(value)),
+        None => None,
+    };
+    let signed_in_plan = value.signed_in_plan;
+    let manage_usage = value.manage_usage.clone();
+    let sign_in = match &value.sign_in {
+        Some(value) => Some(client_registration(value)),
+        None => None,
+    };
+    let keys = value.keys;
+    let programs = value.programs.clone();
+    c::Provider { name, number, endpoint, direct, list, signed_in_plan, manage_usage, sign_in, keys, programs }
+}
+fn client_provider_list(value: &n::ProviderList) -> c::ProviderList {
+    let keep = value.keep.clone();
+    let drop = value.drop.clone();
+    c::ProviderList { keep, drop }
+}
+fn client_registration(value: &n::Registration) -> c::Registration {
+    let issuer = value.issuer.clone();
+    let client = value.client.clone();
+    let scopes = value.scopes.clone();
+    let name_hint = value.name_hint.clone();
+    let authorization = value.authorization.clone();
+    let token = value.token.clone();
+    let revocation = value.revocation.clone();
+    let keys = value.keys.clone();
+    let endpoint_transport = client_transport(&value.endpoint_transport);
+    let must_grant = value.must_grant.clone();
+    let resource = value.resource.clone();
+    let redirect_path = value.redirect_path.clone();
+    let redirect_port = value.redirect_port;
+    c::Registration {
+        issuer,
+        client,
+        scopes,
+        name_hint,
+        authorization,
+        token,
+        revocation,
+        keys,
+        endpoint_transport,
+        must_grant,
+        resource,
+        redirect_path,
+        redirect_port,
+    }
+}
+fn client_endpoint(value: &n::Endpoint) -> c::Endpoint {
+    let name = value.name.clone();
+    let number = value.number;
+    let dialect = value.dialect;
+    let provider = value.provider.clone();
+    let program = value.program.clone();
+    let address = client_endpoint_address(&value.address);
+    let transport = client_transport(&value.transport);
+    let mut headers = List::with_capacity(u32::try_from(value.headers.len()).expect("bounded provider list"));
+    for item in &value.headers {
+        let item = client_header(item);
+        headers.push(item).expect("same list length");
+    }
+    let headers = headers.into_boxed();
+    let connect = value.connect;
+    let handshake = value.handshake;
+    c::Endpoint { name, number, dialect, provider, program, address, transport, headers, connect, handshake }
+}
+fn client_header(value: &n::Header) -> c::Header {
+    let name = value.name.clone();
+    let value = value.value.clone();
+    c::Header { name, value }
+}
+fn client_transport(value: &n::Transport) -> c::Transport {
+    match value {
+        n::Transport::Plaintext => c::Transport::Plaintext,
+        n::Transport::Tls { server_name, trust } => {
+            c::Transport::Tls { server_name: server_name.clone(), trust: trust.clone() }
+        }
+    }
+}
+fn client_endpoint_address(value: &n::EndpointAddress) -> c::EndpointAddress {
+    match value {
+        n::EndpointAddress::Socket(socket) => c::EndpointAddress::Socket(*socket),
+        n::EndpointAddress::Host { name, port } => c::EndpointAddress::Host { name: name.clone(), port: *port },
     }
 }

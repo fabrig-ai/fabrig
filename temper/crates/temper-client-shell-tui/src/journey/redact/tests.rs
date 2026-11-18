@@ -344,9 +344,8 @@ impl World {
     }
 }
 
-#[test]
-fn redacted_approval_proves_and_replays_to_its_end() {
-    let mut world = World::new();
+pub(in crate::journey) fn approval_recording(address: &[u8]) -> Box<[u8]> {
+    let mut world = World::at_address(address);
     let exchange = world.exchange(false);
     let mut asked = vec![0];
     asked.extend_from_slice(&body(&[7; 32]));
@@ -361,7 +360,12 @@ fn redacted_approval_proves_and_replays_to_its_end() {
     answer.extend_from_slice(&300_000_000_000_u64.to_be_bytes());
     world.report(Report::Heard(jig_client::Event::Reply { exchange, message: answer.into() }));
     world.report(Report::Kept { written: true });
-    let original = world.save();
+    world.save()
+}
+
+#[test]
+fn redacted_approval_proves_and_replays_to_its_end() {
+    let original = approval_recording(b"127.0.0.1:8367");
     assert!(prove(&original).is_ok(), "host's live proof");
     let redacted = redact(&original, &[]).expect("redact approval");
     assert_eq!(redacted.originals.count(Kind::Approval), 1);

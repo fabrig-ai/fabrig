@@ -86,25 +86,13 @@ pub fn render(schema: &Schema, value: &Value, node: Node, decl: DeclIx) -> Strin
         Shape::Record { first, count, .. } => {
             let name = spelling(schema, declaration.name);
             let mut fields = Vec::new();
-            let mut bools = Vec::new();
             for offset in 0..count {
                 let field = FieldIx::new(first.index().checked_add(offset).expect("field index"));
                 let child = value.field(node, field).expect("record field");
                 let field = schema.field(field);
                 let rendered = render_type(schema, value, child, field.ty);
-                if schema.ty(field.ty) == Type::Bool {
-                    bools.push(rendered.clone());
-                }
-                fields.push((schema.ty(field.ty), format!("{}: {}", spelling(schema, field.name), rendered)));
+                fields.push(format!("{}: {}", spelling(schema, field.name), rendered));
             }
-            // emit_types::grouped_bools puts four or more bools in the first member.
-            let fields = if bools.len() > 3 {
-                let mut grouped = vec![format!("skein_bools: [{}]", bools.join(", "))];
-                grouped.extend(fields.into_iter().filter(|(ty, _)| *ty != Type::Bool).map(|(_, text)| text));
-                grouped
-            } else {
-                fields.into_iter().map(|(_, text)| text).collect::<Vec<_>>()
-            };
             if fields.is_empty() { name.into() } else { format!("{name} {{ {} }}", fields.join(", ")) }
         }
         Shape::Enum { .. } => {

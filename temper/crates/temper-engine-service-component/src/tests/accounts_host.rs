@@ -726,7 +726,6 @@ fn registered() -> (config::Engine, AccountsRuntime) {
         name: b"issuer".as_slice().into(),
         signed_in_plan: false,
         manage_usage: None,
-        models: Box::new([]),
         keys: true,
         programs: Box::new([]),
         sign_in: Some(config::llm::Registration {

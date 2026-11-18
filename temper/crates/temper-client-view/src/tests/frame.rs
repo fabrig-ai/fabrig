@@ -654,7 +654,7 @@ fn home_and_needs_stay_across_projects_in_the_rail_and_phone_tabs() {
             let rail_name = if across { b"Needs you 2".as_slice() } else { b"Needs you 1".as_slice() };
             let tab_name = if across { b"Needs 2".as_slice() } else { b"Needs 1".as_slice() };
             let links = [
-                (b"temper home".as_slice(), home.clone(), false, 1),
+                (b"temper home".as_slice(), if browser { Address::AllHome } else { home.clone() }, false, 1),
                 (b"Home".as_slice(), home, home_current, if browser { 2 } else { 1 }),
                 (rail_name, needs.clone(), needs_current, 1),
                 (tab_name, needs, needs_current, u32::from(browser)),
@@ -1179,7 +1179,7 @@ fn browser_google_sign_in_has_the_mark_heading_and_return_link() {
         // Signed out, the page stays at its address; its query is percent-encoded into `then`.
         (
             Address::Chats { filter: ChatsFilter::All },
-            b"https://temper.example.com/sign-in/google?then=/%3Fproject%3D1".as_slice(),
+            b"https://temper.example.com/sign-in/google?then=/needs%3Fproject%3D1".as_slice(),
         ),
     ] {
         let mut root = fixtures::signed_out();
@@ -1270,9 +1270,16 @@ fn signing_out_explains_each_forges_independent_sign_in() {
 }
 
 #[test]
-fn the_brand_links_to_inbox_with_its_accessible_label() {
+fn the_brand_links_by_shell_with_its_accessible_label() {
     let root = fixtures::no_project_root();
-    for words in [fixtures::words(), fixtures::browser_words()] {
+    for (words, address, path) in [
+        (
+            fixtures::words(),
+            temper_client_domain::Address::Inbox { filter: temper_client_domain::address::Filter::ALL },
+            b"/needs".as_slice(),
+        ),
+        (fixtures::browser_words(), temper_client_domain::Address::AllHome, b"/home".as_slice()),
+    ] {
         let mut view = fixtures::view_of(words);
         fixtures::build(&mut view, &root);
         let brand = fixtures::find(view.tree(), Role::Link, b"temper").expect("brand link");
@@ -1286,13 +1293,8 @@ fn the_brand_links_to_inbox_with_its_accessible_label() {
         let at = at.expect("brand position");
         assert_eq!(fixtures::node_text(view.tree(), at).as_ref(), b"temper");
         assert!(view.tree().nodes()[at].styles.as_slice().contains(&crate::look::BRAND));
-        assert_eq!(crate::href(&mut view, brand).as_deref(), Some(b"/".as_slice()));
-        assert_eq!(
-            crate::act(&mut view, brand, Act::Press),
-            Some(Action::Pages(pages::Act::Go {
-                address: temper_client_domain::Address::Inbox { filter: temper_client_domain::address::Filter::ALL },
-            }))
-        );
+        assert_eq!(crate::href(&mut view, brand).as_deref(), Some(path));
+        assert_eq!(crate::act(&mut view, brand, Act::Press), Some(Action::Pages(pages::Act::Go { address })));
     }
 }
 
@@ -1742,6 +1744,7 @@ fn goals_opens_in_its_projects_frame() {
             assert_eq!(root.pages().project(), Some(fixtures::SECOND_PROJECT));
             assert_eq!(root.pages().address(), &address);
             let project_name = b"Shop";
+            let browser = words.shell == crate::words::Shell::Browser;
             let mut view = fixtures::view_of(words);
             fixtures::build(&mut view, &root);
             assert_rail(&view, b"Second");
@@ -1751,7 +1754,14 @@ fn goals_opens_in_its_projects_frame() {
                 skein_lib::bytes::find(&fixtures::main_text(view.tree()), b"A goal turns a draft into landed work.")
                     .is_some()
             );
-            assert!(fixtures::styles(view.tree(), Role::Heading { level: 1 }).is_empty());
+            assert_eq!(fixtures::styles(view.tree(), Role::Heading { level: 1 }).len(), usize::from(browser));
+            for node in view.tree().nodes() {
+                if node.role == (Role::Heading { level: 1 }) {
+                    assert!(node.name.is_none());
+                    assert!(node.text.is_empty());
+                    assert!(node.styles.as_slice().contains(&crate::look::WORK_HEADLINE));
+                }
+            }
             assert!(fixtures::find(view.tree(), Role::Link, b"Work").is_some(), "goals page keeps Work in the rail");
             assert_eq!(skein_ui::outline::check(view.tree()), None);
             for node in view.tree().nodes() {
@@ -1789,23 +1799,6 @@ fn goals_opens_in_its_projects_frame() {
                 "drafts, changes, people, standing roles and the new project's ways and classes: {out:?}"
             );
             let Some(Request::Unlinked {
-                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { subject, .. } },
-            }) = out.pop()
-            else {
-                panic!("drafts watch")
-            };
-            assert_eq!(Some(subject), temper_client_domain::forge::drafts::watch(fixtures::PROJECT, &env.limits.forge));
-            let Some(Request::Unlinked {
-                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { subject, .. } },
-            }) = out.pop()
-            else {
-                panic!("changes watch")
-            };
-            assert_eq!(
-                Some(subject),
-                temper_client_domain::forge::changes::watch(fixtures::PROJECT, &env.limits.forge)
-            );
-            let Some(Request::Unlinked {
                 request:
                     jig_client::UnlinkedRequest::Down {
                         down:
@@ -1834,6 +1827,23 @@ fn goals_opens_in_its_projects_frame() {
                 panic!("rail’s standing roles")
             };
             assert_eq!((query.project, query.label), (Some(fixtures::PROJECT), Some(3)));
+            let Some(Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { subject, .. } },
+            }) = out.pop()
+            else {
+                panic!("changes watch")
+            };
+            assert_eq!(
+                Some(subject),
+                temper_client_domain::forge::changes::watch(fixtures::PROJECT, &env.limits.forge)
+            );
+            let Some(Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { subject, .. } },
+            }) = out.pop()
+            else {
+                panic!("drafts watch")
+            };
+            assert_eq!(Some(subject), temper_client_domain::forge::drafts::watch(fixtures::PROJECT, &env.limits.forge));
             let mut kinds = skein_lib::List::with_capacity(2);
             while let Some(request) = out.pop() {
                 let Request::Unlinked {
@@ -2089,5 +2099,23 @@ fn the_persons_menu_keeps_accounts_remembered_and_sign_out_ordered() {
     ]) {
         assert_eq!(name.as_ref(), expected);
         assert_eq!(crate::act(&mut view, id, Act::Press), Some(Action::Pages(act)));
+    }
+}
+
+#[test]
+fn a_sign_in_waiting_at_root_or_a_missing_path_returns_to_root() {
+    for place in [temper_client_domain::Place::Root, temper_client_domain::Place::Missing] {
+        let mut root = fixtures::signed_out();
+        fixtures::root_event(&mut root, temper_client_domain::Event::Went { place });
+        let mut view = fixtures::sign_in_view(
+            &root,
+            crate::words::Shell::Browser,
+            crate::sign_in::Ways::parse("google", b"https://temper.example"),
+        );
+        let link = fixtures::find(view.tree(), Role::Link, b"Continue with Google").unwrap();
+        assert_eq!(
+            crate::href(&mut view, link).as_deref(),
+            Some(b"https://temper.example/sign-in/google?then=/".as_slice())
+        );
     }
 }

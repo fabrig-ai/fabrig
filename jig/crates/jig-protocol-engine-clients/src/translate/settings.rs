@@ -1,4 +1,4 @@
-//! Settings' whole values and bounded history on client wire 23 (client/domain/contract/README.md, 4).
+//! Settings' whole values and bounded history on the client wire (client/domain/contract/README.md, 4).
 use super::{me, objects, owner, w};
 use alloc::boxed::Box;
 use jig_domain_authority as a;
@@ -39,6 +39,7 @@ pub fn setting(value: &w::Setting) -> s::Setting {
         w::Setting::Policy(v) => s::Setting::Policy(v.number()),
         w::Setting::Model(v) => s::Setting::Model(v.number()),
         w::Setting::Worker(v) => s::Setting::Worker(v.number()),
+        w::Setting::Provider(v) => s::Setting::Provider(v.number()),
         w::Setting::Rules => s::Setting::Rules,
         w::Setting::ProjectPolicy(v) => s::Setting::ProjectPolicy { project: v.project() },
         w::Setting::Application(v) => s::Setting::Application { kind: v.kind(), scope: v.scope(), number: v.number() },
@@ -61,6 +62,9 @@ pub fn name(value: s::Setting, limits: &w::Limits) -> Result<w::Setting, w::Prob
         s::Setting::Model(n) => w::Setting::Model(w::SettingNumber::new(limits, w::SettingNumberParts { number: n })?),
         s::Setting::Worker(n) => {
             w::Setting::Worker(w::SettingNumber::new(limits, w::SettingNumberParts { number: n })?)
+        }
+        s::Setting::Provider(n) => {
+            w::Setting::Provider(w::SettingNumber::new(limits, w::SettingNumberParts { number: n })?)
         }
         s::Setting::Rules => w::Setting::Rules,
         s::Setting::Application { kind, scope, number } => w::Setting::Application(w::ApplicationSetting::new(
@@ -205,7 +209,12 @@ fn charter(value: &core::Charter, limits: &w::Limits) -> Result<w::Charter, w::P
         w::CharterParts {
             parts,
             documents,
-            skein_bools: [value.rest, policy.resume, policy.inspect, policy.modify, policy.shell, policy.agents],
+            rest: value.rest,
+            resume: policy.resume,
+            inspect: policy.inspect,
+            modify: policy.modify,
+            shell: policy.shell,
+            agents: policy.agents,
             number: value.number,
             instructions: policy.instructions.clone(),
             waiting: policy.waiting,
@@ -355,6 +364,7 @@ fn rules(value: &a::Rules, models: &[crate::Model], limits: &w::Limits) -> Resul
 }
 pub fn value(value: &s::Value, models: &[crate::Model], limits: &w::Limits) -> Result<w::SettingValue, w::Problem> {
     Ok(match value {
+        s::Value::Provider(v) => w::SettingValue::Provider(Box::new(providers::encode(v, limits)?)),
         s::Value::Worker(v) => w::SettingValue::Worker(Box::new(w::WorkerSetting::new(
             limits,
             w::WorkerSettingParts {
@@ -777,3 +787,5 @@ fn overlay(value: &s::Overlay, limits: &w::Limits) -> Result<w::Overlay, w::Prob
         },
     )
 }
+
+mod providers;

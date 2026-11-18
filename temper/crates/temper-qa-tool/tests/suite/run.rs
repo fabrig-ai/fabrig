@@ -1179,6 +1179,16 @@ fn triage_catalogue(ctl_only: bool) -> (World, super::world::Loop) {
 }
 
 #[test]
+fn triage_brief_says_the_happy_path_and_reads_help() {
+    let (_world, run) = triage_catalogue(true);
+    let brief = fs::read_to_string(&run.processes.commands[0].stdin).expect("brief");
+    assert!(brief.contains(super::HAPPY_PATH));
+    assert!(brief.contains("Write no case, step or gap for one, and answer no QA for a landing whose only change a person meets is one, saying so."));
+    assert!(brief.contains("A security hole or lost data still counts wherever it is."));
+    assert!(brief.contains("For ctl steps, write do as ctl or forge drive lines, or `temper help PAGE`. In its pass, a `temper help PAGE` step is read with the place's own program, with no box; compare its words as a `see` is."));
+}
+
+#[test]
 fn ctl_only_triage_lists_its_surfaces_and_walkable_chains() {
     let (world, run) = triage_catalogue(true);
     let ledger = world.ledger();
@@ -1186,7 +1196,7 @@ fn ctl_only_triage_lists_its_surfaces_and_walkable_chains() {
     assert_eq!(session.pages, [("ctl".into(), vec!["task".into()])].into());
     assert_eq!(session.setups, ["fresh", "ctl-chain", "ctl-root"]);
     let brief = fs::read_to_string(&run.processes.commands[0].stdin).expect("brief");
-    assert!(brief.starts_with("# Triage\n\nJudge what a person now sees or does through ctl, the person's acts and temper's account as `temper ctl` gives them. The green path only:"));
+    assert!(brief.starts_with("# Triage\n\nJudge what a person now sees or does through ctl, the person's acts and temper's account as `temper ctl` gives them. QA judges the happy path alone:"));
     let surfaces =
         brief.split("## Surfaces\n\n").nth(1).expect("surfaces").split("\n## Setups").next().expect("section");
     assert_eq!(
@@ -1214,7 +1224,7 @@ fn default_triage_keeps_all_surfaces_and_setup_cases() {
         ["fresh", "ctl-chain", "ctl-root", "cycle", "missing-parent", "tui-chain", "tui-root", "web-chain", "web-root"]
     );
     let brief = fs::read_to_string(&run.processes.commands[0].stdin).expect("brief");
-    assert!(brief.starts_with("# Triage\n\nJudge what a person now sees or does through ctl, the web client or the TUI, ctl first: write ctl cases before web and TUI cases, the person's acts and temper's account as `temper ctl` gives them. The green path only:"));
+    assert!(brief.starts_with("# Triage\n\nJudge what a person now sees or does through ctl, the web client or the TUI, ctl first: write ctl cases before web and TUI cases, the person's acts and temper's account as `temper ctl` gives them. QA judges the happy path alone:"));
     assert!(brief.contains("\"surface\":\"web\""));
     assert!(brief.contains("A case's surface is ctl, web or tui; for ctl, page is one of its groups."));
     for (surface, page, setup) in
@@ -1253,7 +1263,7 @@ fn triage_names_only_each_configured_surface_set() {
         run.tick();
         let brief = fs::read_to_string(&run.processes.commands[0].stdin).expect("brief");
         assert!(brief.starts_with(&format!(
-            "# Triage\n\nJudge what a person now sees or does through {words}. The green path only:"
+            "# Triage\n\nJudge what a person now sees or does through {words}. QA judges the happy path alone:"
         )));
         let ledger = world.ledger();
         let surfaces =

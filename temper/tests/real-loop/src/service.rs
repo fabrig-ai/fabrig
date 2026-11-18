@@ -147,8 +147,12 @@ impl ServiceHost {
             crate::github::write(&path, address, clients.expect("fixed clients"), fixture).expect("GitHub documents");
         }
         if fixture.is_none() && github.is_none() {
-            let mut value = serde_json::from_slice(&std::fs::read(path.join("temper.json")).expect("deployment"))
-                .expect("deployment JSON");
+            let mut value: serde_json::Value =
+                serde_json::from_slice(&std::fs::read(path.join("temper.json")).expect("deployment"))
+                    .expect("deployment JSON");
+            value["world_settings"] =
+                serde_json::from_slice(&std::fs::read(path.join("world-settings.json")).expect("world settings"))
+                    .expect("world settings JSON");
             if let Some(configure) = configure {
                 let mut agent = serde_json::from_slice(&std::fs::read(path.join("world-agent.json")).expect("agent"))
                     .expect("agent JSON");
@@ -156,7 +160,7 @@ impl ServiceHost {
                 fixtures::turn_bounds::apply(&mut value, fixtures::turn_bounds::turn_body(&agent));
                 fixtures::private(&path.join("world-agent.json"), &serde_json::to_vec(&agent).expect("agent JSON"))
                     .expect("agent configuration");
-                temper_fixtures::agent::apply(&mut value, &path, &agent);
+                temper_agent_fixtures::apply(&mut value, &path, &agent);
             }
             fixtures::finish_configuration(&path, &mut value).expect("world defaults separated from startup");
         }

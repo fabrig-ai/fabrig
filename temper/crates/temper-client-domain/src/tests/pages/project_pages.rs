@@ -80,7 +80,12 @@ fn unlisted_home_and_settings_keep_one_project_read_until_the_address_leaves() {
                 deliver(&mut f, two_projects());
             }
             event(&mut f, Event::Went { address: address.clone() });
-            let reads = project_reads(&mut f.out, UNKNOWN);
+            let mut reads = project_reads(&mut f.out, UNKNOWN);
+            if before_me {
+                assert!(reads.is_empty(), "the rail waits for the hello's me");
+                deliver(&mut f, two_projects());
+                reads = project_reads(&mut f.out, UNKNOWN);
+            }
             assert_eq!(reads.len(), 1);
             let handle = *reads.get(0).expect("one project read");
             deliver(&mut f, two_projects());

@@ -108,7 +108,10 @@ fn activity(rng: &mut Rng, now: Wall) -> Wall {
 }
 
 fn work_facts(rng: &mut Rng, now: Wall) -> work::Facts {
-    let mut facts = work::Facts::default();
+    let mut facts = work::Facts {
+        known: work::Known { goals: true, needs: true, milestones: true, chats: true, changes: true, drafts: true },
+        ..work::Facts::default()
+    };
     for _ in 0..rng.between(0, ROWS) {
         facts
             .milestones

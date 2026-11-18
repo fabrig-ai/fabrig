@@ -5,6 +5,8 @@
 
 extern crate alloc;
 
+use core::fmt::Write;
+
 mod analysis;
 mod check;
 mod constructs;
@@ -124,24 +126,6 @@ fn uses_box(ty: &Type) -> bool {
     }
 }
 
-fn uses_list(ty: &Type) -> bool {
-    match ty {
-        Type::List(_, _) => true,
-        Type::Option(item) => uses_list(item),
-        Type::U8
-        | Type::U16
-        | Type::U32
-        | Type::U64
-        | Type::Bool
-        | Type::Duration
-        | Type::Fixed(_)
-        | Type::Bytes(_)
-        | Type::Secret(_)
-        | Type::Text(_)
-        | Type::Named(_) => false,
-    }
-}
-
 /// Writes a module for one schema version.
 #[must_use]
 pub fn generate(schema: &Schema) -> Output {
@@ -160,14 +144,27 @@ pub fn generate(schema: &Schema) -> Output {
     if types.iter().any(|ty| uses_box(ty)) || has_boxed_variants(schema) {
         records.push_str("use alloc::boxed::Box;\n");
     }
-    if types.iter().any(|ty| uses_list(ty)) {
-        records.push_str("use skein_lib::List;\n");
-    }
-    records.push('\n');
+    records.push_str("use skein_lib::List;\n\n");
+    writeln!(
+        &mut records,
+        "/// This family's schema version.\npub const VERSION: u16 = {};\n",
+        emit_limits::literal(schema.version)
+    )
+    .expect("generated source");
     emit_limits::emit(&context, &mut records);
-    emit_types::emit(&context, &mut records);
-    emit_codec::emit(&context, &mut records);
-    emit_bounds::emit(&context, &mut records);
+    emit_bounds::emit_family(&context, &mut records);
+    for (index, declaration) in schema.declarations.iter().enumerate() {
+        emit_types::emit(&context, declaration, &mut records);
+        emit_codec::emit(&context, declaration, &mut records);
+        emit_bounds::emit(
+            declaration,
+            schema.declarations.get(index.checked_add(1).expect("declaration index")),
+            &mut records,
+        );
+        if let Declaration::Record(record) = declaration {
+            emit_limits::emit_record(&context, record, &mut records);
+        }
+    }
     Output { records }
 }
 

@@ -191,8 +191,8 @@ fn recorded_walk_chat_fixtures_select_their_opening_requests() {
 }
 #[test]
 fn demo_chat_fixtures_select_their_opening_requests() {
-    let value = read(&skein_scratch::paths::tree().join("crates/temper-init/template/temper.json"));
-    let value = &value["application"]["demo"]["llm"];
+    let value: Value = serde_json::from_slice(temper_fake::demo::SCRIPTS).expect("binary scripts");
+    let value = &value;
     for (words, prefix) in [
         ("Add CSV export to widget", "I’ll delegate this change"),
         ("Add a dark theme to widget", "I would give widget a dark theme"),

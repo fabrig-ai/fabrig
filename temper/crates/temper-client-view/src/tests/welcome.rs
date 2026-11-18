@@ -491,7 +491,7 @@ fn the_welcome_frame_is_the_brand_the_steps_and_the_link_alone() {
     let root = f::welcome_root(Step::Welcome, true);
     let mut view = f::page_view(&root);
     let brand = f::find(view.tree(), Role::Link, b"temper").unwrap();
-    assert_eq!(crate::href(&mut view, brand).as_deref(), Some(b"/".as_slice()));
+    assert_eq!(crate::href(&mut view, brand).as_deref(), Some(b"/needs".as_slice()));
     let tree = view.tree();
     assert!(
         tree.nodes()
@@ -785,17 +785,17 @@ fn the_steps_tick_forge_and_model_facts_in_both_shells() {
 }
 
 #[test]
-fn the_welcome_brand_goes_to_the_inbox() {
+fn the_welcome_brand_goes_home_in_the_browser_and_to_the_inbox_in_the_terminal() {
     for step in [Step::Welcome, Step::WelcomeAsked, Step::Forge { forge: None }, Step::Model { way: None }, Step::Ready]
     {
         let root = f::welcome_root(step, true);
-        for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        for (mut view, address, path) in [
+            (f::page_view(&root), Address::Inbox { filter: d::address::Filter::ALL }, b"/needs".as_slice()),
+            (f::browser_page_view(&root), Address::AllHome, b"/home".as_slice()),
+        ] {
             let brand = node(view.tree(), Role::Link, "temper");
-            assert_eq!(crate::href(&mut view, brand).as_deref(), Some(b"/".as_slice()));
-            assert_eq!(
-                crate::act(&mut view, brand, Act::Press),
-                Some(d::Action::Pages(pages::Act::Go { address: Address::Inbox { filter: d::address::Filter::ALL } }))
-            );
+            assert_eq!(crate::href(&mut view, brand).as_deref(), Some(path));
+            assert_eq!(crate::act(&mut view, brand, Act::Press), Some(d::Action::Pages(pages::Act::Go { address })));
         }
     }
 }

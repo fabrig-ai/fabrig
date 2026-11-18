@@ -16,7 +16,12 @@ with (root / 'cargo-argv.jsonl').open('a') as output:
     output.write(json.dumps(sys.argv[1:]) + '\n')
 if sys.argv[1:3] == ['nextest', 'list']:
     print('fixture listing prefix', flush=True)
-    print((root / 'listing.json').read_text(), end='', flush=True)
+    listing = root / 'listing.json'
+    if '-p' in sys.argv:
+        package_listing = root / f'listing-{sys.argv[sys.argv.index("-p") + 1]}.json'
+        if package_listing.exists():
+            listing = package_listing
+    print(listing.read_text(), end='', flush=True)
     print('fixture listing suffix', flush=True)
 elif sys.argv[1:] == ['metadata', '--format-version', '1', '--no-deps']:
     print((root / 'metadata.json').read_text(), end='')

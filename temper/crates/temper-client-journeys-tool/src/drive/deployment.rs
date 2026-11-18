@@ -83,15 +83,21 @@ pub fn preparation(config_present: bool, data_present: bool) -> Result<Preparati
 
 pub type RenderedFile = (PathBuf, Box<[u8]>);
 
-/// The io supplies regular files from config/; no file is read or written here.
-/// Fresh preparation's destinations are absolute paths under scratch.
-pub fn documents(files: &[(&str, &[u8])], place: &Place) -> Result<Vec<RenderedFile>, String> {
-    let names = [
+/// Deployment templates and their retained destinations.
+#[must_use]
+pub fn inputs() -> [(&'static str, &'static str); 5] {
+    [
         ("engine.json", Document::Engine.path()),
         ("worker.json", Document::Worker.path()),
         ("forgejo.json", "config/forgejo.json"),
         ("model.json", "config/model.json"),
-    ];
+        ("providers.json", "config/providers.json"),
+    ]
+}
+/// The io supplies regular files from config/; no file is read or written here.
+/// Fresh preparation's destinations are absolute paths under scratch.
+pub fn documents(files: &[(&str, &[u8])], place: &Place) -> Result<Vec<RenderedFile>, String> {
+    let names = inputs();
     for (name, _) in files {
         if !names.iter().any(|(expected, _)| name == expected) {
             return Err(format!("config/{name}: unexpected deployment document"));
@@ -104,7 +110,11 @@ pub fn documents(files: &[(&str, &[u8])], place: &Place) -> Result<Vec<RenderedF
         if found.next().is_some() {
             return Err(format!("config/{name}: repeated deployment document"));
         }
-        rendered.push((place.scratch.join(destination), render(name, bytes, place)?));
+        let bytes = render(name, bytes, place)?;
+        if name == "providers.json" {
+            rendered.push((place.scratch.join("data/engine/providers.setting"), bytes.clone()));
+        }
+        rendered.push((place.scratch.join(destination), bytes));
     }
     Ok(rendered)
 }

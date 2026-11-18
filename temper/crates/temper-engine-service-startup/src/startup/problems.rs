@@ -62,7 +62,7 @@ EngineWhat::FigureEndpoints { .. } | EngineWhat::FleetGrace { .. } | EngineWhat:
 }
 fn redirect_listener(listener: super::Listener, writer: &mut Writer, length: &mut usize, measuring: bool) {
     let name = match listener {
-        super::Listener::Demo => b"application.demo.llm.listen".as_slice(),
+        super::Listener::Demo => b"the box's scripted model".as_slice(),
         super::Listener::Clients => b"application.clients.listener".as_slice(),
         super::Listener::Webhooks => b"application.webhooks.listener".as_slice(),
     };
@@ -142,6 +142,7 @@ fn stock(floor: crate::stock::Floor, writer: &mut Writer, length: &mut usize, me
             Setting::Policy(number) => (b"policy ", Some(number)),
             Setting::Model(number) => (b"Model ", Some(number)),
             Setting::Worker(number) => (b"Worker ", Some(number)),
+            Setting::Provider(number) => (b"Provider ", Some(number)),
             Setting::Rules => (b"rules", None),
             Setting::Application { kind, scope, number } => {
                 put(writer, length, measuring, b"application kind ");

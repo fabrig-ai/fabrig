@@ -6,6 +6,12 @@
   default branch rather than the repository's landing branch [in flight:
   change 8087].
 
+- **Not yet:** 1, *Its budget*: no constant or focused test holds a cold
+  open to its budget, and it takes more: Team's `Project` read leaves
+  beside the stream before the hello, and the chats' chips watch and an
+  owner's `deployment` watch each open a wave past the batch [in flight:
+  change 7925].
+
 - **Not yet:** 1, *Work*: no landed draft is read, placed or drawn, and
   no goal starts from one [in flight: change 664].
 - **Not yet:** 1, *Its title*: Work's chat cards, landed drafts, nested

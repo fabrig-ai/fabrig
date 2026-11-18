@@ -103,11 +103,11 @@ fn went(root: &mut Domain, env: &Env<Limits>, place: Place, returned: bool, out:
                 forge(root, env, forge::Event::Left, out);
             }
         }
-        Place::Approve { .. }
-        | Place::Authorize { .. }
-        | Place::AuthorizeMalformed
-        | Place::Missing
-        | Place::Public(_) => {
+        Place::Root | Place::Missing => {
+            pages(root, env, crate::pages::Event::Root, out);
+            forge(root, env, forge::Event::Left, out);
+        }
+        Place::Approve { .. } | Place::Authorize { .. } | Place::AuthorizeMalformed | Place::Public(_) => {
             pages(root, env, crate::pages::Event::Left, out);
             forge(root, env, forge::Event::Left, out);
         }
@@ -129,6 +129,7 @@ pub(crate) fn pages(root: &mut Domain, env: &Env<Limits>, event: crate::pages::E
         },
         crate::pages::Event::Push(_)
         | crate::pages::Event::Started
+        | crate::pages::Event::Root
         | crate::pages::Event::Left
         | crate::pages::Event::SignInKept { .. }
         | crate::pages::Event::SignInAddress { .. }
@@ -552,9 +553,51 @@ fn playground_facts(root: &mut Domain) {
 /// Reconcile playground lifecycle after the shared client's account and forge tells.
 pub(crate) fn playground_progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     let mut child = Queue::uncapped();
-    forge::model::progress(&mut root.forge, &root.client, &mut child);
+    let page_needs_model = page_needs_model(root);
+    forge::model::progress(&mut root.forge, &root.client, page_needs_model, &mut child);
     route_forge(root, env, &mut child, out);
     playground_facts(root);
+}
+
+/// The model line's readers, including the no-project screen's setup destination
+/// (temper/docs/design/client/forge/family.md, 7).
+fn page_needs_model(root: &Domain) -> bool {
+    if crate::pages::welcome::no_project(root) {
+        return root.forge.deployment().expect("the no-project screen has the deployment").welcome
+            && crate::pages::welcome::forge_kept(root);
+    }
+    match root.pages.address() {
+        Address::Welcome { .. }
+        | Address::ConnectModel { .. }
+        | Address::NewChat { .. }
+        | Address::Chat { .. }
+        | Address::Talk { .. }
+        | Address::Task { .. } => true,
+        Address::Work { .. }
+        | Address::Goals { .. }
+        | Address::Changes { .. }
+        | Address::Home { .. }
+        | Address::AllHome
+        | Address::Inbox { .. }
+        | Address::Chats { .. }
+        | Address::Told
+        | Address::Remembered
+        | Address::Members
+        | Address::Limits
+        | Address::Accounts
+        | Address::Forges
+        | Address::ConnectForge { .. }
+        | Address::Models { .. }
+        | Address::Builders { .. }
+        | Address::Role { .. }
+        | Address::Rule { .. }
+        | Address::Repositories { .. }
+        | Address::Settings { .. }
+        | Address::Ask { .. }
+        | Address::Tell { .. }
+        | Address::Adopt { .. }
+        | Address::Team { .. } => false,
+    }
 }
 
 /// Advance Settings to its row and a named welcome forge to Model (temper/docs/design/client/pages/README.md).

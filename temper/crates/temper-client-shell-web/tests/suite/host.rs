@@ -28,9 +28,9 @@ fn a_start_opens_the_event_stream() {
 
 #[test]
 fn a_start_at_a_stale_filter_shows_its_printed_address() {
-    let mut host = started(b"/?kind=reply&project=3");
+    let mut host = started(b"/needs?kind=reply&project=3");
     let duties = host.report(Report::Start);
-    assert_eq!(duties.show, Some((Box::from(b"/?project=3".as_slice()), true)));
+    assert_eq!(duties.show, Some((Box::from(b"/needs?project=3".as_slice()), true)));
     let mut page = host::page(&host.bounds.tree, Primary::Control);
     host.draw(&mut page, &mut Vec::new());
     let html = page.html();
@@ -50,7 +50,10 @@ fn a_drawn_page_carries_the_views_hrefs() {
     let mut page = host::page(&host.bounds.tree, Primary::Control);
     host.draw(&mut page, &mut Vec::new());
     let html = page.html();
-    assert!(html.split("</a>").any(|anchor| anchor.contains("href=\"/\"") && anchor.contains(">temper<")), "{html}");
+    assert!(
+        html.split("</a>").any(|anchor| anchor.contains("href=\"/home\"") && anchor.contains(">temper<")),
+        "{html}"
+    );
 }
 
 #[path = "host/redacted.rs"]
@@ -285,16 +288,17 @@ fn a_saves_control_is_found_by_its_event() {
 fn a_saves_control_skips_a_menu_item_for_the_pages_link() {
     use skein_ui::{Act, Role};
     use temper_client_shell_web::journey::{Control, control, giving};
-    let save = include_bytes!("../../../../docs/design/client/web/journeys/welcome-playground/recording");
-    let mut replay = Replay::new(save).expect("Home save");
-    while replay.next().expect("Home replays").is_some() {}
+    let save = walk::project_frame();
+    let save = save.as_ref();
+    let mut replay = Replay::new(save).expect("project frame save");
+    while replay.next().expect("project frame replays").is_some() {}
     let host = replay.host();
-    let event = b"Act { action: Pages(Go { address: Ask { project: 1 } }) }";
+    let event = b"Act { action: Pages(Go { address: Accounts }) }";
     let nodes = giving(host, &Act::Press, event);
     assert!(nodes.iter().any(|node| Control::of(host.tree(), *node).expect("control").role == Role::MenuItem));
     assert_eq!(
         control(save, &Act::Press, event),
-        Ok(Some(Control { role: Role::Link, name: b"Ask temper".as_slice().into(), order: 0 }))
+        Ok(Some(Control { role: Role::Link, name: b"Deployment".as_slice().into(), order: 0 }))
     );
     let change = host
         .tree()

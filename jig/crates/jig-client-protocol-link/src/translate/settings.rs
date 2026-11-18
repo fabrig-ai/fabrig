@@ -17,6 +17,7 @@ pub fn wire_setting(value: &c::Setting, limits: &w::Limits) -> Result<w::Setting
         c::Setting::Policy(item) => w::Setting::Policy(wire_setting_number(item, limits)?),
         c::Setting::Model(item) => w::Setting::Model(wire_setting_number(item, limits)?),
         c::Setting::Worker(item) => w::Setting::Worker(wire_setting_number(item, limits)?),
+        c::Setting::Provider(item) => w::Setting::Provider(wire_setting_number(item, limits)?),
         c::Setting::Rules => w::Setting::Rules,
         c::Setting::ProjectPolicy { project } => w::Setting::ProjectPolicy(w::ProjectPolicySetting::new(
             limits,
@@ -35,6 +36,7 @@ pub fn restore_setting(value: &w::Setting) -> Result<c::Setting, w::Problem> {
         w::Setting::Policy(item) => c::Setting::Policy(restore_setting_number(item)?),
         w::Setting::Model(item) => c::Setting::Model(restore_setting_number(item)?),
         w::Setting::Worker(item) => c::Setting::Worker(restore_setting_number(item)?),
+        w::Setting::Provider(item) => c::Setting::Provider(restore_setting_number(item)?),
         w::Setting::Rules => c::Setting::Rules,
         w::Setting::ProjectPolicy(v) => c::Setting::ProjectPolicy { project: v.project() },
         w::Setting::Application(v) => c::Setting::Application { kind: v.kind(), scope: v.scope(), number: v.number() },
@@ -152,7 +154,12 @@ pub fn wire_charter(value: &c::Charter, limits: &w::Limits) -> Result<w::Charter
         w::CharterParts {
             parts,
             documents,
-            skein_bools: [value.rest, value.resume, value.inspect, value.modify, value.shell, value.agents],
+            rest: value.rest,
+            resume: value.resume,
+            inspect: value.inspect,
+            modify: value.modify,
+            shell: value.shell,
+            agents: value.agents,
             number: value.number,
             instructions: bytes::copy_of(value.instructions.bytes()),
             waiting: value.waiting,
@@ -342,6 +349,7 @@ pub fn restore_rules(value: &w::Rules, limits: &Limits) -> Result<c::Rules, w::P
 pub fn wire_setting_value(value: &c::SettingValue, limits: &w::Limits) -> Result<w::SettingValue, w::Problem> {
     Ok(match value {
         c::SettingValue::Overlay(item) => w::SettingValue::Overlay(Box::new(wire_overlay(item, limits)?)),
+        c::SettingValue::Provider(v) => w::SettingValue::Provider(Box::new(providers::encode(v, limits)?)),
         c::SettingValue::Model(v) => w::SettingValue::Model(Box::new(wire_catalogue(v, limits)?)),
         c::SettingValue::Worker(v) => w::SettingValue::Worker(Box::new(wire_worker(v, limits)?)),
         c::SettingValue::Application(v) => w::SettingValue::Application(w::ApplicationValue::new(
@@ -357,6 +365,7 @@ pub fn wire_setting_value(value: &c::SettingValue, limits: &w::Limits) -> Result
 pub fn restore_setting_value(value: &w::SettingValue, limits: &Limits) -> Result<c::SettingValue, w::Problem> {
     Ok(match value {
         w::SettingValue::Overlay(item) => c::SettingValue::Overlay(Box::new(restore_overlay(item)?)),
+        w::SettingValue::Provider(v) => c::SettingValue::Provider(Box::new(providers::decode(v))),
         w::SettingValue::Model(v) => c::SettingValue::Model(Box::new(restore_catalogue(v)?)),
         w::SettingValue::Worker(v) => c::SettingValue::Worker(Box::new(c::WorkerSetting {
             number: v.number(),
@@ -461,6 +470,7 @@ pub fn restore_setting_fault(value: &w::SettingFault) -> Result<c::SettingFault,
         w::SettingFault::Owner => c::SettingFault::Owner,
         w::SettingFault::Judged => c::SettingFault::Judged,
         w::SettingFault::Linked => c::SettingFault::Linked,
+        w::SettingFault::Accounts => c::SettingFault::Accounts,
     })
 }
 pub fn restore_malformed_settings(value: &w::MalformedSettings) -> Result<c::MalformedSettings, w::Problem> {
@@ -1211,3 +1221,5 @@ fn wire_worker(value: &c::WorkerSetting, limits: &w::Limits) -> Result<w::Worker
         },
     )
 }
+
+mod providers;

@@ -136,7 +136,7 @@ fn the_reference_settings_fit_the_reference_profile() {
     let engine = reference_engine(&init["engine"]["limits"]);
     let limits = &engine.limits.core.tasks;
     let stock = temper_service::stock::with_models(engine.llm.models.clone(), limits.result_bytes);
-    let init_agent: serde_json::Value = temper_fixtures::agent::stock(true);
+    let init_agent: serde_json::Value = temper_agent_fixtures::stock(true);
     let max_turns = init_agent["profile"]["policy"]["max_turns"].as_u64().expect("init turn limit");
     assert_eq!(items.iter().filter(|item| matches!(item.setting, Setting::Charter(_))).count(), 2);
     for number in [CODER, COORDINATOR] {
@@ -230,7 +230,7 @@ fn the_reference_charters_fit_a_stock_worker_and_the_run_bound() {
 }
 
 fn reference_worker_bounds(room: &serde_json::Value) -> jig_domain_link::Bounds {
-    let mut agent: serde_json::Value = temper_fixtures::agent::stock(true);
+    let mut agent: serde_json::Value = temper_agent_fixtures::stock(true);
     agent["profile"]["declared"]["tool_payload"] = room["tool_payload"].clone();
     // Only addresses and template placeholders change; no endpoint is contacted.
     for endpoint in agent["endpoints"].as_array_mut().expect("init endpoints") {
@@ -290,14 +290,8 @@ fn reference_engine(limits: &serde_json::Value) -> jig_protocol_config::Engine {
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16384, depth: 32 },
     )
     .expect("engine document");
-    let mut engine = jig_protocol_config::engine(
-        &document,
-        0,
-        &jig_protocol_config::Directories::working(),
-        jig_protocol_config::Defaults::Passed,
-        &temper_service::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
-    )
-    .expect("reference engine");
+    let mut engine = temper_service::startup::engine(&document, 0, &jig_protocol_config::Directories::working())
+        .expect("reference engine");
     let stock = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     let mut sol =
         stock.models.into_vec().into_iter().find(|entry| entry.model.name.as_ref() == b"gpt-6.1-sol").expect("Sol");

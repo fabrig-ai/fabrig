@@ -137,7 +137,7 @@ pub mod wire {
     pub const FAMILY: &str = "jig-worker-wire";
 
     /// The version named by the current schema's header.
-    pub const VERSION: u16 = 17;
+    pub const VERSION: u16 = crate::v17::VERSION;
 
     /// The lowest version this build speaks.
     pub const FLOOR: u16 = crate::patches::kept::jig_worker_wire::FLOOR;

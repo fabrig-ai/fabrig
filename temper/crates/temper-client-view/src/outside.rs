@@ -19,13 +19,13 @@ pub(crate) fn top(
     use crate::words::Shell;
     use temper_client_domain::{Address, address::Filter, pages::Act};
     let me = root.pages().me(root.client());
+    let home = match w.shell {
+        Shell::Browser => temper_client_domain::pages::rail::root_home(me),
+        Shell::Terminal => Address::Inbox { filter: Filter::ALL },
+    };
     b.open(Role::Banner);
     b.style(look::TOP);
-    crate::link(
-        b,
-        &w.say(Word::Brand, &[]),
-        bindings.insert(Act::Go { address: Address::Inbox { filter: Filter::ALL } }),
-    );
+    crate::link(b, &w.say(Word::Brand, &[]), bindings.insert(Act::Go { address: home }));
     b.style(look::BRAND);
     w.text(b, Word::Brand, &[]);
     b.close();
@@ -101,10 +101,7 @@ pub(crate) fn reading_me(root: &temper_client_domain::Domain, words: &Words, way
 
 /// The deployment has answered and the person has no project (client/pages/README.md).
 pub(crate) fn no_project(root: &temper_client_domain::Domain) -> bool {
-    if let temper_client_domain::Address::Welcome { .. } = root.pages().address() {
-        return false;
-    }
-    root.pages().me(root.client()).is_some() && root.pages().project().is_none() && root.forge().deployment().is_some()
+    temper_client_domain::pages::welcome::no_project(root)
 }
 
 /// The first project's form or the welcome's acts (temper/docs/design/client/pages/README.md).

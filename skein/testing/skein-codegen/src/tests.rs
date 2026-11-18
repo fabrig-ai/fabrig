@@ -4,6 +4,64 @@ use core::fmt::Write;
 
 use crate::{Golden, generate, goldens, parse};
 
+fn merge_family() -> String {
+    let mut source = String::from("family merging 7\n");
+    for index in 0_u32..120 {
+        writeln!(&mut source, "record Record{index} {{ payload: bytes 8 }}").expect("schema string");
+    }
+    source.push_str("versioned record Long {\n");
+    for index in 0_u32..100 {
+        writeln!(&mut source, " field{index}: list 2 option bytes 8").expect("schema string");
+    }
+    source.push_str("}\nrecord Flags { a: bool b: bool c: bool d: bool }\nenum Choice { empty, full: Record119 }\n");
+    source
+}
+
+#[test]
+fn changes_to_different_declarations_merge_line_by_line() {
+    let original = merge_family();
+    let cases = [
+        (
+            ("record Record2 { payload: bytes 8 }", "record Record2 { payload: bytes 8 added: text 4 }"),
+            ("record Record118", "record Added { extra: bytes 3 }\nrecord Record118"),
+        ),
+        (("c: bool d: bool", "c: bool d: bool e: bool"), ("enum Choice { empty,", "enum Choice { another, empty,")),
+        (
+            (" field50:", " inserted: option list 2 bytes 4\n field50:"),
+            ("record Record75 { payload: bytes 8 }", "record Record75 { payload: bytes 16 }"),
+        ),
+    ];
+    let scratch = skein_scratch::Scratch::new("codegen-merge");
+    let base = scratch.path().join("base.rs");
+    let left = scratch.path().join("left.rs");
+    let right = scratch.path().join("right.rs");
+    let generated = |source: &str| generate(&parse(source).expect("merge family")).records;
+    let base_output = generated(&original);
+    check_item_names(&base_output);
+    check_function_lengths(&base_output);
+    std::fs::write(&base, base_output).expect("base output");
+    for ((old_left, new_left), (old_right, new_right)) in cases {
+        std::fs::write(&left, generated(&original.replace(old_left, new_left))).expect("left output");
+        std::fs::write(&right, generated(&original.replace(old_right, new_right))).expect("right output");
+        let merged = std::process::Command::new("git")
+            .args(["merge-file", "-p"])
+            .args([&left, &base, &right])
+            .output()
+            .expect("git merge-file");
+        let conflicts = String::from_utf8_lossy(&merged.stdout)
+            .lines()
+            .filter(|line| line.starts_with("<<<<<<<") || line.starts_with("=======") || line.starts_with(">>>>>>>"))
+            .map(str::to_owned)
+            .collect::<Vec<_>>();
+        assert!(merged.status.success(), "{old_left} / {old_right}: {conflicts:?}");
+        let combined = original.replace(old_left, new_left).replace(old_right, new_right);
+        let expected = generated(&combined);
+        let actual = String::from_utf8(merged.stdout).expect("generated Rust is UTF-8");
+        let difference = actual.lines().zip(expected.lines()).find(|(actual, expected)| actual != expected);
+        assert!(actual == expected, "{old_left} / {old_right}: first differing lines {difference:?}");
+    }
+}
+
 #[test]
 fn fixed_rule_values_keep_names_order_and_bytes() {
     let schema = parse("family f 1 record Note { title: text 8 }").expect("valid note");
@@ -14,6 +72,19 @@ fn fixed_rule_values_keep_names_order_and_bytes() {
             Golden { name: "record_note_full.bin".into(), bytes: vec![0, 0, 0, 3, b'a', b'b', b'c'] },
         ]
     );
+}
+
+#[test]
+fn versioned_records_name_their_modules_version() {
+    for version in [1_u16, 4097] {
+        let schema = parse(&format!("family versioned {version}\nversioned record First {{ value: u8 }}\nversioned record Second {{}}\nrecord Plain {{ value: u16 }}")).expect("versioned family");
+        let output = generate(&schema);
+        assert!(
+            output.records.contains(&format!("pub const VERSION: u16 = {};", crate::emit_limits::literal(version)))
+        );
+        assert_eq!(output.records.matches("writer.put(&VERSION.to_be_bytes())?;").count(), 2);
+        assert_eq!(output.records.matches("if version != VERSION").count(), 2);
+    }
 }
 
 #[test]
@@ -50,8 +121,7 @@ fn limit_names_and_values_follow_field_order() {
             .lines()
             .map(|line| line.trim().strip_prefix("pub ").expect("public limit").split_once(':').expect("field type").0)
             .collect::<Vec<_>>();
-        let names = output.records.split_once("pub const LIMIT_NAMES: [&str; ").expect("names constant").1;
-        let (count, names) = names.split_once("] = [\n").expect("array length");
+        let names = output.records.split_once("pub const LIMIT_NAMES: &[&str] = &[\n").expect("names slice").1;
         let names = names
             .split_once("];\n")
             .expect("names end")
@@ -59,18 +129,14 @@ fn limit_names_and_values_follow_field_order() {
             .lines()
             .map(|line| line.trim().trim_end_matches(',').trim_matches('"'))
             .collect::<Vec<_>>();
-        assert_eq!(count.parse::<usize>().expect("length"), fields.len());
         assert_eq!(names, fields);
-        let values = output.records.split_once("pub fn values(&self) -> [u32; ").expect("values method").1;
-        let (count, values) = values.split_once("] {\n        [\n").expect("returned array");
-        let values = values
-            .split_once("        ]\n")
-            .expect("values end")
-            .0
-            .split_whitespace()
-            .map(|field| field.trim_end_matches(',').strip_prefix("self.").expect("limit value"))
+        assert!(output.records.contains("pub fn values(&self) -> List<u32>"));
+        let values = output
+            .records
+            .lines()
+            .filter_map(|line| line.trim().strip_prefix("values.push(self."))
+            .map(|line| line.split_once(')').expect("pushed field").0)
             .collect::<Vec<_>>();
-        assert_eq!(count.parse::<usize>().expect("length"), fields.len());
         assert_eq!(values, fields);
         if !fields.is_empty() {
             use skein_codec::schema::{LimitLevel, limit_child, limit_name};
@@ -154,22 +220,54 @@ fn variable_record_lists_measure_each_value() {
 }
 
 #[test]
-fn a_family_of_120_records_has_no_function_past_100_lines() {
+fn family_and_field_helpers_have_no_ordinals_or_long_functions() {
     let mut records = String::new();
     for index in 0_u32..120 {
         writeln!(&mut records, "record Record{index} {{}}").expect("schema string");
     }
+    records.push_str("versioned record Scalars {\n");
+    for index in 0_u32..100 {
+        writeln!(&mut records, "field{index}: u8").expect("schema string");
+    }
+    records.push_str("}\n");
     let schema = parse(&format!("family many 1\n{records}")).expect("valid family");
     let output = generate(&schema);
-    assert!(output.records.contains("fn encoded_bound_0("));
-    assert!(output.records.contains("fn decoded_bound_0("));
+    assert!(output.records.contains("fn record0_encoded_bound_family("));
+    assert!(output.records.contains("fn record119_decoded_bound_family("));
+    check_item_names(&output.records);
+    assert!(output.records.contains("fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>)"));
+    assert!(output.records.contains("Self::decode_from_field0_field(limits, reader)?;"));
+    assert!(output.records.contains("fn decode_from_field0_field(_limits: &Limits,"));
     for name in ["worst_case_bytes", "worst_case_heap", "worst_case_bytes_within", "worst_case_heap_within"] {
         assert!(!output.records.contains(name), "old name {name}");
     }
     check_function_lengths(&output.records);
 }
 
-fn check_function_lengths(source: &str) {
+pub(super) fn check_item_names(source: &str) {
+    for line in source.lines() {
+        let words = line.split_whitespace().collect::<Vec<_>>();
+        for pair in words.windows(2) {
+            if ["fn", "struct", "enum", "const"].contains(pair.first().expect("item keyword")) {
+                let name = pair.get(1).expect("item name").split(['(', ':', '<', '{']).next().expect("identifier");
+                assert!(
+                    !name
+                        .rsplit_once('_')
+                        .is_some_and(|(_, tail)| !tail.is_empty() && tail.bytes().all(|byte| byte.is_ascii_digit())),
+                    "ordinal item: {name}"
+                );
+                assert!(
+                    !name
+                        .rsplit_once("Decoded")
+                        .is_some_and(|(_, tail)| !tail.is_empty() && tail.bytes().all(|byte| byte.is_ascii_digit())),
+                    "ordinal decoded type: {name}"
+                );
+            }
+        }
+    }
+}
+
+pub(super) fn check_function_lengths(source: &str) {
     let mut function = None;
     for (index, line) in source.lines().enumerate() {
         let trimmed = line.trim_start();

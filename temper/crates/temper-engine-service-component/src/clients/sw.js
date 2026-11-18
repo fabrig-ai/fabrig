@@ -19,7 +19,7 @@ self.addEventListener("push", event => {
 self.addEventListener("notificationclick", event => {
     event.notification.close();
     const project = event.notification.data;
-    const path = Number.isInteger(project) && project > 0 && project <= 4294967295 ? `/?project=${project}` : "/";
+    const path = Number.isInteger(project) && project > 0 && project <= 4294967295 ? `/needs?project=${project}` : "/needs";
     const url = new URL(path, self.location.origin).href;
     event.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(async windows => {
         for (const window of windows) {

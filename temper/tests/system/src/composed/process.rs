@@ -337,7 +337,7 @@ impl Process {
         self.charter = smith_protocol_channel::encode_charter(
             start.charter.value(),
             &smith_charter::CEILINGS,
-            &super::worker_protocol::endpoints(),
+            &super::worker_protocol::endpoints_with_dialect(3),
         )
         .expect("fitted charter encodes");
         let transcript = start.transcript.map(agent::Transcript::into_value);
@@ -727,7 +727,7 @@ fn receiving(tool_payload: Option<u32>) -> run::Limits {
             },
         }]),
     };
-    let mut template: serde_json::Value = temper_fixtures::agent::stock(true);
+    let mut template: serde_json::Value = temper_agent_fixtures::stock(true);
     if let Some(bytes) = tool_payload {
         template["profile"]["declared"]["tool_payload"] = bytes.into();
     }

@@ -75,7 +75,6 @@ fn trial_root(kind: c::AccountKind) -> (d::Domain, Token, Token) {
         );
     }
     let me_watch = opened(&out, jig_client::Watchable::Jig(c::Subject::Me));
-    let accounts = opened(&out, jig_client::Watchable::Jig(c::Subject::Accounts));
     let out = trial_event(
         &mut root,
         d::Event::Client {
@@ -87,6 +86,7 @@ fn trial_root(kind: c::AccountKind) -> (d::Domain, Token, Token) {
             },
         },
     );
+    let accounts = opened(&out, jig_client::Watchable::Jig(c::Subject::Accounts));
     let trials = opened(&out, d::forge::trials::watch(&fixtures::limits().forge).unwrap());
     let provider = if kind == c::AccountKind::Program { b"anthropic".as_slice() } else { b"openai" };
     deliver(&mut root, accounts, card_document(provider, b"Pat", kind));
