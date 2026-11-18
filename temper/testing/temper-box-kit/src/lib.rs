@@ -142,7 +142,7 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>) {
         configuration::documents(directory, skein_scratch::paths::binary("temper-box").to_str().expect("a UTF-8 path"));
     let mut value: serde_json::Value = serde_json::from_slice(&value).expect("deployment JSON");
     forgejo::configuration(directory, forge, &mut value);
-    temper_fixtures::agent::apply(&mut value, directory, &serde_json::from_slice(&agent).expect("agent JSON"));
+    temper_agent_fixtures::apply(&mut value, directory, &serde_json::from_slice(&agent).expect("agent JSON"));
     write_private(&directory.join("temper.json"), &serde_json::to_vec(&value).expect("deployment JSON"));
 }
 

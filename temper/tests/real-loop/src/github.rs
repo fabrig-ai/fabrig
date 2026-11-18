@@ -169,7 +169,7 @@ pub(crate) fn write(path: &Path, address: SocketAddr, clients: SocketAddr, fixtu
     }
     (fixture.configure)(&mut value, &mut agent, address);
     fixtures::turn_bounds::apply(&mut value, fixtures::turn_bounds::turn_body(&agent));
-    temper_fixtures::agent::apply(&mut value, path, &agent);
+    temper_agent_fixtures::apply(&mut value, path, &agent);
     fixtures::finish_configuration(path, &mut value)?;
     fixtures::private(&path.join("world-agent.json"), &serde_json::to_vec(&agent)?)
 }

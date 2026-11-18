@@ -5458,6 +5458,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-agent-fixtures"
+version = "0.0.0"
+dependencies = [
+ "jig-protocol-config",
+ "serde_json",
+ "skein-lib",
+ "temper-client-protocol-wire",
+ "temper-engine-service-startup",
+ "temper-engine-service-stock",
+ "temper-engine-service-vocabulary",
+ "temper-worker-shell",
+]
+
+[[package]]
 name = "temper-agent-shell"
 version = "0.0.0"
 dependencies = [
@@ -5519,6 +5533,7 @@ dependencies = [
  "smith-domain-run",
  "smith-host-domain",
  "smith-protocol-program",
+ "temper-agent-fixtures",
  "temper-box-kit",
  "temper-box-machine",
  "temper-box-shell",
@@ -5601,6 +5616,7 @@ dependencies = [
  "skein-ui-screen-terminal",
  "skein-world",
  "smith-host-domain",
+ "temper-agent-fixtures",
  "temper-box-shell",
  "temper-client-domain",
  "temper-client-shell-cli",
@@ -5681,6 +5697,7 @@ dependencies = [
  "smith-agent-shell",
  "smith-host-domain",
  "smith-local-domain",
+ "temper-agent-fixtures",
  "temper-agent-shell",
  "temper-box-machine",
  "temper-client-bundle",
@@ -5755,6 +5772,7 @@ dependencies = [
  "skein-ui",
  "skein-ui-web",
  "skein-world",
+ "temper-agent-fixtures",
  "temper-client-domain",
  "temper-engine-service",
  "temper-fake",
@@ -6286,7 +6304,7 @@ dependencies = [
  "temper-engine-service-stock",
  "temper-engine-service-vocabulary",
  "temper-engine-smith",
- "temper-fixtures",
+ "temper-landing-fixtures",
  "temper-limits-fixtures",
  "temper-protocol-reaches",
  "temper-settings-form",
@@ -6592,7 +6610,7 @@ dependencies = [
  "temper-engine-smith",
  "temper-fake",
  "temper-fake-checkout",
- "temper-fixtures",
+ "temper-landing-fixtures",
  "temper-limits-fixtures",
  "temper-protocol-reaches",
  "temper-protocol-store",
@@ -6775,6 +6793,7 @@ dependencies = [
  "smith-domain-run",
  "smith-protocol-llm",
  "smith-protocol-program",
+ "temper-agent-fixtures",
  "temper-client-protocol-wire",
  "temper-client-tools",
  "temper-engine-domain",
@@ -6785,7 +6804,6 @@ dependencies = [
  "temper-engine-service-stock",
  "temper-engine-service-vocabulary",
  "temper-engine-smith",
- "temper-fixtures",
  "temper-forge-setup",
  "temper-init",
  "temper-limits-fixtures",
@@ -6928,6 +6946,7 @@ dependencies = [
  "skein-scratch",
  "skein-shell",
  "skein-tls",
+ "temper-agent-fixtures",
  "temper-box-machine",
  "temper-client-bundle",
  "temper-client-protocol-wire",
@@ -6935,7 +6954,6 @@ dependencies = [
  "temper-engine-domain-forge",
  "temper-engine-service",
  "temper-fake",
- "temper-fixtures",
  "temper-forge-setup",
  "temper-forge-setup-shell",
  "temper-limits-fixtures",
@@ -7024,12 +7042,12 @@ dependencies = [
  "skein-sim",
  "smith-agent-world",
  "smith-domain-run",
+ "temper-agent-fixtures",
  "temper-engine-domain-forge-change",
  "temper-engine-domain-forge-issues",
  "temper-engine-domain-forge-vocabulary",
  "temper-engine-service-startup",
  "temper-engine-service-stock",
- "temper-fixtures",
  "temper-forge-setup",
  "temper-init",
  "temper-limits-fixtures",
@@ -7110,21 +7128,10 @@ dependencies = [
  "jig-client",
  "jig-client-protocol-wire",
  "jig-client-test-records",
- "jig-protocol-config",
- "serde_json",
- "skein-forge",
  "skein-io",
  "skein-lib",
  "temper-client-protocol-wire",
- "temper-engine-domain-forge-change",
- "temper-engine-domain-forge-landing",
- "temper-engine-domain-forge-tiers",
- "temper-engine-domain-forge-vocabulary",
- "temper-engine-service-startup",
- "temper-engine-service-stock",
- "temper-engine-service-vocabulary",
  "temper-test-env",
- "temper-worker-shell",
 ]
 
 [[package]]
@@ -7218,9 +7225,21 @@ dependencies = [
  "smith-agent-shell",
  "smith-agent-world",
  "smith-domain",
+ "temper-agent-fixtures",
  "temper-fetch",
- "temper-fixtures",
  "temper-service-core",
+]
+
+[[package]]
+name = "temper-landing-fixtures"
+version = "0.0.0"
+dependencies = [
+ "skein-forge",
+ "skein-lib",
+ "temper-engine-domain-forge-change",
+ "temper-engine-domain-forge-landing",
+ "temper-engine-domain-forge-tiers",
+ "temper-engine-domain-forge-vocabulary",
 ]
 
 [[package]]
@@ -7640,6 +7659,7 @@ dependencies = [
  "smith-agent-service",
  "smith-agent-shell",
  "smith-fake-claude",
+ "temper-agent-fixtures",
  "temper-box-shell",
  "temper-client-domain",
  "temper-client-protocol-wire",
@@ -7767,6 +7787,7 @@ dependencies = [
  "smith-protocol-program",
  "smith-protocol-translate",
  "smith-transcript",
+ "temper-agent-fixtures",
  "temper-box-machine",
  "temper-charter-set",
  "temper-client-protocol-wire",
@@ -7782,7 +7803,6 @@ dependencies = [
  "temper-engine-domain-world",
  "temper-engine-service",
  "temper-engine-smith",
- "temper-fixtures",
  "temper-forge-setup",
  "temper-init",
  "temper-limits-fixtures",
@@ -7920,6 +7940,7 @@ dependencies = [
  "smith-protocol-channel",
  "smith-protocol-llm",
  "smith-transcript",
+ "temper-agent-fixtures",
  "temper-engine-domain",
  "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",
@@ -7929,7 +7950,6 @@ dependencies = [
  "temper-engine-service-vocabulary",
  "temper-engine-smith",
  "temper-fake-checkout",
- "temper-fixtures",
  "temper-limits-fixtures",
  "temper-protocol-worker-wire",
  "temper-service-core",
@@ -8117,8 +8137,8 @@ dependencies = [
  "smith-protocol-channel",
  "smith-protocol-program",
  "smith-transcript",
+ "temper-agent-fixtures",
  "temper-engine-service-startup",
- "temper-fixtures",
  "temper-limits-fixtures",
  "temper-protocol-brief",
  "temper-protocol-worker-wire",
@@ -8174,8 +8194,8 @@ dependencies = [
  "smith-agent-document",
  "smith-host-domain",
  "smith-host-protocol",
+ "temper-agent-fixtures",
  "temper-engine-service-vocabulary",
- "temper-fixtures",
  "temper-launcher",
  "temper-limits-fixtures",
  "temper-playground",

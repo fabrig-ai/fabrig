@@ -44,8 +44,8 @@ impl Default for Tier {
 }
 
 #[must_use]
-pub(crate) fn checks(options: Tier) -> Box<[temper_fixtures::landing::TierCheck]> {
-    let slow = temper_fixtures::landing::TierCheck {
+pub(crate) fn checks(options: Tier) -> Box<[temper_landing_fixtures::TierCheck]> {
+    let slow = temper_landing_fixtures::TierCheck {
         name: b"slow".as_slice().into(),
         workflow: b"slow.yml".as_slice().into(),
         ignored: Box::new([b"docs".as_slice().into()]),
@@ -56,7 +56,7 @@ pub(crate) fn checks(options: Tier) -> Box<[temper_fixtures::landing::TierCheck]
         description: Box::default(),
     };
     if options.goals {
-        let goal = temper_fixtures::landing::TierCheck {
+        let goal = temper_landing_fixtures::TierCheck {
             name: b"goal".as_slice().into(),
             workflow: b"goal.yml".as_slice().into(),
             follows: forge_top::Follows::Goals,

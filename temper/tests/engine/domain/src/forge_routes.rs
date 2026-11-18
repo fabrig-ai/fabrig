@@ -198,7 +198,7 @@ pub struct World {
 pub struct StoryLimits {
     /// Gather startup edits before constructing either the store or the root.
     pub second_project: bool,
-    pub project_landing: Option<(u32, temper_fixtures::landing::ProjectLanding)>,
+    pub project_landing: Option<(u32, temper_landing_fixtures::ProjectLanding)>,
     pub project_policy: Option<jig_domain_core::ConfiguredPolicy>,
     pub settings_owner: Option<people::IdentityKey>,
     pub forge_pages: Option<&'static [u8]>,
@@ -885,7 +885,7 @@ impl World {
                     landings
                         .insert(
                             1,
-                            temper_fixtures::landing::ProjectLanding {
+                            temper_landing_fixtures::ProjectLanding {
                                 gate_retries: 2,
                                 batch: if landing_members == Some(0) { 1 } else { batch.unwrap_or(1) },
                                 combine_main: engine::Combine::Merge,
@@ -898,18 +898,18 @@ impl World {
                                 tier_retries: 2,
                                 verification_bound_ms: tier.map_or(7_200_000, |tier| tier.bound_ms),
                                 by: if turn {
-                                    temper_fixtures::landing::Way::Turn
+                                    temper_landing_fixtures::Way::Turn
                                 } else {
-                                    temper_fixtures::landing::Way::Queue
+                                    temper_landing_fixtures::Way::Queue
                                 },
-                                repositories: Box::new([temper_fixtures::landing::RepositoryChecks {
+                                repositories: Box::new([temper_landing_fixtures::RepositoryChecks {
                                     tiers: match tier {
                                         Some(tier) => crate::tier_runs::checks(tier),
                                         None => Box::new([]),
                                     },
                                     repository: forge_world::REPO,
                                     gates: if turn {
-                                        Box::new([temper_fixtures::landing::GateCheck {
+                                        Box::new([temper_landing_fixtures::GateCheck {
                                             name: b"gate".as_slice().into(),
                                             workflow: b"gate.yml".as_slice().into(),
                                             ignored: Box::new([b"docs".as_slice().into()]),
@@ -1599,7 +1599,7 @@ impl World {
 
     /// Configure an additional project's verification policy before startup.
     #[must_use]
-    pub fn with_project_landing(mut self, project: u32, landing: temper_fixtures::landing::ProjectLanding) -> Self {
+    pub fn with_project_landing(mut self, project: u32, landing: temper_landing_fixtures::ProjectLanding) -> Self {
         assert_eq!(self.env.now, Time::ZERO);
         crate::oracle::config::set_landing(&mut self.restart_config, project, landing);
         self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
@@ -2171,7 +2171,7 @@ impl World {
         self.restart_same();
     }
     /// Restart with a project's new landing configuration, retaining only durable rows.
-    pub fn restart_with_project_landing(&mut self, project: u32, landing: temper_fixtures::landing::ProjectLanding) {
+    pub fn restart_with_project_landing(&mut self, project: u32, landing: temper_landing_fixtures::ProjectLanding) {
         crate::oracle::config::set_landing(&mut self.restart_config, project, landing);
         self.restart_same();
     }

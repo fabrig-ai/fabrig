@@ -47,6 +47,7 @@ jig-domain-core.workspace = true
 jig-protocol-store.workspace = true
 skein-fake-forge-domain.workspace = true
 temper-fixtures.workspace = true
+temper-agent-fixtures.workspace = true
 temper-playground.workspace = true
 skein-scratch.workspace = true
 jig-client.workspace = true

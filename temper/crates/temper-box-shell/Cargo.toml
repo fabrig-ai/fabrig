@@ -68,6 +68,7 @@ jig-domain-tasks.workspace = true
 temper-test-env.workspace = true
 jig-domain-authority.workspace = true
 temper-fixtures.workspace = true
+temper-agent-fixtures.workspace = true
 temper-playground.workspace = true
 temper-client-shell-web.workspace = true
 temper-engine-smith.workspace = true

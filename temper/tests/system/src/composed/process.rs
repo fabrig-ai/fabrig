@@ -727,7 +727,7 @@ fn receiving(tool_payload: Option<u32>) -> run::Limits {
             },
         }]),
     };
-    let mut template: serde_json::Value = temper_fixtures::agent::stock(true);
+    let mut template: serde_json::Value = temper_agent_fixtures::stock(true);
     if let Some(bytes) = tool_payload {
         template["profile"]["declared"]["tool_payload"] = bytes.into();
     }

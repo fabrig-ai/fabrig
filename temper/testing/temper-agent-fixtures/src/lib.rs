@@ -1,4 +1,6 @@
 //! Agent fixtures come from the stock figures' writer, not a retained document.
+//!
+//! temper/docs/design/testing/README.md, 5.
 use serde_json::Value;
 #[must_use]
 pub fn stock(boxed: bool) -> Value {

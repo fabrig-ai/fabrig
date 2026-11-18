@@ -134,7 +134,7 @@ pub fn documents(directory: &Path, _program: &str) -> (Vec<u8>, Vec<u8>) {
         "demo":null,"sign_in":null,
         "limits":{"overrides":{"forge.client.answer_bytes":65_536,"forge.client.op_bytes":512,"forge_component.body_bytes":16_384,"root.journal.run_bytes":32_768,"checkout.name_bytes":256,"checkout.repositories":2,
             "forge.name_bytes":64,"forge.judge_projects":3,"forge.landing_members":3,"forge.resources_per_task":4,"git_component.stdout_bytes":131_072}}});
-    let mut agent = temper_fixtures::agent::configuration(&value);
+    let mut agent = temper_agent_fixtures::configuration(&value);
     // Keep the fixture's deadlines while taking the store's default agent figures.
     agent["profile"]["policy"]["check_timeout"] = 60_000.into();
     agent["endpoints"][0]["limits"]["idle"] = 30_000.into();

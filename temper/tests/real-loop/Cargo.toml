@@ -20,6 +20,7 @@ temper-client-domain.workspace = true
 skein-fake-forge-http.workspace = true
 temper-playground.workspace = true
 temper-fixtures.workspace = true
+temper-agent-fixtures.workspace = true
 temper-fake.workspace = true
 jig-domain-authority.workspace = true
 jig-domain-core.workspace = true

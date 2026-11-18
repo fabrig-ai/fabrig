@@ -24,6 +24,7 @@ fn client_crates_carry_the_client_prefix() {
             "temper-engine-domain-world",
             "temper-box-kit",
             "temper-fixtures",
+            "temper-landing-fixtures",
             "temper-test-env",
             "temper-one-process-world",
             "temper-real-loop-world",

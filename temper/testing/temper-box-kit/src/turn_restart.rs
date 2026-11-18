@@ -122,12 +122,12 @@ pub(super) fn configure_batch(root: &Path, repository: u64, batch: u16) {
     // (temper/docs/design/domain/worker/jobs.md, kind 1).
     let prepare = temper_service::limits::prepare_bound();
     config["engine"]["limits"]["overrides"]["tasks.spec_bytes"] = prepare.spec.into();
-    let mut agent = temper_fixtures::agent::read(root);
+    let mut agent = temper_agent_fixtures::read(root);
     // A JSON string's quotes share the tool payload with its message.
     let tool_payload = prepare.result + 2;
     agent["profile"]["declared"]["tool_payload"] = tool_payload.into();
     super::configuration::use_derived(&mut config);
-    temper_fixtures::agent::apply(&mut config, root, &agent);
+    temper_agent_fixtures::apply(&mut config, root, &agent);
     write_private(&path, &serde_json::to_vec(&config).expect("configuration JSON"));
     let path = root.join("native-landing-settings.json");
     let mut settings: Value =
