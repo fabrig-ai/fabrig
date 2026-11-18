@@ -70,7 +70,8 @@ fn the_turn_landing_documents_check_as_their_shapes() {
 
     let bytes = rendered("worker.json");
     assert_eq!(startup::shape(&bytes, &directories).expect("worker shape"), Shape::WorkerAlone);
-    let part = startup::worker_part(&bytes, &directories, Some(b"/turn/data/bin/git")).expect("checked worker alone");
+    let part =
+        startup::worker_part(&bytes, &directories, Some(b"/turn/data/bin/git"), &[]).expect("checked worker alone");
     assert!(part.worker.jig.slots >= 2);
     assert!(json(&bytes)["workers"][0].get("limits").is_none(), "the engine supplies the worker's limits");
     assert_eq!(part.worker.jig.secret.as_ref(), b"/turn/data/worker/secrets/worker.secret");
@@ -135,7 +136,7 @@ fn the_turn_landing_engine_passes_every_startup_check() {
 fn the_turn_landing_worker_passes_every_startup_check() {
     let bytes = rendered("worker.json");
     let directories = jig_protocol_config::Directories::working();
-    let part = startup::worker_part(&bytes, &directories, Some(b"/turn/data/bin/git")).expect("setup worker part");
+    let part = startup::worker_part(&bytes, &directories, Some(b"/turn/data/bin/git"), &[]).expect("setup worker part");
     admission("turn-landing-worker-admission", &bytes, part.files);
 }
 
@@ -166,7 +167,8 @@ fn admission(case: &str, bytes: &[u8], files: Box<[jig_protocol_config::File]>) 
         let configuration = temper_worker_shell::agent::figures::configuration(&figures, None, scratch.path(), &[])
             .expect("agent document from the engine's figures");
         let agent = temper_worker_shell::agent::prepare_bytes(configuration).expect("worker's agent").agent;
-        let mut part = startup::worker_part(bytes, &directories, Some(b"/turn/data/bin/git")).expect("worker part");
+        let mut part =
+            startup::worker_part(bytes, &directories, Some(b"/turn/data/bin/git"), &[]).expect("worker part");
         temper_worker_service::figures::apply(&mut part, figures).expect("engine's figures applied");
         if let Err(problems) = temper_worker_service::startup::worker::check_worker_part(&mut part, &files, &agent) {
             panic!("{}", String::from_utf8_lossy(&temper_worker_service::startup::lines(&problems)));

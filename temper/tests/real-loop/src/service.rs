@@ -172,6 +172,7 @@ impl ServiceHost {
                 &config,
                 &temper_service_shell::jig_directories(&roots),
                 Some(b"/usr/bin/git"),
+                &fixtures::environment(&path),
             )
             .expect("worker part");
             temper_service_core::process::Process::operations_for(
@@ -474,6 +475,7 @@ impl ServiceHost {
                 &directories.read().expect("worker document"),
                 &temper_service_shell::jig_directories(&directories),
                 Some(b"/usr/bin/git"),
+                &fixtures::environment(&self.path),
             )
             .expect("worker part");
             if let Some(shape) = &self.cluster {
@@ -732,6 +734,7 @@ impl Host for ServiceHost {
                     &directories.read().expect("worker document"),
                     &temper_service_shell::jig_directories(&directories),
                     Some(b"/usr/bin/git"),
+                    &fixtures::environment(&self.path),
                 )
                 .expect("worker part");
                 let files =
