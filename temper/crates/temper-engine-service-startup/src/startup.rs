@@ -321,7 +321,7 @@ pub fn engine_with_sources(
     given: &crate::stock::Given,
     sources: temper_service_core::derived::Sources,
 ) -> Result<config::Engine, config::Problems> {
-    let mut base = config::stock();
+    let mut base = temper_service_core::derived::stock();
     if let Err(found) = temper_service_core::derived::engine(&mut base, sources) {
         let mut problems = config::Problems::empty();
         problems.push(found.path, found.what);

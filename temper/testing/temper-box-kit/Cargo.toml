@@ -12,6 +12,8 @@ test = false
 doctest = false
 
 [dependencies]
+temper-settings-form = { path = "../../crates/temper-settings-form" }
+skein-json.workspace = true
 temper-worker-service.workspace = true
 temper-engine-service-vocabulary.workspace = true
 jig-protocol-worker-wire.workspace = true

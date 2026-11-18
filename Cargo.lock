@@ -5530,6 +5530,7 @@ dependencies = [
  "temper-playground",
  "temper-real-loop-world",
  "temper-service",
+ "temper-service-core",
  "temper-service-shell",
  "temper-shell",
  "temper-test-env",
@@ -5568,6 +5569,7 @@ dependencies = [
  "skein-forge-connection",
  "skein-http",
  "skein-io",
+ "skein-json",
  "skein-lib",
  "skein-llm",
  "skein-oauth",
@@ -5594,6 +5596,7 @@ dependencies = [
  "temper-playground",
  "temper-real-loop-world",
  "temper-service",
+ "temper-settings-form",
  "temper-shell",
  "temper-test-env",
  "temper-worker-service",
@@ -5855,6 +5858,9 @@ name = "temper-client-journeys-tool"
 version = "0.0.0"
 dependencies = [
  "jig-client",
+ "jig-client-protocol-wire",
+ "jig-client-shell-web",
+ "jig-client-test-records",
  "serde_json",
  "sha2",
  "skein-browser",
@@ -5894,6 +5900,7 @@ dependencies = [
 name = "temper-client-redaction"
 version = "0.0.0"
 dependencies = [
+ "jig-client-protocol-wire",
  "skein-lib",
 ]
 
@@ -8075,6 +8082,7 @@ dependencies = [
  "temper-worker-domain-checkout",
  "temper-worker-protocol-git",
  "temper-worker-protocol-git-world",
+ "temper-worker-shell",
 ]
 
 [[package]]

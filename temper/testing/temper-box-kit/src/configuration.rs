@@ -19,7 +19,7 @@ const NATIVE_HTTP_CALLS: u32 = 10;
 #[must_use]
 pub fn documents(directory: &Path, _program: &str) -> (Vec<u8>, Vec<u8>) {
     let agent = serde_json::json!({
-        "profile":{"name":"standard","declared":{"memory":2_147_483_648_u64,"tool_payload":2048,"read_window":256,
+        "profile":{"name":"standard","declared":{"memory":2_147_483_648_u64,"tool_payload":4096,"read_window":256,
             "conversations":1,"calls_per_response":1},
             "policy":{"max_turns":800,"check_timeout":60000,"group_stop":10,"inbox":8,"unacknowledged":8}},
         "endpoints":[{"name":"fake","number":1,"dialect":3,"provider":"openai",
@@ -30,7 +30,7 @@ pub fn documents(directory: &Path, _program: &str) -> (Vec<u8>, Vec<u8>) {
     let mut value: serde_json::Value =
         serde_json::from_slice(&jig_channel_kit::fixtures::engine_document()).expect("engine JSON");
     value.as_object_mut().expect("whole object").remove("service");
-    for name in ["views.watchers", "views.watchers_per_party"] {
+    for name in ["views.watchers", "views.watchers_per_party", "core.call_answer_bytes"] {
         value["engine"]["limits"]["overrides"].as_object_mut().expect("engine overrides").remove(name);
     }
     use_stock(&mut value);
@@ -60,7 +60,6 @@ pub fn documents(directory: &Path, _program: &str) -> (Vec<u8>, Vec<u8>) {
     value["workers"][0].as_object_mut().expect("worker").remove("agent");
     value["workers"][0].as_object_mut().expect("worker").remove("limits");
     value["engine"]["limits"]["overrides"]["hub.accounts"] = 4.into();
-    value["engine"]["limits"]["overrides"]["hub.event_bytes"] = 2046.into();
     value["engine"]["limits"]["overrides"]["hub.run_calls"] = 1.into();
     value["engine"]["limits"]["overrides"]["hub.inbox"] = 8.into();
     value["engine"]["limits"]["overrides"]["hub.held"] = 8.into();

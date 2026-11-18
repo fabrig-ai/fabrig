@@ -481,6 +481,16 @@ unknown link name both ways to a fresh one (`client/ctl/README.md`, 6.1
 and 7; `protocol/sign-in.md`, 2.3; jig's `protocol/client/sign-in.md`;
 `draft/asked-link.status.md`).
 
+A journey's recording holds placeholders for what varies between walks
+of the same screens and isn't a secret: the TUI's build, every loopback
+port and each approval code, put in by `add` after its proof and checked
+by a replay of the result. The committed recordings were normalised
+once, without being walked again, and the print's test holds each to its
+own normalisation; a browser's print numbers skein-ui's ids afresh on
+each page. Times stand, and a framed field takes a placeholder of the
+original's width alone (`client/journey-placeholders.md`;
+`draft/journey-placeholders.status.md`).
+
 Design documents:
 - [`README.md`](README.status.md)
 - [`cli/README.md`](cli/README.status.md)
@@ -505,6 +515,7 @@ Design documents:
 - [`client/forge/records.md`](client/forge/records.status.md)
 - [`client/forge/repositories.md`](client/forge/repositories.status.md)
 - [`client/forge/served.md`](client/forge/served.status.md)
+- [`client/journey-placeholders.md`](client/journey-placeholders.status.md)
 - [`client/line.md`](client/line.status.md)
 - [`client/pages/README.md`](client/pages/README.status.md)
 - [`client/pages/accounts.md`](client/pages/accounts.status.md)
@@ -703,6 +714,7 @@ Drafts:
 - [`draft/held-landing-recovery.md`](draft/held-landing-recovery.status.md)
 - [`draft/home-for-a-person.md`](draft/home-for-a-person.status.md) — A1, goal 4273: the stock charters' words for a goal's or a change's title line, `decided`'s question and options, and a goal's report headline, written for a person, and `help goal start`'s for a goal's title.
 - [`draft/home-for-a-person.md`](draft/home-for-a-person.status.md) — B1: the status agent's words carry the project's open findings, counted by kind and severity with the high ones' titles, after the goals and before the roles' Nows; a sitting starts a run when they changed since the last brief, kept as the brief's mark, a project that has landed nothing included; its instructions name findings by what they are about (`domain/forge/attention.md`, 2 and 3).
+- [`draft/journey-placeholders.md`](draft/journey-placeholders.status.md)
 - [`draft/kept-change-answers.md`](draft/kept-change-answers.status.md)
 - [`draft/landed-qa.md`](draft/landed-qa.status.md)
 - [`draft/landing-history.md`](draft/landing-history.status.md)

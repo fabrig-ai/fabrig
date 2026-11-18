@@ -71,7 +71,7 @@ fn each_floor_refuses_one_below_the_stocks_need() {
         }
     }
     // The main model and eight alternatives each carry eight aligned cache-lifetime bytes.
-    assert_eq!(run, (27_607, Setting::Charter(5)));
+    assert_eq!(run, (27_765, Setting::Charter(5)));
     let current = settings::Current::new(defaults, &engine.limits.core, &[]);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
         // Each policy authority includes the standing roles' charter executors.
@@ -346,7 +346,7 @@ fn a_documents_models_are_refused_at_their_paths() {
 #[test]
 fn a_model_added_by_rest_is_checked_against_the_agents_bounds() {
     let engine = engine(&generated());
-    let mut agent = fixtures::parsed_agent(fixtures::stock_configuration(10_662, 8192).unwrap());
+    let mut agent = fixtures::parsed_agent(fixtures::stock_configuration(63_740, 48_000).unwrap());
     let mut problems = crate::startup::Problems::empty();
     let core = config::core(&engine, [7; 16], 7);
     let warnings = crate::startup::checks::admission(&core, &engine, &agent.declaration(), &mut problems);
@@ -428,7 +428,7 @@ fn a_fresh_box_admits_the_stock_at_inits_catalogue() {
     assert_eq!(temper_limits_fixtures::small().root.journal.run_bytes, 65_536);
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     assert_eq!(crate::stock::floors(&defaults, &engine.limits), Ok(()));
-    for (number, expected) in [(2, 12_596), (5, 27_607)] {
+    for (number, expected) in [(2, 12_596), (5, 27_765)] {
         let charter = defaults.charters.iter().find(|charter| charter.number == number).unwrap();
         let resolved =
             jig_domain_core::settings::charters::resolved(charter, &defaults.models, &engine.limits.core).unwrap();

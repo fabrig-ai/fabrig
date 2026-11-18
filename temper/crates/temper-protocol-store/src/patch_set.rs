@@ -1,6 +1,6 @@
 //! Temper's map rows (temper/docs/design/protocol/floor.md, 3;
 //! temper/docs/design/protocol/store.md, 3).
-use jig_protocol_store::{Job, KeptFamily, KeptMap, KeyRange, Keys, Owner, OwnerSet, ValueType};
+use jig_protocol_store::{Converts, Job, KeptFamily, KeptMap, KeyRange, Keys, Layouts, Owner, OwnerSet, ValueType};
 
 /// Application key ranges are relative to jig's application tag or secrets prefix.
 #[expect(
@@ -8,33 +8,59 @@ use jig_protocol_store::{Job, KeptFamily, KeptMap, KeyRange, Keys, Owner, OwnerS
     reason = "value types name the binary's generated schema text (jig protocol/store/layouts.md, 2)"
 )]
 pub const OWNER_SET: OwnerSet = OwnerSet {
-    jobs: &[Job {
-        name: "deleted-repository-forge-rows",
-        keys: &[
-            KeyRange { from: &[1], to: &[2] },
-            KeyRange { from: &[3], to: &[9] },
-            KeyRange { from: &[10], to: &[12] },
-            KeyRange { from: &[13], to: &[16] },
-            KeyRange { from: &[23], to: &[25] },
-            KeyRange { from: &[28], to: &[31] },
-            KeyRange { from: &[42], to: &[43] },
-            KeyRange { from: &[47], to: &[48] },
-        ],
-        converts: None,
-        counts: &[
-            "dropped",
-            "BranchHead",
-            "PullState",
-            "Ci",
-            "Client",
-            "Receipt",
-            "Tier",
-            "Verification",
-            "LandingLog",
-            "Application",
-            "Names",
-        ],
-    }],
+    jobs: &[
+        Job {
+            name: "test-ids-landing",
+            keys: &[KeyRange { from: &[23], to: &[24] }],
+            converts: Some(Converts { family: "temper-store", value_type: 20, from: Layouts::Unplanned }),
+            counts: &[],
+        },
+        Job {
+            name: "test-ids-receipt",
+            keys: &[KeyRange { from: &[24], to: &[25] }],
+            converts: Some(Converts { family: "temper-store", value_type: 21, from: Layouts::Unplanned }),
+            counts: &["many"],
+        },
+        Job {
+            name: "test-ids-tier",
+            keys: &[KeyRange { from: &[28], to: &[29] }],
+            converts: Some(Converts { family: "temper-store", value_type: 25, from: Layouts::Unplanned }),
+            counts: &["many", "flakes", "posted"],
+        },
+        Job {
+            name: "test-ids-verification",
+            keys: &[KeyRange { from: &[29], to: &[30] }],
+            converts: Some(Converts { family: "temper-store", value_type: 26, from: Layouts::Unplanned }),
+            counts: &["many"],
+        },
+        Job {
+            name: "deleted-repository-forge-rows",
+            keys: &[
+                KeyRange { from: &[1], to: &[2] },
+                KeyRange { from: &[3], to: &[9] },
+                KeyRange { from: &[10], to: &[12] },
+                KeyRange { from: &[13], to: &[16] },
+                KeyRange { from: &[23], to: &[25] },
+                KeyRange { from: &[28], to: &[31] },
+                KeyRange { from: &[42], to: &[43] },
+                KeyRange { from: &[47], to: &[48] },
+            ],
+            converts: None,
+            counts: &[
+                "dropped",
+                "BranchHead",
+                "PullState",
+                "Ci",
+                "Client",
+                "Receipt",
+                "Tier",
+                "Verification",
+                "LandingLog",
+                "Application",
+                "Names",
+            ],
+        },
+    ],
     owner: Owner::Application,
     name: "temper",
     level: Some(14),

@@ -2,16 +2,16 @@ journey 2
 seed 2444870000388058383
 clocks 0 0
 screen 24 80 none
-version "0.0.0 (13144c99aabc-dirty)"
-address "127.0.0.1:33237"
+version "0.0.0 (000000000000)"
+address "127.0.0.1:10001"
 turn 113667441788254 1794956281262567019
 start
 send 1 approval-ask "" none
 deadline none
 turn 113667447417984 1794956281268194646
-reply 1 "\x00\x00\x00\x00 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxRLWVSDKS\x18\xE8\xF7\xC5\xFF\x1A3Y"
+reply 1 "\x00\x00\x00\x00 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxBBBBBBBB\x18\xE8\xF7\xC5\xFF\x1A3Y"
 send 2 sign-in-approval "\x00\x00\x00 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" none
-browse "http://127.0.0.1:33237/terminal?code=RLWV-SDKS"
+browse "http://127.0.0.1:10001/terminal?code=BBBB-BBBB"
 deadline 113727446891140
 turn 113667450657117 1794956281271433789
 opened done
@@ -52,7 +52,7 @@ send 13 watch "\x8Cm+\x92\x92p@\xA7\xE2\xE4\xDC\xB7Q]\x16\xF4\x00\x00\x00\x00\x0
 send 15 watch "\x8Cm+\x92\x92p@\xA7\xE2\xE4\xDC\xB7Q]\x16\xF4\x00\x00\x00\x00\x00\x00\x00\x0E\x01\x00\x01\x00\x00\x00\"\x00\x00\x00\x0D\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\"\x01" "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 send 17 watch "\x8Cm+\x92\x92p@\xA7\xE2\xE4\xDC\xB7Q]\x16\xF4\x00\x00\x00\x00\x00\x00\x00\x10\x01\x00\x01\x00\x00\x00\"\x00\x00\x00\x0D\x02\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\"\x07" "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 note until 1795042682276689555
-signed "127.0.0.1:33237"
+signed "127.0.0.1:10001"
 reply 7 "\x01"
 send 21 watch "\x8Cm+\x92\x92p@\xA7\xE2\xE4\xDC\xB7Q]\x16\xF4\x00\x00\x00\x00\x00\x00\x00\x12\x01\x00\x01\x00\x00\x00\"\x00\x00\x00\x0D\x02\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\"\x04" "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 deadline 113688468848176

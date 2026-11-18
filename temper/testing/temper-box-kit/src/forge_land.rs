@@ -1668,7 +1668,6 @@ pub fn live_settings(
         charter_value["model"] = value["model"].clone();
         charter_value["alternatives"] = serde_json::json!([]);
         charter_value["rest"] = false.into();
-        charter_value["time"] = 240_000_000_000_u64.into();
         items.push(serde_json::json!({"setting":charter["setting"],"set":charter_value}));
     }
     changes.push(LiveChange { key: "live-settings", file: serde_json::json!({"items":items}) });

@@ -164,8 +164,8 @@ fn a_fresh_init_names_the_standard_profiles() {
     );
     let (_, limits) = generated();
     assert_eq!(limits.tasks.inbox_messages, 82);
-    assert_eq!(limits.tasks.message_bytes, 10_660);
-    assert_eq!(limits.tasks.result_bytes, 10_660);
+    assert_eq!(limits.tasks.message_bytes, 63_738);
+    assert_eq!(limits.tasks.result_bytes, 63_738);
     assert_eq!(limits.tasks.inbox_bytes, limits.tasks.inbox_messages * limits.tasks.message_bytes);
 }
 
@@ -267,7 +267,8 @@ fn a_fresh_box_me_lists_the_stock_charters_at_fabrig_scale() {
         assert_eq!(charter.policy.turns, turns, "charter {number}");
         assert_eq!(charter.policy.time, skein_lib::Duration::from_secs(seconds), "charter {number}");
         assert_eq!(charter.policy.reserve_turns, 1, "charter {number}");
-        assert_eq!(charter.policy.reserve_time, skein_lib::Duration::from_secs(60), "charter {number}");
+        let reserve = skein_lib::Duration::from_secs(if number == 9 { 60 } else { 300 });
+        assert_eq!(charter.policy.reserve_time, reserve, "charter {number}");
     }
 }
 

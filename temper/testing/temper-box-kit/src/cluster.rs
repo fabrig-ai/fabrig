@@ -91,21 +91,35 @@ pub fn worker_settings(file: &Path) -> Vec<Value> {
         .cloned()
         .collect()
 }
+/// The owner admits the fixture's workers through ctl (draft/config.md, 6.7).
+#[must_use]
+pub fn worker_adds(file: &Path) -> Vec<super::ctl::Call> {
+    worker_settings(file)
+        .iter()
+        .map(|row| {
+            let value = &row["set"];
+            super::ctl::Call::new(&[
+                "worker",
+                "add",
+                value["name"].as_str().expect("worker name"),
+                "--places",
+                &value["places"].as_u64().expect("worker places").to_string(),
+                "--digest",
+                value["digest"].as_str().expect("worker digest"),
+                "--key",
+                &format!("add-{}", value["name"].as_str().expect("worker name")),
+            ])
+        })
+        .collect()
+}
 /// Link-only process stories still establish membership through the client's settings door.
 pub fn admit_workers(members: &Members, host: &mut Root, directory: &Path) -> Result<(), String> {
-    let rows = worker_settings(&members.dir("engine").join("settings.json"));
-    let file = directory.join("workers.json");
     let link = format!("http://{}", members.capture("engine", "link").ok_or("engine link")?);
     let mut client = super::ctl::Calls::linked(&link, directory);
     client.push(super::ctl::Step::Run(super::ctl::Call::sign_in()));
-    client.push(super::ctl::Step::Run(super::ctl::Call::new(&["settings", "show", "--json"])));
-    client.push(super::ctl::Step::Then(Box::new(move |calls| {
-        super::write_private(
-            &file,
-            &serde_json::to_vec(&serde_json::json!({"items":rows})).expect("worker settings JSON"),
-        );
-        super::ctl::settings_change(&calls[1], &file, "process-workers")
-    })));
+    for call in worker_adds(&members.dir("engine").join("settings.json")) {
+        client.push(super::ctl::Step::Run(call));
+    }
     let Root::Client { calls, .. } = host else { return Err("client root".into()) };
     *calls = Some(Box::new(client));
     Ok(())
