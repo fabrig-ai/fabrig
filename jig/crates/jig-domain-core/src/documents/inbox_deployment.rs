@@ -16,16 +16,10 @@ use skein_lib::{List, Map};
 pub(super) fn line_bound(limits: &Limits) -> usize {
     skein_lib::length::usize_of(limits.documents.lines)
 }
-fn object(core: &Core, task: u64, kind: people::EntryKind) -> InboxObject {
+fn object(kind: people::EntryKind) -> InboxObject {
     match kind {
         people::EntryKind::Question { message } => InboxObject::Question { message },
-        people::EntryKind::Proposal { number } => {
-            let proposer = match core.tasks.person_proposals().get(&number) {
-                Some(row) if row.first() == task => Proposer::Party(row.proposer),
-                Some(_) | None => Proposer::Task(task),
-            };
-            InboxObject::Proposal { proposer, number }
-        }
+        people::EntryKind::Proposal { proposer, number } => InboxObject::Proposal { proposer, number },
         people::EntryKind::Escalation { revision } => InboxObject::Escalation { revision },
         people::EntryKind::PersonTask => InboxObject::PersonTask,
         people::EntryKind::Reply { message } | people::EntryKind::ChatReply { message } => {
@@ -193,7 +187,7 @@ pub(super) fn inbox(core: &Core, limits: &Limits, party: u64, window: &Window) -
         {
             continue;
         }
-        let value = object(core, entry.task, entry.kind);
+        let value = object(entry.kind);
         let cursor = Cursor::Inbox { task: entry.task, object: value, at: Some(entry.at) };
         ordered
             .insert(key(cursor)?, (entry.task, entry.project, value, None, entry.at, false, cursor, false))
@@ -205,17 +199,12 @@ pub(super) fn inbox(core: &Core, limits: &Limits, party: u64, window: &Window) -
                 (row.task, row.project, InboxObject::Result { position: row.position }, None, row.at, false)
             }
             people::Update::Reply(row) => {
-                let value = object(core, row.task, row.kind);
+                let value = object(row.kind);
                 (row.task, row.project, value, reply_activity(core, row.task, value), row.at, false)
             }
-            people::Update::ChatReply(row) => (
-                row.entry.task,
-                row.entry.project,
-                object(core, row.entry.task, row.entry.kind),
-                Some(row.activity),
-                row.entry.at,
-                true,
-            ),
+            people::Update::ChatReply(row) => {
+                (row.entry.task, row.entry.project, object(row.entry.kind), Some(row.activity), row.entry.at, true)
+            }
         };
         if (project != people::DEPLOYMENT && !core.open_project(project)) || core.people.role(party, project).is_none()
         {

@@ -267,7 +267,10 @@ impl Core {
                         &mut entries,
                         row,
                         people::Whom::Person(person),
-                        people::EntryKind::Proposal { number: proposal.number },
+                        people::EntryKind::Proposal {
+                            proposer: people::Proposer::Task(row.number),
+                            number: proposal.number,
+                        },
                         since,
                     ),
                     tasks::ProposalHolder::Policy { kind: tasks::ProposalKind::Settings, .. }
@@ -282,7 +285,10 @@ impl Core {
                                     &mut entries,
                                     row,
                                     people::Whom::Role { project, role: policy.number },
-                                    people::EntryKind::Proposal { number: proposal.number },
+                                    people::EntryKind::Proposal {
+                                        proposer: people::Proposer::Task(row.number),
+                                        number: proposal.number,
+                                    },
                                     since,
                                 );
                             }

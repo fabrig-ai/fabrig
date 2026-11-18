@@ -45,8 +45,8 @@ pub(crate) fn save(
     let waiting = waiting(core, env, &record);
     history(core, env, &record, out);
     out.push(Request::Write(Write::Save(Record::Tasks(record))));
-    if let Some((task, entries)) = waiting {
-        append_people(core, env, people::Event::Waiting { task, entries }, out);
+    if let Some((source, entries)) = waiting {
+        append_people(core, env, people::Event::Waiting { source, entries }, out);
     }
 }
 
@@ -269,16 +269,23 @@ fn touch_record(core: &mut Core, env: &Env<Limits>, record: &tasks::Stored) {
     }
 }
 
-fn waiting(core: &Core, env: &Env<Limits>, record: &tasks::Stored) -> Option<(u64, Box<[people::Entry]>)> {
+fn waiting(
+    core: &Core,
+    env: &Env<Limits>,
+    record: &tasks::Stored,
+) -> Option<(people::NeedSource, Box<[people::Entry]>)> {
     match record {
         tasks::Stored::Live(task) | tasks::Stored::Ended(task) => {
-            Some((task.number, core.waiting_entries(&env.limits, task)))
+            Some((people::NeedSource::Task(task.number), core.waiting_entries(&env.limits, task)))
         }
         tasks::Stored::PersonProposal(row) | tasks::Stored::DecidedProposal(row) => {
             if row.first() == tasks::PROPOSAL_WITHOUT_TASK {
                 None
             } else {
-                Some((row.first(), core.person_proposal_entries(row)))
+                Some((
+                    people::NeedSource::Proposal { party: row.proposer, number: row.number },
+                    core.person_proposal_entries(row),
+                ))
             }
         }
         tasks::Stored::Ledger(_)

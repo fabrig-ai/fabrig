@@ -30,9 +30,9 @@ impl Domain {
             return false;
         }
         match input {
-            RestoreProjection::Waiting { task, entries } => {
+            RestoreProjection::Waiting { source, entries } => {
                 let mut out = Queue::uncapped();
-                super::inbox::replace_waiting(self, limits, task, &entries, &mut out);
+                super::inbox::replace_waiting(self, limits, source, &entries, &mut out);
                 assert!(out.is_empty(), "the census rebuild emits no arrivals");
             }
             RestoreProjection::Result { party, entry } => self.project_result(limits, party, entry),

@@ -49,7 +49,7 @@ fn frame_joins_all_four_exact_need_counts_without_truncating_them_to_document_li
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
     for (task, kind) in [
         (1, people::EntryKind::Question { message: 1 }),
-        (2, people::EntryKind::Proposal { number: 2 }),
+        (2, people::EntryKind::Proposal { proposer: Proposer::Task(2), number: 2 }),
         (3, people::EntryKind::Escalation { revision: 3 }),
         (4, people::EntryKind::PersonTask),
     ] {
@@ -57,7 +57,7 @@ fn frame_joins_all_four_exact_need_counts_without_truncating_them_to_document_li
             &mut core.people,
             &env,
             people::Event::Waiting {
-                task,
+                source: people::NeedSource::Task(task),
                 entries: Box::new([people::Entry {
                     task,
                     project: 1,

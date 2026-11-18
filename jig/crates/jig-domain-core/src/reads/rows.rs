@@ -1338,8 +1338,8 @@ fn inbox_row(
                 }
                 let object = match entry.kind {
                     jig_domain_people::EntryKind::Question { message } => documents::InboxObject::Question { message },
-                    jig_domain_people::EntryKind::Proposal { number } => {
-                        documents::InboxObject::Proposal { proposer: Proposer::Task(owner.number), number }
+                    jig_domain_people::EntryKind::Proposal { proposer, number } => {
+                        documents::InboxObject::Proposal { proposer, number }
                     }
                     jig_domain_people::EntryKind::Escalation { revision } => {
                         documents::InboxObject::Escalation { revision }

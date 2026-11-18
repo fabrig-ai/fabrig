@@ -2099,14 +2099,14 @@ fn documents_inbox_keeps_two_projects_groups_order_and_exact_cursor() {
     people::step(
         &mut core.people,
         &env,
-        people::Event::Waiting { task: 1, entries: Box::new([needs[0], needs[1]]) },
+        people::Event::Waiting { source: people::NeedSource::Task(1), entries: Box::new([needs[0], needs[1]]) },
         &mut out,
     );
     people::step(
         &mut core.people,
         &env,
         people::Event::Waiting {
-            task: 5,
+            source: people::NeedSource::Task(5),
             entries: Box::new([
                 needs[2],
                 people::Entry {
@@ -2684,7 +2684,7 @@ fn ten_changed_decisions_coalesce_behind_one_inflight_delivery() {
             &mut core,
             &limits,
             Event::People(people::Event::Waiting {
-                task: 1,
+                source: people::NeedSource::Task(1),
                 entries: Box::new([people::Entry {
                     task: 1,
                     project: 1,

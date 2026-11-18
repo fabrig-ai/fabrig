@@ -76,7 +76,7 @@ fn waiting(row: &tasks::TaskRecord, entries: &mut Vec<Waiting>) {
             since,
             row.number,
             people::Whom::Person(party),
-            people::EntryKind::Proposal { number: proposal.number },
+            people::EntryKind::Proposal { proposer: people::Proposer::Task(row.number), number: proposal.number },
         ));
     }
     if let tasks::Escalation::Waiting { holder, revision, since, .. } = row.escalation {
