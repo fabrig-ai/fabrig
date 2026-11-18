@@ -292,7 +292,7 @@ pub(super) fn activity_done(host: &mut NativeClient, read: skein_lib::Token, non
 // The delivery announces the fourth activity while the initial read is pending.
 pub(super) const COMMITTED: u64 = 4;
 pub(super) fn committed_activity_answer() -> Box<[u8]> {
-    let row = jig_client_test_records::turn_line(COMMITTED, 1, 1, jig_client_test_records::FULL_TURN);
+    let row = jig_client_test_records::turn_line(COMMITTED, 1, 1, &jig_client_test_records::full_turn());
     let mut page = jig_client_test_records::activity_rows(&[row]).into_parts();
     page.cut = false;
     page.after = None;

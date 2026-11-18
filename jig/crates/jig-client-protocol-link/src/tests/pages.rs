@@ -218,10 +218,10 @@ fn a_turns_receiving_cut_stays_on_its_decoded_value() {
 }
 #[test]
 fn a_turn_at_its_admission_bound_is_decoded() {
-    assert_eq!(len_u64(fixtures::FULL_TURN.len()), fixtures::TURN_PAYLOAD_BYTES);
+    assert_eq!(len_u64(fixtures::full_turn().len()), fixtures::TURN_PAYLOAD_BYTES);
     let limits = fixtures::turn_limits(32, fixtures::TURN_PAYLOAD_BYTES);
     assert_eq!(
-        translate::pages::carried_turn_fields(fixtures::FULL_TURN, &limits),
+        translate::pages::carried_turn_fields(&fixtures::full_turn(), &limits),
         fixtures::decoded_turn(b"abc", false)
     );
 }
@@ -229,7 +229,7 @@ fn a_turn_at_its_admission_bound_is_decoded() {
 fn a_turn_past_its_admission_bound_is_carried_as_too_large() {
     let limits = fixtures::turn_limits(32, fixtures::TURN_PAYLOAD_BYTES.checked_sub(1).unwrap());
     assert_eq!(
-        translate::pages::carried_turn_fields(fixtures::FULL_TURN, &limits),
+        translate::pages::carried_turn_fields(&fixtures::full_turn(), &limits),
         c::TurnRead::Undecodable { why: c::TurnProblem::TooLarge { bytes: fixtures::TURN_PAYLOAD_BYTES } }
     );
 }

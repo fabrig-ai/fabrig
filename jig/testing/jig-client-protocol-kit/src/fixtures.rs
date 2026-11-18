@@ -275,11 +275,13 @@ pub fn server_http() -> skein_http::server::Limits {
     }
 }
 
-pub const TURN_BYTES: &[u8] =
-    include_bytes!("../../../../smith/crates/smith-transcript/golden/v6/record_turn_full.bin");
+#[must_use]
+pub fn turn_bytes() -> Box<[u8]> {
+    jig_client_test_records::full_turn()
+}
 // The short call ID leaves eight bytes for the task's asks carrier,
 // within the single-row read budget.
-// One source call in addition to the golden's text block.
+// One source call in addition to the fixture's text block.
 // Blocks are numbered from one; the call follows the text.
 pub const TURN_CALL_NUMBER: u64 = 2;
 pub const TURN_CALL_ID: &[u8] = b"src";
@@ -336,7 +338,7 @@ pub fn callable_turn() -> Box<[u8]> {
 }
 fn turn_with_blocks(blocks: List<smith_transcript::v7::Block>) -> Box<[u8]> {
     use smith_transcript::v7 as s;
-    let mut turn = smith_transcript::decode_archived(&s::CEILINGS, TURN_BYTES).expect("v7 fixture").into_parts();
+    let mut turn = smith_transcript::decode_archived(&s::CEILINGS, &turn_bytes()).expect("v7 fixture").into_parts();
     let mut message = turn.messages.get(0).expect("person message").clone().into_parts();
     message.blocks = blocks;
     turn.messages = List::with_capacity(1);

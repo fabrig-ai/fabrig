@@ -64,7 +64,7 @@ document's "The world" section.
 
 | Tier (testing-strategy.md, section 2) | In smith |
 |---|---|
-| step tests | every crate; the codecs' goldens, drift and bounds; the shell crates' parsing, settings and refusals; the profile's derivation properties (2.5) |
+| step tests | every crate; the codecs' built values, records-only drift, pinned constructs and bounds; the shell crates' parsing, settings and refusals; the profile's derivation properties (2.5) |
 | domain worlds | the agent's tools, session and run, each with the world as its parent; the agent's root with its children, on a scripted host; the host world, on a scripted parent: the host domain with a scripted agent, and the inline agent with smith's real domain, under one referee (domain/host.md, section 10) |
 | system worlds | the local host with the agent in it, a scripted person and skein's fake provider |
 | machine worlds | skein's: smith has no protocol machine of its own |
@@ -76,8 +76,13 @@ document's "The world" section.
 | benchmarks | not a test tier: real agents on real models, measured (2.4) |
 
 Domain worlds use domains and fakes only, never protocol crates. Codec
-patch and drift tests check the generated `encoded_bound` and
-`decoded_bound` vocabulary.
+tests build values through constructors or fixed-rule encodings from
+embedded schema text; earlier versions use their kept texts. Drift compares
+the records' module and refuses unpinned constructs (skein's
+`data/codec/README.md`, section 6). Families keep no golden files or
+generated test targets; event JSONL and patch goldens remain. Memory and
+boundary tests check the generated `encoded_bound` and `decoded_bound`
+vocabulary.
 
 ### 2.1 Simulated worlds
 
@@ -705,7 +710,7 @@ crates/*/src/tests.rs            step tests
 crates/smith-*-service           the profile, and its derivation properties
 crates/smith-*-shell             the shells' parsing, settings and refusals
 crates/smith-local-protocol/tests the chat store's real-directory layout cases (2.5)
-tests/codecs                     the codecs: goldens, drift, bounds, fuzzy decoding
+tests/codecs                     the codecs: built values, records-only drift, pinned constructs, bounds, fuzzy decoding
 tests/tools                      the tools child domain's world
 tests/session                    the session child domain's world
 tests/run                        the run child domain's world

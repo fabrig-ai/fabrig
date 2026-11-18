@@ -59,8 +59,7 @@ fn sweep(seed: u64) {
     let old_root = old_schema.find(smith_transcript::ROOT.as_bytes()).expect("old Turn");
     let new_root = new_schema.find(smith_transcript::ROOT.as_bytes()).expect("new Turn");
     let goldens =
-        skein_codegen::generate(&skein_codegen::parse(fixture::kept::fixture_turn::TEXTS[0]).expect("v1 schema"))
-            .goldens;
+        skein_codegen::goldens(&skein_codegen::parse(fixture::kept::fixture_turn::TEXTS[0]).expect("v1 schema"));
     let mut old_value = Value::with_room(patches::NODES);
     let mut new_value = Value::with_room(patches::NODES);
     let mut patcher = patches::fixture_patcher();
