@@ -734,6 +734,7 @@ fn the_settings_tool_restores_the_stocks_policy_and_rules() {
                     rules.ceiling
                 }
                 form::SettingValue::Overlay(_)
+                | form::SettingValue::Provider(_)
                 | form::SettingValue::Worker(_)
                 | form::SettingValue::Model(_)
                 | form::SettingValue::Application(_)

@@ -380,7 +380,7 @@ fn both_ways_provider() -> Box<[u8]> {
         &document,
         br#""endpoints": [{"#,
         br#""endpoints": [{
-            "name":"anthropic-api","number":4,"dialect":2,"provider":"fake-provider",
+            "name":"anthropic-api","number":4,"dialect":2,"provider":"Fake",
             "address":{"socket":"127.0.0.1:7101"},"transport":"plaintext",
             "headers":[],"connect_ms":10000,"handshake_ms":10000
         }, {"#,

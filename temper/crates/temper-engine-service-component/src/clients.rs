@@ -104,6 +104,7 @@ pub struct Clients {
     playground_starts: Map<Token, root::Event>,
     playground_reads: Queue<crate::HandoverRead>,
     playground_ready: Queue<root::Event>,
+    pub(crate) playground_preparing: bool,
     next_playground: u64,
     playground_carries: Queue<kit::SecretsRequest>,
 }
@@ -117,6 +118,11 @@ impl Clients {
         ::core::mem::replace(&mut self.linked_changed, false)
     }
 
+    pub(crate) fn playground_admitted(&mut self) {
+        if self.playground_starts.is_empty() && self.playground_ready.is_empty() {
+            self.playground_preparing = false;
+        }
+    }
     pub(crate) fn playground_read(&mut self) -> Option<crate::HandoverRead> {
         self.playground_reads.pop()
     }
@@ -329,6 +335,7 @@ impl Clients {
             playground_starts: Map::with_capacity(PLAYGROUND_STARTS),
             playground_reads: Queue::with_capacity(PLAYGROUND_STARTS),
             playground_ready: Queue::with_capacity(PLAYGROUND_STARTS),
+            playground_preparing: false,
             next_playground: 1,
             playground_carries: Queue::with_capacity(PLAYGROUND_STARTS),
         })
@@ -593,9 +600,7 @@ impl Clients {
             self.root(value, events);
         }
         for _ in 0..self.out.len() {
-            if self.playground_starts.len().saturating_add(self.playground_ready.len()) >= PLAYGROUND_STARTS
-                || (self.starting.is_none() && events.room() == 0)
-            {
+            if self.playground_preparing || (self.starting.is_none() && events.room() == 0) {
                 break;
             }
             match self.out.pop().expect("client requests") {
@@ -661,6 +666,7 @@ impl Clients {
                                 ..
                             }) = &value
                                 && let Some(demo) = demo
+                                && self.playground.is_none()
                             {
                                 if let root::Event::Party(root::PartyInput::Application { carried, .. }) = &mut value
                                     && let Some(carried) = carried.take()
@@ -669,6 +675,7 @@ impl Clients {
                                         number: carried.number,
                                     }));
                                 }
+                                self.playground_preparing = true;
                                 let run = Token::new((1_u64 << 63) | self.next_playground);
                                 self.next_playground = self.next_playground.checked_add(1).expect("demo read sequence");
                                 self.playground_starts.insert(run, value).expect("bounded parked starts");

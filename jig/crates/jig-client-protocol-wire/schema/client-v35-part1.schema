@@ -37,6 +37,20 @@ enum LoginEnd { signed_in: LoginEndSignedIn, not_finished: LoginEndNotFinished, 
 record AccountLentEnd { number: u32 end: LoginEnd }
 record Accounts { program_hosts: bytes 16777216 accounts: bytes 16777216 signing: bytes 16777216 last_end: option AccountLastEnd lendable: bool lending: option TerminalLogin lent_end: option AccountLentEnd usable: bool settled: bool cut: bool readiness: bytes 16777216 readiness_cut: bool }
 record Account { list: option AccountList number: u32 place: u32 uses: option list 16 AccountUse plan: bool provider: option u32 display: DocumentText holder: AccountHolder sources: bytes 16777216 generation: option u64 state: AccountState usable: bool expiring: bool attention: bool spent_until: option u64 runs: bytes 16777216 waiting: bytes 16777216 cut: bool provider_name: option DocumentText manage_usage: option bytes 2048 facts: list 24 AccountFact }
+record ProviderNumber { number: u32 }
+record ProviderText { bytes: bytes 4096 }
+record ProviderList { keep: list 16 ProviderText drop: list 16 ProviderText }
+record ProviderTls { server_name: bytes 4096 trust: option bytes 4096 }
+enum ProviderTransport { tls: ProviderTls, plaintext }
+record ProviderRegistration { issuer: bytes 4096 client: bytes 4096 scopes: list 64 ProviderText name_hint: option bytes 4096 authorization: bytes 4096 token: bytes 4096 revocation: option bytes 4096 keys: bytes 4096 endpoint_transport: ProviderTransport must_grant: list 64 ProviderText resource: option bytes 4096 redirect_path: bytes 4096 redirect_port: option u16 }
+record Provider { name: bytes 128 number: u32 endpoint: option bytes 4096 direct: option bytes 4096 list: option ProviderList signed_in_plan: bool manage_usage: option bytes 2048 sign_in: option ProviderRegistration keys: bool programs: list 64 ProviderText }
+record ProviderIpv4 { ip: fixed 4 port: u16 }
+record ProviderIpv6 { ip: fixed 16 port: u16 flowinfo: u32 scope_id: u32 }
+record ProviderHost { name: bytes 253 port: u16 }
+enum ProviderAddress { ipv4: ProviderIpv4, ipv6: ProviderIpv6, host: ProviderHost }
+record ProviderHeader { name: bytes 4096 value: bytes 4096 }
+record ProviderEndpoint { name: bytes 4096 number: u32 dialect: u32 provider: bytes 128 program: option bytes 32 address: ProviderAddress transport: ProviderTransport headers: list 16 ProviderHeader connect: duration handshake: duration }
+record ProviderSetting { provider: Provider endpoints: list 64 ProviderEndpoint withdrawn: bool }
 record WorkerSetting { number: u32 name: bytes 128 places: u32 digest: option fixed 32 withdrawn: bool }
 record WorkerState { number: u32 name: bytes 128 places: u32 digest: option fixed 32 withdrawn: bool linked: bool since: option u64 }
 record Deployment { worker_settings: list 65536 WorkerState store: StoreFill census: option StoreCensus hosts: bytes 16777216 attempts: bytes 16777216 accounts: bytes 16777216 tasks: Capacity workers: Capacity attempts_capacity: Capacity waiting_attempts: u32 proposals: Capacity projects: list 32 ProjectCapacity grace_bound: duration hello_refusals: list 32 HelloRefusalLine hosts_forgotten: u64 hello_refusals_forgotten: u64 person_room_refusals: list 32 PersonCapacityRefusal person_room_refusals_forgotten: u64 person_answer_retention: duration task_room_refusals: list 32 TaskCapacityRefusal task_room_refusals_forgotten: u64 cut: bool connectors: list 32 u16 connectors_cut: bool providers: bytes 16777216 providers_cut: bool key_bytes: u32 readiness: bytes 16777216 readiness_cut: bool }
@@ -54,7 +68,7 @@ record Overlay { rest: option bool model: option SettingModel alternatives: opti
 record SettingPolicy { escalation_role: option u32 ceiling: Authority projections: list 32 Grant period_spend: u64 roles: list 32 PolicyEditRole requirements: list 32 PolicyRequirement permissions: list 32 PolicyPermission templates: list 16 TemplateOverride }
 record Rules { ceiling: Authority period_spend: u64 minimum_run_spend: u64 maximum_run_spend: u64 implies: list 32 KindImplication requirements: list 32 PolicyRequirement }
 record ApplicationValue { bytes: bytes 1114240 }
-enum SettingValue { charter: boxed Charter, template: boxed Template, policy: boxed SettingPolicy, rules: boxed Rules, application: ApplicationValue, model: boxed CatalogueEntry, overlay: boxed Overlay, worker: boxed WorkerSetting }
+enum SettingValue { charter: boxed Charter, template: boxed Template, policy: boxed SettingPolicy, rules: boxed Rules, application: ApplicationValue, model: boxed CatalogueEntry, overlay: boxed Overlay, worker: boxed WorkerSetting, provider: boxed ProviderSetting }
 record SettingSet { value: SettingValue }
 enum SettingEdit { set: SettingSet, removed, reset }
 record SettingItem { setting: Setting edit: SettingEdit }
@@ -66,7 +80,7 @@ record ChangeSettings { against: u32 items: bytes 1114240 running: Running }
 record OutcomeSettingsChanged { revision: u32 }
 record RefusalStale { newest: u32 }
 record RefusalFull { revision: u32 tasks: list 32 u64 more: u32 }
-enum SettingFault { shape, count, reference, rules, budget, grace, owner, judged, linked }
+enum SettingFault { shape, count, reference, rules, budget, grace, owner, judged, linked, accounts }
 enum SettingMember { documents, name_segments, name_segment_bytes, path, heading, connector, stored_policy }
 enum SettingRule { maximum, minimum, registered }
 record SettingDetail { member: SettingMember document: u32 segment: u32 rule: SettingRule supplied: u32 bound: u32 }

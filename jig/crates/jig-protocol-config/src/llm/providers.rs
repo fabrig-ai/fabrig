@@ -6,47 +6,8 @@ use jig_domain_core_vocabulary::settings::CatalogueModel;
 use skein_json::Document;
 use skein_lib::List;
 
-/// One configured LLM provider.
-#[derive(Clone, Debug)]
-pub struct Provider {
-    /// Its name for showing.
-    pub name: Box<[u8]>,
-    pub number: u32,
-    /// The endpoint its added models take (configuration.md, 3).
-    pub endpoint: Option<Box<[u8]>>,
-    /// The program-free endpoint its sign-ins and keys take (configuration.md, 3).
-    pub direct: Option<Box<[u8]>>,
-    pub list: Option<jig_domain_accounts::ProviderList>,
-    pub signed_in_plan: bool,
-    pub manage_usage: Option<Box<[u8]>>,
-    /// Configured models' names; each configured model is in one provider.
-    pub models: Box<[Box<[u8]>]>,
-    /// The sign-in it offers, with its public registration.
-    pub sign_in: Option<Registration>,
-    /// Whether it offers a key.
-    pub keys: bool,
-    /// The programs it offers, such as `claude_code`; parsed only.
-    pub programs: Box<[Box<[u8]>]>,
-}
-
-/// A provider's public registration for its sign-in: a client secret is refused.
-#[derive(Clone, Debug)]
-pub struct Registration {
-    pub issuer: Box<[u8]>,
-    pub client: Box<[u8]>,
-    pub scopes: Box<[Box<[u8]>]>,
-    pub name_hint: Option<Box<[u8]>>,
-    pub authorization: Box<[u8]>,
-    pub token: Box<[u8]>,
-    pub revocation: Option<Box<[u8]>>,
-    pub keys: Box<[u8]>,
-    pub endpoint_transport: super::Transport,
-    pub must_grant: Box<[Box<[u8]>]>,
-    pub resource: Option<Box<[u8]>>,
-    pub redirect_path: Box<[u8]>,
-    pub redirect_port: Option<u16>,
-}
-
+use jig_domain_core_vocabulary::settings::providers as shape;
+pub use jig_domain_core_vocabulary::settings::{Provider, Registration};
 /// The sources a provider offers, each optional: `{}` offers none.
 #[derive(Debug)]
 struct Sources {
@@ -55,15 +16,12 @@ struct Sources {
     programs: Box<[Box<[u8]>]>,
 }
 
-/// The longest program name (accounts.md, 3.4).
-const PROGRAM: usize = 32;
-
 /// Every configured model belongs to exactly one provider, even when none are named.
 pub(super) fn parse(
     object: &mut read::Object,
     document: &Document,
     path: &Path,
-    models: &[CatalogueModel],
+    models: &mut [CatalogueModel],
     directories: &Directories,
     defaults: crate::Defaults,
     problems: &mut Problems,
@@ -83,12 +41,19 @@ pub(super) fn parse(
         }
     };
     let mut claimed = List::<bool>::with_capacity(u32::try_from(models.len()).expect("models bounded by u32"));
-    for _ in models {
+    for _ in models.iter() {
         claimed.push(false).expect("one flag per model");
     }
     for (index, at) in items.iter().enumerate() {
         let path = check::index(&path.member(b"providers"), index);
-        if let Some(value) = provider(document, *at, &path, models, &mut claimed, directories, defaults, problems) {
+        if let Some(Parsed { value, served }) =
+            provider(document, *at, &path, models, &mut claimed, directories, defaults, false, problems)
+        {
+            for model in models.iter_mut() {
+                if served.contains(&model.model.name) {
+                    model.model.provider = value.number;
+                }
+            }
             for previous in &providers {
                 if previous.name == value.name {
                     problems.push(path.member(b"name"), What::Unique);
@@ -108,10 +73,11 @@ pub(super) fn parse(
     providers
 }
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "provider parsing carries the document, model claims and defaults mode together"
-)]
+pub(super) struct Parsed {
+    pub value: Provider,
+    pub served: Box<[Box<[u8]>]>,
+}
+#[expect(clippy::too_many_arguments, reason = "provider parsing carries model claims and the JSON form")]
 fn provider(
     document: &Document,
     at: u32,
@@ -120,9 +86,14 @@ fn provider(
     claimed: &mut List<bool>,
     directories: &Directories,
     defaults: crate::Defaults,
+    setting: bool,
     problems: &mut Problems,
-) -> Option<Provider> {
-    let mut object = check::object(document, at, path, problems, "llm-provider")?;
+) -> Option<Parsed> {
+    let mut object = if setting {
+        super::setting::object(document, at, path, problems)?
+    } else {
+        check::object(document, at, path, problems, "llm-provider")?
+    };
     let name = public_text(&mut object, document, b"name", jig_domain_accounts::PROVIDER_NAME, path, problems);
     let signed_at = object.member(document, b"signed_in_plan");
     let signed_in_plan = match signed_at {
@@ -163,7 +134,7 @@ fn provider(
     if let Some(at) = object.required(document, b"sources", path, problems) {
         offered = sources(document, at, &path.member(b"sources"), directories, problems);
     }
-    let endpoint = if defaults == crate::Defaults::Passed {
+    let endpoint = if defaults == crate::Defaults::Passed && !setting {
         check::text(&mut object, document, b"endpoint", path, problems)
     } else {
         super::optional_text(&mut object, document, b"endpoint", path, problems)
@@ -189,18 +160,16 @@ fn provider(
         Some(keep) => Some(jig_domain_accounts::ProviderList { keep, drop: drop? }),
         None => None,
     };
+    if setting {
+        let _endpoints = object.member(document, b"endpoints");
+        let _withdrawn = object.member(document, b"withdrawn");
+    }
     object.finish(document, path, problems);
     let offered = offered?;
     if offered.sign_in.is_some() && signed_at.is_none() {
         problems.push(path.member(b"signed_in_plan"), What::Missing);
     }
-    if signed_in_plan && offered.sign_in.is_none() {
-        problems.push(path.member(b"signed_in_plan"), What::Form);
-    }
-    if (signed_in_plan || !offered.programs.is_empty()) && manage_usage.is_none() {
-        problems.push(path.member(b"manage_usage"), What::Missing);
-    }
-    Some(Provider {
+    let value = Provider {
         name: name?,
         number: number?,
         endpoint,
@@ -208,11 +177,16 @@ fn provider(
         list,
         signed_in_plan,
         manage_usage,
-        models: served?,
         sign_in: offered.sign_in,
         keys: offered.keys,
         programs: offered.programs,
-    })
+    };
+    match shape::terms(&value) {
+        Some(shape::TermsFault::SignedInPlan) => problems.push(path.member(b"signed_in_plan"), What::Form),
+        Some(shape::TermsFault::ManageUsage) => problems.push(path.member(b"manage_usage"), What::Missing),
+        None => {}
+    }
+    Some(Parsed { value, served: served? })
 }
 
 /// Bounded whole-name patterns (jig/docs/design/protocol/configuration.md, 3).
@@ -230,15 +204,7 @@ fn patterns(document: &Document, at: u32, path: &Path, problems: &mut Problems) 
         let path = check::index(path, index);
         match read::text(document, *at, 64) {
             Ok(pattern) => {
-                let mut valid = !pattern.is_empty();
-                for &byte in &pattern {
-                    if byte != b'*'
-                        && byte != b'?'
-                        && !jig_domain_core_vocabulary::settings::catalogue::valid_name(&[byte])
-                    {
-                        valid = false;
-                    }
-                }
+                let valid = shape::pattern(&pattern);
                 if valid {
                     patterns.push(pattern).expect("pattern count bounded");
                 } else {
@@ -384,7 +350,7 @@ fn registration(
     let resource = super::optional_text(&mut object, document, b"resource", path, problems);
     let redirect_path = check::text(&mut object, document, b"redirect_path", path, problems);
     if let Some(value) = &redirect_path
-        && (value.is_empty() || value.starts_with(b"/") || value.contains(&b'?') || value.contains(&b'#'))
+        && !shape::redirect_path(value)
     {
         problems.push(path.member(b"redirect_path"), What::Form);
     }
@@ -432,15 +398,14 @@ fn scope_tokens(
     let mut failed = false;
     for (index, at) in items.iter().enumerate() {
         let path = check::index(path, index);
+        if index >= skein_lib::usize_of(shape::SCOPES) {
+            problems.push(path, What::Form);
+            failed = true;
+            continue;
+        }
         match read::text(document, *at, 4_096) {
             Ok(scope) => {
-                let mut token = !scope.is_empty();
-                for byte in &scope {
-                    match byte {
-                        0x21 | 0x23..=0x5B | 0x5D..=0x7E => {}
-                        _ => token = false,
-                    }
-                }
+                let token = shape::scope_token(&scope);
                 if token {
                     scopes.push(scope).expect("input count bounded");
                 } else {
@@ -474,15 +439,14 @@ fn program_names(document: &Document, at: u32, path: &Path, problems: &mut Probl
     let mut failed = false;
     for (index, at) in items.iter().enumerate() {
         let path = check::index(path, index);
+        if index >= skein_lib::usize_of(shape::PROGRAMS) {
+            problems.push(path, What::Form);
+            failed = true;
+            continue;
+        }
         match read::text(document, *at, 4_096) {
             Ok(name) => {
-                let mut form = (1..=PROGRAM).contains(&name.len());
-                for byte in &name {
-                    match byte {
-                        b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' => {}
-                        _ => form = false,
-                    }
-                }
+                let form = shape::program_name(&name);
                 if !form {
                     problems.push(path, What::Form);
                     failed = true;
@@ -532,134 +496,27 @@ fn public_text(
             return None;
         }
     };
-    if value.is_empty() || !skein_lib::bytes::is_utf8(&value) {
+    if !shape::public_text(&value, max) {
         problems.push(path.member(name), What::Form);
         return None;
-    }
-    // Match complete UTF-8 encodings of controls and invisible display formatting.
-    let mut before = 0_u8;
-    let mut earlier = 0_u8;
-    for byte in &value {
-        let format = (before == 0xd8 && *byte == 0x9c)
-            || (before == 0xc2 && *byte == 0xad)
-            || (earlier == 0xe2 && before == 0x80 && ((0x8b..=0x8f).contains(byte) || (0xaa..=0xae).contains(byte)))
-            || (earlier == 0xe2 && before == 0x81 && (0xa0..=0xaf).contains(byte))
-            || (earlier == 0xe1 && before == 0xa0 && *byte == 0x8e)
-            || (earlier == 0xef && before == 0xbb && *byte == 0xbf)
-            || (earlier == 0xef && before == 0xbf && (0xb9..=0xbb).contains(byte));
-        if *byte < b' ' || *byte == 0x7f || (before == 0xc2 && (0x80..=0x9f).contains(byte)) || format {
-            problems.push(path.member(name), What::Form);
-            return None;
-        }
-        earlier = before;
-        before = *byte;
     }
     Some(value)
 }
 
-/// Public HTTPS address with an ASCII authority and no credentials, query or fragment.
-fn public_address(value: &[u8]) -> bool {
-    let Some(rest) = value.strip_prefix(b"https://") else {
-        return false;
-    };
-    for byte in rest {
-        if *byte <= b' ' || *byte >= 127 || b"@?#\\\"'<>".contains(byte) {
-            return false;
-        }
-    }
-    let end = match skein_lib::bytes::find(rest, b"/") {
-        Some(end) => end,
-        None => rest.len(),
-    };
-    public_authority(rest.get(..end).expect("address authority prefix"))
-}
+pub(crate) use jig_domain_core_vocabulary::settings::providers::{public_address, public_authority};
 
-#[derive(Clone, Copy)]
-enum LabelByte {
-    Label,
-    Dash,
-    Dot,
-    Other,
-}
-
-#[expect(clippy::disallowed_methods, reason = "configuration parses an address's IPv6 literal (configuration.md, 3)")]
-pub(crate) fn public_authority(authority: &[u8]) -> bool {
-    if let Some(rest) = authority.strip_prefix(b"[") {
-        let Some(end) = skein_lib::bytes::find(rest, b"]") else {
-            return false;
-        };
-        let host = rest.get(..end).expect("IPv6 host prefix");
-        let Ok(host) = core::str::from_utf8(host) else {
-            return false;
-        };
-        if host.parse::<core::net::Ipv6Addr>().is_err() {
-            return false;
-        }
-        return public_port(rest.get(end.saturating_add(1)..).expect("suffix after bracket"));
-    }
-    let end = match skein_lib::bytes::find(authority, b":") {
-        Some(end) => end,
-        None => authority.len(),
-    };
-    let host = authority.get(..end).expect("host prefix");
-    let mut label = 0_u32;
-    let mut dash = false;
-    for byte in host {
-        let class = if byte.is_ascii_alphanumeric() {
-            LabelByte::Label
-        } else if *byte == b'-' {
-            LabelByte::Dash
-        } else if *byte == b'.' {
-            LabelByte::Dot
-        } else {
-            LabelByte::Other
-        };
-        match class {
-            LabelByte::Label => {
-                label = label.saturating_add(1);
-                dash = false;
-            }
-            LabelByte::Dash => {
-                if label == 0 {
-                    return false;
-                }
-                label = label.saturating_add(1);
-                dash = true;
-            }
-            LabelByte::Dot => {
-                if label == 0 || dash {
-                    return false;
-                }
-                label = 0;
-            }
-            LabelByte::Other => return false,
-        }
-        if label > 63 {
-            return false;
-        }
-    }
-    label > 0 && !dash && public_port(authority.get(end..).expect("port suffix"))
-}
-fn public_port(suffix: &[u8]) -> bool {
-    if suffix.is_empty() {
-        return true;
-    }
-    let Some(port) = suffix.strip_prefix(b":") else {
-        return false;
-    };
-    let mut value = 0_u32;
-    for byte in port {
-        if !byte.is_ascii_digit() {
-            return false;
-        }
-        let digit = u32::from(byte.checked_sub(b'0').expect("ASCII digit"));
-        let Some(next) = value.checked_mul(10) else {
-            return false;
-        };
-        let Some(next) = next.checked_add(digit) else {
-            return false;
-        };
-        value = next;
-    }
-    (1..=65_535).contains(&value)
+pub(super) fn setting(document: &Document, at: u32, path: &Path, problems: &mut Problems) -> Option<Provider> {
+    let mut claimed = List::with_capacity(0);
+    let parsed = provider(
+        document,
+        at,
+        path,
+        &[],
+        &mut claimed,
+        &Directories::working(),
+        crate::Defaults::Passed,
+        true,
+        problems,
+    )?;
+    Some(parsed.value)
 }

@@ -486,7 +486,15 @@ fn forge_document(source: &Source, seed: u64, created: &mut Created) -> Result<(
     }
 }
 
+#[cfg(test)]
 fn llm_configuration(arguments: &Arguments, created: &mut Created) -> Result<llm::Configuration, String> {
+    llm_configuration_at(arguments, created, crate::scripted::PREFERRED)
+}
+fn llm_configuration_at(
+    arguments: &Arguments,
+    created: &mut Created,
+    address: std::net::SocketAddr,
+) -> Result<llm::Configuration, String> {
     let seed = arguments.seed;
     Ok(match &arguments.source {
         Source::Document(path) => {
@@ -508,9 +516,17 @@ fn llm_configuration(arguments: &Arguments, created: &mut Created) -> Result<llm
             llm::configuration(&document, &key, seed)
         }
         Source::Demo { directories } => {
-            let bytes = read_document(&directories.document(), super::CONFIG_BYTES)?;
-            let deployment = super::setup::check(&bytes, &jig_directories(directories))?;
-            let demo = deployment.demo.ok_or("application.demo is null: the deployment has no demo")?;
+            let fixed = temper_service::stock::scripted(address);
+            let mut running = jig_protocol_config::Llm {
+                providers: Box::new([fixed.provider]),
+                endpoints: fixed.endpoints,
+                models: Box::new([]),
+            };
+            running.models = temper_service::stock::models(&running);
+            let dirs = jig_directories(directories);
+            let demo = demo::read(&demo::Facts { llm: &running, listeners: &[], directories: &dirs })
+                .map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?
+                .expect("the box's scripted provider");
             let path = super::path(demo.llm().key());
             let file = skein_shell::read_private_file(path, demo::KEY_FILE_BYTES, skein_shell::effective_user())
                 .map_err(|why| format!("{}: {}", path.display(), super::unread(why)))?;
@@ -526,7 +542,8 @@ fn start(arguments: &Arguments, created: &mut Created) -> Result<(Host, skein_sh
     let mut control_address = None;
     let (mut peer, shared, observations, writer, buffer) = match arguments.kind {
         Kind::Llm => {
-            let configuration = llm_configuration(arguments, created)?;
+            let address = listeners.first().map_or(crate::scripted::PREFERRED, |(_, address)| *address);
+            let configuration = llm_configuration_at(arguments, created, address)?;
             control_address = configuration.control;
             let observations = arguments
                 .observations

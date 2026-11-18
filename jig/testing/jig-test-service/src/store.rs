@@ -27,6 +27,8 @@ pub(super) struct Store {
 
 pub(super) fn limits(root: &root::Limits, profile: &protocol::Limits) -> Option<protocol::Limits> {
     let mut kv = profile.store;
+    kv.value = kv.value.max(protocol::sizes::settings_value(&root.core)?);
+    kv.page.bytes = kv.page.bytes.max(kv.key.checked_add(kv.value)?);
     let sizes = protocol::sizes::check_commits(
         &root.core,
         &jig_test_store::application(&root.connector),
