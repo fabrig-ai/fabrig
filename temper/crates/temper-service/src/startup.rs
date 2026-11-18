@@ -46,7 +46,7 @@ pub use application::{Forge, Identity, Transport, USER_BYTES, User};
 pub use checks::redirect_ports;
 use jig_protocol_config::{self as config, Path, Segment, read};
 use temper_engine_service::startup::{checked_store, engine_limits, prepare_forges};
-pub use temper_engine_service::startup::{engine, engine_over, engine_with, fixed, fleet_grace};
+pub use temper_engine_service::startup::{engine, engine_over, engine_with, fixed, fleet_grace, worker_fleet_grace};
 
 pub use problems::{Problem, Problems, What, lines};
 use skein_lib::List;

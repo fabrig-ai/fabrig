@@ -254,7 +254,9 @@ pub fn fleet_grace(stop_bound: skein_lib::Duration) -> skein_lib::Duration {
     let minutes = nanos.div_ceil(minute);
     Duration::from_nanos(minutes.saturating_mul(minute))
 }
-fn worker_fleet_grace(limits: &config::Limits) -> skein_lib::Duration {
+/// The fleet grace derived from the fixed worker graces and these link timings.
+#[must_use]
+pub fn worker_fleet_grace(limits: &config::Limits) -> skein_lib::Duration {
     let graces = fixed_worker().graces.expect("temper fixes worker graces");
     fleet_grace(
         config::stop_bound(&graces, limits.link.ping, limits.link.silence)

@@ -21,7 +21,10 @@ const READY_SECONDS: u64 = 120;
 const STOP_SECONDS: u64 = 20;
 const STDERR_TAIL_LINES: usize = 20;
 // The stock worker stop bound and the engine's derived fleet grace (configuration/moved.md, 2).
-pub const FLEET_GRACE_MS: u64 = 360_000;
+#[must_use]
+pub fn fleet_grace_ms() -> u64 {
+    temper_service::startup::worker_fleet_grace(&jig_protocol_config::stock()).as_millis()
+}
 const CGROUPS: &str = "the cluster's tests need cgroups delegated by the user's service manager (temper docs/design/protocol/cluster.md, 5): run them where it delegates them";
 
 /// bin/temper-box/tests/fixtures/cluster/ read, rendered for one test's scratch, and its processes' state.

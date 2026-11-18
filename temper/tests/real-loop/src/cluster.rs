@@ -192,6 +192,8 @@ impl Shape {
                 if grace_ms >= 1_000 {
                     document.jig_over("link.ceiling_ms", 1_000);
                 }
+                let grace = temper_service::startup::worker_fleet_grace(&document.jig);
+                document.jig_over("fleet.grace_ms", grace.as_millis());
                 let items: Vec<_> = workers.iter().enumerate().map(|(index, name)| {
                     let secret = format!("{name}-fixture-secret");
                     let mut digest = String::new();

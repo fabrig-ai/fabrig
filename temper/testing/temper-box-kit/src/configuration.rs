@@ -164,7 +164,6 @@ pub fn cluster_limits(value: &mut temper_playground::documents::Configuration, t
         ("documents.text_bytes", 128),
         ("fleet.attempts", if turn { 4 } else { 2 }),
         ("fleet.calls", 1),
-        ("fleet.grace_ms", 360_000),
         ("fleet.turns", 8),
         ("hub.transcript_bytes", 16_777_216),
         ("hub.turn_bytes", 1_327_470),
@@ -216,6 +215,8 @@ pub fn cluster_limits(value: &mut temper_playground::documents::Configuration, t
     ] {
         value.jig_over(name, figure);
     }
+    let grace = temper_service::startup::worker_fleet_grace(&value.jig);
+    value.jig_over("fleet.grace_ms", grace.as_millis());
     if !github {
         value.jig_over("fleet.engine_slots", 0);
     }

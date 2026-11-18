@@ -1374,7 +1374,7 @@ impl ClusterStory {
     fn within(self) -> Duration {
         match self {
             Self::Kill | Self::Hung => {
-                Duration::from_millis(support::cluster::FLEET_GRACE_MS).saturating_add(support::WITHIN)
+                Duration::from_millis(support::cluster::fleet_grace_ms()).saturating_add(support::WITHIN)
             }
             Self::Each | Self::Unexpected | Self::Later | Self::Restart => support::WITHIN,
         }

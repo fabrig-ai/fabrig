@@ -324,7 +324,7 @@ fn the_clusters_documents_check_as_their_shapes() {
     let engine = cluster_document(&cluster, "engine");
     assert!(engine["engine"].get("limits").is_none());
     let engine_limits = cluster_engine(&cluster).limits;
-    assert_eq!(engine_limits.core.fleet.grace.as_millis(), support::cluster::FLEET_GRACE_MS);
+    assert_eq!(engine_limits.core.fleet.grace.as_millis(), support::cluster::fleet_grace_ms());
     for (process, expected) in [("engine", Shape::EngineAlone), ("w1", Shape::WorkerAlone), ("w2", Shape::WorkerAlone)]
     {
         let root = cluster.dir(process);
@@ -358,7 +358,7 @@ fn the_clusters_documents_check_as_their_shapes() {
                     )
                 });
                 assert!(
-                    stop < skein_lib::Duration::from_millis(support::cluster::FLEET_GRACE_MS),
+                    stop < skein_lib::Duration::from_millis(support::cluster::fleet_grace_ms()),
                     "bin/temper-box/tests/fixtures/cluster/{process}.json: workers[0].graces stop_bound must be below engine.json: engine.limits.overrides.fleet.grace_ms"
                 );
             }

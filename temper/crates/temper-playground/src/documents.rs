@@ -159,9 +159,9 @@ pub fn world_document_with(edit: impl FnOnce(&mut Configuration)) -> Configurati
     value["workers"][0]["name"] = "local".into();
     value["workers"][0].as_object_mut().expect("worker").remove("agent");
     value["workers"][0].as_object_mut().expect("worker").remove("limits");
-    value["engine"]["limits"]["overrides"]["hub.accounts"] = 4.into();
-    value["engine"]["limits"]["overrides"]["hub.event_bytes"] = 1024.into();
-    value["engine"]["limits"]["overrides"]["hub.run_calls"] = 1.into();
+    value.jig_over("hub.accounts", 4);
+    value.jig_over("hub.event_bytes", 1024);
+    value.jig_over("hub.run_calls", 1);
     value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);
     for (name, count) in [
         ("core.load_slots", 8),
@@ -408,7 +408,7 @@ pub fn agent_for(profile: &smith_agent_service::profile::Profile) -> temper_serv
 /// Apply the repository composition's policies and worker settings.
 pub fn configure(value: &mut Configuration) {
     value["workers"][0]["slots"] = AGENTS.into();
-    value["engine"]["limits"]["overrides"]["hub.slots"] = AGENTS.into();
+    value.jig_over("hub.slots", AGENTS);
     let grants: Vec<_> = GRANT_KINDS
         .into_iter()
         .map(|kind| {
