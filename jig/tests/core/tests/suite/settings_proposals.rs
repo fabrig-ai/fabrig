@@ -573,10 +573,13 @@ fn stock_hole_template(world: &World) -> settings::Item {
 }
 
 fn stock_hole_refusal() -> people::Refusal {
-    let failure = settings::check::range_failure(settings::Setting::Template(9));
     people::Refusal::NotWellFormed {
         at: 0,
-        why: people::Malformed::Settings { setting: failure.setting, fault: failure.fault, detail: failure.detail },
+        why: people::Malformed::Settings {
+            setting: settings::Setting::Template(9),
+            fault: settings::Fault::Range,
+            detail: None,
+        },
     }
 }
 

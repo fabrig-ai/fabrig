@@ -56,7 +56,8 @@ fn settings_numbers_reserve_stock_holes_and_bound_own_items() {
             if let Value::Model(v) = &mut value {
                 v.model.name = b"own".as_slice().into();
             }
-            let expected = if number == 33 { Ok(()) } else { Err(check::range_failure(setting)) };
+            let expected =
+                if number == 33 { Ok(()) } else { Err(Failure { setting, fault: Fault::Range, detail: None }) };
             assert_eq!(
                 check_change(&current, &[Item { setting, edit: Edit::Set(value) }], &settings, &connectors, &limits),
                 expected,
@@ -75,6 +76,18 @@ fn settings_numbers_reserve_stock_holes_and_bound_own_items() {
         assert_eq!(
             check_change(&current, &[Item { setting: kind, edit: Edit::Set(value) }], &settings, &connectors, &limits),
             Ok(())
+        );
+    }
+}
+
+#[test]
+fn a_template_set_names_the_stock_hole_and_past_the_last_number_as_range() {
+    let (current, settings, limits, connectors) = numbered_defaults();
+    for number in [9, 65] {
+        let (setting, value) = numbered_value(&current, Setting::Template(2), number);
+        assert_eq!(
+            check_change(&current, &[Item { setting, edit: Edit::Set(value) }], &settings, &connectors, &limits),
+            Err(Failure { setting: Setting::Template(number), fault: Fault::Range, detail: None })
         );
     }
 }
@@ -110,11 +123,14 @@ fn numbers_precede_references_and_defaults_have_the_stock_bound() {
     }
     assert_eq!(
         check_change(&current, &[Item { setting, edit: Edit::Set(value) }], &settings, &connectors, &limits),
-        Err(check::range_failure(setting))
+        Err(Failure { setting, fault: Fault::Range, detail: None })
     );
     let (setting, value) = numbered_value(&current, Setting::Template(2), 40);
     current.defaults.insert(setting, Default { value, revision: 1 }).unwrap();
-    assert_eq!(check(&current, &settings, &connectors, &limits), Err(check::range_failure(setting)));
+    assert_eq!(
+        check(&current, &settings, &connectors, &limits),
+        Err(Failure { setting, fault: Fault::Range, detail: None })
+    );
 }
 
 fn template() -> Template {
@@ -170,6 +186,7 @@ fn lookups_apply_sets_removals_additions_and_resets_without_a_third_set() {
         &[Setting::Charter(1), Setting::Charter(2), Setting::Rules, Setting::Worker(1), Setting::Worker(2)]
     );
 }
+#[expect(clippy::too_many_lines, reason = "one whole-set fixture case for each settings fault")]
 fn fault_case(fault: Fault) {
     let mut config = config(1);
     let mut limits = limits();
@@ -243,7 +260,15 @@ fn fault_case(fault: Fault) {
                 .unwrap();
             Setting::Policy(1)
         }
-        Fault::Range => panic!("the range check's switch makes its case"),
+        Fault::Range => {
+            let mut value = template();
+            value.number = 9;
+            current
+                .changes
+                .insert(Setting::Template(9), Changed { value: Some(Value::Template(Box::new(value))), revision: 2 })
+                .unwrap();
+            Setting::Template(9)
+        }
         Fault::Linked | Fault::Judged => unreachable!("an application's setting: apps-core"),
     };
     let detail = if fault == Fault::Shape {
@@ -275,6 +300,10 @@ fn fault_case(fault: Fault) {
 #[test]
 fn the_whole_check_names_shape_and_its_setting() {
     fault_case(Fault::Shape);
+}
+#[test]
+fn the_whole_check_names_range_and_its_setting() {
+    fault_case(Fault::Range);
 }
 #[test]
 fn the_whole_check_names_count_and_its_setting() {

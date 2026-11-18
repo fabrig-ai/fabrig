@@ -1524,6 +1524,26 @@ fn propose_settings_refuses_a_stale_revision_and_an_item_out_of_shape() {
 }
 
 #[test]
+fn propose_settings_names_the_stock_hole_and_both_template_ranges() {
+    use serde_json::json;
+    let mut world = World::stock();
+    let run = world.chat(ASK_TEMPLATE, world.owner, 20);
+    let value = see_value(&mut world.driver, &run, 1, "settings template 1");
+    let before = world.settings_rows();
+    let input = json!({
+        "against":1, "reason":REASON,
+        "items":[{"setting":{"kind":"template","number":9},"set":value}]
+    });
+    let (answer, error) = host_tool(&mut world.driver, &run, 2, b"propose_settings", input.to_string().as_bytes());
+    assert!(error, "{}", String::from_utf8_lossy(&answer));
+    assert_eq!(
+        answer.as_ref(),
+        b"out of shape; item 0; template 9: is among the stock's numbers, 1 to 32; your own templates take 33 to 64"
+    );
+    assert_eq!(world.settings_rows(), before, "a refused proposal keeps no settings or pending review");
+}
+
+#[test]
 fn a_chat_is_offered_no_settings_tools() {
     let config = config();
     let policy = &config.core.defaults.policies.get(&1).expect("stock policy 1").policy;

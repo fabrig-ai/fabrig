@@ -240,6 +240,38 @@ fn changes_past_their_kinds_bound_refuse_before_the_overflow_value_is_retained()
 }
 
 #[test]
+fn an_owners_stock_hole_refusal_keeps_range_in_its_keyed_answer_across_restart() {
+    let mut world = start(64);
+    let signed = sign_in(&mut world);
+    let mut value = world.domain.settings().template(1).expect("stock template").clone();
+    value.number = 9;
+    let item = settings::Item {
+        setting: settings::Setting::Template(9),
+        edit: settings::Edit::Set(settings::Value::Template(Box::new(value))),
+    };
+    let expected = people::Outcome::Refused(people::Refusal::NotWellFormed {
+        at: 0,
+        why: people::Malformed::Settings {
+            setting: settings::Setting::Template(9),
+            fault: settings::Fault::Range,
+            detail: None,
+        },
+    });
+    let before = settings_rows(&world);
+    assert_eq!(
+        change_key(&mut world, signed, request_key(41), 1, Box::new([item.clone()])),
+        people::Reply::Outcome(expected.clone())
+    );
+    assert_eq!(settings_rows(&world), before);
+    assert_answer(&world.store.rows, 41, &expected);
+    restart(&mut world, configuration().0);
+    assert_answer(&world.store.rows, 41, &expected);
+    let signed = sign_in(&mut world);
+    assert_eq!(change_key(&mut world, signed, request_key(41), 1, Box::new([item])), people::Reply::Outcome(expected));
+    assert_eq!(world.domain.settings().newest(), 1);
+}
+
+#[test]
 fn an_owner_changes_a_template_once_me_serves_it_and_restart_restores_revision_two() {
     let mut world = start(64);
     let signed = sign_in(&mut world);
