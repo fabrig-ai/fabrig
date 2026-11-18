@@ -88,10 +88,12 @@ section 17; the records are `../../protocol/store/README.md`, 4.4.
   of one costliest completion), *grace* (a template's past the tasks
   child's span), *owner* (a policy's owner role unable to be a root's
   requester), *range* (a charter, template, policy or model numbered
-  out of its range, above: a client says which line it crossed from the
-  setting's kind and number alone, "template 9 is among the stock's
-  numbers, 1 to 32; your own templates take 33 to 64", or "template 70
-  is past the templates' numbers, 1 to 64"). Within the check the range
+  out of its range, above: each client's words, and an application's
+  for its agents' tools, say which line it crossed from the setting's
+  kind and number alone, naming the kind and both ranges:
+  "template 9 is among the stock's numbers, 1 to 32; your own templates
+  take 33 to 64", or "template 70 is past the templates' numbers: the
+  stock's take 1 to 32, your own 33 to 64"). Within the check the range
   is judged first, so that a set out of its range is refused as *range*
   whatever else it breaks.
 - **What is not a setting:** the limits, which size memory at the
