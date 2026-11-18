@@ -576,7 +576,7 @@ Owner: task, party, role or charter.
 - `task`: u64. A live task of the project.
 - `party`: u64. A party with a role in the project.
 - `role`: u32. Below authority.roles; 0 is the owners.
-- `charter`: u32. From 1 through tasks.charters.
+- `charter`: u32. From 1 through 64.
 
 ## agents
 Agent profile and endpoint limits, taken at each worker's next start.

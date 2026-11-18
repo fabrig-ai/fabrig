@@ -21,10 +21,8 @@ const BOUNDS: Bounds = Bounds {
     landing_rules: 4,
     gates: 2,
     roles: 2,
-    charters: 8,
     segments: 8,
     segment_bytes: 32,
-    templates: 4,
     follows: 2,
     dependencies: 4,
     follow_paths: 2,
@@ -271,11 +269,7 @@ fn a_reset_is_judged_as_its_default() {
 fn a_refused_item_names_what_fails() {
     let d = stocked();
     assert_eq!(
-        d.judge_settings(
-            &BOUNDS,
-            &[item(3, 0, 1, Edit::Set(charter(BOUNDS.charters + 1))), item(3, 0, 2, Edit::Remove)]
-        )
-        .as_ref(),
+        d.judge_settings(&BOUNDS, &[item(3, 0, 1, Edit::Set(charter(65))), item(3, 0, 2, Edit::Remove)]).as_ref(),
         &[const { Judged::Refuse(Refusal::Charter) }; 2]
     );
 }
@@ -610,7 +604,7 @@ fn a_restore_keeps_the_replaced_rule_as_the_proposals_item_and_answers_its_size(
 #[test]
 fn a_restore_of_the_forges_charter_names_the_charter() {
     let mut d = stocked();
-    let previous = item(3, 0, 1, Edit::Set(charter(BOUNDS.charters)));
+    let previous = item(3, 0, 1, Edit::Set(charter(64)));
     restore(&mut d, &previous, SettingSlot::Replaced(3));
     restore(&mut d, &previous, SettingSlot::Change);
     let mut out = Queue::uncapped();
@@ -622,7 +616,7 @@ fn a_restore_of_the_forges_charter_names_the_charter() {
             &mut out,
         )
         .as_ref(),
-        &[Judged::Accept { size: 4, charter: Some(BOUNDS.charters) }],
+        &[Judged::Accept { size: 4, charter: Some(64) }],
         "an equal current value is accepted rather than judged the same"
     );
     assert_eq!(out.pop(), Some(save(&previous, SettingSlot::Proposal(7))));
@@ -691,7 +685,7 @@ fn a_restore_keeps_removals_and_resets_and_answers_the_defaults_sizes() {
 fn a_restore_checks_the_kinds_bounds_and_keeps_only_accepted_items_in_order() {
     let mut d = stocked();
     let previous = item(2, 1, 1, Edit::Set(rule(false)));
-    let invalid = item(3, 0, 1, Edit::Set(charter(BOUNDS.charters + 1)));
+    let invalid = item(3, 0, 1, Edit::Set(charter(65)));
     restore(&mut d, &previous, SettingSlot::Replaced(3));
     restore(&mut d, &invalid, SettingSlot::Replaced(3));
     let items = [

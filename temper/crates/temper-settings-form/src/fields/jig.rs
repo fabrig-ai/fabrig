@@ -1399,7 +1399,7 @@ pub static FIELDS: [Field; 311] = [
     Field { shape: Shape::AreaOwner, name: b"task", value: Value::Integer(Width::U64), list: None, null: false, line: b"A live task of the project." },
     Field { shape: Shape::AreaOwner, name: b"party", value: Value::Integer(Width::U64), list: None, null: false, line: b"A party with a role in the project." },
     Field { shape: Shape::AreaOwner, name: b"role", value: Value::Integer(Width::U32), list: None, null: false, line: b"Below authority.roles; 0 is the owners." },
-    Field { shape: Shape::AreaOwner, name: b"charter", value: Value::Integer(Width::U32), list: None, null: false, line: b"From 1 through tasks.charters." },
+    Field { shape: Shape::AreaOwner, name: b"charter", value: Value::Integer(Width::U32), list: None, null: false, line: b"From 1 through 64." },
     Field { shape: Shape::Agents, name: b"profile", value: Value::Shape(Shape::AgentProfile), list: None, null: false, line: b"Overrides over the standard profile." },
     Field { shape: Shape::Agents, name: b"endpoints", value: Value::Shape(Shape::AgentEndpoints), list: None, null: false, line: b"Limits by endpoint name." },
     Field { shape: Shape::Agents, name: b"fallback", value: Value::Shape(Shape::AgentLimits), list: None, null: false, line: b"Limits for an endpoint not named here." },

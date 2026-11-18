@@ -204,6 +204,20 @@ fn box_step_seven_names_every_ending_and_the_direct_report() {
 }
 
 #[test]
+fn template_and_charter_help_name_the_stock_and_own_number_ranges() {
+    for (kind, plural) in [("template", "templates"), ("charter", "charters")] {
+        let page = help::answer(&configured(&["help", kind])).expect("settings help");
+        let (_, what) = page.split_once("## What it is\n").expect("What it is");
+        let what = what.split("\n## ").next().expect("section");
+        let text = what.split_whitespace().collect::<Vec<_>>().join(" ");
+        let words = format!(
+            "Numbered: the stock's {plural} take 1 to 32, and your own 33 to 64; a {kind} below 33 that the stock doesn't have is refused."
+        );
+        assert!(text.contains(&words), "{kind}: {text}");
+    }
+}
+
+#[test]
 fn charter_help_explains_documents_and_host_discovery() {
     let page = help::answer(&configured(&["help", "charter"])).expect("charter help");
     let text = page.split_whitespace().collect::<Vec<_>>().join(" ");

@@ -871,8 +871,7 @@ pub(crate) fn settings(domain: &mut Domain, to: ReplyTo, answer: Box<jig_domain_
         )) = *asked
         && (revision == 0 || revision == newest)
         && match kind {
-            11 => scope == 0 && number > 0 && number <= domain.limits.templates,
-            9 => scope == 0 && number > 0 && number <= domain.limits.tasks.charters,
+            9 | 11 => scope == 0 && number > 0 && number <= jig_domain_people::NUMBERS,
             2 | 6 | 7 | 8 | 10 | 12 => domain.core.people.project_members(scope).is_some(),
             _ => false,
         }

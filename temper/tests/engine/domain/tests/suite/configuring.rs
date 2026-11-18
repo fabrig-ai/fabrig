@@ -975,6 +975,42 @@ fn a_read_that_finds_nothing_says_it_was_not_read() {
 }
 
 #[test]
+fn companion_settings_read_by_number_not_by_count() {
+    use serde_json::json;
+    let mut world = World::new(settings_config());
+    let run = world.chat(SETTINGS_TEMPLATE, world.owner, 20);
+    let asking = world.chat(ASK_TEMPLATE, world.owner, 22);
+    let mut completion = 0;
+    for kind in ["template-goal", "charter-words"] {
+        for number in [33, 64, 65] {
+            for (run, tool, input) in [
+                (&run, b"settings".as_slice(), json!({"setting":{"kind":kind,"number":number}})),
+                (&asking, b"see".as_slice(), json!({"address":format!("settings {kind} {number}")})),
+            ] {
+                completion += 1;
+                let before = world.driver.store.applied;
+                let (body, error) = host_tool(&mut world.driver, run, completion, tool, input.to_string().as_bytes());
+                let text = std::str::from_utf8(&body).expect("settings UTF-8");
+                if number <= 64 {
+                    assert!(!error, "{input}: {text}");
+                    assert!(text.contains(&format!("{kind} {number}: none kept;")), "{text}");
+                } else {
+                    assert!(error, "{input}: {text}");
+                    let refusal = if tool == b"settings" {
+                        "not read: no such setting at that revision."
+                    } else {
+                        "not read: no such setting."
+                    };
+                    assert!(text.contains(refusal), "{text}");
+                    assert!(!text.contains("none kept"), "{text}");
+                }
+                assert_eq!(world.driver.store.applied, before, "a settings read commits nothing");
+            }
+        }
+    }
+}
+
+#[test]
 fn a_members_proposal_waits_for_an_owner() {
     let mut world = World::new(member_config());
     let member = world.member();
@@ -2465,23 +2501,22 @@ fn project_area_owners_are_judged_from_the_core() {
     use temper_engine_domain_world::kinds;
     for case in 0_u8..9 {
         let mut owner_limits = limits();
-        owner_limits.tasks.charters = 14; // The owner is valid at this bound without a charter value.
+        owner_limits.tasks.charters = 14; // Charter numbers are independent of this count.
         let mut world = World::with_limits(member_config(), &owner_limits);
         world.member();
         let people::Reply::SignedIn { person: member, .. } = *world.reply(11) else { panic!("signed in") };
         let run = world.chat(ASK_TEMPLATE, world.owner, 2);
         let roles = owner_limits.authority.roles;
-        let charters = owner_limits.tasks.charters;
         let (owner, accepted, label) = match case {
             0 => (AreaOwner::Task(u64::MAX), false, format!("task {}", u64::MAX)),
             1 => (AreaOwner::Party(u64::MAX), false, format!("party {}", u64::MAX)),
             2 => (AreaOwner::Role(roles), false, format!("role {roles}")),
             3 => (AreaOwner::Charter(0), false, "charter 0".into()),
-            4 => (AreaOwner::Charter(charters + 1), false, format!("charter {}", charters + 1)),
+            4 => (AreaOwner::Charter(65), false, "charter 65".into()),
             5 => (AreaOwner::Task(run.task), true, format!("task {}", run.task)),
             6 => (AreaOwner::Party(member), true, format!("party {member}")),
             7 => (AreaOwner::Role(0), true, "role 0".into()),
-            8 => (AreaOwner::Charter(14), true, "charter 14".into()),
+            8 => (AreaOwner::Charter(33), true, "charter 33".into()),
             _ => unreachable!("nine owner cases"),
         };
         let mut key = 20_u8;
