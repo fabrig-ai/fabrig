@@ -168,3 +168,7 @@ Sources: the eight pull requests into `temper66709/g6709` listed below, plus the
 ## What remains for the user
 
 The complete domain and protocol observations do **not** demonstrate the twentieth-under aim on this builder. They are not evidence that a repair saved nothing at the CI gate: there is no controlled before sample here, no main ledger, and the measured builder is different. The real-loop result still needs complete observation. No budget or production/test code was changed to turn a warning green. The user decides the next work from these measurements and the gate's subsequent figures.
+
+## The user's decision
+
+On 11-18 the user chose to land these repairs as they are. The figures above come from a loaded builder without main's ledgers, so the figure that counts is the gate's, measured against main's ledgers; for now the gate only warns on budgets. Any second round comes from temper's tiers after they read the gate's figures at main, and it aims at the costs this report names: the 384-task scale story, the protocol stories' fragment work, the follows shards and the conformance crash cuts. No budget is raised: the figures in `tools/tiers/budgets.toml` belong to the user.
