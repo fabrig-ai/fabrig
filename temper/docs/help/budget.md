@@ -90,7 +90,7 @@ A budget is what a task may spend, in units its models' prices make of their usa
   turns, and policy 1's period spend, which a new project takes;
   `settings apply` changes policy 1; `proposal decide` accepts a
   proposal that widens a task's authority; `task amend` changes a
-  deadline; `task release` lifts a budget's or a deadline's hold once
+  deadline or a budget; `task release` lifts a budget's or a deadline's hold once
   its cause is mended.
 - **temper's runs** give a delegate its budget with `delegate`, raise
   it with `amend` within their own, and ask for more with `propose`.

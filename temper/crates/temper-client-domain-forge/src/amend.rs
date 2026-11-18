@@ -86,6 +86,13 @@ impl Draft {
         self.keep_authority(authority);
         Ok(())
     }
+    /// Replace the spend allowance, preserving every other authority control.
+    pub fn spend(&mut self, spend: u64) -> Result<(), Cut> {
+        let mut authority = self.authority_edit()?;
+        authority.spend = spend;
+        self.keep_authority(authority);
+        Ok(())
+    }
     fn authority_edit(&self) -> Result<c::Authority, Cut> {
         match &self.change.authority {
             Some(authority) => Ok(authority.clone()),

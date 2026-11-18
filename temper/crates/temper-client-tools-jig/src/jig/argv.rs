@@ -706,7 +706,7 @@ fn present(call: &Call, index: usize) -> bool {
 }
 fn check_amend(call: &Call, limits: &Limits) -> Result<(), Usage> {
     check_choice(call, 10, 11, limits)?;
-    let mut needs_revision = present(call, 13);
+    let mut needs_revision = present(call, 13) || present(call, 16);
     let mut change = needs_revision || present(call, 14) || present(call, 15);
     for index in 2..12 {
         if present(call, index) {

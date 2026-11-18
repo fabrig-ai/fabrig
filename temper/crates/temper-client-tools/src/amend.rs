@@ -190,7 +190,8 @@ fn named_draft(
 }
 
 fn named_authority(call: &Call, task: &c::Task) -> Result<Option<c::Authority>, Failed> {
-    if value(call, 4).is_none() && value(call, 5).is_none() && number(call, 13).is_none() {
+    if value(call, 4).is_none() && value(call, 5).is_none() && number(call, 13).is_none() && number(call, 16).is_none()
+    {
         return Ok(None);
     }
     let Some(mut authority) = task.authority.whole() else {
@@ -204,6 +205,9 @@ fn named_authority(call: &Call, task: &c::Task) -> Result<Option<c::Authority>, 
     }
     if let Some(tasks) = number(call, 13) {
         authority.delegation.tasks = u32::try_from(tasks).expect("checked task allowance");
+    }
+    if let Some(spend) = number(call, 16) {
+        authority.spend = spend;
     }
     Ok(Some(authority))
 }
@@ -265,6 +269,9 @@ fn controls(
     if let Some(tasks) = number(call, 13) {
         whole(draft.tasks(u32::try_from(tasks).expect("checked task allowance")), task)?;
     }
+    if let Some(spend) = number(call, 16) {
+        whole(draft.spend(spend), task)?;
+    }
     if value(call, 6).is_some() {
         draft.instructions(words(call, 6, limits)?);
     }
@@ -291,7 +298,8 @@ fn whole(result: Result<(), temper_client_domain_forge::amend::Cut>, task: &c::T
     let suffix = match result {
         Ok(()) => return Ok(()),
         Err(Cut::Authority) => {
-            b"'s authority is cut in this read; amend its deadline or tasks from a client with wider bounds".as_slice()
+            b"'s authority is cut in this read; amend its deadline, budget or tasks from a client with wider bounds"
+                .as_slice()
         }
         Err(Cut::Spec) => b"'s spec is cut in this read; amend its words from a client with wider bounds".as_slice(),
     };
