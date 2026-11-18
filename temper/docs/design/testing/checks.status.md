@@ -1,6 +1,6 @@
 # checks: status
 
-2026-11-16. Where the tree's code lags or departs from [checks.md](checks.md).
+2026-11-18. Where the tree's code lags or departs from [checks.md](checks.md).
 
 - **Departs:** 1: eighteen named real-loop stories remain in the fuzzy
   suite: sixteen scripted stories (fourteen reference-case stories,
@@ -17,6 +17,11 @@
 Section 1's budgets by layer start at the CI builder's gate figures of
 11-16 (`tools/tiers/budgets.md`, 6); where the code doesn't yet sum or judge
 them is `tools/tiers/budgets.status.md`'s.
+
+- **Not yet:** 1: six of the engine's domain-world stories (the approval rules and the stock adoption's roles, the shared project's three status stories, the red landing on another branch) are past the domain world's 0.2 s reference. [in flight: change 8260]
+- **Not yet:** 1: the checkout world's check that facts change nothing sweeps 100 seeds in the focused suite, past the domain world's 0.2 s reference. [in flight: change 8261]
+- **Not yet:** 1: the client world's agent page read through Older over long lines is past the system world's 0.6 s reference. [in flight: change 8262]
+- **Not yet:** 1: the engine's `upgrade --check` naming the record a start refuses is past the end-to-end 2 s reference. [in flight: change 8263]
 
 `real-loop.md`'s real-loop goal-delivery story is present, alongside the six
 engine domain stories and the checkout world's later-run cases. It uses

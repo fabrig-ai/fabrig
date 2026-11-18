@@ -15,20 +15,10 @@
    the owned-forge live landing pair remains `live-tier.status.md` (Not yet).
    the live held-record return's proof remains `live-tier.status.md` (Not yet).
    the fake shell subset remains `fakes.status.md`, 3.  the remaining settings-kind stories remain `checks.status.md`, 4.  the remaining client-page stories remain `checks.status.md`, 4.
-- **Not yet:**
-  the whole document: `suite::goal_delivery` still runs here, its checks
-  not yet in the system world. [in flight: change 4723]
-  the whole document: `suite::plan_chat` still runs here, its checks not
-  yet in the system world and `tests/client`. [in flight: change 4724]
-  the whole document: `suite::sign_in`'s held issuer sockets still run
-  here, not yet in temper-fake's tests. [in flight: change 4725]
-  the whole document: `suite::model_check` still walks past Ready, its
-  pages not yet in the joint world. [in flight: change 4726]
-  the whole document: `suite::lifecycle`'s held program turn still runs
-  here, not yet in the one-process world. [in flight: change 4727]
+- **Not yet:** the whole document: the hung model's held request, the cluster's worker PATH and two workers, the trial to Ready, the note revised whole and the ctl-released batch are past the tier's 2 s story guide, their cost not yet profiled to its cause. [in flight: change 8251]
 - **Departs:** "A story ends what it starts": `suite::model_check`'s
   trimmed-to-Ready story joins its trial task by a story-local harness
   step reading the engine's state, not `task show TASK --until ended`,
   because ctl can't reach that task: `same_party` answers unknown, and
   the closed terminal's DIRECTORY isn't signed in for ctl. The join
-  still comes before the service stops. [in flight: change 4726]
+  still comes before the service stops.
