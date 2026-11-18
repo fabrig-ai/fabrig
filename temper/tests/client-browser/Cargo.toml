@@ -48,6 +48,7 @@ skein-playground.workspace = true
 skein-ui-web.workspace = true
 temper-service.workspace = true
 temper-engine-service.workspace = true
+temper-engine-domain.workspace = true
 temper-service-core.workspace = true
 skein-world.workspace = true
 skein-sim = { path = "../../../skein/crates/skein-sim" }

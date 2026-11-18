@@ -507,7 +507,7 @@ fn copy_bundle(from: &Path, to: &Path) {
 #[cfg(test)]
 mod tests {
     use super::configuration::{UNREACHED, documents};
-    use std::path::Path;
+    use std::{fs, path::Path};
     #[test]
     fn the_page_excludes_only_the_three_decimal_github_routes() {
         for (path, page) in [
@@ -550,10 +550,42 @@ mod tests {
         let core = jig_protocol_config::core(&engine, [0; 16], 1);
         core.defaults
     }
+    fn written_tier(directory: &Path) -> serde_json::Value {
+        super::configuration::write(directory, Path::new("/test/bundle"));
+        serde_json::from_slice(&fs::read(directory.join("temper.json")).expect("written deployment"))
+            .expect("deployment JSON")
+    }
+    fn assert_turn_admission(value: &serde_json::Value, directory: &Path) {
+        let agent = temper_agent_fixtures::at(value, directory);
+        assert!(
+            agent["endpoints"]
+                .as_array()
+                .expect("composed endpoints")
+                .iter()
+                .any(|endpoint| { endpoint["name"] == "demo" && endpoint["number"] == 3 }),
+            "the box includes its scripted provider"
+        );
+        let turn = u64::from(temper_playground::documents::turn_bounds::turn_body(&agent));
+        let hub = value["engine"]["limits"]["overrides"]["hub.turn_bytes"].as_u64().expect("hub turn bytes");
+        let loads = &value["application"]["limits"]["overrides"];
+        let transcript = loads["root.loads.transcript_bytes"].as_u64().expect("loaded transcript bytes");
+        let loaded = loads["root.loads.bytes"].as_u64().expect("loaded page bytes");
+        let row = u64::try_from(size_of::<temper_engine_domain::Record>()).expect("record slot");
+        assert!(
+            value["workers"].as_array().expect("workers").iter().all(|worker| worker.get("limits").is_none()),
+            "workers inherit the engine's turn bound"
+        );
+        assert!(
+            hub >= turn && transcript >= turn && loaded >= turn + row,
+            "turn admission: T={turn}, engine and inherited worker hub.turn_bytes={hub}, root.loads.transcript_bytes={transcript}, root.loads.bytes={loaded}, row={row}"
+        );
+    }
     #[test]
     fn the_tier_passes_startup_validation_with_stock_defaults() {
-        let (_, deployment) = documents(Path::new("/private/test"), Path::new("/test/bundle"));
-        let shape = super::configuration::shape(serde_json::from_slice(&deployment).expect("deployment JSON"));
+        let scratch = skein_scratch::Scratch::new("browser-turn-admission");
+        let value = written_tier(scratch.path());
+        assert_turn_admission(&value, scratch.path());
+        let shape = super::configuration::shape(value);
         assert_eq!(shape, temper_service_core::startup::Shape::Standalone);
     }
     #[test]
@@ -576,10 +608,19 @@ mod tests {
     }
     #[test]
     fn the_sign_in_tiers_two_providers_pass_startup_validation() {
-        let (agent, mut value) = tier_configuration();
+        let scratch = skein_scratch::Scratch::new("browser-sign-in-turn-admission");
+        let mut value = written_tier(scratch.path());
         let sign_in = super::account_registration("http://127.0.0.1:9");
         super::account_provider(&mut value, &sign_in);
         super::welcome_provider(&mut value, &sign_in);
+        let path = scratch.path().join("temper.json");
+        super::configuration::private(&path, &serde_json::to_vec(&value).expect("two-provider deployment JSON"));
+        let value: serde_json::Value =
+            serde_json::from_slice(&fs::read(path).expect("written deployment")).expect("deployment JSON");
+        assert_turn_admission(&value, scratch.path());
+        let agent = temper_agent_fixtures::at(&value, scratch.path());
+        let mut value = value;
+        value["world_providers"] = temper_agent_fixtures::providers::read(scratch.path());
         let shape = super::configuration::shape(value.clone());
         assert_eq!(shape, temper_service_core::startup::Shape::Standalone);
         let engine = super::configuration::stock_engine(&value);
