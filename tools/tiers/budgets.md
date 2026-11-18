@@ -13,6 +13,7 @@ Provisional, 2026-11-16. What the focused and fuzzy suites may cost, by layer of
 - **A partial run judged whole** (section 8): a layer's figure is what the run measured plus main's for the binaries it didn't run, a binary's figure at main the median of its last three; a layer over its budget is the change's red where main is within it or the change adds more than the noise, a twentieth of the layer at main, and its line names the binaries and tests that grew.
 - **The held budget** (section 9): the lower of the user's ceiling and the layer's lowest figure at main since the ceiling was set, plus a tenth, so a budget only falls.
 - **Moves down** (section 10): a line beside the budgets moves CPU seconds from one layer to a layer below it, with the tests a change moves; the gate checks that it goes down.
+- **Every figure the user's** (section 10.1): the gate refuses a change that raises a figure of `tools/tiers/budgets.toml` or adds a reason's line, checked against its base by `tools/tiers/figures.py`, unless the change touches that file alone; and each budget red, reference red and refusal ends with a line sending its repair to the strategy.
 - **Each test held to its reference** is `tools/tiers/references.md`'s: new and flagged tests run alone, outside every sum here, their CPU in the ledger beside their walls (section 7), and the reasons' lines beside the budgets.
 
 ## 2. The budgets file's gate tables
@@ -105,6 +106,7 @@ cpu_s = 72
 - **The line for a layer over its budget** reads `layer over budget: TREE PROFILE LAYER: FIGURE CPU s, budget BUDGET s`, or ends `no budget` where the row has none. `FIGURE` has two decimals and `BUDGET` is the file's figure as Python's `str` gives it.
 - **With `gate`,** each such line is in `over_budget`. The verdict keeps its order (`tools/tiers/design.md`, 10.2): `over budget` when `over_budget` holds any line, a layer's or the pair's own; else `starved` for a starved run; else `within budget` when the profile has gate tables or a pair table; else `no budget set`.
 - **Without `gate`,** each such line is in `warnings`, and the verdict is what it would be with no gate tables: a layer over its budget is a warning there, never red (the user, 11-16).
+- **Every entry of `over_budget` ends with section 10.1's repair line,** on a line of its own after whatever the entry holds (section 8's binaries and tests): a layer's, a test's past its reference, and a pair's or a tools suite's own. A warning carries none.
 - **A selection** (a run with `-p`) sums only what it ran. Without a ledger, a layer's figure in it is a lower bound of the layer's whole figure, and is judged as it stands. With main's ledger it is judged whole (section 8).
 - **`print_summary`** prints, after the suite's totals, a line for each `layers` row and each `trees` row: the figure, the budget, the ceiling, the ideal and, for a layer, the reference, and with a ledger the figure at main, with `none` where null. Each warning or over-budget line follows, as today. The exact text of the rows is the code's; the over line is the form above, and section 8's with a ledger.
 
@@ -212,7 +214,7 @@ cpu_s = 72
 - **So it only falls.** After each landing, a layer's budget falls to its figure at main plus the tenth, where that is lower: what a repair wins is kept, and the next change can't spend it (draft, 8). Nothing raises it but the ceiling's change. Each row prints both the ceiling and the held budget (section 4).
 - **An example.** A layer with ceiling 141 s and `lowest_s` 118.4 is held at main to `min(141, ceil(118.4 + 11.84))`, 131 s, and at the head to the same where the change moves nothing and sets no ceiling. A landing whose `ledger.json` gives the layer 125.00 s leaves `lowest_s` at 118.4; one that gives it 112.00 s leaves 112.0, so the next gate holds the layer to 124 s. A layer of one binary whose `cpu` is `[120.0]` at main, measured whole at 112.00 s, has `[120.0, 112.0]` in the run's `ledger.json`: its landing leaves `lowest_s` at 116.0, not 112.0. A change that sets the ceiling to 150 s is held to 150 s at its gate, and its landing records the layer's figure in its `ledger.json` as `lowest_s`. A change adding a 12 s move into the layer is held to `min(153, 131 + 12)`, 143 s, and its landing records `lowest_s` as the lower of 130.4 and that figure.
 
-## 10. Moves down
+## 10. Moves down, and every figure the user's
 
 - **A move** gives CPU seconds of one layer's budget to a layer below it, in any tree, with the tests a change places lower (`skein/docs/foundation/testing-strategy.md`, 9; draft, 8). It is a table of the profile's `moves` array, in `tools/tiers/budgets.toml`:
 
@@ -231,6 +233,41 @@ why = "the store's own mechanics placed below the one-process world"
 - **A layer's ceiling** for a profile is its table's `cpu_s`, or 0 where it has no table, plus the profile's moves into it less its moves out of it. A layer with neither a table nor a move into it has no ceiling. A layer a move gives its first seconds has a ceiling, so it isn't over for having no table (section 4), and its reference is its profile's `references` entry.
 - **Applied once to the held budget.** A move stays in the file, and the ceiling has it at every run. The ledger's `moves` are those main's held budgets have taken: a move the ledger lacks moves its seconds of held budget at the gate of the change that adds it, and once only (section 9).
 - **Folding a move into the figures,** a later change that writes its seconds into both layers' `cpu_s` and removes the line, leaves each ceiling, and so each held budget, as it was. A move removed alone raises its `from` layer's ceiling and lowers its `to` layer's, a change to the ceilings that is the user's, as any change to a `cpu_s` is; each held budget it changes restarts at its ceiling (section 9).
+
+### 10.1 Every figure the user's
+
+- **The gate refuses a raise** (`temper/docs/design/draft/test-budgets.md`, 8; the user, 11-18): a change that raises a figure of `tools/tiers/budgets.toml` (a layer's ceiling, a reference, an ideal, a reason's line, a suite's limit) or adds a reason's line (`tools/tiers/references.md`, 2), checked against its base as the citations are, and naming each. Lowering a figure, dropping a reason's line and a move down pass.
+- **A change of that file alone passes,** whatever it does there (the user, 11-18 12:4xZ): it is how the user's own figures land, by a drafter's mechanical change on their word. The refusal is for a change that touches any other path too, as every goal's landing does: a raise a goal's change makes alone still meets it at the goal's landing.
+- **The check:** `python3 -I -B tools/tiers/figures.py --base BASE [--head HEAD]`, from the checkout root, BASE and HEAD any commit or tree git names, HEAD `HEAD` by default. It reads committed trees through git, never the working tree, as `tools/citations/citations.py` does. It exits 0 where it passes, 1 where it refuses, and 2 for a usage error, a git failure, a file that isn't TOML, or a figure's place holding no finite number.
+  - **What changed:** `git diff --no-renames --name-only BASE HEAD`. Without `tools/tiers/budgets.toml` among the paths it passes, printing `figures: tools/tiers/budgets.toml unchanged since BASE`; with that path alone it passes, printing `figures: tools/tiers/budgets.toml alone changed since BASE: the user's figures`. Otherwise it compares the file's figures.
+  - **What it reads:** `tools/tiers/budgets.toml` at BASE and at HEAD (`git show REV:tools/tiers/budgets.toml`), each as TOML, a side without the file read as an empty table; and HEAD's `tools/tiers/layers.toml`, its `layers` list alone, for the moves' direction. It reads the figures at the places below and leaves the file's form to `budgets()` (section 2), which every suite's run applies: a key it doesn't name is no figure of its.
+- **The figures,** each compared by its place, and raised where its figure at HEAD is more than at BASE to the millisecond (both rounded to three decimals). A figure's absence is no bound, so dropping one raises it to none, but for a layer's ceiling, whose absence is no room (section 4) and counts 0, and a reason's line, whose absence leaves the test its reference:
+  - **a layer's ceiling,** for each profile, group and layer, as section 10's third bullet gives it (`gate_ceilings` in `tools/tiers/cpu.py`), at HEAD less the seconds of HEAD's new moves into it that go down. A new move is one HEAD's moves for the profile have and BASE's lack, counted as a multiset of whole moves as section 9 counts them; it goes down where its `from` and `to` are each `TREE.LAYER` of one of the five trees and a name of the layers list, `to`'s layer below `from`'s. So a move down passes, as does a move whose seconds grow; a move removed alone, or shrunk, raises its `from` layer's ceiling; folding one into the figures leaves each ceiling as it was;
+  - **a profile's ceilings' sum,** the sum of its layer tables' `cpu_s`, which moves leave as they find it, named only where no layer's ceiling of the profile is: so a raise of a layer's `cpu_s` can't pass as a new move out of it;
+  - **a reference:** each entry of a profile's `references`, by layer; and, for each layer with a table at HEAD, its reference as section 4 takes it, its `reference_s` or else its profile's entry;
+  - **an ideal:** each group's `ideal_s`, and each layer table's `ideal_s` for a layer with a table at HEAD;
+  - **a reason's line,** by profile, binary and test: added, or its `cpu_s` raised. A side holding two lines for one test, which `budgets()` refuses, counts its larger;
+  - **a suite's limit:** each pair table's (every top-level table but `gate` and `tools`) and each `tools` suite's `cpu_suite_s`, `cpu_test_s` and `wall_hard_s` (`tools/tiers/design.md`, 7.3 and 7.5). A pair's `auto_reap` is no figure.
+
+  A layer's table dropped whole lowers its ceiling and raises nothing. A group's table dropped whole drops its `ideal_s`, a raise, as it is: a tree with no table for a profile is never over (section 4).
+- **Its lines,** where it refuses: one for each figure raised, `figure raised: PLACE: BASE_FIGURE to HEAD_FIGURE`, and one for each reason's line added, `figure added: PLACE: HEAD_FIGURE`, each figure as Python's `str` gives it and `none` where absent, a ceiling's HEAD_FIGURE its ceiling at HEAD less what new moves excuse, in the order of the list above; then `figures: N raised or added since BASE`, N those lines; then the repair line, last. PLACE is one of `PROFILE GROUP LAYER ceiling`, `PROFILE ceilings' sum`, `PROFILE references LAYER`, `PROFILE GROUP LAYER reference`, `PROFILE GROUP ideal`, `PROFILE GROUP LAYER ideal`, `PROFILE reason BINARY TEST`, `PAIR KEY` and `tools SUITE KEY`. A line may continue past its HEAD_FIGURE with what the code adds (the seconds new moves excused, for one). A change raising temper's focused domain `cpu_s` from 136 to 140, so its ceiling, with the 1.5 s moved into it, from 137.5 s to 141.5 s, raising temper's focused simulated `reference_s` from 2 to 3 and adding a line for a test prints, with the last line cut here:
+
+```
+figure raised: default temper domain ceiling: 137.5 to 141.5
+figure raised: default temper simulated reference: 2 to 3
+figure added: default reason temper-system::suite suite::chat::a_whole_chat_lands: 3
+figures: 3 raised or added since 1a2b3c4d5e
+repair: read skein/docs/foundation/testing-strategy.md in full first, ...
+```
+
+- **Where it runs:** the gate runs it on the candidate against its base, as it runs the citations check (`.config/gate/README.md`, the gate's seventeenth item), and its runner makes a red case of each refusal; the delivery check runs it where the delivery changes the file (`tools/pre-pr/design.md`, 4, check 7). The gate's runner, outside this repository, takes it up when it follows (`temper/docs/design/draft/test-budgets.execution.md`, 2).
+- **The repair line.** Each budget red, reference red and refusal, at the gate and in the delivery check, ends with one line sending its repair to the strategy (draft, 8):
+
+```
+repair: read skein/docs/foundation/testing-strategy.md in full first, then ask 8.1's three questions in order: does the test belong to its tier; if it does, can it be made faster; if neither, take the measurements to the user.
+```
+
+  Its text is one constant of `tools/tiers/cpu.py`, which `figures.py` reads. Every entry of `summary`'s `over_budget` (section 4) ends with it on a line of its own: a layer's, a test's (`tools/tiers/references.md`, 6) and a pair's or a tools suite's own. A warning carries none, nor does a red that is no budget's, such as a failed test. The delivery check's failures keep each entry whole as their logs (`tools/pre-pr/design.md`, 4), so it reaches a goal there too.
 
 ## 11. Later
 
