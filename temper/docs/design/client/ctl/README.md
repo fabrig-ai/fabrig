@@ -204,9 +204,16 @@ temper                       the binary: `temper ctl` runs the host
   under a name another party's parked request holds (6.2), meets
   `Held`, and exits 1.
 - **A spent-pool refusal keeps its own figures first:**
-  `chat start: refused: your pool in project P had LEFT left, NEEDED needed`.
+  `chat start: refused: your pool in project P had LEFT left, NEEDED needed`,
+  in ctl's amount (`results.md`, 1).
   If today's `me` pool still has less than NEEDED, the `read it:` and
-  `raise it:` calls follow. With room now, the next line is
+  `raise it:` calls follow. Where that pool also holds a reservation
+  for live work it funds (its `reserved` above zero), as an earlier
+  start's `--as-allowed` leaves it (`areas.md`, area 2), a line before
+  them says so and what leaves room: `reserved: R, for the live work
+  your pool funds; a goal or milestone started with --as-allowed takes
+  all your pool may give: start them with --budget AMOUNT to leave
+  room`, R the pool's `reserved`. With room now, the next line is
   `now: your pool has L left; budget B; this key keeps its first answer: start new work with a new --key`.
   Today's pool never replaces the refusal's figures.
 - **Names are the party's.** Agents sharing a party give their names a

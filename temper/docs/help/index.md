@@ -119,7 +119,7 @@ supply; a walk names any other in its `Before you start`.
   hyphens.
 - `TASK`, `PROJECT`, `FORGE`, `INSTALLATION`, `ACCOUNT`, `REVISION`,
   `PROVIDER`: numbers, as a read prints them.
-- `AMOUNT`: units of spend, a whole number, in the deployment's unit.
+- `AMOUNT`: hundreds of spend units, at most two decimals, as `130` or `1.25`.
 - `ROLE`: a role's number, as `project show` prints it.
 - `PROPOSAL`: a proposal, as a read prints it: `t41/3`, task 41's
   third, or `p2/1`, party 2's first.

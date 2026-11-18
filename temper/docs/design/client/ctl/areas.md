@@ -57,6 +57,25 @@ The table grows area by area, each with its stories (`testing.md`).
    `--priority` replaces a tracked template's priority. Model controls
    are area 5's; absent sub-agent flags preserve the template's list.
 
+   **A budget is ctl's amount** (`results.md`, 1), as `task show`
+   prints it: `goal start --budget 130` gives the goal 13,000 spend
+   units, which `task show` prints `of 130.00`; `milestone new --budget
+   130` makes a milestone that `task show` and `milestone show` both
+   print `of 130.00`; `--budget 1.005` is usage, nothing sent. **`--as-allowed`
+   takes all the party may give from its pool,** what the pool has
+   left up to its role's spend (jig's `domain/authority.md`, section
+   7), or, with `--milestone`, all the milestone has left
+   (`milestones.md`, 3). Its reservation holds that while the work is
+   live, so the party's next start finds none left. Its line in `help`
+   says so, `goal start`'s: `--as-allowed: a switch. Take all you may
+   give from your pool, or with --milestone all the milestone has
+   left, instead of a named budget: none is left for the next start
+   while this goal is live`; `milestone new`'s: `--as-allowed: a
+   switch. Take all you may give from your pool instead of a named
+   budget: none is left for your next start while this milestone is
+   live`. A start then refused for its pool says why and names
+   `--budget`, in the `reserved:` line of `README.md`, section 5.
+
    The general `proposal show PROPOSAL` reads every proposal kind. For
    settings it prints the engine's current/origin/would-be review and its
    newest revision; retained ended and withdrawn records keep their state.
@@ -77,7 +96,7 @@ The table grows area by area, each with its stories (`testing.md`).
      | `--spec FILE` | its spec's words, whole; its parameters and inputs kept |
      | `--dependency TASK`... \| `--no-dependencies` | its dependencies, whole: those named, in order; what it names anew is added, what it leaves out removed |
      | `--model MODEL [--effort EFFORT]` | its main model and effort (area 5) |
-     | `--budget AMOUNT` | its authority's spend, AMOUNT in the unit the client shows budgets in, the rest of its authority restated as shown |
+     | `--budget AMOUNT` | its authority's spend, AMOUNT in ctl's amount (`results.md`, 1), the rest of its authority restated as shown |
      | `--tasks N` | the tasks its subtree may make over its life, the rest of its authority restated as shown |
      | `--to-party PARTY` \| `--to-role ROLE` | a person task's address: party PARTY, or the project's role ROLE, at the person revision the tool's read shows |
 
@@ -90,7 +109,7 @@ The table grows area by area, each with its stories (`testing.md`).
      within what the policy lets them give alone, or proposed past it, as
      the next bullets say. It is the way out a hold for a task's own
      budget or tasks names (jig's `domain/tasks/lifecycle.md`, 6; `../../domain/forge/change/repairs.md`
-     ): `task amend 41 --rev 8 --budget 2000 "room for its review"`,
+     ): `task amend 41 --rev 8 --budget 20 "room for its review"`,
      then `task release 41 --hold 3`; for tasks, the hold prints
      `task amend 41 --rev 8 --tasks N REASON`, then the release. N is
      a replacement lifetime allowance with room for a repair and review;
