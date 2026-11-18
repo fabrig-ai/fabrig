@@ -21,6 +21,8 @@ const DELEGATE: u64 = 7;
 const ATTEMPT: u64 = 44;
 const SIX_SECONDS: Wall = Wall::from_nanos(6_000_000_000);
 const REQUEST: &[u8] = b"What landed overnight?";
+const CARD_TITLE: &[u8] =
+    b"Should README.md hold just \"hello world\", or keep its \"# hello\" heading with \"hello world\" below it?";
 const ANSWER: &[u8] = b"Three changes landed between 22:10 and 06:40:\n\n1. csv-export: the report's columns, the first of its three tasks.\n2. csv-export: the export button on the report page.\n3. fix-login: a session no longer ends when the forge restarts.\n\ncsv-export's last task waits on you: whether the file separates its\nvalues with a comma or a";
 const COMMITTED: &[u8] = b"Three changes landed between 22:10 and 06:40:\n\n1. csv-export: the report's columns, the first of its three tasks.\n2. csv-export: the export button on the report page.\n3. fix-login: a session no longer ends when the forge restarts.\n\ncsv-export's last task waits on you: whether the file separates its\nvalues with a comma or a semicolon. Most spreadsheets expect a comma.";
 
@@ -895,17 +897,10 @@ fn the_chat_draws_each_entry() {
             name: "card lines",
             input: None,
             data: Some(data(Box::new([
-                Entry::Delegation(shared::DelegationLine {
-                    kind: "T7 · Change".as_bytes().into(),
-                    title: b"csv-export".as_slice().into(),
-                    state: b"Landed".as_slice().into(),
-                }),
+                Entry::Delegation { title: b"csv-export".as_slice().into(), state: b"Landed".as_slice().into() },
                 Entry::Proposal(b"Change the settings".as_slice().into()),
             ]))),
-            entries: &[
-                (look::AGENT, "T7 · Change · csv-export · Landed"),
-                (look::AGENT, "Proposal Change the settings"),
-            ],
+            entries: &[(look::AGENT, "csv-export · Landed"), (look::AGENT, "Proposal Change the settings")],
             end: 0,
             ordered: None,
             failed: false,
@@ -939,6 +934,16 @@ fn the_chat_draws_each_entry() {
         };
         let view = draw(part, None, 80);
         let tree = view.tree();
+        if row.name == "card lines" {
+            for (bytes, styles) in [
+                (b"csv-export".as_slice(), &[][..]),
+                (" · ".as_bytes(), &[look::FAINT][..]),
+                (b"Landed".as_slice(), &[look::HINT][..]),
+                (b"Proposal".as_slice(), &[look::SIGNAL][..]),
+            ] {
+                assert_eq!(f::find(tree, Role::Text, bytes).styles.as_slice(), styles);
+            }
+        }
         let entries: Vec<_> = tree
             .nodes()
             .iter()
@@ -973,6 +978,84 @@ fn the_chat_draws_each_entry() {
     pane_marks();
     pane_states();
     pane_writes();
+}
+
+fn card_entries() -> Box<[Entry]> {
+    let mut task = task();
+    task.chip.title = c::DocumentText::complete(text(CARD_TITLE));
+    let mut page = temper_client_view_kit::cards::batch_proposal();
+    let c::ReadValue::Proposal(proposal) = &mut page else { unreachable!() };
+    let c::ProposalAction::Batch(tasks) = &mut proposal.action else { unreachable!() };
+    tasks.get_mut(0).unwrap().spec.specification.words = c::DocumentText::complete(text(&skein_lib::bytes::concat(&[
+        CARD_TITLE,
+        b"\nCompare both layouts before changing the file.",
+    ])));
+    let root = temper_client_view_kit::chat::proposal_root_with_document(None, Some(page));
+    let card = root.pages().chat().unwrap().cards.as_slice().first().unwrap();
+    Box::new([chat::read::delegated(&task, &f::words()), chat::read::proposal(card).unwrap()])
+}
+
+#[test]
+fn the_chat_reads_card_titles_whole() {
+    assert_eq!(CARD_TITLE.len(), 100);
+    let words = f::words();
+    let mut task = task();
+    task.chip.title = c::DocumentText::complete(text(CARD_TITLE));
+    let expected = shared::delegation_line(&task, words.view()).state;
+    assert_eq!(expected.as_ref(), b"Running");
+    let entries = card_entries();
+    let Entry::Delegation { title, state } = &entries[0] else { unreachable!() };
+    assert_eq!(title.as_ref(), CARD_TITLE);
+    assert_eq!(state, &expected);
+    let Entry::Proposal(title) = &entries[1] else { unreachable!() };
+    assert_eq!(title.as_ref(), CARD_TITLE);
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the golden rows embed generated frame literals")]
+fn the_chat_cards_are_their_goldens() {
+    use skein_ui_screen::{Focus, Size};
+    let mut views = List::uncapped();
+    for columns in [150, 80] {
+        let mut entries = List::uncapped();
+        entries.push(Entry::Said(b"Check README.md".as_slice().into())).unwrap();
+        entries
+            .push(Entry::Agent { words: b"I will compare the two README layouts.".as_slice().into(), growing: false })
+            .unwrap();
+        for entry in card_entries() {
+            entries.push(entry).unwrap();
+        }
+        views.push(draw_request(data(entries.into_boxed()), None, columns, b"Check README.md")).unwrap();
+    }
+    let mut checks = List::uncapped();
+    for ((name, size, want), view) in [
+        (
+            "chat-cards-150x39-dark",
+            Size { columns: 150, rows: 39 },
+            include_bytes!("golden/chat-cards-150x39-dark.txt").as_slice(),
+        ),
+        (
+            "chat-cards-80x24-dark",
+            Size { columns: 80, rows: 24 },
+            include_bytes!("golden/chat-cards-80x24-dark.txt").as_slice(),
+        ),
+    ]
+    .iter()
+    .zip(&views)
+    {
+        checks
+            .push(goldens::Golden {
+                name,
+                size: *size,
+                want,
+                tree: view.tree(),
+                scheme: Scheme::Dark,
+                background: Some(crate::theme::palette(Scheme::Dark)[0].1),
+                focus: Focus::default(),
+            })
+            .unwrap();
+    }
+    goldens::check(checks.as_slice());
 }
 
 #[expect(
