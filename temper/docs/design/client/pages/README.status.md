@@ -15,9 +15,6 @@
   funds and person task cards draw their words whole after the from line
   that names their title, not only those past their first line [in
   flight: change 7579].
-- **Not yet:** 2, *A task's title on a line*: the TUI's chat cards draw
-  a delegated task's title and a proposal's batch title cut at 80, and
-  there is no `shared::proposal_title` [in flight: change 8714].
 
 - **Not yet:** the whole document: the real-provider picker walk remains `accounts.status.md`, 2.
 
