@@ -22,3 +22,4 @@
   kicker and the lede alone, with no heading and no filters, where the section
   says "No goals yet."; a project with no tracked template has a lede that
   stops at "landed work.", which the section has no words for.
+- **Not yet:** 1, *Goals*, its reads: the goals' needs read answering without its value clears its `selection`, so a goal's "waiting on you" goes until the next [in flight: change 8572].
