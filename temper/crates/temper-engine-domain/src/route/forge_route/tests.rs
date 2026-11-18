@@ -319,6 +319,10 @@ fn holdings_asks_keep_the_refused_symbol() {
 }
 
 fn goal_holds_branch() -> (super::Domain, skein_lib::Env<super::Limits>) {
+    goal_holds_branch_beneath(false)
+}
+
+fn goal_holds_branch_beneath(beneath: bool) -> (super::Domain, skein_lib::Env<super::Limits>) {
     use super::tasks;
     let (mut domain, mut env) = two_forges();
     // These tasks report one byte; their delegate result reserves that byte in the inbox.
@@ -349,8 +353,46 @@ fn goal_holds_branch() -> (super::Domain, skein_lib::Env<super::Limits>) {
         },
         &mut out,
     );
-    make_goal_task(&mut domain, &env, GOAL_TASK, tasks::Party::Deployment { project: GOAL_PROJECT }, holdings);
+    let creator = if beneath {
+        make_goal_task(
+            &mut domain,
+            &env,
+            GOAL_ROOT,
+            tasks::Party::Deployment { project: GOAL_PROJECT },
+            Box::new([]),
+        );
+        tasks::Party::Task(GOAL_ROOT)
+    } else {
+        tasks::Party::Deployment { project: GOAL_PROJECT }
+    };
+    make_goal_task(&mut domain, &env, GOAL_TASK, creator, holdings);
     (domain, env)
+}
+
+#[test]
+fn a_nested_goal_holding_its_branch_under_its_own_number_keeps_the_default_destination() {
+    use super::forge;
+    let (mut domain, env) = goal_holds_branch_beneath(true);
+    assert_eq!(domain.core.tasks.root(GOAL_TASK), Some(GOAL_ROOT));
+    let name = forge::Name {
+        forge: 1,
+        repository: 1,
+        what: super::branch_what(b"temper/8/g8", env.limits.forge.name_bytes).unwrap(),
+    };
+    let mut out = skein_lib::Queue::uncapped();
+    forge::step(
+        &mut domain.forge,
+        &env.with(env.limits.forge),
+        forge::Event::Hold { entry: 0, task: GOAL_TASK, resource: name.clone(), from: None },
+        &mut out,
+    );
+    assert_eq!(domain.forge.hold(&name).expect("old branch held").task, GOAL_TASK);
+    let change = crate::ChangeCall::words(b"Small fix".as_slice().into(), None);
+    assert_eq!(change.landing, None);
+    let Ok(destination) = super::change_destination(&domain, &env, GOAL_TASK, &adopted(1), &change) else {
+        panic!("legacy goal's change admitted")
+    };
+    assert_eq!(destination.as_ref(), b"main");
 }
 
 fn make_goal_task(

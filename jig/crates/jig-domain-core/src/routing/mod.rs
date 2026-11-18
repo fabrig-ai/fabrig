@@ -116,6 +116,7 @@ pub(crate) struct Made {
 #[derive(Hash, Debug)]
 pub(crate) struct Creation {
     kind: CreationKind,
+    root: Option<u64>,
     members: Box<[tasks::New]>,
     symbols: Box<[Box<[people::Symbol]>]>,
     at: usize,
