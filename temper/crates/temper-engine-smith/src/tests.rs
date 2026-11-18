@@ -2676,6 +2676,8 @@ fn goal_decodes_words_and_optional_advisor_and_agree() {
 #[path = "tests/document.rs"]
 mod document;
 mod kinds;
+#[path = "tests/providers.rs"]
+mod providers;
 #[path = "tests/settings.rs"]
 mod settings;
 #[test]

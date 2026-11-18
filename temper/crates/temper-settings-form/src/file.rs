@@ -339,13 +339,30 @@ fn setting(d: &Decoder<'_>, at: u32) -> Result<c::Setting, Error> {
         b"template" => Ok(c::Setting::Template(number)),
         b"model" => Ok(c::Setting::Model(number)),
         b"worker" => Ok(c::Setting::Worker(number)),
+        b"provider" => Ok(c::Setting::Provider(number)),
         b"policy" => Ok(c::Setting::Policy(number)),
         _ => Err(error(b"kind", b"unknown setting kind")),
     }
 }
 fn item(d: &Decoder<'_>, at: u32) -> Result<c::SettingItem, Error> {
-    let fields = d.object(at, &[b"setting", b"set", b"edit", b"overlay"])?;
+    let fields = d.object(at, &[b"setting", b"set", b"edit", b"overlay", b"remove", b"reset"])?;
     let setting = setting(d, field(&fields, b"setting")?)?;
+    if optional(&fields, b"remove").is_some() || optional(&fields, b"reset").is_some() {
+        for name in [b"set".as_slice(), b"edit", b"overlay"] {
+            if optional(&fields, name).is_some() {
+                return Err(error(b"item", b"exactly one edit required"));
+            }
+        }
+        let edit = match (optional(&fields, b"remove"), optional(&fields, b"reset")) {
+            (Some(at), None) if d.boolean(at)? => c::SettingEdit::Removed,
+            (None, Some(at)) if d.boolean(at)? => c::SettingEdit::Reset,
+            (Some(_) | None, Some(_) | None) => return Err(error(b"item", b"one true remove or reset required")),
+        };
+        if let c::Setting::ProjectPolicy { .. } = setting {
+            return Err(error(b"edit", b"a project's policy is set alone"));
+        }
+        return Ok(c::SettingItem { setting, edit });
+    }
     if let Some(at) = optional(&fields, b"overlay") {
         if optional(&fields, b"set").is_some() || optional(&fields, b"edit").is_some() {
             return Err(error(b"item", b"exactly one of set, edit or overlay required"));
@@ -362,7 +379,9 @@ fn item(d: &Decoder<'_>, at: u32) -> Result<c::SettingItem, Error> {
     let edit = match (optional(&fields, b"set"), optional(&fields, b"edit")) {
         (Some(at), None) => {
             let value = match setting {
-                c::Setting::Provider(_) => return Err(error(b"setting", b"provider settings are not supported")),
+                c::Setting::Provider(number) => {
+                    c::SettingValue::Provider(Box::new(crate::providers::read(d, at, number.number)?))
+                }
                 c::Setting::Worker(number) => c::SettingValue::Worker(Box::new(values::worker(d, at, number.number)?)),
                 c::Setting::Model(_) => c::SettingValue::Model(Box::new(values::catalogue(d, at)?)),
                 c::Setting::Charter(_) => c::SettingValue::Charter(Box::new(values::charter(d, at)?)),

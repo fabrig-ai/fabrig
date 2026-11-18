@@ -537,6 +537,13 @@ fn check_selected(call: &crate::jig::call::Call, local: u32, value: &ReadValue) 
         | (crate::jig::rows::SETTING_AT, 1, ReadValue::Setting(_))
         | (crate::jig::rows::REVISION_AT, 1, ReadValue::Revision(_))
         | (crate::jig::rows::REVISIONS_AT, 1, ReadValue::Revisions(_)) => Ok(()),
+        (crate::jig::rows::SETTINGS_AT, 9..=24, ReadValue::Setting(document))
+            if crate::jig::runner::providers::all(call)
+                && let contract::Setting::Provider(number) = document.setting
+                && number.number.checked_add(8) == Some(local) =>
+        {
+            Ok(())
+        }
         (3, 1, ReadValue::Ended(value)) if ended_task(value).is_some() => Ok(()),
         (crate::jig::rows::PROPOSAL_AT, 1, ReadValue::Ended(value))
             if ended_proposal(value).is_some() && proposal_matches_call(value, call) =>

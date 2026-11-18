@@ -22,6 +22,7 @@ fn positive(value: &Value, name: &'static [u8]) -> Result<u32, Problem> {
     let n = value.small(name)?;
     if n == 0 { Err(Problem::Range(name)) } else { Ok(n) }
 }
+#[expect(clippy::too_many_lines, reason = "settings selectors share the same numbered and project-scoped checks")]
 pub(crate) fn read(value: &Value, bytes: &[u8]) -> Result<engine::Tool, Problem> {
     only(value, &[b"setting", b"revision", b"history", b"from"], b"settings")?;
     let from = match value.field(b"from")? {
@@ -56,6 +57,7 @@ pub(crate) fn read(value: &Value, bytes: &[u8]) -> Result<engine::Tool, Problem>
             b"policy",
             b"model",
             b"worker",
+            b"provider",
             b"landing-rule",
             b"forge-charter",
             b"charter-words",

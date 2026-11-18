@@ -3805,6 +3805,8 @@ fn ctl_reads_lists_and_writes_a_model_as_a_settings_file() {
 
 #[path = "settings_overlays.rs"]
 mod overlays;
+#[path = "settings_providers.rs"]
+mod providers;
 
 #[test]
 fn ctl_applies_proposes_and_shows_a_worker_setting() {

@@ -215,7 +215,7 @@ fn named_value_text(
 }
 pub fn encode_value(value: &c::SettingValue, out: &mut Encoder) {
     match value {
-        c::SettingValue::Provider(_) => out.string(b"provider settings are not supported"),
+        c::SettingValue::Provider(value) => crate::providers::encode(value, out),
         c::SettingValue::Overlay(v) => values::encode_overlay(v, out),
         c::SettingValue::Worker(v) => values::encode_worker(v, out),
         c::SettingValue::Model(v) => values::encode_catalogue(v, out),
@@ -535,7 +535,7 @@ pub const fn fault_word(fault: c::SettingFault) -> &'static [u8] {
         c::SettingFault::Judged => b"refused by its owner",
         c::SettingFault::Owner => b"owner",
         c::SettingFault::Linked => b"linked: stop it first",
-        c::SettingFault::Accounts => b"accounts: remove them first",
+        c::SettingFault::Accounts => b"provider still has accounts: remove its accounts first",
     }
 }
 
