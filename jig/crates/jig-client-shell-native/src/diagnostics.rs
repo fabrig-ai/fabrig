@@ -5,6 +5,7 @@ use skein_lib::List;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
     Authorize,
+    LinkAsk,
     ApprovalAsk,
     ApprovalRead,
     ApprovalDecide,
@@ -22,6 +23,7 @@ pub enum Kind {
 impl Kind {
     pub(crate) fn message(message: &Message) -> Self {
         match message {
+            Message::LinkAsk(_) => Self::LinkAsk,
             Message::ApprovalAsk(_) => Self::ApprovalAsk,
             Message::ApprovalRead(_) => Self::ApprovalRead,
             Message::ApprovalDecide(_) => Self::ApprovalDecide,

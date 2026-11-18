@@ -118,6 +118,7 @@ fn generated_with_test(test: Option<&[u8]>) -> (engine::Config, engine::Limits) 
 
 fn sign_in_owner(driver: &mut Driver) {
     driver.send(Event::Party(PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(900)),
         identity: people::Identity {

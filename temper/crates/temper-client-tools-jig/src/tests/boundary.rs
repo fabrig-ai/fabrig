@@ -17,7 +17,8 @@ fn no_file_under_jig_names_temper_or_an_item_outside_jig() {
                 .replace("temper help server", "")
                 .replace("temper ctl dir sign-out", "")
                 .replace("temper does not know it", "")
-                .replace("temper-box serve prints\\na fresh one", "")
+                .replace("temper-box serve\\nprints one", "")
+                .replace("temper ctl directory link --out file", "")
         } else {
             names
         };

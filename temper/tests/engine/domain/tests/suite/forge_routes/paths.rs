@@ -20,6 +20,7 @@ const LINES: &[(&str, u32)] = &[("jig's small profile", 4), ("the process tier's
 fn sign_in_reader(world: &mut World) {
     let owner = world.signed_in.take().expect("owner session");
     world.send(engine::Event::Party(engine::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(SIGN_IN_READER),
         identity: people::Identity {

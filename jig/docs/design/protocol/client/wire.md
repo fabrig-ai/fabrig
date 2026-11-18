@@ -280,8 +280,9 @@ the engine's messages to the client as they come.
 | opening a watch | the stream's name; the client's name for the watch; the subject, with its owner, version and window | admitted, or refused (`README.md`, section 5) |
 | closing a watch | the stream's name and the watch's | closed, once the engine has ended it |
 | a stream gone | the stream's name | nothing more: the engine ends the stream and its watches, when it is the sign-in's and still open (section 2) |
-| signing in | the printed link's secret; or, as a service, nothing more than the service's credential, as the message's credential; or an approval's secret | a sign-in's credential, refused, not ready, or why a printed link's secret or an approval's can't sign in (`sign-in.md`) |
+| signing in | a link's secret, the printed link's, the local link's or an asked one's; or, as a service, nothing more than the service's credential, as the message's credential; or an approval's secret | a sign-in's credential, refused, not ready, or why a printed link's secret or an approval's can't sign in (`sign-in.md`) |
 | asking an approval | nothing | the approval's secret, its code and its expiry; refused, not ready or busy (`sign-in.md`) |
+| asking a link | nothing more than the asking sign-in's credential | the link's secret and its expiry; refused, signed out, not ready or busy (`sign-in.md`, the asked link) |
 | reading an approval, deciding one | its code; and approve or refuse, to decide | what the approval is, or the decision's answer; not a browser, signed out, not ready or busy (`sign-in.md`) |
 | signing out | nothing more than the credential of the sign-in it ends | signed out, or not ready |
 

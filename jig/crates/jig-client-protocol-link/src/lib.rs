@@ -4,6 +4,7 @@
 #![forbid(unsafe_code)]
 extern crate alloc;
 mod approval;
+mod asked_link;
 mod authorize;
 pub mod boundary;
 mod component;

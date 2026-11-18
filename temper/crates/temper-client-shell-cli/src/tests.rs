@@ -1,5 +1,6 @@
 mod deadline;
 pub(crate) mod fixtures;
+mod link;
 mod service;
 use crate::{directory, limits};
 use skein_io::kernel::{Error, Exit, ServiceSignal};
@@ -420,9 +421,9 @@ fn a_party_write_failure_is_named_before_success_prints() {
 fn the_engine_names_each_link_refusal_without_writing_files() {
     use jig_client_protocol_wire::SignInAnswer;
     for (answer, line) in [
-        (SignInAnswer::LinkUsed, b"temper ctl: the sign-in link was refused: it was already used; temper-box serve prints a fresh one\n".as_slice()),
-        (SignInAnswer::LinkExpired, b"temper ctl: the sign-in link was refused: it has expired; temper-box serve prints a fresh one\n".as_slice()),
-        (SignInAnswer::LinkUnknown, b"temper ctl: the sign-in link was refused: temper does not know it, as another deployment's link or one it no longer remembers; temper-box serve prints a fresh one\n".as_slice()),
+        (SignInAnswer::LinkUsed, b"temper ctl: the sign-in link was refused: it was already used; temper-box serve prints a fresh one, and a signed-in client asks one with temper ctl DIRECTORY link --out FILE\n".as_slice()),
+        (SignInAnswer::LinkExpired, b"temper ctl: the sign-in link was refused: it has expired; temper-box serve prints a fresh one, and a signed-in client asks one with temper ctl DIRECTORY link --out FILE\n".as_slice()),
+        (SignInAnswer::LinkUnknown, b"temper ctl: the sign-in link was refused: temper does not know it, as another deployment's link or one it no longer remembers; temper-box serve prints a fresh one, and a signed-in client asks one with temper ctl DIRECTORY link --out FILE\n".as_slice()),
         (SignInAnswer::Refused, b"temper ctl: the sign-in link was refused\n".as_slice()),
     ] {
         let mut f = fixtures::Disk::sign_in(fixtures::LINK);

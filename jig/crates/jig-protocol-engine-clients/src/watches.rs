@@ -112,6 +112,7 @@ impl Component {
                 }
             },
             Route::ApprovalAsk
+            | Route::LinkAsk
             | Route::ApprovalRead
             | Route::ApprovalDecide
             | Route::ApprovalTake
@@ -294,7 +295,9 @@ impl Component {
                 | Waiting::Read { sign_in, .. }
                 | Waiting::Authorize { sign_in, .. }
                 | Waiting::ApplicationRead { sign_in, .. } => Some(*sign_in),
-                Waiting::ApprovalWhose { .. }
+                Waiting::LinkAskWhose { .. }
+                | Waiting::AskedWhose { .. }
+                | Waiting::ApprovalWhose { .. }
                 | Waiting::ApprovalCore { .. }
                 | Waiting::Core { .. }
                 | Waiting::LinkGet { .. }

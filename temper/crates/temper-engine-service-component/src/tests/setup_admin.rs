@@ -902,6 +902,7 @@ pub(super) fn access_host(owned: bool) -> (crate::Service, Forge) {
     });
     let engine = service.engine.as_mut().unwrap();
     engine.step(root::Event::Party(root::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: skein_lib::ReplyTo::new(Token::new(100)),
         identity: jig_domain_people::Identity {

@@ -554,6 +554,7 @@ impl Application for Temper {
             if !peers.signed_in {
                 peers.signed_in = true;
                 events.push(engine::Event::Party(engine::PartyInput::SignedIn {
+                    until: None,
                     held: None,
                     reply_to: ReplyTo::new(Token::new(90)),
                     identity: people::Identity {

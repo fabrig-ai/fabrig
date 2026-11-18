@@ -26,8 +26,8 @@
   `role`, `need`, and
   area 3's `project`, `party`, `deployment` and `worker` (`workers.md`); `../../protocol/documentation.md`,
   2.4), then a verb of the closed vocabulary, `task show`; or
-  one of the six names of the client and the party, `me`, `inbox`,
-  `sign-in`, `sign-out`, `pending` and `help`. A read of a part of the
+  one of the seven names of the client and the party, `me`, `inbox`,
+  `sign-in`, `sign-out`, `link`, `pending` and `help`. A read of a part of the
   group's noun is the part's name: `task tree`, `task run`, `task
   activity`, `task turn`, `forge repositories`, `repository receipts`,
   `qa marks`, `qa passes`. `help GROUP` lists a

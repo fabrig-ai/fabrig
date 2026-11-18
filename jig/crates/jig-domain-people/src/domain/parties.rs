@@ -260,6 +260,7 @@ pub(super) struct SigningIn {
     pub(super) identity: Identity,
     pub(super) kind: Kind,
     pub(super) held: Option<u64>,
+    pub(super) until: Option<Wall>,
 }
 
 #[expect(
@@ -273,7 +274,7 @@ pub(super) fn signin(
     signing: SigningIn,
     out: &mut Queue<Request>,
 ) {
-    let SigningIn { candidate, number, identity, kind, held } = signing;
+    let SigningIn { candidate, number, identity, kind, held, until } = signing;
     if !domain.ready() {
         return again(to, Again::NotReady, out);
     }
@@ -321,6 +322,11 @@ pub(super) fn signin(
             }
         }
     }
+    if let Some(cap) = until
+        && cap <= env.wall
+    {
+        return refused(to, Refusal::Unknown, out);
+    }
     if domain.sign_ins.len() >= env.limits.sign_ins {
         if let Some(number) = domain.alarms.expire(env.now) {
             end_signin(domain, number, out);
@@ -354,7 +360,11 @@ pub(super) fn signin(
     let Some(expires_nanos) = env.wall.as_nanos().checked_add(env.limits.sign_in_lifetime.as_nanos()) else {
         return refused(to, Refusal::Limit { which: LimitKind::Arithmetic }, out);
     };
-    let expires = Wall::from_nanos(expires_nanos);
+    let lifetime_expiry = Wall::from_nanos(expires_nanos);
+    let expires = match until {
+        None => lifetime_expiry,
+        Some(cap) => core::cmp::min(lifetime_expiry, cap),
+    };
     if known.is_none() {
         let indexed = domain.identities.insert(identity.key.clone(), person);
         assert!(indexed == Ok(None), "new identity has room");

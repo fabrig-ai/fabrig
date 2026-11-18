@@ -883,6 +883,7 @@ fn a_setting_answer_names_the_same_revision_as_its_committed_inventory() {
         &mut domain,
         &env,
         crate::PartyInput::SignedIn {
+            until: None,
             held: None,
             reply_to: READ_REPLY,
             identity: people::Identity { key: identity, login: Box::new([]), name: Box::new([]) },

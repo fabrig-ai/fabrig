@@ -1144,6 +1144,7 @@ fn signed_worker_on(channel: Token) -> crate::Service {
     use temper_engine_domain as root;
     let mut service = restored_key();
     service.engine.as_mut().expect("engine").step(root::Event::Party(root::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: skein_lib::ReplyTo::new(Token::new(100)),
         identity: jig_domain_people::Identity {
