@@ -31,14 +31,21 @@ pub fn left(numbers: Numbers) -> u64 {
     numbers.budget.saturating_sub(numbers.spent).saturating_sub(numbers.spent_below).saturating_sub(numbers.reserved)
 }
 
-/// A run's share, keeping half for delegates where authority permits them, rounded down and
-/// capped by the deployment (jig/docs/design/domain/authority.md, section 7).
+/// A run holds back at most half of what its task has left, where half funds a run.
+/// Where the authority may start a delegate and half, rounded down, is above the deployment's
+/// minimum, take half; otherwise take what is left. Either share is capped by the deployment
+/// (jig/docs/design/domain/authority.md, section 7).
 #[must_use]
 pub fn run_spend(rules: &Rules, authority: &Authority, numbers: Numbers) -> u64 {
     let delegation = &authority.delegation;
     let available = left(numbers);
-    let share = if !delegation.kinds.is_empty() && delegation.tasks > 0 && delegation.depth > 0 {
-        available.saturating_div(2)
+    let half = available.saturating_div(2);
+    let share = if !delegation.kinds.is_empty()
+        && delegation.tasks > 0
+        && delegation.depth > 0
+        && half > rules.minimum_run_spend
+    {
+        half
     } else {
         available
     };
