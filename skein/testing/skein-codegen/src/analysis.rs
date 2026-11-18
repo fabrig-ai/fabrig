@@ -86,14 +86,16 @@ impl<'a> Context<'a> {
     }
 
     pub(crate) fn record_limits(&self, name: &str) -> (&[(String, u32, String)], Option<&str>) {
-        self.limit_records.get(name).map_or((&[], None), |(range, next)| {
-            (self.bounds.get(range.clone()).expect("record bounds range"), *next)
-        })
+        self.limit_records
+            .get(name)
+            .map_or((&[], None), |(range, next)| (self.bounds.get(range.clone()).expect("record bounds range"), *next))
     }
 
     pub(crate) fn first_limits(&self) -> Option<&str> {
         self.declarations.iter().find_map(|declaration| match declaration {
-            Declaration::Record(record) if self.limit_records.contains_key(record.name.as_str()) => Some(record.name.as_str()),
+            Declaration::Record(record) if self.limit_records.contains_key(record.name.as_str()) => {
+                Some(record.name.as_str())
+            }
             Declaration::Record(_) | Declaration::Enum(_) => None,
         })
     }

@@ -192,8 +192,14 @@ mod tests {
 
     #[test]
     fn named_boolean_fields_keep_their_wire_order() {
-        let parts =
-            HostToolParts { inspect: true, modify: false, shell: true, agents: false, max_tokens: 7, payload: Box::from(&b"x"[..]) };
+        let parts = HostToolParts {
+            inspect: true,
+            modify: false,
+            shell: true,
+            agents: false,
+            max_tokens: 7,
+            payload: Box::from(&b"x"[..]),
+        };
         let value = HostTool::new(&LINT_CEILINGS, parts).expect("within limits");
         assert!(value.inspect());
         assert!(!value.modify());

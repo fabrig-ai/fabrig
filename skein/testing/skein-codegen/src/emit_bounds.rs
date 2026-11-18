@@ -112,7 +112,12 @@ pub(crate) fn emit_family(schema: &Context<'_>, out: &mut String) {
             "/// {doc}\n#[must_use]\npub fn {name}(limits: &Limits) -> Option<u64> {{\n    if check_limits(limits).is_err() {{ return None; }}\n"
         ));
         match schema.declarations.first() {
-            Some(first) => out.push_str(&format!("    {}_{name}_family(limits, 0)\n", emit_limits::snake(declaration_name(first)))),
+            Some(first) => {
+                out.push_str(&format!(
+                    "    {}_{name}_family(limits, 0)\n",
+                    emit_limits::snake(declaration_name(first))
+                ));
+            }
             None => out.push_str("    Some(0)\n"),
         }
         out.push_str("}\n\n");
@@ -129,7 +134,10 @@ pub(crate) fn emit(declaration: &Declaration, next: Option<&Declaration>, out: &
     for name in ["encoded_bound", "decoded_bound"] {
         out.push_str(&format!("fn {helper}_{name}_family(limits: &Limits, biggest: u64) -> Option<u64> {{\n    let biggest = biggest.max({ty}::{name}_within(limits)?);\n"));
         match next {
-            Some(next) => out.push_str(&format!("    {}_{name}_family(limits, biggest)\n", emit_limits::snake(declaration_name(next)))),
+            Some(next) => out.push_str(&format!(
+                "    {}_{name}_family(limits, biggest)\n",
+                emit_limits::snake(declaration_name(next))
+            )),
             None => out.push_str("    Some(biggest)\n"),
         }
         out.push_str("}\n\n");

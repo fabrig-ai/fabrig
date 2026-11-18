@@ -260,7 +260,17 @@ pub fn adopted_bytes() -> jig_client::Family {
     let limits = forge::wire_limits(&limits().forge).expect("wire limits");
     let kinds = w::Kinds::new(
         &limits,
-        w::KindsParts { read: true, push: true, open: true, land: true, review: false, status: false, comment: false, issue: false, branch: true },
+        w::KindsParts {
+            read: true,
+            push: true,
+            open: true,
+            land: true,
+            review: false,
+            status: false,
+            comment: false,
+            issue: false,
+            branch: true,
+        },
     )
     .expect("kinds");
     let adopted = w::Adopted::new(

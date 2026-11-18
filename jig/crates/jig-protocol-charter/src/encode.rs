@@ -133,7 +133,10 @@ fn tools(source: run::charter::Grants, limits: &wire::Limits) -> Option<wire::To
     let families = wire::Families::new(
         limits,
         wire::FamiliesParts {
-            inspect: source.tools.inspect, modify: source.tools.modify, shell: source.tools.shell, agents: source.agents,
+            inspect: source.tools.inspect,
+            modify: source.tools.modify,
+            shell: source.tools.shell,
+            agents: source.agents,
         },
     )
     .ok()?;

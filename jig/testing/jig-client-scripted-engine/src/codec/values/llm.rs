@@ -226,7 +226,11 @@ pub(in crate::codec) fn wire_provider_offer(
     w::ProviderOffer::new(
         limits,
         w::ProviderOfferParts {
-            sign_in: value.sign_in, key: value.key, programs_cut: value.programs_cut, none: value.none, signed_in_plan: value.signed_in_plan,
+            sign_in: value.sign_in,
+            key: value.key,
+            programs_cut: value.programs_cut,
+            none: value.none,
+            signed_in_plan: value.signed_in_plan,
             provider: value.provider,
             name: wire_document_text(&value.name, limits)?,
             programs: list(value.programs.iter().map(|item| Ok::<_, w::Problem>(bytes::copy_of((item).bytes()))))?,

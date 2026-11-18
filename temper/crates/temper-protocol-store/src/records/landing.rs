@@ -133,7 +133,10 @@ fn encode_member(member: &d::Member) -> w::LandingMember {
             unit: member.unit,
             branch: member.branch.clone(),
             combined: encode_combine(member.combined),
-            recorded: member.recorded, told: member.told, judging: member.judging, leave_told: member.leave_told,
+            recorded: member.recorded,
+            told: member.told,
+            judging: member.judging,
+            leave_told: member.leave_told,
             change: member.change,
             repository: names::encode_repository(skein_forge::api::Repository {
                 forge: member.repository.forge,
@@ -170,7 +173,10 @@ fn decode_member(member: w::LandingMember) -> d::Member {
         unit,
         branch,
         combined,
-        recorded, told, judging, leave_told,
+        recorded,
+        told,
+        judging,
+        leave_told,
     } = member.into_parts();
     let repository = names::decode_repository(repository);
     let mut proofs = List::with_capacity(gates.len());

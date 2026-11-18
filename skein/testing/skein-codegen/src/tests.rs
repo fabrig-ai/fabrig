@@ -48,7 +48,11 @@ fn changes_to_different_declarations_merge_line_by_line() {
             .args([&left, &base, &right])
             .output()
             .expect("git merge-file");
-        let conflicts = String::from_utf8_lossy(&merged.stdout).lines().filter(|line| line.starts_with("<<<<<<<") || line.starts_with("=======") || line.starts_with(">>>>>>>")).map(str::to_owned).collect::<Vec<_>>();
+        let conflicts = String::from_utf8_lossy(&merged.stdout)
+            .lines()
+            .filter(|line| line.starts_with("<<<<<<<") || line.starts_with("=======") || line.starts_with(">>>>>>>"))
+            .map(str::to_owned)
+            .collect::<Vec<_>>();
         assert!(merged.status.success(), "{old_left} / {old_right}: {conflicts:?}");
         let combined = original.replace(old_left, new_left).replace(old_right, new_right);
         let expected = generated(&combined);
@@ -75,7 +79,9 @@ fn versioned_records_name_their_modules_version() {
     for version in [1_u16, 4097] {
         let schema = parse(&format!("family versioned {version}\nversioned record First {{ value: u8 }}\nversioned record Second {{}}\nrecord Plain {{ value: u16 }}")).expect("versioned family");
         let output = generate(&schema);
-        assert!(output.records.contains(&format!("pub const VERSION: u16 = {};", crate::emit_limits::literal(version))));
+        assert!(
+            output.records.contains(&format!("pub const VERSION: u16 = {};", crate::emit_limits::literal(version)))
+        );
         assert_eq!(output.records.matches("writer.put(&VERSION.to_be_bytes())?;").count(), 2);
         assert_eq!(output.records.matches("if version != VERSION").count(), 2);
     }
@@ -125,7 +131,12 @@ fn limit_names_and_values_follow_field_order() {
             .collect::<Vec<_>>();
         assert_eq!(names, fields);
         assert!(output.records.contains("pub fn values(&self) -> List<u32>"));
-        let values = output.records.lines().filter_map(|line| line.trim().strip_prefix("values.push(self.")).map(|line| line.split_once(')').expect("pushed field").0).collect::<Vec<_>>();
+        let values = output
+            .records
+            .lines()
+            .filter_map(|line| line.trim().strip_prefix("values.push(self."))
+            .map(|line| line.split_once(')').expect("pushed field").0)
+            .collect::<Vec<_>>();
         assert_eq!(values, fields);
         if !fields.is_empty() {
             use skein_codec::schema::{LimitLevel, limit_child, limit_name};
@@ -209,16 +220,24 @@ fn variable_record_lists_measure_each_value() {
 }
 
 #[test]
-fn a_family_of_120_records_has_no_function_past_100_lines() {
+fn family_and_field_helpers_have_no_ordinals_or_long_functions() {
     let mut records = String::new();
     for index in 0_u32..120 {
         writeln!(&mut records, "record Record{index} {{}}").expect("schema string");
     }
+    records.push_str("versioned record Scalars {\n");
+    for index in 0_u32..100 {
+        writeln!(&mut records, "field{index}: u8").expect("schema string");
+    }
+    records.push_str("}\n");
     let schema = parse(&format!("family many 1\n{records}")).expect("valid family");
     let output = generate(&schema);
     assert!(output.records.contains("fn record0_encoded_bound_family("));
     assert!(output.records.contains("fn record119_decoded_bound_family("));
     check_item_names(&output.records);
+    assert!(output.records.contains("fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>)"));
+    assert!(output.records.contains("Self::decode_from_field0_field(limits, reader)?;"));
+    assert!(output.records.contains("fn decode_from_field0_field(_limits: &Limits,"));
     for name in ["worst_case_bytes", "worst_case_heap", "worst_case_bytes_within", "worst_case_heap_within"] {
         assert!(!output.records.contains(name), "old name {name}");
     }
@@ -231,8 +250,18 @@ pub(super) fn check_item_names(source: &str) {
         for pair in words.windows(2) {
             if ["fn", "struct", "enum", "const"].contains(pair.first().expect("item keyword")) {
                 let name = pair.get(1).expect("item name").split(['(', ':', '<', '{']).next().expect("identifier");
-                assert!(!name.rsplit_once('_').is_some_and(|(_, tail)| !tail.is_empty() && tail.bytes().all(|byte| byte.is_ascii_digit())), "ordinal item: {name}");
-                assert!(!name.rsplit_once("Decoded").is_some_and(|(_, tail)| !tail.is_empty() && tail.bytes().all(|byte| byte.is_ascii_digit())), "ordinal decoded type: {name}");
+                assert!(
+                    !name
+                        .rsplit_once('_')
+                        .is_some_and(|(_, tail)| !tail.is_empty() && tail.bytes().all(|byte| byte.is_ascii_digit())),
+                    "ordinal item: {name}"
+                );
+                assert!(
+                    !name
+                        .rsplit_once("Decoded")
+                        .is_some_and(|(_, tail)| !tail.is_empty() && tail.bytes().all(|byte| byte.is_ascii_digit())),
+                    "ordinal decoded type: {name}"
+                );
             }
         }
     }

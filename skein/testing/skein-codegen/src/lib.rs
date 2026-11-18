@@ -145,13 +145,22 @@ pub fn generate(schema: &Schema) -> Output {
         records.push_str("use alloc::boxed::Box;\n");
     }
     records.push_str("use skein_lib::List;\n\n");
-    writeln!(&mut records, "/// This family's schema version.\npub const VERSION: u16 = {};\n", emit_limits::literal(schema.version)).expect("generated source");
+    writeln!(
+        &mut records,
+        "/// This family's schema version.\npub const VERSION: u16 = {};\n",
+        emit_limits::literal(schema.version)
+    )
+    .expect("generated source");
     emit_limits::emit(&context, &mut records);
     emit_bounds::emit_family(&context, &mut records);
     for (index, declaration) in schema.declarations.iter().enumerate() {
         emit_types::emit(&context, declaration, &mut records);
         emit_codec::emit(&context, declaration, &mut records);
-        emit_bounds::emit(declaration, schema.declarations.get(index.checked_add(1).expect("declaration index")), &mut records);
+        emit_bounds::emit(
+            declaration,
+            schema.declarations.get(index.checked_add(1).expect("declaration index")),
+            &mut records,
+        );
         if let Declaration::Record(record) = declaration {
             emit_limits::emit_record(&context, record, &mut records);
         }

@@ -331,7 +331,11 @@ pub(super) fn encode_protection(value: &d::Protection) -> w::Protection {
             branch: branch.clone(),
             contexts: names::encode_piece(contexts),
             approvals: *approvals,
-            dismiss_stale: *dismiss_stale, queue: *queue, signatures: *signatures, linear: *linear, code_owners: *code_owners,
+            dismiss_stale: *dismiss_stale,
+            queue: *queue,
+            signatures: *signatures,
+            linear: *linear,
+            code_owners: *code_owners,
             bypass: match bypass {
                 d::Bypass::Never => w::Bypass::Never,
                 d::Bypass::PullsOnly => w::Bypass::PullsOnly,
@@ -346,7 +350,11 @@ pub(super) fn decode_protection(value: w::Protection, bounds: &Bounds) -> Result
         branch,
         contexts,
         approvals,
-        dismiss_stale, queue, signatures, linear, code_owners,
+        dismiss_stale,
+        queue,
+        signatures,
+        linear,
+        code_owners,
         bypass,
     } = value.into_parts();
     Ok(d::Protection {

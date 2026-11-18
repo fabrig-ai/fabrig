@@ -190,7 +190,12 @@ pub(in crate::codec) fn wire_charter(value: &c::Charter, limits: &w::Limits) -> 
                     },
                 )
             }))?,
-            rest: value.rest, resume: value.resume, inspect: value.inspect, modify: value.modify, shell: value.shell, agents: value.agents,
+            rest: value.rest,
+            resume: value.resume,
+            inspect: value.inspect,
+            modify: value.modify,
+            shell: value.shell,
+            agents: value.agents,
             number: value.number,
             instructions: bytes::copy_of(value.instructions.bytes()),
             waiting: value.waiting,

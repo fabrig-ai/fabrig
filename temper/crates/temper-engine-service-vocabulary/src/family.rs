@@ -1214,7 +1214,15 @@ pub fn answer(
                         kinds: w::Kinds::new(
                             limits,
                             w::KindsParts {
-                                read: a.kinds.read, push: a.kinds.push, open: a.kinds.open, land: a.kinds.land, review: a.kinds.review, status: a.kinds.status, comment: a.kinds.comment, issue: a.kinds.issue, branch: a.kinds.branch,
+                                read: a.kinds.read,
+                                push: a.kinds.push,
+                                open: a.kinds.open,
+                                land: a.kinds.land,
+                                review: a.kinds.review,
+                                status: a.kinds.status,
+                                comment: a.kinds.comment,
+                                issue: a.kinds.issue,
+                                branch: a.kinds.branch,
                             },
                         )
                         .ok()?,

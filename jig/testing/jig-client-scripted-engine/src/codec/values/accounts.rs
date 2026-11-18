@@ -113,7 +113,11 @@ pub(in crate::codec) fn wire_accounts(value: &c::Accounts, limits: &w::Limits) -
     w::Accounts::new(
         limits,
         w::AccountsParts {
-            lendable: value.lendable, usable: value.usable, settled: value.settled, cut: value.cut, readiness_cut: value.readiness_cut,
+            lendable: value.lendable,
+            usable: value.usable,
+            settled: value.settled,
+            cut: value.cut,
+            readiness_cut: value.readiness_cut,
             lending: value.lending.as_ref().map(|item| wire_terminal_login(item, limits)).transpose()?,
             lent_end: value
                 .lent_end

@@ -191,7 +191,9 @@ pub(crate) fn emit_record(schema: &Context<'_>, record: &crate::Record, out: &mu
         for group in bounds.chunk_by(|left, right| left.2 == right.2) {
             let path = snake(&group.first().expect("nonempty field bounds").2);
             out.push_str(&format!("        self.values_for_{path}_field(values);\n"));
-            helpers.push_str(&format!("\nimpl Limits {{\n    fn values_for_{path}_field(&self, values: &mut List<u32>) {{\n"));
+            helpers.push_str(&format!(
+                "\nimpl Limits {{\n    fn values_for_{path}_field(&self, values: &mut List<u32>) {{\n"
+            ));
             values(group, &mut helpers);
             helpers.push_str("    }\n}\n");
         }

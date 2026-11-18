@@ -59,7 +59,10 @@ pub fn owner_deployment_record() -> w::Deployment {
         &lim,
         w::DeploymentParts {
             worker_settings: List::with_capacity(0),
-            cut: false, connectors_cut: false, providers_cut: false, readiness_cut: false,
+            cut: false,
+            connectors_cut: false,
+            providers_cut: false,
+            readiness_cut: false,
             providers: Box::new([]),
             key_bytes: 256,
             readiness: Box::new([]),

@@ -376,7 +376,11 @@ fn accounts(ended: bool) -> w::DeliveryValue {
         w::Accounts::new(
             &w::CEILINGS,
             w::AccountsParts {
-                lendable: false, usable: false, settled: false, cut: false, readiness_cut: false,
+                lendable: false,
+                usable: false,
+                settled: false,
+                cut: false,
+                readiness_cut: false,
                 lending: None,
                 lent_end: None,
                 program_hosts: Box::default(),
@@ -538,7 +542,11 @@ fn me_with_openai() -> w::DeliveryValue {
                 w::DocumentTextParts { bytes: b"openai".as_slice().into(), cut: false },
             )
             .expect("name"),
-            sign_in: true, key: true, programs_cut: false, none: false, signed_in_plan: true,
+            sign_in: true,
+            key: true,
+            programs_cut: false,
+            none: false,
+            signed_in_plan: true,
             programs: List::with_capacity(0),
             manage_usage: None,
             key_bytes: 4096,

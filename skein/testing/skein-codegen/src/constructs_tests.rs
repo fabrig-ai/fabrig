@@ -98,10 +98,12 @@ fn defaults_are_explicit_and_former_names_cover_each_named_part() {
 #[test]
 fn output_shapes_keep_named_booleans_and_field_helpers() {
     assert!(!found("record R { a: bool b: bool c: bool }").contains(&Construct::NamedBooleans));
-    let booleans = "record R { a: bool b: bool c: bool d: bool }";
+    let booleans = "record R { a: bool b: bool c: bool d: bool width: fixed 4 }";
     assert!(found(booleans).contains(&Construct::NamedBooleans));
     let output = crate::generate(&crate::parse(&format!("family f 1\n{booleans}")).expect("boolean record")).records;
     assert!(!output.contains("skein_bools"));
+    assert!(!output.contains("[bool;"));
+    assert!(output.contains("pub width: [u8; 4],"));
     assert_eq!(output.matches("#[expect(clippy::struct_excessive_bools,").count(), 2);
     for name in ["a", "b", "c", "d"] {
         assert!(output.contains(&format!("    {name}: bool,")));

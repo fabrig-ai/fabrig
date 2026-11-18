@@ -128,7 +128,10 @@ pub(in crate::codec) fn wire_deployment(
         limits,
         w::DeploymentParts {
             worker_settings,
-            cut: value.cut, connectors_cut: value.connectors_cut, providers_cut: value.providers_cut, readiness_cut: value.readiness_cut,
+            cut: value.cut,
+            connectors_cut: value.connectors_cut,
+            providers_cut: value.providers_cut,
+            readiness_cut: value.readiness_cut,
             store: wire_store_fill(&value.store, limits)?,
             census: value.census.as_deref().map(|value| wire_store_census(value, limits)).transpose()?,
             hosts: pieces(value.hosts.iter().map(|item| wire_host(item, limits)), w::Host::measure, w::Host::encode)?,
@@ -210,7 +213,10 @@ pub(in crate::codec) fn wire_host(value: &c::Host, limits: &w::Limits) -> Result
     w::Host::new(
         limits,
         w::HostParts {
-            awaiting_logins: value.awaiting_logins, draining: value.draining, connected: value.connected, cut: value.cut,
+            awaiting_logins: value.awaiting_logins,
+            draining: value.draining,
+            connected: value.connected,
+            cut: value.cut,
             name: value.name.as_ref().map(|item| Ok::<_, w::Problem>(bytes::copy_of(item))).transpose()?,
             rule: wire_host_rule(&value.rule, limits)?,
             programs: pieces(
@@ -367,7 +373,11 @@ pub(in crate::codec) fn wire_account(value: &c::Account, limits: &w::Limits) -> 
         w::AccountParts {
             list: value.list.as_ref().map(|list| wire_account_list(list, limits)).transpose()?,
             facts: list(value.facts.iter().map(|fact| wire_account_fact(fact, limits)))?,
-            plan: value.plan, usable: value.usable, expiring: value.expiring, attention: value.attention, cut: value.cut,
+            plan: value.plan,
+            usable: value.usable,
+            expiring: value.expiring,
+            attention: value.attention,
+            cut: value.cut,
             number: value.number,
             place: value.place,
             uses: value

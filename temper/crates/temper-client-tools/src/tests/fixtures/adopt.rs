@@ -31,7 +31,21 @@ pub(crate) fn adopted_with_unknown_protection() -> w::Outcome {
                 role: w::Role::Owned,
                 home: true,
                 // All nine capabilities exercise the forge's specified output order.
-                kinds: w::Kinds::new(&limits, w::KindsParts { read: true, push: true, open: true, land: true, review: true, status: true, comment: true, issue: true, branch: true }).expect("kinds"),
+                kinds: w::Kinds::new(
+                    &limits,
+                    w::KindsParts {
+                        read: true,
+                        push: true,
+                        open: true,
+                        land: true,
+                        review: true,
+                        status: true,
+                        comment: true,
+                        issue: true,
+                        branch: true,
+                    },
+                )
+                .expect("kinds"),
                 protection: w::Protection::Unknown,
             },
         )

@@ -429,7 +429,7 @@ fn coder_charter(modify: bool) -> Box<[u8]> {
         let mut tools = parts.tools.clone().into_parts();
         tools.families = smith_charter::Families::new(
             &smith_charter::CEILINGS,
-            smith_charter::FamiliesParts { inspect: true, modify: modify, shell: false, agents: false },
+            smith_charter::FamiliesParts { inspect: true, modify, shell: false, agents: false },
         )
         .expect("coder families");
         parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("coder tools");

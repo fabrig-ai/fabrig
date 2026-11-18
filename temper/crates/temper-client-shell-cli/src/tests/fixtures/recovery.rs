@@ -443,7 +443,21 @@ fn adopted() -> temper_client_protocol_wire::v1::Outcome {
                 name: b"n".as_slice().into(),
                 role: f::Role::Owned,
                 home: true,
-                kinds: f::Kinds::new(&f::CEILINGS, f::KindsParts { read: true, push: true, open: true, land: true, review: true, status: true, comment: true, issue: true, branch: true }).expect("repository kinds"),
+                kinds: f::Kinds::new(
+                    &f::CEILINGS,
+                    f::KindsParts {
+                        read: true,
+                        push: true,
+                        open: true,
+                        land: true,
+                        review: true,
+                        status: true,
+                        comment: true,
+                        issue: true,
+                        branch: true,
+                    },
+                )
+                .expect("repository kinds"),
                 protection: f::Protection::Unknown,
             },
         )

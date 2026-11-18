@@ -172,13 +172,22 @@ pub(super) fn encode_kinds(value: &d::Kinds) -> w::Kinds {
     let d::Kinds { read, push, open, land, review, status, comment, issue, branch } = value;
     w::Kinds::new(
         &w::CEILINGS,
-        w::KindsParts { read: *read, push: *push, open: *open, land: *land, review: *review, status: *status, comment: *comment, issue: *issue, branch: *branch },
+        w::KindsParts {
+            read: *read,
+            push: *push,
+            open: *open,
+            land: *land,
+            review: *review,
+            status: *status,
+            comment: *comment,
+            issue: *issue,
+            branch: *branch,
+        },
     )
     .expect(FITS)
 }
 pub(super) fn decode_kinds(value: w::Kinds) -> d::Kinds {
-    let w::KindsParts { read, push, open, land, review, status, comment, issue, branch } =
-        value.into_parts();
+    let w::KindsParts { read, push, open, land, review, status, comment, issue, branch } = value.into_parts();
     d::Kinds { read, push, open, land, review, status, comment, issue, branch }
 }
 

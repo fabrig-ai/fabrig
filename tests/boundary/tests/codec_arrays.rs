@@ -43,7 +43,8 @@ fn findings(root: &Path) -> Vec<String> {
             let source = fs::read_to_string(root.join(path)).unwrap_or_else(|why| panic!("{path}: {why}"));
             let count = counted_arrays(&source);
             if count != 0 {
-                failures.push(format!("{path}: {count} array types count schema items; only [u8; N] widths are permitted"));
+                failures
+                    .push(format!("{path}: {count} array types count schema items; only [u8; N] widths are permitted"));
             }
         }
     }

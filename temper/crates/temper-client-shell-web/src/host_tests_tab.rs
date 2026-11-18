@@ -64,7 +64,11 @@ fn linked_at(path: &[u8], records: Vec<skein_ui_web::store::Record>) -> Host {
                 w::DocumentTextParts { bytes: b"openai".as_slice().into(), cut: false },
             )
             .expect("name"),
-            sign_in: true, key: true, programs_cut: false, none: false, signed_in_plan: true,
+            sign_in: true,
+            key: true,
+            programs_cut: false,
+            none: false,
+            signed_in_plan: true,
             programs: List::with_capacity(0),
             manage_usage: None,
             key_bytes: 4096,

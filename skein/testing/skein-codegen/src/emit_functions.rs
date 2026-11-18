@@ -33,10 +33,18 @@ impl Method {
     }
 }
 
-fn helper(record: &Record, method: &str, statement: &Statement, out: &mut String, helpers: &mut String) {
+fn helper(
+    record: &Record,
+    method: &Method,
+    statement: &Statement,
+    index: usize,
+    out: &mut String,
+    helpers: &mut String,
+) {
     let field = &statement.field;
-    let name = format!("{method}_{field}_field");
-    let (parameters, arguments, result, finish, call) = match method {
+    let method_name = method.name;
+    let name = format!("{method_name}_{field}_field");
+    let (parameters, arguments, result, finish, call) = match method_name {
         "measure" => {
             let (parameters, arguments) = if statement.text.contains("self.") {
                 ("&self, mut size: u32", "self, size")
@@ -45,16 +53,12 @@ fn helper(record: &Record, method: &str, statement: &Statement, out: &mut String
             };
             (parameters, arguments, "u32", "size", "size = ")
         }
-        "encode" => (
-            "&self, writer: &mut skein_lib::Writer",
-            "self, writer",
-            "Result<(), skein_lib::Overflow>",
-            "Ok(())",
-            "",
-        ),
+        "encode" => {
+            ("&self, writer: &mut skein_lib::Writer", "self, writer", "Result<(), skein_lib::Overflow>", "Ok(())", "")
+        }
         "check" => ("&self, limits: &Limits", "self, limits", "Result<(), Problem>", "Ok(())", ""),
         "decode_from" => {
-            let ty = &record.fields.iter().find(|candidate| candidate.name == *field).expect("decoded field").ty;
+            let ty = &record.fields.get(index).expect("decode statements follow field order").ty;
             let limits = if uses_limits(ty) { "limits" } else { "_limits" };
             out.push_str(&format!("        let decoded_{field} = Self::{name}(limits, reader)?;\n"));
             helpers.push_str(&format!(
@@ -65,7 +69,7 @@ fn helper(record: &Record, method: &str, statement: &Statement, out: &mut String
         }
         _ => unreachable!("record method selected"),
     };
-    let question = if method == "measure" { "" } else { "?" };
+    let question = if method_name == "measure" { "" } else { "?" };
     out.push_str(&format!("        {call}Self::{name}({arguments}){question};\n"));
     helpers.push_str(&format!(
         "\nimpl {} {{\n    fn {name}({parameters}) -> {result} {{\n{}        {finish}\n    }}\n}}\n",
@@ -102,13 +106,23 @@ pub(crate) fn pack_dispatches(source: String, marker: &str) -> String {
 /// Renders a field's operations together; a split never crosses a field boundary.
 pub(crate) fn render(record: &Record, method: &Method, out: &mut String, helpers: &mut String) {
     let mut function = String::new();
-    function.extend(method.head.iter().map(String::as_str));
-    let lines = method.head.iter().chain(method.body.iter().map(|statement| &statement.text))
-        .map(|text| text.lines().count()).sum::<usize>();
+    let lines = method
+        .head
+        .iter()
+        .chain(method.body.iter().map(|statement| &statement.text))
+        .map(|text| text.lines().count())
+        .sum::<usize>();
     let split = lines >= 98;
-    for statement in &method.body {
+    for head in &method.head {
+        if split && method.name == "decode_from" {
+            function.push_str(&head.replace("_limits:", "limits:"));
+        } else {
+            function.push_str(head);
+        }
+    }
+    for (index, statement) in method.body.iter().enumerate() {
         if split {
-            helper(record, method.name, statement, &mut function, helpers);
+            helper(record, method, statement, index, &mut function, helpers);
         } else {
             function.push_str(&statement.text);
         }
@@ -116,7 +130,8 @@ pub(crate) fn render(record: &Record, method: &Method, out: &mut String, helpers
     match &method.tail {
         Tail::Line(line) => function.push_str(line),
         Tail::Members(members) => {
-            let members = members.iter().map(|field| format!("{field}: decoded_{field}")).collect::<Vec<_>>().join(", ");
+            let members =
+                members.iter().map(|field| format!("{field}: decoded_{field}")).collect::<Vec<_>>().join(", ");
             function.push_str(&format!("        Ok(Self {{ {members} }})\n"));
         }
     }

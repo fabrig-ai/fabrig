@@ -277,7 +277,15 @@ pub fn encode_lacks(value: &authority::Lacks, limits: &View) -> Result<wire::Lac
     wire::Lacks::new(
         &limits.core,
         wire::LacksParts {
-            tools: *tools, grants: *grants, executors: *executors, tasks: *tasks, depth: *depth, spend: *spend, deadline: *deadline, notes: *notes, models: *models,
+            tools: *tools,
+            grants: *grants,
+            executors: *executors,
+            tasks: *tasks,
+            depth: *depth,
+            spend: *spend,
+            deadline: *deadline,
+            notes: *notes,
+            models: *models,
         },
     )
 }

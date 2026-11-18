@@ -65,7 +65,10 @@ pub fn encode_charter(
             families: match wire::Families::new(
                 limits,
                 wire::FamiliesParts {
-                    inspect: source.grants.tools.inspect, modify: source.grants.tools.modify, shell: source.grants.tools.shell, agents: source.grants.agents,
+                    inspect: source.grants.tools.inspect,
+                    modify: source.grants.tools.modify,
+                    shell: source.grants.tools.shell,
+                    agents: source.grants.agents,
                 },
             ) {
                 Ok(value) => value,
