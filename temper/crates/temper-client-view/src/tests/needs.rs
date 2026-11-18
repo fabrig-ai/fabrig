@@ -211,20 +211,22 @@ fn home_parts(root: &d::Domain, object: c::ObjectKey) {
 
 #[test]
 fn example_parts_are_in_order_and_choices_keep_their_names_and_acts() {
-    for (root, object, title, task) in [
-        (Box::new(root()), object(1), b"welcome-stall".as_slice(), f::INBOX_TASK),
+    for (root, object, title, task, question_shown) in [
+        (Box::new(root()), object(1), b"welcome-stall".as_slice(), f::INBOX_TASK, true),
         (
             Box::new(word_person(QUESTION, false, false, c::Requester::Task(42))),
             c::ObjectKey::PersonTask(f::INBOX_TASK),
             b"Task 42",
             42,
+            true,
         ),
-        (Box::new(finished_person(true)), c::ObjectKey::PersonTask(f::INBOX_TASK), b"Task 42", 42),
+        (Box::new(finished_person(true)), c::ObjectKey::PersonTask(f::INBOX_TASK), b"Task 42", 42, true),
         (
             Box::new(word_person(QUESTION, false, true, c::Requester::Person(73))),
             c::ObjectKey::PersonTask(f::INBOX_TASK),
-            b"Review the plan",
+            "Fix the dropped watch in jig’s store, or keep it alive in temper serve?".as_bytes(),
             f::INBOX_TASK,
+            false,
         ),
     ] {
         let needs::Need::Card(card) =
@@ -246,14 +248,21 @@ fn example_parts_are_in_order_and_choices_keep_their_names_and_acts() {
             look::ASK_CHOICES,
             look::NEED_TELL,
         ];
-        let order: Vec<_> =
-            styles.iter().map(|s| main(&view).iter().position(|n| n.styles.as_slice().contains(s)).unwrap()).collect();
+        let order: Vec<_> = styles
+            .iter()
+            .filter(|s| **s != look::FLOW_Q || question_shown)
+            .map(|s| main(&view).iter().position(|n| n.styles.as_slice().contains(s)).unwrap())
+            .collect();
         assert!(order.windows(2).all(|p| p[0] < p[1]));
-        assert_eq!(styled(&view, look::FLOW_Q).role, Role::Heading { level: 1 });
-        assert_eq!(
-            styled(&view, look::FLOW_Q).name.as_deref(),
-            Some("Fix the dropped watch in jig’s store, or keep it alive in temper serve?".as_bytes())
-        );
+        if question_shown {
+            assert_eq!(styled(&view, look::FLOW_Q).role, Role::Heading { level: 1 });
+            assert_eq!(
+                styled(&view, look::FLOW_Q).name.as_deref(),
+                Some("Fix the dropped watch in jig’s store, or keep it alive in temper serve?".as_bytes())
+            );
+        } else {
+            assert!(!main(&view).iter().any(|n| n.styles.as_slice().contains(&look::FLOW_Q)));
+        }
         assert!(
             styled(&view, look::ASK_META)
                 .name
@@ -1004,6 +1013,7 @@ fn word_person_read(
 ) -> d::Domain {
     let mut person = person();
     person.task.task = f::INBOX_TASK;
+    person.task.title = self::words(words.split('\n').next().unwrap());
     person.spec.specification.words =
         c::DocumentText { bytes: c::Text::new(words.as_bytes().into(), 4096).unwrap(), cut: words_cut };
     person.spec.cut = document_cut;
@@ -1091,21 +1101,24 @@ fn held_person_and_funds_cards_cut_titles_before_joining_lines() {
     let mut person = person();
     person.task.title = words(&long);
     for (row, heading) in [
-        (held_row(held), cut.as_str()),
-        (held_row(funds), "31 of 40 used."),
+        (held_row(held), Some("The Ready page waits for this decision.")),
+        (held_row(funds), Some("31 of 40 used.")),
         (
             (
                 c::ObjectKey::PersonTask(person.task.task),
                 c::Read::PersonTask { task: person.task.task },
                 c::ReadValue::PersonTask(Box::new(person)),
             ),
-            cut.as_str(),
+            None,
         ),
     ] {
         let number = crate::pages::inbox::source_task(row.0).unwrap();
         let root = kinds(&[row]);
         let view = f::browser_page_view(&root);
-        assert_eq!(styled(&view, look::FLOW_Q).name.as_deref(), Some(heading.as_bytes()));
+        assert_eq!(
+            main(&view).iter().find(|n| n.styles.as_slice().contains(&look::FLOW_Q)).and_then(|n| n.name.as_deref()),
+            heading.map(str::as_bytes)
+        );
         assert!(f::find(view.tree(), Role::Link, cut.as_bytes()).is_some());
         assert!(!has(&view, long.as_bytes()));
         let terminal = f::page_view(&root);
@@ -1131,32 +1144,32 @@ fn complete_title_only_person_card_words_are_omitted() {
 }
 
 #[test]
-fn held_card_bodies_keep_the_title_and_body_words() {
+fn held_card_bodies_keep_only_body_words_in_the_browser_and_whole_words_in_the_terminal() {
     held_card_words("Release the runner\nIt waits on CI.", false, true, c::HoldCategory::Stalled);
 }
 
 #[test]
-fn funds_card_bodies_keep_the_title_and_body_words() {
+fn funds_card_bodies_keep_only_body_words_in_the_browser_and_whole_words_in_the_terminal() {
     held_card_words("Release the runner\nIt waits on CI.", false, true, c::HoldCategory::Budget);
 }
 
 #[test]
-fn person_card_bodies_keep_the_title_and_body_words() {
+fn person_card_bodies_keep_only_body_words_in_the_browser_and_whole_words_in_the_terminal() {
     person_card_words("Release the runner\nIt waits on CI.", false, true);
 }
 
 #[test]
-fn partial_title_only_held_card_words_stay() {
+fn partial_title_only_held_card_words_keep_the_cut_notice() {
     held_card_words("Release the runner", true, true, c::HoldCategory::Stalled);
 }
 
 #[test]
-fn partial_title_only_funds_card_words_stay() {
+fn partial_title_only_funds_card_words_keep_the_cut_notice() {
     held_card_words("Release the runner", true, true, c::HoldCategory::Budget);
 }
 
 #[test]
-fn partial_title_only_person_card_words_stay() {
+fn partial_title_only_person_card_words_keep_the_cut_notice() {
     person_card_words("Release the runner", true, true);
 }
 
@@ -1183,7 +1196,7 @@ fn person_card_words(written: &str, cut: bool, drawn: bool) {
 
 fn card_words(row: (c::ObjectKey, c::Read, c::ReadValue), written: &str, cut: bool, drawn: bool) {
     let root = kinds(&[row]);
-    for view in [f::browser_page_view(&root), f::page_view(&root)] {
+    for (view, browser) in [(f::browser_page_view(&root), true), (f::page_view(&root), false)] {
         let paragraphs: Vec<_> = view
             .tree()
             .nodes()
@@ -1194,10 +1207,11 @@ fn card_words(row: (c::ObjectKey, c::Read, c::ReadValue), written: &str, cut: bo
             .collect();
         assert_eq!(
             paragraphs.iter().any(|text| skein_lib::bytes::find(text, b"Release the runner").is_some()),
-            drawn,
-            "{written}, cut={cut}"
+            drawn && !browser,
+            "{written}, cut={cut}, browser={browser}"
         );
         assert_eq!(has(&view, b"It waits on CI."), written.contains('\n'));
+        assert_eq!(has(&view, b"Some facts were omitted from this document."), cut);
     }
 }
 
@@ -1258,7 +1272,7 @@ fn answered_lines_cut_titles_not_answers_or_task_addresses() {
 fn ordered(view: &crate::View) {
     let positions: Vec<_> = [look::ASK_META, look::FLOW_Q, look::ASK_CONTEXT, look::ASK_CHOICES]
         .iter()
-        .map(|style| main(view).iter().position(|node| node.styles.as_slice().contains(style)).unwrap())
+        .filter_map(|style| main(view).iter().position(|node| node.styles.as_slice().contains(style)))
         .collect();
     assert!(positions.windows(2).all(|pair| pair[0] < pair[1]));
 }
@@ -1415,7 +1429,14 @@ fn held_parts_release_leave_held_and_missing_hold() {
         let root = kinds(&[held_row(h)]);
         let mut view = f::browser_page_view(&root);
         ordered(&view);
-        assert_eq!(styled(&view, look::FLOW_Q).name.as_deref(), Some(b"first-run-projects".as_slice()));
+        assert_eq!(
+            styled(&view, look::FLOW_Q).name.as_deref(),
+            Some(if reason.is_some() {
+                b"The Ready page waits for this decision.".as_slice()
+            } else {
+                b"This task is held."
+            })
+        );
         assert!(!has(&view, b"Both halves of the store task run."));
         assert_eq!(has(&view, b"The Ready page waits"), reason.is_some());
         assert!(skein_lib::bytes::find(styled(&view, look::ASK_META).name.as_ref().unwrap(), b"held").is_some());
@@ -1429,6 +1450,125 @@ fn held_parts_release_leave_held_and_missing_hold() {
             d::Action::Pages(pages::Act::Go { address: Address::Task { task: f::INBOX_TASK } })
         );
     }
+}
+
+#[test]
+fn held_and_funds_cards_keep_the_question_words_and_acts_without_raw_hold_facts() {
+    for (reason, question) in [
+        (c::HoldCategory::EffectFailed, "Forge could not release this task's resources."),
+        (c::HoldCategory::Budget, "31 of 40 used."),
+    ] {
+        let mut held = held(Some(reason));
+        held.task.chip.title = words("Release the runner");
+        held.task.spec.specification.words = words("Release the runner\nIt waits on CI.");
+        held.task.spec.specification.parameters = List::from_boxed(Box::new([
+            c::ParameterDocument::Number { name: 1, value: 2 },
+            c::ParameterDocument::Number { name: 2, value: 6765 },
+        ]));
+        held.task.hold.as_mut().unwrap().words = Some(words(
+            "forge could not release this task's resources; resolve this reason, then task release 6978 --hold 1; or task cancel 6978 REASON",
+        ));
+        let root = kinds(&[held_row(held)]);
+        for (view, browser) in [(f::browser_page_view(&root), true), (f::page_view(&root), false)] {
+            let card = super::inbox::subtree(
+                view.tree(),
+                super::inbox::styled(view.tree(), if browser { look::ASK } else { look::CARD }),
+            );
+            let drawn = f::nodes_text(card);
+            for hidden in [b"Parameter 1".as_slice(), b"Parameter 2", b"task release", b"task cancel", b"Hold revision"]
+            {
+                assert!(skein_lib::bytes::find(&drawn, hidden).is_none(), "{hidden:?}");
+            }
+            assert!(skein_lib::bytes::find(&drawn, b"It waits on CI.").is_some());
+            let q = card.iter().position(|n| n.name.as_deref() == Some(question.as_bytes())).unwrap();
+            let body = card
+                .iter()
+                .position(|n| n.text.iter().any(|run| skein_lib::bytes::find(&run.text, b"It waits on CI.").is_some()))
+                .unwrap();
+            let release = card
+                .iter()
+                .position(|n| {
+                    n.role == Role::Button
+                        && n.name.as_deref() == Some(if browser { b"Release".as_slice() } else { b"Release task" })
+                })
+                .unwrap();
+            assert!(q < body && body < release);
+            assert!(card.iter().any(|n| n.role == (if browser { Role::Disclosure } else { Role::Button })
+                && n.name.as_deref() == Some(b"Leave held")));
+            if browser {
+                assert_eq!(styled(&view, look::FLOW_Q).name.as_deref(), Some(question.as_bytes()));
+                let from = super::inbox::subtree(view.tree(), super::inbox::styled(view.tree(), look::ASK_META));
+                assert!(skein_lib::bytes::find(&f::nodes_text(from), b"Release the runner").is_some());
+                let context = super::inbox::subtree(view.tree(), super::inbox::styled(view.tree(), look::ASK_CONTEXT));
+                assert!(skein_lib::bytes::find(&f::nodes_text(context), b"Release the runner").is_none());
+                assert_eq!(
+                    drawn.windows(b"Release the runner".len()).filter(|s| *s == b"Release the runner").count(),
+                    1
+                );
+            } else {
+                assert!(card.iter().any(
+                    |n| n.role == (Role::Heading { level: 3 }) && n.name.as_deref() == Some(b"Release the runner")
+                ));
+            }
+            assert_eq!(
+                skein_lib::bytes::find(&drawn, b"Insufficient activation budget.").is_some(),
+                reason == c::HoldCategory::Budget
+            );
+        }
+    }
+}
+
+#[test]
+fn a_person_question_keeps_words_past_its_title_but_keeps_the_title_for_a_task_requester() {
+    for (requester, question_shown) in [(c::Requester::Person(73), false), (c::Requester::Task(42), true)] {
+        let root = word_person("Release the runner\nIt waits on CI.", false, false, requester);
+        let view = f::browser_page_view(&root);
+        assert_eq!(main(&view).iter().any(|n| n.styles.as_slice().contains(&look::FLOW_Q)), question_shown);
+        assert!(has(&view, b"It waits on CI."));
+        if question_shown {
+            assert!(f::find(view.tree(), Role::Link, b"Task 42").is_some());
+            assert!(
+                skein_lib::bytes::find(styled(&view, look::FLOW_Q).name.as_ref().unwrap(), b"Release the runner")
+                    .is_some()
+            );
+        } else {
+            assert!(f::find(view.tree(), Role::Link, b"Release the runner").is_some());
+            let context = super::inbox::subtree(view.tree(), super::inbox::styled(view.tree(), look::ASK_CONTEXT));
+            assert!(skein_lib::bytes::find(&f::nodes_text(context), b"Release the runner").is_none());
+        }
+    }
+}
+
+#[test]
+fn closed_held_rows_show_the_sentence_and_person_rows_only_the_from_line() {
+    let mut h = held(Some(c::HoldCategory::Stalled));
+    h.task.chip.title = words("Release the runner");
+    let person = person();
+    let root = kinds(&[
+        proposal_row(proposal(c::Proposer::Task(9))),
+        held_row(h),
+        (
+            c::ObjectKey::PersonTask(person.task.task),
+            c::Read::PersonTask { task: person.task.task },
+            c::ReadValue::PersonTask(Box::new(person)),
+        ),
+    ]);
+    let view = f::browser_page_view(&root);
+    let rows: Vec<_> = view
+        .tree()
+        .nodes()
+        .iter()
+        .enumerate()
+        .filter(|(_, n)| n.styles.as_slice().contains(&look::NEED_ROW))
+        .map(|(at, _)| super::inbox::subtree(view.tree(), at))
+        .collect();
+    assert_eq!(rows.len(), 2);
+    let held = f::nodes_text(rows[0]);
+    assert!(skein_lib::bytes::find(&held, b"The Ready page waits for this decision.").is_some());
+    assert_eq!(held.windows(b"Release the runner".len()).filter(|s| *s == b"Release the runner").count(), 1);
+    assert!(!rows[1].iter().any(|n| n.styles.as_slice().contains(&look::ASK_QUESTION)));
+    let person = f::nodes_text(rows[1]);
+    assert_eq!(person.windows(b"Review the plan".len()).filter(|s| *s == b"Review the plan").count(), 1);
 }
 
 #[test]
@@ -1449,7 +1589,7 @@ fn funds_use_budget_reason_plain_numbers_and_held_acts() {
         );
         assert_eq!(
             styled(&view, look::FLOW_Q).name.as_deref(),
-            Some(if funds { b"31 of 40 used.".as_slice() } else { b"first-run-projects" })
+            Some(if funds { b"31 of 40 used.".as_slice() } else { b"The Ready page waits for this decision." })
         );
         assert_eq!(
             skein_lib::bytes::find(styled(&view, look::ASK_META).name.as_ref().unwrap(), b"funds").is_some(),
@@ -1470,7 +1610,8 @@ fn person_spec_and_plain_acts() {
         kinds(&[(object, c::Read::PersonTask { task: person.task.task }, c::ReadValue::PersonTask(Box::new(person)))]);
     let mut view = f::browser_page_view(&root);
     ordered(&view);
-    assert_eq!(styled(&view, look::FLOW_Q).name.as_deref(), Some(b"Review the plan".as_slice()));
+    assert!(!main(&view).iter().any(|n| n.styles.as_slice().contains(&look::FLOW_Q)));
+    assert!(f::find(view.tree(), Role::Link, b"Review the plan").is_some());
     assert!(!has(&view, b"Read the proposed plan and record your review."));
     assert!(!main(&view).iter().any(|n| n.styles.as_slice().contains(&look::RECOMMENDED)));
     for (name, act) in [(b"Take".as_slice(), c::ActKind::Take), (b"Hand back", c::ActKind::HandBack)] {
