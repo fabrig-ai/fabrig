@@ -86,7 +86,7 @@ records kept in files or stores.
   the checks only Rust needs (`README.md`, section 7). A consumer depends on it in its
   tests and tools only.
 - **A consumer's codec crate** holds a family's generated record code,
-  `src/generated/<family>_v<N>.rs` or `v<N>.rs` (section 4), and depends
+  `src/generated/<stem>.rs` (section 4), and depends
   on lib and `skein-codec` alone; its dev-dependencies are free,
   `skein-codegen` among them. The family's **owner**, the crate that
   keeps it, holds the rest: its schemas, kept texts and patches where
@@ -101,8 +101,9 @@ records kept in files or stores.
   with `-codec` (`skein/crates/skein-oauth-codec`,
   `skein/examples/ui/view-codec`); an owner whose families are split by
   size names each crate for its family instead (jig's store,
-  `jig-protocol-store-people`). Each generated module keeps its name at
-  the codec crate's root (`v3`, `cursor_v1`), and the owner names it
+  `jig-protocol-store-people`). Each generated module keeps its Rust name
+  at the codec crate's root (`v3`, `cursor_v1`), whatever its file's
+  name (section 4), and the owner names it
   where it named it before: a public module is re-exported at the
   owner's same path, which callers keep, and either path names it.
 - **An owner with no domain to translate is its own codec crate,**
@@ -258,9 +259,12 @@ For each family:
   than its ceiling, so no value past a ceiling exists or decodes, whatever
   limits they are given, and a call costs what its value holds, not the
   family's size.
-- **Its limits by name.** `LIMIT_NAMES: [&str; N]`, each limit's field
-  name in the struct's order, and `Limits::values(&self) -> [u32; N]`,
-  their values in the same order, so that a kept version's bounds can be
+- **Its version.** `pub const VERSION: u16`, the schema's version, which
+  its versioned records' encoding and decoding name; a hand-written
+  constant that restates it is defined by it.
+- **Its limits by name.** `LIMIT_NAMES: &[&str]`, each limit's field
+  name in the struct's order, and `Limits::values(&self)`, their values
+  in the same order, read as a `&[u32]`, so that a kept version's bounds can be
   computed at run time with these limits (7.3, `most_bytes_within`). A
   limit's name is the rule's `schema::limit_name` gives (7.3), the one
   the generator names the field by.
@@ -312,17 +316,38 @@ For each record and enumeration:
 
 `generate(schema)` writes one schema version's records' module, and
 nothing else: no tests (section 6). The records' module emits
-`encoded_bound` and `decoded_bound`, their `_within` forms and numbered
-helpers, and uses `List::price`. The CLI's generation invocation takes
-`<schema> <out-dir>`, and writes the records' module; any extra
-argument is a usage error. The bound names and
+`encoded_bound` and `decoded_bound`, their `_within` forms and the
+helpers a function too long for one body calls, each named for the
+declaration or field it holds, never by number, and uses `List::price`.
+The bound names and
 `worst_case_bytes`/`worst_case_heap` (and their `_within` forms) stay
 reserved for fields. What tests take from the generator, its fixed-rule
 values and the constructs a text uses, is section 6's.
 
+- **Its file:** `src/generated/<stem>.rs`, in the crate that holds the
+  family's records. `<stem>` is the family's current schema file's name
+  less its `-v<N>.schema`, each `-` an `_`: `tasks-v13.schema` makes
+  `tasks.rs`, `worker-wire-v17.schema` `worker_wire.rs`. A split schema
+  (`client-v33.schema` with `client-v33-part1.schema`) makes one module,
+  named for its first part. Two families of one crate never share a
+  stem. The crate includes the file under the Rust name its code
+  already uses (`#[path = "generated/tasks.rs"] pub mod tasks_v13;`).
+  skein's codec fixtures outside `src/generated/` (`skein/tests/codec/src/every/`,
+  `lints/`, `scalars/`, `secrets/`) hold several versions of one family
+  side by side, and keep their versions in their names (`command.md`, 1).
+- **The command:** `skein-codegen <schema>... <out-dir>` reads the
+  schemas' texts, concatenated in the order given with nothing between
+  them, as one schema, and writes its records' module to
+  `<out-dir>/<stem>.rs`, the first schema's stem, making `<out-dir>`
+  where absent, and nothing else. A schema that does not read or parse
+  exits nonzero, saying why on stderr, and writes nothing. Its module
+  is the one the family's drift test writes; the merge job runs it
+  (`temper/docs/design/protocol/tooling.md`, 4.1). `patch` as the first
+  argument is the patch command (`command.md`, 8).
+
 ```rust
 pub struct Output {
-    pub records: String,      // the records' module: src/generated/<file>.rs
+    pub records: String,      // the records' module: src/generated/<stem>.rs
 }
 pub fn generate(schema: &Schema) -> Output;
 ```
@@ -480,10 +505,23 @@ pub fn generate(schema: &Schema) -> Output;
   owner makes them, and once by each worst case asked of them; never in
   each type, nor in a constructor or a decoder (section 4).
 - **Generated files** say so in their first line. They are left out of
-  formatting, and pass the workspace's lints with no allowances: the
-  generator writes what the lints accept (functions short enough, no
-  nesting to collapse), and an owner marks `boxed` an enum's variant the
-  lints find too large (section 3).
+  formatting, and pass the workspace's lints: the generator writes what
+  the lints accept (functions short enough, no nesting to collapse), and
+  an owner marks `boxed` an enum's variant the lints find too large
+  (section 3). Two scoped expectations stand, emitted only where their
+  lint fires: `Path::name`'s `too_many_lines`, an exhaustive naming
+  table of one arm a line, and `struct_excessive_bools` on a record, or
+  its `Parts`, of more than three booleans, which it holds as named
+  fields.
+- **Nothing every change touches:** a generated module holds no array
+  whose length counts the schema's items (a `fixed N` field's `[u8; N]`
+  is its width), no item named by an ordinal, no version in its file's
+  name and no committed fingerprint, and each declaration's code sits in
+  its own place, in schema order, with family-wide lists one entry a
+  line. So two branches that change different declarations of one
+  family merge its generated module line by line, into the module of
+  the merged schema; where they don't, the merge job writes it again
+  from the merged texts (`temper/docs/design/protocol/tooling.md`, 4.1).
 - **What tests read of the generator:**
 
   ```rust

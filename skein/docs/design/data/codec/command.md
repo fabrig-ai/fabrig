@@ -390,8 +390,9 @@ pub enum Error {
   ls-tree` and `git show <base>:<path>`, the base `git merge-base HEAD
   origin/main` unless `--base` names another, prints the report, its proposals as the
   `--rename` that confirms each, and exits 1 while a finding is left.
-  `--check` runs the check alone. `skein-codegen <schema> <out-dir>`
-  is as before; a schema is never named `patch`.
+  `--check` runs the check alone. `skein-codegen <schema>... <out-dir>`
+  writes a family's records' module (`README.md`, 4); a schema is never
+  named `patch`.
 - `Report`, `Outcome`, `Finding` and `Error` derive `Clone`, `Debug` and
   equality, and display as the command prints them.
 
