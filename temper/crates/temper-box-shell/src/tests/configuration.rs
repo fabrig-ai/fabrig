@@ -1,5 +1,6 @@
 //! Configuration reference pages (temper/docs/design/protocol/documentation.md, 6 and 8).
 #[path = "../../../../testing/temper-box-kit/src/configuration.rs"]
+#[expect(dead_code, unused_imports, reason = "the shell uses the shared documents, not their turn-measurement helpers")]
 mod support;
 use core::num::NonZeroU16;
 use serde_json::Value;

@@ -237,16 +237,9 @@ impl Judge {
             Step::Then(Box::new(|calls| {
                 let project = ctl::json(calls.last().expect("project read"));
                 let period = project["policy"]["period_spend"].as_u64().expect("project period");
-                Call::new(&[
-                    "project",
-                    "fund",
-                    "1",
-                    &(period / 48 * 41).to_string(),
-                    "--role",
-                    "0",
-                    "--key",
-                    "turn-funds",
-                ])
+                let spend = period / 48 * 41;
+                let amount = format!("{}.{:02}", spend / 100, spend % 100);
+                Call::new(&["project", "fund", "1", &amount, "--role", "0", "--key", "turn-funds"])
             })),
         ]);
         self.queue(host, steps)?;
