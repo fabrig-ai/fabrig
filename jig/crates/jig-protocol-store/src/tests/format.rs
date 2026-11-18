@@ -14,7 +14,7 @@ fn store() -> skein_kv::Limits {
     skein_kv::Limits {
         key: 1024,
         value: 16_777_216,
-        ops: 16,
+        ops: 15,
         commit: 134_217_728,
         queued: 2,
         queued_bytes: 268_435_456,
@@ -79,29 +79,29 @@ fn a_value_limit_below_the_largest_task_record_is_refused() {
     let mut limits = store();
     limits.value = 1;
     // The settings revision includes both whole sets of model values.
-    // Each set also prices 64 bounded worker values and names.
-    assert_eq!(check(&limits), Err(sizes::SizeRefusal::Value { needs: 1_786_196, has: 1 }));
+    // Each set also prices bounded workers and their names, and the limit override list.
+    assert_eq!(check(&limits), Err(sizes::SizeRefusal::Value { needs: 1_788_628, has: 1 }));
 }
 fn a_value_limit_below_the_largest_core_turn_is_refused() {
     let mut limits = store();
     limits.value = 80_948;
     // The settings revision includes both whole sets of model values.
     // Each set's 64 model carriers include cache lifetime; its two policies retain 8 model bytes each.
-    assert_eq!(check(&limits), Err(sizes::SizeRefusal::Value { needs: 1_786_196, has: 80_948 }));
+    assert_eq!(check(&limits), Err(sizes::SizeRefusal::Value { needs: 1_788_628, has: 80_948 }));
 }
 fn a_page_smaller_than_one_row_is_refused() {
     let mut limits = store();
     limits.page.bytes = 81_060;
     // The page holds a settings revision and the 516-byte maximum opening key.
     // Both sets include each model's cache lifetime and their policies' model carriers.
-    assert_eq!(check(&limits), Err(sizes::SizeRefusal::Page { needs: 1_786_712, has: 81_060 }));
+    assert_eq!(check(&limits), Err(sizes::SizeRefusal::Page { needs: 1_789_144, has: 81_060 }));
 }
 #[test]
 fn fixture_limits_fit_their_store() {
     // The settings revision holds two sets: each adds two 16-byte parts slices
     // and eight templates with 24-byte later choices in both Template and New.
     // Each set's 64 model carriers include cache lifetime; its two policies retain 8 model bytes each.
-    assert_eq!(check(&store()), Ok(sizes::Sizes { key: 516, value: 1_786_196, ops: 16, commit: 24_810 }));
+    assert_eq!(check(&store()), Ok(sizes::Sizes { key: 516, value: 1_788_628, ops: 15, commit: 24_285 }));
 }
 fn too_few_operations_are_refused() {
     let mut limits = store();
@@ -217,8 +217,8 @@ fn a_map_budget_past_the_commit_envelope_is_refused() {
     // The value includes the tasks row's models; the commit adds framing to the map budget.
     // The settings revision includes cache lifetime in its model carriers.
     for (label, budget, expected) in [
-        ("exact_u32_commit", 4_294_958_869, Ok(sizes::Sizes { key: 516, value: 1_786_196, ops: 16, commit: u32::MAX })),
-        ("one_byte_past_u32", 4_294_958_870, Err(sizes::SizeRefusal::Ceiling)),
+        ("exact_u32_commit", 4_294_959_394, Ok(sizes::Sizes { key: 516, value: 1_788_628, ops: 15, commit: u32::MAX })),
+        ("one_byte_past_u32", 4_294_959_395, Err(sizes::SizeRefusal::Ceiling)),
         ("u64_sum_overflows", u64::MAX, Err(sizes::SizeRefusal::Ceiling)),
     ] {
         let limits = skein_kv::Limits { budget, commit: u32::MAX, queued_bytes: u64::MAX, ..store() };
