@@ -101,6 +101,7 @@ impl Stand {
         self.down(kit::Event::Transport(kit::FromTransport::StreamOpen {
             version: None,
             stream: STREAM,
+            replaces: None,
             credential: Some(self.credential.clone()),
         }));
         self.authenticate();

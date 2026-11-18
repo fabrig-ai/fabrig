@@ -64,7 +64,7 @@ pub fn named(name: &str) -> bool {
         && bytes.all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
 }
 
-/// Counts of the originals and replacements (client/web/journeys.md, 3.6).
+/// Counts of the originals and replacements (client/web/journey-redaction.md).
 #[derive(Debug)]
 pub struct Added {
     pub link: u32,
@@ -83,7 +83,7 @@ pub struct Added {
 }
 
 /// Takes a recording as NAME, redacts, proves, normalises and scans it in memory, then
-/// replaces its recording and pages (client/web/journeys.md, 3.6–3.7 and 4.3–5.1).
+/// replaces its recording and pages (client/web/journey-redaction.md and client/web/journeys.md, 3.7 and 4.3–5.1).
 /// # Errors
 /// Refuses an invalid name, unreadable or unsafe bytes, a failed proof or io.
 pub fn add(journeys: &Path, name: &str, recording: &[u8], given: &[Box<[u8]>]) -> Result<Added, Refusal> {

@@ -6,9 +6,11 @@ extern crate alloc;
 mod approval;
 mod asked_link;
 mod authorize;
+mod batch;
 pub mod boundary;
 mod component;
 pub mod limits;
+mod retired;
 mod sign_in;
 mod silence;
 mod store;
@@ -18,7 +20,7 @@ pub use boundary::*;
 /// The kept name of the preceding client's stream (protocol/client/README.md, 7).
 pub const STREAM_KEY: &[u8] = b"stream";
 pub use component::Link;
-pub use limits::{Limits, Unusable};
+pub use limits::{BATCH_BYTES, Limits, Unusable};
 pub use translate::Undecodable;
 #[cfg(test)]
 mod tests;

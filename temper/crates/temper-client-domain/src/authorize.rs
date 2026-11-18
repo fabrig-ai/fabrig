@@ -173,6 +173,7 @@ mod tests {
             jig_client::Event::Start { kept: skein_lib::List::with_capacity(0) },
             &mut out,
         );
+        crate::settle(&mut root, &env, &mut out);
         while out.pop().is_some() {}
         crate::route::client(
             &mut root,
@@ -180,6 +181,7 @@ mod tests {
             jig_client::Event::SignIn { with: jig_client::With::Transport },
             &mut out,
         );
+        crate::settle(&mut root, &env, &mut out);
         while out.pop().is_some() {}
         let mut served = skein_lib::List::with_capacity(1);
         served
@@ -238,6 +240,7 @@ mod tests {
                 },
                 &mut out,
             );
+            crate::settle(root, &fixtures::env(limits), &mut out);
             while let Some(request) = out.pop() {
                 if let Request::Client {
                     request: jig_client::Request::Exchange { exchange, message: jig_client::Message::Read(_), .. },
@@ -261,8 +264,10 @@ mod tests {
         went(&mut root, &Place::Authorize { query: query.clone() });
         let mut out = Queue::uncapped();
         progress(&mut root, &env, &mut out);
+        crate::settle(&mut root, &env, &mut out);
         assert_eq!(root.authorization().unwrap().state(), State::Waiting);
         crate::fire(&mut root, &env, &mut out);
+        crate::settle(&mut root, &env, &mut out);
         assert!(out.is_empty(), "a full local exchange edge keeps the first send waiting");
         let answer = w::ReadAnswer::None(
             w::ReadAnswerNone::new(&w::CEILINGS, w::ReadAnswerNoneParts { value: w::ReadNone::Unknown }).unwrap(),
@@ -275,6 +280,7 @@ mod tests {
             crate::Event::Client { event: jig_client::Event::Reply { exchange: occupied, message: body.finish() } },
             &mut out,
         );
+        crate::settle(&mut root, &env, &mut out);
         assert_eq!(root.authorization().unwrap().state(), State::Pending);
         assert_eq!(root.client.admission().attempts, limits.client.exchanges);
         let mut sent = None;
@@ -289,6 +295,7 @@ mod tests {
             }
         }
         crate::fire(&mut root, &env, &mut out);
+        crate::settle(&mut root, &env, &mut out);
         assert!(out.is_empty(), "an admitted authorization is not sent twice");
         let answer = w::AuthorizeAnswer::Busy;
         let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).unwrap());
@@ -304,8 +311,10 @@ mod tests {
             },
             &mut out,
         );
+        crate::settle(&mut root, &env, &mut out);
         assert_eq!(root.authorization().unwrap().state(), State::Busy);
         crate::fire(&mut root, &env, &mut out);
+        crate::settle(&mut root, &env, &mut out);
         assert!(out.is_empty(), "the peer's busy reply is terminal and is never retried");
     }
     #[test]
@@ -318,6 +327,7 @@ mod tests {
             let limits = fixtures::limits();
             let mut out = Queue::uncapped();
             progress(&mut root, &fixtures::env(&limits), &mut out);
+            crate::settle(&mut root, &fixtures::env(&limits), &mut out);
             assert_eq!(root.authorization().unwrap().state(), State::Pending);
             let mut sent = 0_u32;
             while let Some(request) = out.pop() {
@@ -332,6 +342,7 @@ mod tests {
             }
             assert_eq!(sent, 1);
             progress(&mut root, &fixtures::env(&limits), &mut out);
+            crate::settle(&mut root, &fixtures::env(&limits), &mut out);
             assert!(out.is_empty());
         }
     }
@@ -348,9 +359,11 @@ mod tests {
                 jig_client::Event::Up { up: jig_client::Up::SignedOut },
                 &mut out,
             );
+            crate::settle(&mut root, &fixtures::env(&limits), &mut out);
             while out.pop().is_some() {}
             went(&mut root, &Place::Authorize { query: query.clone() });
             progress(&mut root, &fixtures::env(&limits), &mut out);
+            crate::settle(&mut root, &fixtures::env(&limits), &mut out);
             assert!(out.is_empty());
             assert_eq!(root.authorization().unwrap().state(), expected);
             root.authorization = Some(Authorization { query, state: State::Pending });
@@ -372,6 +385,7 @@ mod tests {
                     jig_client::Event::Up { up: jig_client::Up::SignedOut },
                     &mut Queue::uncapped(),
                 );
+                crate::settle(&mut root, &fixtures::env(&limits), &mut Queue::uncapped());
             }
             went(
                 &mut root,
@@ -379,6 +393,7 @@ mod tests {
             );
             let mut out = Queue::uncapped();
             progress(&mut root, &fixtures::env(&limits), &mut out);
+            crate::settle(&mut root, &fixtures::env(&limits), &mut out);
             assert!(out.is_empty());
             assert_eq!(root.authorization().expect("page").state(), State::Refused(AuthorizeWhy::Malformed));
         }

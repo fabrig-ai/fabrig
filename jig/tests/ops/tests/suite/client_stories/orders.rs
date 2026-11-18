@@ -11,8 +11,8 @@ const STREAM: [u8; 16] = [11; 16];
 const HEARTBEAT: Duration = Duration::from_secs(1);
 // The fixture serves jig plus both Ops connector owners.
 const OWNERS: u32 = 3;
-// Three initial inbox exchanges and a read/watch pair for each connector.
-const EXCHANGES: u32 = 7;
+// One initial inbox batch and one read/watch batch for each connector.
+const EXCHANGES: u32 = 3;
 const INFRASTRUCTURE: u16 = 2;
 const OBSERVABILITY: u16 = 1;
 const ONE_PROJECT: u32 = 1;
@@ -24,7 +24,7 @@ struct World {
     // Storage deliberately remains outstanding while later entrances run.
     writes: Vec<root::store::Record>,
     steps: Vec<Vec<&'static str>>,
-    watches: Vec<(Token, u64)>,
+    watches: Vec<(Token, Option<u16>, u64)>,
     traffic: Vec<(usize, &'static str, u16)>,
 }
 
@@ -53,11 +53,19 @@ impl World {
     }
 
     fn admit_watches(&mut self) {
-        for (exchange, _) in std::mem::take(&mut self.watches) {
+        for (exchange, member, _) in std::mem::take(&mut self.watches) {
             let answer = w::OpenAnswer::Admitted;
             let mut bytes = Writer::new(skein_lib::length::usize_of(answer.measure()));
             answer.encode(&mut bytes).expect("opening answer");
-            self.client(ClientEvent::Reply { exchange, message: bytes.finish() });
+            if let Some(member) = member {
+                let part = w::BatchReply::new(&w::CEILINGS, w::BatchReplyParts { member, reply: Some(bytes.finish()) })
+                    .expect("opening part");
+                let mut bytes = Writer::new(skein_lib::length::usize_of(part.measure()));
+                part.encode(&mut bytes).expect("opening part bytes");
+                self.client(ClientEvent::Part { exchange, message: bytes.finish() });
+            } else {
+                self.client(ClientEvent::Reply { exchange, message: bytes.finish() });
+            }
         }
     }
 
@@ -74,6 +82,7 @@ impl World {
     fn step(&mut self, event: Event) {
         let mut out = Queue::uncapped();
         root::step(&mut self.root, &self.env, event, &mut out);
+        root::settle(&mut self.root, &self.env, &mut out);
         root::take(&mut self.root);
         self.drain(out);
     }
@@ -81,10 +90,39 @@ impl World {
     fn fire(&mut self) {
         let mut out = Queue::uncapped();
         root::fire(&mut self.root, &self.env, &mut out);
+        root::settle(&mut self.root, &self.env, &mut out);
         root::take(&mut self.root);
         self.drain(out);
     }
 
+    fn message(&mut self, exchange: Token, member: Option<u16>, message: Message) {
+        match message {
+            Message::Watch(bytes) => {
+                let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("watch bytes");
+                self.watches.push((exchange, member, open.watch()));
+                self.traffic.push((self.steps.len(), "open", owner(open.subject().owner())));
+            }
+            Message::Read(bytes) => {
+                let read = w::Owned::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("read bytes");
+                self.traffic.push((self.steps.len(), "read", owner(read.owner())));
+            }
+            Message::Unwatch(_) => self.traffic.push((self.steps.len(), "close", 0)),
+            Message::Batch(_)
+            | Message::LinkAsk(_)
+            | Message::Request(_)
+            | Message::StreamGone(_)
+            | Message::SignInLink(_)
+            | Message::SignInService
+            | Message::SignOut
+            | Message::ApprovalAsk(_)
+            | Message::ApprovalRead(_)
+            | Message::ApprovalDecide(_)
+            | Message::SignInApproval(_)
+            | Message::Authorize(_) => {
+                panic!("unplanned exchange");
+            }
+        }
+    }
     fn drain(&mut self, mut out: Queue<Request>) {
         let mut order = vec![];
         while let Some(request) = out.pop() {
@@ -95,30 +133,28 @@ impl World {
                 }
                 Request::Erase { .. } => order.push("erase"),
                 Request::Client { request: jig_client::Request::Exchange { exchange, message, .. } } => {
-                    match message {
-                        Message::Watch(bytes) => {
-                            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("watch bytes");
-                            self.watches.push((exchange, open.watch()));
-                            self.traffic.push((self.steps.len(), "open", owner(open.subject().owner())));
+                    if let Message::Batch(bytes) = message {
+                        let batch = w::Batch::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("batch");
+                        for (place, record) in batch.into_parts().members.into_boxed().into_iter().enumerate() {
+                            let mut writer = Writer::new(skein_lib::length::usize_of(record.measure() - 1));
+                            let message = match record {
+                                w::Member::Read(record) => {
+                                    record.encode(&mut writer).expect("read");
+                                    Message::Read(writer.finish())
+                                }
+                                w::Member::Open(record) => {
+                                    record.encode(&mut writer).expect("open");
+                                    Message::Watch(writer.finish())
+                                }
+                                w::Member::Close(record) => {
+                                    record.encode(&mut writer).expect("close");
+                                    Message::Unwatch(writer.finish())
+                                }
+                            };
+                            self.message(exchange, Some(u16::try_from(place).expect("member")), message);
                         }
-                        Message::Read(bytes) => {
-                            let read = w::Owned::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("read bytes");
-                            self.traffic.push((self.steps.len(), "read", owner(read.owner())));
-                        }
-                        Message::Unwatch(_) => self.traffic.push((self.steps.len(), "close", 0)),
-                        Message::Request(_)
-                        | Message::StreamGone(_)
-                        | Message::SignInLink(_)
-                        | Message::SignInService
-                        | Message::SignOut
-                        | Message::LinkAsk(_)
-                        | Message::ApprovalAsk(_)
-                        | Message::ApprovalRead(_)
-                        | Message::ApprovalDecide(_)
-                        | Message::SignInApproval(_)
-                        | Message::Authorize(_) => {
-                            panic!("unplanned exchange");
-                        }
+                    } else {
+                        self.message(exchange, None, message);
                     }
                     order.push("exchange");
                 }
@@ -261,7 +297,7 @@ fn ops_child_records_precede_transport_within_a_step() {
             pool: None,
         })),
     });
-    assert_eq!(world.steps, vec![vec!["save", "exchange", "exchange", "exchange"]]);
+    assert_eq!(world.steps, vec![vec!["save", "exchange"]]);
 }
 
 /// `child_requests_dispatched`: each connector's read/watch consequences

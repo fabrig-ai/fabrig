@@ -48,7 +48,7 @@ impl Link {
         let record = w::LinkAsk::new(self.limits.wire(), w::LinkAskParts {}).expect("empty link ask");
         let mut bytes = Writer::new(skein_lib::length::usize_of(record.measure()));
         record.encode(&mut bytes).expect("measured link ask");
-        self.emit_exchange(exchange, self.credential.clone(), Message::LinkAsk(bytes.finish()), out);
+        self.emit_exchange(exchange, self.credential.clone(), Message::LinkAsk(bytes.finish()));
     }
 
     pub(super) fn asked_link(&mut self, body: &[u8], out: &mut Queue<Request>) {

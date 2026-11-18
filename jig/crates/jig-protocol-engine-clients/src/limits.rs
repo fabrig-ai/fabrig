@@ -16,6 +16,8 @@ pub struct Limits {
     /// Maximum volatile provider access tokens.
     pub provider_tokens: u32,
     pub exchanges_per_client: u32,
+    pub reads_per_client: u32,
+    pub openings_per_client: u32,
     /// A message's bytes, owned by the component (protocol/client/wire.md, 2.2, and protocol/client/README.md, 10).
     pub message_bytes: u32,
     pub wire: jig_client_protocol_wire::Limits,
@@ -40,6 +42,8 @@ pub fn valid(limits: &Limits) -> bool {
         || limits.mints == 0
         || limits.message_bytes == 0
         || limits.exchanges == 0
+        || limits.reads_per_client == 0
+        || limits.openings_per_client == 0
         || limits.exchanges_per_client == 0
         || limits.link_span == Duration::ZERO
     {
@@ -49,8 +53,25 @@ pub fn valid(limits: &Limits) -> bool {
         && jig_client_protocol_wire::KeyedAnswer::encoded_bound(&limits.wire).is_some()
         && jig_client_protocol_wire::ReadAnswer::encoded_bound(&limits.wire).is_some()
         && jig_client_protocol_wire::AuthorizeAnswer::encoded_bound(&limits.wire).is_some()
-        && limits.exchanges.checked_add(limits.exchanges).is_some()
+        && batch_reply_fits(&limits.wire)
+        && limits.exchanges.checked_mul(130).is_some()
         && provider_bounds(&provider_limits(limits)).is_some()
+}
+
+// Every member's largest answer fits the batch's reply envelope (protocol/client/wire.md, 2.1).
+fn batch_reply_fits(limits: &jig_client_protocol_wire::Limits) -> bool {
+    use jig_client_protocol_wire as w;
+    for bound in [
+        w::ReadAnswer::encoded_bound(limits),
+        w::OpenAnswer::encoded_bound(limits),
+        w::CloseAnswer::encoded_bound(limits),
+    ] {
+        let Some(bound) = bound else { return false };
+        if bound > u64::from(limits.batch_reply_reply_some) {
+            return false;
+        }
+    }
+    true
 }
 
 // The issuer has no validity API at this pin. Its document encoder uses u32

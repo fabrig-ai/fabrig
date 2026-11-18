@@ -64,6 +64,7 @@ fn an_approval_is_asked_read_and_decided_once_each() {
                 | Message::Request(_)
                 | Message::Read(_)
                 | Message::Watch(_)
+                | Message::Batch(_)
                 | Message::Unwatch(_)
                 | Message::StreamGone(_)
                 | Message::SignInLink(_)
@@ -190,6 +191,7 @@ fn no_print_of_an_approval_shows_its_secret() {
         prints.push(print).unwrap();
     }
     link.step(Time::ZERO, event, &mut out);
+    link.settle(&mut out);
     for print in [format!("{link:?}"), format!("{link:#?}"), format!("{out:?}"), format!("{out:#?}")] {
         prints.push(print).unwrap();
     }
@@ -198,6 +200,7 @@ fn no_print_of_an_approval_shows_its_secret() {
         prints.push(print).unwrap();
     }
     link.step(Time::ZERO, wire_reply, &mut out);
+    link.settle(&mut out);
     for print in [format!("{link:?}"), format!("{link:#?}"), format!("{out:?}"), format!("{out:#?}")] {
         prints.push(print).unwrap();
     }

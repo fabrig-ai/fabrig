@@ -69,6 +69,7 @@ impl Component {
         let answer = read(frame, &self.settings.models, self.public.names(), &env.limits.wire);
         match answer {
             Ok(answer) => self.respond(exchange, routes::encoded_read(&answer)),
+            Err(_) if self.members.contains_key(&exchange) => self.response(exchange, crate::Reply::NotARecord),
             Err(_) => {
                 if let Some(owner) = self.owner(exchange) {
                     self.connections.get_mut(&owner).expect("exchange").close();

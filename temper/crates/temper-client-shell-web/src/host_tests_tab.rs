@@ -97,9 +97,11 @@ fn admit_watches(host: &mut Host) {
     loop {
         let mut admitted = false;
         for request in host.requests() {
-            if let Asked::Exchange { id, call, .. } = request
-                && call.path.as_ref() == b"/jig/v1/watch"
-            {
+            let Asked::Exchange { id, call, .. } = request else { continue };
+            if call.path.as_ref() == b"/jig/v1/batch" {
+                batch_admitted(host, id, &call.body);
+                admitted = true;
+            } else if call.path.as_ref() == b"/jig/v1/watch" {
                 let answer = w::OpenAnswer::Admitted;
                 host.heard(Heard::Answered {
                     exchange: id,

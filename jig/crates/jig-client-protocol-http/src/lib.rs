@@ -1,8 +1,10 @@
-//! HTTP calls and printed links (protocol/client/default-http.md, 1, 3 and 4).
+//! HTTP calls and printed links (protocol/client/default-http.md, 1 to 4 and 6).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
 mod call;
+mod frames;
+pub use frames::Frames;
 mod printed;
 mod public;
 pub use public::{Freshness, PUBLIC_KEEP, PublicHeard, PublicPath, freshness, public, public_answered, public_target};

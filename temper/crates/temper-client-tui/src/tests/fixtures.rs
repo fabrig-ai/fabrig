@@ -67,6 +67,7 @@ pub fn view() -> crate::View {
 pub fn event(root: &mut Domain, event: Event) -> Queue<Request> {
     let mut out = Queue::uncapped();
     temper_client_domain::step(root, &Env { now: Time::ZERO, wall: NOW, limits: limits() }, event, &mut out);
+    temper_client_domain::settle(root, &Env { now: Time::ZERO, wall: NOW, limits: limits() }, &mut out);
     out
 }
 pub fn client(root: &mut Domain, event: jig_client::Event) -> Queue<Request> {

@@ -4,7 +4,6 @@
 
 - **Design lags:**
   - 2: no design document holds a page to a number of round trips.
-  - 3: jig's `protocol/client/default-http.md`, section 1, carries one message per `POST`, with no batch route, and section 4 admits each as its own call; jig's `protocol/client/wire.md`, section 2, has a reload send its predecessor's stream gone and wait for its answer before opening its own.
   - 6: `../client/pages/work.md`, section 1, draws no heading until the four reads have answered, and its sections with it.
 - **Design departs:**
   - 5, *a setting*: a setting is read again too where the `settings` watch names no revision while its read named one (`../client/pages/settings.md`, 1, *What the client holds*), since a setting reset to its default keeps no revision in jig's settings; R3's designer, goal 6236, 2026-11-17, so that a reset is never missed.

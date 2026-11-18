@@ -3,6 +3,7 @@ use jig_client_protocol_link::{Heard, Message};
 use skein_http::{Header, Method};
 use skein_lib::{Token, bytes};
 mod fixtures;
+mod frames;
 mod stream;
 use fixtures::{credential, mapping};
 const EXCHANGE: u64 = 11;
@@ -154,7 +155,7 @@ fn the_stream_names_the_version_under_its_prefix() {
     for (version, path) in
         [(28, b"/jig/v1/stream?version=28".as_slice()), (u32::MAX, b"/jig/v1/stream?version=4294967295".as_slice())]
     {
-        let call = stream(&mapping(), None, version);
+        let call = stream(&mapping(), None, version, None);
         assert_eq!(call.method, Method::Get);
         assert_eq!(call.path.as_ref(), path);
     }

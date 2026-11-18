@@ -156,6 +156,12 @@ impl App for Temper {
             Root::Agent(agent) => crate::agent::fire(agent, env, out),
         }
     }
+    fn settle(root: &mut Self::Root, env: &Env<Self::Limits>, out: &mut Queue<Request>) {
+        match root {
+            Root::Person(root) | Root::TimedPerson { root, .. } => domain::settle(root, env, out),
+            Root::Agent(_) => {}
+        }
+    }
     fn take(root: &mut Self::Root, env: &Env<Self::Limits>, out: &mut Queue<Request>) {
         match root {
             Root::Person(root) => domain::take(root, env, out),

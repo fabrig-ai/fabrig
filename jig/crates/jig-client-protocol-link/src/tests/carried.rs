@@ -10,6 +10,7 @@ fn carry(h: &mut Harness, attempt: Token) {
     let ask = Ask::Family { scope: c::Scope::Own, record: fixtures::family_read() };
     let value = Some(Secret::new(Box::new(VALUE)));
     h.link.step(Time::ZERO, Event::Send { attempt, key: CARRIED_KEY, ask, value }, &mut h.out);
+    h.link.settle(&mut h.out);
 }
 fn posted(h: &Harness) -> Option<w::Keyed> {
     for request in &h.out {
@@ -41,6 +42,7 @@ fn a_carried_attempt_is_answered_lost_when_its_sign_in_ends() {
     h.send(Token::new(5), fixtures::KEY, fixtures::message());
     carry(&mut h, ATTEMPT);
     h.link.step(Time::ZERO, Event::SignIn { with: With::Transport }, &mut h.out);
+    h.link.settle(&mut h.out);
     assert_eq!(h.answered(ATTEMPT), Some((RequestEnvelope::Lost, None)));
     assert_eq!(h.answered(Token::new(5)), None, "the table's attempt ends unanswered");
 }
@@ -71,6 +73,7 @@ fn move_out(h: &mut Harness, attempt: Token) {
         },
         &mut h.out,
     );
+    h.link.settle(&mut h.out);
 }
 #[test]
 fn a_move_out_leaves_while_the_table_waits_on_a_write() {

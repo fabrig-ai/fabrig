@@ -188,7 +188,7 @@ page over scenes as SVG, each usable without it.
 | the inbox, `Inbox<R>` | the application's turn function, at start; reports, each wrapped into `R` | the reports, in order; it calls the turn when one waits and no turn runs, within the callback that raised it |
 | the page | a mount element, the look, the mapping (skein's table, the application's elements and components), the primary modifier, its words for the states it says; patches and the tree | elements kept in place; acts on node ids; a drawing's box resized; the link nodes it holds |
 | scenes as SVG | a scene, the look's names | SVG elements: the page's default for a drawing |
-| fetch | exchanges (a path on the origin, the method, headers and body the application gives, a bound on the answer's body), abandons; the stream opened (a path, its headers, a bound on a piece) and closed; the exchanges it may hold in flight | an exchange answered (its status and its body) or failed; the stream opened, refused (a status other than 200), a piece, its end; one read outstanding, the next asked by the loop |
+| fetch | exchanges (a path on the origin, the method, headers and body the application gives, a bound on the answer's body, and whether it reads that body in pieces, with a bound on a piece), abandons; the stream opened (a path, its headers, a bound on a piece) and closed; the exchanges it may hold in flight | an exchange answered (its status and its body) or failed; one read in pieces opened (its status), a piece, its end, or failed; the stream opened, refused (a status other than 200), a piece, its end; one read outstanding per body read in pieces, the next asked by the loop |
 | the small store | records by key, the application's prefix, its own bound | the records read at start; a write done or failed, synchronously |
 | the transport | a step's writes, exchanges, the stream opened or closed, and a navigation away, whole | the store's writes first, their outcome reported; then exchanges and the stream through fetch (an opening while hidden, through the hidden tab), or every exchange of the step failed when a write failed; the navigation only after the step's writes, none when one failed |
 | history | a path to show, as a new entry or in place | the path and query the page opened at; a place gone to by back or forward, as a path; the scroll kept per entry, given back after patches |
@@ -234,7 +234,7 @@ the turn, which the inbox calls when a report waits and no turn runs:
     the timer due: to the hidden tab part, then a step as any report
     step ← the state machine steps with the report, now and wall
     the transport carries the step's writes, requests, navigation (5.3)
-    fetch reads the stream on, after a piece of it
+    fetch reads the stream on, after a piece of it, and an exchange read in pieces on, after a piece of it
     history shows the step's address, printed by its codec
     the step's effects, to their parts or the shell's own code (11)
   patches ← the state machine builds                into the queue reserved at start
@@ -610,6 +610,18 @@ component instead (`elements.md`, 1).
   the body, and no other header. An application that reads an answer's
   freshness (its `Cache-Control`, its `Age`) or when to ask again
   (`Retry-After`) asks for none of the browser's cache and keeps those.
+- **An exchange's body in pieces,** when the exchange asks for it, for
+  an answer whose parts mean something before its end does (a sequence
+  of replies, each framed, written as each is ready): its status and
+  the headers it keeps are reported first, opened; then its body as the
+  stream's is read, each piece at most the bound the exchange gives (a
+  longer one handed in parts), handed to the state machine as it comes,
+  with the next read asked by the loop after the step (4.2); then its
+  end. The body's whole stays within the exchange's bound on its answer,
+  past which the exchange fails, as it fails when the connection does
+  after it opened. It holds its place among the exchanges in flight
+  until its end, its failure or its abandoning. An exchange that asks no
+  pieces is answered whole, as above.
 - **The stream** by fetch, a GET of a path with the headers the
   application gives, with same-origin credentials, its body read a piece
   at a time: each piece, at most the bound the application gives (a

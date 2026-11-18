@@ -127,6 +127,8 @@ impl Replay {
                 | Line::Key { .. }
                 | Line::Resize(_)
                 | Line::Reply { .. }
+                | Line::Part { .. }
+                | Line::Done(_)
                 | Line::Unanswered(_)
                 | Line::Streamed(_)
                 | Line::Gone
@@ -140,6 +142,7 @@ impl Replay {
                 | Line::Opened { .. }
                 | Line::Send { .. }
                 | Line::Stream(_)
+                | Line::Replacing { .. }
                 | Line::Unstream
                 | Line::Save { .. }
                 | Line::Erase(_)
@@ -192,6 +195,10 @@ impl Replay {
             Line::Reply { exchange, bytes } => {
                 Report::Heard(jig_client::Event::Reply { exchange: Token::new(*exchange), message: bytes.clone() })
             }
+            Line::Part { exchange, bytes } => {
+                Report::Heard(jig_client::Event::Part { exchange: Token::new(*exchange), message: bytes.clone() })
+            }
+            Line::Done(exchange) => Report::Heard(jig_client::Event::Done { exchange: Token::new(*exchange) }),
             Line::Unanswered(exchange) => Report::Heard(jig_client::Event::Lost { exchange: Token::new(*exchange) }),
             Line::Streamed(streamed) => Report::Heard(jig_client::Event::Streamed {
                 message: match streamed {
@@ -237,6 +244,7 @@ impl Replay {
             | Line::Turn { .. }
             | Line::Send { .. }
             | Line::Stream(_)
+            | Line::Replacing { .. }
             | Line::Unstream
             | Line::Save { .. }
             | Line::Erase(_)
@@ -279,9 +287,9 @@ fn text(line: &Line) -> Box<[u8]> {
 
 #[expect(clippy::too_many_lines, reason = "one reader checks the recording's ordered start facts and their defaults")]
 pub(super) fn facts(lines: &[Line]) -> Result<(Facts, usize), Unreadable> {
-    let error = |at| Unreadable { line: number(at), why: "expected ordered start facts for journey 2" };
+    let error = |at| Unreadable { line: number(at), why: "expected ordered start facts for journey 2 or 3" };
     let mut at = 0;
-    if lines.get(at) != Some(&Line::Journey { version: 2 }) {
+    if !matches!(lines.get(at), Some(Line::Journey { version: 2 | 3 })) {
         return Err(error(at));
     }
     at += 1;
@@ -436,6 +444,8 @@ fn envelope(lines: &[Line], at: usize) -> Result<(), Unreadable> {
             | Line::Key { .. }
             | Line::Resize(_)
             | Line::Reply { .. }
+            | Line::Part { .. }
+            | Line::Done(_)
             | Line::Unanswered(_)
             | Line::Streamed(_)
             | Line::Gone
@@ -466,6 +476,7 @@ fn envelope(lines: &[Line], at: usize) -> Result<(), Unreadable> {
             }
             Line::Send { .. }
             | Line::Stream(_)
+            | Line::Replacing { .. }
             | Line::Unstream
             | Line::Save { .. }
             | Line::Erase(_)

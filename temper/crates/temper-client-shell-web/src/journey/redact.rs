@@ -1,4 +1,4 @@
-//! Pure recording redaction (temper/docs/design/client/web/journeys.md, 3.6).
+//! Pure recording redaction (temper/docs/design/client/web/journey-redaction.md).
 use super::{
     Framing, Line, Originals, Streams, Undecoded, Unreadable, fields_mut, lines, originals, placeholder, redact_field,
     typed,
@@ -54,6 +54,9 @@ fn replace(lines: &mut [Line], originals: &Originals, include_typed: bool) -> Re
                 count(&mut places, 1);
             }
         }
+        if let Line::Open { path, .. } = line {
+            count(&mut places, redact_replaces(path, originals));
+        }
         for (field, framing) in fields_mut(line) {
             count(&mut places, redact_field(field, framing, originals));
         }
@@ -67,6 +70,39 @@ fn replace(lines: &mut [Line], originals: &Originals, include_typed: bool) -> Re
     }
     streams.write(lines);
     Ok(places)
+}
+
+// The stream name is binary in Kept and lowercase hex in the opening's query.
+fn redact_replaces(path: &mut Box<[u8]>, originals: &Originals) -> u32 {
+    let Some(at) = path.windows(b"?replaces=".len()).position(|part| part == b"?replaces=" || part == b"&replaces=")
+    else {
+        return 0;
+    };
+    let start = at + b"?replaces=".len();
+    let end = path[start..].iter().position(|byte| *byte == b'&').map_or(path.len(), |length| start + length);
+    let Ok(hex) = std::str::from_utf8(&path[start..end]) else { return 0 };
+    if hex.len() != 32 {
+        return 0;
+    }
+    let bytes: Option<Vec<u8>> = hex
+        .as_bytes()
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|pair| std::str::from_utf8(pair).ok().and_then(|pair| u8::from_str_radix(pair, 16).ok()))
+        .collect();
+    let Some(bytes) = bytes else { return 0 };
+    let mut bytes = bytes.into_boxed_slice();
+    let places = redact_field(&mut bytes, Framing::Framed, originals);
+    if places != 0 {
+        let mut replaced = path[..start].to_vec();
+        for byte in bytes {
+            replaced.extend_from_slice(format!("{byte:02x}").as_bytes());
+        }
+        replaced.extend_from_slice(&path[end..]);
+        *path = replaced.into_boxed_slice();
+    }
+    places
 }
 
 fn written(lines: Vec<Line>) -> Box<[u8]> {

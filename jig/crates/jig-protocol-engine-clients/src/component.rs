@@ -14,6 +14,8 @@ use skein_lib::{CryptoRng, Env, Map, Queue, ReplyTo, Time, Token};
 mod approval;
 #[path = "asked_link.rs"]
 mod asked_link;
+#[path = "batch.rs"]
+mod batch;
 #[path = "closing.rs"]
 mod closing;
 #[path = "mint.rs"]
@@ -48,6 +50,8 @@ pub struct Component {
     local: Slot,
     past_links: Queue<(skein_lib::Secret, Past, LinkKind)>,
     connections: Map<Token, Exchange>,
+    batches: Map<Token, batch::Batch>,
+    members: Map<Token, batch::Member>,
     pending: Pending,
     streams: Map<Token, crate::stream::Stream>,
     next: u64,
@@ -55,10 +59,6 @@ pub struct Component {
     public: public::State,
 }
 impl Component {
-    #[expect(
-        clippy::too_many_lines,
-        reason = "settings validation and volatile state initialization share one admission"
-    )]
     pub fn new(mut settings: Settings, env: &Env<Limits>, out: &mut Queue<Request>) -> Result<Self, Unusable> {
         let given = settings.link_secret.take();
         let local_given = settings.local_secret.take();
@@ -122,6 +122,8 @@ impl Component {
         }
         let public = public::State::new(&settings, env)?;
         let rng = CryptoRng::new(&settings.seed, settings.stream).ok_or(Unusable::Seed)?;
+        // Two sets of calls: the admitted work and callers checking credentials; each can carry 64 members.
+        let pending_capacity = env.limits.exchanges.checked_mul(130).expect("checked pending capacity");
         let mut value = Self {
             public,
             provider: provider::State::new(&env.limits),
@@ -133,14 +135,12 @@ impl Component {
             local: Slot::new(),
             past_links: Queue::with_capacity(sign_in::PAST_LINKS),
             connections: Map::with_capacity(env.limits.exchanges),
+            batches: Map::with_capacity(env.limits.exchanges.checked_mul(2).expect("checked batch capacity")),
+            members: Map::with_capacity(pending_capacity),
             pending: Pending {
                 mints: Map::with_capacity(env.limits.mints),
-                exchanges: Map::with_capacity(
-                    env.limits.exchanges.checked_add(env.limits.exchanges).expect("checked pending capacity"),
-                ),
-                carried: Map::with_capacity(
-                    env.limits.exchanges.checked_add(env.limits.exchanges).expect("checked pending capacity"),
-                ),
+                exchanges: Map::with_capacity(pending_capacity),
+                carried: Map::with_capacity(env.limits.exchanges.checked_mul(2).expect("checked carried capacity")),
             },
             streams: Map::with_capacity(env.limits.streams),
             next: 1,
@@ -278,9 +278,7 @@ impl Component {
                 let exchange = to.into_token();
                 self.pending.exchanges.remove(&exchange);
                 self.unused(exchange, out);
-                if let Some(owner) = self.owner(exchange) {
-                    self.connections.get_mut(&owner).expect("exchange owner").respond(crate::Reply::NotARecord);
-                }
+                self.response(exchange, crate::Reply::NotARecord);
             }
             Event::SignInEnded { sign_in } => self.ended(env, sign_in, out),
             Event::Application(crate::FromApplication::Answered { to, family, record }) => {
@@ -403,6 +401,7 @@ impl Component {
         if let Some(exchange) = ready {
             match self.pending.exchanges.remove(&exchange).expect("ready exchange") {
                 Waiting::Checked { sign_in, expires, body, route } => match route {
+                    Route::Batch => self.batch_start(env, exchange, sign_in, out),
                     Route::LinkAsk => self.asked_checked(env, exchange, sign_in, expires, &body, out),
                     Route::Read => self.read(env, exchange, sign_in, &body, out),
                     Route::Watch | Route::Unwatch | Route::Gone | Route::Stream => {
@@ -434,6 +433,9 @@ impl Component {
                 | Waiting::Ask { .. }
                 | Waiting::Carry { .. } => {}
             }
+            return true;
+        }
+        if self.batch_up(out) {
             return true;
         }
         let mut selected = None;
@@ -471,8 +473,12 @@ impl Component {
                 let (route, body) = routes::message(message);
                 self.receive(env, exchange, (credential, browser), route, body, out);
             }
-            crate::FromTransport::StreamOpen { stream, credential, version } => {
-                self.receive(env, stream, (credential, false), Route::Stream, Box::new([]), out);
+            crate::FromTransport::StreamOpen { stream, credential, version, replaces } => {
+                let body: Box<[u8]> = match replaces {
+                    Some(name) => Box::from(name),
+                    None => Box::new([]),
+                };
+                self.receive(env, stream, (credential, false), Route::Stream, body, out);
                 self.connections.get_mut(&stream).expect("received stream").version = version;
             }
             crate::FromTransport::StreamTaken { stream } => {
@@ -492,7 +498,9 @@ impl Component {
     }
     fn gone(&mut self, owner: Token) {
         self.public.gone(owner);
-        self.connections.remove(&owner);
+        if let Some(connection) = self.connections.remove(&owner) {
+            self.batch_gone(connection.name);
+        }
         if let Some(value) = self.streams.get_mut(&owner) {
             value.phase = crate::stream::Phase::Closing;
             value.closed_connection = true;
@@ -509,6 +517,12 @@ impl Component {
     ) {
         let exchange = self.name();
         let mut connection = Exchange::new(exchange, route == Route::Stream);
+        if route == Route::Batch && !self.batch_decode(env, exchange, &body) {
+            connection.respond(crate::Reply::NotARecord);
+            self.connections.insert(owner, connection).expect("transport bounds active exchanges");
+            return;
+        }
+        let body = if route == Route::Batch { Box::new([]) } else { body };
         self.body(env, &mut connection, route, body, authentication, out);
         self.connections.insert(owner, connection).expect("transport bounds active exchanges");
     }
@@ -626,13 +640,16 @@ impl Component {
             | Route::SignOut
             | Route::Request
             | Route::Read
+            | Route::Batch
             | Route::Watch
             | Route::Unwatch
             | Route::Gone
             | Route::Stream => {
                 let Some((sign_in, digest)) = sign_in::credential(credential.as_ref()) else {
                     let answer = routes::unauthenticated(route, &env.limits.wire);
-                    if route == Route::Stream {
+                    if route == Route::Batch {
+                        self.batch_denied(exchange);
+                    } else if route == Route::Stream {
                         connection.ended = Some(crate::Ended::SignedOut);
                     } else {
                         connection.respond(crate::Reply::Record(answer));
@@ -865,6 +882,10 @@ impl Component {
         }
     }
     fn owner(&self, exchange: Token) -> Option<Token> {
+        let exchange = match self.members.get(&exchange) {
+            Some(member) => member.batch,
+            None => exchange,
+        };
         for (owner, connection) in &self.connections {
             if connection.name == exchange && !connection.closing {
                 return Some(*owner);
@@ -873,11 +894,13 @@ impl Component {
         None
     }
     fn respond(&mut self, exchange: Token, body: Box<[u8]>) {
-        if let Some(owner) = self.owner(exchange) {
-            self.connections.get_mut(&owner).expect("exchange owner").respond(crate::Reply::Record(body));
-        }
+        self.response(exchange, crate::Reply::Record(body));
     }
     fn denied(&mut self, env: &Env<Limits>, exchange: Token, route: Route) {
+        if route == Route::Batch {
+            self.batch_denied(exchange);
+            return;
+        }
         if let Some(owner) = self.owner(exchange) {
             let connection = self.connections.get_mut(&owner).expect("exchange owner");
             if route == Route::Stream {
@@ -889,7 +912,15 @@ impl Component {
     }
     fn admitted(&self) -> u32 {
         let mut count = 0_u32;
-        for (_, waiting) in &self.pending.exchanges {
+        for (_, batch) in &self.batches {
+            if batch.admitted {
+                count = count.saturating_add(1);
+            }
+        }
+        for (exchange, waiting) in &self.pending.exchanges {
+            if self.members.contains_key(exchange) {
+                continue;
+            }
             match waiting {
                 Waiting::LinkAskWhose { .. }
                 | Waiting::AskedWhose { .. }

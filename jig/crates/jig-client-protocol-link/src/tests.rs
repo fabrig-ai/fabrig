@@ -6,6 +6,7 @@ use jig_client_protocol_wire as w;
 use skein_lib::{Queue, Reader, RequestEnvelope, Time, Token};
 mod asked_link;
 mod attempts;
+mod batch;
 mod carried;
 mod documents;
 mod fixtures;

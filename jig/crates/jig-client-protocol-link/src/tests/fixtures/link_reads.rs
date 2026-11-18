@@ -22,6 +22,7 @@ pub const READ: Token = Token::new(29);
 impl Harness {
     pub fn read(&mut self, what: Readable) -> Token {
         self.link.step(Time::ZERO, Event::Read { read: READ, what }, &mut self.out);
+        self.link.settle(&mut self.out);
         match self.out.iter().last().expect("one exchange") {
             Request::Exchange { exchange, .. } => *exchange,
             other @ (Request::Answer { .. }
@@ -140,6 +141,7 @@ impl Harness {
         let (read, what) = retry.expect("a current read may be retried once");
         self.clear();
         self.link.step(Time::ZERO, Event::ReadAgain { read, what }, &mut self.out);
+        self.link.settle(&mut self.out);
         let Some(Request::Exchange { exchange, .. }) = self.out.iter().last() else { panic!("retried read exchange") };
         *exchange
     }

@@ -184,9 +184,11 @@ impl Harness {
     }
     pub fn written(&mut self) {
         self.link.step(Time::ZERO, Event::Stored, &mut self.out);
+        self.link.settle(&mut self.out);
     }
     pub fn write_failed(&mut self) {
         self.link.step(Time::ZERO, Event::NotStored, &mut self.out);
+        self.link.settle(&mut self.out);
     }
     pub fn exchanges(&self) -> u32 {
         let mut count = 0_u32;

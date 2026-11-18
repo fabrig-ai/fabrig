@@ -64,6 +64,7 @@ fn full_people_answers_reach_the_carried_clients_outcome_with_facts() {
             codec.step(Time::ZERO, link::Event::Send { attempt, key, ask: request, value }, &mut wire);
         }
     }
+    codec.settle(&mut wire);
     let Some(link::Request::Exchange { exchange, message: link::Message::Request(body), .. }) = wire.pop() else {
         panic!("one keyed export")
     };

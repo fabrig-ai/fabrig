@@ -91,6 +91,7 @@ impl Harness {
     pub fn open(&mut self, watch: Token, subject: Watchable) -> Token {
         self.link.step(Time::ZERO, Event::OpenStream, &mut self.out);
         self.link.step(Time::ZERO, Event::Open { watch, subject }, &mut self.out);
+        self.link.settle(&mut self.out);
         watch
     }
     pub fn streaming(subject: Watchable) -> Self {
@@ -101,12 +102,14 @@ impl Harness {
     }
     pub fn stream_at(&mut self, now: Time, bytes: &[u8]) {
         self.link.step(now, Event::Streamed { message: Streamed::Record(Box::from(bytes)) }, &mut self.out);
+        self.link.settle(&mut self.out);
     }
     pub fn stream_record(&mut self, bytes: &[u8]) {
         self.stream_at(Time::ZERO, bytes);
     }
     pub fn advance(&mut self, now: Time) {
         self.link.fire(now, &mut self.out);
+        self.link.settle(&mut self.out);
     }
     pub fn opening(&self) -> (Token, u64) {
         for request in &self.out {
@@ -207,6 +210,7 @@ impl Harness {
     }
     pub fn close(&mut self) -> Token {
         self.link.step(Time::ZERO, Event::Close { watch: WATCH }, &mut self.out);
+        self.link.settle(&mut self.out);
         match self.out.iter().last().unwrap() {
             Request::Exchange { exchange, message: Message::Unwatch(_), .. } => *exchange,
             other @ (Request::Exchange { .. }
@@ -238,94 +242,25 @@ impl Harness {
         assert!(self.has(&Request::FamilyDelivery { watch: WATCH, record: family_read() }));
     }
 }
-impl Harness {
-    pub fn gone_name(&self) -> [u8; 16] {
-        for request in &self.out {
-            match request {
-                Request::Exchange { message: Message::StreamGone(body), .. } => {
-                    return *w::Gone::decode(limits().wire(), &mut Reader::new(body)).unwrap().stream();
-                }
-                Request::Exchange { .. }
-                | Request::Answer { .. }
-                | Request::NotWritten { .. }
-                | Request::NotKept { .. }
-                | Request::ReadAgain { .. }
-                | Request::Read { .. }
-                | Request::OpenStream { .. }
-                | Request::CloseStream
-                | Request::Watch { .. }
-                | Request::FamilyDelivery { .. }
-                | Request::Ended { .. }
-                | Request::Hello { .. }
-                | Request::Save { .. }
-                | Request::Erase { .. }
-                | Request::Kept { .. }
-                | Request::Dropped
-                | Request::Signing { .. }
-                | Request::ServiceCredential { .. }
-                | Request::AskedLink(_)
-                | Request::Approval(_)
-                | Request::Authorized(_)
-                | Request::StreamsFull { .. }
-                | Request::Fact { .. } => {}
-            }
-        }
-        panic!("no stream-gone exchange")
-    }
-    pub fn assert_run_subject(&self) {
-        for request in &self.out {
-            match request {
-                Request::Exchange { message: Message::Watch(body), .. } => {
-                    let lim = *limits().wire();
-                    let open = w::Open::decode(&lim, &mut Reader::new(body)).unwrap();
-                    let subject = w::Subject::decode(&lim, &mut Reader::new(open.subject().record())).unwrap();
-                    let turn = w::ProvisionalTurnName::new(
-                        &lim,
-                        w::ProvisionalTurnNameParts { attempt: 9, number: 2, retry: 3 },
-                    )
-                    .unwrap();
-                    assert_eq!(
-                        subject,
-                        w::Subject::Run(
-                            w::SubjectRun::new(&lim, w::SubjectRunParts { task: 7, turn: Some(turn), offset: 123 })
-                                .unwrap()
-                        )
-                    );
-                    return;
-                }
-                Request::Exchange { .. }
-                | Request::Answer { .. }
-                | Request::NotWritten { .. }
-                | Request::NotKept { .. }
-                | Request::ReadAgain { .. }
-                | Request::Read { .. }
-                | Request::OpenStream { .. }
-                | Request::CloseStream
-                | Request::Watch { .. }
-                | Request::FamilyDelivery { .. }
-                | Request::Ended { .. }
-                | Request::Hello { .. }
-                | Request::Save { .. }
-                | Request::Erase { .. }
-                | Request::Kept { .. }
-                | Request::Dropped
-                | Request::Signing { .. }
-                | Request::ServiceCredential { .. }
-                | Request::AskedLink(_)
-                | Request::Approval(_)
-                | Request::Authorized(_)
-                | Request::StreamsFull { .. }
-                | Request::Fact { .. } => {}
-            }
-        }
-        panic!("no run opening")
-    }
+pub fn assert_run_subject(open: &w::Open) {
+    let lim = *limits().wire();
+    let subject = w::Subject::decode(&lim, &mut Reader::new(open.subject().record())).unwrap();
+    let turn =
+        w::ProvisionalTurnName::new(&lim, w::ProvisionalTurnNameParts { attempt: 9, number: 2, retry: 3 }).unwrap();
+    assert_eq!(
+        subject,
+        w::Subject::Run(
+            w::SubjectRun::new(&lim, w::SubjectRunParts { task: 7, turn: Some(turn), offset: 123 }).unwrap()
+        )
+    );
 }
 
 pub const EXCHANGE_ROOM: u32 = 8;
 impl Harness {
     pub fn admitted_stream() -> Self {
-        let limits = Limits::new(*limits().client(), EXCHANGE_ROOM).unwrap();
+        let limits =
+            Limits::new(jig_client_domain::Limits { reads: EXCHANGE_ROOM, ..*limits().client() }, EXCHANGE_ROOM)
+                .unwrap();
         let mut harness = Self::new(&limits);
         harness.open(WATCH, application_subject());
         harness.stream_record(&hello_event(HEARTBEAT));
@@ -342,6 +277,7 @@ impl Harness {
                 Event::Read { read: Token::new(100), what: Readable::Jig(history_read()) },
                 &mut self.out,
             );
+            self.link.settle(&mut self.out);
             let Some(Request::Exchange { exchange, message: Message::Read(_), .. }) = self.out.pop() else {
                 panic!("one read fills one exchange");
             };

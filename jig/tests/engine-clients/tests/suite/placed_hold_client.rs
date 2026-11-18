@@ -29,10 +29,12 @@ struct Party {
 impl Party {
     fn step(&mut self, event: client::Event) -> Vec<client::Request> {
         self.machine.step(Time::ZERO, Wall::EPOCH, event, &mut self.out);
+        self.machine.settle(Time::ZERO, Wall::EPOCH, &mut self.out);
         let mut requests = Vec::new();
         while let Some(request) = self.out.pop() {
             if matches!(request, client::Request::Save { .. } | client::Request::Erase { .. }) {
                 self.machine.step(Time::ZERO, Wall::EPOCH, client::Event::Stored, &mut self.out);
+                self.machine.settle(Time::ZERO, Wall::EPOCH, &mut self.out);
             } else {
                 requests.push(request);
             }

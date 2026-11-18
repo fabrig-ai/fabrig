@@ -12,7 +12,7 @@ use skein_lib::Reader;
 #[expect(clippy::disallowed_macros, reason = "the test reads schemas to hold wire constants to their family versions")]
 fn version_constants_match_their_schemas() {
     let client =
-        concat!(include_str!("../schema/client-v33.schema"), include_str!("../schema/client-v33-part1.schema"));
+        concat!(include_str!("../schema/client-v34.schema"), include_str!("../schema/client-v34-part1.schema"));
     let client = skein_codec::schema::parse(client.as_bytes()).expect("client schema");
     assert_eq!(VERSION, u32::from(client.version()), "jig-client-wire VERSION must equal its family version");
     let public =
@@ -84,6 +84,74 @@ fn each_answer_kind_round_trips_unchanged() {
         let bytes = fixtures::encoded(&answer, KeyedAnswer::measure, KeyedAnswer::encode);
         assert_eq!(KeyedAnswer::decode(&limits, &mut Reader::new(&bytes)), Ok(answer));
     }
+}
+
+#[test]
+fn a_batch_round_trips_its_read_open_and_close() {
+    let limits = fixtures::stream_limits();
+    let close = WatchClose::new(&limits, WatchCloseParts { stream: [7; 16], watch: 23 }).expect("closing watch");
+    let mut members = skein_lib::List::with_capacity(3);
+    for member in [
+        Member::Read(fixtures::stream_owned(&limits)),
+        Member::Open(fixtures::open_tree(&limits)),
+        Member::Close(close),
+    ] {
+        members.push(member).expect("three members");
+    }
+    let batch = Batch::new(&limits, BatchParts { members }).expect("mixed batch");
+    let bytes = fixtures::encoded(&batch, Batch::measure, Batch::encode);
+    assert_eq!(Batch::decode(&limits, &mut Reader::new(&bytes)), Ok(batch));
+}
+
+#[test]
+fn batch_replies_preserve_the_member_and_optional_answer() {
+    let limits = fixtures::stream_limits();
+    for reply in [
+        None,
+        Some(fixtures::encoded(
+            &ReadAnswer::Value(fixtures::stream_owned(&limits)),
+            ReadAnswer::measure,
+            ReadAnswer::encode,
+        )),
+        Some(fixtures::encoded(&OpenAnswer::Admitted, OpenAnswer::measure, OpenAnswer::encode)),
+        Some(fixtures::encoded(&CloseAnswer::Closed, CloseAnswer::measure, CloseAnswer::encode)),
+    ] {
+        let reply = BatchReply::new(&limits, BatchReplyParts { member: 2, reply }).expect("member's optional answer");
+        let bytes = fixtures::encoded(&reply, BatchReply::measure, BatchReply::encode);
+        assert_eq!(BatchReply::decode(&limits, &mut Reader::new(&bytes)), Ok(reply));
+    }
+}
+
+#[test]
+fn a_batch_accepts_64_members_and_refuses_65() {
+    let limits = fixtures::limits();
+    let close = WatchClose::new(&limits, WatchCloseParts { stream: [7; 16], watch: 23 }).expect("closing watch");
+    for count in [64, 65] {
+        let members = fixtures::repeated(Member::Close(close.clone()), count);
+        let bytes = fixtures::encoded_batch_members(&members);
+        let decoded = Batch::decode(&limits, &mut Reader::new(&bytes));
+        if count == 64 {
+            let batch = Batch::new(&limits, BatchParts { members }).expect("64 members fit");
+            assert_eq!(decoded, Ok(batch));
+        } else {
+            let expected = Err(Problem { path: Path::BatchMembers, reason: skein_codec::Reason::Bound });
+            assert_eq!(decoded, expected);
+            assert_eq!(Batch::new(&limits, BatchParts { members }), expected);
+        }
+    }
+}
+
+#[test]
+fn a_batch_reply_can_hold_the_largest_members_answer() {
+    let largest = [
+        ReadAnswer::encoded_bound(&CEILINGS).expect("read answer bound"),
+        OpenAnswer::encoded_bound(&CEILINGS).expect("open answer bound"),
+        CloseAnswer::encoded_bound(&CEILINGS).expect("close answer bound"),
+    ]
+    .into_iter()
+    .max()
+    .expect("three member answer kinds");
+    assert!(u64::from(CEILINGS.batch_reply_reply_some) >= largest, "a batch must carry an answer at its ceiling");
 }
 
 fn a_bearer_token_past_its_bound_is_refused() {

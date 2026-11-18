@@ -91,6 +91,12 @@ pub fn fire(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     }
     children_first(out);
 }
+/// Settle once after routing the iteration (jig/docs/design/client/domain/root.md, 3).
+pub fn settle(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    let mut client = Queue::uncapped();
+    root.client.settle(env.now, env.wall, &mut client);
+    route::route_client(root, env, &mut client, out);
+}
 #[must_use]
 pub fn next_deadline(root: &Domain) -> Option<Time> {
     [jig_client_view::next_deadline(&root.jig), first::next_deadline(&root.first), root.client.next_deadline()]

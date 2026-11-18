@@ -375,6 +375,7 @@ fn version_refused() -> (crate::Domain, jig_client::Key) {
     let mut link = link::Link::new(&bounds).unwrap();
     let mut sent = Queue::uncapped();
     link.step(skein_lib::Time::ZERO, link::Event::Send { attempt, key, ask, value }, &mut sent);
+    link.settle(&mut sent);
     let Some(link::Request::Exchange { exchange, .. }) = sent.pop() else { panic!("keyed exchange") };
     link.step(skein_lib::Time::ZERO, link::Event::Reply { exchange, message: version_answer(&bounds) }, &mut sent);
     while let Some(request) = sent.pop() {

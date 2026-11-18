@@ -39,6 +39,7 @@ pub fn valid(limits: &Limits) -> bool {
 #[derive(Clone, Copy, Debug)]
 enum Owner {
     Link(Token),
+    Batch(Token),
     Stream,
 }
 type Pending = (Owner, Call, Time, Kind);
@@ -47,6 +48,7 @@ struct Exchange {
     kind: Kind,
     until: Time,
     stream: Option<mapping::Stream>,
+    frames: Option<mapping::Frames>,
     machine: http::Client,
     events: Queue<http::Event>,
     below: Queue<Down>,
@@ -108,7 +110,7 @@ impl Connections {
         conn
     }
     pub(crate) fn has_exchange_room(&self) -> bool {
-        self.pending.iter().filter(|(owner, _, _, _)| matches!(owner, Owner::Link(_))).count()
+        self.pending.iter().filter(|(owner, _, _, _)| matches!(owner, Owner::Link(_) | Owner::Batch(_))).count()
             + self.exchanges.values().filter(|value| !matches!(value.owner, Owner::Stream)).count()
             < skein_lib::length::usize_of(self.limits.exchanges)
     }
@@ -140,20 +142,20 @@ impl Connections {
         match request {
             client::Request::Exchange { exchange, message, credential } => {
                 let kind = Kind::message(&message);
-                self.enqueue(
-                    now,
-                    Owner::Link(exchange),
-                    mapping::exchange(&self.mapping, credential.as_ref(), message),
-                    kind,
-                );
+                let owner = if matches!(message, client::Message::Batch(_)) {
+                    Owner::Batch(exchange)
+                } else {
+                    Owner::Link(exchange)
+                };
+                self.enqueue(now, owner, mapping::exchange(&self.mapping, credential.as_ref(), message), kind);
             }
-            client::Request::OpenStream { credential, version } => {
+            client::Request::OpenStream { credential, version, replaces } => {
                 if !self.exchanges.values().any(|value| matches!(value.owner, Owner::Stream))
                     && !self.pending.iter().any(|(owner, _, _, _)| matches!(owner, Owner::Stream))
                 {
                     self.pending.push_back((
                         Owner::Stream,
-                        mapping::stream(&self.mapping, credential.as_ref(), version),
+                        mapping::stream(&self.mapping, credential.as_ref(), version, replaces),
                         now,
                         Kind::Stream,
                     ));
@@ -223,6 +225,10 @@ impl Connections {
                 Some(mapping::Stream::new(&self.stream_limits()))
             } else {
                 None
+            },
+            frames: match owner {
+                Owner::Batch(exchange) => Some(mapping::Frames::new(exchange, &self.stream_limits())),
+                Owner::Link(_) | Owner::Stream => None,
             },
             machine: http::Client::new(&self.limits.http),
             events: Queue::uncapped(),
@@ -312,6 +318,11 @@ impl Connections {
                         stream.opened(value.status, &mut self.heard);
                         value.terminal = self.hear();
                     }
+                    if let Some(frames) = &mut value.frames {
+                        frames.opened(value.status, &mut self.heard);
+                        value.terminal = !frames.active();
+                        self.hear();
+                    }
                     if !value.terminal {
                         Self::read(&env, &mut value);
                     }
@@ -323,6 +334,10 @@ impl Connections {
                     if let Some(stream) = &mut value.stream {
                         stream.body(&bytes, &mut self.heard);
                         value.terminal = self.hear();
+                    } else if let Some(frames) = &mut value.frames {
+                        frames.body(&bytes, &mut self.heard);
+                        value.terminal = !frames.active();
+                        self.hear();
                     } else if value.body.len() + bytes.len() <= skein_lib::length::usize_of(self.limits.body_bytes) {
                         value.body.extend_from_slice(&bytes);
                     } else {
@@ -345,6 +360,10 @@ impl Connections {
                                 self.heard.push(heard);
                                 self.hear();
                             }
+                        }
+                        Owner::Batch(_) => {
+                            value.frames.as_mut().expect("batch owner").ended(&mut self.heard);
+                            self.hear();
                         }
                         Owner::Stream => {
                             value.stream.as_mut().expect("stream owner").ended(&mut self.heard);
@@ -405,7 +424,9 @@ impl Connections {
         }
     }
     fn read(env: &Env<http::Limits>, value: &mut Exchange) {
-        let read = if matches!(value.owner, Owner::Stream) && value.status == 200 {
+        let read = if matches!(value.owner, Owner::Batch(_)) {
+            Read::Arrived { max: env.limits.read }
+        } else if matches!(value.owner, Owner::Stream) && value.status == 200 {
             Read::Line { max: env.limits.read.min(1024) }
         } else {
             match value.remaining {
@@ -426,6 +447,8 @@ impl Connections {
         while let Some(heard) = self.heard.pop() {
             self.events.push_back(match heard {
                 mapping::Heard::Reply { exchange, message } => client::Event::Reply { exchange, message },
+                mapping::Heard::Part { exchange, message } => client::Event::Part { exchange, message },
+                mapping::Heard::Done { exchange } => client::Event::Done { exchange },
                 mapping::Heard::Lost { exchange } => client::Event::Lost { exchange },
                 mapping::Heard::Streamed { message } => client::Event::Streamed { message },
                 mapping::Heard::StreamGone => {
@@ -438,7 +461,7 @@ impl Connections {
     }
     fn failed(&mut self, owner: Owner) {
         match owner {
-            Owner::Link(exchange) => self.events.push_back(client::Event::Lost { exchange }),
+            Owner::Link(exchange) | Owner::Batch(exchange) => self.events.push_back(client::Event::Lost { exchange }),
             Owner::Stream => self.events.push_back(client::Event::StreamGone),
         }
     }
@@ -446,19 +469,17 @@ impl Connections {
     pub fn next_deadline(&self) -> Option<Time> {
         self.exchanges
             .values()
-            .filter(|value| matches!(value.owner, Owner::Link(_)))
+            .filter(|value| matches!(value.owner, Owner::Link(_) | Owner::Batch(_)))
             .map(|value| value.until)
-            .chain(self.pending.iter().filter_map(
-                |(owner, _, until, _)| {
-                    if matches!(owner, Owner::Link(_)) { Some(*until) } else { None }
-                },
-            ))
+            .chain(self.pending.iter().filter_map(|(owner, _, until, _)| {
+                if matches!(owner, Owner::Link(_) | Owner::Batch(_)) { Some(*until) } else { None }
+            }))
             .min()
     }
     fn expire(&mut self, now: Time, below: &mut Queue<(Conn, Down)>) {
         for _ in 0..self.pending.len() {
             let (owner, call, until, kind) = self.pending.pop_front().expect("pending call");
-            if matches!(owner, Owner::Link(_)) && now >= until {
+            if matches!(owner, Owner::Link(_) | Owner::Batch(_)) && now >= until {
                 self.failed(owner);
             } else {
                 self.pending.push_back((owner, call, until, kind));
@@ -468,8 +489,8 @@ impl Connections {
             .exchanges
             .values()
             .filter_map(|value| match value.owner {
-                Owner::Link(exchange) if now >= value.until => Some(exchange),
-                Owner::Link(_) | Owner::Stream => None,
+                Owner::Link(exchange) | Owner::Batch(exchange) if now >= value.until => Some(exchange),
+                Owner::Link(_) | Owner::Batch(_) | Owner::Stream => None,
             })
             .collect();
         for exchange in expired {
@@ -491,13 +512,13 @@ impl Connections {
     }
     fn close(&mut self, now: Time, exchange: Option<Token>, below: &mut Queue<(Conn, Down)>) {
         self.pending.retain(|(owner, _, _, _)| match owner {
-            Owner::Link(token) => Some(*token) != exchange,
+            Owner::Link(token) | Owner::Batch(token) => Some(*token) != exchange,
             Owner::Stream => exchange.is_some(),
         });
         let conn = self.exchanges.iter().find_map(|(conn, value)| match value.owner {
-            Owner::Link(token) if Some(token) == exchange => Some(*conn),
+            Owner::Link(token) | Owner::Batch(token) if Some(token) == exchange => Some(*conn),
             Owner::Stream if exchange.is_none() => Some(*conn),
-            Owner::Link(_) | Owner::Stream => None,
+            Owner::Link(_) | Owner::Batch(_) | Owner::Stream => None,
         });
         if let Some(conn) = conn {
             let mut value = self.exchanges.remove(&conn).expect("live connection");

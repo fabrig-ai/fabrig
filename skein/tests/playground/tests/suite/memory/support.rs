@@ -119,6 +119,7 @@ pub fn exchange(id: u32) -> fetch::Exchange {
         headers: Vec::new(),
         body: Box::from([]),
         bound: ANSWER_BOUND,
+        pieces: None,
         cache: skein_ui_web::fetch::Cache::Browser,
         keep: &[],
     }

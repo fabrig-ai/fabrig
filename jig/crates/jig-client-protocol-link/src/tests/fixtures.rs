@@ -122,6 +122,7 @@ impl Harness {
             Event::Send { attempt, key, ask: Ask::Jig(Box::new(ask)), value: None },
             &mut self.out,
         );
+        self.link.settle(&mut self.out);
         match self.out.iter().next().expect("one exchange") {
             Request::Exchange { exchange, .. } => *exchange,
             other @ (Request::Answer { .. }
@@ -157,6 +158,7 @@ impl Harness {
     }
     pub fn answer(&mut self, exchange: Token, bytes: &[u8]) {
         self.link.step(Time::ZERO, Event::Reply { exchange, message: Box::from(bytes) }, &mut self.out);
+        self.link.settle(&mut self.out);
     }
     pub fn answered(&self, token: Token) -> Option<(RequestEnvelope, Option<&Answered>)> {
         for request in &self.out {
@@ -288,6 +290,7 @@ pub use link_store::*;
 impl Harness {
     pub fn sign_in(&mut self, with: With) -> Option<Token> {
         self.link.step(Time::ZERO, Event::SignIn { with }, &mut self.out);
+        self.link.settle(&mut self.out);
         for request in &self.out {
             if let Request::Exchange { exchange, .. } = request {
                 return Some(*exchange);
@@ -307,6 +310,7 @@ impl Harness {
     pub fn sign_out(&mut self) -> Token {
         self.out = Queue::uncapped();
         self.link.step(Time::ZERO, Event::SignOut, &mut self.out);
+        self.link.settle(&mut self.out);
         for request in &self.out {
             if let Request::Exchange { exchange, .. } = request {
                 return *exchange;
@@ -333,6 +337,7 @@ impl Harness {
         let mut harness = Self::new(&limits());
         let ask = Ask::Family { scope: c::Scope::Own, record: family_read() };
         harness.link.step(Time::ZERO, Event::Send { attempt: ATTEMPT, key: KEY, ask, value: None }, &mut harness.out);
+        harness.link.settle(&mut harness.out);
         let Some(Request::Exchange { exchange, .. }) = harness.out.iter().next() else { panic!("exchange") };
         let exchange = *exchange;
         (harness, exchange)

@@ -5,7 +5,12 @@ fn opening_a_stream_names_the_clients_wire_version() {
     let mut h = fixtures::Harness::new(&fixtures::limits());
     h.link.step(Time::ZERO, Event::SignIn { with: With::Transport }, &mut h.out);
     h.link.step(Time::ZERO, Event::OpenStream, &mut h.out);
-    assert!(h.has(&Request::OpenStream { credential: None, version: jig_client_protocol_wire::VERSION }));
+    h.link.settle(&mut h.out);
+    assert!(h.has(&Request::OpenStream {
+        credential: None,
+        version: jig_client_protocol_wire::VERSION,
+        replaces: None
+    }));
 }
 
 #[test]
@@ -70,16 +75,18 @@ fn a_hello_alone_serving_the_client_is_out_of_order() {
 }
 
 #[test]
-fn a_second_watch_opening_waits_for_the_first_admission() {
+fn a_second_watch_opening_uses_credit_before_the_first_admission() {
     let mut h = fixtures::Harness::streaming(fixtures::application_subject());
     let (first, _) = h.opening();
     h.clear();
     let watch = Token::new(42);
     h.open(watch, fixtures::family_subject());
-    h.assert_no_watch_exchange();
-    h.answer(first, &fixtures::open_answer(&w::OpenAnswer::Admitted));
     let (second, name) = h.opening();
     assert_ne!(name, 0);
+    h.clear();
+    h.answer(first, &fixtures::open_answer(&w::OpenAnswer::Admitted));
+    h.assert_no_watch_exchange();
+    assert!(!h.has(&Request::Watch { watch, event: c::WatchEvent::Opened }));
     h.clear();
     h.answer(second, &fixtures::open_answer(&w::OpenAnswer::Admitted));
     assert!(h.has(&Request::Watch { watch, event: c::WatchEvent::Opened }));
@@ -186,6 +193,7 @@ fn a_hello_reopens_no_watch_of_an_owner_it_does_not_serve() {
         }
     }
     harness.link.step(Time::ZERO, Event::Close { watch: fixtures::WATCH }, &mut harness.out);
+    harness.link.settle(&mut harness.out);
     assert_eq!(harness.ended(fixtures::WATCH), Some(c::WatchEnd::Closed));
     for request in &harness.out {
         if let Request::Exchange { .. } = request {
@@ -215,14 +223,22 @@ fn a_second_watch_uses_the_stream_already_opened() {
     let mut harness = fixtures::Harness::streaming(fixtures::application_subject());
     harness.clear();
     harness.open(Token::new(42), fixtures::family_subject());
-    assert!(!harness.has(&Request::OpenStream { credential: None, version: jig_client_protocol_wire::VERSION }));
+    assert!(!harness.has(&Request::OpenStream {
+        credential: None,
+        replaces: None,
+        version: jig_client_protocol_wire::VERSION
+    }));
 }
 #[test]
 fn an_opening_waits_for_the_stream_s_name() {
     let mut harness = fixtures::Harness::new(&fixtures::limits());
     harness.open(fixtures::WATCH, fixtures::application_subject());
     assert_eq!(harness.out.len(), 1);
-    assert!(harness.has(&Request::OpenStream { credential: None, version: jig_client_protocol_wire::VERSION }));
+    assert!(harness.has(&Request::OpenStream {
+        credential: None,
+        replaces: None,
+        version: jig_client_protocol_wire::VERSION
+    }));
 }
 #[test]
 fn a_watch_s_opening_answer_is_handed_up() {
@@ -271,7 +287,7 @@ fn an_opening_waits_for_a_read_reply() {
     let (opening, _) = h.opening();
     assert_eq!(h.closed_count(), 0);
     assert_eq!(h.link.in_flight(), fixtures::EXCHANGE_ROOM);
-    assert!(!h.link.has_exchange_room());
+    assert!(h.link.has_exchange_room(), "opening credit is independent of logical reads");
     h.clear();
     h.answer(opening, &fixtures::open_answer(&w::OpenAnswer::Admitted));
     assert!(h.has(&Request::Watch { watch, event: c::WatchEvent::Opened }));
@@ -284,6 +300,7 @@ fn an_opening_waits_for_a_read_loss() {
     h.open(Token::new(42), fixtures::application_subject());
     assert!(h.out.is_empty());
     h.link.step(Time::ZERO, Event::Lost { exchange: reads.pop().unwrap() }, &mut h.out);
+    h.link.settle(&mut h.out);
     h.opening();
     assert_eq!(h.closed_count(), 0);
     assert_eq!(h.link.in_flight(), fixtures::EXCHANGE_ROOM);
@@ -299,14 +316,15 @@ fn held_openings_leave_in_request_order_not_handle_order() {
     h.open(second, fixtures::family_subject());
     assert!(h.out.is_empty());
     h.answer(reads.pop().unwrap(), &fixtures::read_none_answer(w::ReadNone::Unknown));
-    for watch in [first, second] {
-        assert_eq!(h.out.len(), 2, "one terminal and one next opening");
-        let (exchange, _) = h.opening();
-        assert_eq!(h.link.attempts.get(&exchange).unwrap().token, watch);
-        assert_eq!(h.closed_count(), 0);
-        h.clear();
-        h.answer(exchange, &fixtures::open_answer(&w::OpenAnswer::Admitted));
-    }
+    let Some(Request::Exchange { message: Message::Batch(body), .. }) = h.out.iter().last() else {
+        panic!("two openings share freed credit")
+    };
+    let batch = w::Batch::decode(h.link.limits.wire(), &mut Reader::new(body)).unwrap();
+    let [w::Member::Open(a), w::Member::Open(b)] = batch.members().as_slice() else { panic!("two ordered openings") };
+    assert!(a.watch() < b.watch(), "the names follow asked order");
+    assert_eq!(a.subject().owner(), &w::Owner::Jig);
+    assert_ne!(b.subject().owner(), &w::Owner::Jig);
+    assert_eq!(h.closed_count(), 0);
 }
 
 #[test]
@@ -317,6 +335,7 @@ fn closing_a_held_opening_ends_once_without_taking_credit() {
     h.open(watch, fixtures::application_subject());
     for _ in 0_u32..2 {
         h.link.step(Time::ZERO, Event::Close { watch }, &mut h.out);
+        h.link.settle(&mut h.out);
     }
     assert_eq!(h.ended(watch), Some(c::WatchEnd::Closed));
     assert_eq!(h.closed_count(), 1);
@@ -333,11 +352,14 @@ fn an_admitted_closing_waits_for_exchange_credit() {
         let mut h = fixtures::Harness::admitted_stream();
         let mut reads = h.fill_reads();
         h.link.step(Time::ZERO, Event::Close { watch: fixtures::WATCH }, &mut h.out);
+        h.link.settle(&mut h.out);
         h.link.step(Time::ZERO, Event::Close { watch: fixtures::WATCH }, &mut h.out);
+        h.link.settle(&mut h.out);
         assert!(h.out.is_empty(), "a closing waits instead of Dropped");
         let exchange = reads.pop().unwrap();
         if lost {
             h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out);
+            h.link.settle(&mut h.out);
         } else {
             h.answer(exchange, &[]);
         }
@@ -358,14 +380,17 @@ fn held_closings_and_openings_share_request_order() {
     let mut h = fixtures::Harness::admitted_stream();
     let mut reads = h.fill_reads();
     h.link.step(Time::ZERO, Event::Close { watch: fixtures::WATCH }, &mut h.out);
+    h.link.settle(&mut h.out);
     h.open(Token::new(42), fixtures::application_subject());
     assert!(h.out.is_empty());
     h.answer(reads.pop().unwrap(), &fixtures::read_none_answer(w::ReadNone::Unknown));
-    h.unwatching();
-    assert_eq!(h.out.len(), 2);
-    h.clear();
-    h.answer(reads.pop().unwrap(), &fixtures::read_none_answer(w::ReadNone::Unknown));
-    h.opening();
+    let Some(Request::Exchange { message: Message::Batch(body), .. }) = h.out.iter().last() else {
+        panic!("closing and opening share freed credit")
+    };
+    let batch = w::Batch::decode(h.link.limits.wire(), &mut Reader::new(body)).unwrap();
+    let [w::Member::Close(_), w::Member::Open(_)] = batch.members().as_slice() else {
+        panic!("closing precedes opening")
+    };
     assert_eq!(h.out.len(), 2);
 }
 
@@ -376,12 +401,15 @@ fn a_stream_end_discards_held_openings_and_closings() {
     let held = Token::new(42);
     h.open(held, fixtures::application_subject());
     h.link.step(Time::ZERO, Event::Close { watch: fixtures::WATCH }, &mut h.out);
+    h.link.settle(&mut h.out);
     h.link.step(Time::ZERO, Event::StreamGone, &mut h.out);
+    h.link.settle(&mut h.out);
     assert_eq!(h.ended(held), Some(c::WatchEnd::Dropped));
     assert_eq!(h.ended(fixtures::WATCH), Some(c::WatchEnd::Dropped));
     assert_eq!(h.closed_count(), 2);
     h.clear();
     h.link.step(Time::ZERO, Event::StreamGone, &mut h.out);
+    h.link.settle(&mut h.out);
     for exchange in &reads {
         h.answer(*exchange, &[]);
     }
@@ -396,7 +424,9 @@ fn signing_out_discards_held_openings_and_closings() {
     let held = Token::new(42);
     h.open(held, fixtures::application_subject());
     h.link.step(Time::ZERO, Event::Close { watch: fixtures::WATCH }, &mut h.out);
+    h.link.settle(&mut h.out);
     h.link.step(Time::ZERO, Event::Streamed { message: Streamed::SignedOut }, &mut h.out);
+    h.link.settle(&mut h.out);
     assert_eq!(h.ended(held), Some(c::WatchEnd::SignedOut));
     assert_eq!(h.ended(fixtures::WATCH), Some(c::WatchEnd::SignedOut));
     assert_eq!(h.closed_count(), 2);
@@ -414,6 +444,7 @@ fn a_closing_waits_for_its_opening_answer_even_after_a_delivery() {
     let (opening, name) = h.opening();
     h.clear();
     h.link.step(Time::ZERO, Event::Close { watch: fixtures::WATCH }, &mut h.out);
+    h.link.settle(&mut h.out);
     assert!(h.out.is_empty());
     h.stream_record(&fixtures::family_delivery(name));
     h.assert_no_watch_exchange();
@@ -432,6 +463,7 @@ fn a_refused_opening_never_sends_its_held_closing() {
     let (opening, _) = h.opening();
     h.clear();
     h.link.step(Time::ZERO, Event::Close { watch: fixtures::WATCH }, &mut h.out);
+    h.link.settle(&mut h.out);
     let refused = w::OpenAnswer::Refused(
         w::OpenAnswerRefused::new(&w::CEILINGS, w::OpenAnswerRefusedParts { why: w::WatchRefusal::Busy }).unwrap(),
     );
@@ -458,6 +490,7 @@ fn held_watches_wait_for_cancelled_transport_credit() {
         h.clear();
         if lost {
             h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out);
+            h.link.settle(&mut h.out);
         } else {
             h.answer(exchange, &[]);
         }
@@ -484,6 +517,7 @@ fn a_lost_watch_exchange_discards_held_work_with_its_stream() {
         let held = Token::new(42);
         h.open(held, fixtures::application_subject());
         h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out);
+        h.link.settle(&mut h.out);
         assert_eq!(h.ended(fixtures::WATCH), Some(c::WatchEnd::Dropped));
         assert_eq!(h.ended(held), Some(c::WatchEnd::Dropped));
         assert_eq!(h.closed_count(), 2);
@@ -527,6 +561,7 @@ fn authorize_when_room(
         return None;
     }
     harness.link.step(Time::ZERO, Event::Authorize { query: Box::from(b"client_id=app".as_slice()) }, &mut harness.out);
+    harness.link.settle(&mut harness.out);
     let Some(Request::Exchange { exchange, message: Message::Authorize(_), .. }) = harness.out.pop() else {
         panic!("one authorization exchange");
     };
@@ -534,6 +569,7 @@ fn authorize_when_room(
         Some(ticket) => Some((exchange, ticket)),
         None => {
             harness.link.step(Time::ZERO, Event::Lost { exchange }, &mut harness.out);
+            harness.link.settle(&mut harness.out);
             None
         }
     }
@@ -551,38 +587,23 @@ fn a_stream_end_keeps_authorization_waiting_for_its_http_exchanges() {
         let opened = fetch.begin(u32::try_from(opening.raw()).unwrap(), ANSWER_BYTES, &[]).unwrap();
         harness.clear();
         harness.link.step(Time::ZERO, Event::StreamGone, &mut harness.out);
-        let mut cleanup = None;
-        for request in &harness.out {
-            if let Request::Exchange { exchange, message: Message::StreamGone(_), .. } = request {
-                cleanup = Some(*exchange);
+        harness.link.settle(&mut harness.out);
+        assert!(authorize_when_room(&mut harness, &mut fetch).is_none(), "the old HTTP opening holds credit");
+        match finish {
+            FinishedExchange::Answered => {
+                assert!(fetch.finish(opened, 200, &[]).is_some());
+                harness.answer(opening, &[]);
+            }
+            FinishedExchange::Failed => {
+                assert!(fetch.fail(opened).is_some());
+                harness.link.step(Time::ZERO, Event::Lost { exchange: opening }, &mut harness.out);
+                harness.link.settle(&mut harness.out);
             }
         }
-        let close = cleanup.expect("stream cleanup exchange");
-        let closed = fetch.begin(u32::try_from(close.raw()).unwrap(), ANSWER_BYTES, &[]).unwrap();
         assert_eq!(harness.closed_count(), 1, "the stream ends the watch once");
         harness.clear();
-
-        let pending = authorize_when_room(&mut harness, &mut fetch);
-        assert!(
-            !harness.has(&Request::Authorized(Authorized::Lost)),
-            "cancelled watch calls still fill fetch; authorization must wait instead of getting Lost"
-        );
-        assert!(pending.is_none(), "the first authorization waits for transport credit");
-        for (exchange, ticket) in [(opening, opened), (close, closed)] {
-            match finish {
-                FinishedExchange::Answered => {
-                    assert!(fetch.finish(ticket, 200, &[]).is_some());
-                    harness.answer(exchange, &[]);
-                }
-                FinishedExchange::Failed => {
-                    assert!(fetch.fail(ticket).is_some());
-                    harness.link.step(Time::ZERO, Event::Lost { exchange }, &mut harness.out);
-                }
-            }
-        }
-        assert_eq!(harness.closed_count(), 0, "late HTTP terminals do not end the watch twice");
-        harness.clear();
-        let (exchange, ticket) = authorize_when_room(&mut harness, &mut fetch).expect("the terminal frees credit");
+        let (exchange, ticket) =
+            authorize_when_room(&mut harness, &mut fetch).expect("the opening's terminal frees credit");
         let location = b"https://app.example.com/callback?code=one";
         let answer = w::AuthorizeAnswer::Go(
             w::AuthorizeGo::new(&w::CEILINGS, w::AuthorizeGoParts { location: Box::from(location.as_slice()) })
@@ -607,6 +628,7 @@ fn a_heartbeat_keeps_each_watch_alive() {
     let mut harness = fixtures::Harness::streaming(fixtures::application_subject());
     harness.clear();
     harness.link.step(Time::from_nanos(150), Event::Streamed { message: Streamed::Heartbeat }, &mut harness.out);
+    harness.link.settle(&mut harness.out);
     harness.advance(fixtures::past_two_heartbeats());
     assert_eq!(harness.ended(fixtures::WATCH), None);
     assert!(harness.has(&Request::Watch { watch: fixtures::WATCH, event: c::WatchEvent::Alive }));
@@ -647,7 +669,9 @@ fn a_stream_end_drops_all_watches_once() {
     let mut harness = fixtures::Harness::streaming(fixtures::application_subject());
     harness.open(Token::new(42), fixtures::family_subject());
     harness.link.step(Time::ZERO, Event::StreamGone, &mut harness.out);
+    harness.link.settle(&mut harness.out);
     harness.link.step(Time::ZERO, Event::StreamGone, &mut harness.out);
+    harness.link.settle(&mut harness.out);
     assert_eq!(harness.ended(fixtures::WATCH), Some(c::WatchEnd::Dropped));
     assert_eq!(harness.ended(Token::new(42)), Some(c::WatchEnd::Dropped));
     assert_eq!(harness.closed_count(), 2);
@@ -657,22 +681,26 @@ fn a_stream_refused_signed_out_ends_the_sign_in() {
     let mut harness = fixtures::Harness::new(&fixtures::limits());
     harness.open(fixtures::WATCH, fixtures::family_subject());
     harness.link.step(Time::ZERO, Event::Streamed { message: Streamed::SignedOut }, &mut harness.out);
+    harness.link.settle(&mut harness.out);
     assert_eq!(harness.ended(fixtures::WATCH), Some(c::WatchEnd::SignedOut));
     assert!(harness.has(&Request::Signing { signing: Signing::SignedOut }));
     assert!(harness.has(&Request::CloseStream));
     assert!(!harness.has(&Request::Fact { fact: Fact::StreamDropped }));
 }
 #[test]
-fn a_stream_drop_tells_the_engine_which_stream_is_gone() {
+fn a_stream_drop_closes_without_sending_stream_gone() {
     let mut harness = fixtures::Harness::streaming(fixtures::application_subject());
+    harness.clear();
     harness.link.step(Time::ZERO, Event::StreamGone, &mut harness.out);
-    assert_eq!(harness.gone_name(), fixtures::STREAM);
+    harness.link.settle(&mut harness.out);
+    assert_eq!(harness.exchanges(), 0, "no stream gone is sent");
 }
 #[test]
 fn a_close_before_the_hello_ends_without_an_exchange() {
     let mut harness = fixtures::Harness::new(&fixtures::limits());
     harness.open(fixtures::WATCH, fixtures::application_subject());
     harness.link.step(Time::ZERO, Event::Close { watch: fixtures::WATCH }, &mut harness.out);
+    harness.link.settle(&mut harness.out);
     harness.stream_record(&fixtures::hello_event(fixtures::HEARTBEAT));
     assert_eq!(harness.closed_count(), 1);
     assert_eq!(harness.ended(fixtures::WATCH), Some(c::WatchEnd::Closed));
@@ -680,7 +708,8 @@ fn a_close_before_the_hello_ends_without_an_exchange() {
 #[test]
 fn a_continued_watch_has_a_fresh_name_and_retains_its_run_offset() {
     let mut harness = fixtures::Harness::streaming(fixtures::application_subject());
-    let (_, old) = harness.opening();
+    let (opening, old) = harness.opening();
+    harness.answer(opening, &fixtures::open_answer(&w::OpenAnswer::Admitted));
     harness.clear();
     harness.link.step(
         Time::ZERO,
@@ -694,9 +723,16 @@ fn a_continued_watch_has_a_fresh_name_and_retains_its_run_offset() {
         },
         &mut harness.out,
     );
-    let (_, new) = harness.opening();
-    assert_ne!(old, new);
-    harness.assert_run_subject();
+    harness.link.settle(&mut harness.out);
+    let Some(Request::Exchange { message: Message::Batch(bytes), .. }) = harness.out.pop() else {
+        panic!("cleanup and continued opening")
+    };
+    let batch = w::Batch::decode(fixtures::limits().wire(), &mut Reader::new(&bytes)).unwrap();
+    let [w::Member::Close(_), w::Member::Open(open)] = batch.members().as_slice() else {
+        panic!("continued watch members")
+    };
+    assert_ne!(old, open.watch());
+    fixtures::assert_run_subject(open);
     harness.stream_record(&fixtures::ending(old, w::WatchEnd::Closed));
     assert_eq!(harness.ended(fixtures::WATCH), None);
 }
@@ -705,6 +741,7 @@ fn a_lost_opening_drops_its_watch() {
     let mut harness = fixtures::Harness::streaming(fixtures::application_subject());
     let (exchange, _) = harness.opening();
     harness.link.step(Time::ZERO, Event::Lost { exchange }, &mut harness.out);
+    harness.link.settle(&mut harness.out);
     harness.answer(exchange, &fixtures::open_answer(&w::OpenAnswer::Admitted));
     assert_eq!(harness.closed_count(), 1);
     assert_eq!(harness.ended(fixtures::WATCH), Some(c::WatchEnd::Dropped));
@@ -827,29 +864,23 @@ fn the_stream_s_name_is_saved_at_each_hello() {
         h.stream_record(&fixtures::hello_event(fixtures::HEARTBEAT));
         assert!(h.has(&Request::Save { record: fixtures::kept_stream() }));
         h.link.step(Time::ZERO, Event::StreamGone, &mut h.out);
+        h.link.settle(&mut h.out);
     }
 }
-const GONE_TERMINALS: [bool; 2] = [false, true];
 #[test]
-fn a_kept_stream_name_is_sent_gone_before_the_first_open() {
-    for lost in GONE_TERMINALS {
-        let mut h = fixtures::Harness::new(&fixtures::limits());
-        h.start_store(fixtures::one_store_read(fixtures::kept_stream()));
-        h.open(fixtures::WATCH, fixtures::application_subject());
-        assert_eq!(h.gone_name(), fixtures::STREAM, "lost={lost}");
-        let Some(Request::Exchange { exchange, .. }) = h.out.iter().next() else { panic!("gone first") };
-        let exchange = *exchange;
-        h.clear();
-        h.open(fixtures::ATTEMPT, fixtures::family_subject());
-        assert_eq!(h.out.len(), 0, "lost={lost}");
-        let event = if lost { Event::Lost { exchange } } else { Event::Reply { exchange, message: Box::new([]) } };
-        h.link.step(Time::ZERO, event, &mut h.out);
-        assert_eq!(h.out.len(), 1, "lost={lost}");
-        assert!(
-            h.has(&Request::OpenStream { credential: None, version: jig_client_protocol_wire::VERSION }),
-            "lost={lost}"
-        );
-    }
+fn a_kept_stream_name_is_on_the_first_open_without_waiting() {
+    let mut h = fixtures::Harness::new(&fixtures::limits());
+    h.start_store(fixtures::one_store_read(fixtures::kept_stream()));
+    h.open(fixtures::WATCH, fixtures::application_subject());
+    assert!(h.has(&Request::OpenStream {
+        credential: None,
+        replaces: Some(fixtures::STREAM),
+        version: jig_client_protocol_wire::VERSION
+    }));
+    assert_eq!(h.exchanges(), 0);
+    h.clear();
+    h.open(fixtures::ATTEMPT, fixtures::family_subject());
+    assert!(h.out.is_empty(), "the second watch waits only for the hello");
 }
 
 #[test]
@@ -858,6 +889,7 @@ fn a_full_stream_tells_the_bound_and_drops_its_watches_without_signing_out() {
     harness.clear();
     let full = StreamsFull { bound: StreamBound::Component, size: 2 };
     harness.link.step(Time::ZERO, Event::Streamed { message: Streamed::Full(full) }, &mut harness.out);
+    harness.link.settle(&mut harness.out);
     assert!(harness.has(&Request::StreamsFull { full }));
     assert!(harness.has(&Request::CloseStream));
     assert_eq!(harness.ended(fixtures::WATCH), Some(c::WatchEnd::Dropped));

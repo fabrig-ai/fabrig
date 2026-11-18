@@ -64,6 +64,8 @@ impl Composition {
                 provider_tokens: 64,
                 exchanges: limits.requests.requests.max(64),
                 exchanges_per_client: limits.requests.requests.max(64),
+                reads_per_client: 32,
+                openings_per_client: 31,
                 message_bytes: u32::try_from(limits.document_bytes).expect("world message bound"),
                 wire: jig_client_protocol_wire::CEILINGS,
                 link_span: skein_lib::Duration::from_secs(300),
@@ -230,6 +232,7 @@ impl Composition {
         let link = self.links.entry(client).or_insert_with(|| link::Link::new(&self.limits).expect("joint link"));
         let out = self.link_out.entry(client).or_insert_with(|| Queue::with_capacity(256));
         link.step(self.env.now, event, out);
+        link.settle(out);
     }
 
     pub(super) fn event(&mut self, event: Event) {
@@ -488,6 +491,16 @@ impl Composition {
             Request::Transport(message) => match message {
                 clients::ToTransport::Public { .. } => unreachable!("signed-in client sends no public reads"),
                 clients::ToTransport::Reply { exchange, reply } => self.transport_reply(exchange, reply),
+                clients::ToTransport::Part { exchange, message } => {
+                    if let Some((client, local)) = self.exchanges.get(&exchange).copied() {
+                        self.link(client, link::Event::Part { exchange: local, message });
+                    }
+                }
+                clients::ToTransport::Done { exchange } => {
+                    if let Some((client, local)) = self.exchanges.remove(&exchange) {
+                        self.link(client, link::Event::Done { exchange: local });
+                    }
+                }
                 clients::ToTransport::Streamed { stream, message } => {
                     let client = self
                         .streams
@@ -590,6 +603,7 @@ impl Composition {
                     link::Message::Request(bytes) => clients::Message::Request(bytes),
                     link::Message::Read(bytes) => clients::Message::Read(bytes),
                     link::Message::Watch(bytes) => clients::Message::Watch(bytes),
+                    link::Message::Batch(bytes) => clients::Message::Batch(bytes),
                     link::Message::Unwatch(bytes) => clients::Message::Unwatch(bytes),
                     link::Message::StreamGone(bytes) => clients::Message::Gone(bytes),
                     link::Message::SignInLink(bytes) => clients::Message::SignInLink(bytes),
@@ -604,7 +618,7 @@ impl Composition {
                 }));
                 return;
             }
-            link::Request::OpenStream { credential, version } => {
+            link::Request::OpenStream { credential, version, replaces } => {
                 let stream = self.token();
                 self.streams.insert(client, stream);
                 self.pending_stream_me.push_back(client);
@@ -612,6 +626,7 @@ impl Composition {
                     stream,
                     credential,
                     version: Some(version),
+                    replaces,
                 }));
                 return;
             }

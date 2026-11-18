@@ -49,13 +49,14 @@ fn page(handle: Handle, why: c::ReadNone) -> Edge {
 /// consequences settle before its new work and the already queued next entrance.
 #[test]
 fn link_consequences_settle_before_the_next_entrance_under_load() {
-    // The first task opening and a read fill the two exchange places.
+    // The two task openings fill the two exchange places.
     const EXCHANGES: u32 = 2;
     let mut limits = test::limits().client;
     limits.exchanges = EXCHANGES;
     let world = World::run(
         Mode::Linked(limits),
         vec![
+            ("hold_watches", Command::HoldWatchExchanges),
             ("watch_a", Command::watch(A, TASK)),
             ("watch_b", Command::watch(B, OTHER_TASK)),
             ("read_a", read(A, PROJECT)),
@@ -63,6 +64,7 @@ fn link_consequences_settle_before_the_next_entrance_under_load() {
             ("credentials", Command::credentials()),
             ("stale", Command::ReleaseReads),
             ("next", read(C, PROJECT)),
+            ("http_terminals", Command::ReleaseWatchExchanges),
             ("next_done", Command::ReplyRead(PROJECT)),
             ("duplicate", Command::ReleaseReads),
         ],
@@ -70,17 +72,18 @@ fn link_consequences_settle_before_the_next_entrance_under_load() {
     assert_eq!(
         world.at("credentials"),
         &[
-            Edge::CloseStream,
             page(A, c::ReadNone::SignedOut),
             page(B, c::ReadNone::SignedOut),
             Edge::Told(Told::Ended { handle: A, why: jig_client::Why::SignedOut }),
             Edge::Told(Told::Ended { handle: B, why: jig_client::Why::SignedOut }),
             Edge::Told(Told::Link { link: Link::SignedOut }),
             Edge::Told(Told::Link { link: Link::Starting }),
+            Edge::CloseStream,
             Edge::OpenStream,
         ]
     );
-    assert_eq!(world.at("next"), &[Edge::Read(PROJECT)]);
+    assert!(world.at("next").is_empty(), "cancelled HTTP attempts still hold credit");
+    assert_eq!(world.at("http_terminals"), &[Edge::Read(PROJECT)]);
     assert_eq!(world.at("next_done"), &[page(C, c::ReadNone::Unknown)]);
     assert_eq!(world.at("stale").len(), 0);
     assert_eq!(world.at("duplicate").len(), 0);
@@ -110,8 +113,8 @@ fn deferred_reads_leave_in_order_under_load() {
         ],
     );
     assert_eq!(world.reads(), vec![BLOCKING_PROJECT, PROJECT_A, PROJECT_B, PROJECT_C]);
-    assert_eq!(world.at("free"), &[page(OCCUPIED, c::ReadNone::Unknown), Edge::Read(PROJECT_A)]);
-    assert_eq!(world.at("a_done"), &[page(A, c::ReadNone::Unknown), Edge::Read(PROJECT_B)]);
+    assert_eq!(world.at("free"), &[page(OCCUPIED, c::ReadNone::Unknown), Edge::Read(PROJECT_A), Edge::Read(PROJECT_B)]);
+    assert_eq!(world.at("a_done"), &[page(A, c::ReadNone::Unknown)]);
     assert_eq!(world.at("b_done"), &[page(B, c::ReadNone::Unknown), Edge::Read(PROJECT_C)]);
     assert_eq!(world.at("c_done"), &[page(C, c::ReadNone::Unknown)]);
     for label in ["obsolete", "a", "cancelled", "unwatch", "b", "c", "stale"] {

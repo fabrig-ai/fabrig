@@ -1,6 +1,8 @@
 //! The host owns secret/clearing/target evidence; Chromium owns navigation and re-entry.
 use super::*;
 use jig_client::contract as c;
+use jig_client_protocol_wire as w;
+use skein_lib::{Reader, Token};
 use skein_ui::{EntryKind, Role};
 #[path = "host_tests_approve.rs"]
 mod approve;
@@ -111,6 +113,53 @@ fn node(host: &Host, role: Role, name: &[u8]) -> NodeId {
         .expect("account control")
         .id
 }
+fn openings(path: &[u8], body: &[u8]) -> Vec<w::Open> {
+    if path == b"/jig/v1/watch" {
+        return vec![w::Open::decode(&w::CEILINGS, &mut Reader::new(body)).expect("opening")];
+    }
+    if path == b"/jig/v1/batch" {
+        return w::Batch::decode(&w::CEILINGS, &mut Reader::new(body))
+            .expect("batch")
+            .into_parts()
+            .members
+            .into_boxed()
+            .into_vec()
+            .into_iter()
+            .filter_map(|member| match member {
+                w::Member::Open(open) => Some(open),
+                w::Member::Read(_) | w::Member::Close(_) => None,
+            })
+            .collect();
+    }
+    vec![]
+}
+fn batch_admitted(host: &mut Host, exchange: u32, body: &[u8]) {
+    let batch = w::Batch::decode(&w::CEILINGS, &mut Reader::new(body)).expect("batch");
+    host.heard(Heard::Begun { exchange, status: 200 });
+    let mut complete = true;
+    for (place, member) in batch.into_parts().members.into_boxed().into_iter().enumerate() {
+        let reply = match member {
+            w::Member::Open(_) => encoded(w::OpenAnswer::Admitted.measure(), |w| w::OpenAnswer::Admitted.encode(w)),
+            w::Member::Close(_) => encoded(w::CloseAnswer::Closed.measure(), |w| w::CloseAnswer::Closed.encode(w)),
+            w::Member::Read(_) => {
+                complete = false;
+                continue; // These fixtures leave lone reads unanswered too.
+            }
+        };
+        let part = w::BatchReply::new(
+            &w::CEILINGS,
+            w::BatchReplyParts { member: u16::try_from(place).expect("member"), reply: Some(reply) },
+        )
+        .expect("part");
+        let bytes = encoded(part.measure(), |w| part.encode(w));
+        let frame = [part.measure().to_be_bytes().as_slice(), bytes.as_ref()].concat().into_boxed_slice();
+        host.heard(Heard::Part { exchange, bytes: frame });
+    }
+    if complete {
+        host.heard(Heard::Done { exchange });
+    }
+}
+
 #[test]
 fn the_reload_press_asks_the_browser_to_reload_once() {
     let mut host = fixture();
@@ -386,32 +435,16 @@ fn the_first_task_activity_answer_survives_transport_sign_in() {
     );
     let mut watch = None;
     let me = 0;
-    for _ in 0..host.env.limits.client.domain.watches {
-        let mut admitted = false;
-        for request in host.requests() {
-            let Asked::Exchange { id, call, .. } = request else { continue };
-            if call.path.as_ref() != b"/jig/v1/watch" {
+    for request in host.requests() {
+        let Asked::Exchange { call, .. } = request else { continue };
+        for open in openings(&call.path, &call.body) {
+            if open.subject().owner() != &w::Owner::Jig {
                 continue;
             }
-            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(&call.body)).expect("watch envelope");
-            if open.subject().owner() == &w::Owner::Jig {
-                let subject =
-                    w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).expect("subject");
-                if matches!(subject, w::Subject::Task(_)) {
-                    watch = Some(open.watch());
-                }
+            let subject = w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).expect("subject");
+            if matches!(subject, w::Subject::Task(_)) {
+                watch = Some(open.watch());
             }
-            let answer = w::OpenAnswer::Admitted;
-            host.heard(Heard::Answered {
-                exchange: id,
-                status: 200,
-                body: encoded(answer.measure(), |writer| answer.encode(writer)),
-                headers: Vec::new(),
-            });
-            admitted = true;
-        }
-        if !admitted {
-            break;
         }
     }
     let watch = watch.expect("task watch");

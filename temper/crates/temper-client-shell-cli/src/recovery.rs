@@ -36,6 +36,8 @@ impl Recovery {
             | Event::ApprovalAnswer { .. }
             | Event::Authorize { .. }
             | Event::Reply { .. }
+            | Event::Part { .. }
+            | Event::Done { .. }
             | Event::Lost { .. }
             | Event::Streamed { .. }
             | Event::StreamGone

@@ -134,6 +134,8 @@ pub fn engine_limits() -> Limits {
         provider_tokens: 64,
         exchanges: 8,
         exchanges_per_client: 4,
+        reads_per_client: 32,
+        openings_per_client: 31,
         message_bytes: MESSAGE_BYTES,
         wire: jig_client_protocol_wire::CEILINGS,
         link_span: Duration::from_secs(300),

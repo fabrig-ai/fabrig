@@ -631,6 +631,7 @@ struct Engine {
     deny_stream: bool,
     denied: usize,
     bodies: std::collections::BTreeSet<Token>,
+    batch_bodies: std::collections::BTreeSet<Token>,
     discarding: std::collections::BTreeSet<Token>,
     link_answer: Option<jig_client_protocol_wire::SignInAnswer>,
     link_sign_ins: usize,
@@ -655,6 +656,7 @@ impl Engine {
             deny_stream: false,
             denied: 0,
             bodies: std::collections::BTreeSet::new(),
+            batch_bodies: std::collections::BTreeSet::new(),
             discarding: std::collections::BTreeSet::new(),
             link_answer: None,
             link_sign_ins: 0,
@@ -734,17 +736,19 @@ impl Engine {
                 stream: owner,
                 down: stream::Down::Demand { read: stream::Read::Arrived { max: 1024 }, room: 0 },
             });
+        } else if self.batch_bodies.remove(&owner) {
+            self.batch(owner, bytes);
         } else if self.bodies.remove(&owner) {
             self.watch(owner, bytes);
-        } else if bytes.starts_with(b"GET /jig/v1/stream?version=33 ") && self.deny_stream {
+        } else if bytes.starts_with(b"GET /jig/v1/stream?version=34") && self.deny_stream {
             self.denied += 1;
             self.respond(owner, b"HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\n\r\n".as_slice().into());
-        } else if bytes.starts_with(b"GET /jig/v1/stream?version=33 ") {
+        } else if bytes.starts_with(b"GET /jig/v1/stream?version=34") {
             self.stream = Some(owner);
             let mut response = b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n\r\n".to_vec();
             response.extend_from_slice(&hello_event());
             self.respond(owner, response.into_boxed_slice());
-        } else if bytes.starts_with(b"POST /jig/v1/watch ") {
+        } else if bytes.starts_with(b"POST /jig/v1/watch ") || bytes.starts_with(b"POST /jig/v1/batch ") {
             let header = std::str::from_utf8(bytes).expect("HTTP header");
             let length = header
                 .lines()
@@ -754,7 +758,11 @@ impl Engine {
                         .map(|(_, value)| value.trim().parse::<u32>().expect("body size"))
                 })
                 .expect("content length");
-            self.bodies.insert(owner);
+            if bytes.starts_with(b"POST /jig/v1/batch ") {
+                self.batch_bodies.insert(owner);
+            } else {
+                self.bodies.insert(owner);
+            }
             self.down(io::Request::Stream {
                 stream: owner,
                 down: stream::Down::Demand { read: stream::Read::Fill(length), room: 0 },
@@ -788,6 +796,17 @@ impl Engine {
     fn watch(&mut self, owner: Token, bytes: &[u8]) {
         use jig_client_protocol_wire as w;
         let open = w::Open::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("watch body");
+        self.opened(&open);
+        self.respond(owner, {
+            let answer = w::OpenAnswer::Admitted;
+            let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("short admitted"));
+            answer.encode(&mut writer).expect("admitted");
+            http_response(&writer.finish())
+        });
+    }
+
+    fn opened(&mut self, open: &jig_client_protocol_wire::Open) {
+        use jig_client_protocol_wire as w;
         if open.subject().owner() == &w::Owner::Jig {
             let subject = w::Subject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(open.subject().record()))
                 .expect("subject");
@@ -797,14 +816,48 @@ impl Engine {
                 self.terminal_watch = Some(open.watch());
             }
         }
-        self.respond(owner, {
-            let answer = w::OpenAnswer::Admitted;
-            let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("short admitted"));
-            answer.encode(&mut writer).expect("admitted");
-            http_response(&writer.finish())
-        });
     }
-
+    fn batch(&mut self, owner: Token, bytes: &[u8]) {
+        use jig_client_protocol_wire as w;
+        let batch = w::Batch::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("batch body");
+        let mut frames = Vec::new();
+        for (place, member) in batch.into_parts().members.into_boxed().into_iter().enumerate() {
+            let reply = match member {
+                w::Member::Open(open) => {
+                    self.opened(&open);
+                    let answer = w::OpenAnswer::Admitted;
+                    let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("answer size"));
+                    answer.encode(&mut writer).expect("answer");
+                    writer.finish()
+                }
+                w::Member::Close(_) => {
+                    let answer = w::CloseAnswer::Closed;
+                    let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("answer size"));
+                    answer.encode(&mut writer).expect("answer");
+                    writer.finish()
+                }
+                w::Member::Read(_) => {
+                    let answer = w::ReadAnswer::None(
+                        w::ReadAnswerNone::new(&w::CEILINGS, w::ReadAnswerNoneParts { value: w::ReadNone::Unknown })
+                            .expect("unknown"),
+                    );
+                    let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("answer size"));
+                    answer.encode(&mut writer).expect("answer");
+                    writer.finish()
+                }
+            };
+            let part = w::BatchReply::new(
+                &w::CEILINGS,
+                w::BatchReplyParts { member: u16::try_from(place).expect("member"), reply: Some(reply) },
+            )
+            .expect("part");
+            let mut writer = skein_lib::Writer::new(usize::try_from(part.measure()).expect("part size"));
+            part.encode(&mut writer).expect("part bytes");
+            frames.extend_from_slice(&part.measure().to_be_bytes());
+            frames.extend_from_slice(&writer.finish());
+        }
+        self.respond(owner, http_response(&frames));
+    }
     fn respond(&mut self, owner: Token, response: Box<[u8]>) {
         let room = u32::try_from(response.len()).expect("short response");
         self.responses.insert(owner, response);

@@ -2,13 +2,32 @@
 use super::*;
 use temper_client_protocol_wire::{self as wire, v1 as f};
 
+fn messages(duties: &Duties) -> Vec<(ReplySlot, Message)> {
+    let mut messages = Vec::new();
+    for request in &duties.asked {
+        if let Request::Exchange { exchange, message, .. } = request {
+            if let Message::Batch(bytes) = message {
+                messages.extend(
+                    batch_members(bytes)
+                        .into_iter()
+                        .map(|(member, message)| (ReplySlot { exchange: *exchange, member: Some(member) }, message)),
+                );
+            } else if let Message::Read(bytes) = message {
+                messages.push((ReplySlot { exchange: *exchange, member: None }, Message::Read(bytes.clone())));
+            } else if let Message::Watch(bytes) = message {
+                messages.push((ReplySlot { exchange: *exchange, member: None }, Message::Watch(bytes.clone())));
+            }
+        }
+    }
+    messages
+}
+
 fn forges_watch(duties: &Duties) -> u64 {
-    duties
-        .asked
-        .iter()
-        .find_map(|request| {
-            let Request::Exchange { message: Message::Watch(bytes), .. } = request else { return None };
-            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).unwrap();
+    messages(duties)
+        .into_iter()
+        .find_map(|(_, message)| {
+            let Message::Watch(bytes) = message else { return None };
+            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
             if open.subject().owner() == &w::Owner::Jig {
                 return None;
             }
@@ -19,19 +38,18 @@ fn forges_watch(duties: &Duties) -> u64 {
         .expect("session forges watch")
 }
 
-fn playground_read(duties: &Duties) -> skein_lib::Token {
-    duties
-        .asked
-        .iter()
-        .find_map(|request| {
-            let Request::Exchange { exchange, message: Message::Read(bytes), .. } = request else { return None };
-            let owned = w::Owned::decode(&w::CEILINGS, &mut Reader::new(bytes)).unwrap();
+fn playground_read(duties: &Duties) -> ReplySlot {
+    messages(duties)
+        .into_iter()
+        .find_map(|(slot, message)| {
+            let Message::Read(bytes) = message else { return None };
+            let owned = w::Owned::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
             if owned.owner() == &w::Owner::Jig {
                 return None;
             }
             let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(owned.record())).unwrap();
             let read = wire::decode_reading(envelope.record(), &f::CEILINGS).unwrap();
-            (read.read() == &f::Read::Playground).then_some(*exchange)
+            (read.read() == &f::Read::Playground).then_some(slot)
         })
         .expect("a first fake row refreshes the playground read")
 }
@@ -84,8 +102,13 @@ fn a_first_forges_delivery_with_the_playground_draws_it_without_reconnecting() {
     let answer = w::ReadAnswer::Value(goal::family(record));
     let mut writer = Writer::new(usize::try_from(answer.measure()).unwrap());
     answer.encode(&mut writer).unwrap();
-    let duties = reply(&mut host, exchange, writer.finish());
+    let terminal = exchange.member.map(|_| exchange.exchange);
+    let duties = reply_slot(&mut host, exchange, writer.finish());
     admit(&mut host, duties);
+    if let Some(exchange) = terminal {
+        let duties = host.report(Report::Heard(jig_client::Event::Done { exchange }));
+        admit(&mut host, duties);
+    }
     let frame = text(&mut host);
     let words = frame.lines().map(str::trim).collect::<Vec<_>>().join(" ");
     assert!(words.contains("This is the playground: a scripted model and in-memory forge."), "{frame}");

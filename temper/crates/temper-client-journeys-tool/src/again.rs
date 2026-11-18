@@ -113,7 +113,7 @@ pub(crate) fn page_query(record: bool) -> Vec<u8> {
     format!("{recording}internal-loopback-navigation=1&internal-fixed-start={FIXED_START}").into_bytes()
 }
 
-/// Local capture paths are given originals for the shared redactor (client/web/journeys.md, 3.6).
+/// Local capture paths are given originals for the shared redactor (client/web/journey-redaction.md).
 pub(crate) fn private_paths(paths: &Paths) -> Vec<Box<[u8]>> {
     [&paths.temper, &paths.bundle, &paths.scratch]
         .into_iter()

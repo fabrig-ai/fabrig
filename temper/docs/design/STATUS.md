@@ -577,6 +577,7 @@ Design documents:
 - [`client/web/README.md`](client/web/README.status.md)
 - [`client/web/gallery.md`](client/web/gallery.status.md)
 - [`client/web/journeys.md`](client/web/journeys.status.md)
+- [`client/web/journey-redaction.md`](client/web/journey-redaction.status.md)
 - [`client/web/look-requests.md`](client/web/look-requests.status.md)
 - [`client/web/look.md`](client/web/look.status.md)
 - [`client/web/public.md`](client/web/public.status.md)
@@ -757,6 +758,7 @@ Drafts:
 - [`draft/one-owner.md`](draft/one-owner.status.md)
 - [`draft/outbox-room-wait.md`](draft/outbox-room-wait.status.md)
 - [`draft/own-way.md`](draft/own-way.status.md)
+- [`draft/page-round-trips.md`](draft/page-round-trips.status.md) — R1, goal 6234: jig's batch, many reads and watches in one exchange, its replies streamed as each is released; the client root settling before its link sends; a stream naming the one it replaces; jig's client wire 34 (jig's `protocol/client/wire.md`, 2; `protocol/client/default-http.md`, 6).
 - [`draft/page-round-trips.md`](draft/page-round-trips.status.md) — R3, goal 6236: `me` with the stream, its hello holding the served ranges and then `me`, every stream watching it (jig's `protocol/client/wire.md`, 2); what names no party asked with the hello (`client/README.md`, 3.4); no narrower twin of a list's watch; the needs' selection read again only as `me`'s `needs_total` or the inbox moves (`client/pages/work.md`, 1); a setting's read answering with its revision (`protocol/configuration/settings.md`, 2).
 - [`draft/panics.md`](draft/panics.status.md)
 - [`draft/per-wake.md`](draft/per-wake.status.md)

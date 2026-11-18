@@ -71,6 +71,13 @@ bound shortfalls and required/offered figures through the v21 client
 wire, including a standing hello's figures and every charter-bound
 shortfall's charter (`domain/engine/fleet.md`;
 `client/domain/contract/documents.md`, 1; `protocol/client/wire.md`, section 1).
+A client root settles each iteration before its link sends, and the
+link sends what it gathered as one batch, `POST <prefix>/v1/batch`,
+whose replies stream back framed as each is released, each member
+admitted and answered as alone against the sign-in's reads and openings
+in flight; a stream's opening names the one it replaces, and no stream
+gone waits before it, at the v28 client wire (`client/domain/root.md`, 3;
+`protocol/client/wire.md`, 2.1 to 2.3; `protocol/client/default-http.md`, 6).
 Numbered model settings, catalogue-derived
 charter versions and endpoint bounds at hello are built, with worker
 provider-list reads, retained per-account names, atomic catalogue updates

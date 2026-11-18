@@ -30,8 +30,8 @@ the look, 11 what is open.
 - **Replayed, it must ask what it asked,** each key giving the event it
   gave; otherwise the journey is stale and recorded again (sections 4
   and 8). The first replay proves itself against the live frames.
-- **Redacted and scanned by the browser's code** (`../web/journeys.md`, 3.6
-  and 3.7), which gains the TUI's originals: the approval's secret, the
+- **Redacted and scanned by the browser's code** (`../web/journey-redaction.md` and `../web/journeys.md`, 3.7
+  ), which gains the TUI's originals: the approval's secret, the
   credential the TUI takes and the bearer every exchange carries
   (section 5).
 - **Placeholders for what varies,** once proved: the build, the
@@ -287,7 +287,7 @@ width, so a placeholder of another width moves what follows it.
 
 ## 5. Redaction and the last scan
 
-The browser's, with the same code (`../web/journeys.md`, 3.6 to 3.8), over
+The browser's, with the same code (`../web/journey-redaction.md` and `../web/journeys.md`, 3.7 to 3.8), over
 the TUI's lines.
 
 - **The shared code** gains three kinds of original, `Kind::Approval`,
@@ -324,7 +324,7 @@ the TUI's lines.
   a `send`'s and a `streamed record`'s bytes, a `stored`'s, `save`'s and
   `erase`'s key and bytes, and every credential's field are framed; a
   `key`'s bytes and event, `found`'s and `box-line`'s bytes, `address`, `signed`,
-  `browse`, `mark` and `end` are text (`../web/journeys.md`, 3.6, *A form's
+  `browse`, `mark` and `end` are text (`../web/journey-redaction.md`, *A form's
   size*). A TUI's
   stream records come whole from the native shell, so no pieces are
   joined.
@@ -337,7 +337,7 @@ the TUI's lines.
   elements in the `Typed` event's Debug print. Each becomes those
   encodings of the redacted secret, so the paste and its event, and the
   box's line, still replay. This is the TUI's addition; the browser's
-  code and encodings stay as `../web/journeys.md`, 3.6 describes.
+  code and encodings stay as `../web/journey-redaction.md` describes.
 - **The last scan** (`../web/journeys.md`, 3.7): every field of each line,
   every frame the replay drew at each turn's end as its text, and each
   printed text and page, for the originals and the shapes. An approval's

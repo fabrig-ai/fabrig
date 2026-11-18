@@ -57,6 +57,18 @@ impl Rules {
         match (path, response) {
             (b"/jig/v1/request", false) => same!(Keyed, encoded, crossed),
             (b"/jig/v1/request", true) => same!(KeyedAnswer, encoded, crossed),
+            (b"/jig/v1/batch", false) => same!(Batch, encoded, crossed),
+            (b"/jig/v1/batch", true) => {
+                if encoded != crossed {
+                    return Err(Broken::Record);
+                }
+                let mut frames = Reader::new(crossed);
+                while !frames.is_empty() {
+                    let size = frames.u32().ok_or(Broken::Record)?;
+                    let record = frames.bytes(size).ok_or(Broken::Record)?;
+                    same!(BatchReply, record, record);
+                }
+            }
             (b"/jig/v1/read", false) => same!(Owned, encoded, crossed),
             (b"/jig/v1/read", true) => same!(ReadAnswer, encoded, crossed),
             _ => Self::watch_record(path, response, encoded, crossed)?,
@@ -75,6 +87,7 @@ impl Rules {
         Ok(())
     }
     fn stream_record(path: &[u8], response: bool, encoded: &[u8], crossed: &[u8]) -> Result<(), Broken> {
+        let path = path.split(|byte| *byte == b'?').next().expect("path prefix");
         match (path, response) {
             (b"/jig/v1/stream-gone", false) => same!(Gone, encoded, crossed),
             (b"/jig/v1/stream", true) => same!(StreamEvent, encoded, crossed),

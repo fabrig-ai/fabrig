@@ -26,6 +26,10 @@ impl Component {
         }
         None
     }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "stream replacement and implicit me share the existing watch route dispatch"
+    )]
     pub(super) fn watch_route(
         &mut self,
         env: &Env<Limits>,
@@ -35,27 +39,40 @@ impl Component {
         body: &[u8],
         out: &mut Queue<Request>,
     ) {
-        let Some(owner) = self.owner(exchange) else {
+        if self.owner(exchange).is_none() {
             return;
-        };
+        }
         let mut reader = Reader::new(body);
         match route {
-            Route::Stream if body.is_empty() => {
+            Route::Stream if body.is_empty() || body.len() == 16 => {
+                if let Ok(name) = <&[u8; 16]>::try_from(body)
+                    && let Some(replaced) = self.stream_owner(name, sign_in)
+                {
+                    self.streams.get_mut(&replaced).expect("replaced stream").phase = stream::Phase::Closing;
+                    let steps = env.limits.watches_per_stream.saturating_mul(4).saturating_add(1);
+                    for _ in 0..steps {
+                        if !self.streams.contains_key(&replaced) {
+                            break;
+                        }
+                        self.stream_step(env, replaced, out);
+                    }
+                }
+                let owner = self.owner(exchange).expect("stream caller");
                 self.stream_open(env, owner, sign_in, out);
             }
             Route::Watch => match w::Open::decode(&env.limits.wire, &mut reader) {
                 Ok(value) if reader.is_empty() => self.open_watch(env, Some(exchange), sign_in, value, out),
                 Ok(_) | Err(_) => {
-                    self.connections.get_mut(&owner).expect("exchange owner").respond(crate::Reply::NotARecord);
+                    self.response(exchange, crate::Reply::NotARecord);
                 }
             },
             Route::Unwatch => {
                 let Ok(value) = w::WatchClose::decode(&env.limits.wire, &mut reader) else {
-                    self.connections.get_mut(&owner).expect("exchange owner").respond(crate::Reply::NotARecord);
+                    self.response(exchange, crate::Reply::NotARecord);
                     return;
                 };
                 if !reader.is_empty() {
-                    self.connections.get_mut(&owner).expect("exchange owner").respond(crate::Reply::NotARecord);
+                    self.response(exchange, crate::Reply::NotARecord);
                     return;
                 }
                 let Some(owner) = self.stream_owner(value.stream(), sign_in) else {
@@ -77,10 +94,7 @@ impl Component {
                 if let Some(watcher) = found {
                     let watch = stream.watches.get_mut(&watcher).expect("named watch");
                     if watch.closing.is_some() {
-                        self.connections
-                            .get_mut(&self.owner(exchange).expect("exchange owner"))
-                            .expect("connection")
-                            .respond(crate::Reply::Conflict);
+                        self.response(exchange, crate::Reply::Conflict);
                         return;
                     }
                     if watch.end.is_some() {
@@ -108,7 +122,7 @@ impl Component {
                     self.respond(exchange, Box::new([]));
                 }
                 Ok(_) | Err(_) => {
-                    self.connections.get_mut(&owner).expect("exchange owner").respond(crate::Reply::NotARecord);
+                    self.response(exchange, crate::Reply::NotARecord);
                 }
             },
             Route::ApprovalAsk
@@ -122,8 +136,9 @@ impl Component {
             | Route::Authorize
             | Route::SignOut
             | Route::Read
+            | Route::Batch
             | Route::Request => {
-                self.connections.get_mut(&owner).expect("exchange owner").respond(crate::Reply::NotARecord);
+                self.response(exchange, crate::Reply::NotARecord);
             }
         }
     }
@@ -198,8 +213,13 @@ impl Component {
         }
         if duplicate
             || stream.watches.len() == stream.watches.capacity()
-            || self.admitted() >= env.limits.exchanges
-            || self.active(sign_in) >= env.limits.exchanges_per_client
+            || !match exchange {
+                Some(exchange) => self.exchange_room(env, exchange, sign_in),
+                None => {
+                    self.active(sign_in) < env.limits.exchanges_per_client && self.admitted() < env.limits.exchanges
+                }
+            }
+            || self.member_count(sign_in, true) >= env.limits.openings_per_client
         {
             if let Some(exchange) = exchange {
                 self.respond(exchange, routes::open_answer(Some(core::WatchRefusal::Busy), &env.limits.wire));
@@ -286,8 +306,11 @@ impl Component {
         }
     }
     pub(super) fn active(&self, sign_in: u64) -> u32 {
-        let mut count = 0_u32;
-        for (_, waiting) in &self.pending.exchanges {
+        let mut count = self.active_batches(sign_in);
+        for (exchange, waiting) in &self.pending.exchanges {
+            if self.members.contains_key(exchange) {
+                continue;
+            }
             let number = match waiting {
                 Waiting::Watch { sign_in, .. }
                 | Waiting::Ask { sign_in, .. }
@@ -541,6 +564,10 @@ impl Component {
         let Some(owner) = selected else {
             return false;
         };
+        self.stream_step(env, owner, out);
+        true
+    }
+    fn stream_step(&mut self, env: &Env<Limits>, owner: Token, out: &mut Queue<Request>) {
         let mut stream = self.streams.remove(&owner).expect("selected stream");
         if stream.closing() {
             if !stream.closed_connection {
@@ -581,7 +608,7 @@ impl Component {
                     }
                 }
             } else if stream.watches.is_empty() {
-                return true;
+                return;
             }
         } else if let Some(message) = stream.message.take() {
             out.push(Request::Transport(crate::ToTransport::Streamed { stream: owner, message }));
@@ -589,6 +616,5 @@ impl Component {
             stream.write(packet);
         }
         self.streams.insert(owner, stream).expect("same stream slot");
-        true
     }
 }

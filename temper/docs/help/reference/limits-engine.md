@@ -289,6 +289,8 @@ temper sizes the engine's watch rooms itself: a stream holds 31 watches, and the
 - `clients.exchanges`: count, 68. Bounds client exchanges admitted at once.
 - `clients.queued_bytes`: bytes, 520,094,521. Bounds encoded records held by one client stream, including its in-flight record.
 - `clients.exchanges_per_client`: count, 2. Bounds exchanges in flight per sign-in, shared by its clients.
+- `clients.reads_per_client`: count, 32. Bounds reads in flight per sign-in, alone or in a batch.
+- `clients.openings_per_client`: count, 31. Bounds watch openings in flight per sign-in, alone or in a batch.
 - `clients.provider_codes`: count, 256. Bounds volatile authorization codes.
 - `clients.provider_tokens`: count, 1,024. Bounds volatile provider access tokens.
 - `clients.public.reads`: count, 0. Bounds public reads admitted at once; zero turns public reading off.

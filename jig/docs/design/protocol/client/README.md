@@ -18,7 +18,9 @@ is still open is listed in `README.md`, section 12.
 
 - **jig's messages, transport-agnostic.** A keyed request, a read,
   opening and closing a watch, a stream gone, signing in and signing
-  out: each an exchange, one record each way, answered once. And one
+  out: each an exchange, one record each way, answered once; or reads,
+  openings and closings many in one exchange, a batch, each member
+  answered as alone, as it is ready (`wire.md`, section 2). And one
   stream per client, for every delivery, tagged with its watch. Every
   message names its owner and its version, and comes with its credential
   as opaque bytes, or none (`wire.md`, section 2).
@@ -209,7 +211,8 @@ recipient.
 
 ## 4. Reads
 
-- **One exchange per read,** answered once: the document, a page with its
+- **One exchange per read,** or one member of a batch (`wire.md`, section 2),
+  answered once: the document, a page with its
   cursors, or why there is none (unknown, busy, signed out, version not
   served) (`../../client/domain/contract/README.md`, section 4). A page's cursor
   is the engine's, opaque bytes the client gives back. Inside they are a
@@ -243,7 +246,8 @@ recipient.
 
 ## 5. Watches
 
-- **Opening a watch** is an exchange: the stream's name, the client's name
+- **Opening a watch** is an exchange, or one member of a batch (`wire.md`, section 2):
+  the stream's name, the client's name
   for the watch, its subject and window. It is answered admitted, or
   refused (unknown, not allowed, busy, signed out, version not served);
   the first delivery follows on the stream. A subject an application's
@@ -525,7 +529,8 @@ recipient.
 - **jig's native shell,** `jig-client-shell-native`: skein's HTTP client
   on skein's io, with the default mapping's client end,
   `jig-client-protocol-http`, which cuts the stream's body into
-  messages; a file for the small store, and a private file for the
+  messages and a batch's into its parts, each piece handed on as it
+  arrives (`default-http.md`, section 6); a file for the small store, and a private file for the
   credential, which it writes when its host gives it one to keep, or
   none, and reads back at start for its host to give as held (`sign-in.md`
   ); for Linux and for the worlds that make bytes real. With no
@@ -554,17 +559,30 @@ recipient.
   list, checked by the link within the held document's decoded room
   (`../../client/domain/client/README.md`, sections 11 and 13).
 - **Transport credit lasts through the terminal answer.** Every emitted
-  exchange counts until its `Reply` or `Lost`, including a cancelled
+  exchange counts until its `Reply`, `Done` or `Lost`, a batch one
+  whatever its members, including a cancelled
   watch's opening and cleanup calls. Ending a logical attempt does not
-  free its transport credit. `Link::in_flight` is the greater of the
-  logical reservations and unfinished transport exchanges; a late
-  terminal frees the latter without ending the logical operation twice.
+  free its transport credit. `Link::in_flight` is the unfinished
+  transport exchanges; a late terminal frees one without ending a
+  logical operation twice. The logical attempts, a batch's members each
+  one, are bounded by the client's reads in flight and the engine's
+  watches it counts (`../../client/domain/client/README.md`, section 11), not by its
+  exchanges, so a batch carries what one settling gathered.
 - **A watch's opening and closing wait for credit,** as a read does: one
   that finds every exchange in flight is held, in the order asked, and
   sent when a terminal answer frees credit, never ended busy or dropped
   for the client's own admission. A held opening the client closes ends
   closed, unsent (section 5). Only the engine's refusal ends an opening
   busy.
+- **A held read the client cancels is dropped unsent.** A read the
+  domain supersedes or ends while it waits for credit leaves the link's
+  queue: `jig-client` tells the link with `Link::cancel_read(read:
+  Token)`, an input with no output, public only because the link and the
+  client are separate crates. One already sent keeps its transport
+  credit to its terminal, whose answer fails its token match
+  (`../../client/domain/client/README.md`, section 9). So the reads the
+  link holds stay within the client's reads in flight, and the held
+  queue keeps the order asked across reads, openings and closings.
 - **The transport's:** an exchange's deadline, and what it buffers of the
   stream and of the small store's writes.
 - **The component's:** streams in all, whatever their sign-ins (`wire.md`, section 2
@@ -574,7 +592,15 @@ recipient.
   an opening is refused busy, within the views' limits on a party's
   watches and on all (`../../domain/engine/README.md`, section 7); exchanges in
   flight per sign-in, which its clients share, since an exchange names
-  no stream, and in all; a message's bytes, which bound a change of
+  no stream, and in all, a batch one whatever its members (`wire.md`, 2.2);
+  per sign-in, reads in flight, `reads_per_client`, and watches'
+  openings in flight, `openings_per_client`, each a read's or an
+  opening's whether alone or a batch's member, past which it is
+  answered busy, sized to the client's own reads and watches at once
+  (`../../client/domain/client/README.md`, section 11), 32 and 31 in
+  both stock profiles and the dotted overrides
+  `clients.reads_per_client` and `clients.openings_per_client`; a
+  batch's members, 64, its schema's bound; a message's bytes, a batch's among them, which bound a change of
   settings (`../../domain/engine/settings.md`, 8), what a stream may have
   queued before nothing more is handed out, the heartbeat's span, mints
   in flight; and the public reads' own: in flight, per second and its
@@ -648,6 +674,37 @@ Each within jig's suites' budgets.
   streamed message in flight per stream; no credential reaches a
   domain; no key and no moved record is in the small store, a
   committed request or an answer kept.
+- **A batch, at the component:** its members' parts in the order
+  released, a read held until durable holding back no other member's;
+  one exchange of the sign-in's taken whatever its members, and each
+  read and opening reserved as alone, past `reads_per_client` or
+  `openings_per_client` that member alone busy; a batch finding no
+  exchange's room answered as its messages apart, reads and openings
+  busy and closings taken; a member malformed or conflicting a part with
+  no reply; a batch past its bytes or its 64 members, or no record,
+  answered not a record with nothing done; its caller gone mid-batch,
+  its members settling with no part. A stream's opening naming one of
+  its sign-in's ending it first, so that it is admitted at the
+  streams' bound, and one naming another sign-in's stream or none open
+  changing nothing.
+- **A batch, at the mapping's ends:** the engine end's frames written
+  as the parts come, one slow member holding none back, at most 64
+  unwritten, the body ended at `Done`, one call held until then, `400`
+  and `413` whole; the client end's frames cut out as their last byte
+  comes, from pieces cut at random, each a `Part` at once, `Done` at a
+  boundary, `Lost` after the whole parts for a body cut inside a frame,
+  a frame past the record's bound, or a status other than `200`; the
+  stream's `replaces` query sent and read, and any other query `404`.
+- **A batch, at the link:** gathered messages left at the settling
+  alone, in order, one batch while more than one may leave, split past
+  64 members or `BATCH_BYTES`, and what finds no exchange waiting for a
+  later settling; each part to its member as alone, a busy opening
+  opened again after its backoff and a busy read ended busy; a batch
+  cut short, its answered members kept, its unanswered reads ended
+  unreachable and an unanswered opening or closing dropping the stream;
+  a part naming no unanswered member taken as the batch lost; each
+  stream's opening naming the last stream known, with no stream gone
+  sent.
 - **The default mapping's ends,** each against a scripted peer of bytes:
   every route, the stream's events cut at random, the credential as a
   cookie and as a bearer, the printed link's route (a browser's link

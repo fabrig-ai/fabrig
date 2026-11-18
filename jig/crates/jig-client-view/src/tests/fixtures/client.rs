@@ -240,6 +240,8 @@ impl Fixture {
             | jig_client::Event::StreamGone
             | jig_client::Event::Stored
             | jig_client::Event::NotStored
+            | jig_client::Event::Part { .. }
+            | jig_client::Event::Done { .. }
             | jig_client::Event::Up { .. } => None,
         };
         let reading = match &event {
@@ -265,6 +267,8 @@ impl Fixture {
             | jig_client::Event::StreamGone
             | jig_client::Event::Stored
             | jig_client::Event::NotStored
+            | jig_client::Event::Part { .. }
+            | jig_client::Event::Done { .. }
             | jig_client::Event::Up { .. } => None,
         };
         let mut out = Queue::uncapped();
@@ -482,6 +486,8 @@ fn copy_client_event(event: &jig_client::Event) -> jig_client::Event {
         | jig_client::Event::StreamGone
         | jig_client::Event::Stored
         | jig_client::Event::NotStored
+        | jig_client::Event::Part { .. }
+        | jig_client::Event::Done { .. }
         | jig_client::Event::Up { .. } => unreachable!("the UI emits only presentation requests"),
     }
 }

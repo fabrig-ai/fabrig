@@ -71,6 +71,7 @@ impl Side {
                 | Message::Authorize(_)
                 | Message::SignOut
                 | Message::Watch(_)
+                | Message::Batch(_)
                 | Message::Unwatch(_)
                 | Message::StreamGone(_) => {}
             }
@@ -120,6 +121,8 @@ impl Side {
             | Event::Read { .. }
             | Event::Send { .. }
             | Event::Carry { .. }
+            | Event::Part { .. }
+            | Event::Done { .. }
             | Event::Lost { .. }
             | Event::Streamed { .. }
             | Event::StreamGone
@@ -325,6 +328,8 @@ fn callback(event: &Event) -> Option<Callback> {
         | Event::Read { .. }
         | Event::Send { .. }
         | Event::Carry { .. }
+        | Event::Part { .. }
+        | Event::Done { .. }
         | Event::Lost { .. }
         | Event::Stored
         | Event::NotStored

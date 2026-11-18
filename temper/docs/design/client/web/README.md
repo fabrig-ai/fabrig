@@ -116,7 +116,10 @@ skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
     given back as a report of that turn; jig's
     mapping under `/jig` and its stream; the root's requests to jig's
     adapter (`jig-client-shell-web`'s `adapter`) and skein's transport,
-    and their reports back to the root; and the wake, skein's timer
+    and their reports back to the root, the root settled once per report
+    before its requests are carried (jig's `client/domain/root.md`,
+    section 3), a batch's answer read a piece at a time as the stream is
+    (jig's `protocol/client/default-http.md`, section 6); and the wake, skein's timer
     set at the earlier of the root's deadline and the instant the
     view's words next change (`../view.md`, 6); its seam, a report
     given and the duties asked back, a turn's drawing and its deadline,

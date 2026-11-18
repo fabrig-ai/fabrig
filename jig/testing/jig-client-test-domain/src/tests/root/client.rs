@@ -18,14 +18,16 @@ fn the_link_reaches_each_child() {
 fn passes_the_client_s_transport_requests_out_in_order() {
     let mut root = new(&limits(), 7);
     let mut child = Queue::uncapped();
-    child.push(jig_client::Request::OpenStream { credential: None, version: 32 });
+    child.push(jig_client::Request::OpenStream { credential: None, replaces: None, version: 34 });
     child.push(jig_client::Request::CloseStream);
     let mut out = Queue::uncapped();
     route::route_client(&mut root, &env(), &mut child, &mut out);
     assert_eq!(
         out_iter(out),
         vec![
-            Request::Client { request: jig_client::Request::OpenStream { credential: None, version: 32 } },
+            Request::Client {
+                request: jig_client::Request::OpenStream { credential: None, replaces: None, version: 34 }
+            },
             Request::Client { request: jig_client::Request::CloseStream },
         ]
     );

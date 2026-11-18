@@ -14,6 +14,7 @@ pub(crate) enum Route {
     Authorize,
     Request,
     Read,
+    Batch,
     Watch,
     Unwatch,
     Gone,
@@ -27,6 +28,7 @@ pub(crate) fn message(message: crate::Message) -> (Route, Box<[u8]>) {
         crate::Message::ApprovalDecide(body) => (Route::ApprovalDecide, body),
         crate::Message::SignInApproval(body) => (Route::ApprovalTake, body),
         crate::Message::Request(body) => (Route::Request, body),
+        crate::Message::Batch(body) => (Route::Batch, body),
         crate::Message::Read(body) => (Route::Read, body),
         crate::Message::Watch(body) => (Route::Watch, body),
         crate::Message::Unwatch(body) => (Route::Unwatch, body),
@@ -131,7 +133,7 @@ pub(crate) fn unauthenticated(route: Route, limits: &w::Limits) -> Box<[u8]> {
         Route::ApprovalRead => approval_state(w::ApprovalState::SignedOut),
         Route::ApprovalDecide => approval_decided(w::ApprovalDecided::SignedOut),
         Route::ApprovalTake => approval_sign_in(w::ApprovalSignInAnswer::Unknown),
-        Route::Gone | Route::Stream => Box::new([]),
+        Route::Batch | Route::Gone | Route::Stream => Box::new([]),
         Route::Link | Route::Service => refused(),
         Route::SignOut => sign_out_answer(),
         Route::Authorize => authorize_answer(w::AuthorizeAnswer::SignedOut),
@@ -195,7 +197,7 @@ pub(crate) fn stopped(route: Route) -> Option<Box<[u8]>> {
         Route::ApprovalRead => Some(approval_state(w::ApprovalState::NotReady)),
         Route::ApprovalDecide => Some(approval_decided(w::ApprovalDecided::NotReady)),
         Route::ApprovalTake => Some(approval_sign_in(w::ApprovalSignInAnswer::NotReady)),
-        Route::Read | Route::Watch | Route::Unwatch | Route::Gone | Route::Stream => None,
+        Route::Batch | Route::Read | Route::Watch | Route::Unwatch | Route::Gone | Route::Stream => None,
     }
 }
 
