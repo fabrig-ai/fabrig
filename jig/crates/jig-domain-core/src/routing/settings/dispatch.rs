@@ -43,7 +43,7 @@ fn start_at(
         .saturating_sub(1)
         .saturating_sub(people::outputs_bound(&env.limits.people));
     core.settings_input = Some((
-        match s::change_shape(&change.items, &env.limits) {
+        match s::check::check_edits(&core.current, &change.items, &env.limits) {
             Ok(()) => Ok(change),
             Err(failure) => Err(malformed_refusal(&change.items, failure)),
         },
@@ -213,7 +213,7 @@ fn preflight(
     if change.against != core.current.newest() {
         return Err(people::Refusal::Stale { newest: core.current.newest() });
     }
-    if let Err(failure) = s::change_shape(&change.items, &env.limits) {
+    if let Err(failure) = s::check::check_edits(&core.current, &change.items, &env.limits) {
         return Err(malformed_refusal(&change.items, failure));
     }
     if let Err(failure) = s::application::check(core, &change.items) {
@@ -815,7 +815,7 @@ pub(super) fn prepare_proposal(core: &mut Core, env: &Env<Limits>, against: u32,
             detail: None,
         })
     } else {
-        match s::change_shape(&items, &env.limits) {
+        match s::check::check_edits(&core.current, &items, &env.limits) {
             Ok(()) => Ok(Box::new(s::Proposal { key: None, applications: Box::default(), against, items })),
             Err(failure) => Err(people::Malformed::Settings {
                 setting: failure.setting,

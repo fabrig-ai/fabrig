@@ -383,7 +383,7 @@ pub enum ModelAct {
 /// The highest number not held by any setting, withdrawn rows included.
 #[must_use]
 pub fn free_number(models: &[CatalogueModel]) -> Option<u32> {
-    for number in (1..=jig_domain_tasks::MODELS).rev() {
+    for number in (super::STOCK_NUMBERS.checked_add(1).expect("own numbers follow stock")..=super::NUMBERS).rev() {
         let mut held = false;
         for row in models {
             held |= row.number == number;

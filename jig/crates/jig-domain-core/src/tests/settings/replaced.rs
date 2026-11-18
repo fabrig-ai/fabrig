@@ -78,15 +78,15 @@ fn a_revision_records_what_each_item_replaced() {
     charter.spend = charter.spend.checked_add(1).unwrap();
     let first_value = s::Value::Charter(Box::new(charter.clone()));
     let mut added = charter.clone();
-    added.number = 2;
-    assert_eq!(core.current.lookup(s::Setting::Charter(2)), (None, None));
+    added.number = 33;
+    assert_eq!(core.current.lookup(s::Setting::Charter(33)), (None, None));
     let first = commit(
         &mut core,
         &limits,
         Box::new([
             s::Item { setting: s::Setting::Charter(1), edit: s::Edit::Set(first_value.clone()) },
             s::Item { setting: s::Setting::Template(2), edit: s::Edit::Removed },
-            s::Item { setting: s::Setting::Charter(2), edit: s::Edit::Set(s::Value::Charter(Box::new(added))) },
+            s::Item { setting: s::Setting::Charter(33), edit: s::Edit::Set(s::Value::Charter(Box::new(added))) },
         ]),
         Box::default(),
     );

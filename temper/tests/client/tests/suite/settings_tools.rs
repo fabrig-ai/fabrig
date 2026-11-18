@@ -658,13 +658,13 @@ fn a_settings_apply_past_64_kib_reports_the_stored_policy_bound_without_changes(
     let mut world = settings_world([configuration(), configuration()], client, Some(65_536));
     let agent = fixtures::agent(&mut world);
     let mut charter = configuration().core.defaults.charters[0].clone();
-    charter.number = 2;
+    charter.number = 33;
     charter.policy.instructions = vec![b'x'; 82_000].into_boxed_slice();
     let charter = value_json(
-        c::Setting::Charter(c::SettingNumber { number: 2 }),
+        c::Setting::Charter(c::SettingNumber { number: 33 }),
         client_value(&settings::Value::Charter(Box::new(charter))),
     );
-    let file = format!(r#"{{"items":[{{"setting":{{"kind":"charter","number":2}},"set":{charter}}}]}}"#);
+    let file = format!(r#"{{"items":[{{"setting":{{"kind":"charter","number":33}},"set":{charter}}}]}}"#);
     let before = call(&mut world, agent, &[b"settings", b"show"]);
     assert!(before.starts_with("newest revision 1\n"), "{before}");
     let number = fixtures::give_with_file(
@@ -677,7 +677,7 @@ fn a_settings_apply_past_64_kib_reports_the_stored_policy_bound_without_changes(
     assert_eq!(refused.status, 2, "{refused:?}");
     assert_eq!(
         String::from_utf8_lossy(&refused.stderr),
-        "settings apply: out of shape; item 0; charter 2: shape; stored policy: supplied 82376; maximum root.journal.run_bytes 65536\n",
+        "settings apply: out of shape; item 0; charter 33: shape; stored policy: supplied 82376; maximum root.journal.run_bytes 65536\n",
     );
     assert_eq!(call(&mut world, agent, &[b"settings", b"show"]), before);
     // The world keeps decoded records; ctl pending lists the same records through this renderer.

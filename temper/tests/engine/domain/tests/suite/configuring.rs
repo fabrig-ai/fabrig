@@ -702,11 +702,11 @@ fn a_proposal_selects_the_template_it_installs() {
         let mut world = World::stock();
         let run = world.chat(ASK_TEMPLATE, world.owner, 20);
         let mut value = see_value(&mut world.driver, &run, 1, "settings template 5");
-        value["number"] = json!(9);
+        value["number"] = json!(33);
         value["tracked"] = json!(1);
-        let ways = json!({"drafts":true,"goals":true,"changes":true,"way":9});
+        let ways = json!({"drafts":true,"goals":true,"changes":true,"way":33});
         let mut items = vec![
-            json!({"setting":{"kind":"template","number":9},"set":value}),
+            json!({"setting":{"kind":"template","number":33},"set":value}),
             json!({"setting":{"kind":"project-ways","project":PROJECT},"set":ways}),
         ];
         if reverse {
@@ -719,13 +719,13 @@ fn a_proposal_selects_the_template_it_installs() {
         };
         assert_eq!(settings.items.len(), 2);
         assert_eq!(world.head().number, 1, "proposing publishes neither item");
-        let (_, error) = host_tool(&mut world.driver, &run, 12, b"see", br#"{"address":"settings template 9"}"#);
+        let (_, error) = host_tool(&mut world.driver, &run, 12, b"see", br#"{"address":"settings template 33"}"#);
         assert!(error, "the proposed template is not published");
         let (text, _) = see_whole(&mut world.driver, &run, 13, "settings project-ways");
         assert!(text.contains("\"way\":0"), "proposing keeps the stock way: {text}");
         world.decide(&run, proposal, 21, people::ProposalDecision::Accept, people::Running::Stays);
         assert_eq!(world.head().number, 2, "one acceptance makes one revision");
-        let installed = see_value(&mut world.driver, &run, 30, "settings template 9");
+        let installed = see_value(&mut world.driver, &run, 30, "settings template 33");
         assert_eq!(installed, value);
         let (text, _) = see_whole(&mut world.driver, &run, 40, "settings project-ways");
         let body = text.lines().nth(1).expect("ways value");
@@ -749,13 +749,13 @@ fn direct_ways_are_checked_against_the_templates_the_decision_leaves() {
         .find(|value| value.number == ASK_TEMPLATE)
         .expect("asking template");
     let added = s::Item {
-        setting: s::Setting::Template(9),
-        edit: s::Edit::Set(s::Value::Template(Box::new(core::Template { number: 9, ..template }))),
+        setting: s::Setting::Template(33),
+        edit: s::Edit::Set(s::Value::Template(Box::new(core::Template { number: 33, ..template }))),
     };
     for (name, item, way, accepted) in [
         ("zero", added.clone(), 0, true),
         ("current", added.clone(), ASK_TEMPLATE, true),
-        ("installed", added.clone(), 9, true),
+        ("installed", added.clone(), 33, true),
         ("absent", added, 10, false),
         (
             "removed",
@@ -763,7 +763,7 @@ fn direct_ways_are_checked_against_the_templates_the_decision_leaves() {
             ASK_TEMPLATE,
             false,
         ),
-        ("reset addition", s::Item { setting: s::Setting::Template(9), edit: s::Edit::Reset }, 9, false),
+        ("reset addition", s::Item { setting: s::Setting::Template(33), edit: s::Edit::Reset }, 33, false),
         (
             "reset default",
             s::Item { setting: s::Setting::Template(ASK_TEMPLATE), edit: s::Edit::Reset },

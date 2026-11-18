@@ -564,6 +564,64 @@ fn the_pending_settings_bound_admits_two_and_names_the_thirds_refusal() {
         }))
     );
 }
+fn stock_hole_template(world: &World) -> settings::Item {
+    let mut item = template_edit(world, 7);
+    item.setting = settings::Setting::Template(9);
+    let settings::Edit::Set(settings::Value::Template(value)) = &mut item.edit else { panic!("template set") };
+    value.number = 9;
+    item
+}
+
+fn stock_hole_refusal() -> people::Refusal {
+    let failure = settings::check::range_failure(settings::Setting::Template(9));
+    people::Refusal::NotWellFormed {
+        at: 0,
+        why: people::Malformed::Settings { setting: failure.setting, fault: failure.fault, detail: failure.detail },
+    }
+}
+
+#[test]
+fn numbers_refuse_person_and_run_proposals_at_entrance() {
+    let (mut world, signed, _) = proposing_run(true);
+    let before = settings_rows(&world);
+    let item = stock_hole_template(&world);
+    assert_eq!(
+        propose(&mut world, signed, 110, 1, Box::new([item.clone()])),
+        people::Reply::Outcome(people::Outcome::Refused(stock_hole_refusal()))
+    );
+    assert_eq!(run_propose(&mut world, 1, Box::new([item])), core::CallPart::SettingsRefused(stock_hole_refusal()));
+    assert_eq!(settings_rows(&world), before);
+    world.broken();
+}
+
+#[test]
+fn a_restored_out_of_range_proposal_is_refused_and_left_pending() {
+    let mut world = start(64);
+    let signed = sign_in(&mut world);
+    let item = template_edit(&world, 7);
+    let number = proposed(&propose(&mut world, signed, 1, 1, Box::new([item])));
+    let item = stock_hole_template(&world);
+    let root::Record::Core(core::Record::Core(core::CoreRecord::Settings(settings::Record::Proposal {
+        value, ..
+    }))) = world.store.rows.get_mut(&proposal_set_key(OWNER, number)).expect("pending set")
+    else {
+        panic!("settings proposal")
+    };
+    value.items = Box::new([item]);
+    let restored = world.store.rows.get(&proposal_set_key(OWNER, number)).expect("seeded pending set").clone();
+    world.seed(Box::new([restored]));
+    restart(&mut world, configuration().0);
+    assert!(world.domain.ready());
+    let before = settings_rows(&world);
+    assert_eq!(
+        decide(&mut world, signed, 2, OWNER, number, people::ProposalDecision::Accept, Some(people::Running::Stays)),
+        people::Reply::Outcome(people::Outcome::Refused(stock_hole_refusal()))
+    );
+    assert_eq!(settings_rows(&world), before);
+    assert_eq!(inventory(&mut world, signed).pending.len(), 1);
+    assert!(world.store.rows.contains_key(&proposal_set_key(OWNER, number)));
+}
+
 #[test]
 fn entrance_refusals_keep_nothing_and_only_deployment_owners_accept() {
     use settings::{Fault, Setting};
@@ -1146,7 +1204,7 @@ fn run_setting_readers(world: &mut World, owner: u64, point: &reads::Read, task:
 fn a_runs_large_proposed_charter_is_read_whole_by_its_reviewer() {
     for (number, decision, running) in [
         (1, people::ProposalDecision::Accept, Some(people::Running::Stays)),
-        (2, people::ProposalDecision::Reject { reason: b"Keep the current charter".as_slice().into() }, None),
+        (33, people::ProposalDecision::Reject { reason: b"Keep the current charter".as_slice().into() }, None),
     ] {
         let (mut world, signed, task) = proposing_run(true);
         let item = large_run_charter(&mut world, signed, number);

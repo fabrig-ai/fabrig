@@ -272,6 +272,9 @@ impl Core {
                 assert!(self.settings_restore.pending.insert(setting, true).is_ok(), "bounded added default");
             }
         }
+        if self.refuse_numbers() {
+            return false;
+        }
         if let Err(failure) = super::workers::check_defaults(&self.current, self.workers_in_process) {
             let _request = self.refuse_settings(failure);
             return false;
@@ -305,6 +308,16 @@ impl Core {
         self.tell_settings(env, out);
         true
     }
+    fn refuse_numbers(&mut self) -> bool {
+        let settings = super::check::numbers(&self.current);
+        if settings.is_empty() {
+            return false;
+        }
+        self.start_input();
+        self.refuse_restore(crate::start::Failure::Numbers { settings });
+        true
+    }
+
     /// The typed refusal is retained even when a later completion repeats it.
     pub fn refuse_settings(&mut self, failure: Failure) -> crate::start::Failure {
         self.start_input();
@@ -715,6 +728,9 @@ pub(crate) fn revision_writes_with_hold(
 }
 
 pub(crate) fn first_start(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Request>) -> bool {
+    if core.refuse_numbers() {
+        return false;
+    }
     if let Err(failure) = super::check(&core.current, &core.settings, &core.connectors, &env.limits) {
         let _request = core.refuse_settings(failure);
         return false;

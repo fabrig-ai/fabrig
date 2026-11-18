@@ -332,8 +332,8 @@ fn a_full_catalogue_counts_the_names_left_out() {
     let names: Vec<_> = (0..64).map(|number| format!("new-{number}").into_bytes()).collect();
     let rows: Vec<&[u8]> = names.iter().map(Vec::as_slice).collect();
     world.answer_list(listed(&rows));
-    assert_eq!(record(&world).left_out, 1); // One of the 64 numbers is the stock model.
-    assert_eq!(record(&world).names.count_ones(), 63);
+    assert_eq!(record(&world).left_out, 32); // Only the deployment's 33 to 64 are free.
+    assert_eq!(record(&world).names.count_ones(), 32);
 }
 
 #[test]

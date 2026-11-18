@@ -8,6 +8,7 @@ pub use census::{Census, ReadResults};
 pub use cursor::restore_cursor;
 
 use crate::{Key, settings as core_settings};
+use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -28,8 +29,18 @@ pub enum Phase {
     Open,
 }
 
+/// A default or change outside its numbers (domain/engine/settings.md, 7).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Numbered {
+    pub setting: core_settings::Setting,
+    pub changed: bool,
+}
+
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Failure {
+    Numbers {
+        settings: Box<[Numbered]>,
+    },
     Settings {
         failure: core_settings::Failure,
         changed: bool,
