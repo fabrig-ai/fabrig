@@ -431,7 +431,7 @@ pub static PAGES: [Page; 77] = [
         name: "ctl-proposal",
         kind: Kind::Reference,
         title: "temper ctl proposal",
-        summary: "Proposals: read one, decide it.",
+        summary: "Proposals: read, decide or withdraw one.",
         text: include_str!("../../../docs/help/reference/ctl-proposal.md"),
     },
     Page {

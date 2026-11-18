@@ -417,6 +417,21 @@ pub const DECIDE: Tool = Tool {
     area: 1,
     notes: b"A decision asked again under its key prints its first answer.\nA retained decision, by your party or another, answers `decided first:`\nwith exit 0 and changes nothing. An unknown proposal answers exit 2:\nthis proposal isn't waiting; it may have been decided or replaced.\n",
 };
+/// Appended to the host's table so existing tool positions keep their meanings.
+pub const WITHDRAW_AT: u8 = 113;
+pub const WITHDRAW: Tool = Tool {
+    name: b"proposal withdraw",
+    line: b"Withdraw your own pending proposal",
+    prints: b"`done: withdraw`, or `decided first:`, by whom, how and when, if its decision is retained",
+    result: b"withdraw",
+    forms: &[&[
+        positional(b"proposal", b"PROPOSAL", Kind::Proposal, Required, b"Your party's proposal, pN/K"),
+        flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project printed with the proposal"),
+    ]],
+    keyed: Keyed::Optional,
+    area: 2,
+    notes: b"Sends without reading the proposal. Only the signed-in party's pN/K\nmay be withdrawn; a task's or another party's key is usage, exit 1,\nnothing sent. A withdrawal asked again under its key prints its first\nanswer. A retained decision, including withdrawal, answers `decided first:`\nwith exit 0 and changes nothing. An unknown proposal or one of another\nproject answers exit 2: this proposal isn't waiting; it may have been\ndecided or replaced. A proposal's acts offer withdrawal to its maker alone.\n",
+};
 pub const RELEASE: Tool = Tool {
     name: b"task release",
     line: b"Lift a task's hold",

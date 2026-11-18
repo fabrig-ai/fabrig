@@ -210,7 +210,7 @@ impl Operation {
     fn with_words(ask: &Ask, word: &'static [u8], task: Option<u64>) -> Self {
         let mut proposal_decision = false;
         if let Ask::Jig(ask) = ask
-            && let c::Ask::Decide { on: c::DecideOn::Proposal { .. }, .. } = ask.as_ref()
+            && let c::Ask::Decide { on: c::DecideOn::Proposal { .. }, .. } | c::Ask::Withdraw { .. } = ask.as_ref()
         {
             proposal_decision = true;
         }
@@ -876,6 +876,7 @@ pub(crate) fn act_tool(tool: u8) -> &'static crate::jig::table::Tool {
         rows::TAKE_AT => &rows::TAKE,
         rows::HAND_BACK_AT => &rows::HAND_BACK,
         rows::DECIDE_AT => &rows::DECIDE,
+        rows::WITHDRAW_AT => &rows::WITHDRAW,
         rows::TASK_DECIDE_AT => &rows::TASK_DECIDE,
         rows::RELEASE_AT => &rows::RELEASE,
         rows::LIFT_AT => &rows::LIFT,

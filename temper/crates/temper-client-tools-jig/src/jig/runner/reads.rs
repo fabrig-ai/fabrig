@@ -322,7 +322,7 @@ fn thread_start(runner: &Runner, env: &Env<Limits>, reading: &mut Reading, task:
 pub fn project(call: &Call, me: &c::Me) -> Option<u32> {
     selected_project(value(call, 0), me)
 }
-fn selected_project(selected: Option<&Value>, me: &c::Me) -> Option<u32> {
+pub(super) fn selected_project(selected: Option<&Value>, me: &c::Me) -> Option<u32> {
     match selected {
         Some(Value::Project(Project::Number(number))) => Some(*number),
         Some(Value::Project(Project::Name(name))) => {
