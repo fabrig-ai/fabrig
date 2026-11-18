@@ -22,7 +22,7 @@ record Settings { default_branch: bytes 1048576 merge: bool squash: bool rebase:
 enum Role { owned, adopted, fork, context }
 record Kinds { read: bool push: bool open: bool land: bool review: bool status: bool comment: bool issue: bool branch: bool }
 enum RepositoryProtection { unknown, absent, rule: Protection }
-record Adopted { project: u32 contexts: list 65536 u32 home: bool provider: Repository host: bytes 4096 owner: bytes 4096 name: bytes 4096 prefix: bytes 4096 role: Role ci: bool checks: list 1024 u32 kinds: Kinds protection: RepositoryProtection settings: Settings workflows: list 16 bytes 255 }
+record Adopted { project: u32 contexts: list 65536 u32 home: bool provider: Repository host: bytes 4096 owner: bytes 4096 name: bytes 4096 prefix: bytes 4096 role: Role ci: bool checks: list 1024 u32 kinds: Kinds protection: RepositoryProtection settings: Settings workflows: list 16 bytes 255 landing: bytes 4096 = 0x }
 # 04.2: family 3, Hold.
 record RunWriter { task: u64 attempt: u64 }
 enum Writer { run: RunWriter, lost: RunWriter, entry: Number }
@@ -228,7 +228,7 @@ record GoalView { phase: Phase goal: u64 repository: u64 title: text 65536 goal_
 record Projected { opened: bool digest: option fixed 32 last_body: option u64 body_revision: u64 milestones: list 1024 MilestoneKey closed: bool }
 record IssueRow { goal: u64 repository: Repository state: Projected number: option u64 pending: option u64 before: option Projected failed: bool desired: option GoalView }
 # 02.4: family 15, the retained application outcome.
-record ApplicationAdopted { repository: Repository owner: bytes 4096 name: bytes 4096 role: Role home: bool kinds: Kinds protection: RepositoryProtection }
+record ApplicationAdopted { repository: Repository owner: bytes 4096 name: bytes 4096 role: Role home: bool kinds: Kinds protection: RepositoryProtection landing: bytes 4096 = 0x }
 # Ceiling: jig-protocol-store people_v14::Refusal::worst_case_bytes(&people_v14::CEILINGS).
 record CoreRefused { refusal: bytes 517 holds jig-store-people Refusal }
 enum ForgeReason { no_such_forge, not_found, no_access, refused, in_flight, too_large, unreachable, invalid_answer, not_installed, another_project, home_held, prefix_occupied }

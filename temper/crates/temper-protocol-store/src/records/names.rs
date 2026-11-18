@@ -221,6 +221,7 @@ pub(super) fn encode_adopted(value: &d::Repository) -> w::Adopted {
         protection,
         settings,
         workflows,
+        landing,
     } = value;
     w::Adopted::new(
         &w::CEILINGS,
@@ -240,6 +241,7 @@ pub(super) fn encode_adopted(value: &d::Repository) -> w::Adopted {
             protection: encode_protection(protection),
             settings: encode_settings(settings),
             workflows: encode_workflows(workflows),
+            landing: landing.clone(),
         },
     )
     .expect(FITS)
@@ -261,7 +263,10 @@ pub(super) fn decode_adopted(value: w::Adopted, bounds: &Bounds) -> Result<d::Re
         protection,
         settings,
         workflows,
+        landing,
     } = value.into_parts();
+    let settings = decode_settings(settings);
+    let landing = if landing.is_empty() { settings.default_branch.clone() } else { landing };
     Ok(d::Repository {
         project,
         contexts: contexts.into_boxed(),
@@ -276,8 +281,9 @@ pub(super) fn decode_adopted(value: w::Adopted, bounds: &Bounds) -> Result<d::Re
         checks: checks.into_boxed(),
         kinds: decode_kinds(kinds),
         protection: decode_protection(protection, bounds)?,
-        settings: decode_settings(settings),
+        settings,
         workflows: workflows.into_boxed(),
+        landing,
     })
 }
 

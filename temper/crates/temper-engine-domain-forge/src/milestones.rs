@@ -1,4 +1,5 @@
 //! The forge's milestone row (temper/docs/design/domain/milestones.md, 8).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
 use crate::{Domain, Key, MilestoneLanding, MilestoneRow, Request, Stored};
 use skein_lib::{List, Map, Queue, Wall};
 pub(crate) use temper_engine_domain_forge_vocabulary::milestones::{MILESTONE_NAME_BYTES, MILESTONES_PER_PROJECT};
@@ -81,7 +82,7 @@ pub(crate) fn project(d: &mut Domain, mut row: MilestoneRow, out: &mut Queue<Req
 pub(crate) fn landed(d: &mut Domain, at: Wall, task: u64, out: &mut Queue<Request>) {
     let Some(change) = d.changes.get(&task) else { return };
     let Some(repository) = d.repositories.get(&change.repository) else { return };
-    if change.base != repository.settings.default_branch {
+    if change.base != repository.landing {
         return;
     }
     let (Some(milestone), Some(goal)) = (change.milestone, change.goal) else { return };

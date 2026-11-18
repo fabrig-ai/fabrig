@@ -171,6 +171,7 @@ pub fn no_ci_no_check() -> Box<[forge::Act]> {
 }
 pub fn adopted() -> forge::Answer {
     forge::Answer::Adopted(forge::Adopted {
+        landing: b"main".as_slice().into(),
         forge: FORGE,
         repository: 7,
         owner: Box::from(*b"acme"),
@@ -276,6 +277,7 @@ pub fn adopted_bytes() -> jig_client::Family {
     let adopted = w::Adopted::new(
         &limits,
         w::AdoptedParts {
+            landing: b"main".as_slice().into(),
             forge: FORGE,
             repository: 7,
             owner: Box::from(*b"acme"),

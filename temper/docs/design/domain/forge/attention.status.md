@@ -1,7 +1,10 @@
 # attention: status
 
-2026-11-16. Where the tree's code lags or departs from [attention.md](attention.md).
+2026-11-18. Where the tree's code lags or departs from [attention.md](attention.md).
 
+- **Not yet:** 2: a landing is marked the main one by the forge's
+  default branch rather than the repository's landing branch [in flight:
+  change 8087].
 
 
 

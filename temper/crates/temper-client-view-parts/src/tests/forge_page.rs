@@ -31,6 +31,7 @@ fn page_tree(form: &forge::Form, words: &crate::words::Words) -> skein_ui::Tree 
 }
 fn adopted() -> forge::Answer {
     forge::Answer::Adopted(forge::Adopted {
+        landing: b"staging".as_slice().into(),
         forge: 1,
         repository: 7,
         owner: Box::from(*b"acme"),
@@ -55,7 +56,7 @@ fn adopted() -> forge::Answer {
 fn each_outcome_reads_as_the_designs_sentence() {
     let words = fixtures::words();
     let rows: [(forge::Answer, &[u8], bool); 13] = [
-        (adopted(), b"Adopted acme/shop on forge 1 as owned.It is the project's home.temper may: read; push; open pull requests; land; review; set statuses; comment; create issues; create and delete branches.temper's forge user may not read the branch protection: the forge shows it to repository administrators only.", false),
+        (adopted(), b"Adopted acme/shop on forge 1 as owned.It lands into staging.It is the project's home.temper may: read; push; open pull requests; land; review; set statuses; comment; create issues; create and delete branches.temper's forge user may not read the branch protection: the forge shows it to repository administrators only.", false),
         (forge::Answer::ForgeRefused(forge::Reason::NoSuchForge), b"No forge 1 is configured.", true),
         (forge::Answer::ForgeRefused(forge::Reason::NotFound), b"No repository acme/shop on forge 1 that temper's forge user can see.", true),
         (forge::Answer::ForgeRefused(forge::Reason::NoAccess), b"temper's forge user may not read acme/shop on forge 1.", true),
@@ -77,6 +78,17 @@ fn each_outcome_reads_as_the_designs_sentence() {
         assert_eq!(text.as_ref(), said, "outcome {answer:?}");
         assert_eq!(has_role(&rendered, Role::Alert), alert, "refusal alert {answer:?}");
     }
+}
+#[test]
+fn an_outcome_without_a_landing_says_nothing_of_it() {
+    let forge::Answer::Adopted(mut adopted) = adopted() else { panic!("adopted") };
+    adopted.landing = Box::new([]);
+    let mut form = form();
+    form.outcome = Some(forge::Answer::Adopted(adopted));
+    let rendered = tree(&form);
+    let text = fixtures::text(&rendered);
+    assert!(text.starts_with(b"Adopted acme/shop on forge 1 as owned.It is the project's home."));
+    assert!(skein_lib::bytes::find(&text, b"It lands into").is_none());
 }
 #[test]
 fn each_kind_of_jig_refusal_uses_jigs_words() {

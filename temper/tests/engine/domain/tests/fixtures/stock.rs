@@ -8,7 +8,7 @@ pub fn defaults(words: u32) -> jig_domain_core::settings::Defaults {
     temper_engine_service_stock::stock::with_models(engine().llm.models.clone(), words)
 }
 
-fn engine() -> &'static jig_protocol_config::Engine {
+pub(crate) fn engine() -> &'static jig_protocol_config::Engine {
     static ENGINE: std::sync::OnceLock<jig_protocol_config::Engine> = std::sync::OnceLock::new();
     ENGINE.get_or_init(parse_engine)
 }

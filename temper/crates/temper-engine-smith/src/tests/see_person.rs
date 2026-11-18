@@ -979,6 +979,7 @@ fn person_answers_read_as_named_bounded_lines() {
                 project: project(),
                 held: tasks_page(&[held_row()]),
                 repositories: Box::new([temper_engine_domain::RepositoryIdentity {
+                    landing: b"main".as_slice().into(),
                     host: b"forge.example".as_slice().into(),
                     owner: b"shop".as_slice().into(),
                     name: b"app".as_slice().into(),

@@ -159,6 +159,7 @@ fn an_adoption_on_a_configured_forge_is_adopted_with_what_temper_may_do() {
         outcomes(&driver),
         [&Some(temper_engine_domain::ApplicationAnswer::Adopt(forge::ApplicationOutcome::Adopted(
             forge::AdoptedRepository {
+                landing: b"main".as_slice().into(),
                 repository: skein_forge::api::Repository { forge: 1, repository: 2 },
                 owner: Box::from(&b"org"[..]),
                 name: Box::from(&b"repo"[..]),
