@@ -209,7 +209,10 @@
       and *Later*): "Nothing needs you.", "One thing needs you.", "Two things
       need you." and so on in number words to "Nine", digits after, "29
       things need you.", "N+ things need you." where the read is cut, the
-      project's name until its needs have answered. Where every open card
+      project's name until its needs have answered whole: the count and its
+      "+" are the last whole read's, through every refresh and every read
+      that ends without its value (`needs-you.md`, 1, *The needs' rows*).
+      Where every open card
       concerns findings (1, **Findings, drawn**, *Counted*) and the read
       is not cut, "finding" stands for "thing" and the number is the
       findings', `Counted::total`, each once, not the cards': "One
@@ -367,6 +370,13 @@
       milestone's being the newest of its own and its goals', a tie the
       lower task number first; then ended rows, the newest end first. As
       many as the larger of 5 and the live rows, counted after grouping.
+    - *One stable list:* a goal under a drawn milestone is drawn under
+      that milestone's row alone, never also as a row of its own, and a
+      row's headline, a milestone's count, state and strip are what its
+      part last said, kept through a delivery whose part is not made
+      (`../forge/parts.md`, 5; `milestone.md`, 1, *A goal's milestone*).
+      So a refresh that finds nothing changed draws the same rows, in the
+      same order, with the same words.
     - *A milestone's row,* one link to its `Task`, `temper-goals-row` and
       `temper-ms-row`, as the mockup `../web/home-for-a-person/home.html`
       draws it: its top line, `temper-goals-top`, at the left its tag and

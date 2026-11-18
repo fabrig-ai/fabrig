@@ -726,12 +726,26 @@
     once until none; the unfiltered address takes the watched document's
     window and, where its needs run past it (its `next` set and no update
     in the window), reads the needs as a filtered address does, from the
-    first page. Each refresh reads them again; the rows read before stand
-    until the new read's last page has answered, so no count falls back
-    while it reads, and before any read has finished what has answered so
-    far stands, cut. The read is *cut* where it stops before its last
-    page: at 64 rows, or at a page refused, failed or ended; `Inbox::cut`'s
-    needs' half says so. The rows are what is counted; cards are read for
+    first page. Each refresh reads them again; the rows read before, and
+    whether they were cut, stand until the new read's last page has
+    answered with its value, so no count falls back or gains a "+" while
+    it reads (`README.md`'s opening: a page redraws from whole answers
+    alone). The read is *cut* where its list is: where it stops at 64 rows
+    with a page still after them, or where a page it answered says `cut`
+    (jig's `InboxPage::cut`); `Inbox::cut`'s needs' half says so, and
+    nothing else sets it. A page that answers without its value (busy,
+    unreachable, refused, past the client's reads, its watch ended) is no
+    answer: the read stops there, and the rows, their cards and their cut
+    stand as the last whole read left them. Before any read has answered
+    whole the needs are not known, and nothing a read has answered so far
+    is counted: Home's headline says the project's name (`home.md`, 1),
+    and no "N+" stands for a read that stopped. A read that ends
+    transiently, busy, unreachable or past the client's reads, is asked
+    again from its first page while the page is open, waiting one second,
+    doubling to at most thirty, as a conversation's activity reads are
+    (`README.md`'s opening; `pages::activity::Asking`), the wait back to
+    one second once a read answers whole; a refused or ended one waits for
+    the next refresh. The rows are what is counted; cards are read for
     the first of them in the inbox's order, as many as the needs' share
     of `card_capacity` (half, the updates' window holding the rest), and,
     on *Needs you*, for the open one (1, **Needs you**), which takes the
@@ -758,7 +772,11 @@
     say, is every open card: each open need once, its card read or not,
     as `me` counts its needs, with the approvals and the findings the
     person holds; "N+" only where the needs' rows, `approvals` or the
-    findings' read is cut, never because fewer cards are read than rows.
+    findings' read is cut, never because fewer cards are read than rows,
+    nor because a read ended without its value. Every place that says it
+    (Home's headline and head, this page's intro and head, the rail's count
+    on the page, below) takes it from the one `findings::Session::counted`,
+    so two of them never say two counts of the same needs.
   - *Answered,* a bounded list: each card's object, project, title,
     label and when. The label is the choice's words, or `Replied: “…”`,
     its words cut at 57 characters plus "…" past 60. A line shows on
@@ -800,9 +818,15 @@
     project, less those answered, a row counting in each project it shows in
     (jig's `client/domain/contract/documents.md`, 1: `shows_in`), so that a proposal of
     settings counts in the projects it belongs to, and for one of the
-    deployment's in each the person owns; "N+" where its document is cut, and no
-    count before it is delivered. A card marked later still counts. The open
-    project's rows of `approvals` add to it, "N+" where that document is cut too.
+    deployment's in each the person owns; "N+" where its needs run past its
+    window, its `next` set and no update in the window, as the unfiltered
+    address reads it (*The needs' rows*), never because updates run past
+    it; and no count before it is delivered. A card marked later still
+    counts. The open project's rows of `approvals` add to it, "N+" where
+    that document is cut too. On a page whose inbox is filtered by the open
+    project alone and known (Home, a project's *Needs you*), the rail says
+    that page's count, `findings::Session::counted`'s, the number and "+"
+    the page's head says, so the rail and the page never disagree.
     On a page across projects (`../view.md`, 3, *All projects*) it counts
     what *Needs you* across them shows: each of the needs' rows once,
     whatever projects it shows in, less those answered, and every row of

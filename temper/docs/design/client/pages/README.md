@@ -19,6 +19,21 @@ read hasn't answered, on first load or after the link comes back, a page
 keeps what it last knew, rows and words alike, through every refresh; with
 nothing known, a section draws its title with no line under it.
 
+A page redraws from whole answers alone. A read answers whole once its
+value has come, every page of it read through to its last; a read or a
+page of it that ends without its value is no answer, and so, for its row,
+is a row's part not made (`../forge/parts.md`, 5). Neither changes what
+the page drew from the answers before it: a list's rows, its count and
+whether it is cut, a row's headline, the milestone a goal is under. Only
+a whole answer replaces them, and it replaces them whole. So a page whose
+reads answer again, in any order and with any of them ending without its
+value, while nothing changes in the store, draws the same text every
+time. The `inbox` watch delivers again on any task's activity in a
+project the person sees, not only on a change of its needs (jig's
+`client/domain/contract/README.md`, 5.2), and a list's watch on any of its
+rows' activity, so on a running project a page's reads answer again every
+few seconds; what they find unchanged moves nothing.
+
 Each page has an address, and watches what it shows while it is open;
 leaving it closes its handles. Its mockup designs what temper does not
 draw yet: its look, its parts and their order, its words and where its

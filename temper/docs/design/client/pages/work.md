@@ -394,7 +394,11 @@
   once it has marked the party's inbox changed (jig's
   `client/domain/contract/README.md`, 5.2). That watch's first delivery
   is no move; each after it is, the first once it opens again after a
-  drop among them; and no delivery of the goals' is one.
+  drop among them; and no delivery of the goals' is one. A read of them
+  that answers without its value keeps the `selection` the last one gave,
+  so a goal's "waiting on you" stands through it (`README.md`'s opening);
+  a row's headline is its goal part's as last decoded
+  (`../forge/parts.md`, 5).
 
   **A row** is one link to the goal's `Task`, public as `goals::row`, since
   Home's area will reuse it: its top line the chip's title (its spec's first
