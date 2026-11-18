@@ -178,7 +178,7 @@ fn memory_forks_keep_the_map_census_logs_and_independent_writes() {
     down(
         &mut copy,
         &env,
-        Request::ReadLog { owner, log: 7, at: 0, direction: crate::Direction::Forward, max: 64 },
+        Request::ReadLog { owner, log: 7, at: 0, direction: crate::Direction::Forward, max: 64, rows: 1 },
         &mut above,
         &mut below,
     );
