@@ -282,7 +282,10 @@ command that rewrites it. The ways, ranked by what they protect:
 5. **Accepted on a host that serves one person,** as smith's design
    accepts it now (`smith/docs/design/protocol/programs.md`, 7).
 
-The pick is the second (10.1), if the live suite shows that the prefix
+For the first pass the login stays within the program's reach, the
+fifth way, by the user's word of 2026-11-18: the run cannot leave its
+workspace otherwise, and that is enough to begin. When this step comes,
+the pick is the second (10.1), if the live suite shows that the prefix
 wraps every command the program runs. It costs the model its own file
 tools. The first follows if the program can run on a relayed login.
 
@@ -566,12 +569,15 @@ draft finds it cheap.
 
 ## 10. Open questions
 
-- **10.1 The program's login** (5.3): the pick is both routes closed,
-  commands narrowed through the program's command prefix and its file
-  tools served by smith, if the prefix wraps every command, background
-  ones included (the live suite checks it, 8.5). It costs the model its
-  own file tools; the relayed login, which costs it nothing, follows if
-  the program runs on one.
+- **10.1 The program's login** (5.3): the first pass leaves it within
+  the program's reach (the user, 2026-11-18: "as long as the agent can't
+  escape its workspace, that's probably good enough for a first pass").
+  When its step comes, the pick is both routes closed, commands narrowed
+  through the program's command prefix and its file tools served by
+  smith, if the prefix wraps every command, background ones included
+  (the live suite checks it, 8.5). It costs the model its own file
+  tools; the relayed login, which costs it nothing, follows if the
+  program runs on one.
 - **10.2 Caches** (6.4): read-only or per workstream by default, or a
   shared writable cache from the start, as a compile cache is today.
   Default: per workstream; a shared one only by the configuration's
