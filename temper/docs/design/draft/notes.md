@@ -746,4 +746,4 @@ The reasons behind `page-round-trips.md`, 2026-11-17, whose head holds the user'
 
 ## 24. Settings numbers
 
-The reasons behind `settings-numbers.md`, 2026-11-18, whose head holds the user's words. Its readings, not theirs: ranges rather than finding stock items by what they are, since numbers are identity across policies, tasks and clients and jig never renumbers; models' existing habit made a rule; a collision caught by the upgrade check rather than refused at a start, so a deployment started without the check still runs; a move by recipe, since a charter's references reach tasks and authority.
+The reasons behind `settings-numbers.md`, 2026-11-18, whose head holds the user's words. Its readings, not theirs: ranges rather than finding stock items by what they are, since numbers are identity across policies, tasks and clients and jig never renumbers; models' existing habit made a rule; the rule checked at a start too, so the upgrade check finds what's left before a redeploy; no collision code, since none can happen once dev's four items have moved.
