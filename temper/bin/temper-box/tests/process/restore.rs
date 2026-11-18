@@ -12,8 +12,11 @@ fn stopped(root: &Path, verb: &str, name: Option<&str>) -> String {
     String::from_utf8(output.stdout).expect("command line")
 }
 
-fn projects(root: &Path, make: Option<&str>) -> serde_json::Value {
-    let mut steps = vec![Step::Run(Call::sign_in())];
+fn projects(root: &Path, sign_in: bool, make: Option<&str>) -> serde_json::Value {
+    let mut steps = Vec::new();
+    if sign_in {
+        steps.push(Step::Run(Call::sign_in()));
+    }
     if let Some(name) = make {
         steps.push(Step::Run(Call::new(&["project", "make", name, "--key", "after-checkpoint"])));
     }
@@ -31,14 +34,21 @@ fn a_checkpoint_restores_earlier_state_and_its_safety_restores_the_later_state()
     let scratch = support::Scratch::new("stopped-restore");
     let root = scratch.path();
     support::configuration(root, &support::Forge::Unreached);
-    let before = projects(root, None);
+    // Keep the signed-in directory's address usable across each restart.
+    let [clients] = support::free_addresses::<1>(&[]);
+    let path = root.join("temper.json");
+    let mut value: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&path).expect("configuration")).expect("JSON");
+    value["application"]["clients"]["listener"] = serde_json::json!({"socket": clients.to_string()});
+    support::write_private(&path, &serde_json::to_vec(&value).expect("JSON"));
+    let before = projects(root, true, None);
     let taken = stopped(root, "checkpoint", None);
     let name = taken
         .strip_prefix("temper-box checkpoint: ")
         .and_then(|line| line.split_once(" at commit "))
         .expect("checkpoint name")
         .0;
-    let later = projects(root, Some("After checkpoint"));
+    let later = projects(root, false, Some("After checkpoint"));
     assert_ne!(before, later, "a committed project distinguishes the states");
     let restored = stopped(root, "restore", Some(name));
     assert!(restored.starts_with(&format!("temper-box restore: restored {name} as generation ")), "{restored}");
@@ -49,9 +59,9 @@ fn a_checkpoint_restores_earlier_state_and_its_safety_restores_the_later_state()
         .0;
     assert!(jig_protocol_store::CheckpointName::parse(safety.as_bytes()).is_some());
     assert!(restored.ends_with(&format!(", and restore {safety} brings it back\n")));
-    assert_eq!(projects(root, None), before, "a start finds the checkpoint's state");
+    assert_eq!(projects(root, false, None), before, "a start finds the checkpoint's state");
     let undone = stopped(root, "restore", Some(safety));
     assert!(undone.starts_with(&format!("temper-box restore: restored {safety} as generation ")), "{undone}");
-    assert_eq!(projects(root, None), later, "a start finds the safety checkpoint's later state");
+    assert_eq!(projects(root, false, None), later, "a start finds the safety checkpoint's later state");
     scratch.remove();
 }
