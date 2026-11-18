@@ -20,8 +20,8 @@ them is `tools/tiers/budgets.status.md`'s.
 
 - **Not yet:** 1: six of the engine's domain-world stories (the approval rules and the stock adoption's roles, the shared project's three status stories, the red landing on another branch) are past the domain world's 0.2 s reference. [in flight: change 8260]
 - **Not yet:** 1: the checkout world's check that facts change nothing sweeps 100 seeds in the focused suite, past the domain world's 0.2 s reference. [in flight: change 8261]
-- **Not yet:** 1: the client world's agent page read through Older over long lines is past the system world's 0.6 s reference. [in flight: change 8262]
-- **Not yet:** 1: the engine's `upgrade --check` naming the record a start refuses is past the end-to-end 2 s reference. [in flight: change 8263]
+- **Not yet:** 1: the client world's agent page read through Older over long lines is past the system world's 0.6 s reference, about 1.23 s by the gate's CPU on 11-18, once its cases shared one world and client. About 45 per cent is the engine's advance under the domain world's driver, and 12 to 17 per cent is the client's view builds. These measurements are the user's to decide on (`skein/docs/foundation/testing-strategy.md`, 8.1).
+- **Not yet:** 1: the engine's `upgrade --check` naming the record a start refuses is past the end-to-end 2 s reference, 2.99 s by the gate's CPU on 11-18. About 77 per cent is the store's four registry openings, its layout derives about 60 per cent. It belongs to its tier (`skein/docs/foundation/testing-strategy.md`, 2.9), and neither invocation can be dropped.
 
 `real-loop.md`'s real-loop goal-delivery story is present, alongside the six
 engine domain stories and the checkout world's later-run cases. It uses

@@ -163,7 +163,7 @@ that proof remains with the after-landing runs (11).
   tests are `#[should_panic]`. [in flight: change 3251]
 
 - **Not yet:** 2.5: the upgrade stories' killed in-flight write, settled image and rehearsal with going back are past the 2 s a story aims at, their cost not yet profiled to its cause. [in flight: change 8249]
-- **Not yet:** 2.5: story A and the golden floor's making and opening are past the 2 s a story aims at, their cost not yet profiled to its cause. [in flight: change 8250]
+- **Not yet:** 2.5: story A and the golden floor's making and opening are past the 2 s a story aims at, about 8.2, 6.5 and 3.1 s by the gate's CPU on 11-18, once the referee read only new commits and the floor's judge cached its mid-run check. Most of what is left is the service, the client, the agents and the simulator that the walks run. The durable observer takes 8 to 19 per cent. These measurements are the user's to decide on (`skein/docs/foundation/testing-strategy.md`, 8.1).
 
 
 
