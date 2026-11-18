@@ -1,1 +1,1 @@
-A fresh box shows Welcome to temper, with nothing connected and no project created. This state serves the welcome page and the first-run Set up temper and Try the playground flows.
+A fresh box, signed in, shows No project yet with Set up temper and Try the playground, nothing connected and no project created: every page but the welcome draws that column until a project is made (pages/welcome.md, With no project yet). This state serves the welcome page and the first-run Set up temper and Try the playground flows.
