@@ -30,8 +30,9 @@ section 11.
   writer, with a tag per owner, then per family. Every range the domain
   asks for maps to a short, fixed list of intervals (section 4).
 - **Records from schemas,** with skein's generator: a codec per family,
-  versioned, with fixed-rule values built from schema text and fuzzing. A format row names the versions,
-  each owner's level and the deployment; a floor row names the oldest
+  versioned, with fixed-rule values built from schema text and fuzzing.
+  A format row names the versions, each owner's level and the deployment;
+  a floor row names the oldest
   store the build opens. A store of another version or deployment
   refuses to open (`records.md`).
 - **Values name their layout.** A registered family's value carries its

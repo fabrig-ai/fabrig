@@ -9,7 +9,8 @@ use skein_lib::Reader;
 fn check<T>(text: &str, record: &str, bound: u64, decode: impl FnOnce(&[u8]) -> T) {
     let schema = skein_codegen::parse(text).expect("family schema");
     let name = format!("record_{record}_full.bin");
-    let golden = skein_codegen::goldens(&schema).into_iter().find(|value| value.name == name).expect("full fixed-rule row");
+    let golden =
+        skein_codegen::goldens(&schema).into_iter().find(|value| value.name == name).expect("full fixed-rule row");
     let meter = Meter::new();
     meter.start();
     let decoded = decode(&golden.bytes);
@@ -217,17 +218,23 @@ fn each_full_secrets_row_decodes_within_its_heap_bound() {
     check(values::SECRETS, "carried", secrets_v1::Carried::decoded_bound(limits).expect("carried heap"), |golden| {
         secrets_v1::Carried::decode(limits, &mut Reader::new(golden)).expect("full carried")
     });
-    check(values::SECRETS, "next_carried", secrets_v1::NextCarried::decoded_bound(limits).expect("counter heap"), |golden| {
-        secrets_v1::NextCarried::decode(limits, &mut Reader::new(golden)).expect("full counter")
-    });
+    check(
+        values::SECRETS,
+        "next_carried",
+        secrets_v1::NextCarried::decoded_bound(limits).expect("counter heap"),
+        |golden| secrets_v1::NextCarried::decode(limits, &mut Reader::new(golden)).expect("full counter"),
+    );
 }
 
 #[test]
 fn every_full_settings_record_decodes_within_its_heap_bound() {
     let limits = &settings_v3::CEILINGS;
-    check(values::SETTINGS, "document", settings_v3::Document::decoded_bound(limits).expect("document bound"), |golden| {
-        settings_v3::Document::decode(limits, &mut Reader::new(golden)).expect("full document")
-    });
+    check(
+        values::SETTINGS,
+        "document",
+        settings_v3::Document::decoded_bound(limits).expect("document bound"),
+        |golden| settings_v3::Document::decode(limits, &mut Reader::new(golden)).expect("full document"),
+    );
     check(values::SETTINGS, "charter", settings_v3::Charter::decoded_bound(limits).expect("charter bound"), |golden| {
         settings_v3::Charter::decode(limits, &mut Reader::new(golden)).expect("full charter")
     });
@@ -237,16 +244,22 @@ fn every_full_settings_record_decodes_within_its_heap_bound() {
     check(values::SETTINGS, "changed", settings_v3::Changed::decoded_bound(limits).expect("changed bound"), |golden| {
         settings_v3::Changed::decode(limits, &mut Reader::new(golden)).expect("full change")
     });
-    check(values::SETTINGS, "revision", settings_v3::Revision::decoded_bound(limits).expect("revision bound"), |golden| {
-        settings_v3::Revision::decode(limits, &mut Reader::new(golden)).expect("full revision")
-    });
+    check(
+        values::SETTINGS,
+        "revision",
+        settings_v3::Revision::decoded_bound(limits).expect("revision bound"),
+        |golden| settings_v3::Revision::decode(limits, &mut Reader::new(golden)).expect("full revision"),
+    );
     check(
         values::SETTINGS,
         "charter_version",
         settings_v3::CharterVersion::decoded_bound(limits).expect("version bound"),
         |golden| settings_v3::CharterVersion::decode(limits, &mut Reader::new(golden)).expect("full version"),
     );
-    check(values::SETTINGS, "proposal", settings_v3::Proposal::decoded_bound(limits).expect("proposal bound"), |golden| {
-        settings_v3::Proposal::decode(limits, &mut Reader::new(golden)).expect("full proposal")
-    });
+    check(
+        values::SETTINGS,
+        "proposal",
+        settings_v3::Proposal::decoded_bound(limits).expect("proposal bound"),
+        |golden| settings_v3::Proposal::decode(limits, &mut Reader::new(golden)).expect("full proposal"),
+    );
 }

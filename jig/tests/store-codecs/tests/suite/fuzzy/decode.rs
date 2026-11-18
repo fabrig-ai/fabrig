@@ -1,7 +1,7 @@
 //! Arbitrary and mutated family bytes (protocol/store/records.md, section 1, and protocol/store/README.md, section 9).
+use super::super::values;
 use jig_protocol_store::{accounts_v2, component_v3, notes_v1, people_v17};
 use skein_lib::{Reader, Rng, Writer, length::len_u64};
-use super::super::values;
 
 fn notes(bytes: &[u8]) {
     if let Ok(scope) = notes_v1::Scope::decode(&notes_v1::CEILINGS, &mut Reader::new(bytes)) {
