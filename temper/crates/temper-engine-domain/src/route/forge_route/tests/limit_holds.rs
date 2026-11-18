@@ -3,27 +3,14 @@ use super::adopted;
 use alloc::boxed::Box;
 const FIRST: u64 = 1;
 const SECOND: u64 = 2;
+// A separate connector name holder fills the table before either live waiter asks.
+const THIRD: u64 = 3;
 use crate::route::forge_route::{forge, tasks};
 use skein_lib::{Env, Queue, ReplyTo, Token, Wall};
 
 fn drive(domain: &mut crate::Domain, env: &Env<crate::Limits>, decision: &mut crate::Decision, event: forge::Event) {
     domain.work.push(crate::Work::Forge(event));
     crate::route::route_into(domain, env, decision);
-}
-fn entry(number: u64, task: u64) -> skein_forge_client::Entry {
-    skein_forge_client::Entry {
-        number,
-        task,
-        repository: adopted(1).provider,
-        effect: skein_forge_client::Effect {
-            condition: skein_forge_client::Condition::None,
-            write: skein_forge::api::Write::Post { number: 1, key: b"test".as_slice().into(), body: Box::new([]) },
-        },
-        start: None,
-        attempt: None,
-        failures: 0,
-        queued: false,
-    }
 }
 fn kept_tasks(domain: &crate::Domain) -> Box<[u64]> {
     let mut tasks = skein_lib::List::uncapped();
@@ -87,14 +74,14 @@ fn two_tasks() -> (crate::Domain, Env<crate::Limits>) {
     (domain, env)
 }
 #[test]
-fn one_outbox_place_ends_only_the_oldest_limit_hold() {
+fn one_task_name_place_ends_only_the_oldest_limit_hold() {
     let (mut domain, mut env) = two_tasks();
-    env.limits.forge.entries = 1;
+    env.limits.forge.tasks = 1;
     let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
-    drive(&mut domain, &env, &mut decision, forge::Event::Enqueue { entry: entry(100, FIRST) });
-    for (at, task, number) in [(1, SECOND, 101), (1, FIRST, 102)] {
-        env.wall = Wall::from_nanos(at);
-        drive(&mut domain, &env, &mut decision, forge::Event::Enqueue { entry: entry(number, task) });
+    drive(&mut domain, &env, &mut decision, forge::Event::Names { task: THIRD, resources: Box::new([]) });
+    for task in [SECOND, FIRST] {
+        env.wall = Wall::from_nanos(1);
+        drive(&mut domain, &env, &mut decision, forge::Event::Names { task, resources: Box::new([]) });
         assert!(held(&domain, task));
     }
     let kept = domain.forge_limit_holds();
@@ -105,27 +92,27 @@ fn one_outbox_place_ends_only_the_oldest_limit_hold() {
         panic!("held task")
     };
     let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("limit account") };
-    assert_eq!(words.as_ref(), b"enqueue effect: forge.entries is 1, and this needs 2: a limit in temper-limits. Ask temper to raise it, or raise it from Needs you. This goes on by itself once room frees or the limit rises.");
-    drive(&mut domain, &env, &mut decision, forge::Event::Withdraw { entry: 100 });
+    assert_eq!(words.as_ref(), b"watch resources: forge.tasks is 1, and this needs 2: a limit in temper-limits. Ask temper to raise it, or raise it from Needs you. This goes on by itself once room frees or the limit rises.");
+    drive(&mut domain, &env, &mut decision, forge::Event::Unnamed { task: THIRD });
     assert_eq!(domain.core.tasks.task(SECOND).unwrap().due_reason, tasks::Why::Released);
     assert!(!held(&domain, SECOND));
     assert!(held(&domain, FIRST));
     assert_eq!(kept_tasks(&domain).as_ref(), &[FIRST]);
-    drive(&mut domain, &env, &mut decision, forge::Event::Enqueue { entry: entry(101, SECOND) });
-    assert_eq!(domain.forge.limit_usage(&forge::LimitSet::Entries), Some(1));
+    drive(&mut domain, &env, &mut decision, forge::Event::Names { task: SECOND, resources: Box::new([]) });
+    assert_eq!(domain.forge.limit_usage(&forge::LimitSet::Tasks), Some(1));
 }
 #[test]
 fn a_raise_ends_every_wait_even_when_only_one_operation_will_fit() {
     let (mut domain, mut env) = two_tasks();
-    env.limits.forge.entries = 1;
+    env.limits.forge.tasks = 1;
     let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
-    drive(&mut domain, &env, &mut decision, forge::Event::Enqueue { entry: entry(100, FIRST) });
-    for (task, number) in [(FIRST, 101), (SECOND, 102)] {
-        drive(&mut domain, &env, &mut decision, forge::Event::Enqueue { entry: entry(number, task) });
+    drive(&mut domain, &env, &mut decision, forge::Event::Names { task: THIRD, resources: Box::new([]) });
+    for task in [FIRST, SECOND] {
+        drive(&mut domain, &env, &mut decision, forge::Event::Names { task, resources: Box::new([]) });
         assert!(held(&domain, task));
     }
-    env.limits.forge.entries = 2;
-    domain.end_forge_limit_holds(b"forge.entries", 2);
+    env.limits.forge.tasks = 2;
+    domain.end_forge_limit_holds(b"forge.tasks", 2);
     crate::route::route_into(&mut domain, &env, &mut decision);
     assert!(domain.forge_limit_holds().is_empty());
     for task in [FIRST, SECOND] {

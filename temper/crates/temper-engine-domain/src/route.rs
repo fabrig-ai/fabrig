@@ -119,9 +119,7 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             next.forge = env.limits.forge;
             assert_eq!(next, env.limits, "other root limits wait for the next start");
             domain.limits = next;
-            let mut raised = Queue::uncapped();
-            forge::step(&mut domain.forge, &environment_forge(env), forge::Event::LimitsRaised, &mut raised);
-            assert!(raised.is_empty(), "raising ceilings emits no forge effects");
+            domain.work.push(Work::Forge(forge::Event::LimitsRaised));
             for (member, old, new) in [
                 (b"forge.tasks".as_slice(), before.forge.tasks, env.limits.forge.tasks),
                 (b"forge.holds".as_slice(), before.forge.holds, env.limits.forge.holds),

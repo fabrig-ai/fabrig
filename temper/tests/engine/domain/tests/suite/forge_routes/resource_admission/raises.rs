@@ -75,6 +75,7 @@ fn fill_outbox(world: &mut World, chat: &engine::Assignment) {
     assert!(!world.held_write_answers.is_empty(), "the first outbox entry stays in flight");
 }
 
+#[expect(clippy::too_many_lines, reason = "one story keeps its filled bound, durable raise and resumed work together")]
 fn held_work(member: &[u8], figure: u32) {
     let owner = forge_top::user_key(1, 7_u64);
     let mut configured = World::configured(true, true);
@@ -102,7 +103,9 @@ fn held_work(member: &[u8], figure: u32) {
     let mut delivered = false;
     for _ in 0..STEPS {
         world.tick();
-        if world.root.forge_limit_holds().iter().any(|hold| hold.member.as_ref() == member) {
+        if (member == b"forge.entries" && row(&world, task).room.is_some())
+            || world.root.forge_limit_holds().iter().any(|hold| hold.member.as_ref() == member)
+        {
             break;
         }
         if !delivered
@@ -121,24 +124,30 @@ fn held_work(member: &[u8], figure: u32) {
             delivered = true;
         }
     }
-    let waits = world.root.forge_limit_holds();
-    let hold = waits
-        .iter()
-        .find(|hold| hold.member.as_ref() == member)
-        .unwrap_or_else(|| panic!("{member:?} must hold work: {waits:?}; task {:?}", live_task(&world, task)));
-    let waiting = hold.task;
-    assert_eq!(hold.configured, 1);
-    assert_eq!(hold.needed, 2);
+    let waiting = if member == b"forge.entries" {
+        assert!(row(&world, task).room.is_some(), "a full outbox waits for room without a limit hold");
+        assert!(world.root.forge_limit_holds().is_empty());
+        task
+    } else {
+        let waits = world.root.forge_limit_holds();
+        let hold = waits
+            .iter()
+            .find(|hold| hold.member.as_ref() == member)
+            .unwrap_or_else(|| panic!("{member:?} must hold work: {waits:?}; task {:?}", live_task(&world, task)));
+        assert_eq!(hold.configured, 1);
+        assert_eq!(hold.needed, 2);
+        hold.task
+    };
     raise(&mut world, member, figure);
     for _ in 0..STEPS {
-        if !world.root.forge_limit_holds().iter().any(|hold| hold.task == waiting) {
+        if row(&world, task).room.is_none() && !world.root.forge_limit_holds().iter().any(|hold| hold.task == waiting) {
             break;
         }
         world.tick();
     }
     assert!(
-        !world.root.forge_limit_holds().iter().any(|hold| hold.task == waiting),
-        "a raise ends the kept hold without room freeing"
+        row(&world, task).room.is_none() && !world.root.forge_limit_holds().iter().any(|hold| hold.task == waiting),
+        "a raise resumes waiting work without room freeing"
     );
     world.hold_write_answers = None;
     for answer in std::mem::take(&mut world.held_write_answers) {
@@ -161,6 +170,15 @@ fn held_work(member: &[u8], figure: u32) {
         row(&world, task)
     );
     assert!(world.merges > 0);
+    if member == b"forge.entries" {
+        for _ in 0..STEPS {
+            if world.merges == 2 {
+                break;
+            }
+            world.tick();
+        }
+        assert_eq!(world.merges, 2, "both outbox writers finish before the restart oracle");
+    }
     world.close();
 }
 

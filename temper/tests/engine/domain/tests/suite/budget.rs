@@ -47,10 +47,10 @@ fn configuration(settings: bool) -> engine::Config {
         configuration.core.kinds =
             temper_engine_service_stock::stock::kinds(&bounds(), configuration.core.connectors[0])
                 .into_iter()
-                .filter(|kind| kind.number == 21)
+                .filter(|kind| kind.number == 22)
                 .collect();
         configuration.kinds_stock =
-            temper_engine_service_stock::stock::forge(&bounds()).into_iter().filter(|stock| stock.kind == 21).collect();
+            temper_engine_service_stock::stock::forge(&bounds()).into_iter().filter(|stock| stock.kind == 22).collect();
     }
     configuration
 }
@@ -251,7 +251,7 @@ fn a_durable_transcript_memory_raise_prepares_waiting_work() {
         value: 4 * ALLOWANCE,
         reason: b"prepare waiting work".as_slice().into(),
     }]));
-    let item = temper_engine_domain_world::kinds::item(21, 0, 1, &value);
+    let item = temper_engine_domain_world::kinds::item(22, 0, 1, &value);
     let revision = driver.root.settings_revision();
     driver.send(temper_engine_domain_world::kinds::change(
         driver.store.header().sign_ins,
