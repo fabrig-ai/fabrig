@@ -69,4 +69,3 @@ it; no browser has painted one on record.
 - **Not yet:** 5: no run on record shows that tier within its budget with
   `log_reading`'s seven stories, from the plan `chat-reading-c`, which waits for its run
   after landing likewise.
-- **Not yet:** 4.1, 4.2 and 8: fetch reading an exchange's body in pieces when the exchange asks [in flight: change 6337].

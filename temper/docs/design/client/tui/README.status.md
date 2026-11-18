@@ -2,7 +2,6 @@
 
 2026-11-17. Where the tree's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 4: each report's duties carried with the root settled first [in flight: change 6345].
 - **Not yet:** 2: no `recording-TIME`; a recording is `recording` [in
   flight: change 3611].
 - **Not yet:** 3: the events table's `Act { act }` row: a close done
