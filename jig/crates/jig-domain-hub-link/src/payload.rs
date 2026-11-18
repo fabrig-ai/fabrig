@@ -139,6 +139,7 @@ const fn turned(failure: host::Failure) -> Option<fleet::Turned> {
             host::RunFailure::Exceeded(_)
             | host::RunFailure::Transcript
             | host::RunFailure::Model
+            | host::RunFailure::Untooled
             | host::RunFailure::Budget
             | host::RunFailure::Policy
             | host::RunFailure::Cancelled
@@ -211,6 +212,7 @@ pub(crate) fn ending(ending: &host::Ending) -> tasks::End {
             }
             host::Failure::Run(
                 host::RunFailure::Model
+                | host::RunFailure::Untooled
                 | host::RunFailure::Budget
                 | host::RunFailure::Policy
                 | host::RunFailure::Cancelled
@@ -277,6 +279,7 @@ pub(crate) fn unusable_history(ending: &host::Ending) -> bool {
                 | host::Failure::Run(
                     host::RunFailure::Exceeded(_)
                     | host::RunFailure::Model
+                    | host::RunFailure::Untooled
                     | host::RunFailure::Budget
                     | host::RunFailure::Policy
                     | host::RunFailure::Cancelled
