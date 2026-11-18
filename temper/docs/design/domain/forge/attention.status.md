@@ -5,6 +5,9 @@
 - **Not yet:** 2: a landing is marked the main one by the forge's
   default branch rather than the repository's landing branch [in flight:
   change 8087].
+- **Not yet:** 3: the stock's `status.txt` keeps its earlier words, a
+  goal's line says "delegates done", and no goal's or role's line counts
+  the questions it has open to a person [in flight: change 8561].
 
 
 

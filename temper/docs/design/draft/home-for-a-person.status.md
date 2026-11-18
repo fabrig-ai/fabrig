@@ -10,7 +10,7 @@ Section 2's *Kept for the thing's own page* and section 3 hold on a held, funds 
 
 Sections 4 (`../domain/agent/charter.md`, 4, *Words a person reads first*) and 7 (`../domain/agent/agents.md`, 2, *Its person by name*) are designed; `home-for-a-person.execution.md` carries the rest out, with `milestones.md`.
 
-Section 4's titles and headline are plain in every charter that writes one, charter 5's spec title and report note among them, and in `temper ctl goal start`'s help: no draft or milestone codes, no branch names, no internal names, and a headline without the words of how goals run (`../domain/agent/charter.md`, 4, *Words a person reads first*).
+Section 4's titles and headline are plain in every charter that writes one, charter 5's spec title and report note among them, and in `temper ctl goal start`'s help: no draft or milestone codes, no branch names, no internal names, and a headline without the words of how goals run (`../domain/agent/charter.md`, 4, *Words a person reads first*). Its brief says it too, within bounds its fits never cut, its facts counting the questions each goal and role has open to a person, so a Now saying it waits, once answered, isn't repeated (`../domain/forge/attention.md`, 3).
 
 Section 4's decision words hold in charter 5 too: its *Asking your requester* says them beside its call to `decided`, with commits, figures and task or pull numbers in the why (`../domain/agent/charter.md`, 4, *A decision's words*).
 

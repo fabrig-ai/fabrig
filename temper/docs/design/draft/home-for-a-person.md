@@ -124,6 +124,11 @@ starts goals by script write them so.
   no task, change or pull numbers, no draft or milestone codes, no
   branch names and none of the words of how goals run: "Most of it is
   in; the last two parts are being built."
+- **The brief** at the top of Home, the status agent's, follows the
+  same rule: a sentence and at most two more, short enough that its fits
+  never cut it, with no codes, no wire or protocol versions and none of
+  the words of how goals run, and someone waited on only where its facts
+  show a question open now (`../domain/forge/attention.md`, 3).
 - **The agent's own text stays** where it is read whole: the thing's
   page, and Overturn, which quotes the question back.
 - **No second text:** every part of the page has its field already, and

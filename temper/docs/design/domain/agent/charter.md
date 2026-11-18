@@ -237,7 +237,7 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   charter 5 row).
 - **Words a person reads first are written for them**
   (`../../draft/home-for-a-person.md`, 4). Home, Work and Needs you
-  show three things an agent writes before the thing's own page. Each
+  show four things an agent writes before the thing's own page. Each
   is the agent's own field, with no second text beside it for the
   person (that draft's section 10 keeps the question open), so the
   stock charters' words have it written for both:
@@ -290,6 +290,18 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
     "Most of it is in; the last two parts are being built."". Each
     replaces the sentence it had, so each charter's first wake keeps
     its room (section 1).
+  - **A project's brief,** charter 9's, the lines at the top of Home
+    (`../forge/attention.md`, 3): one sentence of at most 25 words on
+    what landed, then at most two plain sentences, 70 words in all, so
+    the 200- and 600-byte fits that save it never cut it mid-word. It
+    names work by what it does, a goal by its milestone where it has
+    one, with no codes from titles (K3), no wire or protocol versions,
+    and none of the words of how goals run, "delegates" among them. It
+    says someone is waited on only where its facts show a question open
+    now: a goal's and a role's line count the questions they have open
+    to a person, so a role's Now still saying it waits on its person,
+    once they have answered, is not repeated. Its instructions,
+    `status.txt`, are quoted whole there, and replace the ones they had.
   - **A bound of the words, not of the code:** nothing refuses, cuts or
     checks a title, a question or a headline for it, and the client's
     own cut draws a longer one (`../../draft/home-for-a-person.md`, 3).

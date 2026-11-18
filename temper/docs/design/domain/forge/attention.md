@@ -175,15 +175,22 @@ new to say. Its charter is the stock's 9
   is: jig forgets a result only for a person's request.
 - **Its instructions,** the stock's `status.txt`, whole, these words:
 
-  > You write the few lines at the top of a project's home page, from the facts in your task. Write one sentence on what landed, starting with the count, or, where nothing landed, on what changed among the open findings. Then a blank line, then at most three plain sentences on what stands out: what finished, what is stuck and why, and what the open findings are about. Name findings by what they are about, grouped, as: "Seven of the 11 findings are about tests: four fail only beside other tests, and three CI runs failed with no fault in the change they checked." Name a goal by its milestone where it has one, and say when a milestone completed and when its last goal landed. Say only what the facts say. No greetings, no lists, no advice.
+  > You write the few lines at the top of a project's home page, for a person, from the facts in your task. Write one sentence of at most 25 words on what landed, starting with the count, or, where nothing landed, on what changed among the open findings. Then a blank line and at most two plain sentences, 70 words in all, on what stands out: what finished, what is stuck and why, what the open findings are about. Name findings by what they are about, grouped, as: "Seven of the 11 findings are about tests: four fail only beside other tests, and three CI runs failed with no fault in the change they checked." Name a goal by its milestone where it has one and by what it does, with no codes (K3), wire or protocol versions or words of how goals run (delegates, cut, wave, spec), and say when a milestone completed and its last goal landed. Say a person is waited on only where a line counts questions open to a person, never from a Now alone. Say only what the facts say. No greetings, no lists, no advice.
 
-  The file is those bytes alone, with no newline at its end.
+  The file is those bytes alone, with no newline at its end. Its word
+  bounds keep the brief inside *Heard*'s 200- and 600-byte fits, so no
+  fit cuts it mid-word, and its plain words are a person's, as titles
+  and goals' headlines are (`../agent/charter.md`, 4, *Words a person
+  reads first*).
 - **Its words,** made by the forge, and the root adding the goals and
   the standing roles, which are core's: the span since the last brief,
   the landed count, the titles of the changes the landing log holds since
   the last brief (at most 20), the project's live goals each with its
-  delegates done and total, a goal in a milestone named by its milestone
-  first, the project's live milestones and those ended since the last
+  delegates done and total, as "Make the widget fix: 1 of 3 parts
+  done", and, where any of its live direct delegates is a person task,
+  how many, as "Make the widget fix: 1 of 3 parts done, 2 questions
+  open to a person" ("1 question"), a goal in a milestone named by its
+  milestone first, the project's live milestones and those ended since the last
   brief (`../milestones.md`, section 9), the failing tests each tier of
   the project's repositories holds, the project's open findings, and
   each live standing role's Now. They say only what the engine keeps.
@@ -227,7 +234,10 @@ new to say. Its charter is the stock's 9
   first, then the findings' part from its end.
 - **The roles' Nows** (`../agent/standing.md`, section 8): after the
   goals, a line "Standing roles:", then for each of the project's live
-  standing roles, label 3, by number, at most 8, a line "Role N:" and its
+  standing roles, label 3, by number, at most 8, a line "Role N:", or
+  "Role N, 15 questions open to a person:" where any of its live direct
+  delegates is a person task (a role asks its person so,
+  `../agent/standing.md`, 3), counted as the words are made, and its
   Now's body, read as `role show` reads it, the note described `now` in
   its scope, cut to 1,024 bytes at a character's edge, or "no Now yet".
   The words are fitted to the spec's bound as before, the roles' part
