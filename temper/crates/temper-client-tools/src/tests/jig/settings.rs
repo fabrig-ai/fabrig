@@ -887,6 +887,16 @@ fn settings_change_outcomes_name_the_revision_and_refusal_facts() {
             },
             "out of shape; item 1; charter 5: shape; stored policy: supplied 70112; maximum root.journal.run_bytes 65536",
         ),
+        (
+            c::Refusal::Malformed {
+                at: 0,
+                why: super::malformed_setting(
+                    c::Setting::Template(c::SettingNumber { number: 9 }),
+                    c::SettingFault::Range,
+                ),
+            },
+            "out of shape; item 0; template 9: is among the stock's numbers, 1 to 32; your own templates take 33 to 64",
+        ),
         (c::Refusal::Role { held: None }, "role"),
     ] {
         for json in [false, true] {
@@ -900,6 +910,13 @@ fn settings_change_outcomes_name_the_revision_and_refusal_facts() {
             {
                 let text = core::str::from_utf8(&answer.stderr).expect("JSON refusal");
                 assert!(text.contains(r#""detail":{"member":"stored_policy","rule":"maximum","document":0,"segment":0,"supplied":70112,"bound":65536}"#), "{text}");
+            }
+            if json
+                && let c::Refusal::Malformed { why: c::Malformed::Settings(value), .. } = &refusal
+                && value.fault == c::SettingFault::Range
+            {
+                let text = core::str::from_utf8(&answer.stderr).expect("JSON refusal");
+                assert!(text.contains(r#""setting":{"kind":"template","number":9},"fault":"range""#), "{text}");
             }
             if !json && expected != "role" {
                 let text = core::str::from_utf8(&answer.stderr).expect("text");

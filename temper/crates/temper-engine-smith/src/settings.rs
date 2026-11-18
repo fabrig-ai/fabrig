@@ -676,6 +676,7 @@ fn malformed_setting(
         jig_domain_people::SettingFault::Owner => c::SettingFault::Owner,
         jig_domain_people::SettingFault::Judged => c::SettingFault::Judged,
         jig_domain_people::SettingFault::Linked => c::SettingFault::Linked,
+        jig_domain_people::SettingFault::Range => c::SettingFault::Range,
     };
     settings_form::Refusal::Malformed {
         at,

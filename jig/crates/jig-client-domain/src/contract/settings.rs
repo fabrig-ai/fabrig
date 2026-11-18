@@ -204,6 +204,10 @@ pub struct RefusalFull {
     pub tasks: List<u64>,
     pub more: u32,
 }
+/// The last charter, template, policy or model number; mirrors jig-domain-people's settings vocabulary.
+pub const NUMBERS: u32 = 64;
+/// The stock's last number; higher numbers through `NUMBERS` are a deployment's own.
+pub const STOCK_NUMBERS: u32 = 32;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SettingFault {
     Shape,
@@ -215,6 +219,7 @@ pub enum SettingFault {
     Owner,
     Judged,
     Linked,
+    Range,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct MalformedSettings {

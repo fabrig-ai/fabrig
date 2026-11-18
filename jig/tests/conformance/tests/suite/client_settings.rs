@@ -82,6 +82,9 @@ fn settings_contract_fixtures_keep_the_ask_answers_documents_and_selectors() {
         c::SettingFault::Budget,
         c::SettingFault::Grace,
         c::SettingFault::Owner,
+        c::SettingFault::Judged,
+        c::SettingFault::Linked,
+        c::SettingFault::Range,
     ] {
         let why = c::MalformedSettings { setting: c::Setting::Rules, fault, detail: None };
         let wire = w::Refusal::Malformed(

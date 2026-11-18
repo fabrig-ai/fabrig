@@ -835,6 +835,7 @@ pub fn form_setting_fault(v: c::SettingFault) -> n::SettingFault {
         c::SettingFault::Grace => n::SettingFault::Grace,
         c::SettingFault::Judged => n::SettingFault::Judged,
         c::SettingFault::Linked => n::SettingFault::Linked,
+        c::SettingFault::Range => n::SettingFault::Range,
         c::SettingFault::Owner => n::SettingFault::Owner,
     }
 }

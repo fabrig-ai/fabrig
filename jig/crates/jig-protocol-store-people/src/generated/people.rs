@@ -23050,6 +23050,8 @@ pub enum SettingFault {
     Judged,
     /// `linked` without a payload.
     Linked,
+    /// `range` without a payload.
+    Range,
 }
 
 impl SettingFault {
@@ -23065,7 +23067,7 @@ impl SettingFault {
     #[must_use]
     pub fn measure(&self) -> u32 {
         match self {
-            Self::Shape | Self::Count | Self::Reference | Self::Rules | Self::Budget | Self::Grace | Self::Owner | Self::Judged | Self::Linked => 1,
+            Self::Shape | Self::Count | Self::Reference | Self::Rules | Self::Budget | Self::Grace | Self::Owner | Self::Judged | Self::Linked | Self::Range => 1,
         }
     }
 
@@ -23081,6 +23083,7 @@ impl SettingFault {
             Self::Owner => writer.put(&[6_u8])?,
             Self::Judged => writer.put(&[7_u8])?,
             Self::Linked => writer.put(&[8_u8])?,
+            Self::Range => writer.put(&[9_u8])?,
         }
         Ok(())
     }
@@ -23104,6 +23107,7 @@ impl SettingFault {
             6 => Self::Owner,
             7 => Self::Judged,
             8 => Self::Linked,
+            9 => Self::Range,
             _ => return Err(Problem { path: Path::SettingFaultTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)

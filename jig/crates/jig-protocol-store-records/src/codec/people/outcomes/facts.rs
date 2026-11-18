@@ -891,6 +891,7 @@ fn encode_setting_fault(value: domain::SettingFault) -> wire::SettingFault {
         domain::SettingFault::Owner => wire::SettingFault::Owner,
         domain::SettingFault::Judged => wire::SettingFault::Judged,
         domain::SettingFault::Linked => wire::SettingFault::Linked,
+        domain::SettingFault::Range => wire::SettingFault::Range,
     }
 }
 
@@ -919,6 +920,7 @@ fn decode_setting_fault(value: &wire::SettingFault) -> domain::SettingFault {
         wire::SettingFault::Owner => domain::SettingFault::Owner,
         wire::SettingFault::Judged => domain::SettingFault::Judged,
         wire::SettingFault::Linked => domain::SettingFault::Linked,
+        wire::SettingFault::Range => domain::SettingFault::Range,
     }
 }
 

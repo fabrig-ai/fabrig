@@ -466,6 +466,7 @@ pub fn restore_setting_fault(value: &w::SettingFault) -> Result<c::SettingFault,
         w::SettingFault::Owner => c::SettingFault::Owner,
         w::SettingFault::Judged => c::SettingFault::Judged,
         w::SettingFault::Linked => c::SettingFault::Linked,
+        w::SettingFault::Range => c::SettingFault::Range,
     })
 }
 pub fn restore_malformed_settings(value: &w::MalformedSettings) -> Result<c::MalformedSettings, w::Problem> {
