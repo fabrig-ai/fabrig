@@ -565,6 +565,8 @@ pub enum RunFailure {
     Refused { account: u32 },
     /// The saved history cannot be resumed; prepare afresh with its tail.
     Transcript,
+    /// The run's program started without its agent's tools: a fault of its place (domain/hosts/hub.md, 3).
+    Untooled,
 }
 
 /// How an agent failed.
