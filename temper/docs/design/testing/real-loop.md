@@ -587,6 +587,19 @@ in the lower world that owns it, never here.
   the bound, and a worker stopped before its run's first turn, are the
   system world's (`../domain/worker/README.md`, 9); the link's grace
   across refused hellos is jig's worker link's.
+- **A model's request hung by its provider,** one story on a worker
+  alone, as the cluster's (smith's `protocol/llm.md`, 6;
+  smith's `domain/session.md`, 4): a run's agent makes a shell call and
+  sends its result back, and the fake LLM peer takes the next request
+  and holds it, its response giving no output. Held once, the request is
+  cut at its endpoint's `idle_ms`, asked again and answered, and the run
+  goes on to its end. Held on every attempt, the run fails as its
+  model's fault, timed out, after the session's retries, well before
+  the worker's no-progress bound (smith's `domain/host.md`, 4), and no
+  agent is stopped for no progress. The story's endpoint takes `head_ms`
+  and `idle_ms` small enough that its waits fit the story's budget; the
+  cut, its phases and each retry are the protocol world's (smith's
+  `protocol/llm.md`, 10).
 - **The case library's stories** (`reference-case.md`): its act 1, one story for each
   step's slice that temper can run, on the case's cast, scripts and
   oracle. The cluster's runner hosts them too: the case's fixture and
