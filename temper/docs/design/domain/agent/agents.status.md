@@ -2,8 +2,6 @@
 
 2026-11-18. Where the tree's code lags or departs from [agents.md](agents.md).
 
-- **Not yet:** 1, *The inventory*: a repository's line names no landing
-  branch [in flight: change 8088].
 
 - **Not yet:** 3, *What a document draws*: `chat.txt` and `drafter.txt`
   draw a flow only where a sequence says more drawn, with no example and

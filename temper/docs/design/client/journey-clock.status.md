@@ -6,5 +6,4 @@
   - 4.1: no fake box takes `--fixed-start` [in flight: change 7720].
   - 4.2 and 4.3: neither client takes a fixed start, and no recording holds `fixed` [in flight: change 7721].
   - 4.4: `again` gives no part a fixed start [in flight: change 7722].
-  - 4.3: the TUI's seed on a fixed start is the start's own, the page's too, not its draw on stream 4, so a TUI journey's first Create, after a setup walked on the fixed start, is refused as `KeyConflict` [in flight: change 8197].
   - 4.4: the committed journeys hold the host's clocks and seeds until `again` walks each of them again, once, after landing (temper/tiers'); until then each still prints as it did, and its next walk rewrites it once.

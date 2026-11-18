@@ -2,9 +2,6 @@
 
 2026-11-18. Where the tree's code lags or departs from [tools.md](tools.md).
 
-- **Not yet:** 1: a `change` with no landing, and a goal's landing, go
-  to the forge's default branch rather than the repository's landing
-  branch [in flight: change 8087].
 
 - **Not yet:** the `finding` tool: its declaration to the charters naming the delegate family, its decoding, its acts dispatched to the forge, and its answers [in flight: change 750].
 

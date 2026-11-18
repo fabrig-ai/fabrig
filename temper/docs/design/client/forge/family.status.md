@@ -2,8 +2,6 @@
 
 2026-11-18. Where the tree's code lags or departs from [family.md](family.md).
 
-- **Not yet:** 6: an adoption's outcome says no "It lands into BRANCH."
-  [in flight: change 8088].
 - **Not yet:** 6: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).
 - **Not yet:** 
   the Board address and reordering remains `../engine.status.md` (Not yet).

@@ -2,8 +2,6 @@
 
 2026-11-18. Where temper's code lags or departs from [store.md](store.md).
 
-- **Not yet:** 2 and 4: the `Adopted` row's `landing`, neither kept nor
-  read [in flight: change 8085].
 - **Not yet:** 4: `ApplicationAdopted`'s `landing` [in flight: change
   8088].
 

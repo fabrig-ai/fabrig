@@ -2,9 +2,6 @@
 
 2026-11-18. Where the tree's code lags or departs from [branches.md](branches.md).
 
-- **Not yet:** 1 and 2: a goal branch is made from, and its landing
-  opens into, the forge's default branch rather than the repository's
-  landing branch [in flight: change 8087].
 
 
 `change/repairs.md` has no known implementation gap in a resolution's files:
