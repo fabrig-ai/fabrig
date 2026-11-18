@@ -55,11 +55,27 @@ fn setting(domain: &mut Domain, env: &Env<Limits>, kind: u32, value: forge::sett
         &mut Queue::uncapped(),
     );
 }
+fn set_area(domain: &mut Domain, env: &Env<Limits>, owner: AreaOwner) {
+    setting(
+        domain,
+        env,
+        14,
+        forge::settings::Value::ProjectAreas(forge::settings::ProjectAreas {
+            areas: Box::new([forge::settings::Area {
+                name: b"tests".as_slice().into(),
+                words: b"test suite".as_slice().into(),
+                owner,
+            }]),
+        }),
+    );
+}
+fn set_triager(domain: &mut Domain, env: &Env<Limits>, owner: AreaOwner) {
+    setting(domain, env, 15, forge::settings::Value::ProjectTriager(forge::settings::ProjectTriager { owner }));
+}
+fn task_event(domain: &mut Domain, env: &Env<Limits>, event: tasks::Event) {
+    tasks::step(&mut domain.core.tasks, &env.with(env.limits.tasks), event, &mut Queue::uncapped());
+}
 #[test]
-#[expect(
-    clippy::too_many_lines,
-    reason = "one decision pins charter standing, task hand-off and fallback after an end"
-)]
 fn task_hand_news_and_charter_standing_use_the_same_decision() {
     let (source, source_env, source_task) = crate::tests::live_task(None, tasks::Executor::Agent { charter: 1 });
     let template = source.core.tasks.task(source_task).unwrap().clone();
@@ -76,34 +92,17 @@ fn task_hand_news_and_charter_standing_use_the_same_decision() {
     config.core.defaults.charters = Box::new([config.core.defaults.charters.first().unwrap().clone(), charter]);
     let (mut domain, env) = crate::tests::resume_fixture::root_with_config_and_limits(config, &limits);
     let task = 40;
-    tasks::step(
-        &mut domain.core.tasks,
-        &env.with(env.limits.tasks),
+    task_event(
+        &mut domain,
+        &env,
         tasks::Event::OpenPeriod { reply_to: ReplyTo::new(Token::new(2)), project: 1, period: 1, budget: 100 },
-        &mut Queue::uncapped(),
     );
     add(&mut domain, &env, task, 1, 0, &template);
     add(&mut domain, &env, 52, 14, 3, &template);
     add(&mut domain, &env, 47, 14, 3, &template);
     assert_eq!(stands(&domain, 1, AreaOwner::Charter(14)), Some(Holder::Task(47)));
-    setting(
-        &mut domain,
-        &env,
-        14,
-        forge::settings::Value::ProjectAreas(forge::settings::ProjectAreas {
-            areas: Box::new([forge::settings::Area {
-                name: b"tests".as_slice().into(),
-                words: b"test suite".as_slice().into(),
-                owner: AreaOwner::Charter(14),
-            }]),
-        }),
-    );
-    setting(
-        &mut domain,
-        &env,
-        15,
-        forge::settings::Value::ProjectTriager(forge::settings::ProjectTriager { owner: AreaOwner::Task(task) }),
-    );
+    set_area(&mut domain, &env, AreaOwner::Charter(14));
+    set_triager(&mut domain, &env, AreaOwner::Task(task));
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     let call = forge::FileFinding {
         project: 1,
@@ -135,13 +134,8 @@ fn task_hand_news_and_charter_standing_use_the_same_decision() {
     );
     let subscription = domain.forge.topic_subscriber(47, &forge::Topic::Findings { project: 1 }).unwrap();
     assert!(domain.core.tasks.task(47).unwrap().subscriptions.iter().any(|row| row.number == subscription.number));
-    let news = domain
-        .work
-        .iter()
-        .find_map(
-            |work| if let Work::Tasks(tasks::Event::Notice { task: 47, word }) = work { Some(word) } else { None },
-        )
-        .unwrap();
+    let news = queued_news(&domain, 47);
+    let news = news.first().unwrap();
     assert_eq!(news.words.as_ref(), format!("Finding 1/1 is yours: Broken test\nqa, high, area tests\nHanded on by task {task}: your suite\nreproduction").as_bytes());
     assert_eq!(domain.forge.finding(1, 1).unwrap().why.as_deref(), Some(b"your suite".as_slice()));
     let findings = document(&domain, 1, 1, Some(forge::FindingState::New), false);
@@ -162,34 +156,17 @@ fn task_hand_news_and_charter_standing_use_the_same_decision() {
         forge::TriageFindingAnswer::Refused(FindingRefusal::NotYours(Holder::Task(47)))
     );
     assert_eq!(cut_words("ééééé".as_bytes(), 8).as_ref(), "é[cut]".as_bytes());
-    setting(
-        &mut domain,
-        &env,
-        14,
-        forge::settings::Value::ProjectAreas(forge::settings::ProjectAreas {
-            areas: Box::new([forge::settings::Area {
-                name: b"tests".as_slice().into(),
-                words: b"test suite".as_slice().into(),
-                owner: AreaOwner::Task(40),
-            }]),
-        }),
-    );
-    setting(
-        &mut domain,
-        &env,
-        15,
-        forge::settings::Value::ProjectTriager(forge::settings::ProjectTriager { owner: AreaOwner::Charter(14) }),
-    );
+    set_area(&mut domain, &env, AreaOwner::Task(40));
+    set_triager(&mut domain, &env, AreaOwner::Charter(14));
     assert_eq!(holder(&domain, 1, Some(b"tests")), Holder::Task(40));
-    tasks::step(
-        &mut domain.core.tasks,
-        &env.with(env.limits.tasks),
+    task_event(
+        &mut domain,
+        &env,
         tasks::Event::Cancel {
             reply_to: ReplyTo::new(Token::new(998)),
             by: tasks::Party::Deployment { project: 1 },
             operation: tasks::Cancel { task: 40, reason: b"ended".as_slice().into(), grace: None, message: None },
         },
-        &mut Queue::uncapped(),
     );
     assert_eq!(stands(&domain, 1, AreaOwner::Task(40)), None);
     assert_eq!(holder(&domain, 1, Some(b"tests")), Holder::Task(47));
@@ -197,20 +174,15 @@ fn task_hand_news_and_charter_standing_use_the_same_decision() {
 fn triager() -> (Domain, Env<Limits>, u64) {
     let (mut domain, mut env, task) = crate::tests::live_task(None, tasks::Executor::Agent { charter: 1 });
     env.limits.tasks.inbox_bytes = 512;
-    setting(
-        &mut domain,
-        &env,
-        15,
-        forge::settings::Value::ProjectTriager(forge::settings::ProjectTriager { owner: AreaOwner::Task(task) }),
-    );
+    set_triager(&mut domain, &env, AreaOwner::Task(task));
     (domain, env, task)
 }
 fn fill_subscriptions(domain: &mut Domain, env: &Env<Limits>, task: u64) {
     for index in 1..=u64::from(env.limits.tasks.subscriptions) {
         let number = index.checked_add(1000).expect("fixture subscription");
-        tasks::step(
-            &mut domain.core.tasks,
-            &env.with(env.limits.tasks),
+        task_event(
+            domain,
+            env,
             tasks::Event::SubscribeTopic {
                 reply_to: ReplyTo::new(Token::new(number)),
                 task,
@@ -219,7 +191,6 @@ fn fill_subscriptions(domain: &mut Domain, env: &Env<Limits>, task: u64) {
                     kind: tasks::SubscriptionKind::Topic { connector: 0, topic: number },
                 },
             },
-            &mut Queue::uncapped(),
         );
     }
     assert_eq!(
@@ -296,11 +267,10 @@ fn the_next_finding_restores_an_unsubscribed_holder_under_the_forge_number() {
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     assert_eq!(file_red(&mut domain, &env, &mut decision), forge::FileFindingAnswer::Filed { number: 1 });
     let number = domain.forge.topic_subscriber(task, &forge::Topic::Findings { project: 1 }).unwrap().number;
-    tasks::step(
-        &mut domain.core.tasks,
-        &env.with(env.limits.tasks),
+    task_event(
+        &mut domain,
+        &env,
         tasks::Event::Unsubscribe { reply_to: ReplyTo::new(Token::new(88)), task, subscription: number },
-        &mut Queue::uncapped(),
     );
     assert!(domain.core.tasks.task(task).unwrap().subscriptions.is_empty());
     while domain.work.pop().is_some() {}
@@ -323,12 +293,7 @@ fn routing_to_a_goal_at_its_subscription_bound_writes_and_tells_it() {
     let template = domain.core.tasks.task(source).unwrap().clone();
     let goal = 40;
     add(&mut domain, &env, goal, 1, 2, &template);
-    setting(
-        &mut domain,
-        &env,
-        15,
-        forge::settings::Value::ProjectTriager(forge::settings::ProjectTriager { owner: AreaOwner::Task(source) }),
-    );
+    set_triager(&mut domain, &env, AreaOwner::Task(source));
     fill_subscriptions(&mut domain, &env, goal);
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     assert_eq!(file_red(&mut domain, &env, &mut decision), forge::FileFindingAnswer::Filed { number: 1 });
