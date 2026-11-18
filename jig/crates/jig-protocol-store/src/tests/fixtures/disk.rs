@@ -21,7 +21,8 @@ const SEED: u64 = 1;
 type Contents = Vec<(Box<[u8]>, Kind, u32, Box<[u8]>)>;
 #[derive(Debug, PartialEq, Eq)]
 pub enum Seen {
-    Create { name: Box<[u8]> },
+    Create { name: Box<[u8]>, mode: u32 },
+    ReadOpen { name: Box<[u8]> },
     Read { max: u32 },
     Write { bytes: u32 },
     SyncFile,
@@ -40,7 +41,8 @@ pub enum Seen {
 }
 fn seen(request: &file::Request) -> Seen {
     match request {
-        file::Request::CreateNoFollow { name, .. } => Seen::Create { name: name.clone() },
+        file::Request::CreateNoFollow { name, mode, .. } => Seen::Create { name: name.clone(), mode: *mode },
+        file::Request::OpenReadNoFollow { name, .. } => Seen::ReadOpen { name: name.clone() },
         file::Request::ReadAt { max, .. } => Seen::Read { max: *max },
         file::Request::WriteAt { bytes, .. } => {
             Seen::Write { bytes: u32::try_from(bytes.len()).expect("bounded write") }
@@ -63,7 +65,6 @@ fn seen(request: &file::Request) -> Seen {
         file::Request::Close { .. } => Seen::Close,
         file::Request::Create { .. }
         | file::Request::OpenRead { .. }
-        | file::Request::OpenReadNoFollow { .. }
         | file::Request::OpenWrite { .. }
         | file::Request::OpenWriteNoFollow { .. }
         | file::Request::Scan { .. }
@@ -87,6 +88,7 @@ pub struct Disk {
     starts: u64,
     requests: Vec<(usize, Seen)>,
     link_error: Option<skein_io::kernel::Error>,
+    link_once: Option<(Box<[u8]>, skein_io::kernel::Error)>,
 }
 pub fn file_limits() -> FileLimits {
     let skein_kv::Limits { chunk: read, deadline: timeout, .. } = store_limits().store;
@@ -132,6 +134,7 @@ impl Disk {
             starts: 0,
             requests: Vec::new(),
             link_error: None,
+            link_once: None,
         }
     }
     pub fn root(&self) -> Root {
@@ -222,11 +225,18 @@ impl Disk {
     }
     pub fn file(&mut self, driver: usize, request: file::Request) -> Arrived {
         self.requests.push((driver, seen(&request)));
-        if let (Some(error), file::Request::HardLink { owner, .. }) = (self.link_error, &request) {
-            return Arrived {
-                event: file::Event::Failed { owner: *owner, error, committed: false, residue: None },
-                fd: None,
+        if let file::Request::HardLink { owner, from, .. } = &request {
+            let error = if self.link_once.as_ref().is_some_and(|(name, _)| name == from) {
+                self.link_once.take().map(|(_, error)| error)
+            } else {
+                self.link_error
             };
+            if let Some(error) = error {
+                return Arrived {
+                    event: file::Event::Failed { owner: *owner, error, committed: false, residue: None },
+                    fd: None,
+                };
+            }
         }
         let io = &mut self.io[driver];
         assert!(io.takes());
@@ -304,6 +314,9 @@ impl Disk {
     }
     pub fn refuse_links(&mut self, error: skein_io::kernel::Error) {
         self.link_error = Some(error);
+    }
+    pub fn refuse_link_once(&mut self, name: &[u8], error: skein_io::kernel::Error) {
+        self.link_once = Some((Box::from(name), error));
     }
     pub fn links(&mut self, path: &[u8]) -> u32 {
         let file = self.machine.open(self.handle, path, How::PathNoFollow).expect("path stands");
