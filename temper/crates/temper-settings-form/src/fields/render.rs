@@ -24,7 +24,9 @@ pub fn page_of(forms: &[Form], fields: &[Field], limits: &Limits) -> Box<[u8]> {
 }
 
 fn write(forms: &[Form], fields: &[Field], limits: &Limits, out: &mut Text) {
-    out.put(b"# Settings fields\n\nKind: reference\n\nSettings' types, bounds and effects for files and `settings show`.\n");
+    out.put(
+        b"# Settings fields\n\nKind: reference\n\nSettings' types, bounds and effects for files and `settings show`.\n",
+    );
     out.put(b"\n");
     out.put(INTRO);
     out.put(b"\n");
