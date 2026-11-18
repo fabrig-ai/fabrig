@@ -6,15 +6,8 @@ fn the_shipped_agent_fits_standards_page_with_derived_carriers() {
     let (mut agent, mut document) = fixtures::documents(std::path::Path::new("/template-bounds"), address, address);
     landing::configure(&mut document, &mut agent, address);
 
-    document.jig_over("tasks.inbox_bytes", 82 * 4094);
-    for worker in document["workers"].as_array_mut().expect("workers") {
-        worker["limits"]["profile"] = "standard".into();
-        worker["limits"]["overrides"]["tasks.message_bytes"] = 262_144.into();
-    }
-
-    let mut stock: serde_json::Value =
-        serde_json::from_slice(serde_json::to_vec(&temper_agent_fixtures::stock(true)).unwrap().as_slice())
-            .expect("stock init agent");
+    document.use_stock_carriers();
+    let mut stock = temper_agent_fixtures::stock(true);
     // Only declarations determine the turn bound; use inert direct endpoints.
     stock["programs"] = serde_json::json!({});
     for endpoint in stock["endpoints"].as_array_mut().expect("stock endpoints") {
