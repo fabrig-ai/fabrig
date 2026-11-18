@@ -23,6 +23,13 @@ pub enum Note {
     Restarting {
         keep: skein_lib::Duration,
     },
+    /// An agent fault, when reported, once per attempt (domain/worker/README.md, 4.3).
+    AgentStopped {
+        run: u64,
+        attempt: u64,
+        failure: jig_domain_host::AgentFailure,
+        no_progress_ms: Option<u64>,
+    },
     /// A failed preparation, once when its answer first goes up (domain/worker/checkouts.md, 1.3).
     Unprepared {
         run: u64,

@@ -1,6 +1,6 @@
 # worker: status
 
-2026-11-17. Where temper's code lags or departs from [README.md](README.md).
+2026-11-18. Where temper's code lags or departs from [README.md](README.md).
 
 
 
@@ -69,6 +69,7 @@ AGENT.json`, with the same program used for a model list
 `host_reply_text` as the hello's reply bound, the in-process worker among
 them (`temper-worker-shell/src/agent.rs`). The service gives the worker's
 `Limits::reply_bytes` the same figure (`temper-service/src/worker_settings.rs`).
+
 
 - **Not yet:** 4.3: `temper help task` says an "invalid results" hold may mean an
   assignment was refused before any model turn (`temper/docs/help/task.md`),

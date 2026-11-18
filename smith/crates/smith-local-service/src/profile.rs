@@ -29,7 +29,7 @@ mod tests {
             )
             .expect("bounded event stream"),
         );
-        let host = host_limits(&profile, &agent).expect("derived grace");
+        let host = host_limits(&profile, &agent, &[]).expect("derived grace");
         assert_eq!(host.teardown, Duration::from_secs(40));
         assert_eq!(host.exit_grace, Duration::from_secs(45));
         assert_eq!(host.cancel_grace, profile.policy.cancel_grace);
@@ -41,7 +41,7 @@ mod tests {
         profile.policy.exit_grace = Duration::from_secs(9);
         let agent = smith_agent_process_world::limits();
         assert_eq!(
-            host_limits(&profile, &agent),
+            host_limits(&profile, &agent, &[]),
             Err(Refusal::Broken {
                 check: Check::GraceOverTeardown,
                 left: LimitName::deployment(Layer::Policy, "exit_grace").value(Value::Duration(Duration::from_secs(9))),
@@ -59,7 +59,7 @@ mod tests {
             agent.domain.run.host_input_bytes = payload;
             agent.domain.run.host_reply_bytes = payload;
             agent.domain.run.outcome_bytes = u64::from(payload);
-            let host = host_limits(&profile, &agent).expect("derived host bounds");
+            let host = host_limits(&profile, &agent, &[]).expect("derived host bounds");
             assert_eq!(host.charter_bytes, agent.domain.run.run_bytes);
             assert_eq!(host.outcome_bytes, u64::from(payload));
             assert_eq!(host.call_bytes, u64::from(payload));
@@ -76,7 +76,7 @@ mod tests {
         let mut agent = smith_agent_process_world::limits();
         agent.domain.session.history_bytes = u64::MAX;
         assert_eq!(
-            host_limits(&standard(), &agent),
+            host_limits(&standard(), &agent, &[]),
             Err(Refusal::Derived { limit: LimitName::deployment(Layer::Service, "turn_bytes") }),
         );
     }
