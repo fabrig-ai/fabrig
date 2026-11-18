@@ -178,6 +178,7 @@ fn commit_prepared(
 ) -> Result<u32, FindingRefusal> {
     commit(domain, env, decision, write?, hand)
 }
+#[expect(clippy::unnecessary_wraps, reason = "keep the finding commit result used by forge routes")]
 pub(crate) fn commit(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -194,17 +195,17 @@ pub(crate) fn commit(
         forge::FindingState::Routed => row.goal,
         forge::FindingState::Backlog | forge::FindingState::Dropped => None,
     };
-    if let Some(task) = recipient {
-        let subscription = subscribe(domain, env, decision, task, row.project)?;
-        if let Some(event) = domain.core.connector_news(
+    if let Some(task) = recipient
+        && let Some(subscription) = subscribe(domain, env, decision, task, row.project)
+        && let Some(event) = domain.core.connector_news(
             task,
             subscription,
             tasks::NewsClass::Wakes,
             news_words(row, hand, env.limits.tasks.message_bytes),
             env.wall,
-        ) {
-            domain.work.push(Work::Tasks(event));
-        }
+        )
+    {
+        domain.work.push(Work::Tasks(event));
     }
     let number = row.number;
     let mut output = Queue::uncapped();
@@ -280,7 +281,7 @@ pub(crate) fn tell_owner(
     task: u64,
     words: Box<[u8]>,
 ) {
-    if let Ok(subscription) = subscribe(domain, env, decision, task, project)
+    if let Some(subscription) = subscribe(domain, env, decision, task, project)
         && let Some(event) = domain.core.connector_news(task, subscription, tasks::NewsClass::Wakes, words, env.wall)
     {
         domain.work.push(Work::Tasks(event));
@@ -347,21 +348,27 @@ fn subscribe(
     decision: &mut Decision,
     task: u64,
     project: u32,
-) -> Result<u64, FindingRefusal> {
+) -> Option<u64> {
     let topic = forge::Topic::Findings { project };
-    if let Some(row) = domain.forge.topic_subscriber(task, &topic) {
-        return Ok(row.number);
-    }
-    let number = crate::fresh(&mut domain.core.counters, crate::Family::Message).expect("admitted message number");
+    let existing = domain.forge.topic_subscriber(task, &topic);
+    let number = if let Some(row) = existing {
+        if subscribed(domain, task, row.number) {
+            return Some(row.number);
+        }
+        row.number
+    } else {
+        crate::fresh(&mut domain.core.counters, crate::Family::Message).expect("admitted message number")
+    };
+    let existing = existing.is_some();
     let subscriber =
         forge::Subscriber { task, number, topic, own_change: None, goal_tasks: None, paths: Box::default() };
-    if !domain.forge.can_subscribe(&env.limits.forge, &subscriber) {
-        return Err(subscription_refused(task, b"forge.subscriptions"));
+    if !existing && !domain.forge.can_subscribe(&env.limits.forge, &subscriber) {
+        return None;
     }
     let requests = forge_route::step_core(
         domain,
         env,
-        super::core::Event::Tasks(tasks::Event::SubscribeTopic {
+        super::core::Event::Tasks(tasks::Event::SubscribeTopicApart {
             reply_to: super::internal(u64::MAX),
             task,
             subscription: tasks::Subscription {
@@ -371,25 +378,23 @@ fn subscribe(
         }),
     );
     super::route_core_requests(domain, env, decision, requests);
-    let mut present = false;
+    if !subscribed(domain, task, number) {
+        return None;
+    }
+    if !existing {
+        super::forge_event(domain, env, decision, forge::Event::Subscribe { subscription: subscriber });
+    }
+    Some(number)
+}
+fn subscribed(domain: &Domain, task: u64, number: u64) -> bool {
     if let Some(row) = domain.core.tasks.task(task) {
         for sub in &row.subscriptions {
-            present |= sub.number == number;
+            if sub.number == number {
+                return true;
+            }
         }
     }
-    if !present {
-        return Err(subscription_refused(task, b"tasks.subscriptions or inbox bound"));
-    }
-    super::forge_event(domain, env, decision, forge::Event::Subscribe { subscription: subscriber });
-    Ok(number)
-}
-fn subscription_refused(task: u64, bound: &[u8]) -> FindingRefusal {
-    let mut words = List::uncapped();
-    append(&mut words, b"task ");
-    append(&mut words, Decimal::of(task).as_bytes());
-    append(&mut words, b" cannot subscribe to findings: ");
-    append(&mut words, bound);
-    FindingRefusal::Words(words.into_boxed())
+    false
 }
 fn append(out: &mut List<u8>, words: &[u8]) {
     for &byte in words {

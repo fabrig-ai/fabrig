@@ -34,7 +34,7 @@ fn add(domain: &mut Domain, env: &Env<Limits>, number: u64, charter: u32, label:
                 holdings: Box::default(),
                 wake: tasks::WakePolicy::DEFAULT,
                 recurring: None,
-                tracked: None,
+                tracked: source.tracked,
             }]),
         },
         &mut out,
@@ -194,10 +194,18 @@ fn task_hand_news_and_charter_standing_use_the_same_decision() {
     assert_eq!(stands(&domain, 1, AreaOwner::Task(40)), None);
     assert_eq!(holder(&domain, 1, Some(b"tests")), Holder::Task(47));
 }
-#[test]
-fn a_subscription_refusal_leaves_the_filing_unwritten() {
+fn triager() -> (Domain, Env<Limits>, u64) {
     let (mut domain, mut env, task) = crate::tests::live_task(None, tasks::Executor::Agent { charter: 1 });
-    env.limits.tasks.subscriptions = 1;
+    env.limits.tasks.inbox_bytes = 512;
+    setting(
+        &mut domain,
+        &env,
+        15,
+        forge::settings::Value::ProjectTriager(forge::settings::ProjectTriager { owner: AreaOwner::Task(task) }),
+    );
+    (domain, env, task)
+}
+fn fill_subscriptions(domain: &mut Domain, env: &Env<Limits>, task: u64) {
     for index in 1..=u64::from(env.limits.tasks.subscriptions) {
         let number = index.checked_add(1000).expect("fixture subscription");
         tasks::step(
@@ -218,17 +226,12 @@ fn a_subscription_refusal_leaves_the_filing_unwritten() {
         domain.core.tasks.task(task).unwrap().subscriptions.len(),
         skein_lib::usize_of(env.limits.tasks.subscriptions)
     );
-    setting(
-        &mut domain,
-        &env,
-        15,
-        forge::settings::Value::ProjectTriager(forge::settings::ProjectTriager { owner: AreaOwner::Task(task) }),
-    );
-    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
-    let answer = file_finding(
-        &mut domain,
-        &env,
-        &mut decision,
+}
+fn file_red(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision) -> forge::FileFindingAnswer {
+    file_finding(
+        domain,
+        env,
+        decision,
         Filer::Party(1),
         forge::FileFinding {
             project: 1,
@@ -238,14 +241,107 @@ fn a_subscription_refusal_leaves_the_filing_unwritten() {
             title: b"Red".as_slice().into(),
             body: Box::default(),
         },
-    );
-    let forge::FileFindingAnswer::Refused(FindingRefusal::Words(words)) = answer else {
-        panic!("subscription bound refuses the filing")
-    };
-    assert_eq!(
-        words.as_ref(),
-        format!("task {task} cannot subscribe to findings: tasks.subscriptions or inbox bound").as_bytes()
-    );
-    assert!(domain.forge.finding(1, 1).is_none());
+    )
+}
+fn queued_news(domain: &Domain, task: u64) -> Box<[&tasks::Word]> {
+    domain.work.iter().filter_map(|work| {
+        if let Work::Tasks(tasks::Event::Notice { task: to, word }) = work
+            && *to == task
+        {
+            Some(word)
+        } else {
+            None
+        }
+    }).collect()
+}
+#[test]
+fn a_holder_at_its_subscription_bound_takes_the_filing_and_news() {
+    let (mut domain, mut env, task) = triager();
+    env.limits.tasks.subscriptions = 1;
+    fill_subscriptions(&mut domain, &env, task);
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+    assert_eq!(file_red(&mut domain, &env, &mut decision), forge::FileFindingAnswer::Filed { number: 1 });
+    assert_eq!(domain.forge.finding(1, 1).unwrap().state, forge::FindingState::New);
+    let subscription = domain.forge.topic_subscriber(task, &forge::Topic::Findings { project: 1 }).unwrap();
+    let subscriptions = &domain.core.tasks.task(task).unwrap().subscriptions;
+    assert_eq!(subscriptions.len(), 2);
+    assert!(subscriptions.iter().any(|row| row.number == subscription.number));
+    let news = queued_news(&domain, task);
+    assert_eq!(news.len(), 1);
+    assert_eq!(news[0].words.as_ref(), b"Finding 1/1 is yours: Red\nred, high, no area\n");
+    assert_eq!(news[0].kind, tasks::MessageKind::News { subscription: subscription.number, class: tasks::NewsClass::Wakes });
+}
+#[test]
+fn a_forge_subscription_refusal_keeps_the_filing_and_retries_at_the_next() {
+    let (mut domain, mut env, task) = triager();
+    let room = env.limits.forge.subscriptions;
+    env.limits.forge.subscriptions = 0;
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+    assert_eq!(file_red(&mut domain, &env, &mut decision), forge::FileFindingAnswer::Filed { number: 1 });
+    assert_eq!(domain.forge.finding(1, 1).unwrap().state, forge::FindingState::New);
     assert!(domain.forge.topic_subscriber(task, &forge::Topic::Findings { project: 1 }).is_none());
+    assert!(domain.core.tasks.task(task).unwrap().subscriptions.is_empty());
+    assert_eq!(queued_news(&domain, task).len(), 0);
+    env.limits.forge.subscriptions = room;
+    assert_eq!(file_red(&mut domain, &env, &mut decision), forge::FileFindingAnswer::Filed { number: 2 });
+    let subscription = domain.forge.topic_subscriber(task, &forge::Topic::Findings { project: 1 }).unwrap();
+    assert_eq!(domain.core.tasks.task(task).unwrap().subscriptions.len(), 1);
+    assert!(subscribed(&domain, task, subscription.number));
+    let news = queued_news(&domain, task);
+    assert_eq!(news.len(), 1);
+    assert!(news[0].words.starts_with(b"Finding 1/2 is yours: Red\n"));
+}
+#[test]
+fn the_next_finding_restores_an_unsubscribed_holder_under_the_forge_number() {
+    let (mut domain, env, task) = triager();
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+    assert_eq!(file_red(&mut domain, &env, &mut decision), forge::FileFindingAnswer::Filed { number: 1 });
+    let number = domain.forge.topic_subscriber(task, &forge::Topic::Findings { project: 1 }).unwrap().number;
+    tasks::step(
+        &mut domain.core.tasks,
+        &env.with(env.limits.tasks),
+        tasks::Event::Unsubscribe { reply_to: ReplyTo::new(Token::new(88)), task, subscription: number },
+        &mut Queue::uncapped(),
+    );
+    assert!(domain.core.tasks.task(task).unwrap().subscriptions.is_empty());
+    while domain.work.pop().is_some() {}
+    assert_eq!(file_red(&mut domain, &env, &mut decision), forge::FileFindingAnswer::Filed { number: 2 });
+    assert_eq!(domain.forge.topic_subscriber(task, &forge::Topic::Findings { project: 1 }).unwrap().number, number);
+    let subscriptions = &domain.core.tasks.task(task).unwrap().subscriptions;
+    assert_eq!(subscriptions.len(), 1);
+    assert_eq!(subscriptions[0].number, number);
+    let news = queued_news(&domain, task);
+    assert_eq!(news.len(), 1);
+    assert_eq!(news[0].kind, tasks::MessageKind::News { subscription: number, class: tasks::NewsClass::Wakes });
+    assert!(news[0].words.starts_with(b"Finding 1/2 is yours: Red\n"));
+}
+#[test]
+fn routing_to_a_goal_at_its_subscription_bound_writes_and_tells_it() {
+    let (mut domain, mut env, source) = crate::tests::live_task(Some(1), tasks::Executor::Agent { charter: 1 });
+    env.limits.tasks.subscriptions = 1;
+    env.limits.tasks.inbox_bytes = 512;
+    env.limits.tasks.inbox_messages = 4;
+    let template = domain.core.tasks.task(source).unwrap().clone();
+    let goal = 40;
+    add(&mut domain, &env, goal, 1, 2, &template);
+    setting(
+        &mut domain, &env, 15,
+        forge::settings::Value::ProjectTriager(forge::settings::ProjectTriager { owner: AreaOwner::Task(source) }),
+    );
+    fill_subscriptions(&mut domain, &env, goal);
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+    assert_eq!(file_red(&mut domain, &env, &mut decision), forge::FileFindingAnswer::Filed { number: 1 });
+    assert_eq!(triage_finding(
+        &mut domain, &env, &mut decision, Filer::Task(source),
+        forge::TriageFinding { project: 1, number: 1, act: forge::Triage::Route(goal) },
+    ), forge::TriageFindingAnswer::Triaged);
+    let row = domain.forge.finding(1, 1).unwrap();
+    assert_eq!(row.state, forge::FindingState::Routed);
+    assert_eq!(row.goal, Some(goal));
+    let number = domain.forge.topic_subscriber(goal, &forge::Topic::Findings { project: 1 }).unwrap().number;
+    assert_eq!(domain.core.tasks.task(goal).unwrap().subscriptions.len(), 2);
+    assert!(subscribed(&domain, goal, number));
+    let news = queued_news(&domain, goal);
+    assert_eq!(news.len(), 1);
+    assert!(news[0].words.starts_with(b"Finding 1/1 for you: Red\n"));
 }
