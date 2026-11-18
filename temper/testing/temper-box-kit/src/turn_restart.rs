@@ -169,7 +169,8 @@ pub(super) fn setup(root: &Path) -> Vec<ctl::Step> {
     steps.push(ctl::Step::Then(Box::new(|calls| {
         let project = ctl::json(calls.last().expect("project read"));
         let period = project["policy"]["period_spend"].as_u64().expect("project period");
-        let amount = (period / 48 * landing_by_turn::ROLE_PERIOD_IN_K).to_string();
+        let spend = period / 48 * landing_by_turn::ROLE_PERIOD_IN_K;
+        let amount = format!("{}.{:02}", spend / 100, spend % 100);
         ctl::Call::new(&["project", "fund", "1", &amount, "--role", "0", "--key", "turn-role-funds"])
             .in_directory("private")
     })));

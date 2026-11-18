@@ -9,7 +9,7 @@ Standing roles: start, list, read their Now or report, and talk.
 ```
 role start --project PROJECT --budget AMOUNT TEXT [--charter CHARTER] --key KEY
   --project PROJECT: a project's name or number; required. The project
-  --budget AMOUNT: a number; required. The budget each period, in the deployment's unit
+  --budget AMOUNT: an amount with at most two decimals, as 130 or 1.25; required. The budget each period, as task show prints budgets
   TEXT (text): text, at most 1048576 bytes, or - to read stdin; required. What the role owns and how
   --charter CHARTER: a number from 1 to 4294967295; optional. The role's charter; 13 when absent
 Start a standing role from template 7
