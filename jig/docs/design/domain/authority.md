@@ -1,6 +1,6 @@
 # Authority
 
-Provisional, 2026-10-07, revised 2026-10-23. What a task may do, and how
+Provisional, 2026-10-07, revised 2026-11-18. What a task may do, and how
 the core holds it there: authority as a value, its order and how
 delegation narrows it, where it comes from, budgets and what is spent,
 the checks every action passes, what a proposal needs and what accepting
@@ -26,7 +26,9 @@ is still open is listed in `authority.md`, section 12.
 - **Budgets are carved, not copied.** What a task gives a delegate of
   its budget is reserved from its own; what the delegate leaves unspent
   goes back when it ends, and what it spent is counted up the chain that
-  funded it. Spend is counted in one unit of the deployment's: LLM
+  funded it. A run of a task that may start delegates holds back at
+  most half of what the task has left, so what it starts is funded
+  (section 7). Spend is counted in one unit of the deployment's: LLM
   completions as runs price them, and effects as their connectors price
   them.
 - **Recorded spend never exceeds a budget.** A run reserves each
@@ -484,8 +486,8 @@ would. Project 0 names no project and has no policy (people/README.md, section
     it says so; it never charges more.
 - **A run's budget** has turns, spend and time, and a reserve of turns
   and time for finishing: its turns, time and reserve its charter's, its
-  spend reserved from what its task has left in the commit that claims
-  it, capped per run by the deployment. The agent enforces it exactly
+  spend its task's share for a run (below), reserved from what its task
+  has left in the commit that claims it. The agent enforces it exactly
   (smith's `domain/budget.md`; hosts/charters.md): it reserves
   each completion's maximum cost before making it, winds down on its
   reserve when the rest is spent, and ends for its budget a completion
@@ -506,6 +508,29 @@ would. Project 0 names no project and has no policy (people/README.md, section
   budget left cannot fund that waits, or is held for its budget (8.3).
   The source its check chose says which backend the run has
   (accounts.md, 3.4).
+- **A run holds back at most half of what its task has left.** A run's
+  spend is its task's share for a run: what the task has left, and, in
+  a task whose authority may start a delegate (its delegation names a
+  kind, and a task and a depth above zero), half of what it has left,
+  rounded down; either way at most the deployment's `maximum_run_spend`.
+  The other half stays with the task while the run is live, so the
+  delegates it makes and the changes an application makes for it are
+  funded from it: a batch carves them from what the run's reservation
+  leaves (8.1), as before. A task that can start no delegate (a
+  person's task in no project, 6.1; a delegate whose creator gave it no
+  delegation) has nothing to keep that half for, and its run takes what
+  it has left, capped. The share reads the task's authority as it
+  stands, not how many tasks it may still make. Since the share is
+  reserved like any run's spend, recorded spend still never passes a
+  budget (section 1), and what the run leaves unspent goes back to its
+  task when it ends. A task whose share is too little for a run, at or
+  below the deployment's minimum or short of the reserve and the
+  completions above, waits, or is held for its budget, as one with too
+  little left (8.3; tasks/lifecycle.md, 6). One function of this child,
+  `run_spend(rules, authority, numbers)` beside `left`, computes the
+  share, and every run check the core makes asks it: a claim's, a
+  start's, a due agent's readiness and a write a run's preparation
+  names.
 - **Spend lost with a worker.** A turn's spend is recorded when the turn
   commits. A worker that dies loses the turns it had not had
   acknowledged, and what they spent was spent but never recorded; the
@@ -590,8 +615,9 @@ Every check is against effective authority (section 6).
 ### 8.3 Runs
 
 Before a run is claimed and again as it starts: its deadline is not
-past; the run's spend, what its task has left capped per run by the
-deployment, is above the deployment's minimum for a run and holds its
+past; the run's spend, its task's share for a run (section 7: what the
+task has left, half of it where the task may start a delegate, capped
+per run by the deployment), is above the deployment's minimum for a run and holds its
 reserve and one more of its main model's most costly completions, and
 on a program backend one more again (section 7); the accounts its check
 chooses each have a source usable on a host with room (accounts.md,
@@ -835,3 +861,11 @@ of model.md, section 11.
 - **Delegated decisions:** whether a holder may give a delegate the right
   to decide some proposals from below it, as a coordinator might for its
   sub-coordinators.
+- **Half in a task that starts nothing:** whether a run in a task that
+  can start no delegate holds back half of what it has left as well
+  (section 7). The rules' figures decide what it costs: where a run's
+  minimum is half the cap, as temper's stock sets them
+  (`temper/docs/design/protocol/configuration/stock.md`), half of a task
+  funded at most the cap is at the minimum, so a person's task in no
+  project, funded the cap (6.1), or a small change's producer would
+  never run.

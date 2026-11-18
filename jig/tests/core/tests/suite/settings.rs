@@ -1104,7 +1104,9 @@ fn a_delegate_is_made_on_the_newest_whatever_its_parents_revision() {
     let (mut world, signed, goal) = held_run();
     let attempt = world.assigned.as_ref().expect("goal run").attempt;
     change_instructions(&mut world, signed);
-    let member = fixtures::member(&world, jig_domain_tasks::Executor::Agent { charter: 1 }, b"A fresh delegate");
+    let mut member = fixtures::member(&world, jig_domain_tasks::Executor::Agent { charter: 1 }, b"A fresh delegate");
+    // This leaf needs its twenty units for a run, not for further delegation.
+    member.authority.delegation = jig_domain_tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
     let delegate = fixtures::delegate(&mut world, (goal, attempt), 1, member);
     assert_eq!(fixtures::live_row(&world, delegate).settings.task, 2);
     assert_eq!(fixtures::live_row(&world, goal).settings.task, 1);
