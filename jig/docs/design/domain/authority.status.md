@@ -49,5 +49,13 @@ judged by the same role (`jig/crates/jig-domain-authority/src/check.rs`,
   design coverage reconciliation against `jig/docs/design/domain/engine/executors.md`,
   3; this is a design gap, not an absent implementation.
 
-- **Not yet:** 7: a widening funded by whoever gives it
-  (the task's existing funder is charged).
+- **Not yet:** 7: a widening funded by whoever gives it: every
+  amendment but an accepted proposal's, a party's alone or in a
+  compound request, a run's and a procedure step's, charges the task's
+  existing funder, and a party's widening opens no pool [in flight: change 8283]
+
+- **Not yet:** 8.4: a party's widening judged by what it needs from
+  them: the act and the task document's offer judge the task's whole
+  new budget against their pool's left, an unopened pool as empty, and
+  the offer's ceiling is clipped to that pool, so a widening past it is
+  refused as not offered [in flight: change 8284]
