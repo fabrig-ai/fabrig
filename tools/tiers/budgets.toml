@@ -111,17 +111,6 @@ test = "oracle::tests::closing_restart_names_the_refused_phase_record_and_link"
 cpu_s = 0.11
 why = "Same-work backlog (the user, 11-18): its CPU alone swings 1.5 times on the same code (main's figures 0.044, 0.049, 0.067 s), so a gate can flag it on noise. The line is half again its largest figure; the repair that makes its work the same at every run drops it (skein/docs/foundation/testing-strategy.md, 10)."
 
-[[gate.default.reasons]]
-binary = "temper-box-shell"
-test = "fake::check::tests::observations"
-cpu_s = 0.16
-why = "Same-work backlog (the user, 11-18): its CPU alone swings 1.9 times on the same code (main's figures 0.054, 0.105, 0.082 s), so a gate can flag it on noise. The line is half again its largest figure; the repair that makes its work the same at every run drops it (skein/docs/foundation/testing-strategy.md, 10)."
-
-[[gate.default.reasons]]
-binary = "temper-box-shell"
-test = "init::tests::init_makes_a_private_3072_bit_provider_key_before_writing_its_document"
-cpu_s = 0.61
-why = "Same-work backlog (the user, 11-18): its CPU alone swings 1.8 times on the same code (main's figures 0.183, 0.227, 0.127 s), so a gate can flag it on noise. The line is half again its largest figure; the repair that makes its work the same at every run drops it (skein/docs/foundation/testing-strategy.md, 10)."
 
 [[gate.default.reasons]]
 binary = "temper-client-shell-web"
@@ -158,12 +147,6 @@ binary = "temper-engine-service-component"
 test = "tests::sign_in::pending_full_is_busy_and_unreachable_keys_end_before_the_visit"
 cpu_s = 0.09
 why = "Same-work backlog (the user, 11-18): its CPU alone swings 1.6 times on the same code (main's figures 0.059, 0.038, 0.050 s), so a gate can flag it on noise. The line is half again its largest figure; the repair that makes its work the same at every run drops it (skein/docs/foundation/testing-strategy.md, 10)."
-
-[[gate.default.reasons]]
-binary = "temper-protocol-store"
-test = "tests::registered_layouts::a_change_layout_without_regate_defaults_it_to_none"
-cpu_s = 0.18
-why = "Same-work backlog (the user, 11-18): its CPU alone swings 4.7 times on the same code (main's figures 0.025, 0.107, 0.118 s), so a gate can flag it on noise. The line is half again its largest figure; the repair that makes its work the same at every run drops it (skein/docs/foundation/testing-strategy.md, 10)."
 
 [[gate.default.reasons]]
 binary = "temper-worker-service"
