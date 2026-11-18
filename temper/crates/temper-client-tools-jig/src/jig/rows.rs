@@ -1001,7 +1001,7 @@ pub const PROJECT_SHOW: Tool = Tool {
     forms: &[&[positional(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project")]],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"Amounts are in the deployment's unit. Spent includes what ended tasks spent. A missing next start or open period says so. A deleted project prints project N was deleted on stderr, exit 2; an unknown one prints unknown.\n",
+    notes: b"Amounts are as task show prints budgets. Spent includes what ended tasks spent. A missing next start or open period says so. A deleted project prints project N was deleted on stderr, exit 2; an unknown one prints unknown.\n",
 };
 pub const PROJECT_FUND: Tool = Tool {
     name: b"project fund",
@@ -1010,7 +1010,7 @@ pub const PROJECT_FUND: Tool = Tool {
     result: b"project_fund",
     forms: &[&[
         positional(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project"),
-        positional(b"amount", b"AMOUNT", Kind::NumberRange { min: 0, max: u64::MAX }, Required, b"The spend per period, in the deployment's unit"),
+        positional(b"amount", b"AMOUNT", Kind::Amount, Required, b"The spend per period, as task show prints budgets"),
         flag(b"role", b"ROLE", Kind::NumberRange { min: 0, max: 4_294_967_295 }, Optional, b"Set this role's spend per period"),
     ]],
     keyed: Keyed::Required,
@@ -1079,7 +1079,7 @@ pub const ROLE_START: Tool = Tool {
     result: b"role_create",
     forms: &[&[
         flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project"),
-        flag(b"budget", b"AMOUNT", Kind::Number, Required, b"The budget each period, in the deployment's unit"),
+        flag(b"budget", b"AMOUNT", Kind::Amount, Required, b"The budget each period, as task show prints budgets"),
         positional(b"text", b"TEXT", Kind::Text, Required, b"What the role owns and how"),
         flag(b"charter", b"CHARTER", Kind::NumberRange { min: 1, max: 4_294_967_295 }, Optional, b"The role's charter; 13 when absent"),
     ]],
@@ -1175,11 +1175,11 @@ pub const GOAL_START: Tool = Tool {
         flag(
             b"budget",
             b"AMOUNT",
-            Kind::NumberRange { min: 0, max: u64::MAX },
+            Kind::Amount,
             Optional,
-            b"The spend in the deployment's unit; required for a given budget unless --as-allowed",
+            b"The spend, as task show prints budgets; required for a given budget unless --as-allowed",
         ),
-        switch(b"as-allowed", b"Take as much as allowed instead of a named budget"),
+        switch(b"as-allowed", b"Take all you may give from your pool, or with --milestone all the milestone has left, instead of a named budget: none is left for the next start while this goal is live"),
         flag(
             b"deadline",
             b"TIME",
@@ -1483,11 +1483,11 @@ pub const MILESTONE_NEW: Tool = Tool {
         flag(
             b"budget",
             b"AMOUNT",
-            Kind::Number,
+            Kind::Amount,
             Optional,
-            b"Spend in the deployment's unit; required for a given budget unless --as-allowed",
+            b"The spend, as task show prints budgets; required for a given budget unless --as-allowed",
         ),
-        switch(b"as-allowed", b"Take as much as allowed instead of a named budget"),
+        switch(b"as-allowed", b"Take all you may give from your pool instead of a named budget: none is left for your next start while this milestone is live"),
         flag(b"deadline", b"TIME", Kind::Literal, Optional, b"UTC to the minute, as 2026-10-24T17:00Z"),
     ]],
     keyed: Keyed::Required,

@@ -45,7 +45,7 @@ fn usage(words: &[&str], expected: &str) {
 fn missing_controls_are_collected_and_only_absent_controls_are_named() {
     for (extra, expected) in [
         (&[][..], "change open needs: --branch BRANCH; --title TEXT; --budget AMOUNT or --as-allowed\n"),
-        (&["--branch", "docs/x", "--budget", "500"][..], "change open needs: --title TEXT\n"),
+        (&["--branch", "docs/x", "--budget", "5.00"][..], "change open needs: --title TEXT\n"),
         (&["--title", "Fix", "--as-allowed"][..], "change open needs: --branch BRANCH\n"),
         (&["--branch", "docs/x", "--title", "Fix"][..], "change open needs: --budget AMOUNT or --as-allowed\n"),
     ] {
@@ -108,7 +108,7 @@ fn byte_bounds_accept_the_bound_and_refuse_the_next_byte_naming_it() {
     }
     usage(
         f::extended(
-            &["change", "open", "--project", "shop", "--branch", "docs/x", "--budget", "500", "--key", "open-change"],
+            &["change", "open", "--project", "shop", "--branch", "docs/x", "--budget", "5.00", "--key", "open-change"],
             &["--title", &"é".repeat(129)],
         )
         .as_slice(),

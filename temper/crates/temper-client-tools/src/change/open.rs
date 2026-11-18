@@ -32,7 +32,7 @@ pub const ROW: Tool = Tool {
         flag(b"into", b"BRANCH", Kind::Literal, Optional, b"The landing branch, 1 to 1024 bytes; the repository's default when absent"),
         flag(b"title", b"TEXT", Kind::Text, Optional, b"Required: the pull request's title, 1 to 256 bytes"),
         flag(b"body", b"TEXT", Kind::Text, Optional, b"The pull request's body after the opening line, 1 to 16384 bytes"),
-        flag(b"budget", b"AMOUNT", Kind::NumberRange { min: 0, max: u64::MAX }, Optional, b"What reviews, resolutions and repairs may spend; or --as-allowed"),
+        flag(b"budget", b"AMOUNT", Kind::Amount, Optional, b"What reviews, resolutions and repairs may spend; or --as-allowed"),
         switch(b"as-allowed", b"Take what your role allows instead of a named budget"),
     ]],
     keyed: Keyed::Required,

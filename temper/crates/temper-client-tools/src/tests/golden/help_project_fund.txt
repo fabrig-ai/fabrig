@@ -1,6 +1,6 @@
 project fund PROJECT AMOUNT [--role ROLE] --key KEY
   PROJECT (project): a project's name or number; required. The project
-  AMOUNT (amount): a number from 0 to 18446744073709551615; required. The spend per period, in the deployment's unit
+  AMOUNT (amount): an amount with at most two decimals, as 130 or 1.25; required. The spend per period, as task show prints budgets
   --role ROLE: a number from 0 to 4294967295; optional. Set this role's spend per period
 Set a project's spend per period, or a role's, resizing the open period at once
 Prints: The spend edit as answered; then now: the open period's budget and what is left, with --role its pools too

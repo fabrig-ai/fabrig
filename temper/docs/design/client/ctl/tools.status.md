@@ -1,8 +1,9 @@
 # tools: status
 
-2026-11-17. Where the tree's code lags or departs from [tools.md](tools.md).
+2026-11-18. Where the tree's code lags or departs from [tools.md](tools.md).
 
 
+- **Not yet:** 1: the table's amount type; 3: `project fund`'s AMOUNT and answer in ctl's amount [in flight: change 7671].
 
 
 

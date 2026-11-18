@@ -226,7 +226,14 @@ pub(crate) fn need_title(card: &Card, w: &Words) -> Box<[u8]> {
 fn title_for(card: &Card, w: &Words, numbered: Word) -> Box<[u8]> {
     if let Some(person) = person_in_words(card) {
         match person.requester {
-            Requester::Task(task) => return w.say(numbered, &[Hole::Number(task)]),
+            Requester::Task(task) => {
+                if let Some(document) = card.document()
+                    && !document.chip.title.bytes().is_empty()
+                {
+                    return super::chat::row_title(document.chip.title.bytes());
+                }
+                return w.say(numbered, &[Hole::Number(task)]);
+            }
             Requester::Person(_) | Requester::Deployment { .. } => {}
         }
     }

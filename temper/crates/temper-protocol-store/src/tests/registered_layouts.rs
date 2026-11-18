@@ -24,7 +24,6 @@ fn a_registered_layout_defaults_an_added_list() {
 }
 
 #[test]
-#[expect(clippy::disallowed_macros, reason = "registered layout fixtures read their committed codec goldens")]
 fn a_change_layout_without_source_or_kept_defaults_both_to_none() {
     let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
     let mut before = family.current.to_owned();
@@ -34,8 +33,8 @@ fn a_change_layout_without_source_or_kept_defaults_both_to_none() {
     let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
     let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
     for (root, bytes) in [
-        (b"ChangeCold".as_slice(), include_bytes!("../../golden/v25/record_change_cold_smallest.bin").as_slice()),
-        (b"ChangeHot".as_slice(), include_bytes!("../../golden/v25/record_change_hot_smallest.bin").as_slice()),
+        (b"ChangeCold".as_slice(), golden(family.current, "record_change_cold_smallest.bin")),
+        (b"ChangeHot".as_slice(), golden(family.current, "record_change_hot_smallest.bin")),
     ] {
         let plan = skein_codec::layout::Plan::derive(
             &old,
@@ -73,7 +72,6 @@ fn the_current_layout_has_no_whole_change_value_type() {
 }
 
 #[test]
-#[expect(clippy::disallowed_macros, reason = "registered layout fixture reads its committed codec golden")]
 fn a_change_layout_without_regate_defaults_it_to_none() {
     let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
     let before = family.current.replacen("regate: option Regate = none ", "", 1);
@@ -91,10 +89,19 @@ fn a_change_layout_without_regate_defaults_it_to_none() {
     let mut work = skein_codec::layout::Workspace::new();
     assert!(work.fit(&plan));
     let mut out = skein_lib::Buffer::with_capacity(1024);
-    let current = include_bytes!("../../golden/v25/record_change_hot_smallest.bin");
+    let current = golden(family.current, "record_change_hot_smallest.bin");
     // The earlier row lacks the first option's absent byte.
     plan.convert(&current[1..], &mut out, &mut work).unwrap();
     let row =
         crate::v25::ChangeHot::decode(&crate::v25::CEILINGS, &mut skein_lib::Reader::new(out.as_slice())).unwrap();
     assert!(row.regate().is_none());
+}
+
+fn golden(text: &str, name: &str) -> Box<[u8]> {
+    skein_codegen::goldens(&skein_codegen::parse(text).expect("current store schema"))
+        .into_iter()
+        .find(|value| value.name == name)
+        .expect("named fixed-rule Change row")
+        .bytes
+        .into_boxed_slice()
 }

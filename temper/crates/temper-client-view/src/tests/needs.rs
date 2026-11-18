@@ -77,6 +77,59 @@ fn group_open_card_adds_findings_but_keeps_question_controls_and_terminal_words(
     }
 }
 
+#[test]
+fn standing_person_group_draws_requester_title_rows_choices_and_terminal_question() {
+    const WORDS: &str = "Start goals?\nFindings: 2/2 2/8\nGroup: bugs · in temper\nChoice: Backlog them\nChoice: A goal for each (recommended)";
+    let rows = f::groups::bugs();
+    let root = f::groups::standing_person(WORDS, &rows[..2]);
+    let mut view = super::home::group_view(&root, true);
+    let tree = view.tree();
+    let from = super::inbox::subtree(tree, super::inbox::styled(tree, look::NEED_FROM));
+    assert_eq!(f::nodes_text(from).as_ref(), "Shop 2 bugs in temper · the oldest 1 d · Standing triager".as_bytes());
+    assert!(from.iter().any(|node| node.styles.as_slice().contains(&look::CHIP_HIGH)));
+    let links: Vec<_> = from.iter().filter(|node| node.role == Role::Link).collect();
+    assert!(
+        from.iter().any(
+            |node| node.styles.as_slice().contains(&look::CHIP) && node.name.as_deref() == Some(b"Shop".as_slice())
+        )
+    );
+    assert_eq!(links.len(), 1, "standing requester only, no goal or milestone");
+    assert_eq!(links[0].name.as_deref(), Some(b"Standing triager".as_slice()));
+    let requester = links[0].id;
+    let findings = super::inbox::subtree(tree, super::inbox::styled(tree, look::FINDING_ROWS));
+    assert_eq!(findings.iter().filter(|node| node.role == Role::Item).count(), 2);
+    assert!(!findings.iter().any(|node| node.role == Role::Link || node.binding.is_some()));
+    let text = f::nodes_text(findings);
+    let first = skein_lib::bytes::find(&text, b"The model picker keeps a later choice").unwrap();
+    let second = skein_lib::bytes::find(&text, b"A resolution ignores later files").unwrap();
+    assert!(first < second);
+    assert!(skein_lib::bytes::find(&text, "qa · 1 d".as_bytes()).is_some());
+    assert!(skein_lib::bytes::find(&text, "review · 16 h".as_bytes()).is_some());
+    assert!(f::find(tree, Role::TextArea, b"Or tell it something else").is_some());
+    let choices = super::inbox::subtree(tree, super::inbox::styled(tree, look::ASK_CHOICES));
+    let buttons: Vec<_> = choices.iter().filter(|node| node.role == Role::Button).collect();
+    assert_eq!(buttons.len(), 2);
+    assert_eq!(buttons[0].name.as_deref(), Some(b"A goal for each".as_slice()));
+    assert!(buttons[0].styles.as_slice().contains(&look::RECOMMENDED));
+    assert_eq!(buttons[1].name.as_deref(), Some(b"Backlog them".as_slice()));
+    let choice = buttons[0].id;
+    assert_eq!(
+        crate::act(&mut view, requester, Act::Press),
+        Some(d::Action::Pages(pages::Act::Go { address: Address::Task { task: 55 } }))
+    );
+    assert_eq!(
+        crate::act(&mut view, choice, Act::Press),
+        Some(d::Action::Pages(pages::Act::Needs(needs::Act::Choose {
+            object: c::ObjectKey::PersonTask(f::INBOX_TASK),
+            words: b"A goal for each".as_slice().into(),
+        })))
+    );
+    let terminal = super::home::group_view(&root, false);
+    let text = f::main_text(terminal.tree());
+    assert!(skein_lib::bytes::find(&text, WORDS.as_bytes()).is_some(), "terminal keeps the question's written words");
+    assert!(!terminal.tree().nodes().iter().any(|node| node.styles.as_slice().contains(&look::FINDING_ROWS)));
+}
+
 fn deliver_decided(root: &mut d::Domain, watch: skein_lib::Token) {
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let reach = temper_protocol_reaches::Reach {
