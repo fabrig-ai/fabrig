@@ -33,6 +33,7 @@ pub mod every_v2;
 
 #[rustfmt::skip]
 #[path = "every/v3.rs"]
+#[expect(clippy::option_option, reason = "the pin exercises all three nested-option wire states")]
 pub mod every_v3;
 
 #[path = "../patches/mod.rs"]
