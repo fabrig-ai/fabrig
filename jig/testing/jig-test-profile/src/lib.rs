@@ -169,7 +169,7 @@ fn profile() -> root::Limits {
                 text_bytes: 256,
                 chips: 32,
                 lines: 32,
-                versions: core::documents::Versions { minimum: 33, maximum: 33 },
+                versions: core::documents::Versions { minimum: 34, maximum: 34 },
             },
             connectors: 2,
             resume_bytes: 256,

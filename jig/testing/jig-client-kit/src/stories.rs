@@ -91,7 +91,7 @@ fn configured_rows(settings: Settings, rows: u32) -> World<Test, Scripted> {
         settings,
         Scripted::new(
             Script {
-                versions: VersionRange { first: 33, last: 33 },
+                versions: VersionRange { first: 34, last: 34 },
                 truth,
                 bounds: Bounds {
                     text: 32,
