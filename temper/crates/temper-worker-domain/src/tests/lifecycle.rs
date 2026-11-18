@@ -389,6 +389,49 @@ fn model_failure_detail_survives_answer_and_empty_reap() {
 }
 
 #[test]
+fn untooled_failure_detail_survives_answer_and_empty_reap() {
+    for (delayed, cleanup) in [(false, &b""[..]), (true, &b""[..]), (false, &b"cleanup"[..]), (true, &b"cleanup"[..])] {
+        let mut h = Harness::new();
+        h.env.limits.host.detail_bytes = 128;
+        h.started();
+        h.hold = delayed;
+        h.say(agent::Up::Answer {
+            answer: agent::Answer {
+                read: None,
+                turns: 0,
+                spent: 0,
+                result: agent::RunResult::Failed {
+                    failure: agent::RunFailure::Model(agent::ModelFault::Untooled {
+                        name: b"claude_code".as_slice().into(),
+                        detail: b"smith: the program started without smith's tools".as_slice().into(),
+                    }),
+                },
+            },
+        });
+        let reaped = h.gone_with_detail(cleanup);
+        let released = h.release();
+        let rows = if delayed { &released } else { &reaped };
+        let expected = if cleanup.is_empty() {
+            &b"program claude_code: smith: the program started without smith's tools"[..]
+        } else {
+            &b"program claude_code: smith: the program started without smith's tools\ncleanup"[..]
+        };
+        assert!(
+            answered(
+                rows,
+                &host::Ending::Failed {
+                    failure: host::Failure::Run(host::RunFailure::Untooled),
+                    detail: expected.into(),
+                    work: host::Work { left: None, saved: None },
+                    model: None,
+                }
+            ),
+            "delayed={delayed}: {rows:?}"
+        );
+    }
+}
+
+#[test]
 fn refused_start_retains_cleanup_diagnostic() {
     for delayed in [false, true] {
         for (refusal, bound, expected) in [

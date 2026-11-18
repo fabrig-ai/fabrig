@@ -94,7 +94,7 @@ fn a_result_is_handed_out_once_and_reaches_the_hub_as_bytes() {
 }
 
 #[test]
-fn an_untooled_program_keeps_the_unnamed_model_class() {
+fn an_untooled_program_has_its_own_failure_class() {
     let mut worker = Worker::started();
     let result = smith::RunResult::Failed {
         failure: smith::RunFailure::Model(smith::ModelFault::Untooled {
@@ -109,7 +109,7 @@ fn an_untooled_program_keeps_the_unnamed_model_class() {
     assert_eq!(
         worker.take_answer().ending,
         host::Ending::Failed {
-            failure: host::Failure::Run(host::RunFailure::Model),
+            failure: host::Failure::Run(host::RunFailure::Untooled),
             detail: Box::new([]),
             work: host::Work { left: None, saved: None },
             model: None,
