@@ -46,11 +46,15 @@ Illustrative (the request's 03, with the look request
     trailing spaces dropped, then "…" ("What can you tell…"); where its
     first word alone does not fit, its first 19 characters and "…". A
     character is a Unicode scalar value.
-  - *The place,* `temper_client_tui::place(address, boxed)`, the one
-    function that words it, which `temper box`'s own header may call
-    too: on a box (`../README.md`, 2, *On a box*) "box" where the address's port is
-    8367, `temper-box init`'s default, and "box:PORT" at another port; not
-    on a box, `HOST:PORT`, the address as it is.
+  - *The place,* `temper_client_tui::place(origin: &Origin, boxed: bool)
+    -> Box<[u8]>`, the one function that words it, which `temper box`'s
+    own header may call too: on a box (`../README.md`, 2, *On a box*)
+    "box" where the origin's port is 8367, `temper-box init`'s default,
+    and "box:PORT" at another port; an engine on loopback not on a box,
+    `HOST:PORT`, the origin's authority; a deployment by name, NAME,
+    `dev.fabrig.ai`, with `:PORT` where the port isn't 443, so "Hello /
+    CSV export T2 on dev.fabrig.ai" (`../../../draft/tui-remote.md`, 3).
+    An origin by name is never on a box (`../README.md`, 2).
   - *A narrow terminal:* while the title's parts and six columns are
     wider than the window's columns, the place and its " on " are left
     out first, then the project and its " / "; skein leaves out what

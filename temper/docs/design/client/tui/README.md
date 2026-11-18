@@ -2,6 +2,7 @@
 
 - `pages/README.md`: the TUI's state, shared words, foot and commands.
 - `pages/sign-in.md`: signing in and renewing from the engine's link.
+- `pages/refused.md`: the screen for a build the engine refuses.
 - `pages/launchpad.md`: the launchpad, its rows and walking what needs you.
 - `pages/chat.md`: a chat's conversation and its question.
 - `pages/design-session.md`: the draft pane, reply choices and starting a goal.
@@ -13,7 +14,9 @@ temper's client root, a view of its own and skein's full-screen shell
 (skein's `ui/screen.md`), over the native transport `temper-box open` uses.
 Its first pass (`../../draft/tui.md`, section 4) signs in from the local
 engine's link file, with a pasted link or the browser's approval as
-fallback (`../README.md`, 4.1); once signed in it draws, live, a launchpad, the commands
+fallback (`../README.md`, 4.1), and, at a deployment by name, over
+HTTPS, by the browser's approval alone (`../../draft/tui-remote.md`;
+`pages/sign-in.md`, 3); once signed in it draws, live, a launchpad, the commands
 of the browser's chat terminal and a chat read as that terminal reads
 it (`pages/README.md`). `temper-box open` stays the tests' line client
 (`../line.md`, 9).
@@ -22,15 +25,69 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   terminals (skein-shell's `terminal_modes` answers for descriptors 0
   and 1), at the address of the engine's link file its environment
   names, when the binary reads one there (2, *The engine's link, kept
-  at rest*), else at the address its directory keeps (2), else at
+  at rest*), else at the origin its directory keeps (2), an engine on
+  loopback or a deployment by name, else at
   `http://127.0.0.1:8367`, the clients' port `temper-box init` prefers
-  (`../../../help/reference/commands.md`). Otherwise it prints the line it
+  (`../../../help/reference/commands.md`). So on a machine with no box
+  running, bare `temper` goes back to the deployment last used.
+  Otherwise it prints the line it
   printed before the TUI, `temper: no command; temper --help lists
   them`, and exits 1.
-- **`temper ADDRESS`** names the engine's clients' listener,
-  `http://HOST:PORT`, with or without a final `/`, HOST an IP address on
-  loopback, read as `temper-box open` reads an address (`../line.md`, 1). A box whose
-  port fell back to another is named by its address.
+- **`temper ADDRESS`** names the engine's clients' listener, its
+  origin, in one of two forms, each with or without a final `/`
+  (`../../draft/tui-remote.md`, 3):
+  - `http://HOST:PORT`, HOST an IP address on loopback, read as
+    `temper-box open` reads an address (`../line.md`, 1), so that a
+    bearer never crosses a network in plaintext (`../README.md`, 4). A
+    box whose port fell back to another is named by its address.
+  - `https://NAME[:PORT]`, a deployment's public origin, the one the
+    person's browser opens (`../../protocol/sign-in.md`, 2.2): NAME a
+    host name, labels of letters, digits and hyphens joined by dots,
+    compared in lower case, at most 253 bytes; PORT 1 to 65535, 443
+    where none is given; no path, query, user or fragment.
+
+  HTTPS takes a name, never an IP address, since a deployment's
+  certificate is for its name; HTTP takes an IP address on loopback,
+  never a name, `localhost` among them.
+- **The origin,** `temper-client-tui`'s `Origin`, is the one value the
+  start, the host, the view, the recording and the TUI's files name the
+  engine by:
+
+  ```rust
+  pub enum Origin {
+      Http(core::net::SocketAddr),          // http://HOST:PORT, HOST an IP address on loopback
+      Https { name: Box<[u8]>, port: u16 }, // https://NAME[:PORT], NAME in lower case
+  }
+  pub enum Unaddressed { NotAnAddress, HttpName, HttpsAddress, OffLoopback }
+  impl Origin {
+      pub fn parse(bytes: &[u8]) -> Result<Origin, Unaddressed>;
+      pub fn print(&self) -> Box<[u8]>;     // http://127.0.0.1:8367, https://dev.fabrig.ai, https://NAME:8443
+      pub fn authority(&self) -> Box<[u8]>; // 127.0.0.1:8367, dev.fabrig.ai:443: HOST:PORT, the port always
+  }
+  ```
+
+  `parse` is the one reader, of the argument, of the origin kept (2)
+  and of a recording's (`journeys.md`, 3.2): it takes what `print`
+  prints, a final `/` or none, NAME in any case and `:443` written out,
+  and refuses the rest by `Unaddressed`'s cause (the table below). A
+  sign-in link is told apart before it, as now. `print` leaves out an
+  HTTPS port of 443; `authority` never does. The engine's own
+  `Origin` (`temper-engine-service-vocabulary`) is the deployment's
+  configured public origin, which no client crate links and which holds
+  no loopback address the TUI reaches, so the TUI keeps its own.
+- **At a name, resolved at start:** for an `https://` origin, after its
+  directory (2), the binary resolves NAME once, before the loop, through
+  the platform's resolver, `(NAME, PORT)` as `std`'s `ToSocketAddrs`
+  takes it, as skein's shells resolve their configured peers (skein's
+  `runtime/io/README.md`, section 3), and gives every address found, in
+  the resolver's order, to the native shell, which tries them in order
+  at each connection (jig's `protocol/client/README.md`, section 9). It
+  reads the machine's roots then, skein-shell's `read_trust_roots` with
+  `Trust::Machine`, `SSL_CERT_FILE` from the environment it captured,
+  else the distribution's bundle, and gives them as the native shell's
+  `skein_tls::Config`, `http/1.1` offered by ALPN. A deployment whose
+  addresses change while the TUI runs needs it started again
+  (`../../draft/tui-remote.md`, 10).
 - **The link is never an argument,** as `temper ctl`'s isn't
   (`../ctl/README.md`, 6.1): the TUI takes it pasted on its sign-in screen
   (`pages/README.md`), and refuses it as ADDRESS.
@@ -48,11 +105,17 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   | Cause | stderr |
   |---|---|
   | ADDRESS given, stdin or stdout not a terminal | `temper: the TUI needs a terminal on stdin and stdout` |
-  | ADDRESS not an `http://` address, or HOST not an IP address and port | `temper: not an address: ARG` |
+  | ADDRESS neither form: not `http://` or `https://`, a NAME that isn't one, HOST with no port, a path, a query, a user or a fragment (`NotAnAddress`) | `temper: not an address: ARG` |
+  | `http://` with a name, `localhost` among them (`HttpName`) | `temper: http:// reaches an engine on this machine alone: use https://NAME` |
+  | `https://` with an IP address (`HttpsAddress`) | `temper: https:// needs the deployment's name` |
   | ADDRESS a sign-in link | `temper: a sign-in link is never an argument: run temper http://HOST:PORT and paste it` |
-  | HOST not on loopback | `temper: the engine's address must be on loopback` |
+  | `http://` HOST not on loopback (`OffLoopback`) | `temper: the engine's address must be on loopback` |
   | two arguments or more | `temper: invalid arguments` and the usage, `usage: temper [ADDRESS]` |
   | the directory unresolved or refused (2) | `temper: DIRECTORY: ` and what was refused |
+  | NAME not resolved at start, or resolved to no address | `temper: can't find NAME: WHY`, WHY the resolver's words or "no address" |
+  | the machine's roots not read | `temper: the machine's trust roots: WHY`, WHY skein-shell's refusal |
+
+  The last two exit 1, as the directory's do.
 
   A panic aborts the process (fail-stop), the terminal left as it was
   found (4).
@@ -61,7 +124,7 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   an ADDRESS that isn't one is refused, exit 2, as its table's refusals
   are. Its `temper-client-shell` captures arguments, environment and
   working directory once and gives them to the TUI's start. Its
-  directory, its `address` and its `sign-in` note are the same files (2)
+  directory, its `address` and each origin's directory are the same (2)
   whether it runs on an engine or in front of a box (`box.md`), and it
   reads the engine's link file (`../../protocol/binaries.md`).
 
@@ -75,40 +138,83 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
 - **Private,** as `temper-box open`'s (`../line.md`, 1): the binary makes it and its
   missing parents `0o700` and refuses it unless it is a directory of
   this user's with no group or other bits (skein's `runtime/io/files.md`, 3), then
-  opens its parent as a root and gives `tui` to
-  `jig-client-shell-native`, as `temper-box open` gives DIRECTORY's last
-  component.
+  makes the origin's own directory beneath it the same way (*One
+  directory per deployment*, below) and gives that directory alone to
+  `jig-client-shell-native`, as `temper-box open` gives DIRECTORY.
 - **What it holds:**
-  - `token`, the bearer credential, and `store`, the small store, both
-    the native shell's files, kept as `../README.md`, section 4 says;
-  - `address`, the address the TUI last signed in to, `http://HOST:PORT`
-    and nothing else, `0o600`. The binary reads it once at start, at
-    most 64 bytes; one absent, empty, unreadable or not an address
+  - `address`, the origin the TUI last signed in to, as `Origin::print`
+    prints it (1), `https://NAME[:PORT]` or `http://HOST:PORT`, and
+    nothing else, `0o600`. The binary reads it once at start, at
+    most 300 bytes; one absent, empty, unreadable or not an origin
     reads as none, and the default holds. Once the TUI has closed, if it
-    signed in at an address the file did not hold, the binary writes
+    signed in at an origin the file did not hold, the binary writes
     the file whole through skein's io (skein-shell's `store_file`, a
     synced temporary replacing it).
-  - `sign-in`, the note of how the TUI's last sign-in at an address
-    stands, one line, `0o600`: `HOST:PORT until NANOS`, signed in there
+  - `at/HOST/PORT`, each origin's own directory (below).
+  - `recording-TIME`, a run's recording, while `TEMPER_INTERNAL_RECORD`
+    is set, each run's its own and the last ten kept (`journeys.md`,
+    3.1), `0o600`.
+- **One directory per deployment** (`../../draft/tui-remote.md`, 6):
+  `at/HOST/PORT`, HOST and PORT `Origin::authority`'s two parts, the
+  origin's name or its IP address as Rust prints it (`127.0.0.1`,
+  `::1`), and its port in decimal, 443 included. Each component stays
+  within a file name's 255 bytes, and names and IP addresses never
+  meet, so neither do the two schemes. The binary makes it and its
+  missing parents `0o700` and refuses it as the TUI's own (above). It
+  holds that deployment's:
+  - `token`, the bearer credential, and `store`, the small store, both
+    the native shell's files, kept as `../README.md`, section 4 says;
+  - `sign-in`, the note of how the TUI's last sign-in at the origin
+    stands, one line, `0o600`: `AUTHORITY until NANOS`, signed in there
     until that wall time in nanoseconds, as the sign-in's answer said
-    (jig's `client/domain/client/watches.md`, 2); or `HOST:PORT signed-out`,
+    (jig's `client/domain/client/watches.md`, 2); or `AUTHORITY signed-out`,
     its sign-in there ended before that time, so that only a person's act
-    signs it in there again (`pages/sign-in.md`, 2, *Expired is not signed out*). It is
+    signs it in there again (`pages/sign-in.md`, 2, *Expired is not signed out*);
+    AUTHORITY `Origin::authority`'s, `127.0.0.1:8367` or
+    `dev.fabrig.ai:443`. It is
     `temper-client-tui`'s `Note`, printed by `Note::print` and read by
-    `Note::read`. The binary reads it once at start, at most 64 bytes: a
-    line for another address than the TUI's, or one absent, unreadable
+    `Note::read`, at most 300 bytes, `Note::MOST`, room for a 253-byte
+    name with its port. The binary reads it once at start: a
+    line for another origin than the TUI's, or one absent, unreadable
     or past its bound, reads as none. The run writes it whole at each
     duty `note` (3), through skein-io's file layer on its own io, as
     the recorder saves (`journeys.md`, 3.1): a synced temporary
     replacing it. A write that fails says nothing, and the next note is
     written whole again.
-  - `recording-TIME`, a run's recording, while `TEMPER_INTERNAL_RECORD`
-    is set, each run's its own and the last ten kept (`journeys.md`,
-    3.1), `0o600`.
-- **One sign-in at a time:** the token is the engine's it was made at.
-  Started at another address, the TUI offers it there, the engine
-  there refuses it, and the TUI erases it and asks for that engine's
-  link (`pages/README.md`).
+- **No credential is offered to another engine:** the native shell has
+  the origin's directory alone, so a credential and the requests kept
+  meet only the engine they were made at; a token is never offered at
+  another address, where it would hand one deployment's bearer to
+  whatever listens at another's.
+- **Switching signs nobody out:** a box and a deployment by name each
+  keep their own sign-in, so going from one to the other and back asks
+  nothing again while each sign-in lives.
+- **The theme stays the person's:** it is a record of the small store
+  (3, `Start.kept`; `theme.md`), so an origin's store, at its first
+  start, when the binary makes its directory, takes the `theme` record
+  of the store of the origin `address` names, the one used last, and
+  nothing else of that store; the run saves it into the new store as a
+  theme taken is saved. A store with no `theme` there, or none to read,
+  starts at Auto.
+- **Nothing new in a versioned format:** `address` and `sign-in` are
+  lines of text, `token` the credential's bytes, and `store`
+  `jig-client`'s, as before, so an upgrade of the laptop's build reads
+  them as it did.
+- **From the directory before it:** a build before this one reached an
+  engine on loopback alone and kept `token`, `store` and `sign-in` in
+  the TUI's directory itself, writing the token during its run but
+  `address` only once it closed, so neither file alone says whose the
+  token is. At its first start, a build with this moves the three into
+  the directory of the address `sign-in` names, only where `address`
+  names that same address (`http://HOST:PORT` and `HOST:PORT`);
+  otherwise it removes them, and the TUI signs in afresh, which on a
+  box takes nothing (`pages/sign-in.md`, 2). The move goes through
+  `at/HOST/PORT.new`, made private, the three renamed into it, then it
+  renamed whole into place; a start that finds a `.new` finishes that
+  move, and one whose destination exists already removes the old
+  files. The move runs before the origin's directory is opened, whatever
+  the origin the TUI starts at, and a failure in it refuses the start
+  as the directory's does (1).
 - **The engine's link, kept at rest.** While the printed link is
   enabled (`../README.md`, section 4), the running engine, `temper-box serve` alone or under
   `temper box`, keeps its live local link, a one-time secret of its own
@@ -151,9 +257,11 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   - *Read* as a private file of this user's, at most 4,096 bytes
     (skein-shell's `read_private_file`): absent, unreadable, too large or
     not private reads as none. The binary reads it once at start, for
-    bare `temper`'s address (1) and, whatever the address, for
+    bare `temper`'s address (1) and, whatever the `http://` address, for
     whether the TUI is on a box; the run reads it at each duty `local`
-    (3), for the sign-in (`pages/README.md`).
+    (3), for the sign-in (`pages/README.md`). It names an engine of this
+    machine, so at an `https://` origin the binary reads none and the
+    TUI is never on a box: `Start.local` and `Start.boxed` are false.
   - *On a box:* the file read at start holds a link, as
     `jig-client-protocol-http`'s `printed` reads it, whose `HOST:PORT`
     is the TUI's address: the engine there is this machine's temper box,
@@ -200,7 +308,7 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
       pub size: skein_ui_screen::Size,
       pub scheme: Option<temper_client_tui::Scheme>,  // the terminal's word, or none (6.15)
       pub background: Option<skein_ui_screen::Rgb>,  // the terminal's answer to OSC 11 (6.15)
-      pub address: Box<[u8]>,                         // HOST:PORT
+      pub address: temper_client_tui::Origin,         // the origin (1)
       pub local: bool,                                // an engine's link file to read (6.12)
       pub boxed: bool,                                // on a box (6.12)
       pub kept: Vec<jig_client::Record>,              // the small store's records, `theme` among them (6.15)
@@ -211,12 +319,14 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   }
   pub enum Report { Start(Start), Due, Key(skein_ui_screen_terminal::Key), Resize(skein_ui_screen::Size),
       Heard(jig_client::Event), Kept { written: bool }, Opened { opened: bool },
-      Local { link: Option<skein_lib::Secret> } }     // the engine's link file, read
+      Local { link: Option<skein_lib::Secret> },      // the engine's link file, read
+      Handshake { failed: Option<temper_client_tui::Handshake> } } // the native shell's last TLS failure
+  pub enum Handshake { Untrusted, Expired, NotYetValid, OtherName, Failed } // temper_client_tui's
   pub struct Duties {
       pub asked: Vec<jig_client::Request>,            // to the native shell, in order, the TUI's `theme` record among them
       pub keep: Option<Option<skein_lib::Secret>>,    // the credential to write; Some(None) erases it
-      pub note: Option<temper_client_tui::Note>,      // DIRECTORY/sign-in to write (6.12)
-      pub address: Option<Box<[u8]>>,                 // the address signed in to (6.12)
+      pub note: Option<temper_client_tui::Note>,      // the origin's sign-in to write (6.12)
+      pub address: Option<temper_client_tui::Origin>, // the origin signed in to (6.12)
       pub local: bool,                                // the engine's link file to read (6.12)
       pub open: Option<Box<[u8]>>,                    // an address for a browser
       pub close: bool,
@@ -251,8 +361,20 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   `ui/screen.md`, 6.1); `Resize`, the window's new size; `Heard`, one of
   the transport's or the small store's events, as the native shell gives
   them; `Kept`, the credential's write ended, written or not; `Opened`,
-  the browser's opener ended, done or not (`../README.md`, 4.1). Any report
-  before `Start` is the host's defect.
+  the browser's opener ended, done or not (`../README.md`, 4.1);
+  `Handshake`, the native shell's last TLS failure changed (*The
+  handshake*, below). Any report before `Start` is the host's defect.
+- **The handshake** (`../../draft/tui-remote.md`, 4): at an `https://`
+  origin, the run reads the native shell's `Shell::refused` after each
+  iteration (jig's `protocol/client/README.md`, section 9) and, when it
+  changed, reports it as the TUI words it, `temper-client-tui`'s
+  `Handshake`: skein-tls's `Certificate::Issuer` or `Invalid`,
+  `Untrusted`; `Expired`; `NotYetValid`; `Name`, `OtherName`; any other
+  TLS error, `Failed`; none once a handshake succeeded. The host keeps
+  it in the TUI's state, and while it holds a failure the link's state
+  says why (`pages/README.md`, *The link's state*). A connection that
+  fails below TLS is no handshake's, and says "Offline" alone, as on
+  loopback. At an `http://` origin the run reports none.
 - **The duties** of each report: the root's requests for the native
   shell, in order, each routed as `temper-box open` routes them (`../line.md`, 2), and
   after them the TUI's `theme` record to save, when the person took a
@@ -349,7 +471,7 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   | Event | Does |
   |---|---|
   | `Typed { value }` | while the sign-in screen is drawn, the link's field, as before; else the box, whenever it is drawn (`pages/README.md`, 1, *Typed before the sign-in lands*): on the launchpad with a project `Act::ChatWords { words }`, keeping the left-off selection while the words begin with "/" and clearing it otherwise; with no project, the welcome and "Connecting" among them, the TUI's command composer; on a chat or a talk `Act::MessageWords { words }`. Typed while the theme's list stands, it lowers the list too |
-  | `SignIn` | signing in's Enter, as before |
+  | `SignIn` | signing in's Enter, as before; at a name, the sign-in screen's one key (`pages/sign-in.md`, 3) |
   | `Send` | the box's Enter (`pages/README.md`, 1, *The box*): before the sign-in lands, the notice "Still signing in" and nothing else, the words kept (`pages/README.md`, 1, *Typed before the sign-in lands*); words that begin a command the TUI offers press it, as `Command` or `Own`, `/exit` whole as `/quit`, or on a talk as `Leave`; the name of `/draft`, `/change`, `/ask` or `/tell`, where the screen offers it, followed by white space alone, as that name pressed, `Own { command }`; in a place not yet started, words that begin no command as that place's `NAME WORDS` on the screen under it, and empty words or white space alone nothing (`pages/README.md`, 2, *Not yet started*); words that begin with "/", hold no white space and begin none, `terminal::Act::Dismiss` and the TUI's notice of an unknown command (`pages/README.md`, 1, *The notice*); the chat's question standing, `needs::Act::OpenReply`, `Act::CardWords` and `needs::Act::SendReply` for its object, then `Act::MessageWords` with no words; with no project, nothing; else `Act::StartChat` on the launchpad, `Act::Send` on a chat or a talk |
   | `Command { command }` | `Exit`, the TUI's `/quit`, closes (4); `New` goes to the launchpad; any other `Act::Terminal(terminal::Act::Run { command })` |
   | `Act { act }` | a list's choice, the root's act as the view bound it: `choice::Act::Model` or `Effort`, `Act::Go`, `Act::Confirm` or `Cancel`, `needs::Act::Choose`; `Act::Confirm` taken on a chat's `/close` keeps the chat as closed by the person, and the root's answer done to that close goes to the launchpad, `Went(Home { project })`, with the chat closed's notice (`pages/chat.md`, 1, *Closing*); and Enter on the launchpad's empty box with a left-off chat selected, `Act::Go` to its `Chat { task }` (`pages/launchpad.md`, 4) |
@@ -374,7 +496,11 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   too, and on a talk it sends the box's other words as the talk's
   (`pages/talk.md`).
   `Duties.open`, which opens the approval's tab, carries a page's
-  address the same way.
+  address the same way. Every address the TUI opens is its origin's,
+  `Origin::print` and then the page's path: the approval's tab
+  (`../README.md`, 4.1), `/open` and the walk's "Open it on the web" (a
+  sign-off's "Review on FORGE ↗" keeps the forge's own address), so
+  that at a name a page opens on the deployment the TUI reads, `https://dev.fabrig.ai/chats/T2` (`../../draft/tui-remote.md`, 3).
 
   A key that makes `Act`, `Command`, `Aside`, `Accept`, `Dismiss`, `Leave`, `LeftOff`,
   `Own`, `Back`, `Open`, `Walk`, `EndWalk` or `Theme` marks the frame it acts on
@@ -390,6 +516,8 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
 - **The seam's shape:** `Start` carries the start's facts, the
   terminal's background, whether the TUI is on a box and whether it is
   in front of one among them (`box.md`; the user's requests of 2026-11-08);
+  `Start.address` is the origin and `Report` gains `Handshake`
+  (`../../draft/tui-remote.md`, 3 and 4);
   `Report` gains `Front` (`box.md`) and, in front, `Lent`, and `Duties`
   gains `lend` and `unlend`, its one lent terminal's (`box.md`, *Lending
   its terminal*); the root is given `Event::Lends` once in front. Following a
@@ -431,7 +559,10 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   20 ms; the terminal's background, asked at every start, waited for at
   most 200 ms, `limits::BACKGROUND` (`theme.md`).
 - **Its run's settings** (`run::Settings`), the binary's: beside the
-  engine, the directory, the address, the depth, the size, the limits
+  engine, the native shell's `Engine` (jig's `protocol/client/README.md`,
+  section 9: `Plain` at an `http://` origin, `Tls` at a name, with the
+  addresses resolved and the machine's roots, 1), the origin's
+  directory (2), the origin, the depth, the size, the limits
   and the opener, the scheme where `COLORFGBG` decided it, or none for
   the terminal's answer to decide (`theme.md`); the path of the engine's link
   file, or none where the platform keeps none (2); whether the TUI is
@@ -443,7 +574,8 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   `Start`, at the terminal's size, in the scheme chosen, with the
   terminal's background where it answered (`theme.md`) and whether the TUI is
   on a box (2); then the
-  credential's write ended, the transport's events, the window's size
+  credential's write ended, the transport's events, the native shell's
+  last TLS failure when it changed (3, *The handshake*), the window's size
   when it changed, the keys, and the root's deadline when it is due,
   each a report whose duties are carried at once, the root settled
   first (jig's `client/domain/root.md`, section 3): the requests to the

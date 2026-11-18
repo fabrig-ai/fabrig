@@ -146,7 +146,7 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 | `background` | red, green and blue, each a number | the terminal's answer to OSC 11, when the start has one (`README.md`, 3, `Start.background`) |
 | `plain` | none | when the start's terminal draws no mark (`README.md`, 3, `Start.plain`; `pages/README.md`, 3) |
 | `version` | the build as bytes | the start's `version`, when it is not empty (`README.md`, 3) |
-| `address` | `HOST:PORT` as bytes | the start's address |
+| `address` | the origin as `Origin::print` prints it, as bytes; a bare `HOST:PORT`, as a recording made before it holds, reads as `http://HOST:PORT` | the start's origin (`README.md`, 1) |
 | `local` | none | when the start has an engine's link file to read (`README.md`, 3, `Start.local`) |
 | `box` | none | when the start is on a box (`README.md`, 2, *On a box*; `Start.boxed`) |
 | `front` | none | when the TUI is in front of a box (`box.md`, `Start.front`) |
@@ -167,6 +167,7 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 | `kept` | `done` or `failed` | a `Kept` report |
 | `opened` | `done` or `failed` | an `Opened` report |
 | `found` | the file's bytes, or `none` | a `Local` report |
+| `handshake` | `untrusted`, `expired`, `not-yet-valid`, `other-name`, `failed` or `none` | a `Handshake` report (`README.md`, 3, *The handshake*) |
 | `box-line` | a line of the box's, as `BoxLine::print` prints it, in quotes | a `Front` report (`box.md`) |
 | `box-stage` | the stage, as `BoxStage::print` prints it, in quotes | a `Stage` report (`box.md`) |
 | `send` | the exchange, the message's kind, its bytes, the credential's bytes or `none` | a duty's `Request::Exchange`, in order |
@@ -176,7 +177,7 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 | `erase` | a record's key | `Request::Erase`, one per key (shared) |
 | `keep` | the credential's bytes, or `none` | the duty `keep` |
 | `note` | `until` and nanoseconds, or `signed-out` | the duty `note` |
-| `signed` | `HOST:PORT` as bytes | the duty `address` |
+| `signed` | the origin as `address` has it | the duty `address` |
 | `read` | none | the duty `local` |
 | `browse` | the address as bytes | the duty `open` |
 | `quit` | none | the duty `close` |

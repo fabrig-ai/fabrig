@@ -190,9 +190,12 @@ is the quiet line's, and the address the header's second line.
   newest joined brief's `at` in the view's clock (`../../view.md`, 6,
   *clock*), and " · /brief" in the byline's paint: `/brief` prints the
   briefs whole (7). With none new, neither paragraph nor byline.
-- *before `me`:* "Connecting to HOST:PORT", the state "Connecting";
-  *out of date:* the view's "This temper is out of date: run the
-  temper the engine runs.", the state "Out of date";
+- *before `me`:* "Connecting to PLACE", PLACE as the header's second
+  line names it (`README.md`, 3), the state "Connecting";
+  *out of date,* in front of a box: the view's "This temper is out of
+  date: run the temper the engine runs.", the state "Out of date"; out
+  of front, the screen of a build refused stands in the launchpad's
+  place (`refused.md`);
 - *a sign-in not kept,* when the credential's write failed: the line
   "This sign-in could not be kept: the next temper asks for a link
   again." (`tui-refused`).
@@ -327,7 +330,8 @@ is its own.
 - **No project yet:** while `me` names no project the root stays at its
   start's address (`../README.md`, 3): the border holds "temper" alone, and
   under it the view's "No project yet" and the TUI's "Setting temper up
-  makes your first project: open http://HOST:PORT in a browser.". The
+  makes your first project: open ORIGIN in a browser.", ORIGIN the
+  origin printed, `http://HOST:PORT` or `https://NAME` (`../README.md`, 1). The
   box takes commands alone, its placeholder "/ for commands", and Enter
   on other words sends nothing: Ask temper's chat is a project's, by its
   template (`../../../draft/ask-temper.md`, section 9), so with no project
