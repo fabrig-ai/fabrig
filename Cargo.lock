@@ -5868,6 +5868,7 @@ dependencies = [
  "temper-client-protocol-wire",
  "temper-client-shell-terminal",
  "temper-client-view",
+ "temper-client-view-kit",
  "temper-fixtures",
  "temper-protocol-reaches",
  "temper-test-env",

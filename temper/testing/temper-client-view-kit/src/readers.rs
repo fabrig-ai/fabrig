@@ -1,5 +1,22 @@
 use skein_lib::{List, Writer};
 
+/// Whether a node carries this complete text run, without joining adjacent runs.
+#[must_use]
+pub fn has_text_run(tree: &skein_ui::Tree, text: &str) -> bool {
+    tree.nodes().iter().any(|node| node.text.iter().any(|run| run.text.as_ref() == text.as_bytes()))
+}
+
+/// Find a named part through the fake person, reporting the sample that requires it.
+#[expect(clippy::must_use_candidate, reason = "fixture callers also use this helper to assert presence")]
+pub fn require_named(tree: &skein_ui::Tree, role: skein_ui::Role, name: &str, sample: &str) -> skein_ui::NodeId {
+    use skein_fake_person::{Face, Find, Found, TreeFace};
+    let mut face = TreeFace::new(tree);
+    match face.find(&Find::named(role, name.as_bytes())) {
+        Found::Node(node) => node,
+        Found::Absent | Found::Pending => panic!("{sample}: missing {role:?} {name:?}"),
+    }
+}
+
 #[must_use]
 pub fn text(tree: &skein_ui::Tree) -> Box<[u8]> {
     nodes_text(tree.nodes())
