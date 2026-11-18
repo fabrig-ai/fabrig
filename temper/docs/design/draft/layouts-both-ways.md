@@ -2,7 +2,7 @@
 
 Draft, 2026-11-17, from a session with the user. They asked for "some elegant way to extend what we're doing to new->old flows and not only to old->new flow", since the store's problem and the wires' "are really the same one". This draft is the data's half: how a value or a message written at one layout is read or written at another. [codec-shape.md](codec-shape.md) is the code's half. The figures are the survey's, on main at `a525e539f7` (`temper/docs/development/codec-survey-2026-11-17.md`).
 
-Where they differ, this draft wins over skein's codec versions, patches and bridges (`skein/docs/design/data/codec/README.md`, 5; `skein/docs/design/data/codec/patches.md`; `skein/docs/design/data/codec/bridges.md`; `skein/docs/design/data/codec/command.md`, 2, 3, 5 and 6) and over its layouts' derivation (`skein/docs/design/data/codec/layouts.md`, 2). It also wins over jig's store layouts and going back (`jig/docs/design/protocol/store/layouts.md`, 1; `jig/docs/design/protocol/store/opening.md`, 5) and over the redeploys draft's versions and bridges (`temper/docs/design/draft/redeploys.md`, 3 and 4). That holds until its milestones fold it into them.
+Where they differ, this draft wins over skein's codec versions, patches and bridges (`skein/docs/design/data/codec/README.md`, 5; `skein/docs/design/data/codec/patches.md`; `skein/docs/design/data/codec/bridges.md`; `skein/docs/design/data/codec/command.md`, 2, 3, 5 and 6) and over its layouts' derivation (`skein/docs/design/data/codec/layouts.md`, 2). It also wins over jig's store layouts and going back (`jig/docs/design/protocol/store/layouts.md`, 1; `jig/docs/design/protocol/store/opening.md`, 5) and over the redeploys draft's versions and bridges (`temper/docs/design/draft/redeploys.md`, 3 and 4). That holds until its goals fold it into them.
 
 ## 1. In one page
 
@@ -146,7 +146,7 @@ A plan converts bytes at a source layout into bytes at a target layout. It is de
 ### 6.2 A refused value
 
 - **A typed answer to the domain that sent it,** before anything is written to the channel: the message is refused for that worker, naming the declaration and the field.
-- **The domain decides.** An assignment waits for a worker that can hold it, as an assignment that can't go down waits today (`temper/docs/design/draft/redeploys.md`, 4.3). The other messages' answers are designed by their wires' owners, in the milestone that moves their wire.
+- **The domain decides.** An assignment waits for a worker that can hold it, as an assignment that can't go down waits today (`temper/docs/design/draft/redeploys.md`, 4.3). The other messages' answers are designed by their wires' owners, in the goal that moves their wire.
 
 ### 6.3 At the opening
 
@@ -220,4 +220,4 @@ A frame names its layout as a registered value does, with its texts in the regis
 - **The host tools' contract,** `contract/host-tools-v*.txt`, is a text contract outside the codecs, with its own versions.
 - **The component's own rows and the secrets' store** stay outside the registry, at fixed formats (`jig/docs/design/protocol/store/layouts.md`, 1).
 - **smith's channel** joins a worker to its own agent, which is one build, and needs nothing.
-- **A plan's cost on a hot path** is measured in the first wire's milestone. Equal fingerprints, the common case, cost nothing.
+- **A plan's cost on a hot path** is measured in the first wire's goal, L3. Equal fingerprints, the common case, cost nothing.

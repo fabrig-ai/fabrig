@@ -2,7 +2,7 @@
 
 Draft, 2026-11-17, from a session with the user, for the store and every wire alike. The user's aim: "a good end story across the board (store and wire)", "eliminating at the root all debt/pain we have accumulated due to the wrong approaches taken in the past (conflicts, generated code, goldens, etc)". This draft is the code's half: what the generator writes, what is still written by hand, how it is tested, and how it merges. [layouts-both-ways.md](layouts-both-ways.md) is the data's half: how a value or a message at one layout is read or written at another, in both directions. The figures are the survey's, on main at `a525e539f7` (`temper/docs/development/codec-survey-2026-11-17.md`).
 
-Where they differ, this draft wins over skein's codec design (`skein/docs/design/data/codec/README.md`, sections 1, 4 and 6; `skein/docs/design/data/codec/command.md`, 2), the subset (`skein/docs/foundation/programming-model.md`, 10.2 and 10.3) and jig's store records (`jig/docs/design/protocol/store/records.md`, 1), until its milestones fold it into them.
+Where they differ, this draft wins over skein's codec design (`skein/docs/design/data/codec/README.md`, sections 1, 4 and 6; `skein/docs/design/data/codec/command.md`, 2), the subset (`skein/docs/foundation/programming-model.md`, 10.2 and 10.3) and jig's store records (`jig/docs/design/protocol/store/records.md`, 1), until its goals fold it into them.
 
 ## 1. In one page
 
@@ -92,13 +92,13 @@ From the survey, on main at `a525e539f7`:
 ### 3.3 Size, compile and the gate
 
 - **The aim:** under half of today's lines for each module, every byte, bound and fingerprint the same.
-- **Measured before it spreads.** The first milestone converts jig's tasks store family alone and measures:
+- **Measured before it spreads.** Goal K3 converts jig's tasks store family alone and measures:
   - its lines;
   - the compile CPU of a schema change, and of a change that doesn't touch the schema;
   - the run time of its decoders, on the fuzzy suite's corpus.
 
   The other families follow when the module is at most half its size and neither compile is slower.
-- **Why compile is measured, not assumed:** the compiler makes a copy of a generic helper for each type, so the machine code shrinks less than the source does. The certain gains are in what is committed and reviewed, and in the compiler's and clippy's front end. The gain at compile is the milestone's to show.
+- **Why compile is measured, not assumed:** the compiler makes a copy of a generic helper for each type, so the machine code shrinks less than the source does. The certain gains are in what is committed and reviewed, and in the compiler's and clippy's front end. The gain at compile is K3's to show.
 
 ## 4. The translation
 
@@ -114,7 +114,7 @@ The survey's three kinds of translation (survey, 3):
    - a length checked into a narrower integer.
 3. **The owner's own shape:** a record split or joined, a list packed by its bytes, names remapped through a lookup, a check of the owner's.
 
-The first two are mechanical, and the generator writes them. The third stays written by hand. The first milestone of this part counts each kind exhaustively, owner by owner; the survey sampled.
+The first two are mechanical, and the generator writes them. The third stays written by hand. This part's goals, K5 for the stores and layouts-both-ways' L5 for the wires, first count each kind exhaustively, owner by owner; the survey sampled.
 
 ### 4.2 The maps file
 
@@ -213,6 +213,6 @@ Two goals that change different records of one family conflict only where they e
 ## 8. Later and open questions
 
 - **A careful review for changes to the generator and `skein-codec`.** Such a change is rare and moves every family at once, so the gate should flag it for a reviewer. The user's word, for later.
-- **Compile figures** for the helpers are the first milestone's (3.3). If the gate's compile grows, the helpers' boundary moves, not the aim.
+- **Compile figures** for the helpers are K3's (3.3). If the gate's compile grows, the helpers' boundary moves, not the aim.
 - **Snapshot golden files** outside the codecs (5.3) are a question of their own.
 - **The component's own rows, the secrets' store and the host tools' contract** keep their fixed formats ([layouts-both-ways.md](layouts-both-ways.md), 10).
