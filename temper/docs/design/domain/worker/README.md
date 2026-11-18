@@ -460,6 +460,25 @@ path. The evidence is volatile operator output, outside turns, facts,
 `TaskResult` and the review's reason sentence; no wire or stored field
 carries an extra copy.
 
+**An agent its host kit stops** (each of jig's agent failures: no
+progress, wall time, a broken rule, an exit, an agent never started) is
+logged by the worker as the kit reports the fault, before the run's
+tree is gone and its answer goes up. The line's time is when the kit
+stopped the agent; the engine's record of the failure is written once
+the attempt concludes, which may be much later.
+
+```
+<binary> worker: run <run> attempt <attempt> agent stopped <failure>
+```
+
+`<failure>` is jig's agent failure as serve's line writes it
+(`Agent(NoProgress)`). A stop for no progress ends `: no progress for
+<ms> ms`, the run's no-progress deadline as its host limits derive it
+(smith's `domain/host.md`, section 4). The line goes through the
+worker's notes (`worker_alone`'s `Note`), which its shell writes, as a
+failed preparation's does (`checkouts.md`, 1.3), once per attempt: a
+kept answer sent again after a relink logs none.
+
 **A configured model-call bound** is reported as jig's
 `RunFailure::Exceeded(Exceeded { bound, value })`. Smith's
 `CompletionFailure::Limit { which, bound }` supplies `value` unchanged:
