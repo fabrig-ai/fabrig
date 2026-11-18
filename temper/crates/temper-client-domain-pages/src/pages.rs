@@ -881,6 +881,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
             }
         }
+        Event::Act {
+            act: Act::Accounts(act @ accounts::Act::Submit { operation: accounts::Operation::CheckProgram { .. }, .. }),
+        } => pages.accounts.act(client, act, &mut pages.serial, out),
         Event::Act { act: Act::Accounts(act) } => {
             if pages.accounts_open {
                 pages.accounts.act(client, act, &mut pages.serial, out);

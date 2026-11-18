@@ -27,6 +27,7 @@ pub fn waiting(value: Option<&w::TaskRunWait>) -> Option<c::TaskRunWait> {
             account: *row.account(),
             source: *row.source(),
             why: match row.why() {
+                w::TaskWaitWhy::Untooled(row) => c::TaskWaitWhy::Untooled { worker: row.worker() },
                 w::TaskWaitWhy::Refreshing => c::TaskWaitWhy::Refreshing,
                 w::TaskWaitWhy::Host => c::TaskWaitWhy::Host,
                 w::TaskWaitWhy::Empty => c::TaskWaitWhy::Empty,

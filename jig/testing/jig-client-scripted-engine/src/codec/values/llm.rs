@@ -99,6 +99,9 @@ pub(in crate::codec) fn wire_task_wait_why(
             limits,
             w::TaskWaitSourceParts { state: wire_task_source_state(value, limits)? },
         )?),
+        c::TaskWaitWhy::Untooled { worker } => {
+            w::TaskWaitWhy::Untooled(w::TaskWaitUntooled::new(limits, w::TaskWaitUntooledParts { worker: *worker })?)
+        }
         c::TaskWaitWhy::Refreshing => w::TaskWaitWhy::Refreshing,
         c::TaskWaitWhy::Host => w::TaskWaitWhy::Host,
         c::TaskWaitWhy::Empty => w::TaskWaitWhy::Empty,

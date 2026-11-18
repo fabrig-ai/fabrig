@@ -771,7 +771,7 @@ impl Frame {
                 });
                 self.reply(fd, &encode!(answer));
             }
-            b"/jig/v1/stream?version=32" => self.hello(fd),
+            b"/jig/v1/stream?version=33" => self.hello(fd),
             b"/jig/v1/watch" => {
                 let open = w::Open::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&socket.request[end + 4..]))
                     .expect("watch record");

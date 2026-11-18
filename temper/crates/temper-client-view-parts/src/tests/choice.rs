@@ -822,6 +822,131 @@ fn the_agent_composers_using_words_stay_whole() {
     );
 }
 
+fn drive_wait(root: &mut d::Domain, event: d::Event) -> skein_lib::Queue<d::Request> {
+    let mut out = skein_lib::Queue::uncapped();
+    d::step(
+        root,
+        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: fixtures::NOW, limits: fixtures::domain_limits() },
+        event,
+        &mut out,
+    );
+    out
+}
+fn untooled_root(named_worker: bool) -> d::Domain {
+    let mut row = account(4, c::AccountKind::Program, None);
+    let mut program = source(c::AccountKind::Program, true);
+    program.number = 7;
+    program.name = Some(Box::from(b"claude-alice".as_slice()));
+    row.sources = List::from_boxed(Box::new([program]));
+    let (mut root, me_watch, _, _) = line_fixture(None, accounts(&[row]), None, None, None, true);
+    let mut me = d::pages::accounts::current_me(root.client()).unwrap().clone();
+    me.deployment_role = Some(c::HeldRole::Owner);
+    me.providers.get_mut(0).unwrap().programs = List::from_boxed(Box::new([model_text(b"claude_code")]));
+    delivered(&mut root, me_watch, c::Delivery::Me(Box::new(me)));
+    if named_worker {
+        let out = drive_wait(&mut root, d::Event::Went { place: d::Place::Address(Address::Accounts) });
+        let watch = out
+            .iter()
+            .find_map(|request| {
+                if let d::Request::Unlinked {
+                    request:
+                        jig_client::UnlinkedRequest::Down {
+                            down:
+                                jig_client::Down::Open {
+                                    watch,
+                                    subject: jig_client::Watchable::Jig(c::Subject::Deployment),
+                                },
+                        },
+                } = request
+                {
+                    Some(*watch)
+                } else {
+                    None
+                }
+            })
+            .expect("accounts watches the deployment");
+        let limits = fixtures::domain_limits();
+        let link = jig_client_protocol_link::Limits::new(limits.client.domain, limits.client.exchanges).unwrap();
+        let mut doc = jig_client_protocol_link::translate::documents::deployment(
+            jig_client_test_records::deployment_rows_record(),
+            &link,
+        )
+        .unwrap();
+        doc.worker_settings = List::from_boxed(Box::new([c::WorkerState {
+            number: 2,
+            name: Box::from(b"box-2".as_slice()),
+            places: 1,
+            digest: None,
+            withdrawn: false,
+            linked: true,
+            since: Some(fixtures::NOW),
+        }]));
+        delivered(&mut root, watch, c::Delivery::Deployment(Box::new(doc)));
+    }
+    root
+}
+#[test]
+fn an_untooled_wait_names_its_program_source_and_worker_and_checks_again() {
+    for (named_worker, worker) in [(false, "worker 2"), (true, "box-2")] {
+        let mut root = untooled_root(named_worker);
+        let wait =
+            c::TaskRunWait::Account { account: Some(4), source: Some(7), why: c::TaskWaitWhy::Untooled { worker: 2 } };
+        let w = fixtures::words();
+        let first = format!("Claude Code started without its tools for 'claude-alice' on {worker}.");
+        let expected = format!(
+            "{first} This runs on another worker that can take it, or on {worker} once it reconnects or the login is checked again."
+        );
+        let mut b = Builder::new(&fixtures::tree_limits());
+        let mut bindings = crate::bindings::Bindings::new(32);
+        b.open(Role::Page);
+        crate::choice::waiting(
+            &mut b,
+            &root,
+            &waiting_task(Some(wait)),
+            &w,
+            &mut bindings,
+            &mut crate::words::Times::new(fixtures::NOW),
+        );
+        b.close();
+        let tree = b.finish();
+        assert!(
+            fixtures::find(&tree, Role::Paragraph, expected.as_bytes()).is_some(),
+            "{}",
+            String::from_utf8_lossy(&fixtures::text(&tree))
+        );
+        assert_eq!(crate::choice::wait_why(&root, &w, &wait).as_ref(), first.as_bytes());
+        assert!(!crate::choice::wait_settles(&wait));
+        assert!(fixtures::find(&tree, Role::Link, b"Accounts").is_some());
+        let button = tree
+            .nodes()
+            .iter()
+            .find(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Check again"))
+            .unwrap();
+        let action = bindings.decode(button.binding.unwrap().token, skein_ui::Act::Press).unwrap();
+        let out = drive_wait(&mut root, d::Event::Act { action });
+        assert!(
+            out.iter().any(|request| {
+                if let d::Request::Unlinked {
+                    request:
+                        jig_client::UnlinkedRequest::Down {
+                            down: jig_client::Down::Send { request: jig_client::Ask::Jig(ask), .. },
+                        },
+                } = request
+                {
+                    **ask
+                        == c::Ask::AccountChange {
+                            holder: c::AskAccountHolder::Own,
+                            change: c::AccountChange::CheckProgram { source: 7 },
+                        }
+                } else {
+                    false
+                }
+            }),
+            "Check again checks that source from either page"
+        );
+    }
+}
+
 #[test]
 fn a_host_wait_names_the_account_and_its_program_command() {
     let mut row = account(3, c::AccountKind::Program, None);

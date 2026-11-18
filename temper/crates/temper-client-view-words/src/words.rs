@@ -1545,6 +1545,11 @@ pub enum Word {
     WaitRefreshing,
     WaitMoving,
     WaitHost,
+    WaitUntooled,
+    WaitUntooledNext,
+    WaitWorker,
+    WaitProgram,
+    WaitSource,
     WaitEmpty,
     WaitEmptyModel,
     WaitCredential,
@@ -2250,7 +2255,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-const PHRASES: u32 = 2799;
+const PHRASES: u32 = 2804;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2277,10 +2282,10 @@ const PHRASES: u32 = 2799;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 5193;
+const SEGMENTS: u32 = 5210;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 65975;
-const ALL: [Word; 2076] = [
+const ENGLISH_BYTES: u32 = 66140;
+const ALL: [Word; 2081] = [
     Word::WorkMilestoneLede,
     Word::MsGoals,
     Word::MsWhole,
@@ -3747,6 +3752,11 @@ const ALL: [Word; 2076] = [
     Word::WaitRefreshing,
     Word::WaitMoving,
     Word::WaitHost,
+    Word::WaitUntooled,
+    Word::WaitUntooledNext,
+    Word::WaitWorker,
+    Word::WaitProgram,
+    Word::WaitSource,
     Word::WaitEmpty,
     Word::WaitEmptyModel,
     Word::WaitCredential,
@@ -5905,6 +5915,11 @@ impl Word {
             Self::WaitRefreshing => 1012,
             Self::WaitMoving => 1850,
             Self::WaitHost => 1013,
+            Self::WaitUntooled => 4021,
+            Self::WaitUntooledNext => 4022,
+            Self::WaitWorker => 4023,
+            Self::WaitProgram => 4024,
+            Self::WaitSource => 4025,
             Self::WaitEmpty => 1014,
             Self::WaitEmptyModel => 1078,
             Self::WaitCredential => 1015,
@@ -8132,6 +8147,11 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WaitRefreshing => (&[b"Refreshing account credentials"], &[]),
         Word::WaitMoving => (&[b"Waiting because the account is moving to another deployment"], &[]),
         Word::WaitHost => (&[b"", b"'s login isn't signed in on a host that can run this."], &[Name]),
+        Word::WaitUntooled => (&[b"", b" started without its tools for '", b"' on ", b"."], &[Name, Name, Name]),
+        Word::WaitUntooledNext => (&[b"This runs on another worker that can take it, or on ", b" once it reconnects or the login is checked again."], &[Name]),
+        Word::WaitWorker => (&[b"worker ", b""], &[Number]),
+        Word::WaitProgram => (&[b"The program"], &[]),
+        Word::WaitSource => (&[b"source ", b""], &[Number]),
         Word::WaitEmpty => (&[b"No account can run this chat yet."], &[]),
         Word::WaitEmptyModel => (&[b"No account can run ", b" yet."], &[Name]),
         Word::WaitCredential => (&[b"This work needs a credential from its forge."], &[]),

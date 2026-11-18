@@ -905,6 +905,7 @@ fn account_wait(b: &mut Builder, root: &Domain, task: &c::Task, w: &Words, bindi
         b.close();
     }
     match why {
+        R::Untooled { worker } => untooled_wait(b, root, task, w, bindings, worker),
         R::Source(S::Moving) => line(b, w, W::WaitMoving, &[]),
         R::Refreshing => line(b, w, W::WaitRefreshing, &[]),
         R::Host => {
@@ -980,6 +981,97 @@ fn account_wait(b: &mut Builder, root: &Domain, task: &c::Task, w: &Words, bindi
         R::Source(S::Closing) => source_wait(b, w, A::Closing, None),
     }
 }
+fn untooled_wait(b: &mut Builder, root: &Domain, task: &c::Task, w: &Words, bindings: &mut Bindings, worker: u32) {
+    use temper_client_domain::pages::accounts::{self, Operation};
+    let Some(c::TaskRunWait::Account { account, source, .. }) = task.run_wait else { return };
+    let (first, next) = untooled(root, w, account, source, worker);
+    let text = sentences(w, first, next);
+    b.open(Role::Paragraph);
+    b.style(crate::look::ACCOUNT_LINE);
+    b.name(&text);
+    b.text(skein_ui::Run::Plain, &text);
+    b.close();
+    if let (Some(account), Some(source)) = (account, source)
+        && let Some(row) = account_row(root, account)
+    {
+        let holder = match row.holder {
+            c::AccountHolder::Party(_) => c::AskAccountHolder::Own,
+            c::AccountHolder::Deployment => c::AskAccountHolder::Deployment,
+        };
+        control(
+            b,
+            bindings,
+            Role::Button,
+            &crate::accounts::words::say(w, crate::accounts::words::Word::CheckAgain, &[]),
+            Act::Accounts(accounts::Act::Submit {
+                name: root.pages().account_name(),
+                row: accounts::Row { holder, account },
+                operation: Operation::CheckProgram { source },
+            }),
+            false,
+        );
+    }
+    account_link(b, bindings, &w.say(W::SettingsAccountsTab, &[]));
+}
+fn untooled(
+    root: &Domain,
+    w: &Words,
+    account: Option<u32>,
+    source: Option<u32>,
+    worker: u32,
+) -> (Box<[u8]>, Box<[u8]>) {
+    let row = match account {
+        Some(account) => account_row(root, account),
+        None => None,
+    };
+    let mut program = match row {
+        Some(row) => program_name(root, row.provider, w),
+        None => Box::default(),
+    };
+    if program.is_empty() {
+        program = w.say(W::WaitProgram, &[]);
+    }
+    let mut name = None;
+    if let Some(row) = row {
+        for entry in &row.sources {
+            if Some(entry.number) == source {
+                name = entry.name.as_deref();
+                break;
+            }
+        }
+    }
+    let name = match name {
+        Some(name) => shown(name, w),
+        None => match source {
+            Some(source) => w.say(W::WaitSource, &[Hole::Number(u64::from(source))]),
+            None => w.say(W::AccountRegion, &[]),
+        },
+    };
+    let worker = wait_worker(root, w, worker);
+    (
+        w.say(W::WaitUntooled, &[Hole::Name(program), Hole::Name(name), Hole::Name(worker.clone())]),
+        w.say(W::WaitUntooledNext, &[Hole::Name(worker)]),
+    )
+}
+fn wait_worker(root: &Domain, w: &Words, number: u32) -> Box<[u8]> {
+    let deployment = if let Some(page) = root.pages().accounts() {
+        page.deployment(root.client())
+    } else if let Some(page) = root.pages().builders()
+        && let temper_client_domain::pages::builders::Read::Hosts(deployment) = page.read(root.client())
+    {
+        Some(deployment)
+    } else {
+        None
+    };
+    if let Some(deployment) = deployment {
+        for worker in &deployment.worker_settings {
+            if worker.number == number {
+                return skein_lib::bytes::copy_of(&worker.name);
+            }
+        }
+    }
+    w.say(W::WaitWorker, &[Hole::Number(u64::from(number))])
+}
 fn source_wait(b: &mut Builder, w: &Words, word: crate::accounts::words::Word, until: Option<skein_lib::Wall>) {
     use crate::accounts::words::{self, Word as A};
     b.open(Role::Paragraph);
@@ -1004,7 +1096,8 @@ pub(crate) fn wait_why(root: &Domain, w: &Words, wait: &c::TaskRunWait) -> Box<[
             };
             return refused(w, &mut Times::new(at), why);
         }
-        c::TaskRunWait::Account { account, why, .. } => match why {
+        c::TaskRunWait::Account { account, source, why } => match why {
+            R::Untooled { worker } => return untooled(root, w, account, source, worker).0,
             R::Refreshing => return w.say(W::WaitRefreshing, &[]),
             R::Host => {
                 let row = match account {
@@ -1064,6 +1157,7 @@ pub(crate) const fn wait_settles(wait: &c::TaskRunWait) -> bool {
         c::TaskRunWait::Account {
             why:
                 R::Host
+                | R::Untooled { .. }
                 | R::Empty
                 | R::Invalid(_)
                 | R::Source(
