@@ -2,7 +2,6 @@
 
 2026-11-18. Where the tree's code lags or departs from [real-loop.md](real-loop.md).
 
-- **Not yet:** the whole document: the story of a model's request hung by its provider, on a worker alone, cut, retried and answered, and failed as its model's timeout when held every time [in flight: change 7710].
 
 - **Not yet:** the whole document: GitHub's real-loop stories 3, 4, 5, 7 and 8; 1, 2 and 6
   run (`tests/real-loop/tests/suite/github_land.rs`, `github.rs`). the whole document:
