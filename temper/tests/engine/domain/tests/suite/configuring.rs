@@ -390,10 +390,7 @@ fn claude_offer_setup() -> (engine::Config, engine::Limits) {
         models.push(model);
     }
     let mut providers = config.core.settings.llm_providers.providers.clone().into_vec();
-    for (number, name, _names) in [
-        (2, "anthropic", vec!["claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-1"]),
-        (3, "openai", vec!["gpt-6.1-sol"]),
-    ] {
+    for (number, name) in [(2, "anthropic"), (3, "openai")] {
         providers.push(accounts::Provider {
             list: None,
             number,
@@ -440,6 +437,7 @@ fn claude_offer_setup() -> (engine::Config, engine::Limits) {
         .collect();
     config.core.settings.models = models.into();
     config.core.settings.llm_providers.providers = providers.into();
+    config.core.defaults.providers = jig_test_profile::fixtures::provider_references(&config.core.settings);
     (config, bounds)
 }
 

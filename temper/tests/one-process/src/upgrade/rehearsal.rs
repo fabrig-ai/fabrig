@@ -172,11 +172,7 @@ pub fn accounts_check(directory: &Path) {
     let mut document = deployment_document(directory);
     // The configured endpoints and identity providers coexist with the floor's kept settings versions.
     document["engine"]["limits"]["overrides"]["core.settings.versions"] = 12.into();
-    let mut endpoint = document["engine"]["llm"]["endpoints"][0].clone();
-    endpoint["name"] = "second".into();
-    endpoint["number"] = 2.into();
-    endpoint["provider"] = "golden-provider".into();
-    document["engine"]["llm"]["endpoints"].as_array_mut().expect("endpoints").push(endpoint);
+    document["engine"]["llm"]["endpoints"][1]["name"] = "second".into();
     document["engine"]["llm"]["providers"][1]["endpoint"] = "second".into();
     document["engine"]["llm"]["models"][1]["endpoint"] = "second".into();
     for provider in document["engine"]["llm"]["providers"].as_array_mut().expect("providers") {

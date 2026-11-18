@@ -68,7 +68,7 @@ pub fn documents(directory: &Path, _program: &str) -> (Vec<u8>, Vec<u8>) {
     value["engine"]["limits"]["overrides"]["fleet.slots"] = 4.into();
     value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);
     value["engine"]["llm"]["endpoints"][0]["dialect"] = 3.into();
-    value["engine"]["llm"]["endpoints"][0]["provider"] = "openai".into();
+    value["engine"]["llm"]["endpoints"][0]["provider"] = value["engine"]["llm"]["providers"][0]["name"].clone();
     value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":"127.0.0.1:0"});
     // The stock carries twelve charters, fourteen grants and twenty-two executor kinds.
     value["engine"]["limits"]["overrides"]["tasks.charters"] = 16.into();

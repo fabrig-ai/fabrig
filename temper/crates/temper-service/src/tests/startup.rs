@@ -71,7 +71,8 @@ fn record_sizing_leaves_driver_admission_until_after_agent_checks() {
     engine.limits.root.loads.transcript_bytes = 3_000_000;
     engine.limits.root.loads.read_bytes = 1_000_000;
     let root = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
-    let refused = crate::store::admit(&root, &root.forge, &engine.jig.limits.store, None).unwrap_err();
+    let refused = crate::store::admit(&root, &root.forge, &engine.jig.limits.store, Some(root.loads.transcript_bytes))
+        .unwrap_err();
     let crate::store::Refusal::ReadRoom { read, needs } = refused else {
         panic!("the driver's page is the only refusal: {refused:?}");
     };
@@ -85,8 +86,7 @@ fn record_sizing_leaves_driver_admission_until_after_agent_checks() {
 #[test]
 fn a_read_bound_set_to_the_refusals_number_starts() {
     const TRANSCRIPT: u32 = 10_000_000;
-    // With a smaller agent turn the page drives the requirement; with a turn
-    // as large as the transcript the decoded row drives it instead.
+    // The provider row floor is covered by the chunk; each decoded turn must fit the read itself.
     for turn in [fixtures::startup_agent().limits.bodies.turn_body, TRANSCRIPT] {
         let mut agent = fixtures::startup_agent();
         agent.limits.bodies.turn_body = turn;
@@ -123,13 +123,12 @@ fn a_read_bound_set_to_the_refusals_number_starts() {
         let decoded = u64::from(turn)
             + u64::try_from(size_of::<jig_domain_core::reads::Row>()).unwrap()
             + u64::try_from(size_of::<jig_domain_core::Record>()).unwrap();
-        assert!(frame > map);
-        assert_eq!(page, frame);
-        assert!(u64::from(store.store.chunk) < page);
-        assert_eq!(decoded > page, turn == TRANSCRIPT);
-        let required = page.max(decoded);
-        // A read with no carrier room exercises both causes together; the
-        // same complete figure must be named there and at one byte short.
+        assert!(map > frame);
+        assert_eq!(page, map);
+        assert!(u64::from(store.store.chunk) >= page);
+        assert!(decoded < page);
+        let required = decoded;
+        // The complete decoded figure is named both without carrier room and at one byte short.
         for read in [u64::from(turn), required - 1, required] {
             let text = core::str::from_utf8(&document).unwrap();
             let needle = format!("\"root.loads.read_bytes\":{}", store.core.load_bytes);

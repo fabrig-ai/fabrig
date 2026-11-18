@@ -1,11 +1,11 @@
 ╭─ temper ─────────────────────────────────────────────────────────────────────╮
-│ Sign in this terminal to 127.0.0.1:35223                                     │
+│ Sign in this terminal to 127.0.0.1:33961                                     │
 │ A tab opened in your browser. Check it shows                                 │
-│ ZGGW-NGNP, then press Approve.                                               │
-│ No tab? Open http://127.0.0.1:35223/terminal?code=ZGGW-NGNP                  │
+│ QSTF-XXKV, then press Approve.                                               │
+│ No tab? Open http://127.0.0.1:33961/terminal?code=QSTF-XXKV                  │
 │ The code expires in 9 min.                                                   │
 │ Paste the link temper printed, then Enter.                                   │
-│ ❯ Link: http://127.0.0.1:35223/jig/v1/sign-in/link?secret=… (enter sends)    │
+│ ❯ Link: http://127.0.0.1:33961/jig/v1/sign-in/link?secret=… (enter sends)    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 

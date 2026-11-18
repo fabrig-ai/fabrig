@@ -439,9 +439,9 @@ pub(super) const DRIVER: skein_oauth_accounts::Limits = skein_oauth_accounts::Li
 // Started-from dependencies cost a four-byte count plus 8 eight-byte numbers = 68 bytes.
 pub(super) const STORE_KV: skein_kv::Limits = skein_kv::Limits {
     key: 2079,
-    // Settings history with 16 charters, 21 executor kinds and 32,768-byte run policies,
-    // including replacement values and composed application settings, fits 4,580,852 bytes.
-    value: 4_580_852,
+    // check_commits prices settings history, including providers and replaced values,
+    // at CORE's effective capacities (jig's protocol/store/records.md, 4).
+    value: 39_712_100,
     // A log append and two places per journal write, four creation rows and an orphan erase: 3 * 20,801 + 5.
     ops: 62_408,
     // 256 MiB values + 62,408 operations * (2,079 key + 9 framing) + 26 frame bytes.
@@ -452,10 +452,10 @@ pub(super) const STORE_KV: skein_kv::Limits = skein_kv::Limits {
     budget: 268_435_456,
     segment: 797_486_772,
     snapshot_after: 398_743_386,
-    chunk: 4_582_951,
+    chunk: 39_714_199,
     // The revision envelope, including what its items replaced, fits with its key.
-    page: skein_kv::Page { rows: 2, bytes: 4_582_931 },
-    record: 4_582_931,
+    page: skein_kv::Page { rows: 2, bytes: 39_714_179 },
+    record: 39_714_179,
     log: 1 << 40,
     logs: 16,
     deadline: Duration::from_secs(30),

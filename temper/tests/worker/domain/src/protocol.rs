@@ -13,8 +13,14 @@ use temper_worker_domain::{Encodable, Encoded, agent, host};
 /// smith's agent's one endpoint: what its charter's LLM and its turns name.
 #[must_use]
 pub fn endpoints() -> Endpoints {
+    endpoints_with_dialect(crate::DIALECT)
+}
+
+/// The one-endpoint map for a world's concrete turn dialect.
+#[must_use]
+pub fn endpoints_with_dialect(dialect: u32) -> Endpoints {
     let mut entries = List::with_capacity(1);
-    entries.push(Endpoint { name: Box::new([]), number: 0, dialect: crate::DIALECT }).expect("one endpoint");
+    entries.push(Endpoint { name: Box::new([]), number: 0, dialect }).expect("one endpoint");
     Endpoints::new(entries)
 }
 
@@ -141,7 +147,17 @@ pub fn transcript_turn(sequence: u32, length: usize, first: bool) -> Box<[u8]> {
 ///
 /// What of the start did not decode.
 pub fn decode(run: Token, source: host::Start, limits: &agent::Limits) -> Result<Box<agent::Start>, host::Undecoded> {
-    let endpoints = endpoints();
+    decode_with_dialect(run, source, limits, crate::DIALECT)
+}
+
+/// Decode using the world's concrete dialect for both its charter and turns.
+pub fn decode_with_dialect(
+    run: Token,
+    source: host::Start,
+    limits: &agent::Limits,
+    dialect: u32,
+) -> Result<Box<agent::Start>, host::Undecoded> {
+    let endpoints = endpoints_with_dialect(dialect);
     let charter = smith_protocol_channel::decode_charter(&source.charter, &smith_charter::CEILINGS, &endpoints)
         .map_err(|_| host::Undecoded::Charter)?;
     let charter = agent::Charter::new(charter, limits.charter_bytes).ok_or(host::Undecoded::Charter)?;
@@ -222,10 +238,19 @@ fn call_name(bytes: &[u8]) -> Result<agent::CallName, host::Undecoded> {
 /// run, which the root keeps typed.
 #[must_use]
 pub fn encode(value: Encodable) -> Encoded {
+    encode_with_dialect(value, crate::DIALECT)
+}
+
+/// Encode a payload with the same dialect its world's start declared.
+#[must_use]
+pub fn encode_with_dialect(value: Encodable, dialect: u32) -> Encoded {
     match value {
         Encodable::Turn(turn) => {
-            let encoded =
-                smith_protocol_channel::encode_turn(turn.body.value(), &smith_transcript::CEILINGS, &endpoints());
+            let encoded = smith_protocol_channel::encode_turn(
+                turn.body.value(),
+                &smith_transcript::CEILINGS,
+                &endpoints_with_dialect(dialect),
+            );
             match encoded {
                 Ok(body) => Encoded::Turn(host::Turn {
                     opens_window: turn.opens_window,

@@ -64,7 +64,7 @@ impl Places {
                 {
                     for endpoint in &settings.jig.llm.endpoints {
                         if endpoint.name == *name
-                            && let jig_protocol_config::Address::Addr(skein_io::Addr::Ip(a)) = &endpoint.address
+                            && let jig_protocol_config::EndpointAddress::Socket(a) = &endpoint.address
                         {
                             blocked.push(a.port()).expect("demo listener");
                         }

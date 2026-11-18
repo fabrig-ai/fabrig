@@ -1449,11 +1449,11 @@ impl World {
             worker::Request::Abandon => panic!("the worker must settle without abandoning its runs"),
             worker::Request::Process(request) => self.process_request(*request),
             worker::Request::Decode { agent, run, start } => {
-                let start = worker_protocol::decode(run, *start, &self.worker_env.limits.agent);
+                let start = worker_protocol::decode_with_dialect(run, *start, &self.worker_env.limits.agent, 3);
                 self.worker_events.push_back(worker::Event::Decoded { agent, start, endpoints: Box::new([]) });
             }
             worker::Request::Encode { owner, value } => {
-                let encoded = worker_protocol::encode(value);
+                let encoded = worker_protocol::encode_with_dialect(value, 3);
                 self.worker_events.push_back(worker::Event::Encoded { owner, encoded });
             }
             worker::Request::Fact { owner, body } => {

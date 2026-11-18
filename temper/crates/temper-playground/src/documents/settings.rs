@@ -79,7 +79,7 @@ pub fn configuration(deployment: &Value) -> jig_protocol_config::Engine {
         for candidate in &own.llm.providers {
             if provider["number"].as_u64() == Some(u64::from(candidate.number)) {
                 for model in &own.llm.models {
-                    if candidate.models.contains(&model.model.name) {
+                    if candidate.number == model.model.provider {
                         endpoint = own
                             .llm
                             .endpoints

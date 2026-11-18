@@ -27,6 +27,7 @@ pub fn copy(config: &engine::Config) -> engine::Config {
         ways_stock: config.ways_stock.clone(),
         period_span: config.period_span,
         core: core::Config {
+            fixed_providers: c.fixed_providers.clone(),
             parts: config.core.parts.clone(),
             jobs: c.jobs.clone(),
             kept_starts: Box::new([]),
@@ -38,6 +39,7 @@ pub fn copy(config: &engine::Config) -> engine::Config {
             grants: c.grants.clone(),
             kinds: c.kinds.clone(),
             defaults: core::settings::Defaults {
+                providers: c.defaults.providers.clone(),
                 workers: c.defaults.workers.clone(),
                 models: c.defaults.models.clone(),
                 charters: c.defaults.charters.clone(),

@@ -195,6 +195,7 @@ pub(crate) fn configured(client: &Client, project: u32) -> bool {
             c::Setting::Charter(_)
             | c::Setting::Template(_)
             | c::Setting::Policy(_)
+            | c::Setting::Provider(_)
             | c::Setting::Worker(_)
             | c::Setting::Model(_)
             | c::Setting::Rules

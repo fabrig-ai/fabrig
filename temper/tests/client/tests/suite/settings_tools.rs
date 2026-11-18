@@ -298,7 +298,7 @@ fn change_one_member(setting: c::Setting, value: &mut c::SettingValue) {
     use skein_lib::{Duration, Reader, Writer};
     use temper_client_protocol_wire::v1 as w;
     match value {
-        c::SettingValue::Overlay(_) => {}
+        c::SettingValue::Provider(_) | c::SettingValue::Overlay(_) => {}
         c::SettingValue::Model(value) => value.picker = !value.picker,
         c::SettingValue::Worker(value) => {
             if let Some(digest) = value.digest.as_mut() {

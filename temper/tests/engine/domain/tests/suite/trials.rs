@@ -34,6 +34,7 @@ fn config() -> engine::Config {
     providers.push(provider);
     config.core.settings.llm_providers.providers = providers.into();
     config.core.defaults.charters = Box::new([walking::charter(), trial]);
+    config.core.defaults.providers = jig_test_profile::fixtures::provider_references(&config.core.settings);
     config
 }
 

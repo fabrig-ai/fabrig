@@ -8888,6 +8888,8 @@ pub enum Setting {
     Model(SettingNumber),
     /// `worker` carrying `SettingNumber`.
     Worker(SettingNumber),
+    /// `provider` carrying `SettingNumber`.
+    Provider(SettingNumber),
 }
 
 impl Setting {
@@ -23170,7 +23172,7 @@ impl Setting {
     #[must_use]
     pub fn measure(&self) -> u32 {
         match self {
-            Self::Charter(record) | Self::Template(record) | Self::Policy(record) | Self::Model(record) | Self::Worker(record) => 1_u32.checked_add(SettingNumber::measure(record)).expect("schema ceilings fit u32"),
+            Self::Charter(record) | Self::Template(record) | Self::Policy(record) | Self::Model(record) | Self::Worker(record) | Self::Provider(record) => 1_u32.checked_add(SettingNumber::measure(record)).expect("schema ceilings fit u32"),
             Self::Rules => 1,
         }
     }
@@ -23184,6 +23186,7 @@ impl Setting {
             Self::Rules => writer.put(&[3_u8])?,
             Self::Model(record) => { writer.put(&[4_u8])?; record.encode(writer)?; }
             Self::Worker(record) => { writer.put(&[5_u8])?; record.encode(writer)?; }
+            Self::Provider(record) => { writer.put(&[6_u8])?; record.encode(writer)?; }
         }
         Ok(())
     }
@@ -23204,6 +23207,7 @@ impl Setting {
             3 => Self::Rules,
             4 => Self::Model(SettingNumber::decode_from(limits, reader)?),
             5 => Self::Worker(SettingNumber::decode_from(limits, reader)?),
+            6 => Self::Provider(SettingNumber::decode_from(limits, reader)?),
             _ => return Err(Problem { path: Path::SettingTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -36076,7 +36080,7 @@ impl Setting {
         let mut biggest = 0_u64;
         biggest = biggest.max(SettingNumber::encoded_bound_within(limits)?).max(SettingNumber::encoded_bound_within(limits)?);
         biggest = biggest.max(SettingNumber::encoded_bound_within(limits)?).max(SettingNumber::encoded_bound_within(limits)?);
-        biggest = biggest.max(SettingNumber::encoded_bound_within(limits)?);
+        biggest = biggest.max(SettingNumber::encoded_bound_within(limits)?).max(SettingNumber::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
@@ -36091,7 +36095,7 @@ impl Setting {
         let mut biggest = 0_u64;
         biggest = biggest.max(SettingNumber::decoded_bound_within(limits)?).max(SettingNumber::decoded_bound_within(limits)?);
         biggest = biggest.max(SettingNumber::decoded_bound_within(limits)?).max(SettingNumber::decoded_bound_within(limits)?);
-        biggest = biggest.max(SettingNumber::decoded_bound_within(limits)?);
+        biggest = biggest.max(SettingNumber::decoded_bound_within(limits)?).max(SettingNumber::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }

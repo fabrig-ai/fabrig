@@ -99,6 +99,7 @@ pub(crate) fn sign_in_documents(directory: &Path, issuer: SocketAddr) -> std::io
         "name":"openai", "number":1, "signed_in_plan":true, "manage_usage":format!("https://{issuer}/settings/usage"), "endpoint":"fake",
         "sources":{"keys":true,"sign_in":crate::issuer::registration(issuer)}
     }]);
+    config["engine"]["llm"]["endpoints"][0]["provider"] = "openai".into();
     private(&path, &serde_json::to_vec(&config)?)
 }
 

@@ -528,7 +528,7 @@ fn the_milestone_is_a_tracked_requester_ended_gathering_template() {
     use jig_domain_people::{TemplateBudget, TemplateDeadline, TemplateExecutor};
     use jig_domain_tasks::{Contract, EndedBy, Flags, Retention};
     let engine = single_engine();
-    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    let mut defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let template = defaults.templates.iter().find(|template| template.number == 8).expect("milestone template");
     assert_eq!(
         *template,
@@ -558,6 +558,7 @@ fn the_milestone_is_a_tracked_requester_ended_gathering_template() {
             assert!(role.authority.delegation.kinds.contains(&jig_domain_authority::Executor::Procedure(2)));
         }
     }
+    defaults.providers = config::llm::provider_values(&engine.llm);
     let current = jig_domain_core::settings::Current::new(defaults, &engine.limits.core, &[]);
     let core = config::core(&engine, [1; 16], 7);
     assert_eq!(

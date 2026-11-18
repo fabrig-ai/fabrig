@@ -842,7 +842,7 @@ fn configured_read_room_and_frame_capacity_are_measured_separately() {
     let capacity = crate::transcripts::patches::capacity(&sets.sets[0], 0, &limits).expect("body capacity");
     assert_eq!(u64::from(capacity.bytes) + 12, MAX_FRAME);
     assert_eq!(limits.core.resume_bytes, 256);
-    assert_eq!(limits.store.page.bytes, 16_778_240);
+    assert_eq!(limits.store.page.bytes, limits.store.key.checked_add(limits.store.value).unwrap());
     // Supplied well-formed smith fixtures: the current turn's maximum is
     // 74 bytes; the earlier layout's replay grows its raw maximum to 138.
     for (text, expected) in [

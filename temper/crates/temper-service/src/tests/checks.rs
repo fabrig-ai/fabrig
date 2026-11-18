@@ -462,7 +462,7 @@ fn fixed_redirect_ports_accept_listeners_without_a_reserved_number() {
 }
 #[test]
 fn provider_redirect_ports_are_checked_before_files_are_read() {
-    const PROVIDERS: &[u8] = br#"[{"name":"Fake","number":1,"signed_in_plan":false,"endpoint":"fake","sources":{"sign_in":{"issuer":"https://issuer.example","client":"client","scopes":[],"authorization":"https://issuer.example/auth","token":"https://issuer.example/token","keys":"https://issuer.example/keys","transport":"tls","server_name":"issuer.example","must_grant":[],"redirect_path":"callback","redirect_port":7100}}}]"#;
+    const PROVIDERS: &[u8] = br#"[{"name":"fake-provider","number":1,"signed_in_plan":false,"endpoint":"fake","sources":{"sign_in":{"issuer":"https://issuer.example","client":"client","scopes":[],"authorization":"https://issuer.example/auth","token":"https://issuer.example/token","keys":"https://issuer.example/keys","transport":"tls","server_name":"issuer.example","must_grant":[],"redirect_path":"callback","redirect_port":7100}}}]"#;
     let input = fixtures::with(&fixtures::document(), b"engine.llm.providers", PROVIDERS);
     let input = fixtures::with(&input, b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":131072,"git_component.operations":2,"checkout.workspaces":2,"forge_component.hooks":1}"#);
     let input = core::str::from_utf8(&input).unwrap();
@@ -501,7 +501,7 @@ fn every_offered_adapter_must_be_declared_by_the_agent() {
     let document = fixtures::with(
         &fixtures::document(),
         b"engine.llm.providers",
-        br#"[{"name":"Fake","number":1,"manage_usage":"https://claude.ai/settings/usage","endpoint":"fake","sources":{"programs":["claude_code"]}}]"#,
+        br#"[{"name":"fake-provider","number":1,"manage_usage":"https://claude.ai/settings/usage","endpoint":"fake","sources":{"programs":["claude_code"]}}]"#,
     );
     let document = jig_protocol_config::document(
         &document,
@@ -652,7 +652,7 @@ fn configured_keys_use_the_token_bound_instead_of_the_moved_file_ceiling() {
     let input = fixtures::with(
         fixtures::ENGINE,
         b"llm.providers",
-        br#"[{"name":"Fake","number":1,"endpoint":"fake","sources":{"keys":true}}]"#,
+        br#"[{"name":"fake-provider","number":1,"endpoint":"fake","sources":{"keys":true}}]"#,
     );
     let document =
         config::document(&input, &config::DocumentLimits { bytes: 65_536, tokens: 4096, depth: 32 }).unwrap();

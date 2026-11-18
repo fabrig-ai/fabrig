@@ -459,6 +459,7 @@ fn account_provider(value: &mut serde_json::Value, sign_in: &serde_json::Value) 
     // One git operation leaves the small profile's sockets room for the accounts driver.
     value["application"]["limits"]["overrides"]["git_component.operations"] = 1.into();
     value["application"]["limits"]["overrides"]["checkout.workspaces"] = 1.into();
+    value["engine"]["llm"]["endpoints"][0]["provider"] = "Test provider".into();
     value["engine"]["llm"]["providers"] = serde_json::json!([{
         "name":"Test provider", "number":1, "signed_in_plan":false, "endpoint":"fake",
         "sources":{"keys":true,"sign_in":sign_in}
@@ -468,8 +469,13 @@ fn account_provider(value: &mut serde_json::Value, sign_in: &serde_json::Value) 
 /// The welcome's own provider on the same issuer, whose one subject would renew on the first
 /// provider (temper/docs/design/client/web/testing.md, 2). Provider 2 has its own stock models.
 fn welcome_provider(value: &mut serde_json::Value, sign_in: &serde_json::Value) {
+    let mut endpoint = value["engine"]["llm"]["endpoints"][0].clone();
+    endpoint["name"] = "welcome".into();
+    endpoint["number"] = 2.into();
+    endpoint["provider"] = "Welcome provider".into();
+    value["engine"]["llm"]["endpoints"].as_array_mut().expect("endpoints").push(endpoint);
     value["engine"]["llm"]["providers"].as_array_mut().expect("providers").push(serde_json::json!({
-        "name":"Welcome provider", "number":2, "signed_in_plan":false, "endpoint":"fake",
+        "name":"Welcome provider", "number":2, "signed_in_plan":false, "endpoint":"welcome",
         "sources":{"keys":true,"sign_in":sign_in}
     }));
 }

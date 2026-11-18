@@ -540,7 +540,9 @@ fn live_model_world(
         ]);
         config.core.defaults.models.clone_from(&stock.models);
         config.core.defaults.charters = stock.charters.iter().take(2).cloned().collect();
-        let llm = jig_protocol_config::core(&engine, config.core.deployment, fixtures::SEED).settings;
+        let core = jig_protocol_config::core(&engine, config.core.deployment, fixtures::SEED);
+        config.core.defaults.providers = core.defaults.providers;
+        let llm = core.settings;
         config.core.settings.models = llm.models;
         config.core.settings.endpoints = llm.endpoints;
         config.core.settings.llm_providers = llm.llm_providers;

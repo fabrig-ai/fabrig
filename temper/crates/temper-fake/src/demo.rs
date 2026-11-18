@@ -81,8 +81,8 @@ pub fn read(facts: &Facts<'_>) -> Result<Option<Demo>, Refusal> {
     for endpoint in &facts.llm.endpoints {
         if Some(&endpoint.name) == provider.endpoint.as_ref() {
             listen = match &endpoint.address {
-                config::Address::Addr(a) => a.socket(),
-                config::Address::Host { .. } => None,
+                config::EndpointAddress::Socket(socket) => Some(*socket),
+                config::EndpointAddress::Host { .. } => None,
             };
         }
     }
@@ -172,8 +172,8 @@ fn models(number: u32, listen: SocketAddr, llm: &config::Llm, p: &Path) -> Resul
         }
         let endpoint = found.expect("checked model's endpoint");
         let socket = match &endpoint.address {
-            config::Address::Addr(a) => a.socket(),
-            config::Address::Host { .. } => None,
+            config::EndpointAddress::Socket(socket) => Some(*socket),
+            config::EndpointAddress::Host { .. } => None,
         };
         if socket != Some(listen) {
             return Err(read::why(p, b"names an endpoint not at llm.listen"));

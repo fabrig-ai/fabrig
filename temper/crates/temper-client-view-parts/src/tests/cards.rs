@@ -298,6 +298,7 @@ pub(crate) fn settings_page(items: &[(c::Setting, c::RevisionItemEdit)], accept:
             c::Setting::Charter(_)
             | c::Setting::Template(_)
             | c::Setting::Policy(_)
+            | c::Setting::Provider(_)
             | c::Setting::Worker(_)
             | c::Setting::Model(_)
             | c::Setting::Rules => {

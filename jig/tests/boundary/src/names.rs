@@ -257,9 +257,20 @@ pub(super) fn scan(path: &Path, source: &str, words: &[String], names: bool) -> 
                 index += 1;
             }
             let name = &source[start..index];
-            let foreign_ip = matches!(name, "V4" | "V6")
-                && source[..start].strip_suffix("core::net::IpAddr::").is_some_and(|prefix| {
-                    prefix.chars().next_back().is_none_or(|ch| !(ch.is_alphanumeric() || ch == '_' || ch == ':'))
+            let foreign_ip =
+                ["core::net::IpAddr::", "core::net::SocketAddr::", "core::net::"].iter().any(|qualifier| {
+                    let name_matches = if *qualifier == "core::net::" {
+                        matches!(name, "SocketAddrV4" | "SocketAddrV6")
+                    } else {
+                        matches!(name, "V4" | "V6")
+                    };
+                    name_matches
+                        && source[..start].strip_suffix(qualifier).is_some_and(|prefix| {
+                            prefix
+                                .chars()
+                                .next_back()
+                                .is_none_or(|ch| !(ch.is_alphanumeric() || ch == '_' || ch == ':'))
+                        })
                 });
             // The approval contract fixes the parser's input bound's name.
             let approval_input_bound = name == "CODE_TYPED_BYTES"
@@ -299,6 +310,15 @@ pub(super) fn scan(path: &Path, source: &str, words: &[String], names: bool) -> 
         line += source[start..index].matches('\n').count();
     }
     failures
+}
+
+#[test]
+fn standard_network_address_names_keep_their_foreign_qualification() {
+    let path = Path::new("fixture/addresses.rs");
+    for name in ["core::net::SocketAddr::V4", "core::net::SocketAddrV6"] {
+        assert!(breaches(path, name).is_empty(), "standard address {name}");
+        assert_eq!(breaches(path, &format!("other_{name}")).len(), 1, "not a standard qualifier");
+    }
 }
 
 #[test]

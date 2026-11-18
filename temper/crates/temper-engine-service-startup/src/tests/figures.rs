@@ -29,8 +29,5 @@ fn startup_accepts_64_endpoints_and_names_65() {
     let accepted = crate::startup::named_with(&document(64), &directories, &given).unwrap();
     assert_eq!(accepted.llm.endpoints.len(), 64);
     let found = crate::startup::named_with(&document(65), &directories, &given).unwrap_err();
-    assert_eq!(
-        crate::startup::lines(&found).as_ref(),
-        b"engine.llm: 65 endpoints, at most 64, the workers' figures carry no more\n"
-    );
+    assert_eq!(crate::startup::lines(&found).as_ref(), b"engine.llm.providers[0]: past its bound\n");
 }

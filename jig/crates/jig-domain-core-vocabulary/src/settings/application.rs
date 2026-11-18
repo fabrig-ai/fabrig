@@ -110,6 +110,7 @@ pub fn is_application(setting: Setting) -> bool {
         Setting::Charter(_)
         | Setting::Template(_)
         | Setting::Policy(_)
+        | Setting::Provider(_)
         | Setting::Worker(_)
         | Setting::Model(_)
         | Setting::Rules

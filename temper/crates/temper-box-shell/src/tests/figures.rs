@@ -180,6 +180,6 @@ fn box_refuses_sixty_five_endpoints_before_composing() {
     .expect_err("endpoint bound");
     assert!(
         String::from_utf8_lossy(&temper_service::startup::lines(&why))
-            .contains("engine.llm: 65 endpoints, at most 64, the workers' figures carry no more")
+            .contains("engine.llm.providers[0]: past its bound")
     );
 }

@@ -30,6 +30,7 @@ skein-fake-person.workspace = true
 jig-client-test-domain.workspace = true
 jig-test-domain.workspace = true
 jig-core-kit.workspace = true
+jig-test-profile.workspace = true
 jig-domain-core.workspace = true
 jig-domain-notes.workspace = true
 jig-domain-accounts.workspace = true

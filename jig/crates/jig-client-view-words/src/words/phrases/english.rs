@@ -95,6 +95,7 @@ pub fn language() -> Language {
             JigPhrase::SettingFaultGrace => {
                 Box::new([Segment::Text(copy_of(b"Setting template grace is past the allowed span"))])
             }
+            JigPhrase::SettingFaultAccounts => Box::new([Segment::Text(copy_of(b" has accounts: remove them first"))]),
             JigPhrase::SettingFaultLinked => Box::new([Segment::Text(copy_of(b" is linked: stop it first"))]),
             JigPhrase::SettingFaultOwner => {
                 Box::new([Segment::Text(copy_of(b"Setting policy owner role cannot be a root requester"))])

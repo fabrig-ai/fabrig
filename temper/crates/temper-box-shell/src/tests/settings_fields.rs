@@ -105,6 +105,7 @@ fn models(llm: &jig_protocol_config::Llm) -> Box<[jig_protocol_engine_clients::M
 fn encode(value: &settings_form::view::SettingValue, out: &mut Encoder) {
     use settings_form::{values, view::SettingValue};
     match value {
+        SettingValue::Provider(_) => out.string(b"provider settings are not supported"),
         SettingValue::Overlay(value) => values::encode_overlay(value, out),
         SettingValue::Worker(value) => values::encode_worker(value, out),
         SettingValue::Model(value) => values::encode_catalogue(value, out),

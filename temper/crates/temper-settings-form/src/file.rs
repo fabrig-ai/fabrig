@@ -362,6 +362,7 @@ fn item(d: &Decoder<'_>, at: u32) -> Result<c::SettingItem, Error> {
     let edit = match (optional(&fields, b"set"), optional(&fields, b"edit")) {
         (Some(at), None) => {
             let value = match setting {
+                c::Setting::Provider(_) => return Err(error(b"setting", b"provider settings are not supported")),
                 c::Setting::Worker(number) => c::SettingValue::Worker(Box::new(values::worker(d, at, number.number)?)),
                 c::Setting::Model(_) => c::SettingValue::Model(Box::new(values::catalogue(d, at)?)),
                 c::Setting::Charter(_) => c::SettingValue::Charter(Box::new(values::charter(d, at)?)),

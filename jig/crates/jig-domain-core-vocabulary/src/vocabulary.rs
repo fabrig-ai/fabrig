@@ -73,6 +73,8 @@ pub enum Request {
 pub enum Ask {
     /// Replace the admission table whole (domain/engine/workers.md, 4).
     Workers(Box<[crate::settings::WorkerSetting]>),
+    /// Keep current providers for the next start (domain/engine/llm-providers.md, 5).
+    Providers(Box<[crate::settings::ProviderSetting]>),
     /// Make application parts for the supplied rows (domain/engine/views.md, 2).
     Parts(crate::PartsAsk),
     Catalogue {

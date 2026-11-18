@@ -1,7 +1,7 @@
 //! Workers' figures (temper/docs/design/protocol/configuration/figures.md, 2).
 use crate::{limits, settings};
 use alloc::boxed::Box;
-use jig_protocol_config::{self as config, Address};
+use jig_protocol_config::{self as config, llm::EndpointAddress};
 use jig_protocol_worker_wire::v16 as w;
 use skein_lib::{Decimal, Duration, List, bytes};
 use temper_client_protocol_wire::v1 as s;
@@ -67,9 +67,8 @@ fn limit(name: &[u8], value: u64) -> w::Limit {
 
 fn endpoint_figure(endpoint: &config::llm::Endpoint, limits: &s::AgentLimits) -> w::AgentEndpoint {
     let (host, port) = match &endpoint.address {
-        Address::Host { name, port } => (name.clone(), *port),
-        Address::Addr(skein_io::Addr::Ip(socket)) => (ip(socket.ip()), socket.port()),
-        Address::Addr(skein_io::Addr::InProcess(_)) => unreachable!("LLM configuration requires a network address"),
+        EndpointAddress::Host { name, port } => (name.clone(), *port),
+        EndpointAddress::Socket(socket) => (ip(socket.ip()), socket.port()),
     };
     let transport = match &endpoint.transport {
         config::llm::Transport::Plaintext => w::Transport::Plaintext,

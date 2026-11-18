@@ -409,6 +409,12 @@ pub(crate) fn configuration(deployment: &[u8]) -> Box<[u8]> {
     provider["number"] = 2.into();
     provider["name"] = "golden-provider".into();
     provider["models"] = serde_json::json!(["fake-key"]);
+    provider["endpoint"] = "golden".into();
+    let mut endpoint = document["engine"]["llm"]["endpoints"][0].clone();
+    endpoint["name"] = "golden".into();
+    endpoint["number"] = 2.into();
+    endpoint["provider"] = "golden-provider".into();
+    document["engine"]["llm"]["endpoints"].as_array_mut().expect("endpoints").push(endpoint);
     let catalogue: serde_json::Value =
         serde_json::from_slice(include_bytes!("../../../crates/temper-playground/stories/a/catalogue.json"))
             .expect("story catalogue");
@@ -726,6 +732,16 @@ fn startup_configuration(directory: &Path) -> (Vec<u8>, temper_service::stock::G
     let configuration = std::fs::read(directory.join("configuration.json")).expect("kept startup configuration");
     let mut document: serde_json::Value = serde_json::from_slice(&configuration).expect("kept configuration JSON");
     bridge_kept_profiles(&mut document);
+    // The kept providers share a dial; each provider setting owns its numbered endpoint.
+    let llm = &mut document["engine"]["llm"];
+    if llm["endpoints"].as_array().expect("kept endpoints").len() == 1 {
+        let mut endpoint = llm["endpoints"][0].clone();
+        endpoint["name"] = "golden".into();
+        endpoint["number"] = 2.into();
+        endpoint["provider"] = "golden-provider".into();
+        llm["endpoints"].as_array_mut().expect("kept endpoints").push(endpoint);
+        llm["providers"][1]["endpoint"] = "golden".into();
+    }
     // Kept deployment inputs use the current box shape; the stored generation stays untouched.
     document["world_settings"]["playground"] = true.into();
     let mut inherited = Vec::new();

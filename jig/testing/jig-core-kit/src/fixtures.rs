@@ -83,7 +83,7 @@ pub fn link(core: &mut core::Core, env: &Env<core::Limits>, out: &mut Queue<core
 pub fn take_workers(out: &mut Queue<core::Request>) {
     for _ in 0..out.len() {
         let request = out.pop().expect("bounded startup outputs");
-        if !matches!(&request, core::Request::Ask { ask: core::Ask::Workers(_), .. }) {
+        if !matches!(&request, core::Request::Ask { ask: core::Ask::Workers(_) | core::Ask::Providers(_), .. }) {
             out.push(request);
         }
     }

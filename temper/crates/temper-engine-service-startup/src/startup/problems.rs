@@ -141,6 +141,7 @@ fn stock(floor: crate::stock::Floor, writer: &mut Writer, length: &mut usize, me
             Setting::Policy(number) => (b"policy ", Some(number)),
             Setting::Model(number) => (b"Model ", Some(number)),
             Setting::Worker(number) => (b"Worker ", Some(number)),
+            Setting::Provider(number) => (b"Provider ", Some(number)),
             Setting::Rules => (b"rules", None),
             Setting::Application { kind, scope, number } => {
                 put(writer, length, measuring, b"application kind ");

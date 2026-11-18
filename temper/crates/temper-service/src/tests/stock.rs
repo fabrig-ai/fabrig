@@ -33,7 +33,8 @@ fn the_stock_passes_jigs_one_check() {
         crate::named(&document, &config::Directories::working()).expect("stock passes startup parsing");
         let engine = engine(&document);
         let core = config::core(&engine, [1; 16], 7);
-        let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+        let mut defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+        defaults.providers = config::llm::provider_values(&engine.llm);
         assert_eq!(
             defaults.charters[0].policy.instructions.as_ref(),
             include_bytes!("../../../temper-engine-service-stock/src/stock/chat.txt")
@@ -60,7 +61,8 @@ fn each_floor_refuses_one_below_the_stocks_need() {
     let document = without_projects();
     let engine = engine(&document);
     let core = config::core(&engine, [1; 16], 7);
-    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    let mut defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    defaults.providers = config::llm::provider_values(&engine.llm);
     let mut run = (0, Setting::Charter(1));
     for charter in &defaults.charters {
         let resolved = settings::charters::resolved(charter, &defaults.models, &engine.limits.core).unwrap();
@@ -463,7 +465,8 @@ fn a_standard_document_admits_stock_policy_one_without_seeding_a_project() {
     config::pass(&mut engine, defaults).expect("a standard deployment seeds stock policy 1");
     assert!(engine.projects.is_empty());
     let core = config::core(&engine, [1; 16], 7);
-    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let mut defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    defaults.providers = config::llm::provider_values(&engine.llm);
     assert_eq!(crate::stock::floors(&defaults, &engine.limits), Ok(()));
     let current = jig_domain_core::settings::Current::new(defaults, &engine.limits.core, &[]);
     assert_eq!(

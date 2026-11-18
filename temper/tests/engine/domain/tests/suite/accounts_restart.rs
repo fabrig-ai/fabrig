@@ -55,6 +55,8 @@ fn config() -> engine::Config {
             },
         ]),
     };
+
+    config.core.defaults.providers = jig_test_profile::fixtures::provider_references(&config.core.settings);
     config
 }
 

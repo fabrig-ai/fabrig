@@ -277,9 +277,11 @@ fn stock_config() -> engine::Config {
         providers: Box::new([]),
     };
     let workers = config.core.defaults.workers.clone();
+    let providers = config.core.defaults.providers.clone();
     config.core.defaults =
         temper_engine_service_stock::stock::with_models(llm.models.clone(), stock_limits().tasks.result_bytes);
     config.core.defaults.workers = workers;
+    config.core.defaults.providers = providers;
     config.core.connectors = Box::new([1]);
     config.core.seed_projects = Box::new([]);
     config.core.owners[0].project = people::DEPLOYMENT;
