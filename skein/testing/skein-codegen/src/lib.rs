@@ -9,6 +9,7 @@ use core::fmt::Write;
 
 mod analysis;
 mod check;
+mod constructs;
 pub mod diff;
 mod emit_bounds;
 mod emit_codec;
@@ -19,6 +20,7 @@ mod emit_types;
 mod parse;
 pub mod patch;
 
+pub use constructs::{CONSTRUCTS, Construct, Kind, constructs, unpinned};
 pub use emit_limits::{pascal, snake};
 pub use parse::{Error, parse};
 
@@ -152,6 +154,12 @@ pub fn tests_main(modules: &[&str]) -> String {
 pub struct Golden {
     pub name: String,
     pub bytes: Vec<u8>,
+}
+
+/// Fixed-rule encodings in declaration order (data/codec/README.md, section 6).
+#[must_use]
+pub fn goldens(schema: &Schema) -> Vec<Golden> {
+    emit_tests::goldens(schema).into_iter().map(|(_, golden)| golden).collect()
 }
 
 fn uses_box(ty: &Type) -> bool {
