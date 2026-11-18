@@ -1,8 +1,9 @@
 # authority: status
 
-2026-11-16. Where jig's code lags or departs from [authority.md](authority.md).
+2026-11-18. Where jig's code lags or departs from [authority.md](authority.md).
 
 - **Not yet:** 7: a standing agent task's budget renewed by period (`tasks/standing.md`, section 4).
+- **Not yet:** 7, *A zero-budget task may outlive its ledger*: a start refuses a live zero-budget task whose pool, recurring or period ledger has closed, and its end expects that ledger live and panics (`jig-domain-tasks/src/funders.rs`, `link` and `end`). [in flight: change 7593]
 
 Section 3 has no known gap in the asking family, bit 2,048, or
 `ToolKind::Ask` admission. A call without that family is beyond authority.

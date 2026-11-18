@@ -1,7 +1,9 @@
 # store: status
 
-2026-11-16. Where jig's code lags or departs from [README.md](README.md).
+2026-11-18. Where jig's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 10.1: a live task whose budget is 0 and whose ledger has closed is refused at the start's funding link, and its end posts to the closed ledger. [in flight: change 7593]
+- **Not yet:** 10.1: an escalation's decider is stored as a bare number, with no kind, and linked as a person. [in flight: change 7602]
 
 
 

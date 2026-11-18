@@ -154,7 +154,9 @@ pub enum Layouts {
   dispatch for its), and answers `Request::Job`. Frame reads have
   their own written sites and routing (`opening.md`, 3). While a page
   is out, the owner may read other ranges of the map through
-  `Store::patch_page`.
+  `Store::patch_page`, its ranges named as the running job's keys
+  are: relative to the application's tag for the application's job,
+  whole for jig's, whose job reads the tasks child's rows.
 - **The answer:** the writes, puts and erases of whole keys (the
   application's relative to its tag), each within skein-kv's bounds,
   together within the store's commit edge (`records.md`, 4) less the
@@ -203,6 +205,8 @@ pub enum JobWrite { Put { key: Box<[u8]>, value: Box<[u8]> }, Erase { key: Box<[
 pub struct JobRefusal { pub key: Option<Box<[u8]>>, pub why: Box<str> }
 // each owner's dispatch, jig's in jig_protocol_store::jobs, the application's in its store crate:
 pub fn page(job: &str, page: &JobPage) -> Result<JobAnswer, JobRefusal>;
+// jig's, given the store whose page is out, to read through `Store::patch_page`:
+pub fn page(job: &str, page: &JobPage, store: &mut Store) -> Result<JobAnswer, JobRefusal>;
 ```
 
 `OpenRefusal::Job { owner: Owner, job: Box<str>, key: Option<Box<[u8]>>, why: Box<str> }`.
