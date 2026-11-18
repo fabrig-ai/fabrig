@@ -350,6 +350,7 @@ members = [
     "temper/crates/temper-client-view-work",
     "temper/crates/temper-client-view-setup",
     "temper/testing/temper-client-view-kit",
+    "temper/testing/temper-client-journeys-kit",
     "temper/crates/temper-client-tui",
     "temper/crates/temper-client-domain",
     "temper/crates/temper-client-domain-forge",
@@ -748,6 +749,7 @@ temper-client-view-parts = { path = "temper/crates/temper-client-view-parts" }
 temper-client-view-work = { path = "temper/crates/temper-client-view-work" }
 temper-client-view-setup = { path = "temper/crates/temper-client-view-setup" }
 temper-client-view-kit = { path = "temper/testing/temper-client-view-kit" }
+temper-client-journeys-kit = { path = "temper/testing/temper-client-journeys-kit" }
 temper-client-gallery-tool = { path = "temper/crates/temper-client-gallery-tool" }
 temper-shell = { path = "temper/crates/temper-shell" }
 temper-agent-shell = { path = "temper/crates/temper-agent-shell" }

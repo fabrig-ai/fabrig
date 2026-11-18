@@ -5894,6 +5894,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-client-journeys-kit"
+version = "0.0.0"
+dependencies = [
+ "jig-client",
+ "jig-client-shell-web",
+ "skein-lib",
+ "skein-ui-screen",
+ "skein-ui-screen-terminal",
+ "skein-ui-web",
+ "temper-client-shell-tui",
+ "temper-client-shell-web",
+ "temper-client-tui",
+]
+
+[[package]]
 name = "temper-client-journeys-tool"
 version = "0.0.0"
 dependencies = [
@@ -5918,6 +5933,7 @@ dependencies = [
  "skein-ui-screen",
  "skein-ui-screen-terminal",
  "skein-ui-web",
+ "temper-client-journeys-kit",
  "temper-client-shell-tui",
  "temper-client-shell-web",
  "temper-client-tui",

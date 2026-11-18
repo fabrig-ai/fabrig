@@ -97,7 +97,7 @@ pub fn scan(recording: &[u8], originals: &Originals) -> Result<Option<Found>, Re
     }
     // Validate the source envelope before temporary marks can give an empty
     // turn content. Only the scan's private replay copy gains marks.
-    Replay::new(recording).map_err(Refusal::Unreadable)?;
+    super::replay::checked_facts(&lines).map_err(Refusal::Unreadable)?;
     let mut copy = Vec::new();
     let mut source = Vec::new();
     let mut marks = Vec::new();
