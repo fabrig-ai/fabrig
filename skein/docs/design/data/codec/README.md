@@ -328,7 +328,7 @@ values and the constructs a text uses, is section 6's.
   family's records. `<stem>` is the family's current schema file's name
   less its `-v<N>.schema`, each `-` an `_`: `tasks-v13.schema` makes
   `tasks.rs`, `worker-wire-v17.schema` `worker_wire.rs`. A split schema
-  (`client-v33.schema` with `client-v33-part1.schema`) makes one module,
+  (`client-v34.schema` with `client-v34-part1.schema`) makes one module,
   named for its first part. Two families of one crate never share a
   stem. The crate includes the file under the Rust name its code
   already uses (`#[path = "generated/tasks.rs"] pub mod tasks_v13;`).
