@@ -390,7 +390,7 @@ pub fn host(value: &d::Host, limits: &w::Limits) -> Result<w::Host, w::Problem> 
     w::Host::new(
         limits,
         w::HostParts {
-            skein_bools: [value.awaiting_logins, value.draining, value.connected, value.cut],
+            awaiting_logins: value.awaiting_logins, draining: value.draining, connected: value.connected, cut: value.cut,
             name: value.name.clone(),
             rule: host_rule(value.rule, limits)?,
             programs: super::programs::logins(&value.programs, limits, limits.host_programs, w::Path::HostPrograms)?,
@@ -450,7 +450,7 @@ pub fn account(value: &d::Account, limits: &w::Limits) -> Result<w::Account, w::
             },
             runs,
             waiting,
-            skein_bools: [value.plan, value.usable, value.expiring, value.attention, value.cut],
+            plan: value.plan, usable: value.usable, expiring: value.expiring, attention: value.attention, cut: value.cut,
         },
     )
 }
@@ -568,7 +568,7 @@ pub fn document(value: &d::Deployment, limits: &w::Limits) -> Result<w::Deployme
         limits,
         w::DeploymentParts {
             worker_settings,
-            skein_bools: [value.cut, value.connectors_cut, value.providers_cut, value.readiness_cut],
+            cut: value.cut, connectors_cut: value.connectors_cut, providers_cut: value.providers_cut, readiness_cut: value.readiness_cut,
             providers: super::catalogue::offers(&value.providers, limits.deployment_providers, limits)?,
             key_bytes: value.key_bytes,
             readiness: super::catalogue::readiness(&value.readiness, limits.deployment_readiness, limits)?,

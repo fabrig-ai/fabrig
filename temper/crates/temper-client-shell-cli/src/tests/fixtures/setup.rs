@@ -34,7 +34,7 @@ impl Frame {
                         name: b"hello".as_slice().into(),
                         role: f::Role::Owned,
                         home: true,
-                        kinds: f::Kinds::new(&f::CEILINGS, f::KindsParts { skein_bools: [true; 9] })
+                        kinds: f::Kinds::new(&f::CEILINGS, f::KindsParts { read: true, push: true, open: true, land: true, review: true, status: true, comment: true, issue: true, branch: true })
                             .expect("valid setup fixture"),
                         protection: f::Protection::Unknown,
                     },

@@ -123,7 +123,7 @@ fn terminal_and_accounts_documents_preserve_login_facts() {
                 c::Delivery::Terminal(Box::new(c::Terminal { login: native.clone() }))
             );
             let mut parts = jig_client_test_records::accounts_record(None).into_parts();
-            parts.skein_bools[0] = native.is_some();
+            parts.sign_in = native.is_some();
             parts.lending = wire;
             let value = w::Accounts::new(limits.wire(), parts).unwrap();
             let c::Delivery::Accounts(doc) = delivery(&w::DeliveryValue::Accounts(value)) else { panic!("accounts") };

@@ -106,7 +106,7 @@ mod tests {
             }
         }
         assert_eq!(expected.len(), family.names.len(), "{}: all limits named", family.schema);
-        assert_eq!(expected.len(), family.values.len(), "{}: all limits valued", family.schema);
+        assert_eq!(expected.len(), family.values.as_slice().len(), "{}: all limits valued", family.schema);
         for ((name, value), (generated_name, generated_value)) in
             expected.iter().zip(family.names.iter().zip(family.values.as_slice()))
         {

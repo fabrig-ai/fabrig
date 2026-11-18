@@ -79,7 +79,7 @@ fn adopted(protection: w::Protection) -> w::Outcome {
                 home: true,
                 kinds: w::Kinds::new(
                     &limits,
-                    w::KindsParts { skein_bools: [true, false, true, false, true, false, true, false, true] },
+                    w::KindsParts { read: true, push: false, open: true, land: false, review: true, status: false, comment: true, issue: false, branch: true },
                 )
                 .expect("kinds fit"),
                 protection,

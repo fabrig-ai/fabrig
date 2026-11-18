@@ -205,7 +205,7 @@ fn charter(value: &core::Charter, limits: &w::Limits) -> Result<w::Charter, w::P
         w::CharterParts {
             parts,
             documents,
-            skein_bools: [value.rest, policy.resume, policy.inspect, policy.modify, policy.shell, policy.agents],
+            rest: value.rest, resume: policy.resume, inspect: policy.inspect, modify: policy.modify, shell: policy.shell, agents: policy.agents,
             number: value.number,
             instructions: policy.instructions.clone(),
             waiting: policy.waiting,

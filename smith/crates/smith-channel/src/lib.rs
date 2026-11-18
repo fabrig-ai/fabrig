@@ -67,7 +67,7 @@ pub mod wire {
     pub const FAMILY: &str = "smith-channel";
 
     /// The version named by the current schema's header.
-    pub const VERSION: u16 = 11;
+    pub const VERSION: u16 = crate::v11::VERSION;
 
     /// The lowest version this build speaks.
     pub const FLOOR: u16 = crate::patches::kept::smith_channel::FLOOR;

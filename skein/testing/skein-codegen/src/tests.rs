@@ -10,7 +10,7 @@ fn merge_family() -> String {
         writeln!(&mut source, "record Record{index} {{ payload: bytes 8 }}").expect("schema string");
     }
     source.push_str("versioned record Long {\n");
-    for index in 0_u32..40 {
+    for index in 0_u32..100 {
         writeln!(&mut source, " field{index}: list 2 option bytes 8").expect("schema string");
     }
     source.push_str("}\nrecord Flags { a: bool b: bool c: bool d: bool }\nenum Choice { empty, full: Record119 }\n");
@@ -27,7 +27,7 @@ fn changes_to_different_declarations_merge_line_by_line() {
         ),
         (("c: bool d: bool", "c: bool d: bool e: bool"), ("enum Choice { empty,", "enum Choice { another, empty,")),
         (
-            (" field20:", " inserted: option list 2 bytes 4\n field20:"),
+            (" field50:", " inserted: option list 2 bytes 4\n field50:"),
             ("record Record75 { payload: bytes 8 }", "record Record75 { payload: bytes 16 }"),
         ),
     ];

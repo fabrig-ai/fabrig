@@ -73,25 +73,53 @@ fn helper(record: &Record, method: &str, statement: &Statement, out: &mut String
     ));
 }
 
+/// Packs only dispatch lines in a wrapper that would exceed the function bound.
+pub(crate) fn pack_dispatches(source: String, marker: &str) -> String {
+    if source.trim_end().lines().count() <= 100 {
+        return source;
+    }
+    let mut out = String::new();
+    let mut pending = false;
+    for line in source.lines() {
+        if line.contains(marker) {
+            if pending {
+                out.pop().expect("previous dispatch newline");
+                out.push(' ');
+                out.push_str(line.trim_start());
+            } else {
+                out.push_str(line);
+            }
+            pending = !pending;
+        } else {
+            out.push_str(line);
+            pending = false;
+        }
+        out.push('\n');
+    }
+    out
+}
+
 /// Renders a field's operations together; a split never crosses a field boundary.
 pub(crate) fn render(record: &Record, method: &Method, out: &mut String, helpers: &mut String) {
-    out.extend(method.head.iter().map(String::as_str));
+    let mut function = String::new();
+    function.extend(method.head.iter().map(String::as_str));
     let lines = method.head.iter().chain(method.body.iter().map(|statement| &statement.text))
         .map(|text| text.lines().count()).sum::<usize>();
     let split = lines >= 98;
     for statement in &method.body {
         if split {
-            helper(record, method.name, statement, out, helpers);
+            helper(record, method.name, statement, &mut function, helpers);
         } else {
-            out.push_str(&statement.text);
+            function.push_str(&statement.text);
         }
     }
     match &method.tail {
-        Tail::Line(line) => out.push_str(line),
+        Tail::Line(line) => function.push_str(line),
         Tail::Members(members) => {
             let members = members.iter().map(|field| format!("{field}: decoded_{field}")).collect::<Vec<_>>().join(", ");
-            out.push_str(&format!("        Ok(Self {{ {members} }})\n"));
+            function.push_str(&format!("        Ok(Self {{ {members} }})\n"));
         }
     }
-    out.push_str("    }\n");
+    function.push_str("    }\n");
+    out.push_str(&pack_dispatches(function, "Self::"));
 }

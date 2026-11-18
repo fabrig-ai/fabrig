@@ -366,7 +366,7 @@ pub fn deployment_rows_record() -> w::Deployment {
         &l,
         w::HostParts {
             rule: w::HostRule::Open,
-            skein_bools: [false, true, false, true],
+            awaiting_logins: false, draining: true, connected: false, cut: true,
             name: None,
             programs: Box::new([]),
             channel: 17,
@@ -398,7 +398,7 @@ pub fn deployment_rows_record() -> w::Deployment {
             state: w::AccountState::Later(
                 w::AccountStateLater::new(&l, w::AccountStateLaterParts { until: Some(47) }).expect("literal"),
             ),
-            skein_bools: [false, false, true, false, true],
+            plan: false, usable: false, expiring: true, attention: false, cut: true,
             spent_until: Some(53),
             runs: pieces([encoded(chip.measure(), |w| chip.encode(w))]),
             waiting: pieces([encoded(chip.measure(), |w| chip.encode(w))]),
@@ -409,7 +409,7 @@ pub fn deployment_rows_record() -> w::Deployment {
         &l,
         w::DeploymentParts {
             worker_settings: List::with_capacity(0),
-            skein_bools: [false, true, false, false],
+            cut: false, connectors_cut: true, providers_cut: false, readiness_cut: false,
             providers: Box::new([]),
             key_bytes: 256,
             readiness: Box::new([]),

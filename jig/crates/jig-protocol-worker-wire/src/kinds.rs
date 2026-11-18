@@ -133,7 +133,7 @@ fn schema_from(limits: &v17::Limits, schemas: &List<skein_codec::schema::Schema>
         if version < crate::wire::FLOOR {
             continue;
         }
-        let bounds = if version == VERSION { None } else { Some(kept.bounds_within(&v17::LIMIT_NAMES, &values)) };
+        let bounds = if version == VERSION { None } else { Some(kept.bounds_within(v17::LIMIT_NAMES, values.as_slice())) };
         let mut kinds = List::uncapped();
         for (name, base, direction) in [
             (b"FromWorker".as_slice(), 0x0100_u16, Direction::FromInitiator),

@@ -3,6 +3,9 @@
 use alloc::boxed::Box;
 use skein_lib::List;
 
+/// This family's schema version.
+pub const VERSION: u16 = 2;
+
 /// The family's adjustable limits, each no larger than its ceiling.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Limits {
@@ -33,7 +36,7 @@ pub const CEILINGS: Limits = Limits {
 };
 
 /// The limits' field names, in field order.
-pub const LIMIT_NAMES: [&str; 10] = [
+pub const LIMIT_NAMES: &[&str] = &[
     "segment_bytes",
     "resource_path_segments",
     "effect_resources",
@@ -49,11 +52,10 @@ pub const LIMIT_NAMES: [&str; 10] = [
 impl Limits {
     /// The limits' values, in `LIMIT_NAMES` order.
     #[must_use]
-    pub fn values(&self) -> [u32; 10] {
-        [
-            self.segment_bytes, self.resource_path_segments, self.effect_resources, self.record_procedure_delegate_outcome_revisions, self.record_task_resources, self.record_made_resources, self.setting_set_value, self.record_setting_default_value,
-            self.record_setting_change_value_some, self.record_setting_replaced_value,
-        ]
+    pub fn values(&self) -> List<u32> {
+        let mut values = List::with_capacity(u32::try_from(LIMIT_NAMES.len()).expect("schema limits fit u32"));
+        self.values_for_segment_record(&mut values);
+        values
     }
 }
 
@@ -714,22 +716,21 @@ pub struct Problem {
 
 /// Checks the family limits, naming the first limit past its ceiling.
 pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
-    check_limits_0(limits)?;
-    Ok(())
+    check_segment_record_limits(limits)
 }
 
-fn check_limits_0(limits: &Limits) -> Result<(), Problem> {
-    if limits.segment_bytes > CEILINGS.segment_bytes { return Err(Problem { path: Path::SegmentBytes, reason: skein_codec::Reason::Bound }); }
-    if limits.resource_path_segments > CEILINGS.resource_path_segments { return Err(Problem { path: Path::ResourcePathSegments, reason: skein_codec::Reason::Bound }); }
-    if limits.effect_resources > CEILINGS.effect_resources { return Err(Problem { path: Path::EffectResources, reason: skein_codec::Reason::Bound }); }
-    if limits.record_procedure_delegate_outcome_revisions > CEILINGS.record_procedure_delegate_outcome_revisions { return Err(Problem { path: Path::RecordProcedureDelegateOutcomeRevisions, reason: skein_codec::Reason::Bound }); }
-    if limits.record_task_resources > CEILINGS.record_task_resources { return Err(Problem { path: Path::RecordTaskResources, reason: skein_codec::Reason::Bound }); }
-    if limits.record_made_resources > CEILINGS.record_made_resources { return Err(Problem { path: Path::RecordMadeResources, reason: skein_codec::Reason::Bound }); }
-    if limits.setting_set_value > CEILINGS.setting_set_value { return Err(Problem { path: Path::SettingSetValue, reason: skein_codec::Reason::Bound }); }
-    if limits.record_setting_default_value > CEILINGS.record_setting_default_value { return Err(Problem { path: Path::RecordSettingDefaultValue, reason: skein_codec::Reason::Bound }); }
-    if limits.record_setting_change_value_some > CEILINGS.record_setting_change_value_some { return Err(Problem { path: Path::RecordSettingChangeValue, reason: skein_codec::Reason::Bound }); }
-    if limits.record_setting_replaced_value > CEILINGS.record_setting_replaced_value { return Err(Problem { path: Path::RecordSettingReplacedValue, reason: skein_codec::Reason::Bound }); }
-    Ok(())
+/// Maximum wire bytes among this family's top-level types.
+#[must_use]
+pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+    if check_limits(limits).is_err() { return None; }
+    segment_encoded_bound_family(limits, 0)
+}
+
+/// Maximum heap held by one decoded top-level value.
+#[must_use]
+pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+    if check_limits(limits).is_err() { return None; }
+    segment_decoded_bound_family(limits, 0)
 }
 
 /// Movable fields of `Segment`.
@@ -765,6 +766,88 @@ impl Segment {
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         if self.bytes.len() > usize::try_from(limits.segment_bytes.min(CEILINGS.segment_bytes)).expect("u32 fits usize") { return Err(Problem { path: Path::SegmentBytes, reason: skein_codec::Reason::Bound }); }
         Ok(())
+    }
+}
+
+impl Segment {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_bytes = &self.bytes;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_bytes.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_bytes = &self.bytes;
+        writer.put(&u32::try_from(field_bytes.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_bytes.as_ref())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::SegmentTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_bytes = { let length = match skein_codec::read_len(reader, limits.segment_bytes.min(CEILINGS.segment_bytes)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::SegmentBytes, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::SegmentBytes, reason: skein_codec::Reason::Short })?) };
+        Ok(Self { bytes: decoded_bytes })
+    }
+}
+
+impl Segment {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.segment_bytes))?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(u64::from(limits.segment_bytes))?;
+        heap.checked_add(0)
+    }
+}
+
+fn segment_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Segment::encoded_bound_within(limits)?);
+    resource_path_encoded_bound_family(limits, biggest)
+}
+
+fn segment_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Segment::decoded_bound_within(limits)?);
+    resource_path_decoded_bound_family(limits, biggest)
+}
+
+fn check_segment_record_limits(limits: &Limits) -> Result<(), Problem> {
+    if limits.segment_bytes > CEILINGS.segment_bytes { return Err(Problem { path: Path::SegmentBytes, reason: skein_codec::Reason::Bound }); }
+    check_resource_path_record_limits(limits)
+}
+
+impl Limits {
+    fn values_for_segment_record(&self, values: &mut List<u32>) {
+        values.push(self.segment_bytes).expect("room for every named limit");
+        self.values_for_resource_path_record(values);
     }
 }
 
@@ -804,6 +887,92 @@ impl ResourcePath {
         item_0.check(limits)?;
         }
         Ok(())
+    }
+}
+
+impl ResourcePath {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_segments = &self.segments;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        for item_0 in field_segments.as_slice() {
+        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
+        }
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_segments = &self.segments;
+        writer.put(&field_segments.len().to_be_bytes())?;
+        for item_0 in field_segments.as_slice() {
+        item_0.encode(writer)?;
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::ResourcePathTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_segments = { let count = match skein_codec::read_count(reader, limits.resource_path_segments.min(CEILINGS.resource_path_segments)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ResourcePathSegments, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::ResourcePathSegments, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Segment::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        Ok(Self { segments: decoded_segments })
+    }
+}
+
+impl ResourcePath {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.resource_path_segments).checked_mul(Segment::encoded_bound_within(limits)?)?)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(List::<Segment>::price(limits.resource_path_segments)?.checked_add(u64::from(limits.resource_path_segments).checked_mul(Segment::decoded_bound_within(limits)?)?)?)?;
+        heap.checked_add(0)
+    }
+}
+
+fn resource_path_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ResourcePath::encoded_bound_within(limits)?);
+    call_purpose_encoded_bound_family(limits, biggest)
+}
+
+fn resource_path_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ResourcePath::decoded_bound_within(limits)?);
+    call_purpose_decoded_bound_family(limits, biggest)
+}
+
+fn check_resource_path_record_limits(limits: &Limits) -> Result<(), Problem> {
+    if limits.resource_path_segments > CEILINGS.resource_path_segments { return Err(Problem { path: Path::ResourcePathSegments, reason: skein_codec::Reason::Bound }); }
+    check_effect_record_limits(limits)
+}
+
+impl Limits {
+    fn values_for_resource_path_record(&self, values: &mut List<u32>) {
+        values.push(self.resource_path_segments).expect("room for every named limit");
+        self.values_for_effect_record(values);
     }
 }
 
@@ -852,6 +1021,83 @@ impl CallPurpose {
 
 }
 
+impl CallPurpose {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_attempt = &self.attempt;
+        writer.put(&field_attempt.to_be_bytes())?;
+        let field_completion = &self.completion;
+        writer.put(&field_completion.to_be_bytes())?;
+        let field_position = &self.position;
+        writer.put(&field_position.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::CallPurposeTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_attempt = reader.u64().ok_or(Problem { path: Path::CallPurposeAttempt, reason: skein_codec::Reason::Short })?;
+        let decoded_completion = reader.u32().ok_or(Problem { path: Path::CallPurposeCompletion, reason: skein_codec::Reason::Short })?;
+        let decoded_position = reader.u32().ok_or(Problem { path: Path::CallPurposePosition, reason: skein_codec::Reason::Short })?;
+        Ok(Self { attempt: decoded_attempt, completion: decoded_completion, position: decoded_position })
+    }
+}
+
+impl CallPurpose {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?.checked_add(4_u64)?;
+        size = size.checked_add(4_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn call_purpose_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(CallPurpose::encoded_bound_within(limits)?);
+    purpose_encoded_bound_family(limits, biggest)
+}
+
+fn call_purpose_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(CallPurpose::decoded_bound_within(limits)?);
+    purpose_decoded_bound_family(limits, biggest)
+}
+
 /// `Purpose` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Purpose {
@@ -869,6 +1115,83 @@ impl Purpose {
         Ok(value)
     }
 
+}
+
+impl Purpose {
+    /// Measures this variant's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        match self {
+            Self::Call(record) => 1_u32.checked_add(CallPurpose::measure(record)).expect("schema ceilings fit u32"),
+            Self::Procedure | Self::Projection => 1,
+        }
+    }
+
+    /// Writes this variant's tag and payload.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        match self {
+            Self::Procedure => writer.put(&[0_u8])?,
+            Self::Projection => writer.put(&[1_u8])?,
+            Self::Call(record) => { writer.put(&[2_u8])?; record.encode(writer)?; }
+        }
+        Ok(())
+    }
+
+    /// Reads a whole variant and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::PurposeTag, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: Path::PurposeTag, reason: skein_codec::Reason::Short })?;
+        let value = match tag {
+            0 => Self::Procedure,
+            1 => Self::Projection,
+            2 => Self::Call(CallPurpose::decode_from(limits, reader)?),
+            _ => return Err(Problem { path: Path::PurposeTag, reason: skein_codec::Reason::Tag }),
+        };
+        Ok(value)
+    }
+}
+
+impl Purpose {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(CallPurpose::encoded_bound_within(limits)?);
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(CallPurpose::decoded_bound_within(limits)?);
+        biggest.checked_add(0)
+    }
+}
+
+fn purpose_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Purpose::encoded_bound_within(limits)?);
+    key_encoded_bound_family(limits, biggest)
+}
+
+fn purpose_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Purpose::decoded_bound_within(limits)?);
+    key_decoded_bound_family(limits, biggest)
 }
 
 /// Movable fields of `Key`.
@@ -921,6 +1244,88 @@ impl Key {
     #[must_use]
     pub fn into_parts(self) -> KeyParts { KeyParts { origin: self.origin, deployment: self.deployment, task: self.task, purpose: self.purpose } }
 
+}
+
+impl Key {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_origin = &self.origin;
+        size = size.checked_add(field_origin.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(16).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_origin = &self.origin;
+        field_origin.encode(writer)?;
+        let field_deployment = &self.deployment;
+        writer.put(field_deployment)?;
+        let field_task = &self.task;
+        writer.put(&field_task.to_be_bytes())?;
+        let field_purpose = &self.purpose;
+        writer.put(&field_purpose.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::KeyTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_origin = Purpose::decode_from(limits, reader)?;
+        let decoded_deployment = { let bytes = reader.bytes(16).ok_or(Problem { path: Path::KeyDeployment, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
+        let decoded_task = reader.u64().ok_or(Problem { path: Path::KeyTask, reason: skein_codec::Reason::Short })?;
+        let decoded_purpose = reader.u64().ok_or(Problem { path: Path::KeyPurpose, reason: skein_codec::Reason::Short })?;
+        Ok(Self { origin: decoded_origin, deployment: decoded_deployment, task: decoded_task, purpose: decoded_purpose })
+    }
+}
+
+impl Key {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(Purpose::encoded_bound_within(limits)?)?.checked_add(u64::from(16_u32))?;
+        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(Purpose::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn key_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Key::encoded_bound_within(limits)?);
+    effect_encoded_bound_family(limits, biggest)
+}
+
+fn key_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Key::decoded_bound_within(limits)?);
+    effect_decoded_bound_family(limits, biggest)
 }
 
 /// Movable fields of `Effect`.
@@ -997,6 +1402,126 @@ impl Effect {
     }
 }
 
+impl Effect {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(2).expect("schema ceilings fit u32");
+        let field_resources = &self.resources;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        for item_0 in field_resources.as_slice() {
+        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
+        }
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        let field_condition = &self.condition;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_condition.is_some() {
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        }
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_kind = &self.kind;
+        writer.put(&field_kind.to_be_bytes())?;
+        let field_resources = &self.resources;
+        writer.put(&field_resources.len().to_be_bytes())?;
+        for item_0 in field_resources.as_slice() {
+        item_0.encode(writer)?;
+        }
+        let field_purpose = &self.purpose;
+        writer.put(&field_purpose.to_be_bytes())?;
+        let field_condition = &self.condition;
+        match field_condition {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_target = &self.target;
+        writer.put(&field_target.to_be_bytes())?;
+        let field_state = &self.state;
+        writer.put(&field_state.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::EffectTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_kind = reader.u16().ok_or(Problem { path: Path::EffectKind, reason: skein_codec::Reason::Short })?;
+        let decoded_resources = { let count = match skein_codec::read_count(reader, limits.effect_resources.min(CEILINGS.effect_resources)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::EffectResources, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::EffectResources, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = ResourcePath::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_purpose = reader.u64().ok_or(Problem { path: Path::EffectPurpose, reason: skein_codec::Reason::Short })?;
+        let decoded_condition = match reader.u8().ok_or(Problem { path: Path::EffectCondition, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::EffectCondition, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::EffectCondition, reason: skein_codec::Reason::Tag }) };
+        let decoded_target = reader.u64().ok_or(Problem { path: Path::EffectTarget, reason: skein_codec::Reason::Short })?;
+        let decoded_state = reader.u64().ok_or(Problem { path: Path::EffectState, reason: skein_codec::Reason::Short })?;
+        Ok(Self { kind: decoded_kind, resources: decoded_resources, purpose: decoded_purpose, condition: decoded_condition, target: decoded_target, state: decoded_state })
+    }
+}
+
+impl Effect {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(2_u64)?.checked_add(4_u64.checked_add(u64::from(limits.effect_resources).checked_mul(ResourcePath::encoded_bound_within(limits)?)?)?)?;
+        size = size.checked_add(8_u64)?.checked_add(1_u64.checked_add(8_u64)?)?;
+        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(List::<ResourcePath>::price(limits.effect_resources)?.checked_add(u64::from(limits.effect_resources).checked_mul(ResourcePath::decoded_bound_within(limits)?)?)?)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn effect_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Effect::encoded_bound_within(limits)?);
+    attempt_encoded_bound_family(limits, biggest)
+}
+
+fn effect_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Effect::decoded_bound_within(limits)?);
+    attempt_decoded_bound_family(limits, biggest)
+}
+
+fn check_effect_record_limits(limits: &Limits) -> Result<(), Problem> {
+    if limits.effect_resources > CEILINGS.effect_resources { return Err(Problem { path: Path::EffectResources, reason: skein_codec::Reason::Bound }); }
+    check_record_procedure_delegate_outcome_record_limits(limits)
+}
+
+impl Limits {
+    fn values_for_effect_record(&self, values: &mut List<u32>) {
+        values.push(self.effect_resources).expect("room for every named limit");
+        self.values_for_record_procedure_delegate_outcome_record(values);
+    }
+}
+
 /// Movable fields of `Attempt`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct AttemptParts {
@@ -1040,6 +1565,83 @@ impl Attempt {
     #[must_use]
     pub fn into_parts(self) -> AttemptParts { AttemptParts { number: self.number, sent: self.sent, deadline: self.deadline } }
 
+}
+
+impl Attempt {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_number = &self.number;
+        writer.put(&field_number.to_be_bytes())?;
+        let field_sent = &self.sent;
+        writer.put(&field_sent.to_be_bytes())?;
+        let field_deadline = &self.deadline;
+        writer.put(&field_deadline.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::AttemptTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_number = reader.u32().ok_or(Problem { path: Path::AttemptNumber, reason: skein_codec::Reason::Short })?;
+        let decoded_sent = reader.u64().ok_or(Problem { path: Path::AttemptSent, reason: skein_codec::Reason::Short })?;
+        let decoded_deadline = reader.u64().ok_or(Problem { path: Path::AttemptDeadline, reason: skein_codec::Reason::Short })?;
+        Ok(Self { number: decoded_number, sent: decoded_sent, deadline: decoded_deadline })
+    }
+}
+
+impl Attempt {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?.checked_add(8_u64)?;
+        size = size.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn attempt_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Attempt::encoded_bound_within(limits)?);
+    procedure_state_encoded_bound_family(limits, biggest)
+}
+
+fn attempt_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Attempt::decoded_bound_within(limits)?);
+    procedure_state_decoded_bound_family(limits, biggest)
 }
 
 /// Movable fields of `ProcedureState`.
@@ -1141,6 +1743,138 @@ impl ProcedureState {
     }
 }
 
+impl ProcedureState {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(2).expect("schema ceilings fit u32");
+        let field_resource = &self.resource;
+        size = size.checked_add(field_resource.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(2).expect("schema ceilings fit u32");
+        size = size.checked_add(2).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        let field_deadline = &self.deadline;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_deadline.is_some() {
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        }
+        let field_delegate = &self.delegate;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_delegate.is_some() {
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        }
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_project = &self.project;
+        writer.put(&field_project.to_be_bytes())?;
+        let field_task = &self.task;
+        writer.put(&field_task.to_be_bytes())?;
+        let field_number = &self.number;
+        writer.put(&field_number.to_be_bytes())?;
+        let field_resource = &self.resource;
+        field_resource.encode(writer)?;
+        let field_index = &self.index;
+        writer.put(&field_index.to_be_bytes())?;
+        let field_steps = &self.steps;
+        writer.put(&field_steps.to_be_bytes())?;
+        let field_awaiting = &self.awaiting;
+        writer.put(&[u8::from(*field_awaiting)])?;
+        let field_deadline = &self.deadline;
+        match field_deadline {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_delegate = &self.delegate;
+        match field_delegate {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_revision = &self.revision;
+        writer.put(&field_revision.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::ProcedureStateTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_project = reader.u32().ok_or(Problem { path: Path::ProcedureStateProject, reason: skein_codec::Reason::Short })?;
+        let decoded_task = reader.u64().ok_or(Problem { path: Path::ProcedureStateTask, reason: skein_codec::Reason::Short })?;
+        let decoded_number = reader.u16().ok_or(Problem { path: Path::ProcedureStateNumber, reason: skein_codec::Reason::Short })?;
+        let decoded_resource = ResourcePath::decode_from(limits, reader)?;
+        let decoded_index = reader.u16().ok_or(Problem { path: Path::ProcedureStateIndex, reason: skein_codec::Reason::Short })?;
+        let decoded_steps = reader.u16().ok_or(Problem { path: Path::ProcedureStateSteps, reason: skein_codec::Reason::Short })?;
+        let decoded_awaiting = match reader.u8().ok_or(Problem { path: Path::ProcedureStateAwaiting, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::ProcedureStateAwaiting, reason: skein_codec::Reason::Bool }) };
+        let decoded_deadline = match reader.u8().ok_or(Problem { path: Path::ProcedureStateDeadline, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::ProcedureStateDeadline, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::ProcedureStateDeadline, reason: skein_codec::Reason::Tag }) };
+        let decoded_delegate = match reader.u8().ok_or(Problem { path: Path::ProcedureStateDelegate, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::ProcedureStateDelegate, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::ProcedureStateDelegate, reason: skein_codec::Reason::Tag }) };
+        let decoded_revision = reader.u64().ok_or(Problem { path: Path::ProcedureStateRevision, reason: skein_codec::Reason::Short })?;
+        Ok(Self { project: decoded_project, task: decoded_task, number: decoded_number, resource: decoded_resource, index: decoded_index, steps: decoded_steps, awaiting: decoded_awaiting, deadline: decoded_deadline, delegate: decoded_delegate, revision: decoded_revision })
+    }
+}
+
+impl ProcedureState {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?.checked_add(8_u64)?;
+        size = size.checked_add(2_u64)?.checked_add(ResourcePath::encoded_bound_within(limits)?)?;
+        size = size.checked_add(2_u64)?.checked_add(2_u64)?;
+        size = size.checked_add(1_u64)?.checked_add(1_u64.checked_add(8_u64)?)?;
+        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(ResourcePath::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn procedure_state_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ProcedureState::encoded_bound_within(limits)?);
+    application_object_encoded_bound_family(limits, biggest)
+}
+
+fn procedure_state_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ProcedureState::decoded_bound_within(limits)?);
+    application_object_decoded_bound_family(limits, biggest)
+}
+
 /// Movable fields of `ApplicationObject`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ApplicationObjectParts {
@@ -1179,6 +1913,77 @@ impl ApplicationObject {
 
 }
 
+impl ApplicationObject {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_revision = &self.revision;
+        writer.put(&field_revision.to_be_bytes())?;
+        let field_value = &self.value;
+        writer.put(&field_value.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::ApplicationObjectTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_revision = reader.u64().ok_or(Problem { path: Path::ApplicationObjectRevision, reason: skein_codec::Reason::Short })?;
+        let decoded_value = reader.u64().ok_or(Problem { path: Path::ApplicationObjectValue, reason: skein_codec::Reason::Short })?;
+        Ok(Self { revision: decoded_revision, value: decoded_value })
+    }
+}
+
+impl ApplicationObject {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn application_object_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ApplicationObject::encoded_bound_within(limits)?);
+    refusal_role_encoded_bound_family(limits, biggest)
+}
+
+fn application_object_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ApplicationObject::decoded_bound_within(limits)?);
+    refusal_role_decoded_bound_family(limits, biggest)
+}
+
 /// Movable fields of `RefusalRole`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct RefusalRoleParts {
@@ -1208,6 +2013,83 @@ impl RefusalRole {
     #[must_use]
     pub fn into_parts(self) -> RefusalRoleParts { RefusalRoleParts { held: self.held } }
 
+}
+
+impl RefusalRole {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_held = &self.held;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_held.is_some() {
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        }
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_held = &self.held;
+        match field_held {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::RefusalRoleTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_held = match reader.u8().ok_or(Problem { path: Path::RefusalRoleHeld, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u32().ok_or(Problem { path: Path::RefusalRoleHeld, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::RefusalRoleHeld, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { held: decoded_held })
+    }
+}
+
+impl RefusalRole {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(1_u64.checked_add(4_u64)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn refusal_role_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RefusalRole::encoded_bound_within(limits)?);
+    refusal_taken_encoded_bound_family(limits, biggest)
+}
+
+fn refusal_role_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RefusalRole::decoded_bound_within(limits)?);
+    refusal_taken_decoded_bound_family(limits, biggest)
 }
 
 /// Movable fields of `RefusalTaken`.
@@ -1241,6 +2123,73 @@ impl RefusalTaken {
 
 }
 
+impl RefusalTaken {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_by = &self.by;
+        writer.put(&field_by.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::RefusalTakenTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_by = reader.u64().ok_or(Problem { path: Path::RefusalTakenBy, reason: skein_codec::Reason::Short })?;
+        Ok(Self { by: decoded_by })
+    }
+}
+
+impl RefusalTaken {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn refusal_taken_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RefusalTaken::encoded_bound_within(limits)?);
+    lack_again_encoded_bound_family(limits, biggest)
+}
+
+fn refusal_taken_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RefusalTaken::decoded_bound_within(limits)?);
+    lack_again_decoded_bound_family(limits, biggest)
+}
+
 /// Movable fields of `LackAgain`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct LackAgainParts {
@@ -1270,6 +2219,73 @@ impl LackAgain {
     #[must_use]
     pub fn into_parts(self) -> LackAgainParts { LackAgainParts { required: self.required } }
 
+}
+
+impl LackAgain {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_required = &self.required;
+        writer.put(&[u8::from(*field_required)])?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::LackAgainTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_required = match reader.u8().ok_or(Problem { path: Path::LackAgainRequired, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::LackAgainRequired, reason: skein_codec::Reason::Bool }) };
+        Ok(Self { required: decoded_required })
+    }
+}
+
+impl LackAgain {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(1_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn lack_again_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LackAgain::encoded_bound_within(limits)?);
+    lack_budget_encoded_bound_family(limits, biggest)
+}
+
+fn lack_again_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LackAgain::decoded_bound_within(limits)?);
+    lack_budget_decoded_bound_family(limits, biggest)
 }
 
 /// Movable fields of `LackBudget`.
@@ -1310,6 +2326,77 @@ impl LackBudget {
 
 }
 
+impl LackBudget {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_needs = &self.needs;
+        writer.put(&field_needs.to_be_bytes())?;
+        let field_left = &self.left;
+        writer.put(&field_left.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::LackBudgetTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_needs = reader.u64().ok_or(Problem { path: Path::LackBudgetNeeds, reason: skein_codec::Reason::Short })?;
+        let decoded_left = reader.u64().ok_or(Problem { path: Path::LackBudgetLeft, reason: skein_codec::Reason::Short })?;
+        Ok(Self { needs: decoded_needs, left: decoded_left })
+    }
+}
+
+impl LackBudget {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn lack_budget_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LackBudget::encoded_bound_within(limits)?);
+    lack_grant_encoded_bound_family(limits, biggest)
+}
+
+fn lack_budget_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LackBudget::decoded_bound_within(limits)?);
+    lack_grant_decoded_bound_family(limits, biggest)
+}
+
 /// Movable fields of `LackGrant`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct LackGrantParts {
@@ -1339,6 +2426,73 @@ impl LackGrant {
     #[must_use]
     pub fn into_parts(self) -> LackGrantParts { LackGrantParts { kind: self.kind } }
 
+}
+
+impl LackGrant {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(2).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_kind = &self.kind;
+        writer.put(&field_kind.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::LackGrantTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_kind = reader.u16().ok_or(Problem { path: Path::LackGrantKind, reason: skein_codec::Reason::Short })?;
+        Ok(Self { kind: decoded_kind })
+    }
+}
+
+impl LackGrant {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(2_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn lack_grant_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LackGrant::encoded_bound_within(limits)?);
+    lack_depth_encoded_bound_family(limits, biggest)
+}
+
+fn lack_grant_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LackGrant::decoded_bound_within(limits)?);
+    lack_depth_decoded_bound_family(limits, biggest)
 }
 
 /// Movable fields of `LackDepth`.
@@ -1372,6 +2526,73 @@ impl LackDepth {
 
 }
 
+impl LackDepth {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_most = &self.most;
+        writer.put(&field_most.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::LackDepthTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_most = reader.u32().ok_or(Problem { path: Path::LackDepthMost, reason: skein_codec::Reason::Short })?;
+        Ok(Self { most: decoded_most })
+    }
+}
+
+impl LackDepth {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn lack_depth_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LackDepth::encoded_bound_within(limits)?);
+    lack_tasks_encoded_bound_family(limits, biggest)
+}
+
+fn lack_depth_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LackDepth::decoded_bound_within(limits)?);
+    lack_tasks_decoded_bound_family(limits, biggest)
+}
+
 /// Movable fields of `LackTasks`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct LackTasksParts {
@@ -1401,6 +2622,73 @@ impl LackTasks {
     #[must_use]
     pub fn into_parts(self) -> LackTasksParts { LackTasksParts { left: self.left } }
 
+}
+
+impl LackTasks {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_left = &self.left;
+        writer.put(&field_left.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::LackTasksTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_left = reader.u32().ok_or(Problem { path: Path::LackTasksLeft, reason: skein_codec::Reason::Short })?;
+        Ok(Self { left: decoded_left })
+    }
+}
+
+impl LackTasks {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn lack_tasks_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LackTasks::encoded_bound_within(limits)?);
+    lack_required_encoded_bound_family(limits, biggest)
+}
+
+fn lack_tasks_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LackTasks::decoded_bound_within(limits)?);
+    lack_required_decoded_bound_family(limits, biggest)
 }
 
 /// Movable fields of `LackRequired`.
@@ -1441,6 +2729,77 @@ impl LackRequired {
 
 }
 
+impl LackRequired {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(2).expect("schema ceilings fit u32");
+        size = size.checked_add(2).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_connector = &self.connector;
+        writer.put(&field_connector.to_be_bytes())?;
+        let field_kind = &self.kind;
+        writer.put(&field_kind.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::LackRequiredTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_connector = reader.u16().ok_or(Problem { path: Path::LackRequiredConnector, reason: skein_codec::Reason::Short })?;
+        let decoded_kind = reader.u16().ok_or(Problem { path: Path::LackRequiredKind, reason: skein_codec::Reason::Short })?;
+        Ok(Self { connector: decoded_connector, kind: decoded_kind })
+    }
+}
+
+impl LackRequired {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(2_u64)?.checked_add(2_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn lack_required_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LackRequired::encoded_bound_within(limits)?);
+    lack_failed_encoded_bound_family(limits, biggest)
+}
+
+fn lack_required_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LackRequired::decoded_bound_within(limits)?);
+    lack_failed_decoded_bound_family(limits, biggest)
+}
+
 /// Movable fields of `LackFailed`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct LackFailedParts {
@@ -1479,6 +2838,77 @@ impl LackFailed {
 
 }
 
+impl LackFailed {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(2).expect("schema ceilings fit u32");
+        size = size.checked_add(2).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_connector = &self.connector;
+        writer.put(&field_connector.to_be_bytes())?;
+        let field_kind = &self.kind;
+        writer.put(&field_kind.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::LackFailedTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_connector = reader.u16().ok_or(Problem { path: Path::LackFailedConnector, reason: skein_codec::Reason::Short })?;
+        let decoded_kind = reader.u16().ok_or(Problem { path: Path::LackFailedKind, reason: skein_codec::Reason::Short })?;
+        Ok(Self { connector: decoded_connector, kind: decoded_kind })
+    }
+}
+
+impl LackFailed {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(2_u64)?.checked_add(2_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn lack_failed_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LackFailed::encoded_bound_within(limits)?);
+    lack_unguarded_encoded_bound_family(limits, biggest)
+}
+
+fn lack_failed_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LackFailed::decoded_bound_within(limits)?);
+    lack_unguarded_decoded_bound_family(limits, biggest)
+}
+
 /// Movable fields of `LackUnguarded`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct LackUnguardedParts {
@@ -1515,6 +2945,77 @@ impl LackUnguarded {
     #[must_use]
     pub fn into_parts(self) -> LackUnguardedParts { LackUnguardedParts { connector: self.connector, kind: self.kind } }
 
+}
+
+impl LackUnguarded {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(2).expect("schema ceilings fit u32");
+        size = size.checked_add(2).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_connector = &self.connector;
+        writer.put(&field_connector.to_be_bytes())?;
+        let field_kind = &self.kind;
+        writer.put(&field_kind.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::LackUnguardedTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_connector = reader.u16().ok_or(Problem { path: Path::LackUnguardedConnector, reason: skein_codec::Reason::Short })?;
+        let decoded_kind = reader.u16().ok_or(Problem { path: Path::LackUnguardedKind, reason: skein_codec::Reason::Short })?;
+        Ok(Self { connector: decoded_connector, kind: decoded_kind })
+    }
+}
+
+impl LackUnguarded {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(2_u64)?.checked_add(2_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn lack_unguarded_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LackUnguarded::encoded_bound_within(limits)?);
+    lack_encoded_bound_family(limits, biggest)
+}
+
+fn lack_unguarded_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LackUnguarded::decoded_bound_within(limits)?);
+    lack_decoded_bound_family(limits, biggest)
 }
 
 /// `Lack` in this codec family.
@@ -1570,6 +3071,132 @@ impl Lack {
         Ok(value)
     }
 
+}
+
+impl Lack {
+    /// Measures this variant's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        match self {
+            Self::Again(record) => 1_u32.checked_add(LackAgain::measure(record)).expect("schema ceilings fit u32"),
+            Self::Budget(record) => 1_u32.checked_add(LackBudget::measure(record)).expect("schema ceilings fit u32"),
+            Self::Grant(record) => 1_u32.checked_add(LackGrant::measure(record)).expect("schema ceilings fit u32"),
+            Self::Depth(record) => 1_u32.checked_add(LackDepth::measure(record)).expect("schema ceilings fit u32"),
+            Self::Tasks(record) => 1_u32.checked_add(LackTasks::measure(record)).expect("schema ceilings fit u32"),
+            Self::Required(record) => 1_u32.checked_add(LackRequired::measure(record)).expect("schema ceilings fit u32"),
+            Self::Failed(record) => 1_u32.checked_add(LackFailed::measure(record)).expect("schema ceilings fit u32"),
+            Self::Unguarded(record) => 1_u32.checked_add(LackUnguarded::measure(record)).expect("schema ceilings fit u32"),
+            Self::Approver | Self::Funding | Self::TaskKind | Self::Deadline | Self::Tool | Self::Scope | Self::Reference | Self::ResourceAccess | Self::ResourceUnavailable | Self::Shape | Self::Account | Self::Writer | Self::Models => 1,
+        }
+    }
+
+    /// Writes this variant's tag and payload.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        match self {
+            Self::Approver => writer.put(&[0_u8])?,
+            Self::Again(record) => { writer.put(&[1_u8])?; record.encode(writer)?; }
+            Self::Budget(record) => { writer.put(&[2_u8])?; record.encode(writer)?; }
+            Self::Grant(record) => { writer.put(&[3_u8])?; record.encode(writer)?; }
+            Self::Funding => writer.put(&[4_u8])?,
+            Self::TaskKind => writer.put(&[5_u8])?,
+            Self::Depth(record) => { writer.put(&[6_u8])?; record.encode(writer)?; }
+            Self::Deadline => writer.put(&[7_u8])?,
+            Self::Tasks(record) => { writer.put(&[8_u8])?; record.encode(writer)?; }
+            Self::Tool => writer.put(&[9_u8])?,
+            Self::Scope => writer.put(&[10_u8])?,
+            Self::Reference => writer.put(&[11_u8])?,
+            Self::ResourceAccess => writer.put(&[12_u8])?,
+            Self::ResourceUnavailable => writer.put(&[13_u8])?,
+            Self::Shape => writer.put(&[14_u8])?,
+            Self::Account => writer.put(&[15_u8])?,
+            Self::Writer => writer.put(&[16_u8])?,
+            Self::Required(record) => { writer.put(&[17_u8])?; record.encode(writer)?; }
+            Self::Failed(record) => { writer.put(&[18_u8])?; record.encode(writer)?; }
+            Self::Unguarded(record) => { writer.put(&[19_u8])?; record.encode(writer)?; }
+            Self::Models => writer.put(&[20_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole variant and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::LackTag, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: Path::LackTag, reason: skein_codec::Reason::Short })?;
+        let value = match tag {
+            0 => Self::Approver,
+            1 => Self::Again(LackAgain::decode_from(limits, reader)?),
+            2 => Self::Budget(LackBudget::decode_from(limits, reader)?),
+            3 => Self::Grant(LackGrant::decode_from(limits, reader)?),
+            4 => Self::Funding,
+            5 => Self::TaskKind,
+            6 => Self::Depth(LackDepth::decode_from(limits, reader)?),
+            7 => Self::Deadline,
+            8 => Self::Tasks(LackTasks::decode_from(limits, reader)?),
+            9 => Self::Tool,
+            10 => Self::Scope,
+            11 => Self::Reference,
+            12 => Self::ResourceAccess,
+            13 => Self::ResourceUnavailable,
+            14 => Self::Shape,
+            15 => Self::Account,
+            16 => Self::Writer,
+            17 => Self::Required(LackRequired::decode_from(limits, reader)?),
+            18 => Self::Failed(LackFailed::decode_from(limits, reader)?),
+            19 => Self::Unguarded(LackUnguarded::decode_from(limits, reader)?),
+            20 => Self::Models,
+            _ => return Err(Problem { path: Path::LackTag, reason: skein_codec::Reason::Tag }),
+        };
+        Ok(value)
+    }
+}
+
+impl Lack {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(LackAgain::encoded_bound_within(limits)?).max(LackBudget::encoded_bound_within(limits)?);
+        biggest = biggest.max(LackGrant::encoded_bound_within(limits)?).max(LackDepth::encoded_bound_within(limits)?);
+        biggest = biggest.max(LackTasks::encoded_bound_within(limits)?).max(LackRequired::encoded_bound_within(limits)?);
+        biggest = biggest.max(LackFailed::encoded_bound_within(limits)?).max(LackUnguarded::encoded_bound_within(limits)?);
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(LackAgain::decoded_bound_within(limits)?).max(LackBudget::decoded_bound_within(limits)?);
+        biggest = biggest.max(LackGrant::decoded_bound_within(limits)?).max(LackDepth::decoded_bound_within(limits)?);
+        biggest = biggest.max(LackTasks::decoded_bound_within(limits)?).max(LackRequired::decoded_bound_within(limits)?);
+        biggest = biggest.max(LackFailed::decoded_bound_within(limits)?).max(LackUnguarded::decoded_bound_within(limits)?);
+        biggest.checked_add(0)
+    }
+}
+
+fn lack_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Lack::encoded_bound_within(limits)?);
+    limit_kind_encoded_bound_family(limits, biggest)
+}
+
+fn lack_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Lack::decoded_bound_within(limits)?);
+    limit_kind_decoded_bound_family(limits, biggest)
 }
 
 /// `LimitKind` in this codec family.
@@ -1661,2922 +3288,6 @@ impl LimitKind {
         Ok(value)
     }
 
-}
-
-/// Movable fields of `PartyPerson`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct PartyPersonParts {
-    /// The `value` field.
-    pub value: u64,
-}
-
-/// `PartyPerson` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct PartyPerson {
-    value: u64,
-}
-
-impl PartyPerson {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: PartyPersonParts) -> Result<Self, Problem> {
-        let PartyPersonParts { value } = parts;
-        let value = Self { value };
-        Ok(value)
-    }
-
-    /// Reads the `value` field.
-    #[must_use]
-    pub fn value(&self) -> u64 { self.value }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> PartyPersonParts { PartyPersonParts { value: self.value } }
-
-}
-
-/// Movable fields of `PartyTask`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct PartyTaskParts {
-    /// The `value` field.
-    pub value: u64,
-}
-
-/// `PartyTask` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct PartyTask {
-    value: u64,
-}
-
-impl PartyTask {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: PartyTaskParts) -> Result<Self, Problem> {
-        let PartyTaskParts { value } = parts;
-        let value = Self { value };
-        Ok(value)
-    }
-
-    /// Reads the `value` field.
-    #[must_use]
-    pub fn value(&self) -> u64 { self.value }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> PartyTaskParts { PartyTaskParts { value: self.value } }
-
-}
-
-/// Movable fields of `PartyDeployment`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct PartyDeploymentParts {
-    /// The `project` field.
-    pub project: u32,
-}
-
-/// `PartyDeployment` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct PartyDeployment {
-    project: u32,
-}
-
-impl PartyDeployment {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: PartyDeploymentParts) -> Result<Self, Problem> {
-        let PartyDeploymentParts { project } = parts;
-        let value = Self { project };
-        Ok(value)
-    }
-
-    /// Reads the `project` field.
-    #[must_use]
-    pub fn project(&self) -> u32 { self.project }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> PartyDeploymentParts { PartyDeploymentParts { project: self.project } }
-
-}
-
-/// `Party` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum Party {
-    /// `person` carrying `PartyPerson`.
-    Person(PartyPerson),
-    /// `task` carrying `PartyTask`.
-    Task(PartyTask),
-    /// `deployment` carrying `PartyDeployment`.
-    Deployment(PartyDeployment),
-}
-
-impl Party {
-    /// Checks the payload against the given limits.
-    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
-        Ok(value)
-    }
-
-}
-
-/// Movable fields of `EndingCancelled`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct EndingCancelledParts {
-    /// The `by` field.
-    pub by: Party,
-    /// The `at` field.
-    pub at: u64,
-}
-
-/// `EndingCancelled` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct EndingCancelled {
-    by: Party,
-    at: u64,
-}
-
-impl EndingCancelled {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: EndingCancelledParts) -> Result<Self, Problem> {
-        let EndingCancelledParts { by, at } = parts;
-        let value = Self { by, at };
-        Ok(value)
-    }
-
-    /// Reads the `by` field.
-    #[must_use]
-    pub fn by(&self) -> &Party { &self.by }
-
-    /// Reads the `at` field.
-    #[must_use]
-    pub fn at(&self) -> u64 { self.at }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> EndingCancelledParts { EndingCancelledParts { by: self.by, at: self.at } }
-
-}
-
-/// Movable fields of `EndingDecided`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct EndingDecidedParts {
-    /// The `by` field.
-    pub by: u64,
-    /// The `at` field.
-    pub at: u64,
-}
-
-/// `EndingDecided` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct EndingDecided {
-    by: u64,
-    at: u64,
-}
-
-impl EndingDecided {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: EndingDecidedParts) -> Result<Self, Problem> {
-        let EndingDecidedParts { by, at } = parts;
-        let value = Self { by, at };
-        Ok(value)
-    }
-
-    /// Reads the `by` field.
-    #[must_use]
-    pub fn by(&self) -> u64 { self.by }
-
-    /// Reads the `at` field.
-    #[must_use]
-    pub fn at(&self) -> u64 { self.at }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> EndingDecidedParts { EndingDecidedParts { by: self.by, at: self.at } }
-
-}
-
-/// `Ending` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum Ending {
-    /// `done` without a payload.
-    Done,
-    /// `failed` without a payload.
-    Failed,
-    /// `cancelled` carrying `EndingCancelled`.
-    Cancelled(EndingCancelled),
-    /// `decided` carrying `EndingDecided`.
-    Decided(EndingDecided),
-    /// `deleted` without a payload.
-    Deleted,
-}
-
-impl Ending {
-    /// Checks the payload against the given limits.
-    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
-        Ok(value)
-    }
-
-}
-
-/// Movable fields of `MovedSpec`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct MovedSpecParts {
-    /// The `revision` field.
-    pub revision: u64,
-}
-
-/// `MovedSpec` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct MovedSpec {
-    revision: u64,
-}
-
-impl MovedSpec {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: MovedSpecParts) -> Result<Self, Problem> {
-        let MovedSpecParts { revision } = parts;
-        let value = Self { revision };
-        Ok(value)
-    }
-
-    /// Reads the `revision` field.
-    #[must_use]
-    pub fn revision(&self) -> u64 { self.revision }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> MovedSpecParts { MovedSpecParts { revision: self.revision } }
-
-}
-
-/// Movable fields of `MovedPerson`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct MovedPersonParts {
-    /// The `revision` field.
-    pub revision: u64,
-}
-
-/// `MovedPerson` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct MovedPerson {
-    revision: u64,
-}
-
-impl MovedPerson {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: MovedPersonParts) -> Result<Self, Problem> {
-        let MovedPersonParts { revision } = parts;
-        let value = Self { revision };
-        Ok(value)
-    }
-
-    /// Reads the `revision` field.
-    #[must_use]
-    pub fn revision(&self) -> u64 { self.revision }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> MovedPersonParts { MovedPersonParts { revision: self.revision } }
-
-}
-
-/// Movable fields of `MovedNote`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct MovedNoteParts {
-    /// The `revision` field.
-    pub revision: u32,
-}
-
-/// `MovedNote` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct MovedNote {
-    revision: u32,
-}
-
-impl MovedNote {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: MovedNoteParts) -> Result<Self, Problem> {
-        let MovedNoteParts { revision } = parts;
-        let value = Self { revision };
-        Ok(value)
-    }
-
-    /// Reads the `revision` field.
-    #[must_use]
-    pub fn revision(&self) -> u32 { self.revision }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> MovedNoteParts { MovedNoteParts { revision: self.revision } }
-
-}
-
-/// Movable fields of `HoldReasonDependency`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct HoldReasonDependencyParts {
-    /// The `task` field.
-    pub task: u64,
-}
-
-/// `HoldReasonDependency` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct HoldReasonDependency {
-    task: u64,
-}
-
-impl HoldReasonDependency {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: HoldReasonDependencyParts) -> Result<Self, Problem> {
-        let HoldReasonDependencyParts { task } = parts;
-        let value = Self { task };
-        Ok(value)
-    }
-
-    /// Reads the `task` field.
-    #[must_use]
-    pub fn task(&self) -> u64 { self.task }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> HoldReasonDependencyParts { HoldReasonDependencyParts { task: self.task } }
-
-}
-
-/// Movable fields of `HoldReasonPlaced`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct HoldReasonPlacedParts {
-    /// The `hold` field.
-    pub hold: u64,
-}
-
-/// `HoldReasonPlaced` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct HoldReasonPlaced {
-    hold: u64,
-}
-
-impl HoldReasonPlaced {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: HoldReasonPlacedParts) -> Result<Self, Problem> {
-        let HoldReasonPlacedParts { hold } = parts;
-        let value = Self { hold };
-        Ok(value)
-    }
-
-    /// Reads the `hold` field.
-    #[must_use]
-    pub fn hold(&self) -> u64 { self.hold }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> HoldReasonPlacedParts { HoldReasonPlacedParts { hold: self.hold } }
-
-}
-
-/// Movable fields of `HoldReasonUncertain`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct HoldReasonUncertainParts {
-    /// The `entry` field.
-    pub entry: u64,
-}
-
-/// `HoldReasonUncertain` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct HoldReasonUncertain {
-    entry: u64,
-}
-
-impl HoldReasonUncertain {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: HoldReasonUncertainParts) -> Result<Self, Problem> {
-        let HoldReasonUncertainParts { entry } = parts;
-        let value = Self { entry };
-        Ok(value)
-    }
-
-    /// Reads the `entry` field.
-    #[must_use]
-    pub fn entry(&self) -> u64 { self.entry }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> HoldReasonUncertainParts { HoldReasonUncertainParts { entry: self.entry } }
-
-}
-
-/// Movable fields of `HoldReasonPoolLost`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct HoldReasonPoolLostParts {
-    /// The `pool` field.
-    pub pool: u64,
-}
-
-/// `HoldReasonPoolLost` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct HoldReasonPoolLost {
-    pool: u64,
-}
-
-impl HoldReasonPoolLost {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: HoldReasonPoolLostParts) -> Result<Self, Problem> {
-        let HoldReasonPoolLostParts { pool } = parts;
-        let value = Self { pool };
-        Ok(value)
-    }
-
-    /// Reads the `pool` field.
-    #[must_use]
-    pub fn pool(&self) -> u64 { self.pool }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> HoldReasonPoolLostParts { HoldReasonPoolLostParts { pool: self.pool } }
-
-}
-
-/// `FailureClass` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum FailureClass {
-    /// `transient` without a payload.
-    Transient,
-    /// `permanent` without a payload.
-    Permanent,
-    /// `run` without a payload.
-    Run,
-    /// `agent` without a payload.
-    Agent,
-    /// `lost` without a payload.
-    Lost,
-    /// `invalid` without a payload.
-    Invalid,
-    /// `infrastructure` without a payload.
-    Infrastructure,
-}
-
-impl FailureClass {
-    /// Checks the payload against the given limits.
-    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
-        Ok(value)
-    }
-
-}
-
-/// `EffectPhase` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum EffectPhase {
-    /// `kept` without a payload.
-    Kept,
-    /// `sent` without a payload.
-    Sent,
-    /// `uncertain` without a payload.
-    Uncertain,
-    /// `retry` without a payload.
-    Retry,
-    /// `repeat` without a payload.
-    Repeat,
-    /// `held` without a payload.
-    Held,
-}
-
-impl EffectPhase {
-    /// Checks the payload against the given limits.
-    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
-        Ok(value)
-    }
-
-}
-
-/// `ResourceRole` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum ResourceRole {
-    /// `owned` without a payload.
-    Owned,
-    /// `participating` without a payload.
-    Participating,
-    /// `context` without a payload.
-    Context,
-    /// `unavailable` without a payload.
-    Unavailable,
-}
-
-impl ResourceRole {
-    /// Checks the payload against the given limits.
-    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
-        Ok(value)
-    }
-
-}
-
-/// Movable fields of `ApplicationOutcomeChanged`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct ApplicationOutcomeChangedParts {
-    /// The `object` field.
-    pub object: u64,
-    /// The `now` field.
-    pub now: ApplicationObject,
-}
-
-/// `ApplicationOutcomeChanged` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct ApplicationOutcomeChanged {
-    object: u64,
-    now: ApplicationObject,
-}
-
-impl ApplicationOutcomeChanged {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: ApplicationOutcomeChangedParts) -> Result<Self, Problem> {
-        let ApplicationOutcomeChangedParts { object, now } = parts;
-        let value = Self { object, now };
-        Ok(value)
-    }
-
-    /// Reads the `object` field.
-    #[must_use]
-    pub fn object(&self) -> u64 { self.object }
-
-    /// Reads the `now` field.
-    #[must_use]
-    pub fn now(&self) -> &ApplicationObject { &self.now }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> ApplicationOutcomeChangedParts { ApplicationOutcomeChangedParts { object: self.object, now: self.now } }
-
-}
-
-/// Movable fields of `ApplicationOutcomeMoved`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct ApplicationOutcomeMovedParts {
-    /// The `object` field.
-    pub object: u64,
-    /// The `now` field.
-    pub now: ApplicationObject,
-}
-
-/// `ApplicationOutcomeMoved` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct ApplicationOutcomeMoved {
-    object: u64,
-    now: ApplicationObject,
-}
-
-impl ApplicationOutcomeMoved {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: ApplicationOutcomeMovedParts) -> Result<Self, Problem> {
-        let ApplicationOutcomeMovedParts { object, now } = parts;
-        let value = Self { object, now };
-        Ok(value)
-    }
-
-    /// Reads the `object` field.
-    #[must_use]
-    pub fn object(&self) -> u64 { self.object }
-
-    /// Reads the `now` field.
-    #[must_use]
-    pub fn now(&self) -> &ApplicationObject { &self.now }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> ApplicationOutcomeMovedParts { ApplicationOutcomeMovedParts { object: self.object, now: self.now } }
-
-}
-
-/// Movable fields of `ApplicationOutcomeRole`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct ApplicationOutcomeRoleParts {
-    /// The `held` field.
-    pub held: u32,
-}
-
-/// `ApplicationOutcomeRole` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct ApplicationOutcomeRole {
-    held: u32,
-}
-
-impl ApplicationOutcomeRole {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: ApplicationOutcomeRoleParts) -> Result<Self, Problem> {
-        let ApplicationOutcomeRoleParts { held } = parts;
-        let value = Self { held };
-        Ok(value)
-    }
-
-    /// Reads the `held` field.
-    #[must_use]
-    pub fn held(&self) -> u32 { self.held }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> ApplicationOutcomeRoleParts { ApplicationOutcomeRoleParts { held: self.held } }
-
-}
-
-/// Movable fields of `RecordApplicationObject`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RecordApplicationObjectParts {
-    /// The `object` field.
-    pub object: u64,
-    /// The `now` field.
-    pub now: ApplicationObject,
-}
-
-/// `RecordApplicationObject` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RecordApplicationObject {
-    object: u64,
-    now: ApplicationObject,
-}
-
-impl RecordApplicationObject {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: RecordApplicationObjectParts) -> Result<Self, Problem> {
-        let RecordApplicationObjectParts { object, now } = parts;
-        let value = Self { object, now };
-        Ok(value)
-    }
-
-    /// Reads the `object` field.
-    #[must_use]
-    pub fn object(&self) -> u64 { self.object }
-
-    /// Reads the `now` field.
-    #[must_use]
-    pub fn now(&self) -> &ApplicationObject { &self.now }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> RecordApplicationObjectParts { RecordApplicationObjectParts { object: self.object, now: self.now } }
-
-}
-
-/// Movable fields of `RecordProposal`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RecordProposalParts {
-    /// The `number` field.
-    pub number: u64,
-    /// The `task` field.
-    pub task: u64,
-    /// The `project` field.
-    pub project: u32,
-    /// The `effect` field.
-    pub effect: Effect,
-}
-
-/// `RecordProposal` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RecordProposal {
-    number: u64,
-    task: u64,
-    project: u32,
-    effect: Effect,
-}
-
-impl RecordProposal {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: RecordProposalParts) -> Result<Self, Problem> {
-        let RecordProposalParts { number, task, project, effect } = parts;
-        let value = Self { number, task, project, effect };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `number` field.
-    #[must_use]
-    pub fn number(&self) -> u64 { self.number }
-
-    /// Reads the `task` field.
-    #[must_use]
-    pub fn task(&self) -> u64 { self.task }
-
-    /// Reads the `project` field.
-    #[must_use]
-    pub fn project(&self) -> u32 { self.project }
-
-    /// Reads the `effect` field.
-    #[must_use]
-    pub fn effect(&self) -> &Effect { &self.effect }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> RecordProposalParts { RecordProposalParts { number: self.number, task: self.task, project: self.project, effect: self.effect } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        self.effect.check(limits)?;
-        Ok(())
-    }
-}
-
-/// Movable fields of `RecordProcedure`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RecordProcedureParts {
-    /// The `value` field.
-    pub value: ProcedureState,
-}
-
-/// `RecordProcedure` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RecordProcedure {
-    value: ProcedureState,
-}
-
-impl RecordProcedure {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: RecordProcedureParts) -> Result<Self, Problem> {
-        let RecordProcedureParts { value } = parts;
-        let value = Self { value };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `value` field.
-    #[must_use]
-    pub fn value(&self) -> &ProcedureState { &self.value }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> RecordProcedureParts { RecordProcedureParts { value: self.value } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        self.value.check(limits)?;
-        Ok(())
-    }
-}
-
-/// Movable fields of `SpecRevision`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct SpecRevisionParts {
-    /// The `task` field.
-    pub task: u64,
-    /// The `revision` field.
-    pub revision: u64,
-}
-
-/// `SpecRevision` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct SpecRevision {
-    task: u64,
-    revision: u64,
-}
-
-impl SpecRevision {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: SpecRevisionParts) -> Result<Self, Problem> {
-        let SpecRevisionParts { task, revision } = parts;
-        let value = Self { task, revision };
-        Ok(value)
-    }
-
-    /// Reads the `task` field.
-    #[must_use]
-    pub fn task(&self) -> u64 { self.task }
-
-    /// Reads the `revision` field.
-    #[must_use]
-    pub fn revision(&self) -> u64 { self.revision }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> SpecRevisionParts { SpecRevisionParts { task: self.task, revision: self.revision } }
-
-}
-
-/// Movable fields of `RecordProcedureDelegateOutcome`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RecordProcedureDelegateOutcomeParts {
-    /// The `task` field.
-    pub task: u64,
-    /// The `step` field.
-    pub step: u64,
-    /// The `child` field.
-    pub child: Option<u64>,
-    /// The `revisions` field.
-    pub revisions: List<SpecRevision>,
-}
-
-/// `RecordProcedureDelegateOutcome` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RecordProcedureDelegateOutcome {
-    task: u64,
-    step: u64,
-    child: Option<u64>,
-    revisions: List<SpecRevision>,
-}
-
-impl RecordProcedureDelegateOutcome {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: RecordProcedureDelegateOutcomeParts) -> Result<Self, Problem> {
-        let RecordProcedureDelegateOutcomeParts { task, step, child, revisions } = parts;
-        let value = Self { task, step, child, revisions };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `task` field.
-    #[must_use]
-    pub fn task(&self) -> u64 { self.task }
-
-    /// Reads the `step` field.
-    #[must_use]
-    pub fn step(&self) -> u64 { self.step }
-
-    /// Reads the `child` field.
-    #[must_use]
-    pub fn child(&self) -> &Option<u64> { &self.child }
-
-    /// Reads the `revisions` field.
-    #[must_use]
-    pub fn revisions(&self) -> &List<SpecRevision> { &self.revisions }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> RecordProcedureDelegateOutcomeParts { RecordProcedureDelegateOutcomeParts { task: self.task, step: self.step, child: self.child, revisions: self.revisions } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        if self.revisions.capacity() > limits.record_procedure_delegate_outcome_revisions.min(CEILINGS.record_procedure_delegate_outcome_revisions) { return Err(Problem { path: Path::RecordProcedureDelegateOutcomeRevisions, reason: skein_codec::Reason::Bound }); }
-        Ok(())
-    }
-}
-
-/// Movable fields of `RecordResult`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RecordResultParts {
-    /// The `task` field.
-    pub task: u64,
-    /// The `code` field.
-    pub code: u16,
-}
-
-/// `RecordResult` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RecordResult {
-    task: u64,
-    code: u16,
-}
-
-impl RecordResult {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: RecordResultParts) -> Result<Self, Problem> {
-        let RecordResultParts { task, code } = parts;
-        let value = Self { task, code };
-        Ok(value)
-    }
-
-    /// Reads the `task` field.
-    #[must_use]
-    pub fn task(&self) -> u64 { self.task }
-
-    /// Reads the `code` field.
-    #[must_use]
-    pub fn code(&self) -> u16 { self.code }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> RecordResultParts { RecordResultParts { task: self.task, code: self.code } }
-
-}
-
-/// Movable fields of `RecordTask`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RecordTaskParts {
-    /// The `task` field.
-    pub task: u64,
-    /// The `project` field.
-    pub project: u32,
-    /// The `resources` field.
-    pub resources: List<ResourcePath>,
-}
-
-/// `RecordTask` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RecordTask {
-    task: u64,
-    project: u32,
-    resources: List<ResourcePath>,
-}
-
-impl RecordTask {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: RecordTaskParts) -> Result<Self, Problem> {
-        let RecordTaskParts { task, project, resources } = parts;
-        let value = Self { task, project, resources };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `task` field.
-    #[must_use]
-    pub fn task(&self) -> u64 { self.task }
-
-    /// Reads the `project` field.
-    #[must_use]
-    pub fn project(&self) -> u32 { self.project }
-
-    /// Reads the `resources` field.
-    #[must_use]
-    pub fn resources(&self) -> &List<ResourcePath> { &self.resources }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> RecordTaskParts { RecordTaskParts { task: self.task, project: self.project, resources: self.resources } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        if self.resources.capacity() > limits.record_task_resources.min(CEILINGS.record_task_resources) { return Err(Problem { path: Path::RecordTaskResources, reason: skein_codec::Reason::Bound }); }
-        for item_0 in self.resources.as_slice() {
-        item_0.check(limits)?;
-        }
-        Ok(())
-    }
-}
-
-/// Movable fields of `RecordAdoption`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RecordAdoptionParts {
-    /// The `project` field.
-    pub project: u32,
-    /// The `path` field.
-    pub path: ResourcePath,
-    /// The `role` field.
-    pub role: ResourceRole,
-}
-
-/// `RecordAdoption` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RecordAdoption {
-    project: u32,
-    path: ResourcePath,
-    role: ResourceRole,
-}
-
-impl RecordAdoption {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: RecordAdoptionParts) -> Result<Self, Problem> {
-        let RecordAdoptionParts { project, path, role } = parts;
-        let value = Self { project, path, role };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `project` field.
-    #[must_use]
-    pub fn project(&self) -> u32 { self.project }
-
-    /// Reads the `path` field.
-    #[must_use]
-    pub fn path(&self) -> &ResourcePath { &self.path }
-
-    /// Reads the `role` field.
-    #[must_use]
-    pub fn role(&self) -> &ResourceRole { &self.role }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> RecordAdoptionParts { RecordAdoptionParts { project: self.project, path: self.path, role: self.role } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        self.path.check(limits)?;
-        Ok(())
-    }
-}
-
-/// Movable fields of `RecordSubscription`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RecordSubscriptionParts {
-    /// The `topic` field.
-    pub topic: u16,
-    /// The `task` field.
-    pub task: u64,
-    /// The `wake_at` field.
-    pub wake_at: u16,
-    /// The `keep_at` field.
-    pub keep_at: u16,
-}
-
-/// `RecordSubscription` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RecordSubscription {
-    topic: u16,
-    task: u64,
-    wake_at: u16,
-    keep_at: u16,
-}
-
-impl RecordSubscription {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: RecordSubscriptionParts) -> Result<Self, Problem> {
-        let RecordSubscriptionParts { topic, task, wake_at, keep_at } = parts;
-        let value = Self { topic, task, wake_at, keep_at };
-        Ok(value)
-    }
-
-    /// Reads the `topic` field.
-    #[must_use]
-    pub fn topic(&self) -> u16 { self.topic }
-
-    /// Reads the `task` field.
-    #[must_use]
-    pub fn task(&self) -> u64 { self.task }
-
-    /// Reads the `wake_at` field.
-    #[must_use]
-    pub fn wake_at(&self) -> u16 { self.wake_at }
-
-    /// Reads the `keep_at` field.
-    #[must_use]
-    pub fn keep_at(&self) -> u16 { self.keep_at }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> RecordSubscriptionParts { RecordSubscriptionParts { topic: self.topic, task: self.task, wake_at: self.wake_at, keep_at: self.keep_at } }
-
-}
-
-/// Movable fields of `RecordPool`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RecordPoolParts {
-    /// The `path` field.
-    pub path: ResourcePath,
-    /// The `slots` field.
-    pub slots: u32,
-}
-
-/// `RecordPool` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RecordPool {
-    path: ResourcePath,
-    slots: u32,
-}
-
-impl RecordPool {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: RecordPoolParts) -> Result<Self, Problem> {
-        let RecordPoolParts { path, slots } = parts;
-        let value = Self { path, slots };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `path` field.
-    #[must_use]
-    pub fn path(&self) -> &ResourcePath { &self.path }
-
-    /// Reads the `slots` field.
-    #[must_use]
-    pub fn slots(&self) -> u32 { self.slots }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> RecordPoolParts { RecordPoolParts { path: self.path, slots: self.slots } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        self.path.check(limits)?;
-        Ok(())
-    }
-}
-
-/// Movable fields of `RecordMade`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RecordMadeParts {
-    /// The `key` field.
-    pub key: Key,
-    /// The `resources` field.
-    pub resources: List<ResourcePath>,
-    /// The `state` field.
-    pub state: u64,
-}
-
-/// `RecordMade` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RecordMade {
-    key: Key,
-    resources: List<ResourcePath>,
-    state: u64,
-}
-
-impl RecordMade {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: RecordMadeParts) -> Result<Self, Problem> {
-        let RecordMadeParts { key, resources, state } = parts;
-        let value = Self { key, resources, state };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `key` field.
-    #[must_use]
-    pub fn key(&self) -> &Key { &self.key }
-
-    /// Reads the `resources` field.
-    #[must_use]
-    pub fn resources(&self) -> &List<ResourcePath> { &self.resources }
-
-    /// Reads the `state` field.
-    #[must_use]
-    pub fn state(&self) -> u64 { self.state }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> RecordMadeParts { RecordMadeParts { key: self.key, resources: self.resources, state: self.state } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        if self.resources.capacity() > limits.record_made_resources.min(CEILINGS.record_made_resources) { return Err(Problem { path: Path::RecordMadeResources, reason: skein_codec::Reason::Bound }); }
-        for item_0 in self.resources.as_slice() {
-        item_0.check(limits)?;
-        }
-        Ok(())
-    }
-}
-
-/// Movable fields of `OutboxEntry`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OutboxEntryParts {
-    /// The `number` field.
-    pub number: u64,
-    /// The `task` field.
-    pub task: u64,
-    /// The `key` field.
-    pub key: Key,
-    /// The `effect` field.
-    pub effect: Effect,
-    /// The `attempt` field.
-    pub attempt: Option<Attempt>,
-    /// The `phase` field.
-    pub phase: EffectPhase,
-}
-
-/// `OutboxEntry` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OutboxEntry {
-    number: u64,
-    task: u64,
-    key: Key,
-    effect: Effect,
-    attempt: Option<Attempt>,
-    phase: EffectPhase,
-}
-
-impl OutboxEntry {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: OutboxEntryParts) -> Result<Self, Problem> {
-        let OutboxEntryParts { number, task, key, effect, attempt, phase } = parts;
-        let value = Self { number, task, key, effect, attempt, phase };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `number` field.
-    #[must_use]
-    pub fn number(&self) -> u64 { self.number }
-
-    /// Reads the `task` field.
-    #[must_use]
-    pub fn task(&self) -> u64 { self.task }
-
-    /// Reads the `key` field.
-    #[must_use]
-    pub fn key(&self) -> &Key { &self.key }
-
-    /// Reads the `effect` field.
-    #[must_use]
-    pub fn effect(&self) -> &Effect { &self.effect }
-
-    /// Reads the `attempt` field.
-    #[must_use]
-    pub fn attempt(&self) -> &Option<Attempt> { &self.attempt }
-
-    /// Reads the `phase` field.
-    #[must_use]
-    pub fn phase(&self) -> &EffectPhase { &self.phase }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> OutboxEntryParts { OutboxEntryParts { number: self.number, task: self.task, key: self.key, effect: self.effect, attempt: self.attempt, phase: self.phase } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        self.effect.check(limits)?;
-        Ok(())
-    }
-}
-
-/// Movable fields of `RefusalAuthority`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RefusalAuthorityParts {
-    /// The `lacking` field.
-    pub lacking: Lack,
-    /// The `proposable` field.
-    pub proposable: Option<bool>,
-}
-
-/// `RefusalAuthority` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RefusalAuthority {
-    lacking: Lack,
-    proposable: Option<bool>,
-}
-
-impl RefusalAuthority {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: RefusalAuthorityParts) -> Result<Self, Problem> {
-        let RefusalAuthorityParts { lacking, proposable } = parts;
-        let value = Self { lacking, proposable };
-        Ok(value)
-    }
-
-    /// Reads the `lacking` field.
-    #[must_use]
-    pub fn lacking(&self) -> &Lack { &self.lacking }
-
-    /// Reads the `proposable` field.
-    #[must_use]
-    pub fn proposable(&self) -> &Option<bool> { &self.proposable }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> RefusalAuthorityParts { RefusalAuthorityParts { lacking: self.lacking, proposable: self.proposable } }
-
-}
-
-/// Movable fields of `RefusalLimit`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RefusalLimitParts {
-    /// The `which` field.
-    pub which: LimitKind,
-}
-
-/// `RefusalLimit` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RefusalLimit {
-    which: LimitKind,
-}
-
-impl RefusalLimit {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: RefusalLimitParts) -> Result<Self, Problem> {
-        let RefusalLimitParts { which } = parts;
-        let value = Self { which };
-        Ok(value)
-    }
-
-    /// Reads the `which` field.
-    #[must_use]
-    pub fn which(&self) -> &LimitKind { &self.which }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> RefusalLimitParts { RefusalLimitParts { which: self.which } }
-
-}
-
-/// Movable fields of `RefusalEnded`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RefusalEndedParts {
-    /// The `how` field.
-    pub how: Ending,
-}
-
-/// `RefusalEnded` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RefusalEnded {
-    how: Ending,
-}
-
-impl RefusalEnded {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: RefusalEndedParts) -> Result<Self, Problem> {
-        let RefusalEndedParts { how } = parts;
-        let value = Self { how };
-        Ok(value)
-    }
-
-    /// Reads the `how` field.
-    #[must_use]
-    pub fn how(&self) -> &Ending { &self.how }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> RefusalEndedParts { RefusalEndedParts { how: self.how } }
-
-}
-
-/// Movable fields of `HoldReasonFailures`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct HoldReasonFailuresParts {
-    /// The `class` field.
-    pub class: FailureClass,
-}
-
-/// `HoldReasonFailures` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct HoldReasonFailures {
-    class: FailureClass,
-}
-
-impl HoldReasonFailures {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: HoldReasonFailuresParts) -> Result<Self, Problem> {
-        let HoldReasonFailuresParts { class } = parts;
-        let value = Self { class };
-        Ok(value)
-    }
-
-    /// Reads the `class` field.
-    #[must_use]
-    pub fn class(&self) -> &FailureClass { &self.class }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> HoldReasonFailuresParts { HoldReasonFailuresParts { class: self.class } }
-
-}
-
-/// `Bound` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum Bound {
-    /// `reasoning` without a payload.
-    Reasoning,
-    /// `metadata` without a payload.
-    Metadata,
-    /// `items` without a payload.
-    Items,
-    /// `answer` without a payload.
-    Answer,
-    /// `tools` without a payload.
-    Tools,
-    /// `history_items` without a payload.
-    HistoryItems,
-    /// `history` without a payload.
-    History,
-    /// `window` without a payload.
-    Window,
-    /// `output` without a payload.
-    Output,
-}
-
-impl Bound {
-    /// Checks the payload against the given limits.
-    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
-        Ok(value)
-    }
-
-}
-
-/// Movable fields of `Exceeded`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct ExceededParts {
-    /// The `bound` field.
-    pub bound: Bound,
-    /// The `value` field.
-    pub value: u64,
-}
-
-/// `Exceeded` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Exceeded {
-    bound: Bound,
-    value: u64,
-}
-
-impl Exceeded {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: ExceededParts) -> Result<Self, Problem> {
-        let ExceededParts { bound, value } = parts;
-        let value = Self { bound, value };
-        Ok(value)
-    }
-
-    /// Reads the `bound` field.
-    #[must_use]
-    pub fn bound(&self) -> &Bound { &self.bound }
-
-    /// Reads the `value` field.
-    #[must_use]
-    pub fn value(&self) -> u64 { self.value }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> ExceededParts { ExceededParts { bound: self.bound, value: self.value } }
-
-}
-
-/// `HoldReason` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum HoldReason {
-    /// `failures` carrying `HoldReasonFailures`.
-    Failures(HoldReasonFailures),
-    /// `stalled` without a payload.
-    Stalled,
-    /// `dependency` carrying `HoldReasonDependency`.
-    Dependency(HoldReasonDependency),
-    /// `stopped` without a payload.
-    Stopped,
-    /// `placed` carrying `HoldReasonPlaced`.
-    Placed(HoldReasonPlaced),
-    /// `drift` without a payload.
-    Drift,
-    /// `effects` without a payload.
-    Effects,
-    /// `effect_failed` without a payload.
-    EffectFailed,
-    /// `uncertain` carrying `HoldReasonUncertain`.
-    Uncertain(HoldReasonUncertain),
-    /// `budget` without a payload.
-    Budget,
-    /// `deadline` without a payload.
-    Deadline,
-    /// `holds_waited` without a payload.
-    HoldsWaited,
-    /// `resource_unavailable` without a payload.
-    ResourceUnavailable,
-    /// `resource_access` without a payload.
-    ResourceAccess,
-    /// `pool_lost` carrying `HoldReasonPoolLost`.
-    PoolLost(HoldReasonPoolLost),
-    /// `procedure` without a payload.
-    Procedure,
-    /// `circle` without a payload.
-    Circle,
-    /// `exceeded` carrying `Exceeded`.
-    Exceeded(Exceeded),
-}
-
-impl HoldReason {
-    /// Checks the payload against the given limits.
-    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
-        Ok(value)
-    }
-
-}
-
-/// Movable fields of `RecordOutbox`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RecordOutboxParts {
-    /// The `value` field.
-    pub value: OutboxEntry,
-}
-
-/// `RecordOutbox` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RecordOutbox {
-    value: OutboxEntry,
-}
-
-impl RecordOutbox {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: RecordOutboxParts) -> Result<Self, Problem> {
-        let RecordOutboxParts { value } = parts;
-        let value = Self { value };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `value` field.
-    #[must_use]
-    pub fn value(&self) -> &OutboxEntry { &self.value }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> RecordOutboxParts { RecordOutboxParts { value: self.value } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        self.value.check(limits)?;
-        Ok(())
-    }
-}
-
-/// Movable fields of `MovedHold`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct MovedHoldParts {
-    /// The `revision` field.
-    pub revision: u64,
-    /// The `reason` field.
-    pub reason: HoldReason,
-}
-
-/// `MovedHold` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct MovedHold {
-    revision: u64,
-    reason: HoldReason,
-}
-
-impl MovedHold {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: MovedHoldParts) -> Result<Self, Problem> {
-        let MovedHoldParts { revision, reason } = parts;
-        let value = Self { revision, reason };
-        Ok(value)
-    }
-
-    /// Reads the `revision` field.
-    #[must_use]
-    pub fn revision(&self) -> u64 { self.revision }
-
-    /// Reads the `reason` field.
-    #[must_use]
-    pub fn reason(&self) -> &HoldReason { &self.reason }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> MovedHoldParts { MovedHoldParts { revision: self.revision, reason: self.reason } }
-
-}
-
-/// `Moved` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum Moved {
-    /// `hold` carrying `MovedHold`.
-    Hold(MovedHold),
-    /// `spec` carrying `MovedSpec`.
-    Spec(MovedSpec),
-    /// `person` carrying `MovedPerson`.
-    Person(MovedPerson),
-    /// `note` carrying `MovedNote`.
-    Note(MovedNote),
-}
-
-impl Moved {
-    /// Checks the payload against the given limits.
-    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
-        Ok(value)
-    }
-
-}
-
-/// Movable fields of `RefusalMoved`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RefusalMovedParts {
-    /// The `now` field.
-    pub now: Moved,
-}
-
-/// `RefusalMoved` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RefusalMoved {
-    now: Moved,
-}
-
-impl RefusalMoved {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: RefusalMovedParts) -> Result<Self, Problem> {
-        let RefusalMovedParts { now } = parts;
-        let value = Self { now };
-        Ok(value)
-    }
-
-    /// Reads the `now` field.
-    #[must_use]
-    pub fn now(&self) -> &Moved { &self.now }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> RefusalMovedParts { RefusalMovedParts { now: self.now } }
-
-}
-
-/// `Refusal` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum Refusal {
-    /// `role` carrying `RefusalRole`.
-    Role(RefusalRole),
-    /// `authority` carrying `RefusalAuthority`.
-    Authority(RefusalAuthority),
-    /// `limit` carrying `RefusalLimit`.
-    Limit(RefusalLimit),
-    /// `moved` carrying `RefusalMoved`.
-    Moved(RefusalMoved),
-    /// `ended` carrying `RefusalEnded`.
-    Ended(RefusalEnded),
-    /// `taken` carrying `RefusalTaken`.
-    Taken(RefusalTaken),
-    /// `not_waiting` without a payload.
-    NotWaiting,
-    /// `no_further` without a payload.
-    NoFurther,
-    /// `unknown` without a payload.
-    Unknown,
-    /// `not_offered` without a payload.
-    NotOffered,
-    /// `key_conflict` without a payload.
-    KeyConflict,
-}
-
-impl Refusal {
-    /// Checks the payload against the given limits.
-    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
-        Ok(value)
-    }
-
-}
-
-/// Movable fields of `ApplicationOutcomeCoreRefused`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct ApplicationOutcomeCoreRefusedParts {
-    /// The `why` field.
-    pub why: Refusal,
-}
-
-/// `ApplicationOutcomeCoreRefused` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct ApplicationOutcomeCoreRefused {
-    why: Refusal,
-}
-
-impl ApplicationOutcomeCoreRefused {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: ApplicationOutcomeCoreRefusedParts) -> Result<Self, Problem> {
-        let ApplicationOutcomeCoreRefusedParts { why } = parts;
-        let value = Self { why };
-        Ok(value)
-    }
-
-    /// Reads the `why` field.
-    #[must_use]
-    pub fn why(&self) -> &Refusal { &self.why }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> ApplicationOutcomeCoreRefusedParts { ApplicationOutcomeCoreRefusedParts { why: self.why } }
-
-}
-
-/// `ApplicationOutcome` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum ApplicationOutcome {
-    /// `changed` carrying `ApplicationOutcomeChanged`.
-    Changed(ApplicationOutcomeChanged),
-    /// `moved` carrying `ApplicationOutcomeMoved`.
-    Moved(ApplicationOutcomeMoved),
-    /// `role` carrying `ApplicationOutcomeRole`.
-    Role(ApplicationOutcomeRole),
-    /// `unknown` without a payload.
-    Unknown,
-    /// `exhausted` without a payload.
-    Exhausted,
-    /// `core_refused` carrying `ApplicationOutcomeCoreRefused`.
-    CoreRefused(ApplicationOutcomeCoreRefused),
-}
-
-impl ApplicationOutcome {
-    /// Checks the payload against the given limits.
-    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
-        Ok(value)
-    }
-
-}
-
-/// Movable fields of `RecordApplicationAnswer`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RecordApplicationAnswerParts {
-    /// The `token` field.
-    pub token: u64,
-    /// The `until` field.
-    pub until: u64,
-    /// The `outcome` field.
-    pub outcome: ApplicationOutcome,
-}
-
-/// `RecordApplicationAnswer` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RecordApplicationAnswer {
-    token: u64,
-    until: u64,
-    outcome: ApplicationOutcome,
-}
-
-impl RecordApplicationAnswer {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: RecordApplicationAnswerParts) -> Result<Self, Problem> {
-        let RecordApplicationAnswerParts { token, until, outcome } = parts;
-        let value = Self { token, until, outcome };
-        Ok(value)
-    }
-
-    /// Reads the `token` field.
-    #[must_use]
-    pub fn token(&self) -> u64 { self.token }
-
-    /// Reads the `until` field.
-    #[must_use]
-    pub fn until(&self) -> u64 { self.until }
-
-    /// Reads the `outcome` field.
-    #[must_use]
-    pub fn outcome(&self) -> &ApplicationOutcome { &self.outcome }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> RecordApplicationAnswerParts { RecordApplicationAnswerParts { token: self.token, until: self.until, outcome: self.outcome } }
-
-}
-
-/// Movable fields of `SettingSet`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct SettingSetParts {
-    /// The `value` field.
-    pub value: Box<[u8]>,
-}
-
-/// `SettingSet` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct SettingSet {
-    value: Box<[u8]>,
-}
-
-impl SettingSet {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: SettingSetParts) -> Result<Self, Problem> {
-        let SettingSetParts { value } = parts;
-        let value = Self { value };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `value` field.
-    #[must_use]
-    pub fn value(&self) -> &[u8] { &self.value }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> SettingSetParts { SettingSetParts { value: self.value } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        if self.value.len() > usize::try_from(limits.setting_set_value.min(CEILINGS.setting_set_value)).expect("u32 fits usize") { return Err(Problem { path: Path::SettingSetValue, reason: skein_codec::Reason::Bound }); }
-        Ok(())
-    }
-}
-
-/// `SettingEdit` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum SettingEdit {
-    /// `set` carrying `SettingSet`.
-    Set(SettingSet),
-    /// `remove` without a payload.
-    Remove,
-    /// `reset` without a payload.
-    Reset,
-}
-
-impl SettingEdit {
-    /// Checks the payload against the given limits.
-    pub fn new(limits: &Limits, value: Self) -> Result<Self, Problem> {
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        match self {
-            Self::Set(record) => SettingSet::check(record, limits),
-            Self::Remove | Self::Reset => Ok(()),
-        }?;
-        Ok(())
-    }
-}
-
-/// Movable fields of `RecordSettingDefault`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RecordSettingDefaultParts {
-    /// The `kind` field.
-    pub kind: u32,
-    /// The `scope` field.
-    pub scope: u32,
-    /// The `number` field.
-    pub number: u32,
-    /// The `value` field.
-    pub value: Box<[u8]>,
-}
-
-/// `RecordSettingDefault` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RecordSettingDefault {
-    kind: u32,
-    scope: u32,
-    number: u32,
-    value: Box<[u8]>,
-}
-
-impl RecordSettingDefault {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: RecordSettingDefaultParts) -> Result<Self, Problem> {
-        let RecordSettingDefaultParts { kind, scope, number, value } = parts;
-        let value = Self { kind, scope, number, value };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `kind` field.
-    #[must_use]
-    pub fn kind(&self) -> u32 { self.kind }
-
-    /// Reads the `scope` field.
-    #[must_use]
-    pub fn scope(&self) -> u32 { self.scope }
-
-    /// Reads the `number` field.
-    #[must_use]
-    pub fn number(&self) -> u32 { self.number }
-
-    /// Reads the `value` field.
-    #[must_use]
-    pub fn value(&self) -> &[u8] { &self.value }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> RecordSettingDefaultParts { RecordSettingDefaultParts { kind: self.kind, scope: self.scope, number: self.number, value: self.value } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        if self.value.len() > usize::try_from(limits.record_setting_default_value.min(CEILINGS.record_setting_default_value)).expect("u32 fits usize") { return Err(Problem { path: Path::RecordSettingDefaultValue, reason: skein_codec::Reason::Bound }); }
-        Ok(())
-    }
-}
-
-/// Movable fields of `RecordSettingChange`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RecordSettingChangeParts {
-    /// The `kind` field.
-    pub kind: u32,
-    /// The `scope` field.
-    pub scope: u32,
-    /// The `number` field.
-    pub number: u32,
-    /// The `value` field.
-    pub value: Option<Box<[u8]>>,
-}
-
-/// `RecordSettingChange` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RecordSettingChange {
-    kind: u32,
-    scope: u32,
-    number: u32,
-    value: Option<Box<[u8]>>,
-}
-
-impl RecordSettingChange {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: RecordSettingChangeParts) -> Result<Self, Problem> {
-        let RecordSettingChangeParts { kind, scope, number, value } = parts;
-        let value = Self { kind, scope, number, value };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `kind` field.
-    #[must_use]
-    pub fn kind(&self) -> u32 { self.kind }
-
-    /// Reads the `scope` field.
-    #[must_use]
-    pub fn scope(&self) -> u32 { self.scope }
-
-    /// Reads the `number` field.
-    #[must_use]
-    pub fn number(&self) -> u32 { self.number }
-
-    /// Reads the `value` field.
-    #[must_use]
-    pub fn value(&self) -> &Option<Box<[u8]>> { &self.value }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> RecordSettingChangeParts { RecordSettingChangeParts { kind: self.kind, scope: self.scope, number: self.number, value: self.value } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        if let Some(some_0) = self.value.as_ref() && some_0.len() > usize::try_from(limits.record_setting_change_value_some.min(CEILINGS.record_setting_change_value_some)).expect("u32 fits usize") { return Err(Problem { path: Path::RecordSettingChangeValue, reason: skein_codec::Reason::Bound }); }
-        Ok(())
-    }
-}
-
-/// Movable fields of `RecordSettingProposal`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RecordSettingProposalParts {
-    /// The `proposal` field.
-    pub proposal: u64,
-    /// The `kind` field.
-    pub kind: u32,
-    /// The `scope` field.
-    pub scope: u32,
-    /// The `number` field.
-    pub number: u32,
-    /// The `edit` field.
-    pub edit: SettingEdit,
-}
-
-/// `RecordSettingProposal` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RecordSettingProposal {
-    proposal: u64,
-    kind: u32,
-    scope: u32,
-    number: u32,
-    edit: SettingEdit,
-}
-
-impl RecordSettingProposal {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: RecordSettingProposalParts) -> Result<Self, Problem> {
-        let RecordSettingProposalParts { proposal, kind, scope, number, edit } = parts;
-        let value = Self { proposal, kind, scope, number, edit };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `proposal` field.
-    #[must_use]
-    pub fn proposal(&self) -> u64 { self.proposal }
-
-    /// Reads the `kind` field.
-    #[must_use]
-    pub fn kind(&self) -> u32 { self.kind }
-
-    /// Reads the `scope` field.
-    #[must_use]
-    pub fn scope(&self) -> u32 { self.scope }
-
-    /// Reads the `number` field.
-    #[must_use]
-    pub fn number(&self) -> u32 { self.number }
-
-    /// Reads the `edit` field.
-    #[must_use]
-    pub fn edit(&self) -> &SettingEdit { &self.edit }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> RecordSettingProposalParts { RecordSettingProposalParts { proposal: self.proposal, kind: self.kind, scope: self.scope, number: self.number, edit: self.edit } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        self.edit.check(limits)?;
-        Ok(())
-    }
-}
-
-/// Movable fields of `RecordSettingReplaced`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RecordSettingReplacedParts {
-    /// The `kind` field.
-    pub kind: u32,
-    /// The `scope` field.
-    pub scope: u32,
-    /// The `number` field.
-    pub number: u32,
-    /// The `revision` field.
-    pub revision: u64,
-    /// The `value` field.
-    pub value: Box<[u8]>,
-}
-
-/// `RecordSettingReplaced` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RecordSettingReplaced {
-    kind: u32,
-    scope: u32,
-    number: u32,
-    revision: u64,
-    value: Box<[u8]>,
-}
-
-impl RecordSettingReplaced {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: RecordSettingReplacedParts) -> Result<Self, Problem> {
-        let RecordSettingReplacedParts { kind, scope, number, revision, value } = parts;
-        let value = Self { kind, scope, number, revision, value };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `kind` field.
-    #[must_use]
-    pub fn kind(&self) -> u32 { self.kind }
-
-    /// Reads the `scope` field.
-    #[must_use]
-    pub fn scope(&self) -> u32 { self.scope }
-
-    /// Reads the `number` field.
-    #[must_use]
-    pub fn number(&self) -> u32 { self.number }
-
-    /// Reads the `revision` field.
-    #[must_use]
-    pub fn revision(&self) -> u64 { self.revision }
-
-    /// Reads the `value` field.
-    #[must_use]
-    pub fn value(&self) -> &[u8] { &self.value }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> RecordSettingReplacedParts { RecordSettingReplacedParts { kind: self.kind, scope: self.scope, number: self.number, revision: self.revision, value: self.value } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        if self.value.len() > usize::try_from(limits.record_setting_replaced_value.min(CEILINGS.record_setting_replaced_value)).expect("u32 fits usize") { return Err(Problem { path: Path::RecordSettingReplacedValue, reason: skein_codec::Reason::Bound }); }
-        Ok(())
-    }
-}
-
-/// `Value` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum Value {
-    /// `application_object` carrying `RecordApplicationObject`.
-    ApplicationObject(RecordApplicationObject),
-    /// `application_answer` carrying `RecordApplicationAnswer`.
-    ApplicationAnswer(RecordApplicationAnswer),
-    /// `proposal` carrying `RecordProposal`.
-    Proposal(RecordProposal),
-    /// `procedure` carrying `RecordProcedure`.
-    Procedure(RecordProcedure),
-    /// `procedure_delegate_outcome` carrying `RecordProcedureDelegateOutcome`.
-    ProcedureDelegateOutcome(RecordProcedureDelegateOutcome),
-    /// `result` carrying `RecordResult`.
-    Result(RecordResult),
-    /// `task` carrying `RecordTask`.
-    Task(RecordTask),
-    /// `adoption` carrying `RecordAdoption`.
-    Adoption(RecordAdoption),
-    /// `subscription` carrying `RecordSubscription`.
-    Subscription(RecordSubscription),
-    /// `pool` carrying `RecordPool`.
-    Pool(RecordPool),
-    /// `outbox` carrying `RecordOutbox`.
-    Outbox(RecordOutbox),
-    /// `made` carrying `RecordMade`.
-    Made(RecordMade),
-    /// `setting_default` carrying `RecordSettingDefault`.
-    SettingDefault(RecordSettingDefault),
-    /// `setting_change` carrying `RecordSettingChange`.
-    SettingChange(RecordSettingChange),
-    /// `setting_proposal` carrying `RecordSettingProposal`.
-    SettingProposal(RecordSettingProposal),
-    /// `setting_replaced` carrying `RecordSettingReplaced`.
-    SettingReplaced(RecordSettingReplaced),
-}
-
-impl Value {
-    /// Checks the payload against the given limits.
-    pub fn new(limits: &Limits, value: Self) -> Result<Self, Problem> {
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        match self {
-            Self::Proposal(record) => RecordProposal::check(record, limits),
-            Self::Procedure(record) => RecordProcedure::check(record, limits),
-            Self::ProcedureDelegateOutcome(record) => RecordProcedureDelegateOutcome::check(record, limits),
-            Self::Task(record) => RecordTask::check(record, limits),
-            Self::Adoption(record) => RecordAdoption::check(record, limits),
-            Self::Pool(record) => RecordPool::check(record, limits),
-            Self::Outbox(record) => RecordOutbox::check(record, limits),
-            Self::Made(record) => RecordMade::check(record, limits),
-            Self::SettingDefault(record) => RecordSettingDefault::check(record, limits),
-            Self::SettingChange(record) => RecordSettingChange::check(record, limits),
-            Self::SettingProposal(record) => RecordSettingProposal::check(record, limits),
-            Self::SettingReplaced(record) => RecordSettingReplaced::check(record, limits),
-            Self::ApplicationObject(_) | Self::ApplicationAnswer(_) | Self::Result(_) | Self::Subscription(_) => Ok(()),
-        }?;
-        Ok(())
-    }
-}
-
-/// Movable fields of `Row`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RowParts {
-    /// The `value` field.
-    pub value: Value,
-}
-
-/// `Row` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Row {
-    value: Value,
-}
-
-impl Row {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: RowParts) -> Result<Self, Problem> {
-        let RowParts { value } = parts;
-        let value = Self { value };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `value` field.
-    #[must_use]
-    pub fn value(&self) -> &Value { &self.value }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> RowParts { RowParts { value: self.value } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        self.value.check(limits)?;
-        Ok(())
-    }
-}
-
-impl Segment {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        let field_bytes = &self.bytes;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(u32::try_from(field_bytes.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_bytes = &self.bytes;
-        writer.put(&u32::try_from(field_bytes.len()).expect("field ceiling fits u32").to_be_bytes())?;
-        writer.put(field_bytes.as_ref())?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::SegmentTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_bytes = { let length = match skein_codec::read_len(reader, limits.segment_bytes.min(CEILINGS.segment_bytes)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::SegmentBytes, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::SegmentBytes, reason: skein_codec::Reason::Short })?) };
-        Ok(Self { bytes: decoded_bytes })
-    }
-}
-
-impl ResourcePath {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        let field_segments = &self.segments;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        for item_0 in field_segments.as_slice() {
-        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
-        }
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_segments = &self.segments;
-        writer.put(&field_segments.len().to_be_bytes())?;
-        for item_0 in field_segments.as_slice() {
-        item_0.encode(writer)?;
-        }
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::ResourcePathTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_segments = { let count = match skein_codec::read_count(reader, limits.resource_path_segments.min(CEILINGS.resource_path_segments)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ResourcePathSegments, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::ResourcePathSegments, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Segment::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
-        Ok(Self { segments: decoded_segments })
-    }
-}
-
-impl CallPurpose {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_attempt = &self.attempt;
-        writer.put(&field_attempt.to_be_bytes())?;
-        let field_completion = &self.completion;
-        writer.put(&field_completion.to_be_bytes())?;
-        let field_position = &self.position;
-        writer.put(&field_position.to_be_bytes())?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::CallPurposeTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_attempt = reader.u64().ok_or(Problem { path: Path::CallPurposeAttempt, reason: skein_codec::Reason::Short })?;
-        let decoded_completion = reader.u32().ok_or(Problem { path: Path::CallPurposeCompletion, reason: skein_codec::Reason::Short })?;
-        let decoded_position = reader.u32().ok_or(Problem { path: Path::CallPurposePosition, reason: skein_codec::Reason::Short })?;
-        Ok(Self { attempt: decoded_attempt, completion: decoded_completion, position: decoded_position })
-    }
-}
-
-impl Purpose {
-    /// Measures this variant's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        match self {
-            Self::Call(record) => 1_u32.checked_add(CallPurpose::measure(record)).expect("schema ceilings fit u32"),
-            Self::Procedure | Self::Projection => 1,
-        }
-    }
-
-    /// Writes this variant's tag and payload.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        match self {
-            Self::Procedure => writer.put(&[0_u8])?,
-            Self::Projection => writer.put(&[1_u8])?,
-            Self::Call(record) => { writer.put(&[2_u8])?; record.encode(writer)?; }
-        }
-        Ok(())
-    }
-
-    /// Reads a whole variant and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::PurposeTag, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let tag = reader.u8().ok_or(Problem { path: Path::PurposeTag, reason: skein_codec::Reason::Short })?;
-        let value = match tag {
-            0 => Self::Procedure,
-            1 => Self::Projection,
-            2 => Self::Call(CallPurpose::decode_from(limits, reader)?),
-            _ => return Err(Problem { path: Path::PurposeTag, reason: skein_codec::Reason::Tag }),
-        };
-        Ok(value)
-    }
-}
-
-impl Key {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        let field_origin = &self.origin;
-        size = size.checked_add(field_origin.measure()).expect("schema ceilings fit u32");
-        size = size.checked_add(16).expect("schema ceilings fit u32");
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_origin = &self.origin;
-        field_origin.encode(writer)?;
-        let field_deployment = &self.deployment;
-        writer.put(field_deployment)?;
-        let field_task = &self.task;
-        writer.put(&field_task.to_be_bytes())?;
-        let field_purpose = &self.purpose;
-        writer.put(&field_purpose.to_be_bytes())?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::KeyTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_origin = Purpose::decode_from(limits, reader)?;
-        let decoded_deployment = { let bytes = reader.bytes(16).ok_or(Problem { path: Path::KeyDeployment, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
-        let decoded_task = reader.u64().ok_or(Problem { path: Path::KeyTask, reason: skein_codec::Reason::Short })?;
-        let decoded_purpose = reader.u64().ok_or(Problem { path: Path::KeyPurpose, reason: skein_codec::Reason::Short })?;
-        Ok(Self { origin: decoded_origin, deployment: decoded_deployment, task: decoded_task, purpose: decoded_purpose })
-    }
-}
-
-impl Effect {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(2).expect("schema ceilings fit u32");
-        let field_resources = &self.resources;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        for item_0 in field_resources.as_slice() {
-        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
-        }
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        let field_condition = &self.condition;
-        size = size.checked_add(1).expect("schema ceilings fit u32");
-        if field_condition.is_some() {
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        }
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_kind = &self.kind;
-        writer.put(&field_kind.to_be_bytes())?;
-        let field_resources = &self.resources;
-        writer.put(&field_resources.len().to_be_bytes())?;
-        for item_0 in field_resources.as_slice() {
-        item_0.encode(writer)?;
-        }
-        let field_purpose = &self.purpose;
-        writer.put(&field_purpose.to_be_bytes())?;
-        let field_condition = &self.condition;
-        match field_condition {
-            Some(some_0) => {
-                writer.put(&[1_u8])?;
-        writer.put(&some_0.to_be_bytes())?;
-            }
-            None => writer.put(&[0_u8])?,
-        }
-        let field_target = &self.target;
-        writer.put(&field_target.to_be_bytes())?;
-        let field_state = &self.state;
-        writer.put(&field_state.to_be_bytes())?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::EffectTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_kind = reader.u16().ok_or(Problem { path: Path::EffectKind, reason: skein_codec::Reason::Short })?;
-        let decoded_resources = { let count = match skein_codec::read_count(reader, limits.effect_resources.min(CEILINGS.effect_resources)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::EffectResources, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::EffectResources, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = ResourcePath::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
-        let decoded_purpose = reader.u64().ok_or(Problem { path: Path::EffectPurpose, reason: skein_codec::Reason::Short })?;
-        let decoded_condition = match reader.u8().ok_or(Problem { path: Path::EffectCondition, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::EffectCondition, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::EffectCondition, reason: skein_codec::Reason::Tag }) };
-        let decoded_target = reader.u64().ok_or(Problem { path: Path::EffectTarget, reason: skein_codec::Reason::Short })?;
-        let decoded_state = reader.u64().ok_or(Problem { path: Path::EffectState, reason: skein_codec::Reason::Short })?;
-        Ok(Self { kind: decoded_kind, resources: decoded_resources, purpose: decoded_purpose, condition: decoded_condition, target: decoded_target, state: decoded_state })
-    }
-}
-
-impl Attempt {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_number = &self.number;
-        writer.put(&field_number.to_be_bytes())?;
-        let field_sent = &self.sent;
-        writer.put(&field_sent.to_be_bytes())?;
-        let field_deadline = &self.deadline;
-        writer.put(&field_deadline.to_be_bytes())?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::AttemptTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_number = reader.u32().ok_or(Problem { path: Path::AttemptNumber, reason: skein_codec::Reason::Short })?;
-        let decoded_sent = reader.u64().ok_or(Problem { path: Path::AttemptSent, reason: skein_codec::Reason::Short })?;
-        let decoded_deadline = reader.u64().ok_or(Problem { path: Path::AttemptDeadline, reason: skein_codec::Reason::Short })?;
-        Ok(Self { number: decoded_number, sent: decoded_sent, deadline: decoded_deadline })
-    }
-}
-
-impl ProcedureState {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        size = size.checked_add(2).expect("schema ceilings fit u32");
-        let field_resource = &self.resource;
-        size = size.checked_add(field_resource.measure()).expect("schema ceilings fit u32");
-        size = size.checked_add(2).expect("schema ceilings fit u32");
-        size = size.checked_add(2).expect("schema ceilings fit u32");
-        size = size.checked_add(1).expect("schema ceilings fit u32");
-        let field_deadline = &self.deadline;
-        size = size.checked_add(1).expect("schema ceilings fit u32");
-        if field_deadline.is_some() {
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        }
-        let field_delegate = &self.delegate;
-        size = size.checked_add(1).expect("schema ceilings fit u32");
-        if field_delegate.is_some() {
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        }
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_project = &self.project;
-        writer.put(&field_project.to_be_bytes())?;
-        let field_task = &self.task;
-        writer.put(&field_task.to_be_bytes())?;
-        let field_number = &self.number;
-        writer.put(&field_number.to_be_bytes())?;
-        let field_resource = &self.resource;
-        field_resource.encode(writer)?;
-        let field_index = &self.index;
-        writer.put(&field_index.to_be_bytes())?;
-        let field_steps = &self.steps;
-        writer.put(&field_steps.to_be_bytes())?;
-        let field_awaiting = &self.awaiting;
-        writer.put(&[u8::from(*field_awaiting)])?;
-        let field_deadline = &self.deadline;
-        match field_deadline {
-            Some(some_0) => {
-                writer.put(&[1_u8])?;
-        writer.put(&some_0.to_be_bytes())?;
-            }
-            None => writer.put(&[0_u8])?,
-        }
-        let field_delegate = &self.delegate;
-        match field_delegate {
-            Some(some_0) => {
-                writer.put(&[1_u8])?;
-        writer.put(&some_0.to_be_bytes())?;
-            }
-            None => writer.put(&[0_u8])?,
-        }
-        let field_revision = &self.revision;
-        writer.put(&field_revision.to_be_bytes())?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::ProcedureStateTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_project = reader.u32().ok_or(Problem { path: Path::ProcedureStateProject, reason: skein_codec::Reason::Short })?;
-        let decoded_task = reader.u64().ok_or(Problem { path: Path::ProcedureStateTask, reason: skein_codec::Reason::Short })?;
-        let decoded_number = reader.u16().ok_or(Problem { path: Path::ProcedureStateNumber, reason: skein_codec::Reason::Short })?;
-        let decoded_resource = ResourcePath::decode_from(limits, reader)?;
-        let decoded_index = reader.u16().ok_or(Problem { path: Path::ProcedureStateIndex, reason: skein_codec::Reason::Short })?;
-        let decoded_steps = reader.u16().ok_or(Problem { path: Path::ProcedureStateSteps, reason: skein_codec::Reason::Short })?;
-        let decoded_awaiting = match reader.u8().ok_or(Problem { path: Path::ProcedureStateAwaiting, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::ProcedureStateAwaiting, reason: skein_codec::Reason::Bool }) };
-        let decoded_deadline = match reader.u8().ok_or(Problem { path: Path::ProcedureStateDeadline, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::ProcedureStateDeadline, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::ProcedureStateDeadline, reason: skein_codec::Reason::Tag }) };
-        let decoded_delegate = match reader.u8().ok_or(Problem { path: Path::ProcedureStateDelegate, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::ProcedureStateDelegate, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::ProcedureStateDelegate, reason: skein_codec::Reason::Tag }) };
-        let decoded_revision = reader.u64().ok_or(Problem { path: Path::ProcedureStateRevision, reason: skein_codec::Reason::Short })?;
-        Ok(Self { project: decoded_project, task: decoded_task, number: decoded_number, resource: decoded_resource, index: decoded_index, steps: decoded_steps, awaiting: decoded_awaiting, deadline: decoded_deadline, delegate: decoded_delegate, revision: decoded_revision })
-    }
-}
-
-impl ApplicationObject {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_revision = &self.revision;
-        writer.put(&field_revision.to_be_bytes())?;
-        let field_value = &self.value;
-        writer.put(&field_value.to_be_bytes())?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::ApplicationObjectTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_revision = reader.u64().ok_or(Problem { path: Path::ApplicationObjectRevision, reason: skein_codec::Reason::Short })?;
-        let decoded_value = reader.u64().ok_or(Problem { path: Path::ApplicationObjectValue, reason: skein_codec::Reason::Short })?;
-        Ok(Self { revision: decoded_revision, value: decoded_value })
-    }
-}
-
-impl RefusalRole {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        let field_held = &self.held;
-        size = size.checked_add(1).expect("schema ceilings fit u32");
-        if field_held.is_some() {
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        }
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_held = &self.held;
-        match field_held {
-            Some(some_0) => {
-                writer.put(&[1_u8])?;
-        writer.put(&some_0.to_be_bytes())?;
-            }
-            None => writer.put(&[0_u8])?,
-        }
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::RefusalRoleTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_held = match reader.u8().ok_or(Problem { path: Path::RefusalRoleHeld, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u32().ok_or(Problem { path: Path::RefusalRoleHeld, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::RefusalRoleHeld, reason: skein_codec::Reason::Tag }) };
-        Ok(Self { held: decoded_held })
-    }
-}
-
-impl RefusalTaken {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_by = &self.by;
-        writer.put(&field_by.to_be_bytes())?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::RefusalTakenTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_by = reader.u64().ok_or(Problem { path: Path::RefusalTakenBy, reason: skein_codec::Reason::Short })?;
-        Ok(Self { by: decoded_by })
-    }
-}
-
-impl LackAgain {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(1).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_required = &self.required;
-        writer.put(&[u8::from(*field_required)])?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::LackAgainTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_required = match reader.u8().ok_or(Problem { path: Path::LackAgainRequired, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::LackAgainRequired, reason: skein_codec::Reason::Bool }) };
-        Ok(Self { required: decoded_required })
-    }
-}
-
-impl LackBudget {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_needs = &self.needs;
-        writer.put(&field_needs.to_be_bytes())?;
-        let field_left = &self.left;
-        writer.put(&field_left.to_be_bytes())?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::LackBudgetTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_needs = reader.u64().ok_or(Problem { path: Path::LackBudgetNeeds, reason: skein_codec::Reason::Short })?;
-        let decoded_left = reader.u64().ok_or(Problem { path: Path::LackBudgetLeft, reason: skein_codec::Reason::Short })?;
-        Ok(Self { needs: decoded_needs, left: decoded_left })
-    }
-}
-
-impl LackGrant {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(2).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_kind = &self.kind;
-        writer.put(&field_kind.to_be_bytes())?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::LackGrantTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_kind = reader.u16().ok_or(Problem { path: Path::LackGrantKind, reason: skein_codec::Reason::Short })?;
-        Ok(Self { kind: decoded_kind })
-    }
-}
-
-impl LackDepth {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_most = &self.most;
-        writer.put(&field_most.to_be_bytes())?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::LackDepthTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_most = reader.u32().ok_or(Problem { path: Path::LackDepthMost, reason: skein_codec::Reason::Short })?;
-        Ok(Self { most: decoded_most })
-    }
-}
-
-impl LackTasks {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_left = &self.left;
-        writer.put(&field_left.to_be_bytes())?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::LackTasksTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_left = reader.u32().ok_or(Problem { path: Path::LackTasksLeft, reason: skein_codec::Reason::Short })?;
-        Ok(Self { left: decoded_left })
-    }
-}
-
-impl LackRequired {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(2).expect("schema ceilings fit u32");
-        size = size.checked_add(2).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_connector = &self.connector;
-        writer.put(&field_connector.to_be_bytes())?;
-        let field_kind = &self.kind;
-        writer.put(&field_kind.to_be_bytes())?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::LackRequiredTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_connector = reader.u16().ok_or(Problem { path: Path::LackRequiredConnector, reason: skein_codec::Reason::Short })?;
-        let decoded_kind = reader.u16().ok_or(Problem { path: Path::LackRequiredKind, reason: skein_codec::Reason::Short })?;
-        Ok(Self { connector: decoded_connector, kind: decoded_kind })
-    }
-}
-
-impl LackFailed {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(2).expect("schema ceilings fit u32");
-        size = size.checked_add(2).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_connector = &self.connector;
-        writer.put(&field_connector.to_be_bytes())?;
-        let field_kind = &self.kind;
-        writer.put(&field_kind.to_be_bytes())?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::LackFailedTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_connector = reader.u16().ok_or(Problem { path: Path::LackFailedConnector, reason: skein_codec::Reason::Short })?;
-        let decoded_kind = reader.u16().ok_or(Problem { path: Path::LackFailedKind, reason: skein_codec::Reason::Short })?;
-        Ok(Self { connector: decoded_connector, kind: decoded_kind })
-    }
-}
-
-impl LackUnguarded {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(2).expect("schema ceilings fit u32");
-        size = size.checked_add(2).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_connector = &self.connector;
-        writer.put(&field_connector.to_be_bytes())?;
-        let field_kind = &self.kind;
-        writer.put(&field_kind.to_be_bytes())?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::LackUnguardedTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_connector = reader.u16().ok_or(Problem { path: Path::LackUnguardedConnector, reason: skein_codec::Reason::Short })?;
-        let decoded_kind = reader.u16().ok_or(Problem { path: Path::LackUnguardedKind, reason: skein_codec::Reason::Short })?;
-        Ok(Self { connector: decoded_connector, kind: decoded_kind })
-    }
-}
-
-impl Lack {
-    /// Measures this variant's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        match self {
-            Self::Again(record) => 1_u32.checked_add(LackAgain::measure(record)).expect("schema ceilings fit u32"),
-            Self::Budget(record) => 1_u32.checked_add(LackBudget::measure(record)).expect("schema ceilings fit u32"),
-            Self::Grant(record) => 1_u32.checked_add(LackGrant::measure(record)).expect("schema ceilings fit u32"),
-            Self::Depth(record) => 1_u32.checked_add(LackDepth::measure(record)).expect("schema ceilings fit u32"),
-            Self::Tasks(record) => 1_u32.checked_add(LackTasks::measure(record)).expect("schema ceilings fit u32"),
-            Self::Required(record) => 1_u32.checked_add(LackRequired::measure(record)).expect("schema ceilings fit u32"),
-            Self::Failed(record) => 1_u32.checked_add(LackFailed::measure(record)).expect("schema ceilings fit u32"),
-            Self::Unguarded(record) => 1_u32.checked_add(LackUnguarded::measure(record)).expect("schema ceilings fit u32"),
-            Self::Approver | Self::Funding | Self::TaskKind | Self::Deadline | Self::Tool | Self::Scope | Self::Reference | Self::ResourceAccess | Self::ResourceUnavailable | Self::Shape | Self::Account | Self::Writer | Self::Models => 1,
-        }
-    }
-
-    /// Writes this variant's tag and payload.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        match self {
-            Self::Approver => writer.put(&[0_u8])?,
-            Self::Again(record) => { writer.put(&[1_u8])?; record.encode(writer)?; }
-            Self::Budget(record) => { writer.put(&[2_u8])?; record.encode(writer)?; }
-            Self::Grant(record) => { writer.put(&[3_u8])?; record.encode(writer)?; }
-            Self::Funding => writer.put(&[4_u8])?,
-            Self::TaskKind => writer.put(&[5_u8])?,
-            Self::Depth(record) => { writer.put(&[6_u8])?; record.encode(writer)?; }
-            Self::Deadline => writer.put(&[7_u8])?,
-            Self::Tasks(record) => { writer.put(&[8_u8])?; record.encode(writer)?; }
-            Self::Tool => writer.put(&[9_u8])?,
-            Self::Scope => writer.put(&[10_u8])?,
-            Self::Reference => writer.put(&[11_u8])?,
-            Self::ResourceAccess => writer.put(&[12_u8])?,
-            Self::ResourceUnavailable => writer.put(&[13_u8])?,
-            Self::Shape => writer.put(&[14_u8])?,
-            Self::Account => writer.put(&[15_u8])?,
-            Self::Writer => writer.put(&[16_u8])?,
-            Self::Required(record) => { writer.put(&[17_u8])?; record.encode(writer)?; }
-            Self::Failed(record) => { writer.put(&[18_u8])?; record.encode(writer)?; }
-            Self::Unguarded(record) => { writer.put(&[19_u8])?; record.encode(writer)?; }
-            Self::Models => writer.put(&[20_u8])?,
-        }
-        Ok(())
-    }
-
-    /// Reads a whole variant and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::LackTag, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let tag = reader.u8().ok_or(Problem { path: Path::LackTag, reason: skein_codec::Reason::Short })?;
-        let value = match tag {
-            0 => Self::Approver,
-            1 => Self::Again(LackAgain::decode_from(limits, reader)?),
-            2 => Self::Budget(LackBudget::decode_from(limits, reader)?),
-            3 => Self::Grant(LackGrant::decode_from(limits, reader)?),
-            4 => Self::Funding,
-            5 => Self::TaskKind,
-            6 => Self::Depth(LackDepth::decode_from(limits, reader)?),
-            7 => Self::Deadline,
-            8 => Self::Tasks(LackTasks::decode_from(limits, reader)?),
-            9 => Self::Tool,
-            10 => Self::Scope,
-            11 => Self::Reference,
-            12 => Self::ResourceAccess,
-            13 => Self::ResourceUnavailable,
-            14 => Self::Shape,
-            15 => Self::Account,
-            16 => Self::Writer,
-            17 => Self::Required(LackRequired::decode_from(limits, reader)?),
-            18 => Self::Failed(LackFailed::decode_from(limits, reader)?),
-            19 => Self::Unguarded(LackUnguarded::decode_from(limits, reader)?),
-            20 => Self::Models,
-            _ => return Err(Problem { path: Path::LackTag, reason: skein_codec::Reason::Tag }),
-        };
-        Ok(value)
-    }
 }
 
 impl LimitKind {
@@ -4689,6 +3400,73 @@ impl LimitKind {
     }
 }
 
+impl LimitKind {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        biggest.checked_add(0)
+    }
+}
+
+fn limit_kind_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LimitKind::encoded_bound_within(limits)?);
+    party_person_encoded_bound_family(limits, biggest)
+}
+
+fn limit_kind_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LimitKind::decoded_bound_within(limits)?);
+    party_person_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `PartyPerson`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct PartyPersonParts {
+    /// The `value` field.
+    pub value: u64,
+}
+
+/// `PartyPerson` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct PartyPerson {
+    value: u64,
+}
+
+impl PartyPerson {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: PartyPersonParts) -> Result<Self, Problem> {
+        let PartyPersonParts { value } = parts;
+        let value = Self { value };
+        Ok(value)
+    }
+
+    /// Reads the `value` field.
+    #[must_use]
+    pub fn value(&self) -> u64 { self.value }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> PartyPersonParts { PartyPersonParts { value: self.value } }
+
+}
+
 impl PartyPerson {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -4716,6 +3494,75 @@ impl PartyPerson {
         let decoded_value = reader.u64().ok_or(Problem { path: Path::PartyPersonValue, reason: skein_codec::Reason::Short })?;
         Ok(Self { value: decoded_value })
     }
+}
+
+impl PartyPerson {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn party_person_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(PartyPerson::encoded_bound_within(limits)?);
+    party_task_encoded_bound_family(limits, biggest)
+}
+
+fn party_person_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(PartyPerson::decoded_bound_within(limits)?);
+    party_task_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `PartyTask`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct PartyTaskParts {
+    /// The `value` field.
+    pub value: u64,
+}
+
+/// `PartyTask` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct PartyTask {
+    value: u64,
+}
+
+impl PartyTask {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: PartyTaskParts) -> Result<Self, Problem> {
+        let PartyTaskParts { value } = parts;
+        let value = Self { value };
+        Ok(value)
+    }
+
+    /// Reads the `value` field.
+    #[must_use]
+    pub fn value(&self) -> u64 { self.value }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> PartyTaskParts { PartyTaskParts { value: self.value } }
+
 }
 
 impl PartyTask {
@@ -4747,6 +3594,75 @@ impl PartyTask {
     }
 }
 
+impl PartyTask {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn party_task_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(PartyTask::encoded_bound_within(limits)?);
+    party_deployment_encoded_bound_family(limits, biggest)
+}
+
+fn party_task_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(PartyTask::decoded_bound_within(limits)?);
+    party_deployment_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `PartyDeployment`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct PartyDeploymentParts {
+    /// The `project` field.
+    pub project: u32,
+}
+
+/// `PartyDeployment` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct PartyDeployment {
+    project: u32,
+}
+
+impl PartyDeployment {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: PartyDeploymentParts) -> Result<Self, Problem> {
+        let PartyDeploymentParts { project } = parts;
+        let value = Self { project };
+        Ok(value)
+    }
+
+    /// Reads the `project` field.
+    #[must_use]
+    pub fn project(&self) -> u32 { self.project }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> PartyDeploymentParts { PartyDeploymentParts { project: self.project } }
+
+}
+
 impl PartyDeployment {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -4774,6 +3690,63 @@ impl PartyDeployment {
         let decoded_project = reader.u32().ok_or(Problem { path: Path::PartyDeploymentProject, reason: skein_codec::Reason::Short })?;
         Ok(Self { project: decoded_project })
     }
+}
+
+impl PartyDeployment {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn party_deployment_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(PartyDeployment::encoded_bound_within(limits)?);
+    party_encoded_bound_family(limits, biggest)
+}
+
+fn party_deployment_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(PartyDeployment::decoded_bound_within(limits)?);
+    party_decoded_bound_family(limits, biggest)
+}
+
+/// `Party` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum Party {
+    /// `person` carrying `PartyPerson`.
+    Person(PartyPerson),
+    /// `task` carrying `PartyTask`.
+    Task(PartyTask),
+    /// `deployment` carrying `PartyDeployment`.
+    Deployment(PartyDeployment),
+}
+
+impl Party {
+    /// Checks the payload against the given limits.
+    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+        Ok(value)
+    }
+
 }
 
 impl Party {
@@ -4816,6 +3789,84 @@ impl Party {
     }
 }
 
+impl Party {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(PartyPerson::encoded_bound_within(limits)?).max(PartyTask::encoded_bound_within(limits)?);
+        biggest = biggest.max(PartyDeployment::encoded_bound_within(limits)?);
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(PartyPerson::decoded_bound_within(limits)?).max(PartyTask::decoded_bound_within(limits)?);
+        biggest = biggest.max(PartyDeployment::decoded_bound_within(limits)?);
+        biggest.checked_add(0)
+    }
+}
+
+fn party_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Party::encoded_bound_within(limits)?);
+    ending_cancelled_encoded_bound_family(limits, biggest)
+}
+
+fn party_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Party::decoded_bound_within(limits)?);
+    ending_cancelled_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `EndingCancelled`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct EndingCancelledParts {
+    /// The `by` field.
+    pub by: Party,
+    /// The `at` field.
+    pub at: u64,
+}
+
+/// `EndingCancelled` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct EndingCancelled {
+    by: Party,
+    at: u64,
+}
+
+impl EndingCancelled {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: EndingCancelledParts) -> Result<Self, Problem> {
+        let EndingCancelledParts { by, at } = parts;
+        let value = Self { by, at };
+        Ok(value)
+    }
+
+    /// Reads the `by` field.
+    #[must_use]
+    pub fn by(&self) -> &Party { &self.by }
+
+    /// Reads the `at` field.
+    #[must_use]
+    pub fn at(&self) -> u64 { self.at }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> EndingCancelledParts { EndingCancelledParts { by: self.by, at: self.at } }
+
+}
+
 impl EndingCancelled {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -4850,6 +3901,82 @@ impl EndingCancelled {
     }
 }
 
+impl EndingCancelled {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(Party::encoded_bound_within(limits)?)?.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(Party::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn ending_cancelled_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(EndingCancelled::encoded_bound_within(limits)?);
+    ending_decided_encoded_bound_family(limits, biggest)
+}
+
+fn ending_cancelled_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(EndingCancelled::decoded_bound_within(limits)?);
+    ending_decided_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `EndingDecided`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct EndingDecidedParts {
+    /// The `by` field.
+    pub by: u64,
+    /// The `at` field.
+    pub at: u64,
+}
+
+/// `EndingDecided` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct EndingDecided {
+    by: u64,
+    at: u64,
+}
+
+impl EndingDecided {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: EndingDecidedParts) -> Result<Self, Problem> {
+        let EndingDecidedParts { by, at } = parts;
+        let value = Self { by, at };
+        Ok(value)
+    }
+
+    /// Reads the `by` field.
+    #[must_use]
+    pub fn by(&self) -> u64 { self.by }
+
+    /// Reads the `at` field.
+    #[must_use]
+    pub fn at(&self) -> u64 { self.at }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> EndingDecidedParts { EndingDecidedParts { by: self.by, at: self.at } }
+
+}
+
 impl EndingDecided {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -4881,6 +4008,67 @@ impl EndingDecided {
         let decoded_at = reader.u64().ok_or(Problem { path: Path::EndingDecidedAt, reason: skein_codec::Reason::Short })?;
         Ok(Self { by: decoded_by, at: decoded_at })
     }
+}
+
+impl EndingDecided {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn ending_decided_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(EndingDecided::encoded_bound_within(limits)?);
+    ending_encoded_bound_family(limits, biggest)
+}
+
+fn ending_decided_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(EndingDecided::decoded_bound_within(limits)?);
+    ending_decoded_bound_family(limits, biggest)
+}
+
+/// `Ending` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum Ending {
+    /// `done` without a payload.
+    Done,
+    /// `failed` without a payload.
+    Failed,
+    /// `cancelled` carrying `EndingCancelled`.
+    Cancelled(EndingCancelled),
+    /// `decided` carrying `EndingDecided`.
+    Decided(EndingDecided),
+    /// `deleted` without a payload.
+    Deleted,
+}
+
+impl Ending {
+    /// Checks the payload against the given limits.
+    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+        Ok(value)
+    }
+
 }
 
 impl Ending {
@@ -4927,6 +4115,75 @@ impl Ending {
     }
 }
 
+impl Ending {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(EndingCancelled::encoded_bound_within(limits)?).max(EndingDecided::encoded_bound_within(limits)?);
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(EndingCancelled::decoded_bound_within(limits)?).max(EndingDecided::decoded_bound_within(limits)?);
+        biggest.checked_add(0)
+    }
+}
+
+fn ending_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Ending::encoded_bound_within(limits)?);
+    moved_spec_encoded_bound_family(limits, biggest)
+}
+
+fn ending_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Ending::decoded_bound_within(limits)?);
+    moved_spec_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `MovedSpec`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct MovedSpecParts {
+    /// The `revision` field.
+    pub revision: u64,
+}
+
+/// `MovedSpec` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct MovedSpec {
+    revision: u64,
+}
+
+impl MovedSpec {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: MovedSpecParts) -> Result<Self, Problem> {
+        let MovedSpecParts { revision } = parts;
+        let value = Self { revision };
+        Ok(value)
+    }
+
+    /// Reads the `revision` field.
+    #[must_use]
+    pub fn revision(&self) -> u64 { self.revision }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> MovedSpecParts { MovedSpecParts { revision: self.revision } }
+
+}
+
 impl MovedSpec {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -4954,6 +4211,75 @@ impl MovedSpec {
         let decoded_revision = reader.u64().ok_or(Problem { path: Path::MovedSpecRevision, reason: skein_codec::Reason::Short })?;
         Ok(Self { revision: decoded_revision })
     }
+}
+
+impl MovedSpec {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn moved_spec_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(MovedSpec::encoded_bound_within(limits)?);
+    moved_person_encoded_bound_family(limits, biggest)
+}
+
+fn moved_spec_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(MovedSpec::decoded_bound_within(limits)?);
+    moved_person_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `MovedPerson`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct MovedPersonParts {
+    /// The `revision` field.
+    pub revision: u64,
+}
+
+/// `MovedPerson` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct MovedPerson {
+    revision: u64,
+}
+
+impl MovedPerson {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: MovedPersonParts) -> Result<Self, Problem> {
+        let MovedPersonParts { revision } = parts;
+        let value = Self { revision };
+        Ok(value)
+    }
+
+    /// Reads the `revision` field.
+    #[must_use]
+    pub fn revision(&self) -> u64 { self.revision }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> MovedPersonParts { MovedPersonParts { revision: self.revision } }
+
 }
 
 impl MovedPerson {
@@ -4985,6 +4311,75 @@ impl MovedPerson {
     }
 }
 
+impl MovedPerson {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn moved_person_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(MovedPerson::encoded_bound_within(limits)?);
+    moved_note_encoded_bound_family(limits, biggest)
+}
+
+fn moved_person_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(MovedPerson::decoded_bound_within(limits)?);
+    moved_note_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `MovedNote`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct MovedNoteParts {
+    /// The `revision` field.
+    pub revision: u32,
+}
+
+/// `MovedNote` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct MovedNote {
+    revision: u32,
+}
+
+impl MovedNote {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: MovedNoteParts) -> Result<Self, Problem> {
+        let MovedNoteParts { revision } = parts;
+        let value = Self { revision };
+        Ok(value)
+    }
+
+    /// Reads the `revision` field.
+    #[must_use]
+    pub fn revision(&self) -> u32 { self.revision }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> MovedNoteParts { MovedNoteParts { revision: self.revision } }
+
+}
+
 impl MovedNote {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -5012,6 +4407,75 @@ impl MovedNote {
         let decoded_revision = reader.u32().ok_or(Problem { path: Path::MovedNoteRevision, reason: skein_codec::Reason::Short })?;
         Ok(Self { revision: decoded_revision })
     }
+}
+
+impl MovedNote {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn moved_note_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(MovedNote::encoded_bound_within(limits)?);
+    hold_reason_dependency_encoded_bound_family(limits, biggest)
+}
+
+fn moved_note_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(MovedNote::decoded_bound_within(limits)?);
+    hold_reason_dependency_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `HoldReasonDependency`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct HoldReasonDependencyParts {
+    /// The `task` field.
+    pub task: u64,
+}
+
+/// `HoldReasonDependency` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct HoldReasonDependency {
+    task: u64,
+}
+
+impl HoldReasonDependency {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: HoldReasonDependencyParts) -> Result<Self, Problem> {
+        let HoldReasonDependencyParts { task } = parts;
+        let value = Self { task };
+        Ok(value)
+    }
+
+    /// Reads the `task` field.
+    #[must_use]
+    pub fn task(&self) -> u64 { self.task }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> HoldReasonDependencyParts { HoldReasonDependencyParts { task: self.task } }
+
 }
 
 impl HoldReasonDependency {
@@ -5043,6 +4507,75 @@ impl HoldReasonDependency {
     }
 }
 
+impl HoldReasonDependency {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn hold_reason_dependency_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(HoldReasonDependency::encoded_bound_within(limits)?);
+    hold_reason_placed_encoded_bound_family(limits, biggest)
+}
+
+fn hold_reason_dependency_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(HoldReasonDependency::decoded_bound_within(limits)?);
+    hold_reason_placed_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `HoldReasonPlaced`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct HoldReasonPlacedParts {
+    /// The `hold` field.
+    pub hold: u64,
+}
+
+/// `HoldReasonPlaced` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct HoldReasonPlaced {
+    hold: u64,
+}
+
+impl HoldReasonPlaced {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: HoldReasonPlacedParts) -> Result<Self, Problem> {
+        let HoldReasonPlacedParts { hold } = parts;
+        let value = Self { hold };
+        Ok(value)
+    }
+
+    /// Reads the `hold` field.
+    #[must_use]
+    pub fn hold(&self) -> u64 { self.hold }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> HoldReasonPlacedParts { HoldReasonPlacedParts { hold: self.hold } }
+
+}
+
 impl HoldReasonPlaced {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -5070,6 +4603,75 @@ impl HoldReasonPlaced {
         let decoded_hold = reader.u64().ok_or(Problem { path: Path::HoldReasonPlacedHold, reason: skein_codec::Reason::Short })?;
         Ok(Self { hold: decoded_hold })
     }
+}
+
+impl HoldReasonPlaced {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn hold_reason_placed_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(HoldReasonPlaced::encoded_bound_within(limits)?);
+    hold_reason_uncertain_encoded_bound_family(limits, biggest)
+}
+
+fn hold_reason_placed_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(HoldReasonPlaced::decoded_bound_within(limits)?);
+    hold_reason_uncertain_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `HoldReasonUncertain`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct HoldReasonUncertainParts {
+    /// The `entry` field.
+    pub entry: u64,
+}
+
+/// `HoldReasonUncertain` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct HoldReasonUncertain {
+    entry: u64,
+}
+
+impl HoldReasonUncertain {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: HoldReasonUncertainParts) -> Result<Self, Problem> {
+        let HoldReasonUncertainParts { entry } = parts;
+        let value = Self { entry };
+        Ok(value)
+    }
+
+    /// Reads the `entry` field.
+    #[must_use]
+    pub fn entry(&self) -> u64 { self.entry }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> HoldReasonUncertainParts { HoldReasonUncertainParts { entry: self.entry } }
+
 }
 
 impl HoldReasonUncertain {
@@ -5101,6 +4703,75 @@ impl HoldReasonUncertain {
     }
 }
 
+impl HoldReasonUncertain {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn hold_reason_uncertain_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(HoldReasonUncertain::encoded_bound_within(limits)?);
+    hold_reason_pool_lost_encoded_bound_family(limits, biggest)
+}
+
+fn hold_reason_uncertain_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(HoldReasonUncertain::decoded_bound_within(limits)?);
+    hold_reason_pool_lost_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `HoldReasonPoolLost`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct HoldReasonPoolLostParts {
+    /// The `pool` field.
+    pub pool: u64,
+}
+
+/// `HoldReasonPoolLost` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct HoldReasonPoolLost {
+    pool: u64,
+}
+
+impl HoldReasonPoolLost {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: HoldReasonPoolLostParts) -> Result<Self, Problem> {
+        let HoldReasonPoolLostParts { pool } = parts;
+        let value = Self { pool };
+        Ok(value)
+    }
+
+    /// Reads the `pool` field.
+    #[must_use]
+    pub fn pool(&self) -> u64 { self.pool }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> HoldReasonPoolLostParts { HoldReasonPoolLostParts { pool: self.pool } }
+
+}
+
 impl HoldReasonPoolLost {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -5128,6 +4799,71 @@ impl HoldReasonPoolLost {
         let decoded_pool = reader.u64().ok_or(Problem { path: Path::HoldReasonPoolLostPool, reason: skein_codec::Reason::Short })?;
         Ok(Self { pool: decoded_pool })
     }
+}
+
+impl HoldReasonPoolLost {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn hold_reason_pool_lost_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(HoldReasonPoolLost::encoded_bound_within(limits)?);
+    failure_class_encoded_bound_family(limits, biggest)
+}
+
+fn hold_reason_pool_lost_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(HoldReasonPoolLost::decoded_bound_within(limits)?);
+    failure_class_decoded_bound_family(limits, biggest)
+}
+
+/// `FailureClass` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum FailureClass {
+    /// `transient` without a payload.
+    Transient,
+    /// `permanent` without a payload.
+    Permanent,
+    /// `run` without a payload.
+    Run,
+    /// `agent` without a payload.
+    Agent,
+    /// `lost` without a payload.
+    Lost,
+    /// `invalid` without a payload.
+    Invalid,
+    /// `infrastructure` without a payload.
+    Infrastructure,
+}
+
+impl FailureClass {
+    /// Checks the payload against the given limits.
+    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+        Ok(value)
+    }
+
 }
 
 impl FailureClass {
@@ -5176,6 +4912,67 @@ impl FailureClass {
     }
 }
 
+impl FailureClass {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        biggest.checked_add(0)
+    }
+}
+
+fn failure_class_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(FailureClass::encoded_bound_within(limits)?);
+    effect_phase_encoded_bound_family(limits, biggest)
+}
+
+fn failure_class_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(FailureClass::decoded_bound_within(limits)?);
+    effect_phase_decoded_bound_family(limits, biggest)
+}
+
+/// `EffectPhase` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum EffectPhase {
+    /// `kept` without a payload.
+    Kept,
+    /// `sent` without a payload.
+    Sent,
+    /// `uncertain` without a payload.
+    Uncertain,
+    /// `retry` without a payload.
+    Retry,
+    /// `repeat` without a payload.
+    Repeat,
+    /// `held` without a payload.
+    Held,
+}
+
+impl EffectPhase {
+    /// Checks the payload against the given limits.
+    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+        Ok(value)
+    }
+
+}
+
 impl EffectPhase {
     /// Measures this variant's wire encoding.
     #[must_use]
@@ -5220,6 +5017,63 @@ impl EffectPhase {
     }
 }
 
+impl EffectPhase {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        biggest.checked_add(0)
+    }
+}
+
+fn effect_phase_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(EffectPhase::encoded_bound_within(limits)?);
+    resource_role_encoded_bound_family(limits, biggest)
+}
+
+fn effect_phase_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(EffectPhase::decoded_bound_within(limits)?);
+    resource_role_decoded_bound_family(limits, biggest)
+}
+
+/// `ResourceRole` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum ResourceRole {
+    /// `owned` without a payload.
+    Owned,
+    /// `participating` without a payload.
+    Participating,
+    /// `context` without a payload.
+    Context,
+    /// `unavailable` without a payload.
+    Unavailable,
+}
+
+impl ResourceRole {
+    /// Checks the payload against the given limits.
+    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+        Ok(value)
+    }
+
+}
+
 impl ResourceRole {
     /// Measures this variant's wire encoding.
     #[must_use]
@@ -5260,6 +5114,80 @@ impl ResourceRole {
     }
 }
 
+impl ResourceRole {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        biggest.checked_add(0)
+    }
+}
+
+fn resource_role_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ResourceRole::encoded_bound_within(limits)?);
+    application_outcome_changed_encoded_bound_family(limits, biggest)
+}
+
+fn resource_role_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ResourceRole::decoded_bound_within(limits)?);
+    application_outcome_changed_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `ApplicationOutcomeChanged`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ApplicationOutcomeChangedParts {
+    /// The `object` field.
+    pub object: u64,
+    /// The `now` field.
+    pub now: ApplicationObject,
+}
+
+/// `ApplicationOutcomeChanged` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ApplicationOutcomeChanged {
+    object: u64,
+    now: ApplicationObject,
+}
+
+impl ApplicationOutcomeChanged {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: ApplicationOutcomeChangedParts) -> Result<Self, Problem> {
+        let ApplicationOutcomeChangedParts { object, now } = parts;
+        let value = Self { object, now };
+        Ok(value)
+    }
+
+    /// Reads the `object` field.
+    #[must_use]
+    pub fn object(&self) -> u64 { self.object }
+
+    /// Reads the `now` field.
+    #[must_use]
+    pub fn now(&self) -> &ApplicationObject { &self.now }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> ApplicationOutcomeChangedParts { ApplicationOutcomeChangedParts { object: self.object, now: self.now } }
+
+}
+
 impl ApplicationOutcomeChanged {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -5291,6 +5219,82 @@ impl ApplicationOutcomeChanged {
         let decoded_now = ApplicationObject::decode_from(limits, reader)?;
         Ok(Self { object: decoded_object, now: decoded_now })
     }
+}
+
+impl ApplicationOutcomeChanged {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?.checked_add(ApplicationObject::encoded_bound_within(limits)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(ApplicationObject::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
+fn application_outcome_changed_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ApplicationOutcomeChanged::encoded_bound_within(limits)?);
+    application_outcome_moved_encoded_bound_family(limits, biggest)
+}
+
+fn application_outcome_changed_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ApplicationOutcomeChanged::decoded_bound_within(limits)?);
+    application_outcome_moved_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `ApplicationOutcomeMoved`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ApplicationOutcomeMovedParts {
+    /// The `object` field.
+    pub object: u64,
+    /// The `now` field.
+    pub now: ApplicationObject,
+}
+
+/// `ApplicationOutcomeMoved` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ApplicationOutcomeMoved {
+    object: u64,
+    now: ApplicationObject,
+}
+
+impl ApplicationOutcomeMoved {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: ApplicationOutcomeMovedParts) -> Result<Self, Problem> {
+        let ApplicationOutcomeMovedParts { object, now } = parts;
+        let value = Self { object, now };
+        Ok(value)
+    }
+
+    /// Reads the `object` field.
+    #[must_use]
+    pub fn object(&self) -> u64 { self.object }
+
+    /// Reads the `now` field.
+    #[must_use]
+    pub fn now(&self) -> &ApplicationObject { &self.now }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> ApplicationOutcomeMovedParts { ApplicationOutcomeMovedParts { object: self.object, now: self.now } }
+
 }
 
 impl ApplicationOutcomeMoved {
@@ -5326,6 +5330,75 @@ impl ApplicationOutcomeMoved {
     }
 }
 
+impl ApplicationOutcomeMoved {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?.checked_add(ApplicationObject::encoded_bound_within(limits)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(ApplicationObject::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
+fn application_outcome_moved_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ApplicationOutcomeMoved::encoded_bound_within(limits)?);
+    application_outcome_role_encoded_bound_family(limits, biggest)
+}
+
+fn application_outcome_moved_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ApplicationOutcomeMoved::decoded_bound_within(limits)?);
+    application_outcome_role_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `ApplicationOutcomeRole`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ApplicationOutcomeRoleParts {
+    /// The `held` field.
+    pub held: u32,
+}
+
+/// `ApplicationOutcomeRole` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ApplicationOutcomeRole {
+    held: u32,
+}
+
+impl ApplicationOutcomeRole {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: ApplicationOutcomeRoleParts) -> Result<Self, Problem> {
+        let ApplicationOutcomeRoleParts { held } = parts;
+        let value = Self { held };
+        Ok(value)
+    }
+
+    /// Reads the `held` field.
+    #[must_use]
+    pub fn held(&self) -> u32 { self.held }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> ApplicationOutcomeRoleParts { ApplicationOutcomeRoleParts { held: self.held } }
+
+}
+
 impl ApplicationOutcomeRole {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -5353,6 +5426,82 @@ impl ApplicationOutcomeRole {
         let decoded_held = reader.u32().ok_or(Problem { path: Path::ApplicationOutcomeRoleHeld, reason: skein_codec::Reason::Short })?;
         Ok(Self { held: decoded_held })
     }
+}
+
+impl ApplicationOutcomeRole {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn application_outcome_role_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ApplicationOutcomeRole::encoded_bound_within(limits)?);
+    record_application_object_encoded_bound_family(limits, biggest)
+}
+
+fn application_outcome_role_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ApplicationOutcomeRole::decoded_bound_within(limits)?);
+    record_application_object_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `RecordApplicationObject`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RecordApplicationObjectParts {
+    /// The `object` field.
+    pub object: u64,
+    /// The `now` field.
+    pub now: ApplicationObject,
+}
+
+/// `RecordApplicationObject` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RecordApplicationObject {
+    object: u64,
+    now: ApplicationObject,
+}
+
+impl RecordApplicationObject {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: RecordApplicationObjectParts) -> Result<Self, Problem> {
+        let RecordApplicationObjectParts { object, now } = parts;
+        let value = Self { object, now };
+        Ok(value)
+    }
+
+    /// Reads the `object` field.
+    #[must_use]
+    pub fn object(&self) -> u64 { self.object }
+
+    /// Reads the `now` field.
+    #[must_use]
+    pub fn now(&self) -> &ApplicationObject { &self.now }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> RecordApplicationObjectParts { RecordApplicationObjectParts { object: self.object, now: self.now } }
+
 }
 
 impl RecordApplicationObject {
@@ -5385,6 +5534,101 @@ impl RecordApplicationObject {
         let decoded_object = reader.u64().ok_or(Problem { path: Path::RecordApplicationObjectObject, reason: skein_codec::Reason::Short })?;
         let decoded_now = ApplicationObject::decode_from(limits, reader)?;
         Ok(Self { object: decoded_object, now: decoded_now })
+    }
+}
+
+impl RecordApplicationObject {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?.checked_add(ApplicationObject::encoded_bound_within(limits)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(ApplicationObject::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
+fn record_application_object_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RecordApplicationObject::encoded_bound_within(limits)?);
+    record_proposal_encoded_bound_family(limits, biggest)
+}
+
+fn record_application_object_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RecordApplicationObject::decoded_bound_within(limits)?);
+    record_proposal_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `RecordProposal`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RecordProposalParts {
+    /// The `number` field.
+    pub number: u64,
+    /// The `task` field.
+    pub task: u64,
+    /// The `project` field.
+    pub project: u32,
+    /// The `effect` field.
+    pub effect: Effect,
+}
+
+/// `RecordProposal` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RecordProposal {
+    number: u64,
+    task: u64,
+    project: u32,
+    effect: Effect,
+}
+
+impl RecordProposal {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: RecordProposalParts) -> Result<Self, Problem> {
+        let RecordProposalParts { number, task, project, effect } = parts;
+        let value = Self { number, task, project, effect };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `number` field.
+    #[must_use]
+    pub fn number(&self) -> u64 { self.number }
+
+    /// Reads the `task` field.
+    #[must_use]
+    pub fn task(&self) -> u64 { self.task }
+
+    /// Reads the `project` field.
+    #[must_use]
+    pub fn project(&self) -> u32 { self.project }
+
+    /// Reads the `effect` field.
+    #[must_use]
+    pub fn effect(&self) -> &Effect { &self.effect }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> RecordProposalParts { RecordProposalParts { number: self.number, task: self.task, project: self.project, effect: self.effect } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        self.effect.check(limits)?;
+        Ok(())
     }
 }
 
@@ -5430,6 +5674,82 @@ impl RecordProposal {
     }
 }
 
+impl RecordProposal {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
+        size = size.checked_add(4_u64)?.checked_add(Effect::encoded_bound_within(limits)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(Effect::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
+fn record_proposal_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RecordProposal::encoded_bound_within(limits)?);
+    record_procedure_encoded_bound_family(limits, biggest)
+}
+
+fn record_proposal_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RecordProposal::decoded_bound_within(limits)?);
+    record_procedure_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `RecordProcedure`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RecordProcedureParts {
+    /// The `value` field.
+    pub value: ProcedureState,
+}
+
+/// `RecordProcedure` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RecordProcedure {
+    value: ProcedureState,
+}
+
+impl RecordProcedure {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: RecordProcedureParts) -> Result<Self, Problem> {
+        let RecordProcedureParts { value } = parts;
+        let value = Self { value };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `value` field.
+    #[must_use]
+    pub fn value(&self) -> &ProcedureState { &self.value }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> RecordProcedureParts { RecordProcedureParts { value: self.value } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        self.value.check(limits)?;
+        Ok(())
+    }
+}
+
 impl RecordProcedure {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -5458,6 +5778,82 @@ impl RecordProcedure {
         let decoded_value = ProcedureState::decode_from(limits, reader)?;
         Ok(Self { value: decoded_value })
     }
+}
+
+impl RecordProcedure {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(ProcedureState::encoded_bound_within(limits)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(ProcedureState::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
+fn record_procedure_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RecordProcedure::encoded_bound_within(limits)?);
+    spec_revision_encoded_bound_family(limits, biggest)
+}
+
+fn record_procedure_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RecordProcedure::decoded_bound_within(limits)?);
+    spec_revision_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `SpecRevision`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct SpecRevisionParts {
+    /// The `task` field.
+    pub task: u64,
+    /// The `revision` field.
+    pub revision: u64,
+}
+
+/// `SpecRevision` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct SpecRevision {
+    task: u64,
+    revision: u64,
+}
+
+impl SpecRevision {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: SpecRevisionParts) -> Result<Self, Problem> {
+        let SpecRevisionParts { task, revision } = parts;
+        let value = Self { task, revision };
+        Ok(value)
+    }
+
+    /// Reads the `task` field.
+    #[must_use]
+    pub fn task(&self) -> u64 { self.task }
+
+    /// Reads the `revision` field.
+    #[must_use]
+    pub fn revision(&self) -> u64 { self.revision }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> SpecRevisionParts { SpecRevisionParts { task: self.task, revision: self.revision } }
+
 }
 
 impl SpecRevision {
@@ -5490,6 +5886,101 @@ impl SpecRevision {
         let decoded_task = reader.u64().ok_or(Problem { path: Path::SpecRevisionTask, reason: skein_codec::Reason::Short })?;
         let decoded_revision = reader.u64().ok_or(Problem { path: Path::SpecRevisionRevision, reason: skein_codec::Reason::Short })?;
         Ok(Self { task: decoded_task, revision: decoded_revision })
+    }
+}
+
+impl SpecRevision {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn spec_revision_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(SpecRevision::encoded_bound_within(limits)?);
+    record_procedure_delegate_outcome_encoded_bound_family(limits, biggest)
+}
+
+fn spec_revision_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(SpecRevision::decoded_bound_within(limits)?);
+    record_procedure_delegate_outcome_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `RecordProcedureDelegateOutcome`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RecordProcedureDelegateOutcomeParts {
+    /// The `task` field.
+    pub task: u64,
+    /// The `step` field.
+    pub step: u64,
+    /// The `child` field.
+    pub child: Option<u64>,
+    /// The `revisions` field.
+    pub revisions: List<SpecRevision>,
+}
+
+/// `RecordProcedureDelegateOutcome` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RecordProcedureDelegateOutcome {
+    task: u64,
+    step: u64,
+    child: Option<u64>,
+    revisions: List<SpecRevision>,
+}
+
+impl RecordProcedureDelegateOutcome {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: RecordProcedureDelegateOutcomeParts) -> Result<Self, Problem> {
+        let RecordProcedureDelegateOutcomeParts { task, step, child, revisions } = parts;
+        let value = Self { task, step, child, revisions };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `task` field.
+    #[must_use]
+    pub fn task(&self) -> u64 { self.task }
+
+    /// Reads the `step` field.
+    #[must_use]
+    pub fn step(&self) -> u64 { self.step }
+
+    /// Reads the `child` field.
+    #[must_use]
+    pub fn child(&self) -> &Option<u64> { &self.child }
+
+    /// Reads the `revisions` field.
+    #[must_use]
+    pub fn revisions(&self) -> &List<SpecRevision> { &self.revisions }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> RecordProcedureDelegateOutcomeParts { RecordProcedureDelegateOutcomeParts { task: self.task, step: self.step, child: self.child, revisions: self.revisions } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.revisions.capacity() > limits.record_procedure_delegate_outcome_revisions.min(CEILINGS.record_procedure_delegate_outcome_revisions) { return Err(Problem { path: Path::RecordProcedureDelegateOutcomeRevisions, reason: skein_codec::Reason::Bound }); }
+        Ok(())
     }
 }
 
@@ -5549,6 +6040,96 @@ impl RecordProcedureDelegateOutcome {
     }
 }
 
+impl RecordProcedureDelegateOutcome {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
+        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(4_u64.checked_add(u64::from(limits.record_procedure_delegate_outcome_revisions).checked_mul(SpecRevision::encoded_bound_within(limits)?)?)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(List::<SpecRevision>::price(limits.record_procedure_delegate_outcome_revisions)?.checked_add(u64::from(limits.record_procedure_delegate_outcome_revisions).checked_mul(SpecRevision::decoded_bound_within(limits)?)?)?)?;
+        heap.checked_add(0)
+    }
+}
+
+fn record_procedure_delegate_outcome_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RecordProcedureDelegateOutcome::encoded_bound_within(limits)?);
+    record_result_encoded_bound_family(limits, biggest)
+}
+
+fn record_procedure_delegate_outcome_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RecordProcedureDelegateOutcome::decoded_bound_within(limits)?);
+    record_result_decoded_bound_family(limits, biggest)
+}
+
+fn check_record_procedure_delegate_outcome_record_limits(limits: &Limits) -> Result<(), Problem> {
+    if limits.record_procedure_delegate_outcome_revisions > CEILINGS.record_procedure_delegate_outcome_revisions { return Err(Problem { path: Path::RecordProcedureDelegateOutcomeRevisions, reason: skein_codec::Reason::Bound }); }
+    check_record_task_record_limits(limits)
+}
+
+impl Limits {
+    fn values_for_record_procedure_delegate_outcome_record(&self, values: &mut List<u32>) {
+        values.push(self.record_procedure_delegate_outcome_revisions).expect("room for every named limit");
+        self.values_for_record_task_record(values);
+    }
+}
+
+/// Movable fields of `RecordResult`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RecordResultParts {
+    /// The `task` field.
+    pub task: u64,
+    /// The `code` field.
+    pub code: u16,
+}
+
+/// `RecordResult` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RecordResult {
+    task: u64,
+    code: u16,
+}
+
+impl RecordResult {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: RecordResultParts) -> Result<Self, Problem> {
+        let RecordResultParts { task, code } = parts;
+        let value = Self { task, code };
+        Ok(value)
+    }
+
+    /// Reads the `task` field.
+    #[must_use]
+    pub fn task(&self) -> u64 { self.task }
+
+    /// Reads the `code` field.
+    #[must_use]
+    pub fn code(&self) -> u16 { self.code }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> RecordResultParts { RecordResultParts { task: self.task, code: self.code } }
+
+}
+
 impl RecordResult {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -5579,6 +6160,97 @@ impl RecordResult {
         let decoded_task = reader.u64().ok_or(Problem { path: Path::RecordResultTask, reason: skein_codec::Reason::Short })?;
         let decoded_code = reader.u16().ok_or(Problem { path: Path::RecordResultCode, reason: skein_codec::Reason::Short })?;
         Ok(Self { task: decoded_task, code: decoded_code })
+    }
+}
+
+impl RecordResult {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?.checked_add(2_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn record_result_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RecordResult::encoded_bound_within(limits)?);
+    record_task_encoded_bound_family(limits, biggest)
+}
+
+fn record_result_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RecordResult::decoded_bound_within(limits)?);
+    record_task_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `RecordTask`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RecordTaskParts {
+    /// The `task` field.
+    pub task: u64,
+    /// The `project` field.
+    pub project: u32,
+    /// The `resources` field.
+    pub resources: List<ResourcePath>,
+}
+
+/// `RecordTask` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RecordTask {
+    task: u64,
+    project: u32,
+    resources: List<ResourcePath>,
+}
+
+impl RecordTask {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: RecordTaskParts) -> Result<Self, Problem> {
+        let RecordTaskParts { task, project, resources } = parts;
+        let value = Self { task, project, resources };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `task` field.
+    #[must_use]
+    pub fn task(&self) -> u64 { self.task }
+
+    /// Reads the `project` field.
+    #[must_use]
+    pub fn project(&self) -> u32 { self.project }
+
+    /// Reads the `resources` field.
+    #[must_use]
+    pub fn resources(&self) -> &List<ResourcePath> { &self.resources }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> RecordTaskParts { RecordTaskParts { task: self.task, project: self.project, resources: self.resources } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.resources.capacity() > limits.record_task_resources.min(CEILINGS.record_task_resources) { return Err(Problem { path: Path::RecordTaskResources, reason: skein_codec::Reason::Bound }); }
+        for item_0 in self.resources.as_slice() {
+        item_0.check(limits)?;
+        }
+        Ok(())
     }
 }
 
@@ -5626,6 +6298,108 @@ impl RecordTask {
     }
 }
 
+impl RecordTask {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?.checked_add(4_u64)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.record_task_resources).checked_mul(ResourcePath::encoded_bound_within(limits)?)?)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(List::<ResourcePath>::price(limits.record_task_resources)?.checked_add(u64::from(limits.record_task_resources).checked_mul(ResourcePath::decoded_bound_within(limits)?)?)?)?;
+        heap.checked_add(0)
+    }
+}
+
+fn record_task_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RecordTask::encoded_bound_within(limits)?);
+    record_adoption_encoded_bound_family(limits, biggest)
+}
+
+fn record_task_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RecordTask::decoded_bound_within(limits)?);
+    record_adoption_decoded_bound_family(limits, biggest)
+}
+
+fn check_record_task_record_limits(limits: &Limits) -> Result<(), Problem> {
+    if limits.record_task_resources > CEILINGS.record_task_resources { return Err(Problem { path: Path::RecordTaskResources, reason: skein_codec::Reason::Bound }); }
+    check_record_made_record_limits(limits)
+}
+
+impl Limits {
+    fn values_for_record_task_record(&self, values: &mut List<u32>) {
+        values.push(self.record_task_resources).expect("room for every named limit");
+        self.values_for_record_made_record(values);
+    }
+}
+
+/// Movable fields of `RecordAdoption`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RecordAdoptionParts {
+    /// The `project` field.
+    pub project: u32,
+    /// The `path` field.
+    pub path: ResourcePath,
+    /// The `role` field.
+    pub role: ResourceRole,
+}
+
+/// `RecordAdoption` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RecordAdoption {
+    project: u32,
+    path: ResourcePath,
+    role: ResourceRole,
+}
+
+impl RecordAdoption {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: RecordAdoptionParts) -> Result<Self, Problem> {
+        let RecordAdoptionParts { project, path, role } = parts;
+        let value = Self { project, path, role };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `project` field.
+    #[must_use]
+    pub fn project(&self) -> u32 { self.project }
+
+    /// Reads the `path` field.
+    #[must_use]
+    pub fn path(&self) -> &ResourcePath { &self.path }
+
+    /// Reads the `role` field.
+    #[must_use]
+    pub fn role(&self) -> &ResourceRole { &self.role }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> RecordAdoptionParts { RecordAdoptionParts { project: self.project, path: self.path, role: self.role } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        self.path.check(limits)?;
+        Ok(())
+    }
+}
+
 impl RecordAdoption {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -5662,6 +6436,98 @@ impl RecordAdoption {
         let decoded_role = ResourceRole::decode_from(limits, reader)?;
         Ok(Self { project: decoded_project, path: decoded_path, role: decoded_role })
     }
+}
+
+impl RecordAdoption {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?.checked_add(ResourcePath::encoded_bound_within(limits)?)?;
+        size = size.checked_add(ResourceRole::encoded_bound_within(limits)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(ResourcePath::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(ResourceRole::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
+fn record_adoption_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RecordAdoption::encoded_bound_within(limits)?);
+    record_subscription_encoded_bound_family(limits, biggest)
+}
+
+fn record_adoption_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RecordAdoption::decoded_bound_within(limits)?);
+    record_subscription_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `RecordSubscription`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RecordSubscriptionParts {
+    /// The `topic` field.
+    pub topic: u16,
+    /// The `task` field.
+    pub task: u64,
+    /// The `wake_at` field.
+    pub wake_at: u16,
+    /// The `keep_at` field.
+    pub keep_at: u16,
+}
+
+/// `RecordSubscription` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RecordSubscription {
+    topic: u16,
+    task: u64,
+    wake_at: u16,
+    keep_at: u16,
+}
+
+impl RecordSubscription {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: RecordSubscriptionParts) -> Result<Self, Problem> {
+        let RecordSubscriptionParts { topic, task, wake_at, keep_at } = parts;
+        let value = Self { topic, task, wake_at, keep_at };
+        Ok(value)
+    }
+
+    /// Reads the `topic` field.
+    #[must_use]
+    pub fn topic(&self) -> u16 { self.topic }
+
+    /// Reads the `task` field.
+    #[must_use]
+    pub fn task(&self) -> u64 { self.task }
+
+    /// Reads the `wake_at` field.
+    #[must_use]
+    pub fn wake_at(&self) -> u16 { self.wake_at }
+
+    /// Reads the `keep_at` field.
+    #[must_use]
+    pub fn keep_at(&self) -> u16 { self.keep_at }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> RecordSubscriptionParts { RecordSubscriptionParts { topic: self.topic, task: self.task, wake_at: self.wake_at, keep_at: self.keep_at } }
+
 }
 
 impl RecordSubscription {
@@ -5705,6 +6571,89 @@ impl RecordSubscription {
     }
 }
 
+impl RecordSubscription {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(2_u64)?.checked_add(8_u64)?;
+        size = size.checked_add(2_u64)?.checked_add(2_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn record_subscription_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RecordSubscription::encoded_bound_within(limits)?);
+    record_pool_encoded_bound_family(limits, biggest)
+}
+
+fn record_subscription_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RecordSubscription::decoded_bound_within(limits)?);
+    record_pool_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `RecordPool`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RecordPoolParts {
+    /// The `path` field.
+    pub path: ResourcePath,
+    /// The `slots` field.
+    pub slots: u32,
+}
+
+/// `RecordPool` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RecordPool {
+    path: ResourcePath,
+    slots: u32,
+}
+
+impl RecordPool {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: RecordPoolParts) -> Result<Self, Problem> {
+        let RecordPoolParts { path, slots } = parts;
+        let value = Self { path, slots };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `path` field.
+    #[must_use]
+    pub fn path(&self) -> &ResourcePath { &self.path }
+
+    /// Reads the `slots` field.
+    #[must_use]
+    pub fn slots(&self) -> u32 { self.slots }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> RecordPoolParts { RecordPoolParts { path: self.path, slots: self.slots } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        self.path.check(limits)?;
+        Ok(())
+    }
+}
+
 impl RecordPool {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -5736,6 +6685,97 @@ impl RecordPool {
         let decoded_path = ResourcePath::decode_from(limits, reader)?;
         let decoded_slots = reader.u32().ok_or(Problem { path: Path::RecordPoolSlots, reason: skein_codec::Reason::Short })?;
         Ok(Self { path: decoded_path, slots: decoded_slots })
+    }
+}
+
+impl RecordPool {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(ResourcePath::encoded_bound_within(limits)?)?.checked_add(4_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(ResourcePath::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn record_pool_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RecordPool::encoded_bound_within(limits)?);
+    record_made_encoded_bound_family(limits, biggest)
+}
+
+fn record_pool_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RecordPool::decoded_bound_within(limits)?);
+    record_made_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `RecordMade`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RecordMadeParts {
+    /// The `key` field.
+    pub key: Key,
+    /// The `resources` field.
+    pub resources: List<ResourcePath>,
+    /// The `state` field.
+    pub state: u64,
+}
+
+/// `RecordMade` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RecordMade {
+    key: Key,
+    resources: List<ResourcePath>,
+    state: u64,
+}
+
+impl RecordMade {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: RecordMadeParts) -> Result<Self, Problem> {
+        let RecordMadeParts { key, resources, state } = parts;
+        let value = Self { key, resources, state };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `key` field.
+    #[must_use]
+    pub fn key(&self) -> &Key { &self.key }
+
+    /// Reads the `resources` field.
+    #[must_use]
+    pub fn resources(&self) -> &List<ResourcePath> { &self.resources }
+
+    /// Reads the `state` field.
+    #[must_use]
+    pub fn state(&self) -> u64 { self.state }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> RecordMadeParts { RecordMadeParts { key: self.key, resources: self.resources, state: self.state } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.resources.capacity() > limits.record_made_resources.min(CEILINGS.record_made_resources) { return Err(Problem { path: Path::RecordMadeResources, reason: skein_codec::Reason::Bound }); }
+        for item_0 in self.resources.as_slice() {
+        item_0.check(limits)?;
+        }
+        Ok(())
     }
 }
 
@@ -5781,6 +6821,129 @@ impl RecordMade {
         let decoded_resources = { let count = match skein_codec::read_count(reader, limits.record_made_resources.min(CEILINGS.record_made_resources)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::RecordMadeResources, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::RecordMadeResources, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = ResourcePath::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_state = reader.u64().ok_or(Problem { path: Path::RecordMadeState, reason: skein_codec::Reason::Short })?;
         Ok(Self { key: decoded_key, resources: decoded_resources, state: decoded_state })
+    }
+}
+
+impl RecordMade {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(Key::encoded_bound_within(limits)?)?.checked_add(4_u64.checked_add(u64::from(limits.record_made_resources).checked_mul(ResourcePath::encoded_bound_within(limits)?)?)?)?;
+        size = size.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(Key::decoded_bound_within(limits)?)?.checked_add(List::<ResourcePath>::price(limits.record_made_resources)?.checked_add(u64::from(limits.record_made_resources).checked_mul(ResourcePath::decoded_bound_within(limits)?)?)?)?;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn record_made_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RecordMade::encoded_bound_within(limits)?);
+    outbox_entry_encoded_bound_family(limits, biggest)
+}
+
+fn record_made_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RecordMade::decoded_bound_within(limits)?);
+    outbox_entry_decoded_bound_family(limits, biggest)
+}
+
+fn check_record_made_record_limits(limits: &Limits) -> Result<(), Problem> {
+    if limits.record_made_resources > CEILINGS.record_made_resources { return Err(Problem { path: Path::RecordMadeResources, reason: skein_codec::Reason::Bound }); }
+    check_setting_set_record_limits(limits)
+}
+
+impl Limits {
+    fn values_for_record_made_record(&self, values: &mut List<u32>) {
+        values.push(self.record_made_resources).expect("room for every named limit");
+        self.values_for_setting_set_record(values);
+    }
+}
+
+/// Movable fields of `OutboxEntry`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct OutboxEntryParts {
+    /// The `number` field.
+    pub number: u64,
+    /// The `task` field.
+    pub task: u64,
+    /// The `key` field.
+    pub key: Key,
+    /// The `effect` field.
+    pub effect: Effect,
+    /// The `attempt` field.
+    pub attempt: Option<Attempt>,
+    /// The `phase` field.
+    pub phase: EffectPhase,
+}
+
+/// `OutboxEntry` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct OutboxEntry {
+    number: u64,
+    task: u64,
+    key: Key,
+    effect: Effect,
+    attempt: Option<Attempt>,
+    phase: EffectPhase,
+}
+
+impl OutboxEntry {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: OutboxEntryParts) -> Result<Self, Problem> {
+        let OutboxEntryParts { number, task, key, effect, attempt, phase } = parts;
+        let value = Self { number, task, key, effect, attempt, phase };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `number` field.
+    #[must_use]
+    pub fn number(&self) -> u64 { self.number }
+
+    /// Reads the `task` field.
+    #[must_use]
+    pub fn task(&self) -> u64 { self.task }
+
+    /// Reads the `key` field.
+    #[must_use]
+    pub fn key(&self) -> &Key { &self.key }
+
+    /// Reads the `effect` field.
+    #[must_use]
+    pub fn effect(&self) -> &Effect { &self.effect }
+
+    /// Reads the `attempt` field.
+    #[must_use]
+    pub fn attempt(&self) -> &Option<Attempt> { &self.attempt }
+
+    /// Reads the `phase` field.
+    #[must_use]
+    pub fn phase(&self) -> &EffectPhase { &self.phase }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> OutboxEntryParts { OutboxEntryParts { number: self.number, task: self.task, key: self.key, effect: self.effect, attempt: self.attempt, phase: self.phase } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        self.effect.check(limits)?;
+        Ok(())
     }
 }
 
@@ -5845,6 +7008,86 @@ impl OutboxEntry {
     }
 }
 
+impl OutboxEntry {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
+        size = size.checked_add(Key::encoded_bound_within(limits)?)?.checked_add(Effect::encoded_bound_within(limits)?)?;
+        size = size.checked_add(1_u64.checked_add(Attempt::encoded_bound_within(limits)?)?)?.checked_add(EffectPhase::encoded_bound_within(limits)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(Key::decoded_bound_within(limits)?)?.checked_add(Effect::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(Attempt::decoded_bound_within(limits)?)?.checked_add(EffectPhase::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
+fn outbox_entry_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(OutboxEntry::encoded_bound_within(limits)?);
+    refusal_authority_encoded_bound_family(limits, biggest)
+}
+
+fn outbox_entry_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(OutboxEntry::decoded_bound_within(limits)?);
+    refusal_authority_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `RefusalAuthority`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RefusalAuthorityParts {
+    /// The `lacking` field.
+    pub lacking: Lack,
+    /// The `proposable` field.
+    pub proposable: Option<bool>,
+}
+
+/// `RefusalAuthority` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RefusalAuthority {
+    lacking: Lack,
+    proposable: Option<bool>,
+}
+
+impl RefusalAuthority {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: RefusalAuthorityParts) -> Result<Self, Problem> {
+        let RefusalAuthorityParts { lacking, proposable } = parts;
+        let value = Self { lacking, proposable };
+        Ok(value)
+    }
+
+    /// Reads the `lacking` field.
+    #[must_use]
+    pub fn lacking(&self) -> &Lack { &self.lacking }
+
+    /// Reads the `proposable` field.
+    #[must_use]
+    pub fn proposable(&self) -> &Option<bool> { &self.proposable }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> RefusalAuthorityParts { RefusalAuthorityParts { lacking: self.lacking, proposable: self.proposable } }
+
+}
+
 impl RefusalAuthority {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -5889,6 +7132,75 @@ impl RefusalAuthority {
     }
 }
 
+impl RefusalAuthority {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(Lack::encoded_bound_within(limits)?)?.checked_add(1_u64.checked_add(1_u64)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(Lack::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn refusal_authority_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RefusalAuthority::encoded_bound_within(limits)?);
+    refusal_limit_encoded_bound_family(limits, biggest)
+}
+
+fn refusal_authority_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RefusalAuthority::decoded_bound_within(limits)?);
+    refusal_limit_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `RefusalLimit`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RefusalLimitParts {
+    /// The `which` field.
+    pub which: LimitKind,
+}
+
+/// `RefusalLimit` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RefusalLimit {
+    which: LimitKind,
+}
+
+impl RefusalLimit {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: RefusalLimitParts) -> Result<Self, Problem> {
+        let RefusalLimitParts { which } = parts;
+        let value = Self { which };
+        Ok(value)
+    }
+
+    /// Reads the `which` field.
+    #[must_use]
+    pub fn which(&self) -> &LimitKind { &self.which }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> RefusalLimitParts { RefusalLimitParts { which: self.which } }
+
+}
+
 impl RefusalLimit {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -5916,6 +7228,75 @@ impl RefusalLimit {
         let decoded_which = LimitKind::decode_from(limits, reader)?;
         Ok(Self { which: decoded_which })
     }
+}
+
+impl RefusalLimit {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(LimitKind::encoded_bound_within(limits)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(LimitKind::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
+fn refusal_limit_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RefusalLimit::encoded_bound_within(limits)?);
+    refusal_ended_encoded_bound_family(limits, biggest)
+}
+
+fn refusal_limit_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RefusalLimit::decoded_bound_within(limits)?);
+    refusal_ended_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `RefusalEnded`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RefusalEndedParts {
+    /// The `how` field.
+    pub how: Ending,
+}
+
+/// `RefusalEnded` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RefusalEnded {
+    how: Ending,
+}
+
+impl RefusalEnded {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: RefusalEndedParts) -> Result<Self, Problem> {
+        let RefusalEndedParts { how } = parts;
+        let value = Self { how };
+        Ok(value)
+    }
+
+    /// Reads the `how` field.
+    #[must_use]
+    pub fn how(&self) -> &Ending { &self.how }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> RefusalEndedParts { RefusalEndedParts { how: self.how } }
+
 }
 
 impl RefusalEnded {
@@ -5948,6 +7329,75 @@ impl RefusalEnded {
     }
 }
 
+impl RefusalEnded {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(Ending::encoded_bound_within(limits)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(Ending::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
+fn refusal_ended_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RefusalEnded::encoded_bound_within(limits)?);
+    hold_reason_failures_encoded_bound_family(limits, biggest)
+}
+
+fn refusal_ended_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RefusalEnded::decoded_bound_within(limits)?);
+    hold_reason_failures_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `HoldReasonFailures`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct HoldReasonFailuresParts {
+    /// The `class` field.
+    pub class: FailureClass,
+}
+
+/// `HoldReasonFailures` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct HoldReasonFailures {
+    class: FailureClass,
+}
+
+impl HoldReasonFailures {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: HoldReasonFailuresParts) -> Result<Self, Problem> {
+        let HoldReasonFailuresParts { class } = parts;
+        let value = Self { class };
+        Ok(value)
+    }
+
+    /// Reads the `class` field.
+    #[must_use]
+    pub fn class(&self) -> &FailureClass { &self.class }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> HoldReasonFailuresParts { HoldReasonFailuresParts { class: self.class } }
+
+}
+
 impl HoldReasonFailures {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -5975,6 +7425,75 @@ impl HoldReasonFailures {
         let decoded_class = FailureClass::decode_from(limits, reader)?;
         Ok(Self { class: decoded_class })
     }
+}
+
+impl HoldReasonFailures {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(FailureClass::encoded_bound_within(limits)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(FailureClass::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
+fn hold_reason_failures_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(HoldReasonFailures::encoded_bound_within(limits)?);
+    bound_encoded_bound_family(limits, biggest)
+}
+
+fn hold_reason_failures_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(HoldReasonFailures::decoded_bound_within(limits)?);
+    bound_decoded_bound_family(limits, biggest)
+}
+
+/// `Bound` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum Bound {
+    /// `reasoning` without a payload.
+    Reasoning,
+    /// `metadata` without a payload.
+    Metadata,
+    /// `items` without a payload.
+    Items,
+    /// `answer` without a payload.
+    Answer,
+    /// `tools` without a payload.
+    Tools,
+    /// `history_items` without a payload.
+    HistoryItems,
+    /// `history` without a payload.
+    History,
+    /// `window` without a payload.
+    Window,
+    /// `output` without a payload.
+    Output,
+}
+
+impl Bound {
+    /// Checks the payload against the given limits.
+    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+        Ok(value)
+    }
+
 }
 
 impl Bound {
@@ -6027,6 +7546,80 @@ impl Bound {
     }
 }
 
+impl Bound {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        biggest.checked_add(0)
+    }
+}
+
+fn bound_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Bound::encoded_bound_within(limits)?);
+    exceeded_encoded_bound_family(limits, biggest)
+}
+
+fn bound_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Bound::decoded_bound_within(limits)?);
+    exceeded_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `Exceeded`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ExceededParts {
+    /// The `bound` field.
+    pub bound: Bound,
+    /// The `value` field.
+    pub value: u64,
+}
+
+/// `Exceeded` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Exceeded {
+    bound: Bound,
+    value: u64,
+}
+
+impl Exceeded {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: ExceededParts) -> Result<Self, Problem> {
+        let ExceededParts { bound, value } = parts;
+        let value = Self { bound, value };
+        Ok(value)
+    }
+
+    /// Reads the `bound` field.
+    #[must_use]
+    pub fn bound(&self) -> &Bound { &self.bound }
+
+    /// Reads the `value` field.
+    #[must_use]
+    pub fn value(&self) -> u64 { self.value }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> ExceededParts { ExceededParts { bound: self.bound, value: self.value } }
+
+}
+
 impl Exceeded {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -6058,6 +7651,93 @@ impl Exceeded {
         let decoded_value = reader.u64().ok_or(Problem { path: Path::ExceededValue, reason: skein_codec::Reason::Short })?;
         Ok(Self { bound: decoded_bound, value: decoded_value })
     }
+}
+
+impl Exceeded {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(Bound::encoded_bound_within(limits)?)?.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(Bound::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn exceeded_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Exceeded::encoded_bound_within(limits)?);
+    hold_reason_encoded_bound_family(limits, biggest)
+}
+
+fn exceeded_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Exceeded::decoded_bound_within(limits)?);
+    hold_reason_decoded_bound_family(limits, biggest)
+}
+
+/// `HoldReason` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum HoldReason {
+    /// `failures` carrying `HoldReasonFailures`.
+    Failures(HoldReasonFailures),
+    /// `stalled` without a payload.
+    Stalled,
+    /// `dependency` carrying `HoldReasonDependency`.
+    Dependency(HoldReasonDependency),
+    /// `stopped` without a payload.
+    Stopped,
+    /// `placed` carrying `HoldReasonPlaced`.
+    Placed(HoldReasonPlaced),
+    /// `drift` without a payload.
+    Drift,
+    /// `effects` without a payload.
+    Effects,
+    /// `effect_failed` without a payload.
+    EffectFailed,
+    /// `uncertain` carrying `HoldReasonUncertain`.
+    Uncertain(HoldReasonUncertain),
+    /// `budget` without a payload.
+    Budget,
+    /// `deadline` without a payload.
+    Deadline,
+    /// `holds_waited` without a payload.
+    HoldsWaited,
+    /// `resource_unavailable` without a payload.
+    ResourceUnavailable,
+    /// `resource_access` without a payload.
+    ResourceAccess,
+    /// `pool_lost` carrying `HoldReasonPoolLost`.
+    PoolLost(HoldReasonPoolLost),
+    /// `procedure` without a payload.
+    Procedure,
+    /// `circle` without a payload.
+    Circle,
+    /// `exceeded` carrying `Exceeded`.
+    Exceeded(Exceeded),
+}
+
+impl HoldReason {
+    /// Checks the payload against the given limits.
+    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+        Ok(value)
+    }
+
 }
 
 impl HoldReason {
@@ -6134,6 +7814,84 @@ impl HoldReason {
     }
 }
 
+impl HoldReason {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(HoldReasonFailures::encoded_bound_within(limits)?).max(HoldReasonDependency::encoded_bound_within(limits)?);
+        biggest = biggest.max(HoldReasonPlaced::encoded_bound_within(limits)?).max(HoldReasonUncertain::encoded_bound_within(limits)?);
+        biggest = biggest.max(HoldReasonPoolLost::encoded_bound_within(limits)?).max(Exceeded::encoded_bound_within(limits)?);
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(HoldReasonFailures::decoded_bound_within(limits)?).max(HoldReasonDependency::decoded_bound_within(limits)?);
+        biggest = biggest.max(HoldReasonPlaced::decoded_bound_within(limits)?).max(HoldReasonUncertain::decoded_bound_within(limits)?);
+        biggest = biggest.max(HoldReasonPoolLost::decoded_bound_within(limits)?).max(Exceeded::decoded_bound_within(limits)?);
+        biggest.checked_add(0)
+    }
+}
+
+fn hold_reason_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(HoldReason::encoded_bound_within(limits)?);
+    record_outbox_encoded_bound_family(limits, biggest)
+}
+
+fn hold_reason_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(HoldReason::decoded_bound_within(limits)?);
+    record_outbox_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `RecordOutbox`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RecordOutboxParts {
+    /// The `value` field.
+    pub value: OutboxEntry,
+}
+
+/// `RecordOutbox` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RecordOutbox {
+    value: OutboxEntry,
+}
+
+impl RecordOutbox {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: RecordOutboxParts) -> Result<Self, Problem> {
+        let RecordOutboxParts { value } = parts;
+        let value = Self { value };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `value` field.
+    #[must_use]
+    pub fn value(&self) -> &OutboxEntry { &self.value }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> RecordOutboxParts { RecordOutboxParts { value: self.value } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        self.value.check(limits)?;
+        Ok(())
+    }
+}
+
 impl RecordOutbox {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -6162,6 +7920,82 @@ impl RecordOutbox {
         let decoded_value = OutboxEntry::decode_from(limits, reader)?;
         Ok(Self { value: decoded_value })
     }
+}
+
+impl RecordOutbox {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(OutboxEntry::encoded_bound_within(limits)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(OutboxEntry::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
+fn record_outbox_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RecordOutbox::encoded_bound_within(limits)?);
+    moved_hold_encoded_bound_family(limits, biggest)
+}
+
+fn record_outbox_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RecordOutbox::decoded_bound_within(limits)?);
+    moved_hold_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `MovedHold`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct MovedHoldParts {
+    /// The `revision` field.
+    pub revision: u64,
+    /// The `reason` field.
+    pub reason: HoldReason,
+}
+
+/// `MovedHold` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct MovedHold {
+    revision: u64,
+    reason: HoldReason,
+}
+
+impl MovedHold {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: MovedHoldParts) -> Result<Self, Problem> {
+        let MovedHoldParts { revision, reason } = parts;
+        let value = Self { revision, reason };
+        Ok(value)
+    }
+
+    /// Reads the `revision` field.
+    #[must_use]
+    pub fn revision(&self) -> u64 { self.revision }
+
+    /// Reads the `reason` field.
+    #[must_use]
+    pub fn reason(&self) -> &HoldReason { &self.reason }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> MovedHoldParts { MovedHoldParts { revision: self.revision, reason: self.reason } }
+
 }
 
 impl MovedHold {
@@ -6196,6 +8030,65 @@ impl MovedHold {
         let decoded_reason = HoldReason::decode_from(limits, reader)?;
         Ok(Self { revision: decoded_revision, reason: decoded_reason })
     }
+}
+
+impl MovedHold {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?.checked_add(HoldReason::encoded_bound_within(limits)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(HoldReason::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
+fn moved_hold_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(MovedHold::encoded_bound_within(limits)?);
+    moved_encoded_bound_family(limits, biggest)
+}
+
+fn moved_hold_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(MovedHold::decoded_bound_within(limits)?);
+    moved_decoded_bound_family(limits, biggest)
+}
+
+/// `Moved` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum Moved {
+    /// `hold` carrying `MovedHold`.
+    Hold(MovedHold),
+    /// `spec` carrying `MovedSpec`.
+    Spec(MovedSpec),
+    /// `person` carrying `MovedPerson`.
+    Person(MovedPerson),
+    /// `note` carrying `MovedNote`.
+    Note(MovedNote),
+}
+
+impl Moved {
+    /// Checks the payload against the given limits.
+    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+        Ok(value)
+    }
+
 }
 
 impl Moved {
@@ -6241,6 +8134,77 @@ impl Moved {
     }
 }
 
+impl Moved {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(MovedHold::encoded_bound_within(limits)?).max(MovedSpec::encoded_bound_within(limits)?);
+        biggest = biggest.max(MovedPerson::encoded_bound_within(limits)?).max(MovedNote::encoded_bound_within(limits)?);
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(MovedHold::decoded_bound_within(limits)?).max(MovedSpec::decoded_bound_within(limits)?);
+        biggest = biggest.max(MovedPerson::decoded_bound_within(limits)?).max(MovedNote::decoded_bound_within(limits)?);
+        biggest.checked_add(0)
+    }
+}
+
+fn moved_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Moved::encoded_bound_within(limits)?);
+    refusal_moved_encoded_bound_family(limits, biggest)
+}
+
+fn moved_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Moved::decoded_bound_within(limits)?);
+    refusal_moved_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `RefusalMoved`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RefusalMovedParts {
+    /// The `now` field.
+    pub now: Moved,
+}
+
+/// `RefusalMoved` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RefusalMoved {
+    now: Moved,
+}
+
+impl RefusalMoved {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: RefusalMovedParts) -> Result<Self, Problem> {
+        let RefusalMovedParts { now } = parts;
+        let value = Self { now };
+        Ok(value)
+    }
+
+    /// Reads the `now` field.
+    #[must_use]
+    pub fn now(&self) -> &Moved { &self.now }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> RefusalMovedParts { RefusalMovedParts { now: self.now } }
+
+}
+
 impl RefusalMoved {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -6269,6 +8233,79 @@ impl RefusalMoved {
         let decoded_now = Moved::decode_from(limits, reader)?;
         Ok(Self { now: decoded_now })
     }
+}
+
+impl RefusalMoved {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(Moved::encoded_bound_within(limits)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(Moved::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
+fn refusal_moved_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RefusalMoved::encoded_bound_within(limits)?);
+    refusal_encoded_bound_family(limits, biggest)
+}
+
+fn refusal_moved_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RefusalMoved::decoded_bound_within(limits)?);
+    refusal_decoded_bound_family(limits, biggest)
+}
+
+/// `Refusal` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum Refusal {
+    /// `role` carrying `RefusalRole`.
+    Role(RefusalRole),
+    /// `authority` carrying `RefusalAuthority`.
+    Authority(RefusalAuthority),
+    /// `limit` carrying `RefusalLimit`.
+    Limit(RefusalLimit),
+    /// `moved` carrying `RefusalMoved`.
+    Moved(RefusalMoved),
+    /// `ended` carrying `RefusalEnded`.
+    Ended(RefusalEnded),
+    /// `taken` carrying `RefusalTaken`.
+    Taken(RefusalTaken),
+    /// `not_waiting` without a payload.
+    NotWaiting,
+    /// `no_further` without a payload.
+    NoFurther,
+    /// `unknown` without a payload.
+    Unknown,
+    /// `not_offered` without a payload.
+    NotOffered,
+    /// `key_conflict` without a payload.
+    KeyConflict,
+}
+
+impl Refusal {
+    /// Checks the payload against the given limits.
+    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+        Ok(value)
+    }
+
 }
 
 impl Refusal {
@@ -6331,6 +8368,79 @@ impl Refusal {
     }
 }
 
+impl Refusal {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(RefusalRole::encoded_bound_within(limits)?).max(RefusalAuthority::encoded_bound_within(limits)?);
+        biggest = biggest.max(RefusalLimit::encoded_bound_within(limits)?).max(RefusalMoved::encoded_bound_within(limits)?);
+        biggest = biggest.max(RefusalEnded::encoded_bound_within(limits)?).max(RefusalTaken::encoded_bound_within(limits)?);
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(RefusalRole::decoded_bound_within(limits)?).max(RefusalAuthority::decoded_bound_within(limits)?);
+        biggest = biggest.max(RefusalLimit::decoded_bound_within(limits)?).max(RefusalMoved::decoded_bound_within(limits)?);
+        biggest = biggest.max(RefusalEnded::decoded_bound_within(limits)?).max(RefusalTaken::decoded_bound_within(limits)?);
+        biggest.checked_add(0)
+    }
+}
+
+fn refusal_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Refusal::encoded_bound_within(limits)?);
+    application_outcome_core_refused_encoded_bound_family(limits, biggest)
+}
+
+fn refusal_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Refusal::decoded_bound_within(limits)?);
+    application_outcome_core_refused_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `ApplicationOutcomeCoreRefused`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ApplicationOutcomeCoreRefusedParts {
+    /// The `why` field.
+    pub why: Refusal,
+}
+
+/// `ApplicationOutcomeCoreRefused` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ApplicationOutcomeCoreRefused {
+    why: Refusal,
+}
+
+impl ApplicationOutcomeCoreRefused {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: ApplicationOutcomeCoreRefusedParts) -> Result<Self, Problem> {
+        let ApplicationOutcomeCoreRefusedParts { why } = parts;
+        let value = Self { why };
+        Ok(value)
+    }
+
+    /// Reads the `why` field.
+    #[must_use]
+    pub fn why(&self) -> &Refusal { &self.why }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> ApplicationOutcomeCoreRefusedParts { ApplicationOutcomeCoreRefusedParts { why: self.why } }
+
+}
+
 impl ApplicationOutcomeCoreRefused {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -6359,6 +8469,69 @@ impl ApplicationOutcomeCoreRefused {
         let decoded_why = Refusal::decode_from(limits, reader)?;
         Ok(Self { why: decoded_why })
     }
+}
+
+impl ApplicationOutcomeCoreRefused {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(Refusal::encoded_bound_within(limits)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(Refusal::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
+fn application_outcome_core_refused_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ApplicationOutcomeCoreRefused::encoded_bound_within(limits)?);
+    application_outcome_encoded_bound_family(limits, biggest)
+}
+
+fn application_outcome_core_refused_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ApplicationOutcomeCoreRefused::decoded_bound_within(limits)?);
+    application_outcome_decoded_bound_family(limits, biggest)
+}
+
+/// `ApplicationOutcome` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum ApplicationOutcome {
+    /// `changed` carrying `ApplicationOutcomeChanged`.
+    Changed(ApplicationOutcomeChanged),
+    /// `moved` carrying `ApplicationOutcomeMoved`.
+    Moved(ApplicationOutcomeMoved),
+    /// `role` carrying `ApplicationOutcomeRole`.
+    Role(ApplicationOutcomeRole),
+    /// `unknown` without a payload.
+    Unknown,
+    /// `exhausted` without a payload.
+    Exhausted,
+    /// `core_refused` carrying `ApplicationOutcomeCoreRefused`.
+    CoreRefused(ApplicationOutcomeCoreRefused),
+}
+
+impl ApplicationOutcome {
+    /// Checks the payload against the given limits.
+    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+        Ok(value)
+    }
+
 }
 
 impl ApplicationOutcome {
@@ -6409,6 +8582,91 @@ impl ApplicationOutcome {
     }
 }
 
+impl ApplicationOutcome {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(ApplicationOutcomeChanged::encoded_bound_within(limits)?).max(ApplicationOutcomeMoved::encoded_bound_within(limits)?);
+        biggest = biggest.max(ApplicationOutcomeRole::encoded_bound_within(limits)?).max(ApplicationOutcomeCoreRefused::encoded_bound_within(limits)?);
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(ApplicationOutcomeChanged::decoded_bound_within(limits)?).max(ApplicationOutcomeMoved::decoded_bound_within(limits)?);
+        biggest = biggest.max(ApplicationOutcomeRole::decoded_bound_within(limits)?).max(ApplicationOutcomeCoreRefused::decoded_bound_within(limits)?);
+        biggest.checked_add(0)
+    }
+}
+
+fn application_outcome_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ApplicationOutcome::encoded_bound_within(limits)?);
+    record_application_answer_encoded_bound_family(limits, biggest)
+}
+
+fn application_outcome_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ApplicationOutcome::decoded_bound_within(limits)?);
+    record_application_answer_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `RecordApplicationAnswer`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RecordApplicationAnswerParts {
+    /// The `token` field.
+    pub token: u64,
+    /// The `until` field.
+    pub until: u64,
+    /// The `outcome` field.
+    pub outcome: ApplicationOutcome,
+}
+
+/// `RecordApplicationAnswer` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RecordApplicationAnswer {
+    token: u64,
+    until: u64,
+    outcome: ApplicationOutcome,
+}
+
+impl RecordApplicationAnswer {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: RecordApplicationAnswerParts) -> Result<Self, Problem> {
+        let RecordApplicationAnswerParts { token, until, outcome } = parts;
+        let value = Self { token, until, outcome };
+        Ok(value)
+    }
+
+    /// Reads the `token` field.
+    #[must_use]
+    pub fn token(&self) -> u64 { self.token }
+
+    /// Reads the `until` field.
+    #[must_use]
+    pub fn until(&self) -> u64 { self.until }
+
+    /// Reads the `outcome` field.
+    #[must_use]
+    pub fn outcome(&self) -> &ApplicationOutcome { &self.outcome }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> RecordApplicationAnswerParts { RecordApplicationAnswerParts { token: self.token, until: self.until, outcome: self.outcome } }
+
+}
+
 impl RecordApplicationAnswer {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -6447,6 +8705,82 @@ impl RecordApplicationAnswer {
     }
 }
 
+impl RecordApplicationAnswer {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
+        size = size.checked_add(ApplicationOutcome::encoded_bound_within(limits)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(ApplicationOutcome::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
+fn record_application_answer_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RecordApplicationAnswer::encoded_bound_within(limits)?);
+    setting_set_encoded_bound_family(limits, biggest)
+}
+
+fn record_application_answer_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RecordApplicationAnswer::decoded_bound_within(limits)?);
+    setting_set_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `SettingSet`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct SettingSetParts {
+    /// The `value` field.
+    pub value: Box<[u8]>,
+}
+
+/// `SettingSet` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct SettingSet {
+    value: Box<[u8]>,
+}
+
+impl SettingSet {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: SettingSetParts) -> Result<Self, Problem> {
+        let SettingSetParts { value } = parts;
+        let value = Self { value };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `value` field.
+    #[must_use]
+    pub fn value(&self) -> &[u8] { &self.value }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> SettingSetParts { SettingSetParts { value: self.value } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.value.len() > usize::try_from(limits.setting_set_value.min(CEILINGS.setting_set_value)).expect("u32 fits usize") { return Err(Problem { path: Path::SettingSetValue, reason: skein_codec::Reason::Bound }); }
+        Ok(())
+    }
+}
+
 impl SettingSet {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -6476,6 +8810,83 @@ impl SettingSet {
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_value = { let length = match skein_codec::read_len(reader, limits.setting_set_value.min(CEILINGS.setting_set_value)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::SettingSetValue, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::SettingSetValue, reason: skein_codec::Reason::Short })?) };
         Ok(Self { value: decoded_value })
+    }
+}
+
+impl SettingSet {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.setting_set_value))?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(u64::from(limits.setting_set_value))?;
+        heap.checked_add(0)
+    }
+}
+
+fn setting_set_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(SettingSet::encoded_bound_within(limits)?);
+    setting_edit_encoded_bound_family(limits, biggest)
+}
+
+fn setting_set_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(SettingSet::decoded_bound_within(limits)?);
+    setting_edit_decoded_bound_family(limits, biggest)
+}
+
+fn check_setting_set_record_limits(limits: &Limits) -> Result<(), Problem> {
+    if limits.setting_set_value > CEILINGS.setting_set_value { return Err(Problem { path: Path::SettingSetValue, reason: skein_codec::Reason::Bound }); }
+    check_record_setting_default_record_limits(limits)
+}
+
+impl Limits {
+    fn values_for_setting_set_record(&self, values: &mut List<u32>) {
+        values.push(self.setting_set_value).expect("room for every named limit");
+        self.values_for_record_setting_default_record(values);
+    }
+}
+
+/// `SettingEdit` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum SettingEdit {
+    /// `set` carrying `SettingSet`.
+    Set(SettingSet),
+    /// `remove` without a payload.
+    Remove,
+    /// `reset` without a payload.
+    Reset,
+}
+
+impl SettingEdit {
+    /// Checks the payload against the given limits.
+    pub fn new(limits: &Limits, value: Self) -> Result<Self, Problem> {
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        match self {
+            Self::Set(record) => SettingSet::check(record, limits),
+            Self::Remove | Self::Reset => Ok(()),
+        }?;
+        Ok(())
     }
 }
 
@@ -6515,6 +8926,101 @@ impl SettingEdit {
             _ => return Err(Problem { path: Path::SettingEditTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
+    }
+}
+
+impl SettingEdit {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(SettingSet::encoded_bound_within(limits)?);
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(SettingSet::decoded_bound_within(limits)?);
+        biggest.checked_add(0)
+    }
+}
+
+fn setting_edit_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(SettingEdit::encoded_bound_within(limits)?);
+    record_setting_default_encoded_bound_family(limits, biggest)
+}
+
+fn setting_edit_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(SettingEdit::decoded_bound_within(limits)?);
+    record_setting_default_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `RecordSettingDefault`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RecordSettingDefaultParts {
+    /// The `kind` field.
+    pub kind: u32,
+    /// The `scope` field.
+    pub scope: u32,
+    /// The `number` field.
+    pub number: u32,
+    /// The `value` field.
+    pub value: Box<[u8]>,
+}
+
+/// `RecordSettingDefault` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RecordSettingDefault {
+    kind: u32,
+    scope: u32,
+    number: u32,
+    value: Box<[u8]>,
+}
+
+impl RecordSettingDefault {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: RecordSettingDefaultParts) -> Result<Self, Problem> {
+        let RecordSettingDefaultParts { kind, scope, number, value } = parts;
+        let value = Self { kind, scope, number, value };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `kind` field.
+    #[must_use]
+    pub fn kind(&self) -> u32 { self.kind }
+
+    /// Reads the `scope` field.
+    #[must_use]
+    pub fn scope(&self) -> u32 { self.scope }
+
+    /// Reads the `number` field.
+    #[must_use]
+    pub fn number(&self) -> u32 { self.number }
+
+    /// Reads the `value` field.
+    #[must_use]
+    pub fn value(&self) -> &[u8] { &self.value }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> RecordSettingDefaultParts { RecordSettingDefaultParts { kind: self.kind, scope: self.scope, number: self.number, value: self.value } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.value.len() > usize::try_from(limits.record_setting_default_value.min(CEILINGS.record_setting_default_value)).expect("u32 fits usize") { return Err(Problem { path: Path::RecordSettingDefaultValue, reason: skein_codec::Reason::Bound }); }
+        Ok(())
     }
 }
 
@@ -6559,6 +9065,115 @@ impl RecordSettingDefault {
         let decoded_number = reader.u32().ok_or(Problem { path: Path::RecordSettingDefaultNumber, reason: skein_codec::Reason::Short })?;
         let decoded_value = { let length = match skein_codec::read_len(reader, limits.record_setting_default_value.min(CEILINGS.record_setting_default_value)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::RecordSettingDefaultValue, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::RecordSettingDefaultValue, reason: skein_codec::Reason::Short })?) };
         Ok(Self { kind: decoded_kind, scope: decoded_scope, number: decoded_number, value: decoded_value })
+    }
+}
+
+impl RecordSettingDefault {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?.checked_add(4_u64)?;
+        size = size.checked_add(4_u64)?.checked_add(4_u64.checked_add(u64::from(limits.record_setting_default_value))?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.record_setting_default_value))?;
+        heap.checked_add(0)
+    }
+}
+
+fn record_setting_default_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RecordSettingDefault::encoded_bound_within(limits)?);
+    record_setting_change_encoded_bound_family(limits, biggest)
+}
+
+fn record_setting_default_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RecordSettingDefault::decoded_bound_within(limits)?);
+    record_setting_change_decoded_bound_family(limits, biggest)
+}
+
+fn check_record_setting_default_record_limits(limits: &Limits) -> Result<(), Problem> {
+    if limits.record_setting_default_value > CEILINGS.record_setting_default_value { return Err(Problem { path: Path::RecordSettingDefaultValue, reason: skein_codec::Reason::Bound }); }
+    check_record_setting_change_record_limits(limits)
+}
+
+impl Limits {
+    fn values_for_record_setting_default_record(&self, values: &mut List<u32>) {
+        values.push(self.record_setting_default_value).expect("room for every named limit");
+        self.values_for_record_setting_change_record(values);
+    }
+}
+
+/// Movable fields of `RecordSettingChange`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RecordSettingChangeParts {
+    /// The `kind` field.
+    pub kind: u32,
+    /// The `scope` field.
+    pub scope: u32,
+    /// The `number` field.
+    pub number: u32,
+    /// The `value` field.
+    pub value: Option<Box<[u8]>>,
+}
+
+/// `RecordSettingChange` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RecordSettingChange {
+    kind: u32,
+    scope: u32,
+    number: u32,
+    value: Option<Box<[u8]>>,
+}
+
+impl RecordSettingChange {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: RecordSettingChangeParts) -> Result<Self, Problem> {
+        let RecordSettingChangeParts { kind, scope, number, value } = parts;
+        let value = Self { kind, scope, number, value };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `kind` field.
+    #[must_use]
+    pub fn kind(&self) -> u32 { self.kind }
+
+    /// Reads the `scope` field.
+    #[must_use]
+    pub fn scope(&self) -> u32 { self.scope }
+
+    /// Reads the `number` field.
+    #[must_use]
+    pub fn number(&self) -> u32 { self.number }
+
+    /// Reads the `value` field.
+    #[must_use]
+    pub fn value(&self) -> &Option<Box<[u8]>> { &self.value }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> RecordSettingChangeParts { RecordSettingChangeParts { kind: self.kind, scope: self.scope, number: self.number, value: self.value } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if let Some(some_0) = self.value.as_ref() && some_0.len() > usize::try_from(limits.record_setting_change_value_some.min(CEILINGS.record_setting_change_value_some)).expect("u32 fits usize") { return Err(Problem { path: Path::RecordSettingChangeValue, reason: skein_codec::Reason::Bound }); }
+        Ok(())
     }
 }
 
@@ -6615,6 +9230,122 @@ impl RecordSettingChange {
     }
 }
 
+impl RecordSettingChange {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?.checked_add(4_u64)?;
+        size = size.checked_add(4_u64)?.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.record_setting_change_value_some))?)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.record_setting_change_value_some))?;
+        heap.checked_add(0)
+    }
+}
+
+fn record_setting_change_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RecordSettingChange::encoded_bound_within(limits)?);
+    record_setting_proposal_encoded_bound_family(limits, biggest)
+}
+
+fn record_setting_change_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RecordSettingChange::decoded_bound_within(limits)?);
+    record_setting_proposal_decoded_bound_family(limits, biggest)
+}
+
+fn check_record_setting_change_record_limits(limits: &Limits) -> Result<(), Problem> {
+    if limits.record_setting_change_value_some > CEILINGS.record_setting_change_value_some { return Err(Problem { path: Path::RecordSettingChangeValue, reason: skein_codec::Reason::Bound }); }
+    check_record_setting_replaced_record_limits(limits)
+}
+
+impl Limits {
+    fn values_for_record_setting_change_record(&self, values: &mut List<u32>) {
+        values.push(self.record_setting_change_value_some).expect("room for every named limit");
+        self.values_for_record_setting_replaced_record(values);
+    }
+}
+
+/// Movable fields of `RecordSettingProposal`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RecordSettingProposalParts {
+    /// The `proposal` field.
+    pub proposal: u64,
+    /// The `kind` field.
+    pub kind: u32,
+    /// The `scope` field.
+    pub scope: u32,
+    /// The `number` field.
+    pub number: u32,
+    /// The `edit` field.
+    pub edit: SettingEdit,
+}
+
+/// `RecordSettingProposal` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RecordSettingProposal {
+    proposal: u64,
+    kind: u32,
+    scope: u32,
+    number: u32,
+    edit: SettingEdit,
+}
+
+impl RecordSettingProposal {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: RecordSettingProposalParts) -> Result<Self, Problem> {
+        let RecordSettingProposalParts { proposal, kind, scope, number, edit } = parts;
+        let value = Self { proposal, kind, scope, number, edit };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `proposal` field.
+    #[must_use]
+    pub fn proposal(&self) -> u64 { self.proposal }
+
+    /// Reads the `kind` field.
+    #[must_use]
+    pub fn kind(&self) -> u32 { self.kind }
+
+    /// Reads the `scope` field.
+    #[must_use]
+    pub fn scope(&self) -> u32 { self.scope }
+
+    /// Reads the `number` field.
+    #[must_use]
+    pub fn number(&self) -> u32 { self.number }
+
+    /// Reads the `edit` field.
+    #[must_use]
+    pub fn edit(&self) -> &SettingEdit { &self.edit }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> RecordSettingProposalParts { RecordSettingProposalParts { proposal: self.proposal, kind: self.kind, scope: self.scope, number: self.number, edit: self.edit } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        self.edit.check(limits)?;
+        Ok(())
+    }
+}
+
 impl RecordSettingProposal {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -6658,6 +9389,112 @@ impl RecordSettingProposal {
         let decoded_number = reader.u32().ok_or(Problem { path: Path::RecordSettingProposalNumber, reason: skein_codec::Reason::Short })?;
         let decoded_edit = SettingEdit::decode_from(limits, reader)?;
         Ok(Self { proposal: decoded_proposal, kind: decoded_kind, scope: decoded_scope, number: decoded_number, edit: decoded_edit })
+    }
+}
+
+impl RecordSettingProposal {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?.checked_add(4_u64)?;
+        size = size.checked_add(4_u64)?.checked_add(4_u64)?;
+        size = size.checked_add(SettingEdit::encoded_bound_within(limits)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(SettingEdit::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
+fn record_setting_proposal_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RecordSettingProposal::encoded_bound_within(limits)?);
+    record_setting_replaced_encoded_bound_family(limits, biggest)
+}
+
+fn record_setting_proposal_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RecordSettingProposal::decoded_bound_within(limits)?);
+    record_setting_replaced_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `RecordSettingReplaced`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RecordSettingReplacedParts {
+    /// The `kind` field.
+    pub kind: u32,
+    /// The `scope` field.
+    pub scope: u32,
+    /// The `number` field.
+    pub number: u32,
+    /// The `revision` field.
+    pub revision: u64,
+    /// The `value` field.
+    pub value: Box<[u8]>,
+}
+
+/// `RecordSettingReplaced` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RecordSettingReplaced {
+    kind: u32,
+    scope: u32,
+    number: u32,
+    revision: u64,
+    value: Box<[u8]>,
+}
+
+impl RecordSettingReplaced {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: RecordSettingReplacedParts) -> Result<Self, Problem> {
+        let RecordSettingReplacedParts { kind, scope, number, revision, value } = parts;
+        let value = Self { kind, scope, number, revision, value };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `kind` field.
+    #[must_use]
+    pub fn kind(&self) -> u32 { self.kind }
+
+    /// Reads the `scope` field.
+    #[must_use]
+    pub fn scope(&self) -> u32 { self.scope }
+
+    /// Reads the `number` field.
+    #[must_use]
+    pub fn number(&self) -> u32 { self.number }
+
+    /// Reads the `revision` field.
+    #[must_use]
+    pub fn revision(&self) -> u64 { self.revision }
+
+    /// Reads the `value` field.
+    #[must_use]
+    pub fn value(&self) -> &[u8] { &self.value }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> RecordSettingReplacedParts { RecordSettingReplacedParts { kind: self.kind, scope: self.scope, number: self.number, revision: self.revision, value: self.value } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.value.len() > usize::try_from(limits.record_setting_replaced_value.min(CEILINGS.record_setting_replaced_value)).expect("u32 fits usize") { return Err(Problem { path: Path::RecordSettingReplacedValue, reason: skein_codec::Reason::Bound }); }
+        Ok(())
     }
 }
 
@@ -6706,6 +9543,123 @@ impl RecordSettingReplaced {
         let decoded_revision = reader.u64().ok_or(Problem { path: Path::RecordSettingReplacedRevision, reason: skein_codec::Reason::Short })?;
         let decoded_value = { let length = match skein_codec::read_len(reader, limits.record_setting_replaced_value.min(CEILINGS.record_setting_replaced_value)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::RecordSettingReplacedValue, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::RecordSettingReplacedValue, reason: skein_codec::Reason::Short })?) };
         Ok(Self { kind: decoded_kind, scope: decoded_scope, number: decoded_number, revision: decoded_revision, value: decoded_value })
+    }
+}
+
+impl RecordSettingReplaced {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?.checked_add(4_u64)?;
+        size = size.checked_add(4_u64)?.checked_add(8_u64)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.record_setting_replaced_value))?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(u64::from(limits.record_setting_replaced_value))?;
+        heap.checked_add(0)
+    }
+}
+
+fn record_setting_replaced_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RecordSettingReplaced::encoded_bound_within(limits)?);
+    value_encoded_bound_family(limits, biggest)
+}
+
+fn record_setting_replaced_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RecordSettingReplaced::decoded_bound_within(limits)?);
+    value_decoded_bound_family(limits, biggest)
+}
+
+fn check_record_setting_replaced_record_limits(limits: &Limits) -> Result<(), Problem> {
+    if limits.record_setting_replaced_value > CEILINGS.record_setting_replaced_value { return Err(Problem { path: Path::RecordSettingReplacedValue, reason: skein_codec::Reason::Bound }); }
+    Ok(())
+}
+
+impl Limits {
+    fn values_for_record_setting_replaced_record(&self, values: &mut List<u32>) {
+        values.push(self.record_setting_replaced_value).expect("room for every named limit");
+    }
+}
+
+/// `Value` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum Value {
+    /// `application_object` carrying `RecordApplicationObject`.
+    ApplicationObject(RecordApplicationObject),
+    /// `application_answer` carrying `RecordApplicationAnswer`.
+    ApplicationAnswer(RecordApplicationAnswer),
+    /// `proposal` carrying `RecordProposal`.
+    Proposal(RecordProposal),
+    /// `procedure` carrying `RecordProcedure`.
+    Procedure(RecordProcedure),
+    /// `procedure_delegate_outcome` carrying `RecordProcedureDelegateOutcome`.
+    ProcedureDelegateOutcome(RecordProcedureDelegateOutcome),
+    /// `result` carrying `RecordResult`.
+    Result(RecordResult),
+    /// `task` carrying `RecordTask`.
+    Task(RecordTask),
+    /// `adoption` carrying `RecordAdoption`.
+    Adoption(RecordAdoption),
+    /// `subscription` carrying `RecordSubscription`.
+    Subscription(RecordSubscription),
+    /// `pool` carrying `RecordPool`.
+    Pool(RecordPool),
+    /// `outbox` carrying `RecordOutbox`.
+    Outbox(RecordOutbox),
+    /// `made` carrying `RecordMade`.
+    Made(RecordMade),
+    /// `setting_default` carrying `RecordSettingDefault`.
+    SettingDefault(RecordSettingDefault),
+    /// `setting_change` carrying `RecordSettingChange`.
+    SettingChange(RecordSettingChange),
+    /// `setting_proposal` carrying `RecordSettingProposal`.
+    SettingProposal(RecordSettingProposal),
+    /// `setting_replaced` carrying `RecordSettingReplaced`.
+    SettingReplaced(RecordSettingReplaced),
+}
+
+impl Value {
+    /// Checks the payload against the given limits.
+    pub fn new(limits: &Limits, value: Self) -> Result<Self, Problem> {
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        match self {
+            Self::Proposal(record) => RecordProposal::check(record, limits),
+            Self::Procedure(record) => RecordProcedure::check(record, limits),
+            Self::ProcedureDelegateOutcome(record) => RecordProcedureDelegateOutcome::check(record, limits),
+            Self::Task(record) => RecordTask::check(record, limits),
+            Self::Adoption(record) => RecordAdoption::check(record, limits),
+            Self::Pool(record) => RecordPool::check(record, limits),
+            Self::Outbox(record) => RecordOutbox::check(record, limits),
+            Self::Made(record) => RecordMade::check(record, limits),
+            Self::SettingDefault(record) => RecordSettingDefault::check(record, limits),
+            Self::SettingChange(record) => RecordSettingChange::check(record, limits),
+            Self::SettingProposal(record) => RecordSettingProposal::check(record, limits),
+            Self::SettingReplaced(record) => RecordSettingReplaced::check(record, limits),
+            Self::ApplicationObject(_) | Self::ApplicationAnswer(_) | Self::Result(_) | Self::Subscription(_) => Ok(()),
+        }?;
+        Ok(())
     }
 }
 
@@ -6788,2170 +9742,6 @@ impl Value {
     }
 }
 
-impl Row {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(2).expect("schema ceilings fit u32");
-        let field_value = &self.value;
-        size = size.checked_add(field_value.measure()).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        writer.put(&2_u16.to_be_bytes())?;
-        let field_value = &self.value;
-        field_value.encode(writer)?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::RowTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let version = reader.u16().ok_or(Problem { path: Path::RowVersion, reason: skein_codec::Reason::Short })?;
-        if version != 2 { return Err(Problem { path: Path::RowVersion, reason: skein_codec::Reason::Version }); }
-        let decoded_value = Value::decode_from(limits, reader)?;
-        Ok(Self { value: decoded_value })
-    }
-}
-
-impl Segment {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.segment_bytes))?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(u64::from(limits.segment_bytes))?;
-        heap.checked_add(0)
-    }
-}
-
-impl ResourcePath {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.resource_path_segments).checked_mul(Segment::encoded_bound_within(limits)?)?)?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(List::<Segment>::price(limits.resource_path_segments)?.checked_add(u64::from(limits.resource_path_segments).checked_mul(Segment::decoded_bound_within(limits)?)?)?)?;
-        heap.checked_add(0)
-    }
-}
-
-impl CallPurpose {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(8_u64)?.checked_add(4_u64)?;
-        size = size.checked_add(4_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl Purpose {
-    /// Maximum encoded bytes among variants.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut biggest = 0_u64;
-        biggest = biggest.max(CallPurpose::encoded_bound_within(limits)?);
-        1_u64.checked_add(biggest)
-    }
-
-    /// Maximum heap held by any decoded variant.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut biggest = 0_u64;
-        biggest = biggest.max(CallPurpose::decoded_bound_within(limits)?);
-        biggest.checked_add(0)
-    }
-}
-
-impl Key {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(Purpose::encoded_bound_within(limits)?)?.checked_add(u64::from(16_u32))?;
-        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(Purpose::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl Effect {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(2_u64)?.checked_add(4_u64.checked_add(u64::from(limits.effect_resources).checked_mul(ResourcePath::encoded_bound_within(limits)?)?)?)?;
-        size = size.checked_add(8_u64)?.checked_add(1_u64.checked_add(8_u64)?)?;
-        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(List::<ResourcePath>::price(limits.effect_resources)?.checked_add(u64::from(limits.effect_resources).checked_mul(ResourcePath::decoded_bound_within(limits)?)?)?)?;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl Attempt {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(4_u64)?.checked_add(8_u64)?;
-        size = size.checked_add(8_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl ProcedureState {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(4_u64)?.checked_add(8_u64)?;
-        size = size.checked_add(2_u64)?.checked_add(ResourcePath::encoded_bound_within(limits)?)?;
-        size = size.checked_add(2_u64)?.checked_add(2_u64)?;
-        size = size.checked_add(1_u64)?.checked_add(1_u64.checked_add(8_u64)?)?;
-        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(8_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(ResourcePath::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl ApplicationObject {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl RefusalRole {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(1_u64.checked_add(4_u64)?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl RefusalTaken {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(8_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl LackAgain {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(1_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl LackBudget {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl LackGrant {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(2_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl LackDepth {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(4_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl LackTasks {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(4_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl LackRequired {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(2_u64)?.checked_add(2_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl LackFailed {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(2_u64)?.checked_add(2_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl LackUnguarded {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(2_u64)?.checked_add(2_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl Lack {
-    /// Maximum encoded bytes among variants.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut biggest = 0_u64;
-        biggest = biggest.max(LackAgain::encoded_bound_within(limits)?).max(LackBudget::encoded_bound_within(limits)?);
-        biggest = biggest.max(LackGrant::encoded_bound_within(limits)?).max(LackDepth::encoded_bound_within(limits)?);
-        biggest = biggest.max(LackTasks::encoded_bound_within(limits)?).max(LackRequired::encoded_bound_within(limits)?);
-        biggest = biggest.max(LackFailed::encoded_bound_within(limits)?).max(LackUnguarded::encoded_bound_within(limits)?);
-        1_u64.checked_add(biggest)
-    }
-
-    /// Maximum heap held by any decoded variant.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut biggest = 0_u64;
-        biggest = biggest.max(LackAgain::decoded_bound_within(limits)?).max(LackBudget::decoded_bound_within(limits)?);
-        biggest = biggest.max(LackGrant::decoded_bound_within(limits)?).max(LackDepth::decoded_bound_within(limits)?);
-        biggest = biggest.max(LackTasks::decoded_bound_within(limits)?).max(LackRequired::decoded_bound_within(limits)?);
-        biggest = biggest.max(LackFailed::decoded_bound_within(limits)?).max(LackUnguarded::decoded_bound_within(limits)?);
-        biggest.checked_add(0)
-    }
-}
-
-impl LimitKind {
-    /// Maximum encoded bytes among variants.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let biggest = 0_u64;
-        1_u64.checked_add(biggest)
-    }
-
-    /// Maximum heap held by any decoded variant.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let biggest = 0_u64;
-        biggest.checked_add(0)
-    }
-}
-
-impl PartyPerson {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(8_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl PartyTask {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(8_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl PartyDeployment {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(4_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl Party {
-    /// Maximum encoded bytes among variants.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut biggest = 0_u64;
-        biggest = biggest.max(PartyPerson::encoded_bound_within(limits)?).max(PartyTask::encoded_bound_within(limits)?);
-        biggest = biggest.max(PartyDeployment::encoded_bound_within(limits)?);
-        1_u64.checked_add(biggest)
-    }
-
-    /// Maximum heap held by any decoded variant.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut biggest = 0_u64;
-        biggest = biggest.max(PartyPerson::decoded_bound_within(limits)?).max(PartyTask::decoded_bound_within(limits)?);
-        biggest = biggest.max(PartyDeployment::decoded_bound_within(limits)?);
-        biggest.checked_add(0)
-    }
-}
-
-impl EndingCancelled {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(Party::encoded_bound_within(limits)?)?.checked_add(8_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(Party::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl EndingDecided {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl Ending {
-    /// Maximum encoded bytes among variants.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut biggest = 0_u64;
-        biggest = biggest.max(EndingCancelled::encoded_bound_within(limits)?).max(EndingDecided::encoded_bound_within(limits)?);
-        1_u64.checked_add(biggest)
-    }
-
-    /// Maximum heap held by any decoded variant.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut biggest = 0_u64;
-        biggest = biggest.max(EndingCancelled::decoded_bound_within(limits)?).max(EndingDecided::decoded_bound_within(limits)?);
-        biggest.checked_add(0)
-    }
-}
-
-impl MovedSpec {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(8_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl MovedPerson {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(8_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl MovedNote {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(4_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl HoldReasonDependency {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(8_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl HoldReasonPlaced {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(8_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl HoldReasonUncertain {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(8_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl HoldReasonPoolLost {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(8_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl FailureClass {
-    /// Maximum encoded bytes among variants.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let biggest = 0_u64;
-        1_u64.checked_add(biggest)
-    }
-
-    /// Maximum heap held by any decoded variant.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let biggest = 0_u64;
-        biggest.checked_add(0)
-    }
-}
-
-impl EffectPhase {
-    /// Maximum encoded bytes among variants.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let biggest = 0_u64;
-        1_u64.checked_add(biggest)
-    }
-
-    /// Maximum heap held by any decoded variant.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let biggest = 0_u64;
-        biggest.checked_add(0)
-    }
-}
-
-impl ResourceRole {
-    /// Maximum encoded bytes among variants.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let biggest = 0_u64;
-        1_u64.checked_add(biggest)
-    }
-
-    /// Maximum heap held by any decoded variant.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let biggest = 0_u64;
-        biggest.checked_add(0)
-    }
-}
-
-impl ApplicationOutcomeChanged {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(8_u64)?.checked_add(ApplicationObject::encoded_bound_within(limits)?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(ApplicationObject::decoded_bound_within(limits)?)?;
-        heap.checked_add(0)
-    }
-}
-
-impl ApplicationOutcomeMoved {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(8_u64)?.checked_add(ApplicationObject::encoded_bound_within(limits)?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(ApplicationObject::decoded_bound_within(limits)?)?;
-        heap.checked_add(0)
-    }
-}
-
-impl ApplicationOutcomeRole {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(4_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl RecordApplicationObject {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(8_u64)?.checked_add(ApplicationObject::encoded_bound_within(limits)?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(ApplicationObject::decoded_bound_within(limits)?)?;
-        heap.checked_add(0)
-    }
-}
-
-impl RecordProposal {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
-        size = size.checked_add(4_u64)?.checked_add(Effect::encoded_bound_within(limits)?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(Effect::decoded_bound_within(limits)?)?;
-        heap.checked_add(0)
-    }
-}
-
-impl RecordProcedure {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(ProcedureState::encoded_bound_within(limits)?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(ProcedureState::decoded_bound_within(limits)?)?;
-        heap.checked_add(0)
-    }
-}
-
-impl SpecRevision {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl RecordProcedureDelegateOutcome {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
-        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(4_u64.checked_add(u64::from(limits.record_procedure_delegate_outcome_revisions).checked_mul(SpecRevision::encoded_bound_within(limits)?)?)?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(List::<SpecRevision>::price(limits.record_procedure_delegate_outcome_revisions)?.checked_add(u64::from(limits.record_procedure_delegate_outcome_revisions).checked_mul(SpecRevision::decoded_bound_within(limits)?)?)?)?;
-        heap.checked_add(0)
-    }
-}
-
-impl RecordResult {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(8_u64)?.checked_add(2_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl RecordTask {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(8_u64)?.checked_add(4_u64)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.record_task_resources).checked_mul(ResourcePath::encoded_bound_within(limits)?)?)?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(List::<ResourcePath>::price(limits.record_task_resources)?.checked_add(u64::from(limits.record_task_resources).checked_mul(ResourcePath::decoded_bound_within(limits)?)?)?)?;
-        heap.checked_add(0)
-    }
-}
-
-impl RecordAdoption {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(4_u64)?.checked_add(ResourcePath::encoded_bound_within(limits)?)?;
-        size = size.checked_add(ResourceRole::encoded_bound_within(limits)?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(ResourcePath::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(ResourceRole::decoded_bound_within(limits)?)?;
-        heap.checked_add(0)
-    }
-}
-
-impl RecordSubscription {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(2_u64)?.checked_add(8_u64)?;
-        size = size.checked_add(2_u64)?.checked_add(2_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl RecordPool {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(ResourcePath::encoded_bound_within(limits)?)?.checked_add(4_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(ResourcePath::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl RecordMade {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(Key::encoded_bound_within(limits)?)?.checked_add(4_u64.checked_add(u64::from(limits.record_made_resources).checked_mul(ResourcePath::encoded_bound_within(limits)?)?)?)?;
-        size = size.checked_add(8_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(Key::decoded_bound_within(limits)?)?.checked_add(List::<ResourcePath>::price(limits.record_made_resources)?.checked_add(u64::from(limits.record_made_resources).checked_mul(ResourcePath::decoded_bound_within(limits)?)?)?)?;
-        heap = heap.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl OutboxEntry {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
-        size = size.checked_add(Key::encoded_bound_within(limits)?)?.checked_add(Effect::encoded_bound_within(limits)?)?;
-        size = size.checked_add(1_u64.checked_add(Attempt::encoded_bound_within(limits)?)?)?.checked_add(EffectPhase::encoded_bound_within(limits)?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(Key::decoded_bound_within(limits)?)?.checked_add(Effect::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(Attempt::decoded_bound_within(limits)?)?.checked_add(EffectPhase::decoded_bound_within(limits)?)?;
-        heap.checked_add(0)
-    }
-}
-
-impl RefusalAuthority {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(Lack::encoded_bound_within(limits)?)?.checked_add(1_u64.checked_add(1_u64)?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(Lack::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl RefusalLimit {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(LimitKind::encoded_bound_within(limits)?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(LimitKind::decoded_bound_within(limits)?)?;
-        heap.checked_add(0)
-    }
-}
-
-impl RefusalEnded {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(Ending::encoded_bound_within(limits)?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(Ending::decoded_bound_within(limits)?)?;
-        heap.checked_add(0)
-    }
-}
-
-impl HoldReasonFailures {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(FailureClass::encoded_bound_within(limits)?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(FailureClass::decoded_bound_within(limits)?)?;
-        heap.checked_add(0)
-    }
-}
-
-impl Bound {
-    /// Maximum encoded bytes among variants.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let biggest = 0_u64;
-        1_u64.checked_add(biggest)
-    }
-
-    /// Maximum heap held by any decoded variant.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let biggest = 0_u64;
-        biggest.checked_add(0)
-    }
-}
-
-impl Exceeded {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(Bound::encoded_bound_within(limits)?)?.checked_add(8_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(Bound::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-impl HoldReason {
-    /// Maximum encoded bytes among variants.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut biggest = 0_u64;
-        biggest = biggest.max(HoldReasonFailures::encoded_bound_within(limits)?).max(HoldReasonDependency::encoded_bound_within(limits)?);
-        biggest = biggest.max(HoldReasonPlaced::encoded_bound_within(limits)?).max(HoldReasonUncertain::encoded_bound_within(limits)?);
-        biggest = biggest.max(HoldReasonPoolLost::encoded_bound_within(limits)?).max(Exceeded::encoded_bound_within(limits)?);
-        1_u64.checked_add(biggest)
-    }
-
-    /// Maximum heap held by any decoded variant.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut biggest = 0_u64;
-        biggest = biggest.max(HoldReasonFailures::decoded_bound_within(limits)?).max(HoldReasonDependency::decoded_bound_within(limits)?);
-        biggest = biggest.max(HoldReasonPlaced::decoded_bound_within(limits)?).max(HoldReasonUncertain::decoded_bound_within(limits)?);
-        biggest = biggest.max(HoldReasonPoolLost::decoded_bound_within(limits)?).max(Exceeded::decoded_bound_within(limits)?);
-        biggest.checked_add(0)
-    }
-}
-
-impl RecordOutbox {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(OutboxEntry::encoded_bound_within(limits)?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(OutboxEntry::decoded_bound_within(limits)?)?;
-        heap.checked_add(0)
-    }
-}
-
-impl MovedHold {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(8_u64)?.checked_add(HoldReason::encoded_bound_within(limits)?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(HoldReason::decoded_bound_within(limits)?)?;
-        heap.checked_add(0)
-    }
-}
-
-impl Moved {
-    /// Maximum encoded bytes among variants.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut biggest = 0_u64;
-        biggest = biggest.max(MovedHold::encoded_bound_within(limits)?).max(MovedSpec::encoded_bound_within(limits)?);
-        biggest = biggest.max(MovedPerson::encoded_bound_within(limits)?).max(MovedNote::encoded_bound_within(limits)?);
-        1_u64.checked_add(biggest)
-    }
-
-    /// Maximum heap held by any decoded variant.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut biggest = 0_u64;
-        biggest = biggest.max(MovedHold::decoded_bound_within(limits)?).max(MovedSpec::decoded_bound_within(limits)?);
-        biggest = biggest.max(MovedPerson::decoded_bound_within(limits)?).max(MovedNote::decoded_bound_within(limits)?);
-        biggest.checked_add(0)
-    }
-}
-
-impl RefusalMoved {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(Moved::encoded_bound_within(limits)?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(Moved::decoded_bound_within(limits)?)?;
-        heap.checked_add(0)
-    }
-}
-
-impl Refusal {
-    /// Maximum encoded bytes among variants.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut biggest = 0_u64;
-        biggest = biggest.max(RefusalRole::encoded_bound_within(limits)?).max(RefusalAuthority::encoded_bound_within(limits)?);
-        biggest = biggest.max(RefusalLimit::encoded_bound_within(limits)?).max(RefusalMoved::encoded_bound_within(limits)?);
-        biggest = biggest.max(RefusalEnded::encoded_bound_within(limits)?).max(RefusalTaken::encoded_bound_within(limits)?);
-        1_u64.checked_add(biggest)
-    }
-
-    /// Maximum heap held by any decoded variant.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut biggest = 0_u64;
-        biggest = biggest.max(RefusalRole::decoded_bound_within(limits)?).max(RefusalAuthority::decoded_bound_within(limits)?);
-        biggest = biggest.max(RefusalLimit::decoded_bound_within(limits)?).max(RefusalMoved::decoded_bound_within(limits)?);
-        biggest = biggest.max(RefusalEnded::decoded_bound_within(limits)?).max(RefusalTaken::decoded_bound_within(limits)?);
-        biggest.checked_add(0)
-    }
-}
-
-impl ApplicationOutcomeCoreRefused {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(Refusal::encoded_bound_within(limits)?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(Refusal::decoded_bound_within(limits)?)?;
-        heap.checked_add(0)
-    }
-}
-
-impl ApplicationOutcome {
-    /// Maximum encoded bytes among variants.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut biggest = 0_u64;
-        biggest = biggest.max(ApplicationOutcomeChanged::encoded_bound_within(limits)?).max(ApplicationOutcomeMoved::encoded_bound_within(limits)?);
-        biggest = biggest.max(ApplicationOutcomeRole::encoded_bound_within(limits)?).max(ApplicationOutcomeCoreRefused::encoded_bound_within(limits)?);
-        1_u64.checked_add(biggest)
-    }
-
-    /// Maximum heap held by any decoded variant.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut biggest = 0_u64;
-        biggest = biggest.max(ApplicationOutcomeChanged::decoded_bound_within(limits)?).max(ApplicationOutcomeMoved::decoded_bound_within(limits)?);
-        biggest = biggest.max(ApplicationOutcomeRole::decoded_bound_within(limits)?).max(ApplicationOutcomeCoreRefused::decoded_bound_within(limits)?);
-        biggest.checked_add(0)
-    }
-}
-
-impl RecordApplicationAnswer {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
-        size = size.checked_add(ApplicationOutcome::encoded_bound_within(limits)?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(ApplicationOutcome::decoded_bound_within(limits)?)?;
-        heap.checked_add(0)
-    }
-}
-
-impl SettingSet {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.setting_set_value))?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(u64::from(limits.setting_set_value))?;
-        heap.checked_add(0)
-    }
-}
-
-impl SettingEdit {
-    /// Maximum encoded bytes among variants.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut biggest = 0_u64;
-        biggest = biggest.max(SettingSet::encoded_bound_within(limits)?);
-        1_u64.checked_add(biggest)
-    }
-
-    /// Maximum heap held by any decoded variant.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut biggest = 0_u64;
-        biggest = biggest.max(SettingSet::decoded_bound_within(limits)?);
-        biggest.checked_add(0)
-    }
-}
-
-impl RecordSettingDefault {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(4_u64)?.checked_add(4_u64)?;
-        size = size.checked_add(4_u64)?.checked_add(4_u64.checked_add(u64::from(limits.record_setting_default_value))?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.record_setting_default_value))?;
-        heap.checked_add(0)
-    }
-}
-
-impl RecordSettingChange {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(4_u64)?.checked_add(4_u64)?;
-        size = size.checked_add(4_u64)?.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.record_setting_change_value_some))?)?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.record_setting_change_value_some))?;
-        heap.checked_add(0)
-    }
-}
-
-impl RecordSettingProposal {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(8_u64)?.checked_add(4_u64)?;
-        size = size.checked_add(4_u64)?.checked_add(4_u64)?;
-        size = size.checked_add(SettingEdit::encoded_bound_within(limits)?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(SettingEdit::decoded_bound_within(limits)?)?;
-        heap.checked_add(0)
-    }
-}
-
-impl RecordSettingReplaced {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(4_u64)?.checked_add(4_u64)?;
-        size = size.checked_add(4_u64)?.checked_add(8_u64)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.record_setting_replaced_value))?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(u64::from(limits.record_setting_replaced_value))?;
-        heap.checked_add(0)
-    }
-}
-
 impl Value {
     /// Maximum encoded bytes among variants.
     #[must_use]
@@ -8994,6 +9784,86 @@ impl Value {
     }
 }
 
+fn value_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Value::encoded_bound_within(limits)?);
+    row_encoded_bound_family(limits, biggest)
+}
+
+fn value_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Value::decoded_bound_within(limits)?);
+    row_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `Row`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RowParts {
+    /// The `value` field.
+    pub value: Value,
+}
+
+/// `Row` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Row {
+    value: Value,
+}
+
+impl Row {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: RowParts) -> Result<Self, Problem> {
+        let RowParts { value } = parts;
+        let value = Self { value };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `value` field.
+    #[must_use]
+    pub fn value(&self) -> &Value { &self.value }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> RowParts { RowParts { value: self.value } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        self.value.check(limits)?;
+        Ok(())
+    }
+}
+
+impl Row {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(2).expect("schema ceilings fit u32");
+        let field_value = &self.value;
+        size = size.checked_add(field_value.measure()).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        writer.put(&VERSION.to_be_bytes())?;
+        let field_value = &self.value;
+        field_value.encode(writer)?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::RowTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let version = reader.u16().ok_or(Problem { path: Path::RowVersion, reason: skein_codec::Reason::Short })?;
+        if version != VERSION { return Err(Problem { path: Path::RowVersion, reason: skein_codec::Reason::Version }); }
+        let decoded_value = Value::decode_from(limits, reader)?;
+        Ok(Self { value: decoded_value })
+    }
+}
+
 impl Row {
     /// Maximum encoded bytes under these limits.
     #[must_use]
@@ -9022,170 +9892,13 @@ impl Row {
     }
 }
 
-/// Maximum wire bytes among this family's top-level types.
-#[must_use]
-pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-    if check_limits(limits).is_err() { return None; }
-    let mut biggest = 0_u64;
-    biggest = biggest.max(Segment::encoded_bound_within(limits)?);
-    biggest = biggest.max(ResourcePath::encoded_bound_within(limits)?);
-    biggest = biggest.max(CallPurpose::encoded_bound_within(limits)?);
-    biggest = biggest.max(Purpose::encoded_bound_within(limits)?);
-    biggest = biggest.max(Key::encoded_bound_within(limits)?);
-    biggest = biggest.max(Effect::encoded_bound_within(limits)?);
-    biggest = biggest.max(Attempt::encoded_bound_within(limits)?);
-    biggest = biggest.max(ProcedureState::encoded_bound_within(limits)?);
-    biggest = biggest.max(ApplicationObject::encoded_bound_within(limits)?);
-    biggest = biggest.max(RefusalRole::encoded_bound_within(limits)?);
-    biggest = biggest.max(RefusalTaken::encoded_bound_within(limits)?);
-    biggest = biggest.max(LackAgain::encoded_bound_within(limits)?);
-    biggest = biggest.max(LackBudget::encoded_bound_within(limits)?);
-    biggest = biggest.max(LackGrant::encoded_bound_within(limits)?);
-    biggest = biggest.max(LackDepth::encoded_bound_within(limits)?);
-    biggest = biggest.max(LackTasks::encoded_bound_within(limits)?);
-    biggest = biggest.max(LackRequired::encoded_bound_within(limits)?);
-    biggest = biggest.max(LackFailed::encoded_bound_within(limits)?);
-    biggest = biggest.max(LackUnguarded::encoded_bound_within(limits)?);
-    biggest = biggest.max(Lack::encoded_bound_within(limits)?);
-    biggest = biggest.max(LimitKind::encoded_bound_within(limits)?);
-    biggest = biggest.max(PartyPerson::encoded_bound_within(limits)?);
-    biggest = biggest.max(PartyTask::encoded_bound_within(limits)?);
-    biggest = biggest.max(PartyDeployment::encoded_bound_within(limits)?);
-    biggest = biggest.max(Party::encoded_bound_within(limits)?);
-    biggest = biggest.max(EndingCancelled::encoded_bound_within(limits)?);
-    biggest = biggest.max(EndingDecided::encoded_bound_within(limits)?);
-    biggest = biggest.max(Ending::encoded_bound_within(limits)?);
-    biggest = biggest.max(MovedSpec::encoded_bound_within(limits)?);
-    biggest = biggest.max(MovedPerson::encoded_bound_within(limits)?);
-    biggest = biggest.max(MovedNote::encoded_bound_within(limits)?);
-    biggest = biggest.max(HoldReasonDependency::encoded_bound_within(limits)?);
-    biggest = biggest.max(HoldReasonPlaced::encoded_bound_within(limits)?);
-    biggest = biggest.max(HoldReasonUncertain::encoded_bound_within(limits)?);
-    biggest = biggest.max(HoldReasonPoolLost::encoded_bound_within(limits)?);
-    biggest = biggest.max(FailureClass::encoded_bound_within(limits)?);
-    biggest = biggest.max(EffectPhase::encoded_bound_within(limits)?);
-    biggest = biggest.max(ResourceRole::encoded_bound_within(limits)?);
-    biggest = biggest.max(ApplicationOutcomeChanged::encoded_bound_within(limits)?);
-    biggest = biggest.max(ApplicationOutcomeMoved::encoded_bound_within(limits)?);
-    biggest = biggest.max(ApplicationOutcomeRole::encoded_bound_within(limits)?);
-    biggest = biggest.max(RecordApplicationObject::encoded_bound_within(limits)?);
-    biggest = biggest.max(RecordProposal::encoded_bound_within(limits)?);
-    biggest = biggest.max(RecordProcedure::encoded_bound_within(limits)?);
-    biggest = biggest.max(SpecRevision::encoded_bound_within(limits)?);
-    biggest = biggest.max(RecordProcedureDelegateOutcome::encoded_bound_within(limits)?);
-    biggest = biggest.max(RecordResult::encoded_bound_within(limits)?);
-    biggest = biggest.max(RecordTask::encoded_bound_within(limits)?);
-    biggest = biggest.max(RecordAdoption::encoded_bound_within(limits)?);
-    biggest = biggest.max(RecordSubscription::encoded_bound_within(limits)?);
-    biggest = biggest.max(RecordPool::encoded_bound_within(limits)?);
-    biggest = biggest.max(RecordMade::encoded_bound_within(limits)?);
-    biggest = biggest.max(OutboxEntry::encoded_bound_within(limits)?);
-    biggest = biggest.max(RefusalAuthority::encoded_bound_within(limits)?);
-    biggest = biggest.max(RefusalLimit::encoded_bound_within(limits)?);
-    biggest = biggest.max(RefusalEnded::encoded_bound_within(limits)?);
-    biggest = biggest.max(HoldReasonFailures::encoded_bound_within(limits)?);
-    biggest = biggest.max(Bound::encoded_bound_within(limits)?);
-    biggest = biggest.max(Exceeded::encoded_bound_within(limits)?);
-    biggest = biggest.max(HoldReason::encoded_bound_within(limits)?);
-    biggest = biggest.max(RecordOutbox::encoded_bound_within(limits)?);
-    biggest = biggest.max(MovedHold::encoded_bound_within(limits)?);
-    biggest = biggest.max(Moved::encoded_bound_within(limits)?);
-    biggest = biggest.max(RefusalMoved::encoded_bound_within(limits)?);
-    biggest = biggest.max(Refusal::encoded_bound_within(limits)?);
-    biggest = biggest.max(ApplicationOutcomeCoreRefused::encoded_bound_within(limits)?);
-    biggest = biggest.max(ApplicationOutcome::encoded_bound_within(limits)?);
-    biggest = biggest.max(RecordApplicationAnswer::encoded_bound_within(limits)?);
-    biggest = biggest.max(SettingSet::encoded_bound_within(limits)?);
-    biggest = biggest.max(SettingEdit::encoded_bound_within(limits)?);
-    biggest = biggest.max(RecordSettingDefault::encoded_bound_within(limits)?);
-    biggest = biggest.max(RecordSettingChange::encoded_bound_within(limits)?);
-    biggest = biggest.max(RecordSettingProposal::encoded_bound_within(limits)?);
-    biggest = biggest.max(RecordSettingReplaced::encoded_bound_within(limits)?);
-    biggest = biggest.max(Value::encoded_bound_within(limits)?);
-    biggest = biggest.max(Row::encoded_bound_within(limits)?);
+fn row_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Row::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
-/// Maximum heap held by one decoded top-level value.
-#[must_use]
-pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-    if check_limits(limits).is_err() { return None; }
-    let mut biggest = 0_u64;
-    biggest = biggest.max(Segment::decoded_bound_within(limits)?);
-    biggest = biggest.max(ResourcePath::decoded_bound_within(limits)?);
-    biggest = biggest.max(CallPurpose::decoded_bound_within(limits)?);
-    biggest = biggest.max(Purpose::decoded_bound_within(limits)?);
-    biggest = biggest.max(Key::decoded_bound_within(limits)?);
-    biggest = biggest.max(Effect::decoded_bound_within(limits)?);
-    biggest = biggest.max(Attempt::decoded_bound_within(limits)?);
-    biggest = biggest.max(ProcedureState::decoded_bound_within(limits)?);
-    biggest = biggest.max(ApplicationObject::decoded_bound_within(limits)?);
-    biggest = biggest.max(RefusalRole::decoded_bound_within(limits)?);
-    biggest = biggest.max(RefusalTaken::decoded_bound_within(limits)?);
-    biggest = biggest.max(LackAgain::decoded_bound_within(limits)?);
-    biggest = biggest.max(LackBudget::decoded_bound_within(limits)?);
-    biggest = biggest.max(LackGrant::decoded_bound_within(limits)?);
-    biggest = biggest.max(LackDepth::decoded_bound_within(limits)?);
-    biggest = biggest.max(LackTasks::decoded_bound_within(limits)?);
-    biggest = biggest.max(LackRequired::decoded_bound_within(limits)?);
-    biggest = biggest.max(LackFailed::decoded_bound_within(limits)?);
-    biggest = biggest.max(LackUnguarded::decoded_bound_within(limits)?);
-    biggest = biggest.max(Lack::decoded_bound_within(limits)?);
-    biggest = biggest.max(LimitKind::decoded_bound_within(limits)?);
-    biggest = biggest.max(PartyPerson::decoded_bound_within(limits)?);
-    biggest = biggest.max(PartyTask::decoded_bound_within(limits)?);
-    biggest = biggest.max(PartyDeployment::decoded_bound_within(limits)?);
-    biggest = biggest.max(Party::decoded_bound_within(limits)?);
-    biggest = biggest.max(EndingCancelled::decoded_bound_within(limits)?);
-    biggest = biggest.max(EndingDecided::decoded_bound_within(limits)?);
-    biggest = biggest.max(Ending::decoded_bound_within(limits)?);
-    biggest = biggest.max(MovedSpec::decoded_bound_within(limits)?);
-    biggest = biggest.max(MovedPerson::decoded_bound_within(limits)?);
-    biggest = biggest.max(MovedNote::decoded_bound_within(limits)?);
-    biggest = biggest.max(HoldReasonDependency::decoded_bound_within(limits)?);
-    biggest = biggest.max(HoldReasonPlaced::decoded_bound_within(limits)?);
-    biggest = biggest.max(HoldReasonUncertain::decoded_bound_within(limits)?);
-    biggest = biggest.max(HoldReasonPoolLost::decoded_bound_within(limits)?);
-    biggest = biggest.max(FailureClass::decoded_bound_within(limits)?);
-    biggest = biggest.max(EffectPhase::decoded_bound_within(limits)?);
-    biggest = biggest.max(ResourceRole::decoded_bound_within(limits)?);
-    biggest = biggest.max(ApplicationOutcomeChanged::decoded_bound_within(limits)?);
-    biggest = biggest.max(ApplicationOutcomeMoved::decoded_bound_within(limits)?);
-    biggest = biggest.max(ApplicationOutcomeRole::decoded_bound_within(limits)?);
-    biggest = biggest.max(RecordApplicationObject::decoded_bound_within(limits)?);
-    biggest = biggest.max(RecordProposal::decoded_bound_within(limits)?);
-    biggest = biggest.max(RecordProcedure::decoded_bound_within(limits)?);
-    biggest = biggest.max(SpecRevision::decoded_bound_within(limits)?);
-    biggest = biggest.max(RecordProcedureDelegateOutcome::decoded_bound_within(limits)?);
-    biggest = biggest.max(RecordResult::decoded_bound_within(limits)?);
-    biggest = biggest.max(RecordTask::decoded_bound_within(limits)?);
-    biggest = biggest.max(RecordAdoption::decoded_bound_within(limits)?);
-    biggest = biggest.max(RecordSubscription::decoded_bound_within(limits)?);
-    biggest = biggest.max(RecordPool::decoded_bound_within(limits)?);
-    biggest = biggest.max(RecordMade::decoded_bound_within(limits)?);
-    biggest = biggest.max(OutboxEntry::decoded_bound_within(limits)?);
-    biggest = biggest.max(RefusalAuthority::decoded_bound_within(limits)?);
-    biggest = biggest.max(RefusalLimit::decoded_bound_within(limits)?);
-    biggest = biggest.max(RefusalEnded::decoded_bound_within(limits)?);
-    biggest = biggest.max(HoldReasonFailures::decoded_bound_within(limits)?);
-    biggest = biggest.max(Bound::decoded_bound_within(limits)?);
-    biggest = biggest.max(Exceeded::decoded_bound_within(limits)?);
-    biggest = biggest.max(HoldReason::decoded_bound_within(limits)?);
-    biggest = biggest.max(RecordOutbox::decoded_bound_within(limits)?);
-    biggest = biggest.max(MovedHold::decoded_bound_within(limits)?);
-    biggest = biggest.max(Moved::decoded_bound_within(limits)?);
-    biggest = biggest.max(RefusalMoved::decoded_bound_within(limits)?);
-    biggest = biggest.max(Refusal::decoded_bound_within(limits)?);
-    biggest = biggest.max(ApplicationOutcomeCoreRefused::decoded_bound_within(limits)?);
-    biggest = biggest.max(ApplicationOutcome::decoded_bound_within(limits)?);
-    biggest = biggest.max(RecordApplicationAnswer::decoded_bound_within(limits)?);
-    biggest = biggest.max(SettingSet::decoded_bound_within(limits)?);
-    biggest = biggest.max(SettingEdit::decoded_bound_within(limits)?);
-    biggest = biggest.max(RecordSettingDefault::decoded_bound_within(limits)?);
-    biggest = biggest.max(RecordSettingChange::decoded_bound_within(limits)?);
-    biggest = biggest.max(RecordSettingProposal::decoded_bound_within(limits)?);
-    biggest = biggest.max(RecordSettingReplaced::decoded_bound_within(limits)?);
-    biggest = biggest.max(Value::decoded_bound_within(limits)?);
-    biggest = biggest.max(Row::decoded_bound_within(limits)?);
+fn row_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Row::decoded_bound_within(limits)?);
     Some(biggest)
 }
+

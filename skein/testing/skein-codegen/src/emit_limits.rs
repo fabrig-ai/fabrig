@@ -163,6 +163,7 @@ pub(crate) fn emit_record(schema: &Context<'_>, record: &crate::Record, out: &mu
     let name = snake(&record.name);
     let mut helpers = String::new();
     let split = bounds.len() >= 96;
+    let start = out.len();
     out.push_str(&format!("fn check_{name}_record_limits(limits: &Limits) -> Result<(), Problem> {{\n"));
     if split {
         for group in bounds.chunk_by(|left, right| left.2 == right.2) {
@@ -179,9 +180,13 @@ pub(crate) fn emit_record(schema: &Context<'_>, record: &crate::Record, out: &mu
         Some(next) => out.push_str(&format!("    check_{}_record_limits(limits)\n}}\n\n", snake(next))),
         None => out.push_str("    Ok(())\n}\n\n"),
     }
+    let function = out.split_off(start);
+    out.push_str(&crate::emit_functions::pack_dispatches(function, "_field_limits(limits)"));
     out.push_str(&helpers);
     helpers.clear();
-    out.push_str(&format!("impl Limits {{\n    fn values_for_{name}_record(&self, values: &mut List<u32>) {{\n"));
+    out.push_str("impl Limits {\n");
+    let start = out.len();
+    out.push_str(&format!("    fn values_for_{name}_record(&self, values: &mut List<u32>) {{\n"));
     if split {
         for group in bounds.chunk_by(|left, right| left.2 == right.2) {
             let path = snake(&group.first().expect("nonempty field bounds").2);
@@ -196,6 +201,9 @@ pub(crate) fn emit_record(schema: &Context<'_>, record: &crate::Record, out: &mu
     if let Some(next) = next {
         out.push_str(&format!("        self.values_for_{}_record(values);\n", snake(next)));
     }
-    out.push_str("    }\n}\n\n");
+    out.push_str("    }\n");
+    let function = out.split_off(start);
+    out.push_str(&crate::emit_functions::pack_dispatches(function, "self.values_for_"));
+    out.push_str("}\n\n");
     out.push_str(&helpers);
 }

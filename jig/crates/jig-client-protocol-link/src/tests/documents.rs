@@ -290,7 +290,7 @@ fn catalogue_frame(address: &[u8]) -> w::Me {
                 w::DocumentTextParts { bytes: b"Arbitrary".as_slice().into(), cut: false },
             )
             .unwrap(),
-            skein_bools: [true, true, false, false, true],
+            sign_in: true, key: true, programs_cut: false, none: false, signed_in_plan: true,
             programs: skein_lib::List::with_capacity(0),
             manage_usage: Some(address.into()),
         },

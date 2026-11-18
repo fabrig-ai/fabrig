@@ -115,7 +115,7 @@ pub fn accounts_record(end: Option<w::AccountEnd>) -> w::Accounts {
     w::Accounts::new(
         &l,
         w::AccountsParts {
-            skein_bools: [false, true, false, true, false],
+            lendable: false, usable: true, settled: false, cut: true, readiness_cut: false,
             readiness: Box::new([]),
             program_hosts: Box::new([]),
             accounts: pieces([

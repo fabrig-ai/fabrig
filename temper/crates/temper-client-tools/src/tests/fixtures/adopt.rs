@@ -5,8 +5,6 @@ use temper_client_protocol_wire::{self as wire, v1 as w};
 pub(crate) const FIELD_OVERFLOW: u32 = 1;
 /// One restored adopt distinguishes recovery from a fresh call.
 pub(crate) const ADOPT_RESTORES: u32 = 1;
-/// All nine capabilities exercise the forge's specified output order.
-const ADOPT_KINDS: [bool; 9] = [true; 9];
 /// A nonzero repository identifier is preserved in the structured result.
 const REPOSITORY: u32 = 7;
 /// These inputs alter the ask while keeping its already held name.
@@ -32,7 +30,8 @@ pub(crate) fn adopted_with_unknown_protection() -> w::Outcome {
                 name: Box::from(b"n".as_slice()),
                 role: w::Role::Owned,
                 home: true,
-                kinds: w::Kinds::new(&limits, w::KindsParts { skein_bools: ADOPT_KINDS }).expect("kinds"),
+                // All nine capabilities exercise the forge's specified output order.
+                kinds: w::Kinds::new(&limits, w::KindsParts { read: true, push: true, open: true, land: true, review: true, status: true, comment: true, issue: true, branch: true }).expect("kinds"),
                 protection: w::Protection::Unknown,
             },
         )

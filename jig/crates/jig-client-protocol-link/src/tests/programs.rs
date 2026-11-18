@@ -129,7 +129,7 @@ fn a_host_rule_survives_wire_receipt() {
             &w::CEILINGS,
             w::HostParts {
                 name: None,
-                skein_bools: [false, false, true, false],
+                awaiting_logins: false, draining: false, connected: true, cut: false,
                 rule,
                 programs: Box::new([]),
                 channel: 17,
