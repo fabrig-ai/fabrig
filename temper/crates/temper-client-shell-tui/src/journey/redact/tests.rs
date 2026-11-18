@@ -74,6 +74,89 @@ fn places_with(bytes: &[u8], body: &[u8]) -> Vec<Line> {
 }
 
 #[test]
+fn web_browse_and_its_wrapped_note_are_redacted_and_prove() {
+    let encoded = url_base64(&[0x53; 32]);
+    let url: Box<[u8]> = [b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=".as_slice(), &encoded].concat().into();
+    let mut world = World::with_front(b"127.0.0.1:8367", true);
+    let duties = world.report(Report::Local { link: Some(skein_lib::Secret::new(url.clone())) });
+    let exchange = duties
+        .asked
+        .iter()
+        .find_map(|request| {
+            if let jig_client::Request::Exchange { exchange, message: jig_client::Message::SignInLink(_), .. } = request
+            {
+                Some(*exchange)
+            } else {
+                None
+            }
+        })
+        .expect("handed link sign-in");
+    world.report(Report::Heard(jig_client::Event::Reply {
+        exchange,
+        message: crate::host::tests::sign_in_bytes(&crate::host::tests::signed_in_answer()),
+    }));
+    let duties = world.report(Report::Heard(jig_client::Event::Streamed {
+        message: jig_client::Streamed::Record(crate::host::tests::hello_bytes()),
+    }));
+    world.report(Report::Heard(jig_client::Event::Streamed {
+        message: jig_client::Streamed::Record(crate::host::tests::me_bytes(&duties)),
+    }));
+    world.report(Report::Resize(Size { columns: 80, rows: 24 }));
+    world.report(Report::Stage(temper_client_tui::BoxStage::Running));
+    world.report(Report::Front(BoxLine::Link { url: skein_lib::Secret::new(url.clone()) }));
+    for character in "/web".chars() {
+        world.report(Report::Key(Key::Char(character)));
+    }
+    assert_eq!(world.report(Report::Key(Key::Enter)).open.as_deref(), Some(url.as_ref()));
+    world.report(Report::Opened { opened: false });
+    let now = Time::from_nanos(world.now);
+    let wall = Wall::from_nanos(world.now);
+    world.host.clocks(now, wall);
+    world.recorder.turn(now, wall);
+    world.recorder.mark(&mut world.host);
+    world.recorder.deadline(world.host.deadline());
+    let recording = world.save();
+    let records = lines(&recording).expect("web records");
+    assert!(records.iter().any(|line| matches!(line, Line::BoxLine(bytes) if bytes.starts_with(b"link "))));
+    assert!(
+        records.iter().any(
+            |line| matches!(line, Line::Key { event: Some(event), .. } if event.as_ref() == b"Own { command: Web }")
+        )
+    );
+    assert!(records.iter().any(|line| matches!(line, Line::Browse(bytes) if bytes == &url)));
+    assert!(prove(&recording).is_ok(), "original proof");
+    let redacted = redact(&recording, &[]).expect("redact web");
+    assert_eq!(redacted.originals.count(Kind::Link), 1);
+    let print = records
+        .iter()
+        .find_map(|line| {
+            if let Line::Mark(Some(print)) = line
+                && find_from(print, b"Open this link in a browser that reaches temper:", 0).is_some()
+            {
+                return Some(print);
+            }
+            None
+        })
+        .expect("a mark draws the web note");
+    assert!(find_from(print, &encoded, 0).is_none(), "the note wraps inside the secret");
+    assert_eq!(
+        scan_bytes(print, &[], &redacted.originals),
+        Some(crate::journey::What::Original),
+        "scan across wrapped rows"
+    );
+    let proved = prove(&redacted.recording).expect("redacted first replay's proof");
+    assert!(scan(&proved, &redacted.originals).expect("last scan").is_none());
+    let hidden = url_base64(&[b'x'; 32]);
+    assert!(
+        lines(&proved)
+            .unwrap()
+            .iter()
+            .any(|line| matches!(line, Line::Browse(bytes) if find_from(bytes, &hidden, 0).is_some()))
+    );
+    assert!(find_from(&proved, &encoded, 0).is_none(), "no original URL-base64 remains");
+}
+
+#[test]
 fn the_box_log_path_is_a_redacted_text_field() {
     let secret = b"private-root".as_slice();
     let path = b"/private-root/box/logs/box.log".as_slice();

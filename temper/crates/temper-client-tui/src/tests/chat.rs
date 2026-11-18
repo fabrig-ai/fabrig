@@ -726,7 +726,7 @@ fn data(entries: Box<[Entry]>) -> Chat {
         to_end: 1,
         entries,
         pane: None,
-        notes: foot::Notes { lines: Box::default(), gave_up: None, log: None, stopping: None },
+        notes: foot::Notes { lines: Box::default(), gave_up: None, log: None, stopping: None, link: None },
     }
 }
 struct Row {

@@ -1,6 +1,138 @@
 //! Places before their first words and empty sends (client/tui/pages/README.md, 2).
 use super::*;
 
+const WEB_LINK: &[u8] = b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+
+fn web_host(project: bool, printed: bool) -> (Host, u64) {
+    let mut host = super::host();
+    start_local(&mut host, true, true, None, None);
+    let signing = host.report(Report::Local { link: Some(local_link("127.0.0.1:8367", LOCAL_SECRET)) });
+    let duties = reply(&mut host, local_exchange(&signing), sign_in_bytes(&signed_in_answer()));
+    admit(&mut host, duties);
+    let mut me = launchpad_me(project).into_parts();
+    if project {
+        let bytes = skein_codec::piece::split(&mut Reader::new(&me.projects)).unwrap().unwrap();
+        let mut row = w::MeProject::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().into_parts();
+        row.project = 1;
+        me.projects = pieces(&[project_bytes(&w::MeProject::new(&w::CEILINGS, row).unwrap())]);
+    }
+    let hello = hello_for_me(&host, w::Me::new(&w::CEILINGS, me).unwrap());
+    let duties =
+        host.report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(hello) }));
+    let duties = admit(&mut host, duties);
+    let watch = playground::forges_watch(&duties);
+    host.report(Report::Stage(BoxStage::Running));
+    if printed {
+        host.report(Report::Front(temper_client_tui::BoxLine::Link { url: Secret::new(WEB_LINK.into()) }));
+    }
+    assert_eq!(host.root.pages().project(), project.then_some(1));
+    assert_eq!(host.state().last_linked(), Some(false));
+    (host, watch)
+}
+
+fn web_linked(host: &mut Host, watch: u64, linked: bool) {
+    use temper_client_protocol_wire::{self as wire, v1 as f};
+    let record =
+        wire::forges(&f::Forges::new(&f::CEILINGS, f::ForgesParts { forges: List::with_capacity(0), linked }).unwrap());
+    let event = w::StreamEvent::Delivery(
+        w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch, document: goal::family(record) }).unwrap(),
+    );
+    let duties = host.report(Report::Heard(jig_client::Event::Streamed {
+        message: jig_client::Streamed::Record(stream_bytes(&event)),
+    }));
+    admit(host, duties);
+    assert_eq!(host.root.forge().linked(), Some(linked), "fixture delivered forges");
+    assert_eq!(host.state().last_linked(), Some(linked), "host told the state");
+}
+
+#[test]
+fn web_pressed_or_sent_opens_the_live_link_then_home_and_a_fresh_link() {
+    for sent in [false, true] {
+        let (mut host, watch) = web_host(true, true);
+        for (name, expected) in [("live", WEB_LINK), ("spent", b"http://127.0.0.1:8367/projects/1".as_slice())] {
+            if name == "spent" {
+                web_linked(&mut host, watch, true);
+                assert!(host.state().live_link().is_none());
+            }
+            key_words(&mut host, "/web");
+            let page = host.root.pages().address().clone();
+            let duties = if sent {
+                assert_eq!(host.event_of(&Key::Enter), Some(Event::Own { command: Own::Web }));
+                host.report(Report::Key(Key::Enter))
+            } else {
+                give(&mut host, Event::Own { command: Own::Web })
+            };
+            assert_eq!(duties.open.as_deref(), Some(expected), "{name}, sent={sent}");
+            assert!(duties.asked.is_empty(), "nothing reaches the root");
+            assert_eq!(host.root.pages().address(), &page);
+            assert_eq!(host.words(), b"");
+            host.report(Report::Opened { opened: true });
+        }
+        let fresh =
+            b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA".as_slice();
+        host.report(Report::Front(temper_client_tui::BoxLine::Link { url: Secret::new(fresh.into()) }));
+        // A repeated true document must not spend a fresh line.
+        web_linked(&mut host, watch, true);
+        let duties = give(&mut host, Event::Own { command: Own::Web });
+        assert_eq!(duties.open.as_deref(), Some(fresh));
+        assert_eq!(duties.asked.len(), 0);
+    }
+}
+
+#[test]
+fn web_on_the_welcome_opens_the_root_when_the_link_is_spent_or_absent() {
+    for printed in [false, true] {
+        let (mut host, watch) = web_host(false, printed);
+        if printed {
+            web_linked(&mut host, watch, true);
+        }
+        key_words(&mut host, "/web");
+        let page = host.root.pages().address().clone();
+        let duties = host.report(Report::Key(Key::Enter));
+        assert_eq!(duties.open.as_deref(), Some(b"http://127.0.0.1:8367/".as_slice()));
+        assert_eq!(duties.asked.len(), 0);
+        assert_eq!(host.root.pages().address(), &page);
+        assert_eq!(host.words(), b"");
+    }
+}
+
+#[test]
+fn web_opener_outcomes_choose_the_link_or_page_note() {
+    for link in [false, true] {
+        for opened in [false, true] {
+            let (mut host, watch) = web_host(true, true);
+            if !link {
+                web_linked(&mut host, watch, true);
+            }
+            give(&mut host, Event::Own { command: Own::Web });
+            let before = text(&mut host);
+            let duties = host.report(Report::Opened { opened });
+            assert_eq!(duties.asked.len(), 0);
+            assert_eq!(host.state().link_not_opened(), link && !opened);
+            assert_eq!(
+                host.state().not_opened(),
+                if !link && !opened { Some(b"http://127.0.0.1:8367/projects/1".as_slice()) } else { None }
+            );
+            let after = text(&mut host);
+            if opened {
+                assert_eq!(after, before, "opening draws nothing");
+            } else if link {
+                assert!(after.contains("Open this link in a browser that reaches temper:"));
+                key_words(&mut host, "a");
+                assert!(host.state().link_not_opened(), "typing leaves the note standing");
+                give(&mut host, Event::Command { command: Command::Help });
+                assert!(!host.state().link_not_opened(), "the next send lowers it");
+                give(&mut host, Event::Own { command: Own::Web });
+                host.report(Report::Opened { opened: false });
+                give(&mut host, Event::Act { act: Act::Go { address: Address::Home { project: 1 } } });
+                assert!(!host.state().link_not_opened(), "the next screen lowers it");
+            } else {
+                assert!(after.contains("Open http://127.0.0.1:8367/projects/1 in your browser."));
+            }
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 enum Screen {
     Home,

@@ -384,6 +384,6 @@ fn chat_views() -> crate::view::chat::Chat {
         pane: None,
         to_end: 1,
         entries: Box::new([Entry::Viewed(pieces)]),
-        notes: foot::Notes { lines: Box::default(), gave_up: None, log: None, stopping: None },
+        notes: foot::Notes { lines: Box::default(), gave_up: None, log: None, stopping: None, link: None },
     }
 }

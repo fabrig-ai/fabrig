@@ -285,6 +285,30 @@ fn decimal(bytes: &[u8]) -> Box<[u8]> {
 
 impl LinkForm {
     pub(super) fn occurrences(&self, field: &[u8]) -> Vec<(usize, usize)> {
+        if !self.decimal {
+            // The welcome and /web note wrap links at their own column
+            // (temper/docs/design/client/tui/journeys.md, 8.3).
+            let mut joined = Vec::new();
+            let mut positions = Vec::new();
+            let mut offset = 0_usize;
+            for row in field.split(|byte| *byte == b'\n') {
+                let start = row.iter().take_while(|byte| byte.is_ascii_whitespace()).count();
+                let end = row.len() - row.iter().rev().take_while(|byte| byte.is_ascii_whitespace()).count();
+                for (at, byte) in row.iter().enumerate().take(end).skip(start) {
+                    joined.push(*byte);
+                    positions.push(offset + at);
+                }
+                offset += row.len() + 1;
+            }
+            let mut found = Vec::new();
+            let mut from = 0;
+            while let Some(at) = find_from(&joined, &self.bytes, from) {
+                let end = at + self.bytes.len();
+                found.push((positions[at], positions[end - 1] + 1));
+                from = at + 1;
+            }
+            return found;
+        }
         let mut found = Vec::new();
         let mut from = 0;
         while let Some(at) = find_from(field, &self.bytes, from) {
@@ -306,7 +330,22 @@ fn redact_links(field: &mut Box<[u8]>, links: &[LinkForm]) -> u32 {
     for form in links {
         for (at, end) in form.occurrences(field) {
             if replacements.range(..end).next_back().is_none_or(|(_, (prior_end, _))| *prior_end <= at) {
-                replacements.insert(at, (end, &form.hidden));
+                let hidden = if form.decimal {
+                    form.hidden.to_vec()
+                } else {
+                    let mut bytes = form.hidden.iter();
+                    field[at..end]
+                        .iter()
+                        .map(|byte| {
+                            if byte.is_ascii_whitespace() {
+                                *byte
+                            } else {
+                                *bytes.next().expect("one hidden byte per link byte")
+                            }
+                        })
+                        .collect()
+                };
+                replacements.insert(at, (end, hidden));
             }
         }
     }
@@ -316,7 +355,7 @@ fn redact_links(field: &mut Box<[u8]>, links: &[LinkForm]) -> u32 {
         let mut from = 0;
         for (at, (end, hidden)) in replacements {
             output.extend_from_slice(&field[from..at]);
-            output.extend_from_slice(hidden);
+            output.extend_from_slice(&hidden);
             from = end;
         }
         output.extend_from_slice(&field[from..]);
