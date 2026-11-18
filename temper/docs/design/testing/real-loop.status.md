@@ -15,7 +15,6 @@
    the owned-forge live landing pair remains `live-tier.status.md` (Not yet).
    the live held-record return's proof remains `live-tier.status.md` (Not yet).
    the fake shell subset remains `fakes.status.md`, 3.  the remaining settings-kind stories remain `checks.status.md`, 4.  the remaining client-page stories remain `checks.status.md`, 4.
-- **Not yet:** the whole document: the hung model's held request, the cluster's worker PATH and two workers, the trial to Ready, the note revised whole and the ctl-released batch are past the tier's 2 s story guide, their cost not yet profiled to its cause. [in flight: change 8251]
 - **Departs:** "A story ends what it starts": `suite::model_check`'s
   trimmed-to-Ready story joins its trial task by a story-local harness
   step reading the engine's state, not `task show TASK --until ended`,
