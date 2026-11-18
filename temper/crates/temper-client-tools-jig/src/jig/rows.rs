@@ -593,6 +593,30 @@ pub const RANK: Tool = Tool {
     area: 5,
     notes: b"Without `--source`, the account moves among the accounts; with it,\nthe source moves among its account's sources.\n",
 };
+/// Account uses append after the existing tools to preserve keyed identities.
+pub const USES_AT: u8 = 111;
+/// The wire's `AccountChangeSetUses` list bound (client/ctl/README.md, 5).
+pub const ACCOUNT_USES: u32 = 16;
+pub const USES: Tool = Tool {
+    name: b"account uses",
+    line: b"Set exactly which parties and projects an account pays for, or restore its defaults",
+    prints: b"`done: uses`",
+    result: b"uses",
+    forms: &[
+        &[
+            positional(b"account", b"ACCOUNT", Kind::Number, Required, b"The account's number, as account list prints it"),
+            flag(b"party", b"N", Kind::NumberRange { min: 0, max: u64::MAX }, Repeated { most: ACCOUNT_USES }, b"A party whose work the account pays for"),
+            flag(b"project", b"N", Kind::NumberRange { min: 0, max: 4_294_967_295 }, Repeated { most: ACCOUNT_USES }, b"A project whose work the account pays for"),
+        ],
+        &[
+            positional(b"account", b"ACCOUNT", Kind::Number, Required, b"The account's number, as account list prints it"),
+            super::table::Argument { occurs: Required, ..switch(b"default", b"Restore jig's default uses") },
+        ],
+    ],
+    keyed: Keyed::Optional,
+    area: 5,
+    notes: b"Name at least one party or project, at most 16 uses together.\nEach flag repeats; the named uses replace the whole list.\n--default restores jig's defaults, with no --party or --project.\nA person's plan may pay for its holder's services, and projects\nwhose other members are services. Another person, or a project\nwith another person, is refused by the engine (exit 2).\n",
+};
 pub const RETRY: Tool = Tool {
     name: b"account retry",
     line: b"Resume a source that reached a limit",
@@ -623,7 +647,7 @@ pub const AMEND: Tool = Tool {
     result: b"amend",
     forms: &[&[
         positional(b"task", b"TASK", Kind::Number, Required, b"The task's number"),
-        flag(b"rev", b"REV", Kind::Number, Optional, b"The spec revision the task prints; not needed for its priority alone"),
+        flag(b"rev", b"REV", Kind::Number, Optional, b"The spec revision the task prints; not needed for its priority or its address alone"),
         flag(b"priority", b"PRIORITY", Kind::Number, Optional, b"Track it at this priority"),
         switch(b"untracked", b"Stop tracking it"),
         flag(b"deadline", b"TIME", Kind::Literal, Optional, b"Its new deadline, as 2026-10-24T17:00Z"),
@@ -642,10 +666,12 @@ pub const AMEND: Tool = Tool {
         super::table::Argument { line: b"An effort that model offers", ..EFFORT },
         positional(b"reason", b"REASON", Kind::Text, Required, b"Why"),
         flag(b"tasks", b"N", Kind::Number, Optional, b"The tasks its subtree may make over its life; the rest of its authority kept"),
+        flag(b"to-party", b"PARTY", Kind::Number, Optional, b"Address the person task to this party"),
+        flag(b"to-role", b"ROLE", Kind::NumberRange { min: 0, max: 4_294_967_295 }, Optional, b"Address the person task to this role of its project"),
     ]],
     keyed: Keyed::Optional,
     area: 2,
-    notes: b"A task whose spec moved since your read fails with `read again:\ntask show TASK`. Each file is read before anything is sent, one\nfinal newline trimmed, at most 32768 bytes of UTF-8. An amendment\nthat names no change fails (exit 1); one that names a value the task\nalready has is sent, and the engine answers it.\n",
+    notes: b"A task whose spec moved since your read fails with `read again:\ntask show TASK`. Each file is read before anything is sent, one\nfinal newline trimmed, at most 32768 bytes of UTF-8. An amendment\nthat names no change fails (exit 1); one that names a value the task\nalready has is sent, and the engine answers it.\nAn address re-addresses at this read's person revision; a non-person\ntask fails (exit 1).\n",
 };
 
 /// Appended so existing keyed tool identities stay stable.

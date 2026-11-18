@@ -159,8 +159,7 @@ fn ctl_box_values_are_bare_or_quoted_and_unknown_names_are_refused() {
 
 #[test]
 fn deployment_patch_round_trips_document_and_path_and_refuses_bad_fields() {
-    for (document, expected) in [("engine", Document::Engine), ("worker", Document::Worker), ("agent", Document::Agent)]
-    {
+    for (document, expected) in [("engine", Document::Engine), ("worker", Document::Worker)] {
         for path in ["a".to_owned(), "landing.json".to_owned(), r#""a b.json""#.to_owned(), "a".repeat(256)] {
             let source = format!("deployment patch {document} {path}");
             let line = Line::parse(source.as_bytes()).expect("deployment patch");
@@ -179,6 +178,7 @@ fn deployment_patch_round_trips_document_and_path_and_refuses_bad_fields() {
         ("deployment restart engine".into(), "extra field"),
         ("deployment patch".into(), "DOCUMENT"),
         ("deployment patch other landing.json".into(), "other"),
+        ("deployment patch agent landing.json".into(), "expected engine or worker"),
         ("deployment patch \"engine\" landing.json".into(), "DOCUMENT"),
         (prefix.into(), "PATH"),
         (format!("{prefix} landing.json extra"), "extra field"),

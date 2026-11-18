@@ -129,6 +129,7 @@ fn an_owner_ends_live_work_deletes_the_project_and_reads_its_old_address() {
         vec![
             Step::Press { find: in_sheet(Find::exactly_named(Role::Button, b"Delete project")) },
             Step::Gone { find: Find::exactly_named(Role::Dialog, sheet.as_bytes()), within: fixtures::WITHIN },
+            // With one survivor the switcher names it, even on AllHome (client/view.md, 3).
             Step::Gone { find: Find::exactly_named(Role::Button, &name), within: fixtures::WITHIN },
             see(Find::exactly_named(Role::Button, b"Survivor")),
         ],

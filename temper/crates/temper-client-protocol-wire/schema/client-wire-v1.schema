@@ -1,4 +1,4 @@
-family temper-client-wire 34
+family temper-client-wire 35
 
 # The role, as temper-engine-domain-forge's Role, in its order.
 enum Role { owned, adopted, fork, context }
@@ -213,7 +213,7 @@ record SettingRead { kind: u32 scope: u32 number: u32 }
 record ProposalItemsRead { key: u64 }
 record RevisionSettingRead { kind: u32 scope: u32 number: u32 revision: u32 }
 # Values are the records of temper's settings kinds below.
-versioned record SettingAnswer { value: option bytes 1048576 }
+versioned record SettingAnswer { value: option bytes 1048576 revision: option u32 }
 record SettingValue { value: bytes 1048576 }
 enum SettingEdit { set: SettingValue, removed, reset }
 record ProposalItem { kind: u32 scope: u32 number: u32 edit: SettingEdit }

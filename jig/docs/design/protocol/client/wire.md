@@ -200,9 +200,38 @@ the engine's messages to the client as they come.
   credential (`sign-in.md`) and names its owner and its version (`README.md`, section 6
   ).
 - **The stream** is one per client, for as long as the client keeps it.
-  Its first message is the hello: the stream's name, the versions the
+  Its opening names the version of jig's wire the client speaks. Its
+  first message is the hello: the stream's name, the versions the
   engine serves of jig's wire and of each application's, and the
-  heartbeat. Every watch the client opens names its stream.
+  heartbeat; then, where the opening named a version the engine serves,
+  `me`'s value (below). Every watch the client opens names its stream.
+- **`me` comes with the stream.** The engine opens a watch of `me` for
+  every stream whose opening names a version it serves, as it would open
+  a client's watch of `me`, the core naming the party from the stream's
+  sign-in (`README.md`, section 5), and names it `0` on that stream. It sends nothing on the stream before
+  the hello, and the hello waits for that watch's first delivery, held
+  until durable as every delivery is: it is the stream's
+  `StreamEvent::Opened`, `Opened { hello, me }`, its `hello` the hello
+  alone's record, so the ranges come first, and its `me` the document
+  in jig's versioned envelope, `Owned`, at the opening's version, whose
+  record is what a delivery of `me` carries. `me`'s later values are
+  deliveries of watch `0`, paced and coalesced as any watch's. The
+  client opens no watch of `me` and never names a watch `0`; an
+  opening naming `0` is refused as a name the stream already holds, and
+  a closing of it is answered as one the client never opened. The watch
+  holds its place in the party's room and the stream's as any watch
+  does (`../../client/domain/contract/README.md`, 5.2), and ends with
+  its stream. Refused or ended, it ends its stream: signed out where
+  the sign-in ended, and otherwise busy (2.2), which the client takes as
+  the stream dropped and opens again after its backoff
+  (`../../client/domain/client/watches.md`, 2).
+- **The hello alone,** `StreamEvent::Hello`, is what the engine sends a
+  stream whose opening names no version, or one it doesn't serve: the
+  stream's name, the ranges and the heartbeat, with no `me` and no watch
+  of it, encoded the same in every version (`README.md`, section 6). So
+  an earlier client, whose opening names none, reads the ranges and is
+  refused by name. A client whose version the hello alone's ranges
+  serve takes it as a record out of its order on the stream.
 - **A client is one run of `jig-client`,** from its start to its end: a
   native process; a browser page from its load until it is left. A link
   followed, or back and forward, within the page's history keeps it
@@ -256,8 +285,9 @@ the engine's messages to the client as they come.
 | reading an approval, deciding one | its code; and approve or refuse, to decide | what the approval is, or the decision's answer; not a browser, signed out, not ready or busy (`sign-in.md`) |
 | signing out | nothing more than the credential of the sign-in it ends | signed out, or not ready |
 
-On the stream, in its owner's version: the hello; a delivery (a watch's
-document, whole, in its owner's wire); a run's text; a heartbeat; a
+On the stream, in its owner's version: the hello, with `me` or alone
+(section 2); a delivery (a watch's document, whole, in its owner's
+wire), `me`'s among them as watch `0`'s; a run's text; a heartbeat; a
 watch ended, with why.
 
 ### 2.2 The clients' component's messages
@@ -265,7 +295,7 @@ watch ended, with why.
 ```
 in, from the transport:
   Exchange { exchange, credential, browser, message }   one of jig's messages (4.1), an application's record inside it where its owner is the application; the credential as opaque bytes, or none; browser, whether the transport carried that credential itself, as a browser's cookie (17.3)
-  StreamOpen { stream, credential }            a client opened its stream
+  StreamOpen { stream, credential, version }   a client opened its stream, naming the version of jig's wire it speaks, or none (section 2)
   StreamTaken { stream }                       the transport took the last message streamed
   StreamGone { stream }                        the stream's connection ended
   ExchangeGone { exchange }                    an exchange's connection ended before its reply: a keyed request's, a read's, a public read's
@@ -274,7 +304,7 @@ in, from the application's server code (never from a client):
 out, to the transport:
   Reply { exchange, message }                  one record: an answer, a page, a watch admitted or refused, a sign-in's credential
   Streamed { stream, message }                 the hello, a delivery, a run's text, a heartbeat, a watch ended
-  StreamEnded { stream, why }                  signed out, or the engine stopping
+  StreamEnded { stream, why }                  signed out, the engine stopping, or busy: the stream's `me` refused or ended for want of room (section 2)
   Minted { exchange, credential, expires } | MintRefused { exchange, why }
 out, to the application's startup:
   Link { secret }                              the printed link's one-time secret, each time one is drawn (section 8)
@@ -325,7 +355,7 @@ out, to the application's startup:
 messages:
 
 ```
-emitted:  Exchange { exchange, credential, message } | OpenStream { credential } | CloseStream | Save { records } | Erase { records }
+emitted:  Exchange { exchange, credential, message } | OpenStream { credential, version } | CloseStream | Save { records } | Erase { records }
 heard:    Reply { exchange, message } | Lost { exchange } | Streamed { message } | StreamGone | Stored | NotStored
 ```
 
@@ -342,8 +372,11 @@ heard:    Reply { exchange, message } | Lost { exchange } | Streamed { message }
 - **The credential** on `Exchange` and `OpenStream` is the one the
   client holds, or none when the transport carries one the client never
   sees (`sign-in.md`).
-- **The stream:** its hello judged against the client's versions
-  (`README.md`, section 6); each delivery and run's text routed to its watch by name;
+- **The stream:** opened naming jig's version, the link's own; its
+  hello judged against the client's versions
+  (`README.md`, section 6), and its `me` handed on as the first value of
+  the client's `me`, watch `0`'s deliveries its later ones (section 2);
+  each delivery and run's text routed to its watch by name;
   heartbeats keeping the watches alive; `StreamGone`, or silence past
   twice the heartbeat, dropping it; the stream refused signed out, a
   `Streamed` message the transport makes, ending the sign-in. A record

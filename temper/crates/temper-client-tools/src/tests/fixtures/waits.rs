@@ -147,10 +147,10 @@ pub(crate) const WAIT_TASKS: &[&str] = TASKS_CALL;
 /// One second exposes before/at deadline behavior without any real-time wait.
 pub(crate) const WAIT_SPAN: skein_lib::Duration = skein_lib::Duration::from_secs(1);
 pub(crate) const SHORT_TIMEOUT: &[&str] = &["--timeout", "1s"];
-/// The shared me remains open after releasing every handle owned by a call.
-pub(crate) const SHARED_WATCHES: usize = 1;
+/// No engine watch opened for an application remains after the calls finish.
+pub(crate) const NO_APPLICATION_WATCHES: usize = 0;
 /// Two callers exercise independent handles on the same client watch.
-pub(crate) const TWO_CALLERS: usize = 2;
+pub(crate) const SHARED_APPLICATION_WATCHES: usize = 1;
 pub(crate) fn task_watch() -> client::Watchable {
     client::Watchable::Jig(c::Subject::Task { task: TASK })
 }
@@ -393,6 +393,9 @@ pub(crate) fn met_json(read: &[u8]) -> Box<[u8]> {
 }
 impl Harness {
     pub(crate) fn watch_token(&self, wanted: &client::Watchable) -> Token {
+        if *wanted == client::Watchable::Jig(c::Subject::Me) {
+            return Token::new(0);
+        }
         for (token, subject) in &self.watches {
             if subject == wanted {
                 return *token;
@@ -402,7 +405,9 @@ impl Harness {
     }
     pub(crate) fn end(&mut self, call: u32, wanted: &client::Watchable, end: c::WatchEnd) -> Token {
         let watch = self.watch_token(wanted);
-        self.watches.remove(&watch).expect("engine ended watch");
+        if watch != Token::new(0) {
+            self.watches.remove(&watch).expect("engine ended watch");
+        }
         self.serving = Some(call);
         self.client(client::Event::Up { up: client::Up::WatchEnded { watch, end } });
         self.serving = None;

@@ -13,7 +13,7 @@ mod support;
 use crate::{Address, Answered, Ask, Event, Limits, infrastructure};
 use jig_client::contract::{self, Delivery, DocumentText, HeldRole, Me, MeParty, Needs, PartyKind, WatchEvent};
 use skein_lib::{Duration, Env, List, Queue, RequestEnvelope, Time, Token, Wall};
-use support::{Domain, JigOut, Request, new, step, take};
+use support::{Domain, Request, new, step, take};
 const JIG: jig_client_view::Config = jig_client_view::Config {
     notices: 2,
     notice_life: Duration::from_secs(5),
@@ -66,12 +66,7 @@ fn start(root: &mut Domain, kept: List<crate::store::Record>) -> Token {
         root,
         Event::Start { address: Address::Jig(jig_client_view::address::Address::Inbox { project: None }), kept },
     ));
-    rows.iter()
-        .find_map(|row| match row {
-            Request::Jig(JigOut::Open { watch, subject: contract::Subject::Me }) => Some(*watch),
-            _ => None,
-        })
-        .unwrap()
+    Token::new(0)
 }
 fn confirm(root: &mut Domain, watch: Token, party: u64) {
     drive(
@@ -895,6 +890,71 @@ fn observability_reopens_a_dropped_watch_after_the_link_goes_offline_and_live() 
         }),
     );
     assert_eq!(root.observability().object(id).unwrap().value, observability::Value::Known(Box::new(document)));
+}
+
+#[test]
+fn family_values_survive_offline_without_admitting_work_until_live_and_hide_on_sign_out() {
+    use crate::observability as obs;
+    let mut root = ready(63);
+    let infrastructure = load_environment(&mut root);
+    let rows = drive(
+        &mut root,
+        Event::Observability(obs::Event::Went { address: obs::Address::Incident { project: 3, incident: 8 } }),
+    );
+    let read = rows
+        .iter()
+        .find_map(|row| match row {
+            Request::Observability(obs::Out::Read { read, .. }) => Some(*read),
+            _ => None,
+        })
+        .unwrap();
+    let document = incidents_naming_sections(None).into_iter().next().unwrap();
+    drive(
+        &mut root,
+        Event::Observability(obs::Event::Read { read, result: obs::ReadResult::Value(Box::new(document.clone())) }),
+    );
+    let observability = root.observability().page().unwrap();
+    let offline = support::offline(&root);
+    let mut rows = drive(&mut root, offline);
+    assert_eq!(
+        root.infrastructure().object(infrastructure).unwrap().value,
+        infrastructure::Value::Known(Box::new(environment(2)))
+    );
+    assert_eq!(root.observability().object(observability).unwrap().value, obs::Value::Known(Box::new(document)));
+    let part = contract::ApplicationPart::Outbox { connector: 2, scope: contract::PartScope::Project(3), entry: 17 };
+    rows.extend(drive(
+        &mut root,
+        Event::Infrastructure(infrastructure::Event::Show {
+            part: part.clone(),
+            scope: infrastructure::Scope::Project(3),
+        }),
+    ));
+    rows.extend(drive(&mut root, Event::Observability(obs::Event::Show { part, scope: obs::Scope::Project(3) })));
+    assert!(
+        !rows.iter().any(|row| match row {
+            Request::Infrastructure(
+                infrastructure::Out::Read { .. } | infrastructure::Out::Open { .. } | infrastructure::Out::Close { .. },
+            )
+            | Request::Observability(obs::Out::Read { .. } | obs::Out::Open { .. } | obs::Out::Close { .. }) => true,
+            _ => false,
+        }),
+        "offline retains the handles and admits no family read or opening"
+    );
+    let mut out = Queue::uncapped();
+    support::reconnect(&mut root, &env(), &mut out);
+    let rows = out_iter(out);
+    assert!(rows.iter().any(|row| match row {
+        Request::Infrastructure(infrastructure::Out::Open { subject, .. }) =>
+            subject.kind == infrastructure::Kind::Outbox(17),
+        _ => false,
+    }));
+    assert!(rows.iter().any(|row| match row {
+        Request::Observability(obs::Out::Open { subject, .. }) => subject.kind == obs::Kind::Outbox(17),
+        _ => false,
+    }));
+    drive(&mut root, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::SignedOut } });
+    assert_eq!(root.infrastructure().object(infrastructure).unwrap().value, infrastructure::Value::Loading);
+    assert_eq!(root.observability().object(observability).unwrap().value, obs::Value::Loading);
 }
 
 fn client_limits() -> jig_client::Limits {

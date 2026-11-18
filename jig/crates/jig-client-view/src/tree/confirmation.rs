@@ -213,9 +213,7 @@ fn action(
         }
         ActKind::Cancel => {
             words.text(b, JigPhrase::WillCancel, &[]);
-            if let Some(offers) = crate::state::acts::offers(object)
-                && let Some(Effect::Cancel(impact)) = jig_client::facts::effect(offers.as_slice(), open.act)
-            {
+            if let Some(impact) = impact(object) {
                 impact_words(b, impact, words);
             }
             common::field(b, client, Purpose::Reason, JigPhrase::ReasonField, words, bindings);
@@ -401,24 +399,11 @@ fn release_owner(b: &mut Builder, facts: &ChipHold, words: &Words, bindings: &mu
     }
 }
 fn impact(object: &Object) -> Option<&Impact> {
-    match &object.body {
-        Some(Body::Task(doc)) => match &doc.context {
-            Some(context) => Some(&context.impact),
-            None => None,
-        },
-
-        Some(Body::Escalation(doc)) => Some(&doc.task.context.as_ref()?.impact),
-        Some(
-            Body::Ended(_)
-            | Body::Chip(_)
-            | Body::Proposal(_)
-            | Body::Question(_)
-            | Body::PersonTask(_)
-            | Body::Result(_)
-            | Body::Note { .. },
-        )
-        | None => None,
-    }
+    let offers = crate::state::acts::offers(object)?;
+    let Some(Effect::Cancel(impact)) = jig_client::facts::effect(offers.as_slice(), ActKind::Cancel) else {
+        return None;
+    };
+    Some(impact)
 }
 /// Say each authoritative cancellation count and the reservation a takeover needs.
 pub fn impact_words(b: &mut Builder, impact: &Impact, words: &Words) {

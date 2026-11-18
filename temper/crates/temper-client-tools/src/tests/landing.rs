@@ -102,7 +102,7 @@ fn read_panel(panel: &w::LandingPanel, json: bool) -> jig::Printed {
     deliver(&mut root, subject, wire::landing_panel(panel));
     let answer = root.answer(call).unwrap();
     assert_eq!(answer.status, 0);
-    assert_eq!(root.watches.len(), 1, "only me remains watched");
+    assert_eq!(root.watches.len(), 0, "no application watch remains");
     answer
 }
 #[test]
@@ -186,7 +186,7 @@ fn a_landing_the_engine_does_not_know_fails_with_exit_2() {
         let answer = root.answer(call).unwrap();
         assert_eq!(answer.status, 2);
         assert_eq!(answer.stderr.as_ref(), b"no landing for task 61\n");
-        assert_eq!(root.watches.len(), 1);
+        assert_eq!(root.watches.len(), 0);
     }
 }
 #[test]
@@ -208,7 +208,7 @@ fn a_landed_queue_change_has_no_landing_in_text_or_json() {
             answer.stderr.as_ref(),
             if json { b"{\"error\":\"no landing for task 3\"}".as_slice() } else { b"no landing for task 3\n" }
         );
-        assert_eq!(root.watches.len(), 1, "only me remains watched");
+        assert_eq!(root.watches.len(), 0, "no application watch remains");
     }
 }
 fn list(turn: Option<u64>, tasks: &[u64]) -> w::LandingsPanel {
@@ -264,7 +264,7 @@ fn read_list(panel: &w::LandingsPanel, json: bool) -> jig::Printed {
     deliver(&mut root, subject, wire::landings_panel(panel));
     let answer = root.answer(call).unwrap();
     assert_eq!(answer.status, 0);
-    assert_eq!(root.watches.len(), 1);
+    assert_eq!(root.watches.len(), 0);
     answer
 }
 #[test]
@@ -447,7 +447,7 @@ fn unknown_task_and_malformed_panels_finish_the_read_and_close_the_watch() {
         let answer = root.answer(call).unwrap();
         assert_eq!(answer.status, 1);
         assert_eq!(answer.stderr.as_ref(), b"unexpected landing document\n");
-        assert_eq!(root.watches.len(), 1);
+        assert_eq!(root.watches.len(), 0);
     }
 }
 #[test]
@@ -483,7 +483,7 @@ fn an_invalid_direct_call_prints_invalid_landing_call() {
             answer.stderr.as_ref(),
             if json { b"{\"error\":\"invalid landing call\"}".as_slice() } else { b"invalid landing call\n" }
         );
-        assert_eq!(root.watches.len(), 1, "only me remains watched");
+        assert_eq!(root.watches.len(), 0, "no application watch remains");
     }
 }
 
@@ -505,7 +505,7 @@ fn a_refused_landing_or_landings_watch_prints_not_allowed() {
                 answer.stderr.as_ref(),
                 if json { b"{\"error\":\"not_allowed\"}".as_slice() } else { b"not_allowed\n" }
             );
-            assert_eq!(root.watches.len(), 1, "only me remains watched");
+            assert_eq!(root.watches.len(), 0, "no application watch remains");
         }
     }
 }
@@ -533,7 +533,7 @@ fn wrong_change_tasks_and_wrong_landing_projects_remain_document_errors() {
                     b"unexpected landing document\n"
                 }
             );
-            assert_eq!(root.watches.len(), 1);
+            assert_eq!(root.watches.len(), 0);
         }
     }
 }

@@ -45,12 +45,39 @@ fn two_open_tabs_leave_room_for_a_third_page() {
 #[test]
 fn a_client_past_the_room_is_told_and_answered_when_a_page_closes() {
     let mut world = fixtures::watch_room_world_streams(fixtures::SEED, 1);
-    let (chat, _, long) = open_tabs(&mut world);
+    let (chat, home, long) = open_tabs(&mut world);
+    let children = world.front().engine.task(chat).expect("real chat").delegates.clone();
+    for (at, task) in children.into_iter().enumerate() {
+        world.event(
+            home,
+            temper_client_domain::Event::Client {
+                event: jig_client::Event::Watch {
+                    handle: jig_client::Handle {
+                        asker: temper_client_domain::owner::Owner::Pages.asker(),
+                        number: 5_000_000_000_u64
+                            .checked_add(u64::try_from(at).expect("bounded delegate index"))
+                            .expect("fixture handle"),
+                    },
+                    subject: jig_client::Watchable::Jig(jig_client::contract::Subject::Task { task }),
+                },
+            }
+            .into(),
+        );
+        let deadline = world.now().saturating_add(fixtures::WITHIN);
+        world.run(Until::Time(deadline));
+        if world.root(home).person().client().link().watches_full {
+            break;
+        }
+    }
+    assert!(
+        world.root(home).person().client().link().watches_full,
+        "an application opening found the party's room full"
+    );
     let agent = fixtures::agent(&mut world);
     let deadline = world.now().saturating_add(fixtures::WITHIN);
     world.run(Until::Time(deadline));
     assert!(!world.root(agent).agent().ready(), "the full room keeps the tools client out");
-    assert!(world.root(agent).agent().watches_full(), "the client knows the room is full");
+    assert!(!world.root(agent).agent().watches_full(), "a refused stream me is not an application watch");
     let held = world.front().open_watches();
     world.front().close_client(long);
     assert!(world.front().open_watches() < held, "closing the tab gives its watches back");
@@ -120,8 +147,8 @@ fn open_tabs(world: &mut World<Temper, Joint>) -> (u64, ClientId, ClientId) {
     }
     assert!(chat_whole(world, long, chat), "the chat's whole watch set is live");
     let held = world.front().open_watches();
-    let room = usize::try_from(temper_engine_domain::VIEWS.watchers).expect("watch room fits usize");
-    assert!(held >= room, "the two tabs fill one stream's room: {held}");
+    let delegates = world.front().engine.task(chat).expect("real chat").delegates.len();
+    assert!(held >= delegates, "the delegated batch holds its watches: {held}");
     (chat, home, long)
 }
 

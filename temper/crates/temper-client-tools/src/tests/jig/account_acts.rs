@@ -22,6 +22,10 @@ const FORMS: &[&[&str]] = &[
     &["account", "retry", "43"],
     &["account", "declare", "9", "helper", "work-login", "--key", "declare"],
     &["account", "declare", "9", "helper", "work-login", "--account", "43", "--key", "join"],
+    &["account", "uses", "43", "--party", "73", "--party", "4294967296", "--project", "1"],
+    &["account", "uses", "43", "--project", "1"],
+    &["account", "uses", "43", "--default"],
+    &["account", "uses", "43", "--party", "73", "--key", "uses"],
     &["account", "verify", "43"],
     &["account", "verify", "43", "--source", "program", "--key", "check"],
 ];
@@ -910,4 +914,134 @@ fn a_retired_program_name_explains_how_to_declare_again() {
         printed.stderr.as_ref(),
         b"account declare: This program name remains reserved after forgetting its account; choose a never-used name\n"
     );
+}
+
+#[test]
+fn account_uses_sets_exactly_the_named_parties_and_projects() {
+    for (words, uses) in [
+        (
+            &["account", "uses", "43", "--party", "73", "--party", "4294967296"][..],
+            [c::AccountUse::Party(73), c::AccountUse::Party(4_294_967_296)].as_slice(),
+        ),
+        (&["account", "uses", "43", "--project", "1"], &[c::AccountUse::Project(1)]),
+        (
+            &["account", "uses", "43", "--party", "73", "--project", "1", "--project", "2"],
+            &[c::AccountUse::Party(73), c::AccountUse::Project(1), c::AccountUse::Project(2)],
+        ),
+    ] {
+        for owner in [false, true] {
+            let mut root = f::account_root(owner);
+            let call = root.submit(words);
+            let mut accounts = f::accounts();
+            if owner {
+                accounts.accounts = List::with_capacity(0);
+            } else {
+                let row = accounts.accounts.get_mut(0).expect("account");
+                row.sources = List::with_capacity(0);
+                row.cut = true;
+            }
+            f::deliver_accounts(&mut root, accounts);
+            if owner {
+                f::deliver_deployment(&mut root, f::deployment());
+            }
+            let holder = if owner { c::AskAccountHolder::Deployment } else { c::AskAccountHolder::Own };
+            assert_eq!(
+                root.sends.get(&call).expect("uses sent without source selection").2,
+                jig_client::Ask::Jig(Box::new(c::Ask::AccountChange {
+                    holder,
+                    change: c::AccountChange::SetUses { account: f::ACCOUNT, uses: Some(Box::from(uses)) },
+                }))
+            );
+            root.done(call, c::Outcome::Document(c::DocumentOutcome::AccountChanged));
+            let printed = root.answer(call).expect("uses answer");
+            assert_eq!(printed.status, 0);
+            assert_eq!(printed.stdout.as_ref(), b"done: uses\n");
+        }
+    }
+}
+
+#[test]
+fn account_uses_default_restores_the_engine_defaults() {
+    let mut root = f::account_root(false);
+    let call = root.submit(&["account", "uses", "43", "--default"]);
+    f::deliver_accounts(&mut root, f::accounts());
+    assert_eq!(
+        root.sends.get(&call).expect("default uses sent").2,
+        jig_client::Ask::Jig(Box::new(c::Ask::AccountChange {
+            holder: c::AskAccountHolder::Own,
+            change: c::AccountChange::SetUses { account: f::ACCOUNT, uses: None },
+        }))
+    );
+    root.done(call, c::Outcome::Document(c::DocumentOutcome::AccountChanged));
+    assert_eq!(root.answer(call).expect("default answer").stdout.as_ref(), b"done: uses\n");
+}
+
+#[test]
+fn account_uses_keeps_the_supplied_key() {
+    let mut root = f::account_root(false);
+    let call = root.submit(&["account", "uses", "43", "--party", "73", "--key", "service-uses"]);
+    f::deliver_accounts(&mut root, f::accounts());
+    assert_eq!(root.sends.get(&call).expect("keyed uses sent").1, f::named("service-uses"));
+    assert!(!root.saved.is_empty(), "the ordinary keyed request is kept before sending");
+    root.done(call, c::Outcome::Document(c::DocumentOutcome::AccountChanged));
+    assert_eq!(root.answer(call).expect("keyed answer").stdout.as_ref(), b"done: uses\n");
+}
+
+#[test]
+fn account_uses_refusals_print_the_engine_rule_in_words() {
+    for (refusal, words) in [
+        (
+            c::Refusal::Provider,
+            b"account uses: a plan account cannot pay for another person or a project with another person\n".as_slice(),
+        ),
+        (c::Refusal::Unknown, b"account uses: unknown account, party or project\n".as_slice()),
+    ] {
+        let mut root = f::account_root(false);
+        let call = root.submit(&["account", "uses", "43", "--party", "73"]);
+        f::deliver_accounts(&mut root, f::accounts());
+        root.answered(call, c::Answer::Refused { refusal, at: None });
+        let printed = root.answer(call).expect("engine refusal");
+        assert_eq!(printed.status, 2);
+        assert!(printed.stdout.is_empty());
+        assert_eq!(printed.stderr.as_ref(), words);
+    }
+}
+
+#[test]
+fn account_uses_admits_the_wire_bound_and_refuses_bad_forms() {
+    for words in [
+        &["account", "uses", "43"][..],
+        &["account", "uses", "43", "--default", "--party", "73"],
+        &["account", "uses", "43", "--default", "--project", "1"],
+        &["account", "uses", "43", "--default", "--default"],
+        &["account", "uses", "43", "--party", "18446744073709551616"],
+        &["account", "uses", "43", "--project", "4294967296"],
+        &["account", "uses", "4294967296", "--default"],
+    ] {
+        assert!(f::parse(words).is_err(), "{words:?}");
+    }
+    for flag in ["--party", "--project"] {
+        let mut words = f::extended(&["account", "uses", "43"], &[]);
+        for _ in 0_u32..16 {
+            words.push(flag).expect("fixture flag");
+            words.push("1").expect("fixture use");
+        }
+        let mut root = f::account_root(false);
+        let call = root.submit(words.as_slice());
+        f::deliver_accounts(&mut root, f::accounts());
+        let jig_client::Ask::Jig(ask) = &root.sends.get(&call).expect("16 uses admitted").2 else {
+            panic!("jig ask");
+        };
+        let c::Ask::AccountChange { change: c::AccountChange::SetUses { uses: Some(uses), .. }, .. } = ask.as_ref()
+        else {
+            panic!("set uses");
+        };
+        assert_eq!(uses.len(), 16);
+        words.push(flag).expect("seventeenth flag");
+        words.push("1").expect("seventeenth use");
+        assert!(f::parse(words.as_slice()).is_err(), "17 of one flag refused");
+        *words.get_mut(35).expect("seventeenth flag after account and 16 uses") =
+            if flag == "--party" { "--project" } else { "--party" };
+        assert!(f::parse(words.as_slice()).is_err(), "17 mixed uses refused");
+    }
 }

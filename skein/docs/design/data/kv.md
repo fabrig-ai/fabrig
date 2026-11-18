@@ -424,11 +424,13 @@ section 2).
 
 ### 6.3 Read back
 
-- **`ReadLog { owner, log, at, direction, max }`,** `direction`
+- **`ReadLog { owner, log, at, direction, max, rows }`,** `direction`
   `Forward` or `Backward` (`skein_kv::Direction`): forward, the frames
   from the one starting at `at`; backward, the frame ending at `at`,
   then each before it, newest first. `max`, past zero and at most
-  `Limits::page`, bounds the records' bytes the answer holds.
+  `Limits::page`, bounds the records' bytes the answer holds. `rows`,
+  past zero, bounds their count. Reaching that count ends the read
+  before another frame is read, checked or inflated, in either direction.
 - **`LogRead { owner, records, next }`,** each `LogRecord { at, end,
   length, record }`: the frame's start and end, the record's length, and
   the record inflated. Records go in whole while their lengths fit what

@@ -852,6 +852,7 @@ fn deleted_branch(d: &mut Domain, task: u64, name: &Name) {
     let mut out = Queue::uncapped();
     release_outcome(
         d,
+        &env(),
         CLEANUP,
         skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Set, found: false },
         &mut out,
@@ -954,6 +955,7 @@ fn finish_cleanup(d: &mut Domain) -> Queue<Request> {
     let mut out = Queue::uncapped();
     release_outcome(
         d,
+        &env(),
         CLEANUP,
         skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Set, found: false },
         &mut Queue::uncapped(),

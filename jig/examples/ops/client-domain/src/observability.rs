@@ -438,8 +438,9 @@ fn sync(side: &mut Side, out: &mut Queue<Request>) {
     for subject in subjects.into_boxed() {
         acquire(side, subject, out);
     }
-    if side.link != Link::Live {
-        hide(side, out);
+    match side.link {
+        Link::Starting | Link::SignedOut | Link::OutOfDate => hide(side, out),
+        Link::Live | Link::Offline => {}
     }
 }
 fn ended(side: &mut Side, id: Id<Watching>, end: WatchEnd, out: &mut Queue<Request>) {

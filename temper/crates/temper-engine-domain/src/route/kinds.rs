@@ -538,7 +538,18 @@ pub(super) fn read(
                 }
                 crate::ForgeRead::ProgramEnvironment => crate::ForgeReadAnswer::ProgramEnvironment,
                 crate::ForgeRead::Setting { kind, scope, number } => {
-                    crate::ForgeReadAnswer::Setting(domain.forge.setting(kind, scope, number).cloned())
+                    let inventory = jig_domain_core::documents::settings_inventory(&domain.core);
+                    let mut revision = None;
+                    for line in &inventory.settings {
+                        if line.setting == (jig_domain_core::settings::Setting::Application { kind, scope, number }) {
+                            revision = line.last;
+                            break;
+                        }
+                    }
+                    crate::ForgeReadAnswer::Setting {
+                        value: domain.forge.setting(kind, scope, number).cloned(),
+                        revision,
+                    }
                 }
                 crate::ForgeRead::RevisionSetting { .. } => unreachable!("revision reads load their metadata"),
                 crate::ForgeRead::ProposalItems { key } => {
@@ -678,7 +689,7 @@ pub(super) fn revision_answer(
     let crate::ForgeRead::RevisionSetting { kind, scope, number, revision } = query else {
         unreachable!("only revision reads await metadata")
     };
-    let value = match &answer {
+    let setting = match &answer {
         jig_domain_core::reads::Answer::Revision(answer) => match answer.as_ref() {
             jig_domain_core::reads::RevisionAnswer::Revision { revision: record, .. } => revision_value(
                 domain,
@@ -688,18 +699,16 @@ pub(super) fn revision_answer(
                 jig_domain_core::reads::settings::oldest(&domain.core, &super::environment_core(env).limits),
             ),
             jig_domain_core::reads::RevisionAnswer::Unknown
-            | jig_domain_core::reads::RevisionAnswer::Forgotten { .. } => None,
+            | jig_domain_core::reads::RevisionAnswer::Forgotten { .. } => {
+                crate::ForgeReadAnswer::Setting { value: None, revision: None }
+            }
         },
         _ => {
             super::emit(decision, &env.limits, crate::Delivery::Read { reply, answer });
             return;
         }
     };
-    super::emit(
-        decision,
-        &env.limits,
-        crate::Delivery::ForgeRead { reply, answer: crate::ForgeReadAnswer::Setting(value) },
-    );
+    super::emit(decision, &env.limits, crate::Delivery::ForgeRead { reply, answer: setting });
 }
 
 fn revision_value(
@@ -708,18 +717,20 @@ fn revision_value(
     selector: (u32, u32, u32),
     revision: u32,
     oldest: u32,
-) -> Option<settings::SizedValue> {
+) -> crate::ForgeReadAnswer {
     if record.head.number != revision || revision < oldest {
-        return None;
+        return crate::ForgeReadAnswer::Setting { value: None, revision: None };
     }
+    let mut value = None;
     for item in &record.applications {
         if (item.kind, item.scope, item.number) == selector
             && let application::SizedEdit::Set { .. } = item.edit
         {
-            return domain.forge.revision_setting(item.kind, item.scope, item.number, revision).cloned();
+            value = domain.forge.revision_setting(item.kind, item.scope, item.number, revision).cloned();
+            break;
         }
     }
-    None
+    crate::ForgeReadAnswer::Setting { value, revision: Some(record.head.number) }
 }
 
 fn owner_refusal_words(domain: &Domain, bounds: &settings::Bounds, asked: &settings::Asked) -> Option<Box<[u8]>> {

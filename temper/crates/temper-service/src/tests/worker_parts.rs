@@ -7,7 +7,7 @@ use temper_protocol_worker_wire::{self as payload, v1};
 const RUN: Token = Token::new(43);
 #[test]
 fn a_resolution_past_its_workers_charter_allowance_starts_cut() {
-    // Standard hub, smith's floor, and the reference agent
+    // Standard hub, smith's floor, and the stock agent's reference-sized allowance
     // (temper/docs/design/domain/agent/tools.md; temper/docs/design/protocol/configuration/settings.md, 7).
     // The smaller hub proves its bound still holds.
     const STANDARD: u64 = 262_144;
@@ -15,10 +15,11 @@ fn a_resolution_past_its_workers_charter_allowance_starts_cut() {
     const REFERENCE: u64 = 127_480;
     // Both sides of a large generated file, past each receiving allowance.
     const PULL_BYTES: usize = 200_000;
-    const STOCK_PAYLOAD: u32 = 10_662;
-    const STOCK_OUTPUT: u32 = 8192;
+    const STOCK_PAYLOAD: u32 = 63_740;
+    const STOCK_OUTPUT: u32 = 48_000;
     let stock = fixtures::parsed_agent(fixtures::stock_configuration(STOCK_PAYLOAD, STOCK_OUTPUT).unwrap());
-    assert_eq!(crate::assignment::WORKER_CHARTER_BYTES, stock.host_limits.charter_bytes);
+    assert_eq!(crate::assignment::WORKER_CHARTER_BYTES, FLOOR);
+    assert_eq!(stock.host_limits.charter_bytes, REFERENCE);
     // The smaller hub holds the fixture's fixed charter, title and one cut line.
     let mut minimum = temper_engine_smith::charter(&fixtures::resolution_with_pull(PULL_BYTES));
     minimum.brief.sections.first_mut().unwrap().text = b"\n[cut 200000 bytes; whole: read_issues]\n".as_slice().into();

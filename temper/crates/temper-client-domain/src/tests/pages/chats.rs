@@ -365,6 +365,52 @@ fn starting_a_chat_sends_the_chat_template_filled_once() {
     assert_eq!(fixtures::acts::sent(&mut out).as_ref(), [expected]);
 }
 #[test]
+fn chats_wait_for_me_to_name_the_party_and_template_label() {
+    use jig_client::{Down, Link, UnlinkedRequest, Up};
+    let mut root = crate::unlinked(&fixtures::limits(), fixtures::SEED);
+    let me = fixtures::start(&mut root, List::uncapped());
+    super::accounts::event(
+        &mut root,
+        crate::Event::Went { place: crate::Place::Address(crate::Address::Chats { filter: ChatsFilter::All }) },
+    );
+    let mut live = Queue::uncapped();
+    crate::route::told(&mut root, &fixtures::env(&fixtures::limits()), Told::Link { link: Link::Live }, &mut live);
+    let mut early = false;
+    for request in &live {
+        if let crate::Request::Unlinked {
+            request: UnlinkedRequest::Down { down: Down::Open { subject: Watchable::Jig(Subject::Tasks { .. }), .. } },
+        } = request
+        {
+            early = true;
+        }
+    }
+    assert!(!early, "the query needs me");
+    let mut frame = fixtures::chats::me();
+    frame.projects.get_mut(0).unwrap().templates.get_mut(0).unwrap().label = 19;
+    let with_me = super::accounts::event(
+        &mut root,
+        crate::Event::Client {
+            event: Event::Up {
+                up: Up::Watched { watch: me, event: WatchEvent::Delivered(Delivery::Me(Box::new(frame))) },
+            },
+        },
+    );
+    let mut found = false;
+    for request in &with_me {
+        if let crate::Request::Unlinked {
+            request:
+                UnlinkedRequest::Down { down: Down::Open { subject: Watchable::Jig(Subject::Tasks { query, .. }), .. } },
+        } = request
+        {
+            assert_eq!(query.requester, Some(Requester::Person(fixtures::PARTY)));
+            assert_eq!(query.label, Some(19));
+            found = true;
+        }
+    }
+    assert!(found, "the query leaves in me's step");
+}
+
+#[test]
 fn the_chats_watch_live_lines_by_last_activity() {
     let limits = fixtures::limits();
     let me = fixtures::chats::me();

@@ -814,8 +814,11 @@ fn only_read_hidden_settings_override_filters() {
                     Readout::Family {
                         family: wire::FORGE,
                         record: Some(wire::setting_answer(
-                            &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(bytes.finish()) })
-                                .unwrap(),
+                            &w::SettingAnswer::new(
+                                &w::CEILINGS,
+                                w::SettingAnswerParts { revision: None, value: Some(bytes.finish()) },
+                            )
+                            .unwrap(),
                         )),
                     }
                 }

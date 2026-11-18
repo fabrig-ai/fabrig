@@ -190,6 +190,8 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["account", "replace-key", "43", "key-file"],
     &["account", "forget", "43"],
     &["account", "rank", "43", "1"],
+    &["account", "uses", "43", "--party", "73", "--project", "1"],
+    &["account", "uses", "43", "--default"],
     &["account", "retry", "43"],
     &["task", "amend", "41", "--rev", "7", "--model", "chosen-model", "because"],
     &["account", "declare", "9", "helper", "work-login", "--key", "declare"],
@@ -802,17 +804,9 @@ impl Harness {
         self.next
     }
     pub fn deliver(&mut self, delivery: c::Delivery) {
-        let mut watches = List::with_capacity(OUTPUTS);
-        for (token, subject) in &self.watches {
-            if *subject == client::Watchable::Jig(c::Subject::Me) {
-                watches.push(*token).expect("bounded me watches");
-            }
-        }
-        for token in &watches {
-            self.client(client::Event::Up {
-                up: client::Up::Watched { watch: *token, event: c::WatchEvent::Delivered(delivery.clone()) },
-            });
-        }
+        self.client(client::Event::Up {
+            up: client::Up::Watched { watch: Token::new(0), event: c::WatchEvent::Delivered(delivery) },
+        });
     }
     pub fn serve(&mut self, call: u32, result: c::ReadResult) {
         self.serve_readout(call, client::Readout::Jig(result));

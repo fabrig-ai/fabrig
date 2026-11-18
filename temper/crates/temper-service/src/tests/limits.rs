@@ -163,7 +163,7 @@ fn a_zero_change_tasks_override_refuses_the_start_naming_the_limit() {
 #[test]
 #[expect(clippy::disallowed_macros, reason = "the test formats override documents and their expected diagnostics")]
 fn forge_changes_past_the_tier_ceiling_refuses_both_startup_routes() {
-    for changes in [1024_u32, 1025] {
+    for changes in [769_u32, 1024] {
         let member = format!(r#"{{"profile":"standard","overrides":{{"forge.changes":{changes}}}}}"#);
         let document = fixtures::with(&fixtures::document(), b"application.limits", member.as_bytes());
         let directories = jig_protocol_config::Directories::working();
@@ -174,7 +174,7 @@ fn forge_changes_past_the_tier_ceiling_refuses_both_startup_routes() {
         for problems in [starting, reading] {
             assert_eq!(
                 crate::startup::lines(&problems).as_ref(),
-                format!("application.limits.overrides.forge.changes: {changes}, past its bound of 379, the most the store's tier rows hold (2 * forge.changes + 1 within 759)\n").as_bytes(),
+                format!("application.limits.overrides.forge.changes: {changes}, past its bound of 768, the most the store's tier rows hold (2 * forge.changes + 1 within 1537)\n").as_bytes(),
             );
         }
     }
@@ -186,12 +186,57 @@ fn standard_changes_at_the_tier_bound_fit_the_stock_store() {
     let document = fixtures::with(
         &fixtures::document(),
         b"application.limits",
-        br#"{"profile":"standard","overrides":{"forge.changes":379,"forge.client.op_bytes":262144}}"#,
+        br#"{"profile":"standard","overrides":{"forge.changes":768,"forge.client.op_bytes":262144}}"#,
     );
     let directories = jig_protocol_config::Directories::working();
     crate::startup::named(&document, &directories).expect("the stock map admits the tier cap");
     crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
         .expect("the stock reader admits the tier cap");
+}
+
+#[test]
+fn test_id_bytes_past_the_store_ceiling_refuses_both_startup_routes() {
+    let document = fixtures::with(
+        &fixtures::document(),
+        b"application.limits",
+        br#"{"profile":"standard","overrides":{"forge.tiers.test_id_bytes":1025}}"#,
+    );
+    let directories = jig_protocol_config::Directories::working();
+    let starting = crate::startup::named(&document, &directories).unwrap_err();
+    let reading = crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
+        .unwrap_err();
+    for problems in [starting, reading] {
+        assert_eq!(
+            crate::startup::lines(&problems).as_ref(),
+            b"application.limits.overrides.forge.tiers.test_id_bytes: 1025, past its bound of 1024, the most the store holds of a failing test's id\n",
+        );
+    }
+}
+
+#[test]
+fn test_id_bytes_at_the_store_ceiling_passes_both_startup_routes() {
+    let document = fixtures::with(
+        &fixtures::document(),
+        b"application.limits",
+        br#"{"profile":"standard","overrides":{"forge.tiers.test_id_bytes":1024}}"#,
+    );
+    let directories = jig_protocol_config::Directories::working();
+    crate::startup::named(&document, &directories).expect("the store's test id ceiling passes startup");
+    let reading = crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
+        .expect("the store's test id ceiling passes its reader");
+    assert_eq!(reading.forge.tiers.test_id_bytes, 1024);
+}
+
+#[test]
+fn the_stock_without_overrides_passes_both_startup_routes() {
+    let document =
+        fixtures::with(&fixtures::document(), b"application.limits", br#"{"profile":"standard","overrides":{}}"#);
+    let directories = jig_protocol_config::Directories::working();
+    crate::startup::named(&document, &directories).expect("the stock passes startup");
+    let reading = crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
+        .expect("the stock passes its reader");
+    assert_eq!(reading.forge.changes, 768);
+    assert_eq!(reading.forge.tiers.test_id_bytes, 512);
 }
 
 #[test]

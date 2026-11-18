@@ -91,6 +91,7 @@ impl Harness {
                 | Request::Answer { .. }
                 | Request::NotWritten { .. }
                 | Request::NotKept { .. }
+                | Request::ReadAgain { .. }
                 | Request::Read { .. }
                 | Request::OpenStream { .. }
                 | Request::CloseStream

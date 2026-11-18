@@ -35,8 +35,8 @@ fn settle_root(
     let mut env = Env { now: front.now, wall: WALL, limits: *limits };
     let mut out = Queue::uncapped();
     Temper::step(root, &env, Temper::start(fixtures::project(), kept, 0), &mut out);
-    assert_eq!(flush(front, root, &env, &mut out), 1, "startup shares the own Me with the UI");
-    for _ in 0..8 {
+    assert_eq!(flush(front, root, &env, &mut out), 0, "startup opens no watch on me");
+    for _ in 0..limits.client.domain.watches.saturating_add(2) {
         let callbacks = front.poll(env.now, env.wall);
         if callbacks.is_empty() {
             return;

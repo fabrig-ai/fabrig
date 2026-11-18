@@ -519,6 +519,16 @@ pub fn tier_configuration(directory: &Path) -> std::net::SocketAddr {
             git: format!("http://{}", owned.forgejo),
         },
     );
+    setup(
+        directory,
+        &Names {
+            forgejo: &owned.forgejo_binary,
+            runner: Some(&owned.runner_binary),
+            port: owned.forgejo.port(),
+            bot: "temper",
+            person: "ada",
+        },
+    );
     owned.forgejo
 }
 

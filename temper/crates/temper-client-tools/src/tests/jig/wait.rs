@@ -68,7 +68,7 @@ fn source_wait(
 
 fn settled_source_wait(root: &mut f::Harness, call: u32) {
     assert!(root.reads.is_empty());
-    assert_eq!(root.watches.len(), f::SHARED_WATCHES);
+    assert_eq!(root.watches.len(), f::NO_APPLICATION_WATCHES);
     assert_eq!(crate::root::next_deadline(&root.root), None);
     root.now = Time::ZERO.checked_add(f::WAIT_SPAN).unwrap();
     root.fire();
@@ -362,14 +362,11 @@ fn an_answer_releases_only_the_calls_handle() {
     root.deliver_subject(&f::task_watch(), f::parked());
     assert_eq!(root.answer(call).expect("first call met").status, 0);
     assert!(root.answer(other).is_none());
-    assert_eq!(root.watches.len(), f::TWO_CALLERS);
+    assert_eq!(root.watches.len(), f::SHARED_APPLICATION_WATCHES);
     root.deliver_subject(&f::task_watch(), f::writing_chat());
     assert_eq!(root.answer(other).expect("second call met").status, 0);
-    assert_eq!(root.watches.len(), f::SHARED_WATCHES);
+    assert_eq!(root.watches.len(), f::NO_APPLICATION_WATCHES);
     assert_eq!(crate::root::next_deadline(&root.root), None);
-    for subject in root.watches.values() {
-        assert_eq!(*subject, Watchable::Jig(c::Subject::Me));
-    }
 }
 
 #[test]
@@ -438,13 +435,13 @@ fn final_read(end: c::WatchEnd, json: bool, until: &[&str]) -> (f::Harness, u32,
     assert_eq!(*what, c::Read::Task { task: f::TASK });
     let read = *read;
     assert_eq!(crate::root::next_deadline(&root.root), None);
-    assert_eq!(root.watches.len(), f::SHARED_WATCHES);
+    assert_eq!(root.watches.len(), f::NO_APPLICATION_WATCHES);
     (root, call, watch, read)
 }
 
 fn settled_final_read(root: &mut f::Harness, call: u32, watch: skein_lib::Token, read: skein_lib::Token) {
     assert!(root.reads.is_empty());
-    assert_eq!(root.watches.len(), f::SHARED_WATCHES);
+    assert_eq!(root.watches.len(), f::NO_APPLICATION_WATCHES);
     let handle = jig_client::Handle { asker: crate::root::RUNNER.asker(), number: u64::from(call) << 32 };
     assert!(root.root.client().document(handle).is_none(), "call's watch handle released");
     assert_eq!(crate::root::next_deadline(&root.root), None);
@@ -600,7 +597,7 @@ fn a_run_ending_meets_ended() {
     assert_eq!(answer.status, 0);
     assert!(answer.stdout.ends_with(b",\"met\":true}"));
     assert!(root.reads.is_empty());
-    assert_eq!(root.watches.len(), f::SHARED_WATCHES);
+    assert_eq!(root.watches.len(), f::NO_APPLICATION_WATCHES);
 }
 // The tools step fixture supplies the cached document and watch end directly.
 #[test]
@@ -635,7 +632,7 @@ fn a_tree_watch_ending_labels_live_rows_as_the_last_observed_snapshot() {
                 assert!(f::has(&answer, &digest));
             }
             assert!(root.reads.is_empty(), "watch completion needs no final task read");
-            assert_eq!(root.watches.len(), f::SHARED_WATCHES);
+            assert_eq!(root.watches.len(), f::NO_APPLICATION_WATCHES);
             let handle = jig_client::Handle { asker: crate::root::RUNNER.asker(), number: u64::from(call) << 32 };
             assert!(root.root.client().document(handle).is_none());
             assert_eq!(crate::root::next_deadline(&root.root), None);
@@ -661,7 +658,7 @@ fn a_terminal_tree_delivery_meets_ended_without_watch_evidence() {
         assert!(f::has(&answer, &expected));
         assert!(!f::has(&answer, b"\"completion\""));
         assert!(!f::has(&answer, b"\"snapshot\""));
-        assert_eq!(root.watches.len(), f::SHARED_WATCHES);
+        assert_eq!(root.watches.len(), f::NO_APPLICATION_WATCHES);
         assert_eq!(crate::root::next_deadline(&root.root), None);
     }
 }
@@ -681,7 +678,7 @@ fn a_tree_timeout_retains_its_snapshot_without_claiming_completion() {
     assert!(f::has(&answer, b"\"why\":\"timeout\",\"met\":false"));
     assert!(!f::has(&answer, b"\"completion\""));
     assert!(!f::has(&answer, b"\"snapshot\""));
-    assert_eq!(root.watches.len(), f::SHARED_WATCHES);
+    assert_eq!(root.watches.len(), f::NO_APPLICATION_WATCHES);
     assert_eq!(crate::root::next_deadline(&root.root), None);
 }
 #[test]
@@ -806,7 +803,7 @@ fn an_answered_wait_ignores_late_terminals() {
     });
     root.fire();
     assert!(root.answer(call).is_none());
-    assert_eq!(root.watches.len(), f::SHARED_WATCHES);
+    assert_eq!(root.watches.len(), f::NO_APPLICATION_WATCHES);
     assert_eq!(crate::root::next_deadline(&root.root), None);
 }
 
@@ -846,7 +843,7 @@ fn run_and_tree_endings_without_delivery_refuse_and_release_the_wait() {
                     assert!(answer.stdout.is_empty());
                     assert_eq!(answer.stderr.as_ref(), if as_json { json } else { text });
                     assert!(root.reads.is_empty());
-                    assert_eq!(root.watches.len(), f::SHARED_WATCHES);
+                    assert_eq!(root.watches.len(), f::NO_APPLICATION_WATCHES);
                     let handle =
                         jig_client::Handle { asker: crate::root::RUNNER.asker(), number: u64::from(call) << 32 };
                     assert!(root.root.client().document(handle).is_none(), "call's watch handle released");
@@ -858,7 +855,7 @@ fn run_and_tree_endings_without_delivery_refuse_and_release_the_wait() {
                     root.fire();
                     assert!(root.answer(call).is_none(), "one answer despite late endings and timeout");
                     assert!(root.reads.is_empty());
-                    assert_eq!(root.watches.len(), f::SHARED_WATCHES);
+                    assert_eq!(root.watches.len(), f::NO_APPLICATION_WATCHES);
                     assert_eq!(crate::root::next_deadline(&root.root), None);
                 }
             }
@@ -912,7 +909,7 @@ fn an_unknown_watch_without_a_terminal_condition_keeps_status_2() {
         assert!(answer.stdout.is_empty());
         assert!(skein_lib::bytes::find(&answer.stderr, b"unknown").is_some());
         assert!(root.reads.is_empty());
-        assert_eq!(root.watches.len(), f::SHARED_WATCHES);
+        assert_eq!(root.watches.len(), f::NO_APPLICATION_WATCHES);
         assert_eq!(crate::root::next_deadline(&root.root), None);
     }
 }
@@ -1016,7 +1013,7 @@ fn inbox_read(
     root.deliver_subject(&f::inbox_watch(), delivery.clone());
     let read = root.answer(call).expect("read and first window delivered");
     assert_eq!(read.status, 0);
-    assert_eq!(root.watches.len(), f::SHARED_WATCHES, "read closes its watch");
+    assert_eq!(root.watches.len(), f::NO_APPLICATION_WATCHES, "read closes its watch");
     (root, read, delivery)
 }
 
@@ -1054,7 +1051,7 @@ fn an_inbox_wait_since_its_reads_digest_waits_while_nothing_moves() {
     assert_eq!(answer.status, 3);
     assert!(answer.stdout.ends_with(b"not met: timeout\n"));
     assert_eq!(inbox_text_digest(&answer.stdout), digest);
-    assert_eq!(root.watches.len(), f::SHARED_WATCHES);
+    assert_eq!(root.watches.len(), f::NO_APPLICATION_WATCHES);
     assert_eq!(crate::root::next_deadline(&root.root), None);
 }
 
@@ -1106,7 +1103,7 @@ fn an_inbox_wait_since_its_reads_digest_answers_at_a_new_update() {
     let answer = root.answer(call).expect("new update answers");
     assert_eq!(answer.status, 0);
     assert_ne!(f::last_digest(&answer.stdout), digest);
-    assert_eq!(root.watches.len(), f::SHARED_WATCHES);
+    assert_eq!(root.watches.len(), f::NO_APPLICATION_WATCHES);
     assert_eq!(crate::root::next_deadline(&root.root), None);
 }
 
@@ -1136,7 +1133,7 @@ fn run_ended_uses_the_current_attempt_even_without_a_terminal_event() {
                 assert!(answer.stdout.ends_with(b"met\n"), "{answer:?}");
             }
             assert_eq!(crate::root::next_deadline(&root.root), None);
-            assert_eq!(root.watches.len(), f::SHARED_WATCHES);
+            assert_eq!(root.watches.len(), f::NO_APPLICATION_WATCHES);
         }
     }
 }
@@ -1260,7 +1257,7 @@ fn a_met_owner_inbox_wait_prints_the_plain_reads_question_and_calls() {
             f::check_golden("inbox_wait_question", &answer.stdout);
         }
         assert!(root.reads.is_empty());
-        assert_eq!(root.watches.len(), f::SHARED_WATCHES);
+        assert_eq!(root.watches.len(), f::NO_APPLICATION_WATCHES);
     }
 }
 
@@ -1304,7 +1301,7 @@ fn a_failed_met_inbox_read_keeps_the_wait_delivery_and_status() {
     assert!(answer.stdout.starts_with(b"1 \xc2\xb7 question 2\n1 \xc2\xb7 task\nmore\ndigest: inbox "));
     assert!(answer.stdout.ends_with(b"met\n"));
     assert_eq!(answer.stderr, failure.stderr);
-    assert_eq!(root.watches.len(), f::SHARED_WATCHES);
+    assert_eq!(root.watches.len(), f::NO_APPLICATION_WATCHES);
 }
 
 #[test]

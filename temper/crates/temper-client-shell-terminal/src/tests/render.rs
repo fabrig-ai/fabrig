@@ -143,7 +143,7 @@ fn the_first_run_prints_settings_and_the_playground_banner() {
 
 #[test]
 fn no_project_reads_the_same_in_the_terminal() {
-    use jig_client::contract::{Delivery, Subject, WatchEvent};
+    use jig_client::contract::{Delivery, WatchEvent};
     use skein_lib::{Env, List, Queue, Time};
     use temper_client_domain::{self as client, Event, Request};
     use temper_client_protocol_wire::{self as wire, v1 as w};
@@ -162,18 +162,23 @@ fn no_project_reads_the_same_in_the_terminal() {
     ] {
         client::step(&mut root, &env, event, &mut out);
     }
+    let mut me = jig_client_kit::stories::frame(1);
+    me.projects.clear();
+    client::step(
+        &mut root,
+        &env,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: skein_lib::Token::new(0),
+                    event: WatchEvent::Delivered(Delivery::Me(Box::new(me))),
+                },
+            },
+        },
+        &mut out,
+    );
     while let Some(request) = out.pop() {
         let up = match request {
-            Request::Unlinked {
-                request:
-                    jig_client::UnlinkedRequest::Down {
-                        down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(Subject::Me) },
-                    },
-            } => {
-                let mut me = jig_client_kit::stories::frame(1);
-                me.projects.clear();
-                Some(jig_client::Up::Watched { watch, event: WatchEvent::Delivered(Delivery::Me(Box::new(me))) })
-            }
             Request::Unlinked {
                 request:
                     jig_client::UnlinkedRequest::Down {

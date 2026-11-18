@@ -215,10 +215,14 @@ impl Exchange {
         owner
     }
     pub fn stream_open(&mut self) -> Token {
+        self.stream_open_version(None)
+    }
+    pub fn stream_open_version(&mut self, version: Option<u32>) -> Token {
         let owner = self.component.name();
         self.component.down(
             &self.env,
             Event::Transport(crate::FromTransport::StreamOpen {
+                version,
                 stream: owner,
                 credential: Some(Secret::new(self.token.clone())),
             }),
