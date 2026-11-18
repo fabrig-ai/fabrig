@@ -1,3 +1,5 @@
+mod counts;
+
 use crate::{
     Request,
     address::{Filter, Kind},
@@ -658,37 +660,25 @@ fn reply_counts_and_source_cut_survive_both_inbox_documents() {
 #[test]
 fn filtered_cut_is_kept_for_each_section_and_both_page_shapes() {
     use jig_client::{Readout, Told};
-    for owner in [false, true] {
-        let (mut root, watch) = fixtures::inbox_home(Filter { goal: Some(GOAL), ..Filter::ALL });
-        let mut out = fixtures::inbox_entries(&mut root, watch, List::with_capacity(0));
-        let handles = root.pages().inbox().unwrap().queries;
-        for (index, handle) in handles.into_iter().enumerate() {
-            let page = if owner {
-                contract::ReadValue::Inbox(Box::new(contract::InboxPage {
-                    selection: None,
-                    cut: index == 1,
-                    rows: List::with_capacity(0),
-                    before: None,
-                    after: None,
-                }))
-            } else {
-                contract::ReadValue::Inbox(Box::new(contract::InboxPage {
-                    cut: index == 1,
-                    rows: List::with_capacity(0),
-                    before: None,
-                    after: None,
-                    selection: None,
-                }))
-            };
-            crate::route::told(
-                &mut root,
-                &fixtures::env(&fixtures::limits()),
-                Told::Page { handle, page: Readout::Jig(contract::ReadResult::Value(page)) },
-                &mut out,
-            );
-        }
-        assert_eq!(root.pages().inbox().unwrap().cut, [false, true]);
+    let (mut root, watch) = fixtures::inbox_home(Filter { goal: Some(GOAL), ..Filter::ALL });
+    let mut out = fixtures::inbox_entries(&mut root, watch, List::with_capacity(0));
+    let handles = root.pages().inbox().unwrap().queries;
+    for handle in handles {
+        let page = contract::ReadValue::Inbox(Box::new(contract::InboxPage {
+            selection: None,
+            cut: true,
+            rows: List::with_capacity(0),
+            before: None,
+            after: None,
+        }));
+        crate::route::told(
+            &mut root,
+            &fixtures::env(&fixtures::limits()),
+            Told::Page { handle, page: Readout::Jig(contract::ReadResult::Value(page)) },
+            &mut out,
+        );
     }
+    assert_eq!(root.pages().inbox().unwrap().cut, [false, true]);
 }
 
 fn section(root: &mut crate::Domain, index: usize, rows: Option<List<contract::InboxEntry>>) {
