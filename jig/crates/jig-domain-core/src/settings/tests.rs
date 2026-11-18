@@ -1542,7 +1542,7 @@ fn providers_check_current_models_and_keep_running_facts_until_start() {
     let mut core = Core::new(config(1), &limits).unwrap();
     let local = crate::tests::provider_setting(4, b"local", 5);
     let mut model = core.current.value(Setting::Model(1)).unwrap().as_model().unwrap().clone();
-    model.number = 2;
+    model.number = 33;
     model.model.name = b"local-model".as_slice().into();
     model.model.provider = 4;
     model.model.endpoint = 5;
@@ -1574,7 +1574,7 @@ fn providers_check_current_models_and_keep_running_facts_until_start() {
         &env,
         Box::new([
             provider_item(local.clone()),
-            Item { setting: Setting::Model(2), edit: Edit::Set(Value::Model(Box::new(model.clone()))) },
+            Item { setting: Setting::Model(33), edit: Edit::Set(Value::Model(Box::new(model.clone()))) },
         ]),
     );
     result.unwrap();
@@ -1589,7 +1589,7 @@ fn providers_check_current_models_and_keep_running_facts_until_start() {
         result,
         Err(people::Refusal::NotWellFormed {
             at: 0,
-            why: people::Malformed::Settings { setting: Setting::Model(2), fault: Fault::Reference, detail: None }
+            why: people::Malformed::Settings { setting: Setting::Model(33), fault: Fault::Reference, detail: None }
         })
     );
     let (result, out) = decide_worker(
@@ -1597,7 +1597,7 @@ fn providers_check_current_models_and_keep_running_facts_until_start() {
         &env,
         Box::new([
             Item { setting: Setting::Provider(4), edit: Edit::Removed },
-            Item { setting: Setting::Model(2), edit: Edit::Removed },
+            Item { setting: Setting::Model(33), edit: Edit::Removed },
         ]),
     );
     result.unwrap();
@@ -1607,7 +1607,7 @@ fn providers_check_current_models_and_keep_running_facts_until_start() {
         &mut core,
         &env,
         Box::new([Item {
-            setting: Setting::Model(2),
+            setting: Setting::Model(33),
             edit: Edit::Set(Value::Model(Box::new(CatalogueModel { withdrawn: true, picker: false, ..model }))),
         }]),
     );
@@ -1661,14 +1661,14 @@ fn providers_with_accounts_are_not_removed_and_fixed_providers_are_references_on
         })
     );
     let mut model = core.current.value(Setting::Model(1)).unwrap().as_model().unwrap().clone();
-    model.number = 2;
+    model.number = 33;
     model.model.name = b"fixed-model".as_slice().into();
     model.model.provider = 3;
     model.model.endpoint = 3;
     let (result, out) = decide_worker(
         &mut core,
         &env,
-        Box::new([Item { setting: Setting::Model(2), edit: Edit::Set(Value::Model(Box::new(model))) }]),
+        Box::new([Item { setting: Setting::Model(33), edit: Edit::Set(Value::Model(Box::new(model))) }]),
     );
     result.unwrap();
     assert!(providers_told(&out).is_none());

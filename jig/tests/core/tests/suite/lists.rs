@@ -427,7 +427,7 @@ fn a_pending_provider_model_is_not_offered_and_running_lists_still_read() {
     world.answer_list(listed(&[b"scripted"]));
     let provider = jig_test_profile::fixtures::provider_setting(4, b"local", 5);
     let mut model = entry(&world, 1);
-    model.number = 2;
+    model.number = 33;
     model.model.name = b"local-model".as_slice().into();
     model.model.provider = 4;
     model.model.endpoint = 5;
@@ -443,7 +443,7 @@ fn a_pending_provider_model_is_not_offered_and_running_lists_still_read() {
                     setting: s::Setting::Provider(4),
                     edit: s::Edit::Set(s::Value::Provider(Box::new(provider.clone()))),
                 },
-                s::Item { setting: s::Setting::Model(2), edit: s::Edit::Set(s::Value::Model(Box::new(model))) },
+                s::Item { setting: s::Setting::Model(33), edit: s::Edit::Set(s::Value::Model(Box::new(model))) },
             ]),
         ),
         against + 1,
