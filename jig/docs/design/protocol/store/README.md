@@ -30,7 +30,7 @@ section 11.
   writer, with a tag per owner, then per family. Every range the domain
   asks for maps to a short, fixed list of intervals (section 4).
 - **Records from schemas,** with skein's generator: a codec per family,
-  versioned, golden bytes and fuzzing. A format row names the versions,
+  versioned, with fixed-rule values built from schema text and fuzzing. A format row names the versions,
   each owner's level and the deployment; a floor row names the oldest
   store the build opens. A store of another version or deployment
   refuses to open (`records.md`).
@@ -779,13 +779,17 @@ Each within jig's suites' budgets.
   restart; decoder-only duplicates stay in the step tests.
 - **Step tests:** each key encoder against the derived order; each
   range's intervals against its predicate; each codec both ways, with
-  golden bytes; refusals at open (format, deployment, sizes, numbers).
+  values built from schema text or constructors, not stored codec bytes
+  (skein's `data/codec/README.md`, 6); full fixed-rule values decoded at the
+  ceilings within their heap bounds and released; refusals at open
+  (format, deployment, sizes, numbers).
   Direct transcript pages either advance through a nonempty prefix or
   terminate `Unread` when no turn fits. The copy's check refuses a row
   the restart cannot load (`Check::Load`), naming its key: the active
   generation and source stay unchanged, and the next start sweeps the
   abandoned copy.
-- **Fuzz targets** for each family's decoder and a frame's.
+- **Fuzz targets** for each family's decoder and a frame's. Family seeds
+  are full fixed-rule values built from their schema texts, not files.
 - **On the real ring,** the reference binary (`../service.md`, section 7)
   killed around each phase of a turn's commit and started again. A killed
   process keeps the page cache, so this checks integration, not power

@@ -243,7 +243,7 @@ fn a_corrupt_safety_open_has_one_restore_refusal_and_releases_its_lock() {
     let skein_io::file::Event::Locked { .. } = unlocked.event else { panic!("deployment lock released") };
 }
 #[test]
-fn restore_words_and_versioned_intent_bytes_are_pinned() {
+fn restore_words_are_pinned_and_versioned_intents_round_trip() {
     use crate::{CheckpointRefusal, OpenRefusal};
     use skein_io::kernel::Error;
     let safety = name(2);
@@ -281,10 +281,10 @@ fn restore_words_and_versioned_intent_bytes_are_pinned() {
     ] {
         assert_eq!(why.words().as_ref(), expected);
     }
-    for bytes in [
-        include_bytes!("../../golden/component/record_restore_intent_smallest.bin").as_slice(),
-        include_bytes!("../../golden/component/record_restore_intent_full.bin").as_slice(),
-    ] {
+    let schema = skein_codegen::parse(super::COMPONENT_SCHEMA).expect("component schema");
+    let goldens = skein_codegen::goldens(&schema);
+    for name in ["record_restore_intent_smallest.bin", "record_restore_intent_full.bin"] {
+        let bytes = goldens.iter().find(|value| value.name == name).expect("restore intent value").bytes.as_slice();
         let row = crate::component_v3::RestoreIntent::decode(&crate::component_v3::CEILINGS, &mut Reader::new(bytes))
             .unwrap();
         let mut out = Writer::new(usize::try_from(row.measure()).unwrap());

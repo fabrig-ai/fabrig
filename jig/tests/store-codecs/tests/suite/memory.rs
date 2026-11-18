@@ -1,21 +1,20 @@
-//! Full golden rows decode within their decoded bounds (skein's data/codec/README.md, 6).
+//! Full fixed-rule rows decode within their decoded bounds (skein's data/codec/README.md, 6).
+use super::values;
 use jig_protocol_store::{
     accounts_v2, component_v3, core_v6, notes_v1, people_v17, secrets_v1, settings_v3, tasks_v13,
 };
 use skein_heap::Meter;
 use skein_lib::Reader;
 
-fn check<T>(family: &str, record: &str, bound: u64, decode: impl FnOnce(&[u8]) -> T) {
-    let golden = std::fs::read(
-        skein_scratch::paths::package()
-            .join(format!("../../crates/jig-protocol-store/golden/{family}/record_{record}_full.bin")),
-    )
-    .expect("full golden row");
+fn check<T>(text: &str, record: &str, bound: u64, decode: impl FnOnce(&[u8]) -> T) {
+    let schema = skein_codegen::parse(text).expect("family schema");
+    let name = format!("record_{record}_full.bin");
+    let golden = skein_codegen::goldens(&schema).into_iter().find(|value| value.name == name).expect("full fixed-rule row");
     let meter = Meter::new();
     meter.start();
-    let decoded = decode(&golden);
+    let decoded = decode(&golden.bytes);
     let measured = meter.end();
-    assert!(measured.peak() <= bound, "{family}/{record} decoding peaks within the generated bound");
+    assert!(measured.peak() <= bound, "{record} decoding peaks within the generated bound");
     drop(decoded);
     assert_eq!(meter.held(), 0, "the decoded row's heap is released");
 }
@@ -23,35 +22,35 @@ fn check<T>(family: &str, record: &str, bound: u64, decode: impl FnOnce(&[u8]) -
 #[test]
 fn a_full_notes_row_decodes_within_its_decoded_bound() {
     let bound = notes_v1::Row::decoded_bound(&notes_v1::CEILINGS).expect("notes heap bound");
-    check("notes", "row", bound, |golden| {
+    check(values::NOTES, "row", bound, |golden| {
         notes_v1::Row::decode(&notes_v1::CEILINGS, &mut Reader::new(golden)).expect("full row")
     });
 }
 #[test]
 fn a_full_tasks_row_decodes_within_its_decoded_bound() {
     let bound = tasks_v13::Row::decoded_bound(&tasks_v13::CEILINGS).expect("tasks heap bound");
-    check("tasks", "row", bound, |golden| {
+    check(values::TASKS, "row", bound, |golden| {
         tasks_v13::Row::decode(&tasks_v13::CEILINGS, &mut Reader::new(golden)).expect("full row")
     });
 }
 #[test]
 fn a_full_core_row_decodes_within_its_decoded_bound() {
     let bound = core_v6::Row::decoded_bound(&core_v6::CEILINGS).expect("core heap bound");
-    check("core", "row", bound, |golden| {
+    check(values::CORE, "row", bound, |golden| {
         core_v6::Row::decode(&core_v6::CEILINGS, &mut Reader::new(golden)).expect("full row")
     });
 }
 #[test]
 fn a_full_people_row_decodes_within_its_decoded_bound() {
     let bound = people_v17::Row::decoded_bound(&people_v17::CEILINGS).expect("people heap bound");
-    check("people", "row", bound, |golden| {
+    check(values::PEOPLE, "row", bound, |golden| {
         people_v17::Row::decode(&people_v17::CEILINGS, &mut Reader::new(golden)).expect("full row")
     });
 }
 #[test]
 fn each_full_component_row_decodes_within_its_decoded_bound() {
     check(
-        "component",
+        values::COMPONENT,
         "layouts",
         component_v3::Layouts::decoded_bound(&component_v3::CEILINGS).expect("layouts bound"),
         |golden| {
@@ -59,13 +58,13 @@ fn each_full_component_row_decodes_within_its_decoded_bound() {
         },
     );
     check(
-        "component",
+        values::COMPONENT,
         "format",
         component_v3::Format::decoded_bound(&component_v3::CEILINGS).expect("format bound"),
         |golden| component_v3::Format::decode(&component_v3::CEILINGS, &mut Reader::new(golden)).expect("full format"),
     );
     check(
-        "component",
+        values::COMPONENT,
         "transcript",
         component_v3::Transcript::decoded_bound(&component_v3::CEILINGS).expect("transcript bound"),
         |golden| {
@@ -74,7 +73,7 @@ fn each_full_component_row_decodes_within_its_decoded_bound() {
         },
     );
     check(
-        "component",
+        values::COMPONENT,
         "attempt",
         component_v3::Attempt::decoded_bound(&component_v3::CEILINGS).expect("attempt bound"),
         |golden| {
@@ -85,14 +84,14 @@ fn each_full_component_row_decodes_within_its_decoded_bound() {
 #[test]
 fn a_full_installation_row_decodes_within_its_decoded_bound() {
     let bound = accounts_v2::Installation::decoded_bound(&accounts_v2::CEILINGS).expect("installation bound");
-    check("accounts", "installation", bound, |golden| {
+    check(values::ACCOUNTS, "installation", bound, |golden| {
         accounts_v2::Installation::decode(&accounts_v2::CEILINGS, &mut Reader::new(golden)).expect("full installation")
     });
 }
 #[test]
 fn a_full_accounts_row_decodes_within_its_decoded_bound() {
     let bound = accounts_v2::Row::decoded_bound(&accounts_v2::CEILINGS).expect("accounts heap bound");
-    check("accounts", "row", bound, |golden| {
+    check(values::ACCOUNTS, "row", bound, |golden| {
         accounts_v2::Row::decode(&accounts_v2::CEILINGS, &mut Reader::new(golden)).expect("full row")
     });
 }
@@ -190,7 +189,7 @@ fn the_longest_accounts_rows_decode_within_the_rows_decoded_bound() {
 fn added_dependencies_kept_lines_and_circle_payloads_fit_their_heap_bounds() {
     let limits = tasks_v13::CEILINGS;
     check(
-        "tasks",
+        values::TASKS,
         "task_definition",
         tasks_v13::TaskDefinition::decoded_bound(&limits).expect("definition bound"),
         |golden| {
@@ -198,10 +197,10 @@ fn added_dependencies_kept_lines_and_circle_payloads_fit_their_heap_bounds() {
                 .expect("full definition with additions")
         },
     );
-    check("tasks", "kept_line", tasks_v13::KeptLine::decoded_bound(&limits).expect("kept bound"), |golden| {
+    check(values::TASKS, "kept_line", tasks_v13::KeptLine::decoded_bound(&limits).expect("kept bound"), |golden| {
         tasks_v13::KeptLine::decode(&limits, &mut Reader::new(golden)).expect("full pending list")
     });
-    check("tasks", "circle", tasks_v13::Circle::decoded_bound(&limits).expect("circle bound"), |golden| {
+    check(values::TASKS, "circle", tasks_v13::Circle::decoded_bound(&limits).expect("circle bound"), |golden| {
         tasks_v13::Circle::decode(&limits, &mut Reader::new(golden)).expect("full circle")
     });
 }
@@ -209,16 +208,16 @@ fn added_dependencies_kept_lines_and_circle_payloads_fit_their_heap_bounds() {
 #[test]
 fn each_full_secrets_row_decodes_within_its_heap_bound() {
     let limits = &secrets_v1::CEILINGS;
-    check("secrets", "digest", secrets_v1::Digest::decoded_bound(limits).expect("digest heap"), |golden| {
+    check(values::SECRETS, "digest", secrets_v1::Digest::decoded_bound(limits).expect("digest heap"), |golden| {
         secrets_v1::Digest::decode(limits, &mut Reader::new(golden)).expect("full digest")
     });
-    check("secrets", "source", secrets_v1::Source::decoded_bound(limits).expect("source heap"), |golden| {
+    check(values::SECRETS, "source", secrets_v1::Source::decoded_bound(limits).expect("source heap"), |golden| {
         secrets_v1::Source::decode(limits, &mut Reader::new(golden)).expect("full source")
     });
-    check("secrets", "carried", secrets_v1::Carried::decoded_bound(limits).expect("carried heap"), |golden| {
+    check(values::SECRETS, "carried", secrets_v1::Carried::decoded_bound(limits).expect("carried heap"), |golden| {
         secrets_v1::Carried::decode(limits, &mut Reader::new(golden)).expect("full carried")
     });
-    check("secrets", "next_carried", secrets_v1::NextCarried::decoded_bound(limits).expect("counter heap"), |golden| {
+    check(values::SECRETS, "next_carried", secrets_v1::NextCarried::decoded_bound(limits).expect("counter heap"), |golden| {
         secrets_v1::NextCarried::decode(limits, &mut Reader::new(golden)).expect("full counter")
     });
 }
@@ -226,28 +225,28 @@ fn each_full_secrets_row_decodes_within_its_heap_bound() {
 #[test]
 fn every_full_settings_record_decodes_within_its_heap_bound() {
     let limits = &settings_v3::CEILINGS;
-    check("settings", "document", settings_v3::Document::decoded_bound(limits).expect("document bound"), |golden| {
+    check(values::SETTINGS, "document", settings_v3::Document::decoded_bound(limits).expect("document bound"), |golden| {
         settings_v3::Document::decode(limits, &mut Reader::new(golden)).expect("full document")
     });
-    check("settings", "charter", settings_v3::Charter::decoded_bound(limits).expect("charter bound"), |golden| {
+    check(values::SETTINGS, "charter", settings_v3::Charter::decoded_bound(limits).expect("charter bound"), |golden| {
         settings_v3::Charter::decode(limits, &mut Reader::new(golden)).expect("full charter")
     });
-    check("settings", "default", settings_v3::Default::decoded_bound(limits).expect("default bound"), |golden| {
+    check(values::SETTINGS, "default", settings_v3::Default::decoded_bound(limits).expect("default bound"), |golden| {
         settings_v3::Default::decode(limits, &mut Reader::new(golden)).expect("full default")
     });
-    check("settings", "changed", settings_v3::Changed::decoded_bound(limits).expect("changed bound"), |golden| {
+    check(values::SETTINGS, "changed", settings_v3::Changed::decoded_bound(limits).expect("changed bound"), |golden| {
         settings_v3::Changed::decode(limits, &mut Reader::new(golden)).expect("full change")
     });
-    check("settings", "revision", settings_v3::Revision::decoded_bound(limits).expect("revision bound"), |golden| {
+    check(values::SETTINGS, "revision", settings_v3::Revision::decoded_bound(limits).expect("revision bound"), |golden| {
         settings_v3::Revision::decode(limits, &mut Reader::new(golden)).expect("full revision")
     });
     check(
-        "settings",
+        values::SETTINGS,
         "charter_version",
         settings_v3::CharterVersion::decoded_bound(limits).expect("version bound"),
         |golden| settings_v3::CharterVersion::decode(limits, &mut Reader::new(golden)).expect("full version"),
     );
-    check("settings", "proposal", settings_v3::Proposal::decoded_bound(limits).expect("proposal bound"), |golden| {
+    check(values::SETTINGS, "proposal", settings_v3::Proposal::decoded_bound(limits).expect("proposal bound"), |golden| {
         settings_v3::Proposal::decode(limits, &mut Reader::new(golden)).expect("full proposal")
     });
 }
