@@ -27,6 +27,8 @@ smith-host-protocol-fixtures.workspace = true
 smith-agent-world.workspace = true
 
 [dev-dependencies]
+smith-agent-profile.workspace = true
+skein-fake-llm-domain.workspace = true
 smith-host-world.workspace = true
 smith-agent-process-world.workspace = true
 

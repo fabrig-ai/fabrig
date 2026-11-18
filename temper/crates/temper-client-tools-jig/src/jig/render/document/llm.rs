@@ -645,7 +645,7 @@ fn bound_clause(why: c::AgentShortfall, required: u64, at: Option<skein_lib::Wal
         }
         S::Spend => {
             out.put(b"a run here may spend ");
-            out.number(required);
+            super::super::amount(required, out);
         }
         S::Message => {
             out.put(b"a message here may be ");
@@ -674,7 +674,11 @@ fn bound_charter(charter: u32, at: Option<skein_lib::Wall>, out: &mut Text) {
     }
 }
 fn bound_amount(why: c::AgentShortfall, value: u64, out: &mut Text) {
-    out.number(value);
+    if why == c::AgentShortfall::Spend {
+        super::super::amount(value, out);
+    } else {
+        out.number(value);
+    }
     match why {
         c::AgentShortfall::Time { .. } | c::AgentShortfall::Waiting { .. } | c::AgentShortfall::Checks { .. } => {
             out.put(b" ms");

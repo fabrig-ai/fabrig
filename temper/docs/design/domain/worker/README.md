@@ -460,6 +460,25 @@ path. The evidence is volatile operator output, outside turns, facts,
 `TaskResult` and the review's reason sentence; no wire or stored field
 carries an extra copy.
 
+**An agent its host kit stops** (each of jig's agent failures: no
+progress, wall time, a broken rule, an exit, an agent never started) is
+logged by the worker as the kit reports the fault, before the run's
+tree is gone and its answer goes up. The line's time is when the kit
+stopped the agent; the engine's record of the failure is written once
+the attempt concludes, which may be much later.
+
+```
+<binary> worker: run <run> attempt <attempt> agent stopped <failure>
+```
+
+`<failure>` is jig's agent failure as serve's line writes it
+(`Agent(NoProgress)`). A stop for no progress ends `: no progress for
+<ms> ms`, the run's no-progress deadline as its host limits derive it
+(smith's `domain/host.md`, section 4). The line goes through the
+worker's notes (`worker_alone`'s `Note`), which its shell writes, as a
+failed preparation's does (`checkouts.md`, 1.3), once per attempt: a
+kept answer sent again after a relink logs none.
+
 **A configured model-call bound** is reported as jig's
 `RunFailure::Exceeded(Exceeded { bound, value })`. Smith's
 `CompletionFailure::Limit { which, bound }` supplies `value` unchanged:
@@ -737,6 +756,13 @@ among temper's tiers and keeps their fakes.
   lands but times out; a first hold pushing, releasing, and a new hold
   delivering the same existing diff without another edit; landing ancestry,
   missing landing branches, moved remote heads and unchanged save semantics.
+  Those stories run on the fakes, a domain world's, and are a binary of
+  their own, `fakes`, in the domain layer, their CPU budget moved down
+  with them (`tools/tiers/budgets.md`, 10). The stories that run real git
+  against an owned Forgejo (a design's and a change's delivery reaching
+  their landing branch, and a moved goal) stay the binary `suite`, in the
+  real loop's layer (skein/docs/foundation/testing-strategy.md, 2.8 and
+  8.1: a binary's tests are in one tier).
 - **The worker's world** (`tests/worker/domain`): jig's hub, smith's host
   domain and the checkout, against scripted engine and agent peers, the
   protocol layer's routing played with smith's codecs, and the fake

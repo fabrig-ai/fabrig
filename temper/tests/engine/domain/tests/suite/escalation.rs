@@ -542,6 +542,8 @@ fn writer_store_oracle_rejects_held_entry_actor_high_water_and_fallback_mutation
     }
     let held = held.expect("real writer committed a held row");
     store_rules(&held).expect("valid bounded fixture");
+    let header = world.store.header();
+    assert_eq!(incremental_rules(&held, header, &held), Ok(()));
     for field in 0..3 {
         let mut altered = held.clone();
         for row in altered.values_mut() {
@@ -562,7 +564,32 @@ fn writer_store_oracle_rejects_held_entry_actor_high_water_and_fallback_mutation
             }
         }
         assert!(store_rules(&altered).is_err(), "bounded held-store mutation {field}");
+        assert_eq!(incremental_rules(&held, header, &altered), store_rules(&altered));
     }
+    for erased in [false, true] {
+        let mut altered = held.clone();
+        let key = Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment));
+        if erased {
+            altered.remove(&key);
+        } else {
+            let Some(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(header)))) =
+                altered.get_mut(&key)
+            else {
+                panic!("fixture header")
+            };
+            header.messages = 0;
+        }
+        assert!(store_rules(&altered).is_err());
+        assert_eq!(incremental_rules(&held, header, &altered), store_rules(&altered));
+    }
+    let mut altered = held.clone();
+    for key in held.keys() {
+        if matches!(key, Key::Core(jig_domain_core::Key::People(people::Key::Policy(_)))) {
+            altered.remove(key);
+        }
+    }
+    assert!(store_rules(&altered).is_err());
+    assert_eq!(incremental_rules(&held, header, &altered), store_rules(&altered));
     world.run();
     store_rules(&world.store.rows).expect("valid bounded fixture");
     let mut altered = world.store.rows.clone();
@@ -577,5 +604,60 @@ fn writer_store_oracle_rejects_held_entry_actor_high_water_and_fallback_mutation
     }
     assert_eq!(changed, 1);
     assert_eq!(store_rules(&altered), Err("rejection actor exceeds durable actor high-water mark"));
+    assert_eq!(incremental_rules(&world.store.rows, world.store.header(), &altered), store_rules(&altered));
+    let mut altered = world.store.rows.clone();
+    let key = Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment));
+    let Some(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(header)))) =
+        altered.get_mut(&key)
+    else {
+        panic!("fixture header")
+    };
+    header.people = 0;
+    header.tasks = 0;
+    assert!(store_rules(&altered).is_err());
+    assert_eq!(incremental_rules(&world.store.rows, world.store.header(), &altered), store_rules(&altered));
     world.close();
+}
+
+#[test]
+fn incremental_store_rules_recheck_each_typed_decider_bound() {
+    use temper_engine_domain_world::escalation_referee::store_rules;
+    let mut world = settled(Story::Reject);
+    for decider in [tasks::EscalationDecider::Person(1), tasks::EscalationDecider::Task(1)] {
+        let mut before = world.store.rows.clone();
+        let mut changed = 0;
+        for row in before.values_mut() {
+            if let Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task))) = row
+                && let tasks::Escalation::Rejected { by, .. } = &mut task.escalation
+            {
+                *by = decider;
+                changed += 1;
+            }
+        }
+        assert_eq!(changed, 1);
+        store_rules(&before).expect("decider is within its kind's bound");
+        let mut after = before.clone();
+        let key = Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment));
+        let Some(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(header)))) =
+            after.get_mut(&key)
+        else {
+            panic!("fixture header")
+        };
+        match decider {
+            tasks::EscalationDecider::Person(_) => header.people = 0,
+            tasks::EscalationDecider::Task(_) => header.tasks = 0,
+        }
+        assert_eq!(store_rules(&after), Err("rejection actor exceeds durable actor high-water mark"));
+        assert_eq!(incremental_rules(&before, world.store.header(), &after), store_rules(&after));
+    }
+    world.close();
+}
+
+fn incremental_rules(
+    before: &std::collections::BTreeMap<Key, Record>,
+    header: temper_engine_domain::Deployment,
+    after: &std::collections::BTreeMap<Key, Record>,
+) -> Result<(), &'static str> {
+    let changed = before.keys().chain(after.keys()).filter(|key| before.get(key) != after.get(key)).cloned().collect();
+    temper_engine_domain_world::escalation_referee::store_rules_changed(after, header, &changed)
 }

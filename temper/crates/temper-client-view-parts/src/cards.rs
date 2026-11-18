@@ -213,7 +213,20 @@ pub fn specification_after_title(b: &mut Builder, value: &c::SpecificationDocume
     }
     specification_facts(b, value, words);
 }
-pub(super) fn specification_facts(b: &mut Builder, value: &c::SpecificationDocument, words: &Words) {
+/// Card words omit a title already named in their from line; the inbox keeps whole words.
+/// temper/docs/design/client/pages/needs-you.md, 1, Its title once.
+pub fn specification_words(b: &mut Builder, value: &c::SpecificationDocument, words: &Words, title_in_from: bool) {
+    let text = &value.specification.words;
+    if title_in_from {
+        skein_ui::markdown::read(crate::shared::after_title(text), 3, b);
+    } else if !crate::shared::only_title(text) {
+        document(b, text);
+    }
+    if text.cut {
+        status(b, words, P::Cut, &[]);
+    }
+}
+pub fn specification_facts(b: &mut Builder, value: &c::SpecificationDocument, words: &Words) {
     for parameter in &value.specification.parameters {
         match parameter {
             c::ParameterDocument::Number { name, value } => {

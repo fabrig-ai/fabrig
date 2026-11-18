@@ -83,6 +83,23 @@ fn unprepared_words_name_the_run_failure_and_escape_the_hosted_detail() {
     );
 }
 
+/// temper/docs/design/domain/worker/README.md, 4.3: agent faults use serve's failure form.
+#[test]
+fn agent_stopped_words_include_only_the_no_progress_bound() {
+    use jig_domain_host::AgentFailure;
+    for (failure, no_progress_ms, expected) in [
+        (
+            AgentFailure::NoProgress,
+            Some(1_205_000),
+            "temper-worker worker: run 7 attempt 9 agent stopped Agent(NoProgress): no progress for 1205000 ms\n",
+        ),
+        (AgentFailure::WallTime, None, "temper-worker worker: run 7 attempt 9 agent stopped Agent(WallTime)\n"),
+    ] {
+        let note = worker::Note::AgentStopped { run: 7, attempt: 9, failure, no_progress_ms };
+        assert_eq!(worker_note_words(BINARY, note), expected);
+    }
+}
+
 #[test]
 fn stop_bound_words_count_the_abandoned_turns_and_answers() {
     assert_eq!(

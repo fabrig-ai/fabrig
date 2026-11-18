@@ -34,7 +34,7 @@ pub(super) fn text(
             }
         }
         out.put(b"\nspend per period: ");
-        out.number(project.policy.period_spend);
+        super::super::amount(project.policy.period_spend, out);
         out.put(b"\n");
         roles(project, out);
         period(project.current_period.as_ref(), false, out);
@@ -74,7 +74,7 @@ fn roles(project: &c::Project, out: &mut Text) {
             super::role(held(role.number), out);
         }
         out.put(b": spend per period ");
-        out.number(role.period_spend);
+        super::super::amount(role.period_spend, out);
         out.put(b"; parties:");
         for member in &project.members {
             if member_role(member.role) == role.number {
@@ -125,7 +125,7 @@ fn funded(project: &c::Project, call: &Call, out: &mut Text) {
         }
     }
     out.put(b": spend per period ");
-    out.number(number(call, 1).expect("fund amount"));
+    super::super::amount(number(call, 1).expect("fund amount"), out);
     out.put(b"\nnow: ");
     period(project.current_period.as_ref(), true, out);
     if let Some(role) = role {
@@ -184,15 +184,18 @@ fn party(number: u64, project: &c::Project, out: &mut Text) {
 }
 fn numbers(ledger: &c::PoolLedger, brief: bool, out: &mut Text) {
     out.put(b"budget ");
-    out.number(ledger.numbers.budget);
+    super::super::amount(ledger.numbers.budget, out);
     if !brief {
         out.put(b", reserved ");
-        out.number(ledger.numbers.reserved);
+        super::super::amount(ledger.numbers.reserved, out);
         out.put(b", spent ");
-        out.number(ledger.numbers.spent.checked_add(ledger.numbers.spent_below).expect("ledger spend fits budget"));
+        super::super::amount(
+            ledger.numbers.spent.checked_add(ledger.numbers.spent_below).expect("ledger spend fits budget"),
+            out,
+        );
     }
     out.put(b", left ");
-    out.number(ledger.left);
+    super::super::amount(ledger.left, out);
     out.put(b"\n");
 }
 pub(super) fn encode(

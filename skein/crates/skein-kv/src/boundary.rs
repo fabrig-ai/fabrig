@@ -198,7 +198,7 @@ pub struct LogRecord {
 }
 
 /// The store alone writes rows under this prefix (data/kv.md, 6.1).
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct LogRule {
     pub prefix: Box<[u8]>,
 }

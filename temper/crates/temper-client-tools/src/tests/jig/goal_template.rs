@@ -13,7 +13,7 @@ pub(super) const START: &[&str] = &[
     "--template",
     "4",
     "--budget",
-    "80",
+    "0.80",
     "--deadline",
     "1970-01-01T00:01Z",
     WORDS,
@@ -96,7 +96,7 @@ const STOCK: &[&str] = &[
     "--charter",
     "1",
     "--budget",
-    "80",
+    "0.80",
     "--deadline",
     "1970-01-01T00:01Z",
     "work",
@@ -176,7 +176,7 @@ fn a_goal_without_a_proposal_recipient_keeps_the_refusal() {
 fn given_values_are_required_before_sending() {
     for (extra, expected) in [
         (&[][..], b"template 4 needs: --budget AMOUNT or --as-allowed; --deadline TIME; help goal start\n".as_slice()),
-        (&["--budget", "80"][..], b"template 4 needs: --deadline TIME; help goal start\n".as_slice()),
+        (&["--budget", "0.80"][..], b"template 4 needs: --deadline TIME; help goal start\n".as_slice()),
     ] {
         let argv =
             f::extended(&["goal", "start", "--project", "shop", "--template", "4", "work", "--key", "given"], extra);
@@ -473,5 +473,68 @@ fn starts_model_flags_replace_the_whole_template_choice() {
         let call = root.submit(argv.as_slice());
         let choice = f::chat_task(&root, call).llm.as_ref().unwrap();
         assert_eq!(choice, &c::LlmChoice { main, subagents: children, account: None, later: None });
+    }
+}
+
+#[test]
+fn goal_budget_argv_and_task_show_share_the_amount() {
+    for (amount, spend) in [("130", 13000), ("1.25", 125), ("0.5", 50), ("0", 0), ("130.00", 13000)] {
+        let mut me = goal_me();
+        let bounds = &mut me.projects.get_mut(0).unwrap().creating.as_mut().unwrap().within;
+        bounds.budget = 13000;
+        bounds.maximum_budget = 13000;
+        bounds.pool_left = 13000;
+        bounds.authority.authority.spend = 13000;
+        let mut root = f::choice_root(me);
+        let call = root.submit(&[
+            "goal",
+            "start",
+            "--project",
+            "1",
+            "--charter",
+            "1",
+            "--budget",
+            amount,
+            "--no-deadline",
+            "Work",
+            "--key",
+            "amount",
+        ]);
+        assert_eq!(f::chat_task(&root, call).authority.spend, spend, "{amount}");
+        if spend == 13000 {
+            let mut task = f::goal(41, c::WaitsOn::Nothing);
+            task.budget.numbers.budget = spend;
+            task.budget.numbers.spent = 0;
+            let read = root.submit(&["task", "show", "41"]);
+            root.serve(read, f::task_result(task));
+            let answer = root.answer(read).unwrap();
+            assert!(skein_lib::bytes::find(&answer.stdout, b"spent 0.00 of 130.00").is_some());
+        }
+    }
+}
+
+#[test]
+fn goal_call_budget_keeps_integer_spend_units() {
+    let mut me = goal_me();
+    let bounds = &mut me.projects.get_mut(0).unwrap().creating.as_mut().unwrap().within;
+    bounds.budget = 13000;
+    bounds.maximum_budget = 13000;
+    bounds.pool_left = 13000;
+    bounds.authority.authority.spend = 13000;
+    let call = f::from_json(br#"{"tool":"goal start","arguments":{"project":1,"charter":1,"budget":13000,"no_deadline":true,"text":"Work","key":"amount"}}"#);
+    for json in [false, true] {
+        let mut root = f::choice_root(me.clone());
+        let number = root.submit_prepared(call.clone(), json, None);
+        assert_eq!(f::chat_task(&root, number).authority.spend, 13000);
+        root.answered(
+            number,
+            c::Answer::Refused {
+                refusal: c::Refusal::Authority { lacking: c::Lacking::Approver, proposable: Some(true) },
+                at: None,
+            },
+        );
+        let answer = root.answer(number).unwrap();
+        let budget = if json { b"--budget 13000".as_slice() } else { b"--budget 130.00" };
+        assert!(skein_lib::bytes::find(&answer.stderr, budget).is_some());
     }
 }

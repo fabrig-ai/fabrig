@@ -12,9 +12,7 @@ fn drill_20_a_due_change_blocks_formation_without_an_account_in_the_train_view()
     let (due, producer) = make_change(&mut world, &chat, 101, b"org/repo");
     push_change(&mut world, &producer, b"org/repo");
     finish_producer(&mut world, &producer, forge_world::REPO);
-    for _ in 0..PAIR_TICKS {
-        world.tick();
-    }
+    world.advance_ticks(u32::try_from(PAIR_TICKS).expect("bounded paired horizon"));
     assert!(landing_rows(&world).is_empty(), "no room before restart: {:?}", landing_rows(&world));
     world.drain_cut();
     let key = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(due)));
@@ -36,9 +34,7 @@ fn drill_20_a_due_change_blocks_formation_without_an_account_in_the_train_view()
     let change = world.store.rows.get(&hot).expect("change").clone();
     world.store.seed(Box::new([task, change]), Box::new([]));
     world.restart_with_batch(1);
-    for _ in 0..PAIR_TICKS {
-        world.tick();
-    }
+    world.advance_ticks(u32::try_from(PAIR_TICKS).expect("bounded paired horizon"));
     assert_eq!(world.root.tasks().procedure_due(due).map(|(_, code, _)| code), Some(UNAVAILABLE));
     assert!(matches!(
         super::super::goal_landing::row(&world, ready).change.state,

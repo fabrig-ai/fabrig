@@ -1,7 +1,7 @@
 //! Startup for temper's standalone binary (protocol/configuration/README.md, section 2).
 // tests::configuration includes the shared integration fixture, which names temper_box_shell::directories.
 extern crate self as temper_box_shell;
-use skein_io::kernel::Exit;
+use skein_io::kernel::{Exit, Fd};
 use skein_shell::Clock;
 use std::{
     ffi::OsString,
@@ -430,6 +430,26 @@ fn path(bytes: &[u8]) -> &Path {
 pub use temper_engine_shell::serve::{bundle, github_logs, printed};
 pub type Host = temper_service_shell::Host<Service>;
 pub(crate) use temper_service_shell::{close, file_path, held_refusal, listeners_refusal};
+/// Prepare the standalone service from its document, returning descriptor ownership
+/// to the caller so a checked start can be discarded without retaining roots.
+pub fn prepare(
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    directories: &Directories,
+    bytes: &[u8],
+    owned: &mut Vec<Fd>,
+) -> Result<Service, String> {
+    prepare_with_store(environment, working, directories, bytes, owned).map(|(service, _)| service)
+}
+fn prepare_with_store(
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    directories: &Directories,
+    bytes: &[u8],
+    owned: &mut Vec<Fd>,
+) -> Result<(Service, Box<[u8]>), String> {
+    serve::prepare_with_store("temper", environment, working, directories, bytes, owned, true)
+}
 /// The kernel operations a standalone start keeps in flight at most (its ring's size),
 /// derived without retaining its descriptors.
 pub fn operations_in(

@@ -183,9 +183,7 @@ fn fresh_resolution(world: &mut World, task: u64, old: u64, fresh: u64, base: u6
             .any(|section| matches!(&section.body, engine::BriefBody::Text(words) if contains(words, pin.as_bytes())))
     );
     world.restart_same();
-    for _ in 0..100 {
-        world.tick();
-    }
+    world.advance_ticks(100);
     assert_eq!(row(world, task).delegate, Some((child, delegate)));
     assert_eq!(row(world, task).resolution_tasks.len(), resolutions + 1);
 }

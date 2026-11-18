@@ -30,6 +30,30 @@ fn page(reply: Reply) -> (Vec<u64>, Option<Cursor>, u64) {
 }
 
 #[test]
+fn change_history_keeps_order_and_missing_rows_across_restarts() {
+    let mut world = world();
+    let numbers = |world: &World, task| world.history(task).iter().map(|event| event.number).collect::<Vec<_>>();
+    assert_eq!(numbers(&world, 51), Vec::<u64>::new());
+    for task in [51, 52, 51, 51] {
+        world.write_history(task, wall(10), None);
+    }
+    assert_eq!(numbers(&world, 51), [1, 3, 4]);
+    assert_eq!(numbers(&world, 52), [2]);
+    let before = world.history(51);
+    world.restart();
+    assert_eq!(world.history(51), before);
+    // An index without an event, or an event without an index, is not history.
+    world.erase_history_event(5, 3);
+    world.erase_history_row(&forge::Key::HistoryChange { project: 5, change: 51, number: 4 });
+    assert_eq!(numbers(&world, 51), [1]);
+    world.restart();
+    assert_eq!(numbers(&world, 51), [1]);
+    world.write_history(51, wall(11), None);
+    assert_eq!(numbers(&world, 51), [1, 5]);
+    assert_eq!(numbers(&world, 52), [2]);
+}
+
+#[test]
 fn project_change_and_landing_read_written_events_through_their_own_ranges() {
     let mut world = world();
     world.history_rows(1);

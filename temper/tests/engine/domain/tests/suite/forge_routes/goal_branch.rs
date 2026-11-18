@@ -18,6 +18,11 @@ const GOAL_BUDGET: u64 = 300; // Leaves 200 of the owner's 500 units for an outs
 const STOCK_GOAL_BUDGET: u64 = 95_920;
 
 pub(super) fn stock_defaults() -> jig_domain_core::settings::Defaults {
+    static DEFAULTS: std::sync::OnceLock<jig_domain_core::settings::Defaults> = std::sync::OnceLock::new();
+    temper_engine_domain_world::oracle::config::copy_defaults(DEFAULTS.get_or_init(build_stock_defaults))
+}
+
+fn build_stock_defaults() -> jig_domain_core::settings::Defaults {
     let catalogue = jig_domain_core::settings::CatalogueModel {
         first_read: None,
         number: 1,
@@ -72,8 +77,12 @@ fn stock_goal_world() -> (World, people::Ask) {
     let mut limits = temper_engine_domain_world::forge_routes::box_limits();
     limits.documents.lines = 8;
     limits.forge.change_policy.questions = 1;
-    let mut world = World::configured_stock_limits(&defaults, &stock::box_model(), &limits)
-        .with_settings_owner(&forge_top::user_key(1, 7));
+    let mut world = World::configured_stock_limits_with(
+        &defaults,
+        &stock::box_model(),
+        &limits,
+        StoryLimits { settings_owner: Some(forge_top::user_key(1, 7)), ..StoryLimits::default() },
+    );
     world.adopt();
     let mut event = protocol::hello_slots(Token::new(7), 3, Box::new([]));
     let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut event
@@ -297,9 +306,7 @@ fn a_modifying_goals_first_run_waits_for_making_and_writes_design() {
     }
     assert!(world.writes.iter().any(|write| matches!(write,
         skein_forge::api::Write::CreateBranch { branch: made, .. } if *made == branch)));
-    for _ in 0..20 {
-        world.tick();
-    }
+    world.advance_ticks(20);
     assert!(world.assigned.is_empty(), "the first run must not start on the base while g is making");
     let hold = forge_hold(&world, &branch).expect("making goal hold");
     assert!(matches!(hold.writer, Some(forge_top::Writer::Entry(_))));
@@ -616,9 +623,7 @@ fn hint_goal_branch(world: &mut World, branch: &[u8]) {
 
 pub(super) fn observe_goal_branch(world: &mut World, branch: &[u8]) {
     hint_goal_branch(world, branch);
-    for _ in 0..200 {
-        world.tick();
-    }
+    world.advance_ticks(200);
 }
 
 /// Delay a keep observation without reserving a procedure's fresh-read chain.

@@ -560,6 +560,19 @@ impl Protocol {
             return;
         }
         let end = self.env.now.saturating_add(Duration::from_secs(seconds));
+        self.run_to(end, false);
+    }
+
+    /// Drain this instant, then advance through timers until an owner output or `until`.
+    pub fn run_until_output(&mut self, until: Wall) {
+        if self.cut_taken {
+            return;
+        }
+        let span = Duration::from_nanos(until.as_nanos().saturating_sub(self.env.wall.as_nanos()));
+        self.run_to(self.env.now.saturating_add(span), true);
+    }
+
+    fn run_to(&mut self, end: Time, yield_output: bool) {
         // Transport fragments do not change the top's readiness or timers.
         // Refresh its schedule only after an answer or a top step.
         let mut schedule = None;
@@ -591,7 +604,7 @@ impl Protocol {
                 self.take_top();
                 schedule = None;
             } else if !self.joint.busy() {
-                if self.env.now >= end {
+                if self.env.now >= end || (yield_output && !self.seen.is_empty()) {
                     return;
                 }
                 let offset = self.joint.fake_env.now.as_nanos().saturating_sub(self.env.now.as_nanos());

@@ -25,6 +25,8 @@ pub(crate) struct Bound {
     pub(crate) agent: Token,
     /// smith admitted its run, and the hub was told it started.
     pub(crate) admitted: bool,
+    /// The first fault has emitted its operator note for this attempt.
+    stopped_noted: bool,
     pub(crate) checks: crate::reds::State,
     pub(crate) check_number: u64,
     /// The charter's model-indexed call names (domain/worker/README.md, 4.3).
@@ -118,6 +120,7 @@ pub(crate) fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent:
                     Bound {
                         agent,
                         admitted: false,
+                        stopped_noted: false,
                         checks: crate::reds::State::new(),
                         check_number: 0,
                         models,
@@ -183,7 +186,7 @@ pub(crate) fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent:
             host::Event::Agent(host::FromAgent::AccountRefused { owner: client, account, code, reason })
         }
         smith::parent::Request::Faulted { client, fault } => {
-            host::Event::Agent(host::FromAgent::Faulted { owner: client, fault: translate::fault(fault) })
+            host::Event::Agent(faulted(domain, client, translate::fault(fault), out))
         }
         smith::parent::Request::MessageRefused { client, name, reason } => {
             host::Event::Agent(host::FromAgent::Refused { owner: client, name, reason: translate::refusal(reason) })
@@ -204,6 +207,18 @@ pub(crate) fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent:
         smith::parent::Request::Gone { client, end, detail } => return ended(domain, env, client, end, detail),
     };
     route::host_step(domain, env, event);
+}
+
+/// Report a fault before the hub can conclude the attempt (domain/worker/README.md, 4.3).
+/// Worker encoding faults and smith faults share the attempt's one note.
+fn faulted(domain: &mut Domain, owner: Token, fault: host::AgentFailure, out: &mut Queue<Request>) -> host::FromAgent {
+    let bound = domain.agents.get_mut(&owner).expect("a fault belongs to a started agent");
+    if !bound.stopped_noted {
+        bound.stopped_noted = true;
+        let hosting = domain.host.hosting(owner).expect("a fault belongs to a hosted attempt");
+        out.push(Request::AgentStopped { run: hosting.run, attempt: hosting.attempt, failure: fault });
+    }
+    host::FromAgent::Faulted { owner, fault }
 }
 
 /// Retain operator evidence beside the result until its process has drained.
@@ -346,22 +361,26 @@ pub(crate) fn decoded(
 
 /// A payload handed out came back: what it was for goes on. An agent that
 /// went meanwhile is gone once the last of its hand-outs is back.
-pub(crate) fn encoded(domain: &mut Domain, env: &Env<Limits>, owner: Token, encoded: Encoded) {
+pub(crate) fn encoded(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    owner: Token,
+    encoded: Encoded,
+    out: &mut Queue<Request>,
+) {
     let pending = domain.pending.pop().expect("each hand-out comes back once");
     assert!(pending.owner() == owner, "hand-outs come back in order");
     match pending {
         Pending::Turn { .. } => {
             let event = match encoded {
                 Encoded::Turn(turn) => host::Event::Agent(host::FromAgent::Turn { owner, turn }),
-                Encoded::Undecodable => {
-                    host::Event::Agent(host::FromAgent::Faulted { owner, fault: host::AgentFailure::Rules })
-                }
+                Encoded::Undecodable => host::Event::Agent(faulted(domain, owner, host::AgentFailure::Rules, out)),
                 Encoded::CallName(_) | Encoded::Result(_) => unreachable!("a hand-out comes back as it went"),
             };
             route::host_step(domain, env, event);
         }
-        Pending::Call { call, .. } => named(domain, env, owner, call, encoded),
-        Pending::Result { .. } => result_encoded(domain, env, pending, encoded),
+        Pending::Call { call, .. } => named(domain, env, owner, call, encoded, out),
+        Pending::Result { .. } => result_encoded(domain, env, pending, encoded, out),
     }
     if !hand_out_pending(domain, owner)
         && let Some(detail) = domain.gone.remove(&owner)
@@ -371,7 +390,13 @@ pub(crate) fn encoded(domain: &mut Domain, env: &Env<Limits>, owner: Token, enco
 }
 
 /// A result finishes an admitted run; a refusal waits for cleanup evidence.
-fn result_encoded(domain: &mut Domain, env: &Env<Limits>, pending: Pending, encoded: Encoded) {
+fn result_encoded(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    pending: Pending,
+    encoded: Encoded,
+    out: &mut Queue<Request>,
+) {
     let (owner, turns, spent, read, finish) = match pending {
         Pending::Result { owner, turns, spent, read, finish } => (owner, turns, spent, read, finish),
         Pending::Turn { .. } | Pending::Call { .. } => unreachable!("a result hand-out"),
@@ -401,7 +426,7 @@ fn result_encoded(domain: &mut Domain, env: &Env<Limits>, pending: Pending, enco
                 };
                 host::FromAgent::Finished { owner, turns, spent, read, finish }
             }
-            None => host::FromAgent::Faulted { owner, fault: host::AgentFailure::Rules },
+            None => faulted(domain, owner, host::AgentFailure::Rules, out),
         },
     };
     route::host_step(domain, env, host::Event::Agent(event));
@@ -411,18 +436,22 @@ fn result_encoded(domain: &mut Domain, env: &Env<Limits>, pending: Pending, enco
 /// after it if the run withdrew it meanwhile; the hub answers one whose name
 /// is longer than it takes as unavailable. One that did not encode is
 /// answered unavailable, and the agent faulted.
-fn named(domain: &mut Domain, env: &Env<Limits>, owner: Token, call: Token, encoded: Encoded) {
+fn named(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    owner: Token,
+    call: Token,
+    encoded: Encoded,
+    out: &mut Queue<Request>,
+) {
     let name = match encoded {
         Encoded::CallName(name) => name,
         Encoded::Undecodable => {
             let entry = domain.calls.remove(&(owner, call)).expect("a call waits for its name");
             let answer = smith::parent::Event::Answer { agent: entry.agent, call, reply: smith::Reply::Unavailable };
             route::agent_step(domain, env, smith::Input::Parent(answer));
-            return route::host_step(
-                domain,
-                env,
-                host::Event::Agent(host::FromAgent::Faulted { owner, fault: host::AgentFailure::Rules }),
-            );
+            let event = faulted(domain, owner, host::AgentFailure::Rules, out);
+            return route::host_step(domain, env, host::Event::Agent(event));
         }
         Encoded::Turn(_) | Encoded::Result(_) => unreachable!("a hand-out comes back as it went"),
     };

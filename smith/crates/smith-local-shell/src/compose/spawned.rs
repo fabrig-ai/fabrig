@@ -96,8 +96,12 @@ mod tests {
         let settings =
             crate::settings::from_sources(&crate::command::Shared::default(), "/synthetic".into(), &[source]).unwrap();
         let (resolved, bytes) = crate::settings::resolve::resolve_startup(&settings).unwrap();
-        let host =
-            smith_local_service::profile::host_limits(&resolved.agent.profile, &resolved.agent.service.limits).unwrap();
+        let host = smith_local_service::profile::host_limits(
+            &resolved.agent.profile,
+            &resolved.agent.service.limits,
+            &resolved.agent.service.domain.limits,
+        )
+        .unwrap();
         let bytes = generated(&bytes, resolved.agent.trace.as_ref(), host.exit_grace)
             .unwrap_or_else(|why| panic!("{}", why.line()));
         let child = smith_agent_shell::config::from_value(serde_json::from_slice(&bytes).unwrap()).unwrap();

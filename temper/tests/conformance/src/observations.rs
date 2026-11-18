@@ -252,7 +252,8 @@ fn connector_snapshot(
     mut snapshot: r::Snapshot,
     decisions: Vec<core::ProposalDecisionRecord>,
 ) -> r::Snapshot {
-    for record in store.rows.values() {
+    let entries = root::Key::Forge(forge::Key::Entry(0))..=root::Key::Forge(forge::Key::Entry(u64::MAX));
+    for (_, record) in store.rows.range(entries) {
         match record {
             root::Record::Forge { row } => {
                 let forge::Stored::Entry { entry: row, held: false } = row.as_ref() else { continue };
@@ -553,8 +554,45 @@ fn whole_resolved(
     snapshot.settled_effects.extend(settled.iter().map(|key| (0, *key)));
 }
 
-/// Report every lost turn before task totals, preserving the map's task and
-/// attempt order. Sorted attempts can be summed without a temporary task map.
+/// Expense observations retained between worker changes. Each inspection still
+/// reports every lost turn and task total against the referee's current budget.
+#[derive(Default)]
+pub(crate) struct Expenses {
+    attempts: BTreeMap<(u64, u64), jig_fake_workers::Expense>,
+    totals: BTreeMap<u64, (u64, u64)>,
+    lost: BTreeMap<(u64, u64), (u32, u64)>,
+}
+impl Expenses {
+    /// Called after worker assignments, ticks and cold restarts, not inspections.
+    pub(crate) fn refresh(&mut self, expenses: &BTreeMap<(u64, u64), jig_fake_workers::Expense>) {
+        for (&key @ (task, _), &expense) in expenses {
+            if self.attempts.get(&key) == Some(&expense) {
+                continue;
+            }
+            let before = self.attempts.insert(key, expense).unwrap_or_default();
+            let (spent, lost) = self.totals.entry(task).or_default();
+            *spent = *spent - before.spent + expense.spent;
+            *lost = *lost - before.lost + expense.lost;
+            if expense.lost_turns > 0 {
+                self.lost.insert(key, (expense.lost_turns, expense.lost));
+            } else {
+                self.lost.remove(&key);
+            }
+        }
+    }
+
+    pub(crate) fn observe(&self, observations: &mut Vec<r::Observed>) {
+        for (&(task, attempt), &(turns, spent)) in &self.lost {
+            observations.push(r::Observed::LostTurns { task, attempt, turns, spent });
+        }
+        for (&task, &(spent, lost_bound)) in &self.totals {
+            observations.push(r::Observed::Spend { task, spent, lost_bound });
+        }
+    }
+}
+
+/// Whole-map equivalent for the inspection comparisons in unit-test builds.
+#[cfg(test)]
 pub(crate) fn expenses(
     expenses: &BTreeMap<(u64, u64), jig_fake_workers::Expense>,
     observations: &mut Vec<r::Observed>,

@@ -90,7 +90,7 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &
         Event::Process(event) => agent_step(domain, env, agent::Input::Process(*event)),
         Event::Live { agent, piece } => live(domain, env, agent, piece),
         Event::Decoded { agent, start, endpoints } => agents::decoded(domain, env, agent, start, endpoints),
-        Event::Encoded { owner, encoded } => agents::encoded(domain, env, owner, encoded),
+        Event::Encoded { owner, encoded } => agents::encoded(domain, env, owner, encoded, out),
         Event::Activity { owner, activity } => {
             domain.facts_out = domain.facts_out.saturating_sub(1);
             if let Some(activity) = activity {

@@ -104,9 +104,7 @@ fn both_heads_ci_failures_wake_their_change_without_hints() {
         }
     }
     assert!(change(&world).pull.is_some(), "root discovers the opened pull");
-    for _ in 0..100 {
-        world.tick();
-    }
+    world.advance_ticks(100);
     status(&mut world, head, raw::Check::Failed);
     let allowance = world.env.limits.forge.client.poll_max.saturating_add(Duration::from_secs(5));
     let deadline = world.env.now.saturating_add(allowance);
@@ -155,9 +153,7 @@ fn fail_during_gather(world: &mut World, head: u64) -> engine::Assignment {
     status(world, head, raw::Check::Failed);
     // The keep observes the failure while the earlier pending-CI gather waits
     // for its final terminal. The root's scheduler coalesces an already-due wake.
-    for _ in 0..200 {
-        world.tick();
-    }
+    world.advance_ticks(200);
     assert!(
         world.store.rows.values().any(|record| matches!(record,
         Record::Forge { row } if matches!(row.as_ref(), forge_top::Stored::PullState(row)

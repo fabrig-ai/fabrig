@@ -260,6 +260,32 @@ fn closing_trailer_waits_for_a_kept_build_and_requeues_on_that_build() {
 }
 
 #[test]
+fn gap_closures_read_only_the_landing_side_of_either_parent_order() {
+    for parents in [[3, 4], [4, 3]] {
+        let world = World::new();
+        let mut git = Git::default();
+        git.commit(0, &[], "baseline");
+        git.commit(1, &[0], "earlier change");
+        git.merge(2, &[0, 1], 11);
+        git.commit(3, &[0], "branch closes its gap\n\nQA-gap: 1\n");
+        git.commit(4, &[2], "main closes another gap\n\nQA-gap: 2\n");
+        git.merge(5, &parents, 12);
+        let mut ledger = Ledger::default();
+        ledger.record_landing(&id(2), 11, None, "earlier landing", 0);
+        let session = session(&mut ledger, 1);
+        ledger.triage_gap(session, "ctl", "branch's gap", "tools", 1).expect("branch gap");
+        ledger.triage_gap(session, "ctl", "main's gap", "tools", 1).expect("main gap");
+        ledger.end_session(session, Exit::Code(0), None, 2, "qa").expect("end triage");
+        ledger.record_head(&id(4));
+        ledger.keep_build(&id(5), 3).expect("kept build");
+        temper_qa_tool::watch::watch(&mut git, &world.home.configuration.git, &mut ledger, 4).expect("watch");
+        assert_eq!(ledger.gaps[0].closed, Some(temper_qa_tool::GapClosed { landing: 2, time: 4 }));
+        assert_eq!(ledger.gaps[1].state, temper_qa_tool::GapState::Open);
+        assert!(git.calls.contains(&format!("gaps {} {}", id(4), id(5))));
+    }
+}
+
+#[test]
 fn closed_triage_gap_retriages_with_the_kept_build_and_earlier_gap() {
     let world = World::new();
     let mut run = running_triage(&world);
