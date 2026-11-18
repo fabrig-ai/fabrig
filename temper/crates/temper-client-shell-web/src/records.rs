@@ -45,6 +45,12 @@ pub fn decode_look(value: &[u8]) -> Option<Look> {
     })
 }
 
+/// Whether closing the tab loses saved requests (skein/docs/design/ui/web/README.md, 4.1).
+#[cfg(any(target_arch = "wasm32", test))]
+pub(crate) fn closing_loses(records: &[skein_ui_web::store::Record]) -> bool {
+    records.iter().any(|record| record.key.len() == 16)
+}
+
 /// Seven bytes: `Shell::finish` counts only 16-byte request keys for its closing warning.
 pub const SIGN_IN_KEY: &[u8] = b"sign-in";
 #[derive(Debug, PartialEq, Eq)]
