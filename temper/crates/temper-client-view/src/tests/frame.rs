@@ -1742,6 +1742,7 @@ fn goals_opens_in_its_projects_frame() {
             assert_eq!(root.pages().project(), Some(fixtures::SECOND_PROJECT));
             assert_eq!(root.pages().address(), &address);
             let project_name = b"Shop";
+            let browser = words.shell == crate::words::Shell::Browser;
             let mut view = fixtures::view_of(words);
             fixtures::build(&mut view, &root);
             assert_rail(&view, b"Second");
@@ -1751,7 +1752,14 @@ fn goals_opens_in_its_projects_frame() {
                 skein_lib::bytes::find(&fixtures::main_text(view.tree()), b"A goal turns a draft into landed work.")
                     .is_some()
             );
-            assert!(fixtures::styles(view.tree(), Role::Heading { level: 1 }).is_empty());
+            assert_eq!(fixtures::styles(view.tree(), Role::Heading { level: 1 }).len(), usize::from(browser));
+            for node in view.tree().nodes() {
+                if node.role == (Role::Heading { level: 1 }) {
+                    assert!(node.name.is_none());
+                    assert!(node.text.is_empty());
+                    assert!(node.styles.as_slice().contains(&crate::look::WORK_HEADLINE));
+                }
+            }
             assert!(fixtures::find(view.tree(), Role::Link, b"Work").is_some(), "goals page keeps Work in the rail");
             assert_eq!(skein_ui::outline::check(view.tree()), None);
             for node in view.tree().nodes() {
