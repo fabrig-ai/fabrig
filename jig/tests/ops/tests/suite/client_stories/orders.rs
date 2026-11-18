@@ -111,6 +111,7 @@ impl World {
                         | Message::SignInLink(_)
                         | Message::SignInService
                         | Message::SignOut
+                        | Message::LinkAsk(_)
                         | Message::ApprovalAsk(_)
                         | Message::ApprovalRead(_)
                         | Message::ApprovalDecide(_)

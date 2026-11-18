@@ -18,6 +18,7 @@ fn driver(owner: bool) -> Driver {
         let owner_session = driver.session();
         driver.delivered.clear();
         driver.send(engine::Event::Party(engine::PartyInput::SignedIn {
+            until: None,
             held: None,
             reply_to: ReplyTo::new(Token::new(600)),
             identity: people::Identity {

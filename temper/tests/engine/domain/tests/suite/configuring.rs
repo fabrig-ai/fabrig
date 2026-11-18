@@ -24,6 +24,7 @@ const ADOPTED_PERSON: u64 = 7;
 
 fn sign_in_person(world: &mut World, user: u64, login: &[u8], key: u8) {
     world.driver.send(Event::Party(PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(u64::from(key))),
         identity: people::Identity {

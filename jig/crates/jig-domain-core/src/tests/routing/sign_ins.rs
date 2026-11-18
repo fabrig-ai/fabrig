@@ -15,7 +15,7 @@ fn a_sign_in_reply_names_the_sign_in_its_decision_saved() {
     let mut out = step(
         &mut core,
         &env,
-        Event::SignIn { held: None, reply_to: ReplyTo::new(Token::new(60)), identity: newcomer() },
+        Event::SignIn { until: None, held: None, reply_to: ReplyTo::new(Token::new(60)), identity: newcomer() },
     );
     let mut saved = None;
     let mut named = None;
@@ -35,12 +35,38 @@ fn a_sign_in_reply_names_the_sign_in_its_decision_saved() {
 }
 
 #[test]
+fn a_sign_in_cap_reaches_peoples_save_and_reply() {
+    let (mut core, env) = timer_core(false);
+    let cap = Wall::from_nanos(1200);
+    let mut out = step(
+        &mut core,
+        &env,
+        Event::SignIn { reply_to: ReplyTo::new(Token::new(64)), identity: newcomer(), held: None, until: Some(cap) },
+    );
+    let mut saved = None;
+    let mut answered = None;
+    for _ in 0..out.len() {
+        let request = out.pop().expect("output count");
+        if let Request::Write(Write::Save(Record::People(people::Stored::SignIn { expires, .. }))) = &request {
+            saved = Some(*expires);
+        }
+        if let Request::Held(held) = request
+            && let Held::PeopleReply { reply: people::Reply::SignedIn { expires, .. }, .. } = *held
+        {
+            answered = Some(expires);
+        }
+    }
+    assert_eq!(saved, Some(cap));
+    assert_eq!(answered, Some(cap));
+}
+
+#[test]
 fn the_core_is_quiescent_once_a_sign_in_reply_has_left() {
     let (mut core, env) = timer_core(false);
     drop(step(
         &mut core,
         &env,
-        Event::SignIn { held: None, reply_to: ReplyTo::new(Token::new(61)), identity: newcomer() },
+        Event::SignIn { until: None, held: None, reply_to: ReplyTo::new(Token::new(61)), identity: newcomer() },
     ));
     let _committed = core.counters.next_commit();
     assert!(core.quiescent(true));
@@ -58,6 +84,7 @@ fn a_replayed_live_sign_in_names_the_same_sign_in() {
         &mut core,
         &env,
         Event::People(people::Event::SignedIn {
+            until: None,
             held: None,
             reply_to: ReplyTo::new(Token::new(62)),
             person: 1,
@@ -85,8 +112,11 @@ fn the_held_sign_in_reaches_people_untouched() {
         login: Box::from(&b"owner"[..]),
         name: Box::from(&b"A Person"[..]),
     };
-    let mut out =
-        step(&mut core, &env, Event::SignIn { reply_to: ReplyTo::new(Token::new(63)), identity, held: Some(10) });
+    let mut out = step(
+        &mut core,
+        &env,
+        Event::SignIn { until: None, reply_to: ReplyTo::new(Token::new(63)), identity, held: Some(10) },
+    );
     let mut answer = None;
     for _ in 0..out.len() {
         let request = out.pop().expect("output count");

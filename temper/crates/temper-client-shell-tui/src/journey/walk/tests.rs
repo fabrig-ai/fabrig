@@ -142,6 +142,7 @@ fn exchange(duties: &Duties, approval_ask: bool) -> Token {
             | Request::Erase { .. }
             | Request::Told { .. }
             | Request::Authorized(_)
+            | Request::AskedLink(_)
             | Request::Approval(_)
             | Request::ServiceCredential { .. } => None,
         })

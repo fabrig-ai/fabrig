@@ -1,6 +1,7 @@
 #[global_allocator]
 static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 
+mod asked_link;
 mod authorize;
 mod closing;
 mod gone;

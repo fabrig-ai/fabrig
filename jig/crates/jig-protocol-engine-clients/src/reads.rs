@@ -119,6 +119,8 @@ impl Component {
                 }
             },
             Waiting::Authorize { .. }
+            | Waiting::LinkAskWhose { .. }
+            | Waiting::AskedWhose { .. }
             | Waiting::ApprovalWhose { .. }
             | Waiting::ApprovalCore { .. }
             | Waiting::Core { .. }
@@ -158,6 +160,8 @@ impl Component {
                 self.read_response(exchange, answer, &env.limits.wire);
             }
             Waiting::Authorize { .. }
+            | Waiting::LinkAskWhose { .. }
+            | Waiting::AskedWhose { .. }
             | Waiting::ApprovalWhose { .. }
             | Waiting::ApprovalCore { .. }
             | Waiting::Core { .. }

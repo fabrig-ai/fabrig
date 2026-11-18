@@ -179,6 +179,7 @@ fn set_roles(driver: &mut Driver, key: u8, holdings: Box<[people::Holding]>) {
 
 fn member(driver: &mut Driver) -> u64 {
     driver.send(Event::Party(PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(11)),
         identity: people::Identity {
@@ -677,6 +678,7 @@ fn views_draw_stored_ways_paths_charters_and_waiting_proposals() {
     let owner_view = read_view(&mut driver, owner, "charter 4");
     assert_eq!(read_view(&mut driver, member, "charter 4"), owner_view);
     driver.send(Event::Party(PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(60)),
         identity: people::Identity {

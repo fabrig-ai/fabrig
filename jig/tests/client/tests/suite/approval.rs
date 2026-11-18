@@ -70,6 +70,7 @@ impl Story {
                 UnlinkedRequest::Told { .. } => {}
                 other @ (UnlinkedRequest::SignOut
                 | UnlinkedRequest::ApprovalAct(_)
+                | UnlinkedRequest::AskedLink(_)
                 | UnlinkedRequest::Approval(_)
                 | UnlinkedRequest::Authorized(_)) => panic!("unexpected client work: {other:?}"),
             }

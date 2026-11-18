@@ -122,17 +122,20 @@ pub fn box_worker(
     directories: &config::Directories,
     given: &crate::stock::Given,
     agents: &temper_client_protocol_wire::v1::AgentFigures,
+    own: &[worker::application::EnvironmentEntry],
 ) -> Result<Option<WorkerPart>, Problems> {
     let parsed = parse_with(document, directories, given)?;
     let Some(jig) = parsed.workers.into_iter().next() else { return Ok(None) };
-    let own = parsed.application.workers.into_iter().next().expect("one application worker checked");
+    let mut configured = parsed.application.workers.into_iter().next().expect("one application worker checked");
+    configured.environment = worker::application::agents_environment(Some(&configured.environment), own);
     let figures =
         temper_engine_service::figures::Composer::new(&parsed.engine, &parsed.application.limits).compose(agents);
     let mut parts = figures.into_parts();
     parts.places = parsed.engine.limits.core.fleet.slots;
     let figures =
         jig_protocol_worker_wire::Figures::new(&jig_protocol_worker_wire::CEILINGS, parts).expect("composed figures");
-    let mut part = WorkerPart::in_process(jig, own, directories, crate::limits::worker(&parsed.application.limits));
+    let mut part =
+        WorkerPart::in_process(jig, configured, directories, crate::limits::worker(&parsed.application.limits));
     match temper_worker_service::figures::apply(&mut part, figures) {
         Ok(_) => {}
         Err(found) => return Err(problems::from_worker(found)),
@@ -642,7 +645,7 @@ pub fn check(
     setup: Option<&temper_forge_setup::check::Checked>,
 ) -> Result<(), Problems> {
     if shape(document, directories)? == Shape::WorkerAlone {
-        let mut part = worker_part(document, directories, None)?;
+        let mut part = worker_part(document, directories, None, &[])?;
         if let Err(found) = worker::check_worker_part(&mut part, files, agent) {
             return Err(problems::from_worker(found));
         }
@@ -691,7 +694,11 @@ fn checked_start_using(
         .ok_or(problem(Path::root().member(b"engine"), What::Standalone))?;
     if !parsed.workers.is_empty() {
         let mut found = temper_worker_service::startup::Problems::empty();
-        let own = worker::application::fixed(directories, git, &mut found);
+        let environment = match &part {
+            Some(part) => part.environment.clone(),
+            None => parsed.application.workers.first().expect("one application worker checked").environment.clone(),
+        };
+        let own = worker::application::fixed(directories, git, environment, &mut found);
         if !found.is_empty() {
             return Err(problems::from_worker(found));
         }
@@ -1076,8 +1083,9 @@ pub fn worker_part(
     input: &[u8],
     directories: &config::Directories,
     git: Option<&[u8]>,
+    own: &[worker::application::EnvironmentEntry],
 ) -> Result<WorkerPart, Problems> {
-    match worker::worker_part(input, directories, git) {
+    match worker::worker_part(input, directories, git, own) {
         Ok(part) => Ok(part),
         Err(found) => Err(problems::from_worker(found)),
     }

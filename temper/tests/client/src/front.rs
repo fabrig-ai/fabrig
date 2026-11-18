@@ -792,6 +792,7 @@ impl Joint {
                 }
                 jig_client::Request::CloseStream
                 | jig_client::Request::Told { .. }
+                | jig_client::Request::AskedLink(_)
                 | jig_client::Request::Approval(_)
                 | jig_client::Request::Authorized(_)
                 | jig_client::Request::ServiceCredential { .. } => {}

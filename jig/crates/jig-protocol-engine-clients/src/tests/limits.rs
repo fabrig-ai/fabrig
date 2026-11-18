@@ -42,6 +42,15 @@ fn a_message_at_the_component_bound_reaches_credential_lookup() {
 }
 
 #[test]
+fn an_asked_link_needs_room_for_its_32_byte_secret() {
+    let mut env = f::env();
+    env.limits.wire.link_asked_secret = 32;
+    assert!(crate::valid(&env.limits));
+    env.limits.wire.link_asked_secret = 31;
+    assert!(!crate::valid(&env.limits));
+}
+
+#[test]
 fn a_zero_message_bound_cannot_start_the_component() {
     let mut env = f::env();
     env.limits.message_bytes = 0;

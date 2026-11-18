@@ -498,6 +498,7 @@ fn a_nonowner_cannot_change_the_deployments_settings() {
     let mut driver = started(HISTORY);
     driver.delivered.clear();
     driver.send(Event::Party(PartyInput::SignedIn {
+        until: None,
         reply_to: ReplyTo::new(Token::new(991)),
         held: None,
         identity: people::Identity {

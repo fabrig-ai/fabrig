@@ -51,6 +51,7 @@ impl core::fmt::Debug for HeaderLength<'_> {
 #[must_use]
 pub fn exchange(mapping: &Mapping, credential: Option<&Secret>, message: Message) -> Call {
     let (route, body): (&[u8], Box<[u8]>) = match message {
+        Message::LinkAsk(body) => (b"/v1/link/ask".as_slice(), body),
         Message::ApprovalAsk(body) => (b"/v1/approval/ask".as_slice(), body),
         Message::ApprovalRead(body) => (b"/v1/approval/read".as_slice(), body),
         Message::ApprovalDecide(body) => (b"/v1/approval/decide".as_slice(), body),

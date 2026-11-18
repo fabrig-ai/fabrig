@@ -73,6 +73,7 @@ fn startup_pins_composed_default_file_and_fallback_figures() {
             &temper_service_shell::jig_directories(&dirs),
             &temper_service::stock::Given::Stock,
             &temper_service::stock::agents(),
+            &[],
         )
         .expect("box part")
         .expect("worker");
@@ -176,6 +177,7 @@ fn box_refuses_sixty_five_endpoints_before_composing() {
         &temper_service_shell::jig_directories(&dirs),
         &temper_service::stock::Given::Stock,
         &temper_service::stock::agents(),
+        &[],
     )
     .expect_err("endpoint bound");
     assert!(

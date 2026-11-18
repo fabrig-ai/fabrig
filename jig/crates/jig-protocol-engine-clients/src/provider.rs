@@ -113,6 +113,8 @@ impl Component {
                                 break;
                             }
                             Waiting::Authorize { .. }
+                            | Waiting::LinkAskWhose { .. }
+                            | Waiting::AskedWhose { .. }
                             | Waiting::ApprovalWhose { .. }
                             | Waiting::ApprovalCore { .. }
                             | Waiting::Core { .. }

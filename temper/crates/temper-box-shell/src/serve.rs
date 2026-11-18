@@ -81,7 +81,7 @@ fn prepare_with_limits(
     let copy = path(&directories.data).join("agents.setting");
     let initial = if named.worker.is_some() { agents_setting(&copy, &mut std::io::stderr()) } else { None };
     let agents = initial.clone().unwrap_or_else(service::stock::agents);
-    let mut part = service::startup::box_worker(bytes, &jig_directories(directories), given, &agents)
+    let mut part = service::startup::box_worker(bytes, &jig_directories(directories), given, &agents, environment)
         .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     let agent = part
         .as_mut()
@@ -200,9 +200,14 @@ pub(crate) fn configured_agent(
 ) -> Result<Option<agent::Prepared>, String> {
     let initial = agents_setting(&path(&directories.data).join("agents.setting"), &mut std::io::stderr())
         .unwrap_or_else(service::stock::agents);
-    let mut part =
-        service::startup::box_worker(bytes, &jig_directories(directories), &service::stock::Given::Stock, &initial)
-            .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
+    let mut part = service::startup::box_worker(
+        bytes,
+        &jig_directories(directories),
+        &service::stock::Given::Stock,
+        &initial,
+        environment,
+    )
+    .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     part.as_mut().map(|part| prepare_agent(part, directories, environment)).transpose()
 }
 fn prepare_agent(

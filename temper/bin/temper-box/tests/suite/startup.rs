@@ -728,6 +728,7 @@ fn serve_names_what_to_raise_for_eight_slots() {
             &serde_json::to_vec(&worker_document).unwrap(),
             &jig_protocol_config::Directories::working(),
             None,
+            &[],
         )
         .expect("resolved worker places");
         assert!(part.worker.jig.limits.expect("derived worker limits").hub.slots >= 8);
@@ -749,6 +750,7 @@ fn serve_names_what_to_raise_for_eight_slots() {
                 &jig_protocol_config::Directories::working(),
                 &temper_service::stock::Given::Stock,
                 &temper_service::stock::agents(),
+                &[],
             )
             .expect("engine figures")
             .expect("worker");
@@ -1921,6 +1923,7 @@ fn the_live_github_configuration_passes_startup_admission() {
                 &bytes,
                 &temper_box_shell::directories::jig_directories(&directories),
                 None,
+                &[],
             )
             .expect("worker part");
             part.named.program = skein_scratch::paths::binary("temper-box").as_os_str().as_bytes().into();

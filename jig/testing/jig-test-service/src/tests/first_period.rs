@@ -109,6 +109,7 @@ fn a_first_start_opens_each_seeded_projects_period() {
     let mut service = started();
     settle(&mut service);
     f::engine(&mut service).parties_in().push(core::Event::SignIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(10)),
         identity: people::Identity {

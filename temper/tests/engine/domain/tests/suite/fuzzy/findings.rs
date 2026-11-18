@@ -162,6 +162,7 @@ struct Replay {
 fn scenario() -> (Driver, engine::Assignment, u64, u64) {
     let (mut driver, run) = f::driver();
     driver.send(engine::Event::Party(engine::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(991)),
         identity: people::Identity {

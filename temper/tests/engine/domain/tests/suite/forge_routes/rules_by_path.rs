@@ -377,6 +377,7 @@ fn a_members_partial_signoff_names_the_signer_and_the_next_member() {
     publish(&mut world, &producer, Some(b"src/protocol.c"), false);
     post_approval(&mut world, change, 3);
     world.send(engine::Event::Party(engine::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(991)),
         identity: people::Identity {

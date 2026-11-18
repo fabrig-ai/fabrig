@@ -810,6 +810,7 @@ fn roles_fixture(
         &mut domain.core.people,
         &env.with(env.limits.people),
         people::Event::SignedIn {
+            until: None,
             reply_to: skein_lib::ReplyTo::new(Token::new(69)),
             person: 1,
             sign_in: 1,
@@ -925,6 +926,7 @@ fn path_sets_and_people_word_the_document_and_rule_card() {
         &mut domain.core.people,
         &env.with(env.limits.people),
         people::Event::SignedIn {
+            until: None,
             reply_to: skein_lib::ReplyTo::new(Token::new(69)),
             person: READER,
             sign_in: 1,
