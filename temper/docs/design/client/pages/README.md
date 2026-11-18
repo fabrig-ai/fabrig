@@ -106,7 +106,11 @@ keeps (`../../protocol/configuration/README.md`, section 2).
     in its page's header (`goal.md`, 2). A chat's heading keeps its own
     short form (`chat::short_title`, at 72), a wait's or a dependency's
     name its cut at 40 (`work.md`, 1, *A wait's names*), and the TUI's
-    launchpad its cut to the row's room, after this one.
+    launchpad its cut to the row's room, after this one. The TUI's chat
+    cards, a delegated task's and a proposal's, draw the title whole and
+    let the screen wrap it (`../tui/pages/chat.md`, 1, *a card*): the
+    shared lines keep the cut for the browser's terminal, and
+    `shared::proposal_title` gives a proposal's whole.
 - **A task's words after its title:** a card or page that draws a
   task's title and then its words leaves the words out when they are
   only the title: whole, not cut, with nothing past their first line
