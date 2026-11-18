@@ -163,6 +163,7 @@ fn completion_classes_are_named_but_other_model_faults_are_not() {
         agent::ModelFault::Provider,
         agent::ModelFault::Declined,
         agent::ModelFault::Program { name: Box::new([]), exit: None, detail: Box::new([]) },
+        agent::ModelFault::Untooled { name: Box::new([]), detail: Box::new([]) },
     ] {
         let mut h = Harness::new();
         let (_, source) = h.decode(Box::new([]));
