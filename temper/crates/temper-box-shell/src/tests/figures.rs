@@ -62,55 +62,91 @@ fn encoded(value: &w::AgentFigures) -> Box<[u8]> {
     value.encode(&mut writer).expect("measured value");
     writer.finish()
 }
+fn stock_defaults(bytes: &[u8], dirs: &crate::Directories) -> temper_service::stock::Given {
+    use jig_protocol_config::{DocumentLimits, read::Object};
+    use temper_service::{limits, startup, stock};
+    let document = jig_protocol_config::document(
+        bytes,
+        &DocumentLimits { bytes: crate::CONFIG_BYTES, tokens: crate::CONFIG_BYTES, depth: 32 },
+    )
+    .expect("fixture document");
+    let at = Object::new(&document, 0).expect("document object").member(&document, b"engine").expect("engine");
+    let engine = startup::engine(&document, at, &temper_service_shell::jig_directories(dirs)).expect("stock engine");
+    let root = limits::engine(&engine.limits, &limits::stock()).expect("stock limits");
+    stock::Given::Own {
+        jig: stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes),
+        forge: stock::forge(&root),
+        ways: stock::ways(),
+    }
+}
 #[test]
 fn startup_pins_composed_default_file_and_fallback_figures() {
-    for case in ["absent", "file", "corrupt"] {
-        let scratch = skein_scratch::Scratch::new(case);
-        let root = scratch.path();
-        let (dirs, document) = document(root);
-        let mut part = temper_service::startup::box_worker(
-            &serde_json::to_vec(&document).expect("JSON"),
-            &temper_service_shell::jig_directories(&dirs),
-            &temper_service::stock::Given::Stock,
-            &temper_service::stock::agents(),
-            &[],
-        )
-        .expect("box part")
-        .expect("worker");
-        serve::box_inputs_worker(&mut part, &dirs).expect("derived program");
-        assert_eq!(part.named.program.as_ref(), std::env::current_exe().expect("exe").as_os_str().as_bytes());
-        assert_eq!(
-            part.named.arguments.as_ref(),
-            [Box::from(b"internal".as_slice()), Box::from(b"agent".as_slice()), part.named.agent.clone()]
-        );
-        let copy = root.join("agents.setting");
-        match case {
-            "file" => served::write_agents(&copy, &encoded(&agents(900))).expect("atomic copy"),
-            "corrupt" => fs::write(&copy, b"not a setting").expect("bad copy"),
-            _ => {}
+    const PROGRAM: &[u8] = b"box startup agent program fixture\n";
+    let scratch = skein_scratch::Scratch::new("startup-figures");
+    let root = scratch.path();
+    let (dirs, document) = document(root);
+    let bytes = serde_json::to_vec(&document).expect("JSON");
+    // All three settings copies use the same stock catalogue, charters and limits.
+    let given = stock_defaults(&bytes, &dirs);
+    let mut part = temper_service::startup::box_worker(
+        &bytes,
+        &temper_service_shell::jig_directories(&dirs),
+        &given,
+        &temper_service::stock::agents(),
+        &[],
+    )
+    .expect("box part")
+    .expect("worker");
+    serve::box_inputs_worker(&mut part, &dirs).expect("derived program");
+    assert_eq!(part.named.program.as_ref(), std::env::current_exe().expect("exe").as_os_str().as_bytes());
+    assert_eq!(
+        part.named.arguments.as_ref(),
+        [Box::from(b"internal".as_slice()), Box::from(b"agent".as_slice()), part.named.agent.clone()]
+    );
+    // Preparation pins a copy, but never runs it: its size is not part of the figures contract.
+    let program = root.join("fixture-agent");
+    fs::write(&program, PROGRAM).expect("fixture program");
+    let setting = encoded(&agents(900));
+    let mut default = temper_agent_fixtures::configuration(&document);
+    default["programs"]["claude_code"]["directory"] = serde_json::json!(root.join("programs"));
+    let mut custom = default.clone();
+    custom["profile"]["policy"]["max_turns"] = 900.into();
+    let copy = root.join("agents.setting");
+    for (case, contents, expected) in [
+        ("absent", None, &default),
+        ("file", Some(setting.as_ref()), &custom),
+        ("corrupt", Some(b"not a setting".as_slice()), &default),
+    ] {
+        if let Some(contents) = contents {
+            served::write_agents(&copy, contents).expect("settings copy");
         }
         let mut owned = Vec::new();
-        let checked = crate::prepare(&[], b"/", &dirs, &serde_json::to_vec(&document).expect("JSON"), &mut owned)
-            .map(|service| service.operations());
+        let checked = serve::prepare_with_limits(
+            "temper-box",
+            &[],
+            b"/",
+            &dirs,
+            &bytes,
+            &mut owned,
+            false,
+            false,
+            None,
+            None,
+            &given,
+            Some(&program),
+            false,
+            &[],
+            None,
+        )
+        .map(|(service, _, _)| service.operations());
         crate::close(owned);
         let operations = checked.unwrap_or_else(|why| panic!("{case}: {why}"));
         assert!(operations > 0);
         let pinned = root.join("workspaces/agent/agent.json");
-        let actual: serde_json::Value =
+        let configuration: serde_json::Value =
             serde_json::from_slice(&fs::read(&pinned).expect("pinned agent")).expect("agent JSON");
-        let mut expected = temper_agent_fixtures::configuration(&document);
-        expected["programs"]["claude_code"]["directory"] = serde_json::json!(root.join("programs"));
-        if case == "file" {
-            expected["profile"]["policy"]["max_turns"] = 900.into();
-        }
-        assert_eq!(actual, expected, "{case}");
-        assert!(
-            fs::metadata(
-                root.join("workspaces/agent").join(std::env::current_exe().expect("exe").file_name().expect("name"))
-            )
-            .expect("derived program pinned")
-            .is_file()
-        );
+        assert_eq!(&configuration, expected, "{case}");
+        assert_eq!(fs::read(root.join("workspaces/agent/fixture-agent")).expect("pinned program"), PROGRAM, "{case}");
         assert!(!root.join("agent.json").exists());
     }
 }
