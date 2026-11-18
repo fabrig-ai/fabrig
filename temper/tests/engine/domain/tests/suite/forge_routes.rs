@@ -340,7 +340,7 @@ fn a_merge_asked_while_kept_is_refused_naming_the_pending() {
     world.close();
 }
 
-fn live_task(world: &World, task: u64) -> &tasks::TaskRecord {
+pub(super) fn live_task(world: &World, task: u64) -> &tasks::TaskRecord {
     match world.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(task)))) {
         Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) => row,
         _ => panic!("live task {task}"),
@@ -2060,7 +2060,7 @@ fn adoption_chat(world: &World) -> people::Ask {
     people::Ask::Create { project, batch }
 }
 
-fn assigned_chat(world: &mut World, key: u8, ask: people::Ask) -> engine::Assignment {
+pub(super) fn assigned_chat(world: &mut World, key: u8, ask: people::Ask) -> engine::Assignment {
     let before = world.assigned.len();
     world.send(engine::Event::Party(engine::PartyInput::Ask {
         models: Box::new([]),
