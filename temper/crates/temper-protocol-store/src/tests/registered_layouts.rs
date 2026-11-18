@@ -24,6 +24,43 @@ fn a_registered_layout_defaults_an_added_list() {
 }
 
 #[test]
+fn a_landing_layout_without_wait_defaults_it_to_cleared() {
+    use super::fixtures;
+    use crate::records;
+    use skein_codec::{
+        layout::{Plan, Workspace},
+        schema,
+    };
+    use temper_engine_domain_forge_vocabulary::{Stored, settings as d};
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
+    let before = family.current.replacen(" wait: SettingsLandingWait = cleared", "", 1);
+    assert_ne!(before, family.current, "the earlier landing omits wait");
+    let old = schema::parse(before.as_bytes()).unwrap();
+    let new = schema::parse(family.current.as_bytes()).unwrap();
+    let old_root = old.root(b"Row", Some(b"setting")).unwrap();
+    let new_root = new.root(b"Row", Some(b"setting")).unwrap();
+    let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+    let mut work = Workspace::new();
+    assert!(work.fit(&write_old));
+    let stored = Stored::Setting(d::SettingRow {
+        key: d::SettingKey { kind: 4, scope: 7, number: 1, slot: d::SettingSlot::Change },
+        edit: d::Edit::Set(d::SizedValue {
+            value: d::Value::Landing(d::ProjectLanding { batch: 3, ..d::ProjectLanding::default() }),
+            size: 123,
+        }),
+    });
+    let mut earlier = skein_lib::Buffer::with_capacity(4096);
+    write_old.convert(&records::encode(&stored), &mut earlier, &mut work).unwrap();
+    let read_old =
+        Plan::derive(&old, old_root, &[], &new, new_root, &[]).expect("an added wait defaults stored kind 4 values");
+    assert!(work.fit(&read_old));
+    let mut current = skein_lib::Buffer::with_capacity(4096);
+    read_old.convert(earlier.as_slice(), &mut current, &mut work).unwrap();
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    assert_eq!(records::decode(current.as_slice(), &bounds), Ok(stored));
+}
+
+#[test]
 fn a_change_layout_without_source_or_kept_defaults_both_to_none() {
     let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
     let mut before = family.current.to_owned();

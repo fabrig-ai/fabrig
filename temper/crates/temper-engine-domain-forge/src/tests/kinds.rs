@@ -93,6 +93,41 @@ fn restore(d: &mut Domain, item: &Asked, slot: SettingSlot) {
     );
 }
 
+fn landing_wait(wait: temper_engine_domain_forge_change::Wait) -> SizedValue {
+    let value = crate::settings::ProjectLanding { wait, ..crate::settings::ProjectLanding::default() };
+    SizedValue { size: crate::settings::landing_record(&value).measure(), value: Value::Landing(value) }
+}
+
+#[test]
+fn landing_wait_is_restored_and_a_kept_change_waits_for_the_next_start() {
+    use temper_engine_domain_forge_change::Wait;
+    for (initial, changed) in [(Wait::Cleared, Wait::Landed), (Wait::Landed, Wait::Cleared)] {
+        let mut d = domain();
+        let initial_item = item(4, 5, 1, Edit::Set(landing_wait(initial)));
+        restore(&mut d, &initial_item, SettingSlot::Change);
+        outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        assert_eq!(d.after_landing(5).unwrap().wait, initial);
+        let asked = item(4, 5, 1, Edit::Set(landing_wait(changed)));
+        assert_eq!(
+            d.judge_settings(&BOUNDS, from_ref(&asked)).as_ref(),
+            &[Judged::Accept { size: landing_wait(changed).size, charter: None }]
+        );
+        let mut out = Queue::uncapped();
+        d.keep_settings(&env(), 2, None, from_ref(&asked), &mut out);
+        assert_eq!(out.pop(), Some(save(&initial_item, SettingSlot::Replaced(2))));
+        assert_eq!(out.pop(), Some(save(&asked, SettingSlot::Change)));
+        assert!(out.is_empty());
+        assert_eq!(d.setting(4, 5, 1), Some(&landing_wait(changed)));
+        assert_eq!(d.after_landing(5).unwrap().wait, initial, "the running forge holds its restored wait");
+        let mut restarted = domain();
+        for (key, edit) in &d.setting_rows {
+            restore(&mut restarted, &item(key.kind, key.scope, key.number, edit.clone()), key.slot);
+        }
+        outputs(&mut restarted, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        assert_eq!(restarted.after_landing(5).unwrap().wait, changed);
+    }
+}
+
 #[test]
 fn a_change_of_rules_is_judged_kept_and_held() {
     let mut d = stocked();

@@ -97,6 +97,7 @@ fn configured(verification_bound_ms: u64) -> World {
                     }]),
                     tier_retries: 2,
                     verification_bound_ms,
+                    wait: temper_engine_domain_forge_change::Wait::Cleared,
                     landing_attempts: engine::LANDING_ATTEMPTS,
                 },
             )),

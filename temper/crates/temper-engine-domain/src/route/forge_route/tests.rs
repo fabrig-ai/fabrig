@@ -2269,6 +2269,7 @@ fn reserved_turn_landing() -> (super::Domain, skein_lib::Env<super::Limits>, sup
         Box::new([]),
         temper_engine_domain_forge_landing::Project::DEFAULT,
         forge::AfterLanding {
+            wait: temper_engine_domain_forge_change::Wait::Cleared,
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: 2,
                 suspects: temper_engine_domain_forge_tiers::Suspects::Bisect
@@ -4972,6 +4973,7 @@ fn turn_project(domain: &mut super::Domain) {
         Box::new([]),
         temper_engine_domain_forge_landing::Project::DEFAULT,
         super::forge::AfterLanding {
+            wait: temper_engine_domain_forge_change::Wait::Cleared,
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: 2,
                 suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,

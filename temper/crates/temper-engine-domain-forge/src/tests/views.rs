@@ -182,6 +182,7 @@ fn setup() -> Domain {
         }]),
         temper_engine_domain_forge_landing::Project::DEFAULT,
         AfterLanding {
+            wait: temper_engine_domain_forge_change::Wait::Cleared,
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: 2,
                 suspects: temper_engine_domain_forge_tiers::Suspects::Bisect
@@ -616,6 +617,7 @@ fn changes_marks_a_verifications_save_and_erasure() {
         }]),
         temper_engine_domain_forge_landing::Project::DEFAULT,
         AfterLanding {
+            wait: temper_engine_domain_forge_change::Wait::Cleared,
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: 2,
                 suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,

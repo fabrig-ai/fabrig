@@ -70,6 +70,7 @@ fn judgement(d: &Domain) -> p::Verdict {
         row.record.run.as_ref().unwrap(),
         outcome,
         &AfterLanding {
+            wait: temper_engine_domain_forge_change::Wait::Cleared,
             verdict: p::Settings { retries: RETRIES, suspects: p::Suspects::Bisect },
             bound: Duration::ZERO,
         }

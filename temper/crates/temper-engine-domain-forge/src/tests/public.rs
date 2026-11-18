@@ -408,6 +408,7 @@ fn setup_with_limits(limits: &Limits) -> Domain {
                     tiers: Box::new([]),
                 }]),
                 AfterLanding {
+                    wait: temper_engine_domain_forge_change::Wait::Cleared,
                     verdict: temper_engine_domain_forge_tiers::Settings {
                         retries: 2,
                         suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,

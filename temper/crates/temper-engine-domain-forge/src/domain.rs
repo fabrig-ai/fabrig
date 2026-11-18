@@ -6212,12 +6212,13 @@ fn change_facts(
     pending: &PendingStep,
     base_tip: skein_forge::api::Commit,
 ) -> change::Facts {
-    let verification_bound = match d.repositories.get(&row.repository) {
-        Some(repository) => match d.after_landing(repository.project) {
-            Some(after) => after.bound,
-            None => Duration::from_secs(7200),
-        },
-        None => Duration::from_secs(7200),
+    let after = match d.repositories.get(&row.repository) {
+        Some(repository) => d.after_landing(repository.project),
+        None => None,
+    };
+    let (verification_bound, wait) = match after {
+        Some(after) => (after.bound, after.wait),
+        None => (Duration::from_secs(7200), change::Wait::Cleared),
     };
     let pull = match &pending.pull {
         Some(pull) if pull.merged.is_some() => change::Pull::Merged { commit: pull.merged.expect("checked merged") },
@@ -6286,6 +6287,7 @@ fn change_facts(
         pending: pending.pending.clone(),
         verification: d.change_verification(row.task),
         verification_bound,
+        wait,
         ask: crate::landing::ask_for(d, row),
         branch: pending.branch,
         titled: !row.title.is_empty() || row.pull.is_some(),

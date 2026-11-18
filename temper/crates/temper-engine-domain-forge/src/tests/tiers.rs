@@ -57,6 +57,7 @@ fn restoring_in(mut d: Domain, follows: Follows) -> Domain {
         }]),
         temper_engine_domain_forge_landing::Project::DEFAULT,
         AfterLanding {
+            wait: temper_engine_domain_forge_change::Wait::Cleared,
             verdict: p::Settings { retries: RETRIES, suspects: p::Suspects::Bisect },
             bound: Duration::from_secs(7200)
         }

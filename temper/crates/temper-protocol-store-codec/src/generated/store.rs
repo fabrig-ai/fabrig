@@ -3475,6 +3475,8 @@ pub enum Path {
     ProjectQuestionsTail,
     /// The tag of `SettingsLandingWay`.
     SettingsLandingWayTag,
+    /// The tag of `SettingsLandingWait`.
+    SettingsLandingWaitTag,
     /// The tag of `SettingsCombine`.
     SettingsCombineTag,
     /// The `by` field of `ProjectLanding`.
@@ -3501,6 +3503,8 @@ pub enum Path {
     ProjectLandingTierRetries,
     /// The `verification_bound_ms` field of `ProjectLanding`.
     ProjectLandingVerificationBoundMs,
+    /// The `wait` field of `ProjectLanding`.
+    ProjectLandingWait,
     /// Bytes after `ProjectLanding`.
     ProjectLandingTail,
     /// The tag of `SettingsReportFormat`.
@@ -6062,6 +6066,7 @@ impl Path {
             Self::ProjectQuestionsRoute => "ProjectQuestions.route",
             Self::ProjectQuestionsTail => "ProjectQuestions (tail)",
             Self::SettingsLandingWayTag => "SettingsLandingWay (tag)",
+            Self::SettingsLandingWaitTag => "SettingsLandingWait (tag)",
             Self::SettingsCombineTag => "SettingsCombine (tag)",
             Self::ProjectLandingBy => "ProjectLanding.by",
             Self::ProjectLandingBatch => "ProjectLanding.batch",
@@ -6075,6 +6080,7 @@ impl Path {
             Self::ProjectLandingGateTimeoutMs => "ProjectLanding.gate_timeout_ms",
             Self::ProjectLandingTierRetries => "ProjectLanding.tier_retries",
             Self::ProjectLandingVerificationBoundMs => "ProjectLanding.verification_bound_ms",
+            Self::ProjectLandingWait => "ProjectLanding.wait",
             Self::ProjectLandingTail => "ProjectLanding (tail)",
             Self::SettingsReportFormatTag => "SettingsReportFormat (tag)",
             Self::SettingsGateReportArtifact => "SettingsGateReport.artifact",
@@ -54677,11 +54683,100 @@ impl SettingsLandingWay {
 
 fn settings_landing_way_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(SettingsLandingWay::encoded_bound_within(limits)?);
-    settings_combine_encoded_bound_family(limits, biggest)
+    settings_landing_wait_encoded_bound_family(limits, biggest)
 }
 
 fn settings_landing_way_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(SettingsLandingWay::decoded_bound_within(limits)?);
+    settings_landing_wait_decoded_bound_family(limits, biggest)
+}
+
+/// `SettingsLandingWait` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum SettingsLandingWait {
+    /// `cleared` without a payload.
+    Cleared,
+    /// `landed` without a payload.
+    Landed,
+}
+
+impl SettingsLandingWait {
+    /// Checks the payload against the given limits.
+    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+        Ok(value)
+    }
+
+}
+
+impl SettingsLandingWait {
+    /// Measures this variant's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        match self {
+            Self::Cleared | Self::Landed => 1,
+        }
+    }
+
+    /// Writes this variant's tag and payload.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        match self {
+            Self::Cleared => writer.put(&[0_u8])?,
+            Self::Landed => writer.put(&[1_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole variant and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::SettingsLandingWaitTag, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: Path::SettingsLandingWaitTag, reason: skein_codec::Reason::Short })?;
+        let value = match tag {
+            0 => Self::Cleared,
+            1 => Self::Landed,
+            _ => return Err(Problem { path: Path::SettingsLandingWaitTag, reason: skein_codec::Reason::Tag }),
+        };
+        Ok(value)
+    }
+}
+
+impl SettingsLandingWait {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        biggest.checked_add(0)
+    }
+}
+
+fn settings_landing_wait_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(SettingsLandingWait::encoded_bound_within(limits)?);
+    settings_combine_encoded_bound_family(limits, biggest)
+}
+
+fn settings_landing_wait_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(SettingsLandingWait::decoded_bound_within(limits)?);
     settings_combine_decoded_bound_family(limits, biggest)
 }
 
@@ -54801,6 +54896,8 @@ pub struct ProjectLandingParts {
     pub tier_retries: u8,
     /// The `verification_bound_ms` field.
     pub verification_bound_ms: u64,
+    /// The `wait` field.
+    pub wait: SettingsLandingWait,
 }
 
 /// `ProjectLanding` in this codec family.
@@ -54818,13 +54915,14 @@ pub struct ProjectLanding {
     gate_timeout_ms: u64,
     tier_retries: u8,
     verification_bound_ms: u64,
+    wait: SettingsLandingWait,
 }
 
 impl ProjectLanding {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: ProjectLandingParts) -> Result<Self, Problem> {
-        let ProjectLandingParts { by, batch, combine_main, combine_other, merge_job, close_job, landing_attempts, check_timeout_ms, gate_retries, gate_timeout_ms, tier_retries, verification_bound_ms } = parts;
-        let value = Self { by, batch, combine_main, combine_other, merge_job, close_job, landing_attempts, check_timeout_ms, gate_retries, gate_timeout_ms, tier_retries, verification_bound_ms };
+        let ProjectLandingParts { by, batch, combine_main, combine_other, merge_job, close_job, landing_attempts, check_timeout_ms, gate_retries, gate_timeout_ms, tier_retries, verification_bound_ms, wait } = parts;
+        let value = Self { by, batch, combine_main, combine_other, merge_job, close_job, landing_attempts, check_timeout_ms, gate_retries, gate_timeout_ms, tier_retries, verification_bound_ms, wait };
         value.check(limits)?;
         Ok(value)
     }
@@ -54877,9 +54975,13 @@ impl ProjectLanding {
     #[must_use]
     pub fn verification_bound_ms(&self) -> u64 { self.verification_bound_ms }
 
+    /// Reads the `wait` field.
+    #[must_use]
+    pub fn wait(&self) -> &SettingsLandingWait { &self.wait }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> ProjectLandingParts { ProjectLandingParts { by: self.by, batch: self.batch, combine_main: self.combine_main, combine_other: self.combine_other, merge_job: self.merge_job, close_job: self.close_job, landing_attempts: self.landing_attempts, check_timeout_ms: self.check_timeout_ms, gate_retries: self.gate_retries, gate_timeout_ms: self.gate_timeout_ms, tier_retries: self.tier_retries, verification_bound_ms: self.verification_bound_ms } }
+    pub fn into_parts(self) -> ProjectLandingParts { ProjectLandingParts { by: self.by, batch: self.batch, combine_main: self.combine_main, combine_other: self.combine_other, merge_job: self.merge_job, close_job: self.close_job, landing_attempts: self.landing_attempts, check_timeout_ms: self.check_timeout_ms, gate_retries: self.gate_retries, gate_timeout_ms: self.gate_timeout_ms, tier_retries: self.tier_retries, verification_bound_ms: self.verification_bound_ms, wait: self.wait } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         if let Some(some_0) = self.merge_job.as_ref() && some_0.len() > usize::try_from(limits.project_landing_merge_job_some.min(CEILINGS.project_landing_merge_job_some)).expect("u32 fits usize") { return Err(Problem { path: Path::ProjectLandingMergeJob, reason: skein_codec::Reason::Bound }); }
@@ -54919,6 +55021,7 @@ impl ProjectLanding {
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size = size.checked_add(1).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 
@@ -54968,6 +55071,8 @@ impl ProjectLanding {
         writer.put(&[*field_tier_retries])?;
         let field_verification_bound_ms = &self.verification_bound_ms;
         writer.put(&field_verification_bound_ms.to_be_bytes())?;
+        let field_wait = &self.wait;
+        field_wait.encode(writer)?;
         Ok(())
     }
 
@@ -54991,7 +55096,8 @@ impl ProjectLanding {
         let decoded_gate_timeout_ms = reader.u64().ok_or(Problem { path: Path::ProjectLandingGateTimeoutMs, reason: skein_codec::Reason::Short })?;
         let decoded_tier_retries = reader.u8().ok_or(Problem { path: Path::ProjectLandingTierRetries, reason: skein_codec::Reason::Short })?;
         let decoded_verification_bound_ms = reader.u64().ok_or(Problem { path: Path::ProjectLandingVerificationBoundMs, reason: skein_codec::Reason::Short })?;
-        Ok(Self { by: decoded_by, batch: decoded_batch, combine_main: decoded_combine_main, combine_other: decoded_combine_other, merge_job: decoded_merge_job, close_job: decoded_close_job, landing_attempts: decoded_landing_attempts, check_timeout_ms: decoded_check_timeout_ms, gate_retries: decoded_gate_retries, gate_timeout_ms: decoded_gate_timeout_ms, tier_retries: decoded_tier_retries, verification_bound_ms: decoded_verification_bound_ms })
+        let decoded_wait = SettingsLandingWait::decode_from(limits, reader)?;
+        Ok(Self { by: decoded_by, batch: decoded_batch, combine_main: decoded_combine_main, combine_other: decoded_combine_other, merge_job: decoded_merge_job, close_job: decoded_close_job, landing_attempts: decoded_landing_attempts, check_timeout_ms: decoded_check_timeout_ms, gate_retries: decoded_gate_retries, gate_timeout_ms: decoded_gate_timeout_ms, tier_retries: decoded_tier_retries, verification_bound_ms: decoded_verification_bound_ms, wait: decoded_wait })
     }
 }
 
@@ -55011,6 +55117,7 @@ impl ProjectLanding {
         size = size.checked_add(1_u64)?.checked_add(1_u64.checked_add(8_u64)?)?;
         size = size.checked_add(1_u64)?.checked_add(8_u64)?;
         size = size.checked_add(1_u64)?.checked_add(8_u64)?;
+        size = size.checked_add(SettingsLandingWait::encoded_bound_within(limits)?)?;
         size.checked_add(0)
     }
 
@@ -55029,6 +55136,7 @@ impl ProjectLanding {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(SettingsLandingWait::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
 }

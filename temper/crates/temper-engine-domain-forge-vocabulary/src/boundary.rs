@@ -1485,6 +1485,7 @@ pub enum Follows {
 /// A project's verification settings (temper/docs/design/domain/after-landing.md, 11).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct AfterLanding {
+    pub wait: temper_engine_domain_forge_change::Wait,
     pub verdict: temper_engine_domain_forge_tiers::Settings,
     pub bound: skein_lib::Duration,
 }

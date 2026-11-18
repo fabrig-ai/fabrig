@@ -349,7 +349,7 @@ fn landing_and_gates_read_the_configured_values() {
         (Way::Turn, None, None, Box::<[SeeRepository]>::default(),
          "landing: by turn\nmerge job: none\nrepositories:\n  none\n".to_string()),
         (Way::Queue, Some(b"merge".as_slice().into()),
-         Some(AfterLanding { verdict: Settings { retries: 1, suspects: Suspects::TellAll }, bound: skein_lib::Duration::from_millis(5_400_000) }),
+         Some(AfterLanding { wait: temper_engine_domain_forge_change::Wait::Cleared, verdict: Settings { retries: 1, suspects: Suspects::TellAll }, bound: skein_lib::Duration::from_millis(5_400_000) }),
          Box::new([SeeRepository { name: none.name.clone(), checks: none.checks.clone() }]),
          "landing: by queue\nmerge job: merge\nafter landing: 1 tier retry, a verification's bound of 1h30m, suspects tell all\nrepositories:\n  org/empty: no gates or tiers\n".to_string()),
     ] {
