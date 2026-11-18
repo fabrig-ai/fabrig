@@ -3,9 +3,8 @@ use super::{Request, run};
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 mod deployment;
-use deployment::copy;
 pub(crate) use deployment::deployment;
-use std::os::unix::fs::PermissionsExt;
+use deployment::{copy, tree};
 
 #[test]
 fn workers_arguments_are_distinct_and_modes_exclude_each_other() {
@@ -49,21 +48,6 @@ fn workers_arguments_are_distinct_and_modes_exclude_each_other() {
         super::configure("--workers", rest, &environment, b"/work").unwrap().1,
         Request::Workers(b"/work/backup".as_slice().into())
     );
-}
-
-fn tree(root: &Path) -> Vec<(std::path::PathBuf, u32, Vec<u8>)> {
-    let mut result = Vec::new();
-    let mut entries = std::fs::read_dir(root).unwrap().map(|entry| entry.unwrap()).collect::<Vec<_>>();
-    entries.sort_by_key(std::fs::DirEntry::file_name);
-    for entry in entries {
-        let metadata = entry.metadata().unwrap();
-        let bytes = if metadata.is_file() { std::fs::read(entry.path()).unwrap() } else { Vec::new() };
-        result.push((entry.path(), metadata.permissions().mode(), bytes));
-        if metadata.is_dir() {
-            result.extend(tree(&entry.path()));
-        }
-    }
-    result
 }
 
 #[test]
