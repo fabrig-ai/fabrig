@@ -92,17 +92,10 @@ fn history_limits_have_defaults_dotted_bounds_and_named_startup_refusals() {
         own.forge.history_events = 0;
         assert!(!temper_engine_domain_forge::valid(&own.forge));
     }
-    for overrides in
-        [br#"{"forge.history_days":0}"#.as_slice(), br#"{"forge.history_days":3651}"#, br#"{"forge.history_events":0}"#]
+    for (name, value) in
+        [(b"forge.history_days".as_slice(), 0), (b"forge.history_days", 3651), (b"forge.history_events", 0)]
     {
-        let document = fixtures::with(&fixtures::document(), b"application.limits.overrides", overrides);
-        let problems = crate::startup::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
-        let expected = if overrides == br#"{"forge.history_events":0}"# {
-            b"application.limits.overrides.forge.history_events: outside its type\n".as_slice()
-        } else {
-            b"application.limits.overrides.forge.history_days: outside its type\n".as_slice()
-        };
-        assert_eq!(crate::startup::lines(&problems).as_ref(), expected);
+        assert_eq!(limits::apply(&mut limits::stock(), name, value), Err(limits::Refused::Range));
     }
 }
 
@@ -120,44 +113,33 @@ fn checkout_preparations_is_a_named_override_and_zero_refuses_start() {
             "Bounds workspace preparations active at once on a worker, runs' and jobs' alike; the rest wait in order of arrival."
         );
     }
-    let document =
-        fixtures::with(&fixtures::document(), b"application.limits.overrides", br#"{"checkout.preparations":0}"#);
-    let problems = crate::startup::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
-    assert_eq!(
-        crate::startup::lines(&problems).as_ref(),
-        b"application.limits.overrides.checkout.preparations: 0; requires at least 1\n"
-    );
+    let mut input = fixtures::document();
+    input.own.checkout.preparations = 0;
+    let problems = fixtures::start(
+        &input,
+        &jig_protocol_config::Directories::working(),
+        &fixtures::files(),
+        &fixtures::startup_agent(),
+        &fixtures::seeds(),
+        None,
+        fixtures::worker_runtime(),
+        fixtures::forge_runtime(),
+    )
+    .err()
+    .expect("zero preparations refuses the worker's construction");
+    assert!(!problems.is_empty());
 }
 
 #[test]
-#[expect(clippy::disallowed_macros, reason = "the test builds dotted red-limit overrides and their named refusals")]
 fn red_limit_overrides_past_their_ranges_refuse_start_by_name() {
-    for (name, value) in [("forge.branch_reds", 257_u64), ("forge.red_key_bytes", 513)] {
-        let input = format!(r#"{{"{name}":{value}}}"#);
-        let document = fixtures::with(&fixtures::document(), b"application.limits.overrides", input.as_bytes());
-        let directories = jig_protocol_config::Directories::working();
-        for problems in [
-            crate::startup::named(&document, &directories).unwrap_err(),
-            crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
-                .unwrap_err(),
-        ] {
-            assert_eq!(
-                crate::startup::lines(&problems).as_ref(),
-                format!("application.limits.overrides.{name}: outside its type\n").as_bytes()
-            );
-        }
+    for (name, value) in [(b"forge.branch_reds".as_slice(), 257_u64), (b"forge.red_key_bytes", 513)] {
+        assert_eq!(limits::apply(&mut limits::stock(), name, value), Err(limits::Refused::Range));
     }
 }
 
 #[test]
 fn a_zero_change_tasks_override_refuses_the_start_naming_the_limit() {
-    let document =
-        fixtures::with(&fixtures::document(), b"application.limits.overrides", br#"{"forge.change_policy.tasks":0}"#);
-    let problems = crate::startup::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
-    assert_eq!(
-        crate::startup::lines(&problems).as_ref(),
-        b"application.limits.overrides.forge.change_policy.tasks: outside its type\n",
-    );
+    assert_eq!(limits::apply(&mut limits::stock(), b"forge.change_policy.tasks", 0), Err(limits::Refused::Range));
 }
 
 #[test]
@@ -167,9 +149,9 @@ fn forge_changes_past_the_tier_ceiling_refuses_both_startup_routes() {
         let member = format!(r#"{{"profile":"standard","overrides":{{"forge.changes":{changes}}}}}"#);
         let document = fixtures::with(&fixtures::document(), b"application.limits", member.as_bytes());
         let directories = jig_protocol_config::Directories::working();
-        let starting = crate::startup::named(&document, &directories).unwrap_err();
+        let starting = fixtures::named(&document, &directories).unwrap_err();
         let reading =
-            crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
+            fixtures::document_store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
                 .unwrap_err();
         for problems in [starting, reading] {
             assert_eq!(
@@ -189,8 +171,8 @@ fn standard_changes_at_the_tier_bound_name_the_store_limit_to_raise() {
         br#"{"profile":"standard","overrides":{"forge.changes":379,"forge.client.op_bytes":262144}}"#,
     );
     let directories = jig_protocol_config::Directories::working();
-    crate::startup::named(&document, &directories).expect("the stock map admits the tier cap");
-    crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
+    fixtures::named(&document, &directories).expect("the stock map admits the tier cap");
+    fixtures::document_store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
         .expect("the stock reader admits the tier cap");
 }
 
@@ -323,49 +305,6 @@ fn the_standard_profile_passes_each_domains_validity() {
     short = own;
     short.root.journal.transcript_bytes -= 1;
     assert!(limits::engine(&jig, &short).is_none());
-}
-
-#[test]
-fn the_standard_profile_is_read_by_name() {
-    use crate::startup::{Problems, What, application};
-    use jig_protocol_config::{self as config, Path};
-    let jig = fixtures::engine().jig;
-    let directories = config::Directories::working();
-    let mut standard = limits::stock();
-    limits::derive(&mut standard, temper_service_core::derived::STOCK).unwrap();
-    for (member, expected) in [
-        (br#"{"profile":"standard","overrides":{}}"#.as_slice(), Some(standard)),
-        (br#"{"profile":"large","overrides":{}}"#, None),
-    ] {
-        let input = fixtures::with(fixtures::APPLICATION, b"limits", member);
-        let document =
-            config::document(&input, &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 }).unwrap();
-        let mut problems = Problems::empty();
-        let members = application::parse(&document, 0, &jig, &directories, &mut problems);
-        if let Some(expected) = expected {
-            assert!(problems.is_empty());
-            assert_eq!(members.unwrap().limits, expected);
-        } else {
-            assert!(members.is_none());
-            assert_eq!(problems.problems.len(), 1);
-            let problem = problems.problems.get(0).unwrap();
-            assert_eq!(problem.path, Path::root().member(b"application").member(b"limits").member(b"profile"));
-            assert_eq!(problem.what, What::Profile);
-        }
-    }
-    let input = fixtures::with(
-        fixtures::APPLICATION,
-        b"limits",
-        br#"{"profile":"standard","overrides":{"forge.change_policy.tasks":79}}"#,
-    );
-    let document =
-        config::document(&input, &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 }).unwrap();
-    let mut problems = Problems::empty();
-    let members = application::parse(&document, 0, &jig, &directories, &mut problems).unwrap();
-    assert!(problems.is_empty());
-    let mut expected = standard;
-    expected.forge.change_policy.tasks = 79;
-    assert_eq!(members.limits, expected);
 }
 
 #[test]
@@ -796,7 +735,7 @@ fn the_watch_rooms_follow_the_streams() {
 fn a_room_past_what_the_views_hold_is_refused() {
     // Views reserve two slots per watch; this stream count overflows their slot count.
     let document = engine_overrides(br#""clients.streams":126322568"#);
-    let problems = crate::startup::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
+    let problems = fixtures::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
     assert_eq!(crate::startup::lines(&problems).as_ref(),
         b"engine.limits.overrides.clients.streams: must agree with representable watch rooms (clients.streams times 31, with two slots per watch)\n");
     let mut settings = fixtures::engine();
@@ -869,7 +808,8 @@ fn each_broken_public_relation_refuses_the_start() {
     const BYTES: u64 = ANSWER * 2 + 1;
     let mut value: serde_json::Value = serde_json::from_slice(&fixtures::document()).expect("deployment JSON");
     value["application"]["clients"]["public"] = "https://one.example".into();
-    value["application"]["limits"]["overrides"]["forge.judge_projects"] = 3_u32.into();
+    let mut configured = fixtures::document();
+    configured.own.forge.judge_projects = 3;
     for (name, count) in [
         ("clients.public.reads", 4),
         ("clients_http.public_calls", 4),
@@ -886,7 +826,7 @@ fn each_broken_public_relation_refuses_the_start() {
         ("people.projects", 4),
         ("authority.projects", 3),
     ] {
-        value["engine"]["limits"]["overrides"][name] = count.into();
+        jig_protocol_config::overrides::apply(&mut configured.jig, name.as_bytes(), count).unwrap();
     }
     let cases: &[(&str, &[(&str, u64)], Option<usize>)] = &[
         ("", &[], Some(0)),
@@ -925,13 +865,14 @@ fn each_broken_public_relation_refuses_the_start() {
         ),
         ("clients.public.answer_bytes", &[("core.public.lines", 257)], None),
     ];
+    configured.document = serde_json::to_vec(&value).unwrap().into();
     for (name, changes, count) in cases {
-        let mut document = value.clone();
+        let mut document = configured.clone();
         for (key, value) in *changes {
-            document["engine"]["limits"]["overrides"][key] = (*value).into();
+            jig_protocol_config::overrides::apply(&mut document.jig, key.as_bytes(), *value).unwrap();
         }
         let found = match fixtures::start(
-            &serde_json::to_vec(&document).expect("deployment JSON"),
+            &document,
             &jig_protocol_config::Directories::working(),
             &fixtures::files(),
             &fixtures::startup_agent(),
@@ -1011,19 +952,7 @@ fn the_standard_archive_load_holds_a_whole_note_row() {
     assert!(next.is_none());
 }
 
-#[test]
-fn an_override_naming_a_watch_room_is_refused() {
-    for (extra, expected) in [
-        (br#""views.watchers":17"#.as_slice(), b"engine.limits.overrides.views.watchers: must agree with engine.limits.overrides.clients.streams, which sizes both watch rooms\n".as_slice()),
-        (br#""views.watchers_per_party":17"#.as_slice(), b"engine.limits.overrides.views.watchers_per_party: must agree with engine.limits.overrides.clients.streams, which sizes both watch rooms\n".as_slice()),
-    ] {
-        let document = engine_overrides(extra);
-        let problems = crate::startup::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
-        assert_eq!(crate::startup::lines(&problems).as_ref(), expected, "{extra:?}");
-    }
-}
-
-fn engine_overrides(extra: &[u8]) -> Box<[u8]> {
+fn engine_overrides(extra: &[u8]) -> fixtures::Start {
     let document = fixtures::document();
     let overrides = fixtures::value(&document, b"engine.limits.overrides");
     let prefix = overrides.strip_suffix(b"}").expect("fixture override object");

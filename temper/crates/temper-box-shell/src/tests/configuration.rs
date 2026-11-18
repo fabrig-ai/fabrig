@@ -4,7 +4,7 @@ mod support;
 use core::num::NonZeroU16;
 use serde_json::Value;
 use skein_lib::Writer;
-pub(crate) use support::{check_document, demo_document, directories, documents, flags, setup};
+pub(crate) use support::{check_document, demo_document, directories, documents, flags, setup, typed_documents};
 use temper_service::startup::{self, members};
 
 type Renderer = fn(&[u8], &mut Writer) -> Result<(), skein_lib::Overflow>;

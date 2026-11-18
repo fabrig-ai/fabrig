@@ -59,12 +59,10 @@ fn the_turn_landing_documents_check_as_their_shapes() {
     let value = json(&rendered("agent.json"));
     let agent = smith_agent_shell::config::from_value(value.clone()).expect("smith agent configuration");
     let turn = temper_playground::documents::turn_bounds::turn_body(&value);
-    for name in ["engine.json", "worker.json"] {
-        let document = json(&rendered(name));
-        let mut derived = document.clone();
-        temper_playground::documents::turn_bounds::apply(&mut derived, turn);
-        assert_eq!(document, derived, "{name} carries the agent's turn bounds");
-    }
+    let document = json(&rendered("worker.json"));
+    let mut derived = document.clone();
+    temper_playground::documents::turn_bounds::apply_workers(&mut derived, turn);
+    assert_eq!(document, derived, "worker.json carries the agent's turn bounds");
     assert!(agent.service.limits.channel.bodies.turn_body > 0);
 
     let bytes = rendered("forgejo.json");

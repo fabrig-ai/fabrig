@@ -23,6 +23,14 @@ const RELATIVE: &[&str] = &[
 ];
 
 pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box<[u8]>, Box<[u8]>) {
+    let (agent, value) = typed_documents(directory, program, bundle);
+    (agent, serde_json::to_vec(&value).expect("deployment JSON").into())
+}
+pub(crate) fn typed_documents(
+    directory: &Path,
+    program: &Path,
+    bundle: &Path,
+) -> (Box<[u8]>, temper_playground::documents::Configuration) {
     let agent = serde_json::json!({
         "profile":{"name":"standard","declared":{"memory":2_147_483_648_u64,"tool_payload":2048,"read_window":256,
             "conversations":1,"calls_per_response":1},
@@ -32,12 +40,10 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
             "connect":1000,"handshake":1000,
             "limits": {"window":1_048_576,"output":8192,"reasoning_item":64,"head":60000,"idle":30000}}],
         "environment":[]});
-    let mut value: serde_json::Value =
-        serde_json::from_slice(&jig_channel_kit::fixtures::engine_document()).expect("engine JSON");
+    let mut value = temper_playground::documents::Configuration::from_jig(
+        serde_json::from_slice(&jig_channel_kit::fixtures::engine_document()).expect("engine JSON"),
+    );
     value.as_object_mut().expect("whole object").remove("service");
-    for name in ["views.watchers", "views.watchers_per_party"] {
-        value["engine"]["limits"]["overrides"].as_object_mut().expect("engine overrides").remove(name);
-    }
     for member in ["charters", "templates", "policies", "rules"] {
         value["engine"].as_object_mut().expect("engine object").remove(member);
     }
@@ -59,19 +65,18 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
         ("tasks.charters", 16),
         ("core.templates", 7),
     ] {
-        value["engine"]["limits"]["overrides"][name] = count.into();
+        value.jig_over(name, count);
     }
     // A Create member owns stock's grants and executors, plus its words.
-    value["engine"]["limits"]["overrides"]["people.amendment_bytes"] = 2048.into();
+    value.jig_over("people.amendment_bytes", 2048);
     let worker: serde_json::Value =
         serde_json::from_slice(jig_channel_kit::fixtures::WORKER_DOCUMENT).expect("worker JSON");
     value["workers"] = worker["workers"].clone();
-    value["engine"]["limits"]["overrides"]["tasks.inbox_bytes"] = 4096.into();
-    value["engine"]["limits"]["overrides"]["tasks.run_inbox"] = 8.into();
+    value.jig_over("tasks.inbox_bytes", 4096);
+    value.jig_over("tasks.run_inbox", 8);
     value["workers"][0]["limits"]["overrides"]["tasks.run_inbox"] = 8.into();
     value["workers"][0]["limits"]["overrides"]["hub.inbox"] = 8.into();
     value["workers"][0]["limits"]["overrides"]["hub.held"] = 8.into();
-    value["engine"]["limits"].as_object_mut().expect("engine limits").remove("profile");
     value["workers"][0]["limits"].as_object_mut().expect("worker limits").remove("profile");
     value["workers"][0]["limits"]["overrides"]
         .as_object_mut()
@@ -80,6 +85,7 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
         .or_insert(512.into());
     for worker in value["workers"].as_array_mut().expect("workers") {
         let worker = worker.as_object_mut().expect("worker");
+        worker.remove("memory_bytes");
         worker.remove("graces");
         worker.remove("programs");
     }
@@ -92,24 +98,30 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
     value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);
     value["engine"]["llm"]["endpoints"][0]["dialect"] = 3.into();
     value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":UNREACHED});
-    value["engine"]["limits"]["overrides"]["core.load_slots"] = 8.into();
-    value["engine"]["limits"]["overrides"]["documents.rows"] = 2.into();
+    value.jig_over("core.load_slots", 8);
+    value.jig_over("documents.rows", 2);
     // The creation offer carries nine stock charters and four procedures.
-    value["engine"]["limits"]["overrides"]["documents.lines"] = 11.into();
-    value["engine"]["limits"]["overrides"]["documents.text_bytes"] = 128.into();
-    value["engine"]["limits"]["overrides"]["people.sign_ins"] = 2.into();
+    value.jig_over("documents.lines", 11);
+    value.jig_over("documents.text_bytes", 128);
+    value.jig_over("people.sign_ins", 2);
     value["application"] = serde_json::json!({
         "webhooks":null,
         "clients":{"listener":{"socket":"127.0.0.1:0"},"public":null,"bundle":bundle},
-        "demo":null,"sign_in":null,
-        "limits":{"overrides":{"forge.client.answer_bytes":65_536,"forge.client.op_bytes":512,"forge_component.body_bytes":16_384,"checkout.name_bytes":256,"checkout.repositories":2,
-            "checkout.message_bytes":4096,"forge.name_bytes":64,"forge.landing_members":1,"forge.resources_per_task":2,"git_component.stdout_bytes":131_072}}});
+        "demo":null,"sign_in":null});
+    value.temper_over("forge.client.answer_bytes", 65_536_u64);
+    value.temper_over("forge.client.op_bytes", 512_u64);
+    value.temper_over("forge_component.body_bytes", 16_384_u64);
+    value.temper_over("checkout.name_bytes", 256_u64);
+    value.temper_over("checkout.repositories", 2_u64);
+    value.temper_over("checkout.message_bytes", 4096_u64);
+    value.temper_over("forge.name_bytes", 64_u64);
+    value.temper_over("forge.landing_members", 1_u64);
+    value.temper_over("forge.resources_per_task", 2_u64);
+    value.temper_over("git_component.stdout_bytes", 131_072_u64);
+
     turn_bounds::apply(&mut value, turn_bounds::turn_body(&agent));
     absolute_paths(&mut value, directory);
-    (
-        serde_json::to_vec(&agent).expect("agent JSON").into_boxed_slice(),
-        serde_json::to_vec(&value).expect("deployment JSON").into_boxed_slice(),
-    )
+    (serde_json::to_vec(&agent).expect("agent JSON").into_boxed_slice(), value)
 }
 /// Every string that is one of the deployment's relative paths becomes that path under `directory`.
 fn absolute_paths(value: &mut serde_json::Value, directory: &Path) {
@@ -177,8 +189,9 @@ pub(crate) fn demo(directory: &Path, program: &Path, bundle: &Path) {
         .expect("initialize the demo");
     assert!(initialized.status.success(), "demo init: {}", String::from_utf8_lossy(&initialized.stderr));
     let path = directory.join("temper.json");
-    let mut value: serde_json::Value =
-        serde_json::from_slice(&fs::read(&path).expect("demo deployment")).expect("JSON");
+    let mut value = temper_playground::documents::Configuration::from_jig(
+        serde_json::from_slice(&fs::read(&path).expect("demo deployment")).expect("JSON"),
+    );
     let agent_path = directory.join("agent.json");
     let mut agent = serde_json::from_slice(&fs::read(&agent_path).expect("demo agent")).expect("JSON");
     own_demo_listeners(&mut value, &mut agent);
@@ -207,8 +220,9 @@ fn own_demo_listeners(value: &mut serde_json::Value, agent: &mut serde_json::Val
 /// Replace the turns of exactly one request offered by the demo.
 pub(crate) fn demo_asked(directory: &Path, cue: &str, turns: serde_json::Value) {
     let path = directory.join("temper.json");
-    let mut value: serde_json::Value =
-        serde_json::from_slice(&fs::read(&path).expect("demo deployment")).expect("JSON");
+    let mut value = temper_playground::documents::Configuration::from_jig(
+        serde_json::from_slice(&fs::read(&path).expect("demo deployment")).expect("JSON"),
+    );
     let scripts = value["application"]["demo"]["llm"]["asked"].as_array_mut().expect("asked scripts");
     let script = scripts.iter_mut().find(|script| script["cue"] == cue).expect("offered demo request");
     script["turns"] = turns;
@@ -220,9 +234,9 @@ pub(crate) fn demo_asked(directory: &Path, cue: &str, turns: serde_json::Value) 
 pub(crate) fn public_demo(directory: &Path, program: &Path, bundle: &Path) {
     demo(directory, program, bundle);
     let path = directory.join("temper.json");
-    let mut value: serde_json::Value =
-        serde_json::from_slice(&fs::read(&path).expect("public demo deployment")).expect("JSON");
-    let overrides = value["engine"]["limits"]["overrides"].as_object_mut().expect("demo overrides");
+    let mut value = temper_playground::documents::Configuration::from_jig(
+        serde_json::from_slice(&fs::read(&path).expect("public demo deployment")).expect("JSON"),
+    );
     for (name, figure) in [
         ("clients.public.rate", 20),
         ("clients.public.rate_burst", 20),
@@ -238,7 +252,7 @@ pub(crate) fn public_demo(directory: &Path, program: &Path, bundle: &Path) {
         ("core.public.lines", 50),
         ("core.public.depth", 16),
     ] {
-        overrides.insert(name.into(), figure.into());
+        value.jig_over(name, figure);
     }
     let mut delegates = 0_u32;
     for script in value["application"]["demo"]["llm"]["asked"].as_array_mut().expect("asked scripts") {
@@ -294,14 +308,20 @@ fn replace_sockets(value: &mut serde_json::Value, replacements: &[(String, Strin
 
 /// Derive the stock charters and their model bounds from the edited deployment.
 #[cfg(test)]
-pub(crate) fn stock_engine(value: &serde_json::Value) -> jig_protocol_config::Engine {
+pub(crate) fn stock_engine(value: &temper_playground::documents::Configuration) -> jig_protocol_config::Engine {
     let document = jig_protocol_config::document(
         &serde_json::to_vec(&value["engine"]).expect("engine JSON"),
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
     )
     .expect("engine document");
-    temper_engine_service::startup::engine(&document, 0, &jig_protocol_config::Directories::working())
-        .expect("stock engine")
+    temper_engine_service::startup::engine_over(
+        &document,
+        0,
+        &jig_protocol_config::Directories::working(),
+        &temper_service::stock::Given::Stock,
+        &mut value.jig.clone(),
+    )
+    .expect("stock engine")
 }
 
 #[cfg(test)]
@@ -379,9 +399,8 @@ mod tests {
     #[test]
     fn the_picker_fixture_admits_stock_models_for_every_charter() {
         let directory = std::path::Path::new("/fixture");
-        let (agent, value) = super::documents(directory, &directory.join("temper"), &directory.join("bundle"));
+        let (agent, value) = super::typed_documents(directory, &directory.join("temper"), &directory.join("bundle"));
         let agent: serde_json::Value = serde_json::from_slice(&agent).expect("agent JSON");
-        let value: serde_json::Value = serde_json::from_slice(&value).expect("deployment JSON");
         let engine = stock_engine(&value);
         let core = jig_protocol_config::core(&engine, [0; 16], 1);
         let defaults = &core.defaults;
@@ -400,8 +419,8 @@ mod tests {
     #[test]
     fn the_browser_fixture_admits_every_stock_charter() {
         let directory = std::path::Path::new("/fixture");
-        let (agent, bytes) = super::documents(directory, &directory.join("temper"), &directory.join("bundle"));
-        let value: serde_json::Value = serde_json::from_slice(&bytes).expect("deployment JSON");
+        let (agent, bytes) = super::typed_documents(directory, &directory.join("temper"), &directory.join("bundle"));
+        let value = bytes;
         let engine = stock_engine(&value);
         let agent: serde_json::Value = serde_json::from_slice(&agent).expect("agent JSON");
         let turns = agent["profile"]["policy"]["max_turns"].as_u64().expect("agent turn allowance");

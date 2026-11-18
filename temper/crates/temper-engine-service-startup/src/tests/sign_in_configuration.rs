@@ -84,7 +84,7 @@ fn owners_must_be_members_and_at_least_one_google_owner_is_required() {
 }
 #[test]
 fn sign_in_is_required_and_each_zero_limit_is_refused() {
-    let missing = input("null").replace("\"sign_in\":null,", "");
+    let missing = input("null").replace(",\"sign_in\":null", "");
     let (_, problems) = parse(&missing, &jig());
     assert!(core::str::from_utf8(&startup::lines(&problems)).unwrap().contains("application.sign_in: missing"));
     for name in ["members", "pending", "deadline_ms", "fetches", "body_bytes", "url_bytes", "secret_bytes"] {
@@ -196,7 +196,7 @@ fn forge_sign_in_requires_a_provider() {
 fn an_old_document_names_the_missing_members_and_their_fix() {
     let input = core::str::from_utf8(fixtures::APPLICATION)
         .unwrap()
-        .replace("\"sign_in\":null,", "")
+        .replace(",\"sign_in\":null", "")
         .replace(",\"public\":null", "");
     let (members, problems) = parse(&input, &jig());
     assert!(members.is_none());

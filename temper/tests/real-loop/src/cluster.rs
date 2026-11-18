@@ -122,7 +122,12 @@ impl Shape {
     pub(crate) fn ready(&self) -> bool {
         !matches!(self, Self::Worker { engine: None, .. } | Self::Worker { started: false, .. })
     }
-    pub(crate) fn write(&self, path: &Path, standing: bool) {
+    pub(crate) fn write(
+        &self,
+        path: &Path,
+        standing: bool,
+        configuration: &mut temper_playground::documents::Configuration,
+    ) {
         use serde_json::json;
         let config = path.join("config");
         let data = path.join("data");
@@ -136,9 +141,7 @@ impl Shape {
                 .create(path.join(name))
                 .expect("cluster directories");
         }
-        let mut document: serde_json::Value =
-            serde_json::from_slice(&std::fs::read(data.join("temper.json")).expect("base document"))
-                .expect("base JSON");
+        let document = configuration;
         // Link deadlines exceed PATIENCE, so load cannot lose a link or run in this story.
         // A restart closes the socket explicitly rather than waiting on a link timer.
         // The stop bound stays below fleet grace (protocol/cluster.md, 3).
@@ -155,12 +158,16 @@ impl Shape {
                 document["engine"]["hosts"]["workers"] =
                     workers.iter().map(|name| json!({"name":name,"digest":format!("secrets/{name}.digest")})).collect();
                 // Every configured position admitted: the small profile admits two workers.
-                document["engine"]["limits"]["overrides"]["fleet.workers"] = workers.len().into();
+                document.jig_over("fleet.workers", workers.len());
                 // One attempt per one-slot worker: the fleet counts attempts across the whole fleet.
-                document["engine"]["limits"]["overrides"]["fleet.attempts"] = workers.len().into();
-                document["engine"]["limits"]["overrides"]["hub.turns"] = 1.into();
-                document["engine"]["limits"]["overrides"]["link.ping_ms"] = ping_ms.into();
-                document["engine"]["limits"]["overrides"]["link.silence_ms"] = silence_ms.into();
+                document.jig_over("fleet.attempts", workers.len());
+                document.jig_over("hub.turns", 1);
+                document.jig_over("link.ping_ms", ping_ms);
+                document.jig_over("link.silence_ms", silence_ms);
+                let graces = temper_service::startup::fixed_worker().graces.expect("fixed graces");
+                let stop = jig_protocol_config::stop_bound(&graces, document.jig.link.ping, document.jig.link.silence)
+                    .expect("world stop bound");
+                document.jig_over("fleet.grace_ms", temper_service::startup::fleet_grace(stop).as_millis());
                 for name in workers {
                     let secret = format!("{name}-fixture-secret");
                     let mut digest = String::new();
@@ -189,8 +196,7 @@ impl Shape {
                     // Redial promptly after the grace too; waiting out backoff is not this story's rule.
                     worker["limits"]["overrides"]["link.ceiling_ms"] = 1_000.into();
                 }
-                document =
-                    json!({"workers":document["workers"],"application":{"limits":document["application"]["limits"]}});
+                document.document = json!({"workers":document["workers"],"application":document.worker_application()});
                 fixtures::private(
                     &data.join(format!("secrets/{name}.secret")),
                     format!("{name}-fixture-secret").as_bytes(),
@@ -292,14 +298,14 @@ mod tests {
         let scratch = crate::Scratch::new("cluster-policy");
         let data = scratch.path().join("data");
         let address = ([127, 0, 0, 1], 0).into();
-        fixtures::write(&data, address, address).expect("fixture documents");
+        let mut configuration = fixtures::write(&data, address, address).expect("fixture documents");
         let path = data.join("agent.json");
         let mut expected: serde_json::Value =
             serde_json::from_slice(&std::fs::read(&path).expect("agent document")).expect("agent JSON");
         expected["profile"]["policy"]["unacknowledged"] = 1.into();
 
         Shape::Worker { name: "w1", engine: Some(address), started: true, grace: skein_lib::Duration::from_millis(10) }
-            .write(scratch.path(), false);
+            .write(scratch.path(), false, &mut configuration);
 
         let prepared: serde_json::Value =
             serde_json::from_slice(&std::fs::read(&path).expect("prepared agent")).expect("prepared JSON");

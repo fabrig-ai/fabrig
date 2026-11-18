@@ -3706,21 +3706,21 @@ pub fn failed_ci_with_delayed_brief() -> (World, u64, u64) {
     (world, chat.task, producer.task)
 }
 
-/// Effective box limits, read through the shipped init template.
+/// The stock box limits, with the worlds' typed gather allowance.
 #[must_use]
 pub fn box_limits() -> engine::Limits {
     let (jig, temper) = box_profiles();
     temper_engine_service_vocabulary::limits::engine(&jig, &temper).expect("coherent box limits")
 }
 
-/// The store join allowance from the same init template projection as `box_limits`.
+/// The store join allowance from the same stock resolution as `box_limits`.
 #[must_use]
 pub fn box_joins() -> u32 {
     box_profiles().0.store.joins
 }
 
 fn box_profiles() -> (jig_protocol_config::Limits, temper_engine_service_vocabulary::limits::Limits) {
-    // A story reads the same template for its defaults, root limits and store joins.
+    // A story shares the stock resolution for its defaults, root limits and store joins.
     static PROFILES: std::sync::OnceLock<(
         jig_protocol_config::Limits,
         temper_engine_service_vocabulary::limits::Limits,
@@ -3729,35 +3729,14 @@ fn box_profiles() -> (jig_protocol_config::Limits, temper_engine_service_vocabul
 }
 
 fn read_box_profiles() -> (jig_protocol_config::Limits, temper_engine_service_vocabulary::limits::Limits) {
-    use jig_protocol_config as config;
-    let document = config::document(
-        include_bytes!("../../../../crates/temper-init/template/temper.json"),
-        &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
+    let stock = temper_engine_service_vocabulary::limits::stock();
+    let (jig, mut own) = temper_engine_service_vocabulary::limits::base(
+        stock.live_goals,
+        stock.tool_payload,
+        temper_service_core::derived::STOCK,
     )
-    .expect("init template JSON");
-    let mut root = config::read::Object::new(&document, 0).expect("template object");
-    let engine = root.member(&document, b"engine").expect("engine member");
-    let mut engine = config::read::Object::new(&document, engine).expect("engine object");
-    let at = engine.member(&document, b"limits").expect("engine limits");
-    let parsed = config::overrides::parse(&document, at, &config::Path::root().member(b"engine").member(b"limits"));
-    assert!(parsed.problems.is_empty(), "init limits: {:?}", parsed.problems);
-    let application = root.member(&document, b"application").expect("application member");
-    let mut application = config::read::Object::new(&document, application).expect("application object");
-    let at = application.member(&document, b"limits").expect("application limits");
-    let mut limits = config::read::Object::new(&document, at).expect("application limits object");
-    let at = limits.member(&document, b"overrides").expect("application overrides");
-    let mut overrides = config::read::Object::new(&document, at).expect("application overrides object");
-    let end = config::read::after(&document, at).expect("application overrides end");
-    let mut temper = temper_engine_service_vocabulary::limits::stock();
-    // The deadline stories use a thirty-second gather and advance their clock by it.
-    temper.root.brief.gather = Duration::from_secs(30);
-    for index in at..end {
-        let token = document.token(index).expect("application override token");
-        let Some(name) = document.text(token) else { continue };
-        let Some(value_at) = overrides.member(&document, name) else { continue };
-        let value = config::read::integer(&document, value_at, u64::MAX).expect("numeric application override");
-        temper_engine_service_vocabulary::limits::apply(&mut temper, name, value)
-            .unwrap_or_else(|what| panic!("init application override {}: {what:?}", String::from_utf8_lossy(name)));
-    }
-    (parsed.limits, temper)
+    .expect("derived stock box limits");
+    // The deadline stories advance their clock by this typed gather allowance.
+    own.root.brief.gather = Duration::from_secs(30);
+    (jig, own)
 }

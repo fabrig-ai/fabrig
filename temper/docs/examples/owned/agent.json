@@ -3,7 +3,7 @@
     "name": "standard",
     "declared": {
       "memory": 2147483648,
-      "tool_payload": 10662,
+      "tool_payload": 63740,
       "read_window": 256,
       "conversations": 26,
       "calls_per_response": 48,
@@ -31,7 +31,7 @@
       "headers": [],
       "limits": {
           "window": 1048576,
-          "output": 8192,
+          "output": 48000,
           "reasoning_item": 65536,
           "head": 60000,
           "idle": 300000

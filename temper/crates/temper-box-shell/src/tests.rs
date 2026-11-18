@@ -148,15 +148,39 @@ fn the_standalone_operations_check_retains_no_descriptors() {
     }
     let program = directory.join("temper");
     write("temper", b"program at start");
-    let (agent, document) = configuration::documents(&directory, program.to_str().expect("program path"));
+    let (agent, config) = configuration::typed_documents(&directory, program.to_str().expect("program path"));
+    let document = serde_json::to_vec(&config).expect("deployment document");
     write("agent.json", &agent);
     assert_eq!(configuration::flags(&directory).len(), 6);
-    let operations = super::operations_in(&[], b"/", &configuration::directories(&directory), &document)
-        .expect("standalone operations");
+    let operations = super::operations_in_with_limits(
+        "temper",
+        &[],
+        b"/",
+        &configuration::directories(&directory),
+        &document,
+        &temper_service::stock::Given::Stock,
+        &config.jig,
+        &config.limits,
+    )
+    .expect("standalone operations");
     assert_no_descriptors_in(&directory);
     let mut owned = Vec::new();
-    let service = super::prepare(&[], b"/", &configuration::directories(&directory), &document, &mut owned)
-        .expect("same standalone preparation");
+    let (service, _, _) = super::serve::prepare_with_limits(
+        "temper",
+        &[],
+        b"/",
+        &configuration::directories(&directory),
+        &document,
+        &mut owned,
+        false,
+        false,
+        None,
+        None,
+        &temper_service::stock::Given::Stock,
+        &[],
+        Some((&config.jig, &config.limits)),
+    )
+    .expect("same standalone preparation");
     assert_eq!(operations, service.operations());
     drop(service);
     super::close(owned);
@@ -164,8 +188,17 @@ fn the_standalone_operations_check_retains_no_descriptors() {
     assert_eq!(fs::read(directory.join("workspaces/agent/temper")).expect("pinned program"), b"program at start");
     assert_eq!(fs::read(directory.join("workspaces/agent/agent.json")).expect("pinned configuration"), agent);
     fs::remove_file(&program).expect("remove configured program");
-    let why =
-        super::operations_in(&[], b"/", &configuration::directories(&directory), &document).expect_err("pin refused");
+    let why = super::operations_in_with_limits(
+        "temper",
+        &[],
+        b"/",
+        &configuration::directories(&directory),
+        &document,
+        &temper_service::stock::Given::Stock,
+        &config.jig,
+        &config.limits,
+    )
+    .expect_err("pin refused");
     assert!(why.starts_with("temper serve: "), "{why}");
     assert!(why.contains(program.to_str().expect("program path")), "{why}");
     fs::remove_dir_all(directory).expect("remove operations scratch");
@@ -209,8 +242,6 @@ fn fixed_sign_in_ports_are_checked_against_the_demo_listener() {
     }]);
     // Keep git concurrency at one so the small profile's 48 sockets reach the
     // redirect-port check after this fixture adds an OAuth listener.
-    value["application"]["limits"]["overrides"]["git_component.operations"] = 1.into();
-    value["application"]["limits"]["overrides"]["checkout.workspaces"] = 1.into();
     value["workers"][0]["slots"] = 1.into();
     let mut demo = value.clone();
     demo["engine"]["llm"]["providers"][0]["sources"]["sign_in"]["redirect_port"] = 8370.into();
@@ -345,7 +376,7 @@ pub(crate) fn worker_document(directory: &std::path::Path) -> (Vec<u8>, serde_js
     let mut input: serde_json::Value = serde_json::from_slice(&input).expect("fixture document");
     input.as_object_mut().expect("document object").remove("engine");
     input["workers"][0]["engine"] = serde_json::json!({"socket":"127.0.0.1:7100"});
-    input["application"] = serde_json::json!({"limits":input["application"]["limits"]});
+    input["application"] = serde_json::json!({"limits":{"overrides":{}}});
     (agent, input)
 }
 #[test]

@@ -307,11 +307,15 @@ pub fn worker_document(
     directories: &jig_protocol_config::Directories,
     sources: Sources,
 ) -> Result<jig_protocol_config::Worker, jig_protocol_config::Problems> {
-    let sources = sources.with_payload(figures(document).1);
     let mut base = jig_protocol_config::stock();
     if let Err(found) = worker(&mut base, sources) {
         let mut problems = jig_protocol_config::Problems::empty();
         problems.push(found.path, found.what);
+        return Err(problems);
+    }
+    if crate::startup::member(document, at, b"memory_bytes").is_some() {
+        let mut problems = jig_protocol_config::Problems::empty();
+        problems.push(jig_protocol_config::Path::root().member(b"memory_bytes"), jig_protocol_config::What::Fixed);
         return Err(problems);
     }
     jig_protocol_config::worker_over(document, at, directories, &crate::startup::fixed_worker(), &base)

@@ -171,7 +171,8 @@ mod tests {
         temper_service::startup::shape(&bytes, &jig_protocol_config::Directories::working()).unwrap_or_else(
             |problems| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&problems))),
         );
-        let engine = crate::configuration::stock_engine(&value);
+        let engine =
+            crate::configuration::stock_engine(&temper_playground::documents::Configuration::from_jig(value.clone()));
         let document = jig_protocol_config::document(
             &bytes,
             &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },

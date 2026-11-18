@@ -326,7 +326,7 @@ fn endpoint(d: &Document, at: u32, socket: &[u8], agent: bool, edits: &mut Edits
 
 fn program_endpoint(socket: &[u8], agent: bool) -> Result<Box<[u8]>, Refusal> {
     let tail = if agent {
-        bytes::copy_of(br#""connect":10000,"handshake":10000,"limits":{"window":1048576,"output":8192,"reasoning_item":65536,"head":60000,"idle":30000}"#)
+        bytes::copy_of(br#""connect":10000,"handshake":10000,"limits":{"window":1048576,"output":48000,"reasoning_item":65536,"head":60000,"idle":30000}"#)
     } else {
         bytes::copy_of(br#""connect_ms":10000,"handshake_ms":10000"#)
     };
@@ -483,18 +483,11 @@ fn object_member(d: &Document, at: u32, name: &[u8], value: &[u8], edits: &mut E
     }
 }
 fn capacity(d: &Document, edits: &mut Edits) -> Result<(), Refusal> {
-    let engine = member(d, 0, b"engine", &Path::root())?;
-    let limits = member(d, engine, b"limits", &Path::root())?;
-    let overrides = member(d, limits, b"overrides", &Path::root())?;
-    object_member(d, overrides, b"accounts.credentials", b"4", edits)?;
-    let path = Path::root().member(b"engine").member(b"limits");
-    let parsed = jig_protocol_config::overrides::parse(d, limits, &path);
-    if !parsed.problems.is_empty() {
-        return Err(read::why(&path, b"invalid engine limits"));
-    }
-    let receiving = u64::from(parsed.limits.core.documents.lines);
-    let lines = Decimal::of(receiving.max(u64::from(PROVIDER_LINES)));
-    object_member(d, overrides, b"documents.lines", lines.as_bytes(), edits)?;
+    let stock = jig_protocol_config::stock();
+    assert!(
+        stock.core.documents.lines >= PROVIDER_LINES && stock.core.accounts.credentials >= 4,
+        "the stock carries the fake backend provider offer and credentials"
+    );
     let workers = member(d, 0, b"workers", &Path::root())?;
     for worker in &read::list(d, workers, 1, &Path::root().member(b"workers"))? {
         let limits = member(d, *worker, b"limits", &Path::root())?;

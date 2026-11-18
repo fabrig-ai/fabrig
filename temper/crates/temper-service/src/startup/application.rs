@@ -40,11 +40,24 @@ pub fn parse_over(
     problems: &mut Problems,
 ) -> Option<Members> {
     let engine = engine::parse_over(document, at, jig, directories, sources, problems)?;
+    Some(from_engine(engine))
+}
+pub fn parse_with_limits(
+    document: &Document,
+    at: u32,
+    jig: &config::Engine,
+    directories: &config::Directories,
+    limits: &limits::Limits,
+    problems: &mut Problems,
+) -> Option<Members> {
+    Some(from_engine(engine::parse_with_limits(document, at, jig, directories, limits, problems)?))
+}
+fn from_engine(engine: engine::Members) -> Members {
     let mut workers = List::with_capacity(u32::try_from(engine.workers.len()).expect("bounded workers"));
     for worker in engine.workers {
         workers.push(Worker { root: worker.root, git: None }).expect("bounded workers");
     }
-    Some(Members {
+    Members {
         clients: engine.clients,
         sign_in: engine.sign_in,
         push: engine.push,
@@ -54,7 +67,7 @@ pub fn parse_over(
         limits: engine.limits,
         overrides: engine.overrides,
         workers: workers.into_boxed(),
-    })
+    }
 }
 #[must_use]
 pub fn files(members: &Members) -> Box<[config::File]> {

@@ -9,7 +9,6 @@ pub const DIALECT: u32 = 3;
 // The stock catalogue holds twelve charters.
 // The closer procedure and close job make seventeen executor places in both limits.
 pub const ENGINE: &[u8] = br#"{
-"limits": {"overrides": {"tasks.inbox_bytes":4096,"core.run_bytes":32768,"tasks.charters":13,"core.templates":7,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":22,"tasks.executor_kinds":22,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
 "llm": {
 "providers":[{"name":"fake-provider","number":1,"endpoint":"fake","sources":{"keys":true}}],
 "endpoints": [{
@@ -33,8 +32,7 @@ pub const ENGINE: &[u8] = br#"{
 },
 "clients": {
 },
-"owners": [{"provider": 1, "subject": "owner-a"}],
-"memory_bytes": 1152921504606846976
+"owners": [{"provider": 1, "subject": "owner-a"}]
 }"#;
 
 // An inline project policy is refused with its enclosing moved member.
@@ -109,6 +107,7 @@ pub fn engine() -> settings::Engine {
 fn small_limits() -> limits::Limits {
     let mut own = temper_limits_fixtures::small();
     own.root.journal.run_bytes = 32_768;
+    own.root.transcript_memory = 1_152_921_504_606_846_976;
     own
 }
 
@@ -143,7 +142,17 @@ pub fn small_model() -> jig_domain_core::settings::CatalogueModel {
 }
 
 /// A parsed engine passed the stock, before any component is made.
+#[path = "../../../../testing/engine_limit_figures.rs"]
+mod engine_figures;
+use engine_figures::over as jig_limits_over;
+fn jig_limits() -> jig_protocol_config::Limits {
+    jig_limits_over(&jig_protocol_config_fixtures::small())
+}
+
 pub fn parse_engine(bytes: &[u8]) -> jig_protocol_config::Engine {
+    parse_engine_over(bytes, &jig_limits())
+}
+pub fn parse_engine_over(bytes: &[u8], base: &jig_protocol_config::Limits) -> jig_protocol_config::Engine {
     let document = jig_protocol_config::document(
         bytes,
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
@@ -155,7 +164,7 @@ pub fn parse_engine(bytes: &[u8]) -> jig_protocol_config::Engine {
         &jig_protocol_config::Directories::working(),
         jig_protocol_config::Defaults::Passed,
         &crate::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
-        &jig_protocol_config_fixtures::small(),
+        base,
     )
     .unwrap();
     let own = match jig.llm.endpoints.first() {
@@ -523,8 +532,8 @@ pub fn application_request(number: u64, value: Secret) -> jig_protocol_store::Se
 )]
 pub fn stock_configuration(payload: u32, output: u32) -> Result<smith_agent_shell::config::Configuration, String> {
     let bytes = include_str!("../../../temper-init/template/agent.json")
-        .replace("\"tool_payload\": 10662", &format!("\"tool_payload\": {payload}"))
-        .replace("\"output\": 8192", &format!("\"output\": {output}"))
+        .replace("\"tool_payload\": 63740", &format!("\"tool_payload\": {payload}"))
+        .replace("\"output\": 48000", &format!("\"output\": {output}"))
         .replace("$llm", "127.0.0.1:8370")
         .replace("\"$programs\"", r#"{"claude_code":{"path":"/fixture/claude","directory":"/fixture/programs"}}"#)
         .replace("api.anthropic.com:443", "127.0.0.1:8373")
@@ -1094,7 +1103,7 @@ pub fn unopened_store() -> crate::store::Store {
 }
 
 /// The prepare job's declared request and result must fit a turn fixture.
-pub fn turn_document() -> Box<[u8]> {
+pub fn turn_document() -> Start {
     let document = document();
     let mut overrides: serde_json::Value =
         serde_json::from_slice(&value(&document, b"engine.limits.overrides")).unwrap();
@@ -1118,4 +1127,31 @@ pub fn turn_jig() -> jig_protocol_config::Engine {
     jig.limits.core.tasks.result_bytes = 4_096;
     jig.limits.core.tasks.message_bytes = 4_096;
     jig
+}
+
+#[path = "../../../../testing/startup_fixture.rs"]
+mod typed;
+pub use typed::{Input, Start};
+
+pub fn named(
+    input: &(impl Input + ?Sized),
+    directories: &jig_protocol_config::Directories,
+) -> Result<crate::startup::Named, crate::startup::Problems> {
+    input.configured().named(directories)
+}
+pub fn named_with(
+    input: &(impl Input + ?Sized),
+    directories: &jig_protocol_config::Directories,
+    given: &crate::stock::Given,
+) -> Result<crate::startup::Named, crate::startup::Problems> {
+    input.configured().named_with(directories, given)
+}
+
+pub fn document_store_limits(
+    input: &(impl Input + ?Sized),
+    directories: &jig_protocol_config::Directories,
+    agent: Option<&temper_service_core::agent::Declaration>,
+) -> Result<crate::startup::StoreLimits, crate::startup::Problems> {
+    let input = input.configured();
+    crate::startup::store_limits_with_limits(&input.document, directories, agent, &input.jig, &input.own)
 }

@@ -35,12 +35,12 @@ impl Harness for Held {
     fn files() -> temper_service::settings::Files {
         fixtures::files()
     }
-    fn configure(value: &mut Value) {
+    fn configure(value: &mut temper_playground::documents::Configuration) {
         value["engine"]["llm"]["providers"][0]["sources"]["programs"] = json!(["claude_code"]);
         value["engine"]["llm"]["providers"][0]["manage_usage"] = "https://provider.example/usage".into();
         value["engine"]["llm"]["endpoints"][0]["program"] = "claude_code".into();
     }
-    fn given(document: &Value) -> temper_service::stock::Given {
+    fn given(document: &temper_playground::documents::Configuration) -> temper_service::stock::Given {
         let mut document = document.clone();
         document["world_settings"] = fixtures::world_document()["world_settings"].clone();
         documents::given_with(&document, false, false)

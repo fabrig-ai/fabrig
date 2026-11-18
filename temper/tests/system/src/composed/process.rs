@@ -728,9 +728,8 @@ fn receiving(tool_payload: Option<u32>) -> run::Limits {
     let mut template: serde_json::Value =
         serde_json::from_slice(include_bytes!("../../../../crates/temper-init/template/agent.json"))
             .expect("shipped agent settings");
-    if let Some(bytes) = tool_payload {
-        template["profile"]["declared"]["tool_payload"] = bytes.into();
-    }
+    // The composed world's 8192-token endpoint retains its bounded payload.
+    template["profile"]["declared"]["tool_payload"] = tool_payload.unwrap_or(10_662).into();
     let selected = smith_agent_shell::config::profile_from_value(template.get("profile").expect("profile").clone())
         .expect("shipped receiving profile");
     profile::derive(&selected, &declarations).expect("production receiving profile").domain.run

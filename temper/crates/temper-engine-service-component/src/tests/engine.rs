@@ -704,39 +704,34 @@ fn nothing_leaves_before_the_mark() {
 }
 
 #[test]
-fn an_absent_byte_budget_refuses_direct_engine_startup() {
+fn an_absent_jig_byte_budget_does_not_control_direct_engine_startup() {
     let mut settings = fixtures::engine();
     settings.jig.memory = None;
     fixtures::fill_files(&mut settings);
-    let problems = crate::Service::engine(settings, &fixtures::seeds(), None, fixtures::forge_runtime())
-        .err()
-        .expect("an absent byte budget refuses direct startup");
-    assert_eq!(problems.problems.len(), 1);
-    let problem = problems.problems.get(0).unwrap();
-    assert_eq!(problem.path, jig_protocol_config::Path::root().member(b"engine").member(b"memory_bytes"));
-    assert_eq!(problem.what, jig_protocol_config::What::Missing);
+    let memory = settings.limits.root.transcript_memory;
+    let service = crate::Service::engine(settings, &fixtures::seeds(), None, fixtures::forge_runtime()).unwrap();
+    assert_eq!(service.engine.as_ref().unwrap().env.limits.transcript_memory, memory);
 }
 
 #[test]
 fn a_zero_byte_budget_refuses_direct_engine_startup() {
     let mut settings = fixtures::engine();
-    settings.jig.memory = Some(0);
+    settings.limits.root.transcript_memory = 0;
     fixtures::fill_files(&mut settings);
     let problems = crate::Service::engine(settings, &fixtures::seeds(), None, fixtures::forge_runtime())
         .err()
         .expect("a zero byte budget refuses direct startup");
     assert_eq!(problems.problems.len(), 1);
     let problem = problems.problems.get(0).unwrap();
-    assert_eq!(problem.path, jig_protocol_config::Path::root().member(b"engine").member(b"memory_bytes"));
+    assert_eq!(problem.path, jig_protocol_config::Path::root().member(b"engine").member(b"limits"));
     assert_eq!(problem.what, jig_protocol_config::What::Bound);
 }
 
 #[test]
-fn a_started_engines_root_uses_the_documents_engine_memory_bytes() {
+fn a_started_engines_root_uses_the_typed_transcript_memory_limit() {
     let mut settings = fixtures::engine();
-    // A distinct engine value: worker memory has a separate parsed document.
-    let memory = settings.jig.memory.unwrap() + 1;
-    settings.jig.memory = Some(memory);
+    let memory = settings.limits.root.transcript_memory + 1;
+    settings.limits.root.transcript_memory = memory;
     fixtures::fill_files(&mut settings);
     let service = crate::Service::engine(settings, &fixtures::seeds(), None, fixtures::forge_runtime()).unwrap();
     assert_eq!(service.engine.as_ref().expect("started engine").env.limits.transcript_memory, memory);

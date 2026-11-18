@@ -28,11 +28,10 @@ const APPLICATION: &[u8] = br#"{
 "demo":{"llm":{"listen":{"socket":"127.0.0.1:8370"},"provider":1,"key":"demo/llm.key",
  "asked":[{"cue":"Hello","turns":[{"lines":[{"text":"Hello"}],"finish":"stop","tokens":1}]}],
  "cued":[{"cue":"Call","turns":[{"lines":[{"call":"inspect","arguments":{"name":"anything"}}],"finish":"tool_calls","tokens":1}]}],
- "otherwise":["Fallback"]}},
-"limits":{"profile":"standard","overrides":{}}
+ "otherwise":["Fallback"]}}
 }"#;
 
-fn expanded() -> Box<[u8]> {
+fn expanded() -> fixtures::Start {
     let input = fixtures::with(&fixtures::turn_document(), b"application", APPLICATION);
     let input = fixtures::with(
         &input,
@@ -129,6 +128,7 @@ fn every_row_is_a_member_its_decoder_takes() {
         ("application", What::Jig(config::What::Fixed), "application", "workers"),
         ("application", What::Jig(config::What::Fixed), "application", "machine"),
         ("application", What::Jig(config::What::Fixed), "application", "welcome"),
+        ("application", What::Jig(config::What::Fixed), "application", "limits"),
     ] {
         let changed = gone(&document, parent, name);
         let problems =
@@ -141,6 +141,15 @@ fn every_row_is_a_member_its_decoder_takes() {
         let words = row.gone.unwrap_or_else(|| temper_service_core::startup::moved::child(parent, name).unwrap().words);
         assert!(lines.contains(words), "{lines}");
         seen.insert((shape, name));
+    }
+    let worker = fixtures::with(
+        &fixtures::worker_alone_document(),
+        b"application.limits",
+        br#"{"profile":"standard","overrides":{}}"#,
+    );
+    startup::shape(&worker, &config::Directories::working()).expect("worker-only limit decoder example");
+    for name in ["profile", "overrides"] {
+        seen.insert(("application-limits", name));
     }
     for row in &MEMBERS {
         assert!(seen.contains(&(row.shape, row.name)), "missing decoder example: {}.{}", row.shape, row.name);

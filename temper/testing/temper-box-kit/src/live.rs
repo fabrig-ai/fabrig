@@ -17,10 +17,12 @@ use temper_box_shell::directories::jig_directories;
 #[must_use]
 pub fn configure(directory: &Path, forge: &Throwaway) -> String {
     let path = directory.join("temper.json");
-    let mut value: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
+    let mut value = temper_playground::documents::Configuration::from_jig(
+        serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON"),
+    );
     let owned: Value = serde_json::from_slice(super::owned::EXAMPLE).expect("owned example");
     value["engine"]["llm"] = owned["engine"]["llm"].clone();
-    value["engine"]["limits"]["overrides"]["documents.rows"] = 32.into();
+    value.jig_over("documents.rows", 32);
     let agent_path = directory.join("agent.json");
     let mut agent: Value = serde_json::from_slice(super::owned::SHIPPED[0].1).expect("owned agent JSON");
     if let Some(program) = agent["programs"].get_mut("claude_code") {
@@ -36,7 +38,7 @@ pub fn configure(directory: &Path, forge: &Throwaway) -> String {
     }
     agent["profile"]["policy"]["max_turns"] = 16.into();
     value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = 4096.into();
-    value["application"]["limits"]["overrides"]["checkout.message_bytes"] = 4098.into();
+    value.temper_over("checkout.message_bytes", 4098);
     let scripts = super::landing_scripts(super::ANSWER, forge);
     let skein_fake_llm_domain::api::Line::Call { arguments, .. } = &scripts[0].turns[0].lines[0] else {
         panic!("the process fixture delegates the coding procedure");

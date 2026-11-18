@@ -1,11 +1,11 @@
 pub(crate) use crate::test_configuration as configuration;
 
 pub(crate) fn worker_document(directory: &std::path::Path) -> (Vec<u8>, serde_json::Value) {
-    let (agent, input) = configuration::documents(directory, "/missing/temper");
-    let mut input: serde_json::Value = serde_json::from_slice(&input).expect("fixture document");
+    let (agent, figures) = configuration::typed_documents(directory, "/missing/temper");
+    let mut input = figures.document.clone();
     input.as_object_mut().expect("document object").remove("engine");
     input["workers"][0]["engine"] = serde_json::json!({"socket":"127.0.0.1:7100"});
-    input["application"] = serde_json::json!({"limits":input["application"]["limits"]});
+    input["application"] = figures.worker_application();
     (agent, input)
 }
 

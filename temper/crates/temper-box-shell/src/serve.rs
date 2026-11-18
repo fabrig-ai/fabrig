@@ -40,6 +40,7 @@ pub fn prepare_with_store(
         None,
         &service::stock::Given::Stock,
         &[],
+        None,
     )
     .map(|(service, store, _)| (service, store))
 }
@@ -48,7 +49,7 @@ pub fn prepare_with_store(
     clippy::too_many_lines,
     reason = "the standalone start supplies the binary beside the resolved process facts"
 )]
-fn prepare_with_limits(
+pub(crate) fn prepare_with_limits(
     _binary: &str,
     environment: &[EnvironmentEntry],
     working: &[u8],
@@ -61,6 +62,7 @@ fn prepare_with_limits(
     local_secret: Option<Secret>,
     given: &service::stock::Given,
     projects: &[jig_protocol_config::Project],
+    limits: Option<(&jig_protocol_config::Limits, &service::limits::Limits)>,
 ) -> Result<(Service, Box<[u8]>, u32), String> {
     if service::startup::shape_with(bytes, &jig_directories(directories), given)
         .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?
@@ -69,8 +71,8 @@ fn prepare_with_limits(
         return worker::alone(directories, bytes, owned, environment)
             .map(|service| (Service::Worker(service), Box::new([]) as Box<[u8]>, 0));
     }
-    let setup::Deployment { mut named, checked, limits, .. } =
-        setup::check_with(bytes, &jig_directories(directories), given)?;
+    let setup::Deployment { mut named, checked, limits: box_limits, .. } =
+        setup::check_over(bytes, &jig_directories(directories), given, limits)?;
     let engine = engine::settings(bytes, directories, given);
     let engine::Runtimes { roots, github } = engine::runtimes(named.test_github.as_ref())?;
     let user = skein_shell::effective_user();
@@ -109,18 +111,33 @@ fn prepare_with_limits(
     let accounts = engine::accounts(&engine)?;
     let seeds = engine::seeds(link_secret, local_secret)?;
     let git = temper_shell::lookup::find(environment, b"git");
-    let mut start = service::startup::checked_start_with(
-        bytes,
-        &jig_directories(directories),
-        &files,
-        agent.as_ref().map(|prepared| &prepared.agent),
-        &seeds,
-        List::with_capacity(0),
-        Some(&checked),
-        given,
-        git.as_ref().map(|path| path.as_os_str().as_bytes()),
-    )
-    .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
+    let start = match limits {
+        Some((jig, own)) => service::startup::checked_start_with_limits(
+            bytes,
+            &jig_directories(directories),
+            &files,
+            agent.as_ref().map(|prepared| &prepared.agent),
+            &seeds,
+            List::with_capacity(0),
+            Some(&checked),
+            given,
+            git.as_ref().map(|path| path.as_os_str().as_bytes()),
+            jig,
+            own,
+        ),
+        None => service::startup::checked_start_with(
+            bytes,
+            &jig_directories(directories),
+            &files,
+            agent.as_ref().map(|prepared| &prepared.agent),
+            &seeds,
+            List::with_capacity(0),
+            Some(&checked),
+            given,
+            git.as_ref().map(|path| path.as_os_str().as_bytes()),
+        ),
+    };
+    let mut start = start.map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     if !projects.is_empty() {
         let engine = start.engine_mut();
         engine.jig.owners = engine
@@ -143,7 +160,7 @@ fn prepare_with_limits(
         &seeds,
         Some(accounts),
         runtime,
-        if under_box { Some(limits.line_bytes) } else { None },
+        if under_box { Some(box_limits.line_bytes) } else { None },
         program_login,
         engine::program_environment(directories, environment, working, &printed::running_word(environment)),
     )
@@ -175,7 +192,7 @@ fn prepare_with_limits(
         }
     }
     engine::adopt(service.engine_component(), &named.deployment, bundle, user, owned)?;
-    Ok((Service::Joined(service), named.deployment, limits.line_bytes))
+    Ok((Service::Joined(service), named.deployment, box_limits.line_bytes))
 }
 /// The kernel operations a standalone start keeps in flight at most (its ring's size),
 /// derived without retaining its descriptors.
@@ -221,6 +238,7 @@ fn operations_in_mode(
         None,
         &service::stock::Given::Stock,
         &[],
+        None,
     )
     .map(|(service, _, _)| service.operations());
     close(owned);
@@ -259,6 +277,30 @@ pub fn prepare_in_with_projects(
     given: &service::stock::Given,
     projects: &[jig_protocol_config::Project],
 ) -> Result<Service, String> {
+    prepare_in_over(binary, environment, working, directories, given, projects, None)
+}
+#[expect(clippy::too_many_arguments, reason = "the world gives both typed limit sets beside its process facts")]
+pub fn prepare_in_with_limits(
+    binary: &str,
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    directories: &Directories,
+    given: &service::stock::Given,
+    projects: &[jig_protocol_config::Project],
+    jig: &jig_protocol_config::Limits,
+    own: &service::limits::Limits,
+) -> Result<Service, String> {
+    prepare_in_over(binary, environment, working, directories, given, projects, Some((jig, own)))
+}
+fn prepare_in_over(
+    binary: &str,
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    directories: &Directories,
+    given: &service::stock::Given,
+    projects: &[jig_protocol_config::Project],
+    limits: Option<(&jig_protocol_config::Limits, &service::limits::Limits)>,
+) -> Result<Service, String> {
     let bytes = directories.read().map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
     let mut owned = Vec::new();
     let result = prepare_with_limits(
@@ -274,6 +316,7 @@ pub fn prepare_in_with_projects(
         None,
         given,
         projects,
+        limits,
     )
     .map(|(service, _, _)| service);
     if result.is_err() {
@@ -290,6 +333,30 @@ pub fn operations_in_with(
     config: &[u8],
     given: &service::stock::Given,
 ) -> Result<u32, String> {
+    operations_in_over(binary, environment, working, directories, config, given, None)
+}
+#[expect(clippy::too_many_arguments, reason = "the world gives both typed limit sets beside its process facts")]
+pub fn operations_in_with_limits(
+    binary: &str,
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    directories: &Directories,
+    config: &[u8],
+    given: &service::stock::Given,
+    jig: &jig_protocol_config::Limits,
+    own: &service::limits::Limits,
+) -> Result<u32, String> {
+    operations_in_over(binary, environment, working, directories, config, given, Some((jig, own)))
+}
+fn operations_in_over(
+    binary: &str,
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    directories: &Directories,
+    config: &[u8],
+    given: &service::stock::Given,
+    limits: Option<(&jig_protocol_config::Limits, &service::limits::Limits)>,
+) -> Result<u32, String> {
     directories.open(skein_shell::effective_user())?;
     let mut owned = Vec::new();
     let result = prepare_with_limits(
@@ -305,6 +372,7 @@ pub fn operations_in_with(
         None,
         given,
         &[],
+        limits,
     )
     .map(|(service, _, _)| service.operations());
     close(owned);
@@ -338,6 +406,7 @@ pub fn run(
                 input.local,
                 &service::stock::Given::Stock,
                 &[],
+                None,
             )
             .map(|(service, store, line_bytes)| temper_service_shell::Prepared {
                 service,

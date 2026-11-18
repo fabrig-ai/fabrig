@@ -179,14 +179,14 @@ fn configure(root: &Path, forge: &Forge<'_>) {
     let Forge::Throwaway { api, git, .. } = forge else { panic!("elsewhere fixture") };
     let path = config.join("temper.json");
     let bytes = fs::read_to_string(&path).expect("configuration").replace("\"acme\"", "\"elsewhere\"");
-    let mut value: Value = serde_json::from_str(&bytes).expect("JSON");
+    let mut value = temper_playground::documents::Configuration::from_jig(serde_json::from_str(&bytes).expect("JSON"));
     assert!(
         value.pointer("/application/webhooks/listener/socket").and_then(Value::as_str).is_some(),
         "listener configured for the hooks' URL"
     );
     // The first repository and both outside adoptions are retained across restart.
-    value["application"]["limits"]["overrides"]["forge.repositories"] = 3.into();
-    value["application"]["limits"]["overrides"]["forge.client.repositories"] = 3.into();
+    value.temper_over("forge.repositories", 3);
+    value.temper_over("forge.client.repositories", 3);
     let digest = value["engine"]["hosts"]["workers"][0]["digest"].as_str().expect("worker digest");
     write_private(&root.join("data/worker.digest"), &fs::read(config.join(digest)).expect("fixture digest"));
     value["engine"]["hosts"]["workers"][0]["digest"] = "worker.digest".into();

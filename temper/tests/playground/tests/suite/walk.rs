@@ -18,7 +18,7 @@ fn kept_log() -> std::path::PathBuf {
     skein_scratch::paths::package().join("tests/fixtures/story-a.log")
 }
 
-fn doubled_byte_bounds(deployment: &[u8]) -> Box<[u8]> {
+fn doubled_byte_bounds(mut deployment: documents::Configuration) -> documents::Configuration {
     fn double(overrides: &mut serde_json::Value) {
         for (name, value) in overrides.as_object_mut().expect("limit overrides") {
             // Startup requires checkout.name_bytes to agree with the agent's
@@ -40,10 +40,21 @@ fn doubled_byte_bounds(deployment: &[u8]) -> Box<[u8]> {
         }
     }
 
-    let mut document: serde_json::Value = serde_json::from_slice(deployment).expect("deployment document");
-    for path in ["/engine/limits/overrides", "/application/limits/overrides"] {
-        double(document.pointer_mut(path).expect("deployment limit overrides"));
+    let mut jig = deployment.jig_limits_document();
+    double(&mut jig["overrides"]);
+    for (name, value) in jig["overrides"].as_object().expect("typed jig figures") {
+        deployment.jig_over(name, value.as_u64().expect("figure"));
     }
+    let mut own = serde_json::Map::new();
+    for row in temper_service::limits::NAMES {
+        own.insert(row.name.into(), (row.value)(&deployment.limits).into());
+    }
+    let mut own = serde_json::Value::Object(own);
+    double(&mut own);
+    for (name, value) in own.as_object().expect("typed temper figures") {
+        deployment.temper_over(name, value.as_u64().expect("figure"));
+    }
+    let document = &mut deployment.document;
     for worker in document["workers"].as_array_mut().expect("deployment workers") {
         let overrides = worker.pointer_mut("/limits/overrides").expect("worker limit overrides");
         let output =
@@ -51,9 +62,10 @@ fn doubled_byte_bounds(deployment: &[u8]) -> Box<[u8]> {
         overrides["io.output"] = output.checked_mul(2).expect("doubled output fits").into();
         double(overrides);
     }
-    document["engine"]["limits"]["overrides"]["io.output"] =
-        document["workers"][0]["limits"]["overrides"]["io.output"].clone();
-    serde_json::to_vec(&document).expect("doubled deployment document").into_boxed_slice()
+    deployment.jig.io.output =
+        u32::try_from(document["workers"][0]["limits"]["overrides"]["io.output"].as_u64().expect("worker output"))
+            .expect("output bound");
+    deployment
 }
 
 #[test]
@@ -91,7 +103,7 @@ fn story_a_walks_from_the_welcome_to_the_csv_change_landed() {
 fn story_a_kept_log_replays_natively() {
     let bytes = std::fs::read(kept_log()).expect("story A's kept log");
     let read = log::read(&bytes).expect("the kept session log");
-    for (row, deployment) in [("kept", A.deployment.into()), ("doubled", doubled_byte_bounds(A.deployment))] {
+    for (row, deployment) in [("kept", A.configuration()), ("doubled", doubled_byte_bounds(A.configuration()))] {
         let mut start = A.start(read.seed, read.start);
         start.deployment = deployment;
         let world = temper_playground::world(start);

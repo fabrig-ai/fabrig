@@ -11,22 +11,26 @@ const DOCUMENT: jig_protocol_config::DocumentLimits =
 
 fn process_engine(case: &str) -> jig_protocol_config::Engine {
     let scratch = support::Scratch::startup(case);
-    support::configuration(scratch.path(), &support::Forge::Unreached);
-    let bytes = std::fs::read(scratch.path().join("temper.json")).expect("process configuration");
-    let mut value: serde_json::Value = serde_json::from_slice(&bytes).expect("deployment JSON");
+    let mut value = support::configuration(scratch.path(), &support::Forge::Unreached);
     // Forge::Unreached omits Forgejo's overrides; include its whole-authority bounds here.
-    value["engine"]["limits"]["overrides"]["authority.grants"] = 15.into();
-    value["engine"]["limits"]["overrides"]["tasks.authority_grants"] = 15.into();
+    value.jig_over("authority.grants", 15);
+    value.jig_over("tasks.authority_grants", 15);
     // The standing charters, closer procedure and close job are delegation targets.
-    value["engine"]["limits"]["overrides"]["authority.executors"] = 22.into();
+    value.jig_over("authority.executors", 22);
     // The standing charters, closer procedure and close job are delegation targets.
-    value["engine"]["limits"]["overrides"]["tasks.executor_kinds"] = 22.into();
-    value["engine"]["limits"]["overrides"]["notes.scopes"] = 18.into();
+    value.jig_over("tasks.executor_kinds", 22);
+    value.jig_over("notes.scopes", 18);
     let bytes = serde_json::to_vec(&value["engine"]).expect("engine JSON");
     let document = jig_protocol_config::document(&bytes, &DOCUMENT).expect("engine document");
     // Parsing a fixture without a deployment; only its limits are used.
-    let engine = temper_service::startup::engine(&document, 0, &jig_protocol_config::Directories::working())
-        .expect("engine configuration");
+    let engine = temper_service::startup::engine_over(
+        &document,
+        0,
+        &jig_protocol_config::Directories::working(),
+        &temper_service::stock::Given::Stock,
+        &mut value.jig,
+    )
+    .expect("engine configuration");
     scratch.remove();
     engine
 }
@@ -43,7 +47,7 @@ fn the_browsers_client_bounds_are_the_terminals() {
 #[test]
 fn the_native_forge_fixture_fits_its_store() {
     let scratch = support::Scratch::startup("native-forge-store");
-    support::configuration(
+    let value = support::configuration(
         scratch.path(),
         &support::Forge::Throwaway {
             forgejo: std::path::Path::new("/fixture/forgejo"),
@@ -53,10 +57,12 @@ fn the_native_forge_fixture_fits_its_store() {
     );
     let document = std::fs::read(scratch.path().join("temper.json")).expect("deployment");
     let agent = temper_worker_shell::agent::read(&scratch.path().join("agent.json")).expect("fixture agent");
-    let store = temper_service::startup::store_limits(
+    let store = temper_service::startup::store_limits_with_limits(
         &document,
         &jig_protocol_config::Directories::working(),
         Some(&agent.declaration()),
+        &value.jig,
+        &value.limits,
     )
     .unwrap_or_else(|why| panic!("fixture store: {}", String::from_utf8_lossy(&temper_service::startup::lines(&why))));
     eprintln!("native forge map value: {} bytes", store.store.store.value);
@@ -105,8 +111,17 @@ fn the_owned_example_fits_the_native_client() {
     let bytes = serde_json::to_vec(&value["engine"]).expect("engine JSON");
     let document = jig_protocol_config::document(&bytes, &DOCUMENT).expect("engine document");
     // Parsing a fixture without a deployment; only its limits are used.
-    let engine = temper_service::startup::engine(&document, 0, &jig_protocol_config::Directories::working())
-        .expect("engine configuration");
+    let mut figures = temper_playground::documents::Configuration::stock(value.clone());
+    figures.jig_over("documents.text_bytes", 512);
+    figures.jig_over("documents.rows", 2);
+    let engine = temper_service::startup::engine_over(
+        &document,
+        0,
+        &jig_protocol_config::Directories::working(),
+        &temper_service::stock::Given::Stock,
+        &mut figures.jig,
+    )
+    .expect("engine configuration");
     let native = temper_client_shell_terminal::limits::native().client.client.domain;
     assert!(engine.limits.core.documents.rows <= native.rows);
     assert!(engine.limits.core.documents.lines <= native.rows);
@@ -121,21 +136,11 @@ fn the_owned_example_fits_the_native_client() {
     assert!(engine.limits.core.documents.text_bytes <= native.text);
     assert!(engine.limits.core.authority.grants <= native.authority);
     assert!(engine.limits.core.tasks.authority_grants <= native.authority);
-    assert_owned_limits(&value["engine"]["limits"]);
+    assert_owned_limits(&value["engine"]);
 }
-fn assert_owned_limits(limits: &serde_json::Value) {
-    let mut expected = serde_json::json!({"engine":{"limits":{"profile":"standard","overrides":{
-        "documents.rows":2,"documents.text_bytes":512,
-        "authority.executors":22,"tasks.executor_kinds":22,"tasks.charters":16,
-        "clients.streams":8,"clients.exchanges":12,
-        "clients_http.streams":8,"clients_http.calls":12,
-        "fleet.configured_workers":8,"fleet.workers":2,
-        "tasks.inbox_bytes":874_120,"tasks.message_bytes":10_660,"tasks.result_bytes":10_660
-    }}}});
-    let agent: serde_json::Value =
-        serde_json::from_slice(include_bytes!("../../../../docs/examples/owned/agent.json")).expect("owned agent");
-    support::configuration::turn_bounds::apply(&mut expected, support::configuration::turn_bounds::turn_body(&agent));
-    assert_eq!(limits, &expected["engine"]["limits"]);
+fn assert_owned_limits(engine: &serde_json::Value) {
+    assert!(engine.get("limits").is_none());
+    assert!(engine.get("memory_bytes").is_none());
 }
 
 #[test]
@@ -178,15 +183,14 @@ fn the_clusters_description_is_the_labs_canonical_form() {
     }
     let scratch = support::Scratch::startup("cluster-canonical-description");
     let cluster = cluster_documents(scratch.path());
-    for process in value["processes"].as_array().expect("cluster processes") {
-        let name = process["name"].as_str().expect("process name");
-        let memory = match name {
-            "forge" | "llm" => serde_json::Value::Null,
-            "engine" => cluster_document(&cluster, name)["engine"]["memory_bytes"].clone(),
-            "w1" | "w2" => cluster_document(&cluster, name)["workers"][0]["memory_bytes"].clone(),
-            _ => panic!("unknown cluster process {name}"),
-        };
-        assert_eq!(process["memory_bytes"], memory, "{name}'s bound must match its document");
+    for name in ["engine", "w1", "w2"] {
+        let document = cluster_document(&cluster, name);
+        assert!(document["engine"].get("memory_bytes").is_none());
+        if let Some(workers) = document["workers"].as_array() {
+            for worker in workers {
+                assert!(worker.get("memory_bytes").is_none());
+            }
+        }
     }
     scratch.remove();
 }
@@ -217,12 +221,9 @@ fn the_clusters_documents_check_as_their_shapes() {
     let scratch = support::Scratch::startup("cluster-documents");
     let cluster = cluster_documents(scratch.path());
     let engine = cluster_document(&cluster, "engine");
-    let engine_limits = &engine["engine"]["limits"]["overrides"];
-    assert_eq!(
-        engine_limits["fleet.grace_ms"],
-        support::cluster::FLEET_GRACE_MS,
-        "bin/temper-box/tests/fixtures/cluster/engine.json: engine.limits.overrides.fleet.grace_ms"
-    );
+    assert!(engine["engine"].get("limits").is_none());
+    let engine_limits = cluster_engine(&cluster).limits;
+    assert_eq!(engine_limits.core.fleet.grace.as_millis(), support::cluster::FLEET_GRACE_MS);
     for (process, expected) in [("engine", Shape::EngineAlone), ("w1", Shape::WorkerAlone), ("w2", Shape::WorkerAlone)]
     {
         let root = cluster.dir(process);
@@ -257,13 +258,6 @@ fn the_clusters_documents_check_as_their_shapes() {
                     stop < skein_lib::Duration::from_millis(support::cluster::FLEET_GRACE_MS),
                     "bin/temper-box/tests/fixtures/cluster/{process}.json: workers[0].graces stop_bound must be below engine.json: engine.limits.overrides.fleet.grace_ms"
                 );
-                let value: serde_json::Value = serde_json::from_slice(&bytes).expect("worker JSON");
-                for key in ["link.ping_ms", "link.silence_ms"] {
-                    assert_eq!(
-                        value["workers"][0]["limits"]["overrides"][key], engine_limits[key],
-                        "bin/temper-box/tests/fixtures/cluster/{process}.json: workers[0].limits.overrides.{key} must equal engine.json: engine.limits.overrides.{key}"
-                    );
-                }
             }
             Shape::Standalone => panic!("cluster members are separate"),
         }
@@ -288,7 +282,11 @@ fn the_clusters_documents_can_list_every_offered_charter() {
 fn the_clusters_workers_admit_the_initial_stock() {
     let scratch = support::Scratch::startup("cluster-stock-admission");
     let cluster = cluster_documents(scratch.path());
-    let engine = cluster_engine(&cluster);
+    let mut engine = cluster_engine(&cluster);
+    engine.limits.core.tasks.message_bytes = 4094;
+    engine.limits.core.tasks.result_bytes = 128;
+    engine.limits.core.tasks.inbox_bytes = 4096;
+    engine.limits.core.tasks.run_inbox = 8;
     let core = jig_protocol_config::core(&engine, [0; 16], 1);
     let needs = jig_domain_core::settings::fleet_needs::configured(&core, &engine.limits.core);
     for process in ["w1", "w2"] {
@@ -308,23 +306,28 @@ fn the_clusters_workers_admit_the_initial_stock() {
 #[test]
 fn the_turn_story_profile_declares_prepare_and_fits_its_store() {
     let scratch = support::Scratch::startup("turn-story-store");
-    support::configuration(scratch.path(), &support::Forge::Unreached);
-    let path = scratch.path().join("temper.json");
-    let mut value: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(&path).expect("configuration")).expect("JSON");
+    let mut value = support::configuration(scratch.path(), &support::Forge::Unreached);
     support::batch_landing::message_room(scratch.path(), &mut value);
     let document = serde_json::to_vec(&value).expect("deployment JSON");
     let agent = temper_worker_shell::agent::read(&scratch.path().join("agent.json")).expect("agent");
-    let _store = temper_service::startup::store_limits(
+    let _store = temper_service::startup::store_limits_with_limits(
         &document,
         &jig_protocol_config::Directories::working(),
         Some(&agent.declaration()),
+        &value.jig,
+        &value.limits,
     )
     .unwrap_or_else(|why| panic!("turn store: {}", String::from_utf8_lossy(&temper_service::startup::lines(&why))));
     let document = jig_protocol_config::document(&document, &DOCUMENT).expect("document");
     let at = jig_protocol_config::read::Object::new(&document, 0).unwrap().member(&document, b"engine").unwrap();
-    let engine =
-        temper_service::startup::engine(&document, at, &jig_protocol_config::Directories::working()).expect("engine");
+    let engine = temper_service::startup::engine_over(
+        &document,
+        at,
+        &jig_protocol_config::Directories::working(),
+        &temper_service::stock::Given::Stock,
+        &mut value.jig,
+    )
+    .expect("engine");
     assert_eq!(temper_service::limits::prepare_jobs(&engine.limits).len(), 1);
     scratch.remove();
 }

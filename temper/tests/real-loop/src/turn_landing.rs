@@ -75,19 +75,19 @@ fn fixture() -> forge::Fixture {
                     {"forge":1,"repository":2,"gates":[{"name":"gate","workflow":"gate.yml","ignored":[],"blocking":true}]}
                 ]}}
             ]});
-            let limits = &mut value["application"]["limits"]["overrides"];
+
             for (name, millis) in
                 [("poll_ms", 100), ("poll_max_ms", 500), ("slow_ms", 1000), ("hinted_ms", 100), ("fallback_ms", 1000)]
             {
-                limits[format!("forge.client.{name}")] = millis.into();
+                value.temper_over(format!("forge.client.{name}"), millis);
             }
-            limits["forge.landing_members"] = 2.into();
-            limits["forge.resources_per_task"] = 3.into();
+            value.temper_over("forge.landing_members", 2);
+            value.temper_over("forge.resources_per_task", 3);
             // Sixteen holds cover eight two-member batches.
-            limits["forge.landings"] = 8.into();
-            limits["forge.holds"] = 16.into();
+            value.temper_over("forge.landings", 8);
+            value.temper_over("forge.holds", 16);
 
-            limits["root.loads.loads"] = 3.into();
+            value.temper_over("root.loads.loads", 3);
             // Both changes, their owners, latch, reviews, landing and prepare job.
             for (name, size) in [
                 ("tasks.tasks", 24),
@@ -109,14 +109,12 @@ fn fixture() -> forge::Fixture {
                 ("core.load_bytes", 131_072),
                 ("people.inbox_tasks", 48),
             ] {
-                value["engine"]["limits"]["overrides"][name] = size.into();
+                value.jig_over(name, size);
             }
             value["workers"][0]["slots"] = 2.into();
             value["workers"][0]["limits"]["overrides"]["hub.slots"] = 2.into();
-            for limits in ["engine", "workers"] {
-                let target = if limits == "engine" { &mut value["engine"] } else { &mut value["workers"][0] };
-                target["limits"]["overrides"]["core.call_answer_bytes"] = 8192.into();
-            }
+            value.jig_over("core.call_answer_bytes", 8192);
+            value["workers"][0]["limits"]["overrides"]["core.call_answer_bytes"] = 8192.into();
             // The shared prepare carriers, rather than the small chat profile.
             let prepare = temper_service::limits::prepare_bound();
             for (name, bytes) in [
@@ -124,14 +122,14 @@ fn fixture() -> forge::Fixture {
                 ("tasks.result_bytes", prepare.result),
                 ("tasks.message_bytes", prepare.result),
             ] {
-                value["engine"]["limits"]["overrides"][name] = bytes.into();
+                value.jig_over(name, bytes);
             }
-            value["engine"]["limits"]["overrides"]["hub.outcome_bytes"] = (prepare.result + 2).into();
+            value.jig_over("hub.outcome_bytes", prepare.result + 2);
             value["workers"][0]["limits"]["overrides"]["tasks.result_bytes"] = prepare.result.into();
             value["workers"][0]["limits"]["overrides"]["hub.outcome_bytes"] = (prepare.result + 2).into();
             value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = prepare.result.into();
-            value["application"]["limits"]["overrides"]["checkout.message_bytes"] = (prepare.result + 2).into();
-            value["application"]["limits"]["overrides"]["forge.client.op_bytes"] = prepare.result.into();
+            value.temper_over("checkout.message_bytes", prepare.result + 2);
+            value.temper_over("forge.client.op_bytes", prepare.result);
             agent["profile"]["declared"]["tool_payload"] = (prepare.result + 2).into();
             fixtures::turn_bounds::apply(value, fixtures::turn_bounds::turn_body(agent));
             landing::admit(value);

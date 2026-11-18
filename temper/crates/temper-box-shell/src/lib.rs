@@ -41,6 +41,7 @@ mod program_login;
 mod serve;
 mod served;
 pub mod setup;
+pub use serve::{operations_in_with_limits, prepare_in_with_limits};
 pub use served::Service;
 mod upgrade;
 use json::CONFIG_BYTES;
@@ -401,16 +402,6 @@ fn path(bytes: &[u8]) -> &Path {
 pub use temper_engine_shell::serve::{bundle, github_logs, printed};
 pub type Host = temper_service_shell::Host<Service>;
 pub(crate) use temper_service_shell::{close, file_path, held_refusal, listeners_refusal};
-#[cfg(test)]
-fn prepare(
-    environment: &[EnvironmentEntry],
-    working: &[u8],
-    directories: &Directories,
-    bytes: &[u8],
-    owned: &mut Vec<Fd>,
-) -> Result<Service, String> {
-    serve::prepare("temper", environment, working, directories, bytes, owned)
-}
 #[cfg(test)]
 fn prepare_with_store(
     environment: &[EnvironmentEntry],

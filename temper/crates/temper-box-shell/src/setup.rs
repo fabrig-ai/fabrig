@@ -16,8 +16,19 @@ pub fn check_with(
     directories: &config::Directories,
     given: &temper_service::stock::Given,
 ) -> Result<Deployment, String> {
-    let named = temper_service::startup::named_with(bytes, directories, given)
-        .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())?;
+    check_over(bytes, directories, given, None)
+}
+pub fn check_over(
+    bytes: &[u8],
+    directories: &config::Directories,
+    given: &temper_service::stock::Given,
+    limits: Option<(&config::Limits, &temper_service::limits::Limits)>,
+) -> Result<Deployment, String> {
+    let named = match limits {
+        Some((jig, own)) => temper_service::startup::named_with_limits(bytes, directories, given, jig, own),
+        None => temper_service::startup::named_with(bytes, directories, given),
+    }
+    .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())?;
     let document = config::document(
         bytes,
         &config::DocumentLimits { bytes: super::CONFIG_BYTES, tokens: super::CONFIG_BYTES, depth: 32 },
@@ -34,8 +45,17 @@ pub fn check_with(
         listeners.push(socket);
     }
     let application = member(&document, 0, b"application");
-    let setup_overrides: Vec<_> =
-        named.overrides.iter().filter(|(name, _)| name.starts_with(b"setup.")).cloned().collect();
+    let setup_overrides: Vec<_> = match limits {
+        Some((_jig, own)) => temper_service::limits::NAMES
+            .iter()
+            .filter(|row| {
+                row.name.starts_with("setup.")
+                    && !matches!(row.name, "setup.runs" | "setup.states" | "setup.state_life_ms")
+            })
+            .map(|row| (Box::from(row.name.as_bytes()), (row.value)(own)))
+            .collect(),
+        None => named.overrides.iter().filter(|(name, _)| name.starts_with(b"setup.")).cloned().collect(),
+    };
     let (setup_limits, fetch_bytes) = temper_forge_setup::check::limits(&setup_overrides)
         .map_err(|why| String::from_utf8_lossy(&problem::lines(&why)).into_owned())?;
     let checked =

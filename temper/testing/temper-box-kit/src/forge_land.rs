@@ -916,8 +916,10 @@ pub fn live_deployment(paths: &[PathBuf; 3], model: LiveModel<'_>) {
         configure_live_model(&paths[0], model, std::path::Path::new(""));
     }
     let path = paths[0].join("temper.json");
-    let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-    value["engine"]["limits"]["overrides"]["accounts.sign_in_deadline_ms"] = 600_000.into();
+    let mut value = temper_playground::documents::Configuration::from_jig(
+        serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON"),
+    );
+    value.jig_over("accounts.sign_in_deadline_ms", 600_000);
     super::write_private(&path, &serde_json::to_vec(&value).expect("live configuration"));
 }
 

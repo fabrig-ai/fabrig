@@ -9,7 +9,7 @@ use temper_real_loop_world::{
     fixtures, forge,
 };
 
-fn configure_notes(document: &mut Value) {
+fn configure_notes(document: &mut temper_playground::documents::Configuration) {
     fixtures::requester(document);
     for project in document["world_settings"]["policies"].as_array_mut().expect("project policies") {
         project["policy"]["ceiling"]["tools"] = jig_domain_core::ToolFamilies::JIG.note.0.into();
@@ -18,7 +18,7 @@ fn configure_notes(document: &mut Value) {
         project["policy"]["roles"][0]["authority"]["notes"] = jig_domain_authority::Scopes::GOAL.0.into();
     }
     // Chat words and authority, or an amended specification and title, share this record.
-    document["engine"]["limits"]["overrides"]["people.amendment_bytes"] = 256.into();
+    document.jig_over("people.amendment_bytes", 256);
 }
 
 fn call(name: &str, arguments: &Value) -> api::Turn {

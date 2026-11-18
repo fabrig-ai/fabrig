@@ -118,127 +118,6 @@ pub struct Identity {
 pub struct Worker {
     pub root: Box<[u8]>,
 }
-#[expect(clippy::too_many_lines, reason = "one strict limits read applies overrides after deriving the sources")]
-fn configured_limits(
-    document: &Document,
-    at: u32,
-    path: &Path,
-    problems: &mut Problems,
-    handed: &mut List<(Box<[u8]>, u64)>,
-    sources: temper_service_core::derived::Sources,
-) -> Option<limits::Limits> {
-    let mut object = read::object(document, at, "application-limits", path, problems)?;
-    let profile = match object.member(document, b"profile") {
-        Some(at) => match config::read::text(document, at, 1_048_576) {
-            Ok(value) => Some(value),
-            Err(what) => {
-                problems.push(path.member(b"profile"), What::Jig(what));
-                None
-            }
-        },
-        None => None,
-    };
-    let overrides = read::required(&mut object, document, b"overrides", path, problems);
-    read::finish(object, document, path, problems);
-    if let Some(name) = profile.as_deref()
-        && name != b"standard"
-    {
-        problems.push(path.member(b"profile"), What::Profile);
-    }
-    let (live_goals, tool_payload) = temper_service_core::derived::figures(document);
-    let sources = temper_service_core::derived::process_sources(document, sources);
-    let mut limits = match limits::base(live_goals, tool_payload, sources) {
-        Ok((_jig, own)) => own,
-        Err(found) => {
-            problems.push(path.clone(), What::Jig(found.what));
-            return None;
-        }
-    };
-    let path = path.member(b"overrides");
-    if let Some(at) = overrides
-        && let Some(mut object) = read::overrides(document, at, &path, problems)
-    {
-        let end = config::read::after(document, at).ok()?;
-        for index in at..end {
-            let Some(token) = document.token(index) else { continue };
-            if token.kind != Kind::Key {
-                continue;
-            }
-            let name = document.text(token).expect("object key text");
-            let Some(value_at) = object.member(document, name) else { continue };
-            match config::read::integer(document, value_at, u64::MAX) {
-                Ok(value) => {
-                    if name == b"transcript_memory" {
-                        problems.push(
-                            path.member(name),
-                            What::Against { other: b"engine.memory_bytes, which sets transcript_memory for now" },
-                        );
-                        continue;
-                    }
-                    if name == b"checkout.preparations" && value == 0 {
-                        problems.push(path.member(name), What::Jig(config::What::Because(b"0; requires at least 1")));
-                    }
-                    if limits::handed_on(name) {
-                        handed.push((bytes::copy_of(name), value)).expect("bounded overrides");
-                    }
-                    if (!limits::handed_on(name) || limits::host_setup(name))
-                        && let Err(what) = limits::apply(&mut limits, name, value)
-                    {
-                        problems.push(path.member(name), What::Override(what));
-                    }
-                }
-                Err(config::What::Bound) => problems.push(path.member(name), What::Override(limits::Refused::Range)),
-                Err(what) => problems.push(path.member(name), What::Jig(what)),
-            }
-        }
-        let mut found = config::Problems::empty();
-        object.finish(document, &path, &mut found);
-        problems.append(found, &Path::root());
-    }
-    let application = temper_service_core::startup::member(document, 0, b"application").unwrap_or(0);
-    if !temper_service_core::derived::overridden(document, application, b"forge.landing_members") {
-        limits.forge.landing_members = limits::stock().forge.landing_members.min(limits.forge.holds);
-    }
-    if !temper_service_core::derived::overridden(document, application, b"forge.landings")
-        && let Some(room) = limits.forge.holds.checked_div(limits.forge.landing_members)
-    {
-        limits.forge.landings = limits.forge.landings.min(room);
-    }
-    if !temper_service_core::derived::overridden(document, application, b"forge_component.body_bytes") {
-        match temper_service_core::derived::forge_body(limits.forge.client.op_bytes) {
-            Some(body) => limits.forge_component.body_bytes = body,
-            None => problems.push(path.member(b"forge_component.body_bytes"), What::Jig(config::What::Bound)),
-        }
-    }
-    if !temper_service_core::derived::overridden(document, application, b"forge_component.repositories") {
-        limits.forge_component.repositories = limits.forge.repositories;
-    }
-    if let Some(slots) = temper_service_core::derived::slots(document) {
-        let mut shared = temper_service_core::limits::stock();
-        shared.checkout = limits.checkout;
-        shared.git_component = limits.git_component;
-        temper_service_core::derived::places(document, application, slots, &mut shared);
-        limits.checkout = shared.checkout;
-        limits.git_component = shared.git_component;
-    }
-    // Both runtime startup and offline store readers pass here before sizing the store.
-    let bound = temper_protocol_store::forge_changes_bound().expect("schema tier rows hold at least one landing");
-    if limits.forge.changes > bound {
-        problems.push(
-            super::checks::own(b"forge.changes"),
-            What::Half(crate::startup::EngineWhat::TierChanges {
-                count: limits.forge.changes,
-                bound,
-                ceiling: temper_protocol_store::tier_landings_ceiling(),
-            }),
-        );
-    }
-    // Pass the resolved client capacity once, including the profile default.
-    handed
-        .push((bytes::copy_of(b"forge.client.repositories"), u64::from(limits.forge.client.repositories)))
-        .expect("bounded setup inputs");
-    Some(limits)
-}
 fn workers(document: &Document, directories: &config::Directories, problems: &mut Problems) -> List<Worker> {
     let count = match super::member(document, 0, b"workers") {
         Some(at) => match config::read::list(document, at, document.len()) {
@@ -281,20 +160,51 @@ pub fn parse_over(
     sources: temper_service_core::derived::Sources,
     problems: &mut Problems,
 ) -> Option<Members> {
+    let stock = limits::stock();
+    let mut bounds = match limits::base(stock.live_goals, stock.tool_payload, sources) {
+        Ok((_jig, own)) => own,
+        Err(found) => {
+            problems.push(found.path, What::Jig(found.what));
+            return None;
+        }
+    };
+    if let Some(slots) = temper_service_core::derived::slots(document) {
+        bounds.checkout.workspaces = slots;
+        bounds.git_component.operations = slots;
+    }
+    parse_with_limits(document, at, jig, directories, &bounds, problems)
+}
+/// Parse the application against a world's typed limits.
+pub fn parse_with_limits(
+    document: &Document,
+    at: u32,
+    jig: &config::Engine,
+    directories: &config::Directories,
+    bounds: &limits::Limits,
+    problems: &mut Problems,
+) -> Option<Members> {
+    let bound = temper_protocol_store::forge_changes_bound().expect("schema tier rows hold at least one landing");
+    if bounds.forge.changes > bound {
+        problems.push(
+            super::checks::own(b"forge.changes"),
+            What::Half(crate::startup::EngineWhat::TierChanges {
+                count: bounds.forge.changes,
+                bound,
+                ceiling: temper_protocol_store::tier_landings_ceiling(),
+            }),
+        );
+    }
     let path = Path::root().member(b"application");
     let mut object = read::object(document, at, "application", &path, problems)?;
-    let mut overrides = List::with_capacity(document.len());
+    let overrides = List::with_capacity(0);
     if object.member(document, b"machine").is_some() {
         problems.push(path.member(b"machine"), What::Jig(config::What::Fixed));
     }
     let test_at = object.member(document, b"test");
     let demo_at = read::required(&mut object, document, b"demo", &path, problems);
-    let limit_at = read::required(&mut object, document, b"limits", &path, problems);
-    let limits = match limit_at {
-        Some(at) => configured_limits(document, at, &path.member(b"limits"), problems, &mut overrides, sources),
-        None => None,
-    };
-    let bounds = limits.unwrap_or(limits::stock());
+    if object.member(document, b"limits").is_some() {
+        problems.push(path.member(b"limits"), What::Jig(config::What::Fixed));
+    }
     if object.member(document, b"workers").is_some() {
         problems.push(path.member(b"workers"), What::Jig(config::What::Fixed));
     }
@@ -338,7 +248,7 @@ pub fn parse_over(
         test_github,
         demo,
         workers: workers.into_boxed(),
-        limits: limits?,
+        limits: *bounds,
         overrides: overrides.into_boxed(),
     })
 }
@@ -500,96 +410,5 @@ fn resolved_transport(
             };
             settings::Transport::Tls { server_name: server_name.clone(), trust }
         }
-    }
-}
-
-#[cfg(test)]
-mod stock_tests {
-    use super::*;
-
-    fn parsed(input: &[u8]) -> (limits::Limits, Problems) {
-        let mut wrapped = skein_lib::Writer::new(input.len().checked_add(27).expect("wrapped limits fixture"));
-        wrapped.put(b"{\"application\":{\"limits\":").unwrap();
-        wrapped.put(input).unwrap();
-        wrapped.put(b"}}").unwrap();
-        let document =
-            config::document(&wrapped.finish(), &config::DocumentLimits { bytes: 1024, tokens: 128, depth: 8 })
-                .unwrap();
-        let application = temper_service_core::startup::member(&document, 0, b"application").unwrap();
-        let at = temper_service_core::startup::member(&document, application, b"limits").unwrap();
-        let mut problems = Problems::empty();
-        let path = Path::root().member(b"application").member(b"limits");
-        let mut handed = List::with_capacity(1024);
-        let limits =
-            configured_limits(&document, at, &path, &mut problems, &mut handed, temper_service_core::derived::STOCK)
-                .unwrap();
-        (limits, problems)
-    }
-    fn stock_is_read(input: &[u8]) {
-        let (limits, problems) = parsed(input);
-        assert!(problems.is_empty(), "{problems:?}");
-        let mut expected = limits::stock();
-        limits::derive(&mut expected, temper_service_core::derived::STOCK).unwrap();
-        assert_eq!(limits, expected);
-    }
-    #[test]
-    fn an_absent_application_profile_reads_the_stock() {
-        stock_is_read(br#"{"overrides":{}}"#);
-    }
-    #[test]
-    fn the_standard_application_profile_reads_the_stock() {
-        stock_is_read(br#"{"profile":"standard","overrides":{}}"#);
-    }
-    fn component_check(limits: &limits::Limits) -> config::Problems {
-        let mut problems = config::Problems::empty();
-        let endpoints = crate::forge::settings(&[], List::with_capacity(0), None, &mut problems).unwrap();
-        let mut jig = config::stock();
-        temper_service_core::derived::engine(&mut jig, temper_service_core::derived::STOCK).unwrap();
-        if let Err(why) = skein_forge_connection::limits::check(
-            &limits.forge_component,
-            &crate::forge::shared_limits(limits, &jig.io),
-            &endpoints,
-        ) {
-            crate::forge::problems(why, &mut problems);
-        }
-        problems
-    }
-    #[test]
-    fn a_lower_repository_count_derives_the_components_count() {
-        let (limits, problems) = parsed(br#"{"overrides":{"forge.repositories":3}}"#);
-        assert!(problems.is_empty());
-        assert_eq!(limits.forge_component.repositories, 3);
-        assert!(component_check(&limits).is_empty());
-    }
-    #[test]
-    fn an_explicit_component_repository_count_is_kept_and_checked() {
-        let (limits, problems) = parsed(br#"{"overrides":{"forge.repositories":3,"forge_component.repositories":4}}"#);
-        assert!(problems.is_empty());
-        assert_eq!(limits.forge_component.repositories, 4);
-        let problems = component_check(&limits);
-        assert_eq!(problems.problems.len(), 2);
-        for (problem, name) in
-            problems.problems.iter().zip([b"forge_component.repositories".as_slice(), b"forge.repositories"])
-        {
-            assert_eq!(
-                problem.path,
-                Path::root().member(b"application").member(b"limits").member(b"overrides").member(name)
-            );
-        }
-    }
-    fn refused(input: &[u8]) {
-        let (_, problems) = parsed(input);
-        assert_eq!(problems.problems.len(), 1);
-        let problem = problems.problems.get(0).unwrap();
-        assert_eq!(problem.path, Path::root().member(b"application").member(b"limits").member(b"profile"));
-        assert_eq!(problem.what, What::Profile);
-    }
-    #[test]
-    fn the_small_application_profile_is_refused_at_its_member() {
-        refused(br#"{"profile":"small","overrides":{}}"#);
-    }
-    #[test]
-    fn an_unknown_application_profile_is_refused_at_its_member() {
-        refused(br#"{"profile":"unknown","overrides":{}}"#);
     }
 }

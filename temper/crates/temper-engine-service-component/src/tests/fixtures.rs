@@ -10,7 +10,6 @@ pub const DIALECT: u32 = 3;
 // The stock catalogue holds twelve charters.
 // The closer procedure and close job make seventeen executor places in both limits.
 pub const ENGINE: &[u8] = br#"{
-"limits": {"overrides": {"tasks.inbox_bytes":4096,"core.run_bytes":32768,"tasks.charters":13,"core.templates":7,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":22,"tasks.executor_kinds":22,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
 "llm": {
 "providers":[{"name":"fake-provider","number":1,"endpoint":"fake","sources":{"keys":true}}],
 "endpoints": [{
@@ -34,8 +33,7 @@ pub const ENGINE: &[u8] = br#"{
 },
 "clients": {
 },
-"owners": [{"provider": 1, "subject": "owner-a"}],
-"memory_bytes": 1152921504606846976
+"owners": [{"provider": 1, "subject": "owner-a"}]
 }"#;
 
 // Jig's inline input is retained only to exercise policy decoding and typed guards.
@@ -100,6 +98,7 @@ pub fn engine() -> settings::Engine {
 fn small_limits() -> limits::Limits {
     let mut own = temper_limits_fixtures::small();
     own.root.journal.run_bytes = 32_768;
+    own.root.transcript_memory = 1_152_921_504_606_846_976;
     own
 }
 
@@ -134,6 +133,13 @@ pub fn small_model() -> jig_domain_core::settings::CatalogueModel {
 }
 
 /// A parsed engine passed the stock, before any component is made.
+#[path = "../../../../testing/engine_limit_figures.rs"]
+mod engine_figures;
+use engine_figures::over as jig_limits_over;
+fn jig_limits() -> jig_protocol_config::Limits {
+    jig_limits_over(&jig_protocol_config_fixtures::small())
+}
+
 pub fn parse_engine(bytes: &[u8]) -> jig_protocol_config::Engine {
     let document = jig_protocol_config::document(
         bytes,
@@ -146,7 +152,7 @@ pub fn parse_engine(bytes: &[u8]) -> jig_protocol_config::Engine {
         &jig_protocol_config::Directories::working(),
         jig_protocol_config::Defaults::Passed,
         &temper_engine_service_startup::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
-        &jig_protocol_config_fixtures::small(),
+        &jig_limits(),
     )
     .unwrap();
     let own = match jig.llm.endpoints.first() {
@@ -347,7 +353,6 @@ fn completed_root() -> (temper_engine_domain::Domain, skein_lib::Env<temper_engi
     let settings = start_settings(engine(), &[(1, 100)]);
     let seeds = seeds();
     let mut limits = limits::engine(&settings.jig.limits, &settings.limits).unwrap();
-    limits.transcript_memory = settings.jig.memory.unwrap();
     limits.host_reply_bytes = settings.host_reply_bytes;
     let mut core = crate::system::core_config(&settings.jig, &seeds);
     core.kinds.clone_from(&settings.kinds);

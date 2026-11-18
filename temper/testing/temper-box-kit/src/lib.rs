@@ -132,7 +132,8 @@ pub fn write_private(path: &Path, bytes: &[u8]) {
     fs::write(path, bytes).expect("fixture file");
     fs::set_permissions(path, fs::Permissions::from_mode(0o600)).expect("private fixture");
 }
-pub fn configuration(directory: &Path, forge: &Forge<'_>) {
+#[expect(clippy::must_use_candidate, reason = "fixture writers are also called just for their file effects")]
+pub fn configuration(directory: &Path, forge: &Forge<'_>) -> temper_playground::documents::Configuration {
     assert!(Path::new("/usr/bin/git").is_file(), "/usr/bin/git is required");
     for name in ["accounts", "secrets", "state"] {
         fs::create_dir_all(directory.join(name)).expect("deployment directory");
@@ -148,12 +149,39 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>) {
     write_private(&directory.join("secrets/forge-1.api-token"), b"forge-1-api-token-value");
     write_private(&directory.join("secrets/forge-1.git-token"), b"forge-1-git-token-value");
     write_private(&directory.join("root.der"), skein_tls_kit::pki::ROOT);
-    let (agent, value) =
-        configuration::documents(directory, skein_scratch::paths::binary("temper-box").to_str().expect("a UTF-8 path"));
+    let (agent, mut value) = configuration::typed_documents(
+        directory,
+        skein_scratch::paths::binary("temper-box").to_str().expect("a UTF-8 path"),
+    );
     write_private(&directory.join("agent.json"), &agent);
-    let mut value: serde_json::Value = serde_json::from_slice(&value).expect("deployment JSON");
     forgejo::configuration(directory, forge, &mut value);
     write_private(&directory.join("temper.json"), &serde_json::to_vec(&value).expect("deployment JSON"));
+    value
+}
+
+/// A subprocess story without a limit boundary uses the shipped agent's figures.
+pub fn stock_agent(directory: &Path) {
+    use std::os::unix::fs::PermissionsExt;
+    let stock: serde_json::Value =
+        serde_json::from_slice(include_bytes!("../../../docs/examples/owned/agent.json")).expect("stock agent");
+    let path = directory.join("agent.json");
+    let mut agent: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&path).expect("fixture agent")).expect("agent JSON");
+    agent["profile"] = stock["profile"].clone();
+    for endpoint in agent["endpoints"].as_array_mut().expect("endpoints") {
+        endpoint["limits"]["output"] = 48000.into();
+        endpoint["limits"]["reasoning_item"] = 65536.into();
+    }
+    std::fs::write(&path, serde_json::to_vec(&agent).expect("agent JSON")).expect("agent file");
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).expect("private agent");
+    let path = directory.join("temper.json");
+    let mut deployment: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&path).expect("fixture deployment")).expect("deployment JSON");
+    for worker in deployment["workers"].as_array_mut().expect("workers") {
+        worker["limits"] = serde_json::json!({"overrides":{"hub.accounts":4,"hub.run_calls":48}});
+    }
+    std::fs::write(&path, serde_json::to_vec(&deployment).expect("deployment JSON")).expect("deployment file");
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).expect("private deployment");
 }
 
 /// A case's scratch, retained if a test panics.
@@ -789,7 +817,9 @@ const HINTED_SETTLE_MS: u64 = 3000;
 /// and shortens the hinted story's settle.
 pub fn raise_paces(directory: &Path) {
     let path = directory.join("temper.json");
-    let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
+    let mut value = temper_playground::documents::Configuration::from_jig(
+        serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON"),
+    );
     for name in [
         "forge.client.poll_ms",
         "forge.client.poll_max_ms",
@@ -797,11 +827,10 @@ pub fn raise_paces(directory: &Path) {
         "forge.change_policy.stall_ms",
         "forge.change_policy.unknown_grace_ms",
     ] {
-        value["application"]["limits"]["overrides"][name] = RAISED_MS.into();
+        value.temper_over(name, RAISED_MS);
     }
-    value["application"]["limits"]["overrides"]["forge.change_policy.runner_wait_ms"] =
-        RAISED_MS.saturating_mul(8).into();
-    value["application"]["limits"]["overrides"]["forge.client.settle_ms"] = HINTED_SETTLE_MS.into();
+    value.temper_over("forge.change_policy.runner_wait_ms", RAISED_MS.saturating_mul(8));
+    value.temper_over("forge.client.settle_ms", HINTED_SETTLE_MS);
     write_private(&path, &serde_json::to_vec(&value).expect("configuration JSON"));
 }
 #[must_use]

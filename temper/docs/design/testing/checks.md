@@ -391,16 +391,17 @@ carries it.
 `temper box` with its owned forge (`../protocol/setup/box.md`),
 its settings the stock's. What the box brings, and the pass confirms
 before the chat starts (temper's through ctl, the repository's through
-the forge's API as an observer, the limits against the box's document):
+the forge's API as an observer, the limit settings through ctl):
 
 - **the models:** Opus 5.5 on Claude Code for the coordinator and
   designers; gpt-6.1-sol on smith's direct backend, on an OpenAI
   account's key, for producers and the triage; a real model
   for Ask temper, charter 11's;
-- **the document's members the profile sets** over `temper-box init`'s:
-  `docs/examples/reference/limits.json`'s overrides, and `landing.json`, the project's merge job and its two
-  tiers (13.9); a change's question bound,
-  `forge.change_policy.questions`, explicitly overridden to 4 by `limits.json`;
+- **the profile's limit settings,** `limits` and `temper-limits`, over the
+  stock, confirmed through ctl (`../protocol/configuration/limit-settings.md`, 2);
+- **the document's members the profile sets:** a change's question bound,
+  `forge.change_policy.questions`, at 4; and `landing.json`, the project's
+  merge job and its two tiers (13.9);
 - **the project,** with its repository adopted, holding `AGENTS.md`,
   `DESIGN.md`, its code rules, `.temper/pre-pr`, `.temper/merge`, the
   tiers' workflows and a merge-commit merge style; and, at the path the

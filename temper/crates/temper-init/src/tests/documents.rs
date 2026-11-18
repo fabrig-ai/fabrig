@@ -14,20 +14,13 @@ fn written_workers_outlast_an_engine_restart_below_the_fleet_grace() {
     let bare = crate::bare(&fixtures::bare_facts(&facts), &DIRECTORIES, &[0; 32]).unwrap();
     for files in [boxed.files.as_ref(), bare.as_ref()] {
         let document = parse(file_bytes(files, b"temper.json"));
-        let limits = &document["engine"]["limits"];
-        let profile = jig_protocol_config::stock();
-        let grace = profile.core.fleet.grace.as_millis();
-        let engine = &limits["overrides"];
-        let turn = engine["hub.turn_bytes"].as_u64().unwrap();
-        let resume = (turn + 4).max(4_194_304);
-        let window = resume + (u64::try_from(size_of::<Box<[u8]>>()).unwrap() - 4) * (resume / 4);
-        assert_eq!(engine["core.resume_bytes"], resume);
-        assert_eq!(engine["hub.transcript_bytes"], window);
-        assert_eq!(document["application"]["limits"]["overrides"]["root.journal.transcript_bytes"], resume);
+        assert!(document["engine"].get("limits").is_none());
+        assert!(document["engine"].get("memory_bytes").is_none());
+        assert!(document["application"].get("limits").is_none());
+        let grace = jig_protocol_config::stock().core.fleet.grace.as_millis();
         for worker in document["workers"].as_array().unwrap() {
             assert!(worker.get("graces").is_none());
             assert!(worker.get("programs").is_none());
-            assert_eq!(worker["limits"]["overrides"]["hub.transcript_bytes"], window);
             let bytes = serde_json::to_vec(worker).unwrap();
             let document = jig_protocol_config::document(
                 &bytes,
@@ -65,21 +58,13 @@ fn the_box_has_room_for_reference_creating_executors() {
     charters.sort_unstable();
     charters.dedup();
     assert_eq!(charters, [1, 2, 4, 5, 9, 10, 11, 12, 13, 14, 15, 16]);
-    let bytes = serde_json::to_vec(&written["engine"]["limits"]).unwrap();
-    let document = jig_protocol_config::document(
-        &bytes,
-        &jig_protocol_config::DocumentLimits { bytes: 65_536, tokens: 4096, depth: 16 },
-    )
-    .unwrap();
-    let parsed = jig_protocol_config::overrides::parse(&document, 0, &jig_protocol_config::Path::root());
-    assert!(parsed.problems.is_empty(), "{:?}", parsed.problems);
-    let limits = parsed.limits.core;
+    assert!(written["engine"].get("limits").is_none());
+    let limits = jig_protocol_config::stock().core;
     jig_protocol_config::check_effective_limits(&limits).expect("deployment receiving limits fit the codecs");
-    assert_eq!(limits.authority.executors, 22);
-    assert_eq!(limits.tasks.executor_kinds, 22);
+    assert!(limits.authority.executors >= 22);
+    assert!(limits.tasks.executor_kinds >= 22);
     assert_eq!(limits.documents.lines, 16);
     assert!(usize::try_from(limits.documents.lines).unwrap() >= charters.len());
-    assert!(limits.documents.lines >= limits.tasks.charters);
     // The closer adds procedure p6 beside p2, p3 and p4 on each configured connector.
     let procedures = 4;
     assert!(usize::try_from(limits.documents.lines).unwrap() >= procedures);
@@ -97,24 +82,13 @@ fn the_box_has_room_for_reference_creating_executors() {
 }
 
 #[test]
-fn the_box_runs_four_agents_and_keeps_eight_streams_and_four_calls_beside_them() {
+fn the_box_runs_four_agents_at_the_stock_without_document_limits() {
     for source in [fixtures::OWNED, template::TEMPER, template::BARE] {
         let value = parse(source);
-        let limits = &value["engine"]["limits"]["overrides"];
-        assert_eq!(value["workers"][0]["slots"], 4_u32, "workers[0].slots");
-        for name in ["checkout.workspaces", "git_component.operations"] {
-            assert_eq!(value["application"]["limits"]["overrides"][name], 4_u32, "{name}");
-        }
-        for name in ["fleet.slots", "hub.slots"] {
-            assert!(limits.get(name).is_none(), "engine overrides {name}");
-        }
-        assert!(value["workers"][0]["limits"]["overrides"].get("hub.slots").is_none(), "worker overrides hub.slots");
-        for name in ["clients.streams", "clients_http.streams"] {
-            assert_eq!(limits[name], 8_u32, "{name}");
-        }
-        for name in ["clients.exchanges", "clients_http.calls"] {
-            assert_eq!(limits[name], 12_u32, "{name}");
-        }
+        assert_eq!(value["workers"][0]["slots"], 4_u32);
+        assert!(value["engine"].get("limits").is_none());
+        assert!(value["application"].get("limits").is_none());
+        assert!(value["workers"][0]["limits"]["overrides"].get("hub.slots").is_none());
     }
 }
 
@@ -165,7 +139,7 @@ fn the_owned_example_offers_openai_keys_and_chatgpts_sign_in() {
 #[test]
 fn the_default_keeps_the_owned_structure_with_stock_models() {
     let owned = parse(fixtures::OWNED);
-    assert_eq!(owned["engine"]["memory_bytes"], 1_073_741_824_u64);
+    assert!(owned["engine"].get("memory_bytes").is_none());
     for worker in owned["workers"].as_array().unwrap() {
         assert!(worker.get("memory_bytes").is_none());
     }
@@ -190,26 +164,7 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
         assert!(actual["application"].get("machine").is_none(), "{row}");
         let mut expected = owned.clone();
         assert_ne!(actual["engine"]["owners"].as_array().unwrap().len(), 0);
-        // The startup turn_bounds writer holds these to each document's own
-        // agent; init adds a demo endpoint, so smith derives a different T.
-        let template = parse(include_bytes!("../../template/temper.json"));
-        for pointer in ["/engine/limits/overrides", "/workers/0/limits/overrides", "/application/limits/overrides"] {
-            for (name, bytes) in template.pointer(pointer).expect("template overrides").as_object().expect("limit map")
-            {
-                if name.starts_with("hub.turn")
-                    || name == "hub.transcript_bytes"
-                    || name == "core.resume_bytes"
-                    || name.starts_with("root.loads.")
-                    || name == "root.journal.transcript_bytes"
-                    || name == "io.output"
-                {
-                    expected.pointer_mut(pointer).expect("owned overrides")[name] = bytes.clone();
-                }
-            }
-        }
-        expected["application"]["limits"]["overrides"]["forge.client.repositories"] = json!(3_u32);
-        expected["application"]["limits"]["overrides"]["forge.repositories"] = json!(3_u32);
-        expected["application"]["limits"]["overrides"]["forge.output"] = json!(82_u32);
+
         expected["engine"]["owners"][0]["subject"] = json!("ada@localhost");
         expected["engine"]["clients"]["provider"] = json!({
             "key": "provider.key", "addresses": [1_u32],
@@ -441,7 +396,7 @@ fn demo_agent(port: u16) -> Value {
     json!({"name": "demo", "number": 3_u64, "dialect": 3_u64, "provider": "openai",
            "address": format!("127.0.0.1:{port}"), "transport": "plaintext",
            "connect": 10_000_u64, "handshake": 10_000_u64, "headers": parse(b"[]"),
-           "limits": { "window": 1_048_576_u64, "output": 8_192_u64,
+           "limits": { "window": 1_048_576_u64, "output": 48_000_u64,
                        "reasoning_item": 2_048_u64, "head": 60_000_u64, "idle": 30_000_u64}})
 }
 
@@ -656,7 +611,7 @@ fn the_bare_document_is_the_box_less_its_parts() {
 // protocol/configuration/stock.md: the seven declarations, including their document order.
 
 fn agent_limits(endpoint: &str) -> Value {
-    json!({"window":1_048_576_u32,"output":8192,"reasoning_item":65_536_u32,
+    json!({"window":1_048_576_u32,"output":48_000_u32,"reasoning_item":65_536_u32,
         "head":60_000_u32,"idle":if endpoint == "openai" {300_000_u32} else {120_000_u32}})
 }
 
@@ -713,15 +668,8 @@ fn every_deployment_offers_claude_found_or_fetched() {
                 "{row}"
             );
             assert_eq!(agent["environment"], parse(b"[]"), "{row}");
-            let bytes = serde_json::to_vec(&document["engine"]["limits"]).unwrap();
-            let parsed = jig_protocol_config::document(
-                &bytes,
-                &jig_protocol_config::DocumentLimits { bytes: 65_536, tokens: 4096, depth: 16 },
-            )
-            .unwrap();
-            let parsed = jig_protocol_config::overrides::parse(&parsed, 0, &jig_protocol_config::Path::root());
-            assert!(parsed.problems.is_empty(), "{row}: {:?}", parsed.problems);
-            assert!(parsed.limits.core.documents.lines >= PROVIDERS, "{row}");
+            assert!(document["engine"].get("limits").is_none());
+            assert!(jig_protocol_config::stock().core.documents.lines >= PROVIDERS, "{row}");
         }
     }
 }

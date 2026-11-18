@@ -2,7 +2,6 @@ use crate::{limits, settings};
 pub const DIALECT: u32 = 3;
 
 pub const ENGINE: &[u8] = br#"{
-"limits": {"overrides": {"authority.requirements":3,"tasks.inbox_bytes":4096,"core.run_bytes":32768,"tasks.charters":13,"core.templates":7,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":22,"tasks.executor_kinds":22,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
 "llm": {
 "providers":[{"name":"fake-provider","number":1,"endpoint":"fake","sources":{"keys":true}}],
 "endpoints": [{
@@ -26,8 +25,7 @@ pub const ENGINE: &[u8] = br#"{
 },
 "clients": {
 },
-"owners": [{"provider": 1, "subject": "owner-a"}],
-"memory_bytes": 1152921504606846976
+"owners": [{"provider": 1, "subject": "owner-a"}]
 }"#;
 
 pub fn engine() -> settings::Engine {
@@ -122,6 +120,17 @@ pub fn small_model() -> jig_domain_core::settings::CatalogueModel {
     }
 }
 
+#[path = "../../../../testing/engine_limit_figures.rs"]
+mod engine_figures;
+fn jig_limits_over(base: &jig_protocol_config::Limits) -> jig_protocol_config::Limits {
+    let mut limits = engine_figures::over(base);
+    limits.core.authority.requirements = 3;
+    limits
+}
+fn jig_limits() -> jig_protocol_config::Limits {
+    jig_limits_over(&jig_protocol_config_fixtures::small())
+}
+
 pub fn parse_engine(bytes: &[u8]) -> jig_protocol_config::Engine {
     let document = jig_protocol_config::document(
         bytes,
@@ -134,7 +143,7 @@ pub fn parse_engine(bytes: &[u8]) -> jig_protocol_config::Engine {
         &jig_protocol_config::Directories::working(),
         jig_protocol_config::Defaults::Passed,
         &crate::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
-        &jig_protocol_config_fixtures::small(),
+        &jig_limits(),
     )
     .unwrap();
     let own = match jig.llm.endpoints.first() {
@@ -213,8 +222,8 @@ pub fn chat(project: u32, words: &[u8]) -> jig_domain_people::Ask {
 )]
 pub fn stock_configuration(payload: u32, output: u32) -> Result<smith_agent_shell::config::Configuration, String> {
     let bytes = include_str!("../../../temper-init/template/agent.json")
-        .replace("\"tool_payload\": 10662", &format!("\"tool_payload\": {payload}"))
-        .replace("\"output\": 8192", &format!("\"output\": {output}"))
+        .replace("\"tool_payload\": 63740", &format!("\"tool_payload\": {payload}"))
+        .replace("\"output\": 48000", &format!("\"output\": {output}"))
         .replace("$llm", "127.0.0.1:8370")
         .replace("\"$programs\"", r#"{"claude_code":{"path":"/fixture/claude","directory":"/fixture/programs"}}"#)
         .replace("api.anthropic.com:443", "127.0.0.1:8373")
@@ -228,4 +237,4 @@ pub fn stock_configuration(payload: u32, output: u32) -> Result<smith_agent_shel
 mod http;
 pub use temper_worker_service_fixtures::agent;
 mod startup;
-pub use startup::{APPLICATION, document, engine_part, value, with};
+pub use startup::{APPLICATION, document, engine_part, startup_limits, value, with};

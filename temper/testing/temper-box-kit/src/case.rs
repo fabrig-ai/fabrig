@@ -170,7 +170,7 @@ fn base(value: &mut Value) {
         value["engine"].as_object_mut().expect("engine").remove(member);
     }
 }
-fn process_settings(value: &mut Value) -> Value {
+fn process_settings(value: &mut temper_playground::documents::Configuration) -> Value {
     let given = temper_real_loop_world::fixtures::own_defaults(value, &value["world_settings"]);
     let temper_service::stock::Given::Own { jig: defaults, forge, .. } = given else { panic!("case defaults") };
     let mut items = temper_real_loop_world::case::defaults::items(&defaults);
@@ -197,8 +197,8 @@ fn process_settings(value: &mut Value) -> Value {
         ("notes.scopes", 32),
         ("core.policy_bytes", 8192),
     ] {
-        let held = value["engine"]["limits"]["overrides"][name].as_u64().unwrap_or(0);
-        value["engine"]["limits"]["overrides"][name] = held.max(minimum).into();
+        let held = value.jig_value(name);
+        value.jig_over(name, held.max(minimum));
     }
     items
 }
@@ -535,7 +535,9 @@ impl Judge {
     fn configure(&mut self) -> Result<(), String> {
         let engine_dir = self.members.prepare("engine");
         let ws_dir = self.members.prepare("ws");
-        let mut value = read_document(&engine_dir.join("config/temper.json"))?;
+        let mut value = temper_playground::documents::Configuration::from_jig(read_document(
+            &engine_dir.join("config/temper.json"),
+        )?);
         let ws = read_document(&ws_dir.join("config/temper.json"))?;
         let mut agent = read_document(&ws_dir.join("config/agent.json"))?;
         // With a control listener, the fake's ready line names provider then control.
@@ -577,11 +579,11 @@ impl Judge {
         value["engine"]["hosts"]["listener"] = json!([{"socket":self.hosts.to_string()}]);
         for key in ["fleet.workers", "fleet.attempts"] {
             // tests/real-loop/src/cluster.rs: one admitted position/attempt per worker.
-            value["engine"]["limits"]["overrides"][key] = 3.into();
+            value.jig_over(key, 3);
         }
         // accounts' program hosts hold documents.lines rows (jig documents/programs.rs `hosts`);
         // six lines also carry all stock charters in the creation offer.
-        value["engine"]["limits"]["overrides"]["documents.lines"] = 7.into();
+        value.jig_over("documents.lines", 7);
         value["engine"]["hosts"]["workers"][0]["name"] = "ws".into();
         value["engine"]["hosts"]["workers"].as_array_mut().ok_or("hosts")?.truncate(self.cast.len());
         let secret = b"s2-case-fixture-secret";
@@ -623,7 +625,7 @@ impl Judge {
             shaped["secret"] = worker["workers"][0]["secret"].clone();
             shaped["agent"] = worker["workers"][0]["agent"].clone();
             worker["workers"] = json!([shaped]);
-            worker["application"]["limits"] = value["application"]["limits"].clone();
+            worker["application"] = value.worker_application();
             self.members.git_on_path(name, self.git.parent().ok_or("git directory")?);
             write(&dir.join("config/temper.json"), &worker);
             write(&dir.join("config/agent.json"), &agent);

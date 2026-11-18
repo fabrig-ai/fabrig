@@ -12,7 +12,7 @@ Objects and lists of objects name their shapes below; init values show objects a
 
 Shape: `engine`. Paths: `engine`. The engine's configuration, read before startup.
 
-- `limits`: limits; optional; init writes object. Selects a limits profile and named overrides; absent, reads the application's base.
+- `limits`: refused: moved: jig's limits are the setting limits; ask temper, or use temper ctl settings apply
 - `llm`: llm; required; init writes object. Configures the LLM endpoints, models and providers.
 - `hosts`: hosts; required; init writes object. Names the workers and their listener addresses.
 - `clients`: clients; optional; init writes object. Configures the optional OpenID provider.
@@ -26,14 +26,14 @@ Shape: `engine`. Paths: `engine`. The engine's configuration, read before startu
 - `projects`: refused: moved: projects are made at runtime; make one from the client or temper ctl
 - `connectors`: refused: moved: temper fixes its connector, the forge's, 1
 - `acts`: refused: moved: temper fixes the forge connector's acts
-- `memory_bytes`: integer, 0 to 18446744073709551615 bytes; required; init writes 1073741824. Gives the application's byte budget for the engine.
+- `memory_bytes`: refused: moved: the root's budget is transcript_memory, in the setting temper-limits
 
-## engine.limits
+## workers[].limits
 
-Shape: `limits`. Paths: `engine.limits` `workers[].limits`. A limits profile and named overrides, shared by engines and workers.
+Shape: `limits`. Paths: `workers[].limits`. A limits profile and named overrides, shared by engines and workers.
 
 - `profile`: text, small or standard; optional; init writes "standard". Reads the base when absent or standard, or selects small's limits.
-- `overrides`: object, known limit names; optional; init writes {"authority.executors":22,"clients.exchanges":12,"clients.streams":8,"clients_http.calls":12,"clients_http.streams":8,"core.resume_bytes":16803814,"documents.rows":2,"documents.text_bytes":512,"fleet.configured_workers":8,"fleet.workers":2,"hub.transcript_bytes":67215250,"hub.turn_bytes":16803810,"hub.turn_queue_bytes":134430480,"io.output":16804602,"tasks.charters":16,"tasks.executor_kinds":22,"tasks.inbox_bytes":874120,"tasks.message_bytes":10660,"tasks.result_bytes":10660} | {"hub.accounts":4,"hub.event_bytes":10660,"hub.run_calls":48,"hub.transcript_bytes":67215250,"hub.turn_bytes":16803810,"hub.turn_queue_bytes":134430480,"io.output":16804602}. Overrides the profile's limits by their dotted names.
+- `overrides`: object, known limit names; optional; init writes {"hub.accounts":4,"hub.run_calls":48}. Overrides the profile's limits by their dotted names.
 
 ## engine.owners[]
 
@@ -176,7 +176,7 @@ Shape: `worker`. Paths: `workers[]`. A worker's connection, execution and stop b
 - `programs`: refused: moved: temper fixes the login checks' interval
 - `agent`: agent; required; init writes object. Names the agent program, its arguments and its configuration document.
 - `limits`: limits; optional; init writes object. Selects the worker's limits profile and overrides; absent, reads the application's base.
-- `memory_bytes`: integer, 0 to 18446744073709551615 bytes; optional; init leaves it out. States the worker's available memory when configured.
+- `memory_bytes`: refused: moved: nothing read a worker's memory_bytes; remove it
 
 ## workers[].agent
 

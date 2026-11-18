@@ -5676,6 +5676,7 @@ dependencies = [
  "temper-playground",
  "temper-protocol-store",
  "temper-service",
+ "temper-service-core",
  "temper-service-shell",
  "temper-settings-form",
  "temper-shell",
@@ -6543,6 +6544,7 @@ dependencies = [
  "temper-protocol-reaches",
  "temper-protocol-store",
  "temper-protocol-worker-wire",
+ "temper-service-core",
  "temper-worker-checkout-world",
  "temper-worker-domain-checkout",
 ]
@@ -7173,6 +7175,7 @@ dependencies = [
 name = "temper-limits-fixtures"
 version = "0.0.0"
 dependencies = [
+ "jig-protocol-config",
  "skein-forge-client",
  "skein-forge-setup",
  "skein-lib",
@@ -7285,6 +7288,7 @@ dependencies = [
  "jig-protocol-config-fixtures",
  "jig-protocol-store",
  "jig-protocol-worker-wire",
+ "serde",
  "serde_json",
  "skein-channel",
  "skein-fake-forge-domain",
@@ -7330,6 +7334,7 @@ dependencies = [
  "temper-forge-setup",
  "temper-limits-fixtures",
  "temper-service",
+ "temper-service-core",
  "temper-settings-form",
  "temper-worker-checkout-world",
  "temper-worker-protocol-git",

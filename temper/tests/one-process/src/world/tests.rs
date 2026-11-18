@@ -16,7 +16,7 @@ fn an_adoption_saves_a_pending_window_before_the_engine_commit() {
     assert_eq!(saved_adoptions(&mut seen), Some(std::collections::BTreeSet::new()), "initial empty saved keys");
     stories::set(Story::Adoption);
     stories::setup_settings(Phase::Story);
-    let fresh = stories::given(&serde_json::from_slice(&fixtures::document()).expect("deployment JSON"));
+    let fresh = stories::given(&fixtures::document());
     assert_eq!(format!("{:?}", fixtures::adoption_given()), format!("{fresh:?}"), "cached adoption defaults");
     assert_eq!(
         format!("{:?}", fixtures::adoption_codec()),

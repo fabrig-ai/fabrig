@@ -37,8 +37,7 @@
           "tasks.result_bytes": 4096,
           "tasks.message_bytes": 4096
         }}
-      }},
-      "memory_bytes": 4503599627370496
+      }}
     }}
   ],
   "application": {{

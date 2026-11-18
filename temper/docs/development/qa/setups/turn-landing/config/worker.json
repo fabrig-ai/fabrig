@@ -29,8 +29,7 @@
           "hub.turn_queue_bytes": 10672248,
           "io.output": 1334823
         }
-      },
-      "memory_bytes": 4503599627370496
+      }
     }
   ],
   "application": {

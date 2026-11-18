@@ -168,9 +168,10 @@ impl Judge {
                 return Err("Must: no seeded forge records".to_owned());
             }
             self.members.prepare("engine");
-            let mut document: Value =
+            let mut document = temper_playground::documents::Configuration::from_jig(
                 serde_json::from_slice(&fs::read(&self.engine).map_err(|_| "engine configuration".to_owned())?)
-                    .map_err(|_| "engine JSON".to_owned())?;
+                    .map_err(|_| "engine JSON".to_owned())?,
+            );
             // Restart retains the worker's files. Reserve its engine endpoint,
             // as the clients' endpoint is reserved for the App's setup URL.
             document["engine"]["hosts"]["listener"][0]["socket"] = self.workers.to_string().into();
@@ -1138,7 +1139,7 @@ pub fn configure_llm(path: &Path) {
     value["cued"].as_array_mut().expect("scripts").push(json!({"cue":"Review this change at the named head","turns":[{"lines":[{"call":"finish","arguments":{"form":"verdict","label":"1","text":"Checked","fields":{},"items":[]}}],"finish":"tool_calls","tokens":20}]}));
     super::write_private(path, &serde_json::to_vec(&value).expect("LLM JSON"));
 }
-fn configure_engine(value: &mut Value) {
+fn configure_engine(value: &mut temper_playground::documents::Configuration) {
     // This fixture seeds its own project on stock policy 1, with no story-specific tool grants.
     let engine = value["engine"].as_object_mut().expect("engine object");
     for member in ["charters", "templates", "policies", "rules"] {
@@ -1146,19 +1147,18 @@ fn configure_engine(value: &mut Value) {
     }
     engine.insert("projects".into(), serde_json::json!([{"number": 1, "policy": 1}]));
     // Nine slots hold the stock charters.
-    value["engine"]["limits"]["overrides"]["tasks.charters"] = 16.into();
-    value["engine"]["limits"]["overrides"]["core.templates"] = 7.into();
+    value.jig_over("tasks.charters", 16);
+    value.jig_over("core.templates", 7);
     // Keep log polling aligned with the live GitHub story.
-    let limits = &mut value["application"]["limits"]["overrides"];
     for (name, millis) in [("poll_ms", 10), ("poll_max_ms", 50), ("slow_ms", 100), ("hinted_ms", 10)] {
-        limits[format!("forge.client.{name}")] = millis.into();
+        value.temper_over(format!("forge.client.{name}"), millis);
     }
-    limits["forge.client.window_ms"] = 100.into();
-    limits["forge.client.pending"] = 8.into();
-    limits["forge.client.calls"] = 4.into();
-    limits["forge_component.connections"] = 4.into();
-    limits["forge_component.log_poll_ms"] = 15000.into();
-    value["engine"]["limits"]["overrides"]["tasks.result_bytes"] = 512.into();
+    value.temper_over("forge.client.window_ms", 100);
+    value.temper_over("forge.client.pending", 8);
+    value.temper_over("forge.client.calls", 4);
+    value.temper_over("forge_component.connections", 4);
+    value.temper_over("forge_component.log_poll_ms", 15000);
+    value.jig_over("tasks.result_bytes", 512);
 }
 
 pub(crate) fn landing_reads() -> Vec<ctl::Call> {

@@ -31,7 +31,7 @@ fn start(links: Links) -> Start {
     Start {
         seed,
         wall: Wall::EPOCH,
-        deployment: documents::document().into(),
+        deployment: documents::world_document(),
         fakes: Fakes::new(llm, forge, seeds.forge),
         links,
     }

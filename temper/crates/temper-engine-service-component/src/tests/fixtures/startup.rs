@@ -10,7 +10,7 @@ pub const APPLICATION: &[u8] = br#"{
 "webhooks":null,
 "clients":{"listener":{"socket":"127.0.0.1:7100"},"public":null,"bundle":null},
 
-"demo":null,"sign_in":null,"limits":{"overrides":{}}
+"demo":null,"sign_in":null
 }"#;
 pub const DEMO: &str = r#""demo":{"llm":{"listen":{"socket":"$llm"},"provider":3,"key":"demo/llm.key",
 "asked":[{"cue":"Add CSV export to widget","turns":["CSV"]},
@@ -34,7 +34,7 @@ pub fn demo_service() -> crate::Service {
     let document = demo_document();
     let document = with(&document, b"workers", b"[]");
     let document = with(&document, b"engine.hosts.listener", br#"[{"socket":"127.0.0.1:7200"}]"#);
-    let mut start = crate::startup::checked_start_with(
+    let mut start = crate::startup::checked_start_with_limits(
         &document,
         &jig_protocol_config::Directories::working(),
         &files(),
@@ -47,6 +47,8 @@ pub fn demo_service() -> crate::Service {
             forge: Box::default(),
             ways: crate::stock::ways(),
         },
+        &startup_limits().0,
+        &startup_limits().1,
     )
     .unwrap();
     let seeded = super::engine().jig;
@@ -72,15 +74,10 @@ pub fn document() -> Box<[u8]> {
     document.extend_from_slice(br#", "workers":[{
 "engine":{"in_process":"workers"},"name":"worker-a","secret":"worker-secret","slots":1,
 "agent":{"program":"/opt/temper/bin/temper","configuration":"/opt/temper/agent.json","arguments":["internal", "agent","/opt/temper/agent.json"]},
-"limits":{"overrides":{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.result_bytes":512,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}},
-"memory_bytes":1152921504606846976}],"application":"#);
-    document.extend_from_slice(core::str::from_utf8(APPLICATION).unwrap().replace("\"overrides\":{}", "\"overrides\":{\"checkout.name_bytes\":600,\"checkout.repositories\":4,\"git_component.stdout_bytes\":131072,\"forge.name_bytes\":256,\"forge.resources_per_task\":4}").as_bytes());
+"limits":{"overrides":{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.result_bytes":512,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}}}],"application":"#);
+    document.extend_from_slice(APPLICATION);
     document.extend_from_slice(b"}");
-    let document = document.into_boxed_slice();
-    let document = with(&document, b"engine.limits.overrides", engine_turn_limits().as_bytes());
-    let document = with(&document, b"workers[0].limits.overrides", worker_turn_limits().as_bytes());
-    // Retain the checkout bounds alongside the turn-derived application bounds.
-    with(&document, b"application.limits.overrides", br#"{"root.journal.run_bytes":32768,"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":131072,"forge.name_bytes":256,"forge.resources_per_task":4}"#)
+    with(&document, b"workers[0].limits.overrides", worker_turn_limits().as_bytes())
 }
 pub fn files() -> settings::Files {
     let mut entries = List::with_capacity(8);
@@ -103,19 +100,7 @@ fn turn_limits(path: &[u8], json: &[u8]) -> Box<[u8]> {
     let turn = super::agent().limits.bodies.turn_body;
     let resume = turn.checked_add(4).unwrap();
     let window = u64::from(resume) * 4;
-    let loaded = turn.checked_add(u32::try_from(size_of::<temper_engine_domain::Record>()).unwrap()).unwrap();
-    let keys: &[(&str, u64)] = if path == b"engine.limits.overrides" {
-        &[
-            ("hub.turn_bytes", u64::from(turn)),
-            ("hub.transcript_bytes", window),
-            ("hub.turn_queue_bytes", u64::from(turn) * 8),
-            ("core.resume_bytes", u64::from(resume)),
-            ("tasks.inbox_bytes", 4096),
-            ("tasks.run_inbox", 8),
-            ("authority.grants", 16),
-            ("notes.scopes", 32),
-        ]
-    } else if path == b"workers[0].limits.overrides" {
+    let keys: &[(&str, u64)] = if path == b"workers[0].limits.overrides" {
         &[
             ("hub.accounts", 8),
             ("hub.inbox", 8),
@@ -124,17 +109,6 @@ fn turn_limits(path: &[u8], json: &[u8]) -> Box<[u8]> {
             ("hub.turn_bytes", u64::from(turn)),
             ("hub.transcript_bytes", window),
             ("hub.turn_queue_bytes", u64::from(turn) * 8),
-        ]
-    } else if path == b"application.limits.overrides" {
-        &[
-            ("forge.client.answer_bytes", 65536),
-            ("forge.client.op_bytes", 512),
-            ("forge_component.body_bytes", 16384),
-            ("root.journal.transcript_bytes", u64::from(resume)),
-            ("root.loads.transcript_bytes", u64::from(turn)),
-            ("root.loads.bytes", u64::from(loaded)),
-            ("root.loads.reply_bytes", u64::from(loaded)),
-            ("root.loads.read_bytes", u64::from(turn) * 2),
         ]
     } else {
         return json.into();
@@ -155,13 +129,6 @@ fn turn_limits(path: &[u8], json: &[u8]) -> Box<[u8]> {
     }
     text.push('}');
     text.into_bytes().into_boxed_slice()
-}
-fn engine_turn_limits() -> String {
-    let document = core::str::from_utf8(super::ENGINE).unwrap();
-    let overrides = document.split_once("\"overrides\":").unwrap().1;
-    let mut result = overrides.split_once('}').unwrap().0.to_string();
-    result.push('}');
-    result
 }
 fn worker_turn_limits() -> String {
     r#"{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.result_bytes":512,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}"#.into()
@@ -279,4 +246,36 @@ fn member_span_in(input: &[u8], document: &skein_json::Document, path: &[u8]) ->
 pub fn engine_part(input: &[u8]) -> Box<[u8]> {
     let input = with(input, b"workers", b"[]");
     with(&input, b"engine.hosts.listener", br#"[{"socket":"127.0.0.1:7200"}]"#)
+}
+
+pub fn startup_limits() -> (jig_protocol_config::Limits, crate::limits::Limits) {
+    let sources = temper_service_core::derived::Sources::agent(&super::agent().declaration());
+    let stock = crate::limits::stock();
+    let (base, mut own) = crate::limits::base(stock.live_goals, stock.tool_payload, sources).unwrap();
+    let mut jig = super::jig_limits_over(&base);
+    let turn = sources.turn;
+    own.root.transcript_memory = 1_152_921_504_606_846_976;
+    own.root.journal.run_bytes = 32_768;
+    own.checkout.workspaces = 1;
+    own.git_component.operations = 1;
+    let resume = turn.checked_add(4).unwrap();
+    let loaded = turn.checked_add(u32::try_from(size_of::<temper_engine_domain::Record>()).unwrap()).unwrap();
+    jig.hub.turn_bytes = u64::from(turn);
+    jig.hub.transcript_bytes = u64::from(resume) * 4;
+    jig.hub.turn_queue_bytes = u64::from(turn) * 8;
+    jig.core.resume_bytes = resume;
+    own.checkout.name_bytes = 600;
+    own.checkout.repositories = 4;
+    own.git_component.stdout_bytes = 131_072;
+    own.forge.name_bytes = 256;
+    own.forge.resources_per_task = 4;
+    crate::limits::apply(&mut own, b"forge.client.answer_bytes", 65_536).unwrap();
+    own.forge.client.op_bytes = 512;
+    own.forge_component.body_bytes = 16_384;
+    own.root.journal.transcript_bytes = resume;
+    own.root.loads.transcript_bytes = turn;
+    own.root.loads.bytes = loaded;
+    own.root.loads.reply_bytes = loaded;
+    own.root.loads.read_bytes = u64::from(turn) * 2;
+    (jig, own)
 }

@@ -65,7 +65,8 @@ fn a_worker_alone_with_the_owned_examples_worker_fits_one_ring() {
     let link = crate::worker_settings::link_limits(&part.worker.jig, &payload, part.limits.peer.forges).unwrap();
     assert_eq!(
         link.room,
-        jig_protocol_worker_wire::sizes::largest_body(&link.sizes, jig_protocol_worker_wire::Kind::Turn).unwrap() + 8
+        (jig_protocol_worker_wire::sizes::largest_body(&link.sizes, jig_protocol_worker_wire::Kind::Turn).unwrap() + 8)
+            .max(temper_service_core::derived::OUTPUT_FLOOR)
     );
     let operations = temper_service_core::process::Process::operations_for(
         &part.worker.jig.limits.io,

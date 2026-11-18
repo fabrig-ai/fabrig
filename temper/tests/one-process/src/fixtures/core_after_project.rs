@@ -39,7 +39,7 @@ impl Harness for Incident {
     fn files() -> temper_service::settings::Files {
         fixtures::files()
     }
-    fn configure(value: &mut Value) {
+    fn configure(value: &mut temper_playground::documents::Configuration) {
         value["world_settings"] = fixtures::world_document()["world_settings"].clone();
         for (name, count) in [
             ("people.projects", 4),
@@ -63,11 +63,11 @@ impl Harness for Incident {
             ("core.run_bytes", 45_000),
             ("hub.charter_bytes", 65_536),
         ] {
-            value["engine"]["limits"]["overrides"][name] = count.into();
+            value.jig_over(name, count);
         }
         value["workers"][0]["limits"]["overrides"]["hub.charter_bytes"] = 65_536.into();
-        value["application"]["limits"]["overrides"]["root.journal.run_bytes"] = 45_000.into();
-        value["application"]["limits"]["overrides"]["forge.judge_projects"] = 3.into();
+        value.temper_over("root.journal.run_bytes", 45_000);
+        value.temper_over("forge.judge_projects", 3);
         value["engine"]["llm"]["providers"][0]["sources"]["programs"] = json!(["claude_code"]);
         value["engine"]["llm"]["providers"][0]["manage_usage"] = "https://provider.example/usage".into();
         value["world_settings"]["adopt_only"] = true.into();
@@ -82,7 +82,7 @@ impl Harness for Incident {
         policy["projections"] =
             json!([grant(3), grant(4), grant(7), grant(8), grant(9), grant(10), grant(11), grant(12)]);
     }
-    fn given(document: &Value) -> temper_service::stock::Given {
+    fn given(document: &temper_playground::documents::Configuration) -> temper_service::stock::Given {
         let mut given = temper_playground::documents::given_with(document, false, false);
         let temper_service::stock::Given::Own { jig, .. } = &mut given else { panic!("world defaults") };
         let mut policies = skein_lib::Map::with_capacity(2);
@@ -96,7 +96,7 @@ impl Harness for Incident {
 
 // Only immutable inputs cross the stop: each open, provider and client starts fresh.
 struct Inputs {
-    deployment: Box<[u8]>,
+    deployment: temper_playground::documents::Configuration,
     given: temper_service::stock::Given,
     codec: jig_protocol_store::codec::View,
     families: temper_protocol_store::Bounds,
@@ -106,7 +106,7 @@ struct Inputs {
 }
 impl Inputs {
     fn new() -> Self {
-        let mut document: Value = serde_json::from_slice(&fixtures::document()).expect("deployment JSON");
+        let mut document = fixtures::document();
         Incident::configure(&mut document);
         let given = Incident::given(&document);
         let parsed = temper_playground::documents::settings::configuration(&document);
@@ -123,7 +123,7 @@ impl Inputs {
             directory: b"/worker/programs".as_slice().into(),
         }]);
         Self {
-            deployment: serde_json::to_vec(&document).expect("deployment bytes").into(),
+            deployment: document,
             given,
             codec,
             families,
@@ -150,8 +150,8 @@ fn service(inherited: &skein_world::Inherited) -> Proc {
     let worker = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"worker").expect("worker root").1;
     let seeds = Incident::seeds(parameters.seed);
     let files = Incident::files();
-    let mut checked = temper_service::startup::checked_start_with(
-        &inputs.deployment,
+    let mut checked = temper_service::startup::checked_start_with_limits(
+        &serde_json::to_vec(&inputs.deployment).expect("deployment document"),
         &jig_protocol_config::Directories::working(),
         &files,
         Some(&inputs.agent),
@@ -160,6 +160,8 @@ fn service(inherited: &skein_world::Inherited) -> Proc {
         None,
         &inputs.given,
         Some(b"/usr/bin/git"),
+        &inputs.deployment.jig,
+        &inputs.deployment.limits,
     )
     .unwrap_or_else(|problems| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&problems))));
     temper_playground::documents::settings::seed_projects(&mut checked.engine_mut().jig, inputs.projects.clone());
@@ -804,7 +806,7 @@ fn phase(
     let machine = Machine::new(disk);
     let seen = Rc::new(RefCell::new(Outcome::default()));
     let parameters = programs::Parameters {
-        deployment: inputs.deployment.clone(),
+        deployment: inputs.deployment.clone().into(),
         seed: fixtures::SEED,
         links: temper_playground::Links::Keep,
         forge: transport.clone(),

@@ -1,26 +1,5 @@
 {
   "engine": {
-    "limits": {
-      "profile": "standard",
-      "overrides": {
-        "authority.executors": 22,
-        "authority.grants": 15,
-        "tasks.executor_kinds": 22,
-        "tasks.authority_grants": 15,
-        "tasks.charters": 16,
-        "notes.scopes": 18,
-        "fleet.engine_slots": 0,
-        "tasks.spec_bytes": 16384,
-        "tasks.result_bytes": 4096,
-        "tasks.message_bytes": 10660,
-        "tasks.inbox_bytes": 874120,
-        "hub.transcript_bytes": 16777216,
-        "hub.turn_bytes": 1334031,
-        "hub.turn_queue_bytes": 10672248,
-        "io.output": 1334823,
-        "core.resume_bytes": 4194304
-      }
-    },
     "llm": {
       "providers": [
         {
@@ -66,8 +45,7 @@
         "provider": 1,
         "subject": "owner-a"
       }
-    ],
-    "memory_bytes": 4503599627370496
+    ]
   },
   "workers": [],
   "application": {
@@ -84,19 +62,6 @@
       "public": null
     },
     "demo": null,
-    "sign_in": null,
-    "limits": {
-      "profile": "standard",
-      "overrides": {
-        "forge.client.op_bytes": 10660,
-        "forge.judge_projects": 8,
-        "forge_component.body_bytes": 21341,
-        "root.journal.transcript_bytes": 4194304,
-        "root.loads.bytes": 1334279,
-        "root.loads.reply_bytes": 1334279,
-        "root.loads.read_bytes": 2668062,
-        "root.loads.transcript_bytes": 1334031
-      }
-    }
+    "sign_in": null
   }
 }

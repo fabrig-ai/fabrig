@@ -50,7 +50,7 @@ struct Outside {
 
 pub(super) struct Stop {
     disk: skein_fake_machine::Machine,
-    configuration: Vec<u8>,
+    configuration: temper_playground::documents::Configuration,
     forge: Box<[u8]>,
     outside: Outside,
     ledger: Vec<Observation>,
@@ -139,7 +139,11 @@ pub(super) fn load(directory: &Path) -> World {
     let start = temper_playground::stories::A.start(fixtures::SEED, skein_sim::Config::calm().wall);
     World {
         disk,
-        configuration: std::fs::read(directory.join("configuration.json")).expect("settled configuration"),
+        configuration: {
+            let mut config = golden::read_configuration(directory);
+            config.temper_over("forge.client.lifetime_ms", 10_000);
+            config
+        },
         transport: start.fakes.forge,
         store: Rc::new(RefCell::new(store)),
         ledger: Rc::new(RefCell::new(ledger)),

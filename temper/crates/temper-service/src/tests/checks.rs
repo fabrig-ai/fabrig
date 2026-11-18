@@ -6,7 +6,11 @@ use crate::startup::{Problems, What, checks, lines};
 use jig_protocol_config::{self as config, Path};
 use temper_protocol_worker_wire as payload;
 
-fn started(input: &[u8], files: &crate::settings::Files, agent: &crate::settings::Agent) -> Problems {
+fn started(
+    input: &(impl fixtures::Input + ?Sized),
+    files: &crate::settings::Files,
+    agent: &crate::settings::Agent,
+) -> Problems {
     match fixtures::start(
         input,
         &jig_protocol_config::Directories::working(),
@@ -81,7 +85,7 @@ fn a_remote_past_the_checkouts_names_refuses_the_start() {
         b"application.limits.overrides",
         br#"{"checkout.name_bytes":300,"checkout.repositories":4,"forge.name_bytes":256,"forge.resources_per_task":4}"#,
     );
-    let found = crate::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
+    let found = fixtures::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
     assert_eq!(
         &*lines(&found),
         b"application.limits.overrides.checkout.name_bytes: must agree with the longest remote\n".as_slice()
@@ -203,13 +207,15 @@ fn checkout_capacity_names_stdout_and_both_link_rooms() {
         b"application.limits.overrides",
         br#"{"checkout.name_bytes":600,"checkout.repositories":2,"checkout.conflicts":1024,"checkout.path_bytes":4096,"git_component.stdout_bytes":262144}"#,
     );
-    let mut document: serde_json::Value = serde_json::from_slice(&document).unwrap();
-    document["engine"]["limits"]["overrides"]["io.output"] = 1_048_576_u32.into();
+    let mut input = document;
+    input.jig.io.output = 1_048_576;
+    let mut document: serde_json::Value = serde_json::from_slice(&input).unwrap();
     document["workers"][0]["limits"]["overrides"]["io.output"] = 1_048_576_u32.into();
+    input.document = serde_json::to_vec(&document).unwrap().into();
     let mut agent = fixtures::startup_agent();
     agent.host_limits.conflicts = 1024;
     agent.host_limits.path_bytes = 4096;
-    let found = started(&serde_json::to_vec(&document).unwrap(), &fixtures::files(), &agent);
+    let found = started(&input, &fixtures::files(), &agent);
     assert_eq!(found.problems.len(), 1);
     assert_eq!(
         String::from_utf8_lossy(&lines(&found)),
@@ -284,7 +290,7 @@ fn a_channel_limit_past_a_ceiling_names_the_limit() {
 #[test]
 fn one_ios_entities_hold_both_services_and_their_children() {
     let document = fixtures::with(&fixtures::document(), b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":131072,"git_component.operations":61}"#);
-    let found = crate::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
+    let found = fixtures::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
     assert_eq!(&*lines(&found), b"engine.limits.io.sockets: 320 bytes, past its bound of 256\n".as_slice());
 }
 
@@ -379,7 +385,7 @@ fn standalone_shapes() -> [(Shape, Path, What); 8] {
 fn a_v6_clients_listener_off_loopback_is_refused_at_the_start() {
     for document in [fixtures::document(), fixtures::engine_alone_document()] {
         let document = fixtures::with(&document, b"application.clients.listener", br#"{"socket":"[::]:7100"}"#);
-        let found = crate::named(&document, &config::Directories::working()).expect_err("off-loopback IPv6");
+        let found = fixtures::named(&document, &config::Directories::working()).expect_err("off-loopback IPv6");
         assert_eq!(&*lines(&found), b"application.clients.listener: must be a socket address on loopback\n");
     }
 }
@@ -391,7 +397,7 @@ fn a_webhook_listener_off_loopback_is_refused() {
         br#"{"socket":"192.0.2.1:7200"}"#,
     );
     assert_eq!(
-        &*lines(&crate::named(&document, &jig_protocol_config::Directories::working()).unwrap_err()),
+        &*lines(&fixtures::named(&document, &jig_protocol_config::Directories::working()).unwrap_err()),
         b"application.webhooks.listener: must be a socket address on loopback\n"
     );
 }
@@ -403,7 +409,7 @@ fn a_webhook_listener_equal_to_clients_is_refused() {
         br#"{"socket":"127.0.0.1:7100"}"#,
     );
     assert_eq!(
-        &*lines(&crate::named(&document, &jig_protocol_config::Directories::working()).unwrap_err()),
+        &*lines(&fixtures::named(&document, &jig_protocol_config::Directories::working()).unwrap_err()),
         b"application.webhooks.listener: must be unique\n"
     );
 }
@@ -412,7 +418,7 @@ fn webhook_listeners_on_port_zero_do_not_clash() {
     let document =
         fixtures::with(&fixtures::webhook_document(), b"application.webhooks.listener", br#"{"socket":"127.0.0.1:0"}"#);
     let document = fixtures::with(&document, b"application.clients.listener", br#"{"socket":"127.0.0.1:0"}"#);
-    let named = crate::named(&document, &jig_protocol_config::Directories::working()).unwrap();
+    let named = fixtures::named(&document, &jig_protocol_config::Directories::working()).unwrap();
     assert_eq!(named.webhooks.unwrap().listener, named.clients);
 }
 #[test]
@@ -420,7 +426,7 @@ fn hook_connections_past_the_process_sockets_are_refused() {
     let document =
         fixtures::with(&fixtures::webhook_document(), b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":131072,"forge_component.hooks":236}"#);
     assert_eq!(
-        &*lines(&crate::named(&document, &jig_protocol_config::Directories::working()).unwrap_err()),
+        &*lines(&fixtures::named(&document, &jig_protocol_config::Directories::working()).unwrap_err()),
         b"engine.limits.io.sockets: 317 bytes, past its bound of 256\n"
     );
 }
@@ -442,7 +448,7 @@ fn a_bundle_limit_of_zero_refuses_the_start() {
         ),
     ] {
         let document = fixtures::with(&fixtures::document(), b"application.limits.overrides", overrides);
-        let found = crate::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
+        let found = fixtures::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
         assert_eq!(&*lines(&found), expected.as_bytes(), "row {overrides:?}");
     }
 }
@@ -485,7 +491,7 @@ fn provider_redirect_ports_are_checked_before_files_are_read() {
         (r#"{"socket":"127.0.0.1:0"}"#, false),
     ] {
         let document = fixtures::with(input.as_bytes(), b"application.clients.listener", listener.as_bytes());
-        let result = crate::named(&document, &jig_protocol_config::Directories::working());
+        let result = fixtures::named(&document, &jig_protocol_config::Directories::working());
         if expected {
             assert_eq!(&*lines(&result.unwrap_err()), b"engine.llm.providers[0].sources.sign_in.redirect_port: fixed port conflicts with application.clients.listener\n");
         } else {
@@ -496,14 +502,17 @@ fn provider_redirect_ports_are_checked_before_files_are_read() {
     }
     let hooks = input.replace("\"webhooks\":null", r#""webhooks":{"listener":{"socket":"[::1]:7100"}}"#);
     let hooks = fixtures::with(hooks.as_bytes(), b"application.clients.listener", br#"{"socket":"127.0.0.1:7102"}"#);
-    assert_eq!(&*lines(&crate::named(&hooks, &jig_protocol_config::Directories::working()).unwrap_err()), b"engine.llm.providers[0].sources.sign_in.redirect_port: fixed port conflicts with application.webhooks.listener\n");
+    assert_eq!(&*lines(&fixtures::named(&hooks, &jig_protocol_config::Directories::working()).unwrap_err()), b"engine.llm.providers[0].sources.sign_in.redirect_port: fixed port conflicts with application.webhooks.listener\n");
     let ephemeral = input.replace(",\"redirect_port\":7100", "");
     assert!(
-        crate::named(ephemeral.as_bytes(), &jig_protocol_config::Directories::working()).unwrap().redirects.is_empty()
+        fixtures::named(ephemeral.as_bytes(), &jig_protocol_config::Directories::working())
+            .unwrap()
+            .redirects
+            .is_empty()
     );
     let input = input.replace("\"redirect_port\":7100", "\"redirect_port\":0");
     assert_eq!(
-        &*lines(&crate::named(input.as_bytes(), &jig_protocol_config::Directories::working()).unwrap_err()),
+        &*lines(&fixtures::named(input.as_bytes(), &jig_protocol_config::Directories::working()).unwrap_err()),
         b"engine.llm.providers[0].sources.sign_in.redirect_port: invalid form\n"
     );
 }

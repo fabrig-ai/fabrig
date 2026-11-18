@@ -376,3 +376,34 @@ pub fn setup_small() -> skein_forge_setup::limits::Limits {
         backoff_max: Duration::from_secs(5),
     }
 }
+
+/// Reference worlds' figures, passed to the start instead of document overrides.
+pub fn reference_over(jig: &mut jig_protocol_config::Limits, own: &mut Limits) {
+    for (name, value) in [
+        (b"tasks.tree_tasks".as_slice(), 1024_u64),
+        (b"core.resume_bytes".as_slice(), 18_431_846_u64),
+        (b"hub.transcript_bytes".as_slice(), 73_727_378_u64),
+        (b"hub.turn_bytes".as_slice(), 18_431_842_u64),
+        (b"hub.turn_queue_bytes".as_slice(), 147_454_736_u64),
+        (b"tasks.inbox_bytes".as_slice(), 5_226_516_u64),
+        (b"tasks.message_bytes".as_slice(), 63_738_u64),
+        (b"tasks.result_bytes".as_slice(), 63_738_u64),
+    ] {
+        jig_protocol_config::overrides::apply(jig, name, value).expect("reference jig figure");
+    }
+    for (name, value) in [
+        (b"forge.change_policy.questions".as_slice(), 4_u64),
+        (b"checkout.message_bytes".as_slice(), 63_740_u64),
+        (b"forge.client.op_bytes".as_slice(), 63_738_u64),
+        (b"forge_component.body_bytes".as_slice(), 127_497_u64),
+        (b"root.journal.transcript_bytes".as_slice(), 18_431_846_u64),
+        (b"root.loads.bytes".as_slice(), 18_432_090_u64),
+        (b"root.loads.read_bytes".as_slice(), 36_863_684_u64),
+        (b"root.loads.reply_bytes".as_slice(), 18_432_090_u64),
+        (b"root.loads.transcript_bytes".as_slice(), 18_431_842_u64),
+        (b"forge.client.answer_bytes".as_slice(), 255_570_u64),
+        (b"root.journal.run_bytes".as_slice(), 65_536),
+    ] {
+        temper_engine_service_vocabulary::limits::apply(own, name, value).expect("reference temper figure");
+    }
+}

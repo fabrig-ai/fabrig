@@ -29,25 +29,39 @@ impl Part {
     }
 }
 
-fn number(document: &Value, part: Part, name: &str) -> u64 {
-    document.pointer(part.limits()).expect("limits")[name].as_u64().expect("byte bound")
+fn number(document: &temper_playground::documents::Configuration, part: Part, name: &str) -> u64 {
+    match part {
+        Part::Engine => document.jig_value(name),
+        Part::Application => document.temper_value(name),
+        Part::Worker => document.pointer(part.limits()).expect("limits")[name].as_u64().expect("byte bound"),
+    }
 }
 
-fn set(document: &mut Value, part: Part, name: &str, bytes: u64) {
-    document.pointer_mut(part.limits()).expect("limits")[name] = json!(bytes);
+fn set(document: &mut temper_playground::documents::Configuration, part: Part, name: &str, bytes: u64) {
+    match part {
+        Part::Engine => document.jig_over(name, bytes),
+        Part::Application => document.temper_over(name, bytes),
+        Part::Worker => document.pointer_mut(part.limits()).expect("limits")[name] = json!(bytes),
+    }
 }
 
 // The read's row has no public size query in this world. Check its advertised
 // required figure against admission on both sides, rather than inventing a row size.
 fn edge(part: Part, name: &str) {
     let scratch = support::Scratch::startup(&format!("plan-chat-{name}"));
-    support::configuration(scratch.path(), &support::Forge::Unreached);
+    let mut document = support::configuration(scratch.path(), &support::Forge::Unreached);
     let directories = support::configuration::directories(scratch.path());
-    let mut document: Value =
-        serde_json::from_slice(&fs::read(scratch.path().join("temper.json")).expect("fixture document"))
-            .expect("fixture JSON");
-    let admit = |document: &Value| {
-        temper_box_shell::operations_in(&[], b"/", &directories, &serde_json::to_vec(document).expect("JSON"))
+    let admit = |document: &temper_playground::documents::Configuration| {
+        temper_box_shell::operations_in_with_limits(
+            "temper",
+            &[],
+            b"/",
+            &directories,
+            &serde_json::to_vec(document).expect("JSON"),
+            &temper_service::stock::Given::Stock,
+            &document.jig,
+            &document.limits,
+        )
     };
     admit(&document).expect("unmodified fixture must start");
     let turn = number(&document, Part::Engine, "hub.turn_bytes");
@@ -94,11 +108,8 @@ fn transcript_padding_covers_all_resume_window_remainders() {
     let box_bytes = u64::try_from(size_of::<Box<[u8]>>()).expect("box size");
     for remainder in 0..LENGTH_BYTES {
         let scratch = support::Scratch::startup(&format!("plan-chat-window-{remainder}"));
-        support::configuration(scratch.path(), &support::Forge::Unreached);
+        let mut document = support::configuration(scratch.path(), &support::Forge::Unreached);
         let directories = support::configuration::directories(scratch.path());
-        let mut document: Value =
-            serde_json::from_slice(&fs::read(scratch.path().join("temper.json")).expect("fixture document"))
-                .expect("fixture JSON");
         let base = number(&document, Part::Engine, "core.resume_bytes");
         let window = (base / LENGTH_BYTES + 1) * LENGTH_BYTES + remainder;
         let transcript = window + (box_bytes - LENGTH_BYTES) * (window / LENGTH_BYTES);
@@ -107,8 +118,17 @@ fn transcript_padding_covers_all_resume_window_remainders() {
         for part in [Part::Engine, Part::Worker] {
             set(&mut document, part, "hub.transcript_bytes", transcript);
         }
-        let admit = |document: &Value| {
-            temper_box_shell::operations_in(&[], b"/", &directories, &serde_json::to_vec(document).expect("JSON"))
+        let admit = |document: &temper_playground::documents::Configuration| {
+            temper_box_shell::operations_in_with_limits(
+                "temper",
+                &[],
+                b"/",
+                &directories,
+                &serde_json::to_vec(document).expect("JSON"),
+                &temper_service::stock::Given::Stock,
+                &document.jig,
+                &document.limits,
+            )
         };
         admit(&document).expect("both hubs hold the padded configured window");
         for part in [Part::Engine, Part::Worker] {

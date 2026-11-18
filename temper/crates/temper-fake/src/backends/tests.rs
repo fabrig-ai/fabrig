@@ -119,8 +119,7 @@ fn welcome_steps_name_only_the_four_held_peers_and_share_the_seed() {
 
 #[test]
 fn init_targets_change_together_and_preserve_registration_terms() {
-    let (mut temper, agent, paths, peers) = fixture();
-    temper["engine"]["memory_bytes"] = 1_152_921_504_606_846_976_u64.into();
+    let (temper, agent, paths, peers) = fixture();
     let docs = write(&temper, &agent, &paths, &peers).expect("rewrite init");
     let effective = json(&docs.temper);
     assert!(effective["application"].get("charter").is_none());
@@ -170,7 +169,6 @@ fn init_targets_change_together_and_preserve_registration_terms() {
         assert_eq!(endpoint["transport"], "plaintext");
         assert!(endpoint.get("server_name").is_none());
     }
-    assert_eq!(effective["engine"]["memory_bytes"], 1_152_921_504_606_846_976_u64);
     assert_eq!(effective["application"]["clients"]["bundle"], "/effective/config/bundle-loopback");
     assert_eq!(effective["workers"][0]["agent"]["configuration"], "/effective/config/agent.json");
     assert_eq!(
@@ -510,19 +508,12 @@ fn adapter_and_machine_kinds_are_ordinary_and_no_forges_are_added() {
 
 #[test]
 fn backend_rewrite_keeps_creating_list_capacity() {
-    let standard = jig_protocol_config::stock().core.documents.lines;
-    for (receiving, expected) in [(Some(2), 3), (Some(8), 8), (None, standard)] {
-        let (mut temper, agent, paths, peers) = fixture();
-        let overrides = temper["engine"]["limits"]["overrides"].as_object_mut().unwrap();
-        match receiving {
-            Some(receiving) => overrides.insert("documents.lines".into(), json!(receiving)),
-            None => overrides.remove("documents.lines"),
-        };
-        let docs = write(&temper, &agent, &paths, &peers).expect("backend rewrite");
-        let effective = json(&docs.temper);
-        assert_eq!(effective["engine"]["limits"]["overrides"]["documents.lines"], json!(expected));
-        assert_eq!(effective["engine"]["limits"]["overrides"]["accounts.credentials"], json!(4));
-    }
+    let (temper, agent, paths, peers) = fixture();
+    let docs = write(&temper, &agent, &paths, &peers).expect("backend rewrite");
+    let effective = json(&docs.temper);
+    assert!(effective["engine"].get("limits").is_none());
+    assert!(effective["engine"].get("memory_bytes").is_none());
+    assert!(jig_protocol_config::stock().core.documents.lines >= 3);
 }
 
 fn assert_program_provider(llm: &Value, temper: &Value) {
@@ -586,7 +577,10 @@ fn program_offer_has_a_runnable_model_route_in_both_documents() {
     let agent_limits = &agent_endpoint["limits"];
     for field in ["window", "output"] {
         let actual = if field == "window" { model.model.window } else { model.model.output };
-        assert_eq!(json!(actual), agent_limits[field], "program quantities agree: {field}");
+        assert!(
+            u64::from(actual) <= agent_limits[field].as_u64().expect("agent capacity"),
+            "program fits the agent: {field}"
+        );
     }
     let stock = temper_engine_service_stock::stock::defaults(&admitted.llm, admitted.limits.core.tasks.result_bytes);
     for charter in &stock.charters {

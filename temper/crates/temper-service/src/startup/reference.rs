@@ -41,7 +41,7 @@ fn merge_command(out: &mut Writer) -> Result<(), Overflow> {
 
 /// Slot capacity at composition and each deployment limit (temper/docs/design/domain/worker/README.md, 5).
 fn more_slots(out: &mut Writer) -> Result<(), Overflow> {
-    out.put(b"\n## More slots\n\n`workers[0].slots` bounds the runs a worker hosts at once, an agent process each. The host's agents follow it, and nothing in `agent.json` raises them. Each of these must be at least the slots, and a start names the one that's short:\n\n- `hub.slots`, in `workers[0].limits.overrides`.\n- `fleet.slots`, in `engine.limits.overrides`. An engine alone can't see a worker's slots: it uses them up to this, and turns away a hello listing more runs.\n- `checkout.workspaces`, in `application.limits.overrides`, and `git_component.operations` there, at least the workspaces.\n")
+    out.put(b"\n## More slots\n\n`workers[0].slots` bounds the runs a worker hosts at once, an agent process each. The host's agents follow it, and nothing in `agent.json` raises them. Each of these must be at least the slots, and a start names the one that's short:\n\n- `hub.slots`, in `workers[0].limits.overrides`.\n- `fleet.slots`, in the setting `limits`. An engine alone can't see a worker's slots: it uses them up to this, and turns away a hello listing more runs.\n- The worker's `checkout.workspaces` and `git_component.operations` follow its slots at start.\n")
 }
 
 fn accepted(path: &str, engine: bool) -> bool {

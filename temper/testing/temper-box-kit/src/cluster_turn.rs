@@ -25,7 +25,11 @@ pub fn write(path: &Path, value: &Value) {
 }
 
 /// Render once, retaining these documents across both kinds of restart.
-pub fn prepare(cluster: &mut Cluster, root: &Path, addresses: &[std::net::SocketAddr; 5]) {
+pub fn prepare(
+    cluster: &mut Cluster,
+    root: &Path,
+    addresses: &[std::net::SocketAddr; 5],
+) -> temper_playground::documents::Configuration {
     for (name, address) in ["clients", "workers", "webhooks", "forge", "llm"].iter().zip(addresses) {
         cluster.bind(&format!("story.{name}"), &address.to_string());
     }
@@ -37,8 +41,8 @@ pub fn prepare(cluster: &mut Cluster, root: &Path, addresses: &[std::net::Socket
     let engine_path = cluster.dir("engine").join("config/temper.json");
     let worker_path = cluster.dir("w1").join("config/temper.json");
     let agent_path = cluster.dir("w1").join("config/agent.json");
-    let mut engine = read(&engine_path);
-    let mut worker = read(&worker_path);
+    let mut engine = temper_playground::documents::Configuration::from_jig(read(&engine_path));
+    let mut worker = temper_playground::documents::Configuration::from_jig(read(&worker_path));
     let mut agent = read(&agent_path);
     // domain/worker/jobs.md, kind 1: the engine declares preparation only when
     // its spec and result fit. The worker and the agent must carry that result.
@@ -48,16 +52,19 @@ pub fn prepare(cluster: &mut Cluster, root: &Path, addresses: &[std::net::Socket
         ("tasks.message_bytes", prepare.result),
         ("tasks.result_bytes", prepare.result),
     ] {
-        engine["engine"]["limits"]["overrides"][name] = bytes.into();
+        engine.jig_over(name, bytes);
     }
+    engine.jig_over("people.words", 512);
+    engine.jig_over("tasks.run_inbox", 8);
+    engine.jig_over("tasks.inbox_bytes", prepare.result * 8);
     let payload = prepare.result + 2; // the result and its JSON string quotes
     agent["profile"]["declared"]["tool_payload"] = payload.into();
-    engine["engine"]["limits"]["overrides"]["hub.outcome_bytes"] = payload.into();
-    engine["application"]["limits"]["overrides"]["forge.client.op_bytes"] = prepare.result.into();
+    engine.jig_over("hub.outcome_bytes", payload);
+    engine.temper_over("forge.client.op_bytes", prepare.result);
     worker["workers"][0]["limits"]["overrides"]["tasks.result_bytes"] = prepare.result.into();
     worker["workers"][0]["limits"]["overrides"]["hub.outcome_bytes"] = payload.into();
     worker["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = prepare.result.into();
-    worker["application"]["limits"]["overrides"]["checkout.message_bytes"] = payload.into();
+    worker.temper_over("checkout.message_bytes", payload);
     let turn = support::configuration::turn_bounds::turn_body(&agent);
     support::configuration::turn_bounds::apply(&mut engine, turn);
     support::configuration::turn_bounds::apply(&mut worker, turn);
@@ -86,6 +93,7 @@ pub fn prepare(cluster: &mut Cluster, root: &Path, addresses: &[std::net::Socket
         &root.join("person.header"),
         format!("Authorization: token {}\n", std::str::from_utf8(&token).expect("fixture token")).as_bytes(),
     );
+    engine
 }
 
 /// Leave seven forty-eighths of the period for landing tasks, not the owner's pool.

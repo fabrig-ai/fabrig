@@ -10,8 +10,7 @@ pub fn worker_alone_document() -> Box<[u8]> {
     let document = br#"{"workers":[{
 "engine":{"socket":"127.0.0.1:7100"},"name":"worker-a","secret":"worker-secret","slots":1,
 "agent":{"program":"/opt/temper/bin/temper","configuration":"/opt/temper/agent.json","arguments":["internal", "agent","/opt/temper/agent.json"]},
-"limits":{"overrides":{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.result_bytes":512,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}},
-"memory_bytes":1152921504606846976}],"application":{"limits":{"overrides":{}}}}"#;
+"limits":{"overrides":{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.result_bytes":512,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}}}],"application":{"limits":{"overrides":{}}}}"#;
     with(document, b"workers[0].limits.overrides", br#"{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.result_bytes":512,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}"#)
 }
 pub fn with(input: &[u8], path: &[u8], json: &[u8]) -> Box<[u8]> {
@@ -118,15 +117,19 @@ fn turn_limits(path: &[u8], json: &[u8]) -> Box<[u8]> {
     text.push('}');
     text.into_bytes().into_boxed_slice()
 }
-/// The owned example's worker and application limits, in the worker-only shape.
+/// The owned example's worker, with the worker-only fixture's application limits.
 #[expect(clippy::disallowed_macros, reason = "the regression reads the shipped example as fixture data")]
 pub fn owned_worker_alone_document() -> Box<[u8]> {
     let owned = include_bytes!("../../../../../docs/examples/owned.json");
     let mut input = Vec::from(b"{\"workers\":".as_slice());
     input.extend_from_slice(&owned[member_span(owned, b"workers")]);
-    input.extend_from_slice(b",\"application\":{\"limits\":");
-    input.extend_from_slice(&owned[member_span(owned, b"application.limits")]);
-    input.extend_from_slice(b"}}");
+    input.extend_from_slice(
+        br#","application":{"limits":{"overrides":{
+        "checkout.message_bytes":10662,"checkout.workspaces":4,
+        "git_component.operations":4,"checkout.name_bytes":256,
+        "checkout.repositories":2,"git_component.stdout_bytes":131072
+    }}}}"#,
+    );
     let input = with(&input, b"workers[0].engine", br#"{"socket":"127.0.0.1:7100"}"#);
     let input = with(&input, b"workers[0].name", br#""w1""#);
     with(&input, b"workers[0].secret", br#""secrets/w1.secret""#)

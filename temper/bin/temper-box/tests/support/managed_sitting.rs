@@ -147,8 +147,10 @@ fn configure(root: &Path, api: SocketAddr, git: SocketAddr, upstream: SocketAddr
         template = template.replace(&format!("{{{name}}}"), &value.to_string());
     }
     let template = template.replace("{{", "{").replace("}}", "}").replace("\"acme\"", &format!("\"{OWNER}\""));
-    let mut value: Value = serde_json::from_str(&template).expect("rendered engine template");
-    value["engine"]["limits"]["overrides"]["people.projects"] = 3.into();
+    let mut value = temper_playground::documents::Configuration::from_jig(
+        serde_json::from_str(&template).expect("rendered engine template"),
+    );
+    value.jig_over("people.projects", 3);
     // Bind the machine endpoints as the process GitHub story does.
     value["application"]["test"]["github"] = json!({
         "api":{"socket":api.to_string()},"transport":"plaintext",

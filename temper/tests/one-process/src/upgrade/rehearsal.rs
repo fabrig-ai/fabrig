@@ -77,10 +77,9 @@ impl skein_world::Referee<SignalHost<Tool>> for Judge {
         self.done
     }
 }
-thread_local! { static CONFIGURATION: std::cell::RefCell<Vec<u8>> = const { std::cell::RefCell::new(Vec::new()) }; }
+thread_local! { static CONFIGURATION: std::cell::RefCell<Option<temper_playground::documents::Configuration>> = const { std::cell::RefCell::new(None) }; }
 fn start(inherited: &skein_world::Inherited) -> SignalHost<Tool> {
-    let configuration = CONFIGURATION.with(|bytes| bytes.borrow().clone());
-    let mut document: serde_json::Value = serde_json::from_slice(&configuration).expect("configuration JSON");
+    let mut document = CONFIGURATION.with(|bytes| bytes.borrow().as_ref().expect("configured rehearsal").clone());
     let given = temper_playground::documents::given(&document);
     temper_playground::documents::settings::strip_models(&mut document);
     let mut runtime = temper_service::AccountsRuntime { providers: List::with_capacity(2), trust: None };
@@ -116,7 +115,7 @@ fn start(inherited: &skein_world::Inherited) -> SignalHost<Tool> {
                 .expect("remote worker fixture files");
         }
     }
-    let mut service = temper_service::startup::restoring_with(
+    let mut service = temper_service::startup::restoring_with_limits(
         &serde_json::to_vec(&document).expect("configuration"),
         &jig_protocol_config::Directories::working(),
         &files,
@@ -124,6 +123,8 @@ fn start(inherited: &skein_world::Inherited) -> SignalHost<Tool> {
         &fixtures::seeds(),
         Some(runtime),
         &given,
+        &document.jig,
+        &document.limits,
     )
     .unwrap_or_else(|why| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&why))));
     let root = |name: &[u8]| inherited.roots.iter().find(|(key, _)| key.as_ref() == name).expect("tool root").1;
@@ -161,16 +162,11 @@ enum Copy {
 
 /// A deployment's remote workers and owned Forgejo must stay unstarted.
 pub fn deployment_check(directory: &Path) {
-    golden_check_with(
-        directory,
-        serde_json::to_vec(&deployment_document(directory)).expect("deployment configuration"),
-        Copy::Whole,
-    );
+    golden_check_with(directory, deployment_document(directory), Copy::Whole);
 }
 
-fn deployment_document(directory: &Path) -> serde_json::Value {
-    let mut document: serde_json::Value =
-        serde_json::from_slice(&golden::read_configuration(directory)).expect("golden configuration");
+fn deployment_document(directory: &Path) -> temper_playground::documents::Configuration {
+    let mut document = golden::read_configuration(directory);
     document["workers"] = serde_json::json!([]);
 
     document["engine"]["hosts"]["listener"] = serde_json::json!([{"socket":"127.0.0.1:7103"}]);
@@ -186,7 +182,7 @@ fn deployment_document(directory: &Path) -> serde_json::Value {
 pub fn accounts_check(directory: &Path) {
     let mut document = deployment_document(directory);
     // The configured endpoints and identity providers coexist with the floor's kept settings versions.
-    document["engine"]["limits"]["overrides"]["core.settings.versions"] = 12.into();
+    document.jig_over("core.settings.versions", 12);
     let mut endpoint = document["engine"]["llm"]["endpoints"][0].clone();
     endpoint["name"] = "second".into();
     endpoint["number"] = 2.into();
@@ -204,10 +200,10 @@ pub fn accounts_check(directory: &Path) {
             "redirect_path":"callback"
         }});
     }
-    golden_check_with(directory, serde_json::to_vec(&document).expect("accounts configuration"), Copy::Whole);
+    golden_check_with(directory, document, Copy::Whole);
 }
 
-fn golden_check_with(directory: &Path, configuration: Vec<u8>, copy: Copy) {
+fn golden_check_with(directory: &Path, configuration: temper_playground::documents::Configuration, copy: Copy) {
     let mut disk = golden::files::load(directory);
     let broken =
         jig_protocol_store::keys::encode(&jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment), 64)
@@ -219,7 +215,7 @@ fn golden_check_with(directory: &Path, configuration: Vec<u8>, copy: Copy) {
     }
     let before = golden::files::image_root(&mut disk, 0);
     // The fixture client's root is the tool's disposable scratch, not a running client.
-    CONFIGURATION.with(|bytes| *bytes.borrow_mut() = configuration);
+    CONFIGURATION.with(|bytes| *bytes.borrow_mut() = Some(configuration));
     let mut world = skein_world::World::new(
         fixtures::SEED,
         skein_sim::Config::calm(),

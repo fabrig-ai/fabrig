@@ -785,6 +785,7 @@ fn a_refused_update_leaves_prepare_succeeding_with_one_line() {
 }
 
 #[test]
+#[ignore = "needs setup.deadline_ms=200, setup.backoff_ms=1, setup.backoff_max_ms=100 as limit settings inside the box: change 7339 (temper/docs/design/protocol/configuration/limit-settings.md, 8)"]
 fn source_deadlines_and_spawn_failures_leave_preparation_succeeding() {
     for (command, spawn) in [("list", false), ("update-oauth", false), ("list", true), ("update-oauth", true)] {
         let scratch = support::Scratch::new("forge_source_host_failure");
@@ -804,10 +805,11 @@ fn source_deadlines_and_spawn_failures_leave_preparation_succeeding() {
         };
         source_script(directory, &extra);
         let path = directory.join("temper.json");
-        let mut value: serde_json::Value =
-            serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
+        let mut value = temper_playground::documents::Configuration::from_jig(
+            serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON"),
+        );
         for (name, number) in [("setup.deadline_ms", 200_u64), ("setup.backoff_ms", 1), ("setup.backoff_max_ms", 100)] {
-            value["application"]["limits"]["overrides"][name] = number.into();
+            value.temper_over(name, number);
         }
         support::write_private(&path, &serde_json::to_vec(&value).expect("JSON"));
         let output = support::owned::prepare(directory, 1);

@@ -8,7 +8,7 @@ fn cluster_turn_setup_declares_the_paced_gate_and_prepare_job() {
     use temper_service::startup;
     let scratch = support::Scratch::startup("cluster-turn-documents");
     let mut cluster = support::cluster::Cluster::description_from(scratch.path(), &cluster_turn_setup::fixture());
-    cluster_turn_setup::prepare(&mut cluster, scratch.path(), &support::free_addresses(&[]));
+    let figures = cluster_turn_setup::prepare(&mut cluster, scratch.path(), &support::free_addresses(&[]));
     let forge = cluster_turn_setup::read(&cluster.dir("forge").join("forge.json"));
     assert_eq!(forge["workflows"], json!([{"file":"gate.yml","jobs":["gate"],"cue":{"declared":".fake-forge/gate"}}]));
     assert_eq!(forge["manual_merges"], json!({"allow":true,"autodetect":true}));
@@ -33,7 +33,14 @@ fn cluster_turn_setup_declares_the_paced_gate_and_prepare_job() {
     let limits = jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 };
     let bytes = serde_json::to_vec(&engine["engine"]).expect("engine JSON");
     let document = jig_protocol_config::document(&bytes, &limits).expect("engine document");
-    let engine = startup::engine(&document, 0, &jig_protocol_config::Directories::working()).expect("initial engine");
+    let engine = startup::engine_over(
+        &document,
+        0,
+        &jig_protocol_config::Directories::working(),
+        &temper_service::stock::Given::Stock,
+        &mut figures.jig.clone(),
+    )
+    .expect("initial engine");
     assert!(
         temper_service::limits::prepare_jobs(&engine.limits).contains(&temper_service::limits::prepare_bound()),
         "the worker's merge train must be declared"
@@ -50,8 +57,14 @@ fn cluster_turn_setup_declares_the_paced_gate_and_prepare_job() {
         let directories = temper_box_shell::directories::jig_directories(&directories);
         let bytes = std::fs::read(root.join("config/temper.json")).expect("deployment document");
         if process == "engine" {
-            startup::store_limits(&bytes, &directories, Some(&agent.declaration()))
-                .unwrap_or_else(|why| panic!("{process}: {}", String::from_utf8_lossy(&startup::lines(&why))));
+            startup::store_limits_with_limits(
+                &bytes,
+                &directories,
+                Some(&agent.declaration()),
+                &figures.jig,
+                &figures.limits,
+            )
+            .unwrap_or_else(|why| panic!("{process}: {}", String::from_utf8_lossy(&startup::lines(&why))));
         }
         match startup::shape(&bytes, &directories).expect("separate shape") {
             startup::Shape::EngineAlone => {
@@ -232,7 +245,10 @@ fn batch_landing_configuration_passes_startup_admission() {
     landing_configuration_admission("batch-landing-admission", support::batch_landing::configure);
 }
 
-fn landing_configuration_admission(case: &str, configure: fn(&std::path::Path, u64)) {
+fn landing_configuration_admission(
+    case: &str,
+    configure: fn(&std::path::Path, u64) -> temper_playground::documents::Configuration,
+) {
     use skein_lib::{List, Secret};
     use temper_service::settings::{Files, Seeds};
 
@@ -245,7 +261,7 @@ fn landing_configuration_admission(case: &str, configure: fn(&std::path::Path, u
         git: format!("http://{api}/"),
     };
     support::configuration(root, &forge);
-    configure(root, 1);
+    let figures = configure(root, 1);
     let document = std::fs::read(root.join("temper.json")).expect("story configuration");
     let directories = jig_protocol_config::Directories::working();
     let named = temper_service::named(&document, &directories).expect("named story files");
@@ -264,15 +280,18 @@ fn landing_configuration_admission(case: &str, configure: fn(&std::path::Path, u
         seed: 7,
         crypto: Secret::new(Box::new([9; 32])),
     };
-    let result = temper_service::startup::check(
+    let result = temper_service::startup::checked_start_with_limits(
         &document,
         &directories,
         &Files { entries },
-        &agent,
+        Some(&agent),
         &seeds,
-        None,
         List::with_capacity(0),
         None,
+        &temper_service::stock::Given::Stock,
+        None,
+        &figures.jig,
+        &figures.limits,
     );
     if let Err(problems) = result {
         panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&problems)));

@@ -3,6 +3,7 @@
     clippy::disallowed_methods,
     reason = "ordinary fixture code builds and edits configuration bytes"
 )]
+use super::{Input, Start};
 use crate::settings;
 use jig_domain_link::EndpointBound;
 use skein_lib::{List, Secret};
@@ -11,7 +12,7 @@ pub const APPLICATION: &[u8] = br#"{
 "webhooks":null,
 "clients":{"listener":{"socket":"127.0.0.1:7100"},"public":null,"bundle":null},
 
-"demo":null,"sign_in":null,"limits":{"profile":"standard","overrides":{}}
+"demo":null,"sign_in":null
 }"#;
 pub const DEMO: &str = r#""demo":{"llm":{"listen":{"socket":"$llm"},"provider":3,"key":"demo/llm.key",
 "asked":[{"cue":"Add CSV export to widget","turns":["CSV"]},
@@ -31,7 +32,7 @@ pub fn demo_application() -> Box<[u8]> {
         .into_boxed_slice()
 }
 
-pub fn document() -> Box<[u8]> {
+pub fn document() -> Start {
     let mut document = Vec::from(b"{\"engine\":".as_slice());
     let engine = core::str::from_utf8(super::ENGINE)
         .unwrap()
@@ -40,15 +41,12 @@ pub fn document() -> Box<[u8]> {
     document.extend_from_slice(br#", "workers":[{
 "engine":{"in_process":"workers"},"name":"worker-a","secret":"worker-secret","slots":1,
 "agent":{"program":"/opt/temper/bin/temper","configuration":"/opt/temper/agent.json","arguments":["internal", "agent","/opt/temper/agent.json"]},
-"limits":{"overrides":{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.result_bytes":512,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}},
-"memory_bytes":1152921504606846976}],"application":"#);
-    document.extend_from_slice(core::str::from_utf8(APPLICATION).unwrap().replace("\"overrides\":{}", "\"overrides\":{\"checkout.name_bytes\":600,\"checkout.repositories\":4,\"git_component.stdout_bytes\":131072,\"forge.name_bytes\":256,\"forge.landing_members\":2,\"forge.resources_per_task\":4}").as_bytes());
+"limits":{"overrides":{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.result_bytes":512,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}}}],"application":"#);
+    document.extend_from_slice(APPLICATION);
     document.extend_from_slice(b"}");
-    let document = document.into_boxed_slice();
-    let document = with(&document, b"engine.limits.overrides", engine_turn_limits().as_bytes());
-    let document = with(&document, b"workers[0].limits.overrides", worker_turn_limits().as_bytes());
-    // Retain the checkout bounds alongside the turn-derived application bounds.
-    with(&document, b"application.limits.overrides", br#"{"root.journal.run_bytes":32768,"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":131072,"forge.name_bytes":256,"forge.landing_members":2,"forge.resources_per_task":4}"#)
+    let (jig, own) = startup_limits();
+    let document = Start::given(&document, &jig, &own);
+    with(&document, b"workers[0].limits.overrides", worker_turn_limits().as_bytes())
 }
 pub fn parsed() -> skein_json::Document {
     jig_protocol_config::document(
@@ -116,19 +114,7 @@ fn turn_limits(path: &[u8], json: &[u8]) -> Box<[u8]> {
     let turn = super::agent().limits.bodies.turn_body;
     let resume = turn.checked_add(4).unwrap();
     let window = u64::from(resume) * 4;
-    let loaded = turn.checked_add(u32::try_from(size_of::<temper_engine_domain::Record>()).unwrap()).unwrap();
-    let keys: &[(&str, u64)] = if path == b"engine.limits.overrides" {
-        &[
-            ("hub.turn_bytes", u64::from(turn)),
-            ("hub.transcript_bytes", window),
-            ("hub.turn_queue_bytes", u64::from(turn) * 8),
-            ("core.resume_bytes", u64::from(resume)),
-            ("tasks.inbox_bytes", 4096),
-            ("tasks.run_inbox", 8),
-            ("authority.grants", 16),
-            ("notes.scopes", 32),
-        ]
-    } else if path == b"workers[0].limits.overrides" {
+    let keys: &[(&str, u64)] = if path == b"workers[0].limits.overrides" {
         &[
             ("hub.accounts", 8),
             ("hub.inbox", 8),
@@ -137,17 +123,6 @@ fn turn_limits(path: &[u8], json: &[u8]) -> Box<[u8]> {
             ("hub.turn_bytes", u64::from(turn)),
             ("hub.transcript_bytes", window),
             ("hub.turn_queue_bytes", u64::from(turn) * 8),
-        ]
-    } else if path == b"application.limits.overrides" {
-        &[
-            ("forge.client.answer_bytes", 65536),
-            ("forge.client.op_bytes", 512),
-            ("forge_component.body_bytes", 16384),
-            ("root.journal.transcript_bytes", u64::from(resume)),
-            ("root.loads.transcript_bytes", u64::from(turn)),
-            ("root.loads.bytes", u64::from(loaded)),
-            ("root.loads.reply_bytes", u64::from(loaded)),
-            ("root.loads.read_bytes", u64::from(turn) * 2),
         ]
     } else {
         return json.into();
@@ -169,62 +144,55 @@ fn turn_limits(path: &[u8], json: &[u8]) -> Box<[u8]> {
     text.push('}');
     text.into_bytes().into_boxed_slice()
 }
-fn engine_turn_limits() -> String {
-    let document = core::str::from_utf8(super::ENGINE).unwrap();
-    let overrides = document.split_once("\"overrides\":").unwrap().1;
-    let mut result = overrides.split_once('}').unwrap().0.to_string();
-    result.push('}');
-    result
-}
 fn worker_turn_limits() -> String {
     r#"{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.result_bytes":512,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}"#.into()
 }
 /// Copy a JSON value for a fixture derived from another document.
-pub fn value(input: &[u8], path: &[u8]) -> Box<[u8]> {
-    input[member_span(input, path)].into()
+pub fn value(input: &(impl Input + ?Sized), path: &[u8]) -> Box<[u8]> {
+    let input = input.configured();
+    if let Some(value) = input.limits(path) {
+        return value;
+    }
+    input[member_span(&input, path)].into()
 }
-pub fn with(input: &[u8], path: &[u8], json: &[u8]) -> Box<[u8]> {
+pub fn with(input: &(impl Input + ?Sized), path: &[u8], json: &[u8]) -> Start {
+    let mut input = input.configured();
+    if input.over(path, json) {
+        return input;
+    }
     let json = turn_limits(path, json);
-    let span = member_span(input, path);
+    let span = member_span(&input, path);
     let mut result = input[..span.start].to_vec();
     result.extend_from_slice(&json);
     result.extend_from_slice(&input[span.end..]);
-    result.into_boxed_slice()
+    input.document = result.into_boxed_slice();
+    input
 }
 
-/// Several reads and disjoint edits of one fixture share its parsed document.
-pub struct Json<'a> {
-    input: &'a [u8],
+/// Several reads and disjoint edits of one fixture keep its typed limits.
+pub struct Json {
+    input: Start,
     document: skein_json::Document,
 }
-impl<'a> Json<'a> {
-    pub fn new(input: &'a [u8]) -> Self {
+impl Json {
+    pub fn new(input: &(impl Input + ?Sized)) -> Self {
+        let input = input.configured();
         let document = jig_protocol_config::document(
-            input,
+            &input,
             &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
         )
         .unwrap();
         Self { input, document }
     }
     pub fn value(&self, path: &[u8]) -> &[u8] {
-        &self.input[member_span_in(self.input, &self.document, path)]
+        &self.input[member_span_in(&self.input, &self.document, path)]
     }
-    pub fn with(&self, edits: &[(&[u8], &[u8])]) -> Box<[u8]> {
-        let mut edits: Vec<_> = edits
-            .iter()
-            .map(|(path, json)| (member_span_in(self.input, &self.document, path), turn_limits(path, json)))
-            .collect();
-        edits.sort_unstable_by_key(|(span, _)| span.start);
-        let mut result = Vec::new();
-        let mut after = 0;
-        for (span, json) in edits {
-            assert!(after <= span.start, "fixture edits are disjoint");
-            result.extend_from_slice(&self.input[after..span.start]);
-            result.extend_from_slice(&json);
-            after = span.end;
+    pub fn with(&self, edits: &[(&[u8], &[u8])]) -> Start {
+        let mut input = self.input.clone();
+        for (path, json) in edits {
+            input = with(&input, path, json);
         }
-        result.extend_from_slice(&self.input[after..]);
-        result.into_boxed_slice()
+        input
     }
 }
 fn member_span(input: &[u8], path: &[u8]) -> core::ops::Range<usize> {
@@ -289,32 +257,29 @@ fn member_span_in(input: &[u8], document: &skein_json::Document, path: &[u8]) ->
 }
 
 /// One webhook listener on the shipped profile.
-pub fn webhook_document() -> Box<[u8]> {
-    core::str::from_utf8(&document())
-        .unwrap()
-        .replace("\"webhooks\":null", "\"webhooks\":{\"listener\":{\"socket\":\"127.0.0.1:7200\"}}")
-        .into_bytes()
-        .into_boxed_slice()
+pub fn webhook_document() -> Start {
+    with(&document(), b"application.webhooks", br#"{"listener":{"socket":"127.0.0.1:7200"}}"#)
 }
 
 /// The same deployment with its worker hosted by another process.
-pub fn engine_alone_document() -> Box<[u8]> {
+pub fn engine_alone_document() -> Start {
     let input = with(&document(), b"engine.hosts.listener", br#"[{"socket":"127.0.0.1:0"}]"#);
     with(&input, b"workers", b"[]")
 }
 
 /// A worker's document has no engine or engine application members.
-pub fn worker_alone_document() -> Box<[u8]> {
+pub fn worker_alone_document() -> Start {
     let input = with(&document(), b"workers[0].engine", br#"{"socket":"127.0.0.1:7100"}"#);
     let input = with(&input, b"application", br#"{"limits":{"overrides":{}}}"#);
     let text = core::str::from_utf8(&input).unwrap();
     let (_, workers) = text.split_once(", \"workers\":").unwrap();
-    [b"{\"workers\":".as_slice(), workers.as_bytes()].concat().into_boxed_slice()
+    let bytes = [b"{\"workers\":".as_slice(), workers.as_bytes()].concat();
+    Start::stock(&bytes)
 }
 
 #[expect(clippy::too_many_arguments, reason = "the fixture supplies its own defaults at the startup boundary")]
 pub fn start(
-    document: &[u8],
+    document: &(impl Input + ?Sized),
     directories: &jig_protocol_config::Directories,
     files: &settings::Files,
     agent: &settings::Agent,
@@ -324,15 +289,52 @@ pub fn start(
     forges: List<crate::ForgeRuntime>,
 ) -> Result<crate::Service, crate::startup::Problems> {
     let defaults = crate::stock::with_models(Box::new([super::small_model()]), 32);
-    crate::startup::startup_with(
-        document,
+    let document = document.configured();
+    let checked = crate::startup::checked_start_with_limits(
+        &document,
         directories,
         files,
-        agent,
+        Some(agent),
         seeds,
-        accounts,
-        runtime,
         forges,
+        None,
         &crate::stock::Given::Own { jig: defaults, forge: Box::default(), ways: crate::stock::ways() },
-    )
+        None,
+        &document.jig,
+        &document.own,
+    )?;
+    crate::startup::from_checked(checked, files, Some(agent), seeds, accounts, Some(runtime), None, None, Box::new([]))
+}
+
+pub fn startup_limits() -> (jig_protocol_config::Limits, crate::limits::Limits) {
+    let sources = temper_service_core::derived::Sources::agent(&super::agent().declaration());
+    let stock = crate::limits::stock();
+    let (base, mut own) = crate::limits::base(stock.live_goals, stock.tool_payload, sources).unwrap();
+    let mut jig = super::jig_limits_over(&base);
+    let turn = sources.turn;
+    own.root.transcript_memory = 1_152_921_504_606_846_976;
+    own.root.journal.run_bytes = 32_768;
+    own.checkout.workspaces = 1;
+    own.git_component.operations = 1;
+    let resume = turn.checked_add(4).unwrap();
+    let loaded = turn.checked_add(u32::try_from(size_of::<temper_engine_domain::Record>()).unwrap()).unwrap();
+    jig.hub.turn_bytes = u64::from(turn);
+    jig.hub.transcript_bytes = u64::from(resume) * 4;
+    jig.hub.turn_queue_bytes = u64::from(turn) * 8;
+    jig.core.resume_bytes = resume;
+    own.checkout.name_bytes = 600;
+    own.checkout.repositories = 4;
+    own.git_component.stdout_bytes = 131_072;
+    own.forge.name_bytes = 256;
+    own.forge.landing_members = 2;
+    own.forge.resources_per_task = 4;
+    crate::limits::apply(&mut own, b"forge.client.answer_bytes", 65_536).unwrap();
+    own.forge.client.op_bytes = 512;
+    own.forge_component.body_bytes = 16_384;
+    own.root.journal.transcript_bytes = resume;
+    own.root.loads.transcript_bytes = turn;
+    own.root.loads.bytes = loaded;
+    own.root.loads.reply_bytes = loaded;
+    own.root.loads.read_bytes = u64::from(turn) * 2;
+    (jig, own)
 }

@@ -1007,7 +1007,7 @@ fn prepare_owned_worker(members: &mut support::cluster::Members) -> Result<(), S
         .map_err(|why| format!("owned example: {why:?}"))?;
     let mut document = serde_json::json!({
         "workers": example["workers"],
-        "application": {"limits": example["application"]["limits"]}
+        "application": {"limits":{"overrides":{}}}
     });
     let worker = &mut document["workers"][0];
     worker["engine"] = serde_json::json!({"socket": members.capture("engine", "workers").ok_or("engine listener")?});
@@ -1064,18 +1064,12 @@ impl OwnedWorkerJudge {
                 OwnedWorkerPhase::Engine => {
                     let directory = self.members.prepare("engine");
                     let path = directory.join("config/temper.json");
-                    let mut engine: serde_json::Value = serde_json::from_slice(
-                        &std::fs::read(&path).map_err(|why| format!("engine document: {why:?}"))?,
-                    )
-                    .map_err(|why| format!("engine JSON: {why:?}"))?;
-                    // Negotiate the owned worker's full terms, including its turn bounds.
-                    let example: serde_json::Value =
-                        serde_json::from_str(include_str!("../../../docs/examples/owned.json"))
-                            .map_err(|why| format!("owned example: {why:?}"))?;
-                    engine["engine"]["limits"] = example["engine"]["limits"].clone();
-                    engine["application"]["limits"] = example["application"]["limits"].clone();
-                    // The example's 186 s worker stop bound must fit the engine's 240 s grace.
-                    engine["engine"]["limits"]["overrides"]["fleet.grace_ms"] = 240_000.into();
+                    let engine = temper_playground::documents::Configuration::from_jig(
+                        serde_json::from_slice(
+                            &std::fs::read(&path).map_err(|why| format!("engine document: {why:?}"))?,
+                        )
+                        .map_err(|why| format!("engine JSON: {why:?}"))?,
+                    );
                     support::write_private(
                         &path,
                         &serde_json::to_vec(&engine).map_err(|why| format!("engine JSON: {why:?}"))?,
@@ -2334,10 +2328,11 @@ fn a_default_box_with_a_sign_in_registration_starts_without_dns() {
     fs::write(agent_path, serde_json::to_vec(&agent).expect("local agent fixture")).expect("local preflight endpoints");
     // The default registration reaches the sign-in startup resolver.
     let document_path = paths[0].join("temper.json");
-    let mut document: serde_json::Value =
-        serde_json::from_slice(&fs::read(&document_path).expect("default document")).expect("JSON");
-    document["application"]["limits"]["overrides"]["git_component.operations"] = 1.into();
-    document["application"]["limits"]["overrides"]["checkout.workspaces"] = 1.into();
+    let mut document = temper_playground::documents::Configuration::from_jig(
+        serde_json::from_slice(&fs::read(&document_path).expect("default document")).expect("JSON"),
+    );
+    document.temper_over("git_component.operations", 1);
+    document.temper_over("checkout.workspaces", 1);
     document["workers"][0]["slots"] = 1.into();
     fs::write(document_path, serde_json::to_vec(&document).expect("sign-in fixture")).expect("registered sign-in");
     // The private network has only loopback. Files-only name lookup and a private /run

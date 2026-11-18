@@ -1,29 +1,5 @@
 {
   "engine": {
-    "limits": {
-      "profile": "standard",
-      "overrides": {
-        "authority.executors": 22,
-        "clients.exchanges": 12,
-        "clients.streams": 8,
-        "clients_http.calls": 12,
-        "clients_http.streams": 8,
-        "core.resume_bytes": 16803814,
-        "documents.rows": 2,
-        "documents.text_bytes": 512,
-        "fleet.configured_workers": 8,
-        "fleet.workers": 2,
-        "hub.transcript_bytes": 67215250,
-        "hub.turn_bytes": 16803810,
-        "hub.turn_queue_bytes": 134430480,
-        "io.output": 16804602,
-        "tasks.charters": 16,
-        "tasks.executor_kinds": 22,
-        "tasks.inbox_bytes": 874120,
-        "tasks.message_bytes": 10660,
-        "tasks.result_bytes": 10660
-      }
-    },
     "llm": {
       "providers": [
         {
@@ -93,8 +69,7 @@
         "provider": 1,
         "subject": "owner-a"
       }
-    ],
-    "memory_bytes": 1073741824
+    ]
   },
   "workers": [
     {
@@ -117,12 +92,7 @@
         "profile": "standard",
         "overrides": {
           "hub.accounts": 4,
-          "hub.event_bytes": 10660,
-          "hub.run_calls": 48,
-          "hub.transcript_bytes": 67215250,
-          "hub.turn_bytes": 16803810,
-          "hub.turn_queue_bytes": 134430480,
-          "io.output": 16804602
+          "hub.run_calls": 48
         }
       }
     }
@@ -140,25 +110,6 @@
         "socket": "127.0.0.1:7101"
       }
     },
-    "demo": null, "sign_in": null,
-    "limits": {
-      "profile": "standard",
-      "overrides": {
-        "checkout.message_bytes": 10662,
-        "checkout.workspaces": 4,
-        "forge.client.op_bytes": 10660,
-        "forge.client.repositories": 3,
-        "forge.judge_projects": 8,
-        "forge.output": 82,
-        "forge.repositories": 3,
-        "forge_component.body_bytes": 21341,
-        "git_component.operations": 4,
-        "root.journal.transcript_bytes": 16803814,
-        "root.loads.bytes": 16804058,
-        "root.loads.read_bytes": 33607620,
-        "root.loads.reply_bytes": 16804058,
-        "root.loads.transcript_bytes": 16803810
-      }
-    }
+    "demo": null, "sign_in": null
   }
 }
