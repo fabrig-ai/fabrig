@@ -21,7 +21,7 @@ fn copy(source: &Path, target: &Path) {
     }
 }
 
-fn deployment() -> (skein_scratch::Scratch, Directories) {
+pub(crate) fn deployment() -> (skein_scratch::Scratch, Directories) {
     let scratch = skein_scratch::Scratch::new_in(&skein_scratch::paths::target_tmp(), "upgrade-deployment");
     let config = scratch.path().join("config");
     let data = scratch.path().join("data");

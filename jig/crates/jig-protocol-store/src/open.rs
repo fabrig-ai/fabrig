@@ -55,6 +55,9 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
     };
     let binary = admission::binary(&store.owner_sets);
     let Some(found) = decode(store, owner, &found, binary.jig, above) else { return };
+    if !crate::restoring::deployment(store, found.deployment) {
+        return refuse(store, owner, OpenRefusal::Deployment, above);
+    }
     let found_levels = found.levels;
     let compared = format::compare(found_levels, binary);
     if let Err(why) = &compared

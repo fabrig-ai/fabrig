@@ -112,11 +112,13 @@ skein-io                        files: the ring, or the simulator's disk
   the log segments skein-kv writes no more and copying the rest,
   upgrades it and switches to it (`opening.md`, 2). Two generations may
   share a file under two names, which neither writes. Transcripts
-  are shared by every generation:
+  sit outside the generations: an upgrade keeps their tree, while a
+  restore replaces it (`restoring.md`):
 
 ```
 <deployment>/
 ├── active          the active generation's number: its decimal digits and a newline
+├── restore         an outstanding restore intent, resolved before active (restoring.md)
 ├── generations/
 │   ├── 7/          the previous generation, kept until the next switch
 │   │   ├── store/      skein-kv: snapshot, log segments, task logs (logs/)
@@ -158,7 +160,7 @@ skein-io                        files: the ring, or the simulator's disk
   (`Manifest`, beside the format row in `component-v3.schema`, `records.md`, 3),
   encoded and versioned as every record. It names:
   - `generation`, the generation's number, and `from`, the one it was
-    upgraded from, none for a first start's;
+    upgraded from, none for a first start's or a restored generation's;
   - `before` and `after`, each owner's levels (`records.md`, 3);
     a first start's before levels are all none, and its after levels
     the binary's;
@@ -173,9 +175,11 @@ skein-io                        files: the ring, or the simulator's disk
   - `written`, the wall-clock time it was written, `env.wall` in its own
     unit.
 
-  Nothing at open reads it: it is the operator's record of what an
-  upgrade did, and what temper's `upgrade --check` and `versions`
-  print (temper's `draft/upgrades.md`, 3.1).
+  An ordinary open reads no manifest; resolving a restore may read its
+  staged generation's (`restoring.md`, 5), and going back reads its active
+  one's (`opening.md`, 5). It is also the operator's record of what an
+  upgrade did, printed by temper's `upgrade --check` and `versions`
+  (temper's `draft/upgrades.md`, 3.1).
 - **A directory in the layout before generations** (`store/`, `secrets/` or
   `transcripts/` at its top, and no `active`) is a store from an older
   build, made before generations. Generations never have the first
@@ -261,7 +265,9 @@ skein-io                        files: the ring, or the simulator's disk
   directory whole, or is a checkpoint: the state at one commit, taken
   while the engine serves or over a stopped deployment, mostly by hard
   links (`checkpoints.md`). A first start refuses a `checkpoints/` that
-  holds anything (`checkpoints.md`, 7).
+  holds anything (`checkpoints.md`, 7). Restoring a checkpoint over a stopped
+  deployment first takes a safety checkpoint, then stages and rolls forward
+  its intent (`restoring.md`).
 - **Opened before the root starts** (`opening.md`; `../service.md`,
   section 3).
 
@@ -906,7 +912,7 @@ intervals, and its indexes, by the rules of section 7.
   is stopped works; a copy that keeps hard links keeps the files two
   generations share as one, and one that does not stores them twice and
   restores a deployment that opens the same. A copy while it serves is
-  a checkpoint's (`checkpoints.md`), whose restore is open there (10).
+  a checkpoint's (`checkpoints.md`), restored by `restoring.md`.
 - **Finding a turn faster:** a row per turn in the map, if walking an
   attempt's frames proves slow for parties' reads.
 - **Values on disk,** with only keys in memory, if a deployment outgrows

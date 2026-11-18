@@ -101,6 +101,7 @@ thread_local! { static STATE: RefCell<State> = RefCell::new(State::default()); }
 struct Observer {
     inner: ServiceObserver,
     cuts: cuts::Capture,
+    clients_ready: bool,
 }
 impl Observe for Observer {
     fn started(root: Fd, inherited: &skein_world::Inherited) -> Self {
@@ -133,7 +134,7 @@ impl Observe for Observer {
         });
         let mut inner = ServiceObserver::started(root, inherited);
         inner.wire.keep_starts();
-        Self { inner, cuts: cuts::Capture::new(root) }
+        Self { inner, cuts: cuts::Capture::new(root), clients_ready: false }
     }
     fn complete(&mut self, complete: Complete, service: &mut temper_service::Service) -> Option<Complete> {
         if STATE.with(|s| s.borrow().upgrade)
@@ -149,6 +150,17 @@ impl Observe for Observer {
         self.inner.complete(complete, service)
     }
     fn before_iterate(&mut self, service: &mut temper_service::Service, now: Time, wall: Wall) -> bool {
+        while let Some(note) = service.listening().pop() {
+            if matches!(
+                note,
+                temper_service::Note::Engine(temper_service::EngineNote::Listening {
+                    listener: temper_service::Listening::Clients,
+                    ..
+                })
+            ) {
+                self.clients_ready = true;
+            }
+        }
         for note in service.notes().iter() {
             if let temper_service::Note::Engine(temper_engine_service::Note::Ran { of, job, .. }) = note {
                 assert_eq!(*of, jig_protocol_store::Owner::Application, "only application jobs are pending");

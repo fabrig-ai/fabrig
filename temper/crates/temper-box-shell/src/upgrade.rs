@@ -8,7 +8,7 @@ pub(crate) fn run(directories: &Directories, request: &Request) -> Result<u8, St
     let (service, deployment) = prepare(directories).map_err(|why| crate::prefixed("temper-box upgrade", &why))?;
     temper_engine_shell::upgrade::run_prepared("temper-box", directories, request, service, &deployment)
 }
-fn prepare(directories: &Directories) -> Result<(temper_engine_service::Service, Box<[u8]>), String> {
+pub(crate) fn prepare(directories: &Directories) -> Result<(temper_engine_service::Service, Box<[u8]>), String> {
     let bytes = directories.read()?;
     let mut named = crate::setup::check(&bytes, &jig_directories(directories))?.named;
     let agent = crate::serve::configured_agent(&bytes, directories, &[])?;

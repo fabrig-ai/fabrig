@@ -168,6 +168,19 @@ impl Service {
     pub fn upgrade_report(&self) -> Option<&crate::upgrade::Report> {
         self.engine.as_ref()?.upgrade_report()
     }
+    pub fn checkpoint_store(
+        &mut self,
+        directory: Fd,
+        user: u32,
+        adoption: jig_protocol_store::host::Adoption,
+        child: Option<crate::checkpoint::Child>,
+    ) -> Result<(), Fd> {
+        self.engine_component().checkpoint_store(directory, user, adoption, child)
+    }
+    #[must_use]
+    pub fn checkpoint_outcome(&self) -> Option<&crate::checkpoint::Outcome> {
+        self.engine.as_ref()?.checkpoint_outcome()
+    }
     /// Push hosts awaiting this send's resolution (domain/forge/attention.md, 7.3).
     #[must_use]
     #[expect(clippy::type_complexity, reason = "resolution pairs an exchange token with its host and port")]
@@ -452,7 +465,13 @@ fn held_listener_closed(service: &Service, event: &io::Event) -> bool {
 fn route_events(service: &mut Service) {
     for _ in 0..service.process.told_count() {
         let event = service.process.told().pop().expect("io event count");
-        if let io::Event::Shutdown { .. } = event {
+        if let io::Event::Shutdown { signal, .. } = event {
+            if let Some(engine) = &mut service.engine
+                && let Some(state) = &mut engine.checkpoint
+            {
+                state.shutdown(signal);
+                continue;
+            }
             service.shutdown();
             continue;
         }

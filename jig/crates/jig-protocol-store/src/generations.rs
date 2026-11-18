@@ -101,7 +101,11 @@ pub(crate) fn map(number: u64, map: Map) -> Box<[u8]> {
     join(&generation(number), suffix)
 }
 pub(crate) fn is_temporary(name: &[u8]) -> bool {
-    let Some(hex) = name.strip_prefix(b"active.skein-") else {
+    let hex = match name.strip_prefix(b"active.skein-") {
+        Some(hex) => Some(hex),
+        None => name.strip_prefix(b"restore.skein-"),
+    };
+    let Some(hex) = hex else {
         return false;
     };
     if hex.len() != 16 {

@@ -8,6 +8,7 @@ use skein_sim::{Config, Handle, Pid, Sim};
 
 mod checkpoints;
 mod rehearsal;
+mod restoring;
 
 struct World {
     host: Drivers,

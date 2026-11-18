@@ -9,7 +9,7 @@ use super::*;
 use crate::{CheckpointRefusal, Request};
 use skein_fake_machine::How;
 
-fn adopt(world: &mut World, mode: Adoption) {
+pub(super) fn adopt(world: &mut World, mode: Adoption) {
     let source = world.machine.reopen_root(0);
     world.fd = world.sim.root(world.pid, Handle::new(source.raw()));
     world.host = Drivers::new(&fixtures::store_limits(), 2);

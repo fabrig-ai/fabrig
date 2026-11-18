@@ -42,6 +42,7 @@ fn take(store: &mut Store) -> Box<Patching> {
         Opening::Idle
         | Opening::Locking
         | Opening::Reading
+        | Opening::Resolving(_)
         | Opening::SurveyOpen(_)
         | Opening::SurveyPage { .. }
         | Opening::SurveyClose(_)
@@ -63,6 +64,7 @@ fn take(store: &mut Store) -> Box<Patching> {
         | Opening::SweepPage(_)
         | Opening::SweepFile(_)
         | Opening::SweepRemoving { .. }
+        | Opening::RestoreSweepSync { .. }
         | Opening::SweepSync { .. }
         | Opening::SweepClose(_)
         | Opening::CheckpointSweep(_)

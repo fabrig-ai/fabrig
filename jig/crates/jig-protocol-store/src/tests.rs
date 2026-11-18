@@ -23,6 +23,7 @@ mod preopen;
 mod readers;
 mod reads;
 mod restore;
+mod restoring;
 mod secrets;
 mod start_pages;
 mod transcripts;

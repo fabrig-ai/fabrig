@@ -55,6 +55,14 @@ pub enum Command {
         directories: Directories,
         request: temper_engine_shell::upgrade::Request,
     },
+    Checkpoint {
+        directories: Directories,
+        request: temper_engine_shell::checkpoint::Request,
+    },
+    Restore {
+        directories: Directories,
+        name: jig_protocol_store::CheckpointName,
+    },
     Usage(&'static skein_shell::Command),
     Claude {
         program: OsString,
@@ -237,6 +245,14 @@ fn configure_row(
             return temper_engine_shell::upgrade::configure(*mode == "--check", arguments, environment, working)
                 .map(|(directories, request)| Command::Upgrade { directories, request });
         }
+        ["checkpoint"] => {
+            return temper_engine_shell::checkpoint::configure(arguments, environment, working)
+                .map(|(directories, request)| Command::Checkpoint { directories, request });
+        }
+        ["restore"] => {
+            return temper_engine_shell::restore::configure(arguments, environment, working)
+                .map(|(directories, name)| Command::Restore { directories, name });
+        }
         ["--mcp-relay"] => return Ok(Command::Relay),
         ["--program-child"] => return Ok(Command::ProgramChild),
         ["fake", ..] => return fake::configure(row, arguments, environment, working),
@@ -311,6 +327,26 @@ pub fn run(
     let exit = match command {
         Command::Upgrade { directories, request } => {
             return upgrade::run(&directories, &request);
+        }
+        Command::Checkpoint { directories, request } => {
+            let (mut service, deployment) =
+                upgrade::prepare(&directories).map_err(|why| prefixed("temper-box checkpoint", &why))?;
+            service.engine_component().build_name(commit);
+            return temper_engine_shell::checkpoint::run_prepared(
+                "temper-box",
+                &directories,
+                &request,
+                environment,
+                working,
+                service,
+                &deployment,
+            );
+        }
+        Command::Restore { directories, name } => {
+            let (mut service, deployment) =
+                upgrade::prepare(&directories).map_err(|why| prefixed(&format!("{} restore", TABLE.binary), &why))?;
+            service.engine_component().build_name(commit);
+            return temper_engine_shell::restore::run_prepared(TABLE.binary, &directories, name, service, &deployment);
         }
         Command::Overview => {
             print!("{}", TABLE.help());

@@ -12,6 +12,8 @@ pub struct Limits {
     pub manifest_counts: u32,
     pub checkpoint_build: u32,
     pub checkpoint_files: u32,
+    pub restore_intent_source: u32,
+    pub restore_intent_safety: u32,
     pub floor_build: u32,
 }
 
@@ -23,26 +25,31 @@ pub const CEILINGS: Limits = Limits {
     manifest_counts: 64,
     checkpoint_build: 128,
     checkpoint_files: 65_536,
+    restore_intent_source: 37,
+    restore_intent_safety: 37,
     floor_build: 64,
 };
 
 /// The limits' field names, in field order.
-pub const LIMIT_NAMES: [&str; 7] = [
+pub const LIMIT_NAMES: [&str; 9] = [
     "wire_name",
     "wires_wires",
     "count_family",
     "manifest_counts",
     "checkpoint_build",
     "checkpoint_files",
+    "restore_intent_source",
+    "restore_intent_safety",
     "floor_build",
 ];
 
 impl Limits {
     /// The limits' values, in `LIMIT_NAMES` order.
     #[must_use]
-    pub fn values(&self) -> [u32; 7] {
+    pub fn values(&self) -> [u32; 9] {
         [
-            self.wire_name, self.wires_wires, self.count_family, self.manifest_counts, self.checkpoint_build, self.checkpoint_files, self.floor_build,
+            self.wire_name, self.wires_wires, self.count_family, self.manifest_counts, self.checkpoint_build, self.checkpoint_files, self.restore_intent_source, self.restore_intent_safety,
+            self.floor_build,
         ]
     }
 }
@@ -152,6 +159,20 @@ pub enum Path {
     CheckpointVersion,
     /// Bytes after `Checkpoint`.
     CheckpointTail,
+    /// The `generation` field of `RestoreIntent`.
+    RestoreIntentGeneration,
+    /// The `active` field of `RestoreIntent`.
+    RestoreIntentActive,
+    /// The `source` field of `RestoreIntent`.
+    RestoreIntentSource,
+    /// The `safety` field of `RestoreIntent`.
+    RestoreIntentSafety,
+    /// The `made` field of `RestoreIntent`.
+    RestoreIntentMade,
+    /// The version of `RestoreIntent`.
+    RestoreIntentVersion,
+    /// Bytes after `RestoreIntent`.
+    RestoreIntentTail,
     /// The `length` field of `Transcript`.
     TranscriptLength,
     /// The `window` field of `Transcript`.
@@ -274,6 +295,13 @@ impl Path {
             Self::CheckpointFiles => "Checkpoint.files",
             Self::CheckpointVersion => "Checkpoint (version)",
             Self::CheckpointTail => "Checkpoint (tail)",
+            Self::RestoreIntentGeneration => "RestoreIntent.generation",
+            Self::RestoreIntentActive => "RestoreIntent.active",
+            Self::RestoreIntentSource => "RestoreIntent.source",
+            Self::RestoreIntentSafety => "RestoreIntent.safety",
+            Self::RestoreIntentMade => "RestoreIntent.made",
+            Self::RestoreIntentVersion => "RestoreIntent (version)",
+            Self::RestoreIntentTail => "RestoreIntent (tail)",
             Self::TranscriptLength => "Transcript.length",
             Self::TranscriptWindow => "Transcript.window",
             Self::TranscriptVersion => "Transcript (version)",
@@ -330,6 +358,8 @@ fn check_limits_0(limits: &Limits) -> Result<(), Problem> {
     if limits.manifest_counts > CEILINGS.manifest_counts { return Err(Problem { path: Path::ManifestCounts, reason: skein_codec::Reason::Bound }); }
     if limits.checkpoint_build > CEILINGS.checkpoint_build { return Err(Problem { path: Path::CheckpointBuild, reason: skein_codec::Reason::Bound }); }
     if limits.checkpoint_files > CEILINGS.checkpoint_files { return Err(Problem { path: Path::CheckpointFiles, reason: skein_codec::Reason::Bound }); }
+    if limits.restore_intent_source > CEILINGS.restore_intent_source { return Err(Problem { path: Path::RestoreIntentSource, reason: skein_codec::Reason::Bound }); }
+    if limits.restore_intent_safety > CEILINGS.restore_intent_safety { return Err(Problem { path: Path::RestoreIntentSafety, reason: skein_codec::Reason::Bound }); }
     if limits.floor_build > CEILINGS.floor_build { return Err(Problem { path: Path::FloorBuild, reason: skein_codec::Reason::Bound }); }
     Ok(())
 }
@@ -830,6 +860,73 @@ impl Checkpoint {
         if self.build.len() > usize::try_from(limits.checkpoint_build.min(CEILINGS.checkpoint_build)).expect("u32 fits usize") { return Err(Problem { path: Path::CheckpointBuild, reason: skein_codec::Reason::Bound }); }
         if !skein_codec::text_is_valid(self.build.as_ref()) { return Err(Problem { path: Path::CheckpointBuild, reason: skein_codec::Reason::Utf8 }); }
         if self.files.capacity() > limits.checkpoint_files.min(CEILINGS.checkpoint_files) { return Err(Problem { path: Path::CheckpointFiles, reason: skein_codec::Reason::Bound }); }
+        Ok(())
+    }
+}
+
+/// Movable fields of `RestoreIntent`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RestoreIntentParts {
+    /// The `generation` field.
+    pub generation: u64,
+    /// The `active` field.
+    pub active: [u8; 32],
+    /// The `source` field.
+    pub source: Box<[u8]>,
+    /// The `safety` field.
+    pub safety: Box<[u8]>,
+    /// The `made` field.
+    pub made: u64,
+}
+
+/// `RestoreIntent` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RestoreIntent {
+    generation: u64,
+    active: [u8; 32],
+    source: Box<[u8]>,
+    safety: Box<[u8]>,
+    made: u64,
+}
+
+impl RestoreIntent {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: RestoreIntentParts) -> Result<Self, Problem> {
+        let RestoreIntentParts { generation, active, source, safety, made } = parts;
+        let value = Self { generation, active, source, safety, made };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `generation` field.
+    #[must_use]
+    pub fn generation(&self) -> u64 { self.generation }
+
+    /// Reads the `active` field.
+    #[must_use]
+    pub fn active(&self) -> &[u8; 32] { &self.active }
+
+    /// Reads the `source` field.
+    #[must_use]
+    pub fn source(&self) -> &[u8] { &self.source }
+
+    /// Reads the `safety` field.
+    #[must_use]
+    pub fn safety(&self) -> &[u8] { &self.safety }
+
+    /// Reads the `made` field.
+    #[must_use]
+    pub fn made(&self) -> u64 { self.made }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> RestoreIntentParts { RestoreIntentParts { generation: self.generation, active: self.active, source: self.source, safety: self.safety, made: self.made } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.source.len() > usize::try_from(limits.restore_intent_source.min(CEILINGS.restore_intent_source)).expect("u32 fits usize") { return Err(Problem { path: Path::RestoreIntentSource, reason: skein_codec::Reason::Bound }); }
+        if !skein_codec::text_is_valid(self.source.as_ref()) { return Err(Problem { path: Path::RestoreIntentSource, reason: skein_codec::Reason::Utf8 }); }
+        if self.safety.len() > usize::try_from(limits.restore_intent_safety.min(CEILINGS.restore_intent_safety)).expect("u32 fits usize") { return Err(Problem { path: Path::RestoreIntentSafety, reason: skein_codec::Reason::Bound }); }
+        if !skein_codec::text_is_valid(self.safety.as_ref()) { return Err(Problem { path: Path::RestoreIntentSafety, reason: skein_codec::Reason::Utf8 }); }
         Ok(())
     }
 }
@@ -1598,6 +1695,61 @@ impl Checkpoint {
     }
 }
 
+impl RestoreIntent {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(2).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(32).expect("schema ceilings fit u32");
+        let field_source = &self.source;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_source.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        let field_safety = &self.safety;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_safety.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        writer.put(&3_u16.to_be_bytes())?;
+        let field_generation = &self.generation;
+        writer.put(&field_generation.to_be_bytes())?;
+        let field_active = &self.active;
+        writer.put(field_active)?;
+        let field_source = &self.source;
+        writer.put(&u32::try_from(field_source.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_source.as_ref())?;
+        let field_safety = &self.safety;
+        writer.put(&u32::try_from(field_safety.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_safety.as_ref())?;
+        let field_made = &self.made;
+        writer.put(&field_made.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::RestoreIntentTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let version = reader.u16().ok_or(Problem { path: Path::RestoreIntentVersion, reason: skein_codec::Reason::Short })?;
+        if version != 3 { return Err(Problem { path: Path::RestoreIntentVersion, reason: skein_codec::Reason::Version }); }
+        let decoded_generation = reader.u64().ok_or(Problem { path: Path::RestoreIntentGeneration, reason: skein_codec::Reason::Short })?;
+        let decoded_active = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::RestoreIntentActive, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
+        let decoded_source = match skein_codec::read_text(reader, limits.restore_intent_source.min(CEILINGS.restore_intent_source)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::RestoreIntentSource, reason }), };
+        let decoded_safety = match skein_codec::read_text(reader, limits.restore_intent_safety.min(CEILINGS.restore_intent_safety)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::RestoreIntentSafety, reason }), };
+        let decoded_made = reader.u64().ok_or(Problem { path: Path::RestoreIntentMade, reason: skein_codec::Reason::Short })?;
+        Ok(Self { generation: decoded_generation, active: decoded_active, source: decoded_source, safety: decoded_safety, made: decoded_made })
+    }
+}
+
 impl Transcript {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -2146,6 +2298,38 @@ impl Checkpoint {
     }
 }
 
+impl RestoreIntent {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 2_u64;
+        size = size.checked_add(8_u64)?.checked_add(u64::from(32_u32))?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.restore_intent_source))?)?.checked_add(4_u64.checked_add(u64::from(limits.restore_intent_safety))?)?;
+        size = size.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(u64::from(limits.restore_intent_source))?.checked_add(u64::from(limits.restore_intent_safety))?;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
 impl Transcript {
     /// Maximum encoded bytes under these limits.
     #[must_use]
@@ -2363,6 +2547,7 @@ pub fn encoded_bound(limits: &Limits) -> Option<u64> {
     biggest = biggest.max(Manifest::encoded_bound_within(limits)?);
     biggest = biggest.max(CheckpointFile::encoded_bound_within(limits)?);
     biggest = biggest.max(Checkpoint::encoded_bound_within(limits)?);
+    biggest = biggest.max(RestoreIntent::encoded_bound_within(limits)?);
     biggest = biggest.max(Transcript::encoded_bound_within(limits)?);
     biggest = biggest.max(Attempt::encoded_bound_within(limits)?);
     biggest = biggest.max(HistoryLog::encoded_bound_within(limits)?);
@@ -2386,6 +2571,7 @@ pub fn decoded_bound(limits: &Limits) -> Option<u64> {
     biggest = biggest.max(Manifest::decoded_bound_within(limits)?);
     biggest = biggest.max(CheckpointFile::decoded_bound_within(limits)?);
     biggest = biggest.max(Checkpoint::decoded_bound_within(limits)?);
+    biggest = biggest.max(RestoreIntent::decoded_bound_within(limits)?);
     biggest = biggest.max(Transcript::decoded_bound_within(limits)?);
     biggest = biggest.max(Attempt::decoded_bound_within(limits)?);
     biggest = biggest.max(HistoryLog::decoded_bound_within(limits)?);

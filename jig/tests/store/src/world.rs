@@ -1,6 +1,7 @@
 //! Four file drivers over the simulated crashing machine (protocol/store/README.md, 9).
 use crate::{model::Model, root};
 mod checkpoint;
+mod restoring;
 use jig_domain_core as core;
 use jig_protocol_store::{
     Arrived, Below, Event, Get, Io, Load, OpenRefusal, Owner, OwnerSets, Request, Restore, Root, Row, Secrets, Store,
@@ -758,6 +759,8 @@ impl World {
                     }
                     other @ (Event::Checkpointed { .. }
                     | Event::CheckpointRefused { .. }
+                    | Event::Restored { .. }
+                    | Event::RestoreRefused { .. }
                     | Event::CheckpointHeld { .. }
                     | Event::CheckpointRemoved { .. }
                     | Event::Decoded { .. }

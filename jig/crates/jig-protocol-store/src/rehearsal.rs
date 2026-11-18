@@ -11,6 +11,7 @@ pub(crate) use decode::records;
 enum Stage {
     Locking,
     Reading,
+    Intent,
     Emptying(Removing),
     Making,
     Copying(Copying),
@@ -76,9 +77,13 @@ fn state(store: &mut Store) -> &mut State {
 pub(crate) fn preparing(store: &Store) -> bool {
     let Some(state) = &store.rehearsal else { return false };
     match state.stage {
-        Stage::Locking | Stage::Reading | Stage::Emptying(_) | Stage::Making | Stage::Copying(_) | Stage::Active => {
-            true
-        }
+        Stage::Locking
+        | Stage::Intent
+        | Stage::Reading
+        | Stage::Emptying(_)
+        | Stage::Making
+        | Stage::Copying(_)
+        | Stage::Active => true,
         Stage::Opening | Stage::Closing | Stage::Cleaning(_) | Stage::Finished => false,
     }
 }
@@ -86,6 +91,7 @@ pub(crate) fn waiting(store: &Store) -> Option<&'static str> {
     let state = store.rehearsal.as_ref()?;
     Some(match state.stage {
         Stage::Locking => "lock source",
+        Stage::Intent => "check source intent",
         Stage::Reading => "read source active",
         Stage::Emptying(_) => "empty scratch",
         Stage::Making => "make scratch generations",
@@ -109,11 +115,26 @@ pub(crate) fn up(store: &mut Store, arrived: Arrived, above: &mut Queue<Event>, 
             below.store.push(file::Request::Load {
                 owner: directory::OWNER,
                 root: state.source.token,
-                path: Box::from(generations::ACTIVE),
-                max: generations::ACTIVE_BYTES,
+                path: Box::from(crate::restoring::roll::INTENT),
+                max: 256,
                 no_follow: true,
             });
-            state.stage = Stage::Reading;
+            state.stage = Stage::Intent;
+        }
+        Stage::Intent => {
+            if let file::Event::Failed { error: skein_io::kernel::Error::NotFound, .. } = arrived.event {
+                let state = state(store);
+                below.store.push(file::Request::Load {
+                    owner: directory::OWNER,
+                    root: state.source.token,
+                    path: Box::from(generations::ACTIVE),
+                    max: generations::ACTIVE_BYTES,
+                    no_follow: true,
+                });
+                state.stage = Stage::Reading;
+            } else {
+                refused(store, OpenRefusal::Generations { why: crate::Generations::Unfinished }, above);
+            }
         }
         Stage::Reading => {
             let file::Event::Loaded { bytes, .. } = arrived.event else {
@@ -242,6 +263,7 @@ pub(crate) fn closing_up(store: &mut Store, io: Io, above: &mut Queue<Event>, be
             }
         }
         Stage::Locking
+        | Stage::Intent
         | Stage::Reading
         | Stage::Emptying(_)
         | Stage::Making
@@ -267,6 +289,7 @@ pub(crate) fn advance_close(store: &mut Store, above: &mut Queue<Event>, below: 
             }
         }
         Stage::Locking
+        | Stage::Intent
         | Stage::Reading
         | Stage::Emptying(_)
         | Stage::Making

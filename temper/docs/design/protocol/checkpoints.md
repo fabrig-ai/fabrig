@@ -1,10 +1,12 @@
 # Checkpoints
 
-2026-11-16. temper's part of taking a checkpoint (`draft/checkpoints.md`,
-sections 3.4, 4 and 5.1; milestone C1 of
-`draft/checkpoints.execution.md`): the deployment's binaries' commands,
-the owner's act through `temper ctl`, and the setting. What a checkpoint
-is and how the store takes it are jig's `protocol/store/checkpoints.md`.
+2026-11-16, revised 2026-11-17. temper's part of taking a checkpoint
+and restoring one (`draft/checkpoints.md`, sections 3.4, 4, 5.1 and
+5.3; milestones C1 and C2 of `draft/checkpoints.execution.md`): the
+deployment's binaries' commands, the owner's act through `temper ctl`,
+and the setting. What a checkpoint is and how the store takes it are
+jig's `protocol/store/checkpoints.md`, and how it restores one is jig's
+`protocol/store/restoring.md`.
 
 ## 1. In one page
 
@@ -16,6 +18,9 @@ is and how the store takes it are jig's `protocol/store/checkpoints.md`.
 - **Readers:** `checkpoint --hold NAME -- COMMAND` runs a command under
   the checkpoint's lock (2.2); `checkpoint --remove NAME` removes one by
   name, refused while it is held (2.3).
+- **Restore:** `restore NAME [DIRECTORIES]`, with the engine stopped,
+  takes a safety checkpoint first, then makes NAME's state the
+  deployment's, crash-safe (2.5).
 - **The setting:** `store.checkpoints.keep`, default 2 (4).
 
 ## 2. The commands
@@ -54,7 +59,22 @@ does: no worker, no listener, no root.
   its environment and `TEMPER_CHECKPOINT`, the checkpoint's directory's
   absolute path; waits for it; lets the lock go; and exits as the child
   did: its status, or 128 and the signal's number when a signal ended
-  it. A COMMAND that can't be run exits 127, naming it.
+  it. A COMMAND that can't be run exits 127, naming it:
+  `temper-engine checkpoint: can't run COMMAND: WHY`. WHY is `not found`
+  when no program resolves (below), before anything is spawned. When
+  io's spawn fails (`Event::Failed`), WHY is the words of io's `Error`,
+  which keeps kernel errors below io (skein's `runtime/io/README.md`,
+  2): `no process slot` for `Busy`, `io refused the command` for every
+  other.
+- **The child** is io's (skein's `runtime/io/processes.md`), spawned
+  from the step code with descriptors 0, 1 and 2 inherited
+  (`Way::Inherit`), as a front end lends its terminal to a child
+  (skein's `runtime/shell.md`, 6.3). Its program is COMMAND as a path
+  when it holds a `/`, made absolute against the working directory.
+  Otherwise it is the first regular executable file found in the
+  entries of the invocation's `PATH`. A termination signal while the
+  child runs is forwarded to its group. The lock is let go once the
+  child is closed.
 - **Refused, exit 1, before COMMAND runs:** `temper-engine checkpoint:
   NAME is in use` (its lock held) and `temper-engine checkpoint: no
   checkpoint NAME`.
@@ -74,6 +94,36 @@ does: no worker, no listener, no root.
   digits>-<16 hex>`; any other is a usage error, exit 2.
 - **`--hold` and `--remove`** exclude each other; COMMAND follows `--`
   and only with `--hold`.
+
+### 2.5 `restore NAME [DIRECTORIES]`
+
+- **Restores** the checkpoint NAME over the stopped deployment: the
+  store host's `Adoption::Restore { name, draw }` (jig's
+  `protocol/store/restoring.md`, 3 and 4), `draw` 16 bytes drawn as
+  2.1 draws them. It holds the deployment's lock throughout, NAME's
+  lock, and the lock of the safety checkpoint it takes first.
+- **Prints one line and exits 0:**
+  `temper-engine restore: restored NAME as generation G: L files linked, N copied (B bytes) in T ms; the state before it is checkpoint SAFETY, and restore SAFETY brings it back`,
+  each figure `Restored`'s: `generation`, `linked`, `copied`, `bytes`,
+  `took` in whole milliseconds, `safety`.
+- **Refused, exit 1, one line:**
+  - the deployment held by another process (`Busy`):
+    `temper-engine restore: DIRECTORY is in use by another process; stop the engine before restoring`;
+  - NAME's lock held or no NAME (`Source`):
+    `temper-engine restore: NAME is in use` and
+    `temper-engine restore: no checkpoint NAME`;
+  - the safety checkpoint's open refused (`Open`): the open's words,
+    as `serve` prints a refused start;
+  - any other: `temper-engine restore: refused: WORDS`,
+    `RestoreRefusal::words`. `Staging` and `Interrupted` name the
+    safety checkpoint, and `Interrupted` says that the next start
+    finishes the restore.
+- **NAME** is 2.4's: any other form is a usage error, exit 2. No other
+  argument but `DIRECTORIES` is taken.
+- **After it:** the next start opens the restored generation, and a
+  build at later levels upgrades it as it upgrades any. `upgrade --back`
+  refuses with no previous generation (`binaries.md`, 2), since undoing
+  a restore is restoring SAFETY.
 
 ## 3. The act
 
@@ -148,7 +198,8 @@ enum CheckpointWhy { NotOwner, InProgress, Unavailable, Files, Unrecognized { pa
 
 - **Step tests:** the commands' rows and arguments parsed, `--hold`
   and `--remove` excluding each other, a NAME of another form refused;
-  their lines from given answers; the family's request and outcome with
+  their lines from given answers, `restore`'s among them; `--hold`'s
+  child spawned as 2.2 says and its exit mapped from given io events; the family's request and outcome with
   golden bytes; the root admitting an owner's act, asking the store and
   answering only at its terminal, refusing a project owner and a task
   `NotOwner`; the tool's text and JSON, and its timeout; the setting's
@@ -157,11 +208,18 @@ enum CheckpointWhy { NotOwner, InProgress, Unavailable, Files, Unrecognized { pa
   owner's answered from the store's terminal, a non-owner's refused.
 - **The process tier,** written and compiled, run after landing: a
   checkpoint over a stopped deployment, then `--hold` with a command
-  that lists it, then `--remove`; the act while the engine serves.
+  that lists it, then `--remove`; the act while the engine serves; a
+  checkpoint, a start that commits past it, a stop, `restore` of the
+  checkpoint and a start that finds its state, then `restore` of the
+  safety checkpoint and a start that finds the later state.
 
 ## 6. Open questions
 
-- **Restore** and the redeploy with checkpoints are milestones C2 and
-  C3 (`draft/checkpoints.execution.md`).
+- **The redeploy with checkpoints** is milestone C3
+  (`draft/checkpoints.execution.md`). A restore's safety checkpoint
+  needs a build that opens the deployment as it stands. So going back
+  after the first commit, over a store the new build has upgraded,
+  restores with the new build, not the previous one (jig's
+  `protocol/store/restoring.md`, 9).
 - **A list of checkpoints:** none of the commands lists them; `ls`
   of `checkpoints/` and each one's record serve until one does.

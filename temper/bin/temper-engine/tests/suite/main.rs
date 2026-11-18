@@ -32,7 +32,7 @@ fn help(text: &str) -> bool {
     let rows: Vec<_> =
         text.lines().filter(|line| line.starts_with("  ")).filter_map(|line| line.split_whitespace().next()).collect();
     text == ENGINE.help()
-        && ["serve", "versions", "upgrade", "help"].iter().all(|word| rows.contains(word))
+        && ["serve", "versions", "upgrade", "checkpoint", "help"].iter().all(|word| rows.contains(word))
         && ["forge", "box", "program-login"].iter().all(|word| !rows.contains(word))
 }
 
@@ -72,7 +72,10 @@ fn forge_help(text: &str) -> bool {
 type Check = fn(&str) -> bool;
 type Case = (&'static [&'static str], Option<&'static str>, i32, Check, &'static str);
 
+const CHECKPOINT_USAGE: &str = "temper-engine checkpoint: invalid arguments\nusage: temper-engine checkpoint [DIRECTORIES]\nusage: temper-engine checkpoint --hold NAME [DIRECTORIES] -- COMMAND [ARGUMENT...]\nusage: temper-engine checkpoint --remove NAME [DIRECTORIES]\n";
 const ROWS: &[Case] = &[
+    (&["checkpoint", "--remove", "12-ff"], None, 2, empty, CHECKPOINT_USAGE),
+    (&["checkpoint", "--hold", "00000000000000000012-00000000000000ff"], None, 2, empty, CHECKPOINT_USAGE),
     (&["--version"], None, 0, version, ""),
     (&["-h"], None, 0, help, ""),
     (&["--help"], None, 0, help, ""),

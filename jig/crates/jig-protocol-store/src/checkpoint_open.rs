@@ -9,6 +9,9 @@ pub(crate) struct State {
     close: Option<Token>,
 }
 impl State {
+    pub fn keep_root(&mut self) {
+        self.root = None;
+    }
     pub fn new(root: Root) -> Self {
         Self { files: Owned::new(), root: Some(root.token), close: None }
     }

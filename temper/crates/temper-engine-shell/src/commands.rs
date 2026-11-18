@@ -13,6 +13,8 @@ pub const ENGINE: Table = Table {
         VERSIONS,
         UPGRADE_CHECK,
         UPGRADE_BACK,
+        CHECKPOINT,
+        RESTORE,
         HELP,
         FETCH,
         PREPARE,
@@ -89,6 +91,40 @@ pub const UPGRADE_BACK: Command = Command {
     arguments: &[DIRECTORIES],
     notes: "Stop the deployment first, then start the old binary after going back. Past the patched generation's first commit, going back is restoring a backup.",
     ..UPGRADE_CHECK
+};
+
+pub const CHECKPOINT: Command = Command {
+    reach: Reach::Words(&["checkpoint"]),
+    set: Set::Public,
+    forms: &["[DIRECTORIES]", "--hold NAME [DIRECTORIES] -- COMMAND [ARGUMENT...]", "--remove NAME [DIRECTORIES]"],
+    line: "takes a checkpoint of the stopped deployment; --hold runs a command under one's lock, --remove removes one",
+    arguments: &[
+        DIRECTORIES,
+        Argument { shown: "NAME", line: "A checkpoint name: 20 decimal digits, a hyphen and 16 hexadecimal digits." },
+        Argument {
+            shown: "COMMAND [ARGUMENT...]",
+            line: "The child command and its arguments, only with --hold and after --.",
+        },
+    ],
+    settings: &[&directories::SETTINGS],
+    switches: &[],
+    variables: &[&environment::PATH, &crate::checkpoint::DIRECTORY],
+    notes: "--hold and --remove exclude each other. Uses the configuration serve reads. Taking one requires a stopped deployment; holding or removing one also works while it serves. --hold inherits the working directory and environment, sets TEMPER_CHECKPOINT to the checkpoint's absolute directory, and holds its lock until the child is closed. Exit 0 on success, 1 on refusal, 2 for invalid arguments; --hold exits as its child did, 128 plus its terminating signal, or 127 when the command cannot run.",
+};
+
+pub const RESTORE: Command = Command {
+    reach: Reach::Words(&["restore"]),
+    set: Set::Public,
+    forms: &["NAME [DIRECTORIES]"],
+    line: "restores a checkpoint over the stopped deployment, after a safety checkpoint of it",
+    arguments: &[
+        Argument { shown: "NAME", line: "A checkpoint name: 20 decimal digits, a hyphen and 16 hexadecimal digits." },
+        DIRECTORIES,
+    ],
+    settings: &[&directories::SETTINGS],
+    switches: &[],
+    variables: &[],
+    notes: "Uses the configuration serve reads. Stop the deployment first. The state before restoring is kept as a safety checkpoint; restore that checkpoint to bring it back. Exit 0 on success, 1 on refusal, 2 for invalid arguments.",
 };
 
 pub const FETCH: Command =
