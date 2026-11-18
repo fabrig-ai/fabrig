@@ -235,6 +235,7 @@ pub fn message_room(root: &Path, value: &mut temper_playground::documents::Confi
     value.temper_over("root.loads.read_bytes", 16_777_216);
     value.temper_over("root.journal.transcript_bytes", 8_388_608);
     temper_agent_fixtures::apply(value, root, &agent);
+    value.agent_bounds(&temper_agent_fixtures::prepared(root).agent);
 }
 
 fn get(forge: &Throwaway, route: &str) -> Value {

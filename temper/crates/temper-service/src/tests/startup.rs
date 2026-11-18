@@ -654,6 +654,41 @@ fn typed_box_start_names_what_to_raise_for_eight_slots() {
 }
 
 #[test]
+fn limit_settings_reach_the_box_workers_checkout_git_and_peer() {
+    let input = super::stock::generated();
+    let agent = fixtures::parsed_agent(fixtures::stock_configuration(63_740, 48_000).unwrap());
+    let directories = config::Directories::working();
+    let inputs = crate::startup::LimitInputs::new(
+        &input,
+        &directories,
+        &super::stock::files(),
+        Some(&agent.declaration()),
+        &fixtures::seeds(),
+        &crate::stock::Given::Stock,
+        true,
+        Some((&input.jig, &input.own)),
+    );
+    let overrides = [
+        jig_domain_core::settings::Override { name: b"checkout.repositories".as_slice().into(), value: 8, reason: b"more repositories".as_slice().into() },
+        jig_domain_core::settings::Override { name: b"git_component.stderr_bytes".as_slice().into(), value: 1024, reason: b"more git diagnostic room".as_slice().into() },
+        jig_domain_core::settings::Override { name: b"forge_component.token_bytes".as_slice().into(), value: 256, reason: b"bounded tokens".as_slice().into() },
+    ];
+    let resolved = crate::startup::resolve_limits(&inputs, &[], &overrides).unwrap();
+    let part = crate::startup::box_worker_with_limits(
+        &input,
+        &directories,
+        &crate::stock::Given::Stock,
+        &crate::stock::agents(),
+        &[],
+        Some(&agent.declaration()),
+        (&resolved.jig, &resolved.temper),
+    ).unwrap().unwrap();
+    assert_eq!(part.limits.checkout.repositories, 8);
+    assert_eq!(part.limits.git_component.stderr_bytes, 1024);
+    assert_eq!(part.limits.peer.token_bytes, 256);
+}
+
+#[test]
 fn startup_makes_the_one_process_from_the_example() {
     let mut service = match fixtures::start(
         &fixtures::document(),

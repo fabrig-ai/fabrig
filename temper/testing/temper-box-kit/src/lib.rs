@@ -147,6 +147,7 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>) -> temper_playground::
     forgejo::configuration(directory, forge, &mut value);
     temper_agent_fixtures::apply(&mut value, directory, &serde_json::from_slice(&agent).expect("agent JSON"));
     write_private(&directory.join("temper.json"), &serde_json::to_vec(&value).expect("deployment JSON"));
+    value.agent_bounds(&temper_agent_fixtures::prepared(directory).agent);
     limit_settings::remember(directory, &value);
     value
 }

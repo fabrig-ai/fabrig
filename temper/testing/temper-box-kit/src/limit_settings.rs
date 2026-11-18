@@ -15,14 +15,10 @@ pub fn remember(directory: &Path, configuration: &Configuration) {
                 .then(|| json!({"name":row.name,"value":value,"reason":"subprocess fixture"}))
         })
         .collect();
-    let is_box = configuration["workers"].as_array().is_some_and(|workers| !workers.is_empty());
     let own: Vec<_> = temper_service::limits::NAMES
         .iter()
         .filter_map(|row| {
-            if is_box && temper_service_core::limits::shared_name(row.name.as_bytes()) {
-                return None;
-            }
-            let value = (row.value)(&configuration.limits);
+                        let value = (row.value)(&configuration.limits);
             (value != (row.value)(&stock.limits))
                 .then(|| json!({"name":row.name,"value":value,"reason":"subprocess fixture"}))
         })
@@ -91,8 +87,7 @@ pub fn install_at(directories: &temper_box_shell::directories::Directories) {
     let mut value = configuration(directory);
     let is_box = value["workers"].as_array().is_some_and(|workers| !workers.is_empty());
     let sources = if is_box {
-        let agent: Value = serde_json::from_slice(&fs::read(directory.join("agent.json")).expect("fixture agent"))
-            .expect("agent JSON");
+        let agent = temper_agent_fixtures::read(directory);
         value.limits.tool_payload =
             u32::try_from(agent["profile"]["declared"]["tool_payload"].as_u64().expect("agent payload"))
                 .expect("payload");
@@ -153,10 +148,7 @@ pub fn install_at(directories: &temper_box_shell::directories::Directories) {
     for kind in ["limits", "temper-limits"] {
         for item in figures[kind].as_array().expect("kind figures") {
             let name = item["name"].as_str().expect("name");
-            if is_box && kind == "temper-limits" && temper_service_core::limits::shared_name(name.as_bytes()) {
-                continue;
-            }
-            overrides.push((kind, name, item["value"].as_u64().expect("figure"), "subprocess fixture"));
+                        overrides.push((kind, name, item["value"].as_u64().expect("figure"), "subprocess fixture"));
         }
     }
     apply(directories, &overrides);

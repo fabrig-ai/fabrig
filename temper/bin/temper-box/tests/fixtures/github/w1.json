@@ -6,7 +6,7 @@
       }},
       "name": "w1",
       "secret": "secrets/w1.secret",
-      "slots": 1,
+      "slots": 1
 
     }}
   ],

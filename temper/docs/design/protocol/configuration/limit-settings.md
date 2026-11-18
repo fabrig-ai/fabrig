@@ -182,12 +182,11 @@ this document says how settings lie over it.
   to start at the stock`. The owner then changes the setting, the
   operator removes the file and restarts. A line naming no limit, or a
   figure the start's checks refuse, refuses the start, naming its line.
-- **A box** resolves its engine from the two kinds. Its worker keeps its
-  document's `workers[0].limits`, and takes the stock's figures for the
-  names a worker reads (checkout, git, the peer's), until the workers'
-  figures come from the engine (`../../draft/config.md`, 6.3); temper's
-  kind naming one of those names is refused at entry, naming it as a
-  worker's. A worker alone's document is unchanged.
+- **A box** resolves its engine from the two kinds. Its worker takes its
+  limits from its engine (`../../draft/config.md`, 6.3), so temper's kind
+  sets the names a worker reads (checkout, git, the peer's). Its document's
+  `workers[0].limits` is refused as moved (section 8). A worker alone also
+  takes its figures from its engine, not its document.
 - **A forge command alone,** `temper-box forge prepare|run` and the
   runner it starts, opens no store: the engine owns it, and may hold it
   while the command runs. So it reads neither kind and takes the stock's
@@ -321,8 +320,9 @@ this document says how settings lie over it.
 
 - **Refused by name** (`moved.md`, section 3): in the engine's and the
   box's documents, `engine.limits`, `engine.memory_bytes` and
-  `application.limits`; in every document, a worker's `memory_bytes`,
-  which nothing read. jig's reader takes `limits` and `memory_bytes` as
+  `application.limits`; in every document, a worker's `limits`, which
+  come from its engine, and `memory_bytes`, which nothing read. jig's
+  reader takes `limits` and `memory_bytes` as
   optional members (jig's `protocol/configuration.md`), so that temper
   refuses them with its own words.
 - **`temper-box init`** writes none of them, and the examples hold none.

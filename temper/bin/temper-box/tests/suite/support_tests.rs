@@ -378,7 +378,10 @@ fn cluster_the_retained_charter_overrides_name_no_documents() {
 #[test]
 fn fixture_limits_are_applied_before_the_subprocess_restart() {
     let scratch = support::Scratch::startup("small-limits-settings");
-    support::configuration(scratch.path(), &support::Forge::Unreached);
+    let mut configuration = support::configuration(scratch.path(), &support::Forge::Unreached);
+    configuration.jig_over("tasks.project_goals", 2);
+    configuration.temper_over("checkout.remote_timeout_ms", 7_000);
+    support::limit_settings::remember(scratch.path(), &configuration);
     support::limit_settings::install(scratch.path());
     let seen = support::ctl::run(support::ctl::Story::new(
         scratch.path(),
@@ -393,18 +396,18 @@ fn fixture_limits_are_applied_before_the_subprocess_restart() {
             .as_array()
             .expect("jig limits")
             .iter()
-            .find(|item| item["name"] == "tasks.message_bytes")
-            .expect("message")["value"],
-        2046
+            .find(|item| item["name"] == "tasks.project_goals")
+            .expect("project goal capacity")["value"],
+        2
     );
     assert_eq!(
         support::ctl::json(&seen.calls[2])["value"]
             .as_array()
             .expect("temper limits")
             .iter()
-            .find(|item| item["name"] == "tool_payload")
-            .expect("payload")["value"],
-        2048
+            .find(|item| item["name"] == "checkout.remote_timeout_ms")
+            .expect("worker checkout limit")["value"],
+        7_000
     );
     scratch.remove();
 }

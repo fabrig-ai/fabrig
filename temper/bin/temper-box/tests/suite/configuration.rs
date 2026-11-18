@@ -113,13 +113,22 @@ fn the_process_workers_figures_follow_the_agents_setting() {
             )
             .expect("agent document");
             let agent = temper_worker_shell::agent::prepare_bytes(bytes).expect("composed agent").agent;
-            let part = temper_service::startup::box_worker_with_agent(
+            // A smaller agent also needs a smaller temper-limits tool_payload;
+            // otherwise the engine's stock payload wins the carrier maximum.
+            let (mut jig, own) = temper_service::limits::base(
+                temper_service::limits::stock().live_goals,
+                payload,
+                temper_service_core::derived::Sources::agent(&agent.declaration()),
+            ).expect("derived engine figures");
+            jig.core.people.words = jig.core.people.words.min(payload - 2);
+            let part = temper_service::startup::box_worker_with_limits(
                 &serde_json::to_vec(&document).expect("deployment JSON"),
                 &jig_directories(&support::configuration::directories(scratch.path())),
                 &temper_service::stock::Given::Stock,
                 &agents,
                 &[],
-                &agent.declaration(),
+                Some(&agent.declaration()),
+                (&jig, &own),
             )
             .expect("derived box composition")
             .expect("box worker");

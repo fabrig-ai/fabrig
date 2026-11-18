@@ -11,10 +11,25 @@ use jig_protocol_config as config;
 use skein_lib::{List, Secret};
 
 fn inputs() -> startup::LimitInputs {
+    inputs_for(false)
+}
+fn inputs_for(is_box: bool) -> startup::LimitInputs {
     let mut document: serde_json::Value = serde_json::from_slice(&super::stock::generated()).unwrap();
-    document["workers"] = serde_json::json!([]);
-    document["engine"]["hosts"]["listener"] = serde_json::json!([{"socket":"127.0.0.1:0"}]);
+    if !is_box {
+        document["workers"] = serde_json::json!([]);
+        document["engine"]["hosts"]["listener"] = serde_json::json!([{"socket":"127.0.0.1:0"}]);
+    }
     let bytes = serde_json::to_vec(&document).unwrap();
+    let agent = is_box.then(|| {
+        let mut declaration = super::fixtures::agent().declaration();
+        declaration.programs = Box::new([b"claude_code".as_slice().into()]);
+        let stock = temper_service_core::derived::STOCK;
+        declaration.turn_body = stock.turn;
+        declaration.tool_payload = stock.payload;
+        declaration.bounds.inbox = stock.inbox;
+        declaration.bounds.unacknowledged = stock.unacknowledged;
+        declaration
+    });
     let seeds = settings::Seeds {
         deployment: [1; 16],
         installation: [2; 16],
@@ -27,10 +42,10 @@ fn inputs() -> startup::LimitInputs {
         &bytes,
         &config::Directories::working(),
         &super::stock::files(),
-        None,
+        agent.as_ref(),
         &seeds,
         &crate::stock::Given::Stock,
-        false,
+        is_box,
         None,
     )
 }
@@ -80,9 +95,13 @@ fn a_record_past_the_stock_store_names_its_setting_and_the_stock_figure() {
     assert!(text.contains("past its bound of 100881496 bytes"), "{text}");
 }
 #[test]
-fn removed_names_are_left_out_and_worker_names_are_refused() {
-    let mut inputs = inputs();
-    let resolved = startup::resolve_limits(&inputs, &[], &[item(b"forge.gone", 16)]).unwrap();
+fn removed_names_are_left_out_and_box_worker_names_come_from_the_engine() {
+    let inputs = inputs_for(true);
+    let resolved = startup::resolve_limits(
+        &inputs,
+        &[],
+        &[item(b"forge.gone", 16), item(b"checkout.repositories", 8), item(b"git_component.stderr_bytes", 1024), item(b"forge_component.token_bytes", 256)],
+    ).unwrap();
     assert_eq!(
         resolved.left_out,
         List::from_boxed(Box::new([startup::LeftOut {
@@ -90,9 +109,9 @@ fn removed_names_are_left_out_and_worker_names_are_refused() {
             name: b"forge.gone".as_slice().into()
         }]))
     );
-    inputs.is_box = true;
-    let found = startup::resolve_limits(&inputs, &[], &[item(b"checkout.repositories", 8)]).unwrap_err();
-    assert_eq!(startup::lines(&found).as_ref(), b"checkout.repositories (setting temper-limits): this is a worker's limit; it is not taken from temper-limits; put limits-held in the data directory to start at the stock\n");
+    assert_eq!(resolved.temper.checkout.repositories, 8);
+    assert_eq!(resolved.temper.git_component.stderr_bytes, 1024);
+    assert_eq!(resolved.temper.forge_component.token_bytes, 256);
 }
 #[test]
 fn a_carrier_below_its_derivation_names_the_supplied_figure() {

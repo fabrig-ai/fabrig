@@ -6,7 +6,7 @@
       },
       "name": "worker",
       "secret": "{place.data}/worker/secrets/worker.secret",
-      "slots": 2,
+      "slots": 2
 
     }
   ],

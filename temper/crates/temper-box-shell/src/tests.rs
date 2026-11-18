@@ -181,7 +181,7 @@ fn the_standalone_operations_check_retains_no_descriptors() {
         None,
         &temper_service::stock::Given::Stock,
         None,
-        false,
+        true,
         &[],
         Some((&config.jig, &config.limits)),
         None,
