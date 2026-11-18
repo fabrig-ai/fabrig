@@ -157,13 +157,7 @@ pub fn no_workspace(policy: &RunPolicy) -> bool {
     asking(policy.tools) || !(policy.inspect || policy.modify || policy.shell)
 }
 
-/// What a `document` call does with its body (temper/docs/design/domain/agent/ask-temper.md, 3).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum DocumentAction {
-    Write,
-    Append,
-    Replace,
-}
+pub use temper_engine_domain_store::{DocumentAction, FindingToolAnswer, FollowToolAnswer, RedToolAnswer};
 
 /// What a `remember` call does to its person's list (domain/agent/ask-temper.md, 4).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -365,12 +359,6 @@ pub enum FollowCall {
     List,
     Show { follow: u32 },
 }
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum FollowToolAnswer {
-    Write { follow: u32, refusal: Option<Box<[u8]>> },
-    List(forge::FollowsView),
-    Show { follow: u32, view: Option<Box<forge::FollowView>> },
-}
 
 /// A goal's red acts; the caller's task is always the goal (forge/reds.md, 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -378,12 +366,6 @@ pub enum RedCall {
     Record { key: Box<[u8]>, at: Box<[u8]>, why: Box<[u8]> },
     End { key: Box<[u8]>, why: Box<[u8]> },
     List,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum RedToolAnswer {
-    Write(forge::RedReply),
-    List { goal: u64, bound: u32, reds: Box<[forge::Red]> },
-    NoGoal { task: u64 },
 }
 
 /// Finding acts never take a project or actor from the agent (domain/areas.md, 7).
@@ -412,14 +394,6 @@ pub enum FindingCall {
     Show {
         number: u32,
     },
-}
-
-/// A snapshot for text rendering; writes retain this result under their call name.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum FindingToolAnswer {
-    Write(forge::FindingReply),
-    List(forge::Findings),
-    Show { project: u32, number: u32, finding: Option<forge::FindingAnswer> },
 }
 
 /// One change of a `change` call (domain/agent/tools.md, 1).

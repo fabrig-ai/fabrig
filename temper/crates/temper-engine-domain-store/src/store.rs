@@ -1141,7 +1141,8 @@ fn note_entry_bytes(entry: &jig_domain_notes::Entry) -> Option<u64> {
 }
 
 /// Checked deep-byte projection for journal admission, including scoped erase keys.
-pub(crate) fn owned_bytes(write: &Write) -> Option<u64> {
+#[must_use]
+pub fn owned_bytes(write: &Write) -> Option<u64> {
     match write {
         Write::CopySettingsRevision(_) => u64::try_from(size_of::<u32>()).ok(), // The store copies the payload; only the number crosses this boundary.
         Write::DropHistory { .. } | Write::DropTranscript { .. } => Some(8),
@@ -1204,7 +1205,8 @@ fn decision_bytes(decision: &jig_domain_people::EscalationDecision) -> u64 {
 }
 
 #[expect(clippy::too_many_lines, reason = "exhaustive answer sizing includes project-only findings topics")]
-pub(crate) fn call_answer_bytes(answer: &CallAnswer) -> Option<u64> {
+#[must_use]
+pub fn call_answer_bytes(answer: &CallAnswer) -> Option<u64> {
     match answer {
         CallAnswer::Follow(answer) => match answer.as_ref() {
             crate::FollowToolAnswer::Write { refusal, .. } => {
@@ -1347,7 +1349,8 @@ fn model_context_bytes(models: &[Box<[u8]>]) -> Option<u64> {
 }
 
 /// Newly owned program answer fields, beside the retained ask and model context.
-pub(crate) fn program_answer_bytes(outcome: &jig_domain_people::Outcome) -> Option<u64> {
+#[must_use]
+pub fn program_answer_bytes(outcome: &jig_domain_people::Outcome) -> Option<u64> {
     use jig_domain_people::Outcome;
     match outcome {
         Outcome::Restored { left_out, .. } => {
