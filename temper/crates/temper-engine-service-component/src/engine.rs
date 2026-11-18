@@ -799,6 +799,7 @@ pub(crate) fn answer(engine: &mut Engine) {
                 }
                 if let jig_protocol_store::Event::Closed { .. } = &event {
                     state.closed = true;
+                    state.terminal = true;
                 }
                 if let jig_protocol_store::Event::Back { .. }
                 | jig_protocol_store::Event::BackRefused { .. }
