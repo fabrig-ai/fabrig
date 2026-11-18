@@ -175,7 +175,7 @@ fn server_walk_says_when_a_forges_sign_in_meta_appears() {
 }
 
 fn coding_run_agent_document() -> serde_json::Value {
-    let mut document = temper_fixtures::agent::stock(true);
+    let mut document = temper_agent_fixtures::stock(true);
     // Inert endpoints keep configuration parsing independent of DNS, trust files and services.
     for endpoint in document["endpoints"].as_array_mut().expect("init endpoints") {
         endpoint["address"] = "127.0.0.1:9".into();

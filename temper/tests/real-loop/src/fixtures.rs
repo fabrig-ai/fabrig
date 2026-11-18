@@ -127,7 +127,7 @@ pub fn write(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> std::io::R
         program_documents(directory, &mut agent, &mut config);
     }
     private(&directory.join("world-agent.json"), &serde_json::to_vec(&agent)?)?;
-    temper_fixtures::agent::apply(&mut config, directory, &agent);
+    temper_agent_fixtures::apply(&mut config, directory, &agent);
     private(&directory.join("temper.json"), &serde_json::to_vec(&config)?)
 }
 pub(crate) type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
@@ -180,7 +180,7 @@ pub(crate) fn bind(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> std:
     config["world_settings"] = serde_json::from_slice(&std::fs::read(directory.join("world-settings.json"))?)?;
     bind_documents(&mut agent, &mut config, llm, forge);
     private(&agent_path, &serde_json::to_vec(&agent)?)?;
-    temper_fixtures::agent::apply(&mut config, directory, &agent);
+    temper_agent_fixtures::apply(&mut config, directory, &agent);
     finish_configuration(directory, &mut config)
 }
 

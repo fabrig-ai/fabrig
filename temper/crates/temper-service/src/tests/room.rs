@@ -10,7 +10,7 @@ const SHORT: u64 = 2_047;
 const ENOUGH: u64 = 2_048;
 
 fn agent() -> crate::settings::Agent {
-    let bytes = serde_json::to_string_pretty(&temper_fixtures::agent::stock(true))
+    let bytes = serde_json::to_string_pretty(&temper_agent_fixtures::stock(true))
         .expect("stock agent JSON")
         .replace("$llm", "127.0.0.1:8370")
         .replace("\"$programs\"", r#"{"claude_code":{"path":"/fixture/claude","directory":"/fixture/programs"}}"#)

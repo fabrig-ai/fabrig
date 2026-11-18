@@ -7,6 +7,3 @@ pub mod first_run;
 pub mod memory_literal;
 pub mod milestones;
 pub mod ports;
-
-pub mod agent;
-pub mod landing;

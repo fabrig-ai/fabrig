@@ -1565,7 +1565,7 @@ pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, exec
     let LiveModel::ClaudeCode { login } = model else { return };
     let path = config.join("temper.json");
     let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
-    let mut agent = temper_fixtures::agent::read(config);
+    let mut agent = temper_agent_fixtures::read(config);
     let mut endpoint = agent["endpoints"]
         .as_array()
         .expect("agent endpoints")
@@ -1613,7 +1613,7 @@ pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, exec
         "path":executable, "directory":login.parent().expect("held login parent")
     });
     super::write_private(&path, &serde_json::to_vec(&value).expect("live configuration"));
-    temper_fixtures::agent::install(config, &agent);
+    temper_agent_fixtures::install(config, &agent);
 }
 
 /// A settings change a fresh sitting applies, and its `settings apply`'s key.

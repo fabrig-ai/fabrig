@@ -7,9 +7,9 @@ use std::{
     os::unix::fs::MetadataExt,
     process::{Command, Stdio},
 };
-use temper_box_kit::parent::Guard;
+use temper_process_guard::Guard;
 
-#[path = "../src/parent/executable_read.rs"]
+#[path = "../src/executable_read.rs"]
 mod executable_read;
 
 #[test]

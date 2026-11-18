@@ -1367,7 +1367,8 @@ nothing alone for a reference.
 the tests the head's run in `HEAD_DIR` flagged, and writes their figures
 for `cpu-summary --base` (`tools/tiers/references.md`, 5, which gives its
 listing, files and exit statuses). It lists and builds as a run does, the
-flagged binaries' packages alone, and takes the hold as above.
+flagged binaries' own targets alone, a listing for each of their packages,
+and takes the hold as above.
 
 ### 11.10 Offline proof
 

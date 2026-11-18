@@ -213,6 +213,11 @@ covers no finding fails the check.
   names its file from the kit's own place.
 - **What one binary alone compiles stays with that binary,** beside its root, even where it sat in
   the shared directory.
+- **A kit links what its users need:** a module that only some of a kit's users read, on crates the
+  others don't link, is a kit of its own, which those users name. `temper-fixtures`' agent and
+  landing fixtures are `temper-agent-fixtures` and `temper-landing-fixtures`, and `temper-box-kit`'s
+  process guard is `temper-process-guard`, its tests linking it alone
+  (`temper/docs/design/draft/gate-units.md`, 4 and 5).
 
 **Today's findings,** read on main at `c3729d66f0`, and where each goes. The check lands with an
 exception for each, and each move removes its own:

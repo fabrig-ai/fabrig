@@ -71,7 +71,7 @@ fn configured(verification_bound_ms: u64) -> World {
             forge_pages: Some(b"https://forge.example"),
             project_landing: Some((
                 PROJECT,
-                temper_fixtures::landing::ProjectLanding {
+                temper_landing_fixtures::ProjectLanding {
                     gate_retries: 2,
                     gate_timeout: skein_lib::Duration::from_millis(3_600_000),
                     batch: 1,
@@ -80,11 +80,11 @@ fn configured(verification_bound_ms: u64) -> World {
                     check_timeout: None,
                     close_job: None,
                     merge_job: None,
-                    by: temper_fixtures::landing::Way::Queue,
-                    repositories: Box::new([temper_fixtures::landing::RepositoryChecks {
+                    by: temper_landing_fixtures::Way::Queue,
+                    repositories: Box::new([temper_landing_fixtures::RepositoryChecks {
                         repository: TARGET,
                         gates: Box::new([]),
-                        tiers: Box::new([temper_fixtures::landing::TierCheck {
+                        tiers: Box::new([temper_landing_fixtures::TierCheck {
                             name: b"fuzz".as_slice().into(),
                             workflow: b"fuzz.yml".as_slice().into(),
                             artifact: b"results".as_slice().into(),

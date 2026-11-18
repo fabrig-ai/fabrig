@@ -98,7 +98,7 @@ fn startup_pins_composed_default_file_and_fallback_figures() {
         let pinned = root.join("workspaces/agent/agent.json");
         let actual: serde_json::Value =
             serde_json::from_slice(&fs::read(&pinned).expect("pinned agent")).expect("agent JSON");
-        let mut expected = temper_fixtures::agent::configuration(&document);
+        let mut expected = temper_agent_fixtures::configuration(&document);
         expected["programs"]["claude_code"]["directory"] = serde_json::json!(root.join("programs"));
         if case == "file" {
             expected["profile"]["policy"]["max_turns"] = 900.into();

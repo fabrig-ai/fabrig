@@ -127,7 +127,7 @@ pub fn deployment(paths: &[PathBuf; 3]) {
     super::live_deployment(paths, super::LiveModel::ChatGpt { account: None });
     let config = paths[0].join("temper.json");
     let mut value = read_json(&config);
-    let mut worker = temper_fixtures::agent::read(&paths[0]);
+    let mut worker = temper_agent_fixtures::read(&paths[0]);
     for table in ["providers", "endpoints"] {
         value["engine"]["llm"][table].as_array_mut().expect("LLM table").retain(|row| row["name"] != "anthropic");
     }
@@ -151,7 +151,7 @@ pub fn deployment(paths: &[PathBuf; 3]) {
     assert_eq!(worker["endpoints"][0]["limits"]["output"], 48_000);
     assert_eq!(worker["endpoints"][0]["limits"]["reasoning_item"], 32_768);
     write_json(&config, &value);
-    temper_fixtures::agent::apply(&mut value, &paths[1], &worker);
+    temper_agent_fixtures::apply(&mut value, &paths[1], &worker);
     value["engine"]["limits"]["overrides"]["hub.run_calls"] = 1.into();
     write_json(&config, &value);
     let mut directories = super::super::configuration::directories(paths[0].parent().expect("deployment root"));

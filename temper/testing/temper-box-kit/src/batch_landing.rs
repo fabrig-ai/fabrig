@@ -192,7 +192,7 @@ pub fn configure(root: &Path, repository: u64) {
 /// Hold the prepare job and the batch call under the standard engine profile.
 pub fn message_room(root: &Path, value: &mut Value) {
     // The one model call carries three independent change authorities and a latch.
-    let mut agent = temper_fixtures::agent::read(root);
+    let mut agent = temper_agent_fixtures::read(root);
     agent["profile"]["declared"]["tool_payload"] = 63_740.into();
     for endpoint in agent["endpoints"].as_array_mut().expect("agent endpoints") {
         endpoint["limits"]["output"] = 48_000.into();
@@ -225,7 +225,7 @@ pub fn message_room(root: &Path, value: &mut Value) {
     overrides.insert("forge.client.fallback_ms".into(), 5000.into());
     turn_restart::staging_limits(value);
     super::configuration::use_derived(value);
-    temper_fixtures::agent::apply(value, root, &agent);
+    temper_agent_fixtures::apply(value, root, &agent);
 }
 
 fn get(forge: &Throwaway, route: &str) -> Value {
@@ -324,7 +324,7 @@ pub mod tests {
             spend + stock.rules.maximum_run_spend <= owner.authority.budget.spend,
             "the chat funds every delegate and retains one run for itself"
         );
-        let agent = temper_fixtures::agent::read(scratch.path());
+        let agent = temper_agent_fixtures::read(scratch.path());
         assert!(
             u64::try_from(arguments.len()).expect("call length")
                 <= agent["profile"]["declared"]["tool_payload"].as_u64().expect("payload"),

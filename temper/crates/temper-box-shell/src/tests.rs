@@ -150,7 +150,7 @@ fn the_standalone_operations_check_retains_no_descriptors() {
     let (agent, document) = configuration::documents(&directory, "/fixture/temper");
     let named_file = directory.join("worker.secret");
     write("temper.json", &document);
-    temper_fixtures::agent::install(&directory, &serde_json::from_slice(&agent).expect("agent JSON"));
+    temper_agent_fixtures::install(&directory, &serde_json::from_slice(&agent).expect("agent JSON"));
     let document = fs::read(directory.join("temper.json")).expect("configured fixture");
     assert_eq!(configuration::flags(&directory).len(), 6);
     let operations = super::operations_in(&[], b"/", &configuration::directories(&directory), &document)

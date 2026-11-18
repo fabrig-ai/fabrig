@@ -1,4 +1,6 @@
 //! Typed test builders that write settings kinds 4 and 5, not a document.
+//!
+//! temper/docs/design/testing/README.md, 5.
 use temper_engine_domain_forge_vocabulary as forge;
 /// A project's landing way and repository checks (protocol/configuration/engine.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

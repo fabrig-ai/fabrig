@@ -1,4 +1,6 @@
 //! Owned process cleanup and observations at the startup/process world's patience.
+//!
+//! temper/docs/design/testing/README.md, 5.
 #[cfg(target_os = "linux")]
 use skein_io::kernel::{Fd, Signal, Target};
 #[cfg(target_os = "linux")]
@@ -9,6 +11,8 @@ use std::time::Duration;
 
 #[cfg(target_os = "linux")]
 mod executable_read;
+
+pub const WITHIN: skein_lib::Duration = skein_lib::Duration::from_secs(60);
 
 /// Without Linux's retained identities, the test's ending stops its child.
 #[cfg(not(target_os = "linux"))]
@@ -44,7 +48,7 @@ impl Kept {
     /// A proc read may lose the task's memory map before its pidfd reports exit.
     /// Unlike cleanup's wait, this leaves a still-live process as the read's error.
     fn wait_after_read(&self) {
-        let mut deadline = Deadline::arm("the unreadable process's exit", super::WITHIN);
+        let mut deadline = Deadline::arm("the unreadable process's exit", WITHIN);
         deadline.watch_process(self.pid);
         while !skein_shell::keeper::pidfd_exited(self.fd).expect("retained process exit") && !deadline.passed() {
             if skein_shell::keeper::wait_readable(self.fd, deadline.remaining()).is_err() {
@@ -54,7 +58,7 @@ impl Kept {
     }
 
     fn wait(&self, owned: bool, what: &'static str) -> Option<Starved> {
-        let mut deadline = Deadline::arm(what, super::WITHIN);
+        let mut deadline = Deadline::arm(what, WITHIN);
         deadline.watch_process(self.pid);
         let mut deferred = false;
         loop {
@@ -71,10 +75,8 @@ impl Kept {
                 }
             }
             // A reaped pidfd can report POLLHUP; only the identity-specific check proves exit.
-            let _readiness = skein_shell::keeper::wait_readable(
-                self.fd,
-                if deferred { super::WITHIN } else { deadline.remaining() },
-            );
+            let _readiness =
+                skein_shell::keeper::wait_readable(self.fd, if deferred { WITHIN } else { deadline.remaining() });
         }
     }
 }
@@ -306,7 +308,7 @@ pub fn term_consumed(child: &Child) -> bool {
 #[cfg(target_os = "linux")]
 pub fn wait(guard: &mut Guard, mut ready: impl FnMut(&mut Guard) -> bool) {
     assert!(guard.kill_on_drop, "the condition wait has an owned process");
-    let mut deadline = Deadline::arm("the owned parent's condition", super::WITHIN);
+    let mut deadline = Deadline::arm("the owned parent's condition", WITHIN);
     if let Some(child) = &guard.child {
         deadline.watch_process(child.id());
     }

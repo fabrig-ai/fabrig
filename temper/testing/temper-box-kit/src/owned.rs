@@ -857,12 +857,12 @@ fn bounded_template_profile(directory: &Path, overlays: &[(&str, &[u8])], room: 
     }
     if let Some(room) = room {
         let room: serde_json::Value = serde_json::from_slice(room).expect("reference room");
-        let mut agent = temper_fixtures::agent::read(directory);
+        let mut agent = temper_agent_fixtures::read(directory);
         agent["profile"]["declared"]["tool_payload"] = room["agent"]["tool_payload"].clone();
         for endpoint in agent["endpoints"].as_array_mut().expect("init endpoints") {
             endpoint["limits"]["output"] = room["agent"]["output"].clone();
         }
-        temper_fixtures::agent::install(directory, &agent);
+        temper_agent_fixtures::install(directory, &agent);
         let document_path = directory.join("temper.json");
         let mut document: serde_json::Value =
             serde_json::from_slice(&fs::read(&document_path).expect("init document")).expect("init document JSON");
@@ -1031,7 +1031,7 @@ fn bounded_document(directory: &Path, value: &serde_json::Value, forge: temper_s
     if !named.forges.is_empty() {
         forges.push(forge).expect("primary forge");
     }
-    let mut generated = temper_fixtures::agent::at(value, directory);
+    let mut generated = temper_agent_fixtures::at(value, directory);
     generated["programs"] =
         serde_json::json!({"claude_code":{"path":"/fixture/claude","directory":directory.join("programs")}});
     for endpoint in generated["endpoints"].as_array_mut().expect("endpoints") {

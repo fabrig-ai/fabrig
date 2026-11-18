@@ -136,7 +136,7 @@ fn the_reference_settings_fit_the_reference_profile() {
     let engine = reference_engine(&init["engine"]["limits"]);
     let limits = &engine.limits.core.tasks;
     let stock = temper_service::stock::with_models(engine.llm.models.clone(), limits.result_bytes);
-    let init_agent: serde_json::Value = temper_fixtures::agent::stock(true);
+    let init_agent: serde_json::Value = temper_agent_fixtures::stock(true);
     let max_turns = init_agent["profile"]["policy"]["max_turns"].as_u64().expect("init turn limit");
     assert_eq!(items.iter().filter(|item| matches!(item.setting, Setting::Charter(_))).count(), 2);
     for number in [CODER, COORDINATOR] {
@@ -230,7 +230,7 @@ fn the_reference_charters_fit_a_stock_worker_and_the_run_bound() {
 }
 
 fn reference_worker_bounds(room: &serde_json::Value) -> jig_domain_link::Bounds {
-    let mut agent: serde_json::Value = temper_fixtures::agent::stock(true);
+    let mut agent: serde_json::Value = temper_agent_fixtures::stock(true);
     agent["profile"]["declared"]["tool_payload"] = room["tool_payload"].clone();
     // Only addresses and template placeholders change; no endpoint is contacted.
     for endpoint in agent["endpoints"].as_array_mut().expect("init endpoints") {

@@ -341,7 +341,7 @@ fn unaccepted_follow(passes: u32, gate: Gate, cued: bool, context: bool) -> Worl
             project_landing: cued.then(|| {
                 (
                     2,
-                    temper_fixtures::landing::ProjectLanding {
+                    temper_landing_fixtures::ProjectLanding {
                         gate_retries: 2,
                         gate_timeout: Duration::from_millis(3_600_000),
                         batch: 1,
@@ -350,7 +350,7 @@ fn unaccepted_follow(passes: u32, gate: Gate, cued: bool, context: bool) -> Worl
                         check_timeout: None,
                         close_job: None,
                         merge_job: None,
-                        by: temper_fixtures::landing::Way::Queue,
+                        by: temper_landing_fixtures::Way::Queue,
                         repositories: Box::new([]),
                         tier_retries: 2,
                         verification_bound_ms: 7_200_000,

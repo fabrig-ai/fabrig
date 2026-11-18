@@ -25,7 +25,7 @@ pub mod socket;
 pub mod terminal;
 pub mod turn_restart;
 pub mod webhooks;
-pub const WITHIN: skein_lib::Duration = skein_lib::Duration::from_secs(60);
+pub use temper_process_guard::WITHIN;
 pub mod forge_land;
 pub mod forge_parent;
 pub mod forge_sign_in;
@@ -38,7 +38,7 @@ pub mod forgejo_sign_in;
 pub mod live;
 pub mod live_github;
 pub mod llm;
-pub mod parent;
+pub use temper_process_guard as parent;
 pub mod patience;
 pub mod person;
 pub mod playground;
@@ -142,7 +142,7 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>) {
         configuration::documents(directory, skein_scratch::paths::binary("temper-box").to_str().expect("a UTF-8 path"));
     let mut value: serde_json::Value = serde_json::from_slice(&value).expect("deployment JSON");
     forgejo::configuration(directory, forge, &mut value);
-    temper_fixtures::agent::apply(&mut value, directory, &serde_json::from_slice(&agent).expect("agent JSON"));
+    temper_agent_fixtures::apply(&mut value, directory, &serde_json::from_slice(&agent).expect("agent JSON"));
     write_private(&directory.join("temper.json"), &serde_json::to_vec(&value).expect("deployment JSON"));
 }
 

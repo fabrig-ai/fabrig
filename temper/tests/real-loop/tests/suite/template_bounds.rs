@@ -9,7 +9,7 @@ fn the_shipped_agent_fits_standards_page_with_derived_carriers() {
     document["engine"]["limits"]["overrides"]["tasks.inbox_bytes"] = (82 * 4094).into();
     document["engine"]["limits"]["overrides"]["tasks.message_bytes"] = 262_144.into();
     document["application"]["limits"]["profile"] = "standard".into();
-    let mut stock: serde_json::Value = temper_fixtures::agent::stock(true);
+    let mut stock: serde_json::Value = temper_agent_fixtures::stock(true);
     // Only declarations determine the turn bound; use inert direct endpoints.
     stock["programs"] = serde_json::json!({});
     for endpoint in stock["endpoints"].as_array_mut().expect("stock endpoints") {

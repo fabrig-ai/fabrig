@@ -207,7 +207,7 @@ pub fn chat(project: u32, words: &[u8]) -> jig_domain_people::Ask {
     reason = "ordinary fixture code embeds the shipped profile and returns the shell's text diagnostic"
 )]
 pub fn stock_configuration(payload: u32, output: u32) -> Result<smith_agent_shell::config::Configuration, String> {
-    let mut agent = temper_fixtures::agent::stock(true);
+    let mut agent = temper_agent_fixtures::stock(true);
     agent["profile"]["declared"]["tool_payload"] = payload.into();
     for endpoint in agent["endpoints"].as_array_mut().expect("stock endpoints") {
         endpoint["limits"]["output"] = output.into();

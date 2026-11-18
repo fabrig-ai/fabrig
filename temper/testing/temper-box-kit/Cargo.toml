@@ -47,6 +47,7 @@ jig-domain-core.workspace = true
 jig-protocol-store.workspace = true
 skein-fake-forge-domain.workspace = true
 temper-fixtures.workspace = true
+temper-agent-fixtures.workspace = true
 temper-playground.workspace = true
 skein-scratch.workspace = true
 jig-client.workspace = true
@@ -67,6 +68,7 @@ jig-channel-kit.workspace = true
 skein-tls-kit.workspace = true
 serde_json.workspace = true
 temper-box-shell.workspace = true
+temper-process-guard.workspace = true
 
 
 [target.'cfg(not(all(target_arch = "wasm32", target_os = "unknown")))'.dependencies]
