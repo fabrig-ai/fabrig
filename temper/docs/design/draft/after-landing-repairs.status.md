@@ -8,4 +8,4 @@
   - 6: `../domain/milestones.md`, sections 7 and 9, `../client/pages/milestone.md`, section 2, `../client/pages/goal.md`, section 2 and `../client/forge/records.md` show no reds on a goal or a milestone, and the `findings` subject has no filter by goal or milestone.
   - 7 and 8: `../domain/findings.md`, section 6 and `../domain/areas.md`, section 6 give the triager no sorts for a red and no `repair` or `blame` act, and a finding no repair or attempts. `../domain/landing-settings.md`, 1.1 has no `repairs`. `../domain/forge/attention.md`, section 6's stock tables have no item for routine repairs, and charter 14 (`../protocol/configuration/stock.md`) has no sorts.
 - **Design departs:** none.
-- **Open:** which party is the reference deployment's triager's person, and the period's budget that covers its repairs (7 and 8, for R6).
+- **Open:** none.
