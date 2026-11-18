@@ -3,7 +3,10 @@
 Draft, 2026-11-18, from a session with the user, who asked to "add
 support for the TUI to connect to remote temper deployments", as its
 first user, "connecting from my laptop to dev.fabrig.ai". The laptop
-runs Linux. On versions: "As a first pass, don't worry too much about
+runs Linux. On signing in: "can we avoid typing codes? and make things
+"just work" by clicking some "accept" button? [...] in general, I'd like
+the UX to be as easy as possible, without compromising on security"
+(section 5). On versions: "As a first pass, don't worry too much about
 this, I'll make sure to keep my client at the same version as dev. Then
 when cross-version is there we hopefully get it for free (please
 assess), at least to a certain extent" (section 8).
@@ -12,7 +15,8 @@ It covers:
 
 - a deployment's address by name, over HTTPS (section 3);
 - the connection, over TLS (section 4);
-- signing a terminal in from the browser, across the internet (section 5);
+- signing a terminal in from the browser across the internet, with one
+  click where the browser is on the terminal's machine (section 5);
 - one directory per deployment, so that a box and a deployment
   elsewhere keep their sign-ins apart (section 6);
 - a build that doesn't match the deployment's (section 7), and what
@@ -27,16 +31,20 @@ It covers:
 - **Over TLS:** jig's native shell carries each connection through
   skein's TLS client, trusting the machine's roots. The binary resolves
   the name once, at start (section 4).
-- **Signed in from the browser,** through jig's approval, as on a box:
-  the TUI asks, then opens `https://NAME/terminal` in the person's
-  browser, signed in there by Google; the person types the code the
-  terminal shows and approves (5.1). The code never travels in an
-  address, and the page says where the ask came from and how long ago
-  (`tui.md`, 7). Nothing is pasted: a deployment elsewhere prints no
-  link the person holds.
-- **The engine guards the ask** by the public name: one live approval
-  per source address, the source as the deployment's proxy passes it
-  (5.2).
+- **One click to sign in:** the TUI asks, opens the person's browser at
+  the deployment, signed in there by Google, and the person presses
+  Approve. The browser hands the sign-in back to the TUI through a
+  listener on the machine's loopback, so an Approve pressed on someone
+  else's link signs nobody in elsewhere: the sign-in only ever reaches
+  a terminal on the machine of the browser that approved it (5.1). It is
+  the way native programs sign in with OAuth (RFC 8252).
+- **A typed code where the browser is elsewhere** (an SSH session, no
+  display, or a browser on another machine): the code the terminal
+  shows, typed on the page, as `tui.md`, 7 sketched (5.2).
+- **The engine guards the asks** made by the public name: two waiting
+  per source address at most, the page says where each came from and
+  how long ago, and one with no loopback return is approved only by its
+  code typed, on every origin (5.3 and 5.4).
 - **One directory per deployment:** each deployment's token, small store
   and note kept apart, a box's among them, so that no credential is
   offered to another engine and switching signs nobody out (section 6).
@@ -60,9 +68,11 @@ It covers:
 - **jig's approval is designed for loopback:** it is enabled only where
   the clients' listener is on loopback, and approval between hosts, over
   TLS, is later (jig's `protocol/client/sign-in.md`, *A sign-in approved
-  by a browser*). `tui.md`, 7 sketched it: Google's sign-in on the web,
-  then the same approval over HTTPS, the code typed on the page, which
-  says where the ask came from and how long ago.
+  by a browser*; jig's `protocol/configuration.md`, 3 and 8). `tui.md`, 7
+  sketched it: Google's sign-in on the web, then the same approval over
+  HTTPS, the code typed on the page, which says where the ask came from
+  and how long ago. On loopback, a code in the page's address approves
+  with one press: whoever can ask is on the engine's machine already.
 - **A deployment at a name exists already** (`../protocol/sign-in.md`,
   2): a TLS proxy in front of a listener on loopback, the printed link's
   route denied from outside, Google's sign-in on the clients' listener,
@@ -70,8 +80,9 @@ It covers:
   well as a cookie (jig's `protocol/client/default-http.md`, 3).
   dev.fabrig.ai is one, with Google's sign-in on. Its listener is on
   loopback behind the proxy, so jig's startup check admits approval
-  there, and approval's routes are not guarded by `Host`: enabled, it
-  would be asked from the internet with none of section 5's guards.
+  there, and the `Host` guard in front of approval's routes admits the
+  public name as it admits the listener's own address. Enabled, it would
+  be asked from the internet with none of section 5's guards.
 - **jig's native shell speaks plain HTTP** to a socket address (jig's
   `protocol/client/README.md`, 9). skein's TLS client, `skein-tls`, and
   the machine's roots, found by skein-shell's startup, are in the tree
@@ -156,94 +167,179 @@ It covers:
 
 ## 5. Signing in from the browser
 
-### 5.1 The terminal's side
+The person's check, today, is that the code their terminal shows is the
+code their browser shows (jig's `protocol/client/sign-in.md`, *A sign-in
+approved by a browser*, *Its risk*). By the public name, anyone can ask
+an approval and send the person a link to it; a code carried in that
+link, approved with one press, would sign the asker in as the person.
+Two things make a press safe instead: the sign-in handed back through
+the approving browser's own machine (5.1), or, where that can't be, the
+code typed from the person's own terminal (5.2).
 
-- **The sign-in screen at a name** holds the approval alone, with no
-  paste: a deployment elsewhere prints no link the person holds
-  (`../protocol/sign-in.md`, 2.3). It asks as on a box, each time it
-  opens signed out (`../client/README.md`, 4.1, *The TUI's flow*).
-- **The tab** opens at `https://NAME/terminal`, with no code:
-  `approval_address(origin, None)`. The person types the code there
-  (5.3).
+### 5.1 One click: the loopback return
+
+- **The terminal listens:** when the TUI can open a browser on its own
+  machine (`../client/README.md`, 4.1, *The opener*), it opens, for the
+  sign-in alone, a listener on `127.0.0.1` at a port the kernel picks,
+  and asks an approval that names that port, its loopback return.
+- **The tab** opens at `https://NAME/terminal?code=CODE`. Signed in, the
+  page says "Sign in a terminal on this computer?", CODE beside the ask's
+  source and age (5.4), and "Approve" and "Refuse". Signed out, "Continue
+  with Google" first, which comes back to the same address.
+- **Approve, once:** the engine marks the approval approved and answers
+  the page with the approval's grant, 32 random bytes, in that answer
+  alone. The page sends the browser to
+  `http://127.0.0.1:PORT/approved?grant=GRANT`, PORT the ask's as the
+  engine answered it, never one from the page's address, and the host
+  always `127.0.0.1`, never one the ask or the address named.
+- **The terminal takes it:** its listener answers that one path, checks
+  `Host` is its own `127.0.0.1:PORT`, and takes the sign-in with the
+  ask's secret and the grant together. It answers the browser with a
+  redirect back to `https://NAME/terminal?code=CODE`, which reads the
+  approval taken: "Terminal signed in". Every other request is answered
+  404. The listener closes once the sign-in is taken, the approval
+  ends, or the TUI closes.
+- **Why a press is safe:** an approval with a loopback return is taken
+  only with its grant, and the grant goes only to the approving browser's
+  own machine. A stranger who asks, then sends the person the link,
+  gets nothing from the person's press: the browser takes the grant to
+  the person's loopback, where the stranger's terminal isn't, and the
+  stranger's take, which has the secret but no grant, is refused. A
+  process on the person's machine could catch the grant, but it can
+  read the TUI's token already (`../client/tui/README.md`, 2, *The risk,
+  accepted*). `Referrer-Policy: no-referrer` and the grant's single use
+  keep it out of other sites and replays.
 - **Its lines,** illustrative:
 
   ```
   Sign in this terminal to dev.fabrig.ai
-  A tab opened in your browser. Type the code
-  WDJB-MJHT there, then press Approve.
-  No tab? Open https://dev.fabrig.ai/terminal
-  The code expires in 10 min.
+  A tab opened in your browser: press Approve there.
+  The code there is WDJB-MJHT. It expires in 10 min.
+  No tab? Press Enter for a code to type instead.
   ```
 
-- **No browser to open** (an SSH session, no display, or the opener
-  failing): "Open https://dev.fabrig.ai/terminal in a browser signed in
-  to temper, type WDJB-MJHT, then press Approve.", then the expiry's
-  line. The tunnel's line is a box's alone: a deployment at a name is
-  reached from any browser.
+### 5.2 A code typed, where the browser is elsewhere
+
+- **When:** the TUI has no opener (an SSH session, no display), or the
+  person presses Enter while the one-click ask waits (5.1): the TUI asks
+  an approval with no loopback return, and no listener.
+- **The page** is opened by the person at `https://NAME/terminal`, on
+  any machine, and asks for the code typed (5.3).
+- **Its lines,** illustrative: "Open https://dev.fabrig.ai/terminal in
+  a browser signed in to temper, type WDJB-MJHT, then press Approve.",
+  then the expiry's line. The tunnel's line is a box's alone: a
+  deployment at a name is reached from any browser.
+- **Taken as today:** the TUI sends the take each second while it waits
+  (`../client/README.md`, 4.1, *The take's outcomes are the link's*).
+
+### 5.3 The page
+
+- **One click only for a loopback return:** the page offers Approve on
+  the read alone for an ask that has one. An ask with none, made by the
+  public name, is approved only by its code typed, on every origin, the
+  listener's own address through a tunnel among them; a code in the
+  address is dropped for it and the field shown. An ask made by the
+  listener's own address keeps today's page, its code read from the
+  address (`../client/pages/README.md`, 2, *The approval page*;
+  `../client/web/README.md`, 2.3). The read answers which of the three
+  the ask is (5.4).
+- **"Sign in first", Google's way given,** keeps the code in its `then`
+  for a loopback return, and drops it for an ask approved by typing.
+- **The ask, waiting,** says where it came from: "Asked AGO from
+  ADDRESS", such as "Asked 12 seconds ago from 203.0.113.7", or "from an
+  unknown address" where the engine had none; then, for a typed code,
+  "Approve only a code your own terminal shows." Where a typed code's
+  ask came from another address than the deciding browser's, as the
+  engine saw both, the page adds "It was asked from another network
+  than this browser's.", which an SSH session's ask is too.
+- **Approved with a loopback return:** "Handing the sign-in to your
+  terminal…" while the browser goes to the loopback, then the approval
+  read again each second, as today, until it is taken. A browser that
+  never reaches the terminal (the TUI closed, the port refused) leaves
+  the approval approved and untaken, and it ends expired, signing
+  nobody in.
+
+### 5.4 The engine
+
+- **Approval by the public name is what `approval` enables,** in jig's
+  clients' configuration (jig's `protocol/configuration.md`, 3), where
+  the application gives a public name. There is no second switch, and
+  the startup's check stays the listener on loopback, as a deployment
+  behind its proxy has it. That section's and jig's
+  `protocol/client/README.md`, 12's deferral of approval between hosts
+  are what this draft takes up.
+- **The ask's kind:** each ask is kept as made by the listener's own
+  address, by the public name with a loopback return, or by the public
+  name with none, from the exchange's `Host` as the engine end decides it
+  (jig's `protocol/client/default-http.md`, 3). The read answers it, so
+  that the page applies its rule (5.3). That rule is the guard: a
+  decision comes only from the deployment's own page, since it needs the
+  browser's cookie, which is strict, beside the browser header.
+- **A loopback return:** an ask by the public name may name a port,
+  1024 to 65535; one by the listener's own address naming one is
+  refused, so the box's asks stay as they are. Approving
+  it draws its grant, 32 bytes from the component's generator, answered
+  to the deciding browser alone and kept as its digest. Its take must
+  carry the ask's secret and the grant, each compared in constant time;
+  a take with the secret alone is answered `waiting` while the approval
+  waits or is approved, and a grant that doesn't match is refused
+  without spending the approval, at most 3 times, then the approval
+  ends refused. What a take already admitted to the core holds is as
+  today.
+- **The ask's source:** jig's engine end gives the component each ask's
+  source address with the exchange, as it gives the credential's
+  carrier. An exchange that came by the public name has the client's
+  address as the proxy saw it, the last entry of `X-Forwarded-For`,
+  which the proxy sets, overwriting what the client sent. One by the
+  listener's own address has its socket's peer. A header missing or
+  unreadable by the public name reads as an unknown source. A process
+  on the engine's machine could claim any source by the public name; it
+  is on that machine already.
+- **Two waiting per source,** by the public name, within the
+  deployment's 4: an ask from a source that holds two approvals still
+  waiting is answered busy, and replaces nothing. An approval approved,
+  or reserved for a take, is not counted, and nothing ends it but its
+  own take or expiry. Unknown sources count as one source. Two
+  terminals behind one address, a home or an office, each ask; a
+  stranger behind that same address can hold its two for their ten
+  minutes, and a terminal there meanwhile says "Too many terminals are
+  waiting to sign in". An ask by the listener's own address keeps
+  today's rule.
+- **The ask keeps where it came from:** its source and kind beside the
+  wall time it was asked, all three answered by `ApprovalRead` while it
+  waits, with the reading browser's own source beside them. It is memory
+  alone, as the approval is, and never logged beside its code.
+
+### 5.5 The terminal's screen
+
+- **At a name, the screen holds the approval alone,** with no paste: a
+  deployment elsewhere prints no link the person holds
+  (`../protocol/sign-in.md`, 2.3). It asks as on a box, each time it
+  opens signed out (`../client/README.md`, 4.1, *The TUI's flow*).
+- **Enter is the screen's one key,** with no field: while a one-click
+  ask waits, it asks one for a typed code (5.2); once an approval has
+  ended, or wasn't asked, it asks again, one-click where there is an
+  opener; while a typed code's ask waits, or an ask is in flight,
+  nothing.
 - **The outcomes** are a box's (`../client/README.md`, 4.1, *Each
   outcome's line*), but for "not asked: refused", which at a name says
   "dev.fabrig.ai doesn't sign terminals in from the browser.", since
   there is no link to paste instead.
 - **Signed in:** the credential is kept in the deployment's own
   directory (section 6), and the launchpad is drawn, as on a box.
-- **An expiry at a name** opens the sign-in screen, which asks again:
-  there is no link file to renew from (`../client/tui/pages/sign-in.md`,
-  2).
-
-### 5.2 The engine's side
-
-- **Approval by the public name is what `approval` enables,** in jig's
-  clients' configuration (jig's `protocol/configuration.md`, 3), where
-  the application gives a public name. There is no second switch, and
-  the startup's check stays the listener on loopback, as a deployment
-  behind its proxy has it. The guards below are what this draft adds.
-- **The ask's source:** jig's engine end gives the component each ask's
-  source address with the exchange, as it gives the credential's carrier
-  (jig's `protocol/client/default-http.md`, 3). An exchange that came by
-  the public name has the client's address as the proxy saw it, the last
-  entry of `X-Forwarded-For`, which the proxy sets. One by the
-  listener's own address has its socket's peer. A header missing or
-  unreadable by the public name reads as an unknown source. A process
-  on the engine's machine could claim any source by the public name;
-  it is on that machine already.
-- **One live approval per source,** by the public name, within the
-  deployment's 4 (jig's `protocol/client/sign-in.md`, *A sign-in
-  approved by a browser*). An ask from a source that holds a live one
-  replaces it, as a sign-in's asked link replaces its own (*The asked
-  link*, there): the one replaced is remembered expired, a terminal
-  asking again never waits, and no one source holds the deployment's
-  four. Unknown sources count as one source. An ask by the listener's
-  own address keeps today's rule.
-- **The ask keeps where it came from:** its source beside the wall time
-  it was asked, both answered by `ApprovalRead` while it waits, so that
-  the page can say them (5.3). It is memory alone, as the approval is,
-  and never logged beside its code.
-
-### 5.3 The page's side
-
-- **Off loopback, the page asks for the code** whatever its address
-  carries: on an origin other than an `http://` one on a loopback IP
-  address, `/terminal?code=…` reads as `/terminal`, so that a link sent
-  by someone else can't put their code in front of the person
-  (`../client/pages/README.md`, 2, *The approval page*;
-  `../client/web/README.md`, 2.3). The page knows its origin from its own
-  address. On loopback, as today.
-- **"Sign in first", Google's way given:** off loopback, its `then` is
-  `/terminal`, with no code.
-- **The ask, waiting,** says where it came from: "Asked AGO from
-  ADDRESS", such as "Asked 12 seconds ago from 203.0.113.7", or "from an
-  unknown address" where the engine had none; then, as today, "Approve
-  only a code your own terminal shows."
+- **An expiry at a name** opens the screen, which asks again: there is
+  no link file to renew from (`../client/tui/pages/sign-in.md`, 2).
 
 ## 6. One directory per deployment
 
 - **Each origin has its own directory** under the TUI's
-  (`../client/tui/README.md`, 2): `at/NAME` for `https://NAME` on port
-  443, `at/NAME:PORT` on another port, and `at/HOST:PORT` for an engine
-  on loopback. Names and IP addresses never meet, so neither do the two
-  schemes (section 3). Each holds that deployment's `token`, `store` and
-  `sign-in`, as the TUI's directory holds them today, and is private as
-  it is. `address` and the recordings stay in the TUI's directory.
+  (`../client/tui/README.md`, 2): `at/HOST/PORT`, HOST the origin's name
+  or IP address as printed, PORT its port, 443 included. Each component
+  stays within a file name's 255 bytes, and names and IP addresses never
+  meet, so neither do the two schemes (section 3). Each holds that
+  deployment's `token`, `store` and `sign-in`, as the TUI's directory
+  holds them today, and is private as it is. `address` and the
+  recordings stay in the TUI's directory.
 - **No credential is offered to another engine:** the TUI gives the
   native shell its origin's directory alone, so a credential and the
   requests kept meet only the engine that made them. Today's "started at
@@ -256,12 +352,20 @@ It covers:
 - **The theme stays the person's:** it is a record of the small store
   (`../client/tui/README.md`, 3, `Start.kept`), so a deployment's store
   starts, at its first start, with the theme of the one used last.
-- **From today's directory:** a build with this, at its first start,
-  finds `token`, `store` and `sign-in` in the TUI's directory and moves
-  them, by rename, into the directory of the address `address` names, or
-  of the default address where it names none, before anything is read.
-  A move that fails leaves them where they are, and the TUI signs in
-  afresh: nothing but a sign-in is lost.
+- **Nothing new in a versioned format:** `address` and `sign-in` are
+  lines of text, `token` is the credential's bytes, and `store` stays
+  `jig-client`'s, as today, so an upgrade of the laptop's build reads
+  them as it did.
+- **From today's directory:** today's TUI only ever reached an engine on
+  loopback, and writes the token during its run but `address` only once
+  it closes, so neither file alone says whose the token is. At its first
+  start, a build with this moves `token`, `store` and `sign-in` into the
+  directory of the address `sign-in` names, only where `address` names
+  that same address; otherwise it removes them, and the TUI signs in
+  afresh, which on a box takes nothing (`../client/tui/pages/sign-in.md`,
+  2). The move goes through `at/HOST/PORT.new`, renamed whole into place
+  once the three are in it; a start that finds `.new` finishes the move,
+  and one whose destination exists already removes today's files.
 
 ## 7. A build that doesn't match
 
@@ -281,44 +385,49 @@ It covers:
   it closes. An engine on loopback is named by its place, as in
   section 3.
 - **No version logic of the TUI's own:** the screen draws what
-  `jig-client` reports, and nothing else decides it (section 8).
+  `jig-client` reports, and the hello's fingerprints stay
+  `jig-client`'s, the same code for every client (section 8).
 
 ## 8. Across builds, later
 
 The user asked whether the TUI gets cross-version communication for
-free once it exists. Mostly yes, for every change a plan derives:
+free once it exists. Yes, for every change a plan derives, and with no
+code of the TUI's own:
 
-- **What would come:** the clients' wires bridged as a worker's are
-  (`layouts-both-ways.md`, 10), the engine converting both ways for a
-  client at another layout, from the texts the client sends at its
-  opening (`layouts-both-ways.md`, 5 and 6).
+- **What would come:** the clients' wires bridged as a worker's are, the
+  engine converting both ways for a client at another layout
+  (`layouts-both-ways.md`, 6.1 and 10). It is planned there as later,
+  and is in neither of that draft's milestones: their client part
+  freezes the clients' versions and refuses a client by its layouts'
+  fingerprints at the hello, by name, which is section 7's screen.
 - **Why the TUI gets it for free:** the TUI speaks the clients' wires
   through the crates the browser's shell uses, `jig-client`, its
-  protocol layer and wire, and temper's client wire. A bridge in the
-  engine and in those crates reaches the TUI with no code of its own,
-  and this draft adds none (section 7).
-- **How far it goes:**
+  protocol layer and wire, and temper's client wire. The bridge would
+  sit in the engine and in those crates, for the browser and the native
+  clients alike, and this draft adds no version logic of the TUI's own
+  (section 7) and nothing on disk in a versioned format (section 6).
+- **How far it goes,** by layout and by value:
   - a change no plan derives, a retype or a reshape with no written
-    converter, is still refused, and section 7's screen still shows
-    (`layouts-both-ways.md`, 7.3);
-  - a build older than the floor of what dev.fabrig.ai runs is refused
-    (`layouts-both-ways.md`, 7.4);
-  - a new variant the TUI's build lacks has no plan down to it, so
-    what the engine does with a value it can't send a client is the
-    bridge's to design (`layouts-both-ways.md`, 6.2);
-  - meaning moves with the code, not the layout: an older TUI shows
-    less of a newer engine, and a newer TUI's new requests go unanswered
-    by an older engine;
+    converter, is still refused at the hello, and section 7's screen
+    still shows (`layouts-both-ways.md`, 7.3);
+  - where the floor has removed a conversion a build needs, that build
+    is refused (`layouts-both-ways.md`, 7.4);
+  - a variant added in the engine's build still derives a plan down to
+    an older TUI, and only a value that selects it is refused
+    (`layouts-both-ways.md`, 4); what the engine then does with that
+    value, and how a newer TUI's request an older engine can't hold is
+    answered, typed rather than left waiting, are the bridge's to design;
+  - meaning moves with the code, not the layout: an older TUI shows less
+    of a newer engine;
   - the requests kept in the small store at another version are dropped
-    with a notice today (`upgrades.md`, 7.4); a bridge could convert
-    them as the store converts its own.
-- **What the bridge must design for a remote client:** the browser
-  always reloads to the engine's own bundle, so native clients are the
-  bridge's first users, and a remote one is the first peer to send its
-  texts from the internet. A worker's come over an authenticated channel
-  (`layouts-both-ways.md`, 5); a client's would come before or around
-  its sign-in. Bounding them, taking them only after sign-in or by
-  fingerprint from a cache, is the bridge's design.
+    with a notice today (`upgrades.md`, 7.4).
+- **Its bounds are the bridge's:** the browser always reloads to the
+  engine's own bundle, so native clients are the bridge's first users,
+  and a remote one is the first peer to send its layouts' texts from the
+  internet. The client wire's bridge and its bounds are
+  `layouts-both-ways.md`'s (10): the hello and the sign-in stay at
+  layouts that don't move, so a client of any build is refused by name
+  or signs in, and texts are taken after sign-in alone.
 
 ## 9. Tests
 
@@ -330,27 +439,47 @@ Focused and fuzzy alone.
 - **The connection:** jig's native shell's tests over a TLS listener
   with test certificates and no network: a certificate trusted, one
   refused, a name that doesn't match, and the stream through it.
-- **The engine's side:** jig's clients' component tests: an ask by the
-  public name with and without `X-Forwarded-For`, one per source
-  replacing the last, the deployment's four, and the read's source and
-  wall time.
-- **The page:** temper's client world: `/terminal?code=…` on an origin
-  off loopback asks for the code typed, on loopback reads it, and the
-  ask waiting says its source.
-- **The TUI:** host tests and golden frames at 80 by 24, dark and
-  light: the sign-in screen at a name, with a browser and without; the
-  build refused; the header and the rule naming the place; a directory
-  per deployment, and the move from today's.
+- **The engine:** jig's clients' component tests: an ask of each kind;
+  a loopback return's take with the grant, with the secret alone, and
+  with a wrong grant three times; the decision's grant answered once;
+  an ask by the public name with and without `X-Forwarded-For`; two
+  waiting per source, a third busy, an approved one not counted, and a
+  take reserved meanwhile untouched; two terminals behind one source;
+  the read's source, kind and wall time.
+- **The page:** temper's client world: a loopback return's ask approved
+  by one press, and the browser sent to `127.0.0.1` at the engine's
+  port whatever the address says; a typed-code ask by the public name
+  asking for the code typed on a public origin and on the listener's own
+  address, its address's code dropped; an ask by the listener's address
+  read from the address as today; the waiting state's source.
+- **The TUI:** host tests and golden frames at 80 by 24, dark and light:
+  the one-click screen, Enter to a typed code, Enter to ask again, and no
+  opener; the loopback listener's one path, a wrong `Host`, a wrong
+  grant, and its closing; the build refused; the header and the rule
+  naming the place; a directory per deployment, and the move from
+  today's with `address` agreeing, disagreeing, and a `.new` left
+  behind; a 253-byte name with a port of its own.
 - **After landing,** on the user's laptop: `temper
-  https://dev.fabrig.ai`, the tab, Google's sign-in when signed out, the
-  code typed and approved, the launchpad and a chat, the laptop slept
-  and woken, then a box beside it and back.
+  https://dev.fabrig.ai`, the tab, Google's sign-in when signed out, one
+  press, the launchpad and a chat, the laptop slept and woken, then a
+  box beside it and back; and over SSH, the typed code.
 
 ## 10. Later and open questions
 
 - **`temper ctl` at a name:** the same address, connection and
   directories, ctl signing in as it does (`../client/ctl/README.md`).
   Default: after this pass, when the user asks.
+- **The box's one press by the loopback return too:** a box's TUI asks
+  from the engine's machine, so today's press stays safe there. Default:
+  unchanged; the loopback return if the box ever takes asks from
+  elsewhere.
+- **No press at all:** with a loopback return the press guards consent,
+  not the sign-in's reach, so a page could approve on opening. Default:
+  the press stays, so that no tab signs a terminal in unseen.
+- **A browser that won't go to loopback:** browsers send a page's own
+  navigation to `127.0.0.1` for native programs' sign-ins. If one asks
+  the person first, or refuses, the TUI's Enter for a typed code is the
+  way. Default: so, its words refined on the frames.
 - **Names resolved while running:** a deployment whose addresses change
   while the TUI runs needs the TUI started again, until skein's DNS
   client (skein's `runtime/io/README.md`, 3).
@@ -362,8 +491,8 @@ Focused and fuzzy alone.
 - **Many sources asking:** a stranger with many addresses can still
   hold the deployment's four approvals for their ten minutes, and a
   terminal meanwhile says "Too many terminals are waiting to sign in".
-  Default: accepted for this pass; asks by the public name capped apart
-  from loopback's if it is seen.
+  Default: accepted for this pass; asks by the public name given room
+  apart from loopback's if it is seen.
 - **The web's list of a person's sign-ins,** each ended from there
   (`tui.md`, 7).
 - **Bare `temper`'s order** (section 3): a box running on the same
