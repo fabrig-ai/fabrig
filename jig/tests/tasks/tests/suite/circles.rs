@@ -255,6 +255,7 @@ fn a_release_of_a_holder_rechecks_its_delegate_waits_and_lifts_after_they_end() 
 
 fn amendment(world: &World, number: u64, dependencies: &[u64]) -> Operation {
     Operation::Amend(tasks::Amend {
+        funder: None,
         task: number,
         message: world.record(number).last_message + 1,
         stop_run: false,
@@ -419,10 +420,10 @@ fn a_procedure_step_judges_earlier_amendments_before_refusing_a_circle_whole() {
     world.make(Party::Task(ROOT), vec![task(HOLDER, &[]), task(REQUESTER, &[])]);
     let mut parts = Vec::new();
     for operation in [amendment(&world, HOLDER, &[REQUESTER]), amendment(&world, REQUESTER, &[HOLDER])] {
-        let Operation::Amend(tasks::Amend { task, message, stop_run, amendment }) = operation else {
+        let Operation::Amend(tasks::Amend { task, message, stop_run, amendment, funder }) = operation else {
             unreachable!("amendment fixture")
         };
-        parts.push(Amend { task, message, stop_run, amendment });
+        parts.push(Amend { task, message, stop_run, amendment, funder });
     }
     let mut decision = ProcedureDecision::new(ProcedureEnd::Wait);
     decision.amendments = parts.into_boxed_slice();
@@ -685,6 +686,7 @@ fn a_circle_held_agent_given_a_dependency_lifts_idle_and_is_not_due() {
     let message = world.record(HOLDER).last_message + 1;
     world.send(Event::Amend {
         operation: tasks::Amend {
+            funder: None,
             task: HOLDER,
             message,
             stop_run: false,
@@ -704,7 +706,6 @@ fn a_circle_held_agent_given_a_dependency_lifts_idle_and_is_not_due() {
         places: Box::new([]),
         reply_to,
         by: Party::Task(ROOT),
-        funder: None,
     });
     assert_eq!(world.record(HOLDER).waiting_on.as_ref(), [LATE]);
     let reply_to = world.to();

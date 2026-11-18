@@ -97,6 +97,7 @@ fn operations(domain: &mut Domain, task: u64, person: u64) -> Option<List<tasks:
         let message = core::fresh(&mut domain.core.counters, core::Family::Message)?;
         operations
             .push(tasks::Operation::Amend(tasks::Amend {
+                funder: None,
                 task: delegate,
                 message,
                 stop_run: false,

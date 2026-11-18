@@ -65,6 +65,19 @@ use skein_lib::{Env, List, Queue, ReplyTo, Token};
 
 use crate::routing::run::turns::route_accepted_turn;
 
+/// Only a widening replaces the funder (jig/docs/design/domain/authority.md, 7).
+pub(crate) fn amendment_funder(
+    core: &Core,
+    before: &tasks::Authority,
+    amendment: &tasks::Amendment,
+    giver: tasks::Funder,
+) -> Option<tasks::Funder> {
+    let after = amendment.authority.as_ref()?;
+    let before = crate::translate::tasks_authority(before);
+    let after = crate::translate::tasks_authority(after);
+    if authority::at_most(&after, &before, &core.authority.rules().implies) { None } else { Some(giver) }
+}
+
 impl Core {
     /// Retain a numbered connector call until its translated answer arrives.
     #[must_use]

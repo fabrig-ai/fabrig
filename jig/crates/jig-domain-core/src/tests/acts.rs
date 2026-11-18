@@ -9,6 +9,7 @@ pub(in crate::tests) mod tracking;
 
 mod classifiers;
 mod widening;
+mod widening_funds;
 
 use crate::{
     acts as offers,

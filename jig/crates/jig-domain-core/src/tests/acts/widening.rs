@@ -168,6 +168,7 @@ fn a_compounds_amendment_reads_its_staged_credit_and_pool_balances() {
                 period_budget: 1000,
             },
             tasks::Operation::Amend(tasks::Amend {
+                funder: None,
                 task: 1,
                 message: 1,
                 stop_run: true,

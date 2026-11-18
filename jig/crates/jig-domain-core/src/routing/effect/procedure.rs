@@ -297,7 +297,11 @@ fn amendments(
         let Some(message) = crate::fresh(&mut core.counters, crate::Family::Message) else {
             return Err(problem(task, tasks::Refusal::Busy));
         };
-        if amendments.push(tasks::Amend { task: part.task, message, stop_run, amendment: Box::new(amendment) }).is_err()
+        let current = core.tasks.task(part.task).expect("amend admission found target");
+        let funder = crate::routing::amendment_funder(core, &current.authority, &amendment, tasks::Funder::Task(task));
+        if amendments
+            .push(tasks::Amend { funder, task: part.task, message, stop_run, amendment: Box::new(amendment) })
+            .is_err()
         {
             return Err(problem(task, tasks::Refusal::Batch));
         }

@@ -17,6 +17,8 @@ use skein_lib::{List, Queue, ReplyTo, Token};
 mod address;
 #[path = "../stories/note_room.rs"]
 mod note_room;
+#[path = "../stories/widening_funds.rs"]
+mod widening_funds;
 
 const SECOND_CONNECTOR: u16 = 2;
 
