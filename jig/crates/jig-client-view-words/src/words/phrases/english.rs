@@ -95,6 +95,7 @@ pub fn language() -> Language {
             JigPhrase::SettingFaultGrace => {
                 Box::new([Segment::Text(copy_of(b"Setting template grace is past the allowed span"))])
             }
+            JigPhrase::SettingFaultAccounts => Box::new([Segment::Text(copy_of(b" has accounts: remove them first"))]),
             JigPhrase::SettingRangeStock => Box::new([
                 Segment::Text(copy_of(b" is among the stock's numbers, 1 to ")),
                 Segment::Hole { index: 0, kind: HoleKind::Number },

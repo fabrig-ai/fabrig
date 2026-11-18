@@ -52,9 +52,12 @@ pub(crate) fn deployment() -> (skein_scratch::Scratch, Directories) {
         "keys":"http://127.0.0.1:7104/keys", "transport":"plaintext", "must_grant":["read"],
         "redirect_path":"callback"
     });
-    document["engine"]["llm"]["providers"][0]["sources"]["sign_in"] = registration;
-    document["engine"]["llm"]["providers"][0]["manage_usage"] = "https://accounts.example.invalid/usage".into();
-    let endpoint = &mut document["engine"]["llm"]["endpoints"][0];
+    let mut providers = temper_agent_fixtures::providers::stock();
+    providers["providers"].as_array_mut().expect("providers").truncate(1);
+    providers["endpoints"].as_array_mut().expect("endpoints").truncate(1);
+    providers["providers"][0]["sources"]["sign_in"] = registration;
+    providers["providers"][0]["manage_usage"] = "https://accounts.example.invalid/usage".into();
+    let endpoint = &mut providers["endpoints"][0];
     endpoint.as_object_mut().expect("endpoint").remove("server_name");
     endpoint["address"] = serde_json::json!({"socket":"127.0.0.1:1"});
     endpoint["transport"] = "plaintext".into();
@@ -62,12 +65,13 @@ pub(crate) fn deployment() -> (skein_scratch::Scratch, Directories) {
     endpoint["name"] = "second".into();
     endpoint["number"] = 2.into();
     endpoint["provider"] = "second".into();
-    document["engine"]["llm"]["endpoints"].as_array_mut().expect("endpoints").push(endpoint);
-    let mut provider = document["engine"]["llm"]["providers"][0].clone();
+    providers["endpoints"].as_array_mut().expect("endpoints").push(endpoint);
+    let mut provider = providers["providers"][0].clone();
     provider["name"] = "second".into();
     provider["number"] = 2.into();
     provider["endpoint"] = "second".into();
-    document["engine"]["llm"]["providers"].as_array_mut().expect("providers").push(provider);
+    providers["providers"].as_array_mut().expect("providers").push(provider);
+    temper_agent_fixtures::providers::write(&data, &providers);
     document["application"]["test"]["github"] = serde_json::json!({
         "api":{"socket":"127.0.0.1:1"}, "transport":"plaintext",
         "remote":"http://127.0.0.1:1", "web":"http://127.0.0.1:1", "git":"/usr/bin/git"

@@ -9,7 +9,10 @@ use skein_lib::List;
 /// # Errors
 /// The document's problems against the defaults, at the document's paths.
 pub fn pass(engine: &mut Engine, defaults: jig_domain_core_vocabulary::settings::Defaults) -> Result<(), Problems> {
-    assert_eq!(engine.defaults, crate::Defaults::Passed, "pass requires passed defaults");
+    assert!(engine.defaults != crate::Defaults::Document, "pass requires passed defaults");
+    if engine.defaults == crate::Defaults::PassedProviders {
+        engine.provider_defaults = Some(defaults.providers);
+    }
     engine.llm.models = defaults.models;
     engine.charters = defaults.charters;
     engine.templates = defaults.templates;
@@ -83,7 +86,7 @@ pub(crate) fn offers(
     problems: &mut Problems,
 ) -> Offers {
     let path = crate::Path::root();
-    if defaults == crate::Defaults::Passed {
+    if defaults != crate::Defaults::Document {
         for name in [b"charters".as_slice(), b"templates", b"policies", b"rules"] {
             if object.member(document, name).is_some() {
                 problems.push(path.member(name), crate::What::Stored);
@@ -114,4 +117,28 @@ pub(crate) fn offers(
         );
     }
     Offers { charters, templates }
+}
+
+/// Pass all defaults, with the providers used at this start and the application's constants.
+/// # Errors
+/// Seed project or default reference problems, at their document paths.
+pub fn pass_providers(
+    engine: &mut Engine,
+    defaults: jig_domain_core_vocabulary::settings::Defaults,
+    running: &[crate::llm::ProviderSetting],
+    fixed: Box<[crate::llm::ProviderSetting]>,
+) -> Result<(), Problems> {
+    assert_eq!(engine.defaults, crate::Defaults::PassedProviders, "provider defaults mode");
+    let mut providers = List::with_capacity(crate::llm::PROVIDERS);
+    let mut endpoints = List::with_capacity(crate::llm::ENDPOINTS);
+    for value in running.iter().chain(fixed.iter()) {
+        providers.push(value.provider.clone()).expect("application providers bounded");
+        for endpoint in &value.endpoints {
+            endpoints.push(endpoint.clone()).expect("application endpoints bounded");
+        }
+    }
+    engine.llm.providers = providers.into_boxed();
+    engine.llm.endpoints = endpoints.into_boxed();
+    engine.fixed_llm_providers = fixed;
+    pass(engine, defaults)
 }

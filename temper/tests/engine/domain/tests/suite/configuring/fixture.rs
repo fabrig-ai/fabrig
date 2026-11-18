@@ -53,6 +53,7 @@ pub(super) fn config() -> engine::Config {
 
         providers: Box::new([]),
     };
+    let providers = config.core.defaults.providers.clone();
     let mut workers = config.core.defaults.workers.clone();
     for worker in &mut workers {
         worker.places = SLOTS;
@@ -60,6 +61,7 @@ pub(super) fn config() -> engine::Config {
     config.core.defaults =
         temper_engine_service_stock::stock::with_models(llm.models.clone(), limits().tasks.result_bytes);
     config.core.defaults.workers = workers;
+    config.core.defaults.providers = providers;
     config.core.seed_projects[0].policy = config.core.defaults.policies.get(&1).expect("stock policy 1").clone();
     let project_owner = config.core.owners[0].clone();
     let mut deployment_owner = project_owner.clone();

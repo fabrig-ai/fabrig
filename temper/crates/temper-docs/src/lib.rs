@@ -620,7 +620,7 @@ pub static PAGES: [Page; 77] = [
         name: "settings-fields",
         kind: Kind::Reference,
         title: "Settings fields",
-        summary: "Settings value types, bounds and effects, for settings files and `settings show`.",
+        summary: "JSON types, bounds and effects for settings files and `settings show`.",
         text: include_str!("../../../docs/help/reference/settings-fields.md"),
     },
 ];

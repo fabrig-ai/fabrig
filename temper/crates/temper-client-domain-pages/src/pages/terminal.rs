@@ -414,6 +414,7 @@ pub(super) fn prepare(
             Event::Act { act }
         }
         event @ (Event::Started
+        | Event::Root
         | Event::Left
         | Event::AccountKey { .. }
         | Event::SignInAddress { .. }
@@ -445,7 +446,7 @@ pub(super) fn prepare(
             }
             Some(Event::Act { act })
         }
-        event @ (Event::Started | Event::Left) => {
+        event @ (Event::Started | Event::Root | Event::Left) => {
             if pages.listing.take().is_some() {
                 pages.redraw();
             }

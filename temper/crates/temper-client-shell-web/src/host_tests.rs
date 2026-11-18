@@ -299,19 +299,19 @@ fn the_brand_href_navigates_inside_the_app() {
     let mut host = fixture_at(b"/welcome");
     build(&mut host);
     let link = node(&host, Role::Link, b"temper");
-    assert_eq!(host.href(link).as_deref(), Some(b"/".as_slice()));
+    assert_eq!(host.href(link).as_deref(), Some(b"/home".as_slice()));
     host.went(b"/welcome?at=forge");
     build(&mut host);
     let link = node(&host, Role::Link, b"temper");
     host.act(link, Act::Press);
     host.requests();
-    assert_eq!(host.show, Some((Box::from(b"/".as_slice()), false)));
+    assert_eq!(host.show, Some((Box::from(b"/home".as_slice()), false)));
 }
 
 #[test]
 fn a_filter_chosen_pushes_the_inbox_at_its_query() {
-    let mut host = fixture_at(b"/");
-    host.went(b"/?kind=question");
+    let mut host = fixture_at(b"/needs");
+    host.went(b"/needs?kind=question");
     build(&mut host);
     assert_eq!(
         host.address,
@@ -335,7 +335,7 @@ fn a_filter_chosen_pushes_the_inbox_at_its_query() {
 }
 #[test]
 fn a_load_at_a_filtered_address_opens_the_inbox_filtered() {
-    let mut host = fixture_at(b"/?kind=question");
+    let mut host = fixture_at(b"/needs?kind=question");
     build(&mut host);
     assert_eq!(
         host.address,
@@ -352,7 +352,7 @@ fn a_load_at_a_filtered_address_opens_the_inbox_filtered() {
 }
 #[test]
 fn a_stale_filter_link_opens_less_filtered_at_its_printed_address() {
-    let mut host = fixture_at(b"/?kind=reply&project=3");
+    let mut host = fixture_at(b"/needs?kind=reply&project=3");
     build(&mut host);
     assert!(
         host.view
@@ -362,7 +362,7 @@ fn a_stale_filter_link_opens_less_filtered_at_its_printed_address() {
             .any(|node| node.role == Role::Main && node.styles.as_slice().contains(&temper_client_view::look::NEEDS))
     );
     assert_eq!(host.address, Address::Inbox { filter: Filter { project: Some(3), ..Filter::ALL } });
-    assert_eq!(host.show, Some((Box::from(b"/?project=3".as_slice()), true)));
+    assert_eq!(host.show, Some((Box::from(b"/needs?project=3".as_slice()), true)));
 }
 
 #[test]
@@ -826,5 +826,62 @@ fn the_look_is_kept_and_full_screen_carried() {
         assert_eq!(duties.screen, None);
         assert_eq!(duties.keep_look, None);
         assert!(duties.asked.is_empty());
+    }
+}
+
+#[test]
+fn root_and_missing_starts_wait_for_me_and_replace_even_the_provisional_home() {
+    for path in [b"/".as_slice(), b"/nowhere"] {
+        for projects in [0, 1, 2] {
+            let mut host = Host::new(limits::client(), 11, Time::ZERO, Wall::EPOCH, 0, view::sign_in::Ways::NONE);
+            host.root = root::unlinked(&host.env.limits, 11);
+            host.start(path, Vec::new(), None);
+            host.client(jig_client::Event::StartUnlinked { kept: List::uncapped() });
+            host.client(jig_client::Event::SignIn { with: jig_client::With::Transport });
+            host.client(jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } });
+            assert_eq!(host.report(Report::Start).show, None);
+            build(&mut host);
+            assert_eq!(host.root.pages().address(), &Address::AllHome);
+            assert!(!host.view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&view::look::NEEDS)));
+            let link = jig_client_protocol_link::Limits::new(host.env.limits.client.domain, limits::EXCHANGES).unwrap();
+            let mut me = jig_client_protocol_link::translate::documents::frame(
+                jig_client_test_records::frame_two_projects_record(),
+                &link,
+            )
+            .unwrap();
+            let project = me.projects.get(0).unwrap().clone();
+            me.projects = List::with_capacity(2);
+            for n in 0..projects {
+                let mut project = project.clone();
+                project.project = 1 + n;
+                me.projects.push(project).unwrap();
+            }
+            host.client(jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: Token::new(0),
+                    event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))),
+                },
+            });
+            let expected = if projects == 1 { b"/projects/1".as_slice() } else { b"/home".as_slice() };
+            assert_eq!(host.report(Report::Start).show, Some((Box::from(expected), true)), "{path:?}, {projects}");
+            assert_eq!(host.report(Report::Start).show, None);
+        }
+    }
+}
+
+#[test]
+fn an_old_root_filter_replaces_at_once_but_a_needs_filter_stays() {
+    for (path, replacement) in [
+        (b"/?kind=question&goal=9".as_slice(), Some((Box::from(b"/needs?kind=question&goal=9".as_slice()), true))),
+        (b"/needs?kind=question", None),
+    ] {
+        let mut host = Host::new(limits::client(), 11, Time::ZERO, Wall::EPOCH, 0, view::sign_in::Ways::NONE);
+        host.start(path, Vec::new(), None);
+        assert_eq!(host.report(Report::Start).show, replacement);
+        assert_eq!(host.root.pages().inbox().unwrap().filter.kind, Some(root::address::Kind::Question));
+        assert_eq!(
+            host.root.pages().inbox().unwrap().filter.goal,
+            if path.starts_with(b"/?") { Some(9) } else { None }
+        );
     }
 }

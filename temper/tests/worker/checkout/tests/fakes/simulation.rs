@@ -5,7 +5,7 @@ use skein_lib::{Duration, Time};
 use temper_fake_checkout::git::Remote;
 use temper_worker_checkout_world::client::{Interrupt, Pick, Plan};
 use temper_worker_checkout_world::translate;
-use temper_worker_checkout_world::{LIMITS, Settings, Span, Told, World, noisy, submit_noisily};
+use temper_worker_checkout_world::{LIMITS, Settings, Span, World, noisy, submit_noisily};
 use temper_worker_domain_checkout::git::{Fault, Missing, PushDiagnostic};
 use temper_worker_domain_checkout::{Failure, Landing, Limits, Prepared, Refusal};
 
@@ -250,20 +250,44 @@ fn a_seed_replays_to_the_same_run() {
 /// kept add up to what crossed the boundary (checked by `World::run`).
 #[test]
 fn facts_change_nothing_the_checkout_does() {
-    for seed in 0..100 {
-        let run = |facts| {
-            let noisy = noisy(seed);
-            let settings = Settings { checkout: Limits { facts, ..noisy.checkout }, ..noisy };
-            let mut world = World::new(settings);
-            submit_noisily(&mut world, &settings, seed);
-            world.run(ITERATIONS);
-            (world.trace().to_vec(), world.stats(), world.told())
-        };
-        let (trace, stats, (told, lost)) = run(4096);
-        assert_eq!(lost, 0, "seed {seed}: room for every fact");
-        assert!(told.started > 0, "seed {seed}: facts were told");
-        let (silent, same, (none, dropped)) = run(0);
-        assert!(silent == trace && same == stats, "seed {seed}: the same requests, at the same times");
-        assert_eq!((none, dropped > 0), (Told::default(), true), "seed {seed}: every fact dropped");
-    }
+    // This seed tells every fact kind except Queued, and Held for each cache
+    // outcome available without workspace reuse: new, reused, rebuilt, evicted.
+    const CACHE_AND_INTERRUPTION: u64 = 0;
+    // Reuse adds Held's looking and kept outcomes; one preparation permit
+    // among this seed's three workspaces makes a prepare queue as well.
+    const REUSE_AND_QUEUE: u64 = 90;
+    const ONE_PREPARATION: u32 = 1;
+
+    let ordinary = super::facts::assert_unchanged(noisy(CACHE_AND_INTERRUPTION));
+    assert!(
+        [
+            ordinary.refused,
+            ordinary.new,
+            ordinary.reused,
+            ordinary.rebuilt,
+            ordinary.evicted,
+            ordinary.makes,
+            ordinary.clones,
+            ordinary.started,
+            ordinary.ended,
+            ordinary.aborting,
+            ordinary.prepared,
+            ordinary.pushed,
+            ordinary.released,
+        ]
+        .into_iter()
+        .all(|count| count > 0),
+        "seed {CACHE_AND_INTERRUPTION}: refusals, cache outcomes, operations, aborts and client endings: {ordinary:?}"
+    );
+
+    let noisy = noisy(REUSE_AND_QUEUE);
+    let reusable = super::facts::assert_unchanged(Settings {
+        reuse: true,
+        checkout: Limits { preparations: ONE_PREPARATION, ..noisy.checkout },
+        ..noisy
+    });
+    assert!(
+        [reusable.looking, reusable.kept, reusable.queued].into_iter().all(|count| count > 0),
+        "seed {REUSE_AND_QUEUE}: looking, kept and queued facts: {reusable:?}"
+    );
 }

@@ -422,9 +422,7 @@ fn check_policy(
     problems: &mut Problems,
 ) {
     let before = problems.problems.len();
-    let admitted = if engine.defaults == crate::Defaults::Passed {
-        jig_domain_authority::policy_refusal(&engine.rules, &engine.limits.core.authority, policy).is_none()
-    } else {
+    let admitted = if engine.defaults == crate::Defaults::Document {
         let Some(mut authority) = jig_domain_authority::Domain::new(engine.rules.clone(), engine.limits.core.authority)
         else {
             problems.push(path.member(b"policy"), What::Because(b"deployment rules exceed authority limits"));
@@ -442,6 +440,8 @@ fn check_policy(
                 false
             }
         }
+    } else {
+        jig_domain_authority::policy_refusal(&engine.rules, &engine.limits.core.authority, policy).is_none()
     };
     crate::templates::check_overrides(engine, templates, &path.member(b"policy").member(b"templates"), problems);
     for (index, role) in roles.iter().enumerate() {

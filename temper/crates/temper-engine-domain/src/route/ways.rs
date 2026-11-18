@@ -1,5 +1,6 @@
 //! Gather a project's branch path in the answering decision
 //! (temper/docs/design/domain/forge/change/branch-path.md; temper/docs/design/protocol/configuration/settings.md, 8).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
 use crate::{Domain, Work, ways};
 use alloc::boxed::Box;
 use jig_domain_people::TemplateExecutor;
@@ -24,7 +25,7 @@ pub(crate) fn inputs(
         None => repositories.first(),
     };
     let landing = match repository {
-        Some(repository) => repository.settings.default_branch.clone(),
+        Some(repository) => repository.landing.clone(),
         None => b"main".as_slice().into(),
     };
     let branch = match branch {

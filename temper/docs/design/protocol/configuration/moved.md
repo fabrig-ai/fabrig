@@ -92,6 +92,8 @@ at most 120 bytes:
 | `application.welcome` | `moved: the welcome is a setting; change it with temper ctl settings` |
 | `application.landing` | `moved: a project's landing is settings, project-landing and project-gates; set them with temper ctl settings apply` |
 | `application.machine` | `moved: a forge's place is chosen when it's set up, and kept with the forge` |
+| `engine.llm` | `moved: LLM providers are settings; see them with temper ctl settings show provider` (`providers.md`, 5) |
+| `application.demo` | `moved: the playground's scripted model is the box's own` (`providers.md`, 5) |
 
 The reference pages give the same words in each member's row, so a
 person who meets a refusal finds where the member went.

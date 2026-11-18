@@ -146,6 +146,7 @@ pub fn bounds(forge: &temper_engine_domain_forge_vocabulary::Limits, change_word
         settings_default_branch: forge.client.answer_bytes,
         permission_value_login: forge.name_bytes,
         adopted_host: forge.name_bytes,
+        adopted_landing: forge.name_bytes,
         adopted_owner: forge.name_bytes,
         adopted_name: forge.name_bytes,
         adopted_prefix: forge.name_bytes,

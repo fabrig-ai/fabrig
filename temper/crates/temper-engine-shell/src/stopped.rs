@@ -14,7 +14,13 @@ pub fn prepare(binary: &str, directories: &Directories) -> Result<(service::Serv
     ) {
         return Err(format!("temper.json names a worker, and {binary} runs none"));
     }
-    let mut named = setup::check(&bytes, &jig_directories(directories))?.named;
+    let providers = temper_service_shell::providers::read(
+        &crate::path(&directories.data).join("providers.setting"),
+        service::stock::providers(),
+        &mut std::io::stderr(),
+    );
+    let given = service::stock::Given::Stock.with_providers(providers, Box::new([]));
+    let mut named = setup::check_with(&bytes, &jig_directories(directories), &given)?.named;
     let crate::serve::Inputs { files, google, bundle } = crate::serve::before_root(
         &mut named.files,
         &mut named.asked_files,
@@ -25,7 +31,7 @@ pub fn prepare(binary: &str, directories: &Directories) -> Result<(service::Serv
         false,
     )?;
     let crate::serve::Runtimes { roots, github } = crate::serve::runtimes(named.test_github.as_ref())?;
-    let engine = crate::serve::settings(&bytes, directories, &service::stock::Given::Stock);
+    let engine = crate::serve::settings(&bytes, directories, &given);
     let accounts = crate::serve::accounts(&engine)?;
     let seeds = crate::serve::seeds(None, None)?;
     let mut service = service::startup::restoring_with(
@@ -35,7 +41,7 @@ pub fn prepare(binary: &str, directories: &Directories) -> Result<(service::Serv
         None,
         &seeds,
         Some(accounts),
-        &service::stock::Given::Stock,
+        &given,
     )
     .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     service.configure_forge_runtime(github, roots);
@@ -53,12 +59,20 @@ pub fn drive(
     service: service::Service,
     deployment: &[u8],
     report: temper_service_shell::host::UpgradeReport<service::Service>,
+    copy_providers: bool,
 ) -> Result<u8, String> {
     let mut kernel = Kernel::open(Config { operations: service.operations() }).map_err(|why| why.to_string())?;
+    let mut served = crate::served::SERVED;
+    if !copy_providers {
+        served.handover = |service| {
+            while service.engine_component().take_providers_write().is_some() {}
+            crate::served::handover(service.engine_component());
+        };
+    }
     let mut host = temper_service_shell::Host::for_upgrade(
         binary,
         service,
-        crate::served::SERVED,
+        served,
         directories.clone(),
         deployment.into(),
         report,

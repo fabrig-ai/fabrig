@@ -6,6 +6,8 @@ use super::{
     wire_template_override,
 };
 use skein_lib::List;
+#[path = "settings/providers.rs"]
+mod providers;
 pub fn wire_settings_document(
     value: &c::SettingsDocument,
     limits: &w::Limits,
@@ -51,6 +53,9 @@ pub(in crate::codec) fn wire_setting(value: &c::Setting, limits: &w::Limits) -> 
         }
         c::Setting::Worker(item) => {
             w::Setting::Worker(w::SettingNumber::new(limits, w::SettingNumberParts { number: item.number })?)
+        }
+        c::Setting::Provider(item) => {
+            w::Setting::Provider(w::SettingNumber::new(limits, w::SettingNumberParts { number: item.number })?)
         }
         c::Setting::Rules => w::Setting::Rules,
         c::Setting::ProjectPolicy { project } => w::Setting::ProjectPolicy(w::ProjectPolicySetting::new(
@@ -156,6 +161,7 @@ pub(in crate::codec) fn wire_setting_value(
 ) -> Result<w::SettingValue, w::Problem> {
     Ok::<_, w::Problem>(match value {
         c::SettingValue::Model(value) => w::SettingValue::Model(Box::new(wire_catalogue(value, limits)?)),
+        c::SettingValue::Provider(value) => w::SettingValue::Provider(Box::new(providers::encode(value, limits)?)),
         c::SettingValue::Worker(value) => w::SettingValue::Worker(Box::new(wire_worker(value, limits)?)),
         c::SettingValue::Overlay(value) => w::SettingValue::Overlay(Box::new(wire_overlay(value, limits)?)),
         c::SettingValue::Charter(value) => w::SettingValue::Charter(Box::new(wire_charter(value, limits)?)),
@@ -461,6 +467,7 @@ pub(in crate::codec) fn wire_setting_fault(
         c::SettingFault::Grace => w::SettingFault::Grace,
         c::SettingFault::Judged => w::SettingFault::Judged,
         c::SettingFault::Linked => w::SettingFault::Linked,
+        c::SettingFault::Accounts => w::SettingFault::Accounts,
         c::SettingFault::Range => w::SettingFault::Range,
         c::SettingFault::Owner => w::SettingFault::Owner,
     })

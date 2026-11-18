@@ -117,9 +117,9 @@ fn configuration_help_gives_the_merge_commands_contract() {
     let text = page.split_whitespace().collect::<Vec<_>>().join(" ");
     let (_, contract) = text.split_once("## The merge command").expect("merge command section");
     let settings = find(b"settings-fields").expect("settings fields").text;
-    let row = settings.split_once("- `merge_job`:").expect("merge_job row").1;
-    let row = row.split(" - `").next().expect("merge_job line");
-    assert!(row.contains("The merge command in configuration"), "merge_job must point to its contract");
+    let row = settings.split_once("- merge_job:").expect("merge_job row").1;
+    let row = row.lines().next().expect("merge_job line");
+    assert!(row.contains("merge command in configuration"), "merge_job must point to its contract");
     for instruction in [
         "`TEMPER_JOB`",
         "`request.json`",

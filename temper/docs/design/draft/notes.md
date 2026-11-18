@@ -740,6 +740,8 @@ The reasons behind `config.md`, from the user, 2026-11-16.
   - the `toml` crate's parser alone, already in the workspace for smith's `config.toml`, so no crate is added; `toml_parser` alone is lighter but leaves tables, dotted keys and duplicates to temper, and `basic-toml` or `toml-span` would add a second parser (4.1).
 - **2026-11-17, the caps,** after N1 met three counts a format caps (`forge.changes`, `fleet.slots`, `forge.landing_members`). The user: "okay let's act only on forge.changes", then "yes, add N8 with the 512 and hand it over for execution". The draft's readings: a failing test's id held within 1 KiB in the store, a narrowed bound's written patch at one record, rather than blame by test index, a retype across the finding that a patch must convert by hand; 512, twice the longest id today; the other two at their caps, since dev's workers and landings sit below them (5.2, N8).
 
+- **2026-11-18, the store for 100 live goals.** N2 found that the stock store's value bound caps `live_goals` at 40, and the user answered "ok for 100 goals": milestone N9 sizes the store for 100, its memory at rest measured.
+
 ## 23. Pages in few round trips
 
 The reasons behind `page-round-trips.md`, 2026-11-17, whose head holds the user's words. Its readings, not theirs: a budget in waves and requests, held by a test, since a plan measures no latency; batches and parts as jig's mechanisms, so that the engine knows no page; `me` in the hello, two waves for three; sections top down, so nothing read moves; Home later, its cards being other rows.

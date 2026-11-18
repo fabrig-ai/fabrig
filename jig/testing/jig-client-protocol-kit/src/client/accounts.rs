@@ -26,7 +26,7 @@ impl Story {
         }
         let provider = |number| accounts::Provider {
             list: None,
-            name: b"Fake".as_slice().into(),
+            name: if number == 3 { b"Fake".as_slice().into() } else { b"Other".as_slice().into() },
             signed_in_plan: true,
             manage_usage: Some(b"https://usage.example/".as_slice().into()),
             number,
@@ -39,6 +39,7 @@ impl Story {
             charter.policy.model.provider = 3;
         }
         config.core.settings.llm_providers = accounts::Providers { providers };
+        config.core.defaults.providers = jig_test_profile::fixtures::provider_references(&config.core.settings);
         let mut limits = fixtures::owner_limits();
         limits.core.accounts.accounts = 2;
         limits.core.people.sign_ins = 3;
@@ -196,6 +197,7 @@ impl Story {
                 },
             }]),
         };
+        config.core.defaults.providers = jig_test_profile::fixtures::provider_references(&config.core.settings);
         let mut limits = fixtures::owner_limits();
         limits.core.people.sign_ins = 3;
         limits.core.accounts.accounts = 2;

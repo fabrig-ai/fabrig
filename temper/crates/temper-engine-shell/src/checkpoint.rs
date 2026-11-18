@@ -113,9 +113,14 @@ pub fn run_prepared(
         service
             .checkpoint_store(directory, skein_shell::effective_user(), adoption, child)
             .expect("new checkpoint adopts root");
-        stopped::drive(binary, directories, service, deployment, |service, binary, _, deployment| {
-            Some(lines(binary, service.checkpoint_outcome()?, deployment))
-        })
+        stopped::drive(
+            binary,
+            directories,
+            service,
+            deployment,
+            |service, binary, _, deployment| Some(lines(binary, service.checkpoint_outcome()?, deployment)),
+            true,
+        )
     })();
     // The store and signal source close their adopted descriptors on success.
     match result {

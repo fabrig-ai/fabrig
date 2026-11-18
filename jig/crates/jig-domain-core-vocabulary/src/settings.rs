@@ -7,6 +7,7 @@ pub mod check;
 pub mod fleet_needs;
 pub mod models;
 pub mod overlays;
+pub mod providers;
 pub mod revisions;
 pub mod templates;
 pub mod workers;
@@ -20,6 +21,9 @@ use jig_domain_authority as authority;
 use jig_domain_people as people;
 pub use models::{model_bit, moves, remap};
 pub use overlays::{Overlay, overlaid};
+pub use providers::{
+    ENDPOINTS, Endpoint, EndpointAddress, Header, PROVIDERS, Provider, ProviderSetting, Registration, Transport,
+};
 pub use revisions::history_copy;
 use skein_lib::{List, Map, Wall};
 pub use workers::WorkerSetting;
@@ -35,9 +39,24 @@ pub enum Value {
     Rules(Box<authority::Rules>),
     Model(Box<CatalogueModel>),
     Worker(Box<WorkerSetting>),
+    Provider(Box<ProviderSetting>),
     Application(Box<[u8]>),
 }
 impl Value {
+    #[must_use]
+    pub fn as_provider(&self) -> Option<&ProviderSetting> {
+        match self {
+            Self::Provider(value) => Some(value),
+            Self::Charter(_)
+            | Self::Overlay(_)
+            | Self::Template(_)
+            | Self::Policy(_)
+            | Self::Rules(_)
+            | Self::Model(_)
+            | Self::Worker(_)
+            | Self::Application(_) => None,
+        }
+    }
     #[must_use]
     pub fn as_worker(&self) -> Option<&WorkerSetting> {
         match self {
@@ -48,6 +67,7 @@ impl Value {
             | Self::Policy(_)
             | Self::Rules(_)
             | Self::Model(_)
+            | Self::Provider(_)
             | Self::Application(_) => None,
         }
     }
@@ -61,6 +81,7 @@ impl Value {
             | Self::Policy(_)
             | Self::Rules(_)
             | Self::Worker(_)
+            | Self::Provider(_)
             | Self::Application(_) => None,
         }
     }
@@ -74,6 +95,7 @@ impl Value {
             | Self::Rules(_)
             | Self::Model(_)
             | Self::Worker(_)
+            | Self::Provider(_)
             | Self::Application(_) => None,
         }
     }
@@ -87,6 +109,7 @@ impl Value {
             | Self::Rules(_)
             | Self::Model(_)
             | Self::Worker(_)
+            | Self::Provider(_)
             | Self::Application(_) => None,
         }
     }
@@ -100,6 +123,7 @@ impl Value {
             | Self::Rules(_)
             | Self::Model(_)
             | Self::Worker(_)
+            | Self::Provider(_)
             | Self::Application(_) => None,
         }
     }
@@ -113,6 +137,7 @@ impl Value {
             | Self::Policy(_)
             | Self::Model(_)
             | Self::Worker(_)
+            | Self::Provider(_)
             | Self::Application(_) => None,
         }
     }
@@ -125,6 +150,7 @@ pub struct Defaults {
     pub rules: authority::Rules,
     pub models: Box<[CatalogueModel]>,
     pub workers: Box<[WorkerSetting]>,
+    pub providers: Box<[ProviderSetting]>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Default {
@@ -176,6 +202,7 @@ fn proposal_projects(items: &[Item], applications: &[application::Recorded]) -> 
             | Setting::Charter(_)
             | Setting::Template(_)
             | Setting::Policy(_)
+            | Setting::Provider(_)
             | Setting::Worker(_)
             | Setting::Model(_)
             | Setting::Rules => continue,
@@ -307,6 +334,7 @@ impl Proposal {
 /// Revision history stays in the store.
 #[derive(Hash, Debug)]
 pub struct Current {
+    pub fixed_providers: Box<[ProviderSetting]>,
     pub resolved: Map<u32, Charter>,
     pub defaults: Map<Setting, Default>,
     pub changes: Map<Setting, Changed>,
@@ -319,6 +347,13 @@ impl Current {
     #[must_use]
     pub fn new(mut defaults: Defaults, limits: &crate::Limits, kinds: &[Kind]) -> Self {
         let mut values = Map::with_capacity(capacity(limits).expect("settings count"));
+        for provider in defaults.providers {
+            let number = provider.provider.number;
+            let previous = values
+                .insert(Setting::Provider(number), Default { value: Value::Provider(Box::new(provider)), revision: 1 })
+                .expect("default provider bound");
+            assert!(previous.is_none(), "unique default provider");
+        }
         for worker in defaults.workers {
             let previous = values
                 .insert(Setting::Worker(worker.number), Default { value: Value::Worker(Box::new(worker)), revision: 1 })
@@ -361,6 +396,7 @@ impl Current {
             .expect("rules slot");
         Self {
             defaults: values,
+            fixed_providers: Box::new([]),
             resolved: Map::with_capacity(limits.tasks.charters),
             applications: Map::with_capacity(application::capacity(kinds, limits).expect("application settings count")),
             changes: Map::with_capacity(capacity(limits).expect("settings count")),
@@ -430,6 +466,7 @@ impl Current {
             Value::Template(_)
             | Value::Policy(_)
             | Value::Rules(_)
+            | Value::Provider(_)
             | Value::Worker(_)
             | Value::Model(_)
             | Value::Application(_) => None,
@@ -444,6 +481,7 @@ impl Current {
                 | Value::Template(_)
                 | Value::Policy(_)
                 | Value::Rules(_)
+                | Value::Provider(_)
                 | Value::Worker(_)
                 | Value::Model(_)
                 | Value::Application(_),
@@ -475,6 +513,7 @@ impl Current {
                 | Value::Overlay(_)
                 | Value::Template(_)
                 | Value::Policy(_)
+                | Value::Provider(_)
                 | Value::Worker(_)
                 | Value::Model(_)
                 | Value::Application(_),
@@ -514,6 +553,7 @@ impl Current {
                 Setting::Charter(number) => numbers.push(number).expect("offered charter count"),
                 Setting::Template(_)
                 | Setting::Policy(_)
+                | Setting::Provider(_)
                 | Setting::Worker(_)
                 | Setting::Model(_)
                 | Setting::Rules
@@ -532,6 +572,7 @@ impl Current {
                 Setting::Template(number) => numbers.push(number).expect("offered template count"),
                 Setting::Charter(_)
                 | Setting::Policy(_)
+                | Setting::Provider(_)
                 | Setting::Worker(_)
                 | Setting::Model(_)
                 | Setting::Rules
@@ -551,7 +592,8 @@ pub fn capacity(limits: &crate::Limits) -> Option<u32> {
         .checked_add(limits.authority.projects)?
         .checked_add(1)?
         .checked_add(jig_domain_tasks::MODELS)?
-        .checked_add(limits.fleet.configured_workers)
+        .checked_add(limits.fleet.configured_workers)?
+        .checked_add(PROVIDERS)
 }
 fn offered(defaults: &Map<Setting, Default>, changes: &Map<Setting, Changed>) -> List<Setting> {
     let mut names =
@@ -634,6 +676,7 @@ pub fn set_bound(limits: &crate::Limits) -> Option<u64> {
         .checked_add(policies)?
         .checked_add(authority::rules_bound(&limits.authority)?)?
         .checked_add(u64::try_from(size_of::<authority::Rules>()).ok()?)?
+        .checked_add(providers::set_bound()?)?
         .checked_add(u64::from(jig_domain_tasks::MODELS).checked_mul(catalogue::bound()?)?)?
         .checked_add(u64::from(limits.fleet.configured_workers).checked_mul(
             u64::try_from(size_of::<WorkerSetting>()).ok()?.checked_add(u64::from(limits.fleet.worker_name_bytes))?,
@@ -710,6 +753,7 @@ pub fn proposal_heads(items: &[Item]) -> Box<[jig_domain_tasks::SettingHead]> {
                     Setting::Rules => jig_domain_tasks::Setting::Rules,
                     Setting::Model(n) => jig_domain_tasks::Setting::Model(n),
                     Setting::Worker(n) => jig_domain_tasks::Setting::Worker(n),
+                    Setting::Provider(n) => jig_domain_tasks::Setting::Provider(n),
                     Setting::Application { .. } | Setting::ProjectPolicy { .. } => continue,
                 },
                 edit: match item.edit {
@@ -743,6 +787,7 @@ pub fn is_project_policy(setting: Setting) -> bool {
         Setting::Charter(_)
         | Setting::Template(_)
         | Setting::Policy(_)
+        | Setting::Provider(_)
         | Setting::Worker(_)
         | Setting::Model(_)
         | Setting::Rules

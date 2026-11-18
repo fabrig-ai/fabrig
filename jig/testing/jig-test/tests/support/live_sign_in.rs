@@ -46,7 +46,7 @@ pub fn configuration_at(directory: &Path, address: &str, peers: Peers) -> codec:
         "sources":{"sign_in":peers.sign_in()}
     });
     let endpoint = &mut engine["llm"]["endpoints"][0];
-    endpoint["provider"] = "openai".into();
+    endpoint["provider"] = "ChatGPT".into();
     endpoint["dialect"] = 3.into();
     endpoint["address"] = serde_json::json!({"socket":address});
     endpoint["transport"] = "tls".into();

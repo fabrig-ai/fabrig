@@ -28,6 +28,7 @@ pub(super) fn encode(token: u64, until: Wall, outcome: &d::ApplicationOutcome) -
                     repository: names::encode_repository(v.repository),
                     owner: v.owner.clone(),
                     name: v.name.clone(),
+                    landing: v.landing.clone(),
                     role: names::encode_role(v.role),
                     home: v.home,
                     kinds: names::encode_kinds(&v.kinds),
@@ -64,11 +65,13 @@ pub(super) fn decode(value: w::Application, bounds: &Bounds) -> Result<d::Stored
             d::ApplicationOutcome::MakeRefused(super::making::decode_refusal(why.into_parts().reason))
         }
         w::ApplicationOutcome::Adopted(v) => {
-            let w::ApplicationAdoptedParts { repository, owner, name, role, home, kinds, protection } = v.into_parts();
+            let w::ApplicationAdoptedParts { repository, owner, name, role, home, kinds, protection, landing } =
+                v.into_parts();
             d::ApplicationOutcome::Adopted(d::AdoptedRepository {
                 repository: names::decode_repository(repository),
                 owner,
                 name,
+                landing,
                 role: names::decode_role(role),
                 home,
                 kinds: names::decode_kinds(kinds),

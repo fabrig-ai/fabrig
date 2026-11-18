@@ -146,7 +146,12 @@ fn assert_list_case(case: &ListCase, list: &ProviderList, settings: &crate::Sett
             Edit::Removed | Edit::Reset => panic!("list edits keep whole values"),
         };
         assert_eq!(item.setting, Setting::Model(model.number), "{}: setting number", case.label);
-        assert_eq!(shape(model, model.number, settings), Ok(()), "{}: shape", case.label);
+        assert_eq!(
+            shape(model, model.number, &[crate::tests::provider_setting(1, b"Fake", 1)]),
+            Ok(()),
+            "{}: shape",
+            case.label
+        );
     }
 }
 

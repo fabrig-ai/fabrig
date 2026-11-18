@@ -137,7 +137,7 @@ fn landed(owner: &Path, base: Option<&str>) -> Result<Landed, Box<dyn core::erro
     Ok(Landed::new(files))
 }
 
-/// The command's texts and filename (data/codec/contracts.md, 1 and 2).
+/// The command's texts and filename (data/codec/README.md, 4).
 fn generate_files(schema_paths: &[PathBuf], out_dir: &Path) -> Result<(), Box<dyn core::error::Error>> {
     let first = schema_paths.first().ok_or(USAGE)?;
     let (family, version) = first

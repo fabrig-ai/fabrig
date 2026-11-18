@@ -51,7 +51,7 @@ pub fn run_prepared(
             .engine_component()
             .restore_store(directory, skein_shell::effective_user(), name, draw)
             .expect("new restore adopts root");
-        stopped::drive(binary, directories, service, deployment, report)
+        stopped::drive(binary, directories, service, deployment, report, true)
     })();
     if result.is_err() {
         temper_service_shell::close(owned);

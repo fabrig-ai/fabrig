@@ -34,6 +34,7 @@ fn not_installed_ends_the_roots_adoption_part_as_missing_access() {
 fn adopted(forge: u16) -> super::forge::Repository {
     super::forge::Repository {
         contexts: Box::new([]),
+        landing: b"main".as_slice().into(),
         workflows: Box::default(),
         project: 5,
         home: forge == 1,

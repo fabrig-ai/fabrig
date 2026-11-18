@@ -438,6 +438,7 @@ pub(crate) fn config(seed: u64) -> Config {
         requirements: Box::new([]),
     };
     Config {
+        fixed_providers: Box::new([]),
         parts: Box::new([]),
         jobs: Box::new([]),
         kept_starts: Box::new([]),
@@ -494,6 +495,7 @@ pub(crate) fn config(seed: u64) -> Config {
         },
         kinds: Box::default(),
         defaults: crate::settings::Defaults {
+            providers: Box::new([provider_setting(1, b"Fake", 1)]),
             workers: Box::new([
                 crate::settings::WorkerSetting {
                     number: 1,
@@ -544,7 +546,7 @@ pub(crate) fn config(seed: u64) -> Config {
     }
 }
 
-fn restore_key_account(core: &mut Core, limits: &Limits, number: u32, source: u32, provider: u32) {
+pub(crate) fn restore_key_account(core: &mut Core, limits: &Limits, number: u32, source: u32, provider: u32) {
     let mut out = Queue::uncapped();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.accounts };
     for record in [
@@ -4082,4 +4084,35 @@ fn deployment_worker_settings_join_names_and_keep_admission_and_loss_times() {
         (false, Some(env.wall))
     );
     assert_eq!(lost.worker_settings.get(2).unwrap().since, None);
+}
+
+pub(crate) fn provider_setting(number: u32, name: &[u8], endpoint: u32) -> crate::settings::ProviderSetting {
+    use crate::settings::{Endpoint, EndpointAddress, Provider, ProviderSetting, Transport};
+    ProviderSetting {
+        provider: Provider {
+            number,
+            name: name.into(),
+            endpoint: Some(name.into()),
+            direct: None,
+            list: None,
+            signed_in_plan: false,
+            manage_usage: None,
+            sign_in: None,
+            keys: false,
+            programs: Box::new([]),
+        },
+        endpoints: Box::new([Endpoint {
+            number: endpoint,
+            name: name.into(),
+            provider: name.into(),
+            dialect: 3,
+            program: None,
+            address: EndpointAddress::Socket(core::net::SocketAddr::from(([127, 0, 0, 1], 8080))),
+            transport: Transport::Plaintext,
+            headers: Box::new([]),
+            connect: Duration::from_millis(10000),
+            handshake: Duration::from_millis(10000),
+        }]),
+        withdrawn: false,
+    }
 }
