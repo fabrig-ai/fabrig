@@ -267,7 +267,7 @@ fn with_no_worker_the_budget_stops_preparations_and_nothing_else() {
 
 #[test]
 fn a_goal_refused_funding_at_a_change_cuts_it_after_its_budget_is_raised() {
-    // The forge world's run reserves 60: 62 leaves a change's half at the minimum of 1.
+    // The run keeps half for delegates; an ordinary delegate below leaves only 2 unreserved.
     const SMALL: u64 = 62;
     // The owner's 500-unit pool can fund 200 and leave room for the change and its producer.
     const WIDER: u64 = 200;
@@ -288,6 +288,14 @@ fn a_goal_refused_funding_at_a_change_cuts_it_after_its_budget_is_raised() {
     assert!(matches!(row.funder, tasks::Funder::Pool { project: funded_project, person: funder, .. }
         if funded_project == project && funder == person));
     assert_eq!(row.authority.budget.spend, SMALL);
+    let mut delegate = temper_engine_domain_world::fixtures::report_delegate(b"Inspect the small fix", Box::new([]));
+    delegate.authority.tools = row.authority.tools;
+    delegate.authority.budget.spend =
+        row.numbers.budget - row.numbers.reserved - row.numbers.spent - row.numbers.spent_below - 2;
+    let answer = world.scripted_call(&run, 93, engine::Tool::Delegate { batch: Box::new([delegate]) });
+    let engine::CallAnswer::Delegated(ordinary) = answer else { panic!("ordinary delegate: {answer:?}") };
+    assert_eq!(ordinary.len(), 1);
+    let row = live_task(&world, run.task);
     assert_eq!(
         (row.numbers.budget - row.numbers.reserved - row.numbers.spent - row.numbers.spent_below) / 2,
         1,
@@ -295,7 +303,7 @@ fn a_goal_refused_funding_at_a_change_cuts_it_after_its_budget_is_raised() {
     );
     let change =
         engine::Tool::Change { changes: Box::new([engine::ChangeCall::words(b"Small fix".as_slice().into(), None)]) };
-    let refused = world.scripted_call(&run, 93, change.clone());
+    let refused = world.scripted_call(&run, 94, change.clone());
     assert!(
         matches!(&refused, engine::CallAnswer::DelegationRefused(problem) if problem.why == tasks::Refusal::Funding),
         "{refused:?}"
@@ -304,16 +312,17 @@ fn a_goal_refused_funding_at_a_change_cuts_it_after_its_budget_is_raised() {
         !world.store.rows.values().any(|record| matches!(record,
             Record::Core(core::Record::Tasks(tasks::Stored::Live(task)))
                 if task.requester == tasks::Party::Task(run.task)
+                    && task.executor == tasks::Executor::Procedure { connector: 0, code: 2 }
         )),
-        "the refused change creates no delegate"
+        "the refused change creates no change task"
     );
     let before = live_task(&world, run.task).clone();
     let replies = world.web_replies.len();
     world.send(engine::Event::Party(engine::PartyInput::Ask {
         models: Box::new([]),
-        reply_to: ReplyTo::new(Token::new(94)),
+        reply_to: ReplyTo::new(Token::new(95)),
         sign_in: world.signed_in.expect("goal's person"),
-        key: [94; 16],
+        key: [95; 16],
         ask: people::Ask::Amend {
             project,
             task: run.task,
@@ -343,7 +352,7 @@ fn a_goal_refused_funding_at_a_change_cuts_it_after_its_budget_is_raised() {
     assert_eq!(raised.authority, expected, "only spend changes");
     assert_eq!(raised.revisions.spec, before.revisions.spec + 1);
     assert_eq!(raised.numbers.budget, WIDER);
-    let answer = world.scripted_call(&run, 95, change);
+    let answer = world.scripted_call(&run, 96, change);
     let engine::CallAnswer::Delegated(made) = answer else { panic!("change after raise: {answer:?}") };
     assert_eq!(made.len(), 1);
     let task = live_task(&world, made[0].task);
