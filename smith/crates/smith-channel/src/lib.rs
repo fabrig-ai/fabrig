@@ -1,4 +1,4 @@
-//! Bounded channel records and the version-ten kind table. This crate keeps no
+//! Bounded channel records and the version-eleven kind table. This crate keeps no
 //! runtime state and knows no domain, credentials or host policy. Generated
 //! constructors, encoders and decoders handle bodies; [`schema`] advertises
 //! their largest permitted encodings. Contracts: `protocol/channel.md`,
@@ -11,10 +11,10 @@ extern crate alloc;
 
 #[rustfmt::skip]
 mod generated {
-    pub mod v10;
+    pub mod v11;
 }
 
-pub use generated::v10;
+pub use generated::v11;
 
 mod frame;
 pub mod kind;
@@ -24,14 +24,14 @@ pub mod reason;
 
 pub use frame::{Body, frame};
 
-pub use kinds::{KindRule, Overflow, V10, peer_terms_gap, schema};
-pub use v10::{
+pub use kinds::{KindRule, Overflow, V11, peer_terms_gap, schema};
+pub use v11::{
     Cap, CompletionLimit, CompletionPhase, LimitFailure, LimitFailureParts, PathCap, PathCapParts, PoolLimit,
     PoolLimitParts, Renewals, RenewalsParts, ResponseEvidence, ResponseEvidenceParts, TimeoutFailure,
     TimeoutFailureParts,
 };
 
-pub use v10::{
+pub use v11::{
     Accepted, AcceptedParts, AccountRefused, AccountRefusedParts, Acknowledge, AcknowledgeParts, Admitted,
     AdmittedParts, Answer, AnswerParts, AnsweredCall, AnsweredCallParts, Ask, BudgetCeiling, BudgetCeilingValue,
     BudgetCeilingValueParts, BudgetChecks, BudgetChecksParts, BudgetCompletion, BudgetCompletionParts, BudgetFailure,
@@ -56,7 +56,7 @@ pub use v10::{
     WindowBoundParts, WindowParts, Withdraw, WithdrawParts, Workspace, WorkspaceParts,
 };
 
-pub use v10::{
+pub use v11::{
     ListAnswer, ListAsk, ListAskParts, ListFailed, ListFailure, ListFailureParts, ListRefused, ListRefusedParts,
     ListRow, ListRowParts, ListRows, ListRowsParts,
 };
@@ -67,13 +67,13 @@ pub mod wire {
     pub const FAMILY: &str = "smith-channel";
 
     /// The version named by the current schema's header.
-    pub const VERSION: u16 = 10;
+    pub const VERSION: u16 = 11;
 
     /// The lowest version this build speaks.
     pub const FLOOR: u16 = crate::patches::kept::smith_channel::FLOOR;
 
     #[expect(clippy::disallowed_macros, reason = "the wire identity embeds its current schema")]
-    pub(crate) const TEXT: &str = include_str!("../schema/channel-v10.schema");
+    pub(crate) const TEXT: &str = include_str!("../schema/channel-v11.schema");
 
     /// The current schema's family fingerprint.
     #[must_use]

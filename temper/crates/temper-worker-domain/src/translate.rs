@@ -254,6 +254,7 @@ pub(crate) const fn run_failure(failure: &agent::RunFailure) -> host::RunFailure
             | agent::ModelFault::Provider
             | agent::ModelFault::Unauthorized { .. }
             | agent::ModelFault::Program { .. }
+            | agent::ModelFault::Untooled { .. }
             | agent::ModelFault::Declined
             | agent::ModelFault::Truncated
             | agent::ModelFault::Malformed,
@@ -395,18 +396,12 @@ pub(crate) fn failure_detail(result: &agent::RunResult, detail: &[u8], bound: u3
         agent::RunResult::Failed {
             failure: agent::RunFailure::Model(agent::ModelFault::Program { name, exit, detail: program }),
         } => {
-            diagnostic_part(&mut text, b"program ");
-            diagnostic_part(&mut text, name);
-            if let Some(exit) = exit {
-                diagnostic_part(&mut text, b" exit ");
-                diagnostic_part(&mut text, skein_lib::Decimal::of(u64::from(*exit)).as_bytes());
-            }
-            diagnostic_part(&mut text, b": ");
-            diagnostic_tail(&mut text, program);
-            if !detail.is_empty() {
-                diagnostic_part(&mut text, b"\n");
-                diagnostic_tail(&mut text, detail);
-            }
+            program_detail(&mut text, name, *exit, program, detail);
+        }
+        agent::RunResult::Failed {
+            failure: agent::RunFailure::Model(agent::ModelFault::Untooled { name, detail: program }),
+        } => {
+            program_detail(&mut text, name, None, program, detail);
         }
         agent::RunResult::Failed { .. }
         | agent::RunResult::Accepted { .. }
@@ -414,6 +409,21 @@ pub(crate) fn failure_detail(result: &agent::RunResult, detail: &[u8], bound: u3
         | agent::RunResult::Refused { .. } => diagnostic_tail(&mut text, detail),
     }
     text.into_boxed()
+}
+
+fn program_detail(text: &mut List<u8>, name: &[u8], exit: Option<u32>, program: &[u8], detail: &[u8]) {
+    diagnostic_part(text, b"program ");
+    diagnostic_part(text, name);
+    if let Some(exit) = exit {
+        diagnostic_part(text, b" exit ");
+        diagnostic_part(text, skein_lib::Decimal::of(u64::from(exit)).as_bytes());
+    }
+    diagnostic_part(text, b": ");
+    diagnostic_tail(text, program);
+    if !detail.is_empty() {
+        diagnostic_part(text, b"\n");
+        diagnostic_tail(text, detail);
+    }
 }
 
 fn diagnostic_tail(text: &mut List<u8>, bytes: &[u8]) {
@@ -434,6 +444,20 @@ fn diagnostic_part(text: &mut List<u8>, bytes: &[u8]) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_untooled_program_keeps_its_operator_detail() {
+        let result = agent::RunResult::Failed {
+            failure: agent::RunFailure::Model(agent::ModelFault::Untooled {
+                name: b"claude_code".as_slice().into(),
+                detail: b"smith: the program started without smith's tools".as_slice().into(),
+            }),
+        };
+        assert_eq!(
+            failure_detail(&result, b"cleanup", 128).as_ref(),
+            b"program claude_code: smith: the program started without smith's tools\ncleanup",
+        );
+    }
 
     #[test]
     fn the_tasks_own_delivery_reaches_checkout_only_for_writable_access() {

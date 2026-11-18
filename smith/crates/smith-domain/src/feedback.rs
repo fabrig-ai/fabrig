@@ -471,6 +471,7 @@ fn render_fault(text: &mut Text, fault: run::Fault) {
         }
         run::Fault::Unauthorized { .. } => text.put(b"unauthorized"),
         run::Fault::Program { .. } => text.put(b"program"),
+        run::Fault::Untooled { .. } => text.put(b"started without smith's tools"),
         run::Fault::Limited { .. } => text.put(b"limited"),
         run::Fault::Refused { .. } => text.put(b"account-refused"),
         run::Fault::Provider => text.put(b"provider"),

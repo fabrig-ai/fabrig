@@ -224,6 +224,8 @@ pub enum ModelFault {
     Unauthorized { account: u32 },
     /// The account's credential program could not run.
     Program { name: Box<[u8]>, exit: Option<u32>, detail: Box<[u8]> },
+    /// The host's program started without smith's tools.
+    Untooled { name: Box<[u8]>, detail: Box<[u8]> },
     /// Its provider failed for good: unreachable, overloaded past the
     /// retries, or refusing the call or its credentials.
     Provider,
