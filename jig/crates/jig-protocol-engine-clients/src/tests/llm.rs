@@ -439,6 +439,20 @@ fn task_documents_keep_the_claimed_account_separate_from_the_preference() {
 }
 
 #[test]
+fn an_untooled_wait_keeps_its_account_source_and_worker() {
+    use jig_domain_core_vocabulary::documents as d;
+    let limits = fixtures::wire();
+    let wait =
+        d::TaskRunWait::Account { account: Some(4), source: Some(7), why: d::TaskWaitWhy::Untooled { worker: 2 } };
+    let wire = translate::task_wait::waiting(Some(wait), &limits).unwrap().unwrap();
+    assert_eq!(w::VERSION, 33);
+    let w::TaskRunWait::Account(row) = wire else { panic!("account wait") };
+    assert_eq!((*row.account(), *row.source()), (Some(4), Some(7)));
+    let w::TaskWaitWhy::Untooled(why) = row.why() else { panic!("untooled wait") };
+    assert_eq!(why.worker(), 2);
+}
+
+#[test]
 fn an_account_refusal_preserves_its_number() {
     let l = fixtures::wire();
     for why in [p::AccountWhy::Unknown, p::AccountWhy::Provider, p::AccountWhy::Uses, p::AccountWhy::Limited] {
