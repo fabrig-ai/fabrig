@@ -176,6 +176,7 @@ struct Judge {
     released: bool,
     opening: Opening,
     checked: bool,
+    in_flight: Option<(u64, bool)>,
     ticks: u32,
 }
 impl Judge {
@@ -199,6 +200,18 @@ impl Judge {
     }
 }
 impl Judge {
+    fn coding_in_flight(&mut self) -> bool {
+        // Both presence and absence stay the same between durable commits.
+        let store = self.store.borrow();
+        if let Some((at, found)) = self.in_flight
+            && at == store.applied
+        {
+            return found;
+        }
+        let found = in_flight(&store).is_some();
+        self.in_flight = Some((store.applied, found));
+        found
+    }
     fn act_checked(&mut self, _: Time, procs: &mut [Proc]) -> Result<(), String> {
         self.ticks += 1;
         let (first, others) = procs.split_at_mut(1);
@@ -231,19 +244,20 @@ impl Judge {
             }
             self.checked = true;
         }
-        let complete = match self.opening {
-            Opening::Make => self.forge.forge_complete() && in_flight(&self.store.borrow()).is_some(),
-            Opening::Read => {
-                if !self.stopped
-                    && let Some(end) = service.service.end()
-                {
-                    return Err(format!("floor start refused: {end:?}"));
+        let complete = !self.stopped
+            && match self.opening {
+                Opening::Make => self.coding_in_flight() && self.forge.forge_complete(),
+                Opening::Read => {
+                    if !self.stopped
+                        && let Some(end) = service.service.end()
+                    {
+                        return Err(format!("floor start refused: {end:?}"));
+                    }
+                    others.iter().any(
+                        |proc| matches!(proc, Proc::Other(HarnessProcess::Calls(caller)) if caller.answers.len() == 3),
+                    )
                 }
-                others
-                    .iter()
-                    .any(|proc| matches!(proc, Proc::Other(HarnessProcess::Calls(caller)) if caller.answers.len() == 3))
-            }
-        };
+            };
         if !self.stopped && complete {
             for proc in others.iter_mut() {
                 if let Proc::Other(HarnessProcess::Client(person)) = proc {
@@ -459,6 +473,7 @@ pub fn make(directory: &Path) {
                 released: false,
                 opening: Opening::Make,
                 checked: false,
+                in_flight: None,
                 ticks: 0,
             },
         )
@@ -590,6 +605,7 @@ pub fn read(directory: &Path) {
                 released: false,
                 opening: Opening::Read,
                 checked: false,
+                in_flight: None,
                 ticks: 0,
             },
         )

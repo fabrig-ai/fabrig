@@ -1,5 +1,7 @@
 //! Client receipts decoded from the kernel's HTTP and SSE bytes.
 pub(crate) mod cache;
+#[cfg(test)]
+mod tests;
 use jig_client::contract as client;
 use jig_client_protocol_link::translate;
 use jig_client_protocol_wire as wire;
@@ -7,6 +9,7 @@ use skein_io::kernel::{Complete, Done, Op};
 use skein_lib::{
     Reader,
     base64::{self, Alphabet},
+    bytes::find as mark,
 };
 use std::collections::BTreeMap;
 
@@ -43,9 +46,6 @@ pub(crate) struct Wire {
     connections: BTreeMap<i32, Connection>,
     capture_only: bool,
     pub(crate) received: Vec<Received>,
-}
-fn mark(bytes: &[u8], marker: &[u8]) -> Option<usize> {
-    bytes.windows(marker.len()).position(|window| window == marker)
 }
 impl Wire {
     pub(crate) fn capturing() -> Self {
@@ -216,13 +216,13 @@ impl Connection {
     fn stream(&mut self, received: &mut Vec<Received>, capture_only: bool) {
         let limits = native_link_limits();
         while let Some(end) = mark(&self.body, b"\n\n") {
-            let event: Vec<_> = self.body.drain(..end + 2).collect();
-            let data: Vec<_> = event
-                .split(|byte| *byte == b'\n')
-                .filter_map(|line| line.strip_prefix(b"data: ").or_else(|| line.strip_prefix(b"data:")))
-                .flatten()
-                .copied()
-                .collect();
+            let mut data = Vec::new();
+            for line in self.body[..end].split(|byte| *byte == b'\n') {
+                if let Some(line) = line.strip_prefix(b"data: ").or_else(|| line.strip_prefix(b"data:")) {
+                    data.extend_from_slice(line);
+                }
+            }
+            self.body.drain(..end + 2);
             if data.is_empty() {
                 continue;
             }
