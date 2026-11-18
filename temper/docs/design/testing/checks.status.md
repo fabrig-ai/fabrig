@@ -1,6 +1,6 @@
 # checks: status
 
-2026-11-16. Where the tree's code lags or departs from [checks.md](checks.md).
+2026-11-18. Where the tree's code lags or departs from [checks.md](checks.md).
 
 - **Departs:** 1: eighteen named real-loop stories remain in the fuzzy
   suite: sixteen scripted stories (fourteen reference-case stories,
@@ -17,6 +17,9 @@
 Section 1's budgets by layer start at the CI builder's gate figures of
 11-16 (`tools/tiers/budgets.md`, 6); where the code doesn't yet sum or judge
 them is `tools/tiers/budgets.status.md`'s.
+
+- **Not yet:** 1: the client world's agent page read through Older over long lines is past the system world's 0.6 s reference, about 1.23 s by the gate's CPU on 11-18, once its cases shared one world and client. About 45 per cent is the engine's advance under the domain world's driver, and 12 to 17 per cent is the client's view builds. These measurements are the user's to decide on (`skein/docs/foundation/testing-strategy.md`, 8.1).
+- **Not yet:** 1: the engine's `upgrade --check` naming the record a start refuses is past the end-to-end 2 s reference, 2.99 s by the gate's CPU on 11-18. About 77 per cent is the store's four registry openings, its layout derives about 60 per cent. It belongs to its tier (`skein/docs/foundation/testing-strategy.md`, 2.9), and neither invocation can be dropped.
 
 `real-loop.md`'s real-loop goal-delivery story is present, alongside the six
 engine domain stories and the checkout world's later-run cases. It uses

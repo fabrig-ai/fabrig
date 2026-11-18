@@ -123,6 +123,17 @@ fn random_worlds_settle_with_every_client_heard() {
     );
 }
 
+/// A sweep of the same noisy worlds with all facts kept and all dropped:
+/// the requests, their times and the boundary counts must not change.
+#[test]
+fn facts_change_nothing_the_checkout_does() {
+    // Keep the property's hundred-world sweep in the fuzzy suite.
+    const SEEDS: u64 = 100;
+    for seed in 0..SEEDS {
+        super::super::facts::assert_unchanged(noisy(seed));
+    }
+}
+
 fn settings(seed: u64) -> Settings {
     let mut settings = if seed < 1000 {
         noisy(seed)
