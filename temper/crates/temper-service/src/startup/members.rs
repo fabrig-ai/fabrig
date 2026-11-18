@@ -9,17 +9,12 @@ pub(crate) use temper_forge_setup::machine::MemberObject as Object;
 mod tests;
 
 /// Every application shape, including the test peer decoder’s rows.
-pub static SHAPES: [Shape; 23] = [
+pub static SHAPES: [Shape; 22] = [
     Shape { name: "document", paths: &[""], line: "The top-level members of the configuration document." },
     Shape {
         name: "application",
         paths: &["application"],
         line: "The application’s machine parts, read before startup.",
-    },
-    Shape {
-        name: "application-limits",
-        paths: &["application.limits"],
-        line: "The application’s limits profile and named overrides.",
     },
     Shape {
         name: "application-clients",
@@ -92,7 +87,7 @@ pub static SHAPES: [Shape; 23] = [
 ];
 
 /// Every member the application decoders take, including refused settings members.
-pub static MEMBERS: [Member; 70] = [
+pub static MEMBERS: [Member; 68] = [
     Member {
         shape: "document",
         name: "engine",
@@ -159,11 +154,13 @@ pub static MEMBERS: [Member; 70] = [
     Member {
         shape: "application",
         name: "limits",
-        kind: "application-limits",
+        kind: "object",
         bound: "",
-        required: true,
-        line: "The application limits profile and named overrides.",
-        gone: None,
+        required: false,
+        line: "The application limits are settings, not document members.",
+        gone: Some(
+            "moved: temper's limits are the setting temper-limits; ask temper, or use temper ctl settings apply",
+        ),
     },
     Member {
         shape: "application",
@@ -281,24 +278,6 @@ pub static MEMBERS: [Member; 70] = [
         required: false,
         line: "",
         gone: Some("the forge's charters live in the store; read them with temper ctl settings show forge-charter 1"),
-    },
-    Member {
-        shape: "application-limits",
-        name: "profile",
-        kind: "text",
-        bound: "standard",
-        required: false,
-        line: "May be absent or standard; either reads the stock before overrides.",
-        gone: None,
-    },
-    Member {
-        shape: "application-limits",
-        name: "overrides",
-        kind: "named limits",
-        bound: "see temper help limits",
-        required: true,
-        line: "The dotted limit names whose values replace the stock’s.",
-        gone: None,
     },
     Member {
         shape: "application-clients",

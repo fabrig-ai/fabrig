@@ -49,7 +49,6 @@ pub fn document() -> Start {
     jig.hub.inbox = 8;
     jig.hub.held = 8;
     jig.hub.event_bytes = 512;
-    jig.core.tasks.run_inbox = 8;
     own.checkout.name_bytes = 600;
     own.checkout.repositories = 4;
     own.git_component.stdout_bytes = 131_072;

@@ -184,9 +184,10 @@ fn test_id_bytes_past_the_store_ceiling_refuses_both_startup_routes() {
         br#"{"profile":"standard","overrides":{"forge.tiers.test_id_bytes":1025}}"#,
     );
     let directories = jig_protocol_config::Directories::working();
-    let starting = crate::startup::named(&document, &directories).unwrap_err();
-    let reading = crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
-        .unwrap_err();
+    let starting = fixtures::named(&document, &directories).unwrap_err();
+    let reading =
+        fixtures::document_store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
+            .unwrap_err();
     for problems in [starting, reading] {
         assert_eq!(
             crate::startup::lines(&problems).as_ref(),
@@ -203,9 +204,10 @@ fn test_id_bytes_at_the_store_ceiling_passes_both_startup_routes() {
         br#"{"profile":"standard","overrides":{"forge.tiers.test_id_bytes":1024}}"#,
     );
     let directories = jig_protocol_config::Directories::working();
-    crate::startup::named(&document, &directories).expect("the store's test id ceiling passes startup");
-    let reading = crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
-        .expect("the store's test id ceiling passes its reader");
+    fixtures::named(&document, &directories).expect("the store's test id ceiling passes startup");
+    let reading =
+        fixtures::document_store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
+            .expect("the store's test id ceiling passes its reader");
     assert_eq!(reading.forge.tiers.test_id_bytes, 1024);
 }
 

@@ -278,11 +278,7 @@ fn a_local_worker_derives_from_its_agent_instead_of_the_stock_agent() {
     input.own.checkout.message_bytes = own.checkout.message_bytes;
     input.own.forge.client.op_bytes = own.forge.client.op_bytes;
     input.own.forge_component.body_bytes = own.forge_component.body_bytes;
-    input = fixtures::with(
-        &input,
-        b"workers[0].limits.overrides",
-        br#"{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"people.words":512}"#,
-    );
+    input.jig.hub.event_bytes = jig.hub.event_bytes;
     let checked = checked_start(
         &input,
         &config::Directories::working(),

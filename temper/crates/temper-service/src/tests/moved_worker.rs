@@ -15,7 +15,7 @@ fn moved_limit(member: &str, words: &str, worker_alone: bool) {
         if worker_alone {
             document.as_object_mut().unwrap().remove("engine");
             document["workers"][0]["engine"] = json!({"socket":"127.0.0.1:7102"});
-            document["application"] = json!({"limits":{"overrides":{}}});
+            document["application"] = json!({});
         }
         let (parent, name) = member.split_once('.').unwrap();
         if parent == "workers[0]" {

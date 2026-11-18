@@ -610,16 +610,27 @@ fn typed_box_start_names_what_to_raise_for_eight_slots() {
     let mut input = super::stock::generated();
     let mut value: serde_json::Value = serde_json::from_slice(&input).unwrap();
     value["workers"][0]["slots"] = 8_u32.into();
-    value["workers"][0]["limits"]["overrides"]["hub.slots"] = 8_u32.into();
+    input.jig.hub.slots = 8;
     input.document = serde_json::to_vec(&value).unwrap().into();
     input.own.checkout.workspaces = 10;
     input.own.git_component.operations = 10;
     eight_slot_start(&input).unwrap();
+    let mut derived = input.clone();
+    derived.jig.hub.slots = 7;
+    eight_slot_start(&derived).expect("the worker's hub slots follow its places, not the engine's hub cap");
+    let part = crate::startup::box_worker_with_limits(
+        &derived,
+        &config::Directories::working(),
+        &crate::stock::Given::Stock,
+        &crate::stock::agents(),
+        &[],
+        None,
+        (&derived.jig, &derived.own),
+    )
+    .unwrap()
+    .unwrap();
+    assert_eq!(part.worker.jig.limits.as_ref().unwrap().hub.slots, 8);
     for (name, expected) in [
-        (
-            "hub.slots",
-            "workers[0].slots: past this worker's limits.overrides.hub.slots, which must be at least its slots\n",
-        ),
         ("fleet.slots", "workers[0].slots: must agree with engine.limits.overrides.fleet.slots, at least the slots\n"),
         (
             "checkout.workspaces",
@@ -632,15 +643,10 @@ fn typed_box_start_names_what_to_raise_for_eight_slots() {
     ] {
         let mut short = input.clone();
         match name {
-            "hub.slots" => {
-                let mut value: serde_json::Value = serde_json::from_slice(&short).unwrap();
-                value["workers"][0]["limits"]["overrides"][name] = 7_u32.into();
-                short.document = serde_json::to_vec(&value).unwrap().into();
-            }
             "fleet.slots" => short.jig.core.fleet.slots = 7,
             "checkout.workspaces" => short.own.checkout.workspaces = 7,
             "git_component.operations" => short.own.git_component.operations = 7,
-            _ => unreachable!("four independent slot bounds"),
+            _ => unreachable!("three independent slot bounds"),
         }
         let Err(refused) = eight_slot_start(&short) else { panic!("short {name} started") };
         assert_eq!(lines(&refused).as_ref(), expected.as_bytes(), "{name}");
@@ -831,18 +837,35 @@ fn a_standalone_check_reserve_shortfall_prepares_with_one_warning() {
     let mut defaults = crate::stock::with_models(Box::new([fixtures::small_model()]), 32);
     defaults.charters.iter_mut().find(|charter| charter.number == 2).unwrap().policy.reserve_time =
         skein_lib::Duration::from_secs(60);
-    let mut service = crate::startup::startup_with(
-        &fixtures::document(),
+    let document = fixtures::document();
+    let files = fixtures::files();
+    let seeds = fixtures::seeds();
+    let checked = crate::startup::checked_start_with_limits(
+        &document,
         &config::Directories::working(),
-        &fixtures::files(),
-        &agent,
-        &fixtures::seeds(),
-        None,
-        fixtures::worker_runtime(),
+        &files,
+        Some(&agent),
+        &seeds,
         fixtures::forge_runtime(),
+        None,
         &crate::stock::Given::Own { jig: defaults, forge: Box::default(), ways: crate::stock::ways() },
+        None,
+        &document.jig,
+        &document.own,
     )
     .expect("a charter shortfall is a warning");
+    let mut service = crate::startup::from_checked(
+        checked,
+        &files,
+        Some(&agent),
+        &seeds,
+        None,
+        Some(fixtures::worker_runtime()),
+        None,
+        None,
+        Box::new([]),
+    )
+    .unwrap();
     assert_eq!(service.notes().pop(), Some(crate::Note::Engine(crate::EngineNote::StartupWarning {
         line: b"engine.charters[1].reserve_time_ms: needs checks within 60000 ms; the agent's profile.policy.check_timeout is 90000 ms; raise charter 2's reserve_time (temper help settings) or lower the timeout".as_slice().into(),
     })));
@@ -1116,7 +1139,8 @@ fn startup_requires_room_for_the_core_and_two_charter_documents() {
 fn capacity_overrides_name_the_failed_dependency() {
     let initial = super::stock::generated();
     let mut stock = initial.jig;
-    stock.core.tasks.inbox_bytes = 874_120;
+    stock.core.tasks.inbox_bytes = 63_738;
+    stock.core.notes.scopes = 32;
     for (member, value, causes) in [
         (b"tasks.project_tasks".as_slice(), 64, &[][..]),
         (

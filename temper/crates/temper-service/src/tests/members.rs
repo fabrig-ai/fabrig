@@ -143,15 +143,6 @@ fn every_row_is_a_member_its_decoder_takes() {
         assert!(lines.contains(words), "{lines}");
         seen.insert((shape, name));
     }
-    let worker = fixtures::with(
-        &fixtures::worker_alone_document(),
-        b"application.limits",
-        br#"{"profile":"standard","overrides":{}}"#,
-    );
-    startup::shape(&worker, &config::Directories::working()).expect("worker-only limit decoder example");
-    for name in ["profile", "overrides"] {
-        seen.insert(("application-limits", name));
-    }
     for row in &MEMBERS {
         assert!(seen.contains(&(row.shape, row.name)), "missing decoder example: {}.{}", row.shape, row.name);
     }
