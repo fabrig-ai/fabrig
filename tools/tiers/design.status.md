@@ -7,7 +7,6 @@
 - **Not yet:** 10.1, 10.2: `summary` takes no `base` and its result has no `references`; `tools/tiers/cpu-summary` takes no `--base` [in flight: change 5753].
 - **Not yet:** 10.1, 10.3, 11.9: `tools/tiers/one-process` has no `--alone` [in flight: change 5754].
 - **Not yet:** 11.9: `tools/tiers/one-process --alone` lists and builds the flagged binaries' packages whole [in flight: change 8036].
-- **Not yet:** 10.1, 10.2: there is no `tools/tiers/figures.py`, and an entry of `over_budget` doesn't end with the repair line [in flight: change 8160].
 
 The gate tables' form and figures, the summary by layer, the ledger, the
 held budget and the moves are `tools/tiers/budgets.md`'s; its status has
