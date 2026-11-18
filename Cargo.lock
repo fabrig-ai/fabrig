@@ -7651,6 +7651,7 @@ dependencies = [
 name = "temper-redeploy-tool"
 version = "0.0.0"
 dependencies = [
+ "jig-protocol-store",
  "jig-protocol-worker-wire",
  "serde",
  "serde_json",
@@ -7661,7 +7662,6 @@ dependencies = [
  "temper-engine-shell",
  "temper-service-core",
  "temper-test-env",
- "time",
 ]
 
 [[package]]
