@@ -6,7 +6,7 @@ Provisional, 2026-11-16. Which layer of the pyramid each test binary is in: `too
 
 - **A layer is a tier** of the strategy's section 2 (`skein/docs/foundation/testing-strategy.md`): step tests, domain worlds, system worlds, machine worlds, protocol worlds, io worlds, simulated worlds, the real loop, end to end. The repository's own checks are no layer of a pyramid, and a group of their own (section 4).
 - **Every test binary is in one layer,** since CPU is measured per process and a process runs one binary's tests (`tools/tiers/design.md`, 11). A binary's tests are of its layer (the strategy's 8.1).
-- **By rule, with no line:** a library's own tests, a binary's own, and a crate's generated codec tests are step tests; every binary of a package outside the five trees is the repository's checks (section 4).
+- **By rule, with no line:** a library's own tests and a binary's own are step tests; every binary of a package outside the five trees is the repository's checks (section 4).
 - **Every other binary has a line** in `tools/tiers/layers.toml`: its id and its layer, under its tree's table, as its tree's testing document places it (sections 5 and 6).
 - **A boundary check keeps the table whole** (section 7): from `cargo metadata`, which builds nothing, every test binary has its layer, and every line names a binary that exists, in its own tree, at a layer the file names.
 - **Who reads it:** the boundary check, and the suites' summaries by layer once they are built (section 8).
@@ -48,7 +48,7 @@ The layers are named in `tools/tiers/layers.toml`'s `layers` list, in the strate
 
 These binaries have no line, and a line naming one is refused:
 
-- **Step tests:** a library's own tests (an id with no `::`), a binary's own (an id with `::bin/`), and a crate's generated codec tests, its `test` target named `generated` (`skein/docs/foundation/testing-strategy.md`, 2.1). What a crate's own tests check is one step function or one container (the strategy's 2.1); its worlds are integration targets of their own.
+- **Step tests:** a library's own tests (an id with no `::`) and a binary's own (an id with `::bin/`) (`skein/docs/foundation/testing-strategy.md`, 2.1). What a crate's own tests check is one step function or one container (the strategy's 2.1); its worlds are integration targets of their own.
 - **The repository's checks:** every test binary of a package outside the five trees, today `fabrig-boundary`'s. They check the repository, not a tree's code, and have a budget of their own (`temper/docs/design/draft/test-budgets.md`, 4).
 
 ## 5. The table
@@ -56,9 +56,8 @@ These binaries have no line, and a line naming one is refused:
 `tools/tiers/layers.toml`, its layers and then a table for each tree, in the trees' order, each tree's table present though it may be empty:
 
 ```toml
-# Each test binary's layer (tools/tiers/layers.md). A library's own tests, a binary's own and a
-# crate's generated codec tests are step tests, and the repository's checks a group of their own,
-# by rule, with no line.
+# Each test binary's layer (tools/tiers/layers.md). A library's own tests and a binary's own are
+# step tests, and the repository's checks a group of their own, by rule, with no line.
 layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", "real-loop", "end-to-end"]
 
 [skein]
