@@ -42,9 +42,7 @@ fn wait_for_answer(world: &mut World) {
 }
 fn commit_answer(world: &mut World) {
     world.release_write_answers();
-    for _ in 0..COMMIT_TURNS {
-        world.tick();
-    }
+    world.advance_ticks(COMMIT_TURNS);
 }
 fn assert_flight(world: &World, task: u64, number: u64) {
     assert_eq!(rows(world), [(task, number)]);

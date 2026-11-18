@@ -452,9 +452,7 @@ fn a_tasks_words_to_a_coordinator_are_offered_to_the_run_they_wake() {
     let turns = live_task(&world, next.task).turn;
     park_after_turn(&mut world, &next, None, turns);
     world.until(Until::Ready);
-    for _ in 0..20 {
-        world.tick();
-    }
+    world.advance_ticks(20);
     assert_eq!(world.assigned.len(), runs, "the same words cause no second wake");
     assert_eq!(live_task(&world, first.task).phase, tasks::Phase::Active(tasks::Active::Idle));
     world.close();

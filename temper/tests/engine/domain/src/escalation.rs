@@ -13,7 +13,7 @@ use jig_domain_link::{Hosting, Phase};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use temper_engine_domain as engine;
 use temper_engine_domain::{Delivery, Record, Write};
 
@@ -235,6 +235,7 @@ impl World {
             period_sent: false,
             settings,
         };
+        crate::escalation_referee::store_rules(&world.store.rows).expect("initial escalation store oracle");
         world.queue(engine::Event::Restart { pending: world.store.pending_generation }, 0);
         world.hello();
         world
@@ -593,8 +594,11 @@ impl World {
                         )))
                     )
                 });
+                let keys: BTreeSet<_> = writes.iter().map(Write::key).collect();
+                let previous = self.store.header();
                 let number = self.store.apply();
-                crate::escalation_referee::store_rules(&self.store.rows).expect("escalation writer store oracle");
+                crate::escalation_referee::store_rules_changed(&self.store.rows, previous, &keys)
+                    .expect("escalation writer store oracle");
                 self.trace.push(format!("applied {number}"));
                 self.commit_wait = self.settings.commit_delay;
                 if self.restarts == 0
@@ -925,6 +929,9 @@ impl World {
 pub fn run_replayed(settings: Settings) -> World {
     let mut first = World::new(settings);
     let mut replay = World::new(settings);
+    same_digest(&first, &replay, &format_args!("initial escalation: {settings:?}"));
+    let mut trace_prefix = first.trace.len();
+    let mut transaction_prefix = first.transactions.len();
     for _ in 0..600 {
         if first.settled() {
             assert!(replay.settled(), "replay settled at same cut: {settings:?}; {}", replay.unsettled());
@@ -938,10 +945,22 @@ pub fn run_replayed(settings: Settings) -> World {
         replay.iterate();
         let first_trace = std::mem::take(&mut first.trace);
         let replay_trace = std::mem::take(&mut replay.trace);
-        assert_eq!(first_trace, replay_trace, "escalation trace: {settings:?}");
-        same_digest(&first, &replay, &format_args!("escalation iteration {}: {settings:?}", first.iteration));
+        // These histories only append. Their equal prefixes are already proven;
+        // the mutable world and each new suffix are checked at every iteration.
+        let first_transactions = std::mem::take(&mut first.transactions);
+        let replay_transactions = std::mem::take(&mut replay.transactions);
+        assert_eq!(&first_trace[trace_prefix..], &replay_trace[trace_prefix..], "escalation trace: {settings:?}");
+        same_digest(
+            &(&first, &first_transactions[transaction_prefix..]),
+            &(&replay, &replay_transactions[transaction_prefix..]),
+            &format_args!("escalation iteration {}: {settings:?}", first.iteration),
+        );
+        trace_prefix = first_trace.len();
+        transaction_prefix = first_transactions.len();
         first.trace = first_trace;
         replay.trace = replay_trace;
+        first.transactions = first_transactions;
+        replay.transactions = replay_transactions;
     }
     panic!("escalation replay did not settle: {}", first.unsettled());
 }

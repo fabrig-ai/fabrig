@@ -546,6 +546,42 @@ fn all_files(parsed: &Parsed) -> Box<[config::File]> {
     }
     files.into_boxed()
 }
+/// Kernel credit from the checked document, without constructing either service
+/// or opening its named files. Agent composition changes payload sizes, not credit.
+pub fn operations_with(
+    document: &[u8],
+    directories: &config::Directories,
+    given: &crate::stock::Given,
+) -> Result<u32, Problems> {
+    if shape_with(document, directories, given)? == Shape::WorkerAlone {
+        let part = worker_part(document, directories, None, &[])?;
+        let worker =
+            crate::worker_settings::configured_operations(&part.limits.git_component).ok_or(operations_bound())?;
+        return temper_service_core::process::Process::operations_for(
+            &part.worker.jig.limits.as_ref().expect("worker limits").io,
+            worker,
+        )
+        .ok_or(operations_bound());
+    }
+    let parsed = parse_with(document, directories, given)?;
+    let worker_io = match parsed.workers.first() {
+        Some(worker) => Some(&worker.limits.as_ref().expect("worker limits").io),
+        None => None,
+    };
+    let io = checks::process_io(&parsed.engine.limits.io, worker_io).ok_or(operations_bound())?;
+    let worker = if parsed.workers.is_empty() {
+        0
+    } else {
+        crate::worker_settings::configured_operations(&parsed.application.limits.git_component)
+            .ok_or(operations_bound())?
+    };
+    crate::system::startup_operations(&io, worker).ok_or(operations_bound())
+}
+
+fn operations_bound() -> Problems {
+    problem(Path::root().member(b"limits"), What::Jig(config::What::Bound))
+}
+
 /// Parse every member before the binary reads any named file.
 pub fn named_with(
     document: &[u8],

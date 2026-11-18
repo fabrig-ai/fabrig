@@ -8,7 +8,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use skein_fake_forge_domain::{self as fake, api as a};
-use skein_lib::{ReplyTo, Writer};
+use skein_lib::ReplyTo;
 
 #[derive(Debug)]
 pub(crate) struct Pending {
@@ -53,13 +53,9 @@ fn refused(service: &Service, context: &[u8]) -> Outcome {
     let Ok(capacity) = usize::try_from(service.limits.response) else {
         return Outcome::Reply(answers::failed());
     };
-    let mut out = Writer::new(capacity);
-    for part in [texts::ENQUEUE_CHECK, context, texts::CHECK_PROGRESS] {
-        if out.put(part).is_err() {
-            return Outcome::Reply(answers::failed());
-        }
-    }
-    let Some(message) = answers::finish(out) else {
+    let Some(message) =
+        answers::finish(capacity, &Body::Parts(&[texts::ENQUEUE_CHECK, context, texts::CHECK_PROGRESS]))
+    else {
         return Outcome::Reply(answers::failed());
     };
     Outcome::Reply(answers::response(200, &Body::EnqueueRefusal(&message), &service.limits))

@@ -26,7 +26,7 @@ Draft, 2026-11-16, on the user's word. On 11-15, a change started early from its
 ## 4. Tests
 
 Cheap: focused and fuzzy suites only; walk = false.
-- Worker checkout delivery tests (`temper/tests/worker/checkout/tests/suite/delivery.rs`):
+- Worker checkout delivery tests (`temper/tests/worker/checkout/tests/fakes/delivery.rs`):
   - a dependency landed squashed, its branch gone: a delivery and a save each catch up and succeed, with the producer's edits kept;
   - a landing that kept the ancestry needs no catch-up;
   - a catch-up conflict is left for the producer;

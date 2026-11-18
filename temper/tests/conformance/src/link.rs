@@ -142,6 +142,7 @@ pub(crate) fn assigned(peers: &mut Peers, channel: Token, assignment: engine::As
         transcript: assignment.transcript.clone(),
         messages: assignment.messages.iter().map(|word| word.number).collect(),
     });
+    peers.expenses.refresh(&peers.worker.expenses);
     if !peers.assignments.iter().any(|a| a.task == assignment.task && a.attempt == assignment.attempt) {
         peers.assignments.push(assignment);
     }

@@ -11,7 +11,7 @@ fn goal_world_with(limits: &StoryLimits) -> (World, engine::Assignment, Box<[u8]
 }
 
 fn goal_world_with_gate(limits: &StoryLimits, gate: Gate) -> (World, engine::Assignment, Box<[u8]>) {
-    let mut world = World::configured_limits(true, true, false, 1000, gate, None, *limits);
+    let mut world = World::configured_limits(true, true, false, 1000, gate, None, limits.clone());
     if gate.agent {
         world.env.limits.brief.budgets.task = 512;
         let client = world.env.limits.forge.client;
@@ -348,10 +348,16 @@ fn drill_15_an_owner_widens_its_own_project_roles_for_template_four_goal_trains(
     narrow_policy(&mut initial);
     let mut limits = temper_engine_domain_world::forge_routes::box_limits();
     limits.documents.lines = 8;
-    let mut world = World::configured_stock_turn(&defaults, &stock::box_model(), &limits)
-        .with_settings_owner_configured(&forge_top::user_key(1, 7), |config| {
-            config.core.seed_projects[0].policy = initial;
-        });
+    let mut world = World::configured_stock_turn_with(
+        &defaults,
+        &stock::box_model(),
+        &limits,
+        StoryLimits {
+            project_policy: Some(initial),
+            settings_owner: Some(forge_top::user_key(1, 7)),
+            ..StoryLimits::default()
+        },
+    );
     world.adopt();
     let mut hello = hello_prepare(3);
     let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello: worker, .. }, .. }) =

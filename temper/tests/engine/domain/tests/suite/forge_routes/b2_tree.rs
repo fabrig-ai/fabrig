@@ -228,9 +228,7 @@ fn admitted(world: &World, task: u64) -> engine::Assignment {
 }
 
 fn advance(world: &mut World) {
-    for _ in 0..STEPS {
-        world.tick();
-    }
+    world.advance_ticks(STEPS);
 }
 
 fn call(world: &mut World, run: &engine::Assignment, tool: engine::Tool) -> engine::CallAnswer {
@@ -1137,9 +1135,7 @@ fn a_stock_chat_reads_an_absent_fix_and_replies_without_a_change() {
     // The scripted worker follows the stock instructions using the code it read.
     world.send(protocol::turn(CHANNEL, chat.task, chat.attempt, 1, 0, None, REPLY));
     park_after_turn(&mut world, &chat, None, 1);
-    for _ in 0..STEPS {
-        world.tick();
-    }
+    world.advance_ticks(STEPS);
     let reads::Answer::Ended(past) =
         world.party_read(reads::Read::Turn { task: chat.task, attempt: chat.attempt, turn: 1 })
     else {

@@ -148,13 +148,49 @@ fn the_standalone_operations_check_retains_no_descriptors() {
         write(name, bytes);
     }
     let (agent, document) = configuration::documents(&directory, "/fixture/temper");
+    let named_file = directory.join("worker.secret");
     write("temper.json", &document);
     temper_fixtures::agent::install(&directory, &serde_json::from_slice(&agent).expect("agent JSON"));
+    let document = fs::read(directory.join("temper.json")).expect("configured fixture");
     assert_eq!(configuration::flags(&directory).len(), 6);
     let operations = super::operations_in(&[], b"/", &configuration::directories(&directory), &document)
         .expect("standalone operations");
     assert_no_descriptors_in(&directory);
     assert!(operations > 0);
+    assert!(!directory.join("workspaces").exists(), "counting credit must not pin the agent or open roots");
+    let mut owned = Vec::new();
+    let (service, _) =
+        super::prepare_with_store(&[], b"/", &configuration::directories(&directory), &document, &mut owned)
+            .expect("same standalone preparation");
+    assert_eq!(operations, service.operations());
+    drop(service);
+    super::close(owned);
+    assert_no_descriptors_in(&directory);
+    let binary = std::env::current_exe().expect("current binary");
+    assert_eq!(
+        fs::metadata(directory.join("workspaces/agent").join(binary.file_name().expect("binary name")))
+            .expect("pinned program")
+            .len(),
+        fs::metadata(&binary).expect("running program").len()
+    );
+    let prepared = super::serve::configured_agent(&document, &configuration::directories(&directory), &[])
+        .expect("derived agent")
+        .expect("local agent");
+    assert_eq!(
+        fs::read(directory.join("workspaces/agent/agent.json")).expect("pinned configuration"),
+        prepared.bytes.as_ref()
+    );
+    fs::remove_file(&named_file).expect("remove named file");
+    assert_eq!(
+        super::operations_in(&[], b"/", &configuration::directories(&directory), &document)
+            .expect("count without named file"),
+        operations
+    );
+    write("temper.json", &document);
+    let why =
+        super::prepare_in(&[], b"/", &configuration::directories(&directory)).err().expect("missing file refused");
+    assert!(why.starts_with("temper serve: "), "{why}");
+    assert!(why.contains(named_file.to_str().expect("named path")), "{why}");
     fs::remove_dir_all(directory).expect("remove operations scratch");
 }
 fn assert_no_descriptors_in(directory: &std::path::Path) {
