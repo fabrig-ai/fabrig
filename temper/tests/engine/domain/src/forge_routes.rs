@@ -96,7 +96,8 @@ pub struct World {
     idle_revision: Option<(u64, Option<Time>)>,
     auto_prepare: bool,
     restart_config: engine::Config,
-    oracle_documents: Vec<(Token, forge_top::Document)>,
+    /// Delivered forge documents, including updates to a live watch.
+    pub oracle_documents: Vec<(Token, forge_top::Document)>,
     oracle_watcher: u64,
     broken: bool,
     oracle_running: bool,

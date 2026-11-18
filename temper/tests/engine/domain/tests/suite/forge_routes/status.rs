@@ -60,10 +60,8 @@ fn configured_status_world(allowed: bool, funded: bool, limits: &engine::Limits)
         charter.number = number;
     }
     if !funded {
-        let policy = &mut defaults.policies.get_mut(&1).expect("stock project policy").policy;
-        policy.period_spend = policy.roles[0].period_spend;
-        // This world's calendar opens its period from the rules' spend.
-        defaults.rules.period_spend = policy.period_spend;
+        // The chat reserves the looking owner's entire pool, not the period.
+        defaults.policies.get_mut(&1).expect("stock project policy").policy.roles[0].period_spend = 400;
     }
     // The reference's policy may withhold this charter; the procedure still gets made.
     if !allowed {
@@ -342,6 +340,9 @@ fn a_stock_project_with_its_owners_pool_open_writes_its_brief() {
     let numbers = ledger.numbers;
     land_and_look(&mut world, &requester);
     let agent = run(&world);
+    let tasks::Party::Task(procedure) = live_task(&world, agent.task).requester else { panic!("status procedure") };
+    assert_eq!(live_task(&world, procedure).funder, tasks::Funder::Pool { project: PROJECT, person: 1, period: 1 });
+    assert_eq!(world.root.tasks().payer(agent.task), Some(tasks::Payer::Party(1)));
     finish(&mut world, &agent);
     assert_brief(&mut world);
     assert_eq!(numbers.reserved, POOL_SPEND, "the owner's open pool reserves eighty chats");
@@ -1158,6 +1159,13 @@ fn no_unreserved_spend_refuses_the_run_without_a_task() {
     let mut world = ready_with(true, false);
     assert_eq!(own_brief(&world).running, None);
     assert_eq!(own_brief(&world).brief, None);
+    assert!(own_brief(&world).unpaid.is_some());
+    let pool = world
+        .root
+        .tasks()
+        .funding(tasks::Funder::Pool { project: PROJECT, person: 1, period: 1 })
+        .expect("owner's open pool");
+    assert_eq!(pool.numbers.budget, pool.numbers.reserved + pool.numbers.spent + pool.numbers.spent_below);
     assert!(world.store.rows.values().all(|record| !matches!(record,
         Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))
         if matches!(row.executor, tasks::Executor::Person(_)))));

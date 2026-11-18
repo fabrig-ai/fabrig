@@ -1263,6 +1263,7 @@ pub(crate) enum Work {
     Forge(forge::Event),
     ForgeSettings(skein_lib::Queue<forge::Request>),
     ForgeRestored,
+    StatusAccount { procedure: u64 },
     ProjectGoal(Box<jig_domain_core::ProjectionFeed>),
     GoalSubscribe(forge::Subscriber),
     AgreedGoal(Box<GoalWords>),

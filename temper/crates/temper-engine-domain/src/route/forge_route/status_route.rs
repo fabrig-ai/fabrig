@@ -29,7 +29,7 @@ pub(crate) fn admission(domain: &Domain, project: u32, party: u64, task: u64) ->
 }
 
 fn start_task(domain: &mut Domain, env: &Env<Limits>, project: u32, party: u64, words: &[u8]) {
-    let Some(seed) = domain.core.repair_seed(project) else {
+    let Some(seed) = domain.core.pool_seed(project, party) else {
         domain.work.push(Work::Forge(forge::Event::StatusRefused { project, party }));
         return;
     };
@@ -176,6 +176,34 @@ pub(crate) fn start_status_step(domain: &mut Domain, env: &Env<Limits>, context:
         decision.batch = Box::new([delegate]);
     }
     step(domain, task, decision);
+}
+
+pub(crate) fn check_account(domain: &mut Domain, procedure: u64) {
+    let Some(row) = domain.core.tasks.task(procedure) else { return };
+    let Some(delegate) = row.delegates.first() else { return };
+    match domain.core.run_choice(*delegate) {
+        Err(jig_domain_core::RunWait::Account { account: None, .. }) => {
+            let Some((party, project)) = domain.forge.status_owner(procedure) else { return };
+            domain.work.push(Work::Forge(forge::Event::StatusRefused { project, party }));
+            domain.work.push(Work::Tasks(tasks::Event::Cancel {
+                reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(procedure)),
+                by: tasks::Party::Deployment { project },
+                operation: tasks::Cancel {
+                    task: procedure,
+                    reason: b"no account pays for the person's brief".as_slice().into(),
+                    grace: None,
+                    message: None,
+                },
+            }));
+        }
+        Ok(_)
+        | Err(
+            jig_domain_core::RunWait::Account { account: Some(_), .. }
+            | jig_domain_core::RunWait::InvalidAccount { .. }
+            | jig_domain_core::RunWait::Credential
+            | jig_domain_core::RunWait::Host,
+        ) => {}
+    }
 }
 
 fn delegate(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<super::super::Delegate> {

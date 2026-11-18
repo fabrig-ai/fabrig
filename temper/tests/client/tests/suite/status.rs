@@ -452,7 +452,7 @@ fn a_plans_project_has_its_brief_on_a_return_past_the_sitting() {
         .assignments
         .iter()
         .find(|run| run.charter == 9)
-        .expect("the stock period funds the status worker beyond the owner's open pool")
+        .expect("the owner's pool funds the status worker")
         .clone();
     assert_eq!(story.front.hosted_attempt(run.task), Some(run.attempt), "the worker received its assignment");
     assert!(run.grants.iter().any(|grant| grant.account == source), "the status worker borrows the person's plan");
@@ -859,6 +859,8 @@ fn a_refused_status_run_leaves_home_saying_when_the_last_change_landed() {
         let policy = &mut config.core.seed_projects[0].policy;
         policy.policy.period_spend = policy.policy.roles[0].period_spend;
         period = policy.policy.period_spend;
+        // No room in the looking person's pool, though the period has room.
+        policy.policy.roles[0].period_spend = 0;
         config.core.defaults.rules.period_spend = period;
         policy.permissions = Box::new([]);
         policy.templates = Box::new([]);
@@ -898,7 +900,7 @@ fn a_refused_status_run_leaves_home_saying_when_the_last_change_landed() {
             .iter()
             .flatten()
             .any(|write| matches!(write, temper_engine_domain::Write::Save(Record::Forge { row })
-            if matches!(row.as_ref(), forge::Stored::PersonBrief(row) if row.party == fixtures::PARTY && row.running.is_none()))),
+            if matches!(row.as_ref(), forge::Stored::PersonBrief(row) if row.party == fixtures::PARTY && row.running.is_none() && row.unpaid.is_some()))),
         "the new sitting attempted a status run and saved its refusal"
     );
     assert!(story.shown().previous().is_some(), "return advances the sitting");
@@ -914,6 +916,7 @@ fn a_refused_status_run_leaves_home_saying_when_the_last_change_landed() {
     let Record::Forge { row } = record else { panic!("forge record") };
     let forge::Stored::PersonBrief(facts) = row.as_ref() else { panic!("person brief record") };
     assert_eq!(facts.running, None, "the unfunded run was refused");
+    assert!(facts.unpaid.is_some(), "no room in the reader's pool makes the brief unpaid");
     let (_, mut view) = Temper::new(fixtures::SEED);
     let temper_client_world::app::View::Person(person) = &mut view else { panic!("person view") };
     temper_client_view::build(person, story.probes[CLIENT.0].root.person(), story.env.wall, &mut Queue::uncapped());

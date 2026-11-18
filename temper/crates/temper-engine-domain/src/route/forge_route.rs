@@ -1317,6 +1317,7 @@ pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, 
             }
             Work::GoalSubscribe(_)
             | Work::ForgeRestored
+            | Work::StatusAccount { .. }
             | Work::StartDone(_)
             | Work::Start(_)
             | Work::CheckResults { .. }

@@ -87,7 +87,7 @@ fn shared(project_key: bool) -> Shared {
             .map(|(person, _)| people::Holding { person: *person, role: people::Role::Owner })
             .collect(),
     }))];
-    // Replace the world's deployment-wide key: it would conceal the missing project uses.
+    // Replace the deployment key so only the accounts this story names can pay.
     let mut erases = Vec::new();
     let mut provider = None;
     for row in world.store.rows.values() {
@@ -99,13 +99,20 @@ fn shared(project_key: bool) -> Shared {
         }
     }
     let provider = provider.expect("fixture provider");
-    for (index, (person, _)) in members.iter().enumerate() {
-        let number = 10 + u32::try_from(index).expect("three members") * 4;
-        rows.push(account(number, provider, *person, None));
-        rows.push(source(number, number + 1, accounts::Kind::SignIn));
-        rows.push(account(number + 2, provider, *person, None));
-        rows.push(source(number + 2, number + 3, accounts::Kind::Key));
+    if !project_key {
+        // Two readers have only their own plans; the third member has no account.
+        for (index, (person, _)) in members.iter().enumerate().take(2) {
+            let number = 10 + u32::try_from(index).expect("three members") * 4;
+            rows.push(account(number, provider, *person, None));
+            rows.push(source(number, number + 1, accounts::Kind::SignIn));
+            world.protocol.sign_in_sources.insert(number + 1);
+        }
     }
+    // The shared project's period has room to carve all three owners' pools.
+    let mut period =
+        *world.root.tasks().funding(tasks::Funder::Period { project: PROJECT, period: 1 }).expect("open period");
+    period.numbers.budget *= 3;
+    rows.push(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ledger(period))));
     if project_key {
         rows.push(account(PROJECT_KEY, provider, owner.0, Some(Box::new([accounts::Use::Project(PROJECT)]))));
         rows.push(source(PROJECT_KEY, PROJECT_SOURCE, accounts::Kind::Key));
@@ -149,6 +156,18 @@ impl Shared {
         self.world.env.wall = Wall::from_nanos(self.world.env.now.as_nanos());
         // The fake credential provider renews the forge grant across clock jumps.
         self.world.send(engine::Event::Credential { number: 1, generation: 1, valid: Duration::from_secs(3600) });
+        // The fake component refreshes the plans' grants across clock jumps.
+        let sources = self.world.protocol.sign_in_sources.iter().copied().collect::<Vec<_>>();
+        for account in sources {
+            let events = self
+                .world
+                .protocol
+                .play(engine::Request::Account(accounts::Request::Component(accounts::ToComponent::Want { account })))
+                .expect("the fake account component handles refresh");
+            for event in events {
+                self.world.send(event);
+            }
+        }
     }
     fn look(&mut self, member: usize, minutes: u64, key: u8) {
         self.at(minutes);
@@ -206,10 +225,13 @@ fn procedure_and_agent(world: &World, party: u64) -> (forge_top::StatusRunning, 
     let procedure = running.task.expect("StatusTask saved");
     let row = live_task(world, procedure);
     assert_eq!(row.executor, tasks::Executor::Procedure { connector: 1, code: 5 });
-    assert_eq!(row.funder, tasks::Funder::Period { project: PROJECT, period: 1 });
+    assert_eq!(row.funder, tasks::Funder::Pool { project: PROJECT, person: party, period: 1 });
+    assert_eq!(world.root.tasks().payer(procedure), Some(tasks::Payer::Party(party)));
     let delegate = *row.delegates.first().expect("charter 9 delegate made");
     let agent = live_task(world, delegate);
     assert_eq!(agent.executor, tasks::Executor::Agent { charter: 9 });
+    assert_eq!(agent.funder, tasks::Funder::Task(procedure));
+    assert_eq!(world.root.tasks().payer(delegate), Some(tasks::Payer::Party(party)));
     let words = core::str::from_utf8(&agent.spec.words).expect("UTF-8 words");
     assert!(words.contains("Open findings: 3\n- qa: 1 high\n- flake: 1 low\n- red: 1 medium\n"), "{words}");
     assert!(words.contains("Repairing the tests that fail together."), "{words}");
@@ -270,7 +292,7 @@ fn a_shared_projects_key_carries_interleaved_looks_through_to_each_members_home(
     shared.world.close();
 }
 
-fn waiting(world: &mut World, party: u64) -> forge_top::StatusRunning {
+fn waiting(world: &mut World, party: u64, account: u32) -> forge_top::StatusRunning {
     let (running, agent) = procedure_and_agent(world, party);
     let row = live_task(world, agent);
     assert_eq!(row.phase, tasks::Phase::Active(tasks::Active::Due), "account wait, not refusal or hold");
@@ -282,29 +304,143 @@ fn waiting(world: &mut World, party: u64) -> forge_top::StatusRunning {
     let documents::Document::Task(document) = *document else { panic!("task document") };
     assert_eq!(
         document.run_wait,
-        Some(documents::TaskRunWait::Account { account: None, source: None, why: documents::TaskWaitWhy::Empty })
+        Some(documents::TaskRunWait::Account {
+            account: Some(account),
+            source: Some(15),
+            why: documents::TaskWaitWhy::Source(documents::TaskSourceState::Limited { until: None })
+        })
     );
     assert_eq!(person_brief(world, party).running.as_ref(), Some(&running));
     assert!(person_brief(world, party).brief.is_none());
+    assert!(person_brief(world, party).unpaid.is_none());
     running
 }
 
 #[test]
-fn a_shared_projects_members_plans_and_default_keys_leave_its_brief_waiting() {
+fn a_shared_projects_members_each_get_their_own_brief_on_their_own_plan() {
     let mut shared = shared(false);
     shared.first_run();
-    let first = waiting(&mut shared.world, shared.members[1].0);
+    let a = shared.members[1].0;
+    let b = shared.members[0].0;
+    let (first, delegate_a) = procedure_and_agent(&shared.world, a);
+    let agent_a = run(&shared.world);
+    assert_eq!(agent_a.task, delegate_a);
+    assert_eq!(live_task(&shared.world, delegate_a).kept_account, Some(14));
+    assert_eq!(agent_a.run.sources.first(), Some(&Some(15)));
     shared.land(100, 95, 3);
-    shared.look(2, 120, 183);
-    let other = waiting(&mut shared.world, shared.members[2].0);
-    assert_ne!(other.task, first.task, "each member has their own waiting run");
-    shared.look(2, 200, 184);
-    let second = waiting(&mut shared.world, shared.members[2].0);
-    assert_ne!(second.task, other.task, "an expired account wait never blocks the next sitting");
-    assert_eq!(second.landed, 3);
-    for member in 0..3 {
-        assert!(shared.document(member).brief.is_none(), "Home keeps its computed words");
-    }
+    shared.look(0, 120, 183);
+    let (second, delegate_b) = procedure_and_agent(&shared.world, b);
+    let agent_b = run(&shared.world);
+    assert_eq!(agent_b.task, delegate_b);
+    assert_eq!(live_task(&shared.world, delegate_b).kept_account, Some(10));
+    assert_eq!(agent_b.run.sources.first(), Some(&Some(11)));
+    assert_ne!(first.task, second.task);
+
+    refused_without_account(&mut shared);
+    assert_eq!(person_brief(&shared.world, a).running.as_ref(), Some(&first));
+    assert_eq!(person_brief(&shared.world, b).running.as_ref(), Some(&second));
+
+    let brief_a = heard(&mut shared.world, a, &first, &agent_a);
+    new_to(&shared.since(1, 0, 0), &brief_a);
+    assert_eq!(shared.document(0).brief, None, "B has no brief until B's result");
+    let brief_b = heard(&mut shared.world, b, &second, &agent_b);
+    assert_ne!(brief_a, brief_b, "each report covers its own span");
+    new_to(&shared.document(0), &brief_b);
+    assert_eq!(shared.document(1).brief.as_ref(), Some(&brief_a));
+    assert!(person_brief(&shared.world, a).unpaid.is_none());
+    assert!(person_brief(&shared.world, b).unpaid.is_none());
+    assert!(shared.document(2).unpaid, "other reports do not clear the unpaid reader");
+    shared.world.close();
+}
+
+fn refused_without_account(shared: &mut Shared) {
+    let unpaid = shared.members[2].0;
+    let funder = tasks::Funder::Pool { project: PROJECT, person: unpaid, period: 1 };
+    let reserved = shared.world.root.tasks().funding(funder).map_or(0, |pool| pool.numbers.reserved);
+    let before = shared.world.root.tasks().view_tasks().iter().map(|row| row.number).collect::<Vec<_>>();
+    let watcher = Token::new(800);
+    shared.world.send(engine::Event::Party(engine::PartyInput::Watch {
+        watcher,
+        sign_in: shared.members[2].1,
+        subject: documents::Watched::Application {
+            scope: people::ApplicationScope::Project(PROJECT),
+            connector: 1,
+            subject: Token::new(forge_top::status_subject(PROJECT)),
+        },
+        window: documents::Window { rows: 1, after: None },
+    }));
+    settle(&mut shared.world);
+    assert!(
+        shared.world.oracle_documents.iter().any(|(got, document)| *got == watcher
+            && matches!(document, forge_top::Document::Status(status) if !status.unpaid))
+    );
+    shared.world.send(engine::Event::Party(engine::PartyInput::Delivered { watcher }));
+    settle(&mut shared.world);
+    shared.world.oracle_documents.clear();
+    shared.look(2, 130, 184);
+    shared.world.send(engine::Event::Party(engine::PartyInput::Delivered { watcher }));
+    settle(&mut shared.world);
+    assert!(
+        shared.world.oracle_documents.iter().any(|(got, document)| *got == watcher
+            && matches!(document, forge_top::Document::Status(status) if status.unpaid)),
+        "status was marked after refusal: {:?}; {:?}",
+        shared.world.oracle_documents,
+        person_brief(&shared.world, unpaid)
+    );
+    shared.world.send(engine::Event::Party(engine::PartyInput::Unwatch { watcher }));
+    settle(&mut shared.world);
+    let refused = person_brief(&shared.world, unpaid);
+    assert!(refused.running.is_none());
+    assert!(refused.brief.is_none());
+    assert!(refused.unpaid.is_some());
+    assert_eq!(
+        shared.world.root.tasks().funding(funder).expect("unpaid reader's pool returned").numbers.reserved,
+        reserved
+    );
+    assert_eq!(shared.world.root.tasks().view_tasks().iter().map(|row| row.number).collect::<Vec<_>>(), before);
+    assert!(shared.document(2).unpaid);
+    let cancelled = shared
+        .world
+        .store
+        .rows
+        .values()
+        .filter_map(|record| match record {
+            Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)))
+                if !before.contains(&row.number)
+                    && matches!(row.phase, tasks::Phase::Ended(tasks::Ending::Cancelled { .. })) =>
+            {
+                Some(row)
+            }
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    let procedure = cancelled.iter().find(|row| row.funder == funder).expect("unpaid procedure cancelled");
+    assert_eq!(procedure.executor, tasks::Executor::Procedure { connector: 1, code: 5 });
+    assert!(
+        cancelled.iter().any(|row| row.funder == tasks::Funder::Task(procedure.number)
+            && row.executor == tasks::Executor::Agent { charter: 9 }),
+        "its agent was cancelled with it"
+    );
+}
+
+#[test]
+fn a_members_limited_account_waits_without_marking_their_brief_unpaid() {
+    let mut shared = shared(false);
+    let key = Key::Core(jig_domain_core::Key::Accounts(accounts::Key::Source { account: 14, number: 15 }));
+    let mut source = shared.world.store.rows.get(&key).expect("member's plan source").clone();
+    let Record::Core(jig_domain_core::Record::Accounts(accounts::Stored::Source { held, .. })) = &mut source else {
+        panic!("member's plan source")
+    };
+    *held = Some(accounts::Held::Limited { reset: None });
+    shared.world.store.seed(Box::new([source]), Box::new([]));
+    restart_status_world(&mut shared.world);
+    shared.first_run();
+    let party = shared.members[1].0;
+    let first = waiting(&mut shared.world, party, 14);
+    assert!(!shared.document(1).unpaid);
+    shared.look(1, 160, 183);
+    let second = waiting(&mut shared.world, party, 14);
+    assert_ne!(second.task, first.task, "an expired account wait never blocks the next sitting");
     shared.world.close();
 }
 

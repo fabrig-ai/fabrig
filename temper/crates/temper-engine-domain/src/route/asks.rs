@@ -379,6 +379,10 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                 None
             };
             domain.work.push(Work::Core(core::Event::ProcedureHoldings { refused, task, step, connector, holdings }));
+            if domain.forge.status_owner(task).is_some() {
+                // The holdings answer drains the status delegate's make before its account is read.
+                domain.work.push(Work::StatusAccount { procedure: task });
+            }
             None
         }
         core::Ask::ProjectGoal { feed } => {
