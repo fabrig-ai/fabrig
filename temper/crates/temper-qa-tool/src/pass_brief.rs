@@ -68,7 +68,8 @@ fn write_landings(git: &mut impl GitFace, text: &mut String, ledger: &Ledger, ca
             landing.number, landing.goal, landing.commit, landing.title
         )
         .expect("string");
-        let drafts = landing_drafts(git, landing)?;
+        let base = crate::watch::landing_base(git, ledger, landing)?;
+        let drafts = landing_drafts(git, landing, &base)?;
         if drafts.is_empty() {
             text.push_str("No draft is named; the request was the title's words.\n");
         }

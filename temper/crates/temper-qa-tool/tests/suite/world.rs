@@ -20,12 +20,19 @@ pub fn id(number: u64) -> String {
     format!("{number:040x}")
 }
 #[derive(Default)]
+pub struct Range {
+    pub patch: Vec<u8>,
+    pub stat: Vec<Changed>,
+    pub paths: Vec<String>,
+}
+#[derive(Default)]
 pub struct Node {
     pub parents: Vec<String>,
     pub message: String,
     pub files: BTreeMap<String, Vec<u8>>,
     pub paths: Vec<String>,
     pub stat: Vec<Changed>,
+    pub ranges: BTreeMap<String, Range>,
 }
 #[derive(Default)]
 pub struct Git {
@@ -105,6 +112,10 @@ impl GitFace for Git {
         self.calls.push(format!("message {commit}"));
         Ok(self.node(commit).message.clone())
     }
+    fn parents(&mut self, commit: &str) -> Result<Vec<String>, Refusal> {
+        self.calls.push(format!("parents {commit}"));
+        Ok(self.node(commit).parents.clone())
+    }
     fn contains(&mut self, ancestor: &str, descendant: &str) -> Result<bool, Refusal> {
         self.calls.push(format!("contains {ancestor} {descendant}"));
         Ok(self.held(descendant).contains(ancestor))
@@ -129,26 +140,48 @@ impl GitFace for Git {
         Ok(self.node(commit).files.get(path).cloned())
     }
     fn diff(&mut self, parent: &str, commit: &str) -> Result<Vec<u8>, Refusal> {
-        assert_eq!(parent, format!("{commit}^1"));
-        Ok(b"diff --git a/page b/page\n+new page\n".into())
+        self.calls.push(format!("diff {parent} {commit}"));
+        assert!(self.node(commit).parents.iter().any(|name| name == parent));
+        Ok(self
+            .node(commit)
+            .ranges
+            .get(parent)
+            .map_or_else(|| b"diff --git a/page b/page\n+new page\n".into(), |range| range.patch.clone()))
     }
     fn stat(&mut self, parent: &str, commit: &str) -> Result<Vec<Changed>, Refusal> {
-        assert_eq!(parent, format!("{commit}^1"));
-        Ok(self.node(commit).stat.clone())
+        self.calls.push(format!("stat {parent} {commit}"));
+        assert!(self.node(commit).parents.iter().any(|name| name == parent));
+        Ok(self
+            .node(commit)
+            .ranges
+            .get(parent)
+            .map_or_else(|| self.node(commit).stat.clone(), |range| range.stat.clone()))
     }
     fn changed_paths(&mut self, parent: &str, commit: &str) -> Result<Vec<String>, Refusal> {
-        assert_eq!(parent, format!("{commit}^1"));
-        Ok(self.node(commit).paths.clone())
+        self.calls.push(format!("paths {parent} {commit}"));
+        assert!(self.node(commit).parents.iter().any(|name| name == parent));
+        Ok(self
+            .node(commit)
+            .ranges
+            .get(parent)
+            .map_or_else(|| self.node(commit).paths.clone(), |range| range.paths.clone()))
     }
     fn qa_trailers(&mut self, parent: &str, commit: &str) -> Result<Vec<String>, Refusal> {
-        assert_eq!(parent, format!("{commit}^1"));
-        Ok(vec!["Work lists drafts".into(), "Work lists drafts".into()])
+        self.calls.push(format!("qa {parent} {commit}"));
+        let mut values = Vec::new();
+        for record in self.commits(parent, commit)? {
+            for (key, value) in temper_qa_tool::faces::trailers(&self.node(&record.name).message) {
+                if key == "QA" {
+                    values.push(value);
+                }
+            }
+        }
+        Ok(values)
     }
     fn gap_trailers(&mut self, parent: &str, commit: &str) -> Result<Vec<String>, Refusal> {
-        assert_eq!(parent, format!("{commit}^1"));
-        let parent = self.node(commit).parents.first().expect("merge parent").clone();
+        self.calls.push(format!("gaps {parent} {commit}"));
         let mut values = Vec::new();
-        for record in self.commits(&parent, commit)? {
+        for record in self.commits(parent, commit)? {
             for (key, value) in temper_qa_tool::faces::trailers(&self.node(&record.name).message) {
                 if key == "QA-gap" && !values.contains(&value) {
                     values.push(value);
