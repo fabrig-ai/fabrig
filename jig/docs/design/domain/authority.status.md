@@ -1,8 +1,9 @@
 # authority: status
 
-2026-11-16. Where jig's code lags or departs from [authority.md](authority.md).
+2026-11-18. Where jig's code lags or departs from [authority.md](authority.md).
 
 - **Not yet:** 7: a standing agent task's budget renewed by period (`tasks/standing.md`, section 4).
+- **Not yet:** 7 and 8.3: a run's spend is its task's share for a run, half of what it has left where it may start a delegate, from `run_spend`; every run's spend is still what its task has left, capped. [in flight: change 7655]
 
 Section 3 has no known gap in the asking family, bit 2,048, or
 `ToolKind::Ask` admission. A call without that family is beyond authority.
