@@ -1,5 +1,6 @@
 use super::*;
 pub(crate) mod forge;
+mod harness_reports;
 mod logging;
 mod page;
 mod places;
