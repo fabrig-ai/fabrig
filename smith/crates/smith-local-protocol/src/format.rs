@@ -18,18 +18,12 @@ pub fn max_bytes() -> u32 {
 /// The current store and transcript fingerprints, computed from their embedded texts.
 #[must_use]
 pub fn layouts() -> wire::Layouts {
-    wire::Layouts::new(
-        &wire::CEILINGS,
-        wire::LayoutsParts {
-            store: skein_codec::schema::parse(TEXT.as_bytes())
-                .expect("the embedded local store schema is valid")
-                .fingerprints()
-                .family()
-                .digest(),
-            transcript: smith_transcript::wire::layout(),
-        },
-    )
-    .expect("fixed layouts fit")
+    let store = {
+        let schema = skein_codec::schema::parse(TEXT.as_bytes()).expect("the embedded local store schema is valid");
+        schema.fingerprints().family().digest()
+    };
+    let transcript = smith_transcript::wire::layout();
+    wire::Layouts::new(&wire::CEILINGS, wire::LayoutsParts { store, transcript }).expect("fixed layouts fit")
 }
 
 /// The no-replace marker written only in an admitted empty directory.

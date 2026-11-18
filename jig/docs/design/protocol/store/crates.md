@@ -227,7 +227,6 @@ each stage a `#[cfg(test)]` module of the crate's root, in one change beside sec
 - **`.config/fixture-readers.toml`** names the kit's fixtures and each piece's, with their readers:
   the kit's are read by both pieces' tests.
 
-
 ## 5. Landing the split
 
 One change of moves, after both preparations (`crate-graph.md`, 5.3):

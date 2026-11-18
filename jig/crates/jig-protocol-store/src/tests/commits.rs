@@ -237,7 +237,7 @@ fn a_refused_skein_commit_is_answered_failed() {
                     projected: used + 128 + ROW_BYTES,
                 })),
             );
-            assert!(used <= BUDGET && used + ROW_BYTES > BUDGET);
+            assert!(used <= BUDGET && used + 128 + ROW_BYTES > BUDGET);
             assert_eq!(store.stores.store.used(), used);
             assert_eq!(store.stores.store.last(), number - 1);
         }

@@ -71,7 +71,6 @@ fn local_store_schema_matches_generated_code_and_pinned_constructs() {
     let root = crates.join("smith-local-protocol");
     let source = fs::read_to_string(root.join("schema/local-store-v1.schema")).expect("local store schema");
     check_records(&crates.join("smith-local-protocol-codec"), "local_store_v1", "local-store", &source);
-
 }
 
 fn check_records(root: &Path, file: &str, family: &str, source: &str) {

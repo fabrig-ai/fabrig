@@ -300,4 +300,3 @@ fn whole_file_admission_checks_the_manifests_exact_bound() {
         assert_eq!(sizes::whole(bound), expected, "whole-file bound {bound}");
     }
 }
-

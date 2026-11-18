@@ -6,4 +6,3 @@ mod families;
 fn codec_families_match_their_schemas_and_are_pinned() {
     families::check();
 }
-

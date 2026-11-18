@@ -140,10 +140,7 @@ fn readback_discovers_actual_inventory_without_changing_the_mirror() {
     assert!(
         before.contains_key(&jig_protocol_store::keys::installation(store.component_limits.store.key).expect("key"))
     );
-    for own in [
-        jig_protocol_store::keys::Own::Format,
-        jig_protocol_store::keys::Own::Wires,
-    ] {
+    for own in [jig_protocol_store::keys::Own::Format, jig_protocol_store::keys::Own::Wires] {
         assert!(
             before.contains_key(
                 &jig_protocol_store::keys::encode_own(&own, store.component_limits.store.key).expect("key")

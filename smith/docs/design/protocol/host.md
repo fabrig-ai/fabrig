@@ -244,7 +244,8 @@ what its host's protocol layer would do:
 
 Before the first durable Load reads `fresh` or `state`, it reads the bounded,
 no-follow `format` file. Its generated `Layouts` record names the
-`smith-local-store` family fingerprint, then `smith-transcript`'s. Both are computed from the schema texts the build embeds,
+`smith-local-store` family fingerprint, then `smith-transcript`'s. Both are
+computed from the schema texts the build embeds,
 `schema/local-store-v1.schema` and smith-transcript's `transcript-v7.schema`,
 each time the marker is written or checked. State,
 fresh metadata, the whole turn envelope and delivery records use the generated

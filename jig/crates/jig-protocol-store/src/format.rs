@@ -77,4 +77,3 @@ pub(crate) fn check_versions(found: &component::Format, wanted: &component::Form
     }
     Ok(())
 }
-

@@ -102,7 +102,6 @@ fn equal_levels_check_current_versions() {
         let mut changed = replacing(skein_kv::Op::Put { key, value: row.encode().expect("format") });
         changed.owner_sets(sets);
         refused(&mut changed, OpenRefusal::Format { family: Family::Application, found: 2, wanted: 1 });
-
     }
 }
 

@@ -664,7 +664,7 @@ pub use boundary::{
 mod tests;
 
 pub use jig_protocol_store_families::component_v3;
-pub use jig_protocol_store_settings::settings_v3;
 pub use jig_protocol_store_families::secrets_v1;
+pub use jig_protocol_store_settings::settings_v3;
 
 pub use jig_protocol_store_families::{openings_v1, registry_v1};

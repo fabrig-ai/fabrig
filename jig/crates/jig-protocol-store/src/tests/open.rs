@@ -151,10 +151,8 @@ fn a_store_answers_its_kept_installation_not_the_drawn_one() {
 
 #[test]
 fn a_checked_store_without_its_installation_is_corrupt() {
-    let mut store = planted(&[
-        fixtures::format_put(fixtures::DEPLOYMENT),
-        fixtures::header_put(fixtures::DEPLOYMENT, 1),
-    ]);
+    let mut store =
+        planted(&[fixtures::format_put(fixtures::DEPLOYMENT), fixtures::header_put(fixtures::DEPLOYMENT, 1)]);
     assert_corrupt(&open(&mut store));
     assert_eq!(store.phase, Phase::Stopped);
 }
@@ -190,10 +188,8 @@ fn a_store_of_another_accounts_version_refuses_naming_accounts() {
 
 #[test]
 fn a_store_of_another_deployment_refuses_to_open() {
-    let mut store = planted(&[
-        fixtures::format_put(fixtures::OTHER_DEPLOYMENT),
-        fixtures::header_put(fixtures::DEPLOYMENT, 1),
-    ]);
+    let mut store =
+        planted(&[fixtures::format_put(fixtures::OTHER_DEPLOYMENT), fixtures::header_put(fixtures::DEPLOYMENT, 1)]);
     let events = open(&mut store);
     assert_refusal(&events, OpenRefusal::Deployment);
     super::words::has_deployment_slots(&events, super::words::DEPLOYMENT);

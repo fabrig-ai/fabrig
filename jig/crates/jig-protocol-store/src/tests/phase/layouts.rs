@@ -13,11 +13,7 @@ fn an_old_layouts_row_survives_open_rehearsal_upgrade_and_census_unnamed() {
     let mut expected = Vec::new();
     for keep in [false, true] {
         let (mut source, mut first) = source_with_sets(false, upgrade_sets(0));
-        let ops = if keep {
-            vec![skein_kv::Op::Put { key: Box::new([0, 3]), value: old.clone() }]
-        } else {
-            vec![]
-        };
+        let ops = if keep { vec![skein_kv::Op::Put { key: Box::new([0, 3]), value: old.clone() }] } else { vec![] };
         registry::raw(&mut source, &mut first, ops);
         let items = source.items();
         for stage in 0..3 {
@@ -45,15 +41,19 @@ fn an_old_layouts_row_survives_open_rehearsal_upgrade_and_census_unnamed() {
                 panic!("opened and censused: {events:?}")
             };
             assert_eq!(*last, if stage == 0 { 2 } else { 4 });
-            let named: Vec<_> = census.keyspaces.iter().filter_map(|space| {
-                if space.prefix.as_ref() == [0, 3] {
-                    assert_eq!(space.name.as_ref(), "");
-                    assert_eq!(space.rows, 1);
-                    None
-                } else {
-                    Some((space.prefix.clone(), space.name.clone(), space.rows, space.keys, space.values))
-                }
-            }).collect();
+            let named: Vec<_> = census
+                .keyspaces
+                .iter()
+                .filter_map(|space| {
+                    if space.prefix.as_ref() == [0, 3] {
+                        assert_eq!(space.name.as_ref(), "");
+                        assert_eq!(space.rows, 1);
+                        None
+                    } else {
+                        Some((space.prefix.clone(), space.name.clone(), space.rows, space.keys, space.values))
+                    }
+                })
+                .collect();
             if keep {
                 assert_eq!(named, expected[stage]);
             } else {
