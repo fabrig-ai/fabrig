@@ -656,8 +656,13 @@ fn job_admission_checks_names_ranges_map_and_written_family_on_both_owners() {
 }
 
 #[test]
-fn jig_declares_no_jobs() {
-    assert!(crate::JIG_STORE_SET.jobs.is_empty());
+fn jig_declares_the_escalation_deciders_job() {
+    let [job] = crate::JIG_STORE_SET.jobs else { panic!("one jig job") };
+    assert_eq!(job.name, "escalation-deciders");
+    assert_eq!(job.counts, ["tasks"]);
+    assert!(job.converts.is_none());
+    let [range] = job.keys else { panic!("one hot range") };
+    assert_eq!((range.from, range.to), (&[1, 1, 0][..], &[1, 1, 1][..]));
 }
 
 #[test]

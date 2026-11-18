@@ -302,10 +302,14 @@ pub fn rehearsal_then_start_and_back() {
         let temper_engine_service::Note::Ran { of, job, rows, commits, counts } = note else {
             panic!("job progress: {note:?}")
         };
-        assert_eq!((*of, job.as_ref()), (Owner::Application, expected));
+        assert_eq!((*of, job.as_ref()), (super::job_owner(expected), expected));
         assert!(*commits > 0, "the job's end is committed");
-        assert!(counts.iter().all(|count| count.count == 0), "no long id or deleted repository in this story");
-        assert!(report.contains(&format!("ran temper {expected}: {rows} rows in {commits} commits")), "{report}");
+        assert!(
+            counts.iter().all(|count| count.count == 0),
+            "no task rejection, long id or deleted repository in this story"
+        );
+        let owner = if *of == Owner::Jig { "jig" } else { "temper" };
+        assert!(report.contains(&format!("ran {owner} {expected}: {rows} rows in {commits} commits")), "{report}");
     }
     assert!(
         report.contains("registry commit, jobs and restores pass; what follows the switch is not rehearsed"),

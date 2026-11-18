@@ -35,10 +35,10 @@ impl Running {
             Waiting::Page { .. } | Waiting::Commit { .. } | Waiting::Registry { .. } => false,
         }
     }
-    pub(crate) fn at_page(&self) -> bool {
+    pub(crate) fn page_owner(&self) -> Option<Owner> {
         match self.waiting {
-            Waiting::Page { .. } => true,
-            Waiting::Ready | Waiting::Commit { .. } | Waiting::Registry { .. } => false,
+            Waiting::Page { .. } => Some(self.current().0),
+            Waiting::Ready | Waiting::Commit { .. } | Waiting::Registry { .. } => None,
         }
     }
     fn current(&self) -> (Owner, Job) {

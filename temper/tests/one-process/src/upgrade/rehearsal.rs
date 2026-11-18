@@ -231,7 +231,7 @@ fn golden_check_with(directory: &Path, configuration: Vec<u8>, copy: Copy) {
         .iter()
         .filter_map(|event| {
             if let Event::Ran { of, job, counts, .. } = event {
-                assert_eq!(*of, jig_protocol_store::Owner::Application);
+                assert_eq!(*of, super::job_owner(job));
                 assert!(counts.iter().all(|count| count.count == 0), "short floor ids: {lines}");
                 Some(job.as_ref())
             } else {
@@ -241,7 +241,16 @@ fn golden_check_with(directory: &Path, configuration: Vec<u8>, copy: Copy) {
         .collect();
     match copy {
         Copy::Whole => {
-            assert_eq!(ran, ["test-ids-landing", "test-ids-receipt", "test-ids-tier", "test-ids-verification"]);
+            assert_eq!(
+                ran,
+                [
+                    "escalation-deciders",
+                    "test-ids-landing",
+                    "test-ids-receipt",
+                    "test-ids-tier",
+                    "test-ids-verification"
+                ]
+            );
             assert_eq!(code, 0, "{lines}");
             assert!(report.restored, "{lines}");
             assert!(

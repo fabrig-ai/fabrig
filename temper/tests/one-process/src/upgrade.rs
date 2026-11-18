@@ -8,8 +8,11 @@ use std::{collections::BTreeSet, path::Path};
 
 /// Pending production jobs upgrade the second build without moving any owner's level.
 pub(super) const JOB: &str = "deleted-repository-forge-rows";
-pub(super) const JOBS: [&str; 5] =
-    ["test-ids-landing", "test-ids-receipt", "test-ids-tier", "test-ids-verification", JOB];
+pub(super) const JOBS: [&str; 6] =
+    ["escalation-deciders", "test-ids-landing", "test-ids-receipt", "test-ids-tier", "test-ids-verification", JOB];
+pub(super) fn job_owner(name: &str) -> Owner {
+    if name == "escalation-deciders" { Owner::Jig } else { Owner::Application }
+}
 pub(super) const CURRENT_SETS: OwnerSets = temper_engine_service::store::OWNER_SETS;
 
 thread_local! { static FIRST_SETS: OwnerSets = first_build(); }
@@ -25,10 +28,7 @@ fn first_build() -> OwnerSets {
                 .sets
                 .iter()
                 .map(|set| {
-                    if set.owner != Owner::Application {
-                        return *set;
-                    }
-                    jig_protocol_store::OwnerSet {
+                    let set = jig_protocol_store::OwnerSet {
                         jobs: Box::leak(
                             set.jobs
                                 .iter()
@@ -37,6 +37,12 @@ fn first_build() -> OwnerSets {
                                 .collect::<Vec<_>>()
                                 .into_boxed_slice(),
                         ),
+                        ..*set
+                    };
+                    if set.owner != Owner::Application {
+                        return set;
+                    }
+                    jig_protocol_store::OwnerSet {
                         families: Box::leak(
                             set.families
                                 .iter()
@@ -60,7 +66,7 @@ fn first_build() -> OwnerSets {
                                 .collect::<Vec<_>>()
                                 .into_boxed_slice(),
                         ),
-                        ..*set
+                        ..set
                     }
                 })
                 .collect::<Vec<_>>()
@@ -252,7 +258,7 @@ fn registry_upgrade(before: &maps::Maps, after: &maps::Maps) -> BTreeSet<Vec<u8>
     let mut changed = BTreeSet::from([old_key, new_key, text_key.into_vec()]);
     for name in JOBS {
         let job_key =
-            keys::encode_own(&keys::Own::Job { owner: Owner::Application, name: name.into() }, 1024).expect("job key");
+            keys::encode_own(&keys::Own::Job { owner: job_owner(name), name: name.into() }, 1024).expect("job key");
         assert!(!before.store.contains_key(job_key.as_ref()), "first build leaves {name} pending");
         let job = wire::Job::decode(
             &wire::CEILINGS,

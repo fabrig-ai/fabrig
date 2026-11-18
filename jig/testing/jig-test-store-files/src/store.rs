@@ -678,6 +678,10 @@ impl Store {
                 self.failed = true;
                 self.route(event, requests);
             }
+            Event::Job { owner, of: protocol::Owner::Jig, job, page } => {
+                let answer = protocol::jobs::page(&job, &page, self.component.as_mut().expect("component exists"));
+                requests.push_back(Request::Job { owner, answer });
+            }
             // These worlds supply sets without written sites; routing answers NoSite.
             event @ (Event::Checkpointed { .. }
             | Event::CheckpointRefused { .. }
@@ -685,7 +689,10 @@ impl Store {
             | Event::RestoreRefused { .. }
             | Event::CheckpointHeld { .. }
             | Event::CheckpointRemoved { .. }
-            | Event::Job { .. }
+            | Event::Job {
+                of: protocol::Owner::Skein | protocol::Owner::Smith | protocol::Owner::Application,
+                ..
+            }
             | Event::Ran { .. }
             | Event::Site { .. }
             | Event::Page { .. }

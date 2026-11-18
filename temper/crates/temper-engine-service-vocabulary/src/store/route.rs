@@ -624,7 +624,7 @@ fn job_answer(
     bounds: &families::Bounds,
 ) -> store::Request {
     let answer = match of {
-        store::Owner::Jig => store::jobs::page(job, page),
+        store::Owner::Jig => Err(store::JobRefusal { key: None, why: Box::from("jig job store unavailable") }),
         store::Owner::Application => {
             if job == "deleted-repository-forge-rows" {
                 Err(store::JobRefusal { key: None, why: Box::from("deleted repository job facts unavailable") })
@@ -662,6 +662,11 @@ fn dispatch(
 
 /// Read a job page's stored facts; later pages inherit no input.
 pub fn site(routes: &mut Routes, component: &mut store::Store, event: store::Event, into: &mut Queue<Up>) {
+    if let store::Event::Job { owner, of: store::Owner::Jig, job, page } = &event {
+        let answer = store::jobs::page(job, page, component);
+        into.push(Up::Ask(store::Request::Job { owner: *owner, answer }));
+        return;
+    }
     if let store::Event::Job { owner, of: store::Owner::Application, job, page } = &event
         && job.as_ref() == "deleted-repository-forge-rows"
     {

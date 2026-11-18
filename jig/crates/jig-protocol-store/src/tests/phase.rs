@@ -25,6 +25,7 @@ use skein_lib::{Queue, Token};
 use skein_sim::{Answer, Ask, Config, Handle, Pid, Sim};
 
 mod checked;
+mod escalation_deciders;
 mod floor;
 mod history;
 mod jobs;
