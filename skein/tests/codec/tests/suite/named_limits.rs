@@ -10,7 +10,7 @@ mod tests {
     struct Family<'a> {
         schema: &'a str,
         names: &'a [&'a str],
-        values: &'a [u32],
+        values: skein_lib::List<u32>,
         bounds: &'a [(&'a [u8], Option<u64>)],
     }
 
@@ -19,8 +19,8 @@ mod tests {
         let families = [
             Family {
                 schema: "schema/every-v1.schema",
-                names: &every::LIMIT_NAMES,
-                values: &every::CEILINGS.values(),
+                names: every::LIMIT_NAMES,
+                values: every::CEILINGS.values(),
                 bounds: &[
                     (b"Blank", every::Blank::encoded_bound(&every::CEILINGS)),
                     (b"Numbers", every::Numbers::encoded_bound(&every::CEILINGS)),
@@ -32,8 +32,8 @@ mod tests {
             },
             Family {
                 schema: "schema/every-v2.schema",
-                names: &every_v2::LIMIT_NAMES,
-                values: &every_v2::CEILINGS.values(),
+                names: every_v2::LIMIT_NAMES,
+                values: every_v2::CEILINGS.values(),
                 bounds: &[
                     (b"Blank", every_v2::Blank::encoded_bound(&every_v2::CEILINGS)),
                     (b"Numbers", every_v2::Numbers::encoded_bound(&every_v2::CEILINGS)),
@@ -45,8 +45,8 @@ mod tests {
             },
             Family {
                 schema: "schema/sample-v1.schema",
-                names: &v1::LIMIT_NAMES,
-                values: &v1::CEILINGS.values(),
+                names: v1::LIMIT_NAMES,
+                values: v1::CEILINGS.values(),
                 bounds: &[
                     (b"Field", v1::Field::encoded_bound(&v1::CEILINGS)),
                     (b"Report", v1::Report::encoded_bound(&v1::CEILINGS)),
@@ -55,8 +55,8 @@ mod tests {
             },
             Family {
                 schema: "schema/scalars-v1.schema",
-                names: &scalars::LIMIT_NAMES,
-                values: &scalars::CEILINGS.values(),
+                names: scalars::LIMIT_NAMES,
+                values: scalars::CEILINGS.values(),
                 bounds: &[
                     (b"Empty", scalars::Empty::encoded_bound(&scalars::CEILINGS)),
                     (b"Scalars", scalars::Scalars::encoded_bound(&scalars::CEILINGS)),
@@ -64,14 +64,14 @@ mod tests {
             },
             Family {
                 schema: "schema/secrets-v1.schema",
-                names: &secrets::LIMIT_NAMES,
-                values: &secrets::CEILINGS.values(),
+                names: secrets::LIMIT_NAMES,
+                values: secrets::CEILINGS.values(),
                 bounds: &[(b"Credential", secrets::Credential::encoded_bound(&secrets::CEILINGS))],
             },
             Family {
                 schema: "schema/lints-v1.schema",
-                names: &lints::LIMIT_NAMES,
-                values: &lints::CEILINGS.values(),
+                names: lints::LIMIT_NAMES,
+                values: lints::CEILINGS.values(),
                 bounds: &[
                     (b"HostTool", lints::HostTool::encoded_bound(&lints::CEILINGS)),
                     (b"Boundless", lints::Boundless::encoded_bound(&lints::CEILINGS)),
@@ -108,7 +108,7 @@ mod tests {
         assert_eq!(expected.len(), family.names.len(), "{}: all limits named", family.schema);
         assert_eq!(expected.len(), family.values.len(), "{}: all limits valued", family.schema);
         for ((name, value), (generated_name, generated_value)) in
-            expected.iter().zip(family.names.iter().zip(family.values))
+            expected.iter().zip(family.names.iter().zip(family.values.as_slice()))
         {
             assert_eq!(name.as_ref(), generated_name.as_bytes(), "{}: limit name", family.schema);
             assert_eq!(value, generated_value, "{}: {generated_name}", family.schema);
@@ -117,7 +117,7 @@ mod tests {
         for &(name, generated) in family.bounds {
             let at = schema.find(name).expect("fixture record exists");
             assert_eq!(
-                schema.most_bytes_within(at, family.names, family.values),
+                schema.most_bytes_within(at, family.names, family.values.as_slice()),
                 generated,
                 "{}: {name:?}",
                 family.schema

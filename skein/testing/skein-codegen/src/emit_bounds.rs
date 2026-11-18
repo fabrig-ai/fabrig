@@ -96,35 +96,42 @@ fn emit_enum(enumeration: &Enumeration, out: &mut String) {
     out.push_str("}\n\n");
 }
 
-pub(crate) fn emit(schema: &Context<'_>, out: &mut String) {
-    for declaration in schema.declarations {
-        match declaration {
-            Declaration::Record(record) => emit_record(record, out),
-            Declaration::Enum(enumeration) => emit_enum(enumeration, out),
-        }
+fn declaration_name(declaration: &Declaration) -> &str {
+    match declaration {
+        Declaration::Record(record) => &record.name,
+        Declaration::Enum(enumeration) => &enumeration.name,
     }
-    let biggest_mut = if schema.declarations.is_empty() { "" } else { "mut " };
+}
+
+pub(crate) fn emit_family(schema: &Context<'_>, out: &mut String) {
     for (name, doc) in [
         ("encoded_bound", "Maximum wire bytes among this family's top-level types."),
         ("decoded_bound", "Maximum heap held by one decoded top-level value."),
     ] {
-        let signature = format!(
-            "/// {doc}\n#[must_use]\npub fn {name}(limits: &Limits) -> Option<u64> {{\n    if check_limits(limits).is_err() {{ return None; }}\n    let {biggest_mut}biggest = 0_u64;\n"
-        );
-        let statements = schema
-            .declarations
-            .iter()
-            .map(|declaration| {
-                let ty = match declaration {
-                    Declaration::Record(record) => &record.name,
-                    Declaration::Enum(enumeration) => &enumeration.name,
-                };
-                format!("    biggest = biggest.max({ty}::{name}_within(limits)?);\n")
-            })
-            .collect::<Vec<_>>();
-        if name == "decoded_bound" {
-            out.push('\n');
+        out.push_str(&format!(
+            "/// {doc}\n#[must_use]\npub fn {name}(limits: &Limits) -> Option<u64> {{\n    if check_limits(limits).is_err() {{ return None; }}\n"
+        ));
+        match schema.declarations.first() {
+            Some(first) => out.push_str(&format!("    {}_{name}_family(limits, 0)\n", emit_limits::snake(declaration_name(first)))),
+            None => out.push_str("    Some(0)\n"),
         }
-        crate::emit_functions::fold(&signature, name, "biggest", &statements, "    Some(biggest)\n}\n", out);
+        out.push_str("}\n\n");
+    }
+}
+
+pub(crate) fn emit(declaration: &Declaration, next: Option<&Declaration>, out: &mut String) {
+    match declaration {
+        Declaration::Record(record) => emit_record(record, out),
+        Declaration::Enum(enumeration) => emit_enum(enumeration, out),
+    }
+    let ty = declaration_name(declaration);
+    let helper = emit_limits::snake(ty);
+    for name in ["encoded_bound", "decoded_bound"] {
+        out.push_str(&format!("fn {helper}_{name}_family(limits: &Limits, biggest: u64) -> Option<u64> {{\n    let biggest = biggest.max({ty}::{name}_within(limits)?);\n"));
+        match next {
+            Some(next) => out.push_str(&format!("    {}_{name}_family(limits, biggest)\n", emit_limits::snake(declaration_name(next)))),
+            None => out.push_str("    Some(biggest)\n"),
+        }
+        out.push_str("}\n\n");
     }
 }

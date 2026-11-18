@@ -121,36 +121,81 @@ pub(crate) fn emit(schema: &Context<'_>, out: &mut String) {
 }
 
 fn emit_names(schema: &Context<'_>, out: &mut String) {
-    let count = schema.bounds.len();
-    out.push_str(&format!(
-        "/// The limits' field names, in field order.\npub const LIMIT_NAMES: [&str; {count}] = [\n"
-    ));
+    out.push_str("/// The limits' field names, in field order.\npub const LIMIT_NAMES: &[&str] = &[\n");
     for (name, _, _) in &schema.bounds {
         out.push_str(&format!("    \"{name}\",\n"));
     }
-    out.push_str("];\n\nimpl Limits {\n    /// The limits' values, in `LIMIT_NAMES` order.\n    #[must_use]\n");
-    out.push_str(&format!("    pub fn values(&self) -> [u32; {count}] {{\n        [\n"));
-    for chunk in schema.bounds.chunks(8) {
-        let values = chunk.iter().map(|(name, _, _)| format!("self.{name}")).collect::<Vec<_>>().join(", ");
-        out.push_str(&format!("            {values},\n"));
+    out.push_str("];\n\nimpl Limits {\n    /// The limits' values, in `LIMIT_NAMES` order.\n    #[must_use]\n    pub fn values(&self) -> List<u32> {\n");
+    match schema.first_limits() {
+        Some(first) => out.push_str(&format!("        let mut values = List::with_capacity(u32::try_from(LIMIT_NAMES.len()).expect(\"schema limits fit u32\"));\n        self.values_for_{}_record(&mut values);\n        values\n", snake(first))),
+        None => out.push_str("        List::with_capacity(0)\n"),
     }
-    out.push_str("        ]\n    }\n}\n\n");
+    out.push_str("    }\n}\n\n");
 }
 
 /// One public family check where its owner makes the limits.
 pub(crate) fn emit_check(schema: &Context<'_>, out: &mut String) {
     out.push_str("/// Checks the family limits, naming the first limit past its ceiling.\n");
-    let limits = if schema.bounds.is_empty() { "_limits" } else { "limits" };
-    out.push_str(&format!("pub fn check_limits({limits}: &Limits) -> Result<(), Problem> {{\n"));
-    for (index, _) in schema.bounds.chunks(90).enumerate() {
-        out.push_str(&format!("    check_limits_{index}(limits)?;\n"));
+    match schema.first_limits() {
+        Some(first) => out.push_str(&format!("pub fn check_limits(limits: &Limits) -> Result<(), Problem> {{\n    check_{}_record_limits(limits)\n}}\n\n", snake(first))),
+        None => out.push_str("pub fn check_limits(_limits: &Limits) -> Result<(), Problem> {\n    Ok(())\n}\n\n"),
     }
-    out.push_str("    Ok(())\n}\n\n");
-    for (index, chunk) in schema.bounds.chunks(90).enumerate() {
-        out.push_str(&format!("fn check_limits_{index}(limits: &Limits) -> Result<(), Problem> {{\n"));
-        for (name, _, path) in chunk {
-            out.push_str(&format!("    if limits.{name} > CEILINGS.{name} {{ return Err(Problem {{ path: Path::{path}, reason: skein_codec::Reason::Bound }}); }}\n"));
+}
+
+fn checks(bounds: &[(String, u32, String)], out: &mut String) {
+    for (name, _, path) in bounds {
+        out.push_str(&format!("    if limits.{name} > CEILINGS.{name} {{ return Err(Problem {{ path: Path::{path}, reason: skein_codec::Reason::Bound }}); }}\n"));
+    }
+}
+
+fn values(bounds: &[(String, u32, String)], out: &mut String) {
+    for (name, _, _) in bounds {
+        out.push_str(&format!("        values.push(self.{name}).expect(\"room for every named limit\");\n"));
+    }
+}
+
+/// A bounded record owns its checks and ordered values, chained to the next record.
+pub(crate) fn emit_record(schema: &Context<'_>, record: &crate::Record, out: &mut String) {
+    let (bounds, next) = schema.record_limits(&record.name);
+    if bounds.is_empty() {
+        return;
+    }
+    let name = snake(&record.name);
+    let mut helpers = String::new();
+    let split = bounds.len() >= 96;
+    out.push_str(&format!("fn check_{name}_record_limits(limits: &Limits) -> Result<(), Problem> {{\n"));
+    if split {
+        for group in bounds.chunk_by(|left, right| left.2 == right.2) {
+            let path = snake(&group.first().expect("nonempty field bounds").2);
+            out.push_str(&format!("    check_{path}_field_limits(limits)?;\n"));
+            helpers.push_str(&format!("\nfn check_{path}_field_limits(limits: &Limits) -> Result<(), Problem> {{\n"));
+            checks(group, &mut helpers);
+            helpers.push_str("    Ok(())\n}\n");
         }
-        out.push_str("    Ok(())\n}\n\n");
+    } else {
+        checks(bounds, out);
     }
+    match next {
+        Some(next) => out.push_str(&format!("    check_{}_record_limits(limits)\n}}\n\n", snake(next))),
+        None => out.push_str("    Ok(())\n}\n\n"),
+    }
+    out.push_str(&helpers);
+    helpers.clear();
+    out.push_str(&format!("impl Limits {{\n    fn values_for_{name}_record(&self, values: &mut List<u32>) {{\n"));
+    if split {
+        for group in bounds.chunk_by(|left, right| left.2 == right.2) {
+            let path = snake(&group.first().expect("nonempty field bounds").2);
+            out.push_str(&format!("        self.values_for_{path}_field(values);\n"));
+            helpers.push_str(&format!("\nimpl Limits {{\n    fn values_for_{path}_field(&self, values: &mut List<u32>) {{\n"));
+            values(group, &mut helpers);
+            helpers.push_str("    }\n}\n");
+        }
+    } else {
+        values(bounds, out);
+    }
+    if let Some(next) = next {
+        out.push_str(&format!("        self.values_for_{}_record(values);\n", snake(next)));
+    }
+    out.push_str("    }\n}\n\n");
+    out.push_str(&helpers);
 }

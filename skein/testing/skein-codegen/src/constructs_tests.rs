@@ -96,18 +96,32 @@ fn defaults_are_explicit_and_former_names_cover_each_named_part() {
 }
 
 #[test]
-fn output_shapes_follow_grouping_and_function_splitting() {
-    assert!(!found("record R { a: bool b: bool c: bool }").contains(&Construct::GroupedBools));
-    assert!(found("record R { a: bool b: bool c: bool d: bool }").contains(&Construct::GroupedBools));
-    assert!(!found("record R { a: list 4 bool }").contains(&Construct::GroupedBools));
+fn output_shapes_keep_named_booleans_and_field_helpers() {
+    assert!(!found("record R { a: bool b: bool c: bool }").contains(&Construct::NamedBooleans));
+    let booleans = "record R { a: bool b: bool c: bool d: bool }";
+    assert!(found(booleans).contains(&Construct::NamedBooleans));
+    let output = crate::generate(&crate::parse(&format!("family f 1\n{booleans}")).expect("boolean record")).records;
+    assert!(!output.contains("skein_bools"));
+    assert_eq!(output.matches("#[expect(clippy::struct_excessive_bools,").count(), 2);
+    for name in ["a", "b", "c", "d"] {
+        assert!(output.contains(&format!("    {name}: bool,")));
+        assert!(output.contains(&format!("    pub {name}: bool,")));
+    }
+    assert!(!found("record R { a: list 4 bool }").contains(&Construct::NamedBooleans));
     assert!(!found("record R { a: bytes 8 }").contains(&Construct::SplitFunction));
     let mut source = String::from("record R {");
     for at in 0_u32..40 {
         use core::fmt::Write;
-        write!(source, " a_{at}: bytes 8").expect("schema string");
+        write!(source, " a{at}: bytes 8").expect("schema string");
     }
     source.push('}');
     assert!(found(&source).contains(&Construct::SplitFunction));
+    let output = crate::generate(&crate::parse(&format!("family f 1\n{source}")).expect("long record")).records;
+    assert!(output.contains("fn encode_a0_field("));
+    assert!(output.contains("fn measure_a39_field("));
+    assert!(!output.contains("Decoded"));
+    crate::tests::check_item_names(&output);
+    crate::tests::check_function_lengths(&output);
 }
 
 #[test]
