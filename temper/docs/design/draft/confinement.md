@@ -30,7 +30,10 @@ no more (section 9), by the user's rule that macOS stays cheap.
 - **Started small: files, by Landlock** (section 6). Unprivileged,
   inherited by every child, irrevocable by the run, and needing no setup
   of the host; with `no_new_privs`, so nothing in the tree gains
-  privilege through a set-user-id program.
+  privilege through a set-user-id program. It bounds what a run reads,
+  writes and runs; what it leaves (files' modes and times, sockets named
+  by a path, other processes' command lines) is said (6.5), and the
+  full view closes it.
 - **Grown in steps** (section 5): the worker's own account; files;
   the program's login out of reach; the network; a cgroup per run; the
   full view of skein's contained trees; people apart. Each step leaves
@@ -100,10 +103,10 @@ and section 2.3 says it in general.
   account gives each run that person's home (keys, other services'
   configuration and credentials), and, where the account may use `sudo`
   without a password, the machine.
-- **Its other processes:** the same user may signal them and, where
-  Yama's `ptrace_scope` is 0, read their memory and environment. The
-  worker's git carries a forge credential in its environment for the
-  operations that need one
+- **Its other processes:** the same user may signal them, read their
+  environment through `/proc`, and, where Yama's `ptrace_scope` is 0,
+  attach to them and read their memory. The worker's git carries a
+  forge credential in its environment for the operations that need one
   (`temper/crates/temper-worker-protocol-git/src/invocation.rs`,
   `environment_for`).
 - **Shared caches and build outputs:** a compile cache, Cargo's
@@ -119,9 +122,12 @@ hooks, fsmonitor and credential helpers
 the checkout's own `.git/config`, which a command can write. Git runs
 programs that a repository's configuration names (filter and merge
 drivers among them), and the worker runs some of its git operations with
-a credential in their environment. This was not tried. Whatever the
-reach, the host must not run or trust what a run wrote outside its
-delivery (6.3).
+a credential in their environment. Most of its operations find the
+repository from their working directory
+(`temper/crates/temper-worker-protocol-git/src/invocation.rs`), so a
+`.git` the run rewrote could also name another directory altogether.
+This was not tried. Whatever the reach, the host must not run or trust
+what a run wrote outside its delivery (6.3).
 
 ### 2.5 Credentials are designed well
 
@@ -217,7 +223,13 @@ A worker runs as a service user of its own, never a person's account,
 with no `sudo`, under a unit hardened as an engine's can be
 (`NoNewPrivileges`, `ProtectSystem=strict`, `ProtectHome`, `PrivateTmp`,
 `ReadWritePaths` its own directories). No code: the deployment's setup
-says it, and a deployment follows it.
+says it, and a deployment follows it. The worker's account belongs to no
+group that opens a privileged socket (a container daemon's, for one),
+since a socket named by a path stays reachable in the first steps (6.5).
+`NoNewPrivileges` covers the whole unit until the full view (5.6) needs
+the set-user-id `newuidmap` for a run's subordinate ids, which it
+defeats (`skein/docs/design/runtime/kernel.md`, 6.6); the helper then
+sets it on each run instead.
 
 - **Stops:** privilege, people's homes and keys, other services' state,
   and builds outside the worker sharing its caches.
@@ -232,35 +244,58 @@ The first step in code, designed in section 6: the run's tree is
 restricted to its reach's files, with `no_new_privs`, and scoped so that
 it cannot signal or trace a process outside it.
 
-### 5.3 The program's login out of commands' reach
+### 5.3 The program's login out of reach
 
-The program must read and refresh its login, and its `Bash` commands
-are its children, so a domain over the whole tree lets them read it too.
-A command's domain is narrowed beneath the program's, as Landlock's
-domains nest and a child's may only be narrower. The ways, ranked:
+The program must read and refresh its login, so its domain grants its
+configuration directory. Two routes reach the login through it: its
+`Bash` commands, which are its children, and its built-in file tools,
+which run in its own process and follow a link in the workspace that
+leads into that directory, since the permission prompt judges a path by
+its names (2.1). Resolving the link at the prompt leaves a race with any
+command that rewrites it. The ways, ranked by what they protect:
 
-1. **A narrower domain for each command,** through the program's own
-   prefix for the commands it runs (Claude Code reads
-   `CLAUDE_CODE_SHELL_PREFIX`): the prefix is the agent's helper, which
-   restricts itself to the reach less the configuration directory and
-   execs the command.
-2. **The program's own sandbox for `Bash`,** set in the settings the
+1. **The login held outside the tree:** the program reaches its
+   provider through a relay of the agent's, which adds the credential,
+   and nothing of the login is on disk within reach. Whether the program
+   runs on a relayed login is unknown.
+2. **Both routes closed:** each command in a narrower domain, and the
+   program's file tools served by smith.
+   - **Commands:** the program's own prefix for the commands it runs
+     (Claude Code reads `CLAUDE_CODE_SHELL_PREFIX`, set in its
+     environment at each launch, never in the source's shared settings)
+     is skein's helper. It takes the command as one string, restricts
+     itself to the run's reach less the configuration directory, read
+     from a document the agent wrote before the launch, closes every
+     descriptor but the three standard ones, and runs the command
+     through the shell. Landlock's domains nest, and a child's may only
+     be narrower. The prefix also starts the program's MCP servers, the
+     agent's own among them, which the narrowing must leave working.
+   - **File tools:** smith's own tools, which open beneath the root by
+     `RESOLVE_BENEATH` (2.1), served on the agent's MCP server as
+     `remove` already is (`smith/docs/design/protocol/programs.md`, 5.3),
+     in place of the program's `Read`, `Write`, `Edit`, `Glob` and
+     `Grep`.
+3. **Commands alone narrowed,** the built-in tools' links left to the
+   prompt.
+4. **The program's own sandbox for `Bash`,** set in the settings the
    agent writes, with the configuration directory denied.
-3. **The login held outside the tree:** the program reaches its
-   provider through a relay of the agent's, which adds the credential.
-4. **Accepted on a host that serves one person,** as smith's design
+5. **Accepted on a host that serves one person,** as smith's design
    accepts it now (`smith/docs/design/protocol/programs.md`, 7).
 
-The pick is the first, if the live suite shows that the prefix wraps
-every command the program runs (10.1).
+The pick is the second (10.1), if the live suite shows that the prefix
+wraps every command the program runs. It costs the model its own file
+tools. The first follows if the program can run on a relayed login.
 
 ### 5.4 The network
 
 - **Commands:** loopback alone, by a network namespace of their own
   (skein's `Network::Loopback`,
-  `skein/docs/design/runtime/io/processes.md`, 3), and named
-  destinations, a crate registry for one, through a relay on loopback
-  that the host runs.
+  `skein/docs/design/runtime/io/processes.md`, 3), whose loopback is
+  not the host's. Named destinations, a crate registry for one, go
+  through a relay the host runs: the spawn hands the namespace a Unix
+  socket to it, and a forwarder there listens on the namespace's
+  loopback and passes each connection on. Nothing else of the host's
+  network is reachable.
 - **The agent:** its LLM endpoints and its host's channel.
 - Landlock's TCP rules bound ports, not addresses, so they are a
   stopgap at most.
@@ -279,9 +314,9 @@ unit delegated.
 skein's contained trees as designed
 (`skein/docs/design/runtime/io/processes.md`, 3): a user namespace, a
 mount namespace composing the run's view, a pid namespace, a private
-`/tmp`. What is outside the reach is then not even visible, and the git
-directory is bound read-only where the run sees it. Landlock stays
-beneath as a second layer.
+`/tmp` and `/dev/shm`, and a run's ids of its own. What is outside the
+reach is then not even visible: what Landlock leaves (6.5) has nothing
+to act on. Landlock stays beneath as a second layer.
 
 ### 5.7 People apart
 
@@ -307,54 +342,96 @@ trusted to do it (10.3).
 
 ### 6.2 What the domain grants
 
-The domain handles every file-system right the kernel's ABI knows, and
-grants these, beneath each path:
+The domain handles every file-system right of ABI 6, the floor, which
+brings renaming across directories (ABI 2), truncating (ABI 3), devices'
+`ioctl` (ABI 5) and the scopes (ABI 6). Full rights below are every one
+of them but `ioctl` on devices; reading is reading files and listing
+directories.
 
-- **The workspace's directories:** reading, and writing for those the
-  run's start makes writable.
-- **The machine:** reading and executing beneath the paths the worker's
-  configuration names, by default `/usr`, `/etc`, `/opt` and the
-  toolchains', since on a merged-`/usr` system the rest are its links.
-- **Named caches,** each read-only or writable as configured (6.4).
-- **The scratch:** a directory of the run's own beneath the worker's,
-  writable, which `HOME` and `TMPDIR` name for its commands.
-- **Devices:** `/dev/null`, `/dev/zero`, `/dev/full`, `/dev/random`,
-  `/dev/urandom` and `/dev/tty`; and `/proc`, read-only, whose other
-  processes' entries the scoping below guards.
-- **The agent's own:** its executable and its start document, read-only;
-  for a run on a program source, that source's configuration directory,
-  writable (narrowed for commands, 5.3).
+| Beneath | Rights |
+|---|---|
+| the workspace's writable directories; the scratch; a writable cache | full, executing included: Cargo runs build scripts and tests from its output |
+| the workspace's read-only directories; a read-only cache | reading and executing |
+| the stores whose objects the run's git borrows (6.3) | reading |
+| the machine: `/usr` whole, and in `/etc` the certificates, the resolver, the name service, the locale, the time zone, the loader's cache and the alternatives; toolchains and `/opt` only as the worker's configuration names them | reading and executing |
+| `/dev/null`, `/dev/zero`, `/dev/full`, `/dev/random`, `/dev/urandom` | reading and writing the file |
+| `/proc` | reading |
+| the agent's executable; its start document | reading and executing; reading |
+| on a program source: the source's configuration directory, and the run's own directory of the program's files, its instructions and MCP configuration among them (`smith/docs/design/protocol/programs.md`, 5.1), not its parent | full but executing, narrowed away for commands (5.3) |
 
-It also scopes signals and abstract Unix sockets to the domain (ABI 6),
-and the kernel already keeps a restricted process from tracing one
-outside its domain. Nothing else is granted: the worker's configuration
-and data, other runs' workspaces, other program sources, and every home.
+- **The environment points tools at their places:** `HOME` and
+  `TMPDIR` name the scratch, and each toolchain and cache the
+  configuration names carries its own variables (`RUSTUP_HOME`,
+  `CARGO_HOME`, a compile cache's), so a toolchain's install is read and
+  its downloads land in a cache. Without them, Rustup and Cargo look
+  beneath `HOME` and find nothing.
+- **Checked against itself:** the worker refuses a reach that would
+  grant a path holding its own configuration, data or secrets, so a
+  configured machine path cannot leak them.
+- **Scoped:** signals and abstract Unix sockets stay within the domain,
+  and the kernel refuses a restricted process every ptrace access to a
+  process outside its domain: attaching to it, and reading its memory,
+  its environment or its descriptors.
 
-### 6.3 The git directory
+Nothing else is granted: the worker's configuration and data, other
+runs' workspaces, other program sources, `/dev/tty` (commands have no
+terminal), `/dev/shm`, shared by every process of the account, and
+every home.
 
-Landlock cannot make a path read-only beneath a writable one, so the
-repository's git directory leaves the work tree: the checkout's `.git`
-names a git directory beside it, which the domain grants for reading
-alone. The run's git reads (log, diff, status), and writes fail; the
-host's git then reads only configuration the run could not write (2.4).
-smith's tools already refuse `.git` (2.1); this holds it for commands.
+### 6.3 Two git directories
+
+A run's commands need a git that writes: the delivery check of this
+repository adds to an index, writes trees, makes a linked worktree and
+keeps a cache in the git directory (`tools/pre-pr/pre_pr.py`). And the
+host must trust no git metadata a run can write (2.4). So each checkout
+has two:
+
+- **The host's,** beyond the run's reach. The worker's git names it and
+  the work tree on every operation, never finding either from its
+  working directory, and reads the work tree as plain files. Its
+  configuration, hooks and refs are the worker's alone.
+- **The run's,** the one the checkout's `.git` names: its index, refs
+  and configuration are the run's to write, and its objects are
+  borrowed, read-only, from the stores its alternates name. The host
+  never reads it.
+- **Missing objects:** a store fetched without its blobs
+  (`temper/docs/design/domain/worker/checkouts.md`) cannot fetch more
+  for a run's commands, which hold no forge credential; the run's git
+  reports them missing, and the worker may fetch ahead what a run needs.
+- **Checkouts made before** get a host directory made afresh from the
+  store, and their old directory becomes the run's own: nothing in it is
+  trusted, so nothing in it needs cleaning.
+
+smith's tools still refuse `.git` (2.1).
 
 ### 6.4 Caches
 
 A cache one run writes and another reads carries whatever the first one
-put there. In this step a cache is named in the configuration with a
-way: read-only to runs, written by the host alone; or writable,
-per workstream, keyed as the workspace is. A shared writable cache is
-allowed only by name, and is recorded as the gap it is (10.2).
+put there. A cache is named in the configuration with a way: read-only
+to runs, written by the host alone; or writable, per workstream, keyed
+as the workspace is, made with it and removed with it. A cache shared
+writable between workstreams is the configuration's explicit choice,
+named in each run's start event as the gap it is (10.2). The scratch is
+made at the run's start and removed at its end.
 
 ### 6.5 Where it cannot hold
 
+- **What Landlock leaves, at ABI 6.** A file's metadata: its mode, owner,
+  times and extended attributes, and whether it exists. A run keeps the
+  worker's user, so it may change the mode of a file that user owns
+  outside its reach, though not read or write it. Connecting to a Unix
+  socket named by a path. Another process's command line and status in
+  `/proc`, which need no ptrace check. The full view (5.6) closes each,
+  with its own ids, its own view and its own pid namespace; until then
+  they are recorded here, and a credential never goes in a command line.
 - **No fallback.** A kernel without Landlock, or below the ABI the
   reach needs, fails the spawn naming the reach, as a contained spawn
   fails without user namespaces
   (`skein/docs/design/runtime/io/processes.md`, 3). A worker checks at
-  startup, by spawning a restricted child, and refuses runs that have
-  commands when it cannot restrict them.
+  startup, by spawning a restricted child, and refuses the runs that
+  rely on the fence when it cannot restrict them: those with commands,
+  and those on a program source, whose built-in file tools follow links
+  (2.1).
 - **Unconfined only by name.** A worker's configuration may say its runs
   are unconfined, for a box on an old kernel, and its runs' start
   events say so.
@@ -374,16 +451,15 @@ any failure.
   `no_new_privs`, the startup check; the fake machine and the simulator
   honouring a reach, and the conformance scenarios that hold them to the
   kernel (8.1).
-- **smith:** commands spawned with the run's reach, narrowed for the
-  shell family; the program's commands narrowed (5.3); what the
-  instructions say (6.6).
+- **smith:** what the instructions say (6.6); then the program's
+  commands narrowed and its file tools served by smith (5.3).
 - **jig:** the reach in the workspace's vocabulary: a workspace's
   prepare answers its directories and ways
   (`jig/docs/design/domain/hosts/README.md`, 6), and the host adds the
   machine's paths, caches and scratch.
 - **temper:** the worker's configuration of the machine's paths, the
-  caches and the scratch; the git directory moved out of the work tree
-  (6.3); and the deployment's setup for 5.1.
+  caches and the scratch, and their making and removal; the two git
+  directories (6.3); and the deployment's setup for 5.1.
 
 The reach stays the worker's: nothing new crosses the engine's wire with
 workers in this step.
@@ -393,7 +469,8 @@ workers in this step.
 - **smith's tools keep their checks:** they give the better error and
   the path's alias; the kernel is the floor beneath them.
 - **The permission prompt stays:** a link it allows leads nowhere
-  outside the reach.
+  outside the program's reach, and into the program's own directory
+  only until its file tools are smith's (5.3).
 - **The engine's inline agents** run no commands and hold no workspace
   (`jig/docs/design/domain/hosts/README.md`, 5.1), so nothing here
   changes them.
@@ -415,13 +492,14 @@ retest the kit (`skein/docs/foundation/testing-strategy.md`, 9).
 - **Step tests:** a reach's encoding and its bounds, refused at io's
   entrance past its limits, each limit from both sides, as rows of one
   table.
-- **The fake machine honours a reach.** skein's minimal fake machine
-  already has a program that reports, from inside a tree, its
+- **The fake machine honours a reach.** skein's design gives its
+  minimal fake machine a program that reports, from inside a tree, its
   `no_new_privs` and whether chosen paths can be read and written
-  (`skein/docs/design/testing/README.md`, 4). It also reports what it can
-  execute and whether it can signal its parent, and the machine refuses
-  what a reach does not grant, so io worlds and simulated worlds run
-  restricted spawns over their seeds.
+  (`skein/docs/design/testing/README.md`, 4), not yet built. It is built
+  with the reach, and also reports what it can execute and whether it
+  can signal its parent; the machine refuses what a reach does not
+  grant, so io worlds and simulated worlds run restricted spawns over
+  their seeds.
 - **The conformance suite holds it to the kernel**
   (`skein/docs/design/runtime/kernel.md`, 8): the same scenarios against
   the simulator and the real ring. A restricted tree's probe finds what
@@ -429,8 +507,11 @@ retest the kit (`skein/docs/foundation/testing-strategy.md`, 9).
   refused: a canary beside the root, the parent directory, a link that
   leads out. Privilege is not gained through a set-user-id program; a
   signal to its parent is refused; a kernel without the ABI the reach
-  needs fails the spawn. A disagreement is a conformance bug, fixed in
-  the suite first.
+  needs fails the spawn. A child that narrows its domain loses what its
+  parent keeps, as the prefix of 5.3 relies on; a descriptor opened
+  before a restriction keeps its access, so the helper closes every one
+  the spawn does not name, and the probe finds none. A disagreement is a
+  conformance bug, fixed in the suite first.
 - **Cheap by construction:** one spawn per scenario, the probe answering
   every question in one run, within the conformance suite's and the real
   loop's budgets as they stand.
@@ -439,10 +520,13 @@ retest the kit (`skein/docs/foundation/testing-strategy.md`, 9).
 
 smith's, jig's and temper's domain and system worlds check that every
 spawn of a run carries its reach, and that the reach is the run's: its
-directories with their ways, the configured machine paths, its scratch,
-the program's configuration directory for the program and not for its
-commands. A referee fails a world in which a spawn goes out without one.
-No kernel, no process.
+directories with their ways, the configured machine paths, its scratch;
+and, from the step of 5.3, the program's configuration directory for the
+program and not for its commands, with the prefix set at each launch. A
+referee fails a world in which a spawn goes out without one. No kernel,
+no process. smith's fake program calls the prefix as the real one does,
+so the adapter is tested here, and the live suite checks only that the
+real program calls it every time (8.5).
 
 ### 8.3 A few end-to-end tests, focused
 
@@ -458,11 +542,13 @@ asks each tree to keep):
 ### 8.4 After landing, one story
 
 In `process-temper`, the cluster's processes with smith's fake program,
-whose `Bash` commands try what section 3 fears: the program's login,
-another run's workspace, the git directory, the worker's configuration,
-a signal to the worker. Each is refused, and a small build in the
-workspace still works. The milestone that adds it writes and compiles
-it; it runs after landing, as every slow tier does.
+whose `Bash` commands try what section 3 fears: another run's
+workspace, the host's git directory, the worker's configuration, a
+signal to the worker. Each is refused, and in the workspace a small
+Cargo build, a commit and the run's own git still work. The step of 5.3
+adds the program's login, through a command and through a link read by
+a file tool. Each milestone writes and compiles its part; it runs after
+landing, as every slow tier does.
 
 ### 8.5 Live, by choice
 
@@ -480,16 +566,21 @@ draft finds it cheap.
 
 ## 10. Open questions
 
-- **10.1 The program's login** (5.3): the pick is a narrower domain
-  through the program's command prefix, if it wraps every command,
-  background ones included. The live suite checks it (8.5).
-- **10.2 Caches** (6.4): shared writable caches between a worker's runs
-  named and allowed in the first step, or per workstream from the start.
-  Default: named and allowed, recorded as a gap.
+- **10.1 The program's login** (5.3): the pick is both routes closed,
+  commands narrowed through the program's command prefix and its file
+  tools served by smith, if the prefix wraps every command, background
+  ones included (the live suite checks it, 8.5). It costs the model its
+  own file tools; the relayed login, which costs it nothing, follows if
+  the program runs on one.
+- **10.2 Caches** (6.4): read-only or per workstream by default, or a
+  shared writable cache from the start, as a compile cache is today.
+  Default: per workstream; a shared one only by the configuration's
+  name, recorded in each run's start event as a gap.
 - **10.3 Who applies the domain** (6.1): skein's helper at the spawn, or
   the agent itself at its start. Default: the helper.
-- **10.4 A machine that cannot restrict** (6.5): refuse runs with
-  commands, or run them unconfined when the configuration says so.
+- **10.4 A machine that cannot restrict** (6.5): refuse the runs that
+  rely on the fence, or run them unconfined when the configuration says
+  so.
   Default: refuse, unless the configuration says so.
 - **10.5 The order after files:** the network (5.4) before the cgroup
   (5.5), since leaving data out is the larger harm. Default: so.
