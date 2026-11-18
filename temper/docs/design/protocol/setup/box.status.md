@@ -2,6 +2,7 @@
 
 2026-11-15. Where the tree's code lags or departs from [box.md](box.md).
 
+- **Not yet:** 5, *A fixed start*: no `--fixed-start` [in flight: change 7720].
 
 - **Departs:** 5: a malformed `TEMPER_INTERNAL_FAKE_BOX_PORTS` refuses even a
   retained sandbox, where the section says it keeps its ports whatever

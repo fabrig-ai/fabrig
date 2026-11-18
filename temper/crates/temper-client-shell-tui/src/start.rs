@@ -1,4 +1,5 @@
 //! The TUI's arguments and start (temper/docs/design/client/tui/README.md, 1 and 2).
+//! Fixed starts follow temper/docs/design/client/journey-clock.md, 4.3.
 use crate::{
     limits,
     run::{Front, Run, Settings},
@@ -8,7 +9,7 @@ use skein_io::{
     kernel::{Exit, Fd},
 };
 use skein_lib::Duration;
-use skein_shell::{Clock, Config, Host, Input, Kernel, Keys, Watch};
+use skein_shell::{Clock, Config, FixedStart, Host, Input, Kernel, Keys, Watch};
 use skein_ui_screen_terminal::{Depth, LEAVE};
 use std::{
     net::SocketAddr,
@@ -27,6 +28,7 @@ pub enum Refused {
     NotAnAddress(Box<[u8]>),
     Link,
     NotLoopback,
+    FixedStart,
     Directory(String),
 }
 impl Refused {
@@ -42,6 +44,7 @@ impl Refused {
             Self::NotAnAddress(argument) => format!("not an address: {}", String::from_utf8_lossy(argument)),
             Self::Link => format!("a sign-in link is never an argument: run {name} http://HOST:PORT and paste it"),
             Self::NotLoopback => "the engine's address must be on loopback".into(),
+            Self::FixedStart => "TEMPER_INTERNAL_FIXED_START: expected SECONDS,SEED".into(),
             Self::Directory(why) => why.clone(),
         }
     }
@@ -73,6 +76,22 @@ pub fn directory(environment: &[EnvironmentEntry]) -> Result<PathBuf, Refused> {
 #[must_use]
 pub fn recording(environment: &[EnvironmentEntry]) -> bool {
     temper_shell::environment::INTERNAL_RECORD.value(environment).is_some()
+}
+
+/// Read a walk's start only at a loopback engine (journey-clock.md, 4.3).
+/// # Errors
+/// Refuses a nonempty value that is not a fixed start, naming its variable.
+pub fn fixed_start(environment: &[EnvironmentEntry], engine: SocketAddr) -> Result<Option<FixedStart>, Refused> {
+    if engine.ip() != std::net::Ipv4Addr::LOCALHOST && engine.ip() != std::net::Ipv6Addr::LOCALHOST {
+        return Ok(None);
+    }
+    let Some(value) = temper_shell::environment::INTERNAL_FIXED_START.value(environment) else { return Ok(None) };
+    FixedStart::read(value).map(Some).ok_or(Refused::FixedStart)
+}
+
+// Keep a walk's seed and its loop clock together at startup.
+fn fixed_run(start: &FixedStart) -> (u64, Clock) {
+    (start.seed, Clock::fixed(start))
 }
 
 #[must_use]
@@ -299,6 +318,9 @@ fn start(
         let engine = selected_address(given, if given.is_none() { bytes } else { None }, saved);
         (engine, on_box(bytes, engine))
     };
+    let fixed = if front.is_none() { fixed_start(environment, engine)? } else { None };
+    let fixed = fixed.as_ref().map(fixed_run);
+    let run_clock = fixed.as_ref().map_or(clock, |(_, clock)| clock);
     let note = read_note(&directory, engine, user);
     let link_file = front.as_ref().map_or(link_file, |front| front.link.clone());
     let scheme = scheme(environment);
@@ -356,7 +378,10 @@ fn start(
                     .is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
             }),
         };
-        let seed = skein_shell::seed().expect("kernel seed");
+        let seed = match &fixed {
+            Some((seed, _)) => *seed,
+            None => skein_shell::seed().expect("kernel seed"),
+        };
         let run = local_run(settings, root, user, seed, signals);
         let kernel = Kernel::open(Config { operations: run.operations() }).expect("TUI kernel");
         Ok((run, kernel, seed, in_front))
@@ -371,9 +396,9 @@ fn start(
     };
     let mut run = run.with_kept(kept);
     let exit = if in_front {
-        drive_front(&mut kernel, clock, &mut run)
+        drive_front(&mut kernel, run_clock, &mut run)
     } else {
-        skein_shell::drive(&mut kernel, clock, &mut run)
+        skein_shell::drive(&mut kernel, run_clock, &mut run)
     };
     skein_fail_stop::before_report(None);
     run.restore_terminal();
@@ -429,10 +454,11 @@ fn drive_front(kernel: &mut Kernel, clock: &Clock, run: &mut Run) -> Exit {
             assert_eq!(kernel.in_flight(), 0, "a drained run has no kernel operation in flight");
             return run.exit().expect("a drained run's exit");
         }
+        let deadline = clock.until(run.next_deadline());
         let wait = if run.work_pending(now) {
             skein_shell::Wait::No
         } else {
-            run.next_deadline().map_or(skein_shell::Wait::Forever, skein_shell::Wait::Until)
+            deadline.map_or(skein_shell::Wait::Forever, skein_shell::Wait::Until)
         };
         kernel.submit(run.submissions(), wait);
     }

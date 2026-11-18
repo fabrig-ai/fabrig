@@ -1,4 +1,37 @@
 #[test]
+fn fixed_start_seeds_use_independent_repeatable_draws_and_keep_box_secrets() {
+    let start = skein_shell::FixedStart::read(b"1767690000,7").expect("canonical start");
+    let make = || {
+        super::seeds_from(
+            &start,
+            Some(skein_lib::Secret::new(Box::new([11; 32]))),
+            Some(skein_lib::Secret::new(Box::new([12; 32]))),
+        )
+    };
+    let seeds = make();
+    let again = make();
+    assert_eq!(seeds.seed, 7);
+    assert_eq!(again.seed, seeds.seed);
+    let mut crypto = [0; 32];
+    let mut deployment = [0; 32];
+    let mut installation = [0; 32];
+    start.draw(1, &mut crypto);
+    start.draw(2, &mut deployment);
+    start.draw(3, &mut installation);
+    assert_eq!(seeds.crypto.expose(), crypto);
+    assert_eq!(seeds.deployment, deployment[..16]);
+    assert_eq!(seeds.installation, installation[..16]);
+    assert_eq!(again.crypto.expose(), seeds.crypto.expose());
+    assert_eq!(again.deployment, seeds.deployment);
+    assert_eq!(again.installation, seeds.installation);
+    assert_ne!(seeds.deployment, seeds.installation);
+    assert_ne!(&seeds.crypto.expose()[..16], seeds.deployment);
+    assert_ne!(&seeds.crypto.expose()[..16], seeds.installation);
+    assert_eq!(seeds.link_secret.expect("box link").expose(), &[11; 32]);
+    assert_eq!(seeds.local_secret.expect("box local").expose(), &[12; 32]);
+}
+
+#[test]
 fn github_defaults_are_unresolved_in_resolution_order() {
     let roots = super::trust(None).expect("machine roots");
     let runtime = super::github_runtime(None, &roots).expect("unresolved default");

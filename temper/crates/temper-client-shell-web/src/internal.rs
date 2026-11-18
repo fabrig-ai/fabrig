@@ -1,13 +1,27 @@
 //! The page's internal settings and recording meta (client/web/README.md, 2.1).
+//! Fixed starts follow temper/docs/design/client/journey-clock.md, 4.2.
+use skein_lib::{FixedClock, FixedStart};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Internal {
     pub record: bool,
     pub small_window: bool,
     pub loopback_navigation: bool,
+    pub fixed_start: Option<FixedStart>,
 }
 
 impl Internal {
+    /// Substitute the start's facts, retaining the platform's native reading for its clock.
+    pub(crate) fn start(self, facts: &mut skein_ui_web::platform::Facts) -> Option<FixedClock> {
+        let start = self.fixed_start?;
+        let clock = FixedClock::new(&start, facts.now);
+        facts.seed = start.seed;
+        facts.now = FixedStart::NOW;
+        facts.wall = start.wall;
+        facts.offset = 0;
+        Some(clock)
+    }
+
     pub(crate) fn recording(self, meta_content: Option<&str>) -> bool {
         self.record || record_meta(meta_content)
     }
@@ -25,6 +39,11 @@ pub(crate) fn internal(host: &str, address: &str) -> (Internal, String) {
     for parameter in query.split('&') {
         let (name, value) = parameter.split_once('=').unwrap_or((parameter, ""));
         let (setting, permitted) = match name {
+            "internal-fixed-start" => {
+                settings.fixed_start = if loopback { FixedStart::read(value.as_bytes()) } else { None };
+                removed = true;
+                continue;
+            }
             "internal-record" => (&mut settings.record, true),
             "internal-small-window" => (&mut settings.small_window, loopback),
             "internal-loopback-navigation" => (&mut settings.loopback_navigation, loopback),
@@ -60,6 +79,31 @@ pub(crate) fn record_meta(content: Option<&str>) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{Internal, internal, record_meta};
+
+    #[test]
+    fn fixed_start_is_loopback_only_and_always_removed() {
+        let start = skein_lib::FixedStart { wall: skein_lib::Wall::from_nanos(1_767_690_000_000_000_000), seed: 7 };
+        for (host, query, expected) in [
+            ("127.0.0.1", "internal-fixed-start=1767690000,7", Some(start)),
+            ("[::1]", "internal-fixed-start=1767690000,7", Some(start)),
+            ("example.com", "internal-fixed-start=1767690000,7", None),
+            ("localhost", "internal-fixed-start=1767690000,7", None),
+            ("127.0.0.1.evil", "internal-fixed-start=1767690000,7", None),
+            ("127.0.0.1", "internal-fixed-start=bad", None),
+            ("127.0.0.1", "internal-fixed-start=01767690000,7", None),
+            ("127.0.0.1", "internal-fixed-start=18446744073709551615,7", None),
+            ("127.0.0.1", "internal-fixed-start=", None),
+            ("127.0.0.1", "internal-fixed-start", None),
+            ("127.0.0.1", "internal-fixed-start=bad&internal-fixed-start=1767690000,7", Some(start)),
+            ("127.0.0.1", "internal-fixed-start=1767690000,7&internal-fixed-start=bad", None),
+        ] {
+            let address = format!("/welcome?z=%20&{query}&internal-record=1&a=2&a=1#part");
+            let (settings, cleaned) = internal(host, &address);
+            assert_eq!(settings.fixed_start, expected, "{host}: {query}");
+            assert!(settings.record);
+            assert_eq!(cleaned, "/welcome?z=%20&a=2&a=1#part");
+        }
+    }
 
     #[test]
     fn only_on_meta_enables_recording() {
@@ -132,7 +176,7 @@ mod tests {
             ("[::1]", "/welcome#part?internal-record=1", [false; 3], "/welcome#part?internal-record=1"),
         ];
         for (host, address, [record, small_window, loopback_navigation], cleaned) in rows {
-            let expected = Internal { record, small_window, loopback_navigation };
+            let expected = Internal { record, small_window, loopback_navigation, ..Internal::default() };
             assert_eq!(internal(host, address), (expected, cleaned.to_owned()), "{host}: {address}");
             assert_eq!(internal(host, cleaned), (Internal::default(), cleaned.to_owned()), "cleaned: {cleaned}");
         }

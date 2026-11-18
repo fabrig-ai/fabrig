@@ -668,6 +668,36 @@ cannot manufacture independent room.
   since a copy would yield its bytes again: its owner lends it by `&mut`,
   and a component that keeps a generator of its own is made one, from the
   seed, on a stream of its own.
+- **`FixedStart`** is the instant and seed a process starts from when a
+  tool walks it on fixed time, so that two walks read the same times and
+  draw the same values: `pub struct FixedStart { pub wall: Wall, pub
+  seed: u64 }`. Its text is the wall's whole seconds since the epoch in
+  decimal, a comma and the seed in decimal, `1767690000,7`, with no sign,
+  space or other byte and no leading zero but in `0` itself;
+  `FixedStart::read(text: &[u8]) -> Option<FixedStart>` reads it, and
+  refuses a number past its type, the seconds past `Wall` once made
+  nanoseconds. `FixedStart::NOW: Time` is one hour, 3,600 seconds: the
+  monotonic reading every process on a fixed start starts at.
+  `draw(&self, stream: u64, out: &mut [u8])` fills `out` from a
+  `CryptoRng` keyed by the seed's eight little-endian bytes and 24 zero
+  bytes, on `stream`: what the process would have drawn from the kernel
+  at its start, a cryptographic seed or an identifier, one stream for
+  each. Its draws are known to anyone who knows the start, so nothing
+  that guards a real account starts from one.
+- **`FixedClock`** is the clock of a process on a fixed start, over the
+  host's monotonic readings, `native`, that its caller gives: it reads
+  the start's `NOW` and wall, and moves only to the deadlines it is asked
+  for, so that a process's time is its own timers'. `FixedClock::new(start:
+  &FixedStart, native: Time) -> FixedClock`; `until(&mut self, deadline:
+  Option<Time>, native: Time) -> Option<Time>` keeps the deadline asked
+  and gives the native instant to wait until for it: `native` plus the
+  deadline less the clock's reading, saturating, the instant given when
+  that deadline was first asked if it is asked again unchanged, and
+  `None` for none, which forgets it; `read(&mut self, native: Time) ->
+  (Time, Wall)` moves the clock to the deadline asked once `native` has
+  reached its instant, then gives the clock's reading and its wall, the
+  start's wall plus the span from `NOW`. It never moves back, and a
+  deadline at or before its reading leaves it where it is.
 
 ## 9. The environment
 

@@ -10,6 +10,7 @@ pub enum Line {
     Journey { version: u32 },
     Seed(u64),
     Clocks { now: Time, wall: Wall },
+    Fixed,
     Primary(Primary),
     Zone(i32),
     Ways { content: Box<[u8]>, origin: Box<[u8]> },
@@ -123,7 +124,9 @@ impl Line {
                 w.bytes(key);
                 w.bytes(value);
             }
-            Self::Start | Self::Due | Self::Close | Self::TabClose | Self::TabRefused => w.word(self.kind().as_bytes()),
+            Self::Fixed | Self::Start | Self::Due | Self::Close | Self::TabClose | Self::TabRefused => {
+                w.word(self.kind().as_bytes());
+            }
             Self::Heard(heard) => {
                 w.word(b"heard");
                 w.heard(heard);
@@ -185,6 +188,7 @@ impl Line {
             Self::Journey { .. } => "journey",
             Self::Seed(_) => "seed",
             Self::Clocks { .. } => "clocks",
+            Self::Fixed => "fixed",
             Self::Primary(_) => "primary",
             Self::Zone(_) => "zone",
             Self::Ways { .. } => "ways",
@@ -491,6 +495,7 @@ fn read(line: &[u8]) -> Result<Line, &'static str> {
             Line::Zone(minutes)
         }
         b"clocks" => Line::Clocks { now: Time::from_nanos(r.number()?), wall: Wall::from_nanos(r.number()?) },
+        b"fixed" => Line::Fixed,
         b"turn" => Line::Turn { now: Time::from_nanos(r.number()?), wall: Wall::from_nanos(r.number()?) },
         b"primary" => Line::Primary(match r.word()?.as_ref() {
             b"control" => Primary::Control,
@@ -602,6 +607,7 @@ impl Clone for Line {
             Self::Journey { version } => Self::Journey { version: *version },
             Self::Seed(value) => Self::Seed(*value),
             Self::Clocks { now, wall } => Self::Clocks { now: *now, wall: *wall },
+            Self::Fixed => Self::Fixed,
             Self::Primary(value) => Self::Primary(*value),
             Self::Zone(value) => Self::Zone(*value),
             Self::Ways { content, origin } => Self::Ways { content: content.clone(), origin: origin.clone() },

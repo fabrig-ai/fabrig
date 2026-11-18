@@ -71,7 +71,7 @@ fn welcome_steps_name_only_the_four_held_peers_and_share_the_seed() {
     let (_, _, peers) = fixture();
     assert_eq!(SEED, 7);
     for config in [b"/effective/config".as_slice(), b"/effective/config/"] {
-        let given = steps(config, b"/effective/data/", &peers, None, false);
+        let given = steps(config, b"/effective/data/", &peers, None, false, None);
         assert_eq!(given.len(), 4);
         for (step, name, command, document, listen) in [
             (

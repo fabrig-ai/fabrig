@@ -189,6 +189,7 @@ comment, no blank.
 | `journey` | `2`, the format's version | the first line |
 | `seed` | the platform's seed | the start's facts, in this order |
 | `clocks` | now and wall, in nanoseconds | |
+| `fixed` | none | on a fixed start (`../journey-clock.md`, 4.2) |
 | `primary` | `control` or `meta` | |
 | `ways` | the `temper-sign-in` meta's content, the page's origin | when the page has the meta |
 | `forge` | a `temper-forge-sign-in` meta's content | one per meta, in order |
@@ -690,22 +691,21 @@ reprint carries, since its acts are events, not controls.
   journey is walked anew in a browser on a fresh fake box (3.5), from
   its `../README.md` and the change that moved it, then added (`add NAME
   FILE`). The README changes with it, and its new pages are read as new.
-- **Two walks' prints** are the same bytes but where a page draws a
-  time; their recordings differ in clocks and seed
-  (`../journey-placeholders.md`, 2.4).
+- **`again`'s walks** match but where real processes decide
+  (`../journey-clock.md`, 5).
 
 ### 8.1 Again
 
 `again --prepared DIR NAME` uses prebuilt `temper-box`, `fake-claude`,
 `temper-client` for TUI, and `bundle/index.html` in DIR. It builds nothing
 and creates its fresh private scratch directory beneath DIR. An optional
-`cache` subdirectory supplies pinned downloads. Without this
-option, the recorder builds its inputs in a fresh private scratch
-directory of its own, `temper-journey-PID-N`, under the platform's
+`cache` subdirectory supplies pinned downloads. Without it, the
+recorder builds its inputs in a fresh private scratch
+directory, `temper-journey-PID-N`, under the platform's
 temporary directory: Rust's `std::env::temp_dir()`, which is `TMPDIR`
 where that is set. Nothing in the recorder names `/tmp`, so a host
 whose `/tmp` is held in memory points `TMPDIR` elsewhere; its tests
-take the same temporary directory, each under a directory of its own.
+take the same temporary directory, each in its own directory.
 
 `cargo run -p temper-client-journeys -- again NAME`, in
 `crates/temper-client-journeys-tool`. Its walk's logic is the journey module's,
@@ -722,15 +722,16 @@ over skein's harness.
   walk. It keeps no print mark before it, as an `input` keeps none, but
   still counts as a report when deciding whether the page is still or a
   key's mark caught it moving. Replay gives it as recorded (section 4). A
-  `drawing` act is no person's to give, and a key's mark that caught the
-  page moving (a report other than a due within half a second after it)
+  `drawing` act is no person's to give, and, without `fixed` (3.2), a
+  key's mark that caught the page moving (a report but a due within half
+  a second after it)
   is no state a still page shows: such a journey is refused before
   anything starts, and walked anew.
-- **A fresh fake box** (3.5): `temper box --fake-backends`, built from
+- **A fresh fake box** (3.5) on `again`'s fixed start
+  (`../journey-clock.md`, 4.4): `temper box --fake-backends`, built from
   the checkout with the bundle (`scripts/bundle.sh`), its printed link
   opened with the page's recording settings (3.1), running a copy of the built binary and its fake-claude,
-  every directory fresh in that scratch directory;
-  its printed sign-in link opened.
+  every directory fresh in the scratch one.
 - **Headless Chromium, as the browser tier drives it** (`testing.md`
   ): skein's browser kit through the fake person's browser face and
   harness (skein's `ui/web/testing.md`, 2), Chromium from

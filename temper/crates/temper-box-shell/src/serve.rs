@@ -1,4 +1,6 @@
 //! The standalone start, composed from the engine and worker shells (protocol/services.md, 7).
+//! Fixed starts follow temper/docs/design/protocol/setup/box.md, 5 and
+//! temper/docs/design/client/journey-clock.md, 4.1.
 use crate::{Service, path, prefixed, program_login, setup};
 use skein_io::kernel::{Exit, Fd};
 use skein_lib::{List, Secret};
@@ -43,6 +45,7 @@ pub fn prepare_with_store(
         None,
         sizing,
         &[],
+        None,
     )
     .map(|(service, store, _)| (service, store))
 }
@@ -66,6 +69,7 @@ fn prepare_with_limits(
     program: Option<&std::path::Path>,
     sizing: bool,
     projects: &[jig_protocol_config::Project],
+    fixed_start: Option<&skein_shell::FixedStart>,
 ) -> Result<(Service, Box<[u8]>, u32), String> {
     if service::startup::shape_with(bytes, &jig_directories(directories), given)
         .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?
@@ -130,7 +134,10 @@ fn prepare_with_limits(
         None
     };
     let accounts = engine::accounts(&engine)?;
-    let seeds = engine::seeds(link_secret, local_secret)?;
+    let seeds = match fixed_start {
+        Some(start) => engine::seeds_from(start, link_secret, local_secret),
+        None => engine::seeds(link_secret, local_secret)?,
+    };
     let git = temper_shell::lookup::find(environment, b"git");
     let mut start = service::startup::checked_start_with_worker(
         bytes,
@@ -402,6 +409,7 @@ pub fn prepare_in_with_inputs(
         program,
         false,
         projects,
+        None,
     )
     .map(|(service, _, _)| service);
     if result.is_err() {
@@ -428,12 +436,14 @@ pub fn run(
     directories: &Directories,
     boxed: bool,
     record: bool,
+    fixed_start: Option<&skein_shell::FixedStart>,
 ) -> Result<Exit, String> {
     temper_service_shell::run(
         binary,
         directories,
         environment,
         crate::served::SERVED,
+        &fixed_start.map_or_else(skein_shell::Clock::new, skein_shell::Clock::fixed),
         |listeners| box_inputs(boxed, listeners),
         |bytes, owned, input| {
             prepare_with_limits(
@@ -451,6 +461,7 @@ pub fn run(
                 None,
                 false,
                 &[],
+                fixed_start,
             )
             .map(|(service, store, line_bytes)| temper_service_shell::Prepared {
                 service,

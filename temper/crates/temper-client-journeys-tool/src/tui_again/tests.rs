@@ -23,6 +23,16 @@ fn walker_paths(scratch: &Path) -> Paths {
 }
 
 #[test]
+fn the_tui_box_restart_and_page_share_the_walk_start() {
+    let paths = walker_paths(Path::new("/scratch"));
+    let setup = crate::again::box_setup(&paths, "/env".into(), &[], None);
+    let expected: Vec<OsString> = ["--fake-backends", "--fixed-start", "1767690000,7"].map(Into::into).into();
+    assert!(setup.args.windows(expected.len()).any(|args| args == expected));
+    assert_eq!(setup.restart, setup.args);
+    assert_eq!(crate::again::page_query(false), b"internal-loopback-navigation=1&internal-fixed-start=1767690000,7");
+}
+
+#[test]
 fn a_setup_timeout_reports_the_browser_before_the_terminal_starts() {
     use skein_browser::boundary::{Event, Request};
     use skein_lib::Token;
@@ -147,7 +157,9 @@ fn a_tui_setup_is_read_whole_before_any_build_or_child() {
     assert!(matches!(walker.phase, Phase::Load));
     assert_eq!(
         walker.progress(&mut face, Time::ZERO).expect("reload after setup"),
-        Next::Do(Doing::Go { address: b"/child?internal-loopback-navigation=1".as_slice().into() })
+        Next::Do(Doing::Go {
+            address: b"/child?internal-loopback-navigation=1&internal-fixed-start=1767690000,7".as_slice().into()
+        })
     );
     assert!(matches!(walker.phase, Phase::Opening));
     assert!(walker.terminal.is_none(), "reload precedes the TUI");
@@ -236,6 +248,7 @@ fn tui_environment_keeps_the_opener_inside_the_scratch_directory() {
             ("COLORFGBG", "0;15"),
             ("TERM", "dumb"),
             ("TEMPER_INTERNAL_RECORD", ""),
+            ("TEMPER_INTERNAL_FIXED_START", "0,99"),
             ("SSH_CONNECTION", "remote"),
             ("SSH_TTY", "tty"),
             ("SSH_AUTH_SOCK", "agent"),
@@ -257,6 +270,7 @@ fn tui_environment_keeps_the_opener_inside_the_scratch_directory() {
             ("XDG_RUNTIME_DIR", scratch.join("tui-runtime").into_os_string()),
             ("TERM", "xterm-256color".into()),
             ("TEMPER_INTERNAL_RECORD", "1".into()),
+            ("TEMPER_INTERNAL_FIXED_START", "1767690000,7".into()),
             ("DISPLAY", display.unwrap_or(":0").into()),
             ("LANG", "C.UTF-8".into()),
         ] {

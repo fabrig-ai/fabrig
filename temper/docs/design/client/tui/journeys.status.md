@@ -6,6 +6,8 @@
   change 3431].
 - **Not yet:** 3.2: no start facts `set-up` and `box-log` [in flight:
   change 3434].
+- **Not yet:** 8.2: `again` gives the box, the page and the TUI no fixed
+  start [in flight: change 7722].
 
 - **Departs:** 3.2: the committed recordings' `screen` says `dark`, the
   run's fallback when they were recorded, where `again`, in a

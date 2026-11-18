@@ -23,7 +23,7 @@ pub enum Unwalkable {
 /// # Errors
 /// Refuses unreadable recordings, drawings and key marks caught moving.
 pub fn walk(recording: &[u8]) -> Result<Vec<Step>, Unwalkable> {
-    let (lines, _, _) = read(recording).map_err(Unwalkable::Unreadable)?;
+    let (lines, facts, _) = read(recording).map_err(Unwalkable::Unreadable)?;
     let mut steps = Vec::new();
     for (at, line) in lines.iter().enumerate() {
         let step = number(steps.len());
@@ -37,7 +37,7 @@ pub fn walk(recording: &[u8]) -> Result<Vec<Step>, Unwalkable> {
             steps.push(Step::Act { act: clone_act(act), event: event.clone() });
         } else if matches!(line, Line::Mark(_)) && matches!(lines.get(at + 1), Some(Line::Deadline(_))) {
             if let Some(Line::Turn { now, .. }) = at.checked_sub(1).and_then(|at| lines.get(at)) {
-                if moving(&lines[at + 2..], *now) {
+                if !facts.fixed && moving(&lines[at + 2..], *now) {
                     return Err(Unwalkable::Moving { step });
                 }
                 steps.push(Step::Mark);
