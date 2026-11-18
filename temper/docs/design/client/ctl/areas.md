@@ -101,8 +101,12 @@ The table grows area by area, each with its stories (`testing.md`).
      | `--to-party PARTY` \| `--to-role ROLE` | a person task's address: party PARTY, or the project's role ROLE, at the person revision the tool's read shows |
 
      FILE is a path, or `-` for stdin, used once, as TEXT is. The form's
-     positions keep their numbers: `--to-party` and `--to-role` are its
-     last two, after `--tasks`.
+     positions keep their numbers: `--to-party` and `--to-role` follow
+     `--tasks`, and `--budget` is its last, after `--to-role`; the help's
+     synopsis names `[--budget AMOUNT]` before `[--tasks N]`, as the
+     table does. Its line in `help`: `--budget AMOUNT: an amount with at
+     most two decimals, as 130 or 1.25; optional. Its budget, as task
+     show prints it; the rest of its authority kept`.
    - **A budget or tasks raised is a widening,** funded by the party who
      gives it, who becomes the task's funder (jig's `domain/authority.md`,
      section 7, "Whoever widens a task funds it"): from their role's pool,
@@ -110,7 +114,11 @@ The table grows area by area, each with its stories (`testing.md`).
      the next bullets say. It is the way out a hold for a task's own
      budget or tasks names (jig's `domain/tasks/lifecycle.md`, 6; `../../domain/forge/change/repairs.md`
      ): `task amend 41 --rev 8 --budget 20 "room for its review"`,
-     then `task release 41 --hold 3`; for tasks, the hold prints
+     then `task release 41 --hold 3`. `--budget 20` restates the task's
+     authority with spend 2,000 units, which `task show` then prints `of
+     20.00`; JSON's `budget` names spend units, as `goal start`'s does;
+     `--budget 1.005` is usage, nothing sent. A budget lower than the
+     task's is a narrowing, sent as any narrowing is. For tasks, the hold prints
      `task amend 41 --rev 8 --tasks N REASON`, then the release. N is
      a replacement lifetime allowance with room for a repair and review;
      release never erases tasks already made. A hold whose lack the task's
@@ -171,7 +179,7 @@ The table grows area by area, each with its stories (`testing.md`).
      tasks restates the task's authority, a spec's words its spec. Where the document cut
      it to the client's bounds, the tool sends nothing and exits 1,
      `temper ctl: task 41's authority is cut in this read; amend its
-     deadline or tasks from a client with wider bounds` (or `spec`, `words`).
+     deadline, budget or tasks from a client with wider bounds` (or `spec`, `words`).
    - **Beyond the party's bounds,** an amendment follows `tools.md`, 3, compared
      by jig's admission for the task's offered `amend` act: within,
      sent; past what the party holds but proposable, a deadline later
