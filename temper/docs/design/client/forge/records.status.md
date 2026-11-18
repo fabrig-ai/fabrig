@@ -1,6 +1,8 @@
 # records: status
 
-2026-11-17. Where the tree's code lags or departs from [records.md](records.md).
+2026-11-18. Where the tree's code lags or departs from [records.md](records.md).
+
+- **Not yet:** *What changed since the person last looked, the subject `status`*: `ProjectStatus` has no `unpaid`, at the client wire's version 35 [in flight: change 8156].
 
 
 

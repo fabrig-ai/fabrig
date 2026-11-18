@@ -1,6 +1,8 @@
 # process-tier: status
 
-2026-11-17. Where the tree's code lags or departs from [process-tier.md](process-tier.md).
+2026-11-18. Where the tree's code lags or departs from [process-tier.md](process-tier.md).
+
+- **Not yet:** *Home's brief on a person's plan*: its run is funded from the project's period, not the person's pool [in flight: change 8155].
 
 
 

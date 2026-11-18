@@ -2,6 +2,8 @@
 
 2026-11-18. Where the tree's code lags or departs from [home.md](home.md).
 
+- **Not yet:** 1, *where nothing pays*: Home draws nothing where the person's run found nothing to pay for it [in flight: change 8156].
+
 - **Not yet:** 1, *the headline*, *Needs you*'s head and Home on All projects' *the headline*: they count the open cards of the inbox's first window, and a project's needs' read is never cut [in flight: change 7583].
 
 - **Not yet:** 1, *In the TUI*: given `boundary::Event::Launchpad`, Home holds none of the launchpad's reads across projects [in flight: change 783].

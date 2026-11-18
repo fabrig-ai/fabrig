@@ -1,6 +1,8 @@
 # store: status
 
-2026-11-17. Where temper's code lags or departs from [store.md](store.md).
+2026-11-18. Where temper's code lags or departs from [store.md](store.md).
+
+- **Not yet:** 2 and 3: family 50, `PersonBrief`, value type 50, neither kept nor registered; family 36's `ProjectFacts` still holds `brief` and `running` [in flight: change 8152].
 
 
 

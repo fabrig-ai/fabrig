@@ -1,6 +1,9 @@
 # attention: status
 
-2026-11-16. Where the tree's code lags or departs from [attention.md](attention.md).
+2026-11-18. Where the tree's code lags or departs from [attention.md](attention.md).
+
+- **Not yet:** 2 and 3, *Kept per person*, *In flight*, *When*, *Heard*, *Upgrading*: the brief and its run are the project's `ProjectFacts`', one a project, not a `PersonBrief` a party; `StatusRun`, `StatusTask` and `StatusRefused` name no party; no `unpaid`, and the document's brief is the project's [in flight: change 8152].
+- **Not yet:** 3, *Made*, *What funds it*, *When nothing pays*: the run is made on `repair_seed`, funded from the project's period with the project its payer, and an agent waiting with no account waits for good [in flight: change 8155].
 
 
 
