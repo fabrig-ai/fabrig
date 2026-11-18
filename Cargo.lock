@@ -5597,6 +5597,8 @@ dependencies = [
  "skein-tls",
  "skein-tls-kit",
  "skein-ui",
+ "skein-ui-screen",
+ "skein-ui-screen-terminal",
  "skein-world",
  "smith-host-domain",
  "temper-box-shell",

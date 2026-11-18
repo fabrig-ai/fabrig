@@ -133,6 +133,7 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "temper-engine-service-vocabulary::figures" = "step" # Named application limits round trips.
 "temper-agent::suite" = "end-to-end" # Shipped agent's command-line boundary.
 "temper-box-kit::parent" = "real-loop" # step and real-loop: observe() cases and real /bin/cat process identities.
+"temper-box-kit::screen" = "step" # Terminal cell reader on renderer output, without io.
 "temper-box-machine::real_loop" = "real-loop" # Box service and hosted children on one real ring.
 "temper-box::live" = "end-to-end"
 "temper-box::live_github" = "end-to-end"

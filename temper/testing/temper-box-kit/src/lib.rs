@@ -20,6 +20,7 @@ pub mod github_land;
 pub mod held_login;
 pub mod landing_by_turn;
 pub mod owned;
+pub mod screen;
 pub mod socket;
 pub mod terminal;
 pub mod turn_restart;
