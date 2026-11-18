@@ -409,7 +409,7 @@ pub fn overlay(current: &Current, defaults: bool, items: &[Item]) -> Box<[Provid
     }
     result.into_boxed()
 }
-fn all(current: &Current, defaults: bool, items: &[Item]) -> Box<[ProviderSetting]> {
+fn all<'a>(current: &'a Current, defaults: bool, items: &'a [Item]) -> List<&'a ProviderSetting> {
     let mut result = List::with_capacity(
         PROVIDERS.saturating_add(u32::try_from(current.fixed_providers.len()).expect("fixed count")),
     );
@@ -428,13 +428,13 @@ fn all(current: &Current, defaults: bool, items: &[Item]) -> Box<[ProviderSettin
         if let Some(value) = value
             && let Some(value) = value.as_provider()
         {
-            result.push(value.clone()).expect("provider count");
+            result.push(value).expect("provider count");
         }
     }
     for value in &current.fixed_providers {
-        result.push(value.clone()).expect("fixed count");
+        result.push(value).expect("fixed count");
     }
-    result.into_boxed()
+    result
 }
 pub fn check_set(current: &Current, defaults: bool, items: &[Item]) -> Result<(), Failure> {
     for value in &current.fixed_providers {
