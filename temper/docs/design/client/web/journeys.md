@@ -752,8 +752,8 @@ fields, each after one space, a word bare, bytes in double quotes.
 | Name | The walk | Its pages |
 |---|---|---|
 | `welcome-set-up` | on a fresh `temper box --fake-backends` (3.5): the printed sign-in link opened, the welcome drawn, "Set up temper" pressed, then Forgejo's "Run on this machine" pressed on the Forge step, which opens Forgejo's sheet, then the sheet's "Run on this machine", an empty repository chosen, which makes the forge and sets it up (`../pages/README.md`) | `01.html` and `02.html`, the welcome, the second as it was when "Set up temper" was pressed, which leads to `03.html` and `04.html`, the Forge step's choices, the second as it was when "Run on this machine" was pressed, which leads to `05.html` and `06.html`, Forgejo's sheet, the second as it was when its "Run on this machine" was pressed, which leads to `07.html`, the Model step, the set up running on as it was when the recording ended; its `../README.md` says so |
-| `welcome-playground` | on a fresh `temper box --fake-backends` (3.5): the printed sign-in link opened, the welcome drawn, "Try the playground" pressed | `01.html`, the welcome as it was when "Try the playground" was pressed, which leads to `02.html`, `NewChat` in the Demo project, the playground started, its banner's one line above its main, as it was when the recording ended; its `../README.md` says so |
-| `project-landing` | on a fresh `temper box --fake-backends` (3.5): its `setup` (8.2): Forgejo run on this machine with an empty `work/hello`, the ChatGPT plan signed in, Ready's offered "Hello" created and its repository adopted; once Home says "work/hello is in Hello", `/projects/1` reloaded, where the recording starts, and the settled Home saved | `01.html`, Home in Hello with the ChatGPT plan, Forgejo, "work/hello is in Hello" and To begin's one step left, "Tell temper how you work", the rail's "Home" and "Ask temper" alone, and the phone's "Home", "Ask" and "Settings" tabs; the recording holds no act; its `../README.md` says so |
+| `welcome-playground` | on a fresh `temper box --fake-backends` (3.5): the printed sign-in link opened, the welcome drawn, "Try the playground" pressed | `01.html`, the welcome as it was when "Try the playground" was pressed, which leads to `02.html`, `NewChat` in the Demo project, the playground started, its banner's one line above its main, as it was when the recording ended; its `../README.md` says so; not recorded until recorded again after page-round-trips' R4 lands |
+| `project-landing` | on a fresh `temper box --fake-backends` (3.5): its `setup` (8.2): Forgejo run on this machine with an empty `work/hello`, the ChatGPT plan signed in, Ready's offered "Hello" created and its repository adopted; once Home says "work/hello is in Hello", `/projects/1` reloaded, where the recording starts, and the settled Home saved | `01.html`, Home in Hello with the ChatGPT plan, Forgejo, "work/hello is in Hello" and To begin's one step left, "Tell temper how you work", the rail's "Home" and "Ask temper" alone, and the phone's "Home", "Ask" and "Settings" tabs; the recording holds no act; its `../README.md` says so; not recorded until recorded again after page-round-trips' R4 lands |
 | `chat-draft` | on a fresh `temper box --fake-backends` (3.5): its `setup` (8.2), `after project-landing`, up to `/projects/1/settings` reloaded, "Chats can write drafts" on as a fresh project has it; then a chat started, Split chosen and the empty pane's "Write it up from this chat" pressed (`../pages/chat/document.md`, 1), two turns of the fake model writing and changing its document (`../../testing/real-loop.md`), Chat, Split, Draft, then "Start goal…" and its goal's page, then its Draft link back to the chat; not recorded until temper/ui walks it anew (10) | a chat in Chat, Split and Draft, the sheet, the goal's page and the return to the chat (`../../domain/agent/agents.md`, 3; `../pages/README.md`) |
 
 A journey recorded on a real box says so in its walk here, as `real`,
@@ -874,6 +874,15 @@ walks no journey anew (`look-requests.md`, 3; the user, 2026-11-12):
 `chat-bar`'s landing removes `chat-draft`'s recording and prints, and
 temper/ui walks it anew after landing, as section 9's table has it
 (section 10).
+
+Milestone R4 of `../../draft/page-round-trips.md` holds Work to its budget,
+which changes which requests the pages send and when (`../README.md`, 3.4;
+`../pages/work.md`, 1, *Its budget*): `welcome-playground`'s and
+`project-landing`'s recorded exchanges go stale (4.2), and the box their
+`again` needs could not be set up where R4 was built. R4's landing removes
+their recordings and prints, keeping `project-landing`'s `setup` (8.2) and
+each journey's `README.md`; the reprint holds only what is still recorded. Each is recorded again with `again NAME` (8.1) after
+R4 lands, as section 9's table has it.
 
 The `forge-steps` request's hand-made `forge-steps/fetching-before.html`,
 `fetching-after.html`, `preparing-before.html` and `preparing-after.html`
