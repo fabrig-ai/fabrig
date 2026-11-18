@@ -98,8 +98,9 @@ impl core::fmt::Debug for SourceSettings {
 fn agent(configuration: &Path) -> Result<AgentStart, String> {
     let configuration = smith_agent_shell::config::read(configuration)?;
     let limits = &configuration.service.limits;
-    let host_limits = smith_local_service::profile::host_limits(&configuration.profile, limits)
-        .map_err(|why| format!("agent host: {why:?}"))?;
+    let host_limits =
+        smith_local_service::profile::host_limits(&configuration.profile, limits, &configuration.service.domain.limits)
+            .map_err(|why| format!("agent host: {why:?}"))?;
     let channel = limits.channel;
     let mut protocol = smith_host_protocol::Limits {
         bodies: channel.bodies,
