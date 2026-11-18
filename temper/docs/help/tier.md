@@ -66,7 +66,8 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
 
 - **A change lives to cleared:** landed, then verifying, until every
   tier following its branch has cleared its landing, and its result
-  comes then (temper help change).
+  comes then (temper help change). Under `"wait": "landed"` in kind 4,
+  a change ends at its landing and its tiers judge it later.
 - **Bounded:** past the project's verification bound, two hours unless
   set, with no verdict, the change ends landed and uncleared, saying
   so; a later verdict still counts on the tier.
@@ -140,7 +141,8 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
   Edit only that setting in `CONFIG/temper.json`, then restart
   `temper box --config CONFIG --data DATA --cache CACHE` with the same
   directories. Prepared runners keep their registration and secrets.
-- **ctl:** `change show TASK --until cleared` waits for `cleared` or
+- **ctl:** use `change show TASK --until landed` for such a change
+  ending at landing. `change show TASK --until cleared` waits for `cleared` or
   ended landed and uncleared; `verifying` and `red` remain pending.
   Inspect the verdict with `change show TASK`; use `--until changed`
   for panel updates.
@@ -161,5 +163,5 @@ For the configuration members that need a restart, read `temper help configurati
   at most 16 failing tests, each id at most 256 bytes; past them its
   failures are many, blamed by landing alone.
 - A tier follows one branch: following two takes two tiers.
-- temper posts no verdict to the forge, and a red whose goal has
-  ended, or of a landing temper did not make, reaches no one.
+- Under `"wait": "landed"`, main's red reaches no goal; it is filed
+  once as a project finding. Goal-branch tiers still tell their goals.

@@ -506,6 +506,29 @@ fn probe_effects_name_their_commit_resource_and_purpose() {
 }
 
 #[test]
+fn a_completed_verdict_names_the_first_logged_member_without_verification() {
+    let mut d = one();
+    let mut change = fixtures::opening_row();
+    change.repository = REPO;
+    change.base = b"main".as_slice().into();
+    let task = change.task;
+    outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(change)) });
+    landing_log::landed(&mut d, env().wall, NEXT_TIP, task, Box::new([]), &mut Queue::uncapped());
+    let mut second = fixtures::opening_row();
+    second.repository = REPO;
+    second.base = b"main".as_slice().into();
+    second.task = task - 1; // First in the log is not the lowest task number.
+    outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(second.clone())) });
+    landing_log::landed(&mut d, env().wall, NEXT_TIP, second.task, Box::new([]), &mut Queue::uncapped());
+    assert!(d.landing_verification(REPO, &NEXT_TIP).is_none());
+    confirmed(&mut d);
+    let out = finish(&mut d);
+    let Some(TierDecision::Done { words }) = choice(&out) else { panic!("completed red") };
+    let words = core::str::from_utf8(words).unwrap();
+    assert!(words.contains(&format!("owns: \"suite.first\"; change show {task}")), "{words}");
+}
+
+#[test]
 fn a_completed_verdict_pairs_each_failed_id_with_its_own_landing() {
     let mut d = one();
     confirmed(&mut d);

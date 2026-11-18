@@ -490,6 +490,35 @@ fn red(d: &mut Domain) {
 }
 
 #[test]
+fn a_project_ending_at_landing_makes_no_verification_and_finishes_in_its_merge_step() {
+    let mut d = configured_domain(&[(TIER, None)]);
+    d.landing.projects.get_mut(&PROJECT).unwrap().2.wait = change::Wait::Landed;
+    add_change(&mut d, CHANGE, b"main");
+    let saved = merged(&mut d, CHANGE, FIRST);
+    assert!(d.landing_verification(REPO, &FIRST).is_none());
+    for request in &saved {
+        if let Request::Save { record: Stored::Verification(_), .. } = request {
+            unreachable!("a landing makes no Verification under landed");
+        }
+    }
+    assert_eq!(d.change_verification(CHANGE), change::Verification::Unfollowed);
+    let out = advance(&mut d, CHANGE, env().wall, false);
+    assert!(contains(
+        &out,
+        &Request::ChangeDecision {
+            task: CHANGE,
+            decision: change::Decision::Finish { merge: FIRST },
+            entry: None,
+            evidence: None,
+        }
+    ));
+    assert_eq!(d.change(CHANGE).unwrap().change.state, change::State::Landed { merge: FIRST, since: env().wall });
+    for (_, row) in &d.tiers {
+        assert_eq!(row.record.sequence, 0, "no tier verdict needed");
+    }
+}
+
+#[test]
 fn merge_saves_verification_with_landed_and_preserves_observation_time() {
     let mut d = configured_domain(&[(TIER, None), (b"release", Some(b"release"))]);
     add_change(&mut d, CHANGE, b"main");

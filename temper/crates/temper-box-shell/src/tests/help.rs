@@ -1047,6 +1047,9 @@ fn tier_help_explains_report_formats_and_preserving_configuration() {
         "Preserve the existing settings",
         "restart",
         "`tier_retries` and `verification_bound_ms` beside the project's `by`",
+        "`\"wait\": \"landed\"`",
+        "a change ends at its landing and its tiers judge it later",
+        "`change show TASK --until landed` for such a change",
     ] {
         assert!(text.contains(instruction), "missing {instruction}: {text}");
     }
