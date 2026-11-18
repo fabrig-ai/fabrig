@@ -321,7 +321,7 @@ replay says the same clocks (`../view.md`, 6).
 
   | Page | Path |
   |---|---|
-  | `Inbox { filter }` | `/`, and its filter's query |
+  | `Inbox { filter }` | `/needs`, and its filter's query |
   | `Home { project }` | `/projects/<project>` |
   | `AllHome` | `/home` (`../pages/README.md`, *Home on All projects*) |
   | `Changes { project }` | `/projects/<project>/changes` |
@@ -354,10 +354,24 @@ replay says the same clocks (`../view.md`, 6).
   decimal. A later page's path comes with it, in this shape
   (`/projects/<project>/board`). The
   public pages' paths, under `/public`, are `public.md`'s.
+- **The root, `/`, opens Home,** never Needs you, whatever waits (the
+  user's ask of 2026-11-18). It is no page's address: the codec reads `/`
+  whose query sets no field of the inbox's filter (below) as
+  `Place::Root`, and the client opens, once `me` is read, the page
+  `temper_client_domain::pages::rail::root_home(me: Option<&Me>) ->
+  Address` names: `Home { project }` for a person in exactly one
+  project, `AllHome` for one in two or more or in none, and for no `me`.
+  The address is then replaced with that page's; until then it stays `/`,
+  and the main is empty and busy, as at every address while `me` is read
+  (`../view.md`, 1). `/` whose query sets a field is an inbox link from
+  before Needs you had its own address: it opens Needs you with that
+  filter, its address replaced with the printed one,
+  `/?kind=question&goal=9` with `/needs?kind=question&goal=9`. The
+  terminal opens at the inbox as before (`../line.md`, 10).
 - **The inbox's filter is its query:** the fields it sets, in one
   order, `?project=<project>&kind=<kind>&goal=<goal>`, and none with
-  every field unset, so that `/` is the inbox unfiltered and
-  `/?kind=question&goal=9` one filtered by kind and goal. `<project>`
+  every field unset, so that `/needs` is the inbox unfiltered and
+  `/needs?kind=question&goal=9` one filtered by kind and goal. `<project>`
   and `<goal>` are numbers in decimal, as a path's; `<kind>` is one of
   `proposal`, `question`, `held` and `person-task`: the kind's button
   word (`../pages/README.md`'s inbox), in lower case, its space a hyphen.
@@ -456,8 +470,9 @@ replay says the same clocks (`../view.md`, 6).
   goal's page, changing its filter alone, keeps the page: its composers' words, the
   closed chats and ended delegates it read, which it reads not again;
   the inbox's filter, a query the engine answers, reads its page anew.
-- **A path that is no page** opens the inbox, and the address is
-  replaced with `/`. The codec never prints a path under `/jig`,
+- **A path that is no page** opens Home as the root does, and the
+  address is replaced with that Home's (draft-2's answer of 2026-11-18:
+  a broken path lands where the root does). The codec never prints a path under `/jig`,
   `/bundle/`, `/test/` or `/forges/N/github/`, temper's routes for
   GitHub's steps (`../forge/served.md`, 1), nor `/robots.txt`.
 - **Moving** is skein's (skein's `ui/web/README.md`, section 7): a link pressed
@@ -736,7 +751,8 @@ they are, and two small root files carry the rest.
     data the project; a payload it can't read shows "temper" and
     "Something needs you.", since a browser shows one for every push;
   - *a press on a notification* closes it and opens Needs you filtered
-    by its project, `Inbox { project }`'s path (`../view.md`, 3): an open
+    by its project, `Inbox { project }`'s path (`../view.md`, 3),
+    `/needs?project=N`, or `/needs` for data that names none: an open
     window of the origin, focused and sent there, or a new one.
 - **The manifest,** `/manifest.webmanifest`: `name` and `short_name`
   "temper", `start_url` `/`, `display` `standalone`, and the paper's

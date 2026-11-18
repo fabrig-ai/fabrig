@@ -255,20 +255,32 @@ pub fn fits(value: &CatalogueModel, number: u32) -> bool {
     }
 }
 
-pub fn shape(value: &CatalogueModel, number: u32, settings: &Settings) -> Result<(), Fault> {
+pub fn shape(value: &CatalogueModel, number: u32, providers: &[super::ProviderSetting]) -> Result<(), Fault> {
     if !fits(value, number) {
         return Err(Fault::Shape);
     }
-    if settings.llm_providers.get(value.model.provider).is_none() {
+    if value.withdrawn {
+        return Ok(());
+    }
+    let mut known = false;
+    for provider in providers {
+        known |= !provider.withdrawn && provider.provider.number == value.model.provider;
+    }
+    if !known {
         return Err(Fault::Reference);
     }
-    for endpoint in &settings.endpoints {
-        if endpoint.number == value.model.endpoint {
-            return if endpoint.dialect == value.model.dialect && endpoint.program == value.model.program {
-                Ok(())
-            } else {
-                Err(Fault::Shape)
-            };
+    for provider in providers {
+        if provider.withdrawn {
+            continue;
+        }
+        for endpoint in &provider.endpoints {
+            if endpoint.number == value.model.endpoint {
+                return if endpoint.dialect == value.model.dialect && endpoint.program == value.model.program {
+                    Ok(())
+                } else {
+                    Err(Fault::Shape)
+                };
+            }
         }
     }
     Err(Fault::Reference)

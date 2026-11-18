@@ -5463,7 +5463,7 @@ fn a_hello_keeps_its_configured_worker_position() {
 mod added_dependencies;
 
 #[path = "root_routes/open_chat.rs"]
-mod open_chat;
+pub(crate) mod open_chat;
 
 #[path = "root_routes/exceeded.rs"]
 mod exceeded;

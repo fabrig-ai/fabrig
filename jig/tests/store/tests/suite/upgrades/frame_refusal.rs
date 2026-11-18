@@ -1,7 +1,8 @@
-//! Independent contract checks for protocol/store/README.md, 5, and protocol/store/transcripts.md, 1, 2 and 6, and protocol/store/README.md, 8.
+//! Admitted-page and codec-frame invariants (protocol/store/README.md, 5; transcripts.md, 1, 2 and 6).
+//! Exact page guards and atomic refusal are covered at the store unit seam in tests/transcripts.rs.
 
 use jig_domain_core as core;
-use jig_protocol_store::{Event, Limits, Request, TranscriptRead, Write, sizes};
+use jig_protocol_store::{Event, Limits, Request, TranscriptRead, sizes};
 use jig_store_world::{
     World,
     root::{self, LIVE as TASK},
@@ -30,9 +31,10 @@ fn row_floor() -> u32 {
 }
 
 fn payload() -> Box<[u8]> {
-    // The root fixture's row floor is about 323 KiB. Its frame is larger
-    // still, allowing both boundary pages to pass the shell's size check.
-    vec![b'x'; skein_lib::length::usize_of(row_floor())].into_boxed_slice()
+    // The settings-history row floor exceeds the codec's largest frame.
+    // Normal resume room still exercises reads and crash recovery without a ceiling-sized allocation.
+    vec![b'x'; skein_lib::length::usize_of(root::CORE_LIMITS.resume_bytes.min(CODEC_TRANSCRIPT_CEILING))]
+        .into_boxed_slice()
 }
 
 fn opened(page: u32) -> World {
@@ -142,80 +144,24 @@ fn recovered(world: &mut World, before: &Restored, room: u32) {
 }
 
 #[test]
-fn a_frame_exactly_the_page_commits_and_reads_back_whole() {
+fn the_largest_codec_valid_frame_fits_the_admitted_row_floor() {
+    let floor = row_floor();
+    let largest =
+        sizes::frame(&root::CORE_LIMITS, CODEC_TRANSCRIPT_CEILING).expect("codec ceiling has a full-frame bound");
+    assert!(largest <= floor, "largest codec-valid frame {largest} exceeds admitted row floor {floor}");
     let payload = payload();
-    let bytes = frame_bytes(&payload);
-    let mut world = opened(bytes);
-    let events =
-        world.request(Request::Commit { number: DURABLE, writes: root::turn_commit(DURABLE, TASK, 1, &payload) });
-    assert!(matches!(events.as_slice(), [Event::Committed { number: DURABLE, .. }]), "{events:?}");
-    let expected = root::turn(TASK, ATTEMPT, 1, &payload);
-    eprintln!("terminal: {events:?}");
-    // protocol/store/loads.md 1: the page bounds encoded bytes, read room decoded bytes.
-    let room = bytes * 2;
-    eprintln!("before crash, decoded room {room}");
-    let answers = kinds().map(|kind| read(&mut world, kind, room));
-    let before = snapshot_rows(&mut world);
+    let mut world = opened(floor);
+    assert_eq!(world.commit(root::turn_commit(DURABLE, TASK, 1, &payload)), Some(DURABLE));
+    let room = sizes::frame(&root::CORE_LIMITS, u32::try_from(payload.len()).unwrap()).unwrap() * 2;
+    let before = snapshot(&mut world, room);
     world.crash(SEED + 1);
-    let restored = world.reopen();
-    assert_eq!(restored.last, before.last);
-    assert_eq!(restored.rows, before.rows);
-    assert_eq!(restored.application, before.application);
-    eprintln!("after crash and reopen, unchanged records, decoded room {room}");
-    let reopened = kinds().map(|kind| read(&mut world, kind, room));
-    // Collect both phases before asserting so a read failure cannot hide
-    // the crash/reopen half of this boundary story.
-    for events in answers.into_iter().chain(reopened) {
-        whole(&events, &expected);
-    }
+    recovered(&mut world, &before, room);
 }
 
 #[test]
-fn a_frame_one_byte_past_the_page_is_refused_by_name() {
-    let payload = payload();
-    let bytes = frame_bytes(&payload);
-    let mut world = baseline(bytes - 1);
-    let records = snapshot(&mut world, bytes * 2);
-    let files = world.contents();
-    world.trace_writes();
-    let events =
-        world.request(Request::Commit { number: REFUSED, writes: root::turn_commit(REFUSED, TASK, 2, &payload) });
-    assert_eq!(refused(&events, REFUSED, TASK, bytes - 1), bytes);
-    assert!(world.written().is_empty(), "refused commit wrote data: {:?}", world.written());
-    assert!(world.changes().is_empty(), "refused commit changed files: {:?}", world.changes());
-    assert_eq!(world.contents(), files);
-    world.crash(SEED + 1);
-    assert_eq!(world.contents(), files, "refusal and crash preserve every file byte before reopen");
-    recovered(&mut world, &records, bytes * 2);
-}
-
-#[test]
-fn a_later_turn_past_the_page_refuses_its_whole_commit() {
-    let payload = payload();
-    let bytes = frame_bytes(&payload);
-    let mut world = baseline(bytes - 1);
-    let records = snapshot(&mut world, bytes * 2);
-    let files = world.contents();
-    let mut writes = root::turn_commit(REFUSED, TASK, 2, PRIOR).into_vec();
-    writes.push(Write::Put { key: Box::from(b"refused".as_slice()), value: Box::from(b"never stored".as_slice()) });
-    writes.push(Write::Save(core::Record::Core(core::CoreRecord::Turn(root::turn(TASK + 1, ATTEMPT, 1, &payload)))));
-    world.trace_writes();
-    let events = world.request(Request::Commit { number: REFUSED, writes: writes.into_boxed_slice() });
-    assert_eq!(refused(&events, REFUSED, TASK + 1, bytes - 1), bytes);
-    assert!(world.written().is_empty(), "earlier fitting data written: {:?}", world.written());
-    assert!(world.changes().is_empty(), "refused batch changed files: {:?}", world.changes());
-    assert_eq!(world.contents(), files);
-    world.crash(SEED + 1);
-    assert_eq!(world.contents(), files, "none of the refused batch survives the crash");
-    recovered(&mut world, &records, bytes * 2);
-    assert_eq!(world.transcript(TranscriptRead::Page { task: TASK + 1, backwards: false, after: None }).len(), 0);
-}
-
-#[test]
-fn a_pending_commit_fails_once_when_a_later_frame_is_refused() {
-    let payload = payload();
-    let bytes = frame_bytes(&payload);
-    let mut world = baseline(bytes - 1);
+fn a_pending_commit_fails_once_when_a_later_frame_exceeds_the_codec() {
+    let payload = vec![b'x'; skein_lib::usize_of(CODEC_TRANSCRIPT_CEILING + 1)];
+    let mut world = baseline(row_floor());
     world.trace_writes();
     world.cut_at(world.operation_count());
     let pending =
@@ -224,13 +170,16 @@ fn a_pending_commit_fails_once_when_a_later_frame_is_refused() {
     let number = REFUSED + 1;
     let events = world.request(Request::Commit { number, writes: root::turn_commit(number, TASK + 1, 1, &payload) });
     let [
-        Event::FrameTooLarge { number: actual, task, bytes: size, limit },
+        Event::Failed {
+            number: actual,
+            why: jig_protocol_store::CommitFailure::Check(jig_protocol_store::CommitCheck::Encoding),
+        },
         Event::Failed { number: pending, why: jig_protocol_store::CommitFailure::Stopped },
     ] = events.as_slice()
     else {
         panic!("refusal first, then exactly one failed terminal for the pending commit: {events:?}");
     };
-    assert_eq!((*actual, *task, *size, *limit), (number, TASK + 1, bytes, bytes - 1));
+    assert_eq!(*actual, number);
     assert_eq!(*pending, REFUSED);
     eprintln!("terminals: {events:?}");
 }

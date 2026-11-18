@@ -262,6 +262,8 @@ pub fn limits() -> Limits {
         logs: 16,
         deadline: Duration::from_secs(1),
     };
+    map.value = map.value.max(sizes::settings_value(&CORE_LIMITS).expect("settings history room"));
+    map.page.bytes = map.page.bytes.max(map.key.checked_add(map.value).expect("largest map row"));
     let sizes =
         sizes::check_commits(&CORE_LIMITS, &APPLICATION, &commits, &map, 1).expect("scripted record bounds fit");
     map.key = sizes.key;

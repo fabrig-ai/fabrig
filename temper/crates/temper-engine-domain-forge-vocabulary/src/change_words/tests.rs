@@ -877,6 +877,7 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
 fn adopted(forge: u16) -> super::forge::Repository {
     super::forge::Repository {
         contexts: Box::new([]),
+        landing: b"main".as_slice().into(),
         workflows: Box::default(),
         project: 5,
         home: forge == 1,

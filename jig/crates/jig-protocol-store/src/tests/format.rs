@@ -11,9 +11,10 @@ fn wanted() -> codec::component::Format {
     format::current(fixtures::APPLICATION.version, fixtures::DEPLOYMENT)
 }
 fn store() -> skein_kv::Limits {
+    let value = sizes::settings_value(&fixtures::CORE_LIMITS).expect("settings history room").max(16_777_216);
     skein_kv::Limits {
         key: 1024,
-        value: 16_777_216,
+        value,
         ops: 16,
         commit: 134_217_728,
         queued: 2,
@@ -21,8 +22,8 @@ fn store() -> skein_kv::Limits {
         budget: 16_384,
         segment: 268_435_456,
         snapshot_after: 134_217_728,
-        chunk: 16_778_260,
-        page: skein_kv::Page { rows: 2, bytes: 16_778_240 },
+        chunk: skein_kv::chunk_bytes(1024, value).expect("largest row chunk"),
+        page: skein_kv::Page { rows: 2, bytes: value.checked_add(1024).expect("largest row") },
         record: 1,
         log: 1 << 40,
         logs: 16,
@@ -79,29 +80,49 @@ fn a_value_limit_below_the_largest_task_record_is_refused() {
     let mut limits = store();
     limits.value = 1;
     // The settings revision includes both whole sets of model values.
-    // Each set also prices 64 bounded worker values and names.
-    assert_eq!(check(&limits), Err(sizes::SizeRefusal::Value { needs: 1_673_812, has: 1 }));
+    // Provider and worker settings are included at their bounded counts.
+    assert_eq!(
+        check(&limits),
+        Err(sizes::SizeRefusal::Value { needs: sizes::settings_value(&fixtures::CORE_LIMITS).unwrap(), has: 1 })
+    );
 }
 fn a_value_limit_below_the_largest_core_turn_is_refused() {
     let mut limits = store();
     limits.value = 80_948;
     // The settings revision includes both whole sets of model values.
     // Each set's 64 model carriers include cache lifetime; its two policies retain 8 model bytes each.
-    assert_eq!(check(&limits), Err(sizes::SizeRefusal::Value { needs: 1_673_812, has: 80_948 }));
+    assert_eq!(
+        check(&limits),
+        Err(sizes::SizeRefusal::Value { needs: sizes::settings_value(&fixtures::CORE_LIMITS).unwrap(), has: 80_948 })
+    );
 }
 fn a_page_smaller_than_one_row_is_refused() {
     let mut limits = store();
     limits.page.bytes = 81_060;
     // The page holds a settings revision and the 516-byte maximum opening key.
     // Both sets include each model's cache lifetime and their policies' model carriers.
-    assert_eq!(check(&limits), Err(sizes::SizeRefusal::Page { needs: 1_674_328, has: 81_060 }));
+    assert_eq!(
+        check(&limits),
+        Err(sizes::SizeRefusal::Page {
+            needs: sizes::settings_value(&fixtures::CORE_LIMITS).unwrap().checked_add(516).unwrap(),
+            has: 81_060
+        })
+    );
 }
 #[test]
 fn fixture_limits_fit_their_store() {
     // The settings revision holds two sets: each adds two 16-byte parts slices
     // and eight templates with 24-byte later choices in both Template and New.
     // Each set's 64 model carriers include cache lifetime; its two policies retain 8 model bytes each.
-    assert_eq!(check(&store()), Ok(sizes::Sizes { key: 516, value: 1_673_812, ops: 15, commit: 24_285 }));
+    assert_eq!(
+        check(&store()),
+        Ok(sizes::Sizes {
+            key: 516,
+            value: sizes::settings_value(&fixtures::CORE_LIMITS).unwrap(),
+            ops: 15,
+            commit: 24_285
+        })
+    );
 }
 fn too_few_operations_are_refused() {
     let mut limits = store();
@@ -197,12 +218,17 @@ fn the_largest_note_line_key_reaches_its_calculated_bound() {
 }
 #[test]
 fn larger_application_encodings_are_included_in_the_bounds() {
-    let application = sizes::Application { version: 1, key: 1023, value: 9_000_000 };
+    let mut map = store();
+    let value = check(&map).unwrap().value.checked_add(1).unwrap();
+    map.value = value;
+    map.page.bytes = map.key.checked_add(value).unwrap();
+    let application = sizes::Application { version: 1, key: 1023, value };
     assert_eq!(
-        sizes::check_commits(&fixtures::CORE_LIMITS, &application, &COMMITS, &store(), 0),
-        Ok(sizes::Sizes { key: 1024, value: 9_000_000, ops: 15, commit: 31_905 }),
+        sizes::check_commits(&fixtures::CORE_LIMITS, &application, &COMMITS, &map, 0),
+        Ok(sizes::Sizes { key: 1024, value, ops: 15, commit: 31_905 }),
     );
 }
+
 #[test]
 fn a_journal_whose_operation_count_overflows_is_refused() {
     let commits = sizes::Commits { writes: u32::MAX, ..COMMITS };
@@ -214,14 +240,16 @@ fn a_journal_whose_operation_count_overflows_is_refused() {
 
 #[test]
 fn a_map_budget_past_the_commit_envelope_is_refused() {
-    // The value includes the tasks row's models; the commit adds framing to the map budget.
-    // The settings revision includes cache lifetime in its model carriers.
+    let map = store();
+    let sizes = check(&map).unwrap();
+    let overhead = u64::from(sizes.commit).checked_sub(map.budget).unwrap();
+    let exact = u64::from(u32::MAX).checked_sub(overhead).unwrap();
     for (label, budget, expected) in [
-        ("exact_u32_commit", 4_294_959_394, Ok(sizes::Sizes { key: 516, value: 1_673_812, ops: 15, commit: u32::MAX })),
-        ("one_byte_past_u32", 4_294_959_395, Err(sizes::SizeRefusal::Ceiling)),
+        ("exact_u32_commit", exact, Ok(sizes::Sizes { commit: u32::MAX, ..sizes })),
+        ("one_byte_past_u32", exact.checked_add(1).unwrap(), Err(sizes::SizeRefusal::Ceiling)),
         ("u64_sum_overflows", u64::MAX, Err(sizes::SizeRefusal::Ceiling)),
     ] {
-        let limits = skein_kv::Limits { budget, commit: u32::MAX, queued_bytes: u64::MAX, ..store() };
+        let limits = skein_kv::Limits { budget, commit: u32::MAX, queued_bytes: u64::MAX, ..map };
         assert_eq!(check(&limits), expected, "{label}");
     }
 }

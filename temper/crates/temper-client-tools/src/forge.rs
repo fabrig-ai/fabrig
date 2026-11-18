@@ -375,6 +375,10 @@ fn answer_text(a: &forge::Adoption, answer: &forge::Answer, kept: bool, unread: 
                 out,
             );
             out.put(b"\n");
+            if !a.landing.is_empty() {
+                phrase(Word::LandsInto, &[Hole::Name(a.landing.clone())], out);
+                out.put(b"\n");
+            }
             if a.home {
                 phrase(Word::IsHome, &[], out);
                 out.put(b"\n");
@@ -544,6 +548,7 @@ fn adopted_json(a: &forge::Adopted, out: &mut Encoder) {
     for (key, bytes) in [
         (b"owner".as_slice(), a.owner.as_ref()),
         (b"name", a.name.as_ref()),
+        (b"landing", a.landing.as_ref()),
         (b"role", word_bytes(words::role(a.role)).as_ref()),
     ] {
         out.key(key);

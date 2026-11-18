@@ -2381,7 +2381,7 @@ fn walk_states() {
             } else if expected.contains("Review") {
                 WalkStep::Open { address: b"https://forge.example/work/hello/pulls/24/files".as_slice().into() }
             } else if expected.contains("web") {
-                WalkStep::Open { address: b"http://127.0.0.1:8367/?project=1".as_slice().into() }
+                WalkStep::Open { address: b"http://127.0.0.1:8367/needs?project=1".as_slice().into() }
             } else if expected.contains("something else") {
                 assert_eq!(item.event, TuiEvent::Aside { object }, "{name}");
                 continue;

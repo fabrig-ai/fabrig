@@ -1,5 +1,6 @@
 //! Root translation for the forge connector. Its store rows and released API
 //! calls cross one root decision; the connector never owns the store.
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
 use super::{
     CallAnswer, CallKey, Decision, Delivery, Domain, Env, Family, ForgeRepository, ForgeStart, ForgeWorkspace, Id, Key,
     Limits, List, ProcedureStep, Queue, Record, ReplyTo, Request, StepEnd, Token, Work, Write, authority,
@@ -1289,7 +1290,7 @@ fn change_topic(domain: &Domain, task: &tasks::TaskRecord) -> Option<forge::Topi
     }
     let repository = provider?;
     let adopted = domain.forge.repository(repository)?;
-    Some(forge::Topic::Landings { repository, branch: branch.unwrap_or(adopted.settings.default_branch.clone()) })
+    Some(forge::Topic::Landings { repository, branch: branch.unwrap_or(adopted.landing.clone()) })
 }
 
 pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, topic: forge::Topic) {
@@ -1298,7 +1299,7 @@ pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, 
         tasks::EndedBy::Closer(_) => match &topic {
             forge::Topic::Landings { repository, branch } => {
                 let Some(repository) = domain.forge.repository(*repository) else { return };
-                if *branch == repository.settings.default_branch {
+                if *branch == repository.landing {
                     return;
                 }
             }
@@ -2448,7 +2449,7 @@ pub(super) fn start_recovered_change(
     }
     let base = match base {
         Some(base) => base,
-        None => adopted.settings.default_branch.clone(),
+        None => adopted.landing.clone(),
     };
     let branch = match branch {
         Some(branch) => branch,
@@ -3196,7 +3197,7 @@ fn change_destination(
     change: &crate::ChangeCall,
 ) -> Result<Box<[u8]>, ChangeRefused> {
     if change.branch == Some(crate::ChangeBranch::Mine) && change.landing.is_none() {
-        return Ok(repository.settings.default_branch.clone());
+        return Ok(repository.landing.clone());
     }
     let base = change_landing(domain, env, task, repository, change.landing.as_ref())?;
     if change.branch != Some(crate::ChangeBranch::Mine)
@@ -3220,7 +3221,7 @@ fn change_landing(
     match landing {
         None => Ok(match change_goal_branch(domain, env, task, repository)? {
             Some(branch) => branch,
-            None => repository.settings.default_branch.clone(),
+            None => repository.landing.clone(),
         }),
         Some(crate::ChangeLanding::Branch(branch)) => {
             branch_parts(branch, env.limits.forge.name_bytes).ok_or(ChangeRefused::Refusal(tasks::Refusal::Spec))?;

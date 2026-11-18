@@ -72,7 +72,7 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
 |---|---|---|---|---|
 | 0 | `Call` | `Call(NamedCall)`: task, attempt, completion, position | the connector's part of a live named call | `named_calls` |
 | 1 | `ProposedEffect` | `ProposedEffect(u64)`: the proposal's number | an effect awaiting an authority holder's decision | `tasks` |
-| 2 | `Repository` | `Repository(Repository)`: forge, repository | an adopted repository: its project, role, kinds, protection, settings and CI workflows (`../domain/forge/adoption.md`, 7) | `repositories` |
+| 2 | `Repository` | `Repository(Repository)`: forge, repository | an adopted repository: its project, role, kinds, protection, settings, CI workflows (`../domain/forge/adoption.md`, 7) and landing branch (`../domain/forge/adoption.md`, 8) | `repositories` |
 | 3 | `Hold` | `Hold(Name)` | a held resource, its task, its writer and its drift | `holds` |
 | 4 | `Names` | `Names(u64)`: the task | the resources one live task names; or a kept task's: the repositories its names lie in, kept from its release until jig erases the task (`../domain/forge/adoption.md`, 1) | `tasks` live rows, and `repositories` kept ones |
 | 5 | `Subscription` | `Subscription { task, topic }` | one task's subscription to a topic | `subscriptions` |
@@ -391,8 +391,9 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   jig's `sizes::settings_value` (jig's `protocol/store/records.md`, 4),
   and its page ceiling to at least that value plus the profile's key
   ceiling. This includes a whole set of edits, their replaced values and
-  the model-name table; stock at the small process deployment's capacities
-  needs 4,385,228 bytes. The figure is calculated at startup, never a
+  the model-name table and the `provider` kind's 16 providers of 64
+  endpoints each; stock at the small process deployment's capacities
+  needs 40,524,798 bytes. The figure is calculated at startup, never a
   second fixed ceiling that stock growth must update. Checked map sizing
   then derives the opening value, chunk and page from the effective
   limits. The map budget, row count, queues and read slots retain their
@@ -708,6 +709,14 @@ A repository's stored CI workflows, the record's `workflows`, are a list
 with a ceiling of 16 names, each of at most 255 bytes: its bounds are the
 forge's constants `WORKFLOWS` and `WORKFLOW_BYTES` (`../domain/forge/adoption.md`,
 7), not configured, and the schema's ceilings equal them.
+
+A repository's stored landing branch, the record's `landing`, has a
+ceiling of 4,096 bytes and the runtime bound `forge.name_bytes`, as the
+adoption's `landing` has; added with the default `0x`, it reads empty in
+a record written before it, and the decoder takes that record's
+`settings.default_branch` for it. An adoption's kept outcome,
+`ApplicationAdopted`, carries the same `landing`, empty in an outcome
+kept before it (`../domain/forge/adoption.md`, 8).
 
 A named call's comparison answer is names and counts (skein's `forge/README.md`, 3.3): `CompareAnswer` holds `before`, `after`, `ahead`, `behind`, `files`, a list of at most `forge.client.rows` paths, and `changed`.
 

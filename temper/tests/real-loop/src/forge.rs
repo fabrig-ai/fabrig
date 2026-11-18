@@ -45,6 +45,7 @@ fn setup() -> api::Setup {
 }
 pub fn write(scratch: &Path, forge: SocketAddr, fixture: &Fixture) -> std::io::Result<()> {
     let mut config: serde_json::Value = serde_json::from_slice(&std::fs::read(scratch.join("temper.json"))?)?;
+    config["world_settings"] = serde_json::from_slice(&std::fs::read(scratch.join("world-settings.json"))?)?;
     let mut agent: serde_json::Value = serde_json::from_slice(&std::fs::read(scratch.join("world-agent.json"))?)?;
     config["application"]["webhooks"] = serde_json::json!({"listener":{"socket":"127.0.0.1:0"}});
 

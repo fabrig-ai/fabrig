@@ -238,6 +238,7 @@ impl Domain {
                     host: repository.host.clone(),
                     owner: repository.owner.clone(),
                     name: repository.name.clone(),
+                    landing: repository.landing.clone(),
                 })
                 .expect("one identity per readable repository");
         }
@@ -1400,6 +1401,7 @@ fn released_into(
         }
         Delivery::ReadEscalationDecision { waiter } => load_escalation_decision(domain, waiter, out),
         delivery @ (Delivery::Push(_)
+        | Delivery::Providers(..)
         | Delivery::WorkerFigures { .. }
         | Delivery::PlaygroundNote { .. }
         | Delivery::Host(_)

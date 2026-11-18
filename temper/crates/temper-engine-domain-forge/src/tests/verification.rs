@@ -177,6 +177,7 @@ fn configured() -> [Configured; 2] {
 fn adopted() -> Repository {
     Repository {
         contexts: Box::new([]),
+        landing: b"main".as_slice().into(),
         workflows: Box::default(),
         project: 5,
         home: true,

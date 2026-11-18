@@ -4,6 +4,7 @@
 use super::*;
 use crate::tests::fixtures;
 use core::fmt::Write;
+use fixtures::{check, checked_start, startup};
 
 fn document(engine: Option<u32>) -> Box<[u8]> {
     let input = fixtures::document();

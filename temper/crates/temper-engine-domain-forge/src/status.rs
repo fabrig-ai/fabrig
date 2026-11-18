@@ -1,4 +1,5 @@
 //! Project landings, sittings and briefs (temper/docs/design/domain/forge/attention.md, 2, 3).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
 use crate::{Answered, Domain, Key, Limits, Request, Stored};
 use alloc::boxed::Box;
 use skein_forge::api::Repository;
@@ -134,7 +135,7 @@ impl Domain {
         }
         for (repository, adopted) in &self.repositories {
             if adopted.project == project && adopted.home {
-                view.branch.clone_from(&adopted.settings.default_branch);
+                view.branch.clone_from(&adopted.landing);
                 view.red = self.branch_red(*repository, &view.branch);
                 break;
             }

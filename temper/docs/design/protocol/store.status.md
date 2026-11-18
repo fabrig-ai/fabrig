@@ -3,6 +3,8 @@
 2026-11-18. Where temper's code lags or departs from [store.md](store.md).
 
 
+- **Not yet:** 4: `ApplicationAdopted`'s `landing` [in flight: change
+  8088].
 
 
 - **Not yet:** 2: family 41, `LandedDraft`, neither kept nor read

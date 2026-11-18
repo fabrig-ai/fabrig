@@ -69,10 +69,11 @@ document says what temper adds. What is open is listed in `README.md`, section 9
   document names are jig's, a worker's secret, read at
   start, and the scripted model's key, read at the playground's start;
   an owned or fake forge's handover is in its directory (section 5).
-- **LLM providers, never accounts.** jig's `engine.llm` names the LLM
-  providers, written out whole: their endpoints, models and prices, and
-  the sources each offers. Accounts are made at runtime from the client,
-  and jig keeps them (section 2; ../credentials.md, section 3).
+- **LLM providers, never accounts.** The LLM providers and their
+  endpoints are settings in the store, the stock's their defaults, each
+  applied at the engine's next start (`providers.md`). Accounts are made
+  at runtime from the client, and jig keeps them (section 2;
+  ../credentials.md, section 3).
 - **One format rule** for temper's typed members: member names are the
   Rust field names, and the parser follows the types (section 8).
 - **Limits by name,** their numbers in `temper-service`'s limits module,
@@ -105,9 +106,11 @@ document says what temper adds. What is open is listed in `README.md`, section 9
   constant, jig's deployment, providers, connectors, acts, seeded
   projects, clients' heartbeat, link and approval and a worker's graces
   and programs among them, and a worker's workspaces and git; the
-  welcome is a setting; a forge's place is chosen when it's set up. A
-  document naming one is refused, naming where it went. Where this
-  document or `engine.md` still describes one, `moved.md` wins.
+  welcome is a setting; a forge's place is chosen when it's set up; the
+  LLM providers are settings and the playground's scripted model the
+  box's own (`providers.md`). A document naming one is refused, naming
+  where it went. Where this document, `engine.md` or a setup document
+  still describes one, `moved.md` and `providers.md` win.
 - **Settings leave the document** (`settings.md`):
   jig's charters, templates, policies and rules, and temper's landing
   rules and forge's charter, become settings in the store, changed by a
@@ -129,22 +132,18 @@ document says what temper adds. What is open is listed in `README.md`, section 9
   section 3), in jig's formats (its section 10). Its `clients` member is
   what jig's clients' component takes; the clients' listener is temper's
   (`engine.md`).
-- **`engine.llm`** is jig's LLM providers (jig's
-  `protocol/configuration.md`, section 3), written out whole, never
-  implied: each with the endpoint its added models take, and its
-  endpoints. It holds no model: models are settings, the binary's
-  defaults with the store's changes over them (`stock.md`; jig's
-  `domain/engine/settings.md`, 11). Each provider has the
-  sources it offers, a sign-in with its public registration, keys, a
-  program, or none; and the facts its terms ask temper to show. It holds
-  no account, key or record: accounts are made from the client
-  (../credentials.md, section 3). temper adds no member; the registration's
-  name hint is `temper` in every deployment (jig's `domain/providers.md`,
-  2.2). The owned example writes out OpenAI with keys and ChatGPT's
-  sign-in, a plan's, using its public Responses API (../setup/init.md, 1); a
-  provider temper does
-  not ship is another entry, such as a local model's endpoint on
-  loopback with no source to hold.
+- **The LLM providers are settings,** jig's kind `provider`, each with
+  its endpoints, the stock's OpenAI and Anthropic its defaults, and the
+  box's scripted provider its constant (`providers.md`); `engine.llm` is
+  refused (`moved.md`, 3). A start runs the providers its engine last
+  kept, and every check below of a provider runs on them. A provider
+  holds no model, account, key or record: models are settings
+  (`stock.md`; jig's `domain/engine/settings.md`, 11), and accounts are
+  made from the client (../credentials.md, section 3). The
+  registration's name hint is `temper` in every deployment (jig's
+  `domain/providers.md`, 2.2); a provider temper does not ship is
+  another setting, such as a local model's endpoint on loopback with no
+  source to hold.
 - **A sign-in's redirect** binds a loopback listener on an ephemeral
   port for each sign-in, unless the LLM provider's registration fixes a
   port (jig's `protocol/configuration.md`, section 3; skein's

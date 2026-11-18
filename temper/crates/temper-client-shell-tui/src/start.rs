@@ -89,9 +89,15 @@ pub fn fixed_start(environment: &[EnvironmentEntry], engine: SocketAddr) -> Resu
     FixedStart::read(value).map(Some).ok_or(Refused::FixedStart)
 }
 
-// Keep a walk's seed and its loop clock together at startup.
+// The TUI's seed stream (temper/docs/design/client/journey-clock.md, 4.3).
+const TUI_SEED_STREAM: u64 = 4;
+
+// Draw a walk's seed on the TUI's stream and keep it with its loop clock at startup.
 fn fixed_run(start: &FixedStart) -> (u64, Clock) {
-    (start.seed, Clock::fixed(start))
+    let mut bytes = [0u8; 8];
+    start.draw(TUI_SEED_STREAM, &mut bytes);
+    let seed = u64::from_le_bytes(bytes);
+    (seed, Clock::fixed(start))
 }
 
 #[must_use]

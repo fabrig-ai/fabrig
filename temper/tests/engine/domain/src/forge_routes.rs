@@ -3198,7 +3198,21 @@ impl World {
         self.until(Until::SignedIn);
     }
 
+    pub fn adopt_landing(&mut self, landing: &[u8]) {
+        if landing != b"main" {
+            assert_eq!(
+                self.external(1, raw::Op::Git(raw::Git::Create { branch: landing.into(), commit: 1 })),
+                raw::Answer::Branch(raw::Created::Created)
+            );
+        }
+        self.adopt_landing_with_checks(landing, true, Box::new([]));
+    }
+
     pub fn adopt_with_checks(&mut self, ci: bool, checks: Box<[u32]>) {
+        self.adopt_landing_with_checks(b"main", ci, checks);
+    }
+
+    fn adopt_landing_with_checks(&mut self, landing: &[u8], ci: bool, checks: Box<[u32]>) {
         self.sign_in();
         self.send(engine::Event::Party(engine::PartyInput::Application {
             scope: jig_domain_people::ApplicationScope::Project(1),
@@ -3216,7 +3230,7 @@ impl World {
                 name: Box::from(&b"repo"[..]),
                 prefix: Box::from(&b"temper/"[..]),
                 role: forge_top::Role::Owned,
-                landing: Box::from(&b"main"[..]),
+                landing: landing.into(),
                 ci,
                 checks,
             })),

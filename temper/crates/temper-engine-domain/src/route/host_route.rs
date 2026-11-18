@@ -47,6 +47,8 @@ pub struct RepositoryIdentity {
     pub owner: Box<[u8]>,
     /// The repository's name within that owner.
     pub name: Box<[u8]>,
+    /// The branch its adoption names for landing.
+    pub landing: Box<[u8]>,
 }
 
 /// One person of the caller's project, for an authorized inventory
@@ -962,6 +964,7 @@ fn settings_repositories(
                     host: repository.host.clone(),
                     owner: repository.owner.clone(),
                     name: repository.name.clone(),
+                    landing: repository.landing.clone(),
                 })
                 .expect("one identity per readable repository");
         }

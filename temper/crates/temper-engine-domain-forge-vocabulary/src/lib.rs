@@ -688,6 +688,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 .checked_add(bytes(&row.owner))?
                 .checked_add(bytes(&row.name))?
                 .checked_add(bytes(&row.prefix))?
+                .checked_add(bytes(&row.landing))?
                 .checked_add(bytes(&row.settings.default_branch))?;
             held = held.checked_add(
                 skein_lib::len_u64(row.workflows.len()).checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?,

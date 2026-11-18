@@ -201,6 +201,7 @@ pub enum PersonAction {
 pub enum Setting {
     Model(u32),
     Worker(u32),
+    Provider(u32),
     Charter(u32),
     Template(u32),
     Policy(u32),

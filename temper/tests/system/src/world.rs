@@ -36,7 +36,7 @@ pub fn charter() -> engine::Charter {
     charter.policy.model = engine::Model {
         provider: 1,
         program: None,
-        dialect: temper_worker_domain_world::DIALECT,
+        dialect: 3,
         endpoint: 0,
         name: b"fake-1".as_slice().into(),
         cache_life_ms: 0,
@@ -76,6 +76,7 @@ pub fn config(seed: u64) -> engine::Config {
         program: charter.policy.model.program.clone(),
     }]);
 
+    config.core.defaults.providers = jig_test_profile::fixtures::provider_references(&config.core.settings);
     config.core.defaults.charters = Box::new([charter]);
     config.core.settings.resume_bytes = 8192;
     config

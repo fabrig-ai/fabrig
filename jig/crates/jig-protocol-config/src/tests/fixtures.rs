@@ -22,7 +22,7 @@ pub const ENGINE_SMALL: &[u8] = br#"{
 "name": "fake",
 "number": 1,
 "dialect": 3,
-"provider": "fake-provider",
+"provider": "Fake",
 "address": {"socket": "127.0.0.1:7101"},
 "transport": "plaintext",
 "headers": [],

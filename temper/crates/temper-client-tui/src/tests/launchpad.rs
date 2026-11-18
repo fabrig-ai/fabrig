@@ -1688,7 +1688,7 @@ fn needs_and_the_quiet_line_cross_projects_only_on_the_launchpad() {
         web.items.first().unwrap().event,
         crate::Event::Walk {
             object: c::ObjectKey::Escalation(ENDED_CHAT),
-            step: crate::WalkStep::Open { address: b"http://127.0.0.1:8367/?project=2".as_slice().into() },
+            step: crate::WalkStep::Open { address: b"http://127.0.0.1:8367/needs?project=2".as_slice().into() },
         }
     );
     let chat = home_projects(Some(false), &[], &[], true, None, Address::Chat { task: CHAT }, LEDE.as_bytes(), true);

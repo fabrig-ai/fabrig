@@ -3,7 +3,7 @@ use crate::{Limits, Text};
 use alloc::boxed::Box;
 use skein_lib::Decimal;
 
-pub const INTRO: &[u8] = b"JSON fields, types, bounds and effects. Read `settings show KIND N`, edit and set whole. File shape: file. Refusals: shape, count, reference, rules, budget, grace, owner, linked. Spend: deployment model-price units. Hex: lowercase hexadecimal. u8/u16/u32/u64: 0 through 255/65535/4294967295/18446744073709551615. bool: true/false. text[N]/hex[N]: <=N bytes; [N] T: <=N entries of T. ? optional; ! required; |null admits null. Code choices are JSON strings. Values follow setting.kind; project-policy uses policy.";
+pub const INTRO: &[u8] = b"Read/edit/set whole: `settings show KIND N`. Refusals: shape, count, reference, rules, budget, grace, owner, linked, accounts. Spend: deployment model-price units. uN: unsigned N-bit integer (0..2^N-1). bool: true/false. t[N]/h[N]: text/lowercase hex, <=N bytes; ns: nanoseconds; [N] T: <=N entries of T. ? optional; ! required; |null admits null. Choices: JSON strings; A|B: alternatives; choice: described alternatives. set: setting.kind; project-policy: policy.";
 
 #[must_use]
 pub fn page(limits: &Limits) -> Box<[u8]> {
@@ -24,7 +24,7 @@ pub fn page_of(forms: &[Form], fields: &[Field], limits: &Limits) -> Box<[u8]> {
 }
 
 fn write(forms: &[Form], fields: &[Field], limits: &Limits, out: &mut Text) {
-    out.put(b"# Settings fields\n\nKind: reference\n\nSettings value types, bounds and effects, for settings files and `settings show`.\n");
+    out.put(b"# Settings fields\n\nKind: reference\n\nJSON types, bounds and effects for settings files and `settings show`.\n");
     out.put(b"\n");
     out.put(INTRO);
     out.put(b"\n");
@@ -68,9 +68,9 @@ fn write(forms: &[Form], fields: &[Field], limits: &Limits, out: &mut Text) {
             if field.shape != form.shape {
                 continue;
             }
-            out.put(b"- `");
+            out.put(b"- ");
             out.put(field.name);
-            out.put(b"`: ");
+            out.put(b":");
             if let Some(bound) = field.list {
                 out.put(b"[");
                 number(most(bound, limits), out);
@@ -80,7 +80,9 @@ fn write(forms: &[Form], fields: &[Field], limits: &Limits, out: &mut Text) {
             if field.null {
                 out.put(b"|null");
             }
-            out.put(b".");
+            if !field.line.is_empty() {
+                out.put(b";");
+            }
             line(field.line, out);
             if let Value::Words(words) = field.value {
                 for word in words {
@@ -99,7 +101,6 @@ fn write(forms: &[Form], fields: &[Field], limits: &Limits, out: &mut Text) {
 
 fn line(bytes: &[u8], out: &mut Text) {
     if !bytes.is_empty() {
-        out.put(b" ");
         if let Some(rest) = bytes.strip_prefix(b"Optional; ") {
             out.put(b"? ");
             out.put(rest);
@@ -113,9 +114,18 @@ fn line(bytes: &[u8], out: &mut Text) {
             out.put(b"!");
             out.put(rest);
         } else {
-            out.put(bytes);
+            prose(bytes, out);
         }
     }
+}
+fn prose(bytes: &[u8], out: &mut Text) {
+    for article in [b"The ".as_slice(), b"Its ", b"An ", b"A "] {
+        if let Some(rest) = bytes.strip_prefix(article) {
+            out.put(rest);
+            return;
+        }
+    }
+    out.put(bytes);
 }
 fn quoted(word: &[u8], out: &mut Text) {
     out.put(b"`");
@@ -127,16 +137,22 @@ fn quoted(word: &[u8], out: &mut Text) {
     out.put(b"`");
 }
 fn words(values: &[Word], out: &mut Text) {
+    let mut described = !values.is_empty();
+    for word in values {
+        described &= !word.line.is_empty();
+    }
+    if described {
+        out.put(b"choice");
+        return;
+    }
+    out.put(b"`");
     for (index, word) in values.iter().enumerate() {
         if index > 0 {
-            if index.checked_add(1).expect("word count fits") == values.len() {
-                out.put(b" or ");
-            } else {
-                out.put(b", ");
-            }
+            out.put(b"|");
         }
-        quoted(word.word, out);
+        out.put(if word.word.is_empty() { b"\"\"" } else { word.word });
     }
+    out.put(b"`");
 }
 fn value(value: &Value, forms: &[Form], limits: &Limits, out: &mut Text) {
     match value {
@@ -146,11 +162,11 @@ fn value(value: &Value, forms: &[Form], limits: &Limits, out: &mut Text) {
             Width::U32 => b"u32",
             Width::U64 => b"u64",
         }),
-        Value::Nanoseconds => out.put(b"nanoseconds"),
-        Value::Time => out.put(b"nanoseconds since 1970 UTC"),
+        Value::Nanoseconds => out.put(b"ns"),
+        Value::Time => out.put(b"ns since 1970 UTC"),
         Value::Boolean => out.put(b"bool"),
         Value::Text(bound) | Value::Hex(bound) => {
-            out.put(if let Value::Text(_) = value { b"text" } else { b"hex" });
+            out.put(if let Value::Text(_) = value { b"t" } else { b"h" });
             out.put(b"[");
             number(most(*bound, limits), out);
             out.put(b"]");

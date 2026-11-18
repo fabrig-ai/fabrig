@@ -6,10 +6,10 @@ An account is how a deployment pays an LLM provider for its runs, through its so
 
 ## What it is
 
-- **A provider** is an LLM provider in the configuration, by its
-  number: `temper-box init --box` writes provider 1, OpenAI, and provider 3, the
-  playground's scripted model. `me` lists the providers your party may
-  use and how each signs in.
+- **A provider** is an LLM provider by number: the stock's settings offer
+  OpenAI, 1, and Anthropic, 2. The box adds provider 3, the playground's
+  scripted model, which is fixed, not a setting. `me` lists the providers
+  your party may use and how each signs in.
 - **An account** is your party's, or the deployment's, held for its
   owners; it has its number, its provider and its order among the
   accounts.
@@ -107,7 +107,8 @@ For the configuration members that need a restart, read `temper help configurati
   host that runs it.
 - `account verify` checks a program source alone; a sign-in or key
   source fails (exit 1).
-- The providers are the configuration's and the models are settings.
+- Providers and models are settings (temper help settings); provider changes
+  are taken at the engine's next start.
   An account's list decides which of its provider's models it is offered.
   For a model a list doesn't show, such as `claude-haiku-5-5`, follow **Offering another model** under
   **Acting on it** in `temper help deployment`.

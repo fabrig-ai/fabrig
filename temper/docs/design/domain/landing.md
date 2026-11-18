@@ -841,7 +841,8 @@ Three kinds join `forge/README.md`'s section 4, each a row of its own:
   4.3's causes.
 - **Single landings outside a train:** an upgraded v15 landing keeps its
   phase, members, preparation, candidates, gate proofs, asks and pending
-  effects. Its target is the stored adopted repository's default branch,
+  effects. Its target is the stored adopted repository's landing branch
+  (`forge/adoption.md`, 8),
   and its round is absent. It finishes through the single-landing
   procedure: preparation updates the member, gates follow its branch,
   and the turn merges its pull request at the proved candidate. It opens
