@@ -224,14 +224,30 @@
       and a `last_landed`, "The last change landed SPAN ago.", SPAN the
       kicker's word, "just now" under a minute; nothing with nothing landed.
       So a landing never stands under "Nothing needs you." alone, whatever
-      became of the brief: a refused, failed or unfunded run isn't the
-      person's error, and Home has no word for one. "overnight" is the status
+      became of the brief: a failed or refused run isn't the person's
+      error, and Home has no word for one; an unpaid one has the line
+      below. "overnight" is the status
       agent's word, never the computed sentence's;
-    - *the lede and the byline:* the brief's `lede`, if the brief is new as
+    - *the lede and the byline:* the brief, the person's own (the
+      document is the watcher's, `../../domain/forge/attention.md`, 2):
+      its `lede`, if the brief is new as
       above, then "Written by the status
       agent at 07:42", its `at` by `../view.md`, 6's *clock*, in `temper-home-byline`,
       12 px in the faint colour. Otherwise neither: the computed Home has
-      no prose of its own.
+      no prose of its own;
+    - *where nothing pays* (`../../draft/brief-per-person.md`, 3): with no
+      brief new to the person and the document's `unpaid` true, their
+      last run having found no account to pay for it or no room in their
+      pool (`../../domain/forge/attention.md`, 3, *When nothing pays*), the
+      lede's place holds one line, in the lede's style: "No brief: no
+      account pays for your work here." then a space and the link
+      "Accounts", to `Accounts` (`Address::Accounts`), drawn as *More
+      accounts*' link is; no byline. The headline is unchanged, the
+      computed landed sentence. A brief new to the person wins over the
+      line, and `unpaid` false draws nothing there. The terminal shell's
+      layout draws the same line in its lede's place. Home on All
+      projects joins briefs alone and draws no such line: the line says
+      "here" of one project.
   - *Needs you,* the first region after the intro, a region named "Needs you", drawn while an open card
     waits (1, *A page's parts*): what needs the person in this
     project, the groups of `Inbox` but its updates, read as `Inbox` reads
@@ -479,7 +495,7 @@
       and ": " in the strong weight, then the first sentence of its `lede`,
       up to and with the first ".", "!" or "?" that ends the lede or is
       followed by a space, the whole lede with none. The name says whose,
-      since one brief a project is written in its own project's words
+      since the person's brief in each project is written in that project's words
       (`../../draft/surfaces.md`, 15, its default);
     - *the byline:* "Each project's brief, its first line · the newest,
       vsr's, by the status agent at 07:52", vsr the newest joined brief's

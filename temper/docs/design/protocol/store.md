@@ -160,7 +160,7 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   | Byte | Family | Key | What a row holds | Bounded by |
   |---|---|---|---|---|
   | 34 | `Dismissed` | `Dismissed { party, what }`: the party, then a `PersonFact`, `ToBegin { project }`, `GoalFrom { project, chat, goal, at }` or `KeepAsking { project, subject, at }`, its subject a movable kind or a path set's number (`../domain/forge/attention.md`, 6) | what the person dismissed, on every device and across restarts (`../domain/forge/attention.md`, 1). Its record is its key's fields, `{ party, what }`, as `Flight`'s is. Written by the party's `Dismiss` (`../client/forge/records.md`), a second of the same writing nothing and a `KeepAsking` of a project and subject the party holds with another `at` replacing it in that decision; erased in the decision that releases its project (jig's `domain/connectors.md`, section 2). A family of the forge connector's though it is people's, as `Binding` is. jig erases no party, so nothing erases a row by its party: a member removed keeps theirs, as a binding stays (`sign-in.md`, section 5; `store.md`, section 7) | 8 times the forge's `bindings` times its `judge_projects`: eight times the members times the projects |
-  | 36 | `ProjectFacts` | `ProjectFacts { project }` | a project's landed count, the wall of its latest landing, the status agent's brief, none or `{ sentence, lede, at, landed, findings }`, and its run in flight, none or `{ task, landed, since, findings }`, each `findings` the open findings' mark, none or 32 bytes, none by default (`../domain/forge/attention.md`, 2 and 3). Written in the decision that lands a change, at a sitting that makes a project's row for its open findings, when a run is asked, made or refused, and when a brief is heard; erased with its project | `judge_projects` |
+  | 36 | `ProjectFacts` | `ProjectFacts { project }` | a project's landed count and the wall of its latest landing (`../domain/forge/attention.md`, 2). A row stored with the former `brief` and `running` fields is converted as it is read, both dropped, a change the layout's plan derives (jig's `protocol/store/layouts.md`, 5.3), with no job and no version moved: a brief is each person's now, family 50. Written in the decision that lands a change and at a sitting that makes a project's row for its open findings; erased with its project | `judge_projects` |
   | 37 | `Looked` | `Looked { party, project }` | a party's `previous` and `latest` looks at a project, walls, and the `landed` counts at them, `seen` and `next_seen` (`../domain/forge/attention.md`, 2). Written by the party's request; erased with its project | `bindings` times `judge_projects` |
 
 - **A person's away and what was decided for them,** after them:
@@ -256,6 +256,19 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
     after its last variant so that every stored tag keeps its meaning.
     `source` and `kept` default to none: a stored change has neither and
     reads as before, with no version moved and no patch (section 4).
+- **Each person's brief** (`../domain/forge/attention.md`, 3, *Kept per
+  person*): 50 `PersonBrief`, keyed `PersonBrief { party, project }`,
+  the party, then the project, as `Looked`; its record `{ party,
+  project, brief, running, unpaid }`, `brief` none or `StatusBrief` and
+  `running` none or `StatusRunning`, the records `ProjectFacts` held,
+  each `findings` none or 32 bytes, and `unpaid` none or a wall. Its
+  record is the schema's `Value` variant `person_brief`, appended after
+  the last, value type 50 over its byte, named `temper.person-briefs`
+  for the census; value type 49 stays free for byte 49's milestone row.
+  Written when a person's run is asked, made, refused or heard; erased
+  with its project. A family of the forge connector's though it is
+  people's, as `Binding` is. Bounded by `bindings` times
+  `judge_projects`.
 - **The landing history** (`../domain/landing-history.md`, 4.1): 127
   `HistoryProject`, keyed by the project, its next event's number, the
   events kept, `whole_since`, its hours' marks, the change being swept
@@ -285,7 +298,7 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   outcome naming it), 21, 23 and 24 (under any project); 28, 29, 30 and
   41; and 46 to 48, a change's red passes and two parts in one page. A
   project's deletion erases the project's own rows of families 20, 24,
-  31, 34, 36 to 39, 41 and 42 with it, and its families 127 to 131 by
+  31, 34, 36 to 39, 41, 42 and 50 with it, and its families 127 to 131 by
   its history's sweep. Kept on purpose: families 16, 18, 25 to 27, 35,
   43 and 45; a shared context's rows; and a kept project's history,
   follows and settings.
@@ -323,8 +336,8 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
     `GoalFrom`, the project, the chat, the goal and when; 2 `KeepAsking`,
     the project, its subject, 0 and the kind's place in
     `../domain/forge/attention.md`, 6's order or 1 and the set's number, and when.
-  - `ProjectFacts` is the project; `Looked` is the party, then the
-    project.
+  - `ProjectFacts` is the project; `Looked` and `PersonBrief` are the
+    party, then the project.
   - `Away` is the party, then the project; `Decided` is the project,
     then the number.
 - **Each family's byte has a name** for the store's census, in a table

@@ -50,7 +50,9 @@ connector keeps it because `Stored` holds every family of temper's, as it does
 
 What a project's Home says of its landings and of the person's last
 look (`../../client/pages/README.md`): two families of temper's, kept by the
-connector as `Dismissed` is (1), and a document computed at its read.
+connector as `Dismissed` is (1), a third keeping each person's brief
+(`PersonBrief`, 3, *Kept per person*), and a document computed at its
+read.
 
 - **`ProjectFacts`,** one row a project that has landed anything, or
   that held open findings at a sitting (3, *When*), held in memory,
@@ -61,10 +63,10 @@ connector as `Dismissed` is (1), and a document computed at its read.
     are two;
   - `last_landed`, the wall time of the latest, the time of its
     change's decision; with `landed` 0, the wall the row was made,
-    which the document reads as none;
-  - `brief`, none or what the status agent last wrote (3): `sentence`,
-    `lede`, `at`, `landed`, the count it covers, and `findings`, the
-    mark of the open findings it read (3, *The open findings*).
+    which the document reads as none.
+
+  The facts are the project's and read the same for everyone; a brief
+  and its run are each person's (3).
 
   A landing is counted in the decision that first logs its change in
   the landing log (`../after-landing.md`, section 10), once a change; the
@@ -103,8 +105,13 @@ connector as `Dismissed` is (1), and a document computed at its read.
   of the project's scope. The core's ask for a document names the
   watcher's party, as for the subject `dismissed` (1), and the
   connector computes it at that read:
-  - `landed`, `last_landed` and `brief`, the row's; 0 and none with no
-    row, and `last_landed` none where `landed` is 0;
+  - `landed` and `last_landed`, the row's; 0 and none with no row, and
+    `last_landed` none where `landed` is 0;
+  - `brief`, the watcher's own, their `PersonBrief`'s (3); none with no
+    row. No watcher reads another's brief;
+  - `unpaid`, whether the watcher's last run found nothing to pay for
+    it, their `PersonBrief`'s `unpaid` being some (3, *When nothing
+    pays*); false with no row;
   - `previous` and `seen`, the party's `Looked`; none and `landed` with
     no row, so nothing reads as new;
   - `queued`, the project's changes the subject `changes` counts
@@ -118,55 +125,96 @@ connector as `Dismissed` is (1), and a document computed at its read.
     (`Repository.settings`); empty with no home.
 
   It is marked wherever the subject `changes` is (a queue, a branch's
-  red, a merge), and at a look and a brief. A look makes the document
+  red, a merge), and at a look, a brief and a run found unpaid. A look makes the document
   again for every watcher of the project's, each its own party's; a
   subject per party would make the root read the sign-in on every
   watch (1).
-- **Erased with its project,** in the same decision as its dismissals
-  (1), the subject marked when any went. jig erases no party, so a
-  `Looked` row stays until its project goes, as `Dismissed` does
+- **Erased with its project,** `ProjectFacts`, `Looked` and
+  `PersonBrief` alike, in the same decision as its dismissals (1), the
+  subject marked when any went. jig erases no party, so a `Looked` or
+  `PersonBrief` row stays until its project goes, as `Dismissed` does
   (`../../protocol/store.md`, section 7).
 
 ## 3. The status agent
 
 The few lines at the top of a project's Home, written by an agent from
-what the engine keeps, at most once a sitting and only with something
-new to say. Its charter is the stock's 9
+what the engine keeps, for one person: at most once a sitting of theirs
+and only with something new to say to them
+(`../../draft/brief-per-person.md`, 2). Its charter is the stock's 9
 (`../../protocol/configuration/stock.md`).
 
-- **When:** in the decision of a `Looked` that moves `previous` (2),
-  with something new to say: `landed` above the brief's `landed`, or the
-  open findings' mark other than the brief's (*The open findings*,
-  below), none with no brief; and the brief over an hour old or none,
-  and no run in flight for the project. A party's first look moves no
-  `previous` and starts none. There are no timers: nobody looking, or
-  nothing landed and no finding changed, spends nothing.
+- **When:** in the decision of a party's `Looked` that moves `previous`
+  (2), read for that party: something new since their brief, `landed`
+  above their brief's `landed`, or the open findings' mark other than
+  their brief's (*The open findings*, below), none with no brief; and
+  their brief over an hour old or none, and no run of theirs in flight.
+  A party's first look moves no `previous` and starts none. There are no
+  timers: nobody looking, or nothing landed and no finding changed,
+  spends nothing, and a person who doesn't look starts none.
 - **A project that has landed nothing** has no `ProjectFacts` row (2).
   Where it holds open findings at such a decision, that decision makes
-  its row, `landed` 0, `last_landed` the wall, no brief, saved and the
-  subject `status` marked, as a landing makes one, and its run then
+  its row, `landed` 0, `last_landed` the wall, saved and the subject
+  `status` marked, as a landing makes one, and the party's run then
   starts by the same rule. Past `judge_projects` no row is made and no
   run starts.
-- **In flight:** `ProjectFacts.running`, none or `{ task, landed, since,
+- **Kept per person:** `PersonBrief`, one row a party and a project,
+  beside `Looked` (2), held in memory, restored whole at the restart
+  step, at most `bindings` times `judge_projects`, as `Looked`:
+  `{ party, project, brief, running, unpaid }`:
+  - `brief`, none or what the status agent last wrote for that party:
+    `sentence`, `lede`, `at`, `landed`, the count it covers, and
+    `findings`, the mark of the open findings it read;
+  - `running`, the run in flight (*In flight*);
+  - `unpaid`, none or the wall at which the party's last run found
+    nothing to pay for it (*When nothing pays*).
+
+  The row is made in the decision that first asks a run of the party's
+  in the project; past its bound none is made and no run starts. It is
+  saved, and the subject `status` marked, wherever one of its fields
+  changes as the items below say.
+- **In flight:** `PersonBrief.running`, none or `{ task, landed, since,
   findings }`, saved in that decision, `findings` the mark its words were
   made with, `task` none until the root has made it, so a restart keeps
   it. A run in flight over an hour counts as none, so one that is held or
   waits on an account never stops the next, and its late result is
   dropped, as `running` no longer names it.
 - **Made** as a tier run's task is (`../after-landing.md`, section 3):
-  `Request::StatusRun { project, words }`; the root makes a procedure task
-  of the project's period, code `STATUS_CODE`, on `repair_seed`, as it has
-  an agent to fund, and answers `Event::StatusTask { project, task }`, or
-  `Event::StatusRefused { project }` with no seed or a refused admission.
-- **What funds it:** what the project's period has unreserved, up to the
-  rules' run cap, which a run returns what it leaves of. A stock project's
-  period holds one chat's 24K beyond its owner's pool
-  (`../../protocol/configuration/stock.md`), so a fresh project's briefs run from
-  it, with what the forge's own repairs take. A member's pool reserves from that
-  room too, so the first member to spend in a period can use it up. Its payer is
-  the project: a key serves it as any project's work, and a sign-in's plan while
-  its holder is the project's only member (jig's `domain/accounts.md`, 4.2).
-  With neither, its run waits, as *In flight* has it.
+  `Request::StatusRun { project, party, since, words, findings, signers
+  }`; the root makes a procedure task, code `STATUS_CODE`, funded from
+  the party's pool in the project, on `Core::pool_seed(project, party)`
+  (jig's `domain/authority.md`, 6.2), and answers `Event::StatusTask {
+  project, party, task }`, or `Event::StatusRefused { project, party }`
+  with no seed or a refused admission. A run's task is found by
+  `Domain::status_owner(task)`, the party and project whose `running`
+  names it.
+- **What funds it:** the party's pool in the project (jig's
+  `domain/authority.md`, section 7), within that pool's room, the
+  project's ceiling and the rules' run cap, which a run returns what it
+  leaves of. Its payer is the person, so an account is chosen as for any
+  of their runs (jig's `domain/accounts.md`, 4.3): their own, a plan
+  included, then those whose uses name them or the project, then the
+  deployment's. The project's period funds no brief; a key whose uses
+  name the project still pays each person's, as it pays for any work
+  inside it (4.2).
+- **When nothing pays** (`../../draft/brief-per-person.md`, 3): a run is
+  unpaid where the root finds no seed for it, the pool having no room
+  (or the run cap or the ceiling leaving nothing), or its admission
+  refused; or where its agent's run waits with no account to name. The
+  root reads the agent's run choice (jig's `Core::run_choice`) in the
+  decision that makes the agent, once it is made; where it is
+  `RunWait::Account` naming no account, no account serves the person
+  for charter 9's models, and the root ends the procedure at once, its
+  agent cancelled and its reservation given back to the pool, and
+  answers `Event::StatusRefused { project, party }` for the party and
+  project `status_owner` gives. A run that waits on an account that
+  serves the person but isn't usable now (limited, or its source on no
+  host with room) waits as any run of theirs, and is not unpaid. At
+  `StatusRefused` the forge clears the party's `running`, sets `unpaid`
+  to the wall, saves the row and marks the subject `status`. `unpaid`
+  goes back to none at the party's next result heard (*Heard*). A
+  person whose run is unpaid keeps no task waiting: their next sitting
+  asks again, by *When*, since nothing their run would have covered has
+  been covered.
 - **Its run:** the procedure's first step delegates to charter 9 with the
   task's words, unlisted, no person asked (`asks` false), its authority
   narrowed to no tools, grants, notes or delegation, and no workspace: a run of this charter selects no repository. A
@@ -179,14 +227,19 @@ new to say. Its charter is the stock's 9
 
   The file is those bytes alone, with no newline at its end.
 - **Its words,** made by the forge, and the root adding the goals and
-  the standing roles, which are core's: the span since the last brief,
-  the landed count, the titles of the changes the landing log holds since
-  the last brief (at most 20), the project's live goals each with its
+  the standing roles, which are core's: the span since the party's last
+  brief, the landed count, the titles of the changes the landing log
+  holds since that brief (at most 20), the project's live goals each with its
   delegates done and total, a goal in a milestone named by its milestone
-  first, the project's live milestones and those ended since the last
+  first, the project's live milestones and those ended since that
   brief (`../milestones.md`, section 9), the failing tests each tier of
   the project's repositories holds, the project's open findings, and
   each live standing role's Now. They say only what the engine keeps.
+  `since`, in `Request::StatusRun`, is the party's brief's `at`, as the
+  project's was; everything else in them is the project's, the same
+  words for every person over the same span. They name a person only as
+  the items below do, the reader among them, by the member name the
+  project's people give them (*Who signed*).
 - **The open findings** (`../findings.md`, 2): the project's findings
   in state `new` or `backlog`, as the forge holds them. Their part of
   the words, made by the forge in the same decision as the rest of its
@@ -245,10 +298,19 @@ new to say. Its charter is the stock's 9
   party the project no longer lists is "- person 9: no longer a member".
 - **Heard** at the procedure's next step, from its inbox: the report's first paragraph is `sentence`, the rest
   `lede`, cut by `text::fit` to 200 and 600 bytes, saved to
-  `ProjectFacts.brief` with `at`, the wall, and `landed` and `findings`,
+  the `PersonBrief.brief` of the party whose `running` names the task,
+  with `at`, the wall, and `landed` and `findings`,
   `running`'s, and the subject `status` marked. A failed, cancelled, refused or empty run
   saves nothing and asks nobody: Home keeps the computed words, and the
-  next chance is the next sitting. The procedure then ends.
+  next chance is the next sitting. Any result heard clears that row's
+  `running` and its `unpaid`: a run that ended so was paid. A result no
+  row's `running` names is dropped. The procedure then ends.
+- **Upgrading** (`../../draft/brief-per-person.md`, 4): a `ProjectFacts`
+  row stored with its former `brief` and `running` is converted as it
+  is read (jig's `protocol/store/layouts.md`), those fields dropped: a
+  project's old brief and run go, and a run then in flight has its
+  late result dropped, as no `PersonBrief` names it. Each person's brief
+  is made again at their next sitting with something new.
 ## 4. The Away switch
 
 A person's switch on one project: while it is on, what the project's
@@ -670,14 +732,17 @@ the changes it was given.
 
 - **A status run's kept row** (`attention.md`, 3): a task made for the deployment is
   never forgotten, as jig forgets a result only for a person's request. At
-  most one a sitting and an hour, each small. Default: kept, until jig
+  most one a person a sitting and an hour, each small. Default: kept, until jig
   forgets a deployment's reads.
 
-- **A stock project's room, shared** (`attention.md`, 3; `../../protocol/configuration/stock.md`):
-  the chat's 24K outside the pools is what no pool reserved, and no brief's own: the
-  forge's repairs draw on it and a member's first spend in a period reserves it, and
-  a shared project's plan doesn't serve the run. Home then keeps its computed
-  sentence, and nothing tells the owners why. Default: so; they can fund the period.
+- **The cost of a brief each** (`attention.md`, 3; `../../draft/brief-per-person.md`, 6):
+  one run a person a sitting, at most hourly, against one a project.
+  Default: accepted, since a run is at most 4 turns and a person who
+  doesn't look starts none.
+
+- **A person with no account** on a deployment whose key names them or
+  the project (`../../draft/brief-per-person.md`, 6). Default: that key
+  pays, by jig's `domain/accounts.md`, 4.3's order.
 
 - **What lands on a goal's branch and then on main** (`attention.md`, 2) counts twice,
   each a change landed. Default: so, said here and in the design of Home.

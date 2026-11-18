@@ -733,7 +733,12 @@
   - `landed`, u64, the changes landed into every landing branch of the
     project; `last_landed`, the time of the latest, option;
   - `brief`, option, `StatusBrief`: `sentence` (at most 200 bytes), `lede`
-    (at most 600), `at`, and `landed`, the count it covers;
+    (at most 600), `at`, and `landed`, the count it covers: the
+    watcher's own brief;
+  - `unpaid`, bool, appended after `branch`: whether the watcher's last
+    status run found nothing to pay for it (`../../domain/forge/attention.md`,
+    3, *When nothing pays*). Its field moves the client wire's version,
+    unbridged (`../../draft/redeploys.md`);
   - `previous`, option, the party's last look of the sitting before; and
     `seen`, u64, the `landed` count then;
   - `queued`, u32, what the subject `changes` counts; `red`, whether the

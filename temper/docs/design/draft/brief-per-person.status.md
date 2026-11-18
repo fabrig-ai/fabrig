@@ -2,9 +2,8 @@
 
 2026-11-18. Where the design lags or departs from [brief-per-person.md](brief-per-person.md).
 
-- **Design lags:**
-  - 2: `../domain/forge/attention.md`, 2 and 3: `ProjectFacts` holds one brief and one run a project, the run made in the project's period with the project its payer.
-  - 2: jig's `domain/accounts.md`, 4.2: a shared project's automatic work is paid by a key alone, which a person's brief no longer is.
-  - 3: `../client/pages/home.md`, 1: Home draws nothing where no brief is.
-  - 4: no conversion of `ProjectFacts`' layout.
+- **Design departs:** 3, decided by goal 8126's design on 2026-11-18, keeping the draft's intent, for the user to see:
+  - 3: a run is unpaid where its agent's run waits naming no account, read from jig's run choice as the agent is made (`../domain/forge/attention.md`, 3, *When nothing pays*), where the draft has any wait on an account. A run waiting on an account that serves the person but isn't usable now (limited, or its source on no host with room) waits and writes its brief when it can, with no line, because an account does pay for it then.
+  - 3: an unpaid run is ended at once, its agent cancelled and its reservation given back, where the draft has it wait. A run left waiting with no account would hold the person's pool for good, one more each sitting, and all would run at once when an account came; the next sitting asks again.
+  - 3: the line is a project's Home's alone (`../client/pages/home.md`, 1, *where nothing pays*): Home on All projects joins briefs and draws none, since the line says "here" of one project.
 - **Open:** 6, each question with its default.

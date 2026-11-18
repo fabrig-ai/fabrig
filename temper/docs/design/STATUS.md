@@ -667,6 +667,7 @@ Drafts:
 - [`draft/bench-without-sqlite.md`](draft/bench-without-sqlite.status.md)
 - [`draft/box-link-first.md`](draft/box-link-first.status.md)
 - [`draft/branch-reds.md`](draft/branch-reds.status.md)
+- [`draft/brief-per-person.md`](draft/brief-per-person.status.md) — P1, goal 8126: the status agent's brief is each person's: started at their look, funded from their pool in the project with them its payer, so their own plan pays for it, its words since their last brief, drawn on their Home alone; Home's line "No brief: no account pays for your work here." where their run finds no account or no room; `ProjectFacts` loses its brief and run as each row is read. Its walk not yet run.
 - [`draft/brief-pull-fits-deadline.md`](draft/brief-pull-fits-deadline.status.md)
 - [`draft/bundle-loading.md`](draft/bundle-loading.status.md)
 - [`draft/change-landing-fixes.md`](draft/change-landing-fixes.status.md)
