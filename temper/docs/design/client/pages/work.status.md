@@ -7,10 +7,6 @@
   beside the stream before the hello, and the chats' chips watch and an
   owner's `deployment` watch each open a wave past the batch [in flight:
   change 7925].
-- **Not yet:** 1, *Its head*, *All* and Goals' *Its intro*: the heading and
-  every section wait for every list, with no line held for the heading,
-  and Goals' heading and rows draw before the needs' read and the
-  milestones' list answer [in flight: change 7927].
 
 - **Not yet:** 1, *Work*: no landed draft is read, placed or drawn, and
   no goal starts from one [in flight: change 664].

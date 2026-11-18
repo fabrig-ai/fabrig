@@ -9,7 +9,6 @@
 
 - **Not yet:** 3.6: the sheet for deleting a project, absent from `confirm.rs` [in flight: change 633].
 
-- **Not yet:** 3.4, *Nothing of the frame's or a page's before the hello*: Team's `Read::Project` leaves at start, beside the stream, before the hello (`temper-client-domain-pages`'s `pages/team.rs`) [in flight: change 7925].
 
 
 - **Departs:** 2, *The crate graph*: `temper-client-domain-forge` also depends on

@@ -3,7 +3,6 @@
 2026-11-18. Where the tree's code lags or departs from [family.md](family.md).
 
 - **Not yet:** 6: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).
-- **Not yet:** 7, *One `deployment` watch*: it opens on every page for an owner with a playground, once the playground's read names its provider, Work's among them (`forge/model.rs`, `watch_deployment`) [in flight: change 7925].
 - **Not yet:** 
   the Board address and reordering remains `../engine.status.md` (Not yet).
    the project-only settings-role gap remains `../pages/settings.status.md`, 2.
