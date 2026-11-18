@@ -263,7 +263,10 @@ fn each_inbox_kind_selects_its_owner_objects_and_the_cursor_keeps_that_kind() {
                     from,
                 },
             );
-            let Held::Read { answer: crate::reads::Answer::Page(page), .. } = held else { break };
+            let Held::Read { answer: crate::reads::Answer::Page(page), .. } = held else {
+                assert!(group.updates(), "needs never load a store page");
+                break;
+            };
             for row in &page.rows {
                 let crate::reads::PageRow::Inbox(entry) = row else { panic!("inbox row") };
                 found.push(entry.object).unwrap();
@@ -271,7 +274,11 @@ fn each_inbox_kind_selects_its_owner_objects_and_the_cursor_keeps_that_kind() {
             from = page.next;
             match &from {
                 Some(crate::reads::Cursor::Live { .. }) => {}
-                Some(crate::reads::Cursor::Store { .. }) | None => break,
+                Some(crate::reads::Cursor::Store { .. }) => {
+                    assert!(group.updates(), "needs end without a store continuation");
+                    break;
+                }
+                None => break,
             }
         }
         assert_eq!(found.into_boxed().as_ref(), [expected], "{group:?} selects its exact owner kind");

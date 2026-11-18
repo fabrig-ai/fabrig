@@ -256,6 +256,7 @@ pub(super) fn live_page(core: &Core, limits: &Limits, party: u64, read: &Read, d
                         None => after,
                     },
                 }),
+                Some(_) | None if !group.updates() => None,
                 Some(_) | None => {
                     let after = match last {
                         Some((cursor, activity)) => super::indexed::inbox_position(party, *group, cursor, activity),
