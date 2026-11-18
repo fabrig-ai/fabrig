@@ -5,6 +5,13 @@
 
 - **Not yet:** area 2: `goal start`'s and `milestone new`'s `--budget` in ctl's amount, and `--as-allowed`'s help lines saying what it takes [in flight: change 7671].
 - **Not yet:** area 7: no `draft` group or tool [in flight: change 665].
+- **Not yet:** area 2: a budget or tasks raised by `task amend` is not
+  funded by the party who gives it: the engine resizes the task's
+  existing funder's reservation, whoever amends, as jig's
+  `jig/docs/design/domain/authority.md`, 7 ("Whoever widens a task
+  funds it") records as not yet built. The admission ctl compares
+  against is the giver's, so a raise within the giver's bounds is sent
+  and charged to the existing funder.
 - **Not yet:** the whole document: area 2 cannot distinguish a refused creating offer's
   capacity cause from its role cause: jig's `me` carries absence alone
   (`jig/docs/design/client/domain/contract/documents.md`, 3). Its diagnostic names
@@ -17,7 +24,7 @@
 - **Not yet:**  the absent command groups remain `tools.status.md`, 1.
    the absent read commands remain `tools.status.md`, 2.  the absent deciding commands remain `tools.status.md`, 3.
   the whole document: area 2's procedure executor choice for `goal start`,
-  `proposal withdraw`, `seen`, and `task amend`'s `--budget`; area 3's `party make`, `sign-in --service`, `deployment
+  `proposal withdraw` and `seen`; area 3's `party make`, `sign-in --service`, `deployment
   show`, `task move`, and the project's
   `policy`, `role` and `pool`; area 4's `create`, `propose` and
   `compound`; area 6's `forge forget`, with no request on the wire.

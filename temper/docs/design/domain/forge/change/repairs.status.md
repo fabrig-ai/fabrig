@@ -1,6 +1,6 @@
 # repairs: status
 
-2026-11-16. Where the tree's code lags or departs from [repairs.md](repairs.md).
+2026-11-18. Where the tree's code lags or departs from [repairs.md](repairs.md).
 
 A stall's gaps are `stalls.status.md`'s.
 
@@ -54,9 +54,6 @@ A stall's gaps are `stalls.status.md`'s.
     drop only by delivering the decision out of step, though the empty inbox,
     and `task show`'s "Waiting for news", which jig answers of a task not held
     (`jig/crates/jig-domain-core/src/runs/waits.rs`), fit it.
-  - the whole document: widening exhausted spend with ctl before release: `task amend`'s
-    `--budget` is not implemented (`../../../client/ctl/areas.md`). A spend
-    hold offers cancellation or asking afresh instead.
   - the whole document: `change show`'s `held:` line for a cancelled delegate reads `a
     delegate or a write failed for good`: the panel's hold is the client
     wire's `failed` (`temper-client-protocol-wire/schema/client-wire-v1.schema`,
