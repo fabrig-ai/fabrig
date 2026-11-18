@@ -166,10 +166,7 @@ impl Host {
     #[must_use]
     pub fn new(settings: &Settings, seed: u64, now: Time, wall: Wall) -> Host {
         let limits = &settings.limits;
-        assert!(limits::valid(limits), "TUI capacities are checked");
-        let (_, words) =
-            temper_client_shell_terminal::limits::view(&limits.native).expect("native view capacities are checked");
-        let words = tui::words::Words::english(words, &limits.native.client).expect("TUI words are checked");
+        let words = limits::checked(limits).expect("TUI capacities are checked");
         Host {
             #[cfg(test)]
             events: Vec::new(),

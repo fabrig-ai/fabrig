@@ -89,8 +89,7 @@ impl Host {
         zone_minutes: i32,
         ways: view::sign_in::Ways,
     ) -> Self {
-        assert!(limits::valid(&client), "web capacities are checked");
-        let (bounds, words) = limits::view(&client).expect("web view capacities are checked");
+        let (bounds, words) = limits::checked(&client).expect("web capacities are checked");
         let mut root = root::new(&client, seed);
         root.set_zone_minutes(zone_minutes);
         Self {
