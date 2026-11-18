@@ -392,11 +392,11 @@ fn a_claude_configuration_replaces_openai_and_keeps_the_demo() {
     // docs/help/box.md, step 1: Claude's fields over init's endpoint and model sizes.
     let (scratch, paths) = initialized_deployment("live-claude-configuration");
     let config = &paths[0];
-    let agent_before = temper_fixtures::agent::read(config);
+    let agent_before = temper_agent_fixtures::read(config);
     let before: Value =
         serde_json::from_slice(&fs::read(config.join("temper.json")).expect("deployment")).expect("JSON");
     configure_claude(&paths);
-    let agent = temper_fixtures::agent::read(config);
+    let agent = temper_agent_fixtures::read(config);
     let value: Value =
         serde_json::from_slice(&fs::read(config.join("temper.json")).expect("deployment")).expect("JSON");
     assert_eq!(
@@ -2050,7 +2050,7 @@ fn a_key_configuration_changes_only_anthropics_list_policy_and_starts() {
     let (scratch, paths) = initialized_deployment("live-key-configuration");
     let path = paths[0].join("temper.json");
     let mut expected: Value = serde_json::from_slice(&fs::read(&path).expect("init configuration")).expect("JSON");
-    let agent = temper_fixtures::agent::read(&paths[0]);
+    let agent = temper_agent_fixtures::read(&paths[0]);
     let provider = expected["engine"]["llm"]["providers"]
         .as_array_mut()
         .expect("providers")
@@ -2064,7 +2064,7 @@ fn a_key_configuration_changes_only_anthropics_list_policy_and_starts() {
     configure_key(&paths);
     let configured: Value = serde_json::from_slice(&fs::read(path).expect("key configuration")).expect("JSON");
     assert_eq!(configured, expected, "OpenAI, demo and both Anthropic endpoints remain as init writes them");
-    assert_eq!(temper_fixtures::agent::read(&paths[0]), agent, "Claude Code's program stays as init writes it");
+    assert_eq!(temper_agent_fixtures::read(&paths[0]), agent, "Claude Code's program stays as init writes it");
     scratch.remove();
     assert_live_startup("live-key-startup", configure_key);
 }

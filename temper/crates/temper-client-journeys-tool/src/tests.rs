@@ -533,10 +533,10 @@ fn a_refusal_keeps_the_journey_of_its_name() {
 
 #[test]
 fn the_committed_journey_redacted_prints_the_same_pages() {
-    let root = Path::new(JOURNEYS).join("welcome-playground");
+    let root = Path::new(JOURNEYS).join("welcome-set-up");
     let recording = fs::read(root.join("recording")).expect("committed recording");
     let redacted = journey::redact(&recording, &[]).expect("redact committed journey");
-    let pages = crate::printed("welcome-playground", &redacted.recording).expect("read journey").expect("replay");
+    let pages = crate::printed("welcome-set-up", &redacted.recording).expect("read journey").expect("replay");
     assert!(!pages.is_empty(), "committed pages checked");
     for page in pages {
         let expected = fs::read(root.join(page.name)).expect("committed page");

@@ -151,7 +151,7 @@ pub(crate) fn write(directory: &Path, bundle: &Path) {
     let (agent, value) = documents(directory, bundle);
     let mut value = serde_json::from_slice(&value).expect("deployment JSON");
     let agent = serde_json::from_slice(&agent).expect("agent JSON");
-    temper_fixtures::agent::apply(&mut value, directory, &agent);
+    temper_agent_fixtures::apply(&mut value, directory, &agent);
     private(
         &directory.join("browser-agents.json"),
         &serde_json::to_vec(&agent_settings(&agent)).expect("agents setting JSON"),

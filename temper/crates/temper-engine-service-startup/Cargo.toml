@@ -37,7 +37,7 @@ temper-service-core.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true
-temper-fixtures.workspace = true
+temper-agent-fixtures.workspace = true
 jig-protocol-config-fixtures.workspace = true
 temper-limits-fixtures.workspace = true
 skein-world.workspace = true

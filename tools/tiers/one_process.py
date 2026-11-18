@@ -360,26 +360,40 @@ def place(binary_id, manifest_path, workspace_root, table):
     return tree, table.get(tree, {}).get(binary_id) if table is not None else None
 
 
+def target_binary_id(package, target):
+    """Name a test target as nextest does (tools/tiers/layers.md, 3)."""
+    if target['test']:
+        for kind in target['kind']:
+            if kind in ('lib', 'rlib', 'cdylib', 'dylib', 'staticlib', 'proc-macro'):
+                return package['name']
+            if kind == 'test':
+                return f"{package['name']}::{target['name']}"
+            if kind in ('bin', 'example', 'bench'):
+                return f"{package['name']}::{kind}/{target['name']}"
+    return None
+
+
+def target_flags(binary_id):
+    """Cargo selection for one binary id (tools/tiers/references.md, 5)."""
+    _, separator, target = binary_id.partition('::')
+    if not separator:
+        return ['--lib']
+    kind, slash, name = target.partition('/')
+    if slash and kind in ('bin', 'example', 'bench'):
+        return ['--' + kind, name]
+    return ['--test', target]
+
+
 def workspace_binaries(metadata, listing, table):
     """Record every test target, selected or not (tools/tiers/budgets.md, 3)."""
     workspace = []
     for package in metadata['packages']:
         for target in package['targets']:
-            if not target['test']:
-                continue
-            for kind in target['kind']:
-                if kind in ('lib', 'rlib', 'cdylib', 'dylib', 'staticlib', 'proc-macro'):
-                    binary_id = package['name']
-                elif kind == 'test':
-                    binary_id = f"{package['name']}::{target['name']}"
-                elif kind in ('bin', 'example', 'bench'):
-                    binary_id = f"{package['name']}::{kind}/{target['name']}"
-                else:
-                    continue
+            binary_id = target_binary_id(package, target)
+            if binary_id is not None:
                 tree, layer = place(binary_id, package['manifest_path'], metadata['workspace_root'], table)
                 listed = listing['rust-suites'].get(binary_id, {}).get('status') == 'listed'
                 workspace.append(dict(binary_id=binary_id, tree=tree, layer=layer, listed=listed))
-                break
     return sorted(workspace, key=lambda binary: binary['binary_id'])
 
 
@@ -775,7 +789,30 @@ def write_junit(directory, results):
     ET.ElementTree(root).write(directory / 'junit.xml', encoding='utf-8', xml_declaration=True)
 
 
-def listed_plan(command, env, profile, limits, config, walls, layers, picks=None):
+def merge_listings(listings):
+    """Unite package listings and their build environments (references.md, 5)."""
+    listing = listings[0]
+    build = listing['rust-build-meta']
+    for other in listings[1:]:
+        extra = other['rust-build-meta']
+        if build['target-directory'] != extra['target-directory']:
+            raise ValueError('nextest listings have different target directories')
+        listing['rust-suites'].update(other['rust-suites'])
+        directories = build.setdefault('base-output-directories', ['debug'])
+        for directory in extra.get('base-output-directories', ['debug']):
+            if directory not in directories:
+                directories.append(directory)
+        for key in ('non-test-binaries', 'linked-paths'):
+            combined = build.setdefault(key, {})
+            for name, values in extra.get(key, {}).items():
+                entries = combined.setdefault(name, [])
+                entries.extend(value for value in values if value not in entries)
+        build.setdefault('build-script-out-dirs', {}).update(extra.get('build-script-out-dirs', {}))
+    return listing
+
+
+def listed_plan(command, env, profile, limits, config, walls, layers, picks=None, *,
+                metadata=None, selections=None):
     """Build and plan a listing; base picks use any filter match (references.md, 5)."""
     prefix, cargo, selection, no_tests, caller_filter = arguments(command, profile)
     settings, overrides, default_filter, groups = configuration(
@@ -797,24 +834,28 @@ def listed_plan(command, env, profile, limits, config, walls, layers, picks=None
         output.extend(text.encode('utf-8', 'backslashreplace'))
 
     # Listing and build belong to the caller's prefix; metadata builds nothing.
-    listed = subprocess.Popen([*prefix, cargo, 'nextest', 'list', '--message-format', 'json',
-                               '--profile', profile, '--config-file', str(Path(config).resolve()), *selection], env=env, stdin=subprocess.DEVNULL,
-                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True)
-    listing_output = bytearray()
-    try:
-        with listed.stdout:
-            for line in iter(listed.stdout.readline, b''):
-                listing_output.extend(line)
-                forward(line.decode('utf-8', 'backslashreplace'))
-        if listed.wait():
-            raise ValueError(f'nextest listing exited with {listed.returncode}')
-    except BaseException:
-        signal_group(listed, signal.SIGTERM)
-        stop(listed, time.monotonic() + WALL_GRACE_S)
-        raise
-    listing = json_listing(listing_output.decode('utf-8', 'backslashreplace'))
-    metadata = json.loads(subprocess.check_output([cargo, 'metadata', '--format-version', '1', '--no-deps'],
-                                                env=env, stdin=subprocess.DEVNULL, text=True))
+    listings = []
+    for selected in [selection] if selections is None else selections:
+        listed = subprocess.Popen([*prefix, cargo, 'nextest', 'list', '--message-format', 'json',
+                                   '--profile', profile, '--config-file', str(Path(config).resolve()), *selected], env=env, stdin=subprocess.DEVNULL,
+                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True)
+        listing_output = bytearray()
+        try:
+            with listed.stdout:
+                for line in iter(listed.stdout.readline, b''):
+                    listing_output.extend(line)
+                    forward(line.decode('utf-8', 'backslashreplace'))
+            if listed.wait():
+                raise ValueError(f'nextest listing exited with {listed.returncode}')
+        except BaseException:
+            signal_group(listed, signal.SIGTERM)
+            stop(listed, time.monotonic() + WALL_GRACE_S)
+            raise
+        listings.append(json_listing(listing_output.decode('utf-8', 'backslashreplace')))
+    listing = merge_listings(listings)
+    if metadata is None:
+        metadata = json.loads(subprocess.check_output([cargo, 'metadata', '--format-version', '1', '--no-deps'],
+                                                    env=env, stdin=subprocess.DEVNULL, text=True))
     if picks is not None:
         wanted = {(binary, name) for binary, name, _ in picks}
         listing['rust-suites'] = {
@@ -857,11 +898,24 @@ def alone_at_base(head_directory, command, env, directory, config=Path('.config/
                 wall_grace_s=WALL_GRACE_S, leak_s=LEAK_S)
     present = set()
     if picks:
-        packages = sorted({binary.split('::', 1)[0] for binary, _, _ in picks})
         prefix, cargo, selection, _, _ = arguments(command, profile)
-        command = [*prefix, cargo, 'nextest', 'run', '--profile', profile,
-                   *(argument for package in packages for argument in ('-p', package)), *selection]
-        plan, prefix, _, output = listed_plan(command, env, profile, {}, config, None, layers, picks)
+        metadata = json.loads(subprocess.check_output([cargo, 'metadata', '--format-version', '1', '--no-deps'],
+                                                    env=env, stdin=subprocess.DEVNULL, text=True))
+        wanted = {binary for binary, _, _ in picks}
+        packages = {}
+        for package in metadata['packages']:
+            if package['id'] not in metadata['workspace_members']:
+                continue
+            found = wanted.intersection(target_binary_id(package, target) for target in package['targets'])
+            if found:
+                packages[package['name']] = sorted(found)
+        selections = [['-p', package, *(flag for binary in packages[package] for flag in target_flags(binary)),
+                       *selection] for package in sorted(packages)]
+        if selections:
+            found = {binary for binaries in packages.values() for binary in binaries}
+            found_picks = [pick for pick in picks if pick[0] in found]
+            plan, prefix, _, output = listed_plan(command, env, profile, {}, config, None, layers, found_picks,
+                                                  metadata=metadata, selections=selections)
         names = {(binary['binary_id'], test['name']) for binary in plan['binaries'] for test in binary['tests']}
         present = {pick for pick in picks if pick[:2] in names}
     results = execute_plan(reference_plan(plan, present), prefix, env, directory, {},

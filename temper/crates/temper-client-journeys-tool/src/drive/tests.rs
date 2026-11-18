@@ -188,6 +188,7 @@ fn ready() -> Machine {
         Event::BoxLine { output: Output::Stdout, line: b"http://127.0.0.1:9/link?secret=fresh\n".as_slice().into() },
     );
     step(&mut m, Event::FaceDone(Ok(())));
+    step(&mut m, Event::Found(Some(NodeId(0))));
     step(&mut m, Event::FaceDone(Ok(())));
     assert!(matches!(step(&mut m, Event::Found(Some(NodeId(0)))).as_slice(), [Action::Ready]));
     m
@@ -245,7 +246,10 @@ fn startup_orders_sign_ins_and_confines_programs() {
     assert!(step(&mut m, Event::BoxLine { output: Output::Stdout, line: fresh.as_slice().into() }).is_empty());
     assert!(matches!(step(&mut m, Event::FaceDone(Ok(()))).as_slice(), [Action::Open(url)] if url.as_ref() == fresh));
     assert!(
-        matches!(step(&mut m, Event::FaceDone(Ok(()))).as_slice(), [Action::Open(url)] if url.as_ref() == b"http://127.0.0.1:9/")
+        matches!(step(&mut m, Event::FaceDone(Ok(()))).as_slice(), [Action::Find(find)] if *find == Find::named(Role::Main, b""))
+    );
+    assert!(
+        matches!(step(&mut m, Event::Found(Some(NodeId(1)))).as_slice(), [Action::Open(url)] if url.as_ref() == b"http://127.0.0.1:9/")
     );
     assert!(
         matches!(step(&mut m, Event::FaceDone(Ok(()))).as_slice(), [Action::Find(find)] if *find == Find::named(Role::Main, b""))

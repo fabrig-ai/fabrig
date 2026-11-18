@@ -519,7 +519,7 @@ pub fn stock_files() -> settings::Files {
 
 #[expect(clippy::disallowed_types, reason = "ordinary fixture code renders the shipped agent profile")]
 pub fn stock_configuration(payload: u32, output: u32) -> Result<smith_agent_shell::config::Configuration, String> {
-    let mut stock = temper_fixtures::agent::stock(true);
+    let mut stock = temper_agent_fixtures::stock(true);
     stock["profile"]["declared"]["tool_payload"] = payload.into();
     for endpoint in stock["endpoints"].as_array_mut().expect("stock endpoints") {
         endpoint["limits"]["output"] = output.into();

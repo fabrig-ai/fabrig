@@ -420,7 +420,7 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>, value: &mut Value) {
     // The creation offer carries nine stock charters and four procedures.
     value["engine"]["limits"]["overrides"]["documents.lines"] = 12.into();
     super::configuration::use_derived(value);
-    temper_fixtures::agent::apply(value, directory, &agent);
+    temper_agent_fixtures::apply(value, directory, &agent);
 }
 
 #[must_use]

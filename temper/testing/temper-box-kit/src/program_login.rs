@@ -32,7 +32,7 @@ pub fn configuration(directory: &Path, programs: Option<&Path>, executable: &Pat
         std::os::unix::fs::symlink(executable, bin.join("claude")).expect("program lookup");
     }
     fs::write(directory.join("temper.json"), deployment).expect("deployment configuration");
-    temper_fixtures::agent::install(directory, &agent);
+    temper_agent_fixtures::install(directory, &agent);
     fs::write(directory.join("root.der"), skein_tls_kit::pki::ROOT).expect("public trust");
 }
 

@@ -174,7 +174,7 @@ fn watch(mut out: Queue<Request>) -> Option<Token> {
 }
 pub(super) fn opened(owner: bool) -> (crate::Domain, Token, Token) {
     let mut root = crate::unlinked(&f::limits(), f::SEED);
-    let (me, _) = f::start_accounts(&mut root, List::with_capacity(0));
+    let me = f::start(&mut root, List::with_capacity(0));
     let c::WatchEvent::Delivered(c::Delivery::Me(mut frame)) = f::frame(f::PARTY) else { panic!("me") };
     frame.deployment_role = Some(if owner { c::HeldRole::Owner } else { c::HeldRole::Member });
     let out = up(&mut root, Up::Watched { watch: me, event: c::WatchEvent::Delivered(c::Delivery::Me(frame)) });

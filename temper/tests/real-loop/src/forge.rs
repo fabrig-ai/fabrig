@@ -50,7 +50,7 @@ pub fn write(scratch: &Path, forge: SocketAddr, fixture: &Fixture) -> std::io::R
 
     (fixture.configure)(&mut config, &mut agent, forge);
     fixtures::turn_bounds::apply(&mut config, fixtures::turn_bounds::turn_body(&agent));
-    temper_fixtures::agent::apply(&mut config, scratch, &agent);
+    temper_agent_fixtures::apply(&mut config, scratch, &agent);
     fixtures::finish_configuration(scratch, &mut config)?;
     fixtures::private(&scratch.join("world-agent.json"), &serde_json::to_vec(&agent)?)
 }

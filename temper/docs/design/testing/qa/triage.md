@@ -1,6 +1,6 @@
 # Triage
 
-Provisional, 2026-11-12, revised 2026-11-17, from
+Provisional, 2026-11-12, revised 2026-11-18, from
 `../../draft/landed-qa.md`, section 4, milestones Q1 and Q6 of
 `../../draft/landed-qa.execution.md`. How each landing
 is judged for what a person now meets: an agent session per landing, in
@@ -67,10 +67,16 @@ this order:
   a landing's ctl cases written before its web and TUI ones, the
   person's acts and temper's account as `temper ctl` gives them, each
   case on a setup of either kind, a box's or a deployment's, which take
-  every surface alike; the green path only, as
-  `../../draft/v0.1.0.md`, 4 weighs it; each case's expectations from the
-  draft's promises, written before anything is tried; no QA, with a line
-  why, when the landing changes nothing a person meets there; the fakes
+  every surface alike. QA judges the happy path alone: v0.1.0's stories
+  and each part's bar, used as intended (`../../draft/v0.1.0.md`, 4).
+  Edge cases are off it: malformed, out-of-range or oversized input,
+  limits and bounds, refusals of bad input and their exit codes, errors,
+  races and recovery. Write no case, step or gap for one, and answer no
+  QA for a landing whose only change a person meets is one, saying so.
+  A security hole or lost data still counts wherever it is. Each case's
+  expectations from the draft's promises, written before anything is
+  tried; no QA, with a line why, when the landing changes nothing a
+  person meets there; the fakes
   alone, the person's forge the box's fake Forgejo; what a person
   meets that these cannot show is a gap (`../../draft/landed-qa.md`,
   6 and 12); reading alone, no box started, within its bound.
@@ -151,7 +157,11 @@ this order:
 - **The commands** (section 4), the case file's form, and that each is
   recorded at once, so a session ended early loses nothing recorded.
   Where ctl is configured, the case form says do is ctl or forge drive
-  lines and gives their byte rule in one line: quoted bytes take
+  lines, or `temper help PAGE`. In its pass, a `temper help PAGE` step is
+  read with the place's own program, with no box; its words compared as a `see` is (`passes.md`,
+  4). These pages walk v0.1.0's rung A (`../../draft/v0.1.0.md`, 5,
+  *Documentation for agents*). The brief gives the drive lines' byte
+  rule in one line: quoted bytes take
   printable ASCII alone, other bytes as `\xHH`, with `\"` and `\\` for
   quote and backslash (`../../client/drive.md`, 3.1).
 

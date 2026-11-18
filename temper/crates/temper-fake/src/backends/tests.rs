@@ -389,7 +389,7 @@ fn target_selection_uses_ids_and_names_and_removes_stale_tls() {
     temper["engine"]["llm"]["providers"].as_array_mut().expect("providers").reverse();
     let docs = write(&temper, &paths, &peers).expect("structural rewrite");
     let effective = json(&docs.temper);
-    let effective_agent = temper_fixtures::agent::configuration(&json(&docs.temper));
+    let effective_agent = temper_agent_fixtures::configuration(&json(&docs.temper));
     assert_eq!(effective["engine"]["llm"]["providers"][0], temper["engine"]["llm"]["providers"][0]);
     assert!(effective["engine"]["llm"]["endpoints"][0].get("trust").is_none());
     assert!(effective_agent["endpoints"][0].get("trust_der").is_none());
@@ -534,7 +534,7 @@ fn program_offer_has_a_runnable_model_route_in_both_documents() {
         "the rewrite preserves the profile's creating lists"
     );
     let effective = json(&docs.temper);
-    let effective_agent = temper_fixtures::agent::configuration(&json(&docs.temper));
+    let effective_agent = temper_agent_fixtures::configuration(&json(&docs.temper));
     let llm = &effective["engine"]["llm"];
     assert_program_provider(llm, &temper);
     assert!(llm.get("models").is_none());
@@ -642,7 +642,7 @@ fn written_anthropic_entries_are_replaced_once() {
     let (temper, paths, peers) = fixture();
     let docs = write(&temper, &paths, &peers).expect("rewrite written Anthropic route");
     let effective = json(&docs.temper);
-    let effective_agent = temper_fixtures::agent::configuration(&json(&docs.temper));
+    let effective_agent = temper_agent_fixtures::configuration(&json(&docs.temper));
     let llm = &effective["engine"]["llm"];
     assert_eq!(llm["providers"].as_array().unwrap().iter().filter(|p| p["name"] == "anthropic").count(), 1);
     assert_program_provider(llm, &temper);

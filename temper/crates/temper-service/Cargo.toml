@@ -71,7 +71,7 @@ temper-engine-domain-forge-issues.workspace = true
 temper-worker-domain.workspace = true
 
 [dev-dependencies]
-temper-fixtures.workspace = true
+temper-agent-fixtures.workspace = true
 temper-limits-fixtures.workspace = true
 jig-protocol-config-fixtures.workspace = true
 temper-worker-protocol-git.workspace = true

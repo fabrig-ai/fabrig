@@ -1,6 +1,6 @@
 //! The pin's schema constructs (data/codec/README.md, section 6).
 //! Table metadata retains holds, explicit defaults and former names; output
-//! shapes use the same grouping rule and rendered helpers as generation.
+//! shapes use the same named-boolean rule and field helpers as generation.
 
 use skein_codec::schema::{self, DeclIx, FieldIx, Held, Named, Shape, Type, TypeIx, VariantIx};
 
@@ -42,7 +42,7 @@ pub enum Construct {
     SecretPieces,
     Default,
     FormerName,
-    GroupedBools,
+    NamedBooleans,
     SplitFunction,
 }
 
@@ -101,7 +101,7 @@ pub const CONSTRUCTS: &[Construct] = &[
     Construct::SecretPieces,
     Construct::Default,
     Construct::FormerName,
-    Construct::GroupedBools,
+    Construct::NamedBooleans,
     Construct::SplitFunction,
 ];
 
@@ -223,13 +223,13 @@ pub fn constructs(text: &str) -> Result<Vec<Construct>, Error> {
         declaration(&tables, DeclIx::new(at), &mut found);
     }
     if schema.declarations.iter().any(|declaration| match declaration {
-        Declaration::Record(record) => emit_types::grouped_bools(record),
+        Declaration::Record(record) => emit_types::excessive_bools(record),
         Declaration::Enum(_) => false,
     }) {
-        push(&mut found, Construct::GroupedBools);
+        push(&mut found, Construct::NamedBooleans);
     }
     let records = generate(&schema).records;
-    if ["Self::measure_0(", "Self::encode_0(", "Self::check_0(", "Self::decode_from_0("]
+    if ["Self::measure_", "Self::encode_", "Self::check_", "Self::decode_from_"]
         .iter()
         .any(|call| records.contains(call))
     {

@@ -56,6 +56,14 @@ fn the_pages_watch_me_from_start_under_their_own_asker() {
             subject: jig_client::Watchable::Jig(jig_client::contract::Subject::Me),
         }))
     );
+    assert!(out.is_empty(), "the frame's accounts watch waits for the hello");
+    pages::step(
+        &mut pages,
+        &fixtures::env(&fixtures::limits()),
+        root.client(),
+        Event::Link { link: Link::Live },
+        &mut out,
+    );
     assert_eq!(
         out.pop(),
         Some(Request::Client(jig_client::Event::Watch {

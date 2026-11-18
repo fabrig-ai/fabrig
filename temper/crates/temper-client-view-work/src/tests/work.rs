@@ -77,6 +77,7 @@ struct Fixture {
     drafts: Token,
     me: Token,
     milestones: Option<Token>,
+    answers: List<Up>,
 }
 
 impl Fixture {
@@ -109,6 +110,7 @@ impl Fixture {
             drafts: Token::new(0),
             me,
             milestones: None,
+            answers: List::uncapped(),
         };
         fixture.go(Address::Work { project: f::PROJECT, filter: WorkFilter::All });
         for request in &fixture.out {
@@ -151,6 +153,7 @@ impl Fixture {
         );
     }
     fn up(&mut self, up: Up) {
+        self.answers.push(up.clone()).unwrap();
         self.event(Event::Client { event: jig_client::Event::Up { up } });
     }
     fn go(&mut self, address: Address) {
@@ -214,6 +217,8 @@ impl Fixture {
                         ended: c::EndedGroup::None,
                     })),
                 );
+            } else if let c::Read::Inbox { .. } = what {
+                self.up(Up::ReadDone { read, result: Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)) });
             } else if let c::Read::Notes { .. } = what {
                 panic!("Work rows read no notes");
             }
@@ -973,11 +978,15 @@ fn milestones_hold_their_goals_changes_and_folds_in_both_shells() {
     );
     page.live(page.goals, &[waiting.clone(), running.clone()]);
     let watch = page.open_milestones();
-    assert!(temper_client_domain::pages::work::facts(&page.root, f::PROJECT).is_none(), "waits for milestone list");
+    assert!(
+        !temper_client_domain::pages::work::facts(&page.root, f::PROJECT).unwrap().known.in_flight(),
+        "waits for milestone list"
+    );
     let own = milestone_line();
     page.live(watch, core::slice::from_ref(&own));
     let (unread, _) = page.tree(&f::browser_words());
-    assert!(styled(&unread, look::WORK_HEADLINE).is_empty(), "ended milestone list still unread");
+    assert_eq!(styled(&unread, look::WORK_HEADLINE).len(), 1);
+    assert!(styled(&unread, look::WORK_HEADLINE)[0].text.is_empty(), "ended milestone list still unread");
     send_panel(&mut page, &[queued_change(21)], &[]);
     page.serve_milestone(&own, &[waiting, running], &[failed, closed, done], true, Some(&milestone_totals(1, 1, 2)));
     let facts = temper_client_domain::pages::work::facts(&page.root, f::PROJECT).unwrap();
@@ -1354,4 +1363,164 @@ fn title_link<'a>(tree: &'a Tree, bindings: &Bindings, address: Address) -> &'a 
         }
     }
     panic!("missing title link {address:?}");
+}
+
+// Node and binding numbers change when the head gains filters; the section's tree does not.
+fn section_trees(tree: &Tree) -> List<List<skein_ui::Node>> {
+    let mut sections = List::uncapped();
+    for (index, section) in tree.nodes().iter().enumerate() {
+        if !section.styles.as_slice().contains(&look::WORK_SECTION) {
+            continue;
+        }
+        let mut nodes = List::uncapped();
+        for node in tree.nodes().iter().skip(index).take(usize::try_from(section.size).unwrap()) {
+            let mut node = node.clone();
+            node.id.0 = 0;
+            node.link = None;
+            node.binding = None;
+            nodes.push(node).unwrap();
+        }
+        sections.push(nodes).unwrap();
+    }
+    sections
+}
+
+fn answer_rank(page: &Fixture, reads: &[(Token, c::Read)], up: &Up) -> u8 {
+    if let Up::FamilyDelivered { watch, .. } = up {
+        if *watch == page.changes {
+            return 0;
+        }
+        if *watch == page.drafts {
+            return 5;
+        }
+    }
+    if let Up::Watched { watch, .. } = up {
+        if *watch == page.chats {
+            return 1;
+        }
+        if *watch == page.goals {
+            return 2;
+        }
+        if Some(*watch) == page.milestones {
+            return 4;
+        }
+    }
+    if let Up::ReadDone { read, .. } = up {
+        for (token, what) in reads {
+            if token != read {
+                continue;
+            }
+            if let c::Read::Inbox { .. } = what {
+                return 3;
+            }
+            if let c::Read::Tasks { query, .. } = what {
+                return match query.label {
+                    Some(7) => 1,
+                    Some(8) => 2,
+                    Some(9) => 4,
+                    other => panic!("unexpected list {other:?}"),
+                };
+            }
+        }
+    }
+    panic!("unexpected answer {up:?}");
+}
+
+#[test]
+fn sections_draw_top_down_without_changing_earlier_sections_in_both_shells() {
+    let mut source = Fixture::new(None, false);
+    let milestones = source.open_milestones();
+    source.answers.clear();
+    let mut reads = List::uncapped();
+    for request in &source.out {
+        if let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: Down::Read { read, what: Readable::Jig(what) } },
+        } = request
+        {
+            reads.push((*read, what.clone())).unwrap();
+        }
+    }
+    source.populate(true);
+    source.live(milestones, &[]);
+    let mut answers = List::uncapped();
+    for up in &source.answers {
+        answers.push((answer_rank(&source, reads.as_slice(), up), up.clone())).unwrap();
+    }
+    let words = [f::browser_words(), f::words()];
+    for last in 0_u8..6 {
+        let mut page = Fixture::new(None, false);
+        page.open_milestones();
+        let mut sorted = skein_lib::Map::uncapped();
+        for (index, (rank, up)) in answers.iter().enumerate() {
+            sorted.insert((*rank == last, *rank, index), (*rank, up.clone())).unwrap();
+        }
+        let mut order = List::uncapped();
+        for (_, answer) in &sorted {
+            order.push(answer.clone()).unwrap();
+        }
+        let mut before = words.each_ref().map(|words| {
+            let (initial, _) = page.tree(words);
+            let held = styled(&initial, look::WORK_HEADLINE);
+            assert_eq!(held.len(), usize::from(words.shell == crate::words::Shell::Browser));
+            if let Some(held) = held.first() {
+                assert!(held.name.is_none());
+                assert!(held.text.is_empty());
+                assert_eq!(held.role, Role::Heading { level: 1 });
+            }
+            assert!(has(&initial, "Shop · Work"));
+            assert!(has(&initial, "Everything on Shop"));
+            assert_eq!(styled(&initial, look::WORK_CHIP).len(), 1);
+            section_trees(&initial)
+        });
+        for (index, (rank, up)) in order.iter().enumerate() {
+            page.up(up.clone());
+            for (words, before) in words.iter().zip(&mut before) {
+                let (tree, _) = page.tree(words);
+                let after = section_trees(&tree);
+                assert!(after.as_slice().starts_with(before.as_slice()), "last={last}, answer={index}, rank={rank}");
+                if last == 5
+                    && *rank == 4
+                    && let Some((5, _)) = order.as_slice().get(index + 1)
+                {
+                    assert_eq!(after.len(), 1);
+                    assert!(has(&tree, "In flight · 3"));
+                    assert!(has(&tree, "Witness retention"));
+                    assert!(!has(&tree, "Drafts ·"));
+                    assert!(!has(&tree, "Landed this week ·"));
+                    assert!(!has(&tree, "Three in flight,"));
+                    assert_eq!(styled(&tree, look::WORK_CHIP).len(), 1);
+                }
+                *before = after;
+            }
+        }
+        for (words, before) in words.iter().zip(&before) {
+            let (tree, _) = page.tree(words);
+            assert_eq!(before.len(), 3);
+            assert!(has(&tree, "Three in flight, one draft, one landed this week."));
+            assert!(has(&tree, "Goals · 1"));
+        }
+    }
+}
+
+#[test]
+fn drafts_filter_waits_only_for_chats_and_drafts_before_claiming_none() {
+    for words in [f::browser_words(), f::words()] {
+        let mut page = Fixture::new(None, false);
+        page.go(Address::Work { project: f::PROJECT, filter: WorkFilter::Drafts });
+        assert!(!has(&page.tree(&words).0, "None."));
+        page.drafts(&[]);
+        page.live(page.chats, &[]);
+        assert!(!has(&page.tree(&words).0, "None."), "chats' ended read still unanswered");
+        for (read, what) in page.reads() {
+            if let c::Read::Tasks { query, .. } = what
+                && query.label == Some(7)
+            {
+                page.answer(read, ended_page(&[]));
+            }
+        }
+        let (tree, _) = page.tree(&words);
+        assert!(has(&tree, "None."));
+        assert!(!has(&tree, "Nothing in flight yet."));
+        assert_eq!(styled(&tree, look::WORK_CHIP).len(), 2, "All and current Drafts, without counts");
+    }
 }

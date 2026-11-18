@@ -2417,13 +2417,13 @@ fn a_default_box_with_a_sign_in_registration_starts_without_dns() {
     support::own_listener_files(&paths[0]);
     // Smith also resolves the agent's endpoints at preflight. Supply local endpoint
     // facts there so this regression reaches accounts_runtime; forge defaults stay intact.
-    let mut agent = temper_fixtures::agent::read(&paths[0]);
+    let mut agent = temper_agent_fixtures::read(&paths[0]);
     for endpoint in agent["endpoints"].as_array_mut().expect("endpoints") {
         if endpoint["address"].as_str().expect("endpoint address").parse::<std::net::SocketAddr>().is_err() {
             endpoint["address"] = "127.0.0.1:9".into();
         }
     }
-    temper_fixtures::agent::install(&paths[0], &agent);
+    temper_agent_fixtures::install(&paths[0], &agent);
     // The default registration reaches the sign-in startup resolver.
     let document_path = paths[0].join("temper.json");
     let mut document: serde_json::Value =

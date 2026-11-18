@@ -30,7 +30,7 @@ skein-json.workspace = true
 
 [dev-dependencies]
 temper-limits-fixtures.workspace = true
-temper-fixtures.workspace = true
+temper-agent-fixtures.workspace = true
 skein-io.workspace = true
 skein-sim.workspace = true
 jig-domain-core.workspace = true

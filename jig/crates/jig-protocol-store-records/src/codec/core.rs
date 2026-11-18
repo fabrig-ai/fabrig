@@ -277,13 +277,21 @@ pub fn encode_lacks(value: &authority::Lacks, limits: &View) -> Result<wire::Lac
     wire::Lacks::new(
         &limits.core,
         wire::LacksParts {
-            skein_bools: [*tools, *grants, *executors, *tasks, *depth, *spend, *deadline, *notes, *models],
+            tools: *tools,
+            grants: *grants,
+            executors: *executors,
+            tasks: *tasks,
+            depth: *depth,
+            spend: *spend,
+            deadline: *deadline,
+            notes: *notes,
+            models: *models,
         },
     )
 }
 #[must_use]
 pub fn decode_lacks(value: wire::Lacks) -> authority::Lacks {
-    let wire::LacksParts { skein_bools: [tools, grants, executors, tasks, depth, spend, deadline, notes, models] } =
+    let wire::LacksParts { tools, grants, executors, tasks, depth, spend, deadline, notes, models } =
         value.into_parts();
     authority::Lacks { tools, grants, executors, tasks, depth, spend, deadline, notes, models }
 }

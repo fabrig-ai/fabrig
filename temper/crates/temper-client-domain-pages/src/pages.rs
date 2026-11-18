@@ -81,6 +81,13 @@ pub mod tell;
 pub mod terminal;
 pub mod welcome;
 pub mod work;
+
+/// A page's cold-open ceiling (temper/docs/design/client/pages/work.md, 1, Its budget).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Budget {
+    pub waves: u32,
+    pub requests: u32,
+}
 /// The chosen playground waits for its project membership (temper/docs/design/client/forge/family.md, 7).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PlaygroundChoice {
@@ -112,6 +119,7 @@ pub struct Pages {
     address: Address,
     project: Option<u32>,
     watching: bool,
+    accounts_watching: bool,
     shown: u64,
     pub inbox: Option<inbox::Inbox>,
     pub home: Option<home::Home>,
@@ -437,6 +445,7 @@ impl Pages {
             address: Address::Inbox { filter: crate::address::Filter::ALL },
             project: None,
             watching: false,
+            accounts_watching: false,
             shown: 0,
             inbox: None,
             home: None,
@@ -1321,6 +1330,13 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
         }
     }
+    if pages.watching && !pages.accounts_watching && link == Link::Live {
+        pages.accounts_watching = true;
+        out.push(Request::Client(jig_client::Event::Watch {
+            handle: accounts::handle(),
+            subject: Watchable::Jig(Subject::Accounts),
+        }));
+    }
     if let Some(page) = &mut pages.connect_model {
         page.read_environment(&pages.address, link, &mut pages.next, out);
         page.refresh_login(client, &mut pages.serial, out);
@@ -1383,14 +1399,14 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     if let Some(chats) = &pages.chats {
         pages.next = pages.next.max(chats.goals.number.checked_add(1).expect("chat handles fit"));
     }
-    if pages.team_open && client.link().state != Link::SignedOut && client.link().state != Link::OutOfDate {
+    if !pages.team_open || client.link().state == Link::SignedOut || client.link().state == Link::OutOfDate {
+        pages.team.leave(out);
+    } else if client.link().state == Link::Live {
         let you = match pages.me(client) {
             Some(me) => me.party.number,
             None => 0,
         };
         pages.team.configure(&pages.address, pages.launchpad, you, env, client, &mut pages.next, out);
-    } else {
-        pages.team.leave(out);
     }
     if let Some(chat) = &mut pages.chat {
         chat.next = chat.next.max(pages.next);
@@ -1469,12 +1485,6 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             (Some(me), Some(project)) => jig_client::shapes::template(me, project, chats::ASKING_TEMPLATE).is_some(),
             (Some(_), None) | (None, Some(_) | None) => false,
         };
-    if let Some(chats) = &mut pages.chats
-        && chats_offered
-    {
-        chats.configure(me, project, &env.limits, out);
-        chats.reconcile(client);
-    }
     if let Address::Work { project, .. }
     | Address::Goals { project, .. }
     | Address::Changes { project }
@@ -1493,6 +1503,20 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         }
         if let Some(reads) = &mut pages.milestones {
             reads.configure(me, project, client, &env.limits, env.wall, out);
+        }
+    }
+    if let Some(chats) = &mut pages.chats
+        && chats_offered
+    {
+        chats.configure(me, project, &env.limits, out);
+        chats.reconcile(client);
+    }
+    if me.is_some() && client.link().state == Link::Live {
+        if let Some(changes) = &mut pages.changes {
+            changes.configure(&mut pages.next, env.limits.forge, out);
+        }
+        if let Some(drafts) = &mut pages.drafts {
+            drafts.configure(&mut pages.next, env.limits.forge, out);
         }
     }
     pages.has_goals.configure(
@@ -1688,10 +1712,6 @@ fn started(pages: &mut Pages, out: &mut Queue<Request>) {
         out.push(Request::Client(jig_client::Event::Watch {
             handle: me_handle(),
             subject: Watchable::Jig(Subject::Me),
-        }));
-        out.push(Request::Client(jig_client::Event::Watch {
-            handle: accounts::handle(),
-            subject: Watchable::Jig(Subject::Accounts),
         }));
     }
 }
@@ -2096,7 +2116,7 @@ fn went(
         leave_conversations(pages, out);
         pages.rail_handles = if rail_chats(&address) { RailHandles::Pending } else { RailHandles::None };
         if let Some(project) = work_project(&address) {
-            pages.drafts = Some(drafts::Drafts::new(project, &mut pages.next, env.limits.forge, out));
+            pages.drafts = Some(drafts::Drafts::new(project));
             // Goals and chats precede Changes' growing range, including the rail's chats.
             let mut page = goals::Goals::new(pages.next);
             if let Address::Goals { filter, .. } = address {
@@ -2106,7 +2126,7 @@ fn went(
             pages.next = pages.next.checked_add(3).expect("goal handles fit");
             pages.chats = Some(chats::Chats::new(pages.next));
             pages.next = pages.next.checked_add(3).expect("rail chat handles fit");
-            pages.changes = Some(changes::Changes::new(project, &mut pages.next, env.limits.forge, out));
+            pages.changes = Some(changes::Changes::new(project));
         }
         if let Address::Task { task } = address {
             pages.task = Some(task::Task::new(task, pages.next, &env.limits, out));
@@ -2818,6 +2838,7 @@ fn me_changed(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
                 page.leave();
             }
             pages.accounts = accounts::Accounts::default();
+            pages.accounts_watching = true;
             out.push(Request::Client(jig_client::Event::Unwatch { handle: accounts::handle() }));
             out.push(Request::Client(jig_client::Event::Watch {
                 handle: accounts::handle(),
@@ -2886,6 +2907,9 @@ fn link_changed(pages: &mut Pages, limits: &Limits, link: Link, out: &mut Queue<
             if pages.watching {
                 out.push(Request::Client(jig_client::Event::Unwatch { handle: me_handle() }));
                 pages.watching = false;
+            }
+            if pages.accounts_watching {
+                pages.accounts_watching = false;
                 out.push(Request::Client(jig_client::Event::Unwatch { handle: accounts::handle() }));
             }
             pages.accounts.leave(out);
@@ -2925,10 +2949,6 @@ fn link_changed(pages: &mut Pages, limits: &Limits, link: Link, out: &mut Queue<
                 out.push(Request::Client(jig_client::Event::Watch {
                     handle: me_handle(),
                     subject: Watchable::Jig(Subject::Me),
-                }));
-                out.push(Request::Client(jig_client::Event::Watch {
-                    handle: accounts::handle(),
-                    subject: Watchable::Jig(Subject::Accounts),
                 }));
             }
         }

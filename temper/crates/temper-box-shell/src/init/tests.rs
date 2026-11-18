@@ -171,7 +171,7 @@ fn check_deployment(dirs: &Directories, binary: &Path, written: &Written, row: &
     check_files(dirs, binary, written, row);
     let document: serde_json::Value =
         serde_json::from_slice(&fs::read(dirs.document()).expect("document")).expect("JSON");
-    let agent = temper_fixtures::agent::configuration(&document);
+    let agent = temper_agent_fixtures::configuration(&document);
     assert!(document["application"]["clients"]["bundle"].is_null());
     assert!(document["application"]["clients"].as_object().expect("clients object").contains_key("public"));
     assert!(document["application"]["clients"]["public"].is_null());
@@ -396,7 +396,7 @@ fn a_bare_configuration_passes_the_same_checks_as_serve() {
         for (_, port) in &written.listeners {
             assert!(TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port.get())).is_err(), "bare listener held");
         }
-        let agent = temper_fixtures::agent::configuration(&document);
+        let agent = temper_agent_fixtures::configuration(&document);
         assert_eq!(agent["programs"]["claude_code"]["path"], serde_json::json!("fetched"));
         check_agent(&dirs, agent);
         crate::close(written.listeners.into_iter().map(|(fd, _)| fd).collect());

@@ -81,7 +81,7 @@ pub fn copy(config: &engine::Config) -> engine::Config {
 }
 
 /// Typed settings that a world stores as its start's defaults.
-pub fn set_landing(config: &mut engine::Config, project: u32, landing: temper_fixtures::landing::ProjectLanding) {
+pub fn set_landing(config: &mut engine::Config, project: u32, landing: temper_landing_fixtures::ProjectLanding) {
     use temper_engine_domain_forge::settings as s;
     let (landing, gates) = landing.values();
     let mut stock: Vec<_> =

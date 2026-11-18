@@ -931,15 +931,6 @@ fn the_playground_setup_link_leads_the_foot_and_leaves() {
 
 #[test]
 fn the_terminal_numbers_the_rail_and_keeps_the_first_line() {
-    let (mut root, watch) = f::root_with_watch(None);
-    f::root_event(
-        &mut root,
-        Event::Client {
-            event: jig_client::Event::Up {
-                up: jig_client::Up::WatchEnded { watch, end: jig_client::contract::WatchEnd::Dropped },
-            },
-        },
-    );
     for (people, first_line, lines) in [
         (
             None,
@@ -978,6 +969,7 @@ fn the_terminal_numbers_the_rail_and_keeps_the_first_line() {
             ][..],
         ),
     ] {
+        let (mut root, watch) = f::root_with_watch(None);
         if let Some(people) = people {
             f::root_event(
                 &mut root,
@@ -985,6 +977,14 @@ fn the_terminal_numbers_the_rail_and_keeps_the_first_line() {
             );
             with_people(&mut root, people);
         }
+        f::root_event(
+            &mut root,
+            Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::WatchEnded { watch, end: jig_client::contract::WatchEnd::Dropped },
+                },
+            },
+        );
         let view = f::page_view(&root);
         let mut print = skein_ui_text::Print::new(&view.limits().tree).unwrap();
         skein_ui_text::render(view.tree(), b"temper", Some(crate::frame::link_region()), &mut print);

@@ -28,14 +28,76 @@
     move of Goals' filter keeps its reads; leaving them for any other page
     closes them. With the goals' read, the project's milestones open and
     close, each row with its milestone part (`milestone.md`, 1).
+  - **Its budget** (`../../draft/page-round-trips.md`, section 2): a cold
+    open of Work, a reload among them, under each of its filters (All and
+    Drafts, Goals' four, Changes), is drawn whole in two waves and two
+    requests after its page and bundle, whatever the project's size: the
+    stream, whose hello brings `me` (`../README.md`, 3.4), then one batch
+    (jig's `protocol/client/default-http.md`, 6) carrying every read and
+    watch the frame and the page open.
+    - *A wave* is every exchange the client has sent that waits for an
+      answer, all answered at once; a page drawn whole that sends nothing
+      more has taken its last. *Requests* are the stream's opening and
+      each exchange, a batch one.
+    - *Drawn whole* is every row of the page's windows, with everything
+      its card draws, and the frame's rail and bar.
+    - *Outside it:* a person's acts ("More goals", opening a goal,
+      choosing a filter); values the stream brings later; a lost
+      connection's retries; answers busy; and, on a reload, the keyed
+      requests the small store kept, which leave on their own routes
+      beside the batch, with their keys, and hold nothing of the page.
+    - *One constant beside the page:* `temper_client_domain::pages::work::BUDGET`,
+      a `temper_client_domain::pages::Budget { waves: u32, requests: u32 }`,
+      `Budget { waves: 2, requests: 2 }`, the record a later page's budget
+      takes too (`../../draft/page-round-trips.md`, section 10).
+    - *What holds it.* Nothing leaves before the hello but the stream
+      (`../README.md`, 3.4); a reload's kept keyed requests leave once
+      the hello's `me` confirms their party (jig's
+      `client/domain/client/README.md`, 8), beside the batch. Nothing waits for
+      another answer: no read per row (`../forge/parts.md`, 5); no ended
+      group, needs or setting read again on opening (`../forge/parts.md`,
+      6; *Goals*, below; `settings.md`, 1); and nothing the page doesn't
+      draw: no `Subject::Chips` watch of the chats' goals, which the
+      Chats page alone draws (`chats.md`, 1), and no `deployment` watch,
+      which only a page judging a model usable reads
+      (`../forge/family.md`, 7). The session's own reads and watches
+      (`../README.md`, 3.4) and the project's settings' reads stay
+      open whatever the page and ride in the same batch: the frame draws
+      from most of them, and closing the others on Work only to open them
+      again on the next page would cost requests that keeping them
+      doesn't.
+    - *The page's members in the batch* come in its sections' order, the
+      same under every filter since the filters share their reads: the
+      goals' watch, their ended read and the needs' read; the milestones'
+      watch and ended read; the chats' watch and ended read; the
+      changes' watch; then the drafts' watch. The frame's and the
+      session's come before or after them.
+    - *Its test,* focused, in `temper-client-view`'s suite: the linked
+      client root (`temper_client_domain::Domain::new`) and the view, with
+      an engine double that answers every exchange of a wave at once and
+      sends each opened watch's first value over the stream, counts a cold
+      open's waves and requests until it is drawn whole and sends nothing
+      more: on a small project and on one at the client's bounds (32
+      goals live and ended, 16 chats, 16 milestones with their goals, 64
+      changes queued and landed, 64 landed drafts, or each list's bound
+      where the client's limits give another), both within `BUDGET` and
+      equal; under each filter, Goals' Needs among them; read by the
+      deployment's owner with a playground running, the frame's most; and
+      a reload with kept keyed requests, the page within `BUDGET` and the
+      kept requests on their own routes beside it.
   - **Its head,** on each of its filters: the kicker "PROJECT · Work"; the
     level-1 heading, counted from the list's sections (below): "N in
     flight", "N drafts" ("One draft") and "N landed this week", the parts at
     zero left out, the rest joined by ", ", the first capitalised, the
     numbers in words from one to nine and in digits from ten, as *Changes*'
     heading has them: "Four in flight, two drafts, 23 landed this week.";
-    with all three at zero, "Nothing in flight yet."; no heading until the
-    four reads have answered. Then the lede: "Everything on PROJECT, in the
+    with all three at zero, "Nothing in flight yet.". The heading waits
+    only for its counts, every list its sections count having answered;
+    until then its line is held, empty and named nothing, at the
+    heading's height in the browser, so that nothing below it moves when
+    it comes (`../../draft/page-round-trips.md`, section 6); the terminal
+    prints no line for it. The kicker, the lede and the filters draw at
+    once. Then the lede: "Everything on PROJECT, in the
     words of the agent doing it. A goal opens to its tasks and changes; a
     chat that started work sits with what it started; a draft waits for its
     goal.", its second sentence beginning "A milestone opens to its goals,
@@ -60,7 +122,25 @@
     chats, a page that keeps its own head (`chats.md`, 1).
   - **All** is three sections, each drawn only while it holds a card or a
     row, each with its head, the mockup's `.shead`, its title and a quiet
-    line at its right:
+    line at its right. **They draw top down, each as its lists come**
+    (`../../draft/page-round-trips.md`, section 6): a section draws once
+    its own lists and those of every section above it have answered, so
+    that nothing the person is reading moves when a later list arrives,
+    and no section waits for a list below it or for the frame's reads.
+    In flight's lists are the goals' (their live watch and ended read, and
+    the needs' read, which words a goal's wait and state), the
+    milestones' and the chats' (each a live watch and an ended read) and
+    the changes'; Drafts' are the chats' and the drafts'; Landed this
+    week's the changes' and the milestones'. A list answered refused,
+    ended or failed counts as answered with none, as the drafts' watch
+    does (*Its reads*). So In flight draws without waiting for the
+    drafts' watch, and Drafts and Landed this week once it has answered
+    too. **A row is whole when first drawn:** what its card draws comes
+    with its list, a goal's headline, a milestone, a change's provenance
+    and its signers' names among them (`../forge/parts.md`, 5;
+    `../forge/records.md`, *A project's changes*), so that no part fills
+    in later and moves a row; a part not made leaves its row as
+    `../forge/parts.md`, 5 says, until its next delivery.
     - "In flight · N", "newest activity first": a card for each live
       milestone drawn (`milestone.md`, 1) and for each live goal in none;
       for each change on its way to landing that no listed goal or chat holds;
@@ -88,8 +168,10 @@
       the section, its quiet line with it, isn't drawn.
   - **What goes where** is one pure function of the domain's,
     `temper_client_domain::pages::work::place(&Facts, wall) -> Work`, over
-    plain facts that `work::facts(root, project)` gathers from the four
-    reads. It places each item by its own facts, never by the project's
+    plain facts that `work::facts(root, project)` gathers from the lists
+    that have answered, saying which have; `place` gives a section only
+    once its lists and those above it have (*All*), and the filters'
+    counts and the heading's once all have. It places each item by its own facts, never by the project's
     settings or its way, so that a move of the settings hides nothing that
     exists (`../../draft/surfaces.md`, sections 5 and 12):
     - a change belongs to the goal its row's `goal` names, else to the chat
@@ -242,9 +324,10 @@
     `temper_client_domain::pages::work::signed`, gives the words.
   - **Under Drafts,** Work's head and filters, then the Drafts section alone.
   - **Before an answer and with nothing:** a section claims nothing until its
-    reads have answered (`README.md`'s intro). With all three answered and nothing
-    listed, All is its head alone, "Nothing in flight yet."; Drafts reached
-    by its address with none says "None.", as Goals' filter does.
+    lists have answered (`README.md`'s intro; *All*, above). With every list
+    answered and nothing listed, All is its head alone, "Nothing in flight
+    yet."; Drafts reached by its address with none says "None.", once the
+    chats' and the drafts' lists have answered, as Goals' filter does.
   - **In the terminal** the page prints as lines: its head; the filters as
     numbered links; each card a numbered link with its from line and its
     headline, its rows under it, but a landed draft's, which opens no page:
@@ -263,15 +346,20 @@
   - **Its intro:** under Work's head and filters, the heading, at
     level 2: "5 goals, 3 under way.", the first number
     every row and the second those live and those needing the person; "1 goal,
-    1 under way." in the singular; "No goals yet." with none, once its reads
-    have answered, and no heading before; "More than N
-    goals, M under way." while rows remain unread. Then "A goal turns a draft
+    1 under way." in the singular; "No goals yet." with none; "More than N
+    goals, M under way." while rows remain unread. The heading and the
+    rows draw once the goals' live watch and ended read, the milestones'
+    list and the needs' read have answered, each refused or failed
+    counting as answered with none, so that a row's state, its wait's
+    words and its milestone's group are whole when first drawn
+    (`../../draft/page-round-trips.md`, section 6); before, the
+    heading's line is held as Work's is (*Its head*). Then "A goal turns a draft
     into landed work, its own way: W.", W the project's ways in order, lower
     case, joined by ", " (*Ways,* below).
   - **Its filters:** "All", "Needs you", "Under way", "Ended", the chosen one
     pressed; at the section head's right, the `.link` "Start one from a draft",
     opening `goal.md`, 3's sheet with no draft, while the project has a tracked
-    template. Under them, the rows, or, once its reads have answered, "None.";
+    template. Under them, the rows, or, once its lists have answered (*Its intro*), "None.";
     "Needs you" is state needs,
     "Under way" running, planning, paused, waits and waits for room, "Ended"
     landed, closed and failed.

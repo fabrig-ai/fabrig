@@ -21,6 +21,7 @@ mod forge_stock_ways;
 mod forge_ways;
 mod forges;
 mod form;
+mod hello;
 mod pages;
 mod panel;
 use crate::{Address, Event, Fact, Request, forge};

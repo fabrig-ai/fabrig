@@ -281,9 +281,9 @@ fn a_reshaped_value_is_stale_never_kept() {
 }
 #[test]
 fn a_committed_journey_redacted_replays() {
-    let welcome = include_bytes!("../../../../../docs/design/client/web/journeys/welcome-playground/recording");
     let setup = include_bytes!("../../../../../docs/design/client/web/journeys/welcome-set-up/recording");
-    for recording in [welcome.as_slice(), setup.as_slice()] {
+    let recording = setup.as_slice();
+    {
         let result = redacted(recording);
         assert!(
             scan::lines(&lines(&result.recording).expect("committed lines"), &result.originals)

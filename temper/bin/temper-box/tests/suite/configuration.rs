@@ -44,8 +44,7 @@ fn the_process_document_holds_the_agent_after_the_store_restores_stock() {
     let bytes = std::fs::read(scratch.path().join("temper.json")).expect("process configuration");
     let document = serde_json::from_slice(&bytes).expect("deployment JSON");
     // Compose stock agents(), not the fixture's pre-serve agents.setting.
-    let configuration =
-        serde_json::to_vec(&temper_fixtures::agent::configuration(&document)).expect("stock agent JSON");
+    let configuration = serde_json::to_vec(&temper_agent_fixtures::configuration(&document)).expect("stock agent JSON");
     let agent = temper_worker_shell::agent::prepare_bytes(configuration.into()).expect("stock agent").agent;
     let directories = jig_directories(&support::configuration::directories(scratch.path()));
     let named = startup::named(&bytes, &directories).expect("named fixture files");
@@ -86,10 +85,10 @@ fn the_process_workers_figures_follow_the_agents_setting() {
         let path = scratch.path().join("temper.json");
         let mut document: serde_json::Value =
             serde_json::from_slice(&std::fs::read(&path).expect("process document")).expect("deployment JSON");
-        let mut agent = temper_fixtures::agent::read(scratch.path());
+        let mut agent = temper_agent_fixtures::read(scratch.path());
         for payload in [63_740, 8192] {
             agent["profile"]["declared"]["tool_payload"] = payload.into();
-            temper_fixtures::agent::apply(&mut document, scratch.path(), &agent);
+            temper_agent_fixtures::apply(&mut document, scratch.path(), &agent);
             let setting = std::fs::read(scratch.path().join("agents.setting")).expect("agents setting");
             let agents =
                 w::AgentFigures::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&setting)).expect("agents figures");
@@ -154,7 +153,7 @@ fn the_native_forge_fixture_fits_its_store() {
         },
     );
     let document = std::fs::read(scratch.path().join("temper.json")).expect("deployment");
-    let agent = temper_fixtures::agent::prepared(scratch.path()).agent;
+    let agent = temper_agent_fixtures::prepared(scratch.path()).agent;
     let store = temper_service::startup::store_limits(
         &document,
         &jig_protocol_config::Directories::working(),
@@ -403,7 +402,7 @@ fn the_turn_story_profile_declares_prepare_and_fits_its_store() {
         serde_json::from_slice(&std::fs::read(&path).expect("configuration")).expect("JSON");
     support::batch_landing::message_room(scratch.path(), &mut value);
     let document = serde_json::to_vec(&value).expect("deployment JSON");
-    let agent = temper_fixtures::agent::prepared(scratch.path()).agent;
+    let agent = temper_agent_fixtures::prepared(scratch.path()).agent;
     let _store = temper_service::startup::store_limits(
         &document,
         &jig_protocol_config::Directories::working(),
