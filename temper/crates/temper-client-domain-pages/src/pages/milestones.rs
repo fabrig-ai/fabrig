@@ -494,6 +494,11 @@ impl Milestones {
                 }
                 return true;
             }
+            Told::Ended { handle, .. } if *handle == self.ended => {
+                self.answered = true;
+                self.ended_read.answered(None);
+                return true;
+            }
             Told::Ended { handle, .. } if *handle == self.live => return true,
             Told::Page { .. }
             | Told::Changed { .. }
@@ -533,12 +538,7 @@ impl Milestones {
         if !self.answered {
             return false;
         }
-        if let Some(doc) = client.document(self.live)
-            && let Some(Latest::Jig(c::Delivery::Tasks(_))) = doc.latest
-        {
-            return true;
-        }
-        false
+        super::home::delivered(client, self.live)
     }
     #[must_use]
     pub fn lines(&self) -> &[c::TaskLine] {

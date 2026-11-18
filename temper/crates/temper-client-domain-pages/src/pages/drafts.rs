@@ -19,16 +19,25 @@ pub struct Drafts {
     state: State,
 }
 impl Drafts {
-    pub(super) fn new(project: u32, serial: &mut u64, limits: forge::Limits, out: &mut Queue<Request>) -> Self {
-        let handle = Handle { asker: Owner::Pages.asker(), number: *serial };
-        *serial = serial.checked_add(1).expect("page handles fit");
-        let mut page = Self { project, handle: None, state: State::Ended };
-        if let Some(subject) = forge::drafts::watch(project, &limits) {
-            page.handle = Some(handle);
-            page.state = State::Loading;
-            out.push(Request::Client(jig_client::Event::Watch { handle, subject }));
+    pub(super) const fn new(project: u32) -> Self {
+        Self { project, handle: None, state: State::Loading }
+    }
+    pub(super) fn configure(&mut self, serial: &mut u64, limits: forge::Limits, out: &mut Queue<Request>) {
+        if self.handle.is_some() {
+            return;
         }
-        page
+        match self.state {
+            State::Shown(_) | State::Ended => return,
+            State::Loading => {}
+        }
+        if let Some(subject) = forge::drafts::watch(self.project, &limits) {
+            let handle = Handle { asker: Owner::Pages.asker(), number: *serial };
+            *serial = serial.checked_add(1).expect("page handles fit");
+            self.handle = Some(handle);
+            out.push(Request::Client(jig_client::Event::Watch { handle, subject }));
+        } else {
+            self.state = State::Ended;
+        }
     }
     pub(super) fn leave(&self, out: &mut Queue<Request>) {
         if let Some(handle) = self.handle {

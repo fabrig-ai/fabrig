@@ -1603,7 +1603,7 @@ fn a_paste_past_the_bound_stays_and_sends_nothing() {
 }
 
 #[test]
-fn a_lost_closed_read_keeps_the_page_and_is_no_answer() {
+fn a_lost_closed_read_answers_empty_and_keeps_the_page() {
     let (mut root, watch, _) = opened_chats();
     crate::step(
         &mut root,
@@ -1625,7 +1625,7 @@ fn a_lost_closed_read_keeps_the_page_and_is_no_answer() {
     let closed = root.pages().chats().unwrap().closed;
     let lost = Told::Page { handle: closed, page: Readout::Jig(ReadResult::None(ReadNone::Unreachable)) };
     crate::route::told(&mut root, &fixtures::env(&fixtures::limits()), lost.clone(), &mut Queue::uncapped());
-    assert!(!root.pages().chats().unwrap().known(root.client()));
+    assert!(root.pages().chats().unwrap().known(root.client()));
     let kept = TaskPage {
         ended_mark: 0,
         live: List::with_capacity(0),

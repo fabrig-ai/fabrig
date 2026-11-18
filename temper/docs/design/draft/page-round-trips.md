@@ -241,8 +241,10 @@ All focused, with no walk or measure in a plan.
 - **Marks:** an ended group read again only when its mark moves, a task that
   started and ended between two deliveries among them; a setting read again
   only for a newer revision, in either order.
-- **Recordings:** the journeys the changed wire touches are recorded again with
-  the change that moves it.
+- **Recordings:** a journey the changed wire stales is recorded again with the
+  change where the change can, as R1 to R3 did, and otherwise removed,
+  recording and prints, and recorded again with `again` after landing
+  (`../client/web/journeys.md`, 8).
 
 ## 8. Upgrades
 

@@ -219,6 +219,19 @@ fn exchange(asks: Vec<Asked>) -> u32 {
         })
         .expect("keyed request left the linked host")
 }
+pub(super) fn project_frame() -> Box<[u8]> {
+    let mut walk = linked();
+    let value = w::DeliveryValue::Me(jig_client_test_records::frame_two_projects_record());
+    walk.streamed(&w::StreamEvent::Delivery(
+        w::Delivery::new(
+            &w::CEILINGS,
+            w::DeliveryParts { watch: 0, document: owned(encoded(value.measure(), |writer| value.encode(writer))) },
+        )
+        .expect("project frame"),
+    ));
+    walk.turn(vec![Report::Place { path: b"/projects/3/work".as_slice().into() }]);
+    walk.recorder.save(&walk.page)
+}
 pub(super) fn walked() -> Box<[u8]> {
     walked_with_no_event(false)
 }

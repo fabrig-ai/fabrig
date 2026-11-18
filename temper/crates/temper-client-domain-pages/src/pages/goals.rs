@@ -253,6 +253,7 @@ pub struct Goals {
     page_answered: bool,
     count: u32,
     needs_total: Option<u32>,
+    needs_answered: bool,
     inbox_moves: u64,
     selection: Option<List<c::InboxSelection>>,
     rows: List<Row>,
@@ -273,6 +274,7 @@ impl Goals {
             page_answered: false,
             count: 0,
             needs_total: None,
+            needs_answered: false,
             inbox_moves: 0,
             selection: None,
             rows: List::with_capacity(0),
@@ -309,6 +311,7 @@ impl Goals {
             self.count = 0;
             self.needs_total = None;
             self.selection = None;
+            self.needs_answered = false;
             self.rows = List::with_capacity(0);
             if let Some(query) = next {
                 out.push(Request::Client(jig_client::Event::Watch {
@@ -380,13 +383,13 @@ impl Goals {
                 true
             }
             Told::Page { handle, page } if handle == self.ended => {
+                self.page_answered = true;
                 let mut mark = None;
                 if let Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(page))) = page {
                     if self.first {
                         mark = Some(page.ended_mark);
                     }
                     self.page = Some(*page);
-                    self.page_answered = true;
                     let read = u32::try_from(self.ended().len()).expect("goal page fits");
                     self.count =
                         if self.first { read } else { self.count.checked_add(read).expect("goals count fits") };
@@ -397,6 +400,7 @@ impl Goals {
                 true
             }
             Told::Page { handle, page } if handle == self.needs => {
+                self.needs_answered = true;
                 self.selection = match page {
                     Readout::Jig(c::ReadResult::Value(c::ReadValue::Inbox(page))) => page.selection,
                     Readout::Jig(c::ReadResult::Value(_) | c::ReadResult::None(_))
@@ -404,6 +408,16 @@ impl Goals {
                     | Readout::NotServed { .. }
                     | Readout::Limit => None,
                 };
+                true
+            }
+            Told::Ended { handle, .. } if handle == self.needs => {
+                self.needs_answered = true;
+                self.selection = None;
+                true
+            }
+            Told::Ended { handle, .. } if handle == self.ended => {
+                self.page_answered = true;
+                self.ended_read.answered(None);
                 true
             }
             Told::Ended { handle, .. } if handle == self.live => true,
@@ -449,10 +463,20 @@ impl Goals {
         }
         self.rows = rows;
     }
-    /// The live watch has delivered and the ended read has answered with its value, for this query.
+    /// Both goal lists have answered, including refused or failed answers (client/pages/work.md, 1).
     #[must_use]
     pub fn known(&self, client: &Client) -> bool {
-        self.page_answered && self.live(client).is_some()
+        self.query.is_none() || (self.page_answered && super::home::delivered(client, self.live))
+    }
+    /// The needs read has answered, including refusal or failure.
+    #[must_use]
+    pub const fn needs_known(&self) -> bool {
+        self.query.is_none() || self.needs_answered
+    }
+    /// Goals' rows and counts wait for their state and milestone placement facts.
+    #[must_use]
+    pub fn shown(&self, client: &Client, milestones: &super::milestones::Milestones) -> bool {
+        self.known(client) && self.needs_known() && milestones.known(client)
     }
     pub(super) fn has_rows(&self, client: &Client) -> Option<bool> {
         if self.count(client) > 0 {

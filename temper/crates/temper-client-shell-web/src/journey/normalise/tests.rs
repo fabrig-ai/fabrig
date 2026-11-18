@@ -182,8 +182,8 @@ fn only_ports_are_sought_and_redactions_refusals_are_preserved() {
 }
 
 #[test]
-fn committed_welcome_playground_normalises_and_replays_to_the_end() {
-    let file = include_bytes!("../../../../../docs/design/client/web/journeys/welcome-playground/recording");
+fn committed_welcome_set_up_normalises_and_replays_to_the_end() {
+    let file = include_bytes!("../../../../../docs/design/client/web/journeys/welcome-set-up/recording");
     let result = normalise(file).expect("committed recording");
     assert_eq!(result.recording.as_ref(), file, "committed recording is its own normalisation");
     assert_eq!((result.build, result.port, result.code, result.places, result.stood), (0, 0, 0, 0, 0));
@@ -203,7 +203,7 @@ fn committed_welcome_playground_normalises_and_replays_to_the_end() {
             Err(stale) => {
                 let kind =
                     recorded.get(usize::try_from(stale.line - 1).expect("line fits")).expect("stale line").kind();
-                panic!("welcome-playground: turn {} kind {kind}", stale.turn);
+                panic!("welcome-set-up: turn {} kind {kind}", stale.turn);
             }
         }
     }

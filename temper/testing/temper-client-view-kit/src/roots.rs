@@ -397,6 +397,15 @@ pub fn root_at_with_classes(
         if let Request::Unlinked {
             request:
                 jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(Subject::Accounts) },
+                },
+        } = &request
+        {
+            account_watch = Some(*watch);
+        }
+        if let Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
                     down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(Subject::Inbox { .. }) },
                 },
         } = &request

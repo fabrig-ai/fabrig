@@ -49,7 +49,7 @@ fn playground_answer(root: &mut Domain, present: bool) {
 }
 fn opened(owner: bool, step: Step) -> (Domain, Token, Token, Option<Token>) {
     let mut root = crate::unlinked(&f::limits(), f::SEED);
-    let (me, accounts) = f::start_accounts(&mut root, List::with_capacity(0));
+    let me = f::start(&mut root, List::with_capacity(0));
     let c::WatchEvent::Delivered(c::Delivery::Me(mut frame)) = f::frame(f::PARTY) else { panic!("me") };
     frame.projects = List::with_capacity(1);
     frame
@@ -87,6 +87,7 @@ fn opened(owner: bool, step: Step) -> (Domain, Token, Token, Option<Token>) {
         .unwrap();
     frame.deployment_role = Some(if owner { c::HeldRole::Owner } else { c::HeldRole::Member });
     let mut out = deliver(&mut root, me, c::Delivery::Me(frame));
+    let accounts = f::accounts_watch(&out);
     go(&mut root, step);
     let mut forges = None;
     while let Some(request) = out.pop() {
@@ -662,6 +663,49 @@ fn with_a_playground_model_usable_reads_other_providers_lines() {
         deliver(&mut root, accounts, c::Delivery::Accounts(Box::new(document)));
         assert_eq!(pages::welcome::model_usable(&root), Some(expected));
     }
+}
+
+#[test]
+fn the_playground_deployment_watch_follows_the_pages_need_for_a_model() {
+    let (mut root, me, accounts, forges) = opened(true, Step::Model { way: None });
+    event(
+        &mut root,
+        Event::Went { place: Place::Address(Address::Work { project: f::PROJECT, filter: crate::WorkFilter::All }) },
+    );
+    account(&mut root, accounts, 18, false);
+    let mut out = playground::deliver_playground_read(
+        &mut root,
+        Readout::Family { family: wire::FORGE, record: Some(playground::answer(b"Change the title")) },
+    );
+    assert!(playground::deployment_watch(&mut out).is_none(), "Work draws no deployment model facts");
+    let mut out = event(&mut root, Event::Went { place: Place::Address(Address::Welcome { step: Step::Ready }) });
+    let watch = playground::deployment_watch(&mut out).expect("Ready judges a usable model");
+    up(&mut root, Up::Watched { watch, event: c::WatchEvent::Opened });
+    playground::deliver_deployment(&mut root, watch, playground::deployment(&[playground::OTHER_ACCOUNT]));
+    assert!(forge::model::owner_deployment(root.forge(), root.client()).is_some());
+    let mut out = event(&mut root, Event::Went { place: Place::Address(Address::Changes { project: f::PROJECT }) });
+    let mut closed = false;
+    while let Some(request) = out.pop() {
+        if let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: Down::Close { watch: closing } },
+        } = request
+        {
+            closed |= closing == watch;
+        }
+    }
+    assert!(closed, "leaving the model reader drops its deployment watch");
+    assert!(forge::model::owner_deployment(root.forge(), root.client()).is_none());
+
+    // Without a project the outside screen, not Work's frame, draws the setup destination.
+    rows(&mut root, forges.expect("session forges"), 3);
+    let mut frame = root.pages().me(root.client()).unwrap().clone();
+    frame.projects.clear();
+    let mut out = deliver(&mut root, me, c::Delivery::Me(Box::new(frame)));
+    assert!(root.pages().project().is_none());
+    assert!(
+        playground::deployment_watch(&mut out).is_some(),
+        "the no-project setup link judges its destination's model"
+    );
 }
 
 #[test]
