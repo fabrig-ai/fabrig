@@ -195,6 +195,116 @@ fn needs_read_every_page_but_only_the_window_of_cards() {
     }
 }
 
+fn listed() -> crate::Domain {
+    let (mut root, _, out) = begin(Filter::ALL, true);
+    let card_reads = queries(&out);
+    let mut read = needs_read(&out, None);
+    for start in (0..TOTAL).step_by(usize::try_from(WINDOW).unwrap()) {
+        let end = start.checked_add(WINDOW).unwrap().min(TOTAL);
+        let after = if end < TOTAL { Some(cursor(end)) } else { None };
+        let out = answer(&mut root, read, value(entries(start, end), after.clone()));
+        if end < TOTAL {
+            read = needs_read(&out, after);
+        }
+    }
+    for (index, (read, what)) in card_reads.iter().enumerate() {
+        if let contract::Read::Escalation { task } = what {
+            let contract::ReadValue::Escalation(mut held) = fixtures::acts::held(contract::ActKind::Release) else {
+                panic!("held fixture")
+            };
+            held.task.chip.task = *task;
+            held.task.hold.as_mut().unwrap().hold_wait_since = Some(Wall::from_nanos(u64::try_from(index).unwrap()));
+            answer(&mut root, *read, contract::ReadResult::Value(contract::ReadValue::Escalation(held)));
+        }
+    }
+    root
+}
+
+#[test]
+fn every_open_row_joins_the_read_cards_in_asked_order() {
+    use crate::pages::{findings::Need, needs};
+    let root = listed();
+    let inbox = root.pages().inbox().unwrap();
+    assert_eq!(inbox.cards.len(), WINDOW);
+    assert_eq!(inbox.rows.len(), TOTAL);
+    let all = root.pages().needs().all(inbox, root.forge().approvals());
+    assert_eq!(all.len(), usize::try_from(TOTAL).unwrap());
+    for (index, need) in all.iter().enumerate() {
+        let expected = entries(u32::try_from(index).unwrap(), u32::try_from(index + 1).unwrap());
+        let object = match need {
+            Need::Existing(needs::Need::Card(card)) => {
+                assert!(index < usize::try_from(WINDOW).unwrap());
+                card.object
+            }
+            Need::Row(row) => {
+                assert!(index >= usize::try_from(WINDOW).unwrap());
+                assert!(!need.ready(&root));
+                row.card_key()
+            }
+            Need::Existing(needs::Need::Approval(_)) | Need::Finding(_) => panic!("inbox needs only"),
+        };
+        assert_eq!(object, expected.get(0).unwrap().card_key());
+    }
+    assert_eq!(
+        root.pages().needs().counted(inbox, root.forge().approvals()),
+        crate::pages::home::Needs::Count {
+            count: TOTAL,
+            cut: false,
+            findings: crate::pages::findings::Counted::default()
+        }
+    );
+}
+
+#[test]
+fn opening_an_unread_row_replaces_the_last_needs_read_and_waits_for_its_answer() {
+    use crate::pages::{self, findings::Need, needs};
+    let mut root = listed();
+    let object = ObjectKey::PersonTask(19);
+    let last = root.pages().inbox().unwrap().cards.get(WINDOW - 1).unwrap().handle;
+    let mut out = Queue::uncapped();
+    crate::step(
+        &mut root,
+        &fixtures::env(&limits()),
+        crate::Event::Act { action: crate::Action::Pages(pages::Act::Needs(needs::Act::Open { object })) },
+        &mut out,
+    );
+    let reads = queries(&out);
+    assert_eq!(reads.len(), 1);
+    assert_eq!(reads[0].1, contract::Read::PersonTask { task: 19 });
+    let inbox = root.pages().inbox().unwrap();
+    assert_eq!(inbox.cards.len(), WINDOW);
+    for card in &inbox.cards {
+        assert_ne!(card.handle, last);
+    }
+    let shown = root.pages().needs().shown_all(inbox, root.forge().approvals()).unwrap();
+    let Need::Row(row) = shown else { panic!("closed until its read answers") };
+    assert_eq!(row.card_key(), object);
+    assert!(!shown.ready(&root));
+    let mut out = Queue::uncapped();
+    crate::step(
+        &mut root,
+        &fixtures::env(&limits()),
+        crate::Event::Act { action: crate::Action::Pages(pages::Act::Needs(needs::Act::Open { object })) },
+        &mut out,
+    );
+    assert_eq!(queries(&out).len(), 0, "opening reads only once");
+    let contract::ReadValue::PersonTask(mut person) = fixtures::acts::person(contract::ActKind::Answer) else {
+        panic!("person fixture")
+    };
+    person.task.task = 19;
+    person.since = Some(Wall::from_nanos(19));
+    answer(&mut root, reads[0].0, contract::ReadResult::Value(contract::ReadValue::PersonTask(person)));
+    let inbox = root.pages().inbox().unwrap();
+    let all = root.pages().needs().all(inbox, root.forge().approvals());
+    let Need::Existing(needs::Need::Card(card)) = all[19] else { panic!("the 20th is read") };
+    assert_eq!(card.object, object);
+    assert!(card.page.is_some());
+    for card in &inbox.cards {
+        assert_ne!(card.object, ObjectKey::Escalation(7));
+    }
+    assert_eq!(all.len(), usize::try_from(TOTAL).unwrap());
+}
+
 #[test]
 fn refused_and_failed_pages_keep_the_needs_count_cut() {
     for (filter, refused) in [

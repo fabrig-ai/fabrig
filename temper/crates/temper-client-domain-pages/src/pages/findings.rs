@@ -396,6 +396,8 @@ impl Store {
 #[derive(Clone, Copy, Debug)]
 pub enum Need<'a> {
     Existing(needs::Need<'a>),
+    /// An open inbox row whose card has not answered a read.
+    Row(&'a c::InboxEntry),
     Finding(&'a Card),
 }
 fn question(need: Need<'_>) -> Option<crate::question::Parsed> {
@@ -411,6 +413,7 @@ fn question(need: Need<'_>) -> Option<crate::question::Parsed> {
 pub fn why(root: &dyn Root, need: Need<'_>) -> Option<needs::Why> {
     let card = match need {
         Need::Existing(need) => return needs::why(root, need),
+        Need::Row(_) => return None,
         Need::Finding(card) => card,
     };
     let document = root.pages().needs().findings().document(card.id.project)?;
@@ -479,6 +482,7 @@ pub fn counted(store: &Store, open: &[Need<'_>]) -> Counted {
     for need in open {
         match need {
             Need::Finding(card) => counts.add(&mut seen, card.id, card.row.severity()),
+            Need::Row(_) => counts.only = false,
             Need::Existing(_) => match store.group(*need) {
                 Some(group) => {
                     for row in &group.rows {
@@ -496,6 +500,7 @@ impl Need<'_> {
     pub fn severity(self, store: &Store) -> Option<w::Severity> {
         match self {
             Self::Finding(card) => Some(card.row.severity().clone()),
+            Self::Row(_) => None,
             Self::Existing(_) => match store.group(self) {
                 Some(group) => Some(group.severity()),
                 None => None,
@@ -506,14 +511,20 @@ impl Need<'_> {
     pub fn same(self, other: Self) -> bool {
         match (self, other) {
             (Self::Existing(left), Self::Existing(right)) => left.object() == right.object(),
+            (Self::Row(left), Self::Row(right)) => left.card_key() == right.card_key(),
+            (Self::Row(row), Self::Existing(need)) | (Self::Existing(need), Self::Row(row)) => {
+                row.card_key() == need.object()
+            }
             (Self::Finding(left), Self::Finding(right)) => left.id == right.id,
-            (Self::Existing(_), Self::Finding(_)) | (Self::Finding(_), Self::Existing(_)) => false,
+            (Self::Row(_) | Self::Existing(_), Self::Finding(_))
+            | (Self::Finding(_), Self::Row(_) | Self::Existing(_)) => false,
         }
     }
     #[must_use]
     pub fn open(self) -> super::Act {
         match self {
             Self::Existing(need) => super::Act::Needs(needs::Act::Open { object: need.object() }),
+            Self::Row(row) => super::Act::Needs(needs::Act::Open { object: row.card_key() }),
             Self::Finding(card) => super::Act::Finding(Act::Open { id: card.id }),
         }
     }
@@ -522,11 +533,13 @@ impl Need<'_> {
         match self {
             Self::Existing(need) => needs::ready(root, need) && root.pages().needs().findings().ready(self),
             Self::Finding(_) => true,
+            Self::Row(_) => false,
         }
     }
     fn at(self) -> Wall {
         match self {
             Self::Finding(card) => Wall::from_nanos(card.row.at()),
+            Self::Row(row) => row.at.unwrap_or(Wall::EPOCH),
             Self::Existing(needs::Need::Approval(row)) => row.since,
             Self::Existing(needs::Need::Card(card)) => match &card.page {
                 Some(c::ReadValue::Question(row)) => row.since,
@@ -555,11 +568,41 @@ impl needs::Session {
         let mut rows = List::with_capacity(
             u32::try_from(existing.len())
                 .expect("needs fit")
+                .checked_add(inbox.rows.len())
+                .expect("needs fit")
                 .checked_add(self.findings.count(None))
                 .expect("needs fit"),
         );
         for need in &existing {
+            if let needs::Need::Card(card) = need
+                && card.page.is_none()
+            {
+                continue;
+            }
             rows.push(Need::Existing(*need)).expect("needs fit");
+        }
+        let mut merged = false;
+        for row in &inbox.rows {
+            if self.answered_here(row.card_key())
+                || match inbox.filter.kind {
+                    Some(kind) => super::inbox::kind(kind) != Some(row.group()),
+                    None => false,
+                }
+                || match inbox.filter.project {
+                    Some(project) => !row.shows_in(project),
+                    None => false,
+                }
+            {
+                continue;
+            }
+            let mut read = false;
+            for card in inbox.needs() {
+                read |= card.object == row.card_key() && card.page.is_some();
+            }
+            if !read {
+                rows.push(Need::Row(row)).expect("needs rows fit");
+                merged = true;
+            }
         }
         if inbox.filter.goal.is_none() && (inbox.filter.kind.is_none() || inbox.filter.kind == Some(Kind::Finding)) {
             for card in &self.findings.cards() {
@@ -570,10 +613,9 @@ impl needs::Session {
         }
         // Compute a group's severity once, since it parses the question's words.
         let mut ordered = Map::with_capacity(rows.len());
-        let mut findings = false;
         for (index, need) in rows.iter().enumerate() {
             let severity = need.severity(&self.findings);
-            findings |= severity.is_some();
+            merged |= severity.is_some();
             let rank = match severity {
                 Some(w::Severity::High) | None => 0_u8,
                 Some(w::Severity::Medium) => 1,
@@ -582,10 +624,11 @@ impl needs::Session {
             let later = match need {
                 Need::Existing(need) => self.later(need.object()),
                 Need::Finding(_) => false,
+                Need::Row(row) => self.later(row.card_key()),
             };
             ordered.insert((later, rank, need.at(), index), *need).expect("one key per need");
         }
-        if !findings {
+        if !merged {
             return rows.into_boxed();
         }
         rows.clear();
@@ -605,6 +648,10 @@ impl needs::Session {
         let mut count = 0_u32;
         let mut read = List::with_capacity(u32::try_from(open.len()).expect("open needs fit"));
         for need in &open {
+            // Unread rows are counted by the row loop below, not as extra cards.
+            if let Need::Row(_) = need {
+                continue;
+            }
             if let Need::Existing(needs::Need::Card(card)) = need {
                 let mut present = false;
                 for row in &inbox.rows {
@@ -658,7 +705,10 @@ impl needs::Session {
                 Need::Existing(need) if self.findings.shown.is_none() && self.at == Some(need.object()) => {
                     return Some(Need::Existing(*need));
                 }
-                Need::Finding(_) | Need::Existing(_) => {}
+                Need::Row(row) if self.findings.shown.is_none() && self.at == Some(row.card_key()) => {
+                    return Some(*need);
+                }
+                Need::Finding(_) | Need::Existing(_) | Need::Row(_) => {}
             }
         }
         rows.first().copied()
