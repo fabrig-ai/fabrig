@@ -139,6 +139,33 @@ const SETTINGS_KINDS: [(c::Setting, &[u8]); 16] = [
 ];
 
 #[test]
+fn a_settings_card_offering_withdraw_shows_it_plain_and_says_when_withdrawn() {
+    let (root, _) = settings_root(settings_page(&[], false));
+    let mut card = settings_card(&root);
+    let Some(c::ReadValue::Proposal(proposal)) = &mut card.page else { panic!("settings fixture") };
+    proposal
+        .acts
+        .push(c::Offered { act: c::ActKind::Withdraw, admission: c::Admission::Allowed, effect: None })
+        .unwrap();
+    let tree = draw_settings(&root, &card, false);
+    let mut button = None;
+    for node in tree.nodes() {
+        if node.role == Role::Button && node.name.as_deref() == Some(b"Withdraw") {
+            button = Some(node);
+        }
+    }
+    let button = button.expect("offered Withdraw");
+    assert!(button.styles.as_slice().contains(&crate::look::SETTINGS_SMALL));
+    assert!(!button.styles.as_slice().contains(&crate::look::SETTINGS_PRIMARY));
+    card.outcome = Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(
+        c::Outcome::Document(c::DocumentOutcome::Withdrawn { proposal: fixtures::chat::PROPOSAL.number }),
+    ))));
+    let tree = draw_settings(&root, &card, false);
+    assert!(fixtures::find(&tree, Role::Button, b"Withdraw").is_none());
+    assert!(skein_lib::bytes::find(&fixtures::text(&tree), "Withdrawn · nothing changes".as_bytes()).is_some());
+}
+
+#[test]
 #[expect(clippy::disallowed_methods, reason = "ordinary tests compare semantic nodes and concatenate expected labels")]
 fn a_settings_proposal_draws_its_title_lines_and_items() {
     let edits = [

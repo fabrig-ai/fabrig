@@ -1677,6 +1677,9 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
         || pages.choice.told(&told)
         || crate::acts::told(pages, &told)
     {
+        if let Some(inbox) = &mut pages.inbox {
+            inbox.discard_withdrawn(out);
+        }
         pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
         return false;
     }

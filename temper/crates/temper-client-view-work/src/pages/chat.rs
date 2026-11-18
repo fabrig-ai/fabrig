@@ -560,7 +560,7 @@ fn proposal_draws(card: &temper_client_domain::pages::inbox::Card) -> bool {
     if let Some(c::ReadValue::Ended(_)) = &card.page {
         return crate::cards::proposal::settings_facts(card).is_some();
     }
-    card.page.is_some()
+    card.page.is_some() || card.withdraw_unread
 }
 
 // Only assistant calls inside the displayed row bounds can stand for a card.

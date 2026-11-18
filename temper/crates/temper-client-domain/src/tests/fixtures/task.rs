@@ -24,6 +24,7 @@ pub fn held_pages() -> crate::pages::Pages {
         .cards_mut()
         .expect("task cards")
         .push(Card {
+            withdraw_unread: false,
             whole: None,
             task: None,
             object: c::ObjectKey::Task(HELD),

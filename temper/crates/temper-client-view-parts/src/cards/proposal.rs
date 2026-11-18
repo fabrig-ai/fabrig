@@ -541,45 +541,7 @@ pub fn settings(
     } else if state == SettingsState::Pending
         && let Some(proposal) = facts.live
     {
-        let offered = jig_client::facts::offer(proposal.acts.as_slice(), c::ActKind::Accept);
-        if let Some(c::Admission::Allowed | c::Admission::Bounded { .. }) = offered {
-            b.open(Role::Slot);
-            b.style(crate::look::SETTINGS_PROPOSAL_ACTS);
-            settings_button(
-                b,
-                words,
-                bindings,
-                Word::Accept,
-                temper_client_domain::pages::Act::Decide {
-                    object: card.object,
-                    revision: None,
-                    act: c::ActKind::Accept,
-                },
-                true,
-                card.key.is_some(),
-            );
-            if root.pages().chat().is_some() {
-                settings_button(
-                    b,
-                    words,
-                    bindings,
-                    Word::SettingsProposalChange,
-                    temper_client_domain::pages::Act::ChangeProposal { proposal: proposal.key },
-                    false,
-                    false,
-                );
-            }
-            b.close();
-            if let Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
-                refusal, ..
-            }))) = &card.outcome
-            {
-                words.refusal(b, refusal, 0);
-            }
-        } else {
-            text(b, Role::Paragraph, &words.say(Word::SettingsProposalWaiting, &[]));
-            waiting(b, root, proposal.waiting.holder, words);
-        }
+        settings_actions(b, root, card, words, bindings, proposal);
     }
     if terminal {
         b.close();
@@ -589,6 +551,63 @@ pub fn settings(
     }
     b.close();
     true
+}
+
+fn settings_actions(
+    b: &mut Builder,
+    root: &temper_client_domain::Domain,
+    card: &temper_client_domain::pages::inbox::Card,
+    words: &Words,
+    bindings: &mut crate::bindings::Bindings,
+    proposal: &c::Proposal,
+) {
+    let offered = jig_client::facts::offer(proposal.acts.as_slice(), c::ActKind::Accept);
+    if let Some(c::Admission::Allowed | c::Admission::Bounded { .. }) = offered {
+        b.open(Role::Slot);
+        b.style(crate::look::SETTINGS_PROPOSAL_ACTS);
+        settings_button(
+            b,
+            words,
+            bindings,
+            Word::Accept,
+            temper_client_domain::pages::Act::Decide { object: card.object, revision: None, act: c::ActKind::Accept },
+            true,
+            card.key.is_some(),
+        );
+        if root.pages().chat().is_some() {
+            settings_button(
+                b,
+                words,
+                bindings,
+                Word::SettingsProposalChange,
+                temper_client_domain::pages::Act::ChangeProposal { proposal: proposal.key },
+                false,
+                false,
+            );
+        }
+        b.close();
+        if let Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused { refusal, .. }))) =
+            &card.outcome
+        {
+            words.refusal(b, refusal, 0);
+        }
+    } else {
+        text(b, Role::Paragraph, &words.say(Word::SettingsProposalWaiting, &[]));
+        waiting(b, root, proposal.waiting.holder, words);
+    }
+    if let Some(c::Admission::Allowed | c::Admission::Bounded { .. }) =
+        jig_client::facts::offer(proposal.acts.as_slice(), c::ActKind::Withdraw)
+    {
+        settings_button(
+            b,
+            words,
+            bindings,
+            Word::Withdraw,
+            temper_client_domain::pages::Act::Decide { object: card.object, revision: None, act: c::ActKind::Withdraw },
+            false,
+            card.key.is_some(),
+        );
+    }
 }
 
 /// What a settings card draws, from a live proposal or its retained record (client/pages/settings.md, 2).
@@ -651,6 +670,9 @@ enum SettingsState {
     Other,
 }
 fn settings_state(card: &temper_client_domain::pages::inbox::Card) -> SettingsState {
+    if card.withdrawn() {
+        return SettingsState::Withdrawn;
+    }
     if let Some(c::ReadValue::Ended(ended)) = &card.page
         && let c::EndedValue::Proposal(proposal) = &ended.value
     {

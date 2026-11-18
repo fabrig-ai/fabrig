@@ -326,6 +326,8 @@ pub enum Word {
     DeleteProjectSays,
     CloseTask,
     AcceptTitle,
+    WithdrawTitle,
+    Withdraw,
     RejectTitle,
     ReleaseTitle,
     TasksBelowOne,
@@ -2255,7 +2257,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-const PHRASES: u32 = 2805;
+const PHRASES: u32 = 2807;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2282,10 +2284,10 @@ const PHRASES: u32 = 2805;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 5211;
+const SEGMENTS: u32 = 5213;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 66158;
-const ALL: [Word; 2081] = [
+const ENGLISH_BYTES: u32 = 66189;
+const ALL: [Word; 2083] = [
     Word::WorkMilestoneLede,
     Word::MsGoals,
     Word::MsWhole,
@@ -2562,6 +2564,8 @@ const ALL: [Word; 2081] = [
     Word::DeleteProjectSays,
     Word::CloseTask,
     Word::AcceptTitle,
+    Word::WithdrawTitle,
+    Word::Withdraw,
     Word::RejectTitle,
     Word::ReleaseTitle,
     Word::TasksBelowOne,
@@ -4482,6 +4486,8 @@ impl Word {
             Self::DeleteProjectSays => 5679,
             Self::CloseTask => 3752,
             Self::AcceptTitle => 3755,
+            Self::WithdrawTitle => 4260,
+            Self::Withdraw => 4261,
             Self::RejectTitle => 3756,
             Self::ReleaseTitle => 3757,
             Self::TasksBelowOne => 3758,
@@ -7133,6 +7139,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::DeleteProjectSays => (&[b"", b" leaves every list, and its chats, goals and notes are deleted. Its repositories stay on their forges. This can\xe2\x80\x99t be undone."], &[Name]),
         Word::CloseTask => (&[b"Close task"], &[]),
         Word::AcceptTitle => (&[b"Accept this proposal?"], &[]),
+        Word::WithdrawTitle => (&[b"Withdraw this proposal?"], &[]),
+        Word::Withdraw => (&[b"Withdraw"], &[]),
         Word::RejectTitle => (&[b"Reject this proposal?"], &[]),
         Word::ReleaseTitle => (&[b"Release this task?"], &[]),
         Word::TasksBelowOne => (&[b"1 task below it is cancelled."], &[]),
