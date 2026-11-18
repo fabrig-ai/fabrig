@@ -1,7 +1,16 @@
 # work: status
 
-2026-11-17. Where the tree's code lags or departs from [work.md](work.md).
+2026-11-18. Where the tree's code lags or departs from [work.md](work.md).
 
+- **Not yet:** 1, *Its budget*: no constant or focused test holds a cold
+  open to its budget, and it takes more: Team's `Project` read leaves
+  beside the stream before the hello, and the chats' chips watch and an
+  owner's `deployment` watch each open a wave past the batch [in flight:
+  change 7925].
+- **Not yet:** 1, *Its head*, *All* and Goals' *Its intro*: the heading and
+  every section wait for every list, with no line held for the heading,
+  and Goals' heading and rows draw before the needs' read and the
+  milestones' list answer [in flight: change 7927].
 
 - **Not yet:** 1, *Work*: no landed draft is read, placed or drawn, and
   no goal starts from one [in flight: change 664].
