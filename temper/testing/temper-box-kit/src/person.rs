@@ -299,6 +299,8 @@ pub fn demo_start_answered() -> Script {
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum ProjectSelection {
     Pending,
+    Offering,
+    Making,
     Selected,
 }
 /// Stdout and the client share one host; the link comes only from the binary.
@@ -615,7 +617,8 @@ impl Person {
                 self.wake = Some(self.wake.map_or(retry, |at| at.min(retry)));
             }
         }
-        let selecting = client.started() && self.project == ProjectSelection::Pending && select_project(client);
+        let selecting =
+            client.started() && self.project != ProjectSelection::Selected && select_project(client, &mut self.project);
         if selecting {
             self.project = ProjectSelection::Selected;
             self.wake = Some(now);
@@ -683,7 +686,11 @@ fn person_failure(step: u32, why: &skein_fake_person::Why, client: &NativeClient
         .iter()
         .map(|node| (node.role, node.name.as_deref().map(String::from_utf8_lossy), &node.states))
         .collect();
-    format!("native person step {step}: {why:?}; client: {:?}; tree: {nodes:?}", client.pending())
+    format!(
+        "native person step {step}: {why:?}; address: {:?}; client: {:?}; tree: {nodes:?}",
+        client.address(),
+        client.pending()
+    )
 }
 
 /// A key's acknowledgement can precede the model watch that enables Send.
@@ -760,17 +767,91 @@ fn an_unnamed_project(name: Option<&[u8]>) -> bool {
     let Some(number) = name.and_then(|name| name.strip_prefix(b"Project ".as_slice())) else { return false };
     !number.is_empty() && number.iter().all(u8::is_ascii_digit)
 }
-// Project zero is absent from me; the sole configured project may already be selected.
-fn select_project(client: &mut NativeClient) -> bool {
-    let node = client
-        .tree()
+#[derive(Debug, PartialEq, Eq)]
+enum ProjectStep {
+    Wait,
+    Chosen,
+    Keep { node: skein_ui::NodeId },
+    Offer,
+    Make { field: skein_ui::NodeId },
+}
+
+fn project_step(tree: &skein_ui::Tree, address: &Address, selection: ProjectSelection) -> ProjectStep {
+    match selection {
+        ProjectSelection::Making => {
+            return if matches!(address, Address::Home { .. }) { ProjectStep::Chosen } else { ProjectStep::Wait };
+        }
+        ProjectSelection::Selected => return ProjectStep::Chosen,
+        ProjectSelection::Pending | ProjectSelection::Offering => {}
+    }
+    let node = tree
         .nodes()
         .iter()
         .find(|node| node.role == skein_ui::Role::Button && an_unnamed_project(node.name.as_deref()))
         .map(|node| node.id);
-    let Some(node) = node else { return false };
-    assert!(client.act(node, skein_ui::Act::Press), "offered project selection");
-    true
+    if let Some(node) = node {
+        return ProjectStep::Keep { node };
+    }
+    match selection {
+        ProjectSelection::Pending => ProjectStep::Offer,
+        ProjectSelection::Offering => tree
+            .nodes()
+            .iter()
+            .find(|node| node.role == skein_ui::Role::TextField && node.name.as_deref() == Some(b"Project name"))
+            .map_or(ProjectStep::Wait, |node| ProjectStep::Make { field: node.id }),
+        ProjectSelection::Making | ProjectSelection::Selected => unreachable!("handled before kept projects"),
+    }
+}
+
+// Make the first project through the owner's offered form; select a kept one on later starts.
+fn select_project(client: &mut NativeClient, selection: &mut ProjectSelection) -> bool {
+    match project_step(client.tree(), client.address(), *selection) {
+        ProjectStep::Wait => {}
+        ProjectStep::Chosen => return true,
+        ProjectStep::Keep { node } => {
+            assert!(client.act(node, skein_ui::Act::Press), "offered project selection");
+            return true;
+        }
+        ProjectStep::Offer => {
+            client.go(Address::NewChat { draft: false });
+            *selection = ProjectSelection::Offering;
+        }
+        ProjectStep::Make { field } => {
+            assert!(client.act(field, skein_ui::Act::Input { value: b"Project 1".as_slice().into() }));
+            assert!(client.act(field, skein_ui::Act::Submit));
+            *selection = ProjectSelection::Making;
+        }
+    }
+    false
+}
+
+pub fn a_new_project_waits_for_its_applied_home() {
+    let (limits, _) = temper_client_shell_terminal::limits::view(&temper_client_shell_terminal::limits::native())
+        .expect("native view bounds");
+    let mut view = skein_ui::View::new(&limits.tree);
+    let mut builder = view.builder();
+    builder.open(skein_ui::Role::Page);
+    builder.open(skein_ui::Role::Button);
+    builder.name(b"Project 1");
+    builder.bind(skein_ui::Binding { owner: skein_ui::Owner { number: 1 }, token: Token::new(1) });
+    builder.close();
+    builder.close();
+    let mut patches = Queue::with_capacity(limits.tree.patches);
+    view.finish(builder, 1, &mut patches);
+    assert_eq!(
+        project_step(view.tree(), &Address::NewChat { draft: false }, ProjectSelection::Making),
+        ProjectStep::Wait,
+        "membership is not the creation's applied navigation"
+    );
+    assert_eq!(project_step(view.tree(), &Address::Home { project: 1 }, ProjectSelection::Making), ProjectStep::Chosen);
+    let button =
+        view.tree().nodes().iter().find(|node| node.role == skein_ui::Role::Button).expect("project button").id;
+    for selection in [ProjectSelection::Pending, ProjectSelection::Offering] {
+        assert_eq!(
+            project_step(view.tree(), &Address::NewChat { draft: false }, selection),
+            ProjectStep::Keep { node: button }
+        );
+    }
 }
 impl Host for Person {
     fn iterate(&mut self, now: Time, wall: Wall) {

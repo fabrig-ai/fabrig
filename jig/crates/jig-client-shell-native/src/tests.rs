@@ -149,7 +149,11 @@ fn a_connection_cut_mid_body_fails_the_exchange() {
 #[test]
 fn the_stream_s_bytes_reach_the_link_in_order() {
     let mut peer = Peer::new();
-    peer.shell.down(Time::ZERO, client::Request::OpenStream { credential: None, replaces: None }, &mut peer.below);
+    peer.shell.down(
+        Time::ZERO,
+        client::Request::OpenStream { credential: None, replaces: None, version: jig_client_protocol_wire::VERSION },
+        &mut peer.below,
+    );
     peer.respond(b"HTTP/1.1 200 OK\r\n\r\ndata: Zmlyc3Q=\n\ndata: c2Vjb25k\n\n");
     let mut bytes = Vec::new();
     while let Some(event) = peer.up.pop() {
@@ -158,6 +162,7 @@ fn the_stream_s_bytes_reach_the_link_in_order() {
         }
     }
     assert_eq!(bytes, b"firstsecond");
+    assert!(peer.wire.received.starts_with(b"GET /jig/v1/stream?version=32 HTTP/1.1\r\n"));
     peer.shell.down(Time::ZERO, client::Request::CloseStream, &mut peer.below);
     peer.drive();
     assert!(peer.wire.finished);
@@ -535,7 +540,14 @@ fn transport_tags_socket_events_and_waits_for_connection() {
         let mut transport = Transport::new(engine, &limits(), file_io_limits().sockets, tag);
         let mut events = Queue::with_capacity(1);
         let mut requests = Queue::with_capacity(1); // Exercise io output backpressure.
-        transport.down(Time::ZERO, client::Request::OpenStream { credential: None, replaces: None });
+        transport.down(
+            Time::ZERO,
+            client::Request::OpenStream {
+                credential: None,
+                replaces: None,
+                version: jig_client_protocol_wire::VERSION,
+            },
+        );
         transport.iterate(Time::ZERO, &mut events, &mut requests);
         let Some(skein_io::Request::Connect { owner, .. }) = requests.pop() else { panic!("connect first") };
         assert_eq!(owner, expected);
@@ -574,7 +586,11 @@ fn valid_refuses_each_unrepresentable_limit() {
 fn a_full_stream_refusal_without_a_line_ending_reaches_the_link() {
     use jig_client_protocol_wire as w;
     let mut peer = Peer::new();
-    peer.shell.down(Time::ZERO, client::Request::OpenStream { credential: None, replaces: None }, &mut peer.below);
+    peer.shell.down(
+        Time::ZERO,
+        client::Request::OpenStream { credential: None, replaces: None, version: jig_client_protocol_wire::VERSION },
+        &mut peer.below,
+    );
     let record = w::StreamsFull::new(&w::CEILINGS, w::StreamsFullParts { bound: w::StreamBound::Transport, size: 2 })
         .expect("full record");
     let mut writer = Writer::new(usize::try_from(record.measure()).expect("fixed record"));

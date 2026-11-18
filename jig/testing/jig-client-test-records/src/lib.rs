@@ -2,10 +2,25 @@
 /// Template numbers used by the literal wire fixtures.
 pub const CHAT: u32 = 1;
 pub const GOAL: u32 = 2;
-use jig_client_protocol_wire::v28 as w;
+use jig_client_protocol_wire as w;
 use skein_lib::{Duration, List, Writer};
 mod owner;
 pub use owner::*;
+
+/// The stream's first record, with its implicit me delivery (protocol/client/wire.md, 2).
+#[must_use]
+pub fn opened(hello: w::Hello, me: w::Me) -> w::StreamEvent {
+    let value = w::DeliveryValue::Me(me);
+    let mut record = Writer::new(skein_lib::length::usize_of(value.measure()));
+    value.encode(&mut record).expect("fixture me fits");
+    let me = w::Owned::new(
+        &w::CEILINGS,
+        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: record.finish() },
+    )
+    .expect("fixture envelope fits");
+    w::StreamEvent::Opened(w::Opened::new(&w::CEILINGS, w::OpenedParts { hello, me }).expect("fixture opening fits"))
+}
+
 #[must_use]
 pub fn limits() -> w::Limits {
     w::Limits {

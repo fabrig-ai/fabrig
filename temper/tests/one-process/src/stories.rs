@@ -29,8 +29,6 @@ pub(crate) fn model_list() -> bool {
     STORY.with(|slot| matches!(slot.get(), Story::ModelsList))
 }
 
-// The setup's topic push, the agent's push, and the agent's pull request opening.
-pub(crate) const ADOPT_HOOKS: usize = 3;
 // Two one-token producer turns leave three, below the four-unit admission floor.
 const CHANGE_ALLOWANCE: u64 = 5;
 const RUN_ALLOWANCE: u64 = 8;

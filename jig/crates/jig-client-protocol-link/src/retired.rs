@@ -4,7 +4,8 @@ use crate::{
     Fact, Link, Request, Signing,
     component::{Attempt, ExchangeKind},
 };
-use jig_client_protocol_wire::{VERSION, v28 as w};
+use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::VERSION;
 use skein_lib::{Queue, Reader, Token};
 impl Link {
     pub(super) fn retired_close(&mut self, watch: Token, name: u64, out: &mut Queue<Request>) {
@@ -12,6 +13,7 @@ impl Link {
         let Some(stream) = stream.name else { return };
         let Some(exchange) = self.token() else { return self.drop_stream(out) };
         let attempt = Attempt {
+            parts: skein_lib::List::with_capacity(0),
             token: watch,
             owner: w::Owner::Jig,
             version: VERSION,

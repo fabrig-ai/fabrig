@@ -1,6 +1,6 @@
 use super::fixtures;
 use crate::translate::watches;
-use jig_client_protocol_wire::v28 as w;
+use jig_client_protocol_wire as w;
 use jig_domain_core_vocabulary::{Event, documents as d};
 use jig_domain_tasks as t;
 use skein_lib::Token;
@@ -16,6 +16,7 @@ fn a_task_query_subject_reaches_the_core_with_its_keys() {
     let query = w::TaskQuery::new(
         &limits,
         w::TaskQueryParts {
+            parts: skein_lib::List::with_capacity(0),
             project: Some(QUERY_PROJECT),
             requester: Some(w::Requester::Person(
                 w::RequesterPerson::new(&limits, w::RequesterPersonParts { value: QUERY_REQUESTER }).unwrap(),
@@ -46,6 +47,180 @@ fn a_task_query_subject_reaches_the_core_with_its_keys() {
         (Some(d::PhaseClass::Held), Some(d::ExecutorKind::Person), Some(true), d::QueryOrder::Priority)
     );
 }
+#[test]
+#[expect(clippy::too_many_lines, reason = "one passage follows admission, both row groups, delivery and continuation")]
+fn task_parts_keep_their_places_across_pages_deliveries_and_continuations() {
+    use crate::translate;
+    use jig_domain_core_vocabulary::reads;
+    use skein_lib::{List, Reader};
+    let limits = fixtures::wire();
+    let asks = List::from_boxed(Box::new([
+        d::PartAsk { owner: 99, kind: 1, version: 2 },
+        d::PartAsk { owner: 9, kind: 1, version: 2 },
+        d::PartAsk { owner: 9, kind: 2, version: 2 },
+        d::PartAsk { owner: 9, kind: 1, version: 3 },
+    ]));
+    let expected_query = d::TaskQuery { parts: asks.clone(), ..fixtures::tasks_document().query };
+    let mut wire_asks = List::with_capacity(4);
+    for ask in &asks {
+        wire_asks
+            .push(
+                w::PartAsk::new(
+                    &limits,
+                    w::PartAskParts {
+                        owner: w::Family::new(&limits, w::FamilyParts { number: ask.owner }).unwrap(),
+                        kind: ask.kind,
+                        version: ask.version,
+                    },
+                )
+                .unwrap(),
+            )
+            .unwrap();
+    }
+    let query = w::TaskQuery::new(
+        &limits,
+        w::TaskQueryParts {
+            parts: wire_asks,
+            project: expected_query.project,
+            requester: None,
+            root: expected_query.root,
+            parent: expected_query.parent,
+            label: expected_query.label,
+            phase: None,
+            executor: None,
+            tracked: expected_query.tracked,
+            order: w::QueryOrder::Number,
+        },
+    )
+    .unwrap();
+    let value = w::Read::Tasks(
+        w::ReadTasks::new(&limits, w::ReadTasksParts { query: query.clone(), live: None, ended: None }).unwrap(),
+    );
+    for (core_parts, expected_parts) in [
+        (
+            [d::RowPart::Made(Box::from([255, 0, 1])), d::RowPart::Unknown],
+            [
+                w::RowPart::Value(
+                    w::Owned::new(
+                        &limits,
+                        w::OwnedParts {
+                            owner: w::Owner::Family(w::Family::new(&limits, w::FamilyParts { number: 9 }).unwrap()),
+                            version: 2,
+                            record: Box::from([255, 0, 1]),
+                        },
+                    )
+                    .unwrap(),
+                ),
+                w::RowPart::Unknown,
+            ],
+        ),
+        (
+            [d::RowPart::Failed(d::PartFailure::Busy), d::RowPart::Failed(d::PartFailure::TooLarge)],
+            [
+                w::RowPart::Failed(
+                    w::PartFailed::new(&limits, w::PartFailedParts { why: w::PartFailure::Busy }).unwrap(),
+                ),
+                w::RowPart::Failed(
+                    w::PartFailed::new(&limits, w::PartFailedParts { why: w::PartFailure::TooLarge }).unwrap(),
+                ),
+            ],
+        ),
+        (
+            [d::RowPart::Failed(d::PartFailure::Unreadable), d::RowPart::Unknown],
+            [
+                w::RowPart::Failed(
+                    w::PartFailed::new(&limits, w::PartFailedParts { why: w::PartFailure::Unreadable }).unwrap(),
+                ),
+                w::RowPart::Unknown,
+            ],
+        ),
+    ] {
+        let mut exchange = fixtures::read_exchange();
+        let (owner, reply, core_read) = exchange.read(&value);
+        let reads::Read::Tasks { query: core_query, .. } = core_read else { panic!("task query") };
+        assert_eq!(
+            core_query.parts.as_slice(),
+            &[d::PartAsk { owner: 9, kind: 1, version: 2 }, d::PartAsk { owner: 9, kind: 2, version: 2 },]
+        );
+        let mut lines = fixtures::tasks_document();
+        lines.query = core_query.clone();
+        lines.ended_mark = 73;
+        lines.lines.get_mut(0).unwrap().parts = List::from_boxed(Box::new(core_parts));
+        let cursor = reads::Cursor::Live {
+            scope: reads::Scope::Tasks { query: core_query.clone() },
+            after: d::Cursor::Number { number: 7 },
+            store_after: None,
+        };
+        exchange.release_read(
+            reply,
+            reads::Answer::Tasks(Box::new(reads::TaskPage {
+                live: lines.lines.clone(),
+                live_next: Some(cursor.clone()),
+                ended_mark: 73,
+                ended: reads::EndedGroup::Rows { rows: lines.lines.clone(), next: Some(cursor), cut: false },
+            })),
+        );
+        let w::ReadAnswer::Value(answer) = exchange.read_answer(owner) else { panic!("value") };
+        let w::ReadValue::Tasks(page) = w::ReadValue::decode(&limits, &mut Reader::new(answer.record())).unwrap()
+        else {
+            panic!("tasks")
+        };
+        assert_eq!(page.ended_mark(), 73);
+        let w::EndedGroup::Rows(ended) = page.ended() else { panic!("ended group") };
+        let slots = translate::parts::plan(&asks, &fixtures::settings(), &limits);
+        let w::DeliveryValue::Tasks(delivery) =
+            watches::delivery(&d::Document::Lines(lines), 0, 2, &[], &slots, &limits).unwrap()
+        else {
+            panic!("delivery")
+        };
+        assert_eq!(delivery.ended_mark(), 73);
+        for bytes in [page.live(), ended.rows(), delivery.rows()] {
+            let mut reader = Reader::new(bytes);
+            let bytes = skein_codec::piece::split(&mut reader).unwrap().unwrap();
+            let row = w::TaskLine::decode(&limits, &mut Reader::new(&bytes)).unwrap();
+            let [w::RowPart::NotServed(first), a, b, w::RowPart::NotServed(last)] = row.parts().as_slice() else {
+                panic!("parts in order")
+            };
+            assert_eq!([a, b], [&expected_parts[0], &expected_parts[1]]);
+            assert_eq!(
+                first.owner(),
+                &w::Owner::Family(w::Family::new(&limits, w::FamilyParts { number: 99 }).unwrap())
+            );
+            assert_eq!(last.owner(), &w::Owner::Family(w::Family::new(&limits, w::FamilyParts { number: 9 }).unwrap()));
+            let ranges = first.served();
+            assert_eq!(ranges, last.served());
+            assert_eq!(ranges.len(), 2);
+            let family = ranges.get(1).unwrap();
+            assert_eq!((family.owner(), family.first(), family.last()), (last.owner(), 2, 2));
+        }
+        let continuation = page.live_after().as_ref().unwrap().clone();
+        let reads::Cursor::Live { scope: reads::Scope::Tasks { query: held }, .. } =
+            translate::cursor::decode(continuation.value()).unwrap()
+        else {
+            panic!("query cursor")
+        };
+        assert_eq!(held.parts, asks);
+        let next = w::Read::Tasks(
+            w::ReadTasks::new(
+                &limits,
+                w::ReadTasksParts { query: query.clone(), live: Some(continuation), ended: None },
+            )
+            .unwrap(),
+        );
+        let (_, _, read) = exchange.read(&next);
+        let reads::Read::Tasks {
+            query: next_query,
+            live: Some(reads::Cursor::Live { scope: reads::Scope::Tasks { query: next_scope }, .. }),
+            ..
+        } = read
+        else {
+            panic!("continuation")
+        };
+        assert_eq!(next_query, core_query);
+        assert_eq!(next_scope, core_query);
+    }
+}
+
 const WAITING_ROLE: u32 = 2;
 #[test]
 fn a_task_document_carries_its_label_flags_activity_and_oldest_waiting_entry() {

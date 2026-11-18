@@ -1,6 +1,6 @@
 # Tools: temper for agents
 
-Provisional, 2026-10-17, revised 2026-11-05. How agents drive temper:
+Provisional, 2026-10-17, revised 2026-11-17. How agents drive temper:
 they read what it holds, act through jig's operations and wait for what
 changes, with `temper ctl`, a command line. It serves any agent working
 with temper for a person, which reaches the systems temper works with,
@@ -54,6 +54,9 @@ bounds are section 9, and what they take of jig section 10; an MCP endpoint and 
   private file, and returns, and the agent follows it with `forge list
   --until settled`; `forge repositories` reads the picker's page, whose
   rows ride `repository adopt`.
+- **Workers are settings** (`workers.md`): `worker add`, `places` and
+  `remove`, each one settings change by an owner, and `worker list`,
+  each worker up or down and its runs.
 - **Grown by areas,** the first, the fifth and the sixth designed in
   full, the others named (`areas.md`); **later, named:** the MCP endpoint and
   the extraction into `jig-client-tools` (section 11).
@@ -241,6 +244,19 @@ temper                       the binary: `temper ctl` runs the host
   replace` take `--key` optionally, as the other acts do, but the name
   drawn is not kept, so only a name the agent gives can be asked again;
   a rerun without one replaces the key or the tokens again.
+- **An account's uses** (area 5): `account uses ACCOUNT --party N...`
+  and `--project N...` set exactly the named parties and projects, at
+  least one and at most 16 together, the wire's bound. Either flag may
+  repeat or stand alone. `account uses ACCOUNT --default` restores
+  jig's defaults (`uses: None`). Both forms take an optional `--key` and
+  print `done: uses`. The tool resolves the holder as `account rank`
+  does, sends `SetUses` and leaves policy to the engine. A person's
+  plan may pay for its holder's services and projects whose other
+  members are services; another person, or a project with another
+  person, is refused. Provider refusals say that rule in words; an
+  unknown object says unknown account, party or project, as the
+  refusal distinguishes none of them. `account list` prints each use.
+  Naming a service lets its work run on its holder's subscription.
 - **An account's move** (`areas.md`, area 5): `account import`'s `move_in` is
   a request carrying a value, as `account add-key`'s is, under its
   `--key`. `account export`'s `move_out` is a request whose answer
@@ -750,7 +766,6 @@ Each is named here and designed when it comes.
   engine serves each of the forge's other parts (`../forge/served.md`).
 - **A service's credential reissued, or a service removed** (jig's
   `domain/people/README.md`, section 3): tools of area 3.
-- **An account's uses** set, as a tool of area 5 (section 12).
 - **An older moved form patched at `account import`** (`areas.md`, area 5, the
   file's versions): jig's form patches, then skein's record patches,
   before the engine's checks, when a form 2 exists.
@@ -821,9 +836,6 @@ Each is named here and designed when it comes.
   names one source while an account holds one of each kind. Default:
   by kind, and by a program source's name once an account may hold two
   of a kind.
-- **An account's uses:** no tool, each account taking jig's defaults
-  (jig's `domain/accounts.md`, 4.2). Default: a tool of area 5 once a
-  service paid by a person's account needs one (section 11).
 - **An export's `written` answered to a later call** (`areas.md`, area 5): when
   `account export` ends before `written` is answered, the next call
   that sends it reports its answer as any kept request's, and nothing

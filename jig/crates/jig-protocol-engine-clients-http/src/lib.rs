@@ -136,7 +136,7 @@ impl Mount {
                     return;
                 }
                 value.route = dispatch::route(&self.settings.prefix, &head);
-                if value.route == dispatch::Route::Stream {
+                if value.route.stream() {
                     let path = head.target.strip_prefix(self.settings.prefix.as_ref()).expect("routed prefix");
                     value.replaces = dispatch::stream_replaces(path).expect("routed stream");
                 }
@@ -176,6 +176,9 @@ impl Mount {
                 if !guards::host(&self.settings, &self.hosts, &head) {
                     value.route = dispatch::Route::Missing;
                     value.respond(421, Box::new([]), &env.limits);
+                } else if value.route == dispatch::Route::BadQuery {
+                    value.route = dispatch::Route::Missing;
+                    value.respond(400, Box::new([]), &env.limits);
                 } else if value.route == dispatch::Route::Missing {
                     value.respond(404, Box::new([]), &env.limits);
                 } else if forbidden {
@@ -189,7 +192,7 @@ impl Mount {
                 {
                     value.route = dispatch::Route::Missing;
                     value.respond(413, Box::new([]), &env.limits);
-                } else if value.route == dispatch::Route::Stream && streams >= env.limits.streams {
+                } else if value.route.stream() && streams >= env.limits.streams {
                     value.route = dispatch::Route::Missing;
                     value.respond(
                         409,

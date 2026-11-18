@@ -58,9 +58,11 @@ pub fn encoded_answer(value: &w::KeyedAnswer) -> Box<[u8]> {
 pub fn final_answer(value: w::Final) -> Box<[u8]> {
     let mut bytes = Writer::new(usize::try_from(value.measure()).unwrap());
     value.encode(&mut bytes).unwrap();
-    let owned =
-        w::Owned::new(limits().wire(), w::OwnedParts { owner: w::Owner::Jig, version: 28, record: bytes.finish() })
-            .unwrap();
+    let owned = w::Owned::new(
+        limits().wire(),
+        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: bytes.finish() },
+    )
+    .unwrap();
     encoded_answer(&w::KeyedAnswer::FinalAnswer(owned))
 }
 pub fn answer_done_chat(task: u64) -> Box<[u8]> {
@@ -99,9 +101,11 @@ pub fn answer_signed_out() -> Box<[u8]> {
     encoded_answer(&w::KeyedAnswer::SignedOut)
 }
 pub fn malformed_final() -> Box<[u8]> {
-    let owned =
-        w::Owned::new(limits().wire(), w::OwnedParts { owner: w::Owner::Jig, version: 28, record: Box::from([255]) })
-            .unwrap();
+    let owned = w::Owned::new(
+        limits().wire(),
+        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: Box::from([255]) },
+    )
+    .unwrap();
     encoded_answer(&w::KeyedAnswer::FinalAnswer(owned))
 }
 pub struct Harness {
@@ -122,7 +126,9 @@ impl Harness {
         match self.out.iter().next().expect("one exchange") {
             Request::Exchange { exchange, .. } => *exchange,
             other @ (Request::Answer { .. }
+            | Request::NotWritten { .. }
             | Request::NotKept { .. }
+            | Request::ReadAgain { .. }
             | Request::Read { .. }
             | Request::OpenStream { .. }
             | Request::CloseStream
@@ -161,7 +167,9 @@ impl Harness {
                 }
                 Request::Exchange { .. }
                 | Request::Answer { .. }
+                | Request::NotWritten { .. }
                 | Request::NotKept { .. }
+                | Request::ReadAgain { .. }
                 | Request::Read { .. }
                 | Request::OpenStream { .. }
                 | Request::CloseStream
@@ -195,8 +203,11 @@ impl Harness {
         let mut count: u32 = 0;
         for value in &self.out {
             match value {
-                Request::Answer { .. } | Request::NotKept { .. } => count = count.saturating_add(1),
+                Request::Answer { .. } | Request::NotKept { .. } | Request::NotWritten { .. } => {
+                    count = count.saturating_add(1);
+                }
                 Request::Exchange { .. }
+                | Request::ReadAgain { .. }
                 | Request::Read { .. }
                 | Request::OpenStream { .. }
                 | Request::CloseStream
@@ -261,6 +272,8 @@ pub use turns::*;
 
 mod link_reads;
 pub use link_reads::*;
+mod row_parts;
+pub use row_parts::*;
 
 mod link_stream;
 pub use link_stream::*;

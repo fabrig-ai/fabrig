@@ -45,6 +45,7 @@ pub enum Request {
     OpenStream {
         credential: Option<Secret>,
         replaces: Option<[u8; 16]>,
+        version: u32,
     },
     CloseStream,
     Save {
@@ -102,6 +103,7 @@ pub struct LinkView<'a> {
 pub(crate) struct DeferredRead {
     read: Token,
     what: Readable,
+    again: bool,
 }
 #[derive(Debug)]
 enum SendAgain {
@@ -132,6 +134,8 @@ pub struct Client {
     not_signed_in: Option<NotSignedIn>,
     signing_until: Option<Time>,
     signing_span: Option<Duration>,
+    stream_until: Option<Time>,
+    stream_span: Option<Duration>,
     signing_out: bool,
     sign_out_lost: bool,
     rng: Rng,
@@ -199,6 +203,8 @@ impl Client {
             not_signed_in: None,
             signing_until: None,
             signing_span: None,
+            stream_until: None,
+            stream_span: None,
             signing_out: false,
             sign_out_lost: false,
             rng: Rng::new(seed),
@@ -242,6 +248,8 @@ impl Client {
                 };
                 self.signing_until = None;
                 self.signing_span = None;
+                self.stream_until = None;
+                self.stream_span = None;
                 self.signing_out = false;
                 self.sign_out_lost = false;
                 let held = match &with {
@@ -251,6 +259,7 @@ impl Client {
                 self.link_step(now, link::Event::SignIn { with });
                 if held {
                     self.up(&env, Up::SignedIn);
+                    self.stream_until = Some(now);
                 }
             }
             Event::AskApproval => self.link_step(now, link::Event::AskApproval),
@@ -299,6 +308,13 @@ impl Client {
                 self.link_step(now, link::Event::SignIn { with });
             }
         }
+        if let Some(until) = self.stream_until
+            && now >= until
+            && self.domain.link() != Link::OutOfDate
+        {
+            self.stream_until = None;
+            self.link_step(now, link::Event::OpenStream);
+        }
         if let Some(link) = &mut self.link {
             link.fire(now, &mut self.link_out);
         }
@@ -342,7 +358,12 @@ impl Client {
             Some(link) => link.next_deadline(),
             None => None,
         };
-        domain::next_deadline(&self.domain).into_iter().chain(deadline).chain(self.signing_until).min()
+        domain::next_deadline(&self.domain)
+            .into_iter()
+            .chain(deadline)
+            .chain(self.signing_until)
+            .chain(self.stream_until)
+            .min()
     }
     pub fn reclaim(&mut self) {
         domain::reclaim(&mut self.domain);
@@ -469,9 +490,14 @@ impl Client {
                 self.signing_until = None;
                 self.signing_out = false;
                 self.sign_out_lost = false;
+                self.stream_until = None;
+                self.stream_span = None;
                 self.up(env, Up::SignedIn);
+                self.stream_until = Some(env.now);
             }
             link::Signing::SignedOut => {
+                self.stream_until = None;
+                self.stream_span = None;
                 self.send_again = None;
                 self.signing_until = None;
                 self.signing_out = false;
@@ -553,9 +579,10 @@ impl Client {
             }
         }
     }
-    fn send_read(&mut self, now: Time, read: Token, what: Readable) {
+    fn send_read(&mut self, now: Time, read: Token, what: Readable, again: bool) {
         self.submitted_reads.insert(read, ()).expect("submitted reads are bounded by domain admission");
-        self.link_step(now, link::Event::Read { read, what });
+        let event = if again { link::Event::ReadAgain { read, what } } else { link::Event::Read { read, what } };
+        self.link_step(now, event);
     }
     fn prune_link_reads(&mut self, env: &Env<DomainLimits>) {
         let mut ended = List::with_capacity(self.submitted_reads.len());
@@ -572,19 +599,19 @@ impl Client {
             }
         }
     }
-    fn defer_read(&mut self, now: Time, read: Token, what: Readable) {
+    fn defer_read(&mut self, now: Time, read: Token, what: Readable, again: bool) {
         self.prune_reads();
         if self.reads.is_empty() && self.link.as_ref().expect("linked read").has_exchange_room() {
-            self.send_read(now, read, what);
+            self.send_read(now, read, what, again);
             return;
         }
         // Validate before retaining cursor/filter/family payloads within their wire envelope.
         // Invalid reads keep their existing terminal; only local exchange pressure waits.
         if link::translate::reads::owned(what.clone(), self.link_limits.wire()).is_err() {
-            self.send_read(now, read, what);
+            self.send_read(now, read, what, again);
             return;
         }
-        self.reads.push(DeferredRead { read, what });
+        self.reads.push(DeferredRead { read, what, again });
     }
     fn drain_unlinked(&mut self, out: &mut Queue<UnlinkedRequest>) {
         while let Some(request) = self.domain_out.pop() {
@@ -608,7 +635,7 @@ impl Client {
                     domain::Request::Told { told } => out.push(Request::Told { told }),
                     domain::Request::Down { down: Down::Read { read, what } } => {
                         if self.domain.link() != Link::OutOfDate && self.domain.has_read(read) {
-                            self.defer_read(env.now, read, what);
+                            self.defer_read(env.now, read, what, false);
                         }
                     }
                     domain::Request::Down { down } => {
@@ -634,6 +661,13 @@ impl Client {
                         }
                     }
                 }
+            } else if let Some(until) = self.stream_until
+                && until <= env.now
+                && self.domain.link() != Link::SignedOut
+                && self.domain.link() != Link::OutOfDate
+            {
+                self.stream_until = None;
+                self.link_step(env.now, link::Event::OpenStream);
             } else if !self.reads.is_empty() {
                 let token = self.reads.iter().next().expect("deferred read").read;
                 let refusal = self.domain.read_refusal(token);
@@ -649,7 +683,7 @@ impl Client {
                 }
                 match refusal {
                     Some(result) => self.up(env, Up::ReadDone { read: read.read, result }),
-                    None => self.send_read(env.now, read.read, read.what),
+                    None => self.send_read(env.now, read.read, read.what, read.again),
                 }
             } else {
                 break;
@@ -684,9 +718,9 @@ impl Client {
                     out.push(Request::Exchange { exchange, credential, message });
                 }
             }
-            link::Request::OpenStream { credential, replaces } => {
+            link::Request::OpenStream { credential, version, replaces } => {
                 if self.domain.link() != Link::OutOfDate {
-                    out.push(Request::OpenStream { credential, replaces });
+                    out.push(Request::OpenStream { credential, version, replaces });
                 }
             }
             link::Request::CloseStream => out.push(Request::CloseStream),
@@ -701,13 +735,32 @@ impl Client {
                     Up::Answer { attempt, envelope: skein_lib::RequestEnvelope::Lost, answer: None, why: None },
                 );
             }
+            link::Request::NotWritten { key } => self.up(env, Up::NotKept { key }),
             link::Request::StreamsFull { full } => self.up(env, Up::StreamsFull { full }),
-            link::Request::Watch { watch, event } => self.up(env, Up::Watched { watch, event }),
+            link::Request::Watch { watch, event } => {
+                if watch == Token::new(0) {
+                    match &event {
+                        domain::contract::WatchEvent::Delivered(_) => {
+                            self.stream_span = None;
+                            self.stream_until = None;
+                        }
+                        domain::contract::WatchEvent::Alive
+                        | domain::contract::WatchEvent::Behind
+                        | domain::contract::WatchEvent::Opened => {}
+                    }
+                }
+                self.up(env, Up::Watched { watch, event });
+            }
             link::Request::FamilyDelivery { watch, record } => self.up(env, Up::FamilyDelivered { watch, record }),
             link::Request::Ended { watch, end } => self.up(env, Up::WatchEnded { watch, end }),
             link::Request::Read { read, result } => {
                 self.submitted_reads.remove(&read);
                 self.up(env, Up::ReadDone { read, result });
+            }
+            link::Request::ReadAgain { read, what } => {
+                if self.domain.has_read(read) {
+                    self.defer_read(env.now, read, what, true);
+                }
             }
             link::Request::Hello { family: None, versions } => {
                 let served = match versions {
@@ -733,10 +786,18 @@ impl Client {
             }
             link::Request::Fact { fact } => match fact {
                 link::Fact::UndecodableEvent | link::Fact::UndecodableWatchAnswer => self.up(env, Up::Unreadable),
-                link::Fact::UndecodableAnswer
-                | link::Fact::UndecodableDocument
-                | link::Fact::StreamDropped
-                | link::Fact::UndecodableStore => {}
+                link::Fact::StreamDropped => {
+                    let span = match self.stream_span {
+                        Some(span) => core::cmp::min(span.saturating_mul(2), env.limits.backoff.most),
+                        None => env.limits.backoff.first,
+                    };
+                    self.stream_span = Some(span);
+                    let nanos = span.as_nanos();
+                    self.stream_until = Some(
+                        env.now.saturating_add(Duration::from_nanos(self.rng.between(nanos.div_euclid(2), nanos))),
+                    );
+                }
+                link::Fact::UndecodableAnswer | link::Fact::UndecodableDocument | link::Fact::UndecodableStore => {}
             },
         }
     }

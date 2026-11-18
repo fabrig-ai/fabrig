@@ -39,8 +39,8 @@ still open is listed in `README.md`, section 15.
   application as kept. An unanswered `Seen` is silently lost on closing,
   reload or crash; the next opening checks and sends the forward-only
   watermark again (section 8).
-- **The link is the client's to judge,** from the stream and its own
-  watch of `me`: signed out, starting, live, offline, or out of date
+- **The link is the client's to judge,** from the stream, whose hello
+  brings `me`: signed out, starting, live, offline, or out of date
   (`watches.md`, 2).
 - **Signing in by `SignIn { with }`:** a printed link's secret, a
   service's credential, a credential the application obtained by its own
@@ -419,6 +419,13 @@ request table's once (`requests.md`); jig's check is ../testing.md's, 6.2.
   loses an ordinary kept request the engine may have made. A request
   carrying a value is sent once without a record, and its caller asks
   again (`requests.md`).
+- **A record that can't be written is not kept.** A request whose record
+  the link can't encode for the store (past a kept record's bounds,
+  `../../../protocol/client/README.md`, section 7) is retired as one
+  `NotStored` retires: unsent, answered *not kept* by its key, once, its
+  erase leaving as any retired request's. It is never answered lost, so
+  never sent again under its key, and the requests whose records were
+  encoded go on as before.
 - **A later write holds its requests.** `request_records_durable`
   requires pending writes to finish before held requests are sent; an
   earlier write's completion cannot release a later write's requests.
@@ -535,7 +542,7 @@ request table's once (`requests.md`); jig's check is ../testing.md's, 6.2.
 
   The `credential` on `Exchange` and `OpenStream` is the one held, or
   none; a `Link` sign-in's is its `held`. Signed in, the client opens
-  the stream, watches `me` (`watches.md`, 2), and opens the watches asked before
+  the stream, whose hello brings `me` (`watches.md`, 2), and opens the watches asked before
   (`watches.md`, 1); under `Transport` it is signed in from its `SignIn`. So a host
   may sign in after `Start { kept }`, its children watching from their
   start.
@@ -587,7 +594,7 @@ request table's once (`requests.md`); jig's check is ../testing.md's, 6.2.
   stands. Nothing else the earlier sign-in owes reaches the newer one:
   going signed out parks every request, visibly ends every pending read
   and ends every watch handle. Successful sign-in also ends all pending
-  reads before opening `me`, even before the first sign-in's `me`.
+  reads before opening its stream, even before the first sign-in's `me`.
   Thus an earlier attempt's answer is stale to the request table, a
   completed or cancelled read's late terminal fails its token match,
   and an ended watch's deliveries are dropped by their names (`requests.md` and `README.md`, section 6 and `watches.md`
@@ -625,8 +632,8 @@ request table's once (`requests.md`); jig's check is ../testing.md's, 6.2.
 
 Each is configured and bounds what enters or is retained:
 
-- handles; the engine's watches open, `me`'s included, each until its
-  terminal and one kept for `me` (`watches.md`, 1); reads in flight; exchanges in
+- handles; the engine's watches open, the stream's `me` always one of
+  them, each until its terminal (`watches.md`, 1); reads in flight; exchanges in
   flight;
 - rows: the most items of a page, a window and lists without a bound
   of their own, at most 32, the ceiling of the wire's lists

@@ -575,7 +575,11 @@ impl Fixture {
     fn live(&mut self, watch: Token, rows: &[c::TaskLine]) {
         self.up(Up::Watched {
             watch,
-            event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks { rows: list(rows), more: false }))),
+            event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                ended_mark: 0,
+                rows: list(rows),
+                more: false,
+            }))),
         });
     }
     fn lists(&mut self) {
@@ -589,6 +593,7 @@ impl Fixture {
         let mut chat = super::chats::chat_line();
         chat.chip.task = 3;
         chat.last_activity = wall(30);
+        chat.parts = list(&[super::chats::document_part(Some(b"Draft"))]);
         self.live(self.chats, &[chat.clone()]);
         let mut reads = List::uncapped();
         for request in &self.out {
@@ -606,21 +611,14 @@ impl Fixture {
                 self.answer(
                     read,
                     c::ReadValue::Tasks(Box::new(c::TaskPage {
+                        ended_mark: 0,
                         live: List::uncapped(),
                         live_after: None,
                         ended: c::EndedGroup::Rows { rows, after: None, cut: false },
                     })),
                 );
-            } else if let c::Read::Notes { scope: c::NoteScope::Tasks { .. }, .. } = what {
-                self.answer(
-                    read,
-                    c::ReadValue::Notes(Box::new(c::NotePage {
-                        rows: list(&[draft_note()]),
-                        after: None,
-                        before: None,
-                        cut: false,
-                    })),
-                );
+            } else if let c::Read::Notes { .. } = what {
+                panic!("Work rows read no notes");
             }
         }
     }
@@ -644,6 +642,9 @@ impl Fixture {
                     w::ChangesQueued::new(
                         &w::CEILINGS,
                         w::ChangesQueuedParts {
+                            goal: if task == 11 { Some(origin(1)) } else { None },
+                            chat: if task == 12 { Some(origin(3)) } else { None },
+                            milestone: None,
                             task,
                             title: b"Change".as_slice().into(),
                             ready_since: wall(40).as_nanos(),
@@ -677,6 +678,9 @@ impl Fixture {
                 landed: list(&[w::ChangesLanded::new(
                     &w::CEILINGS,
                     w::ChangesLandedParts {
+                        goal: Some(origin(1)),
+                        chat: None,
+                        milestone: None,
                         signed: List::with_capacity(8),
                         commit: [0xab; 32],
                         default_branch: true,
@@ -710,31 +714,14 @@ fn facts_wait_for_all_lists_and_gather_each_kind_and_owner() {
     assert_eq!(work::facts(&fixture.root, f::PROJECT), None, "changes unread");
     fixture.panel();
     fixture.drafts(&[]);
-    let mut reads = List::uncapped();
     for request in &fixture.out {
         if let Request::Unlinked {
             request:
-                jig_client::UnlinkedRequest::Down { down: Down::Read { read, what: Readable::Jig(c::Read::Task { task }) } },
+                jig_client::UnlinkedRequest::Down { down: Down::Read { what: Readable::Jig(c::Read::Task { .. }), .. } },
         } = request
         {
-            reads.push((*read, *task)).unwrap();
+            panic!("changes need no task reads");
         }
-    }
-    for (read, task) in reads.into_boxed() {
-        if task == 14 {
-            continue;
-        }
-        let mut document = f::chat::task();
-        document.chip.task = task;
-        document.goal = if task == 11 || task == 15 { Some(1) } else { None };
-        document.lineage_chips.clear();
-        if task == 12 {
-            let mut root = document.chip.clone();
-            root.task = 3;
-            root.executor = c::ChipExecutor::Agent { charter: 1 };
-            document.lineage_chips.push(root).unwrap();
-        }
-        fixture.answer(read, c::ReadValue::Task(Box::new(document)));
     }
     // A read document makes the person's chat a draft, independent of its changes.
     let facts = work::facts(&fixture.root, f::PROJECT).expect("all lists answered");
@@ -827,8 +814,11 @@ fn only_read_hidden_settings_override_filters() {
                     Readout::Family {
                         family: wire::FORGE,
                         record: Some(wire::setting_answer(
-                            &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(bytes.finish()) })
-                                .unwrap(),
+                            &w::SettingAnswer::new(
+                                &w::CEILINGS,
+                                w::SettingAnswerParts { revision: None, value: Some(bytes.finish()) },
+                            )
+                            .unwrap(),
                         )),
                     }
                 }
@@ -841,13 +831,6 @@ fn only_read_hidden_settings_override_filters() {
         assert_eq!(work::overrides(&root, f::PROJECT), want, "{value:?}");
         assert_eq!(work::overrides(&root, 99), Overrides::default());
     }
-}
-
-fn draft_note() -> c::Note {
-    let mut note = super::chat::draft_note(1, 1, b"Draft body");
-    note.scope = c::NoteScope::Task { project: f::PROJECT, task: 3 };
-    note.description = c::DocumentText::complete(c::Text::new(b"Draft".as_slice().into(), 32).unwrap());
-    note
 }
 
 fn work_limits() -> crate::Limits {
@@ -1082,16 +1065,6 @@ fn main_landings_group_goals_but_keep_chat_and_unread_changes_and_count_goal_bra
 
 #[test]
 fn signed_names_the_reader_members_and_unlisted_parties() {
-    use super::team::{member, project};
-    let people = project(
-        Box::new([
-            member(1, c::PartyKind::Person, b"Reader", c::HeldRole::Owner),
-            member(5, c::PartyKind::Person, b"Sam", c::HeldRole::Member),
-            member(6, c::PartyKind::Person, b"Kit", c::HeldRole::Member),
-            member(7, c::PartyKind::Person, b"", c::HeldRole::Member),
-        ]),
-        false,
-    );
     for (parties, words) in [
         (b"".as_slice(), None),
         (&[1], Some("signed by you")),
@@ -1103,18 +1076,21 @@ fn signed_names_the_reader_members_and_unlisted_parties() {
         (&[5, 6, 9, 10], Some("signed by Sam, Kit and two others")),
         (&[9, 10, 11, 12, 13, 14, 15, 16, 17, 18], Some("signed by 10 others")),
     ] {
-        let mut parties64 = List::with_capacity(u32::try_from(parties.len()).unwrap());
+        let mut signers = List::uncapped();
         for party in parties {
-            parties64.push(u64::from(*party)).unwrap();
+            let name = match party {
+                5 => Some(b"Sam".as_slice()),
+                6 => Some(b"Kit".as_slice()),
+                7 => Some(b"login".as_slice()),
+                _ => None,
+            };
+            signers.push(signer(u64::from(*party), name)).unwrap();
         }
-        assert_eq!(
-            work::signed(1, parties64.as_slice(), Some(&people)).as_deref(),
-            match words {
-                Some(words) => Some(words.as_bytes()),
-                None => None,
-            }
-        );
-        assert_eq!(work::signed(1, parties64.as_slice(), None), None, "people unread, refused or failed");
+        let words = match words {
+            Some(words) => Some(words.as_bytes()),
+            None => None,
+        };
+        assert_eq!(work::signed(1, signers.as_slice()).as_deref(), words);
     }
 }
 
@@ -1145,17 +1121,20 @@ fn landed_rows_keep_their_own_signers_on_cards_and_the_newest_goal_landing() {
 }
 
 #[test]
-fn facts_name_signers_from_the_rails_project_read_and_stay_silent_without_it() {
+fn facts_name_signers_from_rows_independently_of_the_rails_project_read() {
     for answer in 0_u32..4 {
         let mut fixture = Fixture::new();
         fixture.lists();
         fixture.drafts(&[]);
         let mut panel = fixture.panel().into_parts();
         let mut row = panel.landed.get(0).unwrap().clone().into_parts();
-        row.signed =
-            list(&[
-                w::ChangesSigned::new(&w::CEILINGS, w::ChangesSignedParts { party: 5, head: [1; 32], at: 0 }).unwrap()
-            ]);
+        row.goal = Some(origin(1));
+        row.milestone = Some(origin(100));
+        row.signed = list(&[w::ChangesSigned::new(
+            &w::CEILINGS,
+            w::ChangesSignedParts { name: Some(b"Sam".as_slice().into()), party: 5, head: [1; 32], at: 0 },
+        )
+        .unwrap()]);
         let row = w::ChangesLanded::new(&w::CEILINGS, row).unwrap();
         panel.landed = list(core::slice::from_ref(&row));
         panel.landed_default = list(&[row]);
@@ -1185,7 +1164,7 @@ fn facts_name_signers_from_the_rails_project_read_and_stay_silent_without_it() {
         let read = *reads.get(0).unwrap();
         if answer == 1 {
             let mut project = super::team::project(
-                Box::new([super::team::member(5, c::PartyKind::Person, b"Sam", c::HeldRole::Member)]),
+                Box::new([super::team::member(5, c::PartyKind::Person, b"Different", c::HeldRole::Member)]),
                 false,
             );
             project.number = f::PROJECT;
@@ -1196,8 +1175,31 @@ fn facts_name_signers_from_the_rails_project_read_and_stay_silent_without_it() {
             fixture.up(Up::ReadDone { read, result: Readout::Limit });
         }
         let facts = work::facts(&fixture.root, f::PROJECT).unwrap();
-        let expected = if answer == 1 { Some(b"signed by Sam".as_slice()) } else { None };
+        let expected = Some(b"signed by Sam".as_slice());
+        assert_eq!(
+            facts.landed_default.get(0).unwrap().milestone,
+            Some(work::LandedMilestone { name: b"Store shape".as_slice().into(), completed: None })
+        );
         assert_eq!(facts.changes.get(4).unwrap().signed.as_deref(), expected, "card fact, answer {answer}");
         assert_eq!(facts.landed_default.get(0).unwrap().signed.as_deref(), expected, "landed fact, answer {answer}");
     }
+}
+
+fn origin(task: u64) -> w::ChangeFrom {
+    w::ChangeFrom::new(&w::CEILINGS, w::ChangeFromParts { task, title: b"Store shape".as_slice().into() }).unwrap()
+}
+fn signer(party: u64, name: Option<&[u8]>) -> w::ChangesSigned {
+    w::ChangesSigned::new(
+        &w::CEILINGS,
+        w::ChangesSignedParts {
+            party,
+            name: match name {
+                Some(name) => Some(name.into()),
+                None => None,
+            },
+            head: [1; 32],
+            at: 0,
+        },
+    )
+    .unwrap()
 }

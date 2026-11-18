@@ -115,7 +115,6 @@ fn without_sign_in(config: &Path) -> Vec<u8> {
     let original = std::fs::read(&path).expect("init document");
     let mut document: serde_json::Value = serde_json::from_slice(&original).expect("init JSON");
     document["engine"]["clients"]["provider"] = serde_json::Value::Null;
-    document["application"]["machine"]["owned"]["sign_in"] = serde_json::Value::Null;
     support::write_private(&path, &serde_json::to_vec(&document).expect("document JSON"));
     original
 }

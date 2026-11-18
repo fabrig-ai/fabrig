@@ -102,12 +102,17 @@ pub fn answered(exchange: Token, status: u16, body: Box<[u8]>) -> Heard {
 }
 
 #[must_use]
-pub fn stream(mapping: &Mapping, credential: Option<&Secret>, replaces: Option<[u8; 16]>) -> Call {
-    let mut result = call(mapping, credential, Method::Get, b"/v1/stream", Box::new([]));
+pub fn stream(mapping: &Mapping, credential: Option<&Secret>, version: u32, replaces: Option<[u8; 16]>) -> Call {
+    let version = skein_lib::Decimal::of(u64::from(version));
+    let mut route =
+        Writer::new(b"/v1/stream?version=".len().checked_add(version.as_bytes().len()).expect("bounded version route"));
+    route.put(b"/v1/stream?version=").expect("bounded stream route");
+    route.put(version.as_bytes()).expect("u32 version digits fit");
+    let mut result = call(mapping, credential, Method::Get, &route.finish(), Box::new([]));
     if let Some(name) = replaces {
         let mut path = Writer::new(result.path.len().checked_add(42).expect("bounded replacement query"));
         path.put(&result.path).expect("measured path");
-        path.put(b"?replaces=").expect("measured query");
+        path.put(b"&replaces=").expect("measured query");
         for byte in name {
             for digit in [byte >> 4_u32, byte & 15] {
                 let digit = if digit < 10 {

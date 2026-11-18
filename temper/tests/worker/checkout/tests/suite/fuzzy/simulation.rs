@@ -72,7 +72,10 @@ fn random_worlds_settle_with_every_client_heard() {
             for (saved, landings) in &client.landings {
                 for landing in landings {
                     let kind = match landing {
-                        Landing::DesignMerged { .. }
+                        Landing::CaughtUp { .. }
+                        | Landing::CaughtUpSaved { .. }
+                        | Landing::CaughtUpConflict { .. }
+                        | Landing::DesignMerged { .. }
                         | Landing::DesignConflict { .. }
                         | Landing::DesignCode { .. }
                         | Landing::DesignMoving

@@ -573,6 +573,34 @@ fn add_text_len(total: &mut usize, fragment: &[u8]) {
     *total = total.checked_add(fragment.len()).expect("bounded brief text");
 }
 
+fn choices_text_len(room: &mut usize, choices: &[tasks::Verdict]) {
+    add_text_len(room, b"[Verdict choices:\n");
+    for choice in choices {
+        for fragment in [
+            b"  ".as_slice(),
+            Decimal::of(u64::from(choice.code)).as_bytes(),
+            b": at most ",
+            Decimal::of(u64::from(choice.words)).as_bytes(),
+            b" bytes\n",
+        ] {
+            add_text_len(room, fragment);
+        }
+    }
+    add_text_len(room, b"]\n");
+}
+
+fn write_choices(writer: &mut Writer, choices: &[tasks::Verdict]) {
+    writer.put(b"[Verdict choices:\n").expect("contract text room");
+    for choice in choices {
+        writer.put(b"  ").expect("contract text room");
+        writer.put(Decimal::of(u64::from(choice.code)).as_bytes()).expect("contract text room");
+        writer.put(b": at most ").expect("contract text room");
+        writer.put(Decimal::of(u64::from(choice.words)).as_bytes()).expect("contract text room");
+        writer.put(b" bytes\n").expect("contract text room");
+    }
+    writer.put(b"]\n").expect("contract text room");
+}
+
 fn contract_text(contract: &tasks::Contract) -> Box<[u8]> {
     let mut room = 0_usize;
     match contract {
@@ -589,22 +617,8 @@ fn contract_text(contract: &tasks::Contract) -> Box<[u8]> {
                 add_text_len(&mut room, fragment);
             }
         }
-        tasks::Contract::Verdict { choices } => {
-            add_text_len(&mut room, b"[Verdict choices:\n");
-            for choice in choices {
-                for fragment in [
-                    b"  ".as_slice(),
-                    Decimal::of(u64::from(choice.code)).as_bytes(),
-                    b": at most ",
-                    Decimal::of(u64::from(choice.words)).as_bytes(),
-                    b" bytes\n",
-                ] {
-                    add_text_len(&mut room, fragment);
-                }
-            }
-            add_text_len(&mut room, b"]\n");
-        }
-        tasks::Contract::Change { connector, kind, words } => {
+        tasks::Contract::Verdict { choices } => choices_text_len(&mut room, choices),
+        tasks::Contract::Change { connector, kind, words, choices } => {
             for fragment in [
                 b"[Change connector ".as_slice(),
                 Decimal::of(u64::from(*connector)).as_bytes(),
@@ -615,6 +629,9 @@ fn contract_text(contract: &tasks::Contract) -> Box<[u8]> {
                 b" bytes]\n",
             ] {
                 add_text_len(&mut room, fragment);
+            }
+            if !choices.is_empty() {
+                choices_text_len(&mut room, choices);
             }
         }
     }
@@ -633,18 +650,8 @@ fn contract_text(contract: &tasks::Contract) -> Box<[u8]> {
             writer.put(Decimal::of(u64::from(*words)).as_bytes()).expect("contract text room");
             writer.put(b" bytes]\n").expect("contract text room");
         }
-        tasks::Contract::Verdict { choices } => {
-            writer.put(b"[Verdict choices:\n").expect("contract text room");
-            for choice in choices {
-                writer.put(b"  ").expect("contract text room");
-                writer.put(Decimal::of(u64::from(choice.code)).as_bytes()).expect("contract text room");
-                writer.put(b": at most ").expect("contract text room");
-                writer.put(Decimal::of(u64::from(choice.words)).as_bytes()).expect("contract text room");
-                writer.put(b" bytes\n").expect("contract text room");
-            }
-            writer.put(b"]\n").expect("contract text room");
-        }
-        tasks::Contract::Change { connector, kind, words } => {
+        tasks::Contract::Verdict { choices } => write_choices(&mut writer, choices),
+        tasks::Contract::Change { connector, kind, words, choices } => {
             writer.put(b"[Change connector ").expect("contract text room");
             writer.put(Decimal::of(u64::from(*connector)).as_bytes()).expect("contract text room");
             writer.put(b", kind ").expect("contract text room");
@@ -652,6 +659,9 @@ fn contract_text(contract: &tasks::Contract) -> Box<[u8]> {
             writer.put(b", at most ").expect("contract text room");
             writer.put(Decimal::of(u64::from(*words)).as_bytes()).expect("contract text room");
             writer.put(b" bytes]\n").expect("contract text room");
+            if !choices.is_empty() {
+                write_choices(&mut writer, choices);
+            }
         }
     }
     writer.finish()

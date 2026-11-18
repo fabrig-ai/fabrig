@@ -2,13 +2,12 @@ use super::fixtures::{DIRECTORIES, content, facts};
 use crate::{Content, Directory, files};
 
 #[test]
-fn the_digest_is_the_secrets() {
-    for (row, secret, digits, digest, demo_key, key_digits) in [
+fn secrets_are_hexadecimal_without_a_digest_file() {
+    for (row, secret, digits, demo_key, key_digits) in [
         (
             "zero",
             [0; 32],
             b"0000000000000000000000000000000000000000000000000000000000000000\n",
-            b"60e05bd1b195af2f94112fa7197a5c88289058840ce7c6df9693756bc6250f55\n",
             [0xff; 32],
             b"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\n",
         ),
@@ -19,14 +18,15 @@ fn the_digest_is_the_secrets() {
                 28, 29, 30, 31,
             ],
             b"000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f\n",
-            b"6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92b\n",
             [0xab; 32],
             b"abababababababababababababababababababababababababababababababab\n",
         ),
     ] {
         let answered = files(&facts(), &DIRECTORIES, &secret, &demo_key).expect("valid facts");
         assert_eq!(content(&answered, b"worker.secret"), digits, "{row}");
-        assert_eq!(content(&answered, b"worker.digest"), digest, "{row}");
+        for file in &answered.files {
+            assert_ne!(file.name, b"worker.digest", "{row}");
+        }
         assert_eq!(content(&answered, b"demo/llm.key"), key_digits, "{row}");
     }
 }
@@ -36,10 +36,8 @@ fn the_files_are_named_in_order() {
     let answered = files(&facts(), &DIRECTORIES, &[0; 32], &[0xab; 32]).expect("valid facts");
     let expected = [
         ("secret", b"worker.secret".as_slice(), Directory::Data, Some(true)),
-        ("digest", b"worker.digest".as_slice(), Directory::Data, Some(true)),
         ("demo key", b"demo/llm.key".as_slice(), Directory::Data, Some(true)),
         ("demo git", b"demo/bin/git".as_slice(), Directory::Data, None),
-        ("agent", b"agent.json".as_slice(), Directory::Config, Some(false)),
         ("document last", b"temper.json".as_slice(), Directory::Config, Some(false)),
     ];
     assert_eq!(answered.files.len(), expected.len());

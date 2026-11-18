@@ -1,7 +1,7 @@
 {
   "engine": {
     "limits": {
-      "profile": "small",
+      "profile": "standard",
       "overrides": {
         "tasks.result_bytes": 32,
         "people.amendment_bytes": 64,
@@ -95,12 +95,6 @@
       ]
     },
     "hosts": {
-      "workers": [
-        {
-          "name": "worker-a",
-          "digest": "secrets/worker-a.digest"
-        }
-      ],
       "listener": [
         {
           "socket": "127.0.0.1:7200"

@@ -12,13 +12,13 @@ fn a_start_requires_room_for_the_cores_sections_and_charter_documents() {
         (2, 9, false, br#""tasks.charter_documents":2,"brief.sections":9"#),
         (2, 10, true, br#""tasks.charter_documents":2,"brief.sections":10"#),
     ] {
-        let prefix = br#"{"profile":"small","overrides":{"#;
+        let prefix = br#"{"profile":"standard","overrides":{"#;
         let mut limits =
             skein_lib::Writer::new(overrides.len().checked_add(prefix.len()).unwrap().checked_add(2).unwrap());
         limits.put(prefix).unwrap();
         limits.put(overrides).unwrap();
         limits.put(b"}}").unwrap();
-        let bytes = fixtures::with(fixtures::ENGINE_SMALL, br#"{"profile": "small"}"#, &limits.finish());
+        let bytes = fixtures::with(fixtures::ENGINE_SMALL, br#"{"profile": "standard"}"#, &limits.finish());
         let result = fixtures::engine(&bytes);
         if admitted {
             let engine = result.expect("the core's sections and documents fit");
@@ -72,11 +72,11 @@ fn two_ownerless_projects(people_projects: u32) -> Box<[u8]> {
         br#""owners": []"#,
     );
     let limits = fixtures::with(
-        br#""profile": "small", "overrides": {"people.projects": CAP}"#,
+        br#""profile": "standard", "overrides": {"people.projects": CAP}"#,
         b"CAP",
         skein_lib::Decimal::of(u64::from(people_projects)).as_bytes(),
     );
-    fixtures::with(&document, br#""profile": "small""#, &limits)
+    fixtures::with(&document, br#""profile": "standard""#, &limits)
 }
 #[test]
 fn configured_projects_above_the_overridden_people_capacity_are_refused() {
@@ -136,8 +136,8 @@ fn the_small_engine_document_parses_whole() {
 #[test]
 fn operations_below_delegates_plus_one_refuse_the_start() {
     refuses(
-        br#""profile": "small""#,
-        br#""profile": "small", "overrides": {"people.operations": 4, "tasks.project_goals": 4}"#,
+        br#""profile": "standard""#,
+        br#""profile": "standard", "overrides": {"people.operations": 4, "tasks.project_goals": 4, "tasks.delegates": 4}"#,
         What::Capacity { member: b"tasks.delegates", configured: 4, requires: b"people.operations", required: 5 },
     );
 }
@@ -145,8 +145,8 @@ fn operations_below_delegates_plus_one_refuse_the_start() {
 #[test]
 fn operations_below_goals_per_project_refuse_the_start() {
     refuses(
-        br#""profile": "small""#,
-        br#""profile": "small", "overrides": {"people.operations": 7}"#,
+        br#""profile": "standard""#,
+        br#""profile": "standard", "overrides": {"people.operations": 7, "tasks.delegates": 4, "tasks.project_goals": 8}"#,
         What::Capacity { member: b"tasks.project_goals", configured: 8, requires: b"people.operations", required: 8 },
     );
 }
@@ -155,6 +155,7 @@ fn operations_below_goals_per_project_refuse_the_start() {
 fn a_message_past_the_inbox_bytes_refuses_the_start() {
     let mut engine = engine();
     engine.limits.core.tasks.message_bytes = 8_192;
+    engine.limits.core.tasks.inbox_bytes = 4_096;
     let mut problems = crate::Problems::empty();
     crate::domain::whole(&engine, &mut problems);
     let problem = problems.problems.get(0).expect("message capacity problem");
@@ -181,18 +182,17 @@ fn roles_past_the_documents_capacity_refuse_the_start() {
     assert_eq!(problem.path, crate::domain::codec_path(b"authority.roles"));
     assert_eq!(
         problem.what,
-        What::Capacity { member: b"authority.roles", configured: 4, requires: b"documents.roles", required: 4 },
+        What::Capacity { member: b"authority.roles", configured: 8, requires: b"documents.roles", required: 8 },
     );
 }
 
 #[test]
 fn the_shipped_profiles_hold_operations_per_request() {
-    for (profile, expected) in [(crate::Profile::Small, (8, 4, 8)), (crate::Profile::Standard, (81, 80, 80))] {
-        let limits = crate::profile(profile).core;
-        assert_eq!((limits.people.operations, limits.tasks.delegates, limits.tasks.project_goals), expected);
-        assert!(limits.people.operations > limits.tasks.delegates, "{profile:?}");
-        assert!(limits.people.operations >= limits.tasks.project_goals, "{profile:?}");
-    }
+    let expected = (81, 80, 80);
+    let limits = crate::stock().core;
+    assert_eq!((limits.people.operations, limits.tasks.delegates, limits.tasks.project_goals), expected);
+    assert!(limits.people.operations > limits.tasks.delegates, "stock");
+    assert!(limits.people.operations >= limits.tasks.project_goals, "stock");
 }
 #[test]
 fn the_cores_config_takes_the_charters_and_projects() {
@@ -219,7 +219,7 @@ fn the_cores_settings_take_the_deployment_provider() {
 #[test]
 fn the_cores_limits_and_tools_take_the_profile_and_jigs_numbering() {
     let core = core_config(fixtures::ENGINE_SMALL);
-    assert_eq!(core.settings.resume_bytes, 65536);
+    assert_eq!(core.settings.resume_bytes, crate::stock().core.resume_bytes);
     assert_eq!(core.settings.tail_bytes, 2048);
     assert_eq!(core.hub_turns, 8);
     assert_eq!(core.settings.tools.message, jig_domain_authority::Tools(2));
@@ -252,7 +252,11 @@ fn an_owner_naming_an_unknown_provider_is_refused() {
     refuses(br#""provider": 1"#, br#""provider": 3"#, What::Refers);
 }
 fn a_message_bound_below_a_partys_words_is_refused() {
-    refuses(br#""profile": "small""#, br#""profile": "small", "overrides": {"people.words": 4097}"#, What::Message);
+    refuses(
+        br#""profile": "standard""#,
+        br#""profile": "standard", "overrides": {"people.words": 4097, "tasks.message_bytes": 4096, "tasks.result_bytes": 512}"#,
+        What::Message,
+    );
 }
 fn a_retention_member_is_refused_as_unknown() {
     refuses(br#""directory": "state""#, br#""directory": "state", "retention": {}"#, What::Unknown);
@@ -376,8 +380,8 @@ fn charter_instruction_files_are_named_with_the_available_policy_bytes() {
 }
 fn a_message_bound_below_a_delegate_result_is_refused() {
     refuses(
-        br#""profile": "small""#,
-        br#""profile": "small", "overrides": {"tasks.result_bytes": 4097}"#,
+        br#""profile": "standard""#,
+        br#""profile": "standard", "overrides": {"tasks.result_bytes": 4097, "tasks.message_bytes": 4096, "people.words": 2048}"#,
         What::Message,
     );
 }
@@ -490,8 +494,8 @@ fn a_seed_policy_whose_whole_value_exceeds_its_byte_limit_refuses_start() {
     let snapshot = jig_domain_core::policy_snapshot(&project.policy, &project.roles, &project.templates).unwrap();
     let bytes = jig_domain_people::policy_bytes(&snapshot).unwrap();
     refuses(
-        br#""profile": "small""#,
-        br#""profile": "small", "overrides": {"core.policy_bytes": 256}"#,
+        br#""profile": "standard""#,
+        br#""profile": "standard", "overrides": {"core.policy_bytes": 256}"#,
         What::PolicyBytes { bytes, limit: 256 },
     );
 }
@@ -529,9 +533,9 @@ pub(super) fn needs_document(needs_bytes: u64) -> Box<[u8]> {
         values.push(value).unwrap();
     }
     let text = fixtures::with(text, original, &comma_separated(&values));
-    let overrides = br#"{"profile":"small","overrides":{"tasks.charters":32,"core.settings.versions":1,"core.run_bytes":65536,"fleet.needs_bytes":N}}"#;
+    let overrides = br#"{"profile":"standard","overrides":{"tasks.charters":32,"core.settings.versions":1,"core.run_bytes":65536,"fleet.needs_bytes":N}}"#;
     let overrides = fixtures::with(overrides, b"N", Decimal::of(needs_bytes).as_bytes());
-    let text = fixtures::with(&text, br#"{"profile": "small"}"#, &overrides);
+    let text = fixtures::with(&text, br#"{"profile": "standard"}"#, &overrides);
     let prefix = b"\"models\": [";
     let start = find(&text, prefix).unwrap().checked_add(prefix.len()).unwrap();
     let end = find(&text, b"]\n},\n\"hosts\"").unwrap();
@@ -562,7 +566,7 @@ pub(super) fn needs_document(needs_bytes: u64) -> Box<[u8]> {
 pub(super) fn needs_engine(bytes: &[u8]) -> Result<crate::Engine, crate::Problems> {
     let document =
         crate::document(bytes, &crate::DocumentLimits { bytes: 1_048_576, tokens: 131_072, depth: 16 }).unwrap();
-    crate::engine(&document, 0, &crate::Directories::working(), crate::Defaults::Document)
+    crate::engine(&document, 0, &crate::Directories::working(), crate::Defaults::Document, &crate::Fixed::NONE)
 }
 
 pub(super) fn needs_bound() -> (u64, u64) {
@@ -605,33 +609,29 @@ const LARGE_POLICY: u64 = 65_536;
 
 #[test]
 fn shipped_profiles_fit_the_effective_codec_envelope() {
-    for profile in [crate::Profile::Small, crate::Profile::Standard] {
-        let limits = crate::profile(profile).core;
-        assert_eq!(crate::check_effective_limits(&limits), Ok(()), "{profile:?}");
-        let derived = jig_protocol_store::codec::people::derived_limits(&limits).unwrap();
-        assert_eq!(jig_protocol_store::people_v17::check_limits(&derived), Ok(()));
-    }
+    let limits = crate::stock().core;
+    assert_eq!(crate::check_effective_limits(&limits), Ok(()), "stock");
+    let derived = jig_protocol_store::codec::people::derived_limits(&limits).unwrap();
+    assert_eq!(jig_protocol_store::people_v17::check_limits(&derived), Ok(()));
 }
 
 #[test]
 fn exported_maxima_are_the_last_codec_admitted_values() {
-    for profile in [crate::Profile::Small, crate::Profile::Standard] {
-        let limits = crate::profile(profile).core;
-        assert_eq!(crate::policy_bytes_max(&limits), Some(POLICY_MAX), "{profile:?}");
-        assert_eq!(crate::amendment_bytes_max(&limits), Some(AMENDMENT_MAX), "{profile:?}");
-        let mut policy = limits;
-        policy.policy_bytes = POLICY_MAX;
-        assert_eq!(crate::check_effective_limits(&policy), Ok(()));
-        assert!(jig_protocol_store::codec::limits(&policy).is_some());
-        let mut amendment = limits;
-        amendment.people.amendment_bytes = AMENDMENT_MAX;
-        assert_eq!(crate::check_effective_limits(&amendment), Ok(()));
-        assert!(jig_protocol_store::codec::limits(&amendment).is_some());
-    }
+    let limits = crate::stock().core;
+    assert_eq!(crate::policy_bytes_max(&limits), Some(POLICY_MAX), "stock");
+    assert_eq!(crate::amendment_bytes_max(&limits), Some(AMENDMENT_MAX), "stock");
+    let mut policy = limits;
+    policy.policy_bytes = POLICY_MAX;
+    assert_eq!(crate::check_effective_limits(&policy), Ok(()));
+    assert!(jig_protocol_store::codec::limits(&policy).is_some());
+    let mut amendment = limits;
+    amendment.people.amendment_bytes = AMENDMENT_MAX;
+    assert_eq!(crate::check_effective_limits(&amendment), Ok(()));
+    assert!(jig_protocol_store::codec::limits(&amendment).is_some());
 }
 
 fn policy_problem(value: u64) -> crate::Problem {
-    let mut limits = crate::profile(crate::Profile::Small).core;
+    let mut limits = crate::stock().core;
     limits.policy_bytes = value;
     crate::check_effective_limits(&limits).expect_err("policy exceeds the codec envelope")
 }
@@ -666,7 +666,7 @@ fn the_next_policy_byte_is_refused_at_the_binding_field() {
 
 #[test]
 fn the_next_amendment_byte_is_refused_with_the_agreed_words() {
-    let mut limits = crate::profile(crate::Profile::Small).core;
+    let mut limits = crate::stock().core;
     limits.people.amendment_bytes = AMENDMENT_MAX + 1;
     let problem = crate::check_effective_limits(&limits).unwrap_err();
     assert_eq!(problem.path, fixtures::path(&[b"limits", b"people", b"amendment_bytes"]));
@@ -686,7 +686,7 @@ fn the_next_amendment_byte_is_refused_with_the_agreed_words() {
 
 #[test]
 fn an_independent_ceiling_names_the_generated_first_failure() {
-    let mut limits = crate::profile(crate::Profile::Small).core;
+    let mut limits = crate::stock().core;
     limits.people.identity_bytes = 8_193;
     let problem = crate::check_effective_limits(&limits).unwrap_err();
     assert_eq!(problem.path, fixtures::path(&[b"limits", b"people", b"identity_bytes"]));
@@ -706,7 +706,7 @@ fn an_independent_ceiling_names_the_generated_first_failure() {
 
 #[test]
 fn arithmetic_endpoints_are_refused_without_panicking() {
-    let mut limits = crate::profile(crate::Profile::Small).core;
+    let mut limits = crate::stock().core;
     limits.policy_bytes = u64::MAX;
     let problem = crate::check_effective_limits(&limits).unwrap_err();
     assert_eq!(problem.path, fixtures::path(&[b"limits", b"core", b"policy_bytes"]));
@@ -721,7 +721,7 @@ fn arithmetic_endpoints_are_refused_without_panicking() {
 
 #[test]
 fn maxima_hold_the_other_budget_fixed_even_when_it_is_refused() {
-    let mut limits = crate::profile(crate::Profile::Small).core;
+    let mut limits = crate::stock().core;
     limits.people.amendment_bytes = AMENDMENT_MAX + 1;
     assert_eq!(crate::policy_bytes_max(&limits), None);
     limits.people.amendment_bytes = AMENDMENT_MAX;
@@ -731,7 +731,7 @@ fn maxima_hold_the_other_budget_fixed_even_when_it_is_refused() {
 
 #[test]
 fn two_excessive_budgets_report_policy_then_amendment() {
-    let mut limits = crate::profile(crate::Profile::Small).core;
+    let mut limits = crate::stock().core;
     limits.policy_bytes = LARGE_POLICY;
     limits.people.amendment_bytes = AMENDMENT_MAX + 1;
     let policy = crate::check_effective_limits(&limits).unwrap_err();
@@ -743,7 +743,7 @@ fn two_excessive_budgets_report_policy_then_amendment() {
 
 #[test]
 fn other_store_families_are_checked_after_the_people_probe() {
-    let mut limits = crate::profile(crate::Profile::Small).core;
+    let mut limits = crate::stock().core;
     // The core-v6 SettledAnswer bytes ceiling is independent of the people codec.
     limits.call_answer_bytes = u32::MAX;
     assert!(jig_protocol_store::codec::people::limits(&limits).is_some());
@@ -755,7 +755,7 @@ fn other_store_families_are_checked_after_the_people_probe() {
 
 #[test]
 fn independent_item_ceilings_keep_their_own_field_and_bound() {
-    let mut limits = crate::profile(crate::Profile::Small).core;
+    let mut limits = crate::stock().core;
     limits.authority.roles = 9;
     let problem = crate::check_effective_limits(&limits).unwrap_err();
     assert_eq!(problem.path, fixtures::path(&[b"limits", b"authority", b"roles"]));

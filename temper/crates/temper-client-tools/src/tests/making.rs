@@ -145,7 +145,7 @@ fn make_sends_the_request_and_prints_kept() {
         let printed = root.answer(call).unwrap();
         assert_eq!(printed.status, 0);
         assert_eq!(printed.stdout.as_ref(), if json { br#"{"make_kept":{}}"#.as_slice() } else { b"kept\n" });
-        assert_eq!(root.watches.len(), 1, "a bare act opens no forge watch");
+        assert_eq!(root.watches.len(), 0, "a bare act opens no forge watch");
     }
 }
 #[test]

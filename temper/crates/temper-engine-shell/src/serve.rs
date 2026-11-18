@@ -147,7 +147,7 @@ fn prepare_given(
         .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     let setup::Deployment { mut named, checked, .. } = setup::check_with(bytes, &jig_directories(directories), given)?;
     let engine = settings(bytes, directories, given);
-    let Runtimes { roots, github } = runtimes(&named.machine)?;
+    let Runtimes { roots, github } = runtimes(named.test_github.as_ref())?;
     let user = skein_shell::effective_user();
     let Inputs { files, google, bundle } = before_root(
         &mut named.files,
@@ -172,6 +172,10 @@ fn prepare_given(
         program_environment(directories, environment, working, &printed::running_word(environment)),
     )
     .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
+    if let Some(line) = landing_hold(path(&directories.data))? {
+        eprintln!("{line}");
+        service.engine_component().hold_landings(true);
+    }
     service.engine_component().build_name(build_name);
     service.configure_forge_runtime(github, roots);
     service.configure_google_endpoints(google);
@@ -286,9 +290,9 @@ pub struct Runtimes {
     pub roots: skein_tls::Config,
     pub github: service::ForgeRuntime,
 }
-pub fn runtimes(machine: &temper_forge_setup::machine::Machine) -> Result<Runtimes, String> {
+pub fn runtimes(test_github: Option<&temper_forge_setup::machine::GitHubMachine>) -> Result<Runtimes, String> {
     let roots = trust(None)?;
-    let github = github_runtime(machine.github.as_ref(), &roots)?;
+    let github = github_runtime(test_github, &roots)?;
     Ok(Runtimes { roots, github })
 }
 /// Engine inputs checked after agent preflight and before the worker root.
@@ -369,3 +373,33 @@ mod program_environment;
 
 #[cfg(test)]
 mod tests;
+
+/// Check presence alone, never content; the result belongs to the whole run
+/// (temper/docs/design/domain/landing-settings.md, 1.3).
+pub fn landing_hold(data: &std::path::Path) -> Result<Option<String>, String> {
+    let path = data.join("landing-held");
+    match std::fs::symlink_metadata(&path) {
+        Ok(_) => Ok(Some(format!("landing held: {}; remove it and restart to land", path.display()))),
+        Err(why) if why.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(why) => Err(format!("{}: {why}", path.display())),
+    }
+}
+
+#[cfg(test)]
+mod landing_hold_tests {
+    #[test]
+    fn landing_held_is_presence_only_and_names_its_path() {
+        let scratch = skein_scratch::Scratch::new("landing-held");
+        assert_eq!(super::landing_hold(scratch.path()).expect("absent hold"), None);
+        let path = scratch.path().join("landing-held");
+        for content in [b"".as_slice(), b"any content\n"] {
+            std::fs::write(&path, content).expect("hold file");
+            assert_eq!(
+                super::landing_hold(scratch.path()).expect("present hold"),
+                Some(format!("landing held: {}; remove it and restart to land", path.display()))
+            );
+        }
+        std::fs::remove_file(&path).expect("release for the next start");
+        assert_eq!(super::landing_hold(scratch.path()).expect("removed hold"), None);
+    }
+}

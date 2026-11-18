@@ -667,6 +667,7 @@ impl World {
                 save: Some(saved.clone().into()),
                 git: None,
                 expected: None,
+                delivered: None,
                 landing: None,
                 name: name.clone().into(),
                 remote: remote.clone().into(),
@@ -699,6 +700,7 @@ impl World {
                     save: Some(saved.clone().into()),
                     git: None,
                     expected: None,
+                    delivered: None,
                     landing: None,
                     name: first.clone(),
                     remote: first,
@@ -869,6 +871,7 @@ impl World {
     fn request(&mut self, request: Request) {
         self.log(&format!("checkout -> {}", describe_request(&request)));
         match request {
+            Request::DependencyLanded { .. } => panic!("merged dependency questions use the hold-level stories"),
             Request::Results { .. } | Request::ResultsEnd { .. } => {}
             Request::Held { client, hold } => {
                 let name = client.raw();
@@ -998,6 +1001,9 @@ impl World {
             let repo = &client.repos[index];
             let left = &client.left[index];
             match landing {
+                Landing::CaughtUp { .. } | Landing::CaughtUpSaved { .. } | Landing::CaughtUpConflict { .. } => {
+                    panic!("catch-up uses the hold-level stories")
+                }
                 Landing::Prefixes { .. }
                 | Landing::DesignMerged { .. }
                 | Landing::DesignConflict { .. }
@@ -1169,6 +1175,7 @@ impl World {
             }
             Op::Store { .. }
             | Op::Reds { .. }
+            | Op::Reset { .. }
             | Op::Point { .. }
             | Op::Fetch { .. }
             | Op::Make { .. }
@@ -1241,6 +1248,7 @@ impl World {
                 | Done::FailedWithOutput { .. }
                 | Done::Results { .. }
                 | Done::Paths { .. }
+                | Done::ParentUnreachable { .. }
                 | Done::Looked { .. }
                 | Done::Brings { .. }
                 | Done::IsAncestor { .. }
@@ -1292,6 +1300,7 @@ impl World {
             | Op::Make { .. }
             | Op::Clone { .. }
             | Op::Reds { .. }
+            | Op::Reset { .. }
             | Op::Point { .. }
             | Op::Fetch { .. }
             | Op::Create { .. }
@@ -1367,6 +1376,7 @@ impl World {
             | Done::FailedWithOutput { .. }
             | Done::Results { .. }
             | Done::Paths { .. }
+            | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
@@ -1411,6 +1421,7 @@ impl World {
                     Kind::Make => told.makes += 1,
                     Kind::Clone => told.clones += 1,
                     Kind::Reds
+                    | Kind::Reset
                     | Kind::Point
                     | Kind::Store
                     | Kind::Fetch
@@ -1531,6 +1542,7 @@ fn in_git(path: &[u8]) -> bool {
 
 fn describe_event(event: &Event) -> String {
     match event {
+        Event::DependencyLanded { hold, landed } => format!("dependency landed {} {landed}", hold.raw()),
         Event::Prepare { client, spec } => {
             format!("prepare {} {:?}", client.raw(), String::from_utf8_lossy(&spec.key))
         }
@@ -1547,6 +1559,7 @@ fn describe_event(event: &Event) -> String {
 
 fn describe_request(request: &Request) -> String {
     match request {
+        Request::DependencyLanded { client, head } => format!("dependency landed? {} {head:?}", client.raw()),
         Request::Results { client, check, repository, .. } => {
             format!("results {} {check} repository {repository}", client.raw())
         }

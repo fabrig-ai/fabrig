@@ -167,6 +167,7 @@ impl Told {
         &mut self,
         open: bool,
         party: Option<u64>,
+        link: jig_client::Link,
         next: &mut u64,
         limits: Limits,
         out: &mut Queue<Request>,
@@ -185,7 +186,7 @@ impl Told {
             self.ended = false;
             return;
         }
-        if party.is_some()
+        if link == jig_client::Link::Live
             && !self.ended
             && self.handle.is_none()
             && let Some(subject) = devices::watch(limits)
@@ -422,6 +423,8 @@ fn answer(outcome: &Outcome, limits: Limits) -> Option<Answer> {
         | w::Outcome::NotTheirs
         | w::Outcome::Overturned
         | w::Outcome::OverturnRefused(_)
+        | w::Outcome::Checkpointed(_)
+        | w::Outcome::CheckpointRefused(_)
         | w::Outcome::EndRefused(_)
         | w::Outcome::MakeKept
         | w::Outcome::MakeRefused(_)

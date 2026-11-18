@@ -137,7 +137,7 @@ pub fn run(seed: u64, case: Case) -> Report {
                 save: None,
                 git: None,
                 start: wire::Start::Commit { commit: translate::commit(base).raw() },
-                access: wire::Access::Writable { push: BRANCH.into(), expected: None, landing: None },
+                access: wire::Access::Writable { push: BRANCH.into(), expected: None, landing: None, delivered: None },
                 identity: 7,
                 account: None,
             }]),
@@ -340,7 +340,7 @@ fn run_stack(seed: u64, case: Case) -> Report {
     }
     let access = || {
         if case == Case::MultipleWritable {
-            wire::Access::Writable { push: BRANCH.into(), expected: None, landing: None }
+            wire::Access::Writable { push: BRANCH.into(), expected: None, landing: None, delivered: None }
         } else {
             wire::Access::Prefixes { branches: granted.clone().into_boxed_slice() }
         }

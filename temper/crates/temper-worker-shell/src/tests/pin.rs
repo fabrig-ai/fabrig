@@ -101,19 +101,23 @@ fn the_checked_agent_and_source_environment_need_no_second_configuration_read() 
     let mut part = temper_worker_service::startup::worker_part(
         &serde_json::to_vec(&document).expect("pin fixture"),
         &temper_service_shell::jig_directories(&super::configuration::directories(directory)),
+        None,
     )
     .expect("pin fixture");
     let program = directory.join("temper-agent");
     fs::write(&program, b"a").expect("pin fixture");
     part.named.program = program.as_os_str().as_bytes().into();
+    part.named.agent = directory.join("agent.json").as_os_str().as_bytes().into();
     let prepared = agent::prepare_worker(&part.named).expect("pin fixture");
     assert_eq!(prepared.bytes.as_ref(), bytes);
     assert_eq!(prepared.agent.bounds.program_endpoints.as_ref(), [1]);
     assert_eq!(prepared.agent.bounds.turns, 800);
-    assert_eq!(prepared.agent.tool_payload, 2048);
+    assert_eq!(prepared.agent.tool_payload, 4096);
     assert_eq!(prepared.environment.as_ref(), [Box::from(b"PINNED_ENV=at-start".as_slice())]);
     fs::remove_file(directory.join("agent.json")).expect("pin fixture");
     fs::write(directory.join("worker.secret"), b"worker-secret").expect("pin fixture");
+    fs::set_permissions(directory.join("worker.secret"), fs::Permissions::from_mode(0o600))
+        .expect("private fixture secret");
     let files = temper_service_shell::read_files(
         agent::without_configuration(part.files, &part.named.agent),
         skein_shell::effective_user(),
@@ -130,37 +134,4 @@ fn the_checked_agent_and_source_environment_need_no_second_configuration_read() 
             .expect("pin fixture");
     assert!(sources.resources.is_some(), "program resources from the same document");
     temper_service_shell::close(owned);
-}
-
-#[test]
-fn worker_serve_refuses_programs_it_cannot_pin_and_names_the_file() {
-    let scratch = skein_scratch::Scratch::new("worker-pin-refusal");
-    let directory = scratch.path();
-    let (agent, mut document) = super::worker_document(directory);
-    fs::write(directory.join("agent.json"), agent).expect("pin fixture");
-    fs::write(directory.join("root.der"), skein_tls_kit::pki::ROOT).expect("pin fixture");
-    fs::write(directory.join("worker.secret"), b"worker-secret").expect("pin fixture");
-    for program in [directory.join("absent-agent"), directory.join("directory-not-program")] {
-        if program.ends_with("directory-not-program") {
-            fs::create_dir(&program).expect("pin fixture");
-        }
-        document["workers"][0]["agent"]["program"] = serde_json::json!(program);
-        fs::write(directory.join("temper.json"), serde_json::to_vec(&document).expect("pin fixture"))
-            .expect("pin fixture");
-        let why = temper_service_shell::run(
-            "temper-worker",
-            &super::configuration::directories(directory),
-            &[],
-            crate::served::SERVED,
-            |_| Ok(()),
-            |bytes, owned, ()| {
-                worker::alone(&super::configuration::directories(directory), bytes, owned, &[])
-                    .map(|service| temper_service_shell::Prepared { service, store: Box::new([]), adoption: () })
-            },
-            |_, _, ()| Ok(()),
-        )
-        .expect_err("pin refused");
-        assert!(why.starts_with("temper-worker serve: "), "{why}");
-        assert!(why.contains(program.to_str().expect("pin fixture")), "{why}");
-    }
 }

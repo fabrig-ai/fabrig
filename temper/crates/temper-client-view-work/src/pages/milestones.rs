@@ -15,7 +15,6 @@ use temper_client_domain::{
         Act,
         goals::Goals,
         milestones::{self, Count, Headline, Mark, Milestone, State},
-        report::Report,
     },
 };
 
@@ -40,10 +39,11 @@ pub(crate) fn row(
     let state = milestones::state(line, lines, totals, goals.needs_person(line.chip.task));
     let count_value = milestones::count(lines, totals);
     let (status, token) = state_word(words, state);
+    let title = crate::common::chat::row_title(line.chip.title.bytes());
     let separator = words.say(Word::ToolSeparator, &[]);
-    let progress = bytes::concat(&[&count(words, count_value), &separator]);
-    let name =
-        bytes::concat(&[&words.say(Word::MsTagTerminal, &[]), line.chip.title.bytes(), &separator, &progress, &status]);
+    let progress =
+        if totals.is_some() { bytes::concat(&[&count(words, count_value), &separator]) } else { Box::default() };
+    let name = bytes::concat(&[&words.say(Word::MsTagTerminal, &[]), &title, &separator, &progress, &status]);
     if words.shell == Shell::Terminal {
         b.open(Role::Slot);
     }
@@ -59,7 +59,7 @@ pub(crate) fn row(
             b.style(look::GOALS_TOP);
             b.open(Role::Text);
             tag(b, words);
-            b.text(Run::Plain, line.chip.title.bytes());
+            b.text(Run::Plain, &title);
             b.close();
             b.open(Role::Text);
             b.style(look::GOALS_PROGRESS);
@@ -78,10 +78,14 @@ pub(crate) fn row(
             b.close();
         }
     }
+    if totals.is_none() {
+        b.close();
+        return;
+    }
     strip(b, words, lines, needing.as_slice(), count_value);
     let value = milestones::headline(line, lines, totals, goals.needs_person(line.chip.task));
     let report = match value {
-        Headline::Running { goal, .. } => goals.report(goal),
+        Headline::Running { goal, .. } => milestone.headline(goal),
         Headline::Count(_)
         | Headline::Complete(_)
         | Headline::Open(_)
@@ -198,7 +202,7 @@ pub(crate) fn headline(
     words: &Words,
     headline: Headline,
     lines: &[c::TaskLine],
-    report: Option<&Report>,
+    report: Option<&[u8]>,
     names: &Names<'_>,
 ) -> Box<[u8]> {
     match headline {
@@ -233,7 +237,10 @@ pub(crate) fn headline(
             let Some(line) = goal(lines, task) else { return sentence(words, count) };
             let state =
                 temper_client_domain::pages::goals::state(&line.chip, false, report.is_some(), line.delegates_total);
-            let mut detail = goals::headline(words, line, state, report, names);
+            let mut detail = match report {
+                Some(headline) => bytes::copy_of(headline),
+                None => goals::headline(words, line, state, None, names),
+            };
             if more != 0 {
                 let prefix = Hole::Name(bytes::copy_of(without_stop(&detail)));
                 detail = if more == 1 {

@@ -124,8 +124,9 @@ fn setup(policy: Policy, batch: u16) -> (World, engine::Assignment) {
             ..StoryLimits::default()
         },
     )
-    .with_project_policy(copy.clone())
-    .with_settings_owner(&forge_top::user_key(1, 7));
+    .with_settings_owner_configured(&forge_top::user_key(1, 7), |config| {
+        config.core.seed_projects[0].policy = copy.clone();
+    });
     world.fake_env.limits.limits.files = ROOT_ENTRIES;
     repository(&mut world);
     world.adopt();
@@ -226,7 +227,7 @@ fn approve(world: &mut World, changes: &[u64]) {
     }
 }
 
-fn reviewed(world: &World, number: u64) -> bool {
+pub(super) fn reviewed(world: &World, number: u64) -> bool {
     let row = goal_landing::row(world, number);
     row.delegate.is_none()
         && row

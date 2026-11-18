@@ -33,7 +33,7 @@ pub(crate) fn heard(preparation: landing::Preparation, failure: &[u8]) -> top::L
         dependencies: Box::new([]),
         held: Box::new([]),
         failure: failure.into(),
-        preparation,
+        preparation: Some(preparation),
         released: false,
         cancelled: false,
         kept: Box::new([]),
@@ -437,6 +437,7 @@ fn every_exact_judgement_uses_its_members_prefix_branch_and_survives_restart() {
             failed: false,
             cancelled: false,
             no_change: false,
+            flake: false,
             words: b"prefix reviewed".as_slice().into(),
         });
         changes::change_step_task(&mut world, task, 2000 + member, change::Status::Passed, Box::new([]), false, false);

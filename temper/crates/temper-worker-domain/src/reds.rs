@@ -1,4 +1,5 @@
-//! Fresh reds and serialized reports for each check (domain/forge/reds.md, 5.3–5.6).
+//! Fresh reds and serialized reports for each check (domain/forge/reds.md, 5.3–5.6),
+//! and a landed dependency's catch-up (domain/worker/checkouts.md, It asks).
 use crate::{Domain, Limits, Request, route, wire, workspace};
 use alloc::boxed::Box;
 use jig_domain_host as host;
@@ -9,6 +10,7 @@ use temper_worker_domain_checkout::git;
 pub(crate) struct State {
     active: Option<Check>,
     reports: Option<Reports>,
+    landed: Option<Landed>,
     cookie: u64,
     numbering: Option<Ask>,
     outstanding: Map<u64, Ask>,
@@ -27,6 +29,13 @@ struct Reports {
     inflight: Option<u64>,
     encoding: bool,
 }
+#[derive(Debug)]
+struct Landed {
+    hold: Token,
+    cookie: u64,
+    deadline: Time,
+    encoding: bool,
+}
 #[derive(Clone, Copy, Debug)]
 struct Ask {
     cookie: u64,
@@ -36,15 +45,51 @@ struct Ask {
 enum Kind {
     Reds,
     Results,
+    Landed,
 }
 impl State {
     pub fn new() -> Self {
-        Self { active: None, reports: None, cookie: 0, numbering: None, outstanding: Map::with_capacity(2) }
+        Self {
+            active: None,
+            reports: None,
+            landed: None,
+            cookie: 0,
+            numbering: None,
+            outstanding: Map::with_capacity(2),
+        }
     }
     fn next_cookie(&mut self) -> u64 {
         self.cookie = self.cookie.checked_add(1).expect("ask lifetime");
         self.cookie
     }
+}
+pub(crate) fn landed(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    owner: Token,
+    hold: Token,
+    head: git::Commit,
+    out: &mut Queue<Request>,
+) {
+    if domain.host.hosting(owner).is_none() || !domain.agents.contains_key(&owner) {
+        route::checkout_step(domain, env, crate::checkout::Event::DependencyLanded { hold, landed: false });
+        return;
+    }
+    let state = &mut domain.agents.get_mut(&owner).expect("hosted agent").checks;
+    let cookie = state.next_cookie();
+    assert!(state.landed.is_none(), "one dependency ask per hold");
+    state.landed = Some(Landed {
+        hold,
+        cookie,
+        deadline: env.now.saturating_add(Duration::from_millis(u64::from(env.limits.checkout.reds_read_ms))),
+        encoding: true,
+    });
+    out.push(Request::RedsAsk { owner, check: cookie, ask: wire::Ask::Landed { head: head.raw() } });
+}
+fn landed_answer(domain: &mut Domain, env: &Env<Limits>, owner: Token, landed: bool) {
+    let Some(bound) = domain.agents.get_mut(&owner) else { return };
+    let Some(read) = bound.checks.landed.take() else { return };
+    route::checkout_step(domain, env, crate::checkout::Event::DependencyLanded { hold: read.hold, landed });
 }
 pub(crate) fn start(domain: &mut Domain, env: &Env<Limits>, owner: Token, out: &mut Queue<Request>) {
     let Some(bound) = domain.agents.get_mut(&owner) else { return };
@@ -87,7 +132,16 @@ pub(crate) fn encoded(
     bytes: Box<[u8]>,
     out: &mut Queue<Request>,
 ) {
-    let kind = if current(domain, owner, cookie, env.now).is_some() {
+    let Some(bound) = domain.agents.get_mut(&owner) else { return };
+    let kind = if let Some(read) = &mut bound.checks.landed
+        && read.cookie == cookie
+    {
+        if read.deadline < env.now || !read.encoding {
+            return;
+        }
+        read.encoding = false;
+        Kind::Landed
+    } else if current(domain, owner, cookie, env.now).is_some() {
         Kind::Reds
     } else {
         let Some(bound) = domain.agents.get_mut(&owner) else { return };
@@ -145,6 +199,16 @@ pub(crate) fn asked(
     };
     let Some(ask) = ask else { return };
     match ask.kind {
+        Kind::Landed => {
+            let Some(read) = &state.landed else { return };
+            if read.cookie != ask.cookie || read.deadline < env.now {
+                return;
+            }
+            match answer {
+                host::AskAnswer::Refused => landed_answer(domain, env, owner, false),
+                host::AskAnswer::Bytes(bytes) => out.push(Request::RedsAnswer { owner, check: ask.cookie, bytes }),
+            }
+        }
         Kind::Reds => {
             let Some(check) = current(domain, owner, ask.cookie, env.now) else { return };
             match answer {
@@ -175,7 +239,18 @@ pub(crate) fn decoded(
     answer: Option<wire::Answer>,
     out: &mut Queue<Request>,
 ) {
-    if let Some(check) = current(domain, owner, cookie, env.now) {
+    if let Some(bound) = domain.agents.get(&owner)
+        && let Some(read) = &bound.checks.landed
+        && read.cookie == cookie
+    {
+        if read.deadline >= env.now {
+            let landed = match answer {
+                Some(wire::Answer::Landed) => true,
+                Some(wire::Answer::Unlanded | wire::Answer::Kept | wire::Answer::Reds { .. }) | None => false,
+            };
+            landed_answer(domain, env, owner, landed);
+        }
+    } else if let Some(check) = current(domain, owner, cookie, env.now) {
         check.deadline = None;
         let Some(wire::Answer::Reds { reds }) = answer else { return };
         let mut kept = List::with_capacity(u32::try_from(reds.len()).expect("decoded red count"));
@@ -270,6 +345,12 @@ fn resume(domain: &mut Domain, env: &Env<Limits>, owner: Token) {
 pub(crate) fn next(domain: &Domain) -> Option<Time> {
     let mut next = None;
     for (_, bound) in &domain.agents {
+        if let Some(read) = &bound.checks.landed {
+            next = Some(match next {
+                Some(old) => read.deadline.min(old),
+                None => read.deadline,
+            });
+        }
         if let Some(check) = &bound.checks.active
             && let Some(at) = check.deadline
         {
@@ -287,7 +368,8 @@ pub(crate) fn due(domain: &Domain, now: Time) -> bool {
         None => false,
     }
 }
-pub(crate) fn fire(domain: &mut Domain, now: Time) {
+pub(crate) fn fire(domain: &mut Domain, env: &Env<Limits>) {
+    let now = env.now;
     let mut expired = List::with_capacity(domain.agents.len());
     for (owner, bound) in &domain.agents {
         if let Some(check) = &bound.checks.active
@@ -300,5 +382,16 @@ pub(crate) fn fire(domain: &mut Domain, now: Time) {
     for owner in &expired {
         domain.agents.get_mut(owner).expect("live agent").checks.active.as_mut().expect("current check").deadline =
             None;
+    }
+    let mut expired = List::with_capacity(domain.agents.len());
+    for (owner, bound) in &domain.agents {
+        if let Some(read) = &bound.checks.landed
+            && read.deadline <= now
+        {
+            expired.push(*owner).expect("agent count");
+        }
+    }
+    for owner in &expired {
+        landed_answer(domain, env, *owner, false);
     }
 }

@@ -2,8 +2,9 @@
 use jig_client::contract::{QueryOrder, Requester, TaskQuery};
 /// The person's live chats, by their last activity.
 #[must_use]
-pub const fn conversations(party: u64, chat_label: u32, project: Option<u32>) -> TaskQuery {
+pub fn conversations(party: u64, chat_label: u32, project: Option<u32>) -> TaskQuery {
     TaskQuery {
+        parts: skein_lib::List::with_capacity(0),
         project,
         requester: Some(Requester::Person(party)),
         root: None,
@@ -30,8 +31,9 @@ pub(crate) fn chats(me: &jig_client::contract::Me, project: Option<u32>) -> Opti
 
 /// The project's live tracked tasks, in the owner's priority order.
 #[must_use]
-pub const fn goals(project: u32) -> TaskQuery {
+pub fn goals(project: u32) -> TaskQuery {
     TaskQuery {
+        parts: skein_lib::List::with_capacity(0),
         project: Some(project),
         requester: None,
         root: None,
@@ -49,7 +51,7 @@ pub(crate) fn goal_template(me: &jig_client::contract::Me, project: u32) -> Opti
 }
 /// The project's ended tasks of its goal template, latest first.
 #[must_use]
-pub const fn ended_goals(project: u32, goal_label: u32) -> TaskQuery {
+pub fn ended_goals(project: u32, goal_label: u32) -> TaskQuery {
     TaskQuery {
         label: Some(goal_label),
         phase: Some(jig_client::contract::PhaseClass::Ended),

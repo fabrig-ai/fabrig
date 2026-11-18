@@ -1,6 +1,6 @@
 # Driving the clients a line at a time
 
-Provisional, 2026-11-12, revised 2026-11-16. QA's hands on ctl, the web
+Provisional, 2026-11-12, revised 2026-11-17. QA's hands on ctl, the web
 client and the TUI (`../draft/landed-qa.md`, 7 and 10):
 `temper-client-journeys drive`, a session that starts a fake box, or a
 deployment's processes (`../testing/qa/deployment.md`), from a given
@@ -87,7 +87,8 @@ temper-client-journeys drive --bin DIR [--bundle DIR] --scratch DIR [--scripts F
   (`../testing/qa/places.md`, 2). A list that is not nine distinct
   nonzero ports refuses the session, naming it, before anything starts.
 - **`--files DIR`,** an existing directory that `forge commit` and `forge push` lines
-  read the files they commit from (3.5), read only: a QA pass's
+  read the files they commit from (3.5), and a `ctl settings` line its
+  settings files (3.4), read only: a QA pass's
   (`../testing/qa/places.md`, 5). A recipe's walk gives each recipe's
   lines its own `files/` instead (`recipe.md`, 5.1).
 - **Chromium** comes from `SKEIN_TEST_CHROMIUM`, as the browser tier and
@@ -354,6 +355,14 @@ and no line holds the token, only its file's name:
 ctl forge connect forgejo-admin {forgejo.admin} --first work/hello --project Hello --api {forgejo.api} --git {forgejo.git} --git-program {git} --key qa-hello
 ```
 
+**A settings file.** In a `ctl settings apply` or `ctl settings propose`
+line, each FILE field is a PATH, as in `forge commit` (3.5): every field
+after `apply` or `propose` and before the first flag, except `-`. The PATH
+is read from the recipe's `files/` or from `--files DIR`, and replaced by
+the file's absolute path when the line runs, as a box value is. The kept
+line keeps the PATH. A missing PATH fails the line, naming it, before ctl
+starts. stdin stays closed.
+
 ### 3.5 The forge's lines
 
 A person's own act on their forge that no client makes: a commit
@@ -442,7 +451,8 @@ exited`, and ends with status 4 (2.5).
 
 | Line | What the session does | Bound |
 |---|---|---|
-| `deployment patch DOCUMENT PATH` | DOCUMENT `engine`, `worker` or `agent`, a word; PATH bytes, as a `forge commit` line's (3.5): the deployment's document patched by the file and the deployment started again, the TUI ended first and the page loaded again after, but in a ctl session (`../testing/qa/deployment.md`, 6.2) | 300 s |
+| `deployment restart` | the deployment started again with its documents unchanged, as `deployment patch` does: the TUI ended first and the page loaded again after, except in a ctl session; a setting taken at the next start (`../domain/landing-settings.md`, 1.1) then holds | 300 s |
+| `deployment patch DOCUMENT PATH` | DOCUMENT `engine` or `worker`, a word (temper writes the agent's configuration, `../protocol/configuration/figures.md`, 6); PATH bytes, as a `forge commit` line's (3.5): the deployment's document patched by the file and the deployment started again, the TUI ended first and the page loaded again after, but in a ctl session (`../testing/qa/deployment.md`, 6.2) | 300 s |
 
 On a box, a `deployment` line fails, `failed: line N: a box takes no
 deployment line`, and is not kept.

@@ -73,6 +73,7 @@ fn models(domain: &Domain, charter: &jig_domain_core::Charter) -> Box<[u8]> {
                         | jig_domain_core::settings::Value::Template(_)
                         | jig_domain_core::settings::Value::Policy(_)
                         | jig_domain_core::settings::Value::Rules(_)
+                        | jig_domain_core::settings::Value::Worker(_)
                         | jig_domain_core::settings::Value::Application(_),
                     )
                     | None => {}

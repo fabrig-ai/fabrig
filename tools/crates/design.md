@@ -309,7 +309,7 @@ section 4). The other eight are G3's, one codec crate each, its owner's `-codec`
 | Owner | Its codec crate | Directory | Module |
 |---|---|---|---|
 | `jig-test-store` | `jig-test-store-codec` | `jig/testing/jig-test-store-codec` | `v2` |
-| `jig-protocol-engine-clients` | `jig-protocol-engine-clients-codec` | `jig/crates/jig-protocol-engine-clients-codec` | `cursor_v1` |
+| `jig-protocol-engine-clients` | `jig-protocol-engine-clients-codec` | `jig/crates/jig-protocol-engine-clients-codec` | `cursor_v2` |
 | `jig-client-test-protocol-wire` | `jig-client-test-protocol-wire-codec` | `jig/testing/jig-client-test-protocol-wire-codec` | `v2` |
 | `jig-client-view` | `jig-client-view-codec` | `jig/crates/jig-client-view-codec` | `records_v1` |
 | `jig-protocol-accounts` | `jig-protocol-accounts-codec` | `jig/crates/jig-protocol-accounts-codec` | `v1` |

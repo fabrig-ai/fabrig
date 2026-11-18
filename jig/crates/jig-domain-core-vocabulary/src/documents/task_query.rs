@@ -24,7 +24,7 @@ pub enum QueryOrder {
     Ended,
 }
 /// Fixed conjunctive keys; an absent key matches every value.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TaskQuery {
     pub project: Option<u32>,
     pub requester: Option<tasks::Party>,
@@ -35,6 +35,8 @@ pub struct TaskQuery {
     pub executor: Option<ExecutorKind>,
     pub tracked: Option<bool>,
     pub order: QueryOrder,
+    /// At most four parts, in row-answer order.
+    pub parts: List<super::PartAsk>,
 }
 /// A bounded window over a query's live group.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -42,6 +44,7 @@ pub struct Lines {
     pub query: TaskQuery,
     pub lines: List<TaskLine>,
     pub next: Option<Cursor>,
+    pub ended_mark: u64,
 }
 
 #[must_use]

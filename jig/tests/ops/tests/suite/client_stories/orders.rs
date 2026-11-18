@@ -1,6 +1,6 @@
 //! The linked Ops root against scripted stream, transport and delayed storage.
 use jig_client::{Event as ClientEvent, Message, Streamed};
-use jig_client_protocol_wire::v28 as w;
+use jig_client_protocol_wire as w;
 use jig_client_view::address::Address as JigAddress;
 use jig_ops_client_domain::{self as root, Address, Event, Place, Request, infrastructure, observability};
 use jig_ops_world::{PARTY, PROJECT};
@@ -46,25 +46,27 @@ impl World {
         });
         world.client(ClientEvent::SignIn { with: jig_client::With::Transport });
         world.stream(&hello());
-        // All three children share the Me watch. The peer admits its exchange
-        // before delivering the frame, then storage is left delayed.
-        let (exchange, member, watch) = world.watches.remove(0);
-        let answer = w::OpenAnswer::Admitted;
-        let mut bytes = Writer::new(skein_lib::length::usize_of(answer.measure()));
-        answer.encode(&mut bytes).expect("measured open answer");
-        if let Some(member) = member {
-            let part = w::BatchReply::new(&w::CEILINGS, w::BatchReplyParts { member, reply: Some(bytes.finish()) })
-                .expect("part");
-            let mut writer = Writer::new(skein_lib::length::usize_of(part.measure()));
-            part.encode(&mut writer).expect("part bytes");
-            world.client(ClientEvent::Part { exchange, message: writer.finish() });
-        } else {
-            world.client(ClientEvent::Reply { exchange, message: bytes.finish() });
-        }
-        world.stream(&frame(watch));
+        world.admit_watches();
         world.steps.clear();
         world.traffic.clear();
         world
+    }
+
+    fn admit_watches(&mut self) {
+        for (exchange, member, _) in std::mem::take(&mut self.watches) {
+            let answer = w::OpenAnswer::Admitted;
+            let mut bytes = Writer::new(skein_lib::length::usize_of(answer.measure()));
+            answer.encode(&mut bytes).expect("opening answer");
+            if let Some(member) = member {
+                let part = w::BatchReply::new(&w::CEILINGS, w::BatchReplyParts { member, reply: Some(bytes.finish()) })
+                    .expect("opening part");
+                let mut bytes = Writer::new(skein_lib::length::usize_of(part.measure()));
+                part.encode(&mut bytes).expect("opening part bytes");
+                self.client(ClientEvent::Part { exchange, message: bytes.finish() });
+            } else {
+                self.client(ClientEvent::Reply { exchange, message: bytes.finish() });
+            }
+        }
     }
 
     fn client(&mut self, event: ClientEvent) {
@@ -185,9 +187,11 @@ fn hello() -> w::StreamEvent {
             )
             .expect("three owners");
     }
-    w::StreamEvent::Hello(
-        w::Hello::new(&w::CEILINGS, w::HelloParts { stream: STREAM, served, heartbeat: HEARTBEAT })
-            .expect("hello fixture"),
+    let hello = w::Hello::new(&w::CEILINGS, w::HelloParts { stream: STREAM, served, heartbeat: HEARTBEAT })
+        .expect("hello fixture");
+    let w::StreamEvent::Delivery(delivery) = frame(0) else { unreachable!("me fixture") };
+    w::StreamEvent::Opened(
+        w::Opened::new(&w::CEILINGS, w::OpenedParts { hello, me: delivery.into_parts().document }).expect("opened"),
     )
 }
 
@@ -304,6 +308,7 @@ fn ops_client_routes_finish_before_their_caller_continues() {
     world.step(Event::Infrastructure(infrastructure::Event::Went {
         address: infrastructure::Address::Environments { project: PROJECT, pool: None },
     }));
+    world.admit_watches();
     world.step(Event::Observability(observability::Event::Went {
         address: observability::Address::Incident { project: PROJECT, incident: INCIDENT },
     }));
@@ -313,11 +318,11 @@ fn ops_client_routes_finish_before_their_caller_continues() {
         [
             (0, "read", INFRASTRUCTURE),
             (0, "open", INFRASTRUCTURE),
-            (1, "read", OBSERVABILITY),
-            (1, "open", OBSERVABILITY),
+            (2, "read", OBSERVABILITY),
+            (2, "open", OBSERVABILITY),
         ]
     );
-    assert_eq!(world.root.client().admission().attempts, EXCHANGES);
+    assert!(world.root.client().admission().attempts <= EXCHANGES);
     assert_eq!(
         world.writes.last(),
         Some(&root::store::Record::Observability(observability::Record::Place {

@@ -227,7 +227,7 @@ pub(super) fn asked(duties: &Duties) -> Vec<Line> {
                 message: Sent::of(message),
                 credential: credential.as_ref().map(|secret| secret.expose().into()),
             }),
-            Request::OpenStream { credential, replaces } => {
+            Request::OpenStream { credential, replaces, .. } => {
                 let credential = credential.as_ref().map(|secret| secret.expose().into());
                 lines.push(match replaces {
                     Some(stream) => Line::Replacing { credential, stream: Box::from(*stream) },

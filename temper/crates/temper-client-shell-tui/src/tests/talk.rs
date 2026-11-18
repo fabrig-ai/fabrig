@@ -58,7 +58,9 @@ fn roles_fixture() -> (Host, Duties) {
     let line = w::TaskLine::new(&w::CEILINGS, line).unwrap();
     let mut writer = Writer::new(usize::try_from(line.measure()).unwrap());
     line.encode(&mut writer).unwrap();
-    let tasks = w::Tasks::new(&w::CEILINGS, w::TasksParts { rows: pieces(&[writer.finish()]), more: false }).unwrap();
+    let tasks =
+        w::Tasks::new(&w::CEILINGS, w::TasksParts { ended_mark: 0, rows: pieces(&[writer.finish()]), more: false })
+            .unwrap();
     let arrived = delivery(&mut host, watched.expect("roles watch"), &w::DeliveryValue::Tasks(tasks));
     duties.asked.extend(admit(&mut host, arrived).asked);
     (host, duties)

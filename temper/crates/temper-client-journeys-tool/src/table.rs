@@ -48,7 +48,7 @@ pub(crate) const CAUTION: &str = "These aren't all a secret could be: any other 
 const ADD_NOTES: &str = concat!(
     "add takes out the link secret, stored credentials, typed secrets and each --redact TEXT, replacing their bytes with x's. ",
     "It refuses surviving originals and shapes of a key, JWT, bearer, code or refresh token in records, drawn pages or printed pages. ",
-    "It proves the redacted replay before writing.\n",
+    "It proves the redacted replay, then normalises and replays it again before scanning and writing.\n",
     "A secret split across run deliveries or writing-call input is refused; --redact cannot replace it, so walk it again. ",
     "Text split across other records is seen only where a page draws it whole. Partial secrets and other encodings may remain unseen. ",
     "Values the client reshapes can stale the replay. Reload a settled page: stored requests in flight refuse. ",
@@ -80,10 +80,16 @@ pub(crate) const REPRINT: Command = Command {
     variables: &[],
     notes: "A stale journey is named and left as it was; after printing the others, exit 1.",
 };
+pub(crate) const NORMALISE: Command = Command {
+    reach: Reach::Words(&["normalise"]),
+    line: "Normalise every browser and TUI recording, then reprint both directories.",
+    notes: "Write each changed recording only after its normalised replay holds, naming each written. A stale recording is named with its turn and line kind and left as it was; after writing the others and reprinting, exit 1. Reads no configuration, environment, clock or network.",
+    ..REPRINT
+};
 pub(crate) const ADD: Command = Command {
     reach: Reach::Words(&["add"]),
     forms: &["[--redact TEXT]... NAME FILE"],
-    line: "Redact, prove, scan and print a saved recording as NAME.",
+    line: "Redact, prove, normalise, scan and print a saved recording as NAME.",
     arguments: &[
         Argument { shown: "NAME", line: "The journey's name, [a-z][a-z0-9-]*, unique across both clients." },
         Argument { shown: "FILE", line: "The saved recording; replaced in memory before anything is written." },
@@ -168,7 +174,7 @@ const SESSION: Settings = Settings {
         Setting {
             name: "files",
             value: "DIR",
-            about: "Read-only directory of the files forge commit, forge push and deployment patch lines name.",
+            about: "Read-only directory of the files forge commit, forge push, deployment patch and ctl settings apply/propose lines name.",
             fallback: Fallback::Text(""),
             set: Set::Internal,
             twin: None,
@@ -202,7 +208,7 @@ pub(crate) const DRIVE: Command = Command {
         },
     ],
     variables: &[&CHROMIUM, &PATH],
-    notes: "Answers ready, then each web, tui, ctl, forge or deployment line with shown lines prefixed | and ok or failed. forge commit forgejo REPOSITORY MESSAGE PATH [PATH]... commits files from --files DIR; forge checks forgejo REPOSITORY waits on its checks. deployment patch DOCUMENT PATH merges a JSON object into engine, worker or agent, then restarts the deployment; a box refuses it. ctl fields {forgejo.api}, {forgejo.git}, {forgejo.admin}, {git} and {model.key} read the box’s values when run, or the deployment’s rendered documents. end or stdin's end stops the session. Exit 0: ended; 3: store refused; 4: box or deployment failed; 1: session failure. See temper/docs/design/client/drive.md.",
+    notes: "Answers ready, then each web, tui, ctl, forge or deployment line with shown lines prefixed | and ok or failed. forge commit forgejo REPOSITORY MESSAGE PATH [PATH]... commits files from --files DIR; forge checks forgejo REPOSITORY waits on its checks. deployment patch DOCUMENT PATH merges a JSON object into engine or worker, then restarts the deployment; deployment restart keeps the documents unchanged. A box refuses deployment lines. ctl settings apply/propose resolve input files from --files DIR before ctl starts. ctl fields {forgejo.api}, {forgejo.git}, {forgejo.admin}, {git} and {model.key} read the box’s values when run, or the deployment’s rendered documents. end or stdin's end stops the session. Exit 0: ended; 3: store refused; 4: box or deployment failed; 1: session failure. See temper/docs/design/client/drive.md.",
     ..REPRINT
 };
 
@@ -273,7 +279,7 @@ pub const TABLE: Table = Table {
     line: "recorded walks, replayed through the shipped hosts and printed.",
     version: "",
     commit: "",
-    commands: &[REPRINT, ADD, AGAIN, DRIVE, RECIPE_WALK, RECIPE_HASH, RECIPE_LIST],
+    commands: &[REPRINT, ADD, NORMALISE, AGAIN, DRIVE, RECIPE_WALK, RECIPE_HASH, RECIPE_LIST],
     settings: &[],
     variables: &[&CHROMIUM, &BUNDLE, &RECORD, &PATH, &TARGET],
     more: "temper-client-journeys COMMAND --help prints a command; read temper/docs/design/client/web/journeys.md, section 5.1.",

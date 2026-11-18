@@ -421,6 +421,16 @@ impl World {
         self
     }
 
+    /// A story's outbox bound, chosen before its root starts.
+    #[must_use]
+    pub fn with_forge_entries(mut self, entries: u32) -> Self {
+        assert_eq!(self.env.now, Time::ZERO);
+        self.env.limits.forge.entries = entries;
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("outbox room");
+        self
+    }
+
     #[must_use]
     pub fn configured_limits(
         with_read: bool,
@@ -511,18 +521,18 @@ impl World {
             library_gate_latency: _,
             tier,
         } = *timing;
-        let paths::Gate { approval, agent: agent_gate, owner: owner_gate } = gate;
+        let paths::Gate { approval, agent: agent_gate, owner: owner_gate, freshness } = gate;
         std::array::from_fn(|index| {
             let mut limits = walking::limits();
             if let Some(questions) = questions {
                 limits.forge.change_policy.questions = questions;
             }
-            limits.people.amendment_bytes =
-                jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.people.amendment_bytes;
+            limits.people.amendment_bytes = jig_protocol_config_fixtures::small().core.people.amendment_bytes;
             limits.people.people = 4;
             limits.people.holdings = 4;
             limits.journal.writes = journal::WALKING_WRITES;
             let mut config = walking::config(71);
+            let mut landings = skein_lib::Map::with_capacity(limits.authority.projects);
             let mut landing_rules =
                 engine::LandingRules { deployment: Box::default(), projects: skein_lib::Map::with_capacity(1) };
             if approval.is_some() || agent_gate || owner_gate {
@@ -697,7 +707,11 @@ impl World {
                         ci: true,
                         up_to_date: true,
                         gates: if agent_gate || owner_gate {
-                            Box::new([engine::Gate { number: 1, blocking: true, freshness: engine::Freshness::Exact }])
+                            Box::new([engine::Gate {
+                                number: 1,
+                                blocking: true,
+                                freshness: freshness.unwrap_or(engine::Freshness::Exact),
+                            }])
                         } else {
                             Box::new([])
                         },
@@ -826,7 +840,11 @@ impl World {
                         ci: true,
                         up_to_date: true,
                         gates: if agent_gate || owner_gate {
-                            Box::new([engine::Gate { number: 1, blocking: true, freshness: engine::Freshness::Exact }])
+                            Box::new([engine::Gate {
+                                number: 1,
+                                blocking: true,
+                                freshness: freshness.unwrap_or(engine::Freshness::Exact),
+                            }])
                         } else {
                             Box::new([])
                         },
@@ -841,11 +859,10 @@ impl World {
                         landing_rules.deployment = Box::new([rule.clone()]);
                         landing_rules.projects.insert(1, Box::new([rule])).expect("turn landing requirements");
                     }
-                    config
-                        .landings
+                    landings
                         .insert(
                             1,
-                            engine::ProjectLanding {
+                            temper_fixtures::landing::ProjectLanding {
                                 gate_retries: 2,
                                 batch: if landing_members == Some(0) { 1 } else { batch.unwrap_or(1) },
                                 combine_main: engine::Combine::Merge,
@@ -855,19 +872,21 @@ impl World {
                                 check_timeout: None,
                                 close_job: None,
                                 merge_job: None,
-                                after: engine::AfterLandingCheck {
-                                    tier_retries: 2,
-                                    verification_bound_ms: tier.map_or(7_200_000, |tier| tier.bound_ms),
+                                tier_retries: 2,
+                                verification_bound_ms: tier.map_or(7_200_000, |tier| tier.bound_ms),
+                                by: if turn {
+                                    temper_fixtures::landing::Way::Turn
+                                } else {
+                                    temper_fixtures::landing::Way::Queue
                                 },
-                                by: if turn { engine::Way::Turn } else { engine::Way::Queue },
-                                repositories: Box::new([engine::RepositoryChecks {
+                                repositories: Box::new([temper_fixtures::landing::RepositoryChecks {
                                     tiers: match tier {
                                         Some(tier) => crate::tier_runs::checks(tier),
                                         None => Box::new([]),
                                     },
                                     repository: forge_world::REPO,
                                     gates: if turn {
-                                        Box::new([engine::GateCheck {
+                                        Box::new([temper_fixtures::landing::GateCheck {
                                             name: b"gate".as_slice().into(),
                                             workflow: b"gate.yml".as_slice().into(),
                                             ignored: Box::new([b"docs".as_slice().into()]),
@@ -889,7 +908,7 @@ impl World {
                         )
                         .expect("one turn project");
                     if across {
-                        let landing = config.landings.get_mut(&1).expect("turn project");
+                        let landing = landings.get_mut(&1).expect("turn project");
                         let mut lib = landing.repositories[0].clone();
                         lib.repository = skein_forge::api::Repository { forge: 1, repository: 4 };
                         landing.repositories = Box::new([landing.repositories[0].clone(), lib]);
@@ -1007,8 +1026,7 @@ impl World {
                 limits.forge.client.op_bytes = TREE_FORGE_BYTES;
                 limits.forge.client.answer_bytes = TREE_FORGE_BYTES;
                 // Reports use jig's deployment result bound.
-                limits.tasks.result_bytes =
-                    jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.tasks.result_bytes;
+                limits.tasks.result_bytes = jig_protocol_config_fixtures::small().core.tasks.result_bytes;
                 limits.tasks.inbox_bytes = RESULT_INBOX_BYTES;
                 limits.loads.bytes = limits.loads.bytes.max(RESULT_INBOX_BYTES);
                 limits.loads.reply_bytes = limits.loads.reply_bytes.max(RESULT_INBOX_BYTES);
@@ -1180,6 +1198,12 @@ impl World {
             }
             if kinds && index == 1 {
                 config.core.kinds = temper_engine_service_stock::stock::kinds(&limits, config.core.connectors[0]);
+            }
+            for worker in &mut config.core.defaults.workers {
+                worker.places = limits.fleet.slots;
+            }
+            for (project, landing) in &landings {
+                crate::oracle::config::set_landing(&mut config, *project, landing.clone());
             }
             (config, limits)
         })
@@ -1532,7 +1556,7 @@ impl World {
     pub fn with_landing_batch(mut self, batch: u16) -> Self {
         assert_eq!(self.env.now, Time::ZERO);
         self.env.limits.forge.landing_members = u32::from(batch);
-        self.restart_config.landings.get_mut(&1).expect("landing configured").batch = batch;
+        crate::oracle::config::landing(&mut self.restart_config, 1).batch = batch;
         self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
             .expect("initial batch configuration");
         self
@@ -1540,14 +1564,9 @@ impl World {
 
     /// Configure an additional project's verification policy before startup.
     #[must_use]
-    pub fn with_project_landing(mut self, project: u32, landing: engine::ProjectLanding) -> Self {
+    pub fn with_project_landing(mut self, project: u32, landing: temper_fixtures::landing::ProjectLanding) -> Self {
         assert_eq!(self.env.now, Time::ZERO);
-        let mut landings = skein_lib::Map::with_capacity(self.env.limits.authority.projects);
-        for (number, value) in &self.restart_config.landings {
-            landings.insert(*number, value.clone()).expect("configured project");
-        }
-        landings.insert(project, landing).expect("additional project");
-        self.restart_config.landings = landings;
+        crate::oracle::config::set_landing(&mut self.restart_config, project, landing);
         self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
             .expect("project verification configuration");
         self
@@ -1555,8 +1574,19 @@ impl World {
 
     /// Choose the settings owner's identity and admit settings kinds before the world's first input.
     #[must_use]
-    pub fn with_settings_owner(mut self, identity: &people::IdentityKey) -> Self {
+    pub fn with_settings_owner(self, identity: &people::IdentityKey) -> Self {
+        self.with_settings_owner_configured(identity, |_| {})
+    }
+
+    /// Edit a settings story's configuration before its one owner bootstrap.
+    #[must_use]
+    pub fn with_settings_owner_configured(
+        mut self,
+        identity: &people::IdentityKey,
+        configure: impl FnOnce(&mut engine::Config),
+    ) -> Self {
         assert_eq!(self.env.now, Time::ZERO, "owner identity precedes startup");
+        configure(&mut self.restart_config);
         for owner in &mut self.restart_config.core.owners {
             owner.identity = identity.clone();
         }
@@ -1716,10 +1746,24 @@ impl World {
     }
     fn complete_prepare(&mut self) {
         let Some(index) = self.jobs.iter().position(|job| job.kind == jig_domain_link::JobKind(1)) else { return };
+        let result = self.push_prepare();
         let job = self.jobs.remove(index);
+        let event = self.protocol.answer_job(
+            Token::new(7),
+            job.run.raw(),
+            job.attempt.raw(),
+            host::JobEnding::Finished { result, work: host::Work { left: None, saved: None } },
+        );
+        self.send(event);
+    }
+
+    /// Push the worker's prefixes without answering, for a lost or delayed answer.
+    pub fn push_prepare(&mut self) -> Box<[u8]> {
+        let job = self.jobs.iter().find(|job| job.kind == jig_domain_link::JobKind(1)).expect("prepare job");
         let workspace = self.job_workspaces.get(&job.run.raw()).expect("typed prepare items").clone();
         let item = &workspace.repositories[0];
         let landing = job.workspace.as_ref().expect("prepare workspace").workstream;
+        let spec = job.spec.clone();
         let row = self
             .store
             .rows
@@ -1734,7 +1778,7 @@ impl World {
             .expect("job's landing");
         let spec = temper_protocol_worker_wire::v1::JobSpec::decode(
             &temper_protocol_worker_wire::v1::CEILINGS,
-            &mut skein_lib::Reader::new(&job.spec),
+            &mut skein_lib::Reader::new(&spec),
         )
         .expect("prepare spec");
         assert_eq!(spec.command(), b"");
@@ -1783,25 +1827,29 @@ impl World {
             )
             .expect("prepared commit");
             let repository = if item.provider.repository == 2 { b"org/repo".as_slice() } else { b"org/lib".as_slice() };
-            assert_eq!(
-                self.external_at(
-                    repository,
-                    1,
-                    raw::Op::Git(raw::Git::PushNew { branch: saved.branch.clone(), commit: candidate })
-                ),
-                raw::Answer::PushNew { existing: None }
-            );
+            if let Some(existing) = self.fake.branch(repository, &saved.branch) {
+                assert_eq!(
+                    self.fake.object(existing).expect("existing prefix").tree.iter().collect::<Vec<_>>(),
+                    self.fake.object(candidate).expect("rebuilt prefix").tree.iter().collect::<Vec<_>>(),
+                    "reuse the whole tree"
+                );
+                assert!(self.fake.is_ancestor(base, existing), "prefix contains the one below");
+                assert!(squash || self.fake.is_ancestor(head, existing), "merge prefix contains the member");
+                base = existing;
+            } else {
+                assert_eq!(
+                    self.external_at(
+                        repository,
+                        1,
+                        raw::Op::Git(raw::Git::PushNew { branch: saved.branch.clone(), commit: candidate })
+                    ),
+                    raw::Answer::PushNew { existing: None }
+                );
+                base = candidate;
+            }
             combined.push(serde_json::json!({"member": position + 1, "by": if squash { "squash" } else { "merge" }}));
-            base = candidate;
         }
-        let result = serde_json::to_vec(&serde_json::json!({"combined": combined})).expect("result");
-        let event = self.protocol.answer_job(
-            Token::new(7),
-            job.run.raw(),
-            job.attempt.raw(),
-            host::JobEnding::Finished { result: result.into(), work: host::Work { left: None, saved: None } },
-        );
-        self.send(event);
+        serde_json::to_vec(&serde_json::json!({"combined": combined})).expect("result").into()
     }
 
     /// Configure the project's delivery checks' bound before startup.
@@ -1815,30 +1863,8 @@ impl World {
     }
 
     fn set_check_timeout(&mut self, bound: Option<Duration>) {
-        if let Some(landing) = self.restart_config.landings.get_mut(&1) {
-            landing.check_timeout = bound;
-        } else {
-            self.restart_config
-                .landings
-                .insert(
-                    1,
-                    engine::ProjectLanding {
-                        gate_retries: 2,
-                        batch: 1,
-                        combine_main: engine::Combine::Merge,
-                        combine_other: engine::Combine::Squash,
-                        gate_timeout: skein_lib::Duration::from_millis(3_600_000),
-                        landing_attempts: engine::LANDING_ATTEMPTS,
-                        check_timeout: bound,
-                        by: engine::Way::Queue,
-                        merge_job: None,
-                        close_job: None,
-                        repositories: Box::new([]),
-                        after: engine::AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 },
-                    },
-                )
-                .expect("one project's landing");
-        }
+        crate::oracle::config::landing(&mut self.restart_config, 1).check_timeout_ms =
+            bound.map(skein_lib::Duration::as_millis);
     }
 
     /// Restart from durable rows with a changed project bound.
@@ -1851,30 +1877,7 @@ impl World {
     #[must_use]
     pub fn with_merge_job(mut self, command: &[u8]) -> Self {
         assert_eq!(self.env.now, Time::ZERO, "merge command precedes world startup");
-        if let Some(landing) = self.restart_config.landings.get_mut(&1) {
-            landing.merge_job = Some(command.into());
-        } else {
-            self.restart_config
-                .landings
-                .insert(
-                    1,
-                    engine::ProjectLanding {
-                        gate_retries: 2,
-                        batch: 1,
-                        combine_main: engine::Combine::Merge,
-                        combine_other: engine::Combine::Squash,
-                        gate_timeout: skein_lib::Duration::from_millis(3_600_000),
-                        landing_attempts: engine::LANDING_ATTEMPTS,
-                        check_timeout: None,
-                        close_job: None,
-                        merge_job: Some(command.into()),
-                        by: engine::Way::Queue,
-                        repositories: Box::new([]),
-                        after: engine::AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 },
-                    },
-                )
-                .expect("one project's landing");
-        }
+        crate::oracle::config::landing(&mut self.restart_config, 1).merge_job = Some(command.into());
         self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
             .expect("valid merge job configuration");
         self
@@ -1911,22 +1914,7 @@ impl World {
                 project.policy.policy.roles[0].authority.delegation.kinds.clone_from(kinds);
             }
         }
-        let mut landing = self.restart_config.landings.get(&1).cloned().unwrap_or(engine::ProjectLanding {
-            gate_retries: 2,
-            batch: 1,
-            combine_main: engine::Combine::Merge,
-            combine_other: engine::Combine::Squash,
-            gate_timeout: skein_lib::Duration::from_millis(3_600_000),
-            landing_attempts: engine::LANDING_ATTEMPTS,
-            check_timeout: None,
-            by: engine::Way::Queue,
-            merge_job: None,
-            close_job: None,
-            repositories: Box::new([]),
-            after: engine::AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 },
-        });
-        landing.close_job = command.map(Into::into);
-        self.restart_config.landings.insert(1, landing).expect("one project's landing");
+        crate::oracle::config::landing(&mut self.restart_config, 1).close_job = command.map(Into::into);
         self.env.limits.documents = paths::document_limits(self.env.limits.documents, &self.env.limits);
         self.creating =
             jig_test_profile::fixtures::Creating::new(&self.restart_config.core, self.env.limits.tasks.tree_tasks);
@@ -1948,7 +1936,7 @@ impl World {
     #[must_use]
     pub fn with_landing_attempts(mut self, bound: u8) -> Self {
         assert_eq!(self.env.now, Time::ZERO, "attempt configuration precedes startup");
-        self.restart_config.landings.get_mut(&1).expect("project landing configured").landing_attempts = bound;
+        crate::oracle::config::landing(&mut self.restart_config, 1).landing_attempts = bound;
         self.store = crate::fixtures::restored_over(
             Store::with_limits(&self.env.limits),
             crate::oracle::config::copy(&self.restart_config),
@@ -2121,6 +2109,19 @@ impl World {
         self.restart_domain(config, with_change);
     }
 
+    /// Supply the operator's hold as a construction fact, before the first input.
+    #[must_use]
+    pub fn with_landing_held(mut self, held: bool) -> Self {
+        assert_eq!(self.env.now, Time::ZERO);
+        self.restart_config.landing_held = held;
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("held start");
+        self
+    }
+    pub fn restart_with_landing_held(&mut self, held: bool) {
+        self.restart_config.landing_held = held;
+        self.restart_same();
+    }
     /// Choose whether the next restart constructs the connector under a box.
     #[must_use]
     pub fn with_restart_under_box(mut self, under_box: bool) -> Self {
@@ -2135,12 +2136,12 @@ impl World {
         self.env.limits.forge.client.resources = self.env.limits.tasks.tasks * self.env.limits.forge.resources_per_task;
         self.env.limits.authority.writes = self.env.limits.authority.writes.max(u32::from(batch));
         self.env.limits.tasks.holdings = self.env.limits.tasks.holdings.max(u32::from(batch));
-        self.restart_config.landings.get_mut(&1).expect("landing configured").batch = batch;
+        crate::oracle::config::landing(&mut self.restart_config, 1).batch = batch;
         self.restart_same();
     }
     /// Restart with a project's new landing configuration, retaining only durable rows.
-    pub fn restart_with_project_landing(&mut self, project: u32, landing: engine::ProjectLanding) {
-        self.restart_config.landings.insert(project, landing).expect("project landing");
+    pub fn restart_with_project_landing(&mut self, project: u32, landing: temper_fixtures::landing::ProjectLanding) {
+        crate::oracle::config::set_landing(&mut self.restart_config, project, landing);
         self.restart_same();
     }
 
@@ -2148,7 +2149,10 @@ impl World {
         self.restart_domain(crate::oracle::config::copy(&self.restart_config), true);
     }
 
-    fn restart_domain(&mut self, config: engine::Config, with_change: bool) {
+    fn restart_domain(&mut self, mut config: engine::Config, with_change: bool) {
+        for worker in &mut config.core.defaults.workers {
+            worker.places = self.env.limits.fleet.slots;
+        }
         assert!(self.store.pending.is_empty(), "store answers precede a restart");
         assert!(self.pending.is_empty(), "API answers precede a restart");
         self.root =
@@ -2586,9 +2590,11 @@ impl World {
                         answer: Ok(()),
                     })));
                 }
-                engine::Request::Account(_)
+                engine::Request::Worker(engine::WorkerRequest::Settings(_))
+                | engine::Request::Account(_)
                 | engine::Request::ForgeKept(_)
                 | engine::Request::ForgeGone { .. }
+                | engine::Request::ChoosePlace { .. }
                 | engine::Request::BoxGroup { .. }
                 | engine::Request::PlaygroundActs { .. }
                 | engine::Request::ResetAct { .. }
@@ -3138,7 +3144,7 @@ pub fn change_world_with_policy(
         true,
         silent_ci,
         passes,
-        paths::Gate { approval, agent: agent_gate, owner: owner_gate },
+        paths::Gate { approval, agent: agent_gate, owner: owner_gate, ..paths::Gate::default() },
         None,
     );
     change_world_in(world, paths::Change { no_ci, owner_gate, tracked })
@@ -3252,7 +3258,12 @@ pub fn change_world_funded(
                         inputs: Box::new([]),
                     },
                     // Reserve 32 bytes for landing identity beside its live result label.
-                    contract: tasks::Contract::Change { connector: 0, kind: 1, words: 32 + RESULT_MESSAGE_BYTES },
+                    contract: tasks::Contract::Change {
+                        connector: 0,
+                        kind: 1,
+                        words: 32 + RESULT_MESSAGE_BYTES,
+                        choices: Box::new([]),
+                    },
                     authority: child_authority,
                     symbolic_grants: [2, 17]
                         .map(|kind| tasks::Grant {
@@ -3359,6 +3370,8 @@ fn delegated_goal(world: &mut World, parent: &engine::Assignment) -> engine::Ass
 
 #[derive(Clone, Copy, Default)]
 pub struct Gate {
+    /// Agent and owner reviews use Exact unless the story chooses another rule.
+    pub freshness: Option<engine::Freshness>,
     pub approval: Option<engine::Freshness>,
     pub agent: bool,
     pub owner: bool,
@@ -3429,6 +3442,7 @@ pub fn hint_step(world: &mut forge_world::World, task: u64, entry: u64) {
         entry,
         heard: change::Heard {
             delegate_running: false,
+            flake: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,
@@ -3570,7 +3584,11 @@ impl World {
     fn oracle_read(&mut self, sign_in: u64, read: jig_domain_core::reads::Read) -> jig_domain_core::reads::Answer {
         const REPLY: Token = Token::new(0x4e32);
         self.reads.clear();
-        self.send(engine::Event::Party(engine::PartyInput::Read { reply_to: ReplyTo::new(REPLY), sign_in, read }));
+        self.send(engine::Event::Party(engine::PartyInput::Read {
+            reply_to: ReplyTo::new(REPLY),
+            sign_in,
+            read: Box::new(read),
+        }));
         for _ in 0..STEPS {
             if let Some(index) = self.reads.iter().position(|(reply, _)| *reply == ReplyTo::new(REPLY)) {
                 return self.reads.remove(index).1;
@@ -3598,7 +3616,7 @@ impl World {
             window: documents::Window { rows: self.env.limits.documents.rows, after: None },
         }));
         self.oracle_settle();
-        let answer = self
+        let mut answer = self
             .oracle_documents
             .iter()
             .rev()
@@ -3611,6 +3629,15 @@ impl World {
         if answer.is_some() {
             self.send(engine::Event::Party(engine::PartyInput::Delivered { watcher: watch }));
             self.oracle_settle();
+            // Changes provenance may arrive from ended-row loads after the first document.
+            // The restart oracle compares the settled projection, not that first empty view.
+            if let Some(forge_top::Document::Changes(_)) = &answer {
+                answer = self
+                    .oracle_documents
+                    .iter()
+                    .rev()
+                    .find_map(|(watcher, doc)| (*watcher == watch).then(|| doc.clone()));
+            }
         }
         self.send(engine::Event::Party(engine::PartyInput::Unwatch { watcher: watch }));
         self.oracle_settle();
@@ -3626,7 +3653,7 @@ impl World {
         self.send(engine::Event::Party(engine::PartyInput::Read {
             reply_to: ReplyTo::new(REPLY),
             sign_in: self.signed_in.expect("reader session"),
-            read,
+            read: Box::new(read),
         }));
         for _ in 0..STEPS {
             if let Some(index) = self.reads.iter().position(|(reply, _)| *reply == ReplyTo::new(REPLY)) {
@@ -3767,8 +3794,9 @@ fn read_box_profiles() -> (jig_protocol_config::Limits, temper_engine_service_vo
     let at = limits.member(&document, b"overrides").expect("application overrides");
     let mut overrides = config::read::Object::new(&document, at).expect("application overrides object");
     let end = config::read::after(&document, at).expect("application overrides end");
-    let mut temper =
-        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Standard);
+    let mut temper = temper_engine_service_vocabulary::limits::stock();
+    // The deadline stories use a thirty-second gather and advance their clock by it.
+    temper.root.brief.gather = Duration::from_secs(30);
     for index in at..end {
         let token = document.token(index).expect("application override token");
         let Some(name) = document.text(token) else { continue };

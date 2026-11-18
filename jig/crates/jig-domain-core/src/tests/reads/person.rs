@@ -12,17 +12,20 @@ const TASK: u64 = 1;
 const RETAINED: u64 = 90;
 const PERSON: u64 = 1;
 const KEY: CallKey = CallKey { task: TASK, attempt: 7, completion: 500, position: 0 };
-const QUERY: TaskQuery = TaskQuery {
-    project: Some(PROJECT),
-    requester: None,
-    root: None,
-    parent: None,
-    label: None,
-    phase: None,
-    executor: None,
-    tracked: None,
-    order: QueryOrder::Number,
-};
+fn query() -> TaskQuery {
+    TaskQuery {
+        parts: List::with_capacity(0),
+        project: Some(PROJECT),
+        requester: None,
+        root: None,
+        parent: None,
+        label: None,
+        phase: None,
+        executor: None,
+        tracked: None,
+        order: QueryOrder::Number,
+    }
+}
 
 #[test]
 fn admission_names_exactly_one_project_or_a_task_to_check() {
@@ -31,7 +34,7 @@ fn admission_names_exactly_one_project_or_a_task_to_check() {
         for read in [
             reads::Read::Project { project },
             reads::Read::Spend { project, from: None },
-            reads::Read::Tasks { query: TaskQuery { project: Some(project), ..QUERY }, live: None, ended: None },
+            reads::Read::Tasks { query: TaskQuery { project: Some(project), ..query() }, live: None, ended: None },
             reads::Read::Notes { project, from: None },
             reads::Read::ScopedNotes { scope: notes::Scope::Project { project }, description: None, from: None },
             reads::Read::ScopedNotes {
@@ -80,7 +83,7 @@ fn admission_names_exactly_one_project_or_a_task_to_check() {
         reads::Read::Revision { number: 1 },
         reads::Read::Revisions { before: None },
         reads::Read::Proposal { proposer: Proposer::Party(PERSON), proposal: 1 },
-        reads::Read::Tasks { query: TaskQuery { project: None, ..QUERY }, live: None, ended: None },
+        reads::Read::Tasks { query: TaskQuery { project: None, ..query() }, live: None, ended: None },
         reads::Read::Inbox {
             group: reads::Group::Needs,
             filter: reads::Filter { project: None, goal: None },

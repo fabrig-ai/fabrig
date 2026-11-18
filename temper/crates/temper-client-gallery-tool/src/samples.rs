@@ -1821,14 +1821,20 @@ fn start_domain(sample: &Sample) -> Domain {
     root
 }
 /// Kept sign-offs in the Team and Work samples, as the whole story draws them.
-pub(super) fn signoffs(parties: &[u64], at: u64) -> skein_lib::List<temper_client_protocol_wire::v1::ChangesSigned> {
+pub(super) fn signoffs(
+    parties: &[(u64, &str)],
+    at: u64,
+) -> skein_lib::List<temper_client_protocol_wire::v1::ChangesSigned> {
     use temper_client_protocol_wire::v1 as w;
     let mut signed = skein_lib::List::with_capacity(8);
-    for party in parties {
+    for (party, name) in parties {
         signed
             .push(
-                w::ChangesSigned::new(&w::CEILINGS, w::ChangesSignedParts { party: *party, head: [0xab; 32], at })
-                    .expect("sample signer"),
+                w::ChangesSigned::new(
+                    &w::CEILINGS,
+                    w::ChangesSignedParts { name: Some(name.as_bytes().into()), party: *party, head: [0xab; 32], at },
+                )
+                .expect("sample signer"),
             )
             .expect("at most eight sample signers");
     }
@@ -2942,13 +2948,13 @@ fn home_domain(name: &str) -> Domain {
                 | "home-skip-refused"
                 | "home-begin-with-needs"
         );
+    deliver(&mut root, Token::new(0), c::Delivery::Me(Box::new(me.clone())), &mut out);
     for _ in 0..256 {
         let Some(request) = out.pop() else { break };
         let Some(request) = down(request) else { continue };
         match request {
             Down::Open { watch, subject: Watchable::Jig(subject) } => {
                 let value = match subject {
-                    c::Subject::Me => c::Delivery::Me(Box::new(me.clone())),
                     c::Subject::Accounts => c::Delivery::Accounts(Box::new(accounts.clone())),
                     c::Subject::Settings => {
                         let mut lines = List::with_capacity(1);
@@ -2984,7 +2990,7 @@ fn home_domain(name: &str) -> Domain {
                                 .rows
                                 .clone();
                         }
-                        c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false }))
+                        c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows, more: false }))
                     }
                     c::Subject::Tasks { .. } => {
                         let mut rows = List::with_capacity(1);
@@ -2996,7 +3002,7 @@ fn home_domain(name: &str) -> Domain {
                         if everyday {
                             rows = home_chat_rows(name, chat_rows.rows.get(0).expect("sample chat"), false);
                         }
-                        c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false }))
+                        c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows, more: false }))
                     }
                     c::Subject::Inbox { .. } => c::Delivery::Inbox(Box::new(temper_fixtures::client_documents::inbox(
                         home_needs(name),
@@ -3044,6 +3050,7 @@ fn home_domain(name: &str) -> Domain {
                         let row = w::TrialRow::new(
                             &w::CEILINGS,
                             w::TrialRowParts {
+                                run_wait: None,
                                 account: accounts.accounts.get(0).expect("Home trial account").number,
                                 task: Some(91),
                                 took: None,
@@ -3124,6 +3131,7 @@ fn home_domain(name: &str) -> Domain {
                         &mut root,
                         read,
                         c::ReadValue::Tasks(Box::new(c::TaskPage {
+                            ended_mark: 0,
                             live: List::with_capacity(0),
                             live_after: None,
                             ended: c::EndedGroup::Rows {
@@ -3140,6 +3148,7 @@ fn home_domain(name: &str) -> Domain {
                     &mut root,
                     read,
                     c::ReadValue::Tasks(Box::new(c::TaskPage {
+                        ended_mark: 0,
                         live: List::with_capacity(0),
                         live_after: None,
                         ended: c::EndedGroup::Rows {

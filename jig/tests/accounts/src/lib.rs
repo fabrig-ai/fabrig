@@ -174,7 +174,14 @@ fn drain(out: &mut Queue<Request>) -> Vec<Request> {
 #[must_use]
 pub fn worker(number: u32) -> Worker {
     let count = accounts::programs::PROGRAM_HOSTS;
-    let names = (0..count).map(|index| format!("worker-{index}").into_bytes().into_boxed_slice()).collect();
+    let names = (0..count)
+        .map(|index| jig_domain_link::Member {
+            number: index + 1,
+            name: format!("worker-{index}").into_bytes().into_boxed_slice(),
+            places: u32::MAX,
+            withdrawn: false,
+        })
+        .collect();
     let membership = jig_domain_link::Membership::new(names, count, 32).expect("fixture membership");
     membership.worker(number).expect("configured fixture worker")
 }

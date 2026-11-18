@@ -106,6 +106,7 @@ fn adopt_sends_one_keyed_request_and_a_second_press_none() {
         | temper_client_protocol_wire::v1::Request::FollowAct(_)
         | temper_client_protocol_wire::v1::Request::TryAccount(_)
         | temper_client_protocol_wire::v1::Request::Dismiss(_)
+        | temper_client_protocol_wire::v1::Request::Checkpoint
         | temper_client_protocol_wire::v1::Request::EndPlayground
         | temper_client_protocol_wire::v1::Request::Reachable(_)
         | temper_client_protocol_wire::v1::Request::Replace(_)
@@ -236,6 +237,7 @@ fn an_adoption_is_the_forges_family_bytes_under_its_asker() {
         | temper_client_protocol_wire::v1::Request::FollowAct(_)
         | temper_client_protocol_wire::v1::Request::TryAccount(_)
         | temper_client_protocol_wire::v1::Request::Dismiss(_)
+        | temper_client_protocol_wire::v1::Request::Checkpoint
         | temper_client_protocol_wire::v1::Request::EndPlayground
         | temper_client_protocol_wire::v1::Request::Reachable(_)
         | temper_client_protocol_wire::v1::Request::Replace(_)
@@ -393,6 +395,7 @@ fn version_refused() -> (crate::Domain, jig_client::Key) {
             | link::Request::Dropped
             | link::Request::Exchange { .. }
             | link::Request::NotKept { .. }
+            | link::Request::NotWritten { .. }
             | link::Request::ServiceCredential { .. }
             | link::Request::OpenStream { .. }
             | link::Request::Signing { .. }
@@ -401,6 +404,7 @@ fn version_refused() -> (crate::Domain, jig_client::Key) {
             | link::Request::FamilyDelivery { .. }
             | link::Request::Ended { .. }
             | link::Request::Hello { family: None, .. }
+            | link::Request::ReadAgain { .. }
             | link::Request::Read { .. }
             | link::Request::Fact { .. } => panic!("version refusal's typed answer: {request:?}"),
         };

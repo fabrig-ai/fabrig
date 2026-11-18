@@ -32,4 +32,5 @@ pub struct TaskLine {
     pub delegates_total: u32,
     pub held_below: u32,
     pub conversation: Option<ConversationRead>,
+    pub parts: skein_lib::List<super::RowPart>,
 }

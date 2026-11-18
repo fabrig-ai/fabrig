@@ -48,12 +48,10 @@ impl Original {
                 forms.push(form);
             }
         }
-        if let Ok(text) = std::str::from_utf8(bytes) {
-            let debug = format!("{text:?}");
-            let form = Box::from(&debug.as_bytes()[1..debug.len() - 1]);
-            if !forms.contains(&form) {
-                forms.push(form);
-            }
+        if let Some(form) = debug(bytes)
+            && !forms.contains(&form)
+        {
+            forms.push(form);
         }
         Self { kind, len: bytes.len(), forms, digests: vec![(digest(bytes), digest(&vec![b'x'; bytes.len()]))] }
     }
@@ -145,7 +143,7 @@ pub fn placeholder(value: &[u8]) -> Box<[u8]> {
     result.into()
 }
 
-fn percent(bytes: &[u8], lower: bool) -> Box<[u8]> {
+pub(crate) fn percent(bytes: &[u8], lower: bool) -> Box<[u8]> {
     let hex = if lower { b"0123456789abcdef" } else { b"0123456789ABCDEF" };
     let mut out = Vec::new();
     for &byte in bytes {
@@ -158,8 +156,14 @@ fn percent(bytes: &[u8], lower: bool) -> Box<[u8]> {
     out.into()
 }
 
+pub(crate) fn debug(bytes: &[u8]) -> Option<Box<[u8]>> {
+    let text = std::str::from_utf8(bytes).ok()?;
+    let debug = format!("{text:?}");
+    Some(debug.as_bytes()[1..debug.len() - 1].into())
+}
+
 // The four dom::print escapes (temper/docs/design/client/web/journeys.md, 5.3).
-fn html(bytes: &[u8]) -> Box<[u8]> {
+pub(crate) fn html(bytes: &[u8]) -> Box<[u8]> {
     let mut out = Vec::new();
     for &byte in bytes {
         match byte {

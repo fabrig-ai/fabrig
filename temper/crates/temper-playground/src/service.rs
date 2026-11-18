@@ -137,6 +137,7 @@ impl<H: Harness> Host for ServiceState<H> {
         self.observer.state_digest(&self.service)
     }
     fn drain(&mut self) {
+        place_io(&mut self.service, &mut self.parameters.disk.borrow_mut());
         while let Some(read) = self.service.take_handover_read() {
             let answer = self
                 .observer
@@ -268,5 +269,37 @@ fn errno(why: skein_fake_machine::Refusal) -> i32 {
         Refusal::NameTooLong => 36,
         Refusal::Escape => 18,
         Refusal::NotAFile | Refusal::Beneath => 22,
+    }
+}
+
+fn place_io(service: &mut temper_service::Service, disk: &mut skein_fake_machine::Machine) {
+    use temper_service::PlaceIo;
+    let engine = service.engine_component();
+    while let Some(io) = engine.take_place_io() {
+        match io {
+            PlaceIo::Choose { request } => engine.place_port(request, Some(crate::documents::FORGE.port())),
+            PlaceIo::Write { forge, setup, directories } => {
+                let path = directories
+                    .join(
+                        jig_protocol_config::Directory::Data,
+                        &temper_forge_setup::setup_file::path(forge, setup.kind()),
+                    )
+                    .expect("world setup path");
+                crate::machine::lay_handover(disk, &path, &temper_forge_setup::setup_file::encode(&setup));
+                engine.place_file(forge, Ok(*setup));
+            }
+            PlaceIo::Read { forge, kind, directories } => {
+                let path = directories
+                    .join(jig_protocol_config::Directory::Data, &temper_forge_setup::setup_file::path(forge, kind))
+                    .expect("world setup path");
+                let read = temper_service::HandoverRead { forge, run: skein_lib::Token::new(0), path, max: 65536 };
+                let file = read_handover(disk, &read)
+                    .ok()
+                    .flatten()
+                    .and_then(|bytes| temper_forge_setup::setup_file::decode(bytes.expose(), &directories).ok())
+                    .ok_or_else(|| b"world setup file unreadable".as_slice().into());
+                engine.place_file(forge, file);
+            }
+        }
     }
 }

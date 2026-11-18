@@ -1,5 +1,5 @@
 //! Rehearsal and rollback on the one-process world's disk, service and configuration.
-use super::{CURRENT_SETS, JOB, first_sets, maps::Maps};
+use super::{CURRENT_SETS, JOBS, first_sets, maps::Maps};
 use crate::{fixtures, referee, stories, world};
 use jig_protocol_store::{Owner, OwnerSets};
 use skein_fake_machine::{How, Is, Machine, Opened};
@@ -242,8 +242,8 @@ pub fn opened_worker_rehearsal() {
     eprintln!("{report}");
     assert_eq!(code, 0, "{report}");
     assert!(patches.is_empty(), "an equal-level rehearsal patches nothing");
-    // fixtures::document names worker-a; the world starts at 2026-01-01 UTC.
-    assert!(report.contains("temper-box upgrade: worker worker-a may stay: opened 2026-01-01T00:00:00Z\n"), "{report}");
+    // fixtures::document names local; the world starts at 2026-01-01 UTC.
+    assert!(report.contains("temper-box upgrade: worker local may stay: opened 2026-01-01T00:00:00Z\n"), "{report}");
     assert!(report.ends_with("temper-box upgrade: workers may stay: yes\n"), "{report}");
     assert_eq!(image(&mut disk), before, "rehearsal leaves the stopped deployment unchanged");
 }
@@ -255,13 +255,16 @@ pub fn rehearsal_then_start_and_back() {
     let before = Maps::read(&mut disk);
     let (report, code, progress) = drive(&mut disk, &document, CURRENT_SETS, Until::Check);
     assert_eq!(code, 0, "{report}");
-    let [temper_engine_service::Note::Ran { of, job, rows, commits, counts }] = progress.as_slice() else {
-        panic!("only the pending job runs: {progress:?}")
-    };
-    assert_eq!((*of, job.as_ref()), (Owner::Application, JOB));
-    assert!(*commits > 0, "the job's end is committed");
-    assert!(counts.iter().all(|count| count.count == 0), "no deleted repository in this story");
-    assert!(report.contains(&format!("ran temper {JOB}: {rows} rows in {commits} commits")), "{report}");
+    assert_eq!(progress.len(), JOBS.len(), "each pending job runs");
+    for (note, expected) in progress.iter().zip(JOBS) {
+        let temper_engine_service::Note::Ran { of, job, rows, commits, counts } = note else {
+            panic!("job progress: {note:?}")
+        };
+        assert_eq!((*of, job.as_ref()), (Owner::Application, expected));
+        assert!(*commits > 0, "the job's end is committed");
+        assert!(counts.iter().all(|count| count.count == 0), "no long id or deleted repository in this story");
+        assert!(report.contains(&format!("ran temper {expected}: {rows} rows in {commits} commits")), "{report}");
+    }
     assert!(
         report.contains("registry commit, jobs and restores pass; what follows the switch is not rehearsed"),
         "{report}"
@@ -293,6 +296,11 @@ pub fn golden(directory: &Path) {
     let mut document: serde_json::Value =
         serde_json::from_slice(&std::fs::read(directory.join("configuration.json")).expect("golden configuration"))
             .expect("golden JSON");
+    // Workers are admitted through settings, not the document (protocol/cluster.md, 3).
+    document["engine"]["hosts"].as_object_mut().expect("kept hosts").remove("workers");
+    document["workers"][0]["name"] = "local".into();
+    document["engine"]["limits"]["overrides"]["fleet.slots"] = 4.into();
+    crate::golden::bridge_kept_profiles(&mut document);
     let sections = document.pointer_mut("/engine/limits/overrides/brief.sections").expect("brief sections");
     *sections = sections.as_u64().expect("count").max(u64::from(jig_domain_core::CORE_SECTIONS)).into();
     let temper_service::stock::Given::Own { jig, .. } = temper_playground::documents::given(&document) else {

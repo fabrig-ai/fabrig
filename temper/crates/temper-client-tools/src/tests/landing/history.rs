@@ -227,6 +227,71 @@ fn a_gone_history_cursor_refuses_in_text_and_json_and_names_the_read_again() {
     }
 }
 #[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_types,
+    clippy::disallowed_methods,
+    reason = "ordinary Rust render expectations compare complete text and JSON fields"
+)]
+fn update_history_prints_the_named_forge_base_and_json_keeps_its_absence() {
+    for forge_base in [Some([0xab; 32]), None] {
+        for (what, kind, field, word) in [
+            (
+                w::HistoryWhat::Update(
+                    w::HistoryUpdate::new(
+                        &w::CEILINGS,
+                        w::HistoryUpdateParts { style: w::HistoryUpdateStyle::Rebase, forge_base },
+                    )
+                    .unwrap(),
+                ),
+                "update",
+                "style",
+                "rebase",
+            ),
+            (
+                w::HistoryWhat::Updated(
+                    w::HistoryUpdated::new(
+                        &w::CEILINGS,
+                        w::HistoryUpdatedParts { outcome: w::HistoryUpdateOutcome::Failed, forge_base },
+                    )
+                    .unwrap(),
+                ),
+                "updated",
+                "outcome",
+                "failed",
+            ),
+        ] {
+            for json in [false, true] {
+                let mut root = f::signed_in(f::PARTY);
+                let call = root.submit_prepared(f::call(&["landing", "history", "--project", "1"]), json, None);
+                serve(&mut root, call, page(List::from_boxed(Box::new([event(1, what.clone())])), None));
+                let answer = root.answer(call).unwrap();
+                assert_eq!(answer.status, 0);
+                if json {
+                    let value: serde_json::Value = serde_json::from_slice(&answer.stdout).unwrap();
+                    let fields = &value["events"][0]["what"];
+                    assert_eq!(fields["kind"], kind);
+                    assert_eq!(fields[field], word);
+                    let expected = if forge_base.is_some() {
+                        serde_json::Value::String("ab".repeat(32))
+                    } else {
+                        serde_json::Value::Null
+                    };
+                    assert_eq!(fields.get("forge_base"), Some(&expected));
+                } else {
+                    let hash = if forge_base.is_some() { " forge_base abababababab" } else { "" };
+                    let expected = format!(
+                        "1 1970-01-01 00:01 UTC {kind} change 51 head 111111111111 base 222222222222 {field} {word}{hash}\n"
+                    );
+                    let text = String::from_utf8_lossy(&answer.stdout);
+                    assert!(text.lines().any(|line| line == expected.trim_end()), "{text}");
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn history_busy_retries_only_within_the_tools_wait() {
     let mut root = f::signed_in(f::PARTY);
     let call = root.submit(&["landing", "history", "--project", "1"]);

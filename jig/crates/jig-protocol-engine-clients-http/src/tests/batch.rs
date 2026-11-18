@@ -175,12 +175,39 @@ fn a_stream_takes_only_the_replaces_query_as_lowercase_hex() {
         if let Some(replaces) = name {
             assert_eq!(
                 *fixtures::component(&mut out),
-                [kit::FromTransport::StreamOpen { stream: fixtures::EXCHANGE, credential: None, replaces }]
+                [kit::FromTransport::StreamOpen {
+                    stream: fixtures::EXCHANGE,
+                    credential: None,
+                    replaces,
+                    version: None
+                }]
             );
         } else {
             let (status, bytes, _) = fixtures::answered(&mut mount, &mut out, fixtures::EXCHANGE);
-            assert_eq!((status, bytes.len()), (404, 0), "query {query:?}");
+            assert_eq!((status, bytes.len()), (400, 0), "query {query:?}");
             assert!(fixtures::component(&mut out).is_empty());
         }
+    }
+}
+
+#[test]
+fn a_versioned_stream_replaces_its_predecessor_in_the_same_opening() {
+    for query in [
+        b"?version=32&replaces=00112233445566778899aabbccddeeff".as_slice(),
+        b"?replaces=00112233445566778899aabbccddeeff&version=32".as_slice(),
+    ] {
+        let mut mount = fixtures::mount();
+        let mut out = Queue::with_capacity(32);
+        let target = skein_lib::bytes::concat(&[b"/jig/v1/stream", query]);
+        fixtures::call(&mut mount, &mut out, Method::Get, &target, &[], &[]);
+        assert_eq!(
+            *fixtures::component(&mut out),
+            [kit::FromTransport::StreamOpen {
+                stream: fixtures::EXCHANGE,
+                credential: None,
+                version: Some(32),
+                replaces: Some([0, 17, 34, 51, 68, 85, 102, 119, 136, 153, 170, 187, 204, 221, 238, 255]),
+            }],
+        );
     }
 }

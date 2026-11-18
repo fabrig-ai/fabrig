@@ -6,7 +6,7 @@ use std::{os::unix::ffi::OsStrExt, path::Path};
 
 /// The hosted temper executable's relay entry point, as main.rs dispatches it.
 pub(crate) const RELAY: &[u8] = b"/real-loop/temper";
-pub(crate) const PROGRAM: &[u8] = b"/real-loop/claude";
+pub(crate) const PROGRAM: &[u8] = b"/usr/bin/true";
 
 // Runtime provisioning creates the direct key account before a program is declared.
 pub const ACCOUNT: u64 = 2;

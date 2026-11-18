@@ -256,6 +256,20 @@ project's turn, the change sends no merge: its landing's merge is the
 landing's (`../../landing.md`, section 3), and a candidate already in
 the branch stays the landing's to judge (8).
 
+**A write that finds the outbox full waits** (2026-11-16). Each of the
+change's writes below (its opening, a reopening, a branch made again,
+an update, a prepare, a re-run, a follow's check and its merge) that
+finds no room in the forge's outbox waits for it in the outbox's line,
+in the order the writes found it full (`../room.md`, 3): never a hold,
+and no write a person must release. It waits at the step its decision
+started from, saving its place alone, holding no entry number and
+polling nothing. Asked once room frees, it reads its facts afresh and
+decides again, sending what that decision says, which may differ from
+what waited; a decision for no write leaves the line. Its wait counts
+against no allowance and no stall, keeps its place across a restart,
+and ends with a cancel (`../room.md`, 4). Its panel says it waits
+(section 5).
+
 Under its project's queue, the default. Under its project's turn, a
 change has no checking step, and once ready its landing prepares,
 proves and lands it (`../../landing.md`, section 3).
@@ -573,6 +587,40 @@ comment saying why, and its branch deleted, its commits still readable
 under the closed pull request. A change whose merge landed meanwhile
 ends landed, not cancelled.
 
+**A pull request already closed counts as closed** (2026-11-17). One the
+forge shows merged though temper recorded no merge of it, merged by
+another hand or by the forge itself, or closed by hand, takes the close
+as made: the forge's `Close` answers `Done` for a closed item (skein's
+`forge/forgejo.md`, 1.4, *A close of a closed item*). So a change that
+ends cancelled, or with no change (2), while its pull request shows
+merged ends as its ending says, its branch deleted, and is never held
+for the close; a change held for that refusal before ends at its next
+release. Its ending stays its own: a merge temper did not record is
+not its landing.
+
+**One temper saw closed takes no close** (2026-11-17). The release
+reads temper's own record of the pull request, the state its last poll
+kept, and reads nothing afresh: where that record shows it closed,
+merged or not, the release sends neither its comment nor its close and
+counts the close as made, as a removed forge does (`../adoption.md`, 1).
+A pull request last seen open, or never seen, is closed as above, and a
+close the forge refuses while temper's record has meanwhile come to show
+it closed counts as made too; a refused close of one still seen open
+holds, as any failed effect. The rest of its release is any ended
+change's, and nothing the merge leaves holds it: the head branch of a
+merged pull request is the forge's to keep or delete, so a branch the
+forge no longer has counts as deleted, and the release deletes or
+rewrites nothing else to end.
+
+**A held release takes the ending asked again** (2026-11-17). A release
+keeps its ending, but that a cancel takes over any other. One held for
+a failed effect, asked again by the same root with another ending, as
+when its parent fails after its cancel, starts again under the ending
+asked: a failed ending closes no pull request and gives the change's
+own branch to its root, so nothing is deleted that the first ending
+had not. A release not held is still refused another ending than its
+own, but for a cancel.
+
 **Ended, it is frozen** (2026-11-15). Its closed pull request stays its
 own: a change made after it on the same branch, at the same head or
 not, opens its own (2, step 2), and never takes it. From its end, its
@@ -612,6 +660,10 @@ What the connector makes of a change for the client's panel
   remains evidence at its exact head; a no-CI landing never makes it a
   passing verdict. The requirement is read from the held rules when the
   panel is made, including after restoration.
+- **Its wait for the outbox's room:** none, or `OutboxRoom` while its
+  record holds a place in the outbox's line (`../room.md`, 7), cleared
+  by the save that admits it or takes it out of the line. The client
+  says `Waiting for room in the forge outbox.` while it is not held.
 - **Its place in its queue** is computed as the document is made,
   in `../queues.md`'s order among the changes queued or first in its
   landing branch at the core's time: its place from 1, and the tasks

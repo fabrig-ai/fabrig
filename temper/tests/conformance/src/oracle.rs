@@ -39,7 +39,7 @@ fn read(world: &mut Harness<Temper>, sign_in: u64, read: reads::Read) -> Result<
     world.send(Event::Root(Input::Party(PartyInput::Read {
         reply_to: ReplyTo::new(Token::new(REPLY)),
         sign_in,
-        read,
+        read: Box::new(read),
     })));
     world.drain()?;
     Ok(world.peers.oracle.reads.remove(&REPLY).expect("oracle read answered through the harness"))

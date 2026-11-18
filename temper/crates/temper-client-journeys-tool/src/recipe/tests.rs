@@ -260,10 +260,10 @@ fn committed_qa_recipes_read_chain_and_end_on_their_own_checks() {
     assert_eq!(turn.kind(), Kind::Deployment);
     assert_eq!(turn.names().collect::<Vec<_>>(), ["turn-landing"]);
     let recipe = turn.recipes.first().expect("deployment root");
-    assert_eq!(recipe.config.len(), 5);
+    assert_eq!(recipe.config.len(), 4);
     assert_eq!(
         recipe.check.iter().map(|line| line.line.print()).collect::<Vec<_>>(),
-        [b"ctl project show Hello".as_slice(), b"ctl forge list", b"ctl forge repositories 1"]
+        [b"ctl project show Hello".as_slice(), b"ctl forge list --until connected:1", b"ctl forge repositories 1"]
     );
 
     let chain = Chain::read(&setups, "project-landing").expect("project-landing chain");
@@ -382,9 +382,9 @@ fn turn_landing_clients_plans_a_full_deployment_walk_from_the_turn_landing_copy(
     assert_eq!(
         shown(chain.lines(Some("turn-landing")).expect("from turn-landing copy")),
         [
-            "turn-landing:8 ctl project show Hello",
-            "turn-landing:9 ctl forge list",
-            "turn-landing:10 ctl forge repositories 1",
+            "turn-landing:9 ctl project show Hello",
+            "turn-landing:10 ctl forge list --until connected:1",
+            "turn-landing:11 ctl forge repositories 1",
             "turn-landing-clients:3 web reload \"/projects/1\"",
             "turn-landing-clients:4 web see \"work/hello is in Hello\"",
             "turn-landing-clients:5 tui see \"Ask temper\"",
@@ -852,7 +852,7 @@ fn walk_success_and_session_failures_keep_their_statuses() {
     }
 }
 fn config(files: &mut Files, name: &str) {
-    for document in ["engine.json", "worker.json", "agent.json", "forgejo.json", "model.json"] {
+    for document in ["engine.json", "worker.json", "forgejo.json", "model.json"] {
         put(files, name, &format!("config/{document}"), b"opaque, not parsed here");
     }
 }
@@ -863,14 +863,14 @@ fn deployment_chain() -> Files {
 }
 
 #[test]
-fn deployment_config_requires_exactly_five_bounded_documents_without_parsing() {
+fn deployment_config_requires_exactly_four_bounded_documents_without_parsing() {
     let mut files = deployment_chain();
     put(&mut files, "root", "config/engine.json", &vec![b'x'; 262_144]);
     let chain = read(&files, "child").expect("256 KiB inclusive, opaque documents");
     assert_eq!(chain.kind(), Kind::Deployment);
     assert_eq!(chain.names().collect::<Vec<_>>(), ["root", "child"]);
     assert_eq!(chain.config_dir(Path::new("/recipes")), Some("/recipes/root/config".into()));
-    for document in ["engine.json", "worker.json", "agent.json", "forgejo.json", "model.json"] {
+    for document in ["engine.json", "worker.json", "forgejo.json", "model.json"] {
         let mut missing = files.clone();
         let path = format!("config/{document}");
         missing.get_mut("root").expect("root").remove(OsStr::new(&path));
@@ -964,7 +964,7 @@ fn deployment_hash_frames_config_after_files_in_name_byte_order() {
     let files = deployment_chain();
     let mut chain = read(&files, "child").expect("deployment");
     let hash = chain.hash();
-    assert_eq!(hex(hash), "46a30834bbe460c47946128d8329ed1e1dc8bf638501dc7fd23adfb24d2f0253");
+    assert_eq!(hex(hash), "b3252aab163faf658eb37cfb6e0bce5997a544a160467e63273fdd90cf3019bd");
     let mut changed = files.clone();
     put(&mut changed, "root", "config/engine.json", b"Opaque, not parsed here");
     assert_ne!(read(&changed, "child").expect("one changed byte").hash(), hash);
@@ -1268,4 +1268,24 @@ fn recipe_keeps_a_push_line_and_its_files_for_a_ctl_walk() {
     assert!(chain.lines(None).expect("walk lines").iter().any(|line| line.line.as_ref() == source.as_bytes()));
     files.get_mut("pushed").expect("recipe").remove(OsStr::new("files/a.txt"));
     assert!(read(&files, "pushed").map(|_| ()).expect_err("missing push file").why.contains("missing"));
+}
+
+#[test]
+fn settings_files_belong_to_their_recipe_and_its_hash() {
+    let mut files = Files::new();
+    let source = b"recipe 1\nctl settings apply landing.json --against 1 --key landing\ncheck\nctl settings show\n";
+    put(&mut files, "root", "recipe", source);
+    let refusal = read(&files, "root").expect_err("settings input missing");
+    assert!(refusal.to_string().contains("files/landing.json"), "{refusal}");
+    put(&mut files, "root", "files/landing.json", b"first settings");
+    let first = read(&files, "root").expect("settings file belongs to the recipe");
+    put(&mut files, "root", "files/landing.json", b"changed settings");
+    assert_ne!(first.hash(), read(&files, "root").expect("changed settings").hash());
+    put(&mut files, "child", "recipe", b"recipe 1\nafter \"root\"\nctl settings propose landing.json --against 1 --key proposal\ncheck\nctl settings show\n");
+    assert!(
+        read(&files, "child").expect_err("parent's file is not child's").to_string().contains("files/landing.json")
+    );
+    put(&mut files, "child", "files/landing.json", b"child settings");
+    let chain = read(&files, "child").expect("each recipe has its file");
+    assert_ne!(chain.recipes[0].files, chain.recipes[1].files);
 }

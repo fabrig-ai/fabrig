@@ -19,7 +19,13 @@ pub fn first_owner() -> Identity {
 #[must_use]
 pub fn settings() -> Settings {
     let mut served = List::with_capacity(1);
-    served.push(Served { family: None, first: 28, last: 28 }).expect("one range");
+    served
+        .push(Served {
+            family: None,
+            first: jig_client_protocol_wire::VERSION,
+            last: jig_client_protocol_wire::VERSION,
+        })
+        .expect("one range");
     let mut providers = List::with_capacity(1);
     providers.push(APPLICATION_PROVIDER).expect("application provider");
     Settings {
@@ -33,7 +39,7 @@ pub fn settings() -> Settings {
         local_secret: None,
         approval: false,
         heartbeat: Duration::from_secs(5),
-        rows: jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.documents.rows,
+        rows: jig_protocol_config_fixtures::small().core.documents.rows,
         served,
         providers,
         seed: Secret::new(Box::new([7; 32])),
@@ -72,7 +78,7 @@ pub fn limits() -> Limits {
         reads_per_client: 32,
         openings_per_client: 31,
         message_bytes: MESSAGE_BYTES,
-        wire: jig_client_protocol_wire::v28::CEILINGS,
+        wire: jig_client_protocol_wire::CEILINGS,
         link_span: Duration::from_secs(300),
     }
 }
@@ -86,8 +92,8 @@ pub fn expires() -> skein_lib::Wall {
 }
 
 #[must_use]
-pub fn me_subject() -> jig_client_protocol_wire::v28::Subject {
-    jig_client_protocol_wire::v28::Subject::Me
+pub fn me_subject() -> jig_client_protocol_wire::Subject {
+    jig_client_protocol_wire::Subject::Me
 }
 #[must_use]
 pub fn me_document(needs: u32) -> jig_domain_core::documents::Document {
@@ -131,16 +137,13 @@ pub fn signed_in(peer: &mut Peer) -> Box<[u8]> {
     out.finish()
 }
 #[must_use]
-pub fn window(rows: u32) -> jig_client_protocol_wire::v28::Window {
-    use jig_client_protocol_wire::v28 as w;
+pub fn window(rows: u32) -> jig_client_protocol_wire::Window {
+    use jig_client_protocol_wire as w;
     w::Window::new(&limits().wire, w::WindowParts { rows, after: None }).expect("bounded window")
 }
 #[must_use]
-pub fn family_read(
-    scope: jig_client_protocol_wire::v28::Scope,
-    window: jig_client_protocol_wire::v28::Window,
-) -> Box<[u8]> {
-    use jig_client_protocol_wire::v28 as w;
+pub fn family_read(scope: jig_client_protocol_wire::Scope, window: jig_client_protocol_wire::Window) -> Box<[u8]> {
+    use jig_client_protocol_wire as w;
     let record = w::FamilyRecord::new(&limits().wire, w::FamilyRecordParts { scope, window, record: Box::new([255]) })
         .expect("family record");
     let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));
@@ -182,7 +185,7 @@ pub fn address() -> skein_io::Addr {
 }
 #[must_use]
 pub fn server_limits() -> jig_test_service::server::Limits {
-    let mut limits = jig_test_service::limits::profile_limits(jig_protocol_config::Profile::Small).server;
+    let mut limits = jig_test_service::limits::small(&jig_protocol_config_fixtures::small()).server;
     limits.connections = 8;
     limits.http = server_http();
     limits

@@ -204,7 +204,11 @@ temper-client-journeys-tool     crates/temper-client-journeys-tool, run by bin/t
 - **`temper-client-shell-terminal`** holds, as modules:
   - `client`: the native client, `NativeClient`: temper's client root,
     its view and `jig-client-shell-native`'s transport, and when
-    `jig-client-shell-native` keeps the credential's file (section 4);
+    `jig-client-shell-native` keeps the credential's file (section 4).
+    What its tests and the process tier's person wait on it shows read-only:
+    `pending`, its readiness counts and the view's revision, and
+    `address`, the address it last applied, by its own `go` or a root's
+    `Show` (`view.md`, 3, *A new project*);
   - `route`: each of the root's requests to the native shell, the host
     or one of temper's lines;
   - `terminal`: skein's text shell's terminal with temper's settings,
@@ -369,6 +373,21 @@ and `jig-client` opens none on the engine until it is signed in (jig's
 `client/domain/client/README.md`, section 9), so no stream leaves without the
 credential.
 
+- **`me` comes with the stream** (jig's `client/domain/client/watches.md`,
+  2): the stream's hello brings it, and the link is live with it, so
+  what waits for `me` (the templates' labels, the party, the projects
+  it lists) is ready when the stream is, and is asked in the step that
+  hears the hello.
+- **What names no party waits for no `me`.** The party's own and the
+  deployment's watches and reads (jig's
+  `client/domain/contract/README.md`, 5.5): the forge side's
+  `dismissed`, `away`, `trials`, `approvals`, `devices` and `forges`,
+  jig's `settings`, and the `deployment`, `playground` and program
+  environment's reads, are asked once the link is live, never after a
+  value of `me`'s, so they leave in the step that hears the hello,
+  beside the page's. A watch or read that needs what `me` says (a
+  deployment role, a template's label, the party's number) still asks
+  in that step, from the hello's `me`.
 - **Another party's kept work** stays parked and is not shown (jig's
   `client/domain/client/README.md`, section 8); the terminal says so in a line
   of its own (`line.md`, 6).
@@ -542,8 +561,16 @@ amendment`), and sends it, as `Amend` or `Propose`, as 3.6 says.
   | `words(Text)` | `spec`: the base's, with its `words` replaced |
   | `dependencies(List<u64>)` | `dependencies`: the whole list |
   | `llm(LlmChoice)` | `llm`: the whole choice |
+  | `address(AddressChange)` | `addressed`: the person task's new address and the person revision it names |
 
-  An edit equal to the base is no change. A deadline needs the base's
+  An edit equal to the base is no change, but for an address, which is
+  always one: re-addressed to where it waits now, a person task is let
+  go by a party who took it (jig's `domain/tasks/changes.md`).
+  `amend::address(&c::Task, c::PersonAddress) -> Option<c::AddressChange>`
+  makes the change a read allows: the address at the document's
+  `person_revision`, and none for a document without one, which is no
+  person task; every caller that sends an address, a draft's or one
+  named whole, makes it so. A deadline needs the base's
   whole authority and words its whole spec: where the document cut it,
   the edit answers `Cut::Authority` or `Cut::Spec`, and the draft is
   unchanged, so a page shows the field read only and `ctl` says so.
@@ -555,7 +582,8 @@ amendment`), and sends it, as `Amend` or `Propose`, as 3.6 says.
   without a change; else `Drafted { revision: Option<Revision>,
   change: c::Amendment }`, the revision absent exactly when the change
   is a tracked task's priority alone (jig's `domain/tasks/changes.md`
-  ), and the base's otherwise.
+  ), and the base's otherwise, an address among the changes that name
+  it.
 - **What is whose.** The editor holds the rules of a draft (what
   each edit keeps, what is cut, when a revision is named). The words
   and fields are the caller's: a page's form, `ctl`'s flags and its

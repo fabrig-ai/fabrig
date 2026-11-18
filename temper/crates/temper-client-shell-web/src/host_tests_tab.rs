@@ -1,7 +1,8 @@
 //! A press opens the sign-in's tab; its answer points it while the page holds.
 use super::*;
-use jig_client_protocol_wire::{VERSION, v28 as w};
-use skein_lib::{Duration, Reader};
+use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::VERSION;
+use skein_lib::Duration;
 use temper_client_protocol_wire as wire;
 
 fn exchange(host: &mut Host) -> (u32, Box<[u8]>) {
@@ -43,35 +44,14 @@ fn linked_at(path: &[u8], records: Vec<skein_ui_web::store::Record>) -> Host {
     }
     streamed(
         &mut host,
-        &w::StreamEvent::Hello(
+        &jig_client_test_records::opened(
             w::Hello::new(&w::CEILINGS, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
                 .expect("hello"),
+            jig_client_test_records::frame_record(),
         ),
     );
-    let watch = host
-        .requests()
-        .into_iter()
-        .find_map(|request| {
-            let Asked::Exchange { id, call, .. } = request else { return None };
-            let open = openings(&call.path, &call.body).into_iter().find(|open| {
-                open.subject().owner() == &w::Owner::Jig
-                    && w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).expect("subject")
-                        == w::Subject::Me
-            })?;
-            if call.path.as_ref() == b"/jig/v1/batch" {
-                batch_admitted(&mut host, id, &call.body);
-            } else {
-                let answer = w::OpenAnswer::Admitted;
-                host.heard(Heard::Answered {
-                    exchange: id,
-                    status: 200,
-                    body: encoded(answer.measure(), |writer| answer.encode(writer)),
-                    headers: Vec::new(),
-                });
-            }
-            Some(open.watch())
-        })
-        .expect("me watch");
+    let watch = 0;
+    admit_watches(&mut host);
     host.client(jig_client::Event::Stored);
     host.requests();
     let mut me = jig_client_test_records::frame_record().into_parts();
@@ -117,9 +97,11 @@ fn admit_watches(host: &mut Host) {
     loop {
         let mut admitted = false;
         for request in host.requests() {
-            if let Asked::Exchange { id, call, .. } = request
-                && call.path.as_ref() == b"/jig/v1/watch"
-            {
+            let Asked::Exchange { id, call, .. } = request else { continue };
+            if call.path.as_ref() == b"/jig/v1/batch" {
+                batch_admitted(host, id, &call.body);
+                admitted = true;
+            } else if call.path.as_ref() == b"/jig/v1/watch" {
                 let answer = w::OpenAnswer::Admitted;
                 host.heard(Heard::Answered {
                     exchange: id,

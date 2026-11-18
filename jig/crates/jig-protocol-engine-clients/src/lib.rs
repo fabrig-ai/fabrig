@@ -4,7 +4,7 @@
 #![forbid(unsafe_code)]
 extern crate alloc;
 
-pub use jig_protocol_engine_clients_codec::cursor_v1;
+pub use jig_protocol_engine_clients_codec::cursor_v2;
 pub use jig_protocol_transcript::Private;
 pub mod boundary;
 mod component;

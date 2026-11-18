@@ -91,9 +91,9 @@ fn a_refused_or_failed_batch_is_lost_once() {
 #[test]
 fn a_stream_opening_names_the_stream_it_replaces() {
     let name = [0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10];
-    let call = stream(&mapping(), None, Some(name));
+    let call = stream(&mapping(), None, 32, Some(name));
     assert_eq!(call.method, Method::Get);
-    assert_eq!(call.path.as_ref(), b"/jig/v1/stream?replaces=0123456789abcdeffedcba9876543210");
+    assert_eq!(call.path.as_ref(), b"/jig/v1/stream?version=32&replaces=0123456789abcdeffedcba9876543210");
     assert!(call.body.is_empty());
-    assert_eq!(stream(&mapping(), None, None).path.as_ref(), b"/jig/v1/stream");
+    assert_eq!(stream(&mapping(), None, 32, None).path.as_ref(), b"/jig/v1/stream?version=32");
 }

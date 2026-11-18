@@ -26,7 +26,9 @@ impl Harness {
         match self.out.iter().last().expect("one exchange") {
             Request::Exchange { exchange, .. } => *exchange,
             other @ (Request::Answer { .. }
+            | Request::NotWritten { .. }
             | Request::NotKept { .. }
+            | Request::ReadAgain { .. }
             | Request::Read { .. }
             | Request::OpenStream { .. }
             | Request::CloseStream
@@ -66,9 +68,11 @@ impl Harness {
         for request in &self.out {
             match request {
                 Request::Read { read, result } if *read == READ => return Some(result),
-                Request::Read { .. }
+                Request::ReadAgain { .. }
+                | Request::Read { .. }
                 | Request::Exchange { .. }
                 | Request::Answer { .. }
+                | Request::NotWritten { .. }
                 | Request::NotKept { .. }
                 | Request::OpenStream { .. }
                 | Request::CloseStream
@@ -95,9 +99,11 @@ impl Harness {
         for request in &self.out {
             match request {
                 Request::Read { read, .. } if *read == READ => count = count.saturating_add(1),
-                Request::Read { .. }
+                Request::ReadAgain { .. }
+                | Request::Read { .. }
                 | Request::Exchange { .. }
                 | Request::Answer { .. }
+                | Request::NotWritten { .. }
                 | Request::NotKept { .. }
                 | Request::OpenStream { .. }
                 | Request::CloseStream
@@ -121,6 +127,19 @@ impl Harness {
     }
     pub fn read_malformed(&self) {
         assert_eq!(self.read_answered(), Some(&Readout::Jig(c::ReadResult::None(c::ReadNone::Malformed))));
+    }
+    pub fn retry_lost_read(&mut self) -> Token {
+        let mut retry = None;
+        for request in &self.out {
+            if let Request::ReadAgain { read, what } = request {
+                assert!(retry.replace((*read, what.clone())).is_none());
+            }
+        }
+        let (read, what) = retry.expect("a current read may be retried once");
+        self.clear();
+        self.link.step(Time::ZERO, Event::ReadAgain { read, what }, &mut self.out);
+        let Some(Request::Exchange { exchange, .. }) = self.out.iter().last() else { panic!("retried read exchange") };
+        *exchange
     }
     pub fn read_unreachable(&self) {
         assert_eq!(self.read_answered(), Some(&Readout::Jig(c::ReadResult::None(c::ReadNone::Unreachable))));

@@ -27,3 +27,5 @@ mod defaults;
 mod seed_policy;
 
 mod public;
+
+mod fixed;

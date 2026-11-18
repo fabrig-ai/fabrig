@@ -58,8 +58,15 @@ impl Run {
             .iter()
             .filter_map(|(read, position)| Some((*read, self.observed_at.get(*position).copied().flatten()?)))
             .collect();
-        Observed { documents, observed_at, told: self.told.clone(), commands: Vec::new(), kit: self.kit.clone() }
-            .with_commands(&self.steps)
+        Observed {
+            activity_aliases: std::collections::BTreeSet::new(),
+            documents,
+            observed_at,
+            told: self.told.clone(),
+            commands: Vec::new(),
+            kit: self.kit.clone(),
+        }
+        .with_commands(&self.steps)
     }
     #[must_use]
     pub fn first_placed(&self) -> &BTreeMap<u64, String> {
@@ -179,7 +186,6 @@ fn process_settings(value: &mut Value) -> Value {
     value.as_object_mut().expect("deployment").remove("world_settings");
     // Settings and the project are established by the owner after sign-in.
     // Fixture records supply credentials without adopting a project before sign-in.
-    value["engine"]["projects"] = json!([]);
     for member in ["charters", "templates", "policies", "rules"] {
         value["engine"].as_object_mut().expect("engine").remove(member);
     }
@@ -553,7 +559,6 @@ impl Judge {
         value["engine"]["llm"]["endpoints"][0]["address"] = json!({"socket":llm.to_string()});
         agent["endpoints"][0]["address"] = llm.to_string().into();
         value["workers"] = ws["workers"].clone();
-        value["application"]["workers"] = ws["application"]["workers"].clone();
         base(&mut value);
         let forge = self
             .members
@@ -577,23 +582,23 @@ impl Judge {
         // accounts' program hosts hold documents.lines rows (jig documents/programs.rs `hosts`);
         // six lines also carry all stock charters in the creation offer.
         value["engine"]["limits"]["overrides"]["documents.lines"] = 7.into();
-        value["engine"]["hosts"]["workers"][0]["name"] = "ws".into();
-        value["engine"]["hosts"]["workers"].as_array_mut().ok_or("hosts")?.truncate(self.cast.len());
+        let described = super::cluster::worker_settings(&engine_dir.join("settings.json"));
         let secret = b"s2-case-fixture-secret";
-        if self.cast.len() > 1 {
-            value["engine"]["hosts"]["workers"][1]["name"] = "s1".into();
-            value["engine"]["hosts"]["workers"]
-                .as_array_mut()
-                .ok_or("hosts")?
-                .push(json!({"name":"s2","digest":"secrets/s2.digest"}));
-            let mut hash = skein_lib::sha256::Sha256::new();
-            hash.update(secret);
-            let mut digest = String::new();
-            for byte in hash.finish() {
-                use std::fmt::Write as _;
-                write!(digest, "{byte:02x}").map_err(|why| format!("hex: {why:?}"))?;
-            }
-            super::write_private(&engine_dir.join("data/secrets/s2.digest"), digest.as_bytes());
+        for (index, name) in self.cast.iter().enumerate() {
+            let digest = if let Some(item) = described.get(index) {
+                item["set"]["digest"].clone()
+            } else {
+                let mut digest = String::new();
+                for byte in skein_lib::sha256::digest(secret) {
+                    use std::fmt::Write as _;
+                    write!(digest, "{byte:02x}").map_err(|why| format!("hex: {why:?}"))?;
+                }
+                digest.into()
+            };
+            self.settings.as_array_mut().ok_or("case setting items")?.push(json!({
+                "setting":{"kind":"worker","number":index + 1},
+                "set":{"name":name,"places":value["workers"][0]["slots"],"digest":digest}
+            }));
         }
         for &name in &self.cast {
             let dir = if name == "ws" { ws_dir.clone() } else { self.members.prepare(name) };
@@ -619,12 +624,12 @@ impl Judge {
             shaped["agent"] = worker["workers"][0]["agent"].clone();
             worker["workers"] = json!([shaped]);
             worker["application"]["limits"] = value["application"]["limits"].clone();
-            worker["application"]["workers"][0]["git"] = self.git.to_str().ok_or("git path")?.into();
+            self.members.git_on_path(name, self.git.parent().ok_or("git directory")?);
             write(&dir.join("config/temper.json"), &worker);
             write(&dir.join("config/agent.json"), &agent);
         }
         value["workers"] = json!([]);
-        value["application"]["workers"] = json!([]);
+
         write(&engine_dir.join("config/temper.json"), &value);
         super::forgejo::bootstrap(&engine_dir.join("config"), &engine_dir.join("data"), &engine_dir.join("cache"));
         seed_forge(&engine_dir.join("data"), forge, &self.admin_token);
@@ -1337,8 +1342,7 @@ impl Judge {
         use temper_real_loop_world::case;
         let workspaces = |worker| -> Result<PathBuf, String> {
             let directory = self.members.dir(worker);
-            let document = read_document(&directory.join("config/temper.json"))?;
-            let root = document["application"]["workers"][0]["root"].as_str().ok_or("worker root")?;
+            let root = "workspaces";
             Ok(directory.join("data").join(root).join("workspaces"))
         };
         if fs::read_dir(workspaces("ws")?).map_err(|why| format!("ws workspaces: {why:?}"))?.next().is_some() {

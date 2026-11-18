@@ -1733,7 +1733,7 @@ fn assert_rail(view: &crate::View, project: &[u8]) {
 fn goals_opens_in_its_projects_frame() {
     use temper_client_domain::{Address, Event, GoalsFilter, Place, Request};
     // Work's drafts, changes and notes, the rail's people and standing roles and the project's ways and classes open without a goal template.
-    const PROJECT_READS: u32 = 7;
+    const PROJECT_READS: u32 = 6;
     for filter in [GoalsFilter::All, GoalsFilter::Needs, GoalsFilter::Live, GoalsFilter::Ended] {
         for words in [fixtures::words(), fixtures::browser_words()] {
             let address = Address::Goals { project: fixtures::SECOND_PROJECT, filter };
@@ -1786,7 +1786,7 @@ fn goals_opens_in_its_projects_frame() {
             assert_eq!(
                 out.len(),
                 PROJECT_READS,
-                "drafts, changes, people, standing roles, notes and the new project's ways and classes: {out:?}"
+                "drafts, changes, people, standing roles and the new project's ways and classes: {out:?}"
             );
             let Some(Request::Unlinked {
                 request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { subject, .. } },
@@ -1834,26 +1834,6 @@ fn goals_opens_in_its_projects_frame() {
                 panic!("rail’s standing roles")
             };
             assert_eq!((query.project, query.label), (Some(fixtures::PROJECT), Some(3)));
-            let Some(Request::Unlinked {
-                request:
-                    jig_client::UnlinkedRequest::Down {
-                        down:
-                            jig_client::Down::Read {
-                                what:
-                                    jig_client::Readable::Jig(jig_client::contract::Read::Notes {
-                                        scope,
-                                        description,
-                                        after,
-                                    }),
-                                ..
-                            },
-                    },
-            }) = out.pop()
-            else {
-                panic!("chat notes")
-            };
-            assert_eq!(scope, jig_client::contract::NoteScope::Tasks { project: fixtures::PROJECT });
-            assert_eq!((description, after), (None, None));
             let mut kinds = skein_lib::List::with_capacity(2);
             while let Some(request) = out.pop() {
                 let Request::Unlinked {

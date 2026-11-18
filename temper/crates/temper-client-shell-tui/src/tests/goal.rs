@@ -5,13 +5,13 @@ use temper_client_protocol_wire::{self as wire, v1 as f};
 pub(super) fn host(linked: bool, proposed: bool) -> Host {
     let mut host = super::host();
     let first = start(&mut host, Some(Secret::new(Box::new([7; 40]))));
-    let hello = hello_for(&host);
+    let hello = hello_for_me(&host, me(proposed));
     let mut duties =
         host.report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(hello) }));
     duties.asked.extend(first.asked);
-    settle(&mut host, duties, linked, proposed);
+    settle(&mut host, duties, linked);
     duties = give(&mut host, Event::Act { act: Act::Go { address: Address::Chat { task: 9 } } });
-    settle(&mut host, duties, linked, proposed);
+    settle(&mut host, duties, linked);
     for _ in 0..host.env.limits.client.domain.watches {
         let chat = host.root.pages().chat().unwrap();
         if chat.draft.is_some()
@@ -23,7 +23,7 @@ pub(super) fn host(linked: bool, proposed: bool) -> Host {
         let due = root::next_deadline(&host.root).expect("fixture reads retry");
         host.clocks(due, Wall::EPOCH);
         let duties = host.report(Report::Due);
-        settle(&mut host, duties, linked, proposed);
+        settle(&mut host, duties, linked);
     }
     assert!(host.root.pages().chat().unwrap().draft.is_some());
     assert_eq!(host.root.pages().chat().unwrap().goal_from(&host.root), linked.then_some((25, 1)));
@@ -31,7 +31,7 @@ pub(super) fn host(linked: bool, proposed: bool) -> Host {
     host
 }
 
-fn settle(host: &mut Host, duties: Duties, linked: bool, proposed: bool) {
+fn settle(host: &mut Host, duties: Duties, linked: bool) {
     let mut pending = std::collections::VecDeque::from(duties.asked);
     while let Some(request) = pending.pop_front() {
         if let Request::Exchange { exchange, message: Message::Batch(bytes), .. } = &request {
@@ -102,8 +102,11 @@ fn one(
                 let mut writer = Writer::new(usize::try_from(value.measure()).unwrap());
                 value.encode(&mut writer).unwrap();
                 let record = wire::setting_answer(
-                    &f::SettingAnswer::new(&f::CEILINGS, f::SettingAnswerParts { value: Some(writer.finish()) })
-                        .unwrap(),
+                    &f::SettingAnswer::new(
+                        &f::CEILINGS,
+                        f::SettingAnswerParts { revision: None, value: Some(writer.finish()) },
+                    )
+                    .unwrap(),
                 );
                 let answer = w::ReadAnswer::Value(family(record));
                 let mut writer = Writer::new(usize::try_from(answer.measure()).unwrap());

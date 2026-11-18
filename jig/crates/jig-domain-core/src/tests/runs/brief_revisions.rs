@@ -44,6 +44,26 @@ fn the_briefs_spec_shows_the_contract_only_when_the_result_ends_the_task() {
 }
 
 #[test]
+fn a_change_brief_lists_its_verdict_choices_only_when_present() {
+    let (mut core, _) = make_tree();
+    for (choices, expected) in [
+        (Box::<[tasks::Verdict]>::from([]), b"task\n[Change connector 1, kind 2, at most 512 bytes]\n[This task: 1, in project 1]\n[Requested by person 1, A Person]\n".as_slice()),
+        (Box::<[tasks::Verdict]>::from([tasks::Verdict { code: 12, words: 256, followups: 0, fields: Box::new([]) }]), b"task\n[Change connector 1, kind 2, at most 512 bytes]\n[Verdict choices:\n  12: at most 256 bytes\n]\n[This task: 1, in project 1]\n[Requested by person 1, A Person]\n".as_slice()),
+    ] {
+        let mut context = settings::charters::context(PARENT, CHARTER);
+        context.contract = tasks::Contract::Change { connector: 1, kind: 2, words: 512, choices };
+        core.contexts.insert(PARENT, context).expect("context room");
+        let text = read_brief_part(
+            &core,
+            BriefTextLimits { parts: 2, read_bytes: 512, brief_bytes: 512 },
+            PARENT,
+            BriefPart::Spec,
+        ).expect("spec section");
+        assert_eq!(text.as_ref(), expected);
+    }
+}
+
+#[test]
 fn a_briefs_task_section_names_its_number_and_project() {
     let (mut core, _) = make_tree();
     for contract in [
@@ -56,7 +76,7 @@ fn a_briefs_task_section_names_its_number_and_project() {
         tasks::Contract::Verdict {
             choices: Box::new([tasks::Verdict { code: 1, words: 32, followups: 0, fields: Box::new([]) }]),
         },
-        tasks::Contract::Change { connector: 1, kind: 1, words: 32 },
+        tasks::Contract::Change { connector: 1, kind: 1, words: 32, choices: Box::new([]) },
     ] {
         for (requester, label) in [
             (tasks::Party::Person(19), b"[Requested by person 19]\n".as_slice()),

@@ -11,6 +11,7 @@ pub fn setting_text(setting: c::Setting, out: &mut Text) {
         c::Setting::Template(n) => (b"template".as_slice(), Some(n.number)),
         c::Setting::Policy(n) => (b"policy".as_slice(), Some(n.number)),
         c::Setting::Model(n) => (b"model".as_slice(), Some(n.number)),
+        c::Setting::Worker(n) => (b"worker".as_slice(), Some(n.number)),
         c::Setting::Application { kind: 1 | 2, scope, number } => {
             out.put(b"landing-rule ");
             out.number(u64::from(number));
@@ -36,13 +37,23 @@ pub fn setting_text(setting: c::Setting, out: &mut Text) {
             out.number(u64::from(scope));
             return;
         }
+        c::Setting::Application { kind: 21, .. } => {
+            out.put(b"agents");
+            return;
+        }
+        c::Setting::Application { kind: 20, .. } => {
+            out.put(b"welcome");
+            return;
+        }
         c::Setting::Application { kind: 11, number, .. } => {
             out.put(b"template-goal ");
             out.number(u64::from(number));
             return;
         }
-        c::Setting::Application { kind: kind @ (6 | 7 | 8 | 10 | 14 | 15), scope, .. } => {
+        c::Setting::Application { kind: kind @ (4 | 5 | 6 | 7 | 8 | 10 | 14 | 15), scope, .. } => {
             out.put(match kind {
+                4 => b"project-landing ",
+                5 => b"project-gates ",
                 6 => b"project-questions ",
                 7 => b"project-ways ",
                 8 => b"project-classes ",
@@ -75,7 +86,7 @@ pub fn setting_text(setting: c::Setting, out: &mut Text) {
 /// Mark a project's fallback value when its inventory has no explicit change.
 pub fn stock_text(value: &c::ReadValue, out: &mut Text) {
     if let c::ReadValue::Setting(document) = value
-        && let c::Setting::Application { kind: 6..=8, .. } = document.setting
+        && let c::Setting::Application { kind: 6..=8 | 20 | 21, .. } = document.setting
     {
         let stock = match &document.application {
             None => true,
@@ -95,6 +106,7 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
         c::Setting::Template(n) => (b"template".as_slice(), Some(n.number)),
         c::Setting::Policy(n) => (b"policy".as_slice(), Some(n.number)),
         c::Setting::Model(n) => (b"model".as_slice(), Some(n.number)),
+        c::Setting::Worker(n) => (b"worker".as_slice(), Some(n.number)),
         c::Setting::Application { kind, scope, number } => {
             out.object_start();
             out.key(b"kind");
@@ -104,6 +116,8 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
                 11 => out.string(b"template-goal"),
                 12 => out.string(b"follow"),
                 13 => out.string(b"dependency"),
+                4 => out.string(b"project-landing"),
+                5 => out.string(b"project-gates"),
                 6 => out.string(b"project-questions"),
                 7 => out.string(b"project-ways"),
                 8 => out.string(b"project-classes"),
@@ -111,9 +125,13 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
                 10 => out.string(b"project-words"),
                 14 => out.string(b"project-areas"),
                 15 => out.string(b"project-triager"),
+                20 => out.string(b"welcome"),
+                21 => out.string(b"agents"),
                 _ => out.unsigned(u64::from(kind)),
             }
-            if kind == 2
+            if kind == 4
+                || kind == 5
+                || kind == 2
                 || kind == 6
                 || kind == 7
                 || kind == 8
@@ -125,11 +143,21 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
             {
                 out.key(b"project");
                 out.unsigned(u64::from(scope));
-            } else if kind != 1 && kind != 3 && kind != 9 && kind != 11 {
+            } else if kind != 1 && kind != 3 && kind != 9 && kind != 11 && kind != 20 && kind != 21 {
                 out.key(b"scope");
                 out.unsigned(u64::from(scope));
             }
-            if kind != 6 && kind != 7 && kind != 8 && kind != 10 && kind != 14 && kind != 15 {
+            if kind != 4
+                && kind != 5
+                && kind != 6
+                && kind != 7
+                && kind != 8
+                && kind != 10
+                && kind != 14
+                && kind != 15
+                && kind != 20
+                && kind != 21
+            {
                 out.key(b"number");
                 out.unsigned(u64::from(number));
             }
@@ -186,6 +214,7 @@ fn named_value_text(
 pub fn encode_value(value: &c::SettingValue, out: &mut Encoder) {
     match value {
         c::SettingValue::Overlay(v) => values::encode_overlay(v, out),
+        c::SettingValue::Worker(v) => values::encode_worker(v, out),
         c::SettingValue::Model(v) => values::encode_catalogue(v, out),
         c::SettingValue::Charter(v) => values::encode_charter(v, out),
         c::SettingValue::Template(v) => values::encode_template(v, out),
@@ -263,6 +292,7 @@ fn value_details_text(value: &c::SettingValue, overlay: Option<&c::Overlay>, out
             }
         }
         c::SettingValue::Overlay(_)
+        | c::SettingValue::Worker(_)
         | c::SettingValue::Model(_)
         | c::SettingValue::Policy(_)
         | c::SettingValue::Application(_)
@@ -373,6 +403,7 @@ pub fn text(value: &c::ReadValue, requested: Option<u64>, limits: &Limits, out: 
                     c::Setting::Charter(_)
                     | c::Setting::Template(_)
                     | c::Setting::Policy(_)
+                    | c::Setting::Worker(_)
                     | c::Setting::Model(_)
                     | c::Setting::ProjectPolicy { .. }
                     | c::Setting::Rules
@@ -498,6 +529,7 @@ pub const fn fault_word(fault: c::SettingFault) -> &'static [u8] {
         c::SettingFault::Grace => b"grace",
         c::SettingFault::Judged => b"refused by its owner",
         c::SettingFault::Owner => b"owner",
+        c::SettingFault::Linked => b"linked: stop it first",
     }
 }
 
@@ -587,7 +619,8 @@ fn revision_text(answer: &c::RevisionAnswer, requested: u64, limits: &Limits, ou
 fn historical_setting(setting: c::Setting) -> bool {
     match setting {
         c::Setting::Charter(_) | c::Setting::Application { .. } => true,
-        c::Setting::Model(_)
+        c::Setting::Worker(_)
+        | c::Setting::Model(_)
         | c::Setting::Template(_)
         | c::Setting::Policy(_)
         | c::Setting::Rules

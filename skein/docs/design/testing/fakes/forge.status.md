@@ -1,6 +1,6 @@
 # fake-forge: status
 
-2026-11-16. Where skein's code lags or departs from [forge.md](forge.md).
+2026-11-17. Where skein's code lags or departs from [forge.md](forge.md).
 
 
 Unlisted sections have no known gap. `github.md`, section 1.1's App JWT check uses
@@ -11,6 +11,10 @@ cache and the claims checked on every request are present.
   (`allow_manual_merge`, `autodetect_manual_merge`): the fake refuses
   `Do: manually-merged` (`skein-fake-forge-domain/src/pulls.rs`)
   [in flight: change 813].
+- **Not yet:** 4: the Forgejo layer closes or reopens a merged pull
+  request as its domain does, `201`, where Forgejo answers `412`
+  (`skein-fake-forge-forgejo/src/server.rs`, `decoded`) [in flight:
+  change 7115].
 - **Not yet:** 4: the runs' listing has no `workflow_id`
   (`skein-fake-forge-forgejo/src/routes.rs`).
 - **Not yet:** 4: conditional reads: a raw read answers no `ETag`, and no

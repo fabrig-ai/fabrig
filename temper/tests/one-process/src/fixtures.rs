@@ -77,6 +77,11 @@ pub(crate) fn world_document() -> serde_json::Value {
         }
     });
     // The native client admits eight exchanges beside its event stream.
+    value["engine"]["limits"]["overrides"]["clients.streams"] = 2.into();
+    value["engine"]["limits"]["overrides"]["clients_http.streams"] = 2.into();
+    for name in ["clients.streams", "clients_http.streams"] {
+        value["engine"]["limits"]["overrides"][name] = 2.into();
+    }
     value["engine"]["limits"]["overrides"]["clients_http.calls"] = 9.into();
     value["engine"]["limits"]["overrides"]["clients.exchanges"] = 9.into();
     crate::push::configure(&mut value);
@@ -164,6 +169,7 @@ pub(crate) fn adoption_given() -> temper_service::stock::Given {
             }
             Given::Own {
                 jig: jig_domain_core::settings::Defaults {
+                    workers: Box::new([]),
                     charters: jig.charters.clone(),
                     templates: jig.templates.clone(),
                     policies,
@@ -209,7 +215,7 @@ fn engine() -> jig_protocol_config::Engine {
     .expect("engine")
 }
 fn jig_test_service_limits(overrides: &jig_protocol_config::Limits) -> jig_test_service::limits::Limits {
-    jig_test_service::limits::for_profile(jig_protocol_config::Profile::Small, overrides)
+    jig_test_service::limits::small(overrides)
 }
 
 /// Provision a deployment source through the native client before each fresh story.

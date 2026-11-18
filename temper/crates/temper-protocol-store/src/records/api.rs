@@ -268,6 +268,9 @@ pub(crate) fn encode_error(value: d::Error) -> w::Error {
         d::Error::NothingToMerge => w::Error::NothingToMerge,
         d::Error::Closed => w::Error::Closed,
         d::Error::Stale => w::Error::Stale,
+        d::Error::BaseMoved { base } => {
+            w::Error::BaseMoved(w::BaseMoved::new(&w::CEILINGS, w::BaseMovedParts { base }).expect(FITS))
+        }
         d::Error::Conflict => w::Error::Conflict,
         d::Error::Protected => w::Error::Protected,
         d::Error::Refused => w::Error::Refused,
@@ -302,6 +305,7 @@ pub(super) fn decode_error(value: w::Error) -> d::Error {
         w::Error::NothingToMerge => d::Error::NothingToMerge,
         w::Error::Closed => d::Error::Closed,
         w::Error::Stale => d::Error::Stale,
+        w::Error::BaseMoved(value) => d::Error::BaseMoved { base: value.into_parts().base },
         w::Error::Conflict => d::Error::Conflict,
         w::Error::Protected => d::Error::Protected,
         w::Error::Refused => d::Error::Refused,

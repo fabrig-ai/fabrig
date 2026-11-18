@@ -74,9 +74,13 @@ fn replace(lines: &mut [Line], originals: &Originals, include_typed: bool) -> Re
 
 // The stream name is binary in Kept and lowercase hex in the opening's query.
 fn redact_replaces(path: &mut Box<[u8]>, originals: &Originals) -> u32 {
-    let Some(at) = path.windows(b"?replaces=".len()).position(|part| part == b"?replaces=") else { return 0 };
+    let Some(at) = path.windows(b"?replaces=".len()).position(|part| part == b"?replaces=" || part == b"&replaces=")
+    else {
+        return 0;
+    };
     let start = at + b"?replaces=".len();
-    let Ok(hex) = std::str::from_utf8(&path[start..]) else { return 0 };
+    let end = path[start..].iter().position(|byte| *byte == b'&').map_or(path.len(), |length| start + length);
+    let Ok(hex) = std::str::from_utf8(&path[start..end]) else { return 0 };
     if hex.len() != 32 {
         return 0;
     }
@@ -95,6 +99,7 @@ fn redact_replaces(path: &mut Box<[u8]>, originals: &Originals) -> u32 {
         for byte in bytes {
             replaced.extend_from_slice(format!("{byte:02x}").as_bytes());
         }
+        replaced.extend_from_slice(&path[end..]);
         *path = replaced.into_boxed_slice();
     }
     places

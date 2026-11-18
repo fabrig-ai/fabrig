@@ -1,8 +1,8 @@
 //! A real owned slot driven over the box pipe without serve (temper/docs/design/protocol/setup/box.md, 1).
 use super::support;
-use skein_io::kernel::{Exit, Fd, ServiceSignal};
-use skein_lib::{Duration, Time};
-use skein_shell::{Delegate, Host};
+use skein_io::kernel::{Complete, Exit, Fd, ServiceSignal, Submit};
+use skein_lib::{Duration, Queue, Time, Wall};
+use skein_shell::Host;
 use skein_world::{
     Referee,
     real::{Controls, World},
@@ -13,12 +13,40 @@ use temper_forge_setup::{Kind, Step};
 
 #[derive(Debug)]
 struct BoxProcess(Service);
-impl Delegate for BoxProcess {
-    fn host(&self) -> &dyn Host {
-        &self.0
+impl Host for BoxProcess {
+    fn iterate(&mut self, now: Time, wall: Wall) {
+        self.0.iterate(now, wall);
+        while let Some((forge, address)) = self.0.take_group_listener() {
+            let descriptor = skein_shell::open_listener(address, 128).ok().map(|(fd, _)| fd);
+            self.0.group_listener_opened(forge, descriptor);
+        }
     }
-    fn host_mut(&mut self) -> &mut dyn Host {
-        &mut self.0
+    fn drain(&mut self) {
+        self.0.drain();
+    }
+    fn completions(&mut self) -> &mut Queue<Complete> {
+        self.0.completions()
+    }
+    fn submissions(&mut self) -> &mut Queue<Submit> {
+        self.0.submissions()
+    }
+    fn work_pending(&self, now: Time) -> bool {
+        self.0.work_pending(now)
+    }
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.0.next_mechanism_deadline()
+    }
+    fn next_policy_deadline(&self) -> Option<Time> {
+        self.0.next_policy_deadline()
+    }
+    fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+    fn exit(&self) -> Option<Exit> {
+        self.0.exit()
+    }
+    fn operations(&self) -> u32 {
+        self.0.operations()
     }
 }
 struct Judge {
@@ -62,13 +90,7 @@ fn command(step: &Step) -> Step {
         skein_scratch::paths::binary("temper-box").as_os_str().as_encoded_bytes().into(),
     ];
     args.extend_from_slice(step.arguments());
-    let mut wrapped =
-        Step::new(step.name().into(), args.into_boxed_slice(), step.kind()).listening(step.listeners().into());
-    if let Some(ready) = step.ready() {
-        wrapped = wrapped.with_ready(ready);
-    }
-    wrapped.set_started_notice(step.started_notice().into());
-    wrapped
+    step.clone().with_command(step.name().into(), args.into_boxed_slice())
 }
 
 const DRIVER: &[u8] = br#"set -eu
@@ -105,12 +127,18 @@ fn a_box_starts_an_owned_slot_on_start_kind_and_removes_it() {
     fs::create_dir(&cache).expect("cache");
     let [listen] = support::free_addresses::<1>(&[]);
     let (_, document) = support::configuration::documents(root, "/fixture/temper");
-    let mut document: serde_json::Value = serde_json::from_slice(&document).expect("fixture document");
-    document["application"]["machine"] = serde_json::json!({"owned":{
-        "listen":{"socket":listen.to_string()}, "remote":format!("http://{listen}"),
-        "person":{"login":"ada","email":"ada@example.invalid"},
-        "forgejo":"fetched", "runner":null
-    }});
+    let document: serde_json::Value = serde_json::from_slice(&document).expect("fixture document");
+    support::configuration::setup(
+        root,
+        17,
+        serde_json::json!({"kind":"owned",
+            "listen":{"socket":listen.to_string()}, "remote":format!("http://{listen}"),
+            "person":{"login":"ada","email":"ada@example.invalid"},
+            "forgejo":"fetched",
+            "runner":{"binary":"fetched", "labels":["temper-host:host"],
+                "capacity":1, "path":"/usr/local/bin:/usr/bin:/bin"}
+        }),
+    );
     let bytes = serde_json::to_vec(&document).expect("document JSON");
     fs::write(root.join("temper.json"), &bytes).expect("document");
     let mut directories = support::configuration::directories(root);
@@ -120,7 +148,10 @@ fn a_box_starts_an_owned_slot_on_start_kind_and_removes_it() {
     let (cached, _) = support::forge_land::cache_forgejo_binaries(&cache);
     assert_eq!(steps.always.len(), 1, "serve is the always step");
     assert_eq!(steps.asked.len(), 1, "owned slot");
-    assert!(steps.asked[0].steps.iter().any(|(_, step)| !step.started_notice().is_empty()), "owned notice");
+    let template = &steps.asked[0].steps;
+    assert!(template.iter().all(|(_, step)| step.started_notice().is_empty()), "unbound kind has no hands");
+    let (_, forgejo) = template.iter().find(|(_, step)| step.name() == b"forgejo").expect("Forgejo run step");
+    assert!(forgejo.ready().is_some(), "hands bind to the ready step when the group listens");
     // The shell is the pipe's owner in serve's place; every slot command execs the shipped binary.
     steps.always = Box::new([Step::new(
         b"serve".as_slice().into(),

@@ -92,6 +92,7 @@ fn live_ci_is_rebuilt_but_terminal_ci_and_task_identity_are_durable() {
     use temper_engine_domain_forge_change::{Status, Way};
     use temper_engine_domain_world::oracle::durable;
     let panel = Panel {
+        landing_held: false,
         source: None,
         way: Way::Queue,
         in_landing: None,
@@ -105,6 +106,7 @@ fn live_ci_is_rebuilt_but_terminal_ci_and_task_identity_are_durable() {
         pull: None,
         step: PanelStep::Checking,
         hold: None,
+        wait: None,
         runs: None,
         ci_required: true,
         ci: Status::Pending,

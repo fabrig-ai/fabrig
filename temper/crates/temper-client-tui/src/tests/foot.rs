@@ -2019,29 +2019,33 @@ pub(super) fn walk_root(choices: bool) -> Domain {
     while let Some(request) = more.pop() {
         out.push(request);
     }
+    let me_opened = {
+        let mut me = f::me(&[b"Hello"]);
+        let project = me.projects.get_mut(0).unwrap();
+        project.templates = List::from_boxed(Box::new([template(1), template(5), {
+            let mut draft = template(6);
+            draft.executor = c::TemplateExecutor::Charter(12);
+            draft
+        }]));
+        project.models = List::from_boxed(Box::new([super::commands::model()]));
+        project.defaults = List::from_boxed(Box::new([c::MeDefault {
+            template: d::pages::chats::ASKING_TEMPLATE,
+            choice: c::LlmChoice {
+                account: Some(1),
+                main: c::ModelEffort { model: text(b"model"), effort: Some(text(b"high")) },
+                subagents: List::with_capacity(0),
+                later: None,
+            },
+        }]));
+        Up::Watched { watch: skein_lib::Token::new(0), event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) }
+    };
+    let mut me_output = f::client(&mut root, jig_client::Event::Up { up: me_opened });
+    while let Some(request) = me_output.pop() {
+        out.push(request);
+    }
     while let Some(request) = out.pop() {
         let d::Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else { continue };
         let up = match down {
-            jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Me) } => {
-                let mut me = f::me(&[b"Hello"]);
-                let project = me.projects.get_mut(0).unwrap();
-                project.templates = List::from_boxed(Box::new([template(1), template(5), {
-                    let mut draft = template(6);
-                    draft.executor = c::TemplateExecutor::Charter(12);
-                    draft
-                }]));
-                project.models = List::from_boxed(Box::new([super::commands::model()]));
-                project.defaults = List::from_boxed(Box::new([c::MeDefault {
-                    template: d::pages::chats::ASKING_TEMPLATE,
-                    choice: c::LlmChoice {
-                        account: Some(1),
-                        main: c::ModelEffort { model: text(b"model"), effort: Some(text(b"high")) },
-                        subagents: List::with_capacity(0),
-                        later: None,
-                    },
-                }]));
-                Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) }
-            }
             jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Inbox { .. }) } => {
                 Up::Watched {
                     watch,
@@ -2195,19 +2199,21 @@ pub(super) fn walk_root(choices: bool) -> Domain {
                 Up::Watched {
                     watch,
                     event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                        ended_mark: 0,
                         rows: List::with_capacity(0),
                         more: false,
                     }))),
                 }
             }
-            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { .. }) } => {
-                Up::ReadDone {
-                    read,
-                    result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(
-                        c::TaskPage { live: List::with_capacity(0), live_after: None, ended: c::EndedGroup::None },
-                    )))),
-                }
-            }
+            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { .. }) } => Up::ReadDone {
+                read,
+                result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(c::TaskPage {
+                    ended_mark: 0,
+                    live: List::with_capacity(0),
+                    live_after: None,
+                    ended: c::EndedGroup::None,
+                })))),
+            },
             jig_client::Down::Open { watch, subject }
                 if Some(&subject) == d::forge::decided::watch(1, &f::limits().forge).as_ref() =>
             {

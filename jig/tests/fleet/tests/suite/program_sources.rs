@@ -23,7 +23,15 @@ impl World {
             out: Queue::uncapped(),
         };
         let membership = Membership::new(
-            Box::new([b"alpha".as_slice().into(), b"beta".as_slice().into()]),
+            Box::new([
+                jig_domain_link::Member {
+                    number: 1,
+                    name: Box::from(b"alpha".as_slice()),
+                    places: 4,
+                    withdrawn: false,
+                },
+                jig_domain_link::Member { number: 2, name: Box::from(b"beta".as_slice()), places: 4, withdrawn: false },
+            ]),
             limits.configured_workers,
             limits.worker_name_bytes,
         )

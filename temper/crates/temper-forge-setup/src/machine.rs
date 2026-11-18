@@ -1,18 +1,14 @@
-//! The document's machine parts and the box's kinds (temper/docs/design/protocol/configuration/engine.md; temper/docs/design/protocol/setup/box.md, 1).
+//! The document's machine parts, test peer and box kinds (temper/docs/design/protocol/configuration/engine.md; temper/docs/design/protocol/setup/place.md, 7; temper/docs/design/protocol/setup/box.md, 1).
 use crate::{
     check::joined,
-    problem::Problems,
-    setup::{Account, Entry, Fake, Fetch, Mirror, Mode, Origin, Owned, Repository, Runner},
+    setup::{Account, Fetch, Mirror, Origin, Runner},
 };
 use alloc::boxed::Box;
 use core::net::SocketAddr;
 use jig_protocol_config::{self as config, Path, read};
-use skein_forge_setup::{
-    given::{email, login},
-    limits::Limits,
-};
+use skein_forge_setup::given::{email, login};
 use skein_json::{Document, document::Kind};
-use skein_lib::{Decimal, List, bytes};
+use skein_lib::{Decimal, List};
 
 /// The configuration table's shapes and rows (temper/docs/design/protocol/documentation.md, 8).
 pub use config::members::{Member, Shape};
@@ -95,7 +91,7 @@ pub struct FakeMachine {
     pub remote: Box<[u8]>,
     pub git: Box<[u8]>,
 }
-/// GitHub's place, none for GitHub itself; `--fake-backends` names its fake.
+/// `application.test.github`'s place; absent or null selects github.com (protocol/setup/place.md, 7).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct GitHubMachine {
     pub git: Option<Box<[u8]>>,
@@ -103,123 +99,6 @@ pub struct GitHubMachine {
     pub tls: bool,
     pub remote: Box<[u8]>,
     pub web: Box<[u8]>,
-}
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Machine {
-    pub owned: Option<OwnedMachine>,
-    pub fake: Option<FakeMachine>,
-    pub github: Option<GitHubMachine>,
-}
-
-/// Reads `application.machine`, recording paths and resolving data and cache paths as setup does.
-pub fn read(
-    d: &Document,
-    at: u32,
-    _limits: &Limits,
-    directories: &config::Directories,
-    problems: &mut Problems,
-) -> Option<Machine> {
-    let mut ps = config::Problems::empty();
-    let result = read_config(d, at, directories, &mut ps);
-    problems.append(ps);
-    result
-}
-/// The application retains each typed problem's full member path.
-pub fn read_config(
-    d: &Document,
-    at: u32,
-    directories: &config::Directories,
-    ps: &mut config::Problems,
-) -> Option<Machine> {
-    let p = Path::root().member(b"application").member(b"machine");
-    let mut result = machine(d, at, &p, ps);
-    if ps.is_empty()
-        && let Some(machine) = &mut result
-    {
-        if let Some(owned) = &mut machine.owned {
-            resolve_path(
-                directories,
-                config::Directory::Cache,
-                &mut owned.forgejo,
-                p.member(b"owned").member(b"forgejo"),
-                ps,
-            );
-            if let Some(runner) = &mut owned.runner {
-                resolve_path(
-                    directories,
-                    config::Directory::Cache,
-                    &mut runner.binary,
-                    p.member(b"owned").member(b"runner").member(b"binary"),
-                    ps,
-                );
-            }
-        }
-        if let Some(github) = &mut machine.github
-            && let Some(git) = &mut github.git
-        {
-            resolve_path(directories, config::Directory::Data, git, p.member(b"github").member(b"git"), ps);
-        }
-        if let Some(fake) = &mut machine.fake {
-            resolve_path(directories, config::Directory::Data, &mut fake.git, p.member(b"fake").member(b"git"), ps);
-        }
-    }
-    if ps.is_empty() { result } else { None }
-}
-fn machine(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<Machine> {
-    let mut o = object(d, at, "machine", p, ps)?;
-    let owned_at = o.member(d, b"owned");
-    let fake_at = o.member(d, b"fake");
-    let github_at = o.member(d, b"github");
-    o.finish(d, p, ps);
-    let owned = match owned_at {
-        Some(at) => Some(owned(d, at, &p.member(b"owned"), ps)?),
-        None => None,
-    };
-    let fake = match fake_at {
-        Some(at) => Some(fake(d, at, &p.member(b"fake"), ps)?),
-        None => None,
-    };
-    let github = match github_at {
-        Some(at) if d.token(at)?.kind != Kind::Null => Some(github(d, at, &p.member(b"github"), ps)?),
-        Some(_) | None => None,
-    };
-    Some(Machine { owned, fake, github })
-}
-/// The entry a kind's forge runs with (protocol/setup/init.md), if its machine part exists.
-#[must_use]
-pub fn entry(machine: &Machine, forge: u16, kind: BoxKind, directories: &config::Directories) -> Option<Entry> {
-    let mode = match kind {
-        BoxKind::Owned => {
-            let o = machine.owned.as_ref()?;
-            Mode::Owned(Owned {
-                public: o.public.clone(),
-                fetch: o.fetch.clone(),
-                forgejo: o.forgejo.clone(),
-                runner: o.runner.clone(),
-                listen: o.listen,
-                person: o.person.clone(),
-            })
-        }
-        BoxKind::Fake => {
-            let f = machine.fake.as_ref()?;
-            Mode::Fake(Fake {
-                listen: f.listen,
-                git: f.git.clone(),
-                owner: bytes::copy_of(b"playground"),
-                repositories: Box::new([Repository {
-                    name: bytes::copy_of(b"widget"),
-                    landing: bytes::copy_of(b"main"),
-                }]),
-            })
-        }
-    };
-    Some(Entry {
-        forge,
-        directory: directories.join(config::Directory::Data, &directory(forge, kind)).ok()?,
-        bot: Account { login: bytes::copy_of(b"temper"), email: bytes::copy_of(b"temper@localhost") },
-        mode,
-        asked: kind == BoxKind::Owned,
-    })
 }
 /// The forge's directory beneath the data directory.
 #[must_use]
@@ -245,8 +124,10 @@ pub fn group_path(forge: u16) -> Box<[u8]> {
     joined(&[b"box/groups/", Decimal::of(u64::from(forge)).as_bytes()])
 }
 
-fn fake(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<FakeMachine> {
+pub(crate) fn fake(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<FakeMachine> {
     let mut o = object(d, at, "machine-fake", p, ps)?;
+    o.object.member(d, b"version");
+    o.object.member(d, b"kind");
     let listen_at = o.required(d, b"listen", p, ps);
     let remote = text(d, &mut o, b"remote", p, ps);
     let git = text(d, &mut o, b"git", p, ps);
@@ -258,8 +139,33 @@ fn fake(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<Fa
     valid(path(&git), p.member(b"git"), ps);
     Some(FakeMachine { listen, remote, git })
 }
+/// Reads the optional test peer (temper/docs/design/protocol/setup/place.md, 7).
+pub fn read_test(
+    d: &Document,
+    at: Option<u32>,
+    directories: &config::Directories,
+    ps: &mut config::Problems,
+) -> Option<GitHubMachine> {
+    let at = at?;
+    let p = Path::root().member(b"application").member(b"test");
+    let mut o = object(d, at, "test", &p, ps)?;
+    let github_at = o.member(d, b"github");
+    o.finish(d, &p, ps);
+    let at = github_at?;
+    if d.token(at)?.kind == Kind::Null {
+        return None;
+    }
+    let p = p.member(b"github");
+    let mut github = github(d, at, &p, ps)?;
+    if ps.is_empty()
+        && let Some(git) = &mut github.git
+    {
+        resolve_path(directories, config::Directory::Data, git, p.member(b"git"), ps);
+    }
+    if ps.is_empty() { Some(github) } else { None }
+}
 fn github(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<GitHubMachine> {
-    let mut o = object(d, at, "machine-github", p, ps)?;
+    let mut o = object(d, at, "test-github", p, ps)?;
     let api_at = o.required(d, b"api", p, ps);
     let transport_at = o.required(d, b"transport", p, ps);
     let remote = text(d, &mut o, b"remote", p, ps);
@@ -316,11 +222,11 @@ fn transport(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Opti
         valid(value.as_ref() == b"plaintext", p.clone(), ps);
         return Some(false);
     }
-    let mut o = object(d, at, "machine-transport", p, ps)?;
+    let mut o = object(d, at, "test-transport", p, ps)?;
     let tls_at = o.required(d, b"tls", p, ps);
     o.finish(d, p, ps);
     let p = p.member(b"tls");
-    let mut o = object(d, tls_at?, "machine-tls", &p, ps)?;
+    let mut o = object(d, tls_at?, "test-tls", &p, ps)?;
     let server_name = text(d, &mut o, b"server_name", &p, ps);
     let trust = o.required(d, b"trust", &p, ps);
     o.finish(d, &p, ps);
@@ -440,8 +346,10 @@ fn runner(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<
         path: path_value,
     })
 }
-fn owned(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<OwnedMachine> {
+pub(crate) fn owned(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<OwnedMachine> {
     let mut o = object(d, at, "machine-owned", p, ps)?;
+    o.object.member(d, b"version");
+    o.object.member(d, b"kind");
     let remote = text(d, &mut o, b"remote", p, ps);
     let forgejo = text(d, &mut o, b"forgejo", p, ps);
     let runner_at = o.required(d, b"runner", p, ps);
@@ -499,9 +407,19 @@ fn owned(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<O
         },
         Some(_) | None => None,
     };
-    if sign_in.is_some() {
+    if let Some(client) = &sign_in {
+        let mut visible = !client.is_empty();
+        for byte in client {
+            visible &= (0x21..=0x7e).contains(byte);
+        }
+        valid(visible, p.member(b"sign_in"), ps);
         if public.is_some() {
-            ps.push(p.member(b"sign_in"), config::What::Because(b"cannot be set with application.machine.owned.public; a box's sign-in through temper is not proved behind a proxy"));
+            ps.push(
+                p.member(b"sign_in"),
+                config::What::Because(
+                    b"cannot be set with public; a box's sign-in through temper is not proved behind a proxy",
+                ),
+            );
         }
         valid(!crate::sign_in::refused_person(&person.login, b""), p.member(b"person").member(b"login"), ps);
         valid(!crate::sign_in::refused_person(b"", &person.email), p.member(b"person").member(b"email"), ps);
@@ -614,7 +532,7 @@ fn git_base(input: &[u8]) -> bool {
         }
     }
 }
-fn resolve_path(
+pub(crate) fn resolve_path(
     directories: &config::Directories,
     kind: config::Directory,
     value: &mut Box<[u8]>,
@@ -627,8 +545,8 @@ fn resolve_path(
     }
 }
 
-/// The machine shapes, re-exported in the application’s configuration reference.
-pub const SHAPES: [Shape; 9] = [
+/// Machine and test shapes shared with the application’s member table.
+pub const SHAPES: [Shape; 10] = [
     Shape {
         name: "machine",
         paths: &["application.machine"],
@@ -645,8 +563,8 @@ pub const SHAPES: [Shape; 9] = [
         line: "The playground’s fake forge on this machine.",
     },
     Shape {
-        name: "machine-github",
-        paths: &["application.machine.github"],
+        name: "test-github",
+        paths: &["application.test.github"],
         line: "A GitHub test peer’s addresses and transport.",
     },
     Shape {
@@ -665,18 +583,19 @@ pub const SHAPES: [Shape; 9] = [
         line: "HTTPS origins used to fetch pinned binaries.",
     },
     Shape {
-        name: "machine-transport",
-        paths: &["application.machine.github.transport"],
+        name: "test-transport",
+        paths: &["application.test.github.transport"],
         line: "A TLS transport object, or plaintext as text.",
     },
     Shape {
-        name: "machine-tls",
-        paths: &["application.machine.github.transport.tls"],
+        name: "test-tls",
+        paths: &["application.test.github.transport.tls"],
         line: "TLS identity and trust for the GitHub test peer.",
     },
+    Shape { name: "test", paths: &["application.test"], line: "Test peers, not public configuration." },
 ];
 
-/// The machine members read by this decoder and printed by the application.
+/// Machine and test members read by this decoder; test rows are not public help.
 pub const MEMBERS: [Member; 30] = [
     Member {
         shape: "machine-owned",
@@ -706,9 +625,9 @@ pub const MEMBERS: [Member; 30] = [
         gone: None,
     },
     Member {
-        shape: "machine",
+        shape: "test",
         name: "github",
-        kind: "machine-github or null",
+        kind: "test-github or null",
         bound: "",
         required: false,
         line: "GitHub’s place, null for the public service.",
@@ -805,7 +724,7 @@ pub const MEMBERS: [Member; 30] = [
         gone: None,
     },
     Member {
-        shape: "machine-github",
+        shape: "test-github",
         name: "api",
         kind: "address",
         bound: "socket or host and port",
@@ -814,16 +733,16 @@ pub const MEMBERS: [Member; 30] = [
         gone: None,
     },
     Member {
-        shape: "machine-github",
+        shape: "test-github",
         name: "transport",
-        kind: "machine-transport or text",
+        kind: "test-transport or text",
         bound: "plaintext on loopback, or TLS",
         required: true,
         line: "The transport to the GitHub API.",
         gone: None,
     },
     Member {
-        shape: "machine-github",
+        shape: "test-github",
         name: "remote",
         kind: "text",
         bound: "at most 4,096 bytes; HTTP on loopback or HTTPS; no final slash",
@@ -832,7 +751,7 @@ pub const MEMBERS: [Member; 30] = [
         gone: None,
     },
     Member {
-        shape: "machine-github",
+        shape: "test-github",
         name: "web",
         kind: "text",
         bound: "at most 4,096 bytes; HTTP on loopback or HTTPS; no final slash",
@@ -841,7 +760,7 @@ pub const MEMBERS: [Member; 30] = [
         gone: None,
     },
     Member {
-        shape: "machine-github",
+        shape: "test-github",
         name: "git",
         kind: "text",
         bound: "data path; at most 4,096 bytes",
@@ -922,16 +841,16 @@ pub const MEMBERS: [Member; 30] = [
         gone: None,
     },
     Member {
-        shape: "machine-transport",
+        shape: "test-transport",
         name: "tls",
-        kind: "machine-tls",
+        kind: "test-tls",
         bound: "",
         required: true,
         line: "The API’s TLS server name and trust roots.",
         gone: None,
     },
     Member {
-        shape: "machine-tls",
+        shape: "test-tls",
         name: "server_name",
         kind: "text",
         bound: "at most 4,096 bytes",
@@ -940,7 +859,7 @@ pub const MEMBERS: [Member; 30] = [
         gone: None,
     },
     Member {
-        shape: "machine-tls",
+        shape: "test-tls",
         name: "trust",
         kind: "text or null",
         bound: "at most 1,048,576 bytes",

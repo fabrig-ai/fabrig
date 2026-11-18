@@ -14,6 +14,7 @@ pub(crate) fn enabled(op: &git::Op) -> bool {
         | git::Op::Look { .. }
         | git::Op::Clone { .. }
         | git::Op::Reds { .. }
+        | git::Op::Reset { .. }
         | git::Op::Point { .. }
         | git::Op::Fetch { .. }
         | git::Op::Create { .. }
@@ -84,9 +85,9 @@ pub(crate) fn after(op: &git::Op, command: &Command, code: u8, stdout: &[u8]) ->
         Command::SnapshotFetch { head, merging, second, .. } if code == 0 => {
             Some(Next::Run(Command::SnapshotReachable { head: *head, merging: *merging, second: *second }))
         }
-        Command::SnapshotReachable { head, merging, .. } if code == 0 => {
+        Command::SnapshotReachable { head, merging, second } if code == 0 => {
             if stdout.is_empty() {
-                Some(refused(b"delivery second parent is not reachable from the branch's remote"))
+                Some(Next::End(git::Done::ParentUnreachable { head: *head, merging: *merging, parent: *second }))
             } else {
                 id(stdout)?;
                 Some(Next::Snapshot { parent: *head, merging: *merging })
@@ -133,6 +134,7 @@ fn parameters(op: &git::Op) -> (&git::Commit, &Option<git::Commit>, &git::Snapsh
         | git::Op::Look { .. }
         | git::Op::Clone { .. }
         | git::Op::Reds { .. }
+        | git::Op::Reset { .. }
         | git::Op::Point { .. }
         | git::Op::Fetch { .. }
         | git::Op::Create { .. }

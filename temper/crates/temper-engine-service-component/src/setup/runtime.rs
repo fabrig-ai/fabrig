@@ -4,10 +4,10 @@ use alloc::boxed::Box;
 use skein_forge_setup::host;
 use skein_lib::{List, Map, Secret};
 use temper_engine_domain_forge::{self as domain, ForgeRecord};
-use temper_forge_setup::{machine, setup};
+use temper_forge_setup::setup;
 
 pub(super) struct Runtime {
-    machine: machine::Machine,
+    files: Map<u16, temper_forge_setup::setup_file::SetupFile>,
     directories: jig_protocol_config::Directories,
     limits: crate::limits::Limits,
     url: Option<Box<[u8]>>,
@@ -28,8 +28,12 @@ impl Runtime {
             endpoints.insert(forge.number(), forge.clone()).expect("document setup endpoints");
         }
         let initial = List::with_capacity(config.limits.forge.forges);
+        let mut files = Map::with_capacity(config.limits.forge.forges);
+        for (forge, file) in &config.setups {
+            files.insert(*forge, file.clone()).expect("world setup files");
+        }
         Self {
-            machine: config.machine.clone(),
+            files,
             directories: config.directories.clone(),
             limits: config.limits,
             url: match &config.clients.public {
@@ -55,10 +59,7 @@ impl Runtime {
     }
     pub(super) fn git_program(&self, mode: domain::Mode) -> Option<Box<[u8]>> {
         match mode {
-            domain::Mode::Fake => match &self.machine.fake {
-                Some(fake) => Some(fake.git.clone()),
-                None => None,
-            },
+            domain::Mode::Fake => self.directories.join(jig_protocol_config::Directory::Data, b"demo/bin/git").ok(),
             domain::Mode::Connected | domain::Mode::Managed | domain::Mode::Owned => None,
         }
     }
@@ -105,9 +106,7 @@ impl Runtime {
     fn entry(&self, record: &ForgeRecord) -> Option<setup::Entry> {
         let mut entry = match record.mode {
             domain::Mode::Owned | domain::Mode::Fake => {
-                let kind =
-                    if record.mode == domain::Mode::Owned { machine::BoxKind::Owned } else { machine::BoxKind::Fake };
-                machine::entry(&self.machine, record.number, kind, &self.directories)?
+                self.files.get(&record.number)?.entry(record.number, &self.directories)?
             }
             domain::Mode::Managed => setup::Entry {
                 forge: record.number,
@@ -211,9 +210,9 @@ impl Runtime {
             restored,
             read_again: if !restored
                 && record.mode == domain::Mode::Owned
-                && match &self.machine.owned {
-                    Some(owned) => owned.sign_in.is_some(),
-                    None => false,
+                && match self.files.get(&record.number) {
+                    Some(temper_forge_setup::setup_file::SetupFile::Owned(owned)) => owned.sign_in.is_some(),
+                    Some(temper_forge_setup::setup_file::SetupFile::Fake(_)) | None => false,
                 } {
                 lifecycle::ReadAgain::AfterReconcile
             } else {
@@ -355,5 +354,11 @@ pub(super) fn keep_layer(layer: &mut super::Layer, source: &crate::settings::For
             None => return,
         };
         layer.lifecycle.reconcile.insert(record.number, pending).expect("one lifecycle per forge");
+    }
+}
+
+pub(super) fn set_file(layer: &mut super::Layer, forge: u16, file: temper_forge_setup::setup_file::SetupFile) {
+    if let Some(runtime) = &mut layer.runtime {
+        runtime.files.insert(forge, file).expect("kept forge setups");
     }
 }

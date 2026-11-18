@@ -3,7 +3,8 @@
 use super::*;
 
 const STEPS: u32 = 600; // Usual 100 ms ticks cover discovery and the shipped 30 s brief.
-const JOB_CUT: &str = "[job log cut at the brief's deadline; read_checks names its job and read_job reads its log]";
+const JOB_CUT: &str =
+    "[job log cut at the brief's deadline; read_ci what=checks names its job and read_ci what=job reads its log]";
 
 fn world(passes: u32, ci_contexts: Option<&'static [&'static [u8]]>) -> (World, engine::Assignment, Box<[u8]>) {
     let brief = temper_engine_domain_world::forge_routes::box_limits().brief;
@@ -91,7 +92,7 @@ fn a_resolution_with_slow_files_starts_with_deadline_notices() {
         engine::ForgeStart::Merge { branch: ref source, base: expected }
             if source.as_ref() == branch.as_ref() && expected == translate::commit(base)));
     let words = pull_words(&resolver);
-    assert!(words.contains("[files cut at the brief's deadline: 0 of 12 files read; read_pull_files from page 1 lists the rest, and read_file reads a path at the head or the base]"), "{words}");
+    assert!(words.contains("[files cut at the brief's deadline: 0 of 12 files read; read_issues what=pull_files from page 1 lists the rest, and read_forge what=file reads a path at the head or the base]"), "{words}");
     assert!(words.contains("[comparison cut at the brief's deadline: not read; read it in your checkout]"), "{words}");
     let files_reads: Vec<_> = world
         .forge_reads

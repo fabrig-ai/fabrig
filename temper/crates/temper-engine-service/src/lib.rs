@@ -8,7 +8,7 @@ pub use temper_engine_service_component::{clients, forge, forges, store, system}
 pub use temper_engine_service_startup::*;
 pub use temper_engine_service_stock::stock;
 pub use temper_engine_service_vocabulary::{
-    ForgeRuntime, UnreadableRow, assignment, family, limits, render_for_task, render_for_task_page, server, settings,
-    settings_note, tokens, tools, translate, values,
+    ForgeRuntime, UnreadableRow, assignment, family, figures, limits, render_for_task, render_for_task_page, server,
+    settings, settings_note, tokens, tools, translate, values,
 };
 pub mod startup;

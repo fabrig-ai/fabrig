@@ -1,8 +1,10 @@
 //! Version, bounds and total outcome round trips (client/forge/records.md).
+mod checkpoints;
 mod drafts;
 mod findings;
 mod fixtures;
 mod opened;
+mod parts;
 mod source;
 mod tiers;
 mod versions;
@@ -1382,13 +1384,16 @@ fn revision_setting_read_appends_after_the_deployment_tag() {
         )
         .unwrap(),
     );
-    for (read, bytes) in [
-        (v1::Read::Deployment, &[0, 28, 3][..]),
-        (revision, &[0, 28, 4, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4][..]),
-    ] {
+    for (read, bytes) in
+        [(v1::Read::Deployment, &[3][..]), (revision, &[4, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4][..])]
+    {
         let record = v1::Reading::new(&limits, v1::ReadingParts { read }).unwrap();
-        assert_eq!(crate::reading(&record).as_ref(), bytes);
-        assert_eq!(crate::decode_reading(bytes, &limits), Some(record));
+        let mut expected = skein_lib::Writer::new(bytes.len() + 2);
+        expected.put(&u16::try_from(crate::CLIENT_VERSION).unwrap().to_be_bytes()).unwrap();
+        expected.put(bytes).unwrap();
+        let bytes = expected.finish();
+        assert_eq!(crate::reading(&record), bytes);
+        assert_eq!(crate::decode_reading(&bytes, &limits), Some(record));
     }
 }
 
@@ -1575,8 +1580,11 @@ fn settings_reads_and_answers_require_one_complete_bounded_record() {
         assert_eq!(wire::decode_reading(&bytes, &w::CEILINGS), Some(record));
         assert!(wire::decode_reading(&bytes[..bytes.len() - 1], &w::CEILINGS).is_none());
     }
-    let record =
-        w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(Box::new([6, 0, 0, 0])) }).unwrap();
+    let record = w::SettingAnswer::new(
+        &w::CEILINGS,
+        w::SettingAnswerParts { revision: None, value: Some(Box::new([6, 0, 0, 0])) },
+    )
+    .unwrap();
     let bytes = wire::setting_answer(&record);
     assert_eq!(wire::decode_setting_answer(&bytes, &w::CEILINGS), Some(record));
     let mut limits = w::CEILINGS;
@@ -2066,7 +2074,14 @@ fn trial_rows_round_trip_each_step_state_and_failure() {
             for (task, took) in [(None, None), (Some(u64::MAX), Some(u32::MAX))] {
                 let row = v1::TrialRow::new(
                     &limits,
-                    v1::TrialRowParts { account: u32::MAX, task, took, step: step.clone(), state: state.clone() },
+                    v1::TrialRowParts {
+                        run_wait: None,
+                        account: u32::MAX,
+                        task,
+                        took,
+                        step: step.clone(),
+                        state: state.clone(),
+                    },
                 )
                 .unwrap();
                 let mut rows = List::with_capacity(1);

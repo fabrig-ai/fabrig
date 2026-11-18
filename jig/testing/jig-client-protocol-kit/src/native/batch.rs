@@ -89,8 +89,8 @@ impl Host for Client {
         while let Some(request) = self.out.pop() {
             match &request {
                 Request::Exchange { message: Message::Batch(bytes), .. } => {
-                    let batch = jig_client_protocol_wire::v28::Batch::decode(
-                        &jig_client_protocol_wire::v28::CEILINGS,
+                    let batch = jig_client_protocol_wire::Batch::decode(
+                        &jig_client_protocol_wire::CEILINGS,
                         &mut skein_lib::Reader::new(bytes),
                     )
                     .expect("batch record");
@@ -250,8 +250,8 @@ pub fn run(seed: u64, replacement: bool) {
     if replacement {
         assert_eq!(second.replaces.len(), 1);
         let record = first.kept.iter().find(|r| r.key.as_ref() == c::STREAM_KEY).expect("kept stream");
-        let kept = jig_client_protocol_wire::v28::Kept::decode(
-            &jig_client_protocol_wire::v28::CEILINGS,
+        let kept = jig_client_protocol_wire::Kept::decode(
+            &jig_client_protocol_wire::CEILINGS,
             &mut skein_lib::Reader::new(&record.bytes),
         )
         .expect("kept stream record");

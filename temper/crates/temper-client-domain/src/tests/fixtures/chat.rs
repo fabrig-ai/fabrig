@@ -10,7 +10,7 @@ const ONE: u32 = 1;
 const OUTPUTS: u32 = 64;
 const EXCHANGES: u32 = 8;
 pub fn task() -> c::Task {
-    use jig_client_protocol_wire::v28 as w;
+    use jig_client_protocol_wire as w;
     let mut record = jig_client_test_records::task_record().into_parts();
     record.chip = jig_client_test_records::owner_waiting_chip_record();
     let record = w::Task::new(&w::CEILINGS, record).expect("checked task fixture");
@@ -58,25 +58,20 @@ pub fn opened() -> Fixture {
         &mut emitted,
     );
     let mut watch = None;
-    let mut me = None;
+
     while let Some(request) = emitted.pop() {
         if let jig_client::UnlinkedRequest::Down {
             down: jig_client::Down::Open { watch: token, subject: Watchable::Jig(c::Subject::Task { .. }) },
         } = request
         {
             watch = Some(token);
-        } else if let jig_client::UnlinkedRequest::Down {
-            down: jig_client::Down::Open { watch: token, subject: Watchable::Jig(c::Subject::Me) },
-        } = request
-        {
-            me = Some(token);
         }
     }
     let watch = watch.expect("task opened");
     deliver(&mut client, watch, task());
     while out.pop().is_some() {}
     chat.told(Time::ZERO, &client, Told::Changed { handle: chat.document }, &mut out);
-    Fixture { chat, client, out, watch, me: me.expect("automatic me watch") }
+    Fixture { chat, client, out, watch, me: Token::new(0) }
 }
 pub fn deliver(client: &mut Client, watch: Token, task: c::Task) {
     client.step_unlinked(

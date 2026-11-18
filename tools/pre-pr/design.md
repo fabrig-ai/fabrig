@@ -10,7 +10,9 @@ for the failures file, `temper/docs/design/draft/pre-pr-failure-list.md`,
 for the boundary packages and the fuzzy tests, the user's word of 2026-11-15,
 after a landing's gate caught three reds in tests no delivery had run, and,
 for the failures file's place in the tree and a prose-only delivery's check
-with no build, `temper/docs/design/draft/small-fixes-1116.md`, 1 and 3.
+with no build, `temper/docs/design/draft/small-fixes-1116.md`, 1 and 3,
+and, for the budgets it holds where its builder keeps main's ledgers,
+`temper/docs/design/draft/test-budgets.md`, 3.
 Coding agents run no build
 or test; this check runs what the delivery changed, on the agent's warm
 checkout, before anything is pushed. A pull request into a goal's branch runs
@@ -56,6 +58,13 @@ boundary (smith's run.md, 8.1).
   `tools/tiers/one-process fuzzy`: each test binary's selected tests in one
   process, one at a time, binaries in parallel, nextest only selecting and
   building (section 4). A starved run is a warning.
+- **The budgets, where the builder keeps main's ledgers.** With
+  `TIERS_LEDGER` naming a directory that holds main's ledger for a suite,
+  which `ledger()` reads, that suite's run takes it and the gate's
+  verdict: a layer the delivery takes over its budget, or a test past its
+  reference, refuses it, named as any failure is. Without one, the suite
+  runs as before, its comparison a warning, and a line says why (section
+  4; `tools/tiers/budgets.md`, 5).
 - **A goal's design delivery too.** A goal run's `deliver` of Markdown
   straight to its goal branch runs the project's checks before the worker
   pushes, and a failure refuses the push with the check's output
@@ -97,8 +106,8 @@ boundary (smith's run.md, 8.1).
   and verdict, the goal's reds it passed or failed, and its flakes with
   their logs, which the worker reports to the engine (section 6).
 - **Fast on a warm checkout:** no `cargo clean`, no whole-workspace run,
-  no build at the base, and the passed-tree cache keyed by tree, base and
-  the goal's reds (sections 7 and 8).
+  no build at the base, and the passed-tree cache keyed by tree, base, the
+  goal's reds and main's ledgers (sections 7 and 8).
 
 ## 2. The base
 
@@ -273,10 +282,13 @@ delivery hears every failure; the verdict is section 6's.
    process*). The check passes no budgets and no configuration of its own:
    the repository's `.config/nextest.toml` is read as it stands, and the
    profile's `global-timeout` is the run's only bound. one-process compares
-   each layer the run measured with `tools/tiers/budgets.toml`, and the check
-   passes no `--gate`: a layer over its budget is a warning in its output,
-   never a failure, since only the gate judges the budgets
-   (`tools/tiers/budgets.md`, 5). The run's exit
+   each layer the run measured with `tools/tiers/budgets.toml`. Where the
+   check took main's ledger for the run's profile (*Main's ledgers*,
+   below), it passes `--ledger LEDGER --gate` before the profile, and the
+   run is judged whole, its new and flagged tests run alone, as the gate's
+   is (`tools/tiers/budgets.md`, 5 and 8; `tools/tiers/references.md`, 3);
+   otherwise it passes neither, and a layer over its budget is a warning in
+   its output, never a failure. The run's exit
    decides:
    - **0:** passed, a starved run included (below);
    - **100:** test failures, each a `testcase` of the run directory's
@@ -290,6 +302,25 @@ delivery hears every failure; the verdict is section 6's.
      joined by `, `, so that a test which cannot yet share its binary's
      process is told from one that fails alone. A 100 that leaves no failure is a failure of the check
      itself;
+   - **1, where the check passed `--gate`:** over budget, which comes
+     before a test failure in one-process's exit
+     (`tools/tiers/budgets.md`, 5). The check reads the verdict with
+     `python3 -I -B tools/tiers/cpu-summary <run directory> --budgets
+     tools/tiers/budgets.toml --ledger LEDGER --gate --json`, from the
+     tree's root, `--budgets` only where that file exists, as one-process
+     takes it (`tools/tiers/design.md`, 10.1). Each entry of its result's
+     `over_budget` is a failure, its log the entry whole: one whose first
+     line starts `layer over budget: ` is named `budget` and that line's
+     words up to its next `: `, as `budget temper default domain`
+     (`tools/tiers/budgets.md`, 4 and 8); one starting `test over its
+     reference: `, `reference` and the words up to the next `: `, as
+     `reference temper-engine::domain forge::opens`
+     (`tools/tiers/references.md`, 6); any other, `budget <profile>`.
+     Then the run's test failures are read from `junit.xml` as for 100,
+     where it has any. A `cpu-summary` that exits other than 1, or whose
+     output is not one JSON object whose `over_budget` is a nonempty list
+     of strings, is a failure of the check itself, its log `cpu-summary`'s
+     output;
    - **2, its output ending with the line `one-process: nextest listing
      exited with 101`:** a build failure. The listing builds the tests as
      nextest's run would (`tools/tiers/design.md`, 11.2), and nextest's
@@ -373,6 +404,34 @@ delivery hears every failure; the verdict is section 6's.
      failure is `build fuzzy`, a failure of the check itself `check
      one-process fuzzy`.
 
+   **Main's ledgers** (`temper/docs/design/draft/test-budgets.md`, 3): a
+   builder that runs goals may keep each suite's
+   (`tools/tiers/budgets.md`, 7) as `default.json` and `fuzzy.json` in the
+   directory `TIERS_LEDGER` names. The check reads them once, after
+   `temper/rerun` and before the cache's check, so the bytes the cache
+   keys are those the runs are judged by (section 7):
+   - **Unset or empty:** no ledger, and one line, `pre-pr: budgets:
+     warnings only (TIERS_LEDGER unset)`.
+   - **Otherwise,** for `default` then `fuzzy`, the file
+     `<TIERS_LEDGER>/<profile>.json`, a relative directory taken from the
+     tree's root, is read whole, its bytes written to
+     `<profile>-ledger.json` in the check's private temporary directory,
+     and that copy read by `tools/tiers/cpu.py`'s `ledger()`. It is taken
+     where `ledger()` returns and its `profile` is the profile: `pre-pr:
+     budgets: <profile> judged with main's ledger
+     (TIERS_LEDGER/<profile>.json)`. Otherwise the profile has none, and
+     one line says why, `pre-pr: budgets: <profile> warnings only
+     (<why>)`, `<why>` one of `no <profile>.json in TIERS_LEDGER`,
+     `<profile>.json unreadable: <error>`, `<profile>.json refused:
+     <error>` and `<profile>.json holds the <other> ledger`, `<error>` the
+     error's first line, at most 512 bytes, cut at a character's end.
+   - **The copy is what a run takes,** as `--ledger` and in its
+     `cpu-summary` read; `--again` takes neither, as one-process requires.
+   - **Never a failure:** a missing or refused ledger refuses nothing;
+     its line is the deployment's, which the summary does not repeat, as
+     the hold's. A layer over at main stays a warning, as at the gate
+     (`tools/tiers/budgets.md`, 8).
+
 5. **The docs:** `python3 -I -B tools/citations/citations.py --base <base>
    --head <tree>` against section 3's private snapshot, including staged,
    unstaged and untracked documentation. The checker also enforces the
@@ -403,7 +462,9 @@ delivery hears every failure; the verdict is section 6's.
      log the scan's output.
 
 **The environment** is the check's, with `TEMPER_INTERNAL_BUNDLE=none` set where it
-is unset (`AGENTS.md`, 5). Builds and tests do not inherit the snapshot's
+is unset (`AGENTS.md`, 5), and `TIERS_LEDGER` removed, as `TIERS_HOLD` is
+(below), so that no test running a check of its own reads the builder's
+ledgers. Builds and tests do not inherit the snapshot's
 private index; their scratch repositories keep their own indexes. No
 `cargo clean`, no `--workspace`, no network
 fetch beyond what cargo's own configuration does.
@@ -514,7 +575,9 @@ cause.
 - **A build failure** (section 4's, `build` or `build fuzzy`) is always
   the delivery's, whatever the goal's reds hold; so is a failure of a
   check itself (`check clippy`, `check one-process`, `check one-process
-  fuzzy`, `check outward`, `check selection`).
+  fuzzy`, `check outward`, `check selection`), and a budget's or a
+  reference's (section 4), which no entry's form names and which never
+  runs again.
 - **A starved test** is neither failed nor inherited: section 4's warning
   names it, and it refuses nothing, named by an entry or not.
 - **A flake,** a failing test that passed when its process ran again
@@ -566,7 +629,8 @@ cause.
   count. Then:
   - for each failure this delivery made: its check (`format`, `old-forms
     <tree>`, `clippy <package>`, `test <binary id> <name>`, `build`,
-    `build fuzzy`, `check <name>` for a check that failed of itself), then the last lines
+    `build fuzzy`, `budget <tree> <profile> <layer>`, `reference <binary
+    id> <name>`, `check <name>` for a check that failed of itself), then the last lines
     of its log: a test's JUnit output, with its alone label last where it
     has one, an error's rendered text, a tool's
     output; each at most 1,536 bytes, cut at a line's start and marked
@@ -637,8 +701,9 @@ cause.
       "file", "message"}` (`code` and `file` empty where the compiler
       gave none), an exceeded count's `{"kind": "old-forms", "tree",
       "form", "count", "baseline"}`, its numbers as numbers, and `null`
-      for any other failure (`format`, `build`, `check <name>`, an
-      old-forms run's failure, citations), whose name says it whole.
+      for any other failure (`format`, `build`, `budget …`, `reference
+      …`, `check <name>`, an old-forms run's failure, citations), whose
+      name says it whole.
 
     It holds no log: the summary keeps the logs that fit.
   - **A write that fails,** the path's lookup included, is named in the
@@ -668,21 +733,28 @@ cause.
   - then each flake, `flake <key>`, its first run's log as the summary
     cuts it, each line `| <text>`, an empty one `|`.
 
-  A cache hit writes none, nor does a check that wrote no summary.
+  A budget's or a reference's failure is in it as any new failure is, by
+  the check line's `refused` alone. A cache hit writes none, nor does a
+  check that wrote no summary.
 
 ## 7. The passed-tree cache
 
-`<git dir>/pre-pr-passed` holds `<tree> <base> <reds>` once every check
-passed or was inherited: `<base>` is `-` without a base, and `<reds>` the
+`<git dir>/pre-pr-passed` holds `<tree> <base> <reds> <ledgers>` once every check
+passed or was inherited: `<base>` is `-` without a base, `<reds>` the
 SHA-256, in lowercase hexadecimal, of the bytes of `temper/reds` the run
-read (section 5), or `-` where it read none. A check of the same tree, on
-the same base, with the same reds prints `pre-pr: passed before (tree
-<tree>, base <base>, reds <reds>)` and exits 0 at once: within a hold the
+read (section 5), or `-` where it read none, and `<ledgers>` `-` where
+the check took no ledger (section 4, *Main's ledgers*), and otherwise the
+SHA-256 of the text `default <D>\nfuzzy <F>\n`, `<D>` and `<F>` the
+SHA-256 of the bytes of the ledger it took for that profile, or `-`. A
+check of the same tree, on the same base, with the same reds and ledgers
+prints `pre-pr: passed before (tree <tree>, base <base>, reds <reds>,
+ledgers <ledgers>)` and exits 0 at once: within a hold the
 base does not move, so a `finish` repeats its `deliver`'s pass, while a
 red ended or recorded since changes the file and so the key, and a pass
-under a red that has ended is never reused. A failure, an interruption or
+under a red that has ended is never reused; a ledger replaced or newly
+kept changes it too, and the delivery is judged again. A failure, an interruption or
 a timeout never writes it. An earlier record of another shape, the
-two-field one included, matches nothing. A cache hit observes nothing:
+two- and three-field ones included, matches nothing. A cache hit observes nothing:
 it writes no `temper/check-results` (section 6), so temper keeps what the
 check's last pass reported. It does write the failures file (section 6),
 saying so: `cached` `true`, `verdict` `passed`, the tree and base it
@@ -714,6 +786,13 @@ tree that passed here.
   three times (`temper/docs/design/draft/small-fixes-1116.md`, 3). It
   costs citations and the outward text check, which reads each tracked
   file once, a few seconds on this repository and no cargo.
+- **What main's ledgers cost** a delivery whose builder keeps them: each
+  run's new and flagged tests run alone after its suite, each in a
+  process of its own beside its binary's empty one
+  (`tools/tiers/references.md`, 3 and 4), within the profile's
+  `global-timeout`; a `cpu-summary` read of a run over budget; and a pass
+  reused only under the ledgers it was judged by, which the runner
+  replaces after each landing on main (section 7).
 - **No build or test at the base.** A lint, test or build failure goes
   back to the delivery at once, judged against the goal's reds alone
   (section 5): a failing delivery takes no longer than a passing one. The
@@ -789,6 +868,13 @@ tests'. Its stories, a test each:
    starts none.
 10. **A hold that exits early:** its warning once, and the check going on
     unheld to the verdict it would have given.
+11. **Main's ledgers:** `TIERS_LEDGER` naming a directory with
+    `default.json` and `fuzzy.json` of `ledger()`'s form, both runs given
+    `--ledger`, a copy of the file's bytes, and `--gate` before their
+    profile; the focused run exiting 1 and a fake `tools/tiers/cpu-summary`
+    giving a layer's over line, which refuses as `budget …` with the line
+    in its log, and is in the failures file with a `null` key; one-process
+    and `cpu-summary` see no `TIERS_LEDGER`.
 
 ### 9.2 The driver's unit tests
 
@@ -918,6 +1004,15 @@ whole line under its `[… N bytes cut]` marker and keeping its last line,
 the rest counted in one `[… N more failures]` line. The hold: an unset or
 empty `TIERS_HOLD` starts none, and a hold that exits early under a
 refusal leaves the refusal.
+
+Main's ledgers (section 4): unset, empty, a file missing, unreadable,
+refused or the other profile's, each with its line and its run as
+before; one profile's taken alone; a relative directory. Exit 1 under
+`--gate`: each name form refusing with its entry as its log, never
+inherited or run again, beside `junit.xml`'s failures; a `cpu-summary`
+exiting 0 or 2, or with no entry, `check one-process` (or `… fuzzy`);
+exit 1 without `--gate` as before. The cache judges again when either
+file's bytes change, go or come.
 
 ## 10. Later
 

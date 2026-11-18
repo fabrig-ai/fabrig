@@ -55,6 +55,11 @@ pub enum Event {
         read: Token,
         what: Readable,
     },
+    /// One idempotent retry after a lost read exchange, while its caller is current.
+    ReadAgain {
+        read: Token,
+        what: Readable,
+    },
     Reply {
         exchange: Token,
         message: Box<[u8]>,
@@ -84,6 +89,8 @@ pub enum Event {
         message: Streamed,
     },
     StreamGone,
+    /// Open the signed-in client's stream, including its implicit me watch.
+    OpenStream,
 }
 #[derive(Debug, PartialEq, Eq)]
 pub enum Request {
@@ -111,6 +118,10 @@ pub enum Request {
     NotKept {
         attempt: Token,
     },
+    /// A request whose record cannot be encoded for the store, retired by its key.
+    NotWritten {
+        key: RequestKey,
+    },
     Answer {
         attempt: Token,
         envelope: RequestEnvelope,
@@ -125,6 +136,7 @@ pub enum Request {
     OpenStream {
         credential: Option<Secret>,
         replaces: Option<[u8; 16]>,
+        version: u32,
     },
     Signing {
         signing: Signing,
@@ -145,6 +157,11 @@ pub enum Request {
     Hello {
         family: Option<u16>,
         versions: Option<contract::VersionRange>,
+    },
+    /// A lost read may be sent once more if its token is still current.
+    ReadAgain {
+        read: Token,
+        what: Readable,
     },
     /// One terminal per read.
     Read {
@@ -348,6 +365,9 @@ impl core::fmt::Debug for Event {
                 .field("value", value)
                 .finish(),
             Self::Read { read, what } => f.debug_struct("Read").field("read", read).field("what", what).finish(),
+            Self::ReadAgain { read, what } => {
+                f.debug_struct("ReadAgain").field("read", read).field("what", what).finish()
+            }
             Self::Reply { exchange, message } => {
                 f.debug_struct("Reply").field("exchange", exchange).field("body_len", &message.len()).finish()
             }
@@ -365,6 +385,7 @@ impl core::fmt::Debug for Event {
             Self::Close { watch } => f.debug_struct("Close").field("watch", watch).finish(),
             Self::Streamed { message } => f.debug_struct("Streamed").field("message", message).finish(),
             Self::StreamGone => f.write_str("StreamGone"),
+            Self::OpenStream => f.write_str("OpenStream"),
         }
     }
 }

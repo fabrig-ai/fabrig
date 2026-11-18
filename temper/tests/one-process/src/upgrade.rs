@@ -6,8 +6,10 @@ pub mod story;
 use jig_protocol_store::{KeptMap, Owner, OwnerSets, codec, keys};
 use std::{collections::BTreeSet, path::Path};
 
-/// A pending production job upgrades the second build without moving any owner's level.
+/// Pending production jobs upgrade the second build without moving any owner's level.
 pub(super) const JOB: &str = "deleted-repository-forge-rows";
+pub(super) const JOBS: [&str; 5] =
+    ["test-ids-landing", "test-ids-receipt", "test-ids-tier", "test-ids-verification", JOB];
 pub(super) const CURRENT_SETS: OwnerSets = temper_engine_service::store::OWNER_SETS;
 
 thread_local! { static FIRST_SETS: OwnerSets = first_build(); }
@@ -31,7 +33,7 @@ fn first_build() -> OwnerSets {
                             set.jobs
                                 .iter()
                                 .copied()
-                                .filter(|job| job.name != JOB)
+                                .filter(|job| !JOBS.contains(&job.name))
                                 .collect::<Vec<_>>()
                                 .into_boxed_slice(),
                         ),
@@ -209,7 +211,7 @@ fn registry(component: &keys::Own, value: &[u8]) -> &'static str {
     }
 }
 
-/// Only the unused receipt layout is registered and retired; the pending job ends once.
+/// Only the unused receipt layout is registered and retired; each pending job ends once.
 fn registry_upgrade(before: &maps::Maps, after: &maps::Maps) -> BTreeSet<Vec<u8>> {
     use jig_protocol_store::registry_v1 as wire;
     use skein_lib::Reader;
@@ -247,12 +249,18 @@ fn registry_upgrade(before: &maps::Maps, after: &maps::Maps) -> BTreeSet<Vec<u8>
             .expect("registry text");
     assert_eq!(text.text(), family.current.as_bytes());
     assert!(!before.store.contains_key(text_key.as_ref()), "second build brings production text");
-    let job_key =
-        keys::encode_own(&keys::Own::Job { owner: Owner::Application, name: JOB.into() }, 1024).expect("job key");
-    assert!(!before.store.contains_key(job_key.as_ref()), "first build leaves the job pending");
-    let job =
-        wire::Job::decode(&wire::CEILINGS, &mut Reader::new(after.store.get(job_key.as_ref()).expect("job done row")))
-            .expect("done job");
-    assert!(job.ended() > 0, "job end committed");
-    BTreeSet::from([old_key, new_key, text_key.into_vec(), job_key.into_vec()])
+    let mut changed = BTreeSet::from([old_key, new_key, text_key.into_vec()]);
+    for name in JOBS {
+        let job_key =
+            keys::encode_own(&keys::Own::Job { owner: Owner::Application, name: name.into() }, 1024).expect("job key");
+        assert!(!before.store.contains_key(job_key.as_ref()), "first build leaves {name} pending");
+        let job = wire::Job::decode(
+            &wire::CEILINGS,
+            &mut Reader::new(after.store.get(job_key.as_ref()).expect("job done row")),
+        )
+        .expect("done job");
+        assert!(job.ended() > 0, "job end committed");
+        changed.insert(job_key.into_vec());
+    }
+    changed
 }

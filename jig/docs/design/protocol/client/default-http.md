@@ -12,7 +12,7 @@ prefix; jig's test application mounts it at `/jig`.
 
 | Route | Message |
 |---|---|
-| `GET <prefix>/v1/stream` | opening the stream, answered with server-sent events (2); `?replaces=` names the stream it replaces |
+| `GET <prefix>/v1/stream?version=<version>` | opening the stream, naming jig's wire version in decimal, answered with server-sent events (2); `&replaces=` names the stream it replaces |
 | `POST <prefix>/v1/request` | a keyed request |
 | `POST <prefix>/v1/read` | a read |
 | `POST <prefix>/v1/watch` | opening a watch |
@@ -71,6 +71,15 @@ prefix; jig's test application mounts it at `/jig`.
   record's bytes in base64; a heartbeat a comment line. No event names
   and no ids: a record says what it is, and a client reopens by its own
   backoffs, never by the event stream's retry.
+- **Its version.** The `GET`'s `version` names the version of jig's
+  wire the client speaks, the component's `StreamOpen` `version`
+  (`wire.md`, 2.2). A `GET` of the path with no `version`, as an
+  earlier client sends it, names none, and is answered the hello alone
+  (`wire.md`, section 2); a `version` that is not a decimal `u32` is
+  `400`. Nothing is written before the hello, which waits for `me`, so
+  a stream the engine ends before it (signed out, or busy, for want of
+  room for its `me`) is answered by status, as now: `401` signed out,
+  and a `409` with no body, which the client takes as gone.
 - **Paced by its connection.** The engine end says `StreamTaken` once an
   event's bytes are in the connection's send buffer, bounded by the
   mapping's limits; a client that reads slowly fills it, and nothing

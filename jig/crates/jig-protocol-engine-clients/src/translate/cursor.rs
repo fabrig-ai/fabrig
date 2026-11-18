@@ -1,5 +1,5 @@
 //! Whole owner cursors, with keys carried by the store codec (jig/docs/design/protocol/client/README.md, 4).
-use crate::cursor_v1::{self as c, CEILINGS as C};
+use crate::cursor_v2::{self as c, CEILINGS as C};
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::{Key, documents, reads};
 use jig_domain_notes as notes;
@@ -7,7 +7,7 @@ use jig_domain_people as people;
 use skein_lib::{Reader, Wall, Writer};
 
 /// The cursor family version checked at the client boundary.
-pub const CURSOR_VERSION: u16 = 1;
+pub const CURSOR_VERSION: u16 = 2;
 
 pub fn encode(value: &reads::Cursor, limit: u32) -> Option<Box<[u8]>> {
     let cursor = match value.clone() {
@@ -367,13 +367,29 @@ fn put_query(query: documents::TaskQuery) -> Option<c::Query> {
             executor,
             tracked,
             order,
+            parts: {
+                let mut parts = skein_lib::List::with_capacity(query.parts.len());
+                for ask in &query.parts {
+                    parts
+                        .push(
+                            c::PartAsk::new(
+                                &C,
+                                c::PartAskParts { owner: ask.owner, kind: ask.kind, version: ask.version },
+                            )
+                            .ok()?,
+                        )
+                        .ok()?;
+                }
+                parts
+            },
         },
     )
     .ok()
 }
 fn take_query(value: c::Query) -> Option<documents::TaskQuery> {
     use documents::{ExecutorKind as E, PhaseClass as P, QueryOrder as O};
-    let c::QueryParts { project, requester, root, parent, label, phase, executor, tracked, order } = value.into_parts();
+    let c::QueryParts { project, requester, root, parent, label, phase, executor, tracked, order, parts } =
+        value.into_parts();
     let requester = match requester {
         c::Requester::None => None,
         c::Requester::Person(v) => Some(jig_domain_tasks::Party::Person(v.value())),
@@ -410,7 +426,24 @@ fn take_query(value: c::Query) -> Option<documents::TaskQuery> {
         4 => O::Ended,
         _ => return None,
     };
-    Some(documents::TaskQuery { project, requester, root, parent, label, phase, executor, tracked, order })
+    Some(documents::TaskQuery {
+        parts: {
+            let mut asks = skein_lib::List::with_capacity(parts.len());
+            for ask in &parts {
+                asks.push(documents::PartAsk { owner: ask.owner(), kind: ask.kind(), version: ask.version() }).ok()?;
+            }
+            asks
+        },
+        project,
+        requester,
+        root,
+        parent,
+        label,
+        phase,
+        executor,
+        tracked,
+        order,
+    })
 }
 
 #[cfg(test)]

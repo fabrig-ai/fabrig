@@ -54,6 +54,8 @@ pub fn turn_in(mut world: World) -> World {
 #[must_use]
 pub fn landing_row(change: &top::ChangeRow) -> top::LandingRow {
     top::LandingRow {
+        flake_reruns: Box::new([]),
+        room: None,
         job: None,
         landing: landing::Landing {
             last_left: None,
@@ -120,7 +122,7 @@ pub fn step_landing_raw(world: &mut World, task: u64, entry: u64) -> landing::De
             dependencies: Box::new([]),
             held: Box::new([]),
             failure: Box::new([]),
-            preparation: landing::Preparation::Idle,
+            preparation: Some(landing::Preparation::Idle),
             released: false,
             cancelled: false,
             kept: Box::new([]),

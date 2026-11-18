@@ -29,6 +29,8 @@ fn batch(h: &fixtures::Harness) -> (Token, w::Batch) {
             | Request::Kept { .. }
             | Request::Dropped
             | Request::NotKept { .. }
+            | Request::NotWritten { .. }
+            | Request::ReadAgain { .. }
             | Request::Answer { .. }
             | Request::ServiceCredential { .. }
             | Request::OpenStream { .. }
@@ -64,6 +66,8 @@ fn result(h: &fixtures::Harness, token: u64) -> Option<&Readout> {
             | Request::Kept { .. }
             | Request::Dropped
             | Request::NotKept { .. }
+            | Request::NotWritten { .. }
+            | Request::ReadAgain { .. }
             | Request::Answer { .. }
             | Request::ServiceCredential { .. }
             | Request::OpenStream { .. }
@@ -92,6 +96,8 @@ fn read_count(h: &fixtures::Harness) -> u32 {
             | Request::Kept { .. }
             | Request::Dropped
             | Request::NotKept { .. }
+            | Request::NotWritten { .. }
+            | Request::ReadAgain { .. }
             | Request::Answer { .. }
             | Request::ServiceCredential { .. }
             | Request::OpenStream { .. }
@@ -111,7 +117,7 @@ fn read_count(h: &fixtures::Harness) -> u32 {
 fn a_continued_watch_waits_for_its_opening_and_cleanup_before_reusing_watch_room() {
     let limits = Limits::new(jig_client_domain::Limits { watches: 1, ..*fixtures::limits().client() }, 4).unwrap();
     let mut h = fixtures::Harness::new(&limits);
-    h.open(fixtures::WATCH, fixtures::frame_subject());
+    h.open(fixtures::WATCH, fixtures::application_subject());
     h.stream_record(&fixtures::hello_event(fixtures::HEARTBEAT));
     let (opening, old) = h.opening();
     h.clear();
@@ -133,7 +139,7 @@ fn a_continued_watch_waits_for_its_opening_and_cleanup_before_reusing_watch_room
 fn cancelling_a_held_read_keeps_later_reads_openings_and_closings_in_asked_order() {
     let limits = Limits::new(*fixtures::limits().client(), 1).unwrap();
     let mut h = fixtures::Harness::new(&limits);
-    h.open(fixtures::WATCH, fixtures::frame_subject());
+    h.open(fixtures::WATCH, fixtures::application_subject());
     h.stream_record(&fixtures::hello_event(fixtures::HEARTBEAT));
     let (opening, _) = h.opening();
     h.answer(opening, &fixtures::open_answer(&w::OpenAnswer::Admitted));
@@ -356,7 +362,11 @@ fn an_unanswered_opening_or_closing_drops_only_its_stream_not_answered_reads() {
         let watch = if closing { fixtures::WATCH } else { Token::new(90) };
         h.link.step(
             Time::ZERO,
-            if closing { Event::Close { watch } } else { Event::Open { watch, subject: fixtures::frame_subject() } },
+            if closing {
+                Event::Close { watch }
+            } else {
+                Event::Open { watch, subject: fixtures::application_subject() }
+            },
             &mut h.out,
         );
         h.link.settle(&mut h.out);
@@ -412,8 +422,12 @@ fn every_stream_opening_names_the_last_known_stream_without_a_gone_exchange() {
     h.link.settle(&mut h.out);
     h.clear();
     gather(&mut h, 2);
-    h.open(fixtures::WATCH, fixtures::frame_subject());
-    assert!(h.has(&Request::OpenStream { credential: None, replaces: Some(fixtures::STREAM) }));
+    h.open(fixtures::WATCH, fixtures::application_subject());
+    assert!(h.has(&Request::OpenStream {
+        credential: None,
+        replaces: Some(fixtures::STREAM),
+        version: jig_client_protocol_wire::VERSION
+    }));
     assert_eq!(h.exchanges(), 0);
     let hello =
         w::StreamEvent::decode(h.link.limits.wire(), &mut Reader::new(&fixtures::hello_event(fixtures::HEARTBEAT)))
@@ -426,7 +440,11 @@ fn every_stream_opening_names_the_last_known_stream_without_a_gone_exchange() {
     )));
     h.clear();
     h.link.step(Time::ZERO, Event::StreamGone, &mut h.out);
-    h.open(Token::new(99), fixtures::frame_subject());
-    assert!(h.has(&Request::OpenStream { credential: None, replaces: Some([9; 16]) }));
+    h.open(Token::new(99), fixtures::application_subject());
+    assert!(h.has(&Request::OpenStream {
+        credential: None,
+        replaces: Some([9; 16]),
+        version: jig_client_protocol_wire::VERSION
+    }));
     assert_eq!(h.exchanges(), 0);
 }

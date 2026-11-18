@@ -83,8 +83,8 @@ what they write, and how they end. temper runs them as jobs on a worker
     number in the landing, from 1; `branch` its own branch; `prefix`
     its branch in the landing, where its prefix is pushed
     (`../domain/landing.md`, 5.1).
-  - **`combine`** is the train's (`../domain/landing.md`, 5.2 and
-    13.1), and **`train_upstream`** its upstream's tip as the round read
+  - **`combine`** is the train's (`../domain/landing.md`, 5.2, and `../domain/landing-settings.md`, 1.1
+    ), and **`train_upstream`** its upstream's tip as the round read
     it, present only where the train has an upstream: a member whose
     head holds a commit `main` lacks and `train_upstream` holds is
     merged under `squash` too.

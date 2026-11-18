@@ -121,6 +121,11 @@ impl NativeClient {
     pub fn tree(&self) -> &skein_ui::Tree {
         self.view.tree()
     }
+    /// The address it last applied.
+    #[must_use]
+    pub fn address(&self) -> &domain::Address {
+        &self.address
+    }
     /// Read-only metadata: no credentials, request tokens or page bodies.
     #[must_use]
     pub fn pending(&self) -> crate::diagnostics::Pending {

@@ -1,6 +1,6 @@
 use super::fixtures::{self, Client, STOP, TASK};
 use crate::*;
-use jig_client_protocol_wire::v28 as w;
+use jig_client_protocol_wire as w;
 use skein_lib::{Duration, Reader, Time, Writer};
 
 fn starting() -> Client {
@@ -54,10 +54,8 @@ fn unreadable(c: &mut Client) {
 fn a_me_delivery_whose_document_is_cut_short_leaves_the_client_unreadable_sending_nothing() {
     let mut c = starting();
     c.stream(fixtures::hello(jig_client_protocol_wire::VERSION));
-    let watch = c.opened_watch();
-    c.stream(fixtures::frame(watch));
     c.step(Event::Stored);
-    let bytes = fixtures::frame(watch);
+    let bytes = fixtures::frame(0);
     let w::StreamEvent::Delivery(delivery) = w::StreamEvent::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap()
     else {
         panic!("me delivery fixture")
@@ -157,7 +155,6 @@ fn a_delivery_past_the_clients_bound_is_offline_not_unreadable_and_reopens() {
     let mut c = Client::with_limits(limits, skein_lib::List::with_capacity(0));
     c.step(Event::SignIn { with: With::Held(skein_lib::Secret::new(Box::new([7; 40]))) });
     c.stream(fixtures::hello(jig_client_protocol_wire::VERSION));
-    c.stream(fixtures::frame(c.opened_watch()));
     offline_and_reopening(&mut c);
 }
 
@@ -165,12 +162,10 @@ fn a_delivery_past_the_clients_bound_is_offline_not_unreadable_and_reopens() {
 fn a_delivery_before_the_hello_is_offline_not_unreadable_and_reopens() {
     let mut c = starting();
     c.stream(fixtures::hello(jig_client_protocol_wire::VERSION));
-    let watch = c.opened_watch();
-    c.stream(fixtures::frame(watch));
     c.step(Event::Stored);
     c.step(Event::StreamGone);
     c.fire(c.machine.next_deadline().unwrap());
-    c.stream(fixtures::frame(watch));
+    c.stream(fixtures::frame(0));
     offline_and_reopening(&mut c);
 }
 

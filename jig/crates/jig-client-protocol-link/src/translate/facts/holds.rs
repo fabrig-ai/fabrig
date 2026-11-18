@@ -4,7 +4,7 @@ use super::{Child, active_run, document_text, part, party, prior_phase, take_clo
 use crate::Limits;
 use crate::translate::text_problem;
 use jig_client_domain::contract as c;
-use jig_client_protocol_wire::v28 as w;
+use jig_client_protocol_wire as w;
 use skein_lib::{List, Map, Wall, bytes};
 
 pub(crate) fn hold_failure(value: &w::HoldFailure) -> c::HoldFailure {

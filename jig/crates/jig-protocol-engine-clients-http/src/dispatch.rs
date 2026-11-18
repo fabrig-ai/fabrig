@@ -1,6 +1,6 @@
 //! Method and route dispatch (protocol/client/default-http.md, 1).
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v28 as w;
+use jig_client_protocol_wire as w;
 use jig_protocol_engine_clients::Message;
 #[derive(Debug, PartialEq)]
 pub(crate) enum Route {
@@ -19,7 +19,8 @@ pub(crate) enum Route {
     Watch,
     Unwatch,
     Gone,
-    Stream,
+    Stream(Option<u32>),
+    BadQuery,
     Missing,
 }
 pub(crate) fn route(prefix: &[u8], call: &skein_http::server::Call) -> Route {
@@ -32,8 +33,11 @@ pub(crate) fn route(prefix: &[u8], call: &skein_http::server::Call) -> Route {
             _ => Route::Missing,
         };
     }
-    if call.method == skein_http::Method::Get && stream_replaces(path).is_ok() {
-        return Route::Stream;
+    if call.method == skein_http::Method::Get && path.starts_with(b"/v1/stream") {
+        return match stream_query(path) {
+            Ok((version, _)) => Route::Stream(version),
+            Err(()) => Route::BadQuery,
+        };
     }
     if call.method != skein_http::Method::Post {
         return Route::Missing;
@@ -56,29 +60,65 @@ pub(crate) fn route(prefix: &[u8], call: &skein_http::server::Call) -> Route {
         _ => Route::Missing,
     }
 }
-/// The stream's sole query (protocol/client/default-http.md, 2).
-pub(crate) fn stream_replaces(path: &[u8]) -> Result<Option<[u8; 16]>, ()> {
+/// Version and predecessor are independent, each present at most once (protocol/client/default-http.md, 2).
+fn stream_query(path: &[u8]) -> Result<(Option<u32>, Option<[u8; 16]>), ()> {
     if path == b"/v1/stream" {
-        return Ok(None);
+        return Ok((None, None));
     }
-    let digits = path.strip_prefix(b"/v1/stream?replaces=").ok_or(())?;
-    if digits.len() != 32 {
-        return Err(());
-    }
-    let mut name = [0; 16];
-    for (byte, pair) in name.iter_mut().zip(digits.as_chunks::<2>().0) {
-        let mut value = 0_u8;
-        for digit in pair {
-            let nibble = match digit {
-                b'0'..=b'9' => digit.checked_sub(b'0').ok_or(())?,
-                b'a'..=b'f' => digit.checked_sub(b'a').ok_or(())?.checked_add(10).ok_or(())?,
-                _ => return Err(()),
-            };
-            value = value.checked_mul(16).ok_or(())?.checked_add(nibble).ok_or(())?;
+    let mut query = path.strip_prefix(b"/v1/stream?").ok_or(())?;
+    let mut version = None;
+    let mut replaces = None;
+    loop {
+        let (field, rest) = match skein_lib::bytes::find(query, b"&") {
+            Some(at) => {
+                let (field, tail) = query.split_at_checked(at).expect("located separator");
+                (field, Some(tail.strip_prefix(b"&").expect("separator")))
+            }
+            None => (query, None),
+        };
+        if let Some(digits) = field.strip_prefix(b"version=") {
+            if version.is_some() || digits.is_empty() {
+                return Err(());
+            }
+            let mut value = 0_u32;
+            for digit in digits {
+                if !digit.is_ascii_digit() {
+                    return Err(());
+                }
+                value = decimal(value, *digit).ok_or(())?;
+            }
+            version = Some(value);
+        } else if let Some(digits) = field.strip_prefix(b"replaces=") {
+            if replaces.is_some() || digits.len() != 32 {
+                return Err(());
+            }
+            let mut name = [0; 16];
+            for (byte, pair) in name.iter_mut().zip(digits.as_chunks::<2>().0) {
+                let mut value = 0_u8;
+                for digit in pair {
+                    let nibble = match digit {
+                        b'0'..=b'9' => digit.checked_sub(b'0').ok_or(())?,
+                        b'a'..=b'f' => digit.checked_sub(b'a').ok_or(())?.checked_add(10).ok_or(())?,
+                        _ => return Err(()),
+                    };
+                    value = value.checked_mul(16).ok_or(())?.checked_add(nibble).ok_or(())?;
+                }
+                *byte = value;
+            }
+            replaces = Some(name);
+        } else {
+            return Err(());
         }
-        *byte = value;
+        match rest {
+            Some(tail) => query = tail,
+            None => break,
+        }
     }
-    Ok(Some(name))
+    Ok((version, replaces))
+}
+pub(crate) fn stream_replaces(path: &[u8]) -> Result<Option<[u8; 16]>, ()> {
+    let (_, replaces) = stream_query(path)?;
+    Ok(replaces)
 }
 pub(crate) fn body_bound(route: &Route, configured: u32) -> u32 {
     match route {
@@ -99,7 +139,8 @@ pub(crate) fn body_bound(route: &Route, configured: u32) -> u32 {
         | Route::Watch
         | Route::Unwatch
         | Route::Gone
-        | Route::Stream
+        | Route::Stream(_)
+        | Route::BadQuery
         | Route::Missing => configured,
     }
 }
@@ -119,7 +160,7 @@ pub(crate) fn message(route: &Route, body: Box<[u8]>) -> Option<Message> {
         Route::Watch => Message::Watch(body),
         Route::Unwatch => Message::Unwatch(body),
         Route::Gone => Message::Gone(body),
-        Route::Public(_) | Route::Stream | Route::Missing => return None,
+        Route::Public(_) | Route::Stream(_) | Route::BadQuery | Route::Missing => return None,
     })
 }
 
@@ -170,4 +211,33 @@ pub(crate) fn reply(
         bytes.finish()
     };
     (body, Some(cookie))
+}
+
+fn decimal(value: u32, digit: u8) -> Option<u32> {
+    value.checked_mul(10)?.checked_add(u32::from(digit.checked_sub(b'0')?))
+}
+
+impl Route {
+    pub fn stream(&self) -> bool {
+        match self {
+            Self::Stream(_) => true,
+            Self::Public(_)
+            | Self::Link
+            | Self::Service
+            | Self::SignInApproval
+            | Self::ApprovalAsk
+            | Self::ApprovalRead
+            | Self::ApprovalDecide
+            | Self::SignOut
+            | Self::Authorize
+            | Self::Request
+            | Self::Read
+            | Self::Batch
+            | Self::Watch
+            | Self::Unwatch
+            | Self::Gone
+            | Self::BadQuery
+            | Self::Missing => false,
+        }
+    }
 }

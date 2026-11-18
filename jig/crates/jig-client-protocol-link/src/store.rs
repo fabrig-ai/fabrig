@@ -2,8 +2,8 @@
 use crate::component::Gathered;
 use crate::{Fact, Limits, Link, Message, Record, Request, Saved, translate};
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v28 as w;
-use skein_lib::{List, Queue, Reader, RequestKey, Token, Writer, bytes, length::len_u64};
+use jig_client_protocol_wire as w;
+use skein_lib::{List, Map, Queue, Reader, RequestKey, Token, Writer, bytes, length::len_u64};
 #[derive(Debug)]
 struct Held {
     exchange: Token,
@@ -13,12 +13,12 @@ struct Held {
 #[derive(Debug)]
 pub(super) struct Store {
     waiting: bool,
-    failed: bool,
     held: Queue<Held>,
+    unwritten: Map<RequestKey, ()>,
 }
 impl Store {
     pub(super) fn new() -> Self {
-        Self { waiting: false, failed: false, held: Queue::uncapped() }
+        Self { waiting: false, held: Queue::uncapped(), unwritten: Map::uncapped() }
     }
 }
 /// Whether these limits are representable: every edge bound they size
@@ -64,7 +64,7 @@ impl Link {
         exchange: Token,
         credential: Option<skein_lib::Secret>,
         message: Message,
-        out: &mut Queue<Request>,
+        _out: &mut Queue<Request>,
     ) {
         let tracked = match &message {
             Message::Batch(_) => unreachable!("batches are built only at settling"),
@@ -107,11 +107,14 @@ impl Link {
             self.emit_exchange(exchange, credential, message);
             return;
         }
-        if self.store.failed {
-            if let Some(attempt) = self.attempts.remove(&exchange) {
-                out.push(Request::NotKept { attempt: attempt.token });
-            }
-        } else if self.store.waiting {
+        if let Some(attempt) = self.attempts.get(&exchange)
+            && let crate::component::ExchangeKind::Attempt { key, .. } = attempt.kind
+            && self.store.unwritten.remove(&key).is_some()
+        {
+            self.attempts.remove(&exchange);
+            return;
+        }
+        if self.store.waiting {
             self.store.held.push(Held { exchange, message, credential });
         } else {
             self.emit_exchange(exchange, credential, message);
@@ -136,6 +139,7 @@ impl Link {
                 | Request::Dropped
                 | Request::Answer { .. }
                 | Request::NotKept { .. }
+                | Request::NotWritten { .. }
                 | Request::OpenStream { .. }
                 | Request::CloseStream
                 | Request::StreamsFull { .. }
@@ -143,6 +147,7 @@ impl Link {
                 | Request::FamilyDelivery { .. }
                 | Request::Ended { .. }
                 | Request::Hello { .. }
+                | Request::ReadAgain { .. }
                 | Request::Read { .. }
                 | Request::Approval(_)
                 | Request::Authorized(_)
@@ -185,19 +190,18 @@ impl Link {
         match encoded(&record, &self.limits) {
             Ok(bytes) => out.push(Request::Save { record: Record { key, bytes } }),
             Err(_) => {
-                self.write_failed(out);
-                self.store.failed = true;
-                out.push(Request::Fact { fact: Fact::UndecodableStore });
+                self.store.unwritten.insert(record.record.key, ()).expect("uncapped unwritten keys");
+                out.push(Request::NotWritten { key: record.record.key });
             }
         }
     }
     pub(super) fn erase(&mut self, key: RequestKey, out: &mut Queue<Request>) {
         self.gather(out);
+        self.store.unwritten.remove(&key);
         out.push(Request::Erase { key: bytes::copy_of(&key) });
     }
     pub(super) fn written(&mut self) {
         self.store.waiting = false;
-        self.store.failed = false;
         // Durability releases held exchanges in FIFO order, skipping stale attempts.
         while let Some(value) = self.store.held.pop() {
             if self.attempts.contains_key(&value.exchange) {
@@ -207,7 +211,6 @@ impl Link {
     }
     pub(super) fn write_failed(&mut self, out: &mut Queue<Request>) {
         self.store.waiting = false;
-        self.store.failed = false;
         while let Some(value) = self.store.held.pop() {
             if let Some(attempt) = self.attempts.remove(&value.exchange) {
                 out.push(Request::NotKept { attempt: attempt.token });

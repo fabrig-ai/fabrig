@@ -29,23 +29,7 @@ fn reading_welcome(step: Step) -> (d::Domain, skein_lib::Queue<d::Request>) {
     ] {
         d::step(&mut root, &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits }, event, &mut out);
     }
-    let mut watch = None;
-    for request in &out {
-        if let d::Request::Unlinked {
-            request:
-                jig_client::UnlinkedRequest::Down {
-                    down:
-                        jig_client::Down::Open {
-                            watch: token,
-                            subject: jig_client::Watchable::Jig(jig_client::contract::Subject::Me),
-                        },
-                },
-        } = request
-        {
-            watch = Some(*token);
-        }
-    }
-    let watch = watch.unwrap();
+    let watch = skein_lib::Token::new(0);
     d::step(
         &mut root,
         &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits },
@@ -1838,16 +1822,14 @@ fn ready_with_pending_playground() -> (d::Domain, skein_lib::Token, skein_lib::T
     use jig_client::contract as c;
     use temper_client_protocol_wire as wire;
     let (mut root, out) = reading_welcome(Step::Ready);
-    let mut me_watch = None;
     let mut playground = None;
     for request in &out {
         if let d::Request::Unlinked {
             request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch, subject } },
         } = request
         {
-            if *subject == jig_client::Watchable::Jig(c::Subject::Me) {
-                me_watch = Some(*watch);
-            } else if *subject == jig_client::Watchable::Jig(c::Subject::Accounts) {
+            assert_ne!(*subject, jig_client::Watchable::Jig(c::Subject::Me));
+            if *subject == jig_client::Watchable::Jig(c::Subject::Accounts) {
                 f::welcome_account(&mut root, *watch);
             } else if *subject == jig_client::Watchable::Jig(c::Subject::Settings) {
                 super::home::deliver(
@@ -1917,7 +1899,7 @@ fn ready_with_pending_playground() -> (d::Domain, skein_lib::Token, skein_lib::T
             }
         }
     }
-    (root, me_watch.expect("me watch"), playground.expect("playground read still out"))
+    (root, skein_lib::Token::new(0), playground.expect("playground read still out"))
 }
 
 #[test]
@@ -1983,8 +1965,9 @@ fn ready_creates_and_selects_an_empty_project_while_the_playground_read_is_out()
     let mut out =
         super::home::drive(&mut root, d::Event::Went { place: d::Place::Address(Address::Home { project: 77 }) });
     let chats = super::home::ChatFixture {
-        live: c::Tasks { rows: skein_lib::List::uncapped(), more: false },
+        live: c::Tasks { ended_mark: 0, rows: skein_lib::List::uncapped(), more: false },
         ended: c::TaskPage {
+            ended_mark: 0,
             live: skein_lib::List::uncapped(),
             live_after: None,
             ended: c::EndedGroup::Rows { rows: skein_lib::List::uncapped(), after: None, cut: false },

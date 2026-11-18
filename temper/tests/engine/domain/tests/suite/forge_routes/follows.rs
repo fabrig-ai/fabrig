@@ -21,7 +21,12 @@ fn make(world: &mut World, requester: &engine::Assignment, template: u64, follow
         parameters.push(tasks::Parameter::Bytes { name: 18, value: FOLLOWS.into() });
         delegate.spec.parameters = parameters.into_boxed_slice();
     }
-    delegate.contract = tasks::Contract::Change { connector: 0, kind: 1, words: world.env.limits.tasks.result_bytes };
+    delegate.contract = tasks::Contract::Change {
+        connector: 0,
+        kind: 1,
+        words: world.env.limits.tasks.result_bytes,
+        choices: Box::new([]),
+    };
     delegate.authority = source.authority.clone();
     delegate.authority.budget.spend = PRODUCER_SPEND;
     delegate.authority.delegation.tasks = 1;

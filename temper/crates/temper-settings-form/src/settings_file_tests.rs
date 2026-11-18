@@ -172,6 +172,9 @@ fn temper_kinds_round_trip_from_file_to_shown_json() {
         (PROJECT_WORDS, WORDS, c::Setting::Application { kind: 10, scope: 7, number: 1 }),
         (br#"{"kind":"project-areas","project":3}"#, br#"{"areas":[{"name":"tests","words":"vsr's C tests","owner":{"role":0}}]}"#, c::Setting::Application { kind: 14, scope: 3, number: 1 }),
         (br#"{"kind":"project-triager","project":3}"#, br#"{"owner":{"charter":14}}"#, c::Setting::Application { kind: 15, scope: 3, number: 1 }),
+        (br#"{"kind":"project-landing","project":1}"#, b"{}", c::Setting::Application { kind: 4, scope: 1, number: 1 }),
+        (br#"{"kind":"project-landing","project":1}"#, br#"{"by":"turn","batch":4}"#, c::Setting::Application { kind: 4, scope: 1, number: 1 }),
+        (br#"{"kind":"project-gates","project":1}"#, br#"{"repositories":[{"forge":1,"repository":7,"gates":[{"name":"gate","workflow":"gate.yml","blocking":true,"report":{"artifact":"report","format":"lines","fuzzy":"fuzzy_"}}],"tiers":[{"name":"slow","workflow":"slow.yml","artifact":"report","format":"junit","branch":"goal"}]}]}"#, c::Setting::Application { kind: 5, scope: 1, number: 1 }),
         (TEMPLATE_GOAL, GOAL, c::Setting::Application { kind: 11, scope: 0, number: 4 }),
     ] {
         let items = file::decode(&kind_file(setting, json), &Limits::standard()).expect("temper kind file");
@@ -189,6 +192,38 @@ fn temper_kinds_round_trip_from_file_to_shown_json() {
         assert_eq!(shown(&document), joined(&[br#"{"setting":"#, setting, br#","revision":1,"value":"#, json, b"}"]));
     }
 }
+#[test]
+fn welcome_is_an_unnumbered_deployment_setting_with_a_boolean_value_and_reset() {
+    use temper_client_protocol_wire::v1 as w;
+    let setting = br#"{"kind":"welcome"}"#;
+    let items = file::decode(&kind_file(setting, br#"{"shown":true}"#), &Limits::standard()).unwrap();
+    let item = items.get(0).unwrap();
+    assert_eq!(item.setting, c::Setting::Application { kind: 20, scope: 0, number: 1 });
+    let c::SettingEdit::Set(set) = &item.edit else { panic!("set welcome") };
+    let c::SettingValue::Application(bytes) = &set.value else { panic!("welcome bytes") };
+    assert!(w::Welcome::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).unwrap().shown());
+    let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
+        overlay: None,
+        setting: item.setting,
+        revision: 1,
+        value: Some(set.value.clone()),
+        application: None,
+        proposed: None,
+    }));
+    assert_eq!(shown(&document).as_ref(), br#"{"setting":{"kind":"welcome"},"revision":1,"value":{"shown":true}}"#);
+    let reset =
+        file::decode(br#"{"items":[{"setting":{"kind":"welcome"},"edit":"reset"}]}"#, &Limits::standard()).unwrap();
+    assert_eq!(reset.get(0).unwrap().setting, item.setting);
+    assert_eq!(reset.get(0).unwrap().edit, c::SettingEdit::Reset);
+    for bad in [
+        br#"{"items":[{"setting":{"kind":"welcome","project":1},"set":{"shown":true}}]}"#.as_slice(),
+        br#"{"items":[{"setting":{"kind":"welcome","number":1},"set":{"shown":true}}]}"#,
+        br#"{"items":[{"setting":{"kind":"welcome"},"set":{"shown":"true"}}]}"#,
+    ] {
+        file::decode(bad, &Limits::standard()).expect_err("invalid welcome");
+    }
+}
+
 fn landing_sets(member: &[u8]) -> Box<[u8]> {
     joined(&[LANDING.strip_suffix(b"}").expect("rule object"), member, b"}"])
 }
@@ -979,5 +1014,96 @@ fn dependencies_round_trip_and_require_a_numeric_project() {
             file::decode(&kind_file(selector, json), &Limits::standard()).unwrap_err(),
             joined(&[b"settings file item 1: dependency.project: ", reason])
         );
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "read fixture JSON and rendered error text in the form test")]
+fn agents_form_round_trips_named_maps_and_reports_duplicates() {
+    let setting = br#"{"kind":"agents"}"#;
+    let json = br#"{"profile":{"policy.max_turns":900,"declared.memory":18446744073709551615},"endpoints":{"openai":{"window":1048576,"output":8192,"reasoning_item":65536,"head_ms":60000,"idle_ms":300000,"oversized":"fail"}},"fallback":{"window":1,"output":1,"reasoning_item":1,"head_ms":1,"idle_ms":1,"oversized":"drop"}}"#;
+    let items = file::decode(&kind_file(setting, json), &Limits::standard()).unwrap();
+    let item = items.get(0).unwrap();
+    assert_eq!(item.setting, c::Setting::Application { kind: 21, scope: 0, number: 1 });
+    let c::SettingEdit::Set(set) = &item.edit else { panic!("set") };
+    let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
+        overlay: None,
+        setting: item.setting,
+        revision: 1,
+        value: Some(set.value.clone()),
+        application: None,
+        proposed: None,
+    }));
+    assert_eq!(shown(&document), joined(&[br#"{"setting":"#, setting, br#","revision":1,"value":"#, json, b"}"]));
+    for (from, to, name) in [
+        ("\"policy.max_turns\":900", "\"policy.max_turns\":900,\"policy.max_turns\":901", "policy.max_turns"),
+        ("\"openai\":{", "\"openai\":{},\"openai\":{", "openai"),
+        ("\"output\":8192", "\"output\":4294967296", "output"),
+    ] {
+        let bad = core::str::from_utf8(json).unwrap().replace(from, to);
+        let why = file::decode(&kind_file(setting, bad.as_bytes()), &Limits::standard()).unwrap_err();
+        assert!(core::str::from_utf8(&why).unwrap().contains(name));
+    }
+    let page = crate::fields::page(&Limits::standard());
+    assert!(
+        core::str::from_utf8(&page)
+            .unwrap()
+            .contains("Agent profile and endpoint limits, taken at each worker's next start.")
+    );
+}
+
+#[test]
+fn worker_files_proposals_and_reads_keep_the_digest_as_lowercase_hex() {
+    const SETTING: &[u8] = br#"{"kind":"worker","number":2}"#;
+    const DIGEST: &[u8] = b"abababababababababababababababababababababababababababababababab";
+    for (value, digest) in [
+        (
+            br#"{"name":"w1","places":4,"digest":"abababababababababababababababababababababababababababababababab"}"#
+                .as_slice(),
+            Some([0xab; 32]),
+        ),
+        (br#"{"name":"w1","places":4}"#.as_slice(), None),
+    ] {
+        let items = file::decode(&kind_file(SETTING, value), &Limits::standard()).expect("worker file");
+        let item = items.get(0).unwrap();
+        assert_eq!(item.setting, c::Setting::Worker(c::SettingNumber { number: 2 }));
+        let c::SettingEdit::Set(set) = &item.edit else { panic!("set") };
+        assert_eq!(
+            set.value,
+            c::SettingValue::Worker(Box::new(c::WorkerSetting {
+                number: 2,
+                name: b"w1".as_slice().into(),
+                places: 4,
+                digest,
+                withdrawn: false
+            }))
+        );
+        let shown = shown(&c::ReadValue::Setting(Box::new(c::SettingDocument {
+            overlay: None,
+            setting: item.setting,
+            revision: 2,
+            value: Some(set.value.clone()),
+            application: None,
+            proposed: None,
+        })));
+        assert!(skein_lib::bytes::find(&shown, SETTING).is_some());
+        assert_eq!(skein_lib::bytes::find(&shown, DIGEST).is_some(), digest.is_some());
+        let proposal = joined(&[
+            br#"{"against":1,"reason":"Add worker","items":[{"setting":"#,
+            SETTING,
+            br#", "set":"#,
+            value,
+            b"}]}",
+        ]);
+        assert_eq!(file::proposal_items(&proposal, &Limits::standard()).unwrap(), items);
+    }
+    for bad in
+        [br#""ab""#.as_slice(), br#""ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB""#, br#""zz""#]
+    {
+        file::decode(
+            &kind_file(SETTING, &joined(&[br#"{"name":"w1","places":4,"digest":"#, bad, b"}"])),
+            &Limits::standard(),
+        )
+        .expect_err("malformed digest");
     }
 }

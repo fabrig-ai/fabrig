@@ -23,10 +23,12 @@ pub(super) struct Composition {
     link_out: BTreeMap<ClientId, Queue<link::Request>>,
     exchanges: BTreeMap<Token, (ClientId, Token)>,
     streams: BTreeMap<ClientId, Token>,
+    stream_again: BTreeMap<ClientId, Time>,
     secrets: BTreeMap<clients::SecretOwner, clients::Kept>,
     next: u64,
     pending_reply: Option<Reply>,
     pending_watch: Option<(ClientId, Token, Watched)>,
+    pending_stream_me: VecDeque<ClientId>,
     minting: BTreeMap<Token, ClientId>,
     pub(super) carried: BTreeMap<u64, Secret>,
     next_carried: u64,
@@ -65,7 +67,7 @@ impl Composition {
                 reads_per_client: 32,
                 openings_per_client: 31,
                 message_bytes: u32::try_from(limits.document_bytes).expect("world message bound"),
-                wire: jig_client_protocol_wire::v28::CEILINGS,
+                wire: jig_client_protocol_wire::CEILINGS,
                 link_span: skein_lib::Duration::from_secs(300),
             },
         };
@@ -144,10 +146,12 @@ impl Composition {
             link_out: BTreeMap::new(),
             exchanges: BTreeMap::new(),
             streams: BTreeMap::new(),
+            stream_again: BTreeMap::new(),
             secrets: BTreeMap::new(),
             next: 1,
             pending_reply: None,
             pending_watch: None,
+            pending_stream_me: VecDeque::new(),
             minting: BTreeMap::new(),
             carried: BTreeMap::new(),
             next_carried: 1 << 63,
@@ -199,7 +203,7 @@ impl Composition {
     }
 
     pub(super) fn next_deadline(&self) -> Option<Time> {
-        self.component.next_deadline()
+        self.component.next_deadline().into_iter().chain(self.stream_again.values().copied()).min()
     }
 
     #[cfg(test)]
@@ -208,9 +212,20 @@ impl Composition {
         self.limits = link::Limits::new(limits, limits.requests.requests.max(64)).expect("joint link bounds");
     }
 
+    pub(super) fn open_stream(&mut self, client: ClientId) {
+        if self.links.get(&client).and_then(link::Link::credential).is_some() {
+            self.link(client, link::Event::OpenStream);
+        }
+    }
+
     pub(super) fn clock(&mut self, now: Time, wall: Wall) {
         self.env.now = now;
         self.env.wall = wall;
+        let due: Vec<_> = self.stream_again.iter().filter_map(|(client, at)| (*at <= now).then_some(*client)).collect();
+        for client in due {
+            self.stream_again.remove(&client);
+            self.link(client, link::Event::OpenStream);
+        }
     }
 
     fn link(&mut self, client: ClientId, event: link::Event) {
@@ -289,6 +304,7 @@ impl Composition {
             self.link(client, link::Event::SignIn { with: link::With::Held(credential) });
         }
         self.link_out.remove(&client);
+        self.stream_again.remove(&client);
         self.exchanges.retain(|_, (owner, _)| *owner != client);
     }
 
@@ -319,6 +335,24 @@ impl Composition {
                 .route_reply(reply_token(reply_to), self.pending_reply.take().expect("request correlation"));
         } else if let core::Event::Read { reply, .. } = &mut event {
             driver.transport.route_reply(reply_token(reply), self.pending_reply.take().expect("read correlation"));
+        } else if let core::Event::Watch { watcher, sign_in, subject: core::documents::Watched::Frame, .. } = &event {
+            let implicit = self
+                .pending_stream_me
+                .iter()
+                .position(|client| driver.transport.sign_in(*client).is_none_or(|value| value == *sign_in));
+            let route = implicit
+                .and_then(|index| self.pending_stream_me.remove(index))
+                .map(|client| (client, Token::new(0), Watched::Jig(c::Subject::Me)));
+            let route = route.or_else(|| {
+                if self.pending_watch.as_ref().is_some_and(|(_, _, subject)| *subject == Watched::Jig(c::Subject::Me)) {
+                    self.pending_watch.take()
+                } else {
+                    None
+                }
+            });
+            if let Some((client, native, subject)) = route {
+                driver.transport.route_watch(*watcher, client, native, subject);
+            }
         } else if let core::Event::Watch { watcher, .. } | core::Event::WatchRun { watcher, .. } = &event {
             let (client, native, subject) = self.pending_watch.take().expect("watch correlation");
             driver.transport.route_watch(*watcher, client, native, subject);
@@ -522,6 +556,7 @@ impl Composition {
             Request::Minted { exchange, credential, expires } => {
                 let client = self.minting.remove(&exchange).expect("provider exchange");
                 self.link(client, link::Event::SignIn { with: link::With::Held(credential) });
+                self.link(client, link::Event::OpenStream);
                 self.callbacks.push(Incoming::Authenticated {
                     client,
                     person: driver.transport.party(client),
@@ -582,10 +617,16 @@ impl Composition {
                 }));
                 return;
             }
-            link::Request::OpenStream { credential, replaces } => {
+            link::Request::OpenStream { credential, version, replaces } => {
                 let stream = self.token();
                 self.streams.insert(client, stream);
-                self.event(Event::Transport(clients::FromTransport::StreamOpen { stream, credential, replaces }));
+                self.pending_stream_me.push_back(client);
+                self.event(Event::Transport(clients::FromTransport::StreamOpen {
+                    stream,
+                    credential,
+                    version: Some(version),
+                    replaces,
+                }));
                 return;
             }
             link::Request::CloseStream => {
@@ -595,6 +636,9 @@ impl Composition {
                 return;
             }
             link::Request::Signing { signing } => {
+                if let link::Signing::SignedIn { .. } = &signing {
+                    self.link(client, link::Event::OpenStream);
+                }
                 if self.approval_takes.remove(&client) {
                     self.approval_signers.retain(|_, owner| *owner != client);
                     if matches!(self.pending_reply, Some(Reply::SignIn { client: owner }) if owner == client) {
@@ -643,6 +687,10 @@ impl Composition {
                 jig_client::Up::Answer { attempt, envelope, answer, why }
             }
             link::Request::Read { read, result } => jig_client::Up::ReadDone { read, result },
+            link::Request::ReadAgain { read, what } => {
+                self.link(client, link::Event::ReadAgain { read, what });
+                return;
+            }
             link::Request::Watch { watch, event } => jig_client::Up::Watched { watch, event },
             link::Request::Ended { watch, end } => {
                 if let Some(watcher) = driver
@@ -665,6 +713,10 @@ impl Composition {
                 self.link(client, link::Event::Stored);
                 return;
             }
+            link::Request::Fact { fact: link::Fact::StreamDropped } => {
+                self.stream_again.insert(client, self.env.now.saturating_add(self.limits.client().backoff.first));
+                return;
+            }
             link::Request::Fact { .. } | link::Request::ServiceCredential { .. } => return,
             link::Request::Approval(answer) => {
                 self.approval_answers.entry(client).or_default().push_back(answer);
@@ -673,6 +725,7 @@ impl Composition {
             link::Request::Authorized(_)
             | link::Request::Kept { .. }
             | link::Request::Dropped
+            | link::Request::NotWritten { .. }
             | link::Request::NotKept { .. } => panic!("joint link request outside transport"),
         };
         self.callbacks.push(Incoming::Callback { client, event: crate::test::up(up) });
@@ -683,6 +736,7 @@ fn jig_test_domain_family(request: clients::ToApplication, limits: &root::Limits
     use jig_client_test_protocol_wire::codec::{self, Undecodable};
     use jig_protocol_engine_clients::{FromApplication, ToApplication};
     match request {
+        ToApplication::ProviderClientChanged { .. } => panic!("joint application requests no provider changes"),
         ToApplication::Request { reply_to, sign_in, key, family, version, scope, record, digest, carried } => {
             let decoded = if family == 1 && version == jig_client_test_protocol_wire::VERSION {
                 codec::request(&record, &limits.connector)

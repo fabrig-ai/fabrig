@@ -52,6 +52,53 @@ fn settings_round_trip_every_slot_edit_value_and_pattern_last_and_match_their_ke
         (1, d::Value::Rule(rule())),
         (2, d::Value::Rule(open)),
         (3, d::Value::Charter(u32::MAX)),
+        (
+            4,
+            d::Value::Landing(d::ProjectLanding {
+                by: temper_engine_domain_forge_change::Way::Turn,
+                batch: 2,
+                combine_main: temper_engine_domain_forge_landing::Combine::Squash,
+                combine_other: temper_engine_domain_forge_landing::Combine::Merge,
+                merge_job: Some(b"tools/merge".as_slice().into()),
+                close_job: Some(b"tools/close".as_slice().into()),
+                landing_attempts: 7,
+                check_timeout_ms: Some(60000),
+                gate_retries: 3,
+                gate_timeout_ms: 70000,
+                tier_retries: 4,
+                verification_bound_ms: 90000,
+            }),
+        ),
+        (
+            5,
+            d::Value::Gates(d::ProjectGates {
+                repositories: Box::new([forge::RepositoryGates {
+                    repository: skein_forge::api::Repository { forge: 1, repository: 1 },
+                    gates: Box::new([temper_engine_domain_forge_landing::Gate {
+                        name: b"gate".as_slice().into(),
+                        workflow: b"gate.yml".as_slice().into(),
+                        ignored: Box::new([b"docs".as_slice().into()]),
+                        blocking: true,
+                        base: true,
+                        report: Some(temper_engine_domain_forge_landing::GateReport {
+                            artifact: b"report".as_slice().into(),
+                            format: temper_engine_domain_forge_tiers::Format::Lines,
+                            fuzzy: Some(b"fuzzy_".as_slice().into()),
+                        }),
+                    }]),
+                    tiers: Box::new([forge::Tier {
+                        name: b"slow".as_slice().into(),
+                        workflow: b"slow.yml".as_slice().into(),
+                        ignored: Box::new([]),
+                        artifact: b"report".as_slice().into(),
+                        format: temper_engine_domain_forge_tiers::Format::Junit,
+                        follows: forge::Follows::Goals,
+                        span: Some(skein_lib::Duration::from_millis(60000)),
+                        description: b"slow tests".as_slice().into(),
+                    }]),
+                }]),
+            }),
+        ),
         (6, d::Value::Questions(temper_engine_domain_forge_change::Route::None)),
         (6, d::Value::Questions(temper_engine_domain_forge_change::Route::Up)),
         (7, d::Value::Ways(d::ProjectWays { drafts: true, goals: false, changes: true, way: u32::MAX })),
@@ -229,7 +276,7 @@ fn setting_rules_decode_at_each_bound_and_refuse_one_more() {
 #[test]
 fn setting_records_refuse_unknown_kinds_and_slot_tags() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
-    for kind in [0, 4, u32::MAX] {
+    for kind in [0, u32::MAX] {
         let row = w::SettingRow::new(
             &w::CEILINGS,
             w::SettingRowParts {
@@ -424,5 +471,64 @@ fn retired_setting_tags_refuse_with_the_setting_identity() {
             assert_eq!(records::row(&encoded_key, &bytes, &bounds), Err(Undecodable::Setting(key)));
             assert_eq!(records::row(b"wrong key", &bytes, &bounds), Err(Undecodable::Malformed));
         }
+    }
+}
+
+#[test]
+fn agents_setting_round_trips_and_accounts_for_owned_bytes() {
+    use temper_client_protocol_wire::v1;
+    let mut profile = skein_lib::List::with_capacity(1);
+    profile
+        .push(
+            v1::AgentFigure::new(
+                &v1::CEILINGS,
+                v1::AgentFigureParts { name: b"policy.max_turns".as_slice().into(), value: 900 },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    let limits = v1::AgentLimits::new(
+        &v1::CEILINGS,
+        v1::AgentLimitsParts {
+            window: u32::MAX,
+            output: 1,
+            reasoning_item: 1,
+            head_ms: u64::MAX,
+            idle_ms: 1,
+            oversized: v1::Oversized::Drop,
+        },
+    )
+    .unwrap();
+    let mut endpoints = skein_lib::List::with_capacity(1);
+    endpoints
+        .push(
+            v1::AgentEndpointLimits::new(
+                &v1::CEILINGS,
+                v1::AgentEndpointLimitsParts { endpoint: b"openai".as_slice().into(), limits: limits.clone() },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    let value =
+        v1::AgentFigures::new(&v1::CEILINGS, v1::AgentFiguresParts { profile, endpoints, fallback: limits }).unwrap();
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for slot in
+        [d::SettingSlot::Default, d::SettingSlot::Change, d::SettingSlot::Proposal(7), d::SettingSlot::Replaced(2)]
+    {
+        let key = d::SettingKey { kind: 20, scope: 0, number: 1, slot };
+        let row = forge::Stored::Setting(d::SettingRow {
+            key,
+            edit: d::Edit::Set(d::SizedValue { size: value.measure(), value: d::Value::AgentFigures(value.clone()) }),
+        });
+        let meter = skein_world::domain::heap::Meter::new();
+        meter.start();
+        let cloned = row.clone();
+        let held = meter.end().held();
+        assert_eq!(forge::stored_bytes(&cloned), Some(held));
+        drop(cloned);
+        let bytes = records::encode(&row);
+        assert_eq!(records::decode(&bytes, &bounds), Ok(row.clone()));
+        let key = keys::encode(&forge::Key::Setting(key), u32::MAX).unwrap();
+        assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
     }
 }

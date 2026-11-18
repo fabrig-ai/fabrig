@@ -1,7 +1,7 @@
 use super::fixtures::{self, PARTY, STOP, TASK};
 use crate::*;
 use skein_lib::{Duration, List, Queue, Time, Token, Wall};
-const ME_WATCH: Token = Token::new(1);
+const ME_WATCH: Token = Token::new(0);
 const ENGINE_KEY: skein_lib::RequestKey = [1; 16];
 const RETENTION: Duration = Duration::from_secs(60);
 struct Client {
@@ -40,7 +40,7 @@ fn client() -> Client {
     let mut c = new();
     c.step(Event::StartUnlinked { kept: List::with_capacity(0) });
     c.step(Event::Up {
-        up: Up::Served { served: true, versions: Some(contract::VersionRange { first: 28, last: 28 }) },
+        up: Up::Served { served: true, versions: Some(contract::VersionRange { first: 32, last: 32 }) },
     });
     c.step(Event::SignIn { with: With::Transport });
     c
@@ -77,15 +77,14 @@ fn live() -> Client {
 }
 #[test]
 fn an_unlinked_client_gives_its_watch_as_the_domain_s_opening() {
-    let c = client();
-    let [
-        UnlinkedRequest::Told { told: Told::Link { link: Link::Starting } },
-        UnlinkedRequest::Down { down: Down::Open { watch, subject } },
-    ] = c.requests()
-    else {
-        panic!("one opening: {:?}", c.requests());
+    let mut c = client();
+    assert_eq!(c.requests(), &[UnlinkedRequest::Told { told: Told::Link { link: Link::Starting } }]);
+    c.step(Event::Watch { handle: TASK, subject: fixtures::task() });
+    let [UnlinkedRequest::Down { down: Down::Open { watch, subject } }] = c.requests() else {
+        panic!("one application opening");
     };
-    assert_eq!((*watch, subject), (ME_WATCH, &Watchable::Jig(contract::Subject::Me)));
+    assert_ne!(*watch, ME_WATCH);
+    assert_eq!(*subject, fixtures::task());
 }
 #[test]
 fn an_unlinked_client_takes_an_answer_as_the_domain_s() {
@@ -155,7 +154,10 @@ fn an_unlinked_authorization_is_lost() {
 #[test]
 fn an_unlinked_client_fires_a_dropped_watch_s_backoff() {
     let mut c = live();
-    c.step(Event::Up { up: Up::WatchEnded { watch: ME_WATCH, end: contract::WatchEnd::Dropped } });
+    c.step(Event::Watch { handle: TASK, subject: fixtures::task() });
+    let [UnlinkedRequest::Down { down: Down::Open { watch, .. } }] = c.requests() else { panic!("application watch") };
+    let original = *watch;
+    c.step(Event::Up { up: Up::WatchEnded { watch: original, end: contract::WatchEnd::Dropped } });
     let until = c.machine.next_deadline().expect("dropped watch schedules a retry");
     c.fire(Time::from_nanos(until.as_nanos() - 1));
     assert_eq!((c.requests()).len(), 0);
@@ -163,8 +165,8 @@ fn an_unlinked_client_fires_a_dropped_watch_s_backoff() {
     let [UnlinkedRequest::Down { down: Down::Open { watch, subject } }] = c.requests() else {
         panic!("one reopening: {:?}", c.requests());
     };
-    assert_ne!(*watch, ME_WATCH);
-    assert_eq!(subject, &Watchable::Jig(contract::Subject::Me));
+    assert_ne!(*watch, original);
+    assert_eq!(subject, &fixtures::task());
     c.fire(until);
     assert_eq!((c.requests()).len(), 0);
 }

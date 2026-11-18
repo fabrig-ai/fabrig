@@ -6,7 +6,7 @@ use crate::{
     sign_in::{self, Link, Past, Pending, Slot, Waiting, Which},
 };
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v28 as w;
+use jig_client_protocol_wire as w;
 use jig_domain_core_vocabulary as core;
 use jig_domain_people as people;
 use skein_lib::{CryptoRng, Env, Map, Queue, ReplyTo, Time, Token};
@@ -305,6 +305,10 @@ impl Component {
             Event::Application(crate::FromApplication::Delivery { watcher, family, record }) => {
                 self.application_delivery(env, watcher, family, record, out);
             }
+            Event::ProviderClient { reply, change } => {
+                let result = self.provider_client(env, change);
+                out.push(Request::Application(crate::ToApplication::ProviderClientChanged { reply, result }));
+            }
             Event::Redeem { exchange, authorization, content_type, body } => {
                 let answer = self.redeem(env, authorization.as_ref(), content_type.as_deref(), body.expose());
                 out.push(Request::Redeemed { exchange, answer });
@@ -450,12 +454,13 @@ impl Component {
                 let (route, body) = routes::message(message);
                 self.receive(env, exchange, (credential, browser), route, body, out);
             }
-            crate::FromTransport::StreamOpen { stream, credential, replaces } => {
+            crate::FromTransport::StreamOpen { stream, credential, version, replaces } => {
                 let body: Box<[u8]> = match replaces {
                     Some(name) => Box::from(name),
                     None => Box::new([]),
                 };
                 self.receive(env, stream, (credential, false), Route::Stream, body, out);
+                self.connections.get_mut(&stream).expect("received stream").version = version;
             }
             crate::FromTransport::StreamTaken { stream } => {
                 if let Some(stream) = self.streams.get_mut(&stream)
@@ -923,7 +928,7 @@ impl Component {
             });
         }
         for (_, stream) in &self.streams {
-            if !stream.closing() && !stream.waiting {
+            if !stream.closing() && stream.opened && !stream.waiting {
                 next = Some(match next {
                     Some(next) => next.min(stream.deadline),
                     None => stream.deadline,
@@ -939,7 +944,7 @@ impl Component {
         }
         let mut due = None;
         for (owner, stream) in &self.streams {
-            if !stream.closing() && !stream.waiting && stream.deadline <= env.now {
+            if !stream.closing() && stream.opened && !stream.waiting && stream.deadline <= env.now {
                 due = Some(*owner);
                 break;
             }

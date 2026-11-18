@@ -89,6 +89,7 @@ pub(crate) const OPEN_CHANGE: &[&str] = &[
     "open-change",
 ];
 pub(crate) const EVERY_TOOL: &[&[&str]] = &[
+    &["deployment", "checkpoint"],
     &["milestone", "new", "--project", "1", "--budget", "400", "Store shape", "--key", "milestone"],
     &["milestone", "whole", "812", "--key", "whole"],
     &["milestone", "list", "--project", "1"],
@@ -189,6 +190,8 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["account", "replace-key", "43", "key-file"],
     &["account", "forget", "43"],
     &["account", "rank", "43", "1"],
+    &["account", "uses", "43", "--party", "73", "--project", "1"],
+    &["account", "uses", "43", "--default"],
     &["account", "retry", "43"],
     &["task", "amend", "41", "--rev", "7", "--model", "chosen-model", "because"],
     &["account", "declare", "9", "helper", "work-login", "--key", "declare"],
@@ -242,7 +245,9 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["settings", "show", "project-classes", "shop"],
     &["settings", "show", "template-goal", "4"],
     &["settings", "show", "follow", "1", "--project", "shop"],
+    &["settings", "show", "welcome"],
     &["settings", "show", "dependency", "1", "--project", "shop"],
+    &["settings", "show", "agents"],
     &["settings", "show", "charter-words", "12", "--revision", "5"],
     &["revision", "show", "5"],
     &["revision", "list"],
@@ -265,7 +270,25 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["draft", "list", "--project", "shop"],
     &["deployment", "census"],
     OPEN_CHANGE,
+    &["worker", "list"],
+    WORKER_ADD,
+    WORKER_PLACES,
+    WORKER_REMOVE,
 ];
+
+pub(crate) const WORKER_ADD: &[&str] = &[
+    "worker",
+    "add",
+    "w2",
+    "--places",
+    "4",
+    "--digest",
+    "00112233445566778899aabbccddeeff00112233445566778899aabbccddee00",
+    "--key",
+    "worker-add",
+];
+pub(crate) const WORKER_PLACES: &[&str] = &["worker", "places", "w1", "8", "--key", "worker-places"];
+pub(crate) const WORKER_REMOVE: &[&str] = &["worker", "remove", "w1", "--key", "worker-remove"];
 
 /// Parse the printer's bytes back without re-creating argv in each test.
 pub(crate) fn printed(call: &crate::jig::call::Call) -> crate::jig::call::Parsed {
@@ -475,7 +498,7 @@ pub(crate) fn waiting_on_me() -> c::WaitsOn {
     c::WaitsOn::Party { whom: c::Whom::Person(PARTY), entries: 1, task: OTHER_TASK, kind: c::WaitedFor::Question }
 }
 pub(crate) fn goal(number: u64, waits_on: c::WaitsOn) -> c::Task {
-    use jig_client_protocol_wire::v28 as w;
+    use jig_client_protocol_wire as w;
     let record =
         w::Task::new(&w::CEILINGS, jig_client_test_records::task_record().into_parts()).expect("record fixture");
     let limits = jig_client_protocol_link::Limits::new(
@@ -753,6 +776,7 @@ impl Harness {
                 | crate::jig::rows::TASK_TEXT_AT
                 | crate::jig::rows::TASK_NOTES_AT
                 | crate::jig::rows::DEPLOYMENT_CENSUS_AT
+                | crate::jig::rows::WORKER_LIST_AT..=crate::jig::rows::WORKER_REMOVE_AT
                 | crate::jig::rows::MILESTONE_LIST_AT
                 | crate::jig::rows::MILESTONE_SHOW_AT
                 | crate::jig::rows::MILESTONE_WHOLE_AT
@@ -780,17 +804,9 @@ impl Harness {
         self.next
     }
     pub fn deliver(&mut self, delivery: c::Delivery) {
-        let mut watches = List::with_capacity(OUTPUTS);
-        for (token, subject) in &self.watches {
-            if *subject == client::Watchable::Jig(c::Subject::Me) {
-                watches.push(*token).expect("bounded me watches");
-            }
-        }
-        for token in &watches {
-            self.client(client::Event::Up {
-                up: client::Up::Watched { watch: *token, event: c::WatchEvent::Delivered(delivery.clone()) },
-            });
-        }
+        self.client(client::Event::Up {
+            up: client::Up::Watched { watch: Token::new(0), event: c::WatchEvent::Delivered(delivery) },
+        });
     }
     pub fn serve(&mut self, call: u32, result: c::ReadResult) {
         self.serve_readout(call, client::Readout::Jig(result));
@@ -920,7 +936,13 @@ pub(crate) const UNKNOWN_ASKER: client::Asker = client::Asker(999);
 /// A stable stored request's engine key, unrelated to its client call prefix.
 const KEPT_KEY: skein_lib::RequestKey = [9; 16];
 /// One slot per row and form; fewer omits decide's second form.
-pub(super) const TOOL_FORMS: u32 = 127;
+pub(super) fn tool_forms() -> u32 {
+    let mut forms = 0_u32;
+    for tool in crate::table::TOOLS {
+        forms = forms.checked_add(u32::try_from(tool.forms.len()).expect("form count")).expect("table forms fit");
+    }
+    forms
+}
 /// Exactly one example exercises each row and form; zero misses it entirely.
 pub(super) const EXAMPLES_PER_FORM: u32 = 1;
 /// One missing byte exercises the first refused destination; zero would fit.

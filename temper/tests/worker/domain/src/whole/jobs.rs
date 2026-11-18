@@ -156,6 +156,7 @@ impl World {
                     git::Op::Store { .. }
                     | git::Op::Clone { .. }
                     | git::Op::Reds { .. }
+                    | git::Op::Reset { .. }
                     | git::Op::Point { .. }
                     | git::Op::Fetch { .. }
                     | git::Op::Create { .. }
@@ -203,7 +204,12 @@ impl World {
                 git: None,
                 start: wire::Start::Base { branch: b"main".as_slice().into() },
                 access: if name == b"work" && delivers {
-                    wire::Access::Writable { push: b"topic".as_slice().into(), landing: None, expected: None }
+                    wire::Access::Writable {
+                        push: b"topic".as_slice().into(),
+                        landing: None,
+                        expected: None,
+                        delivered: None,
+                    }
                 } else {
                     wire::Access::ReadOnly
                 },

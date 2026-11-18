@@ -625,12 +625,22 @@ fn first_failure_is_sticky() {
     assert_eq!(core.start_failure(), Some(first));
 }
 
+pub(super) fn worker_table(request: &Request) {
+    match request {
+        Request::Ask { ask: crate::Ask::Workers(_), .. } => {}
+        Request::Write(_) | Request::Now(_) | Request::Held(_) | Request::Ask { .. } | Request::ProjectMade { .. } => {
+            panic!("only a worker table precedes the startup commit: {request:?}")
+        }
+    }
+}
+
 fn finish_core_load(core: &mut Core, env: &Env<crate::Limits>, out: &mut Queue<Request>) {
     match core.start_done(env, Phase::LoadCore, out) {
         Action::Commit(token) => {
             while let Some(request) = out.pop() {
                 match request {
-                    Request::Write(_) | Request::Ask { ask: crate::Ask::Catalogue { .. }, .. } => {}
+                    Request::Write(_)
+                    | Request::Ask { ask: crate::Ask::Catalogue { .. } | crate::Ask::Workers(_), .. } => {}
                     Request::Now(_) | Request::Ask { .. } | Request::Held(_) | Request::ProjectMade { .. } => {
                         panic!("seed commit contains only writes")
                     }

@@ -7,8 +7,9 @@ what a deployment runs until an owner applies them is the stock, and the
 Ask temper chat derives the reference from its description
 (`../../design/draft/configuring.md`, 8.1). What follows stays out of it too.
 
-Before the first start, merge `limits.json` over the generated deployment document,
-retaining its other members and overrides.
+Start stock once to accept the agents setting below, then stop and merge
+`limits.json` and the room overrides before the next start, retaining the
+document’s other members and overrides.
 
 ## The merge job's programs
 
@@ -31,16 +32,24 @@ the fallback in `../../design/protocol/configuration/settings.md`, 7. Its agent'
 measured largest turn is 18,431,842 bytes; `limits.json` and `room.json`
 carry the bounds derived from that turn and payload.
 
-Set the agent, the engine, every worker and the application before the first start,
-retaining the document's other application members and overrides. Run these
-in the deployment's configuration directory, with the reference's `room.json`:
+At the stock first start, before starting work, apply the deployment’s `agents`
+setting as an owner. Retain its other figures, set `declared.tool_payload` to
+`room.json`’s `agent.tool_payload`, and each endpoint’s and the fallback’s `output`
+to `agent.output`. `temper ctl DIR settings show agents --json` reads the whole
+current value; `temper help settings` explains applying a whole setting value.
+The box keeps its accepted bytes in the data directory’s `agents.setting`.
+
+Stop the box, then merge `limits.json` and these room overrides in the configuration
+directory. Workers inherit the engine’s figures; no worker limits or agent file
+are written:
 
 ```sh
-jq --slurpfile room room.json '.profile.declared.tool_payload = $room[0].agent.tool_payload | .endpoints[].limits.output = $room[0].agent.output' agent.json > agent.next.json
-mv agent.next.json agent.json
-jq --slurpfile room room.json '.engine.limits.overrides["io.output"] = $room[0].worker.limits.overrides["io.output"] | (.workers[] |= (. * $room[0].worker)) | .application = (.application * $room[0].application)' temper.json > temper.next.json
+jq --slurpfile room room.json '.engine.limits = (.engine.limits * $room[0].worker.limits) | .application = (.application * $room[0].application)' temper.json > temper.next.json
 mv temper.next.json temper.json
 ```
+
+Restart on the same directories. The generated and pinned agent configuration
+now takes the accepted setting and the raised engine limits.
 
 `root.journal.run_bytes` bounds a run's stored policy, a charter's whole
 policy and parts among it. The box's bound and the reference room's override

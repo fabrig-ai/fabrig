@@ -1,7 +1,7 @@
 use super::fixtures as f;
 use crate::forge::{self, deployment};
 use jig_client::{Handle, Link, Readable, Readout, Told, contract as c};
-use skein_lib::{Queue, Token};
+use skein_lib::{List, Queue, Token};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 fn page(welcome: bool, owned: bool) -> Readout {
@@ -144,6 +144,140 @@ pub(super) fn answer(root: &mut crate::Domain, welcome: bool, owned: bool) {
         }
     }
     panic!("deployment read reaches the world");
+}
+
+fn link(root: &mut crate::Domain, link: Link) -> Queue<crate::Request> {
+    let mut out = Queue::uncapped();
+    crate::route::told(root, &f::env(&f::limits()), Told::Link { link }, &mut out);
+    out
+}
+
+fn openings(out: &Queue<crate::Request>, expected: &jig_client::Watchable) -> List<Token> {
+    let mut found = List::uncapped();
+    for request in out {
+        if let crate::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch, subject } },
+        } = request
+            && subject == expected
+        {
+            found.push(*watch).unwrap();
+        }
+    }
+    found
+}
+
+fn reads(out: &Queue<crate::Request>, expected: &w::Read) -> List<Token> {
+    let mut found = List::uncapped();
+    for request in out {
+        if let crate::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Read { read, what: Readable::Family { scope, record, .. } },
+                },
+        } = request
+            && record.family == wire::FORGE
+            && wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read() == expected
+        {
+            assert_eq!(*scope, c::Scope::Deployment);
+            found.push(*read).unwrap();
+        }
+    }
+    found
+}
+
+fn up(root: &mut crate::Domain, up: jig_client::Up) {
+    crate::step(
+        root,
+        &f::env(&f::limits()),
+        crate::Event::Client { event: jig_client::Event::Up { up } },
+        &mut Queue::uncapped(),
+    );
+}
+
+#[test]
+fn partyless_watches_and_reads_leave_in_the_live_step() {
+    use jig_client::{Down, UnlinkedRequest, Up, Watchable};
+    for end in [Link::SignedOut, Link::OutOfDate] {
+        let mut root = crate::unlinked(&f::limits(), f::SEED);
+        f::start(&mut root, List::uncapped());
+        crate::step(
+            &mut root,
+            &f::env(&f::limits()),
+            crate::Event::Went { place: crate::Place::Address(crate::Address::Told) },
+            &mut Queue::uncapped(),
+        );
+        let subjects = [
+            forge::dismissed::watch(&f::limits().forge).unwrap(),
+            forge::away::watch(&f::limits().forge).unwrap(),
+            forge::trials::watch(&f::limits().forge).unwrap(),
+            forge::approvals::watch(&f::limits().forge).unwrap(),
+            forge::forges::watch(&f::limits().forge).unwrap(),
+            Watchable::Jig(c::Subject::Settings),
+            forge::devices::watch(f::limits().forge).unwrap(),
+        ];
+        let starting = link(&mut root, Link::Starting);
+        for subject in &subjects {
+            assert!(openings(&starting, subject).is_empty(), "starting: {subject:?}");
+        }
+        for read in [w::Read::Deployment, w::Read::Playground] {
+            assert!(reads(&starting, &read).is_empty());
+        }
+        assert!(root.pages().me(root.client()).is_none());
+        let live = link(&mut root, Link::Live);
+        let mut watches = List::uncapped();
+        for subject in &subjects {
+            let opened = openings(&live, subject);
+            assert_eq!(opened.len(), 1, "live without me: {subject:?}");
+            let watch = *opened.get(0).unwrap();
+            watches.push(watch).unwrap();
+            up(&mut root, Up::Watched { watch, event: c::WatchEvent::Opened });
+        }
+        for read in [w::Read::Deployment, w::Read::Playground] {
+            assert_eq!(reads(&live, &read).len(), 1, "live without me: {read:?}");
+        }
+        for (state, count) in [(Link::Live, 0), (Link::Offline, 0), (Link::Live, 1)] {
+            let out = link(&mut root, state);
+            for subject in &subjects {
+                assert!(openings(&out, subject).is_empty(), "retained across {state:?}: {subject:?}");
+            }
+            for read in [w::Read::Deployment, w::Read::Playground] {
+                assert_eq!(reads(&out, &read).len(), count, "reads at {state:?}: {read:?}");
+            }
+        }
+        for watch in &watches {
+            up(&mut root, Up::WatchEnded { watch: *watch, end: c::WatchEnd::Dropped });
+        }
+        link(&mut root, Link::Offline);
+        link(&mut root, Link::Live);
+        let mut env = f::env(&f::limits());
+        env.now = skein_lib::Time::from_nanos(1_000_000_000);
+        let mut retried = Queue::uncapped();
+        crate::fire(&mut root, &env, &mut retried);
+        watches.clear();
+        for subject in &subjects {
+            let opened = openings(&retried, subject);
+            assert_eq!(opened.len(), 1, "dropped then live: {subject:?}");
+            let watch = *opened.get(0).unwrap();
+            watches.push(watch).unwrap();
+            up(&mut root, Up::Watched { watch, event: c::WatchEvent::Opened });
+        }
+        let out = link(&mut root, end);
+        for watch in &watches {
+            let mut closed = false;
+            for request in &out {
+                if let crate::Request::Unlinked {
+                    request: UnlinkedRequest::Down { down: Down::Close { watch: value } },
+                } = request
+                {
+                    closed |= value == watch;
+                }
+            }
+            assert!(closed, "{end:?} closes {watch:?}");
+        }
+        for subject in &subjects {
+            assert!(openings(&out, subject).is_empty(), "nothing opens at {end:?}");
+        }
+    }
 }
 
 #[test]

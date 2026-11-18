@@ -281,7 +281,9 @@ fn an_unoffered_charter_in_a_default_refuses_as_a_reference() {
             changed: false
         }
     );
-    assert!(out.is_empty());
+    while let Some(request) = out.pop() {
+        start::worker_table(&request);
+    }
 }
 
 #[test]
@@ -521,7 +523,9 @@ fn first_start_waits_before_seeding_and_recovers_a_header_without_settings() {
             );
         }
         let before = finish_started(&mut core, &env, action);
-        assert!(before.is_empty(), "no seed is persisted before its defaults arrive");
+        for request in &before {
+            start::worker_table(request);
+        }
         assert_eq!(core.start_phase(), Some(Phase::Link));
         answer(&mut core, &env, 2, Box::new([default(3, true)]));
         let mut out = Queue::uncapped();

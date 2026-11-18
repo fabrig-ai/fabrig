@@ -1,6 +1,6 @@
 //! Settled exchanges and each member's own reply (protocol/client/wire.md, 2.3).
 use crate::{BATCH_BYTES, Link, Message, Request, component::Gathered};
-use jig_client_protocol_wire::v28 as w;
+use jig_client_protocol_wire as w;
 use skein_lib::{List, Map, Queue, Reader, Token, Writer};
 
 impl Link {
@@ -56,7 +56,11 @@ impl Link {
         let first = self.gathered.pop().expect("counted gathered transport");
         let (exchange, credential, message) = match first {
             Gathered::OpenStream { credential } => {
-                out.push(Request::OpenStream { credential, replaces: self.predecessor });
+                out.push(Request::OpenStream {
+                    credential,
+                    version: jig_client_protocol_wire::VERSION,
+                    replaces: self.predecessor,
+                });
                 return;
             }
             Gathered::CloseStream => {

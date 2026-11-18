@@ -38,15 +38,19 @@ pub(crate) fn workstream(key: &[u8]) -> u64 {
 
 fn repository(repository: wire::Repository) -> checkout::Repository {
     let wire::Repository { tag: _, name, remote, git, start, access, identity, account, save } = repository;
-    let (push, expected, landing, prefixes): (_, _, _, Box<[Box<[u8]>]>) = match access {
-        wire::Access::ReadOnly => (None, None, None, Box::new([])),
-        wire::Access::Prefixes { branches } => (None, None, None, branches),
-        wire::Access::Writable { push, expected, landing } => {
+    let (push, expected, landing, delivered, prefixes): (_, _, _, _, Box<[Box<[u8]>]>) = match access {
+        wire::Access::ReadOnly => (None, None, None, None, Box::new([])),
+        wire::Access::Prefixes { branches } => (None, None, None, None, branches),
+        wire::Access::Writable { push, expected, landing, delivered } => {
             let expected = match expected {
                 Some(raw) => Some(git::Commit::new(raw)),
                 None => None,
             };
-            (Some(push), expected, landing, Box::new([]))
+            let delivered = match delivered {
+                Some(raw) => Some(git::Commit::new(raw)),
+                None => None,
+            };
+            (Some(push), expected, landing, delivered, Box::new([]))
         }
     };
     checkout::Repository {
@@ -60,6 +64,7 @@ fn repository(repository: wire::Repository) -> checkout::Repository {
         push,
         prefixes,
         expected,
+        delivered,
         landing,
     }
 }
@@ -160,9 +165,9 @@ pub(crate) fn landings(outcome: checkout::Outcome, repositories: u32) -> Box<[wi
 
 fn landing(landing: checkout::Landing) -> wire::Landing {
     match landing {
-        checkout::Landing::Conflicted { files } | checkout::Landing::DesignConflict { files } => {
-            wire::Landing::Conflicted { files }
-        }
+        checkout::Landing::CaughtUpConflict { files }
+        | checkout::Landing::Conflicted { files }
+        | checkout::Landing::DesignConflict { files } => wire::Landing::Conflicted { files },
         checkout::Landing::Explained { fault, diagnostic } => wire::Landing::Explained {
             failure: wire::PushFailure {
                 repository: None,
@@ -170,12 +175,14 @@ fn landing(landing: checkout::Landing) -> wire::Landing {
                 diagnostic: wire::PushDiagnostic::new(diagnostic.output(), diagnostic.cut()),
             },
         },
-        checkout::Landing::Landed { commit }
+        checkout::Landing::CaughtUpSaved { commit, .. }
+        | checkout::Landing::Landed { commit }
         | checkout::Landing::Prefixes { commit, .. }
         | checkout::Landing::DesignMerged { commit, .. } => wire::Landing::Landed { commit: commit.raw() },
         checkout::Landing::Moved => wire::Landing::Moved,
         checkout::Landing::Unchanged => wire::Landing::Unchanged,
-        checkout::Landing::DesignCode { .. }
+        checkout::Landing::CaughtUp { .. }
+        | checkout::Landing::DesignCode { .. }
         | checkout::Landing::DesignMoving
         | checkout::Landing::DesignUnchecked
         | checkout::Landing::Refused => wire::Landing::Refused,
@@ -421,5 +428,43 @@ fn diagnostic_part(text: &mut List<u8>, bytes: &[u8]) {
         }
         let byte = if byte.is_ascii_control() && *byte != b'\n' && *byte != b'\t' { b'?' } else { *byte };
         text.push(byte).expect("diagnostic room");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_tasks_own_delivery_reaches_checkout_only_for_writable_access() {
+        for delivered in [None, Some([7; 32])] {
+            let mut item =
+                crate::tests::fixtures::items(&[b"app"]).repositories.into_iter().next().expect("repository");
+            item.access = wire::Access::Writable {
+                push: b"change/7".as_slice().into(),
+                expected: Some([1; 32]),
+                landing: Some(b"main".as_slice().into()),
+                delivered,
+            };
+            let translated = repository(item);
+            assert_eq!(translated.push.as_deref(), Some(b"change/7".as_slice()));
+            assert_eq!(translated.expected, Some(git::Commit::new([1; 32])));
+            assert_eq!(translated.landing.as_deref(), Some(b"main".as_slice()));
+            let expected_delivery = match delivered {
+                Some(head) => Some(git::Commit::new(head)),
+                None => None,
+            };
+            assert_eq!(translated.delivered, expected_delivery);
+        }
+        for access in
+            [wire::Access::ReadOnly, wire::Access::Prefixes { branches: Box::new([b"prefix".as_slice().into()]) }]
+        {
+            let mut item =
+                crate::tests::fixtures::items(&[b"app"]).repositories.into_iter().next().expect("repository");
+            item.access = access;
+            let translated = repository(item);
+            assert_eq!(translated.push, None);
+            assert_eq!(translated.delivered, None);
+        }
     }
 }

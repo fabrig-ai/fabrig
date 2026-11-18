@@ -1,0 +1,11 @@
+worker add WORKER --places PLACES --digest SHA256 --key KEY
+  WORKER (worker): a worker name: ASCII letters, digits, -, _ or ., starting with a letter or digit, at most 128 bytes; required. The worker's name
+  --places PLACES: a count from 1 to 4294967295; required. The worker's places
+  --digest SHA256: 64 lowercase hexadecimal digits; required. The SHA-256 of the worker's secret
+Add a worker, or bring a withdrawn one back at its number
+Prints: `worker WORKER: revision R`, the new revision
+--json: the record change_settings.
+Key: --key KEY, required.
+Make the secret on the worker's own machine as temper help server says;
+the digest is its SHA-256. A worker started first redials until added.
+Changes one setting against the newest revision read; running work stays.

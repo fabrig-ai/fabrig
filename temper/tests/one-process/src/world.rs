@@ -170,7 +170,6 @@ impl Harness for OneProcess {
     }
     fn configure(document: &mut serde_json::Value) {
         if REFUSE_START.with(std::cell::Cell::get) {
-            document["engine"]["projects"] = serde_json::json!([]);
             document["application"]["webhooks"]["listener"] =
                 serde_json::json!({"socket": crate::box_listener::ADDRESS.to_string()});
             // No seed policies on this start; its persisted policy exceeds the smaller read bound.
@@ -221,6 +220,15 @@ impl Harness for OneProcess {
     }
     fn files() -> temper_service::settings::Files {
         fixtures::files()
+    }
+    fn configure_engine(engine: &mut jig_protocol_config::Engine, document: &serde_json::Value) {
+        if REFUSE_START.with(std::cell::Cell::get) {
+            return;
+        }
+        let world = fixtures::world_document();
+        let mut document = document.clone();
+        document["world_settings"] = world["world_settings"].clone();
+        temper_playground::documents::settings::seed_configuration(engine, &document);
     }
     fn given(document: &serde_json::Value) -> temper_service::stock::Given {
         if stories::playground() {
@@ -290,8 +298,8 @@ impl Observe for ServiceObserver {
                 fixtures::codec()
             },
             families: temper_protocol_store::bounds(
-                &temper_service::limits::profile(temper_service::limits::Profile::Small).forge,
-                jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.tasks.spec_bytes,
+                &temper_limits_fixtures::small().forge,
+                jig_protocol_config_fixtures::small().core.tasks.spec_bytes,
             )
             .expect("application codec bounds"),
         }
@@ -1277,7 +1285,7 @@ pub(crate) fn run_phase(
         world.run()
     });
     if matches!(scenario, Story::Adopt) {
-        observed_forge.borrow().require_hooks(stories::ADOPT_HOOKS);
+        assert!(referee::forge::Forge::hooks_complete(&outcome.procs), "the required push-hook prefix was delivered");
     }
     let signed_in = outcome
         .procs

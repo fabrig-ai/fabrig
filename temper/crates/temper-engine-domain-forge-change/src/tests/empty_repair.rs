@@ -80,6 +80,51 @@ fn an_empty_ci_repair_at_green_ends_as_a_green_repair() {
 }
 
 #[test]
+fn a_landing_repair_flake_holds_only_at_its_unchanged_head() {
+    for why in [Repair::Landing { gate: 9 }, Repair::LandingAt { candidate: NEW, gate: 9, below: None }] {
+        let c = repairing(why);
+        let h = Heard { delegate: Status::Passed, flake: true, ..heard() };
+        let held = decide(&c, &facts(), &h);
+        assert_eq!(held.decision, Decision::Hold(Hold::Flake));
+        assert_eq!(held.change.state, State::Held { was: Box::new(c.state.clone()), why: Hold::Flake });
+        assert_eq!(held.change.repairs, 1);
+        assert!(!held.change.owns_turn);
+        assert_eq!(decide(&held.change, &facts(), &h).decision, Decision::None);
+        let pushed = decide(&c, &Facts { branch: Some(NEW), ..facts() }, &h);
+        assert_eq!(pushed.change.state, State::Checking { head: NEW });
+        assert_eq!(pushed.change.repairs, 1);
+    }
+}
+
+#[test]
+fn a_flake_release_checks_then_gates_without_a_repair() {
+    let mut c = repairing(Repair::Landing { gate: 9 });
+    c.state = State::Held { was: Box::new(c.state), why: Hold::Flake };
+    c.clean = Box::new([BASE]);
+    let lifted = released(&c, at(1));
+    let checked = decide(&lifted, &facts(), &heard());
+    assert_eq!(checked.decision, Decision::None);
+    assert_eq!(checked.change.state, State::Checking { head: HEAD });
+    assert!(checked.change.clean.is_empty());
+    assert_eq!(checked.change.repairs, 0);
+    let gated = decide(&checked.change, &facts(), &heard());
+    assert_eq!(gated.decision, Decision::None);
+    assert_eq!(gated.change.state, State::Gating { head: HEAD, asked: Box::new([]) });
+}
+
+#[test]
+fn a_landing_no_change_release_asks_a_fresh_repair() {
+    let why = Repair::Landing { gate: 9 };
+    let held = decide(&repairing(why), &facts(), &Heard { delegate: Status::Failed, ..heard() });
+    assert_eq!(held.decision, Decision::Hold(Hold::Failed));
+    let lifted = decide(&held.change, &facts(), &Heard { released: true, ..heard() });
+    assert_eq!(lifted.change.state, State::Repairing { requested: false, why });
+    let repair = decide(&lifted.change, &facts(), &heard());
+    assert_eq!(repair.decision, Decision::Delegate(Delegate::Repair(why)));
+    assert_eq!(repair.change.repairs, 1);
+}
+
+#[test]
 fn failed_repairs_and_non_ci_empty_repairs_still_hold() {
     // Failed and cancelled terminals both arrive as Failed; non-CI
     // no_change results keep that coercion at the forge boundary.

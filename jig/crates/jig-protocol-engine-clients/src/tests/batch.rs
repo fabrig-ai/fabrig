@@ -1,12 +1,16 @@
 use super::fixtures as f;
 use crate::{Event, FromTransport, Message, Reply, Request, ToTransport};
-use jig_client_protocol_wire::v28 as w;
+use jig_client_protocol_wire as w;
 use jig_domain_core_vocabulary as core;
 use skein_lib::{List, Reader, ReplyTo, Secret, Token, Writer};
 fn read() -> w::Owned {
     w::Owned::new(
         &f::wire(),
-        w::OwnedParts { owner: w::Owner::Jig, version: 28, record: f::encoded_read(&w::Read::Me) },
+        w::OwnedParts {
+            owner: w::Owner::Jig,
+            version: jig_client_protocol_wire::VERSION,
+            record: f::encoded_read(&w::Read::Me),
+        },
     )
     .expect("read")
 }
@@ -94,7 +98,11 @@ fn reads_alone_and_in_batches_share_the_sign_ins_read_room() {
     let b = take_read(&mut world);
     assert_eq!(read_answer(part(&mut world, owner, 1)), f::read_none(w::ReadNone::Busy));
     world.env.limits.exchanges_per_client = 8;
-    let lone = world.send(Message::Read(f::owned_read(w::Owner::Jig, 28, f::encoded_read(&w::Read::Me))));
+    let lone = world.send(Message::Read(f::owned_read(
+        w::Owner::Jig,
+        jig_client_protocol_wire::VERSION,
+        f::encoded_read(&w::Read::Me),
+    )));
     world.authenticate();
     assert_eq!(world.read_answer(lone), f::read_none(w::ReadNone::Busy));
     world.release_read(a, core::reads::Answer::None(core::reads::Why::Gone));

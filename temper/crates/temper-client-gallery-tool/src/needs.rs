@@ -143,6 +143,9 @@ pub fn domain(name: &str) -> Domain {
     ] {
         driver::step(&mut root, Event::Client { event }, &mut out);
     }
+
+    driver::deliver(&mut root, skein_lib::Token::new(0), c::Delivery::Me(Box::new(me.clone())), &mut out);
+
     while let Some(request) = out.pop() {
         let Some(down) = driver::down(request) else { continue };
         match down {
@@ -162,9 +165,7 @@ pub fn domain(name: &str) -> Domain {
                 use temper_client_protocol_wire as wire;
                 driver::step(&mut root, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::FamilyDelivered { watch, record: jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::findings(&finding()) } } } }, &mut out);
             }
-            jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Me) } => {
-                driver::deliver(&mut root, watch, c::Delivery::Me(Box::new(me.clone())), &mut out);
-            }
+
             jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Settings) }
                 if name == "needs-why" || name.starts_with("needs-stop-asking") =>
             {
@@ -637,8 +638,11 @@ fn classes(root: &mut Domain, read: skein_lib::Token, name: &str, out: &mut Queu
     let record = classes_record(&classes).expect("gallery classes");
     let mut writer = Writer::new(usize::try_from(record.measure()).expect("classes bytes"));
     record.encode(&mut writer).expect("measured classes");
-    let document = w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(writer.finish()) })
-        .expect("classes answer");
+    let document = w::SettingAnswer::new(
+        &w::CEILINGS,
+        w::SettingAnswerParts { revision: root.forge().settings_newest(), value: Some(writer.finish()) },
+    )
+    .expect("classes answer");
     driver::step(
         root,
         Event::Client {

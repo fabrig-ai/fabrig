@@ -27,18 +27,35 @@ pub(crate) fn parse(
     for (index, at) in items.iter().enumerate() {
         let path = check::index(&path, index);
         if let Some(grant) = grant(document, *at, &path, problems) {
-            if !connectors.contains(&grant.connector) {
-                problems.push(path.member(b"connector"), What::Refers);
-            }
-            for previous in &grants {
-                if previous.connector == grant.connector {
-                    problems.push(path.member(b"connector"), What::Unique);
-                }
-            }
+            check_grant(&grant, grants.as_slice(), connectors, &path, problems);
             grants.push(grant).expect("one per input object");
         }
     }
     grants.into_boxed()
+}
+pub(crate) fn check(grants: &[ActGrant], connectors: &[u16], path: &Path, problems: &mut Problems) {
+    for (index, grant) in grants.iter().enumerate() {
+        let path = check::index(path, index);
+        check_grant(grant, grants.get(..index).expect("enumerated prefix"), connectors, &path, problems);
+        for (index, kind) in grant.may.iter().enumerate() {
+            for previous in grant.may.iter().take(index) {
+                if previous == kind {
+                    problems.push(check::index(&path.member(b"may"), index), What::Unique);
+                    break;
+                }
+            }
+        }
+    }
+}
+fn check_grant(grant: &ActGrant, previous: &[ActGrant], connectors: &[u16], path: &Path, problems: &mut Problems) {
+    if !connectors.contains(&grant.connector) {
+        problems.push(path.member(b"connector"), What::Refers);
+    }
+    for previous in previous {
+        if previous.connector == grant.connector {
+            problems.push(path.member(b"connector"), What::Unique);
+        }
+    }
 }
 fn grant(document: &Document, at: u32, path: &Path, problems: &mut Problems) -> Option<ActGrant> {
     let mut object = check::object(document, at, path, problems, "act")?;

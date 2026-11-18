@@ -6,14 +6,16 @@ use temper_service_core::startup::problems::{put, render_past, render_path, rend
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum EngineWhat {
     Room(temper_engine_domain::room::Refusal),
+    FigureEndpoints { count: u32 },
+    FleetGrace { offered: skein_lib::Duration, derived: skein_lib::Duration },
     Stock(crate::stock::Floor),
     EngineAlone,
     UnbuiltWorker,
     Loopback,
-    Connectors,
     OldAgentCommand,
     NoWebhooks,
     TierChanges { count: u32, bound: u32, ceiling: u32 },
+    TestIdBytes { bytes: u32, bound: u32 },
     StorePage { transcript: u32, frame: u32, page: u32, ceiling: u32 },
     StoreMap(jig_protocol_store::sizes::SizeRefusal),
     StoreTask { needs: u32, has: u32, batch_bytes: u32 },
@@ -28,7 +30,6 @@ pub enum EngineWhat {
     BoxSignIn,
     Handover,
     MissingNull,
-    InlineSeedPolicy,
     LandingStored,
     ProjectLandingStored,
     CharterStored,
@@ -41,7 +42,6 @@ fn words(what: EngineWhat) -> &'static [u8] {
         EngineWhat::EngineAlone => b"an engine alone takes no local worker, one plaintext loopback listener and workers with distinct digest paths",
         EngineWhat::UnbuiltWorker => b"this build serves an engine alone",
         EngineWhat::Loopback => b"must be a socket address on loopback",
-        EngineWhat::Connectors => b"must be [1], the forge connector",
         EngineWhat::OldAgentCommand => b"\"agent\" is now \"internal\", \"agent\": write [\"internal\", \"agent\", PATH], PATH agent.configuration's",
         EngineWhat::NoWebhooks => b"needs application.webhooks",
         EngineWhat::Agent => AGENT_WORDS,
@@ -54,11 +54,10 @@ fn words(what: EngineWhat) -> &'static [u8] {
         EngineWhat::BoxSignIn => b"a box's sign-in takes application.sign_in null",
         EngineWhat::Handover => b"admin_token must be exactly 40 lowercase hexadecimal digits",
         EngineWhat::MissingNull => b"missing: null for none",
-        EngineWhat::InlineSeedPolicy => b"name a policy, policy: 1; change it with temper ctl settings apply",
         EngineWhat::LandingStored => b"landing rules live in the store; read them with temper ctl settings show landing-rule",
         EngineWhat::ProjectLandingStored => b"landing rules live in the store; read them with temper ctl settings show landing-rule --project",
         EngineWhat::CharterStored => b"the forge's charters live in the store; read them with temper ctl settings show forge-charter 1",
-EngineWhat::Room(_) | EngineWhat::Stock(_) | EngineWhat::TierChanges { .. } | EngineWhat::StorePage { .. } | EngineWhat::StoreMap(_) | EngineWhat::StoreTask { .. } | EngineWhat::Admission { .. } => b"",
+EngineWhat::FigureEndpoints { .. } | EngineWhat::FleetGrace { .. } | EngineWhat::Room(_) | EngineWhat::Stock(_) | EngineWhat::TierChanges { .. } | EngineWhat::TestIdBytes { .. } | EngineWhat::StorePage { .. } | EngineWhat::StoreMap(_) | EngineWhat::StoreTask { .. } | EngineWhat::Admission { .. } => b"",
  }
 }
 fn redirect_listener(listener: super::Listener, writer: &mut Writer, length: &mut usize, measuring: bool) {
@@ -66,8 +65,6 @@ fn redirect_listener(listener: super::Listener, writer: &mut Writer, length: &mu
         super::Listener::Demo => b"application.demo.llm.listen".as_slice(),
         super::Listener::Clients => b"application.clients.listener".as_slice(),
         super::Listener::Webhooks => b"application.webhooks.listener".as_slice(),
-        super::Listener::Owned(_) => b"application.machine.owned.listen".as_slice(),
-        super::Listener::Fake(_) => b"application.machine.fake.listen".as_slice(),
     };
     put(writer, length, measuring, name);
 }
@@ -144,6 +141,7 @@ fn stock(floor: crate::stock::Floor, writer: &mut Writer, length: &mut usize, me
             Setting::Template(number) => (b"template ", Some(number)),
             Setting::Policy(number) => (b"policy ", Some(number)),
             Setting::Model(number) => (b"Model ", Some(number)),
+            Setting::Worker(number) => (b"Worker ", Some(number)),
             Setting::Rules => (b"rules", None),
             Setting::Application { kind, scope, number } => {
                 put(writer, length, measuring, b"application kind ");
@@ -195,6 +193,16 @@ fn render(problems: &Problems, writer: &mut Writer, measuring: bool) -> usize {
         }
         put(writer, &mut length, measuring, words(what));
         match what {
+            EngineWhat::FigureEndpoints { count } => {
+                put(writer, &mut length, measuring, Decimal::of(u64::from(count)).as_bytes());
+                put(writer, &mut length, measuring, b" endpoints, at most 64, the workers' figures carry no more");
+            }
+            EngineWhat::FleetGrace { offered, derived } => {
+                put(writer, &mut length, measuring, Decimal::of(offered.as_millis()).as_bytes());
+                put(writer, &mut length, measuring, b" ms; requires at least the derived fleet grace of ");
+                put(writer, &mut length, measuring, Decimal::of(derived.as_millis()).as_bytes());
+                put(writer, &mut length, measuring, b" ms");
+            }
             EngineWhat::Room(short) => put(writer, &mut length, measuring, &short.words()),
             EngineWhat::Stock(floor) => stock(floor, writer, &mut length, measuring),
             EngineWhat::TierChanges { count, bound, ceiling } => {
@@ -210,6 +218,12 @@ fn render(problems: &Problems, writer: &mut Writer, measuring: bool) -> usize {
                 put(writer, &mut length, measuring, Decimal::of(u64::from(ceiling)).as_bytes());
                 put(writer, &mut length, measuring, b")");
             }
+            EngineWhat::TestIdBytes { bytes, bound } => {
+                put(writer, &mut length, measuring, Decimal::of(u64::from(bytes)).as_bytes());
+                put(writer, &mut length, measuring, b", past its bound of ");
+                put(writer, &mut length, measuring, Decimal::of(u64::from(bound)).as_bytes());
+                put(writer, &mut length, measuring, b", the most the store holds of a failing test's id");
+            }
             EngineWhat::StorePage { frame, ceiling, .. } => {
                 store_page(frame, ceiling, writer, &mut length, measuring);
             }
@@ -224,7 +238,6 @@ fn render(problems: &Problems, writer: &mut Writer, measuring: bool) -> usize {
             EngineWhat::EngineAlone
             | EngineWhat::UnbuiltWorker
             | EngineWhat::Loopback
-            | EngineWhat::Connectors
             | EngineWhat::OldAgentCommand
             | EngineWhat::NoWebhooks
             | EngineWhat::Agent
@@ -236,7 +249,6 @@ fn render(problems: &Problems, writer: &mut Writer, measuring: bool) -> usize {
             | EngineWhat::BoxSignIn
             | EngineWhat::Handover
             | EngineWhat::MissingNull
-            | EngineWhat::InlineSeedPolicy
             | EngineWhat::LandingStored
             | EngineWhat::ProjectLandingStored
             | EngineWhat::CharterStored => {}

@@ -68,7 +68,7 @@ pub fn chats(root: &Domain, w: &Words) -> Box<[Choice]> {
         choices
             .push(Choice {
                 name: w.say(crate::words::Word::Chat, &[skein_ui::phrases::Hole::Number(row.chip.task)]),
-                words: row.chip.title.bytes().into(),
+                words: crate::common::chat::row_title(row.chip.title.bytes()),
                 selected: false,
                 act: Act::Go { address: Address::Chat { task: row.chip.task } },
             })

@@ -681,7 +681,8 @@ blamed landing's full commit (2026-11-04).
 - **Limits,** the forge's: `landings_kept` per repository (16 in
   `small`); `trailers` per landing (8) and `trailer_bytes` per line
   (200); `tiers` per repository (2 in `small`),
-  `failing_tests` per run (16), `test_id_bytes` (256), and a tier's
+  `failing_tests` per run (16), `test_id_bytes` (512, at most the
+  store's 1,024, `../protocol/store.md`, 4), and a tier's
   name at most 32 bytes.
 
 A tier's record keeps at most `failing_tests` distinct flake IDs. Once full
@@ -697,7 +698,7 @@ suspects' rule (`bisect` or `tell all`), and whether a red pauses its
 repository (no). Until the kinds are settings, the tiers,
 `tier_retries` and `verification_bound` are in the document's
 `landing` member, as the gates are, and the suspects' rule and a red's
-pause wait for kind 4 (`landing.md`, 13.1).
+pause wait for kind 4 (`landing-settings.md`, 1.1).
 
 A tier's settings start its runs, never its record. A tier newly
 configured starts its baseline at its branch's tip read afresh

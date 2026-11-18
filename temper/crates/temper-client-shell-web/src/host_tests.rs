@@ -1,7 +1,7 @@
 //! The host owns secret/clearing/target evidence; Chromium owns navigation and re-entry.
 use super::*;
 use jig_client::contract as c;
-use jig_client_protocol_wire::v28 as w;
+use jig_client_protocol_wire as w;
 use skein_lib::{Reader, Token};
 use skein_ui::{EntryKind, Role};
 #[path = "host_tests_approve.rs"]
@@ -25,31 +25,7 @@ fn fixture_forges(forges: Option<&temper_client_protocol_wire::v1::Forges>) -> H
     host.client(jig_client::Event::StartUnlinked { kept: List::with_capacity(0) });
     host.client(jig_client::Event::SignIn { with: jig_client::With::Transport });
     host.client(jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } });
-    let me = host
-        .out
-        .iter()
-        .find_map(|request| match request {
-            Request::Unlinked {
-                request:
-                    jig_client::UnlinkedRequest::Down {
-                        down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Me) },
-                    },
-            } => Some(*watch),
-            Request::Client { .. }
-            | Request::Unlinked { .. }
-            | Request::Show { .. }
-            | Request::Leave { .. }
-            | Request::SignOut
-            | Request::Dropped { .. }
-            | Request::Screen { .. }
-            | Request::KeepLook { .. }
-            | Request::KeepSignIn { .. }
-            | Request::Tab { .. }
-            | Request::Copy { .. }
-            | Request::Push(_)
-            | Request::Fact { .. } => None,
-        })
-        .expect("me watch");
+    let me = Token::new(0);
     let link =
         jig_client_protocol_link::Limits::new(host.env.limits.client.domain, limits::EXCHANGES).expect("link bounds");
     let mut frame =
@@ -398,12 +374,13 @@ fn encoded(size: u32, write: impl FnOnce(&mut skein_lib::Writer) -> Result<(), s
     write(&mut writer).expect("measured fixture");
     writer.finish()
 }
-fn owned(record: Box<[u8]>) -> jig_client_protocol_wire::v28::Owned {
-    use jig_client_protocol_wire::{VERSION, v28 as w};
+fn owned(record: Box<[u8]>) -> jig_client_protocol_wire::Owned {
+    use jig_client_protocol_wire as w;
+    use jig_client_protocol_wire::VERSION;
     w::Owned::new(&w::CEILINGS, w::OwnedParts { owner: w::Owner::Jig, version: VERSION, record })
         .expect("fixture envelope")
 }
-fn streamed(host: &mut Host, event: &jig_client_protocol_wire::v28::StreamEvent) {
+fn streamed(host: &mut Host, event: &jig_client_protocol_wire::StreamEvent) {
     use skein_lib::base64::{self, Alphabet};
     let bytes = encoded(event.measure(), |writer| event.encode(writer));
     let size = base64::encoded_len(Alphabet::Standard, u32::try_from(bytes.len()).expect("fixture fits"))
@@ -418,7 +395,8 @@ fn streamed(host: &mut Host, event: &jig_client_protocol_wire::v28::StreamEvent)
 #[test]
 #[expect(clippy::too_many_lines, reason = "one wire story delivers sign-in, task activity and me before drawing")]
 fn the_first_task_activity_answer_survives_transport_sign_in() {
-    use jig_client_protocol_wire::{VERSION, v28 as w};
+    use jig_client_protocol_wire as w;
+    use jig_client_protocol_wire::VERSION;
     use skein_lib::{Duration, Reader};
     // task_record's chip is task 7; the answer carries one committed run marker.
     const TASK_PATH: &[u8] = b"/tasks/7";
@@ -449,13 +427,14 @@ fn the_first_task_activity_answer_survives_transport_sign_in() {
         .expect("one served family");
     streamed(
         &mut host,
-        &w::StreamEvent::Hello(
+        &jig_client_test_records::opened(
             w::Hello::new(&w::CEILINGS, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
                 .expect("hello"),
+            jig_client_test_records::frame_record(),
         ),
     );
     let mut watch = None;
-    let mut me = None;
+    let me = 0;
     for request in host.requests() {
         let Asked::Exchange { call, .. } = request else { continue };
         for open in openings(&call.path, &call.body) {
@@ -465,9 +444,6 @@ fn the_first_task_activity_answer_survives_transport_sign_in() {
             let subject = w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).expect("subject");
             if matches!(subject, w::Subject::Task(_)) {
                 watch = Some(open.watch());
-            }
-            if subject == w::Subject::Me {
-                me = Some(open.watch());
             }
         }
     }
@@ -515,7 +491,7 @@ fn the_first_task_activity_answer_survives_transport_sign_in() {
             w::Delivery::new(
                 &w::CEILINGS,
                 w::DeliveryParts {
-                    watch: me.expect("me watch"),
+                    watch: me,
                     document: owned(encoded(document.measure(), |writer| document.encode(writer))),
                 },
             )

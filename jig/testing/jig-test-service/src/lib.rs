@@ -36,7 +36,7 @@ use skein_io::{
     kernel::{Complete, Fd, Submit},
 };
 use skein_lib::{Env, List, Queue, Time, Token, Wall};
-pub use startup::{named, startup};
+pub use startup::{named, startup, startup_with_workers};
 
 /// No application server is available, or its loop has already started.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

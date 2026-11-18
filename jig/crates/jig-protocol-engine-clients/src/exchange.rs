@@ -5,13 +5,14 @@ use skein_lib::Token;
 pub(crate) struct Exchange {
     pub name: Token,
     pub stream: bool,
+    pub version: Option<u32>,
     pub response: Option<Reply>,
     pub ended: Option<Ended>,
     pub closing: bool,
 }
 impl Exchange {
     pub fn new(exchange: Token, stream: bool) -> Self {
-        Self { name: exchange, stream, response: None, ended: None, closing: false }
+        Self { name: exchange, stream, version: None, response: None, ended: None, closing: false }
     }
     pub fn respond(&mut self, reply: Reply) {
         self.response = Some(reply);

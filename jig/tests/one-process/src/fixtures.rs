@@ -57,7 +57,7 @@ pub(crate) fn store_names() -> &'static [jig_domain_core::settings::ModelName] {
     NAMES.get_or_init(|| jig_protocol_store::codec::names(&engine().llm.models()))
 }
 fn profile() -> jig_test_service::limits::Limits {
-    jig_test_service::limits::for_profile(jig_protocol_config::Profile::Small, &engine().limits)
+    jig_test_service::limits::small(&engine().limits)
 }
 fn engine() -> jig_protocol_config::Engine {
     let bytes = engine_document();
@@ -71,6 +71,7 @@ fn engine() -> jig_protocol_config::Engine {
         at,
         &jig_protocol_config::Directories::working(),
         jig_protocol_config::Defaults::Document,
+        &jig_protocol_config::Fixed::NONE,
     )
     .expect("fixture engine")
 }

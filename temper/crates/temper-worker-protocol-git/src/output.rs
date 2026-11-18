@@ -224,6 +224,7 @@ pub fn version(stdout: &[u8]) -> Option<Version> {
 pub fn classify(tail: &[u8], kind: git::Kind) -> git::Fault {
     match kind {
         git::Kind::Reds
+        | git::Kind::Reset
         | git::Kind::Point
         | git::Kind::Clone
         | git::Kind::Look

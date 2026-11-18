@@ -14,6 +14,7 @@ pub enum Stop {
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Note {
+    FiguresChanged,
     Cancelling {
         run: u64,
         attempt: u64,

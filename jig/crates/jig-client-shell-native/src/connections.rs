@@ -149,13 +149,13 @@ impl Connections {
                 };
                 self.enqueue(now, owner, mapping::exchange(&self.mapping, credential.as_ref(), message), kind);
             }
-            client::Request::OpenStream { credential, replaces } => {
+            client::Request::OpenStream { credential, version, replaces } => {
                 if !self.exchanges.values().any(|value| matches!(value.owner, Owner::Stream))
                     && !self.pending.iter().any(|(owner, _, _, _)| matches!(owner, Owner::Stream))
                 {
                     self.pending.push_back((
                         Owner::Stream,
-                        mapping::stream(&self.mapping, credential.as_ref(), replaces),
+                        mapping::stream(&self.mapping, credential.as_ref(), version, replaces),
                         now,
                         Kind::Stream,
                     ));

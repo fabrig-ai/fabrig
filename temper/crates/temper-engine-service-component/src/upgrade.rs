@@ -1,13 +1,11 @@
 //! A start ending before its switch, and going back (protocol/binaries.md; domain/root.md, 8.1).
 use crate::{End, engine::Engine};
-use alloc::boxed::Box;
 use jig_protocol_store::{Event, Request};
 use skein_lib::{Duration, Queue, Time, Token};
 
 /// What the configured engine would require at an opening (protocol/wires.md, 10.2).
 #[derive(Debug)]
 pub struct Workers {
-    pub names: Box<[Box<[u8]>]>,
     pub room: u32,
     pub schema: skein_channel::Schema,
 }

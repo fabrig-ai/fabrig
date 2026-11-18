@@ -35,7 +35,7 @@ fn a_secret_file_readable_by_others_refuses_the_start() {
         "programs":{{"check_interval_ms":60000}},
         "graces":{{"grace_ms":10000,"agent_stop_ms":5000,"delivery_ms":1000,"save_ms":1000}},
         "agent":{{"program":"jig-test","configuration":"{}","arguments":["agent"]}},
-        "limits":{{"profile":"small"}},"memory_bytes":1152921504606846976
+        "limits":{{"profile":"standard"}},"memory_bytes":1152921504606846976
     }}],"application":{{"workers":[{{"root":"agent-root"}}]}}}}"#,
         secret.display(),
         agent.display()

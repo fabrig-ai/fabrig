@@ -331,7 +331,7 @@ fn assert_ended_position(world: &mut World, task: u64, through: u64, unread: u32
     let query = core::documents::TaskQuery {
         phase: Some(core::documents::PhaseClass::Ended),
         order: core::documents::QueryOrder::Ended,
-        ..jig_test_profile::fixtures::OWN_TASKS
+        ..jig_test_profile::fixtures::own_tasks()
     };
     jig_core_world::reads::ask(world, VIEW, core::reads::Read::Tasks { query, live: None, ended: None });
     let core::reads::Answer::Tasks(page) = jig_core_world::reads::latest(world) else { panic!("task page") };

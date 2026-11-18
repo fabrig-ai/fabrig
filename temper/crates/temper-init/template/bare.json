@@ -8,20 +8,23 @@
         "clients.streams": 8,
         "clients_http.calls": 12,
         "clients_http.streams": 8,
-        "core.resume_bytes": 16803814,
+        "core.resume_bytes": 18431846,
         "documents.rows": 2,
         "documents.text_bytes": 512,
         "fleet.configured_workers": 8,
         "fleet.workers": 2,
-        "hub.transcript_bytes": 67215250,
-        "hub.turn_bytes": 16803810,
-        "hub.turn_queue_bytes": 134430480,
-        "io.output": 16804602,
+        "hub.accounts": 4,
+        "hub.event_bytes": 63738,
+        "hub.run_calls": 48,
+        "hub.transcript_bytes": 73727378,
+        "hub.turn_bytes": 18431842,
+        "hub.turn_queue_bytes": 147454736,
+        "io.output": 18432866,
         "tasks.charters": 16,
         "tasks.executor_kinds": 22,
-        "tasks.inbox_bytes": 874120,
-        "tasks.message_bytes": 10660,
-        "tasks.result_bytes": 10660
+        "tasks.inbox_bytes": 5226516,
+        "tasks.message_bytes": 63738,
+        "tasks.result_bytes": 63738
       }
     },
     "llm": {
@@ -30,8 +33,18 @@
           "name": "openai",
           "number": 1,
           "endpoint": "openai",
-          "keep": ["gpt-*"],
-          "drop": ["*audio*", "*image*", "*realtime*", "*search*", "*transcribe*", "*tts*", "*-20??-??-??"],
+          "keep": [
+            "gpt-*"
+          ],
+          "drop": [
+            "*audio*",
+            "*image*",
+            "*realtime*",
+            "*search*",
+            "*transcribe*",
+            "*tts*",
+            "*-20??-??-??"
+          ],
           "signed_in_plan": true,
           "manage_usage": "https://chatgpt.com/settings/usage",
           "sources": {
@@ -68,8 +81,12 @@
           "number": 2,
           "endpoint": "anthropic",
           "direct": "anthropic-api",
-          "keep": ["claude-*"],
-          "drop": ["*-20??????"],
+          "keep": [
+            "claude-*"
+          ],
+          "drop": [
+            "*-20??????"
+          ],
           "signed_in_plan": false,
           "manage_usage": "https://claude.ai/settings/usage",
           "sources": {
@@ -130,93 +147,32 @@
       ]
     },
     "hosts": {
-      "workers": [
-        {
-          "name": "worker",
-          "digest": "worker.digest"
-        }
-      ],
       "listener": [
         {
           "in_process": "workers"
         }
       ]
     },
-    "clients": {
-      "heartbeat_ms": 10000,
-      "link": true,
-      "approval": true
-    },
-    "deployment": {
-      "directory": "deployment",
-      "seed": 7
-    },
+    "clients": {},
     "owners": [
       {
         "provider": 1,
         "subject": "owner-a"
       }
     ],
-    "providers": [
-      {
-        "number": 1,
-        "kind": "link"
-      },
-      {
-        "number": 2,
-        "kind": "deployment"
-      }
-    ],
-    "connectors": [
-      1
-    ],
-    "memory_bytes": 1073741824,
-    "projects": []
+    "memory_bytes": 1073741824
   },
   "workers": [
     {
       "engine": {
         "in_process": "workers"
       },
-      "name": "worker",
+      "name": "local",
       "secret": "worker.secret",
-      "slots": 4,
-      "graces": {
-        "grace_ms": 300000,
-        "agent_stop_ms": 5000,
-        "delivery_ms": 1000,
-        "save_ms": 1000
-      },
-      "programs": {
-        "check_interval_ms": 60000
-      },
-      "agent": {
-        "program": "$binary",
-        "configuration": "$agent",
-        "arguments": [
-          "internal",
-          "agent",
-          "$agent"
-        ]
-      },
-      "limits": {
-        "profile": "standard",
-        "overrides": {
-          "hub.accounts": 4,
-          "hub.event_bytes": 10660,
-          "hub.run_calls": 48,
-          "hub.transcript_bytes": 67215250,
-          "hub.turn_bytes": 16803810,
-          "hub.turn_queue_bytes": 134430480,
-          "io.output": 16804602
-        }
-      }
+      "slots": 4
     }
   ],
   "application": {
-    "machine": {
-      "github": null
-    },
     "clients": {
       "listener": {
         "socket": "$listener"
@@ -234,27 +190,21 @@
     "limits": {
       "profile": "standard",
       "overrides": {
-        "checkout.message_bytes": 10662,
+        "checkout.message_bytes": 63740,
         "checkout.workspaces": 4,
-        "forge.client.op_bytes": 10660,
+        "forge.client.op_bytes": 63738,
         "forge.client.repositories": 3,
         "forge.judge_projects": 8,
         "forge.output": 82,
         "forge.repositories": 3,
-        "forge_component.body_bytes": 21341,
+        "forge_component.body_bytes": 127497,
         "git_component.operations": 4,
-        "root.journal.transcript_bytes": 16803814,
-        "root.loads.bytes": 16804058,
-        "root.loads.read_bytes": 33607620,
-        "root.loads.reply_bytes": 16804058,
-        "root.loads.transcript_bytes": 16803810
+        "root.journal.transcript_bytes": 18431846,
+        "root.loads.bytes": 18432090,
+        "root.loads.read_bytes": 36863684,
+        "root.loads.reply_bytes": 18432090,
+        "root.loads.transcript_bytes": 18431842
       }
-    },
-    "workers": [
-      {
-        "root": "workspaces",
-        "git": "$git"
-      }
-    ]
+    }
   }
 }

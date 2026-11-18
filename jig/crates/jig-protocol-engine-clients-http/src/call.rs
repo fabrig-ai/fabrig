@@ -186,6 +186,26 @@ impl Call {
                                 stream: self.name,
                                 credential,
                                 replaces: self.replaces,
+                                version: match self.route {
+                                    Route::Stream(version) => version,
+                                    Route::Public(_)
+                                    | Route::Link
+                                    | Route::Service
+                                    | Route::SignInApproval
+                                    | Route::ApprovalAsk
+                                    | Route::ApprovalRead
+                                    | Route::ApprovalDecide
+                                    | Route::SignOut
+                                    | Route::Authorize
+                                    | Route::Request
+                                    | Route::Read
+                                    | Route::Watch
+                                    | Route::Batch
+                                    | Route::Unwatch
+                                    | Route::Gone
+                                    | Route::BadQuery
+                                    | Route::Missing => unreachable!("stream route"),
+                                },
                             }
                         }
                     };

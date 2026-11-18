@@ -204,11 +204,11 @@ fn a_read_waits_for_me() {
     assert!(f.stdout().starts_with(b"{\""));
 }
 #[test]
-fn an_unheard_read_exits_1_at_the_link_deadline() {
+fn an_unheard_hello_exits_1_at_the_link_deadline() {
     let mut f = fixtures::Engine::read(&["me"]);
     f.drain();
     f.advance_past(limits::DEADLINE);
-    assert_eq!(f.stderr(), b"temper ctl: the engine at http://127.0.0.1:4000 did not answer a read within 30 s\n");
+    assert_eq!(f.stderr(), b"temper ctl: the engine at http://127.0.0.1:4000 took the connection but its stream did not answer within 30 s\n");
     assert_eq!(f.exit(), Some(Exit::Code(1)));
 }
 #[test]
@@ -571,6 +571,20 @@ fn two_writes_get_two_ordered_terminals() {
     f.store_erase();
     assert!(f.store_count() >= first + 2);
     assert!(f.act_sent());
+}
+#[test]
+fn an_unwritable_act_says_not_kept_and_nothing_sent() {
+    let text = vec![b'x'; 32768];
+    let words = [b"chat".as_slice(), b"start", &text, b"--project", b"shop", b"--key", b"start-chat"];
+    let mut f = fixtures::Disk::act_words_with(&words, fixtures::small_store(&[]));
+    f.host.test_document_bytes(32768);
+    f.answer_kept();
+    assert!(!f.act_sent());
+    assert_eq!(f.exit(), Some(Exit::Code(1)));
+    assert_eq!(f.stderr(), b"temper ctl: request not kept; nothing was sent\n");
+    f.advance_past(limits::DEADLINE);
+    assert!(!f.act_sent());
+    assert_eq!(f.stderr(), b"temper ctl: request not kept; nothing was sent\n");
 }
 #[test]
 fn an_unheard_act_stays_kept() {

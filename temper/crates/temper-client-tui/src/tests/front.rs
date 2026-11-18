@@ -350,3 +350,42 @@ fn stopping_log_bounds() {
         super::limits::fits(view.tree(), &crate::limits(&f::limits(), &skein_ui::Limits::EMPTY, 512).unwrap());
     }
 }
+
+#[test]
+fn closed_notices_and_quit_questions_cut_only_the_chat_title() {
+    for (title, cut) in [
+        (
+            b"abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd"
+                .as_slice(),
+            "abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd…".as_bytes(),
+        ),
+        (
+            b"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx".as_slice(),
+            b"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx".as_slice(),
+        ),
+    ] {
+        let mut limits = f::limits();
+        limits.client.domain.text = 256;
+        limits.client.domain.long_text = 256;
+        limits.client.domain.turn_text = 256;
+        let shared = temper_client_view_words::words::Words::english(
+            temper_client_protocol_wire::number(temper_client_protocol_wire::Owner::Forge),
+            256,
+            temper_client_view_words::words::Shell::Terminal,
+        )
+        .unwrap();
+        let words = crate::words::Words::english(shared, &limits).unwrap();
+        let notice = crate::Notice::Closed { task: 12, title: Some(title.into()) };
+        let expected = skein_lib::bytes::concat(&[b"Closed T12", " · ".as_bytes(), cut]);
+        assert_eq!(words.notice(&notice), expected);
+        let mut row = working(12, b"chat", 1);
+        row.chip.title = c::DocumentText::complete(c::Text::new(title.into(), 256).unwrap());
+        let root = launchpad::home(None, &[row]);
+        let mut tui = Tui::new(f::ADDRESS);
+        tui.step(Told::Quitting);
+        let options = view::front::quit(&root, &tui, &words).unwrap();
+        let head = skein_lib::bytes::concat(&[b"Stop the box? ", cut, b"'s running task stops with it."]);
+        assert_eq!(options.head.as_deref(), Some(head.as_ref()));
+        assert_eq!(options.name, head);
+    }
+}
