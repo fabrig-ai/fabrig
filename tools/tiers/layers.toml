@@ -177,6 +177,7 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "temper-real-loop-world::suite" = "real-loop"
 "temper-redeploy-tool::suite" = "real-loop" # step, domain and real-loop: fake hosts/clock beside real sh process seam.
 "temper-redeploy::suite" = "end-to-end" # Shipped redeploy's command-line boundary.
+"temper-service::protocol_link" = "protocol" # Stock starts and keepalives across real engine/worker channel stacks.
 "temper-stage-one::suite" = "end-to-end" # Shipped stage-one tool's command-line boundary.
 "temper-system-world::suite" = "system"
 "temper-twin-tool::suite" = "domain" # step and domain: conversion checks and fake LLM replay.
