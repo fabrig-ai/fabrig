@@ -6,7 +6,7 @@
 
 | Goal | Draft parts | Needs | Its walk | State |
 |---|---|---|---|---|
-| K1, one pin: `every` completed (defaults, secret holds, held enumerations, grouped booleans, split functions) with the check that lists the grammar's constructs; each family's memory test built from its schema at run time; the hand-written tests that read golden files rewritten to build their values; every family's golden directory, every generated test and the generator's test emitter removed | 5 | none | none: the suites | not started |
+| K1, one pin: `every` completed (defaults, secret holds, held enumerations, grouped booleans, split functions) with the check that lists the grammar's constructs; each family's memory test built from its schema at run time; the hand-written tests that read golden files rewritten to build their values; every family's golden directory, every generated test and the generator's test emitter removed | 5 | none | none: the suites | landed |
 | K2, merges: modules named without versions, no counts, no numbered splits; fingerprints computed from the embedded texts, `jig-protocol-store`'s `generated/layouts.rs` and the `Layouts` row removed; fabrig's merge job regenerating a family whose sources merged clean; `.gitattributes`, `.ignore` and `AGENTS.md`'s line | 6 | K1 | none: the suites | not started |
 | K3, lean records on jig's tasks store family alone: the subset's exception for `skein-codec`, the `Record` trait and its helpers, public fields checked at encode, bounds and paths as tables; its lines, compiles and decode times measured | 3 | K2 | none | not started |
 | K4, lean records everywhere: every other family, once K3's figures meet 3.3 | 3 | K3 | none | not started |
