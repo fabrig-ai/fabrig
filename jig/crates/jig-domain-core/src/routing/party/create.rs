@@ -493,7 +493,7 @@ fn delegates_for(ask: &authority::PersonAsk) -> &[authority::Delegate] {
         authority::PersonRequest::Create(batch) | authority::PersonRequest::Delegate { tasks: batch, .. } => batch,
         authority::PersonRequest::Allot(_)
         | authority::PersonRequest::Accept(_)
-        | authority::PersonRequest::Amend(_)
+        | authority::PersonRequest::Amend { .. }
         | authority::PersonRequest::Move(_)
         | authority::PersonRequest::Cancel
         | authority::PersonRequest::Release

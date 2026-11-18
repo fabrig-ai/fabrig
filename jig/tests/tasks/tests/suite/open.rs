@@ -284,6 +284,7 @@ fn an_open_raw_finish_while_narrowing_goes_due() {
     let call = reply_to.into_token().raw();
     w.send(Event::Amend {
         operation: tasks::Amend {
+            funder: None,
             task: CHAT,
             message: 1,
             stop_run: true,
@@ -302,7 +303,6 @@ fn an_open_raw_finish_while_narrowing_goes_due() {
         },
         places: Box::new([]),
         reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(call)),
-        funder: None,
         by: Party::Person(1),
     });
     assert_eq!(w.replies[&call], Reply::Done);

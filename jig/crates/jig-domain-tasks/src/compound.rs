@@ -81,7 +81,7 @@ impl Staged {
             reserved: 0,
             plans: List::with_capacity(bound),
             circles: List::with_capacity(bound),
-            funding: List::with_capacity(bound.saturating_mul(4)),
+            funding: List::with_capacity(bound.saturating_mul(5)),
         }
     }
     pub(crate) fn after(&mut self, domain: &Domain, limits: &Limits, plan: &Plan) {
@@ -130,7 +130,26 @@ impl Staged {
                 }
             }
             Plan::Amend(plan) => {
-                if let Some(authority) = &plan.amendment.authority {
+                if let Some((destination, budget)) = plan.funding {
+                    let row = self.record(domain, plan.number).expect("checked task");
+                    let funder = row.funder;
+                    let before = row.numbers;
+                    let spent = crate::funders::total(before).expect("refunding checked spend");
+                    let left = budget.checked_sub(spent).expect("refunding checked budget");
+                    let mut source = self.numbers(domain, funder).expect("checked source");
+                    source.reserved = source.reserved.checked_sub(before.budget).expect("refunding checked source");
+                    source.spent_below = source.spent_below.checked_add(spent).expect("refunding checked source");
+                    self.funding.push((funder, source)).expect("source per amendment");
+                    let mut target = self.numbers(domain, destination).expect("checked destination");
+                    target.reserved = target.reserved.checked_add(left).expect("refunding checked destination");
+                    self.funding.push((destination, target)).expect("destination per amendment");
+                    self.funding
+                        .push((
+                            Funder::Task(plan.number),
+                            Numbers { budget: left, spent: 0, spent_below: 0, reserved: before.reserved },
+                        ))
+                        .expect("task normalization per amendment");
+                } else if let Some(authority) = &plan.amendment.authority {
                     let row = self.record(domain, plan.number).expect("checked task");
                     let funder = row.funder;
                     let budget = row.numbers.budget;
@@ -268,6 +287,51 @@ impl<'a> CompoundAdmission<'a> {
     pub fn moved(&self, number: u64) -> bool {
         self.staged.detached(number)
     }
+    /// Judge against the person-pool opens the root will queue before this compound event.
+    /// This changes only the admission projection, not the task domain.
+    pub fn opening_pool(&mut self, context: CompoundContext) -> Result<(), Refusal> {
+        let person = match context.by {
+            Party::Person(person) => person,
+            Party::Task(_) | Party::Deployment { .. } => return Err(Refusal::Funding),
+        };
+        let pool = Funder::Pool { project: context.project, person, period: context.period };
+        if self.domain.funding.contains_key(&pool) {
+            return Ok(());
+        }
+        if crate::funders::newer_period(self.domain, context.project, context.period) {
+            return Err(Refusal::Funding);
+        }
+        let period = Funder::Period { project: context.project, period: context.period };
+        let empty = Numbers { budget: context.period_budget, spent: 0, spent_below: 0, reserved: 0 };
+        let mut opened = match self.domain.funding.get(&period) {
+            Some(row) => row.numbers,
+            None => empty,
+        };
+        // Opens precede every operation, so earlier projected refunds cannot pay for them.
+        opened.reserved = opened.reserved.checked_add(context.pool_budget).ok_or(Refusal::Funding)?;
+        if crate::funders::available(opened).is_none() {
+            return Err(Refusal::Funding);
+        }
+        let needed = if self.domain.funding.contains_key(&period) { 1 } else { 2 };
+        if self.domain.funding.len().checked_add(needed).ok_or(Refusal::Funding)? > self.domain.funding.capacity() {
+            return Err(Refusal::Busy);
+        }
+        if self.staged.numbers(self.domain, pool).is_some() {
+            return Ok(());
+        }
+        let mut numbers = self.staged.numbers(self.domain, period).unwrap_or(empty);
+        numbers.reserved = numbers.reserved.checked_add(context.pool_budget).ok_or(Refusal::Funding)?;
+        if crate::funders::available(numbers).is_none() {
+            return Err(Refusal::Funding);
+        }
+        self.staged.funding.push((period, numbers)).expect("period projection per amendment");
+        self.staged
+            .funding
+            .push((pool, Numbers { budget: context.pool_budget, spent: 0, spent_below: 0, reserved: 0 }))
+            .expect("pool projection per amendment");
+        Ok(())
+    }
+
     /// Check and retain one plan against the preceding plans; never apply it.
     pub fn check(
         &mut self,
@@ -344,8 +408,7 @@ fn check(
         Operation::Cancel(cancel) => {
             Ok(Plan::Cancel(Box::new(crate::control::check_cancel(domain, staged, env, by, cancel)?)))
         }
-        Operation::Amend(operation) => match crate::control::check_amend(domain, staged, env, by, operation, &[], None)
-        {
+        Operation::Amend(operation) => match crate::control::check_amend(domain, staged, env, by, operation, &[]) {
             Ok(plan) => Ok(Plan::Amend(Box::new(plan))),
             Err(problem) => Err(problem),
         },

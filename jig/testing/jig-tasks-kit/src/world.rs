@@ -549,7 +549,7 @@ impl World {
     #[expect(clippy::too_many_lines, reason = "the world records every closed task input family")]
     fn remember_input(&mut self, event: &Event) {
         self.priced = match event {
-            Event::Amend { operation: tasks::Amend { task, amendment, .. }, funder, .. } => {
+            Event::Amend { operation: tasks::Amend { task, amendment, funder, .. }, .. } => {
                 if let Some(Stored::Live(row)) = self.records.get(&Key::Live(*task)) {
                     let destination = funder.unwrap_or(row.funder);
                     let budget = match &amendment.authority {

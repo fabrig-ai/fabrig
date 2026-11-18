@@ -60,9 +60,14 @@ fn amendment_input(core: &Core, named: u64) -> Event {
     Event::Tasks(tasks::Event::Amend {
         reply_to: ReplyTo::new(Token::new(9053)),
         by: tasks::Party::Person(PERSON),
-        funder: None,
         places: Box::new([]),
-        operation: tasks::Amend { task: PERSON_TASK, message: 1, stop_run: false, amendment: Box::new(amendment) },
+        operation: tasks::Amend {
+            funder: None,
+            task: PERSON_TASK,
+            message: 1,
+            stop_run: false,
+            amendment: Box::new(amendment),
+        },
     })
 }
 

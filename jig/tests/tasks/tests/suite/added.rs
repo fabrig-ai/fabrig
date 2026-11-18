@@ -57,11 +57,16 @@ fn amend_with_places(
 ) -> Reply {
     let message = world.record(task).last_message + 1;
     response(world, |reply_to| Event::Amend {
-        operation: tasks::Amend { task, message, stop_run: false, amendment: Box::new(amendment(dependencies)) },
+        operation: tasks::Amend {
+            funder: None,
+            task,
+            message,
+            stop_run: false,
+            amendment: Box::new(amendment(dependencies)),
+        },
         places,
         reply_to,
         by,
-        funder: None,
     })
 }
 
@@ -858,11 +863,16 @@ fn remove_and_release(world: &mut World, number: u64) -> Reply {
     amendment.release = Some(world.record(number).revisions.hold);
     let message = world.record(number).last_message + 1;
     response(world, |reply_to| Event::Amend {
-        operation: tasks::Amend { task: number, message, stop_run: false, amendment: Box::new(amendment) },
+        operation: tasks::Amend {
+            funder: None,
+            task: number,
+            message,
+            stop_run: false,
+            amendment: Box::new(amendment),
+        },
         places: Box::new([]),
         reply_to,
         by: PERSON_PARTY,
-        funder: None,
     })
 }
 
@@ -960,6 +970,7 @@ fn removing_operation(world: &World, release: Option<u64>) -> tasks::Operation {
     let mut amendment = amendment(&[]);
     amendment.release = release;
     tasks::Operation::Amend(tasks::Amend {
+        funder: None,
         task: 1,
         message: world.record(1).last_message + 1,
         stop_run: false,
@@ -1013,12 +1024,14 @@ fn a_compounds_amendment_release_projects_the_new_hold_revision_for_its_next_ame
             &mut world,
             vec![
                 tasks::Operation::Amend(tasks::Amend {
+                    funder: None,
                     task: 1,
                     message,
                     stop_run: false,
                     amendment: Box::new(retained)
                 }),
                 tasks::Operation::Amend(tasks::Amend {
+                    funder: None,
                     task: 1,
                     message: message + 1,
                     stop_run: false,

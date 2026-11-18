@@ -17,6 +17,8 @@ use skein_lib::{List, Queue, ReplyTo, Token};
 mod address;
 #[path = "../stories/note_room.rs"]
 mod note_room;
+#[path = "../stories/widening_funds.rs"]
+mod widening_funds;
 
 const SECOND_CONNECTOR: u16 = 2;
 
@@ -1178,6 +1180,38 @@ fn a_release_after_a_pass_up_keeps_the_hold_revision_and_uses_the_partys_tree() 
     ask(&mut world, 54, people::Ask::Release { project: 1, task, revision, again: None });
     assert_eq!(world.people_answers.last(), Some(&people::Reply::Outcome(people::Outcome::Released { task })));
     assert!(!matches!(live_row(&world, task).phase, tasks::Phase::Held { .. }));
+}
+
+#[test]
+fn an_owner_funds_only_the_increase_that_the_task_document_offered_as_made() {
+    use crate::amendment_funding as funding;
+    use jig_client_domain::contract as c;
+    let mut world = World::new(Setup { seed: 8290, ..Setup::default() });
+    let task = world.call_key(1).task;
+    assert_eq!(live_row(&world, task).funder, tasks::Funder::Pool { project: 1, person: 1, period: 1 });
+    let doc = funding::document(&mut world, task);
+    let mut before = doc.authority.whole().expect("whole task authority");
+    before.spend = 100;
+    funding::request(&mut world, task, &before, 99);
+    ask(&mut world, 100, people::Ask::SetPool { project: 1, person: 1, budget: 130 });
+    let doc = funding::document(&mut world, task);
+    let mut after = doc.authority.whole().expect("whole task authority");
+    assert_eq!(after.spend, 100);
+    after.spend = 120;
+    assert_eq!(funding::offer(&doc, &funding::change(after.clone())), c::Admission::Allowed);
+    funding::request(&mut world, task, &after, 101);
+    assert_eq!(
+        world.people_answers.last(),
+        Some(&people::Reply::Outcome(people::Outcome::Amended { task, released: false }))
+    );
+    assert_eq!(live_row(&world, task).numbers.budget, 120);
+}
+
+#[test]
+fn amending_offers_and_direct_requests_agree_at_funding_seeds() {
+    for seed in [0, 1] {
+        crate::amendment_funding::sweep(seed);
+    }
 }
 
 #[test]
