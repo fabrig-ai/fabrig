@@ -63,6 +63,16 @@ pub fn seed_with(
     store::run_with(data, records, false, writes).map(|_| ())
 }
 
+/// Commit core fixture rows with the deployment's bounds, without keeping secrets.
+pub fn seed_configured(
+    data: &Path,
+    writes: Vec<jig_protocol_store::Write>,
+    limits: &jig_protocol_config::Limits,
+    own: &temper_engine_service_vocabulary::limits::Limits,
+) -> Result<(), String> {
+    store::run_configured(data, &[], false, writes, limits, own).map(|_| ())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
