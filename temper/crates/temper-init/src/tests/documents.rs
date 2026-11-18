@@ -14,11 +14,13 @@ fn engine_figures_keep_the_hub_capacity_required_by_the_stock_agent() {
     let bare = crate::bare(&fixtures::bare_facts(&facts), &DIRECTORIES, &[0; 32]).unwrap();
     for files in [boxed.files.as_ref(), bare.as_ref()] {
         let document = parse(file_bytes(files, b"temper.json"));
-        let overrides = &document["engine"]["limits"]["overrides"];
-        assert_eq!(overrides["hub.accounts"], 4_u32);
+        assert!(document["engine"].get("limits").is_none());
+        let mut engine = temper_service_core::derived::stock();
+        temper_service_core::derived::engine(&mut engine, temper_service_core::derived::STOCK).unwrap();
+        assert_eq!(engine.hub.accounts, 4);
         // Fabrig's own development's 63,740-byte payload, less the separator.
-        assert_eq!(overrides["hub.event_bytes"], 63_738_u32);
-        assert_eq!(overrides["hub.run_calls"], 48_u32);
+        assert_eq!(engine.hub.event_bytes, 63_738);
+        assert_eq!(engine.hub.run_calls, 48);
         for worker in document["workers"].as_array().unwrap() {
             assert!(worker.get("limits").is_none());
         }
@@ -35,7 +37,8 @@ fn written_workers_outlast_an_engine_restart_below_the_fleet_grace() {
         assert!(document["engine"].get("limits").is_none());
         assert!(document["engine"].get("memory_bytes").is_none());
         assert!(document["application"].get("limits").is_none());
-        let grace = jig_protocol_config::stock().core.fleet.grace.as_millis();
+        let profile = jig_protocol_config::stock();
+        let grace = profile.core.fleet.grace.as_millis();
         for worker in document["workers"].as_array().unwrap() {
             assert!(worker.get("graces").is_none());
             assert!(worker.get("programs").is_none());
