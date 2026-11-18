@@ -1589,12 +1589,16 @@ pub enum Path {
     WaitingEscalationSince,
     /// Bytes after `WaitingEscalation`.
     WaitingEscalationTail,
+    /// The tag of `DeciderKind`.
+    DeciderKindTag,
     /// The `revision` field of `RejectedEscalation`.
     RejectedEscalationRevision,
     /// The `by` field of `RejectedEscalation`.
     RejectedEscalationBy,
     /// The `reason` field of `RejectedEscalation`.
     RejectedEscalationReason,
+    /// The `by_kind` field of `RejectedEscalation`.
+    RejectedEscalationByKind,
     /// Bytes after `RejectedEscalation`.
     RejectedEscalationTail,
     /// The tag of `Escalation`.
@@ -3153,9 +3157,11 @@ impl Path {
             Self::WaitingEscalationEntry => "WaitingEscalation.entry",
             Self::WaitingEscalationSince => "WaitingEscalation.since",
             Self::WaitingEscalationTail => "WaitingEscalation (tail)",
+            Self::DeciderKindTag => "DeciderKind (tag)",
             Self::RejectedEscalationRevision => "RejectedEscalation.revision",
             Self::RejectedEscalationBy => "RejectedEscalation.by",
             Self::RejectedEscalationReason => "RejectedEscalation.reason",
+            Self::RejectedEscalationByKind => "RejectedEscalation.by_kind",
             Self::RejectedEscalationTail => "RejectedEscalation (tail)",
             Self::EscalationTag => "Escalation (tag)",
             Self::PersonAnswerBy => "PersonAnswer.by",
@@ -12280,6 +12286,23 @@ impl WaitingEscalation {
 
 }
 
+/// `DeciderKind` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum DeciderKind {
+    /// `person` without a payload.
+    Person,
+    /// `task` without a payload.
+    Task,
+}
+
+impl DeciderKind {
+    /// Checks the payload against the given limits.
+    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+        Ok(value)
+    }
+
+}
+
 /// Movable fields of `RejectedEscalation`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct RejectedEscalationParts {
@@ -12289,6 +12312,8 @@ pub struct RejectedEscalationParts {
     pub by: u64,
     /// The `reason` field.
     pub reason: Box<[u8]>,
+    /// The `by_kind` field.
+    pub by_kind: DeciderKind,
 }
 
 /// `RejectedEscalation` in this codec family.
@@ -12297,13 +12322,14 @@ pub struct RejectedEscalation {
     revision: u64,
     by: u64,
     reason: Box<[u8]>,
+    by_kind: DeciderKind,
 }
 
 impl RejectedEscalation {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: RejectedEscalationParts) -> Result<Self, Problem> {
-        let RejectedEscalationParts { revision, by, reason } = parts;
-        let value = Self { revision, by, reason };
+        let RejectedEscalationParts { revision, by, reason, by_kind } = parts;
+        let value = Self { revision, by, reason, by_kind };
         value.check(limits)?;
         Ok(value)
     }
@@ -12320,9 +12346,13 @@ impl RejectedEscalation {
     #[must_use]
     pub fn reason(&self) -> &[u8] { &self.reason }
 
+    /// Reads the `by_kind` field.
+    #[must_use]
+    pub fn by_kind(&self) -> &DeciderKind { &self.by_kind }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> RejectedEscalationParts { RejectedEscalationParts { revision: self.revision, by: self.by, reason: self.reason } }
+    pub fn into_parts(self) -> RejectedEscalationParts { RejectedEscalationParts { revision: self.revision, by: self.by, reason: self.reason, by_kind: self.by_kind } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         if self.reason.len() > usize::try_from(limits.rejected_escalation_reason.min(CEILINGS.rejected_escalation_reason)).expect("u32 fits usize") { return Err(Problem { path: Path::RejectedEscalationReason, reason: skein_codec::Reason::Bound }); }
@@ -26621,6 +26651,42 @@ impl WaitingEscalation {
     }
 }
 
+impl DeciderKind {
+    /// Measures this variant's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        match self {
+            Self::Person | Self::Task => 1,
+        }
+    }
+
+    /// Writes this variant's tag and payload.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        match self {
+            Self::Person => writer.put(&[0_u8])?,
+            Self::Task => writer.put(&[1_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole variant and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::DeciderKindTag, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: Path::DeciderKindTag, reason: skein_codec::Reason::Short })?;
+        let value = match tag {
+            0 => Self::Person,
+            1 => Self::Task,
+            _ => return Err(Problem { path: Path::DeciderKindTag, reason: skein_codec::Reason::Tag }),
+        };
+        Ok(value)
+    }
+}
+
 impl RejectedEscalation {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -26631,6 +26697,7 @@ impl RejectedEscalation {
         let field_reason = &self.reason;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(u32::try_from(field_reason.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 
@@ -26643,6 +26710,8 @@ impl RejectedEscalation {
         let field_reason = &self.reason;
         writer.put(&u32::try_from(field_reason.len()).expect("field ceiling fits u32").to_be_bytes())?;
         writer.put(field_reason.as_ref())?;
+        let field_by_kind = &self.by_kind;
+        field_by_kind.encode(writer)?;
         Ok(())
     }
 
@@ -26657,7 +26726,8 @@ impl RejectedEscalation {
         let decoded_revision = reader.u64().ok_or(Problem { path: Path::RejectedEscalationRevision, reason: skein_codec::Reason::Short })?;
         let decoded_by = reader.u64().ok_or(Problem { path: Path::RejectedEscalationBy, reason: skein_codec::Reason::Short })?;
         let decoded_reason = { let length = match skein_codec::read_len(reader, limits.rejected_escalation_reason.min(CEILINGS.rejected_escalation_reason)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::RejectedEscalationReason, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::RejectedEscalationReason, reason: skein_codec::Reason::Short })?) };
-        Ok(Self { revision: decoded_revision, by: decoded_by, reason: decoded_reason })
+        let decoded_by_kind = DeciderKind::decode_from(limits, reader)?;
+        Ok(Self { revision: decoded_revision, by: decoded_by, reason: decoded_reason, by_kind: decoded_by_kind })
     }
 }
 
@@ -38472,6 +38542,32 @@ impl WaitingEscalation {
     }
 }
 
+impl DeciderKind {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        biggest.checked_add(0)
+    }
+}
+
 impl RejectedEscalation {
     /// Maximum encoded bytes under these limits.
     #[must_use]
@@ -38483,7 +38579,7 @@ impl RejectedEscalation {
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
         size = size.checked_add(8_u64)?.checked_add(8_u64)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.rejected_escalation_reason))?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.rejected_escalation_reason))?)?.checked_add(DeciderKind::encoded_bound_within(limits)?)?;
         size.checked_add(0)
     }
 
@@ -38497,7 +38593,7 @@ impl RejectedEscalation {
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(u64::from(limits.rejected_escalation_reason))?;
+        heap = heap.checked_add(u64::from(limits.rejected_escalation_reason))?.checked_add(DeciderKind::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
 }
@@ -42325,6 +42421,7 @@ fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(UnheldEscalation::encoded_bound_within(limits)?);
     biggest = biggest.max(RoutingEscalation::encoded_bound_within(limits)?);
     biggest = biggest.max(WaitingEscalation::encoded_bound_within(limits)?);
+    biggest = biggest.max(DeciderKind::encoded_bound_within(limits)?);
     biggest = biggest.max(RejectedEscalation::encoded_bound_within(limits)?);
     biggest = biggest.max(Escalation::encoded_bound_within(limits)?);
     biggest = biggest.max(PersonAnswer::encoded_bound_within(limits)?);
@@ -42382,11 +42479,11 @@ fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(SummaryResultKind::encoded_bound_within(limits)?);
     biggest = biggest.max(SummaryResult::encoded_bound_within(limits)?);
     biggest = biggest.max(SummaryEndings::encoded_bound_within(limits)?);
-    biggest = biggest.max(TaskSummary::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(TaskSummary::encoded_bound_within(limits)?);
     biggest = biggest.max(RetentionStage::encoded_bound_within(limits)?);
     biggest = biggest.max(RetentionRow::encoded_bound_within(limits)?);
     biggest = biggest.max(Value::encoded_bound_within(limits)?);
@@ -42685,6 +42782,7 @@ fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(UnheldEscalation::decoded_bound_within(limits)?);
     biggest = biggest.max(RoutingEscalation::decoded_bound_within(limits)?);
     biggest = biggest.max(WaitingEscalation::decoded_bound_within(limits)?);
+    biggest = biggest.max(DeciderKind::decoded_bound_within(limits)?);
     biggest = biggest.max(RejectedEscalation::decoded_bound_within(limits)?);
     biggest = biggest.max(Escalation::decoded_bound_within(limits)?);
     biggest = biggest.max(PersonAnswer::decoded_bound_within(limits)?);
@@ -42742,11 +42840,11 @@ fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(SummaryResultKind::decoded_bound_within(limits)?);
     biggest = biggest.max(SummaryResult::decoded_bound_within(limits)?);
     biggest = biggest.max(SummaryEndings::decoded_bound_within(limits)?);
-    biggest = biggest.max(TaskSummary::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(TaskSummary::decoded_bound_within(limits)?);
     biggest = biggest.max(RetentionStage::decoded_bound_within(limits)?);
     biggest = biggest.max(RetentionRow::decoded_bound_within(limits)?);
     biggest = biggest.max(Value::decoded_bound_within(limits)?);

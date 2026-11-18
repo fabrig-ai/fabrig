@@ -113,8 +113,14 @@ fn decided_escalation_entries_remain_readable_by_their_holder() {
         let revision = h.domain.task(CHILD).expect("held child").revisions.hold;
         // The model reads the entry and calls decide during this turn. Tool
         // results commit before the completed turn carries its read fence.
-        let out =
-            h.send(Event::DecideEscalation { reply_to: to(), task: CHILD, revision, by: HOLDER, entry, decision });
+        let out = h.send(Event::DecideEscalation {
+            reply_to: to(),
+            task: CHILD,
+            revision,
+            by: crate::EscalationDecider::Task(HOLDER),
+            entry,
+            decision,
+        });
         let decided = out.iter().find_map(|request| match request {
             Request::EscalationDecided { outcome, .. } => Some(*outcome),
             _ => None,

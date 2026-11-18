@@ -302,7 +302,7 @@ pub const TURN_TEXT: &[u8] = b"abc";
 // The question wake watermark occupies eight bytes in the task owner.
 // The task owner's open attempt and optional summary join occupy 64 inline bytes.
 // Its joined activity line remains past this exact single-row budget.
-pub const TURN_OVERLAP_BYTES: u64 = 2809;
+pub const TURN_OVERLAP_BYTES: u64 = 2817;
 #[must_use]
 pub fn turn_overlap_limits() -> jig_test_domain::Limits {
     let mut limits = owner_limits();
