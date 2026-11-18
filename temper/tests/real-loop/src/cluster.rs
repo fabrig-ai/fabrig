@@ -393,7 +393,7 @@ mod tests {
         let address = ([127, 0, 0, 1], 0).into();
         let mut configuration = fixtures::write(&data, address, address).expect("fixture documents");
         let path = data.join("world-agent.json");
-        let mut expected: serde_json::Value =
+        let expected: serde_json::Value =
             serde_json::from_slice(&std::fs::read(&path).expect("agent document")).expect("agent JSON");
 
         Shape::Worker { name: "w1", engine: Some(address), started: true, grace: skein_lib::Duration::from_millis(10) }

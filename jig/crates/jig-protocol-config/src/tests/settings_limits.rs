@@ -111,12 +111,12 @@ fn an_engine_without_limits_reads_the_application_base() {
     assert_eq!(engine(&base, &text).unwrap().limits, base);
     let text = fixtures::with(&text, br#""memory_bytes": 34359738368,"#, b"");
     let parsed = engine(&base, &text).unwrap();
-    assert_eq!(parsed.limits, Some(base));
+    assert_eq!(parsed.limits, base);
     assert_eq!(parsed.memory, None);
 }
 
 #[test]
-fn a_worker_without_limits_reads_the_application_base() {
+fn a_worker_without_limits_defers_its_figures_to_the_engine() {
     let mut base = crate::stock();
     base.core.tasks.tasks = 1024;
     base.core.people.inbox_tasks = 2048;
@@ -125,5 +125,5 @@ fn a_worker_without_limits_reads_the_application_base() {
     let text = fixtures::with(fixtures::WORKER_SMALL, br#""limits": {"profile": "standard"}, "#, b"");
     let document = crate::document(&text, &DocumentLimits { bytes: 8192, tokens: 256, depth: 16 }).unwrap();
     let parsed = crate::worker_over(&document, 0, &Directories::working(), &crate::FixedWorker::NONE, &base).unwrap();
-    assert_eq!(parsed.limits, Some(base));
+    assert!(parsed.limits.is_none());
 }
