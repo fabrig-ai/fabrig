@@ -3094,6 +3094,27 @@ fn a_merge_delegate_asks_for_a_merge_in_progress_named_as_its_repository() {
 }
 
 #[test]
+fn a_writable_task_without_a_goal_branch_starts_at_the_adopted_landing() {
+    let mut d = domain();
+    let mut repository = adopted();
+    repository.landing = b"staging".as_slice().into();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
+    let item = d
+        .workspace_item(items::Seed {
+            project: 5,
+            modify: true,
+            task: 90,
+            parent: None,
+            repository: REPO,
+            run_branch: b"run".as_slice().into(),
+            saved_branch: None,
+        })
+        .expect("writable task item");
+    assert_eq!(item.start, items::Start::Base(b"staging".as_slice().into()));
+    assert_eq!(item.push.as_deref(), Some(b"run".as_slice()));
+}
+
+#[test]
 fn workspace_landing_is_for_every_writable_producer_start() {
     use temper_engine_domain_forge_change as change;
     for kind in [

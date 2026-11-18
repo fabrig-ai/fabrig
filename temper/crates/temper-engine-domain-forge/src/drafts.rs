@@ -1,4 +1,5 @@
 //! Landed drafts (temper/docs/design/domain/forge/drafts.md, sections 1–3).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
 use crate::{Answered, Domain, Key, Limits, Request, Stored};
 use alloc::boxed::Box;
 use skein_forge::api::{self, Answer, Commit, Error, Read};
@@ -96,7 +97,7 @@ pub(crate) fn start(
         return refused(d, request, token, DraftRefusal::NoRepository, out);
     };
     let repository = repo.provider;
-    let branch = repo.settings.default_branch.clone();
+    let branch = repo.landing.clone();
     let key = (repository, call.path.clone());
     match call.change {
         DraftChange::NotReady | DraftChange::Started { .. } => {

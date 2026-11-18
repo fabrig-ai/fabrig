@@ -247,6 +247,30 @@ fn taking_a_missing_goal_branch_makes_it_at_the_default_branchs_tip() {
 }
 
 #[test]
+fn taking_a_missing_goal_branch_makes_it_at_the_adopted_landing_tip() {
+    let mut d = fresh();
+    d.repositories.get_mut(&REPO).unwrap().landing = b"staging".as_slice().into();
+    take(&mut d);
+    let (call, op) = fixtures::next_call(&mut d);
+    assert_eq!(op, Op::Read(Read::Branch { branch: GOAL_BRANCH.into() }));
+    fixtures::answer(&mut d, call, Err(Error::Missing));
+    let (call, op) = fixtures::next_call(&mut d);
+    assert_eq!(op, Op::Read(Read::Branch { branch: b"staging".as_slice().into() }));
+    let saved = fixtures::answer(&mut d, call, Ok(Answer::Commit(TIP)));
+    assert_kept_making(&saved);
+    assert_eq!(d.hold(&name(GOAL_BRANCH)).unwrap().writer, Some(Writer::Entry(TAKING)));
+    for request in ready(&mut d) {
+        if let Request::Call { op: Op::Write(_), .. } = request {
+            panic!("write before commit: {request:?}");
+        }
+    }
+    outputs(&mut d, Event::Committed { entry: TAKING });
+    fixtures::answer_next(&mut d, Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now }));
+    let (_, op) = fixtures::next_call(&mut d);
+    assert_eq!(op, Op::Write(Write::CreateBranch { branch: GOAL_BRANCH.into(), commit: TIP }));
+}
+
+#[test]
 fn a_goal_branch_making_waits_for_room_but_holds_for_each_unmendable_cause() {
     for (case, count, number, access, branch, reason) in [
         ("full", LIMITS.entries, 5, Some(Role::Owned), true, None),
@@ -496,8 +520,8 @@ fn goal_branch_room_waiters_ask_in_wait_order_and_keep_their_place() {
         assert!(d.hold(&name(other_branch)).is_some(), "G2 held");
         at_answer(&mut d, &environment, Err(Error::Missing));
         let (later, _) = at_call(&mut d, &environment);
-        // Distinct default reads keep the client from coalescing the two answers.
-        d.repositories.get_mut(&REPO).unwrap().settings.default_branch = b"other-main".as_slice().into();
+        // Distinct landing reads keep the client from coalescing the two answers.
+        d.repositories.get_mut(&REPO).unwrap().landing = b"other-main".as_slice().into();
         at_step(
             &mut d,
             &environment,
@@ -528,7 +552,7 @@ fn goal_branch_room_waiters_ask_in_wait_order_and_keep_their_place() {
         if case == "inverted tip answers" {
             let asked = at_step(&mut d, &environment, Event::Withdraw { entry: 2 });
             assert_room_ask(&asked, OTHER);
-            d.repositories.get_mut(&REPO).unwrap().settings.default_branch = b"new-main".as_slice().into();
+            d.repositories.get_mut(&REPO).unwrap().landing = b"new-main".as_slice().into();
             at_step(&mut d, &environment, Event::ContinueGoalBranch { task: OTHER, entry: 31 });
             assert!(d.is_ready(), "before the younger reread");
             at_answer(&mut d, &environment, Ok(Answer::Commit(TIP)));

@@ -91,6 +91,16 @@ fn saved(requests: &[Request]) -> bool {
 }
 
 #[test]
+fn workflows_read_the_adopted_landing_instead_of_the_forge_default() {
+    let mut d = restored(Kind::GitHub);
+    d.repositories.get_mut(&REPO).unwrap().landing = b"staging".as_slice().into();
+    crate::workflows::read(&mut d, &env(), REPO, None, &mut Queue::uncapped());
+    let call = expect_read(&mut d, Read::Branch { branch: b"staging".as_slice().into() });
+    fixtures::answer(&mut d, call, Ok(Answer::Commit(TIP)));
+    expect_read(&mut d, file_read(b".github/workflows", TIP));
+}
+
+#[test]
 #[expect(clippy::too_many_lines, reason = "one table holds the workflow rule and its answer or trigger rows")]
 fn the_workflows_are_read_at_the_landing_tip_and_kept_when_refused() {
     struct Row {
