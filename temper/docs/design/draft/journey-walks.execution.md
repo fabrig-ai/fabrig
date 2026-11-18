@@ -12,7 +12,7 @@
 | W4, the TUI in a world: the TUI's host in front of the same world, `tui` lines, `tui approve` and frames; `sign-in-approved`, `launchpad-chat`, `launchpad-drawn` and `design-session` | 3.2, 4.1, 5 | W2 | none | not started |
 | W5, one writer: `temper-client-walk pages`; the delivery check's two refusals; `AGENTS.md`'s line; every `recording` and `setup` removed, with `again`, `normalise` and the placeholders; main's pages written once by `pages`, in this goal's last change | 6, 8 | W3, W4 | none | not started |
 | W6, a recorded file: `print FILE OUT` in place of `add`, refusing a journeys' directory and naming the layout it needs; the drive session taking `mark` and `tui approve`, its box walks written and compiled | 4.2, 4.3 | W5 | none: compiled | not started |
-| W7, the fixed start removed from the box, the page and the TUI, if section 12 keeps its default | 8 | W5 | none | not started |
+| W7, the fixed start removed from the box, the page and the TUI, if `journey-walks.md`, 12, keeps its default | 8 | W5 | none | not started |
 | W8, the words: `../client/web/journeys.md` and `../client/tui/journeys.md` rewritten around the walk; `../client/journey-clock.md`, `../client/journey-placeholders.md` and the drafts they came from deleted; `../client/web/look-requests.md`, 2 and 3; `../client/drive.md`; `../testing/README.md` and `../testing/tools.md`; `real-journeys.md` and `record-anywhere.md` folded or deleted | all | W1 to W7 | none: docs | not started |
 
 ## 2. Order
