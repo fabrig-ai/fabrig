@@ -5306,8 +5306,8 @@ pub(crate) fn outputs(
                     holds::drift(domain, task, &resource);
                 }
             }
-            forge::Request::StatusRun { project, since, words, findings, signers } => {
-                status_route::start_status_run(domain, env, project, since, words, &findings, &signers);
+            forge::Request::StatusRun { project, party, since, words, findings, signers } => {
+                status_route::start_status_run(domain, env, project, party, since, words, &findings, &signers);
             }
             forge::Request::FollowRun { project, follow } => follow_route::start(domain, env, project, follow),
             forge::Request::CancelFollow { project, task, reason } => {

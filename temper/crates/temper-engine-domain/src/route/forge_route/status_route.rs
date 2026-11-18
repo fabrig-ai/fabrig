@@ -5,30 +5,32 @@ mod milestones;
 mod roles;
 pub(crate) use roles::{Reading, indexed as notes_indexed, recalled as notes_recalled, refused as notes_refused};
 
+#[expect(clippy::too_many_arguments, reason = "carry the status request's party through the existing root plumbing")]
 pub(super) fn start_status_run(
     domain: &mut Domain,
     env: &Env<Limits>,
     project: u32,
+    party: u64,
     since: skein_lib::Wall,
     words: Box<[u8]>,
     findings: &[u8],
     signers: &[u64],
 ) {
     let words = goal_words(domain, env, project, since, &words, findings, signers);
-    roles::start(domain, env, project, words);
+    roles::start(domain, env, project, party, words);
 }
 
-pub(crate) fn admission(domain: &Domain, project: u32, task: u64) -> forge::Event {
+pub(crate) fn admission(domain: &Domain, project: u32, party: u64, task: u64) -> forge::Event {
     // ConnectorRepair drains OpenPeriod and Make before the queued StatusTask.
     match domain.core.tasks.task(task) {
-        Some(_) => forge::Event::StatusTask { project, task },
-        None => forge::Event::StatusRefused { project },
+        Some(_) => forge::Event::StatusTask { project, party, task },
+        None => forge::Event::StatusRefused { project, party },
     }
 }
 
-fn start_task(domain: &mut Domain, env: &Env<Limits>, project: u32, words: &[u8]) {
+fn start_task(domain: &mut Domain, env: &Env<Limits>, project: u32, party: u64, words: &[u8]) {
     let Some(seed) = domain.core.repair_seed(project) else {
-        domain.work.push(Work::Forge(forge::Event::StatusRefused { project }));
+        domain.work.push(Work::Forge(forge::Event::StatusRefused { project, party }));
         return;
     };
     let task = seed.number();
@@ -40,7 +42,7 @@ fn start_task(domain: &mut Domain, env: &Env<Limits>, project: u32, words: &[u8]
         contract: tasks::Contract::Report { words: env.limits.tasks.result_bytes },
         holdings: Box::new([]),
     }));
-    domain.work.push(Work::Forge(forge::Event::StatusTask { project, task }));
+    domain.work.push(Work::Forge(forge::Event::StatusTask { project, party, task }));
 }
 
 fn goal_words(

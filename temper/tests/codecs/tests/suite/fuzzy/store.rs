@@ -567,10 +567,16 @@ fn status_rows(rng: &mut Rng, bounds: &Bounds) {
         project,
         landed: rng.next_u64(),
         last_landed: Wall::from_nanos(rng.next_u64()),
-        brief,
-        running,
     });
     row_and_key(&facts, rng, bounds);
+    let person = forge::Stored::PersonBrief(forge::PersonBrief {
+        party: rng.next_u64(),
+        project,
+        brief,
+        running,
+        unpaid: if rng.below(2) == 0 { None } else { Some(Wall::from_nanos(rng.next_u64())) },
+    });
+    row_and_key(&person, rng, bounds);
     let looked = forge::Stored::Looked(forge::Looked {
         party: rng.next_u64(),
         project,

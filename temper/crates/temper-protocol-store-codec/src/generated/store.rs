@@ -3779,12 +3779,20 @@ pub enum Path {
     ProjectFactsLanded,
     /// The `last_landed` field of `ProjectFacts`.
     ProjectFactsLastLanded,
-    /// The `brief` field of `ProjectFacts`.
-    ProjectFactsBrief,
-    /// The `running` field of `ProjectFacts`.
-    ProjectFactsRunning,
     /// Bytes after `ProjectFacts`.
     ProjectFactsTail,
+    /// The `party` field of `PersonBrief`.
+    PersonBriefParty,
+    /// The `project` field of `PersonBrief`.
+    PersonBriefProject,
+    /// The `brief` field of `PersonBrief`.
+    PersonBriefBrief,
+    /// The `running` field of `PersonBrief`.
+    PersonBriefRunning,
+    /// The `unpaid` field of `PersonBrief`.
+    PersonBriefUnpaid,
+    /// Bytes after `PersonBrief`.
+    PersonBriefTail,
     /// The `party` field of `Looked`.
     LookedParty,
     /// The `project` field of `Looked`.
@@ -6180,9 +6188,13 @@ impl Path {
             Self::ProjectFactsProject => "ProjectFacts.project",
             Self::ProjectFactsLanded => "ProjectFacts.landed",
             Self::ProjectFactsLastLanded => "ProjectFacts.last_landed",
-            Self::ProjectFactsBrief => "ProjectFacts.brief",
-            Self::ProjectFactsRunning => "ProjectFacts.running",
             Self::ProjectFactsTail => "ProjectFacts (tail)",
+            Self::PersonBriefParty => "PersonBrief.party",
+            Self::PersonBriefProject => "PersonBrief.project",
+            Self::PersonBriefBrief => "PersonBrief.brief",
+            Self::PersonBriefRunning => "PersonBrief.running",
+            Self::PersonBriefUnpaid => "PersonBrief.unpaid",
+            Self::PersonBriefTail => "PersonBrief (tail)",
             Self::LookedParty => "Looked.party",
             Self::LookedProject => "Looked.project",
             Self::LookedPrevious => "Looked.previous",
@@ -60535,10 +60547,6 @@ pub struct ProjectFactsParts {
     pub landed: u64,
     /// The `last_landed` field.
     pub last_landed: u64,
-    /// The `brief` field.
-    pub brief: Option<StatusBrief>,
-    /// The `running` field.
-    pub running: Option<StatusRunning>,
 }
 
 /// `ProjectFacts` in this codec family.
@@ -60547,16 +60555,13 @@ pub struct ProjectFacts {
     project: u32,
     landed: u64,
     last_landed: u64,
-    brief: Option<StatusBrief>,
-    running: Option<StatusRunning>,
 }
 
 impl ProjectFacts {
     /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: ProjectFactsParts) -> Result<Self, Problem> {
-        let ProjectFactsParts { project, landed, last_landed, brief, running } = parts;
-        let value = Self { project, landed, last_landed, brief, running };
-        value.check(limits)?;
+    pub fn new(_limits: &Limits, parts: ProjectFactsParts) -> Result<Self, Problem> {
+        let ProjectFactsParts { project, landed, last_landed } = parts;
+        let value = Self { project, landed, last_landed };
         Ok(value)
     }
 
@@ -60572,24 +60577,10 @@ impl ProjectFacts {
     #[must_use]
     pub fn last_landed(&self) -> u64 { self.last_landed }
 
-    /// Reads the `brief` field.
-    #[must_use]
-    pub fn brief(&self) -> &Option<StatusBrief> { &self.brief }
-
-    /// Reads the `running` field.
-    #[must_use]
-    pub fn running(&self) -> &Option<StatusRunning> { &self.running }
-
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> ProjectFactsParts { ProjectFactsParts { project: self.project, landed: self.landed, last_landed: self.last_landed, brief: self.brief, running: self.running } }
+    pub fn into_parts(self) -> ProjectFactsParts { ProjectFactsParts { project: self.project, landed: self.landed, last_landed: self.last_landed } }
 
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        if let Some(some_0) = self.brief.as_ref() {
-        some_0.check(limits)?;
-        }
-        Ok(())
-    }
 }
 
 impl ProjectFacts {
@@ -60600,16 +60591,6 @@ impl ProjectFacts {
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
-        let field_brief = &self.brief;
-        size = size.checked_add(1).expect("schema ceilings fit u32");
-        if let Some(some_0) = field_brief {
-        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
-        }
-        let field_running = &self.running;
-        size = size.checked_add(1).expect("schema ceilings fit u32");
-        if let Some(some_0) = field_running {
-        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
-        }
         size
     }
 
@@ -60621,6 +60602,161 @@ impl ProjectFacts {
         writer.put(&field_landed.to_be_bytes())?;
         let field_last_landed = &self.last_landed;
         writer.put(&field_last_landed.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::ProjectFactsTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_project = reader.u32().ok_or(Problem { path: Path::ProjectFactsProject, reason: skein_codec::Reason::Short })?;
+        let decoded_landed = reader.u64().ok_or(Problem { path: Path::ProjectFactsLanded, reason: skein_codec::Reason::Short })?;
+        let decoded_last_landed = reader.u64().ok_or(Problem { path: Path::ProjectFactsLastLanded, reason: skein_codec::Reason::Short })?;
+        Ok(Self { project: decoded_project, landed: decoded_landed, last_landed: decoded_last_landed })
+    }
+}
+
+impl ProjectFacts {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?.checked_add(8_u64)?;
+        size = size.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn project_facts_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ProjectFacts::encoded_bound_within(limits)?);
+    person_brief_encoded_bound_family(limits, biggest)
+}
+
+fn project_facts_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ProjectFacts::decoded_bound_within(limits)?);
+    person_brief_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `PersonBrief`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct PersonBriefParts {
+    /// The `party` field.
+    pub party: u64,
+    /// The `project` field.
+    pub project: u32,
+    /// The `brief` field.
+    pub brief: Option<StatusBrief>,
+    /// The `running` field.
+    pub running: Option<StatusRunning>,
+    /// The `unpaid` field.
+    pub unpaid: Option<u64>,
+}
+
+/// `PersonBrief` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct PersonBrief {
+    party: u64,
+    project: u32,
+    brief: Option<StatusBrief>,
+    running: Option<StatusRunning>,
+    unpaid: Option<u64>,
+}
+
+impl PersonBrief {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: PersonBriefParts) -> Result<Self, Problem> {
+        let PersonBriefParts { party, project, brief, running, unpaid } = parts;
+        let value = Self { party, project, brief, running, unpaid };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `party` field.
+    #[must_use]
+    pub fn party(&self) -> u64 { self.party }
+
+    /// Reads the `project` field.
+    #[must_use]
+    pub fn project(&self) -> u32 { self.project }
+
+    /// Reads the `brief` field.
+    #[must_use]
+    pub fn brief(&self) -> &Option<StatusBrief> { &self.brief }
+
+    /// Reads the `running` field.
+    #[must_use]
+    pub fn running(&self) -> &Option<StatusRunning> { &self.running }
+
+    /// Reads the `unpaid` field.
+    #[must_use]
+    pub fn unpaid(&self) -> &Option<u64> { &self.unpaid }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> PersonBriefParts { PersonBriefParts { party: self.party, project: self.project, brief: self.brief, running: self.running, unpaid: self.unpaid } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if let Some(some_0) = self.brief.as_ref() {
+        some_0.check(limits)?;
+        }
+        Ok(())
+    }
+}
+
+impl PersonBrief {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        let field_brief = &self.brief;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_brief {
+        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        }
+        let field_running = &self.running;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_running {
+        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        }
+        let field_unpaid = &self.unpaid;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_unpaid.is_some() {
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        }
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_party = &self.party;
+        writer.put(&field_party.to_be_bytes())?;
+        let field_project = &self.project;
+        writer.put(&field_project.to_be_bytes())?;
         let field_brief = &self.brief;
         match field_brief {
             Some(some_0) => {
@@ -60637,27 +60773,35 @@ impl ProjectFacts {
             }
             None => writer.put(&[0_u8])?,
         }
+        let field_unpaid = &self.unpaid;
+        match field_unpaid {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         Ok(())
     }
 
     /// Reads a whole record and refuses trailing bytes.
     pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::ProjectFactsTail, reason: skein_codec::Reason::Trailing }); }
+        if !reader.is_empty() { return Err(Problem { path: Path::PersonBriefTail, reason: skein_codec::Reason::Trailing }); }
         Ok(value)
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_project = reader.u32().ok_or(Problem { path: Path::ProjectFactsProject, reason: skein_codec::Reason::Short })?;
-        let decoded_landed = reader.u64().ok_or(Problem { path: Path::ProjectFactsLanded, reason: skein_codec::Reason::Short })?;
-        let decoded_last_landed = reader.u64().ok_or(Problem { path: Path::ProjectFactsLastLanded, reason: skein_codec::Reason::Short })?;
-        let decoded_brief = match reader.u8().ok_or(Problem { path: Path::ProjectFactsBrief, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(StatusBrief::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ProjectFactsBrief, reason: skein_codec::Reason::Tag }) };
-        let decoded_running = match reader.u8().ok_or(Problem { path: Path::ProjectFactsRunning, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(StatusRunning::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ProjectFactsRunning, reason: skein_codec::Reason::Tag }) };
-        Ok(Self { project: decoded_project, landed: decoded_landed, last_landed: decoded_last_landed, brief: decoded_brief, running: decoded_running })
+        let decoded_party = reader.u64().ok_or(Problem { path: Path::PersonBriefParty, reason: skein_codec::Reason::Short })?;
+        let decoded_project = reader.u32().ok_or(Problem { path: Path::PersonBriefProject, reason: skein_codec::Reason::Short })?;
+        let decoded_brief = match reader.u8().ok_or(Problem { path: Path::PersonBriefBrief, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(StatusBrief::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::PersonBriefBrief, reason: skein_codec::Reason::Tag }) };
+        let decoded_running = match reader.u8().ok_or(Problem { path: Path::PersonBriefRunning, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(StatusRunning::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::PersonBriefRunning, reason: skein_codec::Reason::Tag }) };
+        let decoded_unpaid = match reader.u8().ok_or(Problem { path: Path::PersonBriefUnpaid, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::PersonBriefUnpaid, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::PersonBriefUnpaid, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { party: decoded_party, project: decoded_project, brief: decoded_brief, running: decoded_running, unpaid: decoded_unpaid })
     }
 }
 
-impl ProjectFacts {
+impl PersonBrief {
     /// Maximum encoded bytes under these limits.
     #[must_use]
     pub fn encoded_bound(limits: &Limits) -> Option<u64> {
@@ -60667,9 +60811,9 @@ impl ProjectFacts {
 
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
-        size = size.checked_add(4_u64)?.checked_add(8_u64)?;
-        size = size.checked_add(8_u64)?.checked_add(1_u64.checked_add(StatusBrief::encoded_bound_within(limits)?)?)?;
-        size = size.checked_add(1_u64.checked_add(StatusRunning::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(8_u64)?.checked_add(4_u64)?;
+        size = size.checked_add(1_u64.checked_add(StatusBrief::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(StatusRunning::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(1_u64.checked_add(8_u64)?)?;
         size.checked_add(0)
     }
 
@@ -60683,19 +60827,19 @@ impl ProjectFacts {
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(StatusBrief::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(StatusRunning::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(StatusBrief::decoded_bound_within(limits)?)?.checked_add(StatusRunning::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
 }
 
-fn project_facts_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(ProjectFacts::encoded_bound_within(limits)?);
+fn person_brief_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(PersonBrief::encoded_bound_within(limits)?);
     looked_encoded_bound_family(limits, biggest)
 }
 
-fn project_facts_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(ProjectFacts::decoded_bound_within(limits)?);
+fn person_brief_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(PersonBrief::decoded_bound_within(limits)?);
     looked_decoded_bound_family(limits, biggest)
 }
 
@@ -80638,6 +80782,8 @@ pub enum Value {
     ChangeHot(Box<ChangeHot>),
     /// `milestone` carrying `MilestoneRow`.
     Milestone(MilestoneRow),
+    /// `person_brief` carrying `PersonBrief`.
+    PersonBrief(PersonBrief),
 }
 
 impl Value {
@@ -80671,7 +80817,6 @@ impl Value {
             Self::Setting(record) => SettingRow::check(record, limits),
             Self::Making(record) => RepositoryMaking::check(record, limits),
             Self::LandingLog(record) => LandingLog::check(record, limits),
-            Self::ProjectFacts(record) => ProjectFacts::check(record, limits),
             Self::Decided(record) => Decided::check(record, limits),
             Self::Closer(record) => Closer::check(record, limits),
             Self::LandedDraft(record) => LandedDraft::check(record, limits),
@@ -80685,7 +80830,8 @@ impl Value {
             Self::ChangeCold(record) => ChangeCold::check(record, limits),
             Self::ChangeHot(record) => ChangeHot::check(record, limits),
             Self::Milestone(record) => MilestoneRow::check(record, limits),
-            Self::Ci(_) | Self::Landed(_) | Self::Writer(_) | Self::Flight(_) | Self::ForgeNumber(_) | Self::Playground(_) | Self::Dismissed(_) | Self::Looked(_) | Self::Away(_) | Self::HistoryChange(_) | Self::HistoryLanding(_) | Self::HistoryLast(_) | Self::RedNumber(_) => Ok(()),
+            Self::PersonBrief(record) => PersonBrief::check(record, limits),
+            Self::Ci(_) | Self::Landed(_) | Self::Writer(_) | Self::Flight(_) | Self::ForgeNumber(_) | Self::Playground(_) | Self::Dismissed(_) | Self::ProjectFacts(_) | Self::Looked(_) | Self::Away(_) | Self::HistoryChange(_) | Self::HistoryLanding(_) | Self::HistoryLast(_) | Self::RedNumber(_) => Ok(()),
         }?;
         Ok(())
     }
@@ -80745,6 +80891,7 @@ impl Value {
             Self::ChangeCold(record) => 1_u32.checked_add(ChangeCold::measure(record)).expect("schema ceilings fit u32"),
             Self::ChangeHot(record) => 1_u32.checked_add(ChangeHot::measure(record)).expect("schema ceilings fit u32"),
             Self::Milestone(record) => 1_u32.checked_add(MilestoneRow::measure(record)).expect("schema ceilings fit u32"),
+            Self::PersonBrief(record) => 1_u32.checked_add(PersonBrief::measure(record)).expect("schema ceilings fit u32"),
         }
     }
 
@@ -80800,6 +80947,7 @@ impl Value {
             Self::ChangeCold(record) => { writer.put(&[46_u8])?; record.encode(writer)?; }
             Self::ChangeHot(record) => { writer.put(&[47_u8])?; record.encode(writer)?; }
             Self::Milestone(record) => { writer.put(&[48_u8])?; record.encode(writer)?; }
+            Self::PersonBrief(record) => { writer.put(&[49_u8])?; record.encode(writer)?; }
         }
         Ok(())
     }
@@ -80863,6 +81011,7 @@ impl Value {
             46 => Self::ChangeCold(Box::new(ChangeCold::decode_from(limits, reader)?)),
             47 => Self::ChangeHot(Box::new(ChangeHot::decode_from(limits, reader)?)),
             48 => Self::Milestone(MilestoneRow::decode_from(limits, reader)?),
+            49 => Self::PersonBrief(PersonBrief::decode_from(limits, reader)?),
             _ => return Err(Problem { path: Path::ValueTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -80903,7 +81052,7 @@ impl Value {
         biggest = biggest.max(HistoryLast::encoded_bound_within(limits)?).max(Red::encoded_bound_within(limits)?);
         biggest = biggest.max(RedNumber::encoded_bound_within(limits)?).max(RedPass::encoded_bound_within(limits)?);
         biggest = biggest.max(ChangeCold::encoded_bound_within(limits)?).max(ChangeHot::encoded_bound_within(limits)?);
-        biggest = biggest.max(MilestoneRow::encoded_bound_within(limits)?);
+        biggest = biggest.max(MilestoneRow::encoded_bound_within(limits)?).max(PersonBrief::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
@@ -80940,7 +81089,7 @@ impl Value {
         biggest = biggest.max(HistoryLast::decoded_bound_within(limits)?).max(Red::decoded_bound_within(limits)?);
         biggest = biggest.max(RedNumber::decoded_bound_within(limits)?).max(RedPass::decoded_bound_within(limits)?);
         biggest = biggest.max(ChangeCold::decoded_bound_within(limits)?.checked_add(u64::try_from(size_of::<ChangeCold>()).ok()?)?).max(ChangeHot::decoded_bound_within(limits)?.checked_add(u64::try_from(size_of::<ChangeHot>()).ok()?)?);
-        biggest = biggest.max(MilestoneRow::decoded_bound_within(limits)?);
+        biggest = biggest.max(MilestoneRow::decoded_bound_within(limits)?).max(PersonBrief::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }

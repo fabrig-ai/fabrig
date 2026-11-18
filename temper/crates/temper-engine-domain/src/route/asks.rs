@@ -510,9 +510,9 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         core::Ask::RepairRefused { repair } => {
             if connector == domain.config.forge_connector
                 && let Some(task) = repair
-                && let Some(project) = domain.forge.status_project(task)
+                && let Some((party, project)) = domain.forge.status_owner(task)
             {
-                domain.work.push(Work::Forge(forge::Event::StatusRefused { project }));
+                domain.work.push(Work::Forge(forge::Event::StatusRefused { project, party }));
             }
             if connector == domain.config.forge_connector
                 && let Some(repair) = repair

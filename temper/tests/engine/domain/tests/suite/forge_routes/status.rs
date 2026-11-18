@@ -136,6 +136,18 @@ fn facts(world: &World) -> &forge_top::ProjectFacts {
         other => panic!("durable project facts: {other:?}"),
     }
 }
+fn person_brief(world: &World, party: u64) -> &forge_top::PersonBrief {
+    let Some(Record::Forge { row }) =
+        world.store.rows.get(&Key::Forge(forge_top::Key::PersonBrief { party, project: PROJECT }))
+    else {
+        panic!("durable person's brief")
+    };
+    let forge_top::Stored::PersonBrief(row) = row.as_ref() else { panic!("person brief row") };
+    row
+}
+fn own_brief(world: &World) -> &forge_top::PersonBrief {
+    person_brief(world, 1)
+}
 fn next_sitting(world: &mut World, number: u8) {
     world.env.now = world.env.now.saturating_add(forge_top::SITTING);
     world.env.wall = Wall::from_nanos(world.env.now.as_nanos());
@@ -274,21 +286,41 @@ fn answer(world: &mut World, run: &engine::Assignment, result: tasks::TaskResult
     world.send(event);
 }
 fn finish(world: &mut World, run: &engine::Assignment) {
+    let party = world
+        .store
+        .rows
+        .values()
+        .find_map(|record| match record {
+            Record::Forge { row } => match row.as_ref() {
+                forge_top::Stored::PersonBrief(row)
+                    if row
+                        .running
+                        .as_ref()
+                        .and_then(|running| running.task)
+                        .is_some_and(|task| live_task(world, task).delegates.contains(&run.task)) =>
+                {
+                    Some(row.party)
+                }
+                _ => None,
+            },
+            Record::Core(_) => None,
+        })
+        .expect("run's person brief");
     answer(world, run, tasks::TaskResult::Report { words: REPORT.into() });
     for _ in 0..200 {
         world.tick();
-        if facts(world).running.is_none() && world.store.pending.is_empty() {
+        if person_brief(world, party).running.is_none() && world.store.pending.is_empty() {
             return;
         }
     }
     panic!("status report heard; facts={:?}; task={:?}", facts(world), live_task(world, run.task).phase);
 }
 fn assert_brief(world: &mut World) {
-    let brief = facts(world).brief.as_ref().expect("saved status brief");
+    let brief = own_brief(world).brief.as_ref().expect("saved status brief");
     assert_eq!(brief.sentence.as_ref(), SENTENCE);
     assert_eq!(brief.lede.as_ref(), b"The review passed and the branch is ready.");
     assert_eq!(brief.landed, 1);
-    assert_eq!(facts(world).running, None);
+    assert_eq!(own_brief(world).running, None);
     let expected = brief.clone();
     let document =
         world.oracle_document(world.signed_in.expect("owner session"), PROJECT, forge_top::status_subject(PROJECT));
@@ -807,7 +839,7 @@ fn status_names_milestone_goals_and_reports_live_and_recently_ended_milestones()
     let mut search = ended_milestone(200, b"Search", minute(21, 40), forge_top::MilestoneOutcome::Complete);
     search.last_landing = Some(forge_top::MilestoneLanding { at: minute(21, 40), goal: 198, change: 199 });
     let old = ended_milestone(201, b"Old", minute(19, 59), forge_top::MilestoneOutcome::Complete);
-    let mut facts = facts(&world).clone();
+    let mut facts = forge_top::PersonBrief { party: 1, project: PROJECT, brief: None, running: None, unpaid: None };
     facts.brief = Some(forge_top::Brief {
         sentence: b"Earlier brief".as_slice().into(),
         lede: Box::new([]),
@@ -825,7 +857,7 @@ fn status_names_milestone_goals_and_reports_live_and_recently_ended_milestones()
         }),
         milestone_row(search),
         milestone_row(old),
-        Record::Forge { row: Box::new(forge_top::Stored::ProjectFacts(facts)) },
+        Record::Forge { row: Box::new(forge_top::Stored::PersonBrief(facts)) },
     ]);
     for record in world.store.rows.values() {
         if let Record::Forge { row } = record
@@ -967,8 +999,8 @@ fn its_task_is_unlisted_and_asks_nobody() {
 #[test]
 fn a_refused_run_lets_the_next_sitting_try() {
     let mut world = ready(false);
-    assert!(facts(&world).running.is_none());
-    assert!(facts(&world).brief.is_none());
+    assert!(own_brief(&world).running.is_none());
+    assert!(own_brief(&world).brief.is_none());
     assert!(world.assigned.iter().all(|run| run.charter != 9));
     let before = world
         .store
@@ -993,7 +1025,7 @@ fn a_refused_run_lets_the_next_sitting_try() {
         })
         .count();
     assert_eq!(after, 2);
-    assert!(facts(&world).running.is_none());
+    assert!(own_brief(&world).running.is_none());
     world.close();
 }
 #[test]
@@ -1070,8 +1102,8 @@ fn admission_refusal_retries(project_limit: bool) {
     );
 
     next_sitting(&mut world, 171);
-    assert_eq!(facts(&world).running, None);
-    assert_eq!(facts(&world).brief, None);
+    assert_eq!(own_brief(&world).running, None);
+    assert_eq!(own_brief(&world).brief, None);
     assert!(world.assigned.iter().all(|run| run.charter != 9));
     assert!(world.store.rows.values().all(|record| !matches!(record,
         Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row) | tasks::Stored::Ended(row)))
@@ -1124,8 +1156,8 @@ fn a_restart_mid_run_still_saves_the_brief() {
 #[test]
 fn no_unreserved_spend_refuses_the_run_without_a_task() {
     let mut world = ready_with(true, false);
-    assert_eq!(facts(&world).running, None);
-    assert_eq!(facts(&world).brief, None);
+    assert_eq!(own_brief(&world).running, None);
+    assert_eq!(own_brief(&world).brief, None);
     assert!(world.store.rows.values().all(|record| !matches!(record,
         Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))
         if matches!(row.executor, tasks::Executor::Person(_)))));
@@ -1147,12 +1179,12 @@ fn failed_and_empty_reports_clear_the_run_and_save_nothing() {
         answer(&mut world, &agent, result);
         for _ in 0..200 {
             world.tick();
-            if facts(&world).running.is_none() && world.store.pending.is_empty() {
+            if own_brief(&world).running.is_none() && world.store.pending.is_empty() {
                 break;
             }
         }
-        assert_eq!(facts(&world).running, None);
-        assert_eq!(facts(&world).brief, None);
+        assert_eq!(own_brief(&world).running, None);
+        assert_eq!(own_brief(&world).brief, None);
         world.close();
     }
 }

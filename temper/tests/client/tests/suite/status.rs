@@ -270,7 +270,12 @@ impl Story {
             .rows
             .iter()
             .filter_map(|(key, record)| {
-                if matches!(key, StoreKey::Forge(forge::Key::ProjectFacts { .. } | forge::Key::Looked { .. })) {
+                if matches!(
+                    key,
+                    StoreKey::Forge(
+                        forge::Key::ProjectFacts { .. } | forge::Key::Looked { .. } | forge::Key::PersonBrief { .. }
+                    )
+                ) {
                     Some((key.clone(), record.clone()))
                 } else {
                     None
@@ -533,8 +538,6 @@ impl Story {
                             project,
                             landed: u64::from(project),
                             last_landed: Wall::EPOCH,
-                            brief: None,
-                            running: None,
                         })),
                     },
                     Record::Forge {
@@ -811,7 +814,7 @@ fn a_restart_keeps_the_rows() {
     let document = story.shown();
     let looked = story.looked(fixtures::PARTY).expect("look before restart");
     let rows = story.rows();
-    assert_eq!(rows.len(), 2, "one ProjectFacts and one Looked row");
+    assert_eq!(rows.len(), 3, "one ProjectFacts, one Looked and one PersonBrief row");
     story.front.restart_dismissal_people(OFFLINE);
     assert_eq!(story.rows(), rows, "the committed rows survive the engine restart");
     story.front.reload(CLIENT, story.env.now);
@@ -872,8 +875,6 @@ fn a_refused_status_run_leaves_home_saying_when_the_last_change_landed() {
                 project: PROJECT,
                 landed: 1,
                 last_landed: Wall::EPOCH,
-                brief: None,
-                running: None,
             })),
         }]),
         Box::new([]),
@@ -897,7 +898,7 @@ fn a_refused_status_run_leaves_home_saying_when_the_last_change_landed() {
             .iter()
             .flatten()
             .any(|write| matches!(write, temper_engine_domain::Write::Save(Record::Forge { row })
-            if matches!(row.as_ref(), forge::Stored::ProjectFacts(facts) if facts.running.is_none()))),
+            if matches!(row.as_ref(), forge::Stored::PersonBrief(row) if row.party == fixtures::PARTY && row.running.is_none()))),
         "the new sitting attempted a status run and saved its refusal"
     );
     assert!(story.shown().previous().is_some(), "return advances the sitting");
@@ -908,10 +909,10 @@ fn a_refused_status_run_leaves_home_saying_when_the_last_change_landed() {
         .engine
         .store
         .rows
-        .get(&StoreKey::Forge(forge::Key::ProjectFacts { project: PROJECT }))
-        .expect("facts");
+        .get(&StoreKey::Forge(forge::Key::PersonBrief { party: fixtures::PARTY, project: PROJECT }))
+        .expect("person brief");
     let Record::Forge { row } = record else { panic!("forge record") };
-    let forge::Stored::ProjectFacts(facts) = row.as_ref() else { panic!("facts record") };
+    let forge::Stored::PersonBrief(facts) = row.as_ref() else { panic!("person brief record") };
     assert_eq!(facts.running, None, "the unfunded run was refused");
     let (_, mut view) = Temper::new(fixtures::SEED);
     let temper_client_world::app::View::Person(person) = &mut view else { panic!("person view") };

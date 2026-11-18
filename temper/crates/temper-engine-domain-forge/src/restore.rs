@@ -322,6 +322,13 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             d.repository_makings.capacity(),
             d.repository_makings.contains_key(&row.key),
         ),
+        Stored::PersonBrief(row) => room(
+            K::PersonBrief,
+            Rows(K::PersonBrief),
+            d.person_briefs.len(),
+            d.person_briefs.capacity(),
+            d.person_briefs.contains_key(&(row.party, row.project)),
+        ),
         Stored::ProjectFacts(row) => room(
             K::ProjectFacts,
             Rows(K::ProjectFacts),

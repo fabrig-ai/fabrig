@@ -112,13 +112,7 @@ fn a_new_spell_takes_the_wall_and_the_landed_count() {
             outputs(
                 &mut d,
                 Event::Restore {
-                    record: Stored::ProjectFacts(ProjectFacts {
-                        project: PROJECT,
-                        landed,
-                        last_landed: Wall::EPOCH,
-                        brief: None,
-                        running: None,
-                    }),
+                    record: Stored::ProjectFacts(ProjectFacts { project: PROJECT, landed, last_landed: Wall::EPOCH }),
                 },
             );
         }

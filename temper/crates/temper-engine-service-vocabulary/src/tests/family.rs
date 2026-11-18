@@ -3846,6 +3846,7 @@ fn looked_and_status_translate_both_ways() {
             landed: 6,
             last_landed,
             brief: brief.clone(),
+            unpaid: false,
             previous,
             seen: 2,
             queued: 3,

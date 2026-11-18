@@ -173,7 +173,14 @@ impl Shared {
         assert!(!self.world.store.rows.contains_key(&Key::Forge(forge_top::Key::ProjectFacts { project: PROJECT })));
         self.land(10, 93, 1);
         self.look(2, 40, 181);
-        assert!(facts(&self.world).running.is_none(), "a member's first look starts none");
+        assert!(
+            !self
+                .world
+                .store
+                .rows
+                .contains_key(&Key::Forge(forge_top::Key::PersonBrief { party: self.members[2].0, project: PROJECT })),
+            "a member's first look starts none"
+        );
         self.land(60, 94, 2);
         self.look(1, 80, 182);
     }
@@ -194,8 +201,8 @@ impl Shared {
     }
 }
 
-fn procedure_and_agent(world: &World) -> (forge_top::StatusRunning, u64) {
-    let running = facts(world).running.clone().expect("look started StatusRun");
+fn procedure_and_agent(world: &World, party: u64) -> (forge_top::StatusRunning, u64) {
+    let running = person_brief(world, party).running.clone().expect("look started StatusRun");
     let procedure = running.task.expect("StatusTask saved");
     let row = live_task(world, procedure);
     assert_eq!(row.executor, tasks::Executor::Procedure { connector: 1, code: 5 });
@@ -209,18 +216,23 @@ fn procedure_and_agent(world: &World) -> (forge_top::StatusRunning, u64) {
     assert!(words.contains("Watching the landing queue."), "{words}");
     (running, delegate)
 }
-fn assigned(world: &World) -> (forge_top::StatusRunning, engine::Assignment) {
-    let (running, delegate) = procedure_and_agent(world);
+fn assigned(world: &World, party: u64) -> (forge_top::StatusRunning, engine::Assignment) {
+    let (running, delegate) = procedure_and_agent(world, party);
     let agent = run(world);
     assert_eq!(agent.task, delegate);
     assert_eq!(live_task(world, delegate).kept_account, Some(PROJECT_KEY));
     assert_eq!(agent.run.sources.first(), Some(&Some(PROJECT_SOURCE)));
     (running, agent)
 }
-fn heard(world: &mut World, running: &forge_top::StatusRunning, agent: &engine::Assignment) -> forge_top::Brief {
+fn heard(
+    world: &mut World,
+    party: u64,
+    running: &forge_top::StatusRunning,
+    agent: &engine::Assignment,
+) -> forge_top::Brief {
     let before = world.env.wall;
     finish(world, agent);
-    let brief = facts(world).brief.clone().expect("report saved as brief");
+    let brief = person_brief(world, party).brief.clone().expect("report saved as brief");
     assert!(brief.at >= before && brief.at <= world.env.wall);
     assert_eq!(brief.landed, running.landed);
     assert_eq!(brief.findings, running.findings);
@@ -239,31 +251,27 @@ fn new_to(status: &forge_top::StatusView, brief: &forge_top::Brief) {
 fn a_shared_projects_key_carries_interleaved_looks_through_to_each_members_home() {
     let mut shared = shared(true);
     shared.first_run();
-    let (first, agent) = assigned(&shared.world);
+    let a = shared.members[1].0;
+    let b = shared.members[2].0;
+    let (first, agent_a) = assigned(&shared.world, a);
     assert_eq!(first.landed, 2);
-    let brief = heard(&mut shared.world, &first, &agent);
-    new_to(&shared.since(1, 0, 0), &brief);
-    assert_eq!(shared.document(0).brief.as_ref(), Some(&brief), "owner also has the brief");
     shared.land(100, 95, 3);
-    let assignments = shared.world.assigned.len();
     shared.look(2, 120, 183);
-    assert_eq!(shared.world.assigned.len(), assignments, "a new landing under the brief's hour starts none");
-    assert!(facts(&shared.world).running.is_none());
-    new_to(&shared.since(2, 40, 1), &brief);
-    shared.look(1, 160, 184);
-    let (second, agent) = assigned(&shared.world);
-    assert_ne!(second.task, first.task);
-    assert_eq!(second.landed, 3);
-    let brief = heard(&mut shared.world, &second, &agent);
-    new_to(&shared.since(1, 80, 2), &brief);
-    shared.look(2, 200, 185);
-    assert!(facts(&shared.world).running.is_none());
-    new_to(&shared.since(2, 120, 3), &brief);
+    let (second, agent_b) = assigned(&shared.world, b);
+    assert_ne!(first.task, second.task, "A's run does not stop B's");
+    let brief_a = heard(&mut shared.world, a, &first, &agent_a);
+    new_to(&shared.since(1, 0, 0), &brief_a);
+    assert_eq!(shared.document(0).brief, None, "owner has no brief yet");
+    assert_eq!(shared.document(2).brief, None, "B has no brief until B's result");
+    let brief_b = heard(&mut shared.world, b, &second, &agent_b);
+    new_to(&shared.since(2, 40, 1), &brief_b);
+    assert_eq!(shared.document(1).brief.as_ref(), Some(&brief_a));
+    assert_eq!(brief_b.landed, 3);
     shared.world.close();
 }
 
-fn waiting(world: &mut World) -> forge_top::StatusRunning {
-    let (running, agent) = procedure_and_agent(world);
+fn waiting(world: &mut World, party: u64) -> forge_top::StatusRunning {
+    let (running, agent) = procedure_and_agent(world, party);
     let row = live_task(world, agent);
     assert_eq!(row.phase, tasks::Phase::Active(tasks::Active::Due), "account wait, not refusal or hold");
     assert_eq!(row.kept_account, None);
@@ -276,8 +284,8 @@ fn waiting(world: &mut World) -> forge_top::StatusRunning {
         document.run_wait,
         Some(documents::TaskRunWait::Account { account: None, source: None, why: documents::TaskWaitWhy::Empty })
     );
-    assert_eq!(facts(world).running.as_ref(), Some(&running));
-    assert!(facts(world).brief.is_none());
+    assert_eq!(person_brief(world, party).running.as_ref(), Some(&running));
+    assert!(person_brief(world, party).brief.is_none());
     running
 }
 
@@ -285,13 +293,14 @@ fn waiting(world: &mut World) -> forge_top::StatusRunning {
 fn a_shared_projects_members_plans_and_default_keys_leave_its_brief_waiting() {
     let mut shared = shared(false);
     shared.first_run();
-    let first = waiting(&mut shared.world);
+    let first = waiting(&mut shared.world, shared.members[1].0);
     shared.land(100, 95, 3);
     shared.look(2, 120, 183);
-    assert_eq!(waiting(&mut shared.world).task, first.task, "under an hour keeps the waiting run");
+    let other = waiting(&mut shared.world, shared.members[2].0);
+    assert_ne!(other.task, first.task, "each member has their own waiting run");
     shared.look(2, 200, 184);
-    let second = waiting(&mut shared.world);
-    assert_ne!(second.task, first.task, "an expired account wait never blocks the next sitting");
+    let second = waiting(&mut shared.world, shared.members[2].0);
+    assert_ne!(second.task, other.task, "an expired account wait never blocks the next sitting");
     assert_eq!(second.landed, 3);
     for member in 0..3 {
         assert!(shared.document(member).brief.is_none(), "Home keeps its computed words");
@@ -303,14 +312,15 @@ fn a_shared_projects_members_plans_and_default_keys_leave_its_brief_waiting() {
 fn a_shared_projects_late_status_report_cannot_replace_the_next_sittings_brief() {
     let mut shared = shared(true);
     shared.first_run();
-    let (first, late) = assigned(&shared.world);
+    let a = shared.members[1].0;
+    let (first, late) = assigned(&shared.world, a);
     shared.land(100, 95, 3);
-    shared.look(2, 160, 183);
-    let (second, agent) = assigned(&shared.world);
+    shared.look(1, 160, 183);
+    let (second, agent) = assigned(&shared.world, a);
     assert_ne!(second.task, first.task);
     assert_eq!(second.landed, 3);
-    let brief = heard(&mut shared.world, &second, &agent);
-    new_to(&shared.since(2, 40, 1), &brief);
+    let brief = heard(&mut shared.world, a, &second, &agent);
+    new_to(&shared.since(1, 80, 2), &brief);
     assert_eq!(
         live_task(&shared.world, late.task).phase,
         tasks::Phase::Active(tasks::Active::Running { attempt: late.attempt }),
@@ -328,9 +338,9 @@ fn a_shared_projects_late_status_report_cannot_replace_the_next_sittings_brief()
         shared.world.root.tasks().task(first.task.expect("old procedure")).is_none(),
         "late report consumed and procedure ended"
     );
-    assert_eq!(facts(&shared.world).brief.as_ref(), Some(&brief));
-    assert!(facts(&shared.world).running.is_none());
+    assert_eq!(person_brief(&shared.world, a).brief.as_ref(), Some(&brief));
+    assert!(person_brief(&shared.world, a).running.is_none());
     shared.look(1, 200, 184);
-    new_to(&shared.since(1, 80, 2), &brief);
+    new_to(&shared.since(1, 160, 3), &brief);
     shared.world.close();
 }

@@ -184,7 +184,7 @@ fn client_key(random: &mut Rng) -> skein_forge_client::Key {
 #[expect(clippy::too_many_lines, reason = "one draw covers the durable key families")]
 pub fn key(random: &mut Rng) -> top::Key {
     let number = random.next_u64();
-    match random.below(44) {
+    match random.below(45) {
         0 => top::Key::Call(top::NamedCall {
             task: number,
             attempt: random.next_u64(),
@@ -205,6 +205,9 @@ pub fn key(random: &mut Rng) -> top::Key {
         12 => top::Key::Change(number),
         42 => top::Key::ChangeCold(number),
         43 => top::Key::ChangeHot(number),
+        44 => {
+            top::Key::PersonBrief { party: number, project: u32::try_from(random.below(4_294_967_296)).expect("u32") }
+        }
         13 => top::Key::Issue(number),
         14 => top::Key::Release(number),
         15 => top::Key::Application(number),
