@@ -76,6 +76,7 @@ pub(crate) fn top(
         b.close();
     }
     b.close();
+    crate::frame::night_switch(b, root, w, bindings);
     b.close();
 }
 
