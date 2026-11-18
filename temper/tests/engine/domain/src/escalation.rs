@@ -674,6 +674,7 @@ impl World {
                 | engine::Request::Worker(_)
                 | engine::Request::Party(_)
                 | engine::Request::Account(_)
+                | engine::Request::LimitSettingsCommitted { .. }
                 | engine::Request::ForgeKept(_)
                 | engine::Request::ForgeGone { .. }
                 | engine::Request::ChoosePlace { .. }
@@ -831,6 +832,7 @@ impl World {
             | Delivery::Document { .. }
             | Delivery::WatchEnded { .. }
             | Delivery::Restarting { .. }
+            | Delivery::LimitSettingsCommitted { .. }
             | Delivery::Drained
             | Delivery::Refuse { .. }
             | Delivery::TurnBusy { .. } => panic!("unexpected escalation delivery {delivery:?}"),

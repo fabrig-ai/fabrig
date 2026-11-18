@@ -561,6 +561,7 @@ impl World {
                 | engine::Request::Worker(_)
                 | engine::Request::Party(_)
                 | engine::Request::Account(_)
+                | engine::Request::LimitSettingsCommitted { .. }
                 | engine::Request::ForgeKept(_)
                 | engine::Request::ForgeGone { .. }
                 | engine::Request::ChoosePlace { .. }

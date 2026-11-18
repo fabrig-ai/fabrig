@@ -761,6 +761,7 @@ impl StartStore {
         }
     }
 
+    #[expect(clippy::too_many_lines, reason = "the startup fixture routes the complete root output vocabulary")]
     pub fn run(&mut self, root: &mut engine::Domain, env: &Env<engine::Limits>, pause_at_wires: bool) {
         let mut out = skein_lib::Queue::uncapped();
         for _ in 0_u32..1024 {
@@ -851,6 +852,7 @@ impl StartStore {
                     | engine::Request::Account(_)
                     | engine::Request::Busy(_)
                     | engine::Request::Restarting { .. }
+                    | engine::Request::LimitSettingsCommitted { .. }
                     | engine::Request::Drained) => panic!("unexpected startup output: {request:?}"),
                 }
             } else if root.ready() {

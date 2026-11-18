@@ -1,4 +1,5 @@
-//! The open-store, pre-root seam (configuration/limit-settings.md, 3).
+//! Limit settings at startup and admission (configuration/limit-settings.md, 3–4).
+pub(crate) mod admission;
 use crate::store::Store;
 use alloc::boxed::Box;
 use jig_domain_core::{self as core, settings::Override};
@@ -8,23 +9,37 @@ pub use temper_engine_service_startup::startup::{LimitInputs, LimitKind, Resolve
 use temper_engine_service_startup::startup::{Problems, What as StartWhat};
 
 #[derive(Debug)]
-pub struct InForce {
+pub struct LimitSettings {
     pub inputs: LimitInputs,
     pub jig: Box<[Override]>,
     pub temper: Box<[Override]>,
-    pub resolved: Resolved,
+    pub in_force: Resolved,
+    /// Zero until the root restores the settings revision. Revisions start at one.
+    pub revision: u32,
     pub held: bool,
 }
 
 impl crate::Engine {
-    pub fn take_limit_store(&mut self, store: Store, state: InForce) {
+    pub fn take_limit_store(&mut self, store: Store, state: LimitSettings) {
         assert!(self.limits_in_force.is_none(), "limit settings installed once before restore");
         self.replace_store(store);
         self.limits_in_force = Some(state);
     }
     #[must_use]
-    pub fn limits_in_force(&self) -> Option<&InForce> {
+    pub fn limits_in_force(&self) -> Option<&LimitSettings> {
         self.limits_in_force.as_ref()
+    }
+    #[must_use]
+    pub fn limits_in_force_mut(&mut self) -> Option<&mut LimitSettings> {
+        self.limits_in_force.as_mut()
+    }
+    /// The durable word's handling point. Updating the running figures is separate.
+    pub(crate) fn limits_committed(&mut self, revision: u32, jig: Box<[Override]>, temper: Box<[Override]>) {
+        if let Some(state) = &mut self.limits_in_force {
+            state.revision = revision;
+            state.jig = jig;
+            state.temper = temper;
+        }
     }
 }
 
@@ -42,7 +57,7 @@ impl Store {
         &mut self,
         inputs: LimitInputs,
         held: Option<(&[Override], &[Override])>,
-    ) -> Result<InForce, Problems> {
+    ) -> Result<LimitSettings, Problems> {
         let key = settings_key();
         let encoded = temper_protocol_store::keys::encode(&forge::Key::Setting(key), self.host.limits().store.key)
             .ok_or(bad(b"temper-limits"))?;
@@ -78,7 +93,7 @@ impl Store {
                 .ok_or(bad(b"temper-limits"))?
                 .with_stock(&bounds),
         );
-        Ok(InForce { inputs, jig, temper, resolved, held: held.is_some() })
+        Ok(LimitSettings { inputs, jig, temper, in_force: resolved, revision: 0, held: held.is_some() })
     }
     /// Opening's terminal is consumed before building the root. Other terminals
     /// (notably the census) stay queued for the root's normal first pass.
@@ -88,7 +103,7 @@ impl Store {
         self.pending_generation = pending;
     }
 }
-pub(crate) fn restore_refusal(state: Option<&InForce>, stopped: &crate::Stop) -> Option<crate::Stop> {
+pub(crate) fn restore_refusal(state: Option<&LimitSettings>, stopped: &crate::Stop) -> Option<crate::Stop> {
     let state = state?;
     if state.held {
         return None;
@@ -178,7 +193,7 @@ fn codec_lowering(
         | crate::Stop::Hooks => None,
     }
 }
-fn restore_source(state: &InForce, name: &[u8]) -> Option<LimitKind> {
+fn restore_source(state: &LimitSettings, name: &[u8]) -> Option<LimitKind> {
     for item in &state.jig {
         if item.name.as_ref() == name && jig_protocol_config::names::find(name).is_some() {
             return Some(LimitKind::Jig);
@@ -191,9 +206,9 @@ fn restore_source(state: &InForce, name: &[u8]) -> Option<LimitKind> {
     }
     let (jig, own) = state.inputs.stock().ok()?;
     let changed = match jig_protocol_config::names::find(name) {
-        Some(row) => (row.value)(&jig) != (row.value)(&state.resolved.jig),
+        Some(row) => (row.value)(&jig) != (row.value)(&state.in_force.jig),
         None => match crate::limits::find(name) {
-            Some(row) => (row.value)(&own) != (row.value)(&state.resolved.temper),
+            Some(row) => (row.value)(&own) != (row.value)(&state.in_force.temper),
             None => false,
         },
     };

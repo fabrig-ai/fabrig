@@ -5,9 +5,10 @@
     clippy::disallowed_methods,
     reason = "ordinary focused tests edit startup documents and restart a memory store"
 )]
+mod admission;
 use super::fixtures;
 use crate::{
-    limit_settings::{InForce, LimitInputs},
+    limit_settings::{LimitInputs, LimitSettings},
     startup,
     store::Store,
 };
@@ -85,7 +86,7 @@ fn opening(inputs: &LimitInputs, kept: Option<jig_protocol_store::Stores>) -> St
     store.opened_limits(installation, pending);
     store
 }
-fn build(store: Store, state: InForce) -> crate::Service {
+fn build(store: Store, state: LimitSettings) -> crate::Service {
     let input = &state.inputs;
     let start = startup::checked_start_with_limits(
         &input.document,
@@ -96,8 +97,8 @@ fn build(store: Store, state: InForce) -> crate::Service {
         List::with_capacity(0),
         None,
         &input.given,
-        &state.resolved.jig,
-        &state.resolved.temper,
+        &state.in_force.jig,
+        &state.in_force.temper,
     )
     .unwrap();
     let mut service =
@@ -335,7 +336,7 @@ fn a_written_store_resolves_both_kinds_before_a_restarted_engine_restores() {
     let mut store = opening(&input, Some(kept(service)));
     let state = store.resolve_settings(input, None).unwrap();
     assert!(state.jig.is_empty() && state.temper.is_empty(), "defaults are not changes");
-    assert_eq!(state.resolved.temper.live_goals, 40);
+    assert_eq!(state.in_force.temper.live_goals, 40);
     let mut service = build(store, state);
     fixtures::restart(&mut service);
     save(
@@ -352,11 +353,11 @@ fn a_written_store_resolves_both_kinds_before_a_restarted_engine_restores() {
     let mut store = opening(&input, Some(kept(service)));
     let state = store.resolve_settings(input, None).unwrap();
     assert_eq!(state.jig[0].name.as_ref(), b"tasks.tasks");
-    assert_eq!(state.resolved.jig.core.tasks.tasks, 1024);
-    assert_eq!(state.resolved.jig.core.tasks.project_tasks, 384);
-    assert_eq!(state.resolved.temper.forge.entries, 16);
-    assert_eq!(state.resolved.left_out.len(), 1);
-    assert_eq!(state.resolved.left_out.get(0).unwrap().name.as_ref(), b"forge.gone");
+    assert_eq!(state.in_force.jig.core.tasks.tasks, 1024);
+    assert_eq!(state.in_force.jig.core.tasks.project_tasks, 384);
+    assert_eq!(state.in_force.temper.forge.entries, 16);
+    assert_eq!(state.in_force.left_out.len(), 1);
+    assert_eq!(state.in_force.left_out.get(0).unwrap().name.as_ref(), b"forge.gone");
     assert_eq!(store.opening_limits().store, stock.store);
     let mut service = build(store, state);
     fixtures::restart(&mut service);
@@ -370,7 +371,7 @@ fn a_written_store_resolves_both_kinds_before_a_restarted_engine_restores() {
     let input = inputs();
     let mut store = opening(&input, Some(kept(service)));
     let state = store.resolve_settings(input, None).unwrap();
-    assert_eq!(state.resolved.jig.core.tasks.tasks, 512, "a jig setting lowers its count below the stock");
+    assert_eq!(state.in_force.jig.core.tasks.tasks, 512, "a jig setting lowers its count below the stock");
     assert_eq!(store.opening_limits().store, stock.store);
     assert_eq!(store.opening_limits().secrets, stock.secrets);
     assert_eq!(store.opening_limits().commits, stock.commits);
@@ -389,7 +390,7 @@ fn a_written_store_resolves_both_kinds_before_a_restarted_engine_restores() {
     let state = store.resolve_settings(inputs(), Some((&[], &[]))).unwrap();
     assert!(state.held);
     assert_eq!(state.temper[1].value, 80);
-    assert_eq!(state.resolved.temper.live_goals, 40);
+    assert_eq!(state.in_force.temper.live_goals, 40);
     let mut service = build(store, state);
     fixtures::restart(&mut service);
     assert_eq!(service.engine.as_ref().unwrap().limits().tasks.tasks, 768);

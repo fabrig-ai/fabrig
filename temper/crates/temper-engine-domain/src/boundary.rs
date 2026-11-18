@@ -1019,6 +1019,12 @@ pub enum PartyInput {
 /// and 4). Every output crosses the journal door in its peer's vocabulary.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Request {
+    /// Both limit-setting lists at this durable revision (configuration/limit-settings.md, 4).
+    LimitSettingsCommitted {
+        revision: u32,
+        jig: Box<[jig_domain_core::settings::Override]>,
+        temper: Box<[jig_domain_core::settings::Override]>,
+    },
     ChoosePlace {
         request: Token,
         kind: forge::BoxKind,
@@ -1394,6 +1400,9 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
         | Delivery::Result { .. }) => Request::Party(PartyRequest::Deliver(delivery)),
         Delivery::ReadLoad { load, range } => Request::Store(StoreRequest::Read { load, range }),
         Delivery::Restarting { wait } => Request::Restarting { wait },
+        Delivery::LimitSettingsCommitted { revision, jig, temper } => {
+            Request::LimitSettingsCommitted { revision, jig, temper }
+        }
         Delivery::Drained => Request::Drained,
         Delivery::Bound { request, answer } => Request::Bound { request, answer },
         Delivery::ForgeCall { call, repository, op } => Request::Forge { call, repository, op },

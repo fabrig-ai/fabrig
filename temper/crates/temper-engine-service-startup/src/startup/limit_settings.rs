@@ -365,6 +365,11 @@ fn named(found: Problems, jig: &[Override], temper: &[Override]) -> Problems {
             problems.push_file(problem.path.clone(), problem.what, problem.file.clone());
             continue;
         }
+        if let What::Jig(config::What::Capacity { requires, .. }) = problem.what
+            && supplied(jig, requires).is_some()
+        {
+            name = Box::from(requires);
+        }
         if supplied(jig, b"tasks.tasks").is_some()
             && supplied(jig, &name).is_none()
             && [b"tasks.delegates".as_slice(), b"tasks.exemptions", b"people.operations", b"people.inbox_tasks"]

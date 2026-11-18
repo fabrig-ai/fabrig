@@ -6,7 +6,7 @@ use skein_lib::Queue;
 use std::fmt::Write;
 use temper_engine_service::{
     self as service,
-    limit_settings::{InForce, LimitInputs},
+    limit_settings::{LimitInputs, LimitSettings},
     store::Store,
 };
 
@@ -88,7 +88,7 @@ pub fn open_limits(
     user: u32,
     build_name: &'static str,
     owned: &mut Vec<Fd>,
-) -> Result<(Store, InForce), String> {
+) -> Result<(Store, LimitSettings), String> {
     let held = limits_hold(data)?;
     let mut store = Store::for_limits(&inputs, models).map_err(|why| text(&why))?;
     let root = skein_shell::make_root(path(deployment), 0o700)
@@ -114,7 +114,7 @@ pub fn open_limits(
             return Err(held.as_ref().map_or_else(|| why.clone(), |held| held_failure(&why, held)));
         }
     };
-    for left in &state.resolved.left_out {
+    for left in &state.in_force.left_out {
         eprintln!("{}", left_out_line(left));
     }
     if let Some(held) = held {

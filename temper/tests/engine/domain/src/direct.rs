@@ -40,7 +40,7 @@ pub struct Driver {
     /// How many inputs `try_step` handed back at the backlog watermark; the
     /// world offers each again later.
     pub returned: u32,
-    /// Other outputs without a durability dependency.
+    /// Other outward outputs, including the durable limit-settings word.
     pub immediate: Vec<engine::Request>,
     /// Whether the deployment's first period was sent once the root was ready.
     pub period_sent: bool,
@@ -309,6 +309,7 @@ impl Driver {
                 | engine::Request::Worker(_)
                 | engine::Request::Store(_)
                 | engine::Request::Account(_)
+                | engine::Request::LimitSettingsCommitted { .. }
                 | engine::Request::ForgeKept(_)
                 | engine::Request::ForgeGone { .. }
                 | engine::Request::BoxGroup { .. }

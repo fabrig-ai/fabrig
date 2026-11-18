@@ -617,6 +617,7 @@ fn startup_locate(engine: &mut crate::engine::Engine) -> (skein_forge::api::Repo
                 | root::Request::ToChild(_)
                 | root::Request::Busy(_)
                 | root::Request::Restarting { .. }
+                | root::Request::LimitSettingsCommitted { .. }
                 | root::Request::Drained
                 | root::Request::Stop) => crate::route::request(engine, other),
             }

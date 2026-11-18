@@ -10,6 +10,9 @@ mod refusal;
 pub(crate) fn request(engine: &mut Engine, request: root::Request) {
     #[expect(clippy::match_same_arms, reason = "each request's arm is filled by its own task")]
     match request {
+        root::Request::LimitSettingsCommitted { revision, jig, temper } => {
+            engine.limits_committed(revision, jig, temper);
+        }
         root::Request::MakingCopied { key } => crate::setup::making::copied(engine, &key),
         root::Request::PlaygroundActs { .. } => {}
         root::Request::ResetAct { .. } => {}
@@ -381,6 +384,7 @@ fn worker(engine: &mut Engine, request: root::WorkerRequest) {
             | root::Delivery::Start(_)
             | root::Delivery::Load { .. }
             | root::Delivery::Restarting { .. }
+            | root::Delivery::LimitSettingsCommitted { .. }
             | root::Delivery::Drained => stop::unavailable(engine, b"workers"),
         },
     }
@@ -415,7 +419,7 @@ fn host_request(engine: &mut Engine, request: root::HostRequest) {
             engine.events.push(root::Event::Worker(root::WorkerInput::Asked { channel, run, attempt, number, answer }));
         }
         root::HostRequest::Decode { to, task, attempt, call } => {
-            engine.events.push(crate::tools::decode_configured(
+            let event = crate::tools::decode_configured(
                 to,
                 task,
                 attempt,
@@ -424,10 +428,12 @@ fn host_request(engine: &mut Engine, request: root::HostRequest) {
                 engine.domain.models(),
                 &engine.domain.catalogue(),
                 &engine.domain.repository_identities(task),
-            ));
+            );
+            engine.events.push(crate::limit_settings::admission::host(engine.limits_in_force.as_ref(), event));
         }
         root::HostRequest::SettingsNote { to, call, body } => {
-            engine.events.push(crate::tools::settings_note(to, *call, &body, &engine.domain.catalogue()));
+            let event = crate::tools::settings_note(to, *call, &body, &engine.domain.catalogue());
+            engine.events.push(crate::limit_settings::admission::host(engine.limits_in_force.as_ref(), event));
         }
         root::HostRequest::Dropped { .. } => {}
     }

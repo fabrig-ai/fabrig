@@ -186,8 +186,8 @@ fn prepare_given(
         List::with_capacity(0),
         Some(&checked),
         given,
-        &state.resolved.jig,
-        &state.resolved.temper,
+        &state.in_force.jig,
+        &state.in_force.temper,
     );
     let mut start = match start {
         Ok(start) => start,

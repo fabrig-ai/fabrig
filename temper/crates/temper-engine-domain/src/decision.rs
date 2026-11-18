@@ -48,6 +48,12 @@ pub struct Limits {
 /// resumed by the root and never passed to the protocol as child events.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Delivery {
+    /// Both lists are captured in the settings decision and released after its commit.
+    LimitSettingsCommitted {
+        revision: u32,
+        jig: Box<[jig_domain_core::settings::Override]>,
+        temper: Box<[jig_domain_core::settings::Override]>,
+    },
     /// A need's push, held behind its decision's commit (attention.md, 7.2).
     Push(crate::Push),
     /// The project's ways (temper/docs/design/domain/forge/change/branch-path.md).
@@ -562,7 +568,8 @@ impl Decision {
             }
             Delivery::Assigned { assignment, .. } => assignment_within(assignment, limits),
             Delivery::Host(host) => host_within(host, limits),
-            Delivery::SourceSignedOut { .. }
+            Delivery::LimitSettingsCommitted { .. }
+            | Delivery::SourceSignedOut { .. }
             | Delivery::Ways { .. }
             | Delivery::AssignedJob { .. }
             | Delivery::Link { .. }
@@ -721,6 +728,7 @@ pub fn resume(journal: &mut Journal, out: &mut Queue<Output>) {
             | crate::Output::Account(_)
             | crate::Output::Busy(_)
             | crate::Output::Restarting { .. }
+            | crate::Output::LimitSettingsCommitted { .. }
             | crate::Output::Drained
             | crate::Output::Connect { .. }
             | crate::Output::Replace { .. }

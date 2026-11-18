@@ -379,6 +379,7 @@ impl Protocol {
             | engine::Request::Worker(_)
             | engine::Request::Party(_)
             | engine::Request::Forge { .. }
+            | engine::Request::LimitSettingsCommitted { .. }
             | engine::Request::ForgeKept(_)
             | engine::Request::ForgeGone { .. }
             | engine::Request::ChoosePlace { .. }

@@ -126,6 +126,7 @@ fn pump(service: &mut crate::Service) -> Option<w::Outcome> {
                 | root::Request::ToChild(_)
                 | root::Request::Busy(_)
                 | root::Request::Restarting { .. }
+                | root::Request::LimitSettingsCommitted { .. }
                 | root::Request::Drained
                 | root::Request::Stop) => crate::route::request(engine, request),
             }

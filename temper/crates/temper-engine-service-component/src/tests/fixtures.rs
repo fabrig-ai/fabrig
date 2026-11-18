@@ -439,6 +439,7 @@ pub fn completed_store() -> crate::store::Store {
                 | root::Request::Busy(_)
                 | root::Request::Restarting { .. }
                 | root::Request::Drained
+                | root::Request::LimitSettingsCommitted { .. }
                 | root::Request::Stop) => panic!("first-start fixture output: {request:?}"),
             }
         }
@@ -1055,7 +1056,10 @@ pub fn settle_root(
                 }
                 root::Request::Party(_) => {}
                 request @ root::Request::Worker(_) => crate::route::request(engine, request),
-                request @ (root::Request::Store(_) | root::Request::Account(_) | root::Request::ToChild(_)) => {
+                request @ (root::Request::Store(_)
+                | root::Request::Account(_)
+                | root::Request::ToChild(_)
+                | root::Request::LimitSettingsCommitted { .. }) => {
                     crate::route::request(engine, request);
                 }
                 root::Request::Setup { .. }

@@ -315,6 +315,12 @@ impl Domain {
     pub fn forges(&self) -> forge::Forges {
         self.forge.forges()
     }
+    /// The restored settings head; service admission keeps this revision with its lists.
+    #[must_use]
+    pub fn settings_revision(&self) -> u32 {
+        self.core.current.newest()
+    }
+
     /// The deployment's current welcome (protocol/configuration/settings.md, 2).
     #[must_use]
     pub fn welcome(&self) -> bool {
@@ -1042,6 +1048,7 @@ pub(crate) fn stage_now(domain: &mut Domain, out: &mut Queue<Request>) {
             | Request::Busy(_)
             | Request::Unsettled(_)
             | Request::Restarting { .. }
+            | Request::LimitSettingsCommitted { .. }
             | Request::Drained
             | Request::Account(_)) => {
                 assert!(now(domain, request), "root door reserves one route's immediate outputs");
@@ -1399,6 +1406,7 @@ fn released_into(
         | Delivery::Document { .. }
         | Delivery::WatchEnded { .. }
         | Delivery::Restarting { .. }
+        | Delivery::LimitSettingsCommitted { .. }
         | Delivery::Drained
         | Delivery::Refuse { .. }
         | Delivery::TurnBusy { .. }

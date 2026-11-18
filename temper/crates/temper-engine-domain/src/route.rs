@@ -23,6 +23,7 @@ mod follow_tool;
 mod goal;
 mod kinds;
 pub(crate) mod landing;
+mod limit_settings;
 mod milestones;
 mod now;
 mod panels;
@@ -418,6 +419,7 @@ fn route_core_with_job(
                 forge_route::follow_route::saved(domain, &record);
                 trials::saved(domain, env, &record);
                 ways::saved(domain, &record);
+                limit_settings::saved(domain, env, decision, &record);
                 keep_produced_title(domain, &record);
                 dependencies_met(domain, env, decision, &record);
                 forge_route::close_saved(domain, &record);

@@ -864,6 +864,7 @@ impl World {
                 engine::PartyRequest::SignInRefused { .. } | engine::PartyRequest::WatchRefused { .. },
             )
             | engine::Request::Account(_)
+            | engine::Request::LimitSettingsCommitted { .. }
             | engine::Request::ForgeKept(_)
             | engine::Request::ForgeGone { .. }
             | engine::Request::ChoosePlace { .. }
@@ -994,6 +995,7 @@ impl World {
             | engine::Request::Party(_)
             | engine::Request::Forge { .. }
             | engine::Request::Account(_)
+            | engine::Request::LimitSettingsCommitted { .. }
             | engine::Request::ForgeKept(_)
             | engine::Request::ForgeGone { .. }
             | engine::Request::ChoosePlace { .. }
@@ -1184,6 +1186,7 @@ impl World {
             | Delivery::Public { .. }
             | Delivery::PublicWait { .. }
             | Delivery::Restarting { .. }
+            | Delivery::LimitSettingsCommitted { .. }
             | Delivery::Drained
             | Delivery::Start(_)
             | Delivery::NotesLoad { .. }

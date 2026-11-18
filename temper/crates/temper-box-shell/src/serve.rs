@@ -150,7 +150,7 @@ pub(crate) fn prepare_with_limits(
         Some(&checked),
         given,
         git.as_ref().map(|path| path.as_os_str().as_bytes()),
-        &state.resolved,
+        &state.in_force,
     );
     let mut start = match start {
         Ok(start) => start,
