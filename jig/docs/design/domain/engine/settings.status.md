@@ -2,10 +2,6 @@
 
 2026-11-18. Where the tree's code lags or departs from [settings.md](settings.md).
 
-- **Not yet:** 1: `NUMBERS` and `STOCK_NUMBERS`, jig's constants for a numbered kind's two ranges [in flight: change 8165].
-- **Not yet:** 1: the *range* fault in the closed list, on the client's wire at version 35, in the people store and in each client's words, naming the kind and both ranges [in flight: change 8365].
-- **Not yet:** 1, 7, 11 and 12: the two ranges judged by the one check, first, at a set, at a proposal's entrance and its decision; a start naming every setting out of its range at once, `start::Failure::Numbers`; an added model's highest free number from 64 down to 33 [in flight: change 8170].
-- **Not yet:** 1: a set's or a decision's refusal out of range carries *range*, not *shape* [in flight: change 8172].
 
 - **Not yet:** 12: a read changing only the displayed omitted count
   does not mark `me`. `routing/lists.rs`, `answered`, compares good-read
