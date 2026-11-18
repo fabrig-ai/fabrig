@@ -163,6 +163,7 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "temper-engine-protocol-forge-world::suite" = "protocol"
 "temper-engine::suite" = "end-to-end" # Shipped engine's command-line boundary.
 "temper-fake-git-hosted::suite" = "simulated" # step and simulated: argument checks and hosted git iterate on fake io.
+"temper-engine-shell::suite" = "real-loop" # Stopped checkpoint, restore and upgrade commands over real files and locks.
 "temper-forge-setup-shell::suite" = "real-loop" # step and real-loop: file/spec checks, real commands and TLS peers.
 "temper-git-transcripts::suite" = "end-to-end" # Shipped recorder's command-line boundary.
 "temper-one-process-world::memory" = "simulated"

@@ -6367,6 +6367,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-deployment-fixtures"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "skein-scratch",
+ "skein-shell",
+ "temper-shell",
+]
+
+[[package]]
 name = "temper-docs"
 version = "0.0.0"
 dependencies = [
@@ -6381,6 +6391,7 @@ dependencies = [
  "skein-fail-stop",
  "skein-scratch",
  "skein-shell",
+ "temper-deployment-fixtures",
  "temper-engine-shell",
  "temper-protocol-store",
  "temper-shell",
@@ -6951,6 +6962,7 @@ dependencies = [
  "temper-box-machine",
  "temper-client-bundle",
  "temper-client-protocol-wire",
+ "temper-deployment-fixtures",
  "temper-engine-domain",
  "temper-engine-domain-forge",
  "temper-engine-service",
