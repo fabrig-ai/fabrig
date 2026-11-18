@@ -481,6 +481,7 @@ impl Driver {
     pub fn sign_in(&mut self) {
         self.serial += 1;
         self.send(engine::Event::Party(engine::PartyInput::SignedIn {
+            until: None,
             held: None,
             reply_to: ReplyTo::new(Token::new(self.serial)),
             identity: people::Identity {

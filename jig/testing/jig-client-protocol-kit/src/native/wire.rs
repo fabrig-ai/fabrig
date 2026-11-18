@@ -81,7 +81,8 @@ impl Wire {
                 }
                 Kind::Other
             }
-            Message::ApprovalAsk(_)
+            Message::LinkAsk(_)
+            | Message::ApprovalAsk(_)
             | Message::ApprovalRead(_)
             | Message::ApprovalDecide(_)
             | Message::Authorize(_)
@@ -240,6 +241,7 @@ impl Wire {
             Event::Start { .. }
             | Event::StartUnlinked { .. }
             | Event::SignIn { .. }
+            | Event::AskLink
             | Event::AskApproval
             | Event::ReadApproval { .. }
             | Event::DecideApproval { .. }

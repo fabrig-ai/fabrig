@@ -214,7 +214,17 @@ pub const SIGN_IN: Tool = Tool {
     ],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"It writes the token, engine's address and party into DIR. A link\nsigns in only into a directory not signed in: sign-out first,\n`temper ctl DIR sign-out`, or use another directory. A held token\nrefuses before sending anything, leaving the link unspent.\nA link signs in once and expires. `the sign-in link was refused`\n(exit 1) distinguishes `it was already used`, `it has expired`,\nand `temper does not know it, as another deployment's link or\none it no longer remembers`; each ends `temper-box serve prints\na fresh one`. Other refusals keep the line without a reason.\nWith every sign-in in use, it says when the earliest ends and\nuntil when this link stays usable. It leaves the link's file as\nit was. With --service FILE, sign in as the service at the address\nFILE holds, even into a signed-in DIR. FILE must be owner-only\nand in party make's form; otherwise exit 1 before sending anything.\n",
+    notes: b"It writes the token, engine's address and party into DIR. A link\nsigns in only into a directory not signed in: sign-out first,\n`temper ctl DIR sign-out`, or use another directory. A held token\nrefuses before sending anything, leaving the link unspent.\nA link signs in once and expires. `the sign-in link was refused`\n(exit 1) distinguishes `it was already used`, `it has expired`,\nand `temper does not know it, as another deployment's link or\none it no longer remembers`. For a fresh link, temper-box serve\nprints one, or a signed-in client asks with\n`temper ctl DIRECTORY link --out FILE`. Other refusals keep the\nline without a reason.\nWith every sign-in in use, it says when the earliest ends and\nuntil when this link stays usable. It leaves the link's file as\nit was. With --service FILE, sign in as the service at the address\nFILE holds, even into a signed-in DIR. FILE must be owner-only\nand in party make's form; otherwise exit 1 before sending anything.\n",
+};
+pub const LINK: Tool = Tool {
+    name: b"link",
+    line: b"Write a fresh one-time sign-in link to a private file",
+    prints: b"sign-in link written to FILE; it signs in once, until U; JSON: file and expires",
+    result: b"link",
+    forms: &[&[flag(b"out", b"FILE", Kind::File, Required, b"A new private file for the sign-in link")]],
+    keyed: Keyed::Never,
+    area: 1,
+    notes: b"DIR must be signed in. FILE existing refuses before anything is sent.\nThe host writes the link's URL to FILE at 0o600 and makes it durable\nbefore success prints. The link is never printed or passed in argv.\nIt signs in DIR's party once, until U, in universal time to the second.\nAsking again replaces the previous asked link. The engine gives a\nlink to a person's sign-in alone, where its printed link is enabled.\n",
 };
 pub const SIGN_OUT: Tool = Tool {
     name: b"sign-out",

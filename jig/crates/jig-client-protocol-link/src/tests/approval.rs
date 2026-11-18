@@ -113,7 +113,8 @@ fn exchange(h: &mut Harness, kind: u8) -> Token {
             assert_eq!(record.code(), code().letters());
             assert!(record.approve());
         }
-        other @ (Message::Authorize(_)
+        other @ (Message::LinkAsk(_)
+        | Message::Authorize(_)
         | Message::SignInApproval(_)
         | Message::Request(_)
         | Message::Read(_)

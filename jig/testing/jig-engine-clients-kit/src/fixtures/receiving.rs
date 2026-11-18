@@ -168,7 +168,12 @@ pub fn signed_small_core() -> (core::Core, Env<core::Limits>, u64) {
     let mut out = core::step(
         &mut core,
         &env,
-        core::Event::SignIn { held: None, reply_to: ReplyTo::new(Token::new(90)), identity: super::first_owner() },
+        core::Event::SignIn {
+            until: None,
+            held: None,
+            reply_to: ReplyTo::new(Token::new(90)),
+            identity: super::first_owner(),
+        },
     );
     let mut sign_in = None;
     while let Some(request) = out.pop() {

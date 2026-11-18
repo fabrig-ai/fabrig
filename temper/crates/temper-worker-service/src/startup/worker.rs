@@ -243,6 +243,7 @@ pub fn worker_part(
     input: &[u8],
     directories: &config::Directories,
     git: Option<&[u8]>,
+    own: &[application::EnvironmentEntry],
 ) -> Result<WorkerPart, Problems> {
     let document = document(input, directories, true)?;
     let at = member(&document, 0, b"workers").expect("checked workers");
@@ -255,7 +256,7 @@ pub fn worker_part(
     )
     .expect("checked worker");
     let mut problems = Problems::empty();
-    let (_, limits) = application::read(
+    let (configured, limits) = application::read(
         &document,
         member(&document, 0, b"application").expect("checked application"),
         directories,
@@ -270,7 +271,8 @@ pub fn worker_part(
         }
         file.at = path;
     }
-    let own = application::fixed(directories, git, &mut problems);
+    let environment = application::agents_environment(Some(&configured.environment), own);
+    let own = application::fixed(directories, git, environment, &mut problems);
     if !problems.is_empty() {
         return Err(problems);
     }
@@ -513,7 +515,7 @@ pub fn check(
     files: &settings::Files,
     agent: &settings::Agent,
 ) -> Result<(), Problems> {
-    let mut part = worker_part(input, directories, None)?;
+    let mut part = worker_part(input, directories, None, &[])?;
     check_worker_part(&mut part, files, agent)
 }
 

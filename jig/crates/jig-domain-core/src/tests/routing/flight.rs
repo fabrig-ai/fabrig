@@ -25,6 +25,7 @@ fn pending(core: &mut Core, limits: &Limits) -> Token {
         &mut core.people,
         &env,
         people::Event::SignedIn {
+            until: None,
             held: None,
             reply_to: ReplyTo::new(Token::new(76)),
             person: 1,

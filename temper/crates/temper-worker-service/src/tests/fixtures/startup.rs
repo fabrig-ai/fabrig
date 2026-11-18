@@ -287,7 +287,7 @@ pub fn files() -> settings::Files {
 
 /// Small settings supplied in code, independent of the worker document.
 pub fn part(input: &[u8]) -> crate::startup::WorkerPart {
-    let mut part = crate::startup::worker_part(input, &jig_protocol_config::Directories::working(), None).unwrap();
+    let mut part = crate::startup::worker_part(input, &jig_protocol_config::Directories::working(), None, &[]).unwrap();
     let mut limits = jig_protocol_config_fixtures::small();
     for (name, value) in [
         ("hub.slots", 1),

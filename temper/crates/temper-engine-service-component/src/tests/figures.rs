@@ -225,6 +225,7 @@ fn settle(engine: &mut Engine) -> List<Reply> {
 
 fn signed_in(engine: &mut Engine) {
     engine.step(root::Event::Party(root::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(100)),
         identity: people::Identity {

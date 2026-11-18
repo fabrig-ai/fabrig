@@ -1,10 +1,12 @@
 # Signing in
 
 - **jig owns credentials; the flows that ask for one are the
-  application's,** but for jig's three built-ins
+  application's,** but for jig's built-ins
   (`../../client/domain/contract/README.md`, section 2): the printed link, for one
-  person's machine; a service's credential; and a sign-in approved by a
-  browser, for another client of a person signed in there (below).
+  person's machine; the asked link, a fresh one a person's signed-in
+  client asks for that person's browser; a service's credential; and a
+  sign-in approved by a browser, for another client of a person signed
+  in there (below).
 - **A credential** is a sign-in's number beside 32 random bytes, so the
   engine finds its digest by number (`../README.md`, section 8; `../store/secrets.md`
   ). Credentials come from a cryptographic generator of the
@@ -43,7 +45,8 @@
   to the application's startup, `Link { secret }`, which prints a URL carrying
   it. The URL is the application's; the default mapping's is its link
   route (`default-http.md`, 1). Signing in with the secret signs that person in as the
-  deployment's first owner it names, and spends it. Two links are live
+  deployment's first owner it names, and spends it. Beside the asked
+  links (below), two links are live
   at most, the printed link and the local link (below), each one at a
   time: a sign-in with a secret spent, expired or unknown is answered
   why (below), and the component draws a fresh printed link, which the
@@ -89,8 +92,8 @@
       as the machine's other secrets. It adds nothing to the printed
       link's exposure, which stays as it is.
   - *Why a link can't sign in.* The component keeps, in memory, the digests
-    of its last 8 links no longer live, printed or local, each marked used
-    or expired and with which of the two it was; a restart forgets them. A link's sign-in whose secret isn't live is
+    of its last 8 links no longer live, printed, local or asked (below), each marked used
+    or expired and with which of the three it was; a restart forgets them. A link's sign-in whose secret isn't live is
     answered by what it finds: `link_used`, a link a sign-in spent, signed
     in or refused; `link_expired`, one past its expiry; `link_unknown`, any
     other, whether another deployment's link, one past those 8, or bytes
@@ -171,6 +174,86 @@
   It is enabled by configuration (`../configuration.md`, section 3,
   clients), and only where the application's clients' listener is on
   loopback, which its startup checks (`../service.md`, section 3).
+- **The asked link,** for the browser of a person signed in already:
+  once the printed links are spent, a client signed in as a person asks
+  the component for a fresh one-time link, and gives it to the person's
+  browser on the machine in a URL of the printed link's form
+  (`default-http.md`, 1). It is the printed link's kind, signed in by
+  the same message and route and answered as it is, but for whom it
+  signs in: the asking sign-in's own party, never the first owner or
+  another, in a sign-in that expires no later than the asking one, so
+  that a credential can't outlive itself through links. It is memory
+  alone, each link by its secret's digest, never the secret, and a
+  restart forgets every one.
+  - *Asked:* `LinkAsk {}`, with the asking sign-in's credential,
+    answered `LinkAskAnswer`: `asked: LinkAsked { secret: secret 32,
+    expires: u64 }`, `refused`, `signed_out`, `not_ready` or `busy`.
+    Where the printed link isn't enabled, and with no credential, an ask
+    is refused; while the engine stops, not ready. The credential is
+    checked as any exchange's, its digest under its number and its saved
+    expiry, and one that fails is answered `signed_out`. The component
+    then asks people `Whose` the sign-in is
+    (`../../domain/people/README.md`, section 3): a service's is
+    refused, and no signer, its sign-in ended meanwhile, is answered
+    `signed_out`. For a person's, it draws 32 bytes from its generator,
+    the link's secret, and answers `asked` with it and the link's
+    expiry, its wall time: `link_span` on, or the asking sign-in's saved
+    expiry where that is earlier. It keeps the secret's digest, the
+    asking sign-in's number, its saved expiry, the link's cap, and the
+    link's expiry on the monotonic clock. The secret is in that answer
+    alone, never again.
+  - *One per sign-in, four in all:* a sign-in has at most one live
+    asked link, and its asking again replaces it: the one replaced is
+    remembered expired (*Why a link can't sign in*, above), since no one
+    signed in by it. At most 4 sign-ins hold an asked link at once in
+    the deployment, live or reserved, whoever asked; an ask past them
+    from a sign-in that holds none is answered busy until one ends, as
+    is one the component has no room for among its exchanges. A link
+    reserved by a sign-in (below) is no longer live but keeps its
+    sign-in's place among the 4: its sign-in's ask meanwhile draws
+    another in that place, and the reserved one, given back by its
+    exchange (not ready, busy, full), is remembered expired if its
+    sign-in has a live one by then, and is live again otherwise. So a
+    give-back never makes a fifth.
+  - *Signed in by it:* `LinkSignIn`, the printed link's message and
+    route. A secret whose digest is a live asked link's, before its
+    expiry, reserves that link for its exchange, as the printed link's
+    is reserved (*The secret is the link's, or its exchange's*, above):
+    a sign-in with the same secret meanwhile is busy, and changes
+    nothing. The component asks people `Whose` the asking sign-in is,
+    and signs that identity in, held none, capped at the asking
+    sign-in's saved expiry: `core::Event::SignIn { reply_to, identity,
+    held: None, until: Some(cap) }`. The sign-in is made, its
+    credential drawn and its digest kept, and handed out as the printed
+    link's sign-in's is, a browser's by its cookie (`default-http.md`,
+    3). Its party is the asker's. An asker whose sign-in has ended by
+    then signs no one in: refused, and the link spent. A credential the
+    link's exchange carries is not checked: an asked link signs in
+    afresh, as an approval's take does.
+  - *Its answers are the printed link's:* signed in, refused, not
+    ready, busy, full, its `link_until` the asked link's own expiry,
+    and `link_used`, `link_expired` and `link_unknown`, remembered among
+    the last 8 links no longer live, marked asked. Not ready, busy and
+    full spend nothing: the link is live again, with the expiry it was
+    drawn with. Signed in, refused and signed out spend it, as do the
+    core's refusal, a lost answer and the engine's close or abort, and
+    it is remembered used. A sign-in whose secret is remembered as an
+    asked link's draws no printed link, as a local link's doesn't, and
+    no asked link says `LinkSignedIn`. Past its expiry, found by its
+    deadline or by a sign-in, it is remembered expired, and none is
+    drawn in its place.
+  - *The engine's close and abort* drop every asked link, reserved ones
+    with them, as they drop the printed and local links.
+  - *Its exposure:* the link is no more than the credential that asked
+    for it: whoever holds that acts as its party already, until it
+    expires, and the link gives one more client that party, for no
+    longer. Its URL is the printed link's, on the loopback listener, so
+    it signs in on the engine's machine alone, as the printed link does.
+    A program that opens it as a browser would holds a browser's cookie,
+    as one reading the printed link's output can today: approval stays
+    a browser's (below) by the credential each exchange carries.
+
+  It is enabled where the printed link is, and only there (above).
 - **A sign-in approved by a browser,** for that browser's own party:
   a client that can't open the printed link, a program in a terminal
   on the person's machine, asks; the person's browser, signed in by

@@ -103,6 +103,7 @@ fn two_parties_share_the_deployments_room() {
     for (streams, room) in [(1, ROOM), (2, ROOM * 2)] {
         let mut driver = driver(streams);
         driver.send(root::Event::Party(root::PartyInput::SignedIn {
+            until: None,
             held: None,
             reply_to: ReplyTo::new(OTHER_REPLY),
             identity: people::Identity {

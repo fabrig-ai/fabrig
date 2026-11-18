@@ -40,10 +40,24 @@ pub fn parse_over(
     problems: &mut Problems,
 ) -> Option<Members> {
     let engine = engine::parse_over(document, at, jig, directories, sources, problems)?;
+    let mut found = temper_worker_service::startup::Problems::empty();
+    let environment = match engine.environment {
+        Some(at) => temper_worker_service::startup::worker::application::environment(
+            document,
+            at,
+            &config::Path::root().member(b"application").member(b"environment"),
+            &mut found,
+        ),
+        None => Box::default(),
+    };
+    for problem in found.problems.into_boxed() {
+        problems.push_file(problem.path, problem.what.extend(), problem.file);
+    }
+    problems.past = problems.past.saturating_add(found.past);
     let mut workers = List::with_capacity(u32::try_from(engine.workers.len()).expect("bounded workers"));
     for worker in engine.workers {
         workers
-            .push(Worker { root: worker.root, git: None, claude: None, environment: Box::default() })
+            .push(Worker { root: worker.root, git: None, claude: None, environment: environment.clone() })
             .expect("bounded workers");
     }
     Some(Members {

@@ -645,7 +645,7 @@ impl Directory {
             (Stage::RecordCreate, file::Event::Opened { .. }) => {
                 self.stage = if self.record_bytes.is_some() { Stage::RecordWrite } else { Stage::Ready };
             }
-            (Stage::RecordCreate, file::Event::Failed { error, .. }) => {
+            (Stage::RecordCreate, file::Event::Failed { error, .. }) if self.class != Class::Link => {
                 let mut message = self.record_given.as_deref().expect("record path").to_vec();
                 message.extend_from_slice(if matches!(error, Error::Exists | Error::TooManyLinks) {
                     b" exists"

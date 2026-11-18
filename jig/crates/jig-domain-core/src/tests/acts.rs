@@ -630,6 +630,7 @@ fn sign_in(core: &mut Core, limits: &Limits) {
         &mut core.people,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people },
         people::Event::SignedIn {
+            until: None,
             held: None,
             reply_to: ReplyTo::new(Token::new(100)),
             person: 1,

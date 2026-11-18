@@ -1,9 +1,10 @@
 # config: status
 
-2026-11-17. Where the design lags or departs from [config.md](config.md).
+2026-11-18. Where the design lags or departs from [config.md](config.md).
 
 - **Design lags:**
   - 1, 3, 4: `../protocol/configuration/README.md`, sections 1, 2, 3, 6 and 8, give one JSON document, `temper.json`, with jig's three parts at its top level, and every member written out; `../protocol/configuration/engine.md` gives `application`'s members; `../protocol/setup/init.md`, sections 2 and 3, give the documents `init` writes, the box's of 631 lines.
+  - 4.4: `[environment]` is `application.environment` in that document, a list of `{"name", "value"}` entries, in the standalone and worker shapes, with the draft's default, the worker's own `PATH` and `HOME`, where the list is absent or omits them (`../protocol/configuration/README.md`, section 3; `../protocol/configuration/figures.md`, section 6). The TOML file moves it unchanged.
   - 4.5: `../protocol/documentation.md`, section 8, renders `configuration` and `configuration-engine` from the JSON document's decoders, and `limits` and `limits-engine` with `small`'s values.
   - 5: `../protocol/configuration/limits.md` and jig's `protocol/limits.md` give one stock, but a document still overrides it by dotted name in its `limits`, and the counts are constants, not formulas of `live_goals`; `memory_bytes` is still the document's (5.3).
   - 6.1, 6.2: `../protocol/configuration/settings.md`, section 1, keeps the limits and `engine.llm` in the document, the providers leaving it "by a design of their own, later".

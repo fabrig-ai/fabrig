@@ -40,7 +40,7 @@ fn client() -> Client {
     let mut c = new();
     c.step(Event::StartUnlinked { kept: List::with_capacity(0) });
     c.step(Event::Up {
-        up: Up::Served { served: true, versions: Some(contract::VersionRange { first: 31, last: 31 }) },
+        up: Up::Served { served: true, versions: Some(contract::VersionRange { first: 32, last: 32 }) },
     });
     c.step(Event::SignIn { with: With::Transport });
     c
@@ -75,6 +75,13 @@ fn live() -> Client {
     });
     c
 }
+#[test]
+fn an_unlinked_client_answers_a_link_ask_lost_at_once() {
+    let mut c = client();
+    c.step(Event::AskLink);
+    assert_eq!(c.requests(), &[UnlinkedRequest::AskedLink(AskedLink::NotAsked(NotAsked::Lost))]);
+}
+
 #[test]
 fn an_unlinked_client_gives_its_watch_as_the_domain_s_opening() {
     let mut c = client();
