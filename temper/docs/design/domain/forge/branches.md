@@ -103,7 +103,15 @@ own, never a change's:
   by hand, as the symbol *its own goal branch* (`README.md`, section 2), offered on a
   tracked task only, since its goal is the one its changes serve (jig's
   `domain/model.md`, 6.2). Resolved once the goal has its number to
-  `temper/<root>/g<task>` in the project's home (`branches.md`). A goal
+  `temper/<root>/g<task>` in the project's home (`branches.md`).
+  `<root>` is its tree's root, as for every branch of the tree: a goal
+  made beneath a milestone, or beneath any task, takes that task's root,
+  so its branch sits under the milestone's root beside its changes'
+  branches, where the change tool, the goal's closer and a held making
+  each look it up. A goal made beneath a task before its holdings were
+  asked under its tree's root holds its branch under its own number,
+  `temper/<task>/g<task>`; no lookup finds it, so its changes land into the
+  base and its branch is kept as it closes, for a person to read. A goal
   cannot take a hold once active (jig's `domain/tasks/holds.md`, 2), so the
   choice is made with the goal.
 - **Held by its goal for its whole life,** an exclusive hold that
