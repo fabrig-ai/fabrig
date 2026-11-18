@@ -91,6 +91,13 @@ impl Failure {
         Self { step: step.into(), why: why.into(), recovery: false }
     }
 }
+#[derive(Clone, Copy)]
+enum CheckStep {
+    Check,
+    ServingVerdict,
+    Verdict,
+}
+
 struct Run<'a> {
     description: &'a Description,
     commit: &'a str,
@@ -121,15 +128,18 @@ impl Run<'_> {
     fn perform(&mut self, mode: Mode) -> Result<(), Failure> {
         self.before()?;
         self.checkpoint_for_check()?;
-        let may_stay = self.check(false)?;
+        let may_stay = self.check(CheckStep::Check)?;
         if !may_stay || mode == Mode::Together {
             return self.together();
         }
         match mode {
             Mode::Together => unreachable!("together has its own path"),
             Mode::Engine | Mode::Workers => {
+                if !self.check(CheckStep::ServingVerdict)? {
+                    return self.together();
+                }
                 self.stop(Part::Engine)?;
-                if !self.check(true)? {
+                if !self.check(CheckStep::Verdict)? {
                     self.restore()?;
                     return self.together();
                 }
@@ -227,28 +237,35 @@ impl Run<'_> {
         self.journal.record.checkpoint = Some(name.into());
         self.note(&format!("check checkpoint {name}"))
     }
-    fn check(&mut self, again: bool) -> Result<bool, Failure> {
+    fn check(&mut self, kind: CheckStep) -> Result<bool, Failure> {
         let binary = format!("{}/{}/temper-engine", self.description.engine.builds, self.commit);
-        let (step, template, checkpoint) = if again {
-            ("verdict", &self.description.engine.verdict, &self.journal.record.backup)
-        } else {
-            ("check", &self.description.engine.check, &self.journal.record.checkpoint)
+        let (step, template, checkpoint) = match kind {
+            CheckStep::Check => ("check", &self.description.engine.check, &self.journal.record.checkpoint),
+            CheckStep::ServingVerdict => {
+                ("serving verdict", &self.description.engine.verdict, &self.journal.record.checkpoint)
+            }
+            CheckStep::Verdict => ("verdict", &self.description.engine.verdict, &self.journal.record.backup),
         };
         let checkpoint = checkpoint.as_deref().expect("checkpoint taken before its check or verdict");
         let output = self.hosts.run(Part::Engine, &fill(template, &[("binary", &binary), ("checkpoint", checkpoint)]));
         let lines: Vec<String> = output.stdout.lines().chain(output.stderr.lines()).map(str::to_owned).collect();
         let check = Some(Check { code: output.code, lines: lines.clone() });
-        if again {
-            self.journal.record.verdict = check;
-        } else {
-            self.journal.record.check = check;
+        match kind {
+            CheckStep::Check => self.journal.record.check = check,
+            CheckStep::ServingVerdict => {}
+            CheckStep::Verdict => self.journal.record.verdict = check,
         }
         for line in &lines {
             self.note(line)?;
         }
         // Save even a check or verdict with no output, including a command which could not run.
         self.note(&format!("{step} exit {:?}", output.code))?;
-        success(step, &output)?;
+        if let Err(failure) = success(step, &output) {
+            if let CheckStep::ServingVerdict = kind {
+                self.note("serving verdict: a build without upgrade --workers is redeployed with --together")?;
+            }
+            return Err(failure);
+        }
         let may_stay =
             lines.iter().rev().find_map(|line| line.rsplit_once("workers may stay: ").map(|(_, verdict)| verdict))
                 == Some("yes");
