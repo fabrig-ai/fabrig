@@ -1,4 +1,5 @@
 //! Shared ask items (temper/docs/design/client/view-crates.md, 3.3).
+use crate::cards::CardWords as _;
 use crate::words::{Word, Words};
 use alloc::boxed::Box;
 use jig_client::contract::{InboxGroup, ReadValue, Requester};
@@ -62,6 +63,10 @@ pub fn read_parts<'a>(card: &'a Card, w: &Words, whole: bool) -> Asked<'a> {
             };
             cut = partial && !reading;
             let mut parsed = temper_client_domain::question::parse(bytes, partial);
+            if title_in_from(card) && parsed.choices.is_empty() {
+                parsed.question = Box::default();
+                parsed.context = super::chat::after_title_bytes(bytes).into();
+            }
             if reading {
                 let ending = if parsed.context.is_empty() { &mut parsed.question } else { &mut parsed.context };
                 *ending = skein_lib::bytes::concat(&[ending, "…".as_bytes()]);
@@ -124,6 +129,87 @@ pub fn read_parts<'a>(card: &'a Card, w: &Words, whole: bool) -> Asked<'a> {
         Kind::Question | Kind::Proposal => short,
     };
     Asked { card, kind, title, source, parsed, short, cut }
+}
+
+/// Whether the from line names this held, funds or person task by its own title.
+/// temper/docs/design/client/pages/needs-you.md, 1, Its title once.
+#[must_use]
+pub fn title_in_from(card: &Card) -> bool {
+    match card.group {
+        InboxGroup::Escalations => true,
+        InboxGroup::PersonTasks => match person_in_words(card) {
+            Some(task) => match task.requester {
+                Requester::Task(_) => false,
+                Requester::Person(_) | Requester::Deployment { .. } => true,
+            },
+            None => true,
+        },
+        InboxGroup::Questions | InboxGroup::Proposals | InboxGroup::Results | InboxGroup::Replies => false,
+    }
+}
+
+/// The question under a card's from line, distinct from its SHORT on need lines.
+/// temper/docs/design/client/pages/home.md, 1, The cards.
+#[must_use]
+pub fn question(asked: &Asked<'_>, w: &Words) -> Option<Box<[u8]>> {
+    match asked.kind {
+        Kind::Held => Some(hold_sentence(asked.card.document(), w)),
+        Kind::Funds { spent, limit } => Some(w.say(Word::NeedsFundsUsed, &[Hole::Number(spent), Hole::Number(limit)])),
+        Kind::PersonTask => None,
+        Kind::Question => {
+            if title_in_from(asked.card) {
+                None
+            } else {
+                Some(match &asked.parsed {
+                    Some(parsed) => parsed.question.clone(),
+                    None => asked.short.clone(),
+                })
+            }
+        }
+        Kind::Proposal => Some(asked.short.clone()),
+    }
+}
+
+/// A held card's question, without the account kept on its task's page.
+/// temper/docs/design/client/pages/needs-you.md, 1, Why it's held.
+#[must_use]
+pub fn hold_sentence(task: Option<&jig_client::contract::Task>, w: &Words) -> Box<[u8]> {
+    if let Some(task) = task {
+        if let Some(question) = crate::cards::proposal::dependency_question(task, w) {
+            return question;
+        }
+        if let Some(hold) = &task.hold {
+            if let Some(words) = &hold.words {
+                let bytes = words.bytes();
+                let end = [skein_lib::bytes::find(bytes, b"; "), skein_lib::bytes::find(bytes, b"\n")]
+                    .into_iter()
+                    .flatten()
+                    .min();
+                let clause = bytes.get(..end.unwrap_or(bytes.len())).expect("hold clause within words").trim_ascii();
+                if !clause.is_empty() {
+                    return sentence(clause, words.cut && end.is_none());
+                }
+            }
+            return sentence(&crate::cards::hold_phrase(task.chip.task, &hold.reason, w), false);
+        }
+    }
+    w.say_card(crate::cards::P::HeldSentence, &[])
+}
+
+fn sentence(words: &[u8], cut: bool) -> Box<[u8]> {
+    let ending: &[u8] = if cut {
+        "…".as_bytes()
+    } else if words.ends_with(b".") || words.ends_with(b"!") || words.ends_with(b"?") || words.ends_with("…".as_bytes())
+    {
+        b""
+    } else {
+        b"."
+    };
+    let mut words = skein_lib::bytes::concat(&[words, ending]);
+    if let Some(first) = words.first_mut() {
+        first.make_ascii_uppercase();
+    }
+    words
 }
 
 fn bounded_words(card: &Card) -> &jig_client::contract::DocumentText {

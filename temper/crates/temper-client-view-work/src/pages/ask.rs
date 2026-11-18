@@ -1,5 +1,5 @@
 //! Shared card words and parts (temper/docs/design/client/pages/README.md).
-pub use crate::common::ask::{Asked, Kind, need_kind, read};
+pub use crate::common::ask::{Asked, Kind, need_kind, question, read, title_in_from};
 use crate::common::ask::{person_in_words, read_parts};
 use crate::{
     bindings::Bindings,
