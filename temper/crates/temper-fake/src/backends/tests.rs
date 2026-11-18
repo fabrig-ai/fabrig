@@ -25,11 +25,7 @@ fn fixture_claude(claude: Option<&[u8]>) -> (Value, Paths, Peers) {
             git: Some(b"/usr/bin/git"),
             claude,
             login: Some(b"person"),
-            ports: temper_init::Ports {
-                clients: port(8367).expect("port"),
-                llm: port(8370).expect("port"),
-                webhooks: port(8371).expect("port"),
-            },
+            ports: temper_init::Ports { clients: port(8367).expect("port"), webhooks: port(8371).expect("port") },
         },
         &temper_init::Directories { config: b"/source/config", data: b"/source/data" },
         &[7; 32],
@@ -123,6 +119,7 @@ fn init_targets_change_together_and_preserve_registration_terms() {
     temper["engine"]["deployment"]["seed"] = 99.into();
     let docs = write(&temper, &paths, &peers).expect("rewrite init");
     let effective = json(&docs.temper);
+    let llm = flat(&docs.providers);
     assert!(effective["application"].get("charter").is_none());
     assert!(effective["application"].get("landing").is_none());
     let forge = &effective["application"]["test"]["github"];
@@ -148,7 +145,7 @@ fn init_targets_change_together_and_preserve_registration_terms() {
     let peer: Value = serde_json::from_slice(&docs.forgejo).expect("peer document");
     assert_eq!(peer["git_program"], "/effective/data/demo/bin/git");
 
-    let sign_in = &effective["engine"]["llm"]["providers"][0]["sources"]["sign_in"];
+    let sign_in = &llm["providers"][0]["sources"]["sign_in"];
     for (name, expected) in [
         ("issuer", "http://127.0.0.1:9102"),
         ("authorization", "http://127.0.0.1:9102/api/accounts/authorize"),
@@ -159,12 +156,12 @@ fn init_targets_change_together_and_preserve_registration_terms() {
         assert_eq!(sign_in[name], expected, "{name}");
     }
     for name in ["client", "name_hint", "scopes", "must_grant", "resource", "redirect_port", "redirect_path"] {
-        assert_eq!(sign_in[name], temper["engine"]["llm"]["providers"][0]["sources"]["sign_in"][name], "{name}");
+        assert_eq!(sign_in[name], stock_providers()["providers"][0]["sources"]["sign_in"][name], "{name}");
     }
     assert_eq!(sign_in["transport"], "plaintext");
     assert!(sign_in.get("server_name").is_none());
-    assert_eq!(effective["engine"]["llm"]["endpoints"][0]["address"], json!({"socket":"127.0.0.1:9103"}));
-    let endpoint = &effective["engine"]["llm"]["endpoints"][0];
+    assert_eq!(llm["endpoints"][0]["address"], json!({"socket":"127.0.0.1:9103"}));
+    let endpoint = &llm["endpoints"][0];
     assert_eq!(endpoint["transport"], "plaintext");
     assert!(endpoint.get("server_name").is_none());
     assert_eq!(effective["engine"]["deployment"]["seed"], 99);
@@ -377,56 +374,21 @@ fn forgejo_alone_seeds_the_two_copy_sources() {
 }
 
 #[test]
-fn target_selection_uses_ids_and_names_and_removes_stale_tls() {
-    // Fill every TLS removal slot alongside all welcome git/program edits.
-    const TLS: [&str; 4] = ["server_name", "trust", "trust_der", "identity_file"];
-    let (mut temper, paths, peers) = fixture();
-    for pointer in ["/engine/llm/providers/0/sources/sign_in", "/engine/llm/endpoints/0"] {
-        for member in TLS {
-            temper.pointer_mut(pointer).expect("rewrite target")[member] = "/stale/root.der".into();
-        }
-    }
-    temper["engine"]["llm"]["providers"].as_array_mut().expect("providers").reverse();
-    let docs = write(&temper, &paths, &peers).expect("structural rewrite");
-    let effective = json(&docs.temper);
-    let effective_agent = temper_fixtures::agent::configuration(&json(&docs.temper));
-    assert_eq!(effective["engine"]["llm"]["providers"][0], temper["engine"]["llm"]["providers"][0]);
-    assert!(effective["engine"]["llm"]["endpoints"][0].get("trust").is_none());
-    assert!(effective_agent["endpoints"][0].get("trust_der").is_none());
-    for target in [
-        &effective["engine"]["llm"]["providers"][2]["sources"]["sign_in"],
-        &effective["engine"]["llm"]["endpoints"][0],
-        &effective_agent["endpoints"][0],
-    ] {
-        for member in TLS {
-            assert!(target.get(member).is_none(), "removed {member}: {target}");
-        }
-    }
-}
-
-#[test]
-fn malformed_targets_have_named_refusals() {
+fn provider_document_members_are_refused_even_in_the_sandbox() {
     let (temper, paths, peers) = fixture();
-    for (pointer, replacement, words) in [
-        ("/engine/llm/providers/0/sources/sign_in/issuer", json!(false), "wrong value kind"),
-        ("/engine/llm/providers/0/sources/sign_in/client", json!("other"), "expected the shipped registration"),
-        ("/engine/llm/providers/0/sources/sign_in/redirect_port", json!(0), "expected shipped callback 1455"),
-        ("/engine/llm/endpoints/0/address", json!(null), "wrong value kind"),
-    ] {
-        let mut input = temper.clone();
-        *input.pointer_mut(pointer).expect("fixture pointer") = replacement;
-        let refusal = write(&input, &paths, &peers).expect_err("bad target refused");
-        assert_eq!(refusal.words, words.as_bytes(), "{pointer}: {}", String::from_utf8_lossy(&refusal.line()));
-        assert!(!refusal.path.segments.is_empty(), "{pointer}");
+    for value in [Value::Null, json!({"providers": []})] {
+        let mut temper = temper.clone();
+        temper["engine"]["llm"] = value;
+        let why = write(&temper, &paths, &peers).expect_err("providers are settings");
+        assert_eq!(
+            why.line().as_ref(),
+            b"engine.llm: moved: LLM providers are settings; see them with temper ctl settings show provider\n"
+        );
     }
 }
-
 #[test]
-fn duplicate_targets_and_members_are_refused() {
-    let (mut temper, paths, peers) = fixture();
-    let target = temper["engine"]["llm"]["providers"][0].clone();
-    temper["engine"]["llm"]["providers"].as_array_mut().expect("providers").push(target);
-    assert_eq!(write(&temper, &paths, &peers).expect_err("duplicate provider").words, b"target must be unique");
+fn duplicate_document_members_are_refused() {
+    let (_, paths, peers) = fixture();
     assert_eq!(
         rewrite(br#"{"engine":{},"engine":{}}"#, &paths, &peers).expect_err("duplicate member").words,
         b"duplicate"
@@ -468,6 +430,7 @@ fn adapter_and_machine_kinds_are_ordinary_and_no_forges_are_added() {
         let (temper, paths, peers) = fixture_claude(present.then_some(b"/source/claude".as_slice()));
         let docs = write(&temper, &paths, &peers).expect("ordinary rewrite");
         let effective = json(&docs.temper);
+        let llm = flat(&docs.providers);
         assert!(effective["application"].get("forges").is_none());
         assert!(effective["application"].get("setup").is_none());
         for kind in ["owned", "fake"] {
@@ -477,7 +440,7 @@ fn adapter_and_machine_kinds_are_ordinary_and_no_forges_are_added() {
             effective["workers"][0].get("claude").is_none(),
             "the shell pins the fake adapter outside the document"
         );
-        assert!(effective["engine"]["llm"]["providers"][0]["sources"].get("programs").is_none());
+        assert!(llm["providers"][0]["sources"].get("programs").is_none());
         let document = crate::forge::Document::decode(&docs.forgejo).expect("existing Forgejo schema");
         assert_eq!(document.listen(), peers.forgejo);
         assert_eq!(document.admin_token(), b"/effective/data/forgejo-admin.token");
@@ -501,7 +464,7 @@ fn backend_rewrite_keeps_creating_list_capacity() {
     }
 }
 
-fn assert_program_provider(llm: &Value, temper: &Value) {
+fn assert_program_provider(llm: &Value) {
     let provider = llm["providers"]
         .as_array()
         .expect("providers")
@@ -517,7 +480,7 @@ fn assert_program_provider(llm: &Value, temper: &Value) {
         })
     );
     let openai = &llm["providers"][0];
-    assert_eq!(openai["endpoint"], temper["engine"]["llm"]["providers"][0]["endpoint"]);
+    assert_eq!(openai["endpoint"], stock_providers()["providers"][0]["endpoint"]);
     assert!(openai["sources"].get("programs").is_none());
     assert!(provider.get("models").is_none());
     assert!(provider["sources"]["programs"].as_array().expect("program adapters").contains(&json!("claude_code")));
@@ -533,10 +496,11 @@ fn program_offer_has_a_runnable_model_route_in_both_documents() {
         jig_protocol_config::stock().core.documents.lines,
         "the rewrite preserves the profile's creating lists"
     );
-    let effective = json(&docs.temper);
-    let effective_agent = temper_fixtures::agent::configuration(&json(&docs.temper));
-    let llm = &effective["engine"]["llm"];
-    assert_program_provider(llm, &temper);
+    let llm = flat(&docs.providers);
+    let effective_agent =
+        temper_fixtures::agent::with_providers(&json(&docs.temper), &provider_values(&docs.providers));
+
+    assert_program_provider(&llm);
     assert!(llm.get("models").is_none());
     let stock = temper_engine_service_stock::stock::defaults(&admitted.llm, admitted.limits.core.tasks.result_bytes);
     let model = stock.models.iter().find(|entry| entry.model.name.as_ref() == super::PROGRAM_MODEL.as_bytes()).unwrap();
@@ -639,11 +603,12 @@ fn managed_admin_name_accepts_the_actual_fake_seeded_admin_and_token() {
 fn written_anthropic_entries_are_replaced_once() {
     let (temper, paths, peers) = fixture();
     let docs = write(&temper, &paths, &peers).expect("rewrite written Anthropic route");
-    let effective = json(&docs.temper);
-    let effective_agent = temper_fixtures::agent::configuration(&json(&docs.temper));
-    let llm = &effective["engine"]["llm"];
+    let llm = flat(&docs.providers);
+    let effective_agent =
+        temper_fixtures::agent::with_providers(&json(&docs.temper), &provider_values(&docs.providers));
+
     assert_eq!(llm["providers"].as_array().unwrap().iter().filter(|p| p["name"] == "anthropic").count(), 1);
-    assert_program_provider(llm, &temper);
+    assert_program_provider(&llm);
     for endpoints in [&llm["endpoints"], &effective_agent["endpoints"]] {
         assert!(!endpoints.as_array().unwrap().iter().any(|e| e["name"] == "anthropic-api"));
         let selected: Vec<_> = endpoints.as_array().unwrap().iter().filter(|e| e["number"] == 2).collect();
@@ -651,10 +616,8 @@ fn written_anthropic_entries_are_replaced_once() {
         assert_eq!(selected[0]["name"], "fake-claude");
     }
     assert!(llm.get("models").is_none());
-    for document in [&effective, &effective_agent] {
-        assert!(document["engine"]["llm"].get("models").is_none());
-        for endpoint in document.get("endpoints").unwrap_or(&document["engine"]["llm"]["endpoints"]).as_array().unwrap()
-        {
+    for endpoints in [&llm["endpoints"], &effective_agent["endpoints"]] {
+        for endpoint in endpoints.as_array().unwrap() {
             assert!(endpoint.get("models").is_none());
         }
     }
@@ -667,8 +630,9 @@ fn the_templates_list_patterns_keep_every_stock_model() {
         include_bytes!("../../../temper-init/template/temper.json").as_slice(),
         include_bytes!("../../../temper-init/template/bare.json").as_slice(),
     ] {
-        let (mut value, _, _) = fixture();
-        value["engine"]["llm"]["providers"] = json(template)["engine"]["llm"]["providers"].clone();
+        let mut value = json(template);
+        value["engine"]["clients"]["provider"] = Value::Null;
+        value["engine"]["owners"][0]["subject"] = json!("fixture");
         let admitted = admit(&serde_json::to_vec(&value).unwrap());
         let stock =
             temper_engine_service_stock::stock::defaults(&admitted.llm, admitted.limits.core.tasks.result_bytes);
@@ -694,14 +658,8 @@ fn the_templates_list_patterns_keep_every_stock_model() {
 fn admit(bytes: &[u8]) -> jig_protocol_config::Engine {
     let document = crate::read::document(bytes).unwrap();
     let engine = super::member(&document, 0, b"engine", &jig_protocol_config::Path::root()).unwrap();
-    jig_protocol_config::engine(
-        &document,
-        engine,
-        &jig_protocol_config::Directories::working(),
-        jig_protocol_config::Defaults::Passed,
-        &temper_engine_service_startup::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
-    )
-    .unwrap()
+    temper_engine_service_startup::startup::engine(&document, engine, &jig_protocol_config::Directories::working())
+        .unwrap()
 }
 
 #[test]
@@ -734,4 +692,21 @@ fn box_forge_documents_declare_head_owned_ci() {
         assert_eq!(doc["made_ci"], json!({"declared":".fake-forge/ci"}));
         crate::forge::Document::decode(bytes).expect("generated forge document");
     }
+}
+
+fn provider_values(bytes: &[u8]) -> Box<[jig_protocol_config::ProviderSetting]> {
+    let document = crate::read::document(bytes).unwrap();
+    jig_protocol_config::llm::providers_setting(
+        &document,
+        0,
+        &jig_protocol_config::Path::root(),
+        &mut jig_protocol_config::Problems::empty(),
+    )
+    .unwrap()
+}
+fn stock_providers() -> Value {
+    temper_fixtures::providers::flat(&temper_engine_service_stock::providers())
+}
+fn flat(bytes: &[u8]) -> Value {
+    temper_fixtures::providers::flat(&provider_values(bytes))
 }

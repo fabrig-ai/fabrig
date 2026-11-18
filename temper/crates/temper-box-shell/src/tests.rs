@@ -150,6 +150,14 @@ fn the_standalone_operations_check_retains_no_descriptors() {
     let (agent, document) = configuration::documents(&directory, "/fixture/temper");
     write("temper.json", &document);
     temper_fixtures::agent::install(&directory, &serde_json::from_slice(&agent).expect("agent JSON"));
+    let mut document: serde_json::Value =
+        serde_json::from_slice(&fs::read(directory.join("temper.json")).expect("installed document")).expect("JSON");
+    let composed = temper_fixtures::agent::at(&document, &directory);
+    configuration::support::turn_bounds::apply(
+        &mut document,
+        configuration::support::turn_bounds::turn_body(&composed),
+    );
+    let document = serde_json::to_vec(&document).expect("deployment JSON");
     assert_eq!(configuration::flags(&directory).len(), 6);
     let operations = super::operations_in(&[], b"/", &configuration::directories(&directory), &document)
         .expect("standalone operations");
@@ -186,45 +194,26 @@ fn fixed_sign_in_ports_are_checked_against_the_demo_listener() {
     // Resolve the fixture's data paths as a deployment does.
     let example = include_bytes!("../../../docs/examples/owned.json");
     let mut value: serde_json::Value = serde_json::from_slice(example).expect("owned JSON");
-    value["engine"]["llm"]["providers"] = serde_json::json!([{
-        "name":"openai", "number":1, "signed_in_plan":false, "endpoint":"openai", "sources":{
-            "sign_in": {"issuer":"https://issuer.example", "client":"client", "scopes":[],
-                "authorization":"https://issuer.example/auth", "token":"https://issuer.example/token",
-                "keys":"https://issuer.example/keys", "transport":"tls", "server_name":"issuer.example",
-                "must_grant":[], "redirect_path":"callback", "redirect_port":3000}
-        }
-    }]);
     // Keep git concurrency at one so the small profile's 48 sockets reach the
     // redirect-port check after this fixture adds an OAuth listener.
     value["application"]["limits"]["overrides"]["git_component.operations"] = 1.into();
     value["application"]["limits"]["overrides"]["checkout.workspaces"] = 1.into();
     value["workers"][0]["slots"] = 1.into();
-    let mut demo = value.clone();
-    demo["engine"]["llm"]["providers"][0]["sources"]["sign_in"]["redirect_port"] = 8370.into();
-    let fixture = configuration::demo_document(std::path::Path::new("/config"), "127.0.0.1:8370");
-    for field in ["providers", "endpoints"] {
-        let member = fixture["engine"]["llm"][field].as_array().expect("LLM table").last().expect("demo member");
-        demo["engine"]["llm"][field].as_array_mut().expect("LLM table").push(member.clone());
-    }
-    {
-        let document = &demo;
-        let expected = "engine.llm.providers[0].sources.sign_in.redirect_port: fixed port conflicts with engine.llm (scripted provider)\n";
-        assert_eq!(
-            super::setup::check(
-                &serde_json::to_vec(document).expect("local JSON"),
-                &jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").expect("fixture directories")
-            )
-            .expect_err("local listen conflict"),
-            expected
-        );
-    }
-    // The same API on a connected forge belongs to the remote peer, not this process.
-    let deployment = super::setup::check(
-        &serde_json::to_vec(&value).expect("connected JSON"),
-        &jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").expect("fixture directories"),
-    )
-    .expect("connected forge");
-    assert!(deployment.demo.is_none());
+    let directories = jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").expect("directories");
+    let mut providers = temper_service::stock::providers();
+    providers[0].provider.sign_in.as_mut().unwrap().redirect_port = Some(8370);
+    let given = temper_service::stock::Given::Stock
+        .with_providers(providers.clone(), Box::new([temper_service::stock::scripted(crate::scripted::PREFERRED)]));
+    let bytes = serde_json::to_vec(&value).expect("JSON");
+    assert_eq!(
+        super::setup::check_with(&bytes, &directories, &given).unwrap_err(),
+        "providers.setting.providers[0].sources.sign_in.redirect_port: fixed port conflicts with the box's scripted model\n"
+    );
+    // A remote peer's port is not a listener of this process.
+    providers[0].provider.sign_in.as_mut().unwrap().redirect_port = Some(3000);
+    let given = temper_service::stock::Given::Stock
+        .with_providers(providers, Box::new([temper_service::stock::scripted(crate::scripted::PREFERRED)]));
+    assert!(super::setup::check_with(&bytes, &directories, &given).expect("remote port").demo.is_some());
 }
 
 #[test]
@@ -390,7 +379,7 @@ fn the_launchers_io_is_the_small_profiles() {
 #[test]
 fn the_box_builds_its_playground_from_the_scripted_provider_but_an_engine_alone_has_none() {
     let directories = jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").expect("directories");
-    let mut value = configuration::demo_document(std::path::Path::new("/config"), "127.0.0.1:8370");
+    let value = configuration::demo_document(std::path::Path::new("/config"), "127.0.0.1:8370");
     assert!(value["application"].get("demo").is_none());
     let bytes = serde_json::to_vec(&value).expect("fixture");
     let boxed = super::setup::check(&bytes, &directories).expect("box");
@@ -408,9 +397,5 @@ fn the_box_builds_its_playground_from_the_scripted_provider_but_an_engine_alone_
     engine["engine"]["hosts"]["listener"] = serde_json::json!([{"socket":"127.0.0.1:7200"}]);
     let engine = serde_json::to_vec(&engine).expect("engine fixture");
     assert!(temper_engine_shell::setup::check(&engine, &directories).expect("engine alone").demo.is_none());
-    for field in ["providers", "endpoints"] {
-        value["engine"]["llm"][field].as_array_mut().expect("LLM table").retain(|row| row["number"] != 3);
-    }
-    let bytes = serde_json::to_vec(&value).expect("fixture without scripted provider");
-    assert!(super::setup::check(&bytes, &directories).expect("box without scripted provider").demo.is_none());
+    assert!(value["engine"].get("llm").is_none(), "the scripted provider is never a document member");
 }

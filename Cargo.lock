@@ -6333,6 +6333,7 @@ dependencies = [
  "skein-fail-stop",
  "skein-scratch",
  "temper-engine-shell",
+ "temper-fixtures",
  "temper-protocol-store",
  "temper-shell",
  "temper-version",
@@ -6729,6 +6730,7 @@ dependencies = [
  "skein-json",
  "skein-lib",
  "skein-push",
+ "skein-scratch",
  "skein-world",
  "smith-agent-shell",
  "smith-domain",
@@ -6752,6 +6754,7 @@ dependencies = [
  "temper-protocol-store",
  "temper-protocol-worker-wire",
  "temper-service-core",
+ "temper-service-shell",
  "temper-settings-form",
  "temper-worker-service-fixtures",
 ]
@@ -6860,6 +6863,7 @@ dependencies = [
  "temper-protocol-store",
  "temper-protocol-worker-wire",
  "temper-service-core",
+ "temper-worker-service-fixtures",
 ]
 
 [[package]]
@@ -6895,6 +6899,7 @@ dependencies = [
  "temper-engine-domain-forge",
  "temper-engine-service",
  "temper-fake",
+ "temper-fixtures",
  "temper-forge-setup",
  "temper-forge-setup-shell",
  "temper-limits-fixtures",
@@ -7082,6 +7087,7 @@ dependencies = [
  "temper-engine-service-startup",
  "temper-engine-service-stock",
  "temper-engine-service-vocabulary",
+ "temper-service-shell",
  "temper-test-env",
  "temper-worker-shell",
 ]
@@ -7776,6 +7782,7 @@ version = "0.0.0"
 dependencies = [
  "jig-protocol-config",
  "skein-io",
+ "skein-json",
  "skein-lib",
  "skein-scratch",
  "skein-shell",

@@ -114,7 +114,6 @@ fn port(value: &Json, pointer: &str) -> Result<NonZeroU16, String> {
 fn ports(value: &Json) -> Result<temper_init::Ports, String> {
     Ok(temper_init::Ports {
         clients: port(value, "application/clients/listener/socket")?,
-        llm: port(value, "engine/llm/endpoints/3/address/socket")?,
         webhooks: port(value, "application/webhooks/listener/socket")?,
     })
 }

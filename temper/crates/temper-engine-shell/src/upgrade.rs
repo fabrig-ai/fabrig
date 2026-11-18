@@ -45,7 +45,13 @@ fn prepare(binary: &str, directories: &Directories) -> Result<(service::Service,
     ) {
         return Err(format!("temper.json names a worker, and {binary} runs none"));
     }
-    let mut named = setup::check(&bytes, &jig_directories(directories))?.named;
+    let providers = temper_service_shell::providers::read(
+        &path(&directories.data).join("providers.setting"),
+        service::stock::providers(),
+        &mut std::io::stderr(),
+    );
+    let given = service::stock::Given::Stock.with_providers(providers, Box::new([]));
+    let mut named = setup::check_with(&bytes, &jig_directories(directories), &given)?.named;
     let crate::serve::Inputs { files, google, bundle } = crate::serve::before_root(
         &mut named.files,
         &mut named.asked_files,
@@ -56,7 +62,7 @@ fn prepare(binary: &str, directories: &Directories) -> Result<(service::Service,
         false,
     )?;
     let crate::serve::Runtimes { roots, github } = crate::serve::runtimes(named.test_github.as_ref())?;
-    let engine = crate::serve::settings(&bytes, directories, &service::stock::Given::Stock);
+    let engine = crate::serve::settings(&bytes, directories, &given);
     let accounts = crate::serve::accounts(&engine)?;
     let seeds = crate::serve::seeds(None, None)?;
     let mut service = service::startup::restoring_with(
@@ -66,7 +72,7 @@ fn prepare(binary: &str, directories: &Directories) -> Result<(service::Service,
         None,
         &seeds,
         Some(accounts),
-        &service::stock::Given::Stock,
+        &given,
     )
     .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     service.configure_forge_runtime(github, roots);

@@ -76,6 +76,7 @@ pub fn steps(config: &[u8], data: &[u8], peers: &Peers, scripts: Option<&[u8]>, 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Documents {
     pub temper: Box<[u8]>,
+    pub providers: Box<[u8]>,
     pub github: Box<[u8]>,
     pub oauth: Box<[u8]>,
     pub llm: Box<[u8]>,
@@ -110,12 +111,6 @@ impl Edits {
     }
     fn text(&mut self, d: &Document, at: u32, value: &[u8], p: &Path) -> Result<(), Refusal> {
         self.set(d, at, &text(value)?, p)
-    }
-    fn remove(&mut self, d: &Document, at: u32, p: &Path) -> Result<(), Refusal> {
-        let previous = at.checked_sub(1).expect("a removed value has a parent");
-        let first = if d.token(previous).expect("preceding token").kind == Kind::Key { previous } else { at };
-        let after = config::after(d, at).or(Err(read::why(p, b"invalid value")))?;
-        self.rows.push(Edit { first, after, value: None }).or(Err(read::why(p, b"too many rewrites")))
     }
     fn write(&self, d: &Document, out: &mut Encoder) {
         let mut skip = 0;
@@ -188,37 +183,6 @@ fn member(d: &Document, at: u32, name: &[u8], p: &Path) -> Result<u32, Refusal> 
     let mut o = read::object(d, at, p)?;
     read::required(&mut o, d, name, p)
 }
-fn selected(d: &Document, at: u32, key: &[u8], wanted: &[u8], number: bool, p: &Path) -> Result<u32, Refusal> {
-    optional_selected(d, at, key, wanted, number, p)?.ok_or(read::why(p, b"target missing"))
-}
-fn optional_selected(
-    d: &Document,
-    at: u32,
-    key: &[u8],
-    wanted: &[u8],
-    number: bool,
-    p: &Path,
-) -> Result<Option<u32>, Refusal> {
-    let items = read::list(d, at, 1, p)?;
-    let mut found = None;
-    for (i, at) in items.iter().enumerate() {
-        let row = read::index(p, i);
-        let index = member(d, *at, key, &row)?;
-        let value = if number {
-            let n = read::integer(d, index, u64::from(u32::MAX), &row.member(key))?;
-            read::joined(&[Decimal::of(n).as_bytes()])
-        } else {
-            read::text(d, index, 128, &row.member(key))?
-        };
-        if value.as_ref() == wanted {
-            if found.is_some() {
-                return Err(read::why(p, b"target must be unique"));
-            }
-            found = Some(*at);
-        }
-    }
-    Ok(found)
-}
 fn socket(addr: SocketAddr, at: &Path) -> Result<Box<[u8]>, Refusal> {
     if !addr.ip().is_loopback() || addr.port() == 0 || addr.port() == 1455 {
         return Err(read::why(at, b"expected a nonzero loopback peer, distinct from callback 1455"));
@@ -284,80 +248,6 @@ fn paths(paths: &Paths) -> Result<(), Refusal> {
     }
     Ok(())
 }
-fn tls(d: &Document, at: u32, edits: &mut Edits, p: &Path) -> Result<(), Refusal> {
-    let mut o = read::object(d, at, p)?;
-    for name in [b"server_name".as_slice(), b"trust", b"trust_der", b"identity_file"] {
-        if let Some(value) = o.member(d, name) {
-            edits.remove(d, value, &p.member(name))?;
-        }
-    }
-    Ok(())
-}
-fn input_address(d: &Document, at: u32, p: &Path) -> Result<(), Refusal> {
-    let mut problems = jig_protocol_config::Problems::empty();
-    let value = jig_protocol_config::address::read(d, at, p, &mut problems);
-    if let Some(problem) = problems.problems.get(0) {
-        return Err(read::kind(&problem.path, problem.what));
-    }
-    match value {
-        Some(_) => Ok(()),
-        None => Err(read::why(p, b"wrong value kind")),
-    }
-}
-fn endpoint(d: &Document, at: u32, socket: &[u8], edits: &mut Edits, p: &Path) -> Result<(), Refusal> {
-    let at = selected(d, at, b"name", b"openai", false, p)?;
-    let number = member(d, at, b"number", p)?;
-    if read::integer(d, number, u64::from(u32::MAX), &p.member(b"number"))? != 1 {
-        return Err(read::why(&p.member(b"number"), b"openai endpoint must be number 1"));
-    }
-    let address_at = member(d, at, b"address", p)?;
-    input_address(d, address_at, &p.member(b"address"))?;
-    let transport = member(d, at, b"transport", p)?;
-    let _value = read::text(d, transport, 32, &p.member(b"transport"))?;
-    edits.set(d, address_at, &address(socket)?, &p.member(b"address"))?;
-    edits.text(d, transport, b"plaintext", &p.member(b"transport"))?;
-    tls(d, at, edits, p)
-}
-
-fn program_endpoint(socket: &[u8]) -> Result<Box<[u8]>, Refusal> {
-    let tail = br#""connect_ms":10000,"handshake_ms":10000"#;
-    Ok(read::joined(&[
-        br#"{"name":"fake-claude","number":2,"dialect":2,"provider":"anthropic","program":"claude_code","address":"#,
-        &address(socket)?,
-        br#", "transport":"plaintext","headers":[],"#,
-        tail,
-        b"}",
-    ]))
-}
-
-fn program_route(d: &Document, llm: u32, socket: &[u8], edits: &mut Edits, p: &Path) -> Result<(), Refusal> {
-    let endpoints = member(d, llm, b"endpoints", p)?;
-    let endpoint_path = p.member(b"endpoints");
-    let endpoint = selected(d, endpoints, b"name", b"anthropic", false, &endpoint_path)?;
-    edits.set(d, endpoint, &program_endpoint(socket)?, &endpoint_path)?;
-    remove_direct_endpoint(d, endpoints, edits, &endpoint_path)?;
-    let providers = member(d, llm, b"providers", p)?;
-    let provider_path = p.member(b"providers");
-    let provider = selected(d, providers, b"name", b"anthropic", false, &provider_path)?;
-    let endpoint = member(d, provider, b"endpoint", &provider_path)?;
-    edits.text(d, endpoint, b"fake-claude", &provider_path.member(b"endpoint"))?;
-    remove_member(d, provider, b"direct", edits, &provider_path)?;
-    let sources = member(d, provider, b"sources", &provider_path)?;
-    remove_member(d, sources, b"keys", edits, &provider_path.member(b"sources"))
-}
-fn remove_member(d: &Document, at: u32, name: &[u8], edits: &mut Edits, p: &Path) -> Result<(), Refusal> {
-    if let Some(at) = read::object(d, at, p)?.member(d, name) {
-        edits.remove(d, at, &p.member(name))?;
-    }
-    Ok(())
-}
-fn remove_direct_endpoint(d: &Document, endpoints: u32, edits: &mut Edits, p: &Path) -> Result<(), Refusal> {
-    if let Some(at) = optional_selected(d, endpoints, b"name", b"anthropic-api", false, p)? {
-        edits.remove(d, at, p)?;
-    }
-    Ok(())
-}
-
 /// Wire welcome peers and a program model in ordinary documents. The shell validates and rebases imported resources first.
 pub fn rewrite(temper: &[u8], paths: &Paths, peers: &Peers) -> Result<Documents, Refusal> {
     if temper.len() > usize::try_from(crate::DOCUMENT_BYTES).expect("document bound fits") {
@@ -384,12 +274,12 @@ pub fn rewrite(temper: &[u8], paths: &Paths, peers: &Peers) -> Result<Documents,
     let git = path(&paths.data, b"demo/bin/git");
     forge(&d, application, &github, &git, &mut edits, &ap)?;
     let engine = member(&d, 0, b"engine", &root)?;
-    let ep = root.member(b"engine").member(b"llm");
-    let llm_at = member(&d, engine, b"llm", &root.member(b"engine"))?;
-    sign_in(&d, llm_at, &oauth, &mut edits, &ep)?;
-    let endpoints = member(&d, llm_at, b"endpoints", &ep)?;
-    endpoint(&d, endpoints, &llm, &mut edits, &ep.member(b"endpoints"))?;
-    program_route(&d, llm_at, &llm, &mut edits, &ep)?;
+    if read::object(&d, engine, &root.member(b"engine"))?.member(&d, b"llm").is_some() {
+        return Err(read::why(
+            &root.member(b"engine").member(b"llm"),
+            b"moved: LLM providers are settings; see them with temper ctl settings show provider",
+        ));
+    }
     let clients = member(&d, application, b"clients", &ap)?;
     let bundle = member(&d, clients, b"bundle", &ap.member(b"clients"))?;
     if !read::is_null(&d, bundle) {
@@ -399,6 +289,7 @@ pub fn rewrite(temper: &[u8], paths: &Paths, peers: &Peers) -> Result<Documents,
     capacity(&d, &mut edits)?;
     Ok(Documents {
         temper: edits.finish(&d)?,
+        providers: providers(peers)?,
         github: forge_document(&github, &paths.data, &d, clients)?,
         oauth: read::joined(&[
             b"{\"listen\":",
@@ -429,6 +320,48 @@ pub fn rewrite(temper: &[u8], paths: &Paths, peers: &Peers) -> Result<Documents,
         ]),
     })
 }
+/// The sandbox's kept providers, constructed from the binary's defaults, never a document member.
+pub fn providers(peers: &Peers) -> Result<Box<[u8]>, Refusal> {
+    let oauth = socket(peers.oauth, &Path::root().member(b"oauth"))?;
+    let _llm = socket(peers.llm, &Path::root().member(b"llm"))?;
+    let mut providers = temper_engine_service_stock::providers();
+    for value in &mut providers {
+        if value.provider.number == 1 {
+            let registration = value.provider.sign_in.as_mut().expect("stock sign-in");
+            let origin = read::joined(&[b"http://", &oauth]);
+            registration.issuer.clone_from(&origin);
+            registration.authorization = read::joined(&[&origin, b"/api/accounts/authorize"]);
+            registration.token = read::joined(&[&origin, b"/api/accounts/oauth/token"]);
+            registration.revocation = Some(read::joined(&[&origin, b"/api/accounts/oauth/revoke"]));
+            registration.keys = read::joined(&[&origin, b"/.well-known/jwks.json"]);
+            registration.endpoint_transport = jig_protocol_config::Transport::Plaintext;
+        } else if value.provider.number == 2 {
+            value.provider.endpoint = Some(bytes::copy_of(b"fake-claude"));
+            value.provider.direct = None;
+            value.provider.keys = false;
+        }
+        let mut endpoints = List::uncapped();
+        for endpoint in &value.endpoints {
+            if endpoint.number == 4 {
+                continue;
+            }
+            let mut endpoint = endpoint.clone();
+            endpoint.address = jig_protocol_config::EndpointAddress::Socket(peers.llm);
+            endpoint.transport = jig_protocol_config::Transport::Plaintext;
+            if value.provider.number == 2 {
+                endpoint.name = bytes::copy_of(b"fake-claude");
+            }
+            endpoints.push(endpoint).expect("stock endpoints");
+        }
+        value.endpoints = endpoints.into_boxed();
+    }
+    let mut measure = Encoder::measure(&OUTPUT);
+    jig_protocol_config::llm::render_providers(&providers, &mut measure);
+    let mut out = Encoder::write(measure.measured().expect("stock provider output"), &OUTPUT);
+    jig_protocol_config::llm::render_providers(&providers, &mut out);
+    Ok(out.finish())
+}
+
 // Insert at the closing token so edits to existing children remain independent.
 fn append(d: &Document, at: u32, bytes: &[u8], edits: &mut Edits) -> Result<(), Refusal> {
     let close = config::after(d, at)
@@ -493,40 +426,6 @@ fn forge(
         None => object_member(d, application, b"test", &read::joined(&[b"{\"github\":", &value, b"}"]), edits),
     }
 }
-fn sign_in(d: &Document, llm_at: u32, oauth: &[u8], edits: &mut Edits, ep: &Path) -> Result<(), Refusal> {
-    let providers = member(d, llm_at, b"providers", ep)?;
-    let pp = ep.member(b"providers");
-    let provider = selected(d, providers, b"number", b"1", true, &pp)?;
-    let name = member(d, provider, b"name", &pp)?;
-    if read::text(d, name, 128, &pp.member(b"name"))?.as_ref() != b"openai" {
-        return Err(read::why(&pp.member(b"name"), b"provider 1 must be openai"));
-    }
-    let sources = member(d, provider, b"sources", &pp)?;
-    let sp = pp.member(b"sources").member(b"sign_in");
-    let sign_in = member(d, sources, b"sign_in", &pp.member(b"sources"))?;
-    registration(d, sign_in, &sp)?;
-    let origin = read::joined(&[b"http://", oauth]);
-    for (name, suffix) in [
-        (b"issuer".as_slice(), b"".as_slice()),
-        (b"authorization", b"/api/accounts/authorize"),
-        (b"token", b"/api/accounts/oauth/token"),
-        (b"revocation", b"/api/accounts/oauth/revoke"),
-        (b"keys", b"/.well-known/jwks.json"),
-    ] {
-        let at = member(d, sign_in, name, &sp)?;
-        let old = read::text(d, at, 1024, &sp.member(name))?;
-        let expected = read::joined(&[b"https://auth.openai.com", suffix]);
-        if old != expected {
-            return Err(read::why(&sp.member(name), b"expected the shipped sign-in origin and path"));
-        }
-        edits.text(d, at, &read::joined(&[&origin, suffix]), &sp.member(name))?;
-    }
-    let transport = member(d, sign_in, b"transport", &sp)?;
-    let _value = read::text(d, transport, 32, &sp.member(b"transport"))?;
-    edits.text(d, transport, b"plaintext", &sp.member(b"transport"))?;
-    tls(d, sign_in, edits, &sp)?;
-    Ok(())
-}
 fn forge_document(socket: &[u8], data: &[u8], d: &Document, clients: u32) -> Result<Box<[u8]>, Refusal> {
     let p = Path::root().member(b"application").member(b"clients").member(b"listener");
     let listener = member(d, clients, b"listener", &p)?;
@@ -573,39 +472,6 @@ fn duplicates(d: &Document) -> Result<(), Refusal> {
                 .or(Err(read::why(&p, b"invalid value")))?;
         }
         read::finish(object, d, &p)?;
-    }
-    Ok(())
-}
-fn registration(d: &Document, at: u32, p: &Path) -> Result<(), Refusal> {
-    const SCOPES: &[&[u8]] =
-        &[b"openid", b"profile", b"email", b"offline_access", b"resource.invoke", b"chatgpt.tokens.use.direct"];
-    const MUST_GRANT: &[&[u8]] = &[b"chatgpt.tokens.use.direct"];
-    for (name, expected) in [
-        (b"client".as_slice(), b"dynamic_agent_client".as_slice()),
-        (b"name_hint", b"temper"),
-        (b"resource", b"https://api.openai.com/v1"),
-        (b"redirect_path", b"auth/callback"),
-    ] {
-        let value = member(d, at, name, p)?;
-        if read::text(d, value, 1024, &p.member(name))?.as_ref() != expected {
-            return Err(read::why(&p.member(name), b"expected the shipped registration"));
-        }
-    }
-    for (name, expected) in [(b"scopes".as_slice(), SCOPES), (b"must_grant", MUST_GRANT)] {
-        let value = member(d, at, name, p)?;
-        let values = read::list(d, value, 1, &p.member(name))?;
-        if usize::try_from(values.len()).expect("bounded list") != expected.len() {
-            return Err(read::why(&p.member(name), b"expected shipped scopes"));
-        }
-        for (value, wanted) in values.iter().zip(expected) {
-            if read::text(d, *value, 1024, &p.member(name))?.as_ref() != *wanted {
-                return Err(read::why(&p.member(name), b"expected shipped scopes"));
-            }
-        }
-    }
-    let port = member(d, at, b"redirect_port", p)?;
-    if read::integer(d, port, u64::from(u16::MAX), &p.member(b"redirect_port"))? != 1455 {
-        return Err(read::why(&p.member(b"redirect_port"), b"expected shipped callback 1455"));
     }
     Ok(())
 }

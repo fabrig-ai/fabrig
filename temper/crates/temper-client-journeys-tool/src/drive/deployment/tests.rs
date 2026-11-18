@@ -63,8 +63,9 @@ fn documents_are_exact_bounded_json_at_prepared_paths() {
         ("agent.json", b"{}".as_slice()),
         ("forgejo.json", b"{}".as_slice()),
         ("model.json", b"{}".as_slice()),
+        ("providers.json", b"{}".as_slice()),
     ];
-    let rendered = documents(&files, &place).expect("five documents");
+    let rendered = documents(&files, &place).expect("deployment documents and kept providers");
     assert_eq!(
         rendered.iter().map(|(path, _)| path.to_str().expect("fixture path")).collect::<Vec<_>>(),
         [
@@ -73,6 +74,8 @@ fn documents_are_exact_bounded_json_at_prepared_paths() {
             "/scratch/config/worker/agent.json",
             "/scratch/config/forgejo.json",
             "/scratch/config/model.json",
+            "/scratch/data/engine/providers.setting",
+            "/scratch/config/providers.json",
         ]
     );
     assert!(rendered.iter().all(|(_, bytes)| json(bytes) == json!({})));

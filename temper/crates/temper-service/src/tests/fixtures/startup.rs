@@ -64,6 +64,121 @@ pub fn worker_runtime() -> crate::WorkerRuntime {
         agent: super::pinned_agent(super::worker_settings().jig.agent.as_ref().expect("checked worker agent")),
     }
 }
+/// The small worlds' provider and catalogue facts are typed inputs, not deployment members.
+pub fn given(input: &[u8], directories: &jig_protocol_config::Directories) -> crate::stock::Given {
+    use jig_protocol_config as config;
+    let mut words = 32;
+    if let Ok(document) =
+        config::document(input, &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 })
+        && let Some(at) = document.member(0, b"engine")
+        && let Ok(fixed) = crate::startup::fixed(directories)
+        && let Ok(engine) = config::engine(&document, at, directories, config::Defaults::PassedProviders, &fixed)
+    {
+        words = engine.limits.core.tasks.result_bytes;
+    }
+    let llm = config::Llm { models: Box::new([]), providers: Box::new([]), endpoints: Box::new([]) };
+    let models = crate::stock::models(&llm).into_vec().into_iter().filter(|row| row.model.provider == 1).collect();
+    let mut jig = crate::stock::with_models(models, words);
+    jig.providers = temper_worker_service_fixtures::providers();
+    let root = crate::limits::engine(&config::stock(), &crate::limits::stock()).expect("stock fixture limits");
+    crate::stock::Given::Own { jig, forge: crate::stock::forge(&root), ways: crate::stock::ways() }
+}
+pub fn checked_start(
+    input: &[u8],
+    directories: &jig_protocol_config::Directories,
+    files: &settings::Files,
+    agent: Option<&settings::Agent>,
+    seeds: &settings::Seeds,
+    forges: List<crate::ForgeRuntime>,
+    setup: Option<&temper_forge_setup::check::Checked>,
+) -> Result<crate::startup::CheckedStart, crate::startup::Problems> {
+    crate::startup::checked_start_with(
+        input,
+        directories,
+        files,
+        agent,
+        seeds,
+        forges,
+        setup,
+        &given(input, directories),
+        None,
+    )
+}
+#[expect(clippy::too_many_arguments, reason = "the fixture retains the public check's runtime facts")]
+pub fn check(
+    input: &[u8],
+    directories: &jig_protocol_config::Directories,
+    files: &settings::Files,
+    agent: &settings::Agent,
+    seeds: &settings::Seeds,
+    accounts: Option<&crate::AccountsRuntime>,
+    forges: List<crate::ForgeRuntime>,
+    setup: Option<&temper_forge_setup::check::Checked>,
+) -> Result<(), crate::startup::Problems> {
+    if crate::startup::nearest(input) == Some(crate::startup::Shape::WorkerAlone) {
+        return crate::startup::check(input, directories, files, agent, seeds, accounts, forges, setup);
+    }
+    checked_start(input, directories, files, Some(agent), seeds, forges, setup)?;
+    Ok(())
+}
+#[expect(clippy::too_many_arguments, reason = "the fixture supplies typed providers to the existing startup entry")]
+pub fn startup(
+    input: &[u8],
+    directories: &jig_protocol_config::Directories,
+    files: &settings::Files,
+    agent: &settings::Agent,
+    seeds: &settings::Seeds,
+    accounts: Option<crate::AccountsRuntime>,
+    runtime: crate::WorkerRuntime,
+    forges: List<crate::ForgeRuntime>,
+) -> Result<crate::Service, crate::startup::Problems> {
+    crate::startup::startup_with(
+        input,
+        directories,
+        files,
+        agent,
+        seeds,
+        accounts,
+        runtime,
+        forges,
+        &given(input, directories),
+    )
+}
+#[expect(clippy::too_many_arguments, reason = "the fixture retains setup's existing runtime facts")]
+pub fn with_setup(
+    input: &[u8],
+    directories: &jig_protocol_config::Directories,
+    files: &settings::Files,
+    agent: Option<&settings::Agent>,
+    seeds: &settings::Seeds,
+    accounts: Option<crate::AccountsRuntime>,
+    runtime: Option<crate::WorkerRuntime>,
+    forges: List<crate::ForgeRuntime>,
+    setup: Option<&temper_forge_setup::check::Checked>,
+    box_line_bytes: Option<u32>,
+) -> Result<crate::Service, crate::startup::Problems> {
+    crate::startup::with_setup_given(
+        input,
+        directories,
+        files,
+        agent,
+        seeds,
+        accounts,
+        runtime,
+        forges,
+        setup,
+        box_line_bytes,
+        None,
+        &given(input, directories),
+        Box::new([]),
+    )
+}
+pub fn named(
+    input: &[u8],
+    directories: &jig_protocol_config::Directories,
+) -> Result<crate::startup::Named, crate::startup::Problems> {
+    crate::startup::named_with(input, directories, &given(input, directories))
+}
 pub fn startup_agent() -> settings::Agent {
     // Match init's maximum run spend, including Fable's cache-write reserve.
     let init = super::super::stock::engine(&super::super::stock::generated());
@@ -169,44 +284,13 @@ pub fn with(input: &[u8], path: &[u8], json: &[u8]) -> Box<[u8]> {
     result.into_boxed_slice()
 }
 
-/// Several reads and disjoint edits of one fixture share its parsed document.
-pub struct Json<'a> {
-    input: &'a [u8],
-    document: skein_json::Document,
-}
-impl<'a> Json<'a> {
-    pub fn new(input: &'a [u8]) -> Self {
-        let document = jig_protocol_config::document(
-            input,
-            &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
-        )
-        .unwrap();
-        Self { input, document }
-    }
-    pub fn value(&self, path: &[u8]) -> &[u8] {
-        &self.input[member_span_in(self.input, &self.document, path)]
-    }
-    pub fn with(&self, edits: &[(&[u8], &[u8])]) -> Box<[u8]> {
-        let mut edits: Vec<_> = edits
-            .iter()
-            .map(|(path, json)| (member_span_in(self.input, &self.document, path), turn_limits(path, json)))
-            .collect();
-        edits.sort_unstable_by_key(|(span, _)| span.start);
-        let mut result = Vec::new();
-        let mut after = 0;
-        for (span, json) in edits {
-            assert!(after <= span.start, "fixture edits are disjoint");
-            result.extend_from_slice(&self.input[after..span.start]);
-            result.extend_from_slice(&json);
-            after = span.end;
-        }
-        result.extend_from_slice(&self.input[after..]);
-        result.into_boxed_slice()
-    }
-}
 fn member_span(input: &[u8], path: &[u8]) -> core::ops::Range<usize> {
-    let json = Json::new(input);
-    member_span_in(input, &json.document, path)
+    let document = jig_protocol_config::document(
+        input,
+        &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
+    )
+    .unwrap();
+    member_span_in(input, &document, path)
 }
 fn member_span_in(input: &[u8], document: &skein_json::Document, path: &[u8]) -> core::ops::Range<usize> {
     use jig_protocol_config::read;
@@ -302,7 +386,8 @@ pub fn start(
     runtime: crate::WorkerRuntime,
     forges: List<crate::ForgeRuntime>,
 ) -> Result<crate::Service, crate::startup::Problems> {
-    let defaults = crate::stock::with_models(Box::new([super::small_model()]), 32);
+    let mut defaults = crate::stock::with_models(Box::new([super::small_model()]), 32);
+    defaults.providers = temper_worker_service_fixtures::providers();
     crate::startup::startup_with(
         document,
         directories,

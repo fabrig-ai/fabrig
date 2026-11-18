@@ -25,7 +25,11 @@ pub fn demo_service() -> crate::Service {
         super::forge_runtime(),
         None,
         &crate::stock::Given::Own {
-            jig: crate::stock::with_models(Box::new([super::small_model()]), 32),
+            jig: {
+                let mut defaults = crate::stock::with_models(Box::new([super::small_model()]), 32);
+                defaults.providers = temper_worker_service_fixtures::providers();
+                defaults
+            },
             forge: Box::default(),
             ways: crate::stock::ways(),
         },

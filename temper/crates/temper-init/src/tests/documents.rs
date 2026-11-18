@@ -136,40 +136,6 @@ fn the_box_runs_four_agents_and_keeps_eight_streams_and_four_calls_beside_them()
 }
 
 #[test]
-fn the_owned_example_offers_openai_keys_and_chatgpts_sign_in() {
-    let owned = parse(fixtures::OWNED);
-    assert_eq!(
-        owned["engine"]["llm"]["providers"],
-        json!([{
-            "name": "openai", "number": 1_u32, "signed_in_plan": true,
-            "manage_usage": "https://chatgpt.com/settings/usage",
-            "keep": ["gpt-*"],
-            "drop": ["*audio*", "*image*", "*realtime*", "*search*", "*transcribe*", "*tts*", "*-20??-??-??"],
-            "endpoint": "openai", "sources": {"keys": true, "sign_in": {
-                "issuer": "https://auth.openai.com", "client": "dynamic_agent_client", "name_hint": "temper",
-                "authorization": "https://auth.openai.com/api/accounts/authorize",
-                "token": "https://auth.openai.com/api/accounts/oauth/token",
-                "revocation": "https://auth.openai.com/api/accounts/oauth/revoke",
-                "keys": "https://auth.openai.com/.well-known/jwks.json",
-                "transport": "tls", "server_name": "auth.openai.com",
-                "scopes": ["openid", "profile", "email", "offline_access", "resource.invoke", "chatgpt.tokens.use.direct"],
-                "must_grant": ["chatgpt.tokens.use.direct"], "resource": "https://api.openai.com/v1",
-                "redirect_path": "auth/callback", "redirect_port": 1_455_u16
-            }}
-        }])
-    );
-    let endpoint = &owned["engine"]["llm"]["endpoints"][0];
-    assert_eq!(endpoint["name"], "openai");
-    assert_eq!(endpoint["provider"], "openai");
-    assert_eq!(endpoint["dialect"], 3_u32);
-    assert_eq!(endpoint["address"], json!({"host": "api.openai.com", "port": 443_u16}));
-    assert_eq!(endpoint["transport"], "tls");
-    assert_eq!(endpoint["server_name"], "api.openai.com");
-    assert_eq!(endpoint["headers"], parse(b"[]"));
-    assert!(owned["engine"]["llm"].get("models").is_none());
-}
-
-#[test]
 fn the_default_keeps_the_owned_structure_with_stock_models() {
     let owned = parse(fixtures::OWNED);
     assert_eq!(owned["engine"]["memory_bytes"], 1_073_741_824_u64);
@@ -192,7 +158,7 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
         let mut expected = owned.clone();
         assert_ne!(actual["engine"]["owners"].as_array().unwrap().len(), 0);
         // The startup turn_bounds writer holds these to each document's own
-        // agent; init adds a demo endpoint, so smith derives a different T.
+        // agent; a box adds its demo endpoint at startup.
         let template = parse(include_bytes!("../../template/temper.json"));
         for pointer in ["/engine/limits/overrides", "/application/limits/overrides"] {
             for (name, bytes) in template.pointer(pointer).expect("template overrides").as_object().expect("limit map")
@@ -216,28 +182,7 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
             "key": "provider.key", "addresses": [1_u32],
             "clients": parse(b"[]")
         });
-        let openai = owned["engine"]["llm"]["providers"][0].clone();
         for (path, value) in [
-            (
-                "/engine/llm/providers",
-                json!([
-                    openai,
-                    anthropic("providers"),
-                    {"name": "demo", "number": 3_u64, "signed_in_plan": false,
-                     "endpoint": "demo", "sources": {"keys": true}}
-                ]),
-            ),
-            (
-                "/engine/llm/endpoints",
-                json!([
-                    owned["engine"]["llm"]["endpoints"][0],
-                    anthropic("endpoints"),
-                    anthropic("direct"),
-                    {"name": "demo", "number": 3_u64, "dialect": 3_u64, "provider": "demo",
-                     "address": {"socket": format!("127.0.0.1:{}", facts.ports.llm)},
-                     "transport": "plaintext", "headers": parse(b"[]"), "connect_ms": 10_000_u64, "handshake_ms": 10_000_u64}
-                ]),
-            ),
             ("/application/webhooks", json!({"listener": {"socket": format!("127.0.0.1:{}", facts.ports.webhooks)}})),
             ("/application/clients/listener/socket", json!(format!("127.0.0.1:{}", facts.ports.clients))),
             ("/application/clients/bundle", Value::Null),
@@ -245,9 +190,18 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
         ] {
             set(&mut expected, path, value);
         }
-        for member in
-            ["charters", "templates", "policies", "rules", "deployment", "providers", "connectors", "acts", "projects"]
-        {
+        for member in [
+            "llm",
+            "charters",
+            "templates",
+            "policies",
+            "rules",
+            "deployment",
+            "providers",
+            "connectors",
+            "acts",
+            "projects",
+        ] {
             expected["engine"].as_object_mut().unwrap().remove(member);
             assert!(actual["engine"].get(member).is_none(), "{row}: {member}");
         }
@@ -270,7 +224,7 @@ fn facts_are_written_as_json_text() {
         let answered = files(&facts, &DIRECTORIES, &[0; 32]).expect("valid text paths");
         let parsed = parse(content(&answered, b"temper.json"));
         assert!(parsed["application"].get("workers").is_none(), "{row}");
-        assert_eq!(parsed["engine"]["llm"]["endpoints"][3]["address"], json!({"socket": "127.0.0.1:8370"}), "{row}");
+        assert!(parsed["engine"].get("llm").is_none(), "{row}");
         let crate::Content::Link { target } = &fixtures::file(&answered.files, b"demo/bin/git").content else {
             panic!("the fake git is a launcher link")
         };
@@ -325,9 +279,18 @@ fn the_person_keeps_a_forgejo_login_or_falls_back() {
 fn the_template_seeds_no_project_and_no_settings_members() {
     for template in [template::TEMPER, template::BARE] {
         let document = parse(template);
-        for member in
-            ["charters", "templates", "policies", "rules", "deployment", "providers", "connectors", "acts", "projects"]
-        {
+        for member in [
+            "llm",
+            "charters",
+            "templates",
+            "policies",
+            "rules",
+            "deployment",
+            "providers",
+            "connectors",
+            "acts",
+            "projects",
+        ] {
             assert!(document["engine"].get(member).is_none());
         }
         assert!(document["application"].get("landing").is_none());
@@ -349,9 +312,6 @@ fn the_bare_document_is_the_box_less_its_parts() {
         expected["engine"]["clients"].as_object_mut().unwrap().remove("provider");
         expected["engine"]["owners"][0]["subject"] = json!("owner-a");
         expected["engine"].as_object_mut().unwrap().remove("acts");
-        for member in ["providers", "endpoints"] {
-            expected["engine"]["llm"][member].as_array_mut().unwrap().retain(|item| item["name"] != "demo");
-        }
         let names = [b"worker.secret".as_slice(), b"temper.json"];
         assert_eq!(bare.len(), names.len(), "{row}");
         for (file, name) in bare.iter().zip(names) {
@@ -371,26 +331,6 @@ fn the_bare_document_is_the_box_less_its_parts() {
     }
 }
 
-// protocol/configuration/stock.md: the seven declarations, including their document order.
-
-fn anthropic(member: &str) -> Value {
-    match member {
-        "providers" => {
-            parse(br#"{"name":"anthropic","number":2,"signed_in_plan":false,"manage_usage":"https://claude.ai/settings/usage","endpoint":"anthropic","direct":"anthropic-api","keep":["claude-*"],"drop":["*-20??????"],"sources":{"programs":["claude_code"],"keys":true}}"#)
-        }
-        "endpoints" => {
-            parse(br#"{"name":"anthropic","number":2,"dialect":2,"provider":"anthropic","program":"claude_code","address":{"host":"api.anthropic.com","port":443},"transport":"tls","headers":[],"connect_ms":10000,"handshake_ms":10000,"server_name":"api.anthropic.com"}"#)
-        }
-        "direct" => {
-            let mut endpoint = anthropic("endpoints");
-            endpoint["name"] = json!("anthropic-api");
-            endpoint["number"] = json!(4_u32);
-            endpoint.as_object_mut().unwrap().remove("program");
-            endpoint
-        }
-        _ => panic!("known LLM member"),
-    }
-}
 #[test]
 fn every_deployment_offers_claude_found_or_fetched() {
     // protocol/setup/init.md, 3: OpenAI, Anthropic and demo fit in one offer.
@@ -401,12 +341,7 @@ fn every_deployment_offers_claude_found_or_fetched() {
         for files in [boxed.files.as_ref(), bare.as_ref()] {
             let document = parse(file_bytes(files, b"temper.json"));
 
-            // Providers and endpoints keep their order beside the seven model declarations.
-            for (member, at) in [("providers", 1), ("endpoints", 1)] {
-                assert_eq!(document["engine"]["llm"][member][at], anthropic(member), "{row}: {member}");
-            }
-            assert!(document["engine"]["llm"].get("models").is_none());
-            assert_eq!(document["engine"]["llm"]["endpoints"][2], anthropic("direct"), "{row}: direct");
+            assert!(document["engine"].get("llm").is_none(), "{row}");
             assert!(document["application"].get("workers").is_none(), "{row}: programs are found at start");
             for file in files {
                 assert_ne!(file.name, b"agent.json");

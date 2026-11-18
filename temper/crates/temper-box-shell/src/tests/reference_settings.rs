@@ -289,14 +289,8 @@ fn reference_engine(limits: &serde_json::Value) -> jig_protocol_config::Engine {
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16384, depth: 32 },
     )
     .expect("engine document");
-    let mut engine = jig_protocol_config::engine(
-        &document,
-        0,
-        &jig_protocol_config::Directories::working(),
-        jig_protocol_config::Defaults::Passed,
-        &temper_service::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
-    )
-    .expect("reference engine");
+    let mut engine = temper_service::startup::engine(&document, 0, &jig_protocol_config::Directories::working())
+        .expect("reference engine");
     let stock = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     let mut sol =
         stock.models.into_vec().into_iter().find(|entry| entry.model.name.as_ref() == b"gpt-6.1-sol").expect("Sol");

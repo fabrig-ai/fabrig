@@ -9,6 +9,8 @@ pub fn turn_body(agent: &Value) -> u32 {
     let mut agent = agent.clone();
     if agent["programs"].is_string() {
         agent["programs"] = serde_json::json!({});
+    } else if agent["programs"]["claude_code"]["path"] == "fetched" {
+        agent["programs"]["claude_code"]["path"] = "/fixture/claude".into();
     }
     for endpoint in agent["endpoints"].as_array_mut().expect("agent endpoints") {
         endpoint["address"] = "127.0.0.1:9".into();

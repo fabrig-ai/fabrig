@@ -67,9 +67,6 @@ pub fn documents(directory: &Path, _program: &str) -> (Vec<u8>, Vec<u8>) {
     value["workers"][0]["name"] = "local".into();
     value["engine"]["limits"]["overrides"]["fleet.slots"] = 4.into();
     value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);
-    value["engine"]["llm"]["endpoints"][0]["dialect"] = 3.into();
-    value["engine"]["llm"]["endpoints"][0]["provider"] = value["engine"]["llm"]["providers"][0]["name"].clone();
-    value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":"127.0.0.1:0"});
     // The stock carries twelve charters, fourteen grants and twenty-two executor kinds.
     value["engine"]["limits"]["overrides"]["tasks.charters"] = 16.into();
     value["engine"]["limits"]["overrides"]["core.templates"] = 7.into();
@@ -179,21 +176,8 @@ pub fn check_document(directory: &Path) -> serde_json::Value {
     serde_json::from_slice(&bytes).expect("fixture JSON")
 }
 
-/// A demo model whose one plaintext endpoint listens at the supplied address.
+/// A box document; the scripted provider is its startup constant.
 #[must_use]
-pub fn demo_document(directory: &Path, listen: &str) -> serde_json::Value {
-    let mut value = check_document(directory);
-    let llm = serde_json::json!({
-        "providers":[{"name":"demo", "number":3, "endpoint":"demo", "sources":{"keys":true}}],
-        "endpoints":[{"name":"demo", "number":3, "dialect":3, "provider":"demo",
-            "address":{"socket":listen}, "transport":"plaintext", "headers":[],
-            "connect_ms":10000, "handshake_ms":10000}]
-    });
-    for field in ["providers", "endpoints"] {
-        value["engine"]["llm"][field]
-            .as_array_mut()
-            .expect("LLM table")
-            .extend(llm[field].as_array().expect("demo table").iter().cloned());
-    }
-    value
+pub fn demo_document(directory: &Path, _listen: &str) -> serde_json::Value {
+    check_document(directory)
 }

@@ -61,7 +61,7 @@ EngineWhat::FigureEndpoints { .. } | EngineWhat::FleetGrace { .. } | EngineWhat:
 }
 fn redirect_listener(listener: super::Listener, writer: &mut Writer, length: &mut usize, measuring: bool) {
     let name = match listener {
-        super::Listener::Demo => b"engine.llm (scripted provider)".as_slice(),
+        super::Listener::Demo => b"the box's scripted model".as_slice(),
         super::Listener::Clients => b"application.clients.listener".as_slice(),
         super::Listener::Webhooks => b"application.webhooks.listener".as_slice(),
     };

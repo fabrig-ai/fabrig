@@ -24,33 +24,6 @@
         "tasks.spec_bytes": 16384
       }
     },
-    "llm": {
-      "providers": [
-        {
-          "name": "openai",
-          "number": 1,
-          "endpoint": "fake",
-          "sources": {
-            "keys": true
-          }
-        }
-      ],
-      "endpoints": [
-        {
-          "name": "fake",
-          "number": 0,
-          "dialect": 3,
-          "provider": "openai",
-          "address": {
-            "socket": "{place.model}"
-          },
-          "transport": "plaintext",
-          "headers": [],
-          "connect_ms": 10000,
-          "handshake_ms": 10000
-        }
-      ]
-    },
     "hosts": {
       "listener": [
         {

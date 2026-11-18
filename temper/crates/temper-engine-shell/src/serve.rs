@@ -137,6 +137,13 @@ fn prepare_given(
     record: bool,
     build_name: &'static str,
 ) -> Result<(service::Service, Box<[u8]>), String> {
+    let providers = temper_service_shell::providers::read(
+        &path(&directories.data).join("providers.setting"),
+        given.running(),
+        &mut std::io::stderr(),
+    );
+    let given = given.with_providers(providers, Box::new([]));
+    let given = &given;
     if matches!(
         service::startup::nearest(bytes),
         Some(service::startup::Shape::WorkerAlone | service::startup::Shape::Standalone)

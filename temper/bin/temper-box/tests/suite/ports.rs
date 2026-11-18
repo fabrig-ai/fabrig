@@ -17,11 +17,7 @@ fn own_listener_files_moves_each_listener_below_the_ephemeral_range() {
         serde_json::from_slice(&fs::read(scratch.path().join("config/temper.json")).expect("deployment"))
             .expect("deployment JSON");
     assert!(document["application"].get("machine").is_none(), "a forge chooses its listener at set-up");
-    for pointer in [
-        "/application/clients/listener/socket",
-        "/engine/llm/endpoints/3/address/socket",
-        "/application/webhooks/listener/socket",
-    ] {
+    for pointer in ["/application/clients/listener/socket", "/application/webhooks/listener/socket"] {
         let address: SocketAddr =
             document.pointer(pointer).expect("listener").as_str().expect("socket").parse().expect("address");
         assert!(address.port() < temper_fixtures::ports::ephemeral_first(), "{pointer}: {address}");

@@ -1,4 +1,4 @@
-//! The deployment member against facts from the real document readers.
+//! Scripted-provider checks over typed world configuration.
 use crate::{demo, llm};
 use jig_protocol_config::{self as config, Path};
 use serde_json::{Value, json};
@@ -10,12 +10,15 @@ type Row = (Vec<(&'static str, Option<Value>)>, &'static str);
 
 pub(super) fn fixture() -> Value {
     let mut d: Value = serde_json::from_slice(include_bytes!("../../../../docs/examples/owned.json")).unwrap();
-    d["engine"]["llm"]["endpoints"].as_array_mut().unwrap().push(json!({
+    d["world_providers"] = temper_fixtures::providers::stock();
+    d["world_providers"]["providers"].as_array_mut().unwrap().truncate(1);
+    d["world_providers"]["endpoints"].as_array_mut().unwrap().truncate(1);
+    d["world_providers"]["endpoints"].as_array_mut().unwrap().push(json!({
         "name":"demo", "number":3, "dialect":3, "provider":"demo",
         "address":{"socket":"127.0.0.1:8370"}, "transport":"plaintext", "headers":[],
         "connect_ms":10000, "handshake_ms":10000
     }));
-    d["engine"]["llm"]["providers"].as_array_mut().unwrap().push(json!({
+    d["world_providers"]["providers"].as_array_mut().unwrap().push(json!({
         "name":"demo", "number":3, "endpoint":"demo", "sources":{"keys":true}
     }));
     d["scripts"] = json!({
@@ -28,11 +31,17 @@ pub(super) fn fixture() -> Value {
 fn member(d: &skein_json::Document, at: u32, name: &[u8]) -> u32 {
     config::read::Object::new(d, at).unwrap().member(d, name).unwrap()
 }
+fn engine(value: &Value, document: &skein_json::Document, directories: &config::Directories) -> config::Engine {
+    let given = temper_engine_service_stock::stock::Given::Stock
+        .with_providers(temper_fixtures::providers::values(&value["world_providers"]), Box::new([]));
+    temper_engine_service_startup::startup::engine_with(document, member(document, 0, b"engine"), directories, &given)
+        .unwrap()
+}
 pub(super) fn read(value: &Value) -> Result<Option<llm::Document>, crate::Refusal> {
     let bytes = serde_json::to_vec(value).unwrap();
     let d = config::document(&bytes, &config::DocumentLimits { bytes: 1 << 20, tokens: 1 << 20, depth: 32 }).unwrap();
     let directories = config::Directories::given(b"/config", b"/data", b"/cache").unwrap();
-    let engine = temper_engine_service_startup::startup::engine(&d, member(&d, 0, b"engine"), &directories).unwrap();
+    let engine = engine(value, &d, &directories);
     let app = member(&d, 0, b"application");
     let mut ps = config::Problems::empty();
     let mut listeners: Vec<_> = [b"clients".as_slice(), b"webhooks"]
@@ -83,35 +92,35 @@ fn demo_refusals() {
     let mut rows: Vec<Row> = vec![
         (
             vec![
-                ("/engine/llm/providers/1/sources/sign_in", Some(sign_in.clone())),
-                ("/engine/llm/providers/1/signed_in_plan", Some(json!(false))),
+                ("/world_providers/providers/1/sources/sign_in", Some(sign_in.clone())),
+                ("/world_providers/providers/1/signed_in_plan", Some(json!(false))),
             ],
             "demo: must offer a key alone\n",
         ),
         (
             vec![
-                ("/engine/llm/providers/1/sources/programs", Some(json!(["claude_code"]))),
-                ("/engine/llm/providers/1/manage_usage", Some(json!("https://example.test/usage"))),
+                ("/world_providers/providers/1/sources/programs", Some(json!(["claude_code"]))),
+                ("/world_providers/providers/1/manage_usage", Some(json!("https://example.test/usage"))),
             ],
             "demo: must offer a key alone\n",
         ),
         (
-            vec![("/engine/llm/providers/1/sources/keys", Some(json!(false)))],
+            vec![("/world_providers/providers/1/sources/keys", Some(json!(false)))],
             "demo: must offer a key alone\n",
         ),
         (
-            vec![("/engine/llm/endpoints/1/address/socket", Some(json!("127.0.0.1:7100")))],
+            vec![("/world_providers/endpoints/1/address/socket", Some(json!("127.0.0.1:7100")))],
             "demo: must be unique\n",
         ),
         (
             vec![
-                ("/engine/llm/endpoints/1/transport", Some(json!("tls"))),
-                ("/engine/llm/endpoints/1/server_name", Some(json!("localhost"))),
+                ("/world_providers/endpoints/1/transport", Some(json!("tls"))),
+                ("/world_providers/endpoints/1/server_name", Some(json!("localhost"))),
             ],
             "demo: names an endpoint with TLS\n",
         ),
         (
-            vec![("/engine/llm/endpoints/1/dialect", Some(json!(2)))],
+            vec![("/world_providers/endpoints/1/dialect", Some(json!(2)))],
             "demo: names an endpoint not in OpenAI's dialect\n",
         ),
         (
@@ -142,9 +151,9 @@ fn demo_refusals() {
     ];
     rows.push((
         vec![
-            ("/engine/llm/providers/1/sources/sign_in", Some(sign_in)),
-            ("/engine/llm/providers/1/signed_in_plan", Some(json!(true))),
-            ("/engine/llm/providers/1/manage_usage", Some(json!("https://example.test/usage"))),
+            ("/world_providers/providers/1/sources/sign_in", Some(sign_in)),
+            ("/world_providers/providers/1/signed_in_plan", Some(json!(true))),
+            ("/world_providers/providers/1/manage_usage", Some(json!("https://example.test/usage"))),
         ],
         "demo: must offer a key alone\n",
     ));
@@ -213,12 +222,7 @@ fn demo_acceptance() {
         let bytes = serde_json::to_vec(&value).unwrap();
         let document =
             config::document(&bytes, &config::DocumentLimits { bytes: 1 << 20, tokens: 1 << 20, depth: 32 }).unwrap();
-        let engine = temper_engine_service_startup::startup::engine(
-            &document,
-            member(&document, 0, b"engine"),
-            &config::Directories::working(),
-        )
-        .unwrap();
+        let engine = engine(&value, &document, &config::Directories::working());
         let model = engine.llm.models.iter().find(|entry| entry.number == 8).unwrap();
         assert_eq!(model.model.window, demo::SCRIPTED_WINDOW);
         assert_eq!(model.model.output, demo::SCRIPTED_OUTPUT);

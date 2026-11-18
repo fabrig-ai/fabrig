@@ -1383,6 +1383,7 @@ fn released_into(
         }
         Delivery::ReadEscalationDecision { waiter } => load_escalation_decision(domain, waiter, out),
         delivery @ (Delivery::Push(_)
+        | Delivery::Providers(..)
         | Delivery::WorkerFigures { .. }
         | Delivery::PlaygroundNote { .. }
         | Delivery::Host(_)

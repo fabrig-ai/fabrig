@@ -49,14 +49,7 @@ fn a_worker_alone_with_the_owned_examples_worker_fits_one_ring() {
         config::worker(&document, *ats.get(0).unwrap(), &directories, &temper_service_core::startup::fixed_worker())
             .unwrap();
     let engine_at = temper_service_core::startup::member(&document, 0, b"engine").unwrap();
-    let engine = config::engine(
-        &document,
-        engine_at,
-        &directories,
-        config::Defaults::Passed,
-        &temper_engine_service_startup::startup::fixed(&directories).unwrap(),
-    )
-    .unwrap();
+    let engine = temper_engine_service_startup::startup::engine(&document, engine_at, &directories).unwrap();
     agent.host_limits.accounts = engine.limits.hub.accounts;
     part.worker.jig.limits = Some(engine.limits);
     part.worker.jig.slots = worker.slots;

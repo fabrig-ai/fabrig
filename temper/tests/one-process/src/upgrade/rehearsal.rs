@@ -84,7 +84,7 @@ fn start(inherited: &skein_world::Inherited) -> SignalHost<Tool> {
     let given = temper_playground::documents::given(&document);
     temper_playground::documents::settings::strip_models(&mut document);
     let mut runtime = temper_service::AccountsRuntime { providers: List::with_capacity(2), trust: None };
-    for provider in document["engine"]["llm"]["providers"].as_array().expect("LLM providers") {
+    for provider in document["world_settings"]["llm"]["providers"].as_array().expect("LLM providers") {
         if provider["sources"]["sign_in"].is_object() {
             let endpoint = || accounts::Endpoint {
                 address: ([127, 0, 0, 1], 7104).into(),
@@ -172,10 +172,10 @@ pub fn accounts_check(directory: &Path) {
     let mut document = deployment_document(directory);
     // The configured endpoints and identity providers coexist with the floor's kept settings versions.
     document["engine"]["limits"]["overrides"]["core.settings.versions"] = 12.into();
-    document["engine"]["llm"]["endpoints"][1]["name"] = "second".into();
-    document["engine"]["llm"]["providers"][1]["endpoint"] = "second".into();
-    document["engine"]["llm"]["models"][1]["endpoint"] = "second".into();
-    for provider in document["engine"]["llm"]["providers"].as_array_mut().expect("providers") {
+    document["world_settings"]["llm"]["endpoints"][1]["name"] = "second".into();
+    document["world_settings"]["llm"]["providers"][1]["endpoint"] = "second".into();
+    document["world_settings"]["llm"]["models"][1]["endpoint"] = "second".into();
+    for provider in document["world_settings"]["llm"]["providers"].as_array_mut().expect("providers") {
         provider["signed_in_plan"] = true.into();
         provider["manage_usage"] = "https://accounts.example.invalid/usage".into();
         provider["sources"] = serde_json::json!({"keys":true,"sign_in":{

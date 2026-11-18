@@ -22,3 +22,12 @@ Generated from temper-box's table (`skein/docs/design/runtime/shell.md`, 14.3): 
 - **Absent:** Reserve available ports.
 - Choose the fake box's nine listener and peer ports.
 - **Notes:** Nine comma-separated nonzero ports; used only for a new sandbox.
+
+### `TEMPER_INTERNAL_SCRIPTED_LISTENER`
+
+- **Set:** internal
+- **Reads**
+- **Form:** SOCKET
+- **Absent:** Choose loopback port 8370 when free, otherwise a kernel-assigned port.
+- The scripted model's listener retained by the supervising box.
+- **Notes:** The box passes the chosen address before composing its worker and hands the listener to the fake LLM.

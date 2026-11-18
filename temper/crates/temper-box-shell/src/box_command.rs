@@ -4,7 +4,10 @@ use crate::directories::jig_directories;
 use group_host::GroupHost;
 use skein_io::kernel::{Exit, Fd};
 use skein_shell::{Clock, Config, Host, Kernel};
-use std::{fmt::Write, os::unix::ffi::OsStrExt};
+use std::{
+    fmt::Write,
+    os::{fd::IntoRawFd, unix::ffi::OsStrExt},
+};
 use temper_box_machine::host::{Echo, FirstLink, Front, Service, Settings};
 
 /// How the box's stdout takes a sign-in link (temper/docs/design/protocol/setup/box.md, 2).
@@ -85,20 +88,32 @@ pub(crate) fn run_configuration(
     let opened = (|| {
         let inherited = skein_shell::inherited_listeners().map_err(super::listeners_refusal)?;
         owned.extend(inherited.iter().map(|(fd, _)| *fd));
-        let held = held_listeners(held)?;
+        let mut held = held_listeners(held)?;
+        let scripted = crate::scripted::choose()?;
+        let address = scripted.local_addr().map_err(|why| why.to_string())?;
+        let fd = Fd::new(scripted.into_raw_fd());
+        owned.push(fd);
+        held.push((fd, address));
+        let given = crate::scripted::given(directories, &temper_service::stock::Given::Stock, address);
         let directory = super::path(&directories.data);
         let program = std::env::current_exe().map_err(|why| why.to_string())?;
         let child_environment: Box<[Box<[u8]>]> = environment
             .iter()
+            .filter(|(name, _)| name.as_ref() != crate::scripted::ADDRESS)
             .map(|(name, value)| {
                 let mut entry = name.to_vec();
                 entry.push(b'=');
                 entry.extend_from_slice(value);
                 entry.into_boxed_slice()
             })
+            .chain(core::iter::once(
+                format!("{}={address}", String::from_utf8_lossy(crate::scripted::ADDRESS))
+                    .into_bytes()
+                    .into_boxed_slice(),
+            ))
             .collect();
-        let (steps, limits) = configuration_steps_recording(directories, bytes, first, record)?;
-        let named = super::setup::check(bytes, &jig_directories(directories))?.named;
+        let (steps, limits) = configuration_steps_given(directories, bytes, first, record, &given)?;
+        let named = super::setup::check_with(bytes, &jig_directories(directories), &given)?.named;
         let listeners = open_listeners(directories, &steps, held, &inherited, &mut owned)?;
         let mut first_link = first_link(&named, &steps)?;
         let front = configured_front(fronted, &named, first_link.as_mut())?;
@@ -315,8 +330,21 @@ pub(crate) fn configuration_steps_recording(
     first: Box<[temper_forge_setup::Step]>,
     record: bool,
 ) -> Result<(temper_forge_setup::Steps, temper_box_machine::limits::Limits), String> {
+    let given = temper_service::stock::Given::Stock.with_providers(
+        temper_service::stock::providers(),
+        Box::new([temper_service::stock::scripted(crate::scripted::PREFERRED)]),
+    );
+    configuration_steps_given(directories, bytes, first, record, &given)
+}
+fn configuration_steps_given(
+    directories: &super::Directories,
+    bytes: &[u8],
+    first: Box<[temper_forge_setup::Step]>,
+    record: bool,
+    given: &temper_service::stock::Given,
+) -> Result<(temper_forge_setup::Steps, temper_box_machine::limits::Limits), String> {
     let super::setup::Deployment { named, demo, limits, .. } =
-        super::setup::check(bytes, &jig_directories(directories))?;
+        super::setup::check_with(bytes, &jig_directories(directories), given)?;
     let mut serve = vec![super::address(&named.clients)?];
     if let Some(webhooks) = &named.webhooks {
         serve.push(super::address(&webhooks.listener)?);

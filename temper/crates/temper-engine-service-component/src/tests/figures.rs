@@ -332,6 +332,48 @@ fn restored_agents_reach_a_figures_opening_and_owner_changes_reach_a_link() {
     );
 }
 
+#[test]
+fn provider_restore_and_owner_changes_reach_the_shell_without_changing_running_figures() {
+    let mut service = started(None);
+    fixtures::restart(&mut service);
+    let engine = service.engine.as_mut().unwrap();
+    let running = engine.running_providers.clone();
+    let (path, restored) = engine.take_providers_write().expect("restore keeps the providers before needs");
+    assert_eq!(path.as_ref(), b"providers.setting");
+    assert_eq!(restored, running);
+    assert!(engine.take_providers_write().is_none());
+    signed_in(engine);
+    let mut provider = restored[0].clone();
+    provider.endpoints[0].address = jig_protocol_config::EndpointAddress::Socket(([127, 0, 0, 1], 8082).into());
+    engine.step(root::Event::Party(root::PartyInput::ChangeSettings {
+        reply_to: ReplyTo::new(Token::new(101)),
+        sign_in: 1,
+        key: [1; 16],
+        digest: [1; 32],
+        kinds: Box::new([]),
+        change: Box::new(settings::Change {
+            against: 1,
+            running: settings::Running::Stays,
+            items: Box::new([settings::Item {
+                setting: settings::Setting::Provider(1),
+                edit: settings::Edit::Set(settings::Value::Provider(Box::new(provider.clone()))),
+            }]),
+        }),
+    }));
+    assert_eq!(settle(engine).as_slice(), &[Reply::Outcome(people::Outcome::SettingsChanged { revision: 2 })]);
+    let expected: Box<[_]> = Box::new([provider]);
+    assert_eq!(engine.take_providers_write(), Some((path, expected)));
+    assert_eq!(engine.running_providers, running);
+    let mut changed = false;
+    for note in &engine.notes {
+        if let crate::Note::StartupWarning { line } = note {
+            changed |= line.as_ref() == b"LLM providers changed; they apply at the engine's next start";
+        }
+    }
+    assert!(changed, "the change applies at the next start");
+    assert!(engine.take_providers_write().is_none());
+}
+
 fn started(stored: Option<crate::store::Store>) -> crate::Service {
     let mut settings = fixtures::start_settings(fixtures::engine(), &[(1, 100)]);
     let root = crate::limits::engine(&settings.jig.limits, &settings.limits).unwrap();

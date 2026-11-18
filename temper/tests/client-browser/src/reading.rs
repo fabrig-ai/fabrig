@@ -128,7 +128,6 @@ mod tests {
             sign_in: false,
             ports: temper_init::Ports {
                 clients: NonZeroU16::new(8367).expect("clients port"),
-                llm: NonZeroU16::new(8370).expect("LLM port"),
                 webhooks: NonZeroU16::new(8371).expect("webhooks port"),
             },
         };
@@ -170,10 +169,7 @@ mod tests {
             .cloned()
             .collect();
         assert_eq!(serde_json::Value::Array(complete), scripts(&replies), "every reading reply is kept whole");
-        let bytes = serde_json::to_vec(&value).expect("reading deployment JSON");
-        temper_service::startup::shape(&bytes, &jig_protocol_config::Directories::working()).unwrap_or_else(
-            |problems| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&problems))),
-        );
+        crate::configuration::shape(value);
         temper_fake::llm::Document::decode(&serde_json::to_vec(&llm).expect("standalone reading scripts"))
             .expect("the standalone fake admits every history's replies");
     }

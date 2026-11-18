@@ -538,8 +538,8 @@ fn refused_deployment_start(root: &Path) {
         assert_eq!(snapshot(&dir), before, "{name}: refused startup leaves directories unchanged");
     }
     let bound = usize::try_from(temper_fake::demo::KEY_FILE_BYTES).expect("key file bound");
-    for (name, kind, demo, file, mode, extra, reason, names_file) in [
-        ("llm_null", "llm", false, None, 0o600, false, "engine.llm has no scripted provider".to_owned(), false),
+    for (name, kind, has_document, file, mode, extra, reason, names_file) in [
+        ("llm_no_document", "llm", false, None, 0o600, false, "absent".to_owned(), true),
         ("llm_absent", "llm", true, None, 0o600, false, "absent".to_owned(), true),
         (
             "llm_public",
@@ -557,12 +557,10 @@ fn refused_deployment_start(root: &Path) {
     ] {
         let dir = directory.join(name);
         fs::create_dir(&dir).expect("case directory");
-        let mut config = support::configuration::demo_document(&dir, "127.0.0.1:8370");
-        if !demo {
-            config["engine"]["llm"]["providers"].as_array_mut().expect("providers").retain(|p| p["number"] != 3);
-            config["engine"]["llm"]["endpoints"].as_array_mut().expect("endpoints").retain(|p| p["number"] != 3);
+        if has_document {
+            let config = support::configuration::demo_document(&dir, "127.0.0.1:8370");
+            document(&dir.join("temper.json"), &config);
         }
-        document(&dir.join("temper.json"), &config);
         let path = dir.join("demo/llm.key");
         if let Some(file) = file {
             fs::create_dir(dir.join("demo")).expect("key directory");
@@ -965,15 +963,16 @@ fn llm_run() {
         let doc = dir.join("llm.json");
         document(&doc, &llm_document(dir, tls));
         let (run, key_path, key) = if demo {
-            let listen = support::free_addresses::<1>(&[])[0];
-            let config = support::configuration::demo_document(dir, &listen.to_string());
-            document(&dir.join("temper.json"), &config);
+            let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("box's held scripted listener");
+            let listen = listener.local_addr().expect("chosen scripted address");
             fs::create_dir(dir.join("demo")).expect("demo directory");
             let path = dir.join("demo/llm.key");
             let key = b"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_vec();
             support::write_private(&path, &[key.as_slice(), b"\n"].concat());
-            let run = Running::command(deployment_command("llm", dir), None).unwrap_or_else(|why| panic!("{why}"));
-            assert_eq!(run.address, listen, "ready on the scripted provider endpoint");
+            let mut command = crate::listeners::command(listener, "exec \"$@\" 3<&0 0</dev/null");
+            command.args(["fake", "llm"]).args(support::configuration::flags(dir));
+            let run = Running::command(command, None).unwrap_or_else(|why| panic!("{why}"));
+            assert_eq!(run.address, listen, "ready on the box's inherited scripted listener");
             (run, path, key)
         } else {
             let run = Running::start("llm", &doc, None).unwrap_or_else(|why| panic!("{why}"));
@@ -1562,6 +1561,7 @@ fn check_run() {
     fs::write(&observations, b"{\"observations_lost\":0}\n").expect("checkpoint");
     let store = directory.join("copy");
     let cache = directory.join("cache");
+    let entries_before = fs::read_dir(&data).expect("fixture entries").count();
     let ended = Command::new(skein_scratch::paths::binary("temper-box"))
         .env_clear()
         .args(["fake", "forge", "check", "--config"])
@@ -1585,7 +1585,11 @@ fn check_run() {
         )
         .as_bytes()
     );
-    assert_eq!(fs::read_dir(&data).expect("fixture data").count(), 1, "the check creates no data resources");
+    assert_eq!(
+        fs::read_dir(&data).expect("fixture data").count(),
+        entries_before,
+        "the check creates no data resources"
+    );
     assert!(data.join("agents.setting").is_file());
     assert!(!cache.exists());
     scratch.remove();

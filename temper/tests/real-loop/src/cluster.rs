@@ -139,6 +139,9 @@ impl Shape {
         let mut document: serde_json::Value =
             serde_json::from_slice(&std::fs::read(data.join("temper.json")).expect("base document"))
                 .expect("base JSON");
+        document["world_settings"] =
+            serde_json::from_slice(&std::fs::read(data.join("world-settings.json")).expect("world settings"))
+                .expect("world JSON");
         // Link deadlines exceed PATIENCE, so load cannot lose a link or run in this story.
         // A restart closes the socket explicitly rather than waiting on a link timer.
         // The stop bound stays below fleet grace (protocol/cluster.md, 3).
@@ -157,8 +160,8 @@ impl Shape {
         .expect("agent JSON");
         match self {
             Self::Engine { workers, .. } => {
-                document["engine"]["llm"]["providers"][0]["name"] = "openai".into();
-                document["engine"]["llm"]["endpoints"][0]["provider"] = "openai".into();
+                document["world_settings"]["llm"]["providers"][0]["name"] = "openai".into();
+                document["world_settings"]["llm"]["endpoints"][0]["provider"] = "openai".into();
                 document["workers"] = json!([]);
 
                 document["engine"]["hosts"]["listener"] = json!([{"socket":"127.0.0.1:0"}]);
@@ -209,6 +212,10 @@ impl Shape {
                 )
                 .expect("fixture secret");
             }
+        }
+        if let Some(flags) = document.as_object_mut().expect("cluster document").remove("world_settings") {
+            fixtures::private(&data.join("world-settings.json"), &serde_json::to_vec(&flags).expect("world flags"))
+                .expect("world settings");
         }
         fixtures::private(&config.join("temper.json"), &serde_json::to_vec(&document).expect("cluster document"))
             .expect("private cluster document");

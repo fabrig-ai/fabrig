@@ -136,8 +136,8 @@ pub const WORKER_DOCUMENT: &[u8] = channel::WORKER_DOCUMENT;
 #[must_use]
 pub fn document() -> Vec<u8> {
     let mut value = world_document();
-    value.as_object_mut().expect("deployment").remove("world_settings");
     settings::strip_models(&mut value);
+    value.as_object_mut().expect("deployment").remove("world_settings");
     serde_json::to_vec(&value).expect("deployment JSON")
 }
 /// The deployment value before harness edits: the chat stories' policy.
@@ -178,6 +178,7 @@ pub fn world_document_with(edit: impl FnOnce(&mut serde_json::Value)) -> serde_j
         "sign_in":null,
         "limits":{"overrides":{"forge.client.answer_bytes":65_536,"forge.client.op_bytes":512,"forge_component.body_bytes":16_384,"checkout.name_bytes":256,"checkout.repositories":2,"checkout.message_bytes":4096,"forge.name_bytes":64,"forge.landing_members":2,"forge.resources_per_task":3,"git_component.stdout_bytes":131_072}}});
     settings::stage_policies(&mut value);
+    value["world_settings"]["llm"] = serde_json::from_slice(channel::CATALOGUE).expect("world catalogue");
     for member in ["charters", "templates", "policies", "rules"] {
         value["engine"].as_object_mut().expect("engine").remove(member);
     }
@@ -203,6 +204,7 @@ pub fn world_document_with(edit: impl FnOnce(&mut serde_json::Value)) -> serde_j
     value["engine"]["limits"]["overrides"]["authority.projects"] = 2.into();
     value["engine"]["limits"]["overrides"]["tasks.funders"] = 4.into();
     turn_bounds::apply(&mut value, agent().limits.bodies.turn_body);
+    settings::strip_models(&mut value);
     value
 }
 /// The chat stories' policy: seed projects on the world's policy 2, delegation depth 4, and the
@@ -479,6 +481,7 @@ pub fn given_with(document: &serde_json::Value, stock: bool, read_wait: bool) ->
     let engine = settings::configuration(&document);
     let mut defaults =
         temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    defaults.providers = jig_protocol_config::llm::provider_values(&engine.llm);
     if read_wait {
         defaults.charters[0].policy.waiting = skein_lib::Duration::from_millis(u64::from(CHAT_WAIT_MS));
     } else if document["world_settings"]["playground"] != true {

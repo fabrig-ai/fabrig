@@ -105,8 +105,8 @@ fn document_and_callback_bounds_hold_on_both_sides() {
 fn defaults_and_registration_follow_the_shipped_chatgpt_template() {
     let checked = Document::decode(DOCUMENT).unwrap();
     assert_eq!(checked.redirect_uri.as_ref(), b"http://127.0.0.1:1455/auth/callback");
-    let template: Value = serde_json::from_slice(include_bytes!("../../../temper-init/template/temper.json")).unwrap();
-    let registration = &template["engine"]["llm"]["providers"][0]["sources"]["sign_in"];
+    let providers = temper_fixtures::providers::stock();
+    let registration = &providers["providers"][0]["sources"]["sign_in"];
     let config = checked.config();
     assert_eq!(config.client_id.as_ref(), registration["client"].as_str().unwrap().as_bytes());
     let terms = config.terms.unwrap();

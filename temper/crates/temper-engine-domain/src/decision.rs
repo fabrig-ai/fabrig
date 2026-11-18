@@ -48,6 +48,8 @@ pub struct Limits {
 /// resumed by the root and never passed to the protocol as child events.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Delivery {
+    /// Current providers kept by the shell after the settings decision commits.
+    Providers(Box<[jig_domain_core::settings::ProviderSetting]>),
     /// The stored agents setting, released only after its decision commits
     /// (temper/docs/design/protocol/configuration/figures.md, 2).
     WorkerFigures {
@@ -573,7 +575,8 @@ impl Decision {
             }
             Delivery::Assigned { assignment, .. } => assignment_within(assignment, limits),
             Delivery::Host(host) => host_within(host, limits),
-            Delivery::WorkerFigures { .. }
+            Delivery::Providers(..)
+            | Delivery::WorkerFigures { .. }
             | Delivery::SourceSignedOut { .. }
             | Delivery::Ways { .. }
             | Delivery::AssignedJob { .. }

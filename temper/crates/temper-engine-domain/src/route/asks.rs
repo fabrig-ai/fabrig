@@ -159,7 +159,11 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             );
             None
         }
-        core::Ask::Providers(_) | core::Ask::DropDocument { .. } => None,
+        core::Ask::Providers(providers) => {
+            emit(decision, &env.limits, Delivery::Providers(providers));
+            None
+        }
+        core::Ask::DropDocument { .. } => None,
         core::Ask::DropApplication { owner } => {
             super::applications::drop(domain, owner);
             None

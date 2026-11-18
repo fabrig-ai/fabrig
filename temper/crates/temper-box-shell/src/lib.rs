@@ -36,6 +36,7 @@ pub use temper_shell::link_file;
 pub mod lines;
 pub mod open;
 mod program_login;
+mod scripted;
 mod serve;
 mod served;
 pub mod setup;

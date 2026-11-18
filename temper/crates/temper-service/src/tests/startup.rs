@@ -42,7 +42,7 @@ fn transcript_document(bytes: u32) -> Box<[u8]> {
 #[test]
 fn startup_names_a_transcript_past_the_codec_ceiling() {
     let document = transcript_document(33_554_433);
-    let found = crate::named(&document, &config::Directories::working()).unwrap_err();
+    let found = fixtures::named(&document, &config::Directories::working()).unwrap_err();
     assert_eq!(
         lines(&found).as_ref(),
         b"application.limits.overrides.root.loads.transcript_bytes: 33554433 bytes, past the transcript codec's ceiling of 33554432\n"
@@ -366,7 +366,7 @@ fn the_example_engine_keeps_jigs_chat_and_goal_templates() {
 fn a_chats_member_is_refused_as_unknown_naming_its_path() {
     let input = fixtures::document();
     let input = core::str::from_utf8(&input).unwrap().replacen("\"engine\":{", "\"engine\":{\"chats\":[],", 1);
-    let problems = crate::named(input.as_bytes(), &jig_protocol_config::Directories::working()).unwrap_err();
+    let problems = fixtures::named(input.as_bytes(), &jig_protocol_config::Directories::working()).unwrap_err();
     assert_eq!(&*lines(&problems), b"engine.chats: unknown member\n");
 }
 fn refused(input: &[u8]) -> Box<[u8]> {
@@ -508,7 +508,7 @@ fn jig_refusals_print_words() {
 }
 #[test]
 fn named_lists_each_file_with_its_bound_and_privacy() {
-    let named = crate::named(&fixtures::document(), &jig_protocol_config::Directories::working()).unwrap();
+    let named = fixtures::named(&fixtures::document(), &jig_protocol_config::Directories::working()).unwrap();
     assert_eq!(named.files.len(), 1, "all files listed");
     let (name, path, max, private) = (b"worker-secret".as_slice(), b"workers[0].secret".as_slice(), 257, true);
     let file = named.files.iter().find(|file| file.path.as_ref() == name).expect("listed file");
@@ -519,12 +519,12 @@ fn named_lists_each_file_with_its_bound_and_privacy() {
     let expected = [path, b": missing\n"].concat();
     assert_eq!(&*lines(&problems), expected.as_slice(), "path {name:?}");
     let document = fixtures::with(&fixtures::document(), b"workers[0].secret", br#""agent.json""#);
-    let named = crate::named(&document, &config::Directories::working()).unwrap();
+    let named = fixtures::named(&document, &config::Directories::working()).unwrap();
     assert!(named.files.iter().any(|file| file.private && file.path.as_ref() == b"agent.json"));
 }
 #[test]
 fn named_returns_the_worker_root_and_the_agent_configuration() {
-    let named = crate::named(&fixtures::document(), &jig_protocol_config::Directories::working()).unwrap();
+    let named = fixtures::named(&fixtures::document(), &jig_protocol_config::Directories::working()).unwrap();
     assert_eq!(named.deployment.as_ref(), b"state");
     assert_eq!(named.worker.as_ref().expect("standalone worker").root.as_ref(), b"workspaces");
     assert_eq!(named.worker.as_ref().expect("standalone worker").agent.as_ref(), b"agent.json");
@@ -549,17 +549,17 @@ fn a_file_named_but_not_given_refuses_the_start_naming_it() {
 #[test]
 fn jigs_problems_keep_their_paths_under_engine() {
     let input = fixtures::with(&fixtures::document(), b"engine.memory_bytes", br#""bad""#);
-    let problems = crate::named(&input, &jig_protocol_config::Directories::working()).unwrap_err();
+    let problems = fixtures::named(&input, &jig_protocol_config::Directories::working()).unwrap_err();
     assert_eq!(&*lines(&problems), b"engine.memory_bytes: wrong value kind\n".as_slice());
 }
 #[test]
 fn a_zero_byte_budget_refuses_the_start_naming_its_member() {
     let input = fixtures::document();
     let zero = fixtures::with(&input, b"engine.memory_bytes", b"0");
-    let problems = crate::named(&zero, &config::Directories::working()).unwrap_err();
+    let problems = fixtures::named(&zero, &config::Directories::working()).unwrap_err();
     assert_eq!(lines(&problems).as_ref(), b"engine.memory_bytes: past its bound\n");
     let one = fixtures::with(&input, b"engine.memory_bytes", b"1");
-    crate::named(&one, &config::Directories::working()).expect("a positive byte budget is valid");
+    fixtures::named(&one, &config::Directories::working()).expect("a positive byte budget is valid");
 }
 
 #[test]
@@ -667,7 +667,7 @@ fn a_setup_or_box_override_is_handed_on_with_its_value() {
 #[test]
 fn a_clients_provider_key_and_secret_are_private_files_named_by_path() {
     let document = fixtures::with(&fixtures::document(), b"engine.clients", br#"{"provider":{"key":"provider.pem","clients":[{"id":"app","secret":"app.secret","redirect_uri":"https://app.example.com/cb"}],"addresses":[]}}"#);
-    let named = crate::named(&document, &jig_protocol_config::Directories::working()).unwrap();
+    let named = fixtures::named(&document, &jig_protocol_config::Directories::working()).unwrap();
     for (name, expected) in [
         (b"provider.pem".as_slice(), b"engine.clients.provider.key: missing\n".as_slice()),
         (b"app.secret", b"engine.clients.provider.clients[0].secret: missing\n"),
@@ -696,14 +696,14 @@ fn an_in_process_webhook_listener_is_refused() {
     let input =
         fixtures::with(&fixtures::document(), b"application.webhooks", br#"{"listener":{"in_process":"hooks"}}"#);
     assert_eq!(
-        &*lines(&crate::named(&input, &jig_protocol_config::Directories::working()).unwrap_err()),
+        &*lines(&fixtures::named(&input, &jig_protocol_config::Directories::working()).unwrap_err()),
         b"application.webhooks.listener: invalid form\n"
     );
 }
 #[test]
 fn the_configured_bundle_is_named_for_the_binary() {
     let document = fixtures::with(&fixtures::document(), b"application.clients.bundle", br#""/bundle""#);
-    let named = crate::named(&document, &jig_protocol_config::Directories::working()).expect("named");
+    let named = fixtures::named(&document, &jig_protocol_config::Directories::working()).expect("named");
     assert_eq!(named.bundle.as_deref(), Some(b"/bundle".as_slice()));
     assert_eq!(named.bundle_limits, crate::limits::Clients { bundle_files: 128, bundle_bytes: 32 << 20 });
 }
@@ -720,7 +720,7 @@ fn a_webhook_listener_with_a_bundle_is_refused() {
         br#"{"listener":{"socket":"127.0.0.1:7200"},"bundle":null}"#,
     );
     assert_eq!(
-        &*lines(&crate::named(&document, &jig_protocol_config::Directories::working()).unwrap_err()),
+        &*lines(&fixtures::named(&document, &jig_protocol_config::Directories::working()).unwrap_err()),
         b"application.webhooks.bundle: unknown member\n"
     );
 }
@@ -735,7 +735,7 @@ fn paths_are_resolved_by_kind_and_absolute_only_members_refuse_relative_values()
         (b"application.clients.bundle", br#""/kept/bundle""#, b"/kept/bundle", false),
     ] {
         let document = fixtures::with(&fixtures::document(), member, input);
-        let result = crate::named(&document, &directories);
+        let result = fixtures::named(&document, &directories);
         if refused {
             let lines = lines(&result.unwrap_err());
             let expected = [member, b": must be an absolute path\n"].concat();
@@ -840,13 +840,13 @@ fn a_store_reader_derives_serves_limits_or_their_problem_path() {
 #[test]
 fn an_engine_alone_prepares_without_a_worker_or_its_files_and_agent() {
     let input = fixtures::engine_alone_document();
-    let named = crate::named(&input, &config::Directories::working()).unwrap();
+    let named = fixtures::named(&input, &config::Directories::working()).unwrap();
     assert!(named.worker.is_none());
     let mut files = fixtures::files();
     for path in [b"worker-secret".as_slice(), fixtures::AGENT_JSON] {
         files.entries = fixtures::without(files.entries, path);
     }
-    let service = crate::startup::with_setup(
+    let service = fixtures::with_setup(
         &input,
         &config::Directories::working(),
         &files,
@@ -968,7 +968,7 @@ fn a_document_naming_forges_is_refused_by_path() {
     let input = core::str::from_utf8(&fixtures::turn_document())
         .unwrap()
         .replace("\"application\":{", "\"application\":{\"forges\":[],");
-    let found = crate::named(input.as_bytes(), &config::Directories::working()).unwrap_err();
+    let found = fixtures::named(input.as_bytes(), &config::Directories::working()).unwrap_err();
     assert_eq!(lines(&found).as_ref(), b"application.forges: unknown member\n");
 }
 #[test]
@@ -977,7 +977,7 @@ fn identities_and_setup_are_unknown_members() {
         let input = core::str::from_utf8(&fixtures::turn_document())
             .unwrap()
             .replace("\"application\":{", &format!("\"application\":{{\"{member}\":[],"));
-        let found = crate::named(input.as_bytes(), &config::Directories::working()).unwrap_err();
+        let found = fixtures::named(input.as_bytes(), &config::Directories::working()).unwrap_err();
         assert_eq!(lines(&found).as_ref(), format!("application.{member}: unknown member\n").as_bytes());
     }
 }
@@ -1030,7 +1030,7 @@ fn capacity_overrides_name_the_failed_dependency() {
     ] {
         let document = super::stock::limited(&initial, member, value);
         if causes.is_empty() {
-            crate::named(&document, &config::Directories::working()).expect("independent init override is admitted");
+            fixtures::named(&document, &config::Directories::working()).expect("independent init override is admitted");
             continue;
         }
         let found = fixtures::start(

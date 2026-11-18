@@ -1,5 +1,34 @@
 {
-  "world_settings": {"playground": true},
+  "world_settings": {
+    "playground": true,
+    "llm": {
+      "endpoints": [
+        {
+          "address": {
+            "socket": "127.0.0.1:443"
+          },
+          "connect_ms": 10000,
+          "dialect": 3,
+          "handshake_ms": 10000,
+          "headers": [],
+          "name": "fake",
+          "number": 1,
+          "provider": "fake-provider",
+          "transport": "plaintext"
+        }
+      ],
+      "providers": [
+        {
+          "name": "fake-provider",
+          "number": 1,
+          "sources": {
+            "keys": true
+          },
+          "endpoint": "fake"
+        }
+      ]
+    }
+  },
   "application": {
     "clients": {
       "bundle": null,
@@ -114,33 +143,6 @@
         "views.runs": 1,
         "views.text_bytes": 1024
       }
-    },
-    "llm": {
-      "endpoints": [
-        {
-          "address": {
-            "socket": "127.0.0.1:443"
-          },
-          "connect_ms": 10000,
-          "dialect": 3,
-          "handshake_ms": 10000,
-          "headers": [],
-          "name": "fake",
-          "number": 1,
-          "provider": "fake-provider",
-          "transport": "plaintext"
-        }
-      ],
-      "providers": [
-        {
-          "name": "fake-provider",
-          "number": 1,
-          "sources": {
-            "keys": true
-          },
-          "endpoint": "fake"
-        }
-      ]
     },
     "memory_bytes": 1152921504606846976,
     "owners": [

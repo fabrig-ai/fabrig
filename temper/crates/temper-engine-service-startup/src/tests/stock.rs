@@ -10,7 +10,6 @@ pub(super) fn generated() -> Box<[u8]> {
             login: Some(b"ada"),
             ports: temper_init::Ports {
                 clients: NonZeroU16::new(8367).unwrap(),
-                llm: NonZeroU16::new(8370).unwrap(),
                 webhooks: NonZeroU16::new(8371).unwrap(),
             },
         },

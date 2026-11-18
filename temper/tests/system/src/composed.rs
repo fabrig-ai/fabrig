@@ -1170,7 +1170,7 @@ impl World {
                 self.worker_events.push_back(worker::Event::Resend { run, attempt, turn });
             }
             // A live notice to the requester, with no reply right.
-            Delivery::WorkerFigures { .. } | Delivery::Result { .. } => {}
+            Delivery::Providers(..) | Delivery::WorkerFigures { .. } | Delivery::Result { .. } => {}
             Delivery::WatchEnded { watcher, .. } if self.absence.enabled => {
                 assert_eq!(watcher, RUN_WATCH);
             }

@@ -19,7 +19,7 @@
   "endpoints": [
     {
       "name": "fake",
-      "number": 0,
+      "number": 1,
       "dialect": 3,
       "provider": "openai",
       "address": "{place.model}",

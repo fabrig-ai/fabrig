@@ -557,11 +557,14 @@ impl World {
                     );
                     self.inputs.remove(&token).expect("one pending outside reply right");
                 }
+                engine::Request::Worker(
+                    engine::WorkerRequest::Deliver(Delivery::Providers(_)) | engine::WorkerRequest::Settings(_),
+                )
+                | engine::Request::Party(engine::PartyRequest::Deliver(Delivery::Providers(_))) => {}
                 engine::Request::Worker(engine::WorkerRequest::Deliver(delivery))
                 | engine::Request::Party(engine::PartyRequest::Deliver(delivery)) => {
                     panic!("unexpected role-world delivery {delivery:?}")
                 }
-                engine::Request::Worker(engine::WorkerRequest::Settings(_)) => {}
                 engine::Request::Stop => panic!("role root stopped: {:?}", self.trace),
                 other @ (engine::Request::Forge { .. }
                 | engine::Request::Worker(_)

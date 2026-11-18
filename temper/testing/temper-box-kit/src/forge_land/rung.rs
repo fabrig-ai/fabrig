@@ -129,7 +129,10 @@ pub fn deployment(paths: &[PathBuf; 3]) {
     let mut value = read_json(&config);
     let mut worker = temper_fixtures::agent::read(&paths[0]);
     for table in ["providers", "endpoints"] {
-        value["engine"]["llm"][table].as_array_mut().expect("LLM table").retain(|row| row["name"] != "anthropic");
+        temper_fixtures::providers::input(&mut value)[table]
+            .as_array_mut()
+            .expect("LLM table")
+            .retain(|row| row["name"] != "anthropic");
     }
     worker["endpoints"].as_array_mut().expect("endpoints").retain(|endpoint| endpoint["name"] != "anthropic");
     worker["endpoints"][0]["limits"]["output"] = 32_000.into();
@@ -762,7 +765,7 @@ fn fake_account(root: &Path, paths: &[PathBuf; 3], file: &Path) {
         read_json(&donor_paths[0].join("temper.json"))["engine"]["llm"]["providers"][0]["sources"]["sign_in"].clone();
     let config = paths[0].join("temper.json");
     let mut destination = read_json(&config);
-    destination["engine"]["llm"]["providers"][0]["sources"]["sign_in"] = registration;
+    temper_fixtures::providers::input(&mut destination)["providers"][0]["sources"]["sign_in"] = registration;
     write_json(&config, &destination);
 }
 

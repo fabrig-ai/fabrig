@@ -135,7 +135,10 @@ fn jig_words(what: config::What, path: &config::Path) -> &'static [u8] {
         | config::What::StoreCodec => b"",
         config::What::Fixed => super::moved::words(path),
         config::What::Json => b"invalid JSON",
-        config::What::Stored => b"settings live in the store; read them with temper ctl DIR settings show",
+        config::What::Stored => match super::moved::at_path(path) {
+            Some(member) => member.words.as_bytes(),
+            None => b"settings live in the store; read them with temper ctl DIR settings show",
+        },
         config::What::Unknown => b"unknown member",
         config::What::Missing => b"missing",
         config::What::Duplicate => b"duplicate",

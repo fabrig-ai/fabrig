@@ -810,7 +810,10 @@ impl StartStore {
                     engine::Request::ToChild(released) => engine::step(root, env, engine::Event::Released(released)),
                     engine::Request::Store(engine::StoreRequest::Catalogue { .. })
                     | engine::Request::ForgeKept(_)
-                    | engine::Request::Party(engine::PartyRequest::Catalogue { .. })
+                    | engine::Request::Party(
+                        engine::PartyRequest::Catalogue { .. }
+                        | engine::PartyRequest::Deliver(engine::Delivery::Providers(_)),
+                    )
                     | engine::Request::Worker(engine::WorkerRequest::Settings(_)) => {}
                     engine::Request::Account(accounts::Request::Signing(accounts::Signing::Restored)) => {
                         assert!(self.wires > 0, "account restoration follows durable wires");

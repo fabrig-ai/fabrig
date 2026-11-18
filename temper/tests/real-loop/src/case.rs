@@ -272,11 +272,11 @@ pub fn fixture() -> forge::Fixture {
             value["engine"]["limits"]["overrides"]["authority.projects"] = 2.into();
             value["engine"]["limits"]["overrides"]["tasks.funders"] = 4.into();
             // A runs on the director's explicit choice, distinct from the default.
-            let mut model = value["engine"]["llm"]["models"][0].clone();
+            let mut model = value["world_settings"]["llm"]["models"][0].clone();
             model["name"] = OWNER_MODEL.into();
             model["efforts"] = json!([OWNER_EFFORT]);
-            value["engine"]["llm"]["models"].as_array_mut().expect("models").push(model);
-            value["engine"]["llm"]["providers"][0]["models"] = json!(["fake", OWNER_MODEL]);
+            value["world_settings"]["llm"]["models"].as_array_mut().expect("models").push(model);
+            value["world_settings"]["llm"]["providers"][0]["models"] = json!(["fake", OWNER_MODEL]);
             // The director delegates, messages, amends and keeps project notes.
             // The extra owner adds one delegation level before the change procedure.
             for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {
@@ -331,7 +331,7 @@ pub fn fixture_placed() -> forge::Fixture {
 // final A = 1,320,403 and F(A) = 1,320,467, within Small's 1,590,110-byte
 // page ceiling; the old 1,048,576-token window required a 1,792,326-byte frame.
 fn small_two_call_window(value: &mut Value, agent: &mut Value) {
-    for model in value["engine"]["llm"]["models"].as_array_mut().expect("engine models") {
+    for model in value["world_settings"]["llm"]["models"].as_array_mut().expect("engine models") {
         model["window"] = 262_144.into();
     }
     agent["endpoints"][0]["limits"]["window"] = 262_144.into();
@@ -784,7 +784,7 @@ pub fn fixture_6_5() -> forge::Fixture {
     forge::Fixture {
         configure: |value, agent, forge| {
             (fixture().configure)(value, agent, forge);
-            value["engine"]["llm"]["models"][0]["efforts"] = json!([BUDGET_MEDIUM, BUDGET_HIGH]);
+            value["world_settings"]["llm"]["models"][0]["efforts"] = json!([BUDGET_MEDIUM, BUDGET_HIGH]);
             // Small profile; default engine/agent model efforts [medium, high].
             // Singleton delegations, five tasks, parked owners and investigator.
             // Two calls carry a tool and wait in one completion; three fleet

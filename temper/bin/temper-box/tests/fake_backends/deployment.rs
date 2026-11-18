@@ -235,6 +235,7 @@ impl Place {
 
     fn listeners(&self) {
         let engine = document(&self.scratch.join("config/engine/temper.json"));
+        let providers = document(&self.scratch.join("config/providers.json"));
         let worker = document(&self.scratch.join("config/worker/temper.json"));
         let agent = document(&self.scratch.join("config/worker/agent.json"));
         let model = document(&self.scratch.join("config/model.json"));
@@ -246,7 +247,7 @@ impl Place {
             (&engine["application"]["webhooks"]["listener"]["socket"], 4),
             (&model["listen"]["socket"], 7),
             (&agent["endpoints"][0]["address"], 7),
-            (&engine["engine"]["llm"]["endpoints"][0]["address"]["socket"], 7),
+            (&providers["providers"][0]["endpoints"][0]["address"]["socket"], 7),
             (&forge["listen"]["socket"], 8),
         ] {
             assert_eq!(socket.as_str().expect("rendered listener"), self.ports[port].to_string());

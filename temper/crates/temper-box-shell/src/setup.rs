@@ -64,7 +64,11 @@ pub(crate) fn playground(demo: &temper_fake::demo::Demo) -> temper_service::sett
     }
 }
 pub fn check(bytes: &[u8], directories: &config::Directories) -> Result<Deployment, String> {
-    check_with(bytes, directories, &temper_service::stock::Given::Stock)
+    let given = temper_service::stock::Given::Stock.with_providers(
+        temper_service::stock::providers(),
+        Box::new([temper_service::stock::scripted(crate::scripted::PREFERRED)]),
+    );
+    check_with(bytes, directories, &given)
 }
 
 fn box_limits(overrides: &[(Box<[u8]>, u64)]) -> Result<temper_box_machine::limits::Limits, String> {

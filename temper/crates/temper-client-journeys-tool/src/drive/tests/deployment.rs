@@ -361,6 +361,10 @@ fn named_store_and_forge_refusals_are_status_three() {
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one preparation, reuse and patch fixture also stages the kept provider inputs"
+)]
 fn preparation_and_patch_files_are_private_held_and_atomic() {
     use std::{fs, os::unix::fs::PermissionsExt};
     let root = skein_scratch::Scratch::new("drive-deployment-files");
@@ -376,6 +380,7 @@ fn preparation_and_patch_files_are_private_held_and_atomic() {
         ("agent.json", "{}"),
         ("forgejo.json", r#"{"admin_token":"{place.data}/forgejo/admin"}"#),
         ("model.json", r#"{"key":"{place.data}/model/key"}"#),
+        ("providers.json", r#"{"providers":[]}"#),
     ] {
         fs::write(source.join(name), bytes).expect("fixture document");
     }
@@ -408,6 +413,8 @@ fn preparation_and_patch_files_are_private_held_and_atomic() {
         "config/model.json",
         "data/worker/secrets/worker.secret",
         "data/engine/secrets/worker.digest",
+        "config/providers.json",
+        "data/engine/providers.setting",
     ] {
         assert_eq!(fs::metadata(root.path().join(relative)).expect("file").permissions().mode() & 0o777, 0o600);
     }
@@ -418,9 +425,14 @@ fn preparation_and_patch_files_are_private_held_and_atomic() {
     let digest_hash = Sha256::digest(fs::read(&digest_path).expect("synthetic digest"));
     assert_eq!(secret_hash, Sha256::digest(&pair.0));
     assert_eq!(digest_hash, Sha256::digest(&pair.1));
+    fs::write(root.path().join("data/engine/providers.setting"), b"store value").expect("store kept another value");
     fs::remove_dir_all(source).expect("held reads no recipe");
     plan.options.bin = "/new/bin".into();
     io::deployment::prepare_with(&plan, Some([13; 32])).expect("held");
+    assert_eq!(
+        fs::read(root.path().join("data/engine/providers.setting")).expect("kept inputs"),
+        br#"{"providers":[]}"#
+    );
     assert_eq!(fs::read_link(root.path().join("data/bin/git")).expect("remade git"), Path::new("/new/bin/temper-box"));
     assert_eq!(Sha256::digest(fs::read(&secret_path).expect("held secret")), secret_hash);
     assert_eq!(Sha256::digest(fs::read(&digest_path).expect("held digest")), digest_hash);
@@ -480,6 +492,7 @@ fn script_files_use_the_shared_joiner_and_name_a_bad_source() {
     ] {
         fs::create_dir(root.path().join(relative)).expect("held fixture");
     }
+    fs::write(root.path().join("config/providers.json"), br#"{"providers":[]}"#).expect("provider inputs");
     fs::write(root.path().join("config/forgejo.json"), br#"{"admin_token":"/unused/admin"}"#).expect("forge document");
     fs::write(root.path().join("config/model.json"), br#"{"listen":{"socket":"127.0.0.1:0"},"key":"/unused/key","tls":null,"models":[{"name":"qa","window":4096,"output":1024}],"cued":[],"asked":[],"otherwise":["fallback"]}"#).expect("model document");
     let first = root.path().join("first.json");

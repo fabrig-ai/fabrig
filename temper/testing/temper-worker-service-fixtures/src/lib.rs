@@ -1,6 +1,40 @@
 //! Public worker fixtures for composition tests (temper/docs/design/protocol/services.md, 8).
 use jig_domain_link::{Bounds, EndpointBound};
 use temper_worker_service::settings;
+
+/// The typed plaintext provider shared by the small service worlds.
+#[must_use]
+pub fn providers() -> Box<[jig_protocol_config::ProviderSetting]> {
+    use jig_protocol_config::{Endpoint, EndpointAddress, Provider, ProviderSetting, Transport};
+    Box::new([ProviderSetting {
+        provider: Provider {
+            name: b"fake-provider".as_slice().into(),
+            number: 1,
+            endpoint: Some(b"fake".as_slice().into()),
+            direct: None,
+            list: None,
+            signed_in_plan: false,
+            manage_usage: None,
+            sign_in: None,
+            keys: true,
+            programs: Box::new([]),
+        },
+        endpoints: Box::new([Endpoint {
+            name: b"fake".as_slice().into(),
+            number: 1,
+            dialect: 3,
+            provider: b"fake-provider".as_slice().into(),
+            program: None,
+            address: EndpointAddress::Socket(([127, 0, 0, 1], 7101).into()),
+            transport: Transport::Plaintext,
+            headers: Box::new([]),
+            connect: skein_lib::Duration::from_millis(10_000),
+            handshake: skein_lib::Duration::from_millis(10_000),
+        }]),
+        withdrawn: false,
+    }])
+}
+
 #[must_use]
 pub fn agent() -> settings::Agent {
     use skein_lib::Duration;

@@ -280,6 +280,10 @@ impl Driver {
                     })));
                     self.pushes.push(push);
                 }
+                engine::Request::Worker(
+                    engine::WorkerRequest::Deliver(Delivery::Providers(_)) | engine::WorkerRequest::Settings(_),
+                )
+                | engine::Request::Party(engine::PartyRequest::Deliver(Delivery::Providers(_))) => {}
                 engine::Request::Worker(engine::WorkerRequest::Deliver(delivery))
                 | engine::Request::Party(engine::PartyRequest::Deliver(delivery)) => {
                     self.delivered.push(delivery);
@@ -318,7 +322,6 @@ impl Driver {
                 }
                 engine::Request::Stop => self.stopped = true,
                 engine::Request::Worker(engine::WorkerRequest::Host(request)) => self.host_requests.push(request),
-                engine::Request::Worker(engine::WorkerRequest::Settings(_)) => {}
                 other @ (engine::Request::Party(_)
                 | engine::Request::Worker(_)
                 | engine::Request::Store(_)

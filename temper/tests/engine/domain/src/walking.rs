@@ -1011,7 +1011,9 @@ impl World {
                 assert_eq!((run.raw(), attempt.raw()), (assignment.task, assignment.attempt));
                 assert!(self.terminal_snapshot.is_some(), "only a committed terminal has no adopted claim");
             }
-            Delivery::WorkerFigures { .. } | Delivery::Link { down: host::LinkDown::Grant { .. }, .. } => {}
+            Delivery::Providers(..)
+            | Delivery::WorkerFigures { .. }
+            | Delivery::Link { down: host::LinkDown::Grant { .. }, .. } => {}
             Delivery::TurnBusy { turn, .. } => self.turn(turn),
             Delivery::Result { person, task, words } => {
                 if let Err(why) = self.referee.result(&self.store.rows, person, task, &words) {

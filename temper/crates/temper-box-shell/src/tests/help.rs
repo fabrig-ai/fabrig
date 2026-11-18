@@ -256,14 +256,8 @@ fn tester_stock() -> jig_domain_core::settings::Defaults {
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16384, depth: 32 },
     )
     .expect("engine document");
-    let engine = jig_protocol_config::engine(
-        &document,
-        0,
-        &jig_protocol_config::Directories::working(),
-        jig_protocol_config::Defaults::Passed,
-        &temper_service::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
-    )
-    .expect("engine configuration");
+    let engine = temper_service::startup::engine(&document, 0, &jig_protocol_config::Directories::working())
+        .expect("engine configuration");
     temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes)
 }
 

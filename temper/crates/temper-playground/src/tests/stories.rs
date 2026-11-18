@@ -44,11 +44,11 @@ fn story_a_decodes_within_the_fakes_bounds() {
     assert!(deployment["engine"].get("projects").is_none());
     assert!(deployment["application"]["forges"].is_null());
     assert!(deployment["application"].get("machine").is_none());
-    assert_eq!(deployment["engine"]["llm"]["endpoints"][0]["address"]["socket"], llm.listen().to_string());
+    assert_eq!(deployment["world_settings"]["llm"]["endpoints"][0]["address"]["socket"], llm.listen().to_string());
     assert!(deployment["application"].get("demo").is_none());
     let [model] = llm.models() else { panic!("one model") };
-    assert!(deployment["engine"]["llm"].get("models").is_none());
-    assert!(deployment["engine"]["llm"]["providers"][0].get("models").is_none());
+    assert!(deployment["world_settings"]["llm"].get("models").is_none());
+    assert!(deployment["world_settings"]["llm"]["providers"][0].get("models").is_none());
     let engine = documents::settings::configuration(&deployment);
     assert_eq!(engine.llm.models[0].model.name.as_ref(), model.name.as_ref());
     assert_eq!(engine.llm.models[0].model.window, model.window);

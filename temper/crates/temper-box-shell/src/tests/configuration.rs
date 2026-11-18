@@ -1,6 +1,6 @@
 //! Configuration reference pages (temper/docs/design/protocol/documentation.md, 6 and 8).
 #[path = "../../../../testing/temper-box-kit/src/configuration.rs"]
-mod support;
+pub(crate) mod support;
 use core::num::NonZeroU16;
 use serde_json::Value;
 use skein_lib::Writer;
@@ -17,7 +17,7 @@ pub(super) fn init_document() -> Box<[u8]> {
         binary: b"/opt/temper/bin/temper-box",
         git: Some(b"/usr/bin/git"),
         claude: Some(b"/usr/bin/claude"),
-        ports: temper_init::Ports { clients: ports[0], llm: ports[3], webhooks: ports[4] },
+        ports: temper_init::Ports { clients: ports[0], webhooks: ports[4] },
         login: Some(b"person"),
     };
     let directories = temper_init::Directories { config: b"/etc/temper", data: b"/var/lib/temper" };

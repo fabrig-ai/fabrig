@@ -40,7 +40,11 @@ pub fn figures(document: &Value) -> jig_protocol_worker_wire::Figures {
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 1_048_576, depth: 32 },
     )
     .expect("engine document");
-    let engine = temper_service::startup::engine(&parsed, 0, &jig_protocol_config::Directories::working())
+    let providers = document
+        .get("world_providers")
+        .map_or_else(temper_service::stock::providers, temper_fixtures::providers::values);
+    let given = temper_service::stock::Given::Stock.with_providers(providers, Box::new([]));
+    let engine = temper_service::startup::engine_with(&parsed, 0, &jig_protocol_config::Directories::working(), &given)
         .expect("fixture engine");
     let application = &document["application"]["limits"];
     let mut own = temper_limits_fixtures::small();

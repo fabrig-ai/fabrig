@@ -10,8 +10,11 @@ pub(crate) fn run(directories: &Directories, request: &Request) -> Result<u8, St
 }
 fn prepare(directories: &Directories) -> Result<(temper_engine_service::Service, Box<[u8]>), String> {
     let bytes = directories.read()?;
-    let mut named = crate::setup::check(&bytes, &jig_directories(directories))?.named;
-    let agent = crate::serve::configured_agent(&bytes, directories, &[])?;
+    let address = crate::scripted::address(&[])?;
+    let given = crate::scripted::given(directories, &service::stock::Given::Stock, address);
+    let mut named = crate::setup::check_with(&bytes, &jig_directories(directories), &given)?.named;
+    let environment = [(Box::from(crate::scripted::ADDRESS), address.to_string().into_bytes().into_boxed_slice())];
+    let agent = crate::serve::configured_agent(&bytes, directories, &environment)?;
     let engine::Inputs { files, google, bundle } = engine::before_root(
         &mut named.files,
         &mut named.asked_files,
@@ -22,7 +25,7 @@ fn prepare(directories: &Directories) -> Result<(temper_engine_service::Service,
         false,
     )?;
     let engine::Runtimes { roots, github } = engine::runtimes(named.test_github.as_ref())?;
-    let config = engine::settings(&bytes, directories, &service::stock::Given::Stock);
+    let config = engine::settings(&bytes, directories, &given);
     let accounts = engine::accounts(&config)?;
     let seeds = engine::seeds(None, None)?;
     let mut service = service::startup::restoring_engine_with(
@@ -32,7 +35,7 @@ fn prepare(directories: &Directories) -> Result<(temper_engine_service::Service,
         agent.as_ref().map(|prepared| &prepared.agent),
         &seeds,
         Some(accounts),
-        &service::stock::Given::Stock,
+        &given,
     )
     .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     service.configure_forge_runtime(github, roots);

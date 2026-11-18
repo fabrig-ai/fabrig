@@ -797,7 +797,7 @@ pub fn generated(root: &Path) {
             git: Some(b"/usr/bin/git"),
             claude: None,
             login: Some(b"qa-person"),
-            ports: Ports { clients: ports[0], llm: ports[3], webhooks: ports[4] },
+            ports: Ports { clients: ports[0], webhooks: ports[4] },
         },
         &Directories { config: root.as_os_str().as_bytes(), data: root.as_os_str().as_bytes() },
         &[7; 32],

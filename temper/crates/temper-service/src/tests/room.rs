@@ -44,6 +44,7 @@ fn start(room: u64, part: Option<usize>) -> Result<crate::Service, startup::Prob
         &engine.limits.core.brief_core_budgets,
     );
     let mut defaults = stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    defaults.providers = config::llm::provider_values(&engine.llm);
     for charter in &mut defaults.charters {
         if charter.number == 5 {
             // Finish's object wrapper (smith/docs/design/protocol/llm.md, 3) costs 95 bytes; this fixture lowers the host bound, and charter 5 is not under test.
@@ -290,6 +291,7 @@ fn a_default_must_leave_its_measured_brief_floor_at_startup() {
     let host = crate::settings::host_part(&engine, None);
     for extra in [0, 1] {
         let mut defaults = stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+        defaults.providers = config::llm::provider_values(&engine.llm);
         for charter in &mut defaults.charters {
             if charter.number == 4 {
                 charter.policy.instructions = Box::new([]);

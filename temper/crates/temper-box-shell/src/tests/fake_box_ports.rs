@@ -24,11 +24,7 @@ fn a_fresh_fake_box_writes_none_of_the_persons_preferred_ports() {
     let document: serde_json::Value =
         serde_json::from_slice(&fs::read(prepared.directories.document()).expect("written deployment"))
             .expect("deployment JSON");
-    for pointer in [
-        "/application/clients/listener/socket",
-        "/engine/llm/endpoints/2/address/socket",
-        "/application/webhooks/listener/socket",
-    ] {
+    for pointer in ["/application/clients/listener/socket", "/application/webhooks/listener/socket"] {
         let address: SocketAddr = document
             .pointer(pointer)
             .expect("listener")

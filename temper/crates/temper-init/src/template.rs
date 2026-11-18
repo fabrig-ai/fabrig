@@ -32,14 +32,12 @@ pub(crate) fn documents(facts: &Facts<'_>, directories: &Directories<'_>, login:
     email.put(login).expect("the login was counted");
     email.put(b"@localhost").expect("the domain was counted");
     let email = email.finish();
-    let llm = listener(facts.ports.llm);
     let provider = if facts.sign_in { json(Value::Provider) } else { json(Value::Text(None)) };
 
     let values = [
         (b"provider".as_slice(), provider),
         (b"login".as_slice(), json(Value::Text(Some(login)))),
         (b"email".as_slice(), json(Value::Text(Some(&email)))),
-        (b"llm".as_slice(), json(Value::Text(Some(&llm)))),
     ];
     fill(TEMPER, &values, &common)
 }

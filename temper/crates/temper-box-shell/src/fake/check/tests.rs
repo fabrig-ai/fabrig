@@ -415,9 +415,14 @@ fn verb() {
             Copy::Absent => {}
             Copy::File => fs::write(&check.store, b"not a store").expect("non-store"),
         }
+        let entries_before = fs::read_dir(data).expect("fixture entries").count();
         assert_eq!(outcome(&directories, &check), expected, "{name}");
         assert_eq!(fs::read(data.join("agents.setting")).expect("copy remains"), copy_before, "{name}: read-only copy");
-        assert_eq!(fs::read_dir(data).expect("data entries").count(), 1, "{name}: creates no data resources");
+        assert_eq!(
+            fs::read_dir(data).expect("data entries").count(),
+            entries_before,
+            "{name}: creates no data resources"
+        );
         assert!(!directory.join("cache").exists(), "{name}: creates no cache directory");
     }
     fs::remove_dir_all(root).expect("scratch removed");

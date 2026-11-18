@@ -308,7 +308,7 @@ fn complete_profile_startup(document: &[u8], agent: &crate::settings::Agent) {
     drop(checked_profile(document, agent));
 }
 fn checked_profile(document: &[u8], agent: &crate::settings::Agent) -> crate::settings::Engine {
-    let named = crate::named(document, &jig_protocol_config::Directories::working()).unwrap();
+    let named = fixtures::named(document, &jig_protocol_config::Directories::working()).unwrap();
     let mut entries = skein_lib::List::with_capacity(u32::try_from(named.files.len()).unwrap());
     for file in named.files {
         entries.push((file.path, skein_lib::Secret::new(vec![b'0'; 64].into()))).unwrap();
@@ -328,7 +328,7 @@ fn checked_profile_with_files(
         &fixtures::seeds(),
         skein_lib::List::with_capacity(0),
         None,
-        &crate::stock::Given::Stock,
+        &fixtures::given(document, &jig_protocol_config::Directories::working()),
         None,
     ) {
         Ok(checked) => checked.engine,

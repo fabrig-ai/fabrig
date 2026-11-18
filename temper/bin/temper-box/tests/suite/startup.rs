@@ -804,6 +804,7 @@ fn serve_refuses_an_explicit_call_bound_below_the_agents_call_input() {
 #[test]
 fn serve_checks_the_owned_agents_admission_at_each_bound() {
     let scratch = owned_example("owned-admission-bounds");
+    temper_fixtures::providers::remember(scratch.path(), &temper_service::stock::providers());
     let original = temper_fixtures::agent::read(scratch.path());
     for (member, value, expected) in [
         (
@@ -1680,7 +1681,7 @@ fn box_initializes_only_absent_or_empty_configuration_directories() {
             assert!(!cache.exists());
         } else {
             let (first, held, _) = result.expect("initialization");
-            assert_eq!(held.len(), 3, "init retains its three deployment listeners");
+            assert_eq!(held.len(), 2, "init retains clients and webhooks");
             assert!(data.join("worker.secret").exists());
             assert!(cache.is_dir());
             let (second, reopened, _) = temper_box_shell::box_command::configuration(&dirs, &[]).expect("second read");
