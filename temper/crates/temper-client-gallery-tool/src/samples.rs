@@ -96,6 +96,11 @@ pub struct Sample {
     pub then: Then,
 }
 impl Sample {
+    /// The fixed instant used for this state's relative times.
+    #[must_use]
+    pub fn now(&self) -> skein_lib::Wall {
+        crate::worlds::sample_now(self.world, self.name)
+    }
     /// Opens a page-owned disclosure in the static print (client/web/gallery.md).
     #[must_use]
     pub fn open_disclosure(&self) -> Option<&[u8]> {

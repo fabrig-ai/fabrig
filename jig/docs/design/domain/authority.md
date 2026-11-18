@@ -467,6 +467,19 @@ work, paid as theirs, where a connector's repair is the project's
   leaves its funder as it was, a lower budget giving the difference back
   to it. So a task has one funder, and a widening is never split between
   two.
+
+  A party gives from their pool in the project's open period, which the
+  widening's decision opens where it is not open yet, as an acceptance's
+  does; a task gives from its own numbers. So a party's widening of a
+  task funded from an earlier period's pool, their own included, funds
+  it anew from the open one, and a task's widening of a delegate another
+  funds makes the amending task its funder. Every amendment names its
+  giver so: a party's, alone or in a compound request (people/acts.md,
+  1), a run's and a procedure step's. What a widening needs from its
+  giver is what it reserves: the new budget less the task's budget where
+  the giver already funds it, and otherwise the new budget less what the
+  task and the ended tasks it funded spent. A party's widening is judged
+  by that need (8.4).
 - **No overrun is recorded.** Every charge is reserved before it is
   made, or, for a program backend's completions, held in its run's
   reserve (below), so what is recorded against a task never passes its
@@ -754,6 +767,18 @@ pool has left.
   limit under the giver's role, not the target's remaining allowance.
   Exhaustion does not prevent granting more tasks. The request still
   passes the same funding and authority-ceiling admission checks.
+- **A party's widening is judged as section 7 funds it.** An amendment
+  that widens is judged whole, by the authority it leaves the task: at
+  most their role's authority, its budget no more than their role's
+  spend, however much of it the task holds already; and what it needs
+  from them (section 7, *Whoever widens a task funds it*) no more than
+  their pool has left, an unopened pool read at what it would open
+  with. Beyond their role or their pool it is beyond authority and may
+  be proposed, since an accepter funds a proposal (section 9); beyond
+  the policy's ceiling or the deployment's rules it is refused. A
+  task's document offers the amendment by this judgement's own numbers
+  (`../client/domain/contract/documents.md`, 3), so a client proposes
+  only what the request sent directly would be answered as beyond.
 - **A compound request** is checked as people/acts.md, 1 says: each
   operation as it would be alone, in order.
 - **Account requests** (accounts.md, section 5) are checked against the

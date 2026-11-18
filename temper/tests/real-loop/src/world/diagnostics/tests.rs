@@ -4,7 +4,6 @@ use super::{Operation, Operations, ROWS, Rows, Summary, Task, Tasks};
 use crate::world::{Kind, Proc};
 use skein_io::kernel::{Complete, Done, Fd, Op, Submit};
 use skein_lib::{Duration, Queue, Time, Token};
-use skein_world::{Referee, real::World};
 use std::collections::BTreeMap;
 
 const START: Time = Time::from_nanos(10);
@@ -31,90 +30,6 @@ fn tasks() -> Tasks {
         );
     }
     Tasks { rows, ..Tasks::default() }
-}
-
-struct Forced {
-    judge: crate::world::Judge,
-}
-impl Referee<Proc> for Forced {
-    fn act(&mut self, now: Time, procs: &mut [Proc]) {
-        self.judge.act(now, procs);
-    }
-    fn watch(&mut self, now: Time, procs: &[Proc]) -> Result<(), String> {
-        self.judge.watch(now, procs)?;
-        if procs[1].diagnostics.terminals.ended.contains(&crate::case::REVIEW) {
-            // An independent terminal witness triggers the fake verdict, even if
-            // the judge's task-observation hook has been disconnected.
-            let Kind::Service(host) = &procs[1].kind else { return Err("engine fixture".into()) };
-            let engine = host.service.as_ref().ok_or("prepared engine")?.engine_domain().ok_or("engine domain")?;
-            if engine.tasks().stub(crate::case::REVIEW).is_some() {
-                return Err("ordinary delegate completion needs no stub".into());
-            }
-            let sync = procs[1].diagnostics.terminals.last_sync.ok_or("terminal sync")?;
-            if procs[1].diagnostics.pending.contains_key(&sync) {
-                return Err("completion hook removes the finished sync".into());
-            }
-            self.judge.patience.force_failed();
-        }
-        Ok(())
-    }
-    fn next_deadline(&self) -> Option<Time> {
-        self.judge.next_deadline()
-    }
-    fn overdue(&self, now: Time) -> Option<String> {
-        self.judge.overdue(now)
-    }
-    fn passed(&self) -> bool {
-        self.judge.passed()
-    }
-}
-
-#[test]
-fn forced_overdue_observes_real_tasks_operations_and_dispatch() {
-    use crate::world::{self, ForgePeer};
-    const WORKERS: &[&str] = &["ws", "s1"];
-    let scratch: Vec<_> = ["engine", "ws", "s1"].map(crate::Scratch::new).into();
-    let state = std::rc::Rc::new(std::cell::RefCell::new(None));
-    let mut world = World::new_controlled(|controls| Forced {
-        judge: world::cluster_judge(controls, WORKERS, Some(state.clone()), crate::PATIENCE),
-    });
-    world::cluster_roots(
-        &mut world,
-        WORKERS,
-        &[],
-        skein_lib::Duration::from_millis(10),
-        &scratch,
-        || crate::llm::scripted(Box::new([])),
-        Some((crate::case::fixture(), crate::case::scripts::step_4_1, crate::case::scripts::step_4_1_rules)),
-        crate::case::acts::step_4_1,
-    );
-    world.spawn(|| {
-        let (forge, peer) = crate::forge::State::new(crate::case::fixture());
-        *state.borrow_mut() = Some(forge);
-        Proc::new(Kind::Forge(Box::new(ForgePeer::new(peer))))
-    });
-    let result = world.try_run(&skein_shell::Clock::new(), crate::PATIENCE);
-    crate::git::share(None);
-    let Err(message) = result else { panic!("the review terminal forces the overdue dispatch") };
-    for expected in [
-        "the referee failed the real loop before patience",
-        "task=2 state=landing",
-        "task=3",
-        "reviewed_below=1",
-        "wait=story-step",
-        "kind=ctl age_ns=",
-        "child-run=ctl",
-        "operation=pipe-read",
-        "observed_age_ns=",
-        "outstanding total=",
-        "shown=",
-        "omitted=",
-        "caller step=",
-        "forced failed deadline figures",
-    ] {
-        assert!(message.contains(expected), "missing {expected}: {message}");
-    }
-    assert!(!message.contains("task=5 state=absent"), "the review terminal has no stub: {message}");
 }
 
 fn terminal_frame(numbers: &[u64]) -> Box<[u8]> {

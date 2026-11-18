@@ -234,9 +234,8 @@ fn a_printed_tasks_amendment_and_release_admit_a_fresh_review() {
     let commands = offered(&mut world, agent, task);
     let amend: Vec<&[u8]> = commands[2].iter().map(String::as_bytes).collect();
     let number = fixtures::give(&mut world, agent, &amend);
-    assert_eq!(fixtures::answered(&mut world, agent, number).status, 1, "the pool has no widening room");
-    call(&mut world, agent, &[b"project", b"fund", b"1", b"10.00", b"--role", b"0", b"--key", b"fund-widening"]);
-    let amended = call(&mut world, agent, &amend);
+    let amended = fixtures::answered(&mut world, agent, number);
+    assert_eq!(amended.status, 0, "the pool already funds this budget; only the task allowance widens");
     assert!(amended.stdout.starts_with(b"done:"), "{amended:?}");
     let widened = world.front().engine.task(task).expect("amended change").clone();
     assert!(widened.revisions.spec > before.revisions.spec);

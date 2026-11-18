@@ -120,6 +120,17 @@ pub fn view(limits: &Limits) -> Option<(temper_client_view::Limits, temper_clien
 /// Refuses unusable client/view limits, overflowing transport counts and incompatible io bounds.
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
+    checked(limits).is_some()
+}
+/// Keep the checked view and words when the native bounds are usable.
+#[must_use]
+pub fn checked(limits: &Limits) -> Option<(temper_client_view::Limits, temper_client_view::words::Words)> {
+    if !transport_valid(limits) {
+        return None;
+    }
+    view(limits)
+}
+fn transport_valid(limits: &Limits) -> bool {
     if limits.connections.exchanges != EXCHANGES
         || limits.io.intake < limits.connections.http.head.max(limits.connections.http.read)
         || limits.io.output < limits.connections.http.request.max(limits.connections.http.send)
@@ -129,7 +140,6 @@ pub fn valid(limits: &Limits) -> bool {
     let Some(heard) = limits.connections.http.read.checked_mul(3) else { return false };
     let Some(record) = limits.connections.body_bytes.checked_add(512) else { return false };
     client::valid(&limits.client)
-        && view(limits).is_some()
         && jig_client_protocol_http::valid(&jig_client_protocol_http::Limits {
             record,
             chunk: limits.connections.http.read,

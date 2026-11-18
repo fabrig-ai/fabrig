@@ -56,7 +56,7 @@ fn route_proposal(core: &mut Core, env: &Env<Limits>, mut event: tasks::Event) -
         out.push(tasks::Request::Refused { reply_to, problem });
         return tag_task_outputs(core, env, out);
     }
-    if let tasks::Event::Amend { operation: tasks::Amend { task, amendment, .. }, funder, reply_to, .. } = &mut event
+    if let tasks::Event::Amend { operation: tasks::Amend { task, amendment, funder, .. }, reply_to, .. } = &mut event
         && let Err(why) = core.admit_amendment(*task, amendment, *funder)
     {
         let problem = tasks::Problem::new(Some(*task), why);
@@ -176,7 +176,7 @@ pub(crate) fn route_tasks(
         event
     };
     let mut out = Queue::uncapped();
-    if let tasks::Event::Amend { operation: tasks::Amend { task, amendment, .. }, funder, reply_to, .. } = &mut event
+    if let tasks::Event::Amend { operation: tasks::Amend { task, amendment, funder, .. }, reply_to, .. } = &mut event
         && let Err(why) = core.admit_amendment(*task, amendment, *funder)
     {
         let problem = tasks::Problem::new(Some(*task), why);

@@ -7,27 +7,8 @@ use skein_ui_screen::{Rgb, Size};
 use skein_ui_screen_terminal::Key;
 use temper_client_tui::Scheme;
 
-fn facts() -> Facts {
-    Facts {
-        set_up: false,
-        box_log: Box::default(),
-        seed: 7,
-        now: Time::ZERO,
-        wall: Wall::EPOCH,
-        size: Size { rows: 12, columns: 48 },
-        scheme: Some(Scheme::Dark),
-        background: None,
-        plain: false,
-        version: Box::default(),
-        boxed: false,
-        address: b"127.0.0.1:8367".as_slice().into(),
-        front: false,
-        local: false,
-        note: None,
-        kept: Vec::new(),
-        credential: None,
-    }
-}
+pub(in crate::journey) mod fixture;
+use fixture::facts;
 
 struct Walk {
     host: Host,
@@ -107,13 +88,7 @@ fn pasted() -> Walk {
     walk
 }
 
-fn written(records: &[Line]) -> Box<[u8]> {
-    let mut bytes = Vec::new();
-    for record in records {
-        record.write(&mut bytes);
-    }
-    bytes.into()
-}
+use fixture::written;
 
 fn replay_stale(recording: &[u8]) -> Stale {
     let mut replay = Replay::new(recording).expect("readable recording");
@@ -707,59 +682,6 @@ fn local_records_are_refused_outside_their_places() {
         records.insert(10, Line::BoxStage(bytes.into()));
         let Err(error) = Replay::new(&written(&records)) else { panic!("unreadable box stage accepted") };
         assert_eq!(error, Unreadable { line: 11, why: "unreadable box stage" });
-    }
-}
-
-#[test]
-fn setup_and_log_facts_are_ordered_optional_and_replayed() {
-    for bad in [b"set-up extra\n".as_slice(), b"box-log\n", b"box-log bare\n", b"box-log \"path\" extra\n"] {
-        assert!(lines(bad).is_err(), "strict start-fact fields: {bad:?}");
-    }
-    for (set_up, log) in [
-        (false, b"".as_slice()),
-        (true, b""),
-        (false, b"/data/box/logs/box.log"),
-        (true, b"/data/box/logs/box.log"),
-        (true, b"/data/\"\xff/box/logs/box.log"),
-    ] {
-        let mut given = facts();
-        given.front = true;
-        given.boxed = true;
-        given.set_up = set_up;
-        given.box_log = log.into();
-        let mut walk = Walk::with(&given);
-        walk.mark();
-        let recording = walk.save();
-        let records = lines(&recording).expect("start records");
-        let mut expected = vec![Line::Box, Line::Front];
-        if set_up {
-            expected.push(Line::SetUp);
-        }
-        if !log.is_empty() {
-            expected.push(Line::BoxLog(log.into()));
-        }
-        assert!(records.get(5..5 + expected.len()) == Some(expected.as_slice()), "facts follow address in order");
-        let (read, _) = super::replay::facts(&records).expect("ordered facts");
-        assert_eq!(read.set_up, set_up);
-        assert_eq!(read.box_log.as_ref(), log);
-        let mut replay = Replay::new(&recording).expect("read recording");
-        while replay.next().expect("replay facts").is_some() {}
-        assert!(prove(&recording).is_ok(), "new facts preserve recorded prints");
-        if set_up && !log.is_empty() {
-            for (at, insert) in [(7, Line::SetUp), (9, Line::BoxLog(log.into())), (11, Line::SetUp)] {
-                let mut bad = records.clone();
-                bad.insert(at, insert);
-                assert!(Replay::new(&written(&bad)).is_err(), "repeated or misplaced fact");
-            }
-            let mut bad = records.clone();
-            bad.swap(7, 8);
-            assert!(Replay::new(&written(&bad)).is_err(), "box-log cannot precede set-up");
-        }
-        if !set_up && log.is_empty() {
-            let mut legacy = records;
-            legacy.swap(5, 6);
-            assert!(prove(&written(&legacy)).is_ok(), "recordings with front then box replay unchanged");
-        }
     }
 }
 

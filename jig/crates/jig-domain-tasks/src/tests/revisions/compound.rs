@@ -74,12 +74,14 @@ fn a_compound_makes_its_operations_in_order_in_one_step() {
         &mut test,
         vec![
             Operation::Amend(crate::Amend {
+                funder: None,
                 task: FIRST,
                 message: FIRST_MESSAGE,
                 stop_run: false,
                 amendment: Box::new(first),
             }),
             Operation::Amend(crate::Amend {
+                funder: None,
                 task: FIRST,
                 message: SECOND_MESSAGE,
                 stop_run: false,
@@ -138,6 +140,7 @@ fn an_amendment_then_a_release_of_one_held_task_are_made_together() {
         &mut test,
         vec![
             Operation::Amend(crate::Amend {
+                funder: None,
                 task: FIRST,
                 message: FIRST_MESSAGE,
                 stop_run: false,

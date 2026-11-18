@@ -22,6 +22,7 @@ fn amend(world: &mut World, by: Party, task: u64, dependencies: &[u64]) -> Reply
     let message = world.record(task).last_message + 1;
     response(world, |reply_to| Event::Amend {
         operation: tasks::Amend {
+            funder: None,
             task,
             message,
             stop_run: false,
@@ -41,7 +42,6 @@ fn amend(world: &mut World, by: Party, task: u64, dependencies: &[u64]) -> Reply
         places: Box::new([]),
         reply_to,
         by,
-        funder: None,
     })
 }
 

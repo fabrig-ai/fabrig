@@ -1,4 +1,4 @@
-//! Production setup, calibration, cuts and the next start on the same store.
+//! Production setup, cuts and the next start on the same store.
 use super::{
     HarnessProcess, Links, Machine, Maps, Person, Proc, STATE, STORE, SignalHost, State, Story, Upgrade, ctl, cuts,
     fixtures, forge_peer, golden, image, judge::Judge, machine, mutations, programs, referee, stories, world,
@@ -6,27 +6,24 @@ use super::{
 use std::{cell::RefCell, path::Path, rc::Rc};
 /// The service stops settled, then starts with the production registry and job sets.
 pub fn settled() {
-    run(None, None);
+    run(None, false);
 }
 /// Kill the service with its sent write still in flight.
 pub fn unsettled() {
-    run(Some(Selection::MeasureKill), None);
-    let before = STATE.with(|s| s.borrow().write_at.expect("write in flight"));
-    run(None, Some(before));
+    run(None, true);
 }
 
 /// A fixed completed operation during the copy-to-wires interval.
 pub fn power_loss(point: usize) {
-    run(Some(Selection::Fixed(point)), None);
+    run(Some(Selection::Fixed(point)), false);
 }
 /// A seed draws one service submission across the whole upgrade start.
 pub fn drawn_power_loss(seed: u64) {
-    run(Some(Selection::Drawn(seed)), None);
+    run(Some(Selection::Drawn(seed)), false);
 }
 enum Selection {
     Fixed(usize),
     Drawn(u64),
-    MeasureKill,
 }
 
 pub(super) struct World {
@@ -42,7 +39,7 @@ fn setup() {
     stories::setup_settings(world::Phase::Story);
 }
 
-fn story(kill: Option<u32>) -> World {
+fn story() -> World {
     let start = temper_playground::stories::A.start(fixtures::SEED, skein_sim::Config::calm().wall);
     let mut configuration: serde_json::Value =
         serde_json::from_slice(&golden::configuration(&start.deployment)).expect("upgrade configuration");
@@ -53,15 +50,7 @@ fn story(kill: Option<u32>) -> World {
     temper_playground::story::prepare(&mut disk, &start.deployment, start.seed);
     let store = Rc::new(RefCell::new(referee::Store::new()));
     let ledger = Rc::new(RefCell::new(Vec::new()));
-    let disk = phase(
-        disk,
-        &configuration,
-        &start.fakes.forge,
-        &store,
-        &ledger,
-        false,
-        kill.map(|before| (before, skein_world::Cut::Kill)),
-    );
+    let disk = phase(disk, &configuration, &start.fakes.forge, &store, &ledger, false, None);
     World { disk, configuration, transport: start.fakes.forge, store, ledger }
 }
 
@@ -69,7 +58,7 @@ fn story(kill: Option<u32>) -> World {
 pub fn settled_image(directory: &Path, scratch: &Path) {
     STATE.with(|s| *s.borrow_mut() = State { capture_image: true, ..State::default() });
     setup();
-    let stopped = story(None);
+    let stopped = story();
     assert!(stopped.store.borrow().pending.is_empty(), "settled stop has no pending commit");
     let stop = image::Stop::read(stopped);
     image::write(scratch, stop);
@@ -84,26 +73,17 @@ pub fn settled_image(directory: &Path, scratch: &Path) {
     STORE.with(|s| *s.borrow_mut() = None);
 }
 
-fn run(selection: Option<Selection>, kill: Option<u32>) {
-    STATE.with(|s| *s.borrow_mut() = State { end_after_kill: kill.is_some(), ..State::default() });
+fn run(selection: Option<Selection>, kill: bool) {
+    STATE.with(|s| *s.borrow_mut() = State { end_after_kill: kill, ..State::default() });
     setup();
     let World { disk, configuration, transport, store, ledger } =
-        if kill.is_some() || matches!(selection, Some(Selection::MeasureKill)) {
-            story(kill)
-        } else {
-            image::load(&image::directory())
-        };
-    if kill.is_none() {
-        assert!(store.borrow().pending.is_empty(), "settled stop has no pending commit");
-    } else {
+        if kill { story() } else { image::load(&image::directory()) };
+    if kill {
         assert!(STATE.with(|s| s.borrow().killed), "the service was killed, not drained");
+    } else {
+        assert!(store.borrow().pending.is_empty(), "settled stop has no pending commit");
     }
     STATE.with(|s| s.borrow_mut().end_after_kill = false);
-    if matches!(selection, Some(Selection::MeasureKill)) {
-        world::lower_store(None);
-        STORE.with(|s| *s.borrow_mut() = None);
-        return;
-    }
     let mut disk = disk;
     let ledger_before = mutations(&ledger.borrow());
     let before = Maps::read(&mut disk);
@@ -124,7 +104,6 @@ fn run(selection: Option<Selection>, kill: Option<u32>) {
             let points = s.points.fixed();
             assert!(points.windows(2).all(|pair| pair[0] <= pair[1]), "copy, seal, switch, wires in order: {points:?}");
             match selection {
-                Selection::MeasureKill => unreachable!("kill measured before the upgrade"),
                 Selection::Fixed(index) => points[index],
                 Selection::Drawn(seed) => {
                     let mut draw = skein_lib::Rng::new(seed);

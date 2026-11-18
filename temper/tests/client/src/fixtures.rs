@@ -2071,11 +2071,12 @@ fn hello_worker(driver: &mut Driver) {
 pub fn long_messages_world(seed: u64) -> World<Temper, Joint> {
     use temper_engine_domain_world::{store::Store, walking};
     let limits = whole_turn_limits();
-    let small = Joint::with_reading_pages(seed, &limits);
-    let mut engine_limits = small.engine.env.limits;
-    drop(small);
+    let mut engine_limits = crate::front::reading_engine_limits();
+    // The restart oracle's Sweep must cover both cases' rows.
+    engine_limits.loads.rows = 4;
     engine_limits.people.words = 8192;
-    engine_limits.people.requests = 128;
+    // Both long-message cases share this engine and its retained request keys.
+    engine_limits.people.requests = 256;
     engine_limits.journal.result_bytes = engine_limits.journal.result_bytes.max(engine_limits.people.words);
     engine_limits.tasks.message_bytes = 10_660;
     engine_limits.tasks.inbox_bytes = 131_072;
@@ -2113,46 +2114,100 @@ fn long_messages_root(seed: u64) -> (crate::app::Root, crate::app::View) {
 
 /// A person's message written at the engine, as a ctl caller writes it.
 pub fn long_message(front: &mut Joint, task: u64, number: u8, words: &[u8]) {
-    use jig_domain_people::{Ask, Outcome, Reply};
+    long_messages(front, task, number, &[words]);
+}
+
+/// Admit whole messages in order, settling when the engine holds an input for room.
+pub fn long_messages(front: &mut Joint, task: u64, first: u8, messages: &[&[u8]]) {
     let driver = &mut front.engine;
-    let reply_to = skein_lib::ReplyTo::new(Token::new(9000 + u64::from(number)));
+    let before = driver.delivered.len();
+    let replies: Vec<_> = messages
+        .iter()
+        .enumerate()
+        .map(|(index, words)| {
+            let number = first.checked_add(u8::try_from(index).expect("message index")).expect("message key");
+            let reply_to = send_long_message(driver, task, number, words);
+            if !driver.events.is_empty() {
+                driver.settle();
+            }
+            (number, reply_to)
+        })
+        .collect();
+    driver.settle();
+    let mut replies = replies.into_iter();
+    for delivery in &driver.delivered[before..] {
+        if let engine::Delivery::WebReply { to, reply } = delivery {
+            let (number, reply_to) = replies.next().expect("one acknowledgement per message");
+            assert!(
+                *to == reply_to
+                    && matches!(reply,
+                        jig_domain_people::Reply::Outcome(jig_domain_people::Outcome::Said { task: named, .. }) if *named == task
+                    ),
+                "the engine admitted message {number} in order: expected {reply_to:?}, got {to:?} {reply:?}"
+            );
+        }
+    }
+    assert!(replies.next().is_none(), "the engine acknowledged every message");
+}
+
+fn send_long_message(driver: &mut Driver, task: u64, number: u8, words: &[u8]) -> skein_lib::ReplyTo {
+    use jig_domain_people::Ask;
+    let token = Token::new(9000 + u64::from(number));
     driver.send(engine::Event::Party(engine::PartyInput::Ask {
         models: Box::new([]),
-        reply_to: skein_lib::ReplyTo::new(Token::new(9000 + u64::from(number))),
+        reply_to: skein_lib::ReplyTo::new(token),
         sign_in: driver.session(),
         key: {
             let mut key = [77; 16];
             key[0] = number;
+            key[1..9].copy_from_slice(&task.to_le_bytes());
             key
         },
         ask: Ask::Say { project: 1, task, words: words.into() },
     }));
-    driver.settle();
-    assert!(
-        driver.delivered.iter().any(|delivery| matches!(delivery,
-            engine::Delivery::WebReply { to, reply: Reply::Outcome(Outcome::Said { task: named, .. }) }
-            if *to == reply_to && *named == task
-        )),
-        "the engine admitted message {number}"
-    );
+    skein_lib::ReplyTo::new(token)
 }
 
-pub fn long_messages_task(front: &mut Joint, agent: bool) -> u64 {
+pub fn long_messages_task(front: &mut Joint, agent: bool, number: u8) -> u64 {
+    // walking's minimum run spend; each reading case leaves room for the next task.
+    const READING_TASK_SPEND: u64 = 1;
     let driver = &mut front.engine;
     driver.sign_in();
     driver.settle();
     let mut ask = driver.chat_ask(1, b"Read long messages");
+    let jig_domain_people::Ask::Create { batch, .. } = &mut ask else { panic!("create") };
+    batch[0].budget = jig_domain_people::Budget::Named;
+    batch[0].authority.spend = READING_TASK_SPEND;
     if agent {
-        let jig_domain_people::Ask::Create { batch, .. } = &mut ask else { panic!("create") };
         batch[0].label = 0;
     }
+    let token = Token::new(CHAT_REPLY.raw() + u64::from(number));
+    let mut key = CHAT_KEY;
+    key[0] = number;
     driver.send(engine::Event::Party(engine::PartyInput::Ask {
         models: Box::new([]),
-        reply_to: skein_lib::ReplyTo::new(CHAT_REPLY),
+        reply_to: skein_lib::ReplyTo::new(token),
         sign_in: driver.session(),
-        key: CHAT_KEY,
+        key,
         ask,
     }));
     driver.settle();
-    driver.last_assignment().task
+    let reply_to = skein_lib::ReplyTo::new(token);
+    driver
+        .delivered
+        .iter()
+        .rev()
+        .find_map(|delivery| {
+            if let engine::Delivery::WebReply {
+                to,
+                reply: jig_domain_people::Reply::Outcome(jig_domain_people::Outcome::Created { first, .. }),
+            } = delivery
+                && *to == reply_to
+            {
+                Some(*first)
+            } else {
+                None
+            }
+        })
+        .expect("created reading task")
 }

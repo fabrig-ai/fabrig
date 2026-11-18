@@ -702,12 +702,23 @@ fn draw(part: Chat, list: Option<foot::Options>, columns: u16) -> crate::View {
 fn draw_request(part: Chat, list: Option<foot::Options>, columns: u16, request: &[u8]) -> crate::View {
     let mut view = view();
     let root = f::live(Some(f::me(&[b"Hello"]))).0;
-    let mut foot = foot::read(&root, &Tui::new(f::ADDRESS), &f::words(), f::NOW);
+    draw_into(&mut view, &root, part, list, columns, request);
+    view
+}
+fn draw_into(
+    view: &mut crate::View,
+    root: &Domain,
+    part: Chat,
+    list: Option<foot::Options>,
+    columns: u16,
+    request: &[u8],
+) {
+    let mut foot = foot::read(root, &Tui::new(f::ADDRESS), view.words(), f::NOW);
     foot.columns = columns;
     foot.launchpad = false;
     foot.rule = Some(foot::Rule {
         project: b"Hello".as_slice().into(),
-        title: chat::cut(&shared::heading(request), &f::words()),
+        title: chat::cut(&shared::heading(request), view.words()),
         task: Some(TASK),
         place: f::ADDRESS.into(),
     });
@@ -717,8 +728,7 @@ fn draw_request(part: Chat, list: Option<foot::Options>, columns: u16, request: 
     foot.composer.as_mut().unwrap().focus = 1;
     foot.running = if list.is_some() { None } else { Some(b"working".as_slice().into()) };
     foot.list = list;
-    view::signed(&mut view, &view::Signed { body: view::Body::Chat(part), foot }, &mut Queue::uncapped());
-    view
+    view::signed(view, &view::Signed { body: view::Body::Chat(part), foot }, &mut Queue::uncapped());
 }
 fn data(entries: Box<[Entry]>) -> Chat {
     Chat {
@@ -743,14 +753,8 @@ fn row(name: &'static str, input: Input, entries: &'static [(Style, &'static str
     Row { name, input: Some(input), data: None, entries, end: 0, ordered: None, failed: false, code: 0 }
 }
 #[test]
-#[expect(
-    clippy::too_many_lines,
-    clippy::disallowed_methods,
-    clippy::disallowed_types,
-    clippy::disallowed_macros,
-    reason = "one table inspects semantic trees and formats per-row failure diagnostics"
-)]
-fn the_chat_draws_each_entry() {
+fn the_request_title_is_cut_at_word_boundaries() {
+    let words = f::words();
     for (title, expected) in [
         ("", ""),
         ("A short title", "A short title"),
@@ -762,9 +766,19 @@ fn the_chat_draws_each_entry() {
         ("ééééééééé ééééééééé next", "ééééééééé ééééééééé…"),
         ("界界界界界界界界界界界界界界界界界界界界界", "界界界界界界界界界界界界界界界界界界界…"),
     ] {
-        assert_eq!(chat::cut(title.as_bytes(), &f::words()).as_ref(), expected.as_bytes(), "{title}");
+        assert_eq!(chat::cut(title.as_bytes(), &words).as_ref(), expected.as_bytes(), "{title}");
     }
-    request_rule();
+}
+
+#[test]
+#[expect(
+    clippy::too_many_lines,
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    clippy::disallowed_macros,
+    reason = "one table inspects semantic trees and formats per-row failure diagnostics"
+)]
+fn the_chat_draws_each_entry() {
     let mut rows = [
         row(
             "request and later words",
@@ -927,17 +941,18 @@ fn the_chat_draws_each_entry() {
     rows[8].ordered = Some(1);
     rows[11].end = 1;
     rows[11].code = 1;
-    let words = f::words();
+    let mut view = view();
+    let foot_root = f::live(Some(f::me(&[b"Hello"]))).0;
     let mut failures = List::uncapped();
     for mut row in rows {
         let part = if let Some(input) = row.input {
             let root = root(&input);
             let tui = Tui::new(f::ADDRESS);
-            chat::read(&root, &tui, &words, f::NOW)
+            chat::read(&root, &tui, view.words(), f::NOW)
         } else {
             row.data.take().unwrap()
         };
-        let view = draw(part, None, 80);
+        draw_into(&mut view, &foot_root, part, None, 80, REQUEST);
         let tree = view.tree();
         let entries: Vec<_> = tree
             .nodes()
@@ -970,23 +985,22 @@ fn the_chat_draws_each_entry() {
         }
     }
     assert!(failures.is_empty(), "{}", failures.as_slice().join("\n"));
-    pane_marks();
-    pane_states();
-    pane_writes();
 }
 
+#[test]
 #[expect(
     clippy::disallowed_methods,
     clippy::disallowed_types,
     reason = "the request's frame rows are compared as text"
 )]
-fn request_rule() {
+fn the_request_rule_names_its_place() {
     use skein_ui_screen::{Focus, Frame, Size, render};
     let request = b"What can you tell me about Hello?";
     let mut task = task();
     task.chip.title = c::DocumentText::complete(c::Text::new(request.as_slice().into(), 64).unwrap());
     task.spec.specification.words = c::DocumentText::complete(c::Text::new(request.as_slice().into(), 64).unwrap());
     let root = root(&Input { task: Some(Box::new(task)), ..Input::empty() });
+    let mut view = f::view();
     for (boxed, expected) in [
         (true, "Hello / What can you tell… T2 on box:40691"),
         (false, "Hello / What can you tell… T2 on 127.0.0.1:40691"),
@@ -996,7 +1010,6 @@ fn request_rule() {
         if boxed {
             tui.step(Told::Boxed);
         }
-        let mut view = f::view();
         f::build(&mut view, &tui, &root);
         for scheme in [Scheme::Dark, Scheme::Light] {
             let size = Size { columns: 80, rows: 24 };
@@ -1184,7 +1197,8 @@ fn agent_markdown_bullets_keep_their_own_mark_at_every_depth() {
 
 // A later edit moves the lines written earlier in the turn before sections are found.
 #[expect(clippy::disallowed_macros, clippy::disallowed_types, reason = "table rows name their line changes")]
-fn pane_marks() {
+#[test]
+fn pane_marks_follow_writes_across_sections() {
     use d::pages::chat::document::NoteChange::{First, Later};
     let body = b"# A\n\none\n\n## B\n\ntwo\n";
     for (name, writes, want) in [
@@ -1210,14 +1224,13 @@ fn pane_marks() {
     }
 }
 
-#[expect(
-    clippy::disallowed_methods,
-    clippy::too_many_lines,
-    reason = "one table inspects pane states, keys and Markdown roles"
-)]
-fn pane_states() {
+#[test]
+#[expect(clippy::disallowed_methods, reason = "one table inspects pane states, keys and Markdown roles")]
+fn panes_show_the_selected_mode() {
     use d::pages::chat::document::Mode;
     const BODY: &[u8] = b"# A\n\none\n\n## B\n\ntwo\n\n```mermaid\nflowchart LR\nA --> B\n```\n";
+    let mut view = view();
+    let signed_out = f::signed_out();
     for (name, draft, writing, mode, columns, shown, next) in [
         ("folded", true, false, Mode::Chat, 80, Some(Mode::Chat), Some(Mode::Split)),
         ("half", true, false, Mode::Split, 80, Some(Mode::Split), Some(Mode::Draft)),
@@ -1256,7 +1269,6 @@ fn pane_states() {
         chat_event(&mut root, Event::Act { action: d::Action::Pages(d::pages::Act::Mode { mode }) });
         let mut tui = Tui::new(f::ADDRESS);
         tui.step(Told::Size { columns });
-        let mut view = view();
         crate::build(&mut view, &tui, &root, f::NOW, &mut Queue::uncapped());
         assert_eq!(view.pane_mode(), shown, "{name}");
         let event = next.map(|mode| crate::Event::Act { act: d::pages::Act::Mode { mode } });
@@ -1299,33 +1311,35 @@ fn pane_states() {
         // Changing the root alone cannot change a key decoded against the last tree.
         chat_event(&mut root, Event::Act { action: d::Action::Pages(d::pages::Act::Mode { mode: Mode::Chat }) });
         assert_eq!(crate::pane_key(&view), event, "{name}: last tree");
-        crate::build(&mut view, &tui, &f::signed_out(), f::NOW, &mut Queue::uncapped());
+        crate::build(&mut view, &tui, &signed_out, f::NOW, &mut Queue::uncapped());
         assert_eq!(crate::pane_key(&view), None, "{name}: tree replaced");
     }
-    // The same closed fence remains a drawing in the conversation alone.
-    for mode in [Mode::Chat, Mode::Split, Mode::Draft] {
-        for body in [
-            b"```mermaid\nflowchart LR\nA --> B\n```\n".as_slice(),
-            b"``` mermaid\nflowchart LR\nA --> B\n```\n".as_slice(),
-        ] {
-            let mut root = root(&Input { draft: true, body: Some(body), ..Input::empty() });
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "the tree's drawing and code roles are counted")]
+fn drawings_stay_in_the_conversation_not_the_pane() {
+    use d::pages::chat::document::Mode;
+    // Each fixture has one closed fence in each of the conversation and document.
+    const FENCES: usize = 1;
+    let mut view = view();
+    let foot_root = f::live(Some(f::me(&[b"Hello"]))).0;
+    for body in [
+        b"```mermaid\nflowchart LR\nA --> B\n```\n".as_slice(),
+        b"``` mermaid\nflowchart LR\nA --> B\n```\n".as_slice(),
+    ] {
+        let mut root = root(&Input { draft: true, body: Some(body), ..Input::empty() });
+        for (mode, drawings, code) in [(Mode::Chat, FENCES, 0), (Mode::Split, FENCES, FENCES), (Mode::Draft, 0, FENCES)]
+        {
             chat_event(&mut root, Event::Act { action: d::Action::Pages(d::pages::Act::Mode { mode }) });
             let mut tui = Tui::new(f::ADDRESS);
             tui.step(Told::Size { columns: 80 });
-            let mut part = chat::read(&root, &tui, &f::words(), f::NOW);
+            let mut part = chat::read(&root, &tui, view.words(), f::NOW);
             part.entries = Box::new([Entry::Agent { words: body.into(), growing: false }]);
-            let view = draw(part, None, 80);
+            draw_into(&mut view, &foot_root, part, None, 80, REQUEST);
             let tree = view.tree();
-            assert_eq!(
-                tree.nodes().iter().filter(|n| n.role == Role::Drawing).count(),
-                usize::from(mode != Mode::Draft),
-                "{mode:?}"
-            );
-            assert_eq!(
-                tree.nodes().iter().filter(|n| n.role == Role::Code).count(),
-                usize::from(mode != Mode::Chat),
-                "{mode:?}"
-            );
+            assert_eq!(tree.nodes().iter().filter(|n| n.role == Role::Drawing).count(), drawings, "{mode:?}");
+            assert_eq!(tree.nodes().iter().filter(|n| n.role == Role::Code).count(), code, "{mode:?}");
         }
     }
 }
@@ -1337,9 +1351,10 @@ fn note_call(tool: &[u8], outcome: &[u8], failed: bool) -> c::Block {
     }
     block
 }
+#[test]
 #[expect(clippy::disallowed_macros, clippy::disallowed_types, reason = "write rows format tool outcomes")]
-fn pane_writes() {
-    use d::pages::chat::document::NoteChange::{First, Later};
+fn pane_writes_select_successful_writes_to_its_note() {
+    use d::pages::chat::document::NoteChange::First;
     for (name, tool, failed, note, person, want) in [
         ("note", b"note".as_slice(), false, 1_u64, false, vec![First { lines: 7 }]),
         ("document", b"document".as_slice(), false, 1_u64, false, vec![First { lines: 7 }]),
@@ -1358,6 +1373,11 @@ fn pane_writes() {
         let root = root(&Input { draft: true, rows: rows.into_boxed_slice(), ..Input::empty() });
         assert_eq!(view::pane::writes(root.pages().chat().unwrap()).as_ref(), want, "{name}");
     }
+}
+
+#[test]
+fn pane_writes_follow_the_latest_persons_turn() {
+    use d::pages::chat::document::NoteChange::Later;
     let mut before = turn(&[note_call(b"note", "Note 1 revision 1 written · 7 lines".as_bytes(), false)]);
     before.source.position = 1;
     let mut said = words(c::Requester::Person(73), b"Update B");

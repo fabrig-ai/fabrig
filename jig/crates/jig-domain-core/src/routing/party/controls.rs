@@ -90,11 +90,19 @@ pub(crate) fn amend_route(
         tasks::Phase::Held { .. } => release.is_some(),
         tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => false,
     };
+    let current = core.tasks.task(task).expect("amend admission found task");
+    let giver = tasks::Funder::Pool { project: current.project, person, period: core.period(current.project) };
+    let funder = crate::routing::amendment_funder(core, &current.authority, &amendment, giver);
+    if funder.is_some() {
+        let (period, pool) = core.open_person_pool(current.project, person);
+        for event in [period, pool].into_iter().flatten() {
+            routed.work.push(Work::Event(Event::Tasks(event)));
+        }
+    }
     let request = core.fly_person_task(request, PersonTaskRoute::Amended { task, released });
     routed.work.push(Work::Event(Event::Tasks(tasks::Event::Amend {
-        operation: tasks::Amend { task, message, stop_run, amendment: Box::new(amendment) },
+        operation: tasks::Amend { funder, task, message, stop_run, amendment: Box::new(amendment) },
         places: evidence.places.into_boxed(),
-        funder: None,
         reply_to: ReplyTo::new(request),
         by: tasks::Party::Person(person),
     })));
