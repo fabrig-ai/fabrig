@@ -225,7 +225,9 @@ section 6).
      more where they hold none. CI, the queue, taking the base,
      a conflict's resolution, a CI repair and the after-landing
      verification are what they are for any change, and the step waits
-     for the landing's result at cleared, repaired or not
+     for the landing's result: at cleared, repaired or not, or, where
+     the project's kind 4 says `wait: landed`, at landed, so that the
+     goal ends as its branch lands into its base
      (`../after-landing.md`, section 6). A goal with no goal branch, or whose base
      already holds its tip, skips it.
   3. **Report:** the closer's result, below, and its end: done, which
@@ -233,9 +235,10 @@ section 6).
 - **What wakes the goal meanwhile** is what wakes it for any delegate:
   a step's change held past its bounds, its resolution or repair
   failing, escalates past the closer, a procedure, to the goal (jig's
-  `domain/tasks/proposals.md`); a red after landing, while the landing
-  is verified, is news for the goal, whose tree the landing is in
-  (`../after-landing.md`, section 7). A step's change that ends without
+  `domain/tasks/proposals.md`); under `wait: cleared`, a red after
+  landing, while the landing is verified, is news for the goal, whose
+  tree the landing is in (`../after-landing.md`, section 7), and under
+  `landed` none comes, the goal having ended at its landing. A step's change that ends without
   landing (cancelled, failed) is made again, or holds the closer,
   `ClosingStep`, by its attempts (below), its words naming the step,
   the change and why, which escalates to the goal: its release makes
