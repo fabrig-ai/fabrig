@@ -1,8 +1,8 @@
 # binaries: status
 
-2026-11-17. Where the tree's code lags or departs from [binaries.md](binaries.md).
+2026-11-18. Where the tree's code lags or departs from [binaries.md](binaries.md).
 
-
+- **Not yet:** the box's table and `upgrade --workers DIRECTORY`; 2: its row [in flight: change 7557]
 
 - **Not yet:** 1 and 2: `upgrade --check` has no per-job timing: each `Event::Ran` job line ends `time unavailable` (`temper-engine-shell/src/upgrade/report.rs`). The whole rehearsal/tool time is printed separately.
 
