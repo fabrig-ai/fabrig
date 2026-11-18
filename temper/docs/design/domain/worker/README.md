@@ -441,6 +441,14 @@ jig's types (jig's `domain/hosts/hub.md`, 3), with temper's detail:
 - **The run failed,** the **agent failed,** or the run was
   **cancelled,** as jig's say, each with bounded detail for operators
   that no LLM is shown.
+- **A program that started without smith's tools,** smith's
+  `ModelFault::Untooled` (smith's `protocol/programs.md`, 5.6), is
+  jig's `RunFailure::Untooled` with `model` none (jig's
+  `domain/hosts/hub.md`, 3), a fault of its place, the program source's
+  login on this worker: the engine keeps the task off that place
+  without spending a try (jig's `domain/engine/fleet.md`). Its detail
+  is a program fault's, naming the program and carrying smith's line.
+  Every other program fault stays jig's `RunFailure::Model`.
 
 When the hub accepts a run's failed or refused answer, serve writes one operator line
 on stderr, which the box keeps in `<data>/box/logs/serve.log`

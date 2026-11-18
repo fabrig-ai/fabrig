@@ -256,6 +256,13 @@ them (8).
   returns to due without a timer. A preparation is stale when its task left
   preparing or its newest word changed: the newest of its inbox and of the
   proposals and escalations waiting on it, which never enter that inbox.
+  Nor is a run whose program started without its tools a failure of its
+  task's: the fault is its place's, the program source's login on its
+  worker (../hosts/hub.md, 3). Its attempt ends once, refused as an
+  untranslated assignment's is, with words naming the program, the
+  source and the worker on its retry notice, spending no try; the task
+  then claims again, never on that place until something changes there,
+  and with no place left waits, saying why (../engine/fleet.md).
   Every attempt, a failed one included, takes a new attempt number.
   A standing task's tries start again as each of its sessions begins
   (`standing.md`, 5.1).

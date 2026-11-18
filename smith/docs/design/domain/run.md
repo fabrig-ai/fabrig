@@ -827,7 +827,10 @@ the last message it read (section 6).
   account limited, naming the account and, when its provider said, how
   long until it may be used again, measured when the run answers; an
   account refused, naming it and the provider's code; a program
-  source's login lost, naming the account; a program that could not
+  source's login lost, naming the account; a program that started
+  without smith's tools, *untooled*, a fault of its host's program
+  rather than the run's, naming the program, with its detail
+  (protocol/programs.md, 5.6); a program that could not
   run or exited before its answer, naming the program, with its detail
   (protocol/programs.md, 5.6); a limit that fired, naming the limit and
   its

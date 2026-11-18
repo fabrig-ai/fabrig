@@ -38,6 +38,14 @@ appends `transcript`, and `RunFailure` appends a unit `transcript` variant.
 The failure's bounded detail carries the diagnostic. Existing variant
 tags stay fixed (`../README.md`, 7).
 
+A program that started without its tools keeps its typed reason too:
+`jig-worker-wire` 17 appends a unit `untooled` variant to `RunFailure`
+(`../../domain/hosts/hub.md`, 3), its detail the agent's as for any
+failed run. Its patch gives `RunFailure` a down site taking `untooled`
+to `model`, so its reverse stays total: a worker of 17 talks to an
+engine of 16, which classes the failure as the run's own, as it always
+has (`bridges.md`, 6.3). Up from 16 nothing changes.
+
 - **A refused start is not kept.** An answer that refuses its start
   (busy, a duplicate among them, or invalid, at the entrance or as a
   start the agent refuses; `../../domain/hosts/hub.md`, 1 and 3) crosses
