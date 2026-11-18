@@ -88,6 +88,17 @@ fn prepare_with_limits(
         .as_mut()
         .map(|part| -> Result<_, String> {
             let prepared = prepare_agent(part, directories, environment)?;
+            *part = service::startup::box_worker_with_agent(
+                bytes,
+                &jig_directories(directories),
+                given,
+                &agents,
+                environment,
+                &prepared.agent.declaration(),
+            )
+            .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?
+            .expect("box worker already read");
+            box_inputs_worker(part, directories)?;
             if let Some(program) = program {
                 part.named.program = program.as_os_str().as_encoded_bytes().into();
                 part.worker.jig.agent.as_mut().expect("derived agent").program.clone_from(&part.named.program);

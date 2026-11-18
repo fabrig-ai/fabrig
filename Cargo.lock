@@ -5513,6 +5513,7 @@ dependencies = [
  "temper-box-shell",
  "temper-client-domain",
  "temper-client-journeys-tool",
+ "temper-client-protocol-wire",
  "temper-client-shell-cli",
  "temper-client-shell-terminal",
  "temper-client-shell-web",

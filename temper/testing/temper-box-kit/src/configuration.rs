@@ -2,14 +2,6 @@
 use std::path::Path;
 /// Turn measurements retain model declarations with inert direct endpoints.
 pub mod turn_bounds {
-    /// Hold both the fixture's initial agent and the stock setting restored by serve
-    /// (temper/docs/design/protocol/configuration/figures.md, 4).
-    pub fn apply_with_stock(document: &mut serde_json::Value, agent: &serde_json::Value) {
-        let stock = temper_fixtures::agent::configuration(document);
-        let turn = turn_body(agent).max(turn_body(&stock));
-        apply(document, turn);
-    }
-
     pub use temper_playground::documents::turn_bounds::apply;
 
     #[must_use]
@@ -22,6 +14,41 @@ pub mod turn_bounds {
         temper_playground::documents::turn_bounds::turn_body(&agent)
     }
 }
+/// Leave the agent's carriers to the product's stock, derivations, overrides order
+/// (temper/docs/design/protocol/configuration/derived.md, 4 and 5.1).
+pub fn use_derived(document: &mut serde_json::Value) {
+    let engine = document["engine"]["limits"]["overrides"].as_object_mut().expect("engine overrides");
+    for name in [
+        "hub.turn_bytes",
+        "core.resume_bytes",
+        "hub.transcript_bytes",
+        "hub.turn_queue_bytes",
+        "io.output",
+        "tasks.message_bytes",
+        "tasks.result_bytes",
+        "tasks.inbox_bytes",
+        "hub.event_bytes",
+        "hub.outcome_bytes",
+        "core.call_answer_bytes",
+    ] {
+        engine.remove(name);
+    }
+    let application = document["application"]["limits"]["overrides"].as_object_mut().expect("application overrides");
+    for name in [
+        "root.journal.transcript_bytes",
+        "root.loads.transcript_bytes",
+        "root.loads.bytes",
+        "root.loads.reply_bytes",
+        "root.loads.read_bytes",
+        "checkout.message_bytes",
+        "forge.client.op_bytes",
+        "forge.client.answer_bytes",
+        "forge_component.body_bytes",
+    ] {
+        application.remove(name);
+    }
+}
+
 // Eight native exchanges beside Small's two event streams (jig/docs/design/protocol/client/default-http.md, 5).
 const NATIVE_HTTP_CALLS: u32 = 10;
 #[must_use]
@@ -38,7 +65,6 @@ pub fn documents(directory: &Path, _program: &str) -> (Vec<u8>, Vec<u8>) {
     let worker: serde_json::Value =
         serde_json::from_slice(jig_channel_kit::fixtures::WORKER_DOCUMENT).expect("worker JSON");
     value["workers"] = worker["workers"].clone();
-    value["engine"]["limits"]["overrides"]["tasks.inbox_bytes"] = 4096.into();
     value["engine"]["limits"]["overrides"]["tasks.run_inbox"] = 8.into();
     value["workers"][0]["limits"]["overrides"]["tasks.run_inbox"] = 8.into();
     value["workers"][0]["limits"]["overrides"]["hub.inbox"] = 8.into();
@@ -116,9 +142,7 @@ pub fn documents(directory: &Path, _program: &str) -> (Vec<u8>, Vec<u8>) {
     value["engine"]["limits"]["overrides"]["hub.run_calls"] =
         agent["profile"]["declared"]["calls_per_response"].clone();
     value["engine"]["limits"]["overrides"]["hub.inbox"] = agent["profile"]["policy"]["inbox"].clone();
-    value["application"]["limits"]["overrides"]["checkout.message_bytes"] =
-        agent["profile"]["declared"]["tool_payload"].clone();
-    turn_bounds::apply_with_stock(&mut value, &agent);
+    use_derived(&mut value);
     (serde_json::to_vec(&agent).expect("agent JSON"), serde_json::to_vec(&value).expect("deployment JSON"))
 }
 
