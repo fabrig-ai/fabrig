@@ -342,22 +342,6 @@ fn checked_profile_with_files(
     }
 }
 
-/// Merge every shipped overlay member as protocol/configuration/reference.md requires.
-fn merge_profile_members(base: &mut serde_json::Value, overlay: serde_json::Value) {
-    match (base, overlay) {
-        (serde_json::Value::Object(base), serde_json::Value::Object(overlay)) => {
-            for (name, value) in overlay {
-                if let Some(previous) = base.get_mut(&name) {
-                    merge_profile_members(previous, value);
-                } else {
-                    base.insert(name, value);
-                }
-            }
-        }
-        (base, overlay) => *base = overlay,
-    }
-}
-
 fn profile_question_bound(input: &(impl fixtures::Input + ?Sized)) -> u32 {
     let input = fixtures::Input::configured(input);
     crate::limits::engine(&input.jig, &input.own).unwrap().forge.change_policy.questions
@@ -429,12 +413,14 @@ fn reference_agent() -> crate::settings::Agent {
 fn reference_document(generated: &(impl fixtures::Input + ?Sized)) -> fixtures::Start {
     let mut configured = fixtures::Input::configured(generated);
     temper_limits_fixtures::reference_over(&mut configured.jig, &mut configured.own);
-    let mut document: serde_json::Value = serde_json::from_slice(&configured).unwrap();
     let room = reference_room();
-    for worker in document["workers"].as_array_mut().unwrap() {
-        merge_profile_members(worker, room["worker"].clone());
+    for (name, value) in room["worker"]["limits"]["overrides"].as_object().unwrap() {
+        let mut value = value.as_u64().unwrap();
+        if name == "io.output" {
+            value = value.max(u64::from(temper_service_core::derived::OUTPUT_FLOOR));
+        }
+        jig_protocol_config::overrides::apply(&mut configured.jig, name.as_bytes(), value).unwrap();
     }
-    configured.document = serde_json::to_vec(&document).unwrap().into();
     configured
 }
 
@@ -469,7 +455,8 @@ fn the_reference_room_starts_and_holds_its_relations() {
         assert_eq!(engine[name].as_u64(), Some(value), "engine {name}");
     }
     assert_eq!(engine["hub.event_bytes"].as_u64(), Some(payload - 2));
-    for worker in document["workers"].as_array().unwrap() {
+    let stored: serde_json::Value = serde_json::from_slice(&document).unwrap();
+    for worker in stored["workers"].as_array().unwrap() {
         assert!(worker.get("limits").is_none());
     }
     for (name, value) in [

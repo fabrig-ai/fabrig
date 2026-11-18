@@ -144,7 +144,12 @@ fn a_stock_written_record_refuses_a_lowered_start_page_without_losing_its_cause(
     let mut store = fixtures::over(stores);
     fixtures::run(
         &mut store,
-        Request::Open { owner: OWNER, root: fixtures::ROOT, installation: fixtures::INSTALLATION },
+        Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: OWNER,
+            root: fixtures::ROOT,
+            installation: fixtures::INSTALLATION,
+        },
     );
     let mut lower = store.limits.core;
     lower.people.identity_bytes = 16;
@@ -165,7 +170,12 @@ fn a_stock_written_record_refuses_a_lowered_start_page_without_losing_its_cause(
     let mut stock = fixtures::over(store.into_stores());
     fixtures::run(
         &mut stock,
-        Request::Open { owner: OWNER, root: fixtures::ROOT, installation: fixtures::INSTALLATION },
+        Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: OWNER,
+            root: fixtures::ROOT,
+            installation: fixtures::INSTALLATION,
+        },
     );
     let (items, _) = page(request(&mut stock, Restore::Jig(Box::new([RestoreRange::People])), None, ROWS));
     assert_eq!(records(items).as_ref(), [record]);

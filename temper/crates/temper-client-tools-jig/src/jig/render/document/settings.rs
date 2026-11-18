@@ -220,7 +220,7 @@ pub(super) fn inventory_limits(reading: &crate::jig::runner::reads::Reading, voc
     {
         values.push((a::form_setting(document.setting), a::form_setting_value(value))).expect("two limit kinds");
     }
-    let setting = c::Setting::Application { kind: 21, scope: 0, number: 1 };
+    let setting = c::Setting::Application { kind: 22, scope: 0, number: 1 };
     if let Some(page) = reading.pages.get(&3)
         && let Some(Answer::Setting(Some(value))) = vocabulary.application_answer(Query::Setting(setting), page)
     {

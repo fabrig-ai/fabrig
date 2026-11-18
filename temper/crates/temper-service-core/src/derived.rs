@@ -220,7 +220,7 @@ pub fn base(
     sources: Sources,
     forge: &mut ForgeCounts,
 ) -> Result<Limits, jig_protocol_config::Problem> {
-    let mut limits = jig_protocol_config::stock();
+    let mut limits = stock();
     scaled(&mut limits, forge, live_goals)?;
     engine(&mut limits, sources.with_payload(tool_payload))?;
     Ok(limits)

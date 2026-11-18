@@ -124,7 +124,7 @@ pub fn box_worker(
     agents: &temper_client_protocol_wire::v1::AgentFigures,
     own: &[worker::application::EnvironmentEntry],
 ) -> Result<Option<WorkerPart>, Problems> {
-    box_worker_over(document, directories, given, agents, own, None)
+    box_worker_over(document, directories, given, agents, own, None, None)
 }
 
 /// Compose a box's carriers from the same agent declaration its engine starts with
@@ -137,9 +137,21 @@ pub fn box_worker_with_agent(
     own: &[worker::application::EnvironmentEntry],
     agent: &Declaration,
 ) -> Result<Option<WorkerPart>, Problems> {
-    box_worker_over(document, directories, given, agents, own, Some(agent))
+    box_worker_over(document, directories, given, agents, own, Some(agent), None)
 }
 
+/// Compose a world's or resolved start's local worker from the same engine figures.
+pub fn box_worker_with_limits(
+    document: &[u8],
+    directories: &config::Directories,
+    given: &crate::stock::Given,
+    agents: &temper_client_protocol_wire::v1::AgentFigures,
+    own: &[worker::application::EnvironmentEntry],
+    agent: Option<&Declaration>,
+    limits: (&config::Limits, &crate::limits::Limits),
+) -> Result<Option<WorkerPart>, Problems> {
+    box_worker_over(document, directories, given, agents, own, agent, Some(limits))
+}
 fn box_worker_over(
     document: &[u8],
     directories: &config::Directories,
@@ -147,12 +159,13 @@ fn box_worker_over(
     agents: &temper_client_protocol_wire::v1::AgentFigures,
     own: &[worker::application::EnvironmentEntry],
     agent: Option<&Declaration>,
+    limits: Option<(&config::Limits, &crate::limits::Limits)>,
 ) -> Result<Option<WorkerPart>, Problems> {
     let sources = match agent {
         Some(agent) => temper_service_core::derived::Sources::agent(agent),
         None => temper_service_core::derived::STOCK,
     };
-    let mut parsed = load_with_sources(document, directories, true, given, sources)?
+    let mut parsed = load_with_limits(document, directories, true, given, sources, limits)?
         .1
         .ok_or(problem(Path::root().member(b"engine"), What::Standalone))?;
     if let Some(agent) = agent {
@@ -600,6 +613,24 @@ pub fn operations_with(
     directories: &config::Directories,
     given: &crate::stock::Given,
 ) -> Result<u32, Problems> {
+    operations_over(document, directories, given, None)
+}
+/// Kernel credit with a world's typed startup figures, without opening named files.
+pub fn operations_with_limits(
+    document: &[u8],
+    directories: &config::Directories,
+    given: &crate::stock::Given,
+    jig: &config::Limits,
+    own: &crate::limits::Limits,
+) -> Result<u32, Problems> {
+    operations_over(document, directories, given, Some((jig, own)))
+}
+fn operations_over(
+    document: &[u8],
+    directories: &config::Directories,
+    given: &crate::stock::Given,
+    limits: Option<(&config::Limits, &crate::limits::Limits)>,
+) -> Result<u32, Problems> {
     if shape_with(document, directories, given)? == Shape::WorkerAlone {
         let part = worker_part(document, directories, None, &[])?;
         let worker =
@@ -610,7 +641,9 @@ pub fn operations_with(
         )
         .ok_or(operations_bound());
     }
-    let parsed = parse_with(document, directories, given)?;
+    let parsed = load_with_limits(document, directories, true, given, temper_service_core::derived::STOCK, limits)?
+        .1
+        .ok_or(problem(Path::root().member(b"engine"), What::Standalone))?;
     let worker_io = match parsed.workers.first() {
         Some(worker) => Some(&worker.limits.as_ref().expect("worker limits").io),
         None => None,
@@ -792,7 +825,20 @@ pub fn checked_start_with_limits(
     jig: &config::Limits,
     own: &crate::limits::Limits,
 ) -> Result<CheckedStart, Problems> {
-    checked_start_over(document, directories, files, agent, seeds, forges, setup, given, git, Some((jig, own)), None, None)
+    checked_start_over(
+        document,
+        directories,
+        files,
+        agent,
+        seeds,
+        forges,
+        setup,
+        given,
+        git,
+        Some((jig, own)),
+        None,
+        None,
+    )
 }
 /// A settings-backed box checks its worker with the stock shared figures,
 /// independently of the resolved engine. Typed-world entries retain their seam.
@@ -824,16 +870,22 @@ pub fn checked_start_with_resolved(
         given,
         git,
         Some((&resolved.jig, &resolved.temper)),
-        Some(&resolved.worker),
+        Some(&resolved.temper),
         part,
     )
 }
 #[expect(clippy::too_many_arguments, reason = "the box supplies its applied worker beside the checked engine inputs")]
 fn checked_start_using(
-    document: &[u8], directories: &config::Directories, files: &settings::Files,
-    agent: Option<&settings::Agent>, seeds: &settings::Seeds, forges: List<crate::ForgeRuntime>,
-    setup: Option<&temper_forge_setup::check::Checked>, given: &crate::stock::Given,
-    git: Option<&[u8]>, part: Option<WorkerPart>,
+    document: &[u8],
+    directories: &config::Directories,
+    files: &settings::Files,
+    agent: Option<&settings::Agent>,
+    seeds: &settings::Seeds,
+    forges: List<crate::ForgeRuntime>,
+    setup: Option<&temper_forge_setup::check::Checked>,
+    given: &crate::stock::Given,
+    git: Option<&[u8]>,
+    part: Option<WorkerPart>,
 ) -> Result<CheckedStart, Problems> {
     checked_start_over(document, directories, files, agent, seeds, forges, setup, given, git, None, None, part)
 }
@@ -1023,7 +1075,16 @@ fn checked_start_over(
     }
     .ok_or(problem(Path::root().member(b"engine").member(b"limits").member(b"io"), What::Jig(config::What::Bound)))?;
     let prepared_forges = prepare_forges(&engine, forges)?;
-    Ok(CheckedStart { warnings, not_set_up, engine, worker, worker_limits: shared, io, forges: prepared_forges, figures })
+    Ok(CheckedStart {
+        warnings,
+        not_set_up,
+        engine,
+        worker,
+        worker_limits: shared,
+        io,
+        forges: prepared_forges,
+        figures,
+    })
 }
 fn checked_start(
     document: &[u8],
@@ -1203,11 +1264,10 @@ pub fn from_checked(
     let CheckedStart { mut engine, worker, io, forges, not_set_up, warnings, worker_limits, figures } = checked;
     engine.program_environment = program_environment;
 
-    let mut worker =
-        match worker::build(worker, agent, &worker_limits, files, runtime, seeds.seed) {
-            Ok(worker) => worker,
-            Err(found) => return Err(problems::from_worker(found)),
-        };
+    let mut worker = match worker::build(worker, agent, &worker_limits, files, runtime, seeds.seed) {
+        Ok(worker) => worker,
+        Err(found) => return Err(problems::from_worker(found)),
+    };
     if let (Some(worker), Some(figures)) = (&mut worker, figures) {
         worker.built_from(figures);
     }

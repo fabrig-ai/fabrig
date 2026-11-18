@@ -38,8 +38,10 @@ pub fn document() -> Start {
         .unwrap()
         .replace(",\n{\"name\": \"worker-b\", \"digest\": \"secrets/worker-b.digest\"}", "");
     document.extend_from_slice(engine.as_bytes());
-    document.extend_from_slice(br#", "workers":[{
-"engine":{"in_process":"workers"},"name":"local","secret":"worker-secret","slots":1}],"application":"#);
+    document.extend_from_slice(
+        br#", "workers":[{
+"engine":{"in_process":"workers"},"name":"local","secret":"worker-secret","slots":1}],"application":"#,
+    );
     document.extend_from_slice(APPLICATION);
     document.extend_from_slice(b"}");
     let (mut jig, mut own) = startup_limits();
@@ -117,7 +119,6 @@ fn turn_limits(path: &[u8], json: &[u8]) -> Box<[u8]> {
     let turn = super::agent().limits.bodies.turn_body;
     let resume = turn.checked_add(4).unwrap();
     let window = u64::from(resume) * 4;
-    let loaded = turn.checked_add(u32::try_from(size_of::<temper_engine_domain::Record>()).unwrap()).unwrap();
     let keys: &[(&str, u64)] = if path == b"engine.limits.overrides" {
         &[
             ("hub.accounts", 8),
@@ -162,9 +163,6 @@ fn turn_limits(path: &[u8], json: &[u8]) -> Box<[u8]> {
     }
     text.push('}');
     text.into_bytes().into_boxed_slice()
-}
-fn worker_turn_limits() -> String {
-    r#"{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.result_bytes":512,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}"#.into()
 }
 /// Copy a JSON value for a fixture derived from another document.
 pub fn value(input: &(impl Input + ?Sized), path: &[u8]) -> Box<[u8]> {

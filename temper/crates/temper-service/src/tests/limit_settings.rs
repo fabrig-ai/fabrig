@@ -1,9 +1,4 @@
-//! A box's engine resolves settings without lending them to its worker.
-#![expect(
-    clippy::disallowed_types,
-    clippy::disallowed_methods,
-    reason = "ordinary focused tests inspect diagnostic strings"
-)]
+//! A box shares its resolved engine figures with its local worker.
 use super::{fixtures, stock};
 use crate::startup;
 use jig_domain_core::settings::Override;
@@ -12,13 +7,8 @@ fn item(name: &[u8], value: u64) -> Override {
     Override { name: name.into(), value, reason: b"engine room".as_slice().into() }
 }
 #[test]
-fn a_box_resolves_the_engine_and_keeps_the_workers_document_and_stock_shared_figures() {
-    let mut input = stock::generated();
-    // A worker's jig document remains its operator's, independently of the engine setting.
-    let mut document: serde_json::Value = serde_json::from_slice(&input.document).unwrap();
-    document["workers"][0]["limits"]["overrides"]["tasks.tasks"] = 128_u32.into();
-    document["workers"][0]["limits"]["overrides"]["tasks.exemptions"] = 128_u32.into();
-    input.document = serde_json::to_vec(&document).unwrap().into_boxed_slice();
+fn a_box_gives_its_worker_the_resolved_engine_and_shared_figures() {
+    let input = stock::generated();
     let agent = fixtures::parsed_agent(fixtures::stock_configuration(63_740, 48_000).unwrap());
     let declaration = agent.declaration();
     let directories = jig_protocol_config::Directories::working();
@@ -50,23 +40,20 @@ fn a_box_resolves_the_engine_and_keeps_the_workers_document_and_stock_shared_fig
         None,
         &crate::stock::Given::Stock,
         None,
+        None,
         &resolved,
     )
     .unwrap();
     assert_eq!(checked.engine.jig.limits.core.tasks.tasks, 1024);
     let worker = &checked.worker.as_ref().unwrap().0;
-    assert_eq!(worker.jig.limits.core.tasks.tasks, 128);
+    assert_eq!(worker.jig.limits.as_ref().unwrap().core.tasks.tasks, 1024);
     let shared = checked.worker_limits;
     let stock = crate::limits::worker(&inputs.stock().unwrap().1);
     assert_eq!(shared.checkout.repositories, stock.checkout.repositories);
     assert_eq!(shared.checkout.message_bytes, stock.checkout.message_bytes);
     assert_eq!(shared.git_component.stdout_bytes, stock.git_component.stdout_bytes);
     assert_eq!(shared.peer, stock.peer);
-    for name in [b"checkout.repositories".as_slice(), b"git_component.stdout_bytes", b"forges.installations"] {
-        let Err(found) = startup::resolve_limits(&inputs, &[], &[item(name, 1)]) else {
-            panic!("a worker's setting started: {}", String::from_utf8_lossy(name));
-        };
-        let lines = String::from_utf8(temper_engine_service::startup::lines(&found).into_vec()).unwrap();
-        assert!(lines.contains("this is a worker's limit"), "{lines}");
-    }
+    let value = u64::from(stock.checkout.repositories);
+    let shared = startup::resolve_limits(&inputs, &[], &[item(b"checkout.repositories", value)]).unwrap();
+    assert_eq!(shared.temper.checkout.repositories, stock.checkout.repositories);
 }

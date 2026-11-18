@@ -265,6 +265,8 @@ fn settings_subfamilies_and_history_follow_their_domain_order() {
         SettingKey::Default(Setting::Application { kind: 1, scope: 0, number: 1 }),
         SettingKey::Default(Setting::ProjectPolicy { project: 1 }),
         SettingKey::Default(Setting::Model(1)),
+        SettingKey::Default(Setting::Worker(1)),
+        SettingKey::Default(Setting::Limits),
         SettingKey::Changed(Setting::Charter(1)),
         SettingKey::Changed(Setting::Model(1)),
         SettingKey::Held(1),

@@ -910,6 +910,7 @@ pub(crate) fn room_refusal(domain: &Domain, items: &[core::settings::Item]) -> O
                 | Value::Policy(_)
                 | Value::Rules(_)
                 | Value::Model(_)
+                | Value::Limits(_)
                 | Value::Worker(_)
                 | Value::Application(_) => {
                     continue;

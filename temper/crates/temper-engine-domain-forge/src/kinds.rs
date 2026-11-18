@@ -402,7 +402,7 @@ impl Domain {
             Some(settings::SizedValue {
                 value:
                     Value::Limits(_)
-                    Value::AgentFigures(_)
+                    | Value::AgentFigures(_)
                     | Value::Rule(_)
                     | Value::Charter(_)
                     | Value::Questions(_)
@@ -642,7 +642,9 @@ impl Domain {
         let key = SettingKey { kind, scope, number, slot: SettingSlot::Change };
         match self.setting_rows.get(&key) {
             Some(Edit::Set(value)) => Some(value),
-            Some(Edit::Remove | Edit::Reset) if kind == 20 || kind == 21 => self.setting_default(kind, scope, number),
+            Some(Edit::Remove | Edit::Reset) if kind == 20 || kind == 21 || kind == 22 => {
+                self.setting_default(kind, scope, number)
+            }
             Some(Edit::Remove | Edit::Reset) => self.every_project_default(kind, scope, number),
             None => self.setting_default(kind, scope, number),
         }

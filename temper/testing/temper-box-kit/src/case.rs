@@ -623,7 +623,7 @@ impl Judge {
             shaped["secret"] = worker["workers"][0]["secret"].clone();
             shaped["agent"] = worker["workers"][0]["agent"].clone();
             worker["workers"] = json!([shaped]);
-            worker["application"] = value.worker_application();
+            worker["application"] = json!({});
             self.members.git_on_path(name, self.git.parent().ok_or("git directory")?);
             write(&dir.join("config/temper.json"), &worker);
             write(&dir.join("config/agent.json"), &agent);

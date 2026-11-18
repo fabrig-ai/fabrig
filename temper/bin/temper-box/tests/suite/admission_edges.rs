@@ -11,13 +11,6 @@ enum Part {
 }
 
 impl Part {
-    fn limits(self) -> &'static str {
-        match self {
-            Self::Engine => "/engine/limits/overrides",
-            Self::Application => "/application/limits/overrides",
-        }
-    }
-
     fn refusal(self, name: &str) -> String {
         match self {
             Self::Engine | Self::Application => format!("{name} (the stock)"),
@@ -36,7 +29,6 @@ fn set(document: &mut temper_playground::documents::Configuration, part: Part, n
     match part {
         Part::Engine => document.jig_over(name, bytes),
         Part::Application => document.temper_over(name, bytes),
-        Part::Worker => document.pointer_mut(part.limits()).expect("limits")[name] = json!(bytes),
     }
 }
 

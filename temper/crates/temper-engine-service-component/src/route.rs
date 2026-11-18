@@ -252,7 +252,7 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
                         | root::ForgeReadAnswer::Finding(_)
                         | root::ForgeReadAnswer::View(_)
                         | root::ForgeReadAnswer::ProgramEnvironment
-                        | root::ForgeReadAnswer::Setting(_)
+                        | root::ForgeReadAnswer::Setting { .. }
                         | root::ForgeReadAnswer::ProposalItems { .. }) => {
                             crate::family::forge_read(other, &engine.clients.program_environment, bounds)
                         }

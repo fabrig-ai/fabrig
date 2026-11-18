@@ -39,7 +39,7 @@ mod program_login;
 mod serve;
 mod served;
 pub mod setup;
-pub use serve::{operations_in_with_limits, prepare_in_with_limits};
+pub use serve::{operations_in_with_limits, prepare_in_with_inputs_and_limits, prepare_in_with_limits};
 pub use served::Service;
 mod upgrade;
 use json::CONFIG_BYTES;

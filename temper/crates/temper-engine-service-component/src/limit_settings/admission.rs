@@ -77,6 +77,42 @@ impl LimitSettings {
         let mut temper = self.temper.as_ref();
         let mut first = None;
         for (index, item) in items.iter().enumerate() {
+            if item.setting == (s::Setting::Application { kind: 21, scope: 0, number: 1 }) {
+                let payload = match &item.edit {
+                    s::Edit::Reset => Some(temper_service_core::derived::STOCK.payload),
+                    s::Edit::Removed => None,
+                    s::Edit::Set(_) => {
+                        let mut payload = None;
+                        for typed in kinds {
+                            if typed.kind == 21
+                                && typed.scope == 0
+                                && typed.number == 1
+                                && let settings::Value::AgentFigures(agents) = &typed.value.value
+                            {
+                                payload = Some(temper_engine_service_vocabulary::figures::tool_payload(agents));
+                            }
+                        }
+                        payload
+                    }
+                };
+                if let Some(payload) = payload
+                    && payload > self.in_force.payload
+                {
+                    let given = skein_lib::Decimal::of(u64::from(payload));
+                    let bound = skein_lib::Decimal::of(u64::from(self.in_force.payload));
+                    return Some(refused(
+                        index,
+                        item,
+                        bytes::concat(&[
+                            b"agents.declared.tool_payload: ",
+                            given.as_bytes(),
+                            b" bytes, past the tool_payload limit in force, ",
+                            bound.as_bytes(),
+                            b" bytes; raise tool_payload in temper-limits and restart first",
+                        ]),
+                    ));
+                }
+            }
             let Some(kind) = kind(item.setting) else { continue };
             let Some(values) = values(item, kinds) else { continue };
             if let Some(why) = names(values, kind) {

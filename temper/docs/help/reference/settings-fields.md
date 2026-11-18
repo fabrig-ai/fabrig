@@ -2,26 +2,25 @@
 
 Kind: reference
 
-Settings value types, bounds and effects, for settings files and `settings show`.
 
-JSON fields, types, bounds and effects. Read `settings show KIND N`, edit and set whole. File shape: file. Refusals: shape, count, reference, rules, budget, grace, owner, linked. Spend: deployment model-price units. Hex: lowercase hexadecimal. u8/u16/u32/u64: 0 through 255/65535/4294967295/18446744073709551615. bool: true/false. text[N]/hex[N]: <=N bytes; [N] T: <=N entries of T. ? optional; ! required; |null admits null. Code choices are JSON strings. Values follow setting.kind; project-policy uses policy.
+Read/edit/set whole (`settings show KIND N`). File shape: file. Refusals: shape/count/reference/rules/budget/grace/owner/linked. Spend: deployment model-price units. Hex: lowercase. u8/u16/u32/u64: unsigned 0..2^bits-1. bool: true/false. text[N]/hex[N]: <=N bytes; [N] T: <=N entries. ? optional; ! required; |null: nullable. Code choices: JSON strings. Value shape: setting.kind; project-policy: policy.
 
 ## file
-File read by `settings apply` and `settings propose`.
+`settings apply`/`settings propose` file.
 - `items`: [1024] item. One item per changed setting, each setting once.
 
 ## item
 A `setting` and exactly one of `set`, `edit` and `overlay`.
-- `setting`: setting. The setting the item changes.
-- `overlay`: overlay. A charter overlay, instead of set or edit.
+- `setting`: setting. setting the item changes.
+- `overlay`: overlay. charter overlay, instead of set or edit.
 - `set`: the value for `setting.kind`. Whole replacement value.
-- `edit`: `removed` or `reset`. An edit instead of a value. `removed`: No longer offered, its default included; the rules cannot be removed. `reset`: Erase its change; follow its default again.
+- `edit`: `removed` or `reset`. edit instead of a value. `removed`: No longer offered, its default included; the rules cannot be removed. `reset`: Erase its change; follow its default again.
 
 ## setting
 Kind and number, or project for project settings.
-- `kind`: `model`, `worker`, `charter`, `template`, `policy`, `project-policy`, `rules`, `landing-rule`, `forge-charter`, `template-goal`, `follow`, `dependency`, `project-ways`, `project-questions`, `project-classes`, `charter-words`, `project-words`, `project-landing`, `project-gates`, `project-areas`, `project-triager`, `agents` or `welcome`. The setting's kind. `project-policy`: Project policy: `set` only, once per file alongside other settings. `project-landing`: Next start. `project-gates`: Next start.
-- `number`: u32. Setting number, from 1; omit for rules, welcome and unnumbered project settings.
-- `project`: u32. ! project settings/follow/dependency. Absent: charter-words/welcome. Landing rule: >=1; absent: deployment-wide.
+- `kind`: `model`, `worker`, `charter`, `template`, `policy`, `project-policy`, `rules`, `landing-rule`, `forge-charter`, `template-goal`, `follow`, `dependency`, `project-ways`, `project-questions`, `project-classes`, `charter-words`, `project-words`, `project-landing`, `project-gates`, `project-areas`, `project-triager`, `agents`, `welcome`, `limits` or `temper-limits`. setting's kind. `project-policy`: Project policy: `set` only, once per file alongside other settings. `project-landing`: Next start. `project-gates`: Next start.
+- `number`: u32. Setting number, from 1; omit for rules, welcome and limit kinds, and unnumbered project settings.
+- `project`: u32. ! project settings/follow/dependency. Absent: charter-words/welcome/agents/limit kinds. Landing rule: >=1; absent: deployment-wide.
 
 ## charter
 Run policy from the task's creation revision.
@@ -80,28 +79,28 @@ Name, places, secret digest; removal withdraws name; reset needs a default.
 ## catalogue
 Numbered runtime model and its display facts.
 - `number`: u32. Permanent number, 1 to 64, matching setting.number.
-- `model`: model. The runtime model, whole.
+- `model`: model. runtime model, whole.
 - `shown`: text[4096]|null. Its name for showing, or null.
 - `description`: text[512]|null. Its description, or null.
 - `picker`: bool. Whether a model picker shows it.
 - `withdrawn`: bool. Whether it is withdrawn; its number and name stay.
-- `source`: `stock`, `list` or `person`. Where the model came from. `stock`: The binary. `list`: A provider list. `person`: A person.
+- `source`: `stock`, `list` or `person`. Where the model came from. `stock`: binary. `list`: provider list. `person`: person.
 - `estimated`: bool. Whether its prices are provider defaults.
 
 ## model
 Runtime model, whole in model settings. Charter fields except `effort` must match configuration, else `reference` refusal.
-- `provider`: u32. The configured LLM provider that serves it; 1 when absent.
+- `provider`: u32. configured LLM provider that serves it; 1 when absent.
 - `dialect`: u32. Configured model protocol.
 - `endpoint`: u32. Configured serving endpoint's number.
 - `program`: text[32]|null. Configured program running it, or null for none.
 - `name`: text[4096]. Provider's model name.
-- `window`: u32. The most tokens of input it reads.
+- `window`: u32. most tokens of input it reads.
 - `output`: u32. Most tokens per completion, thinking included.
 - `input_price`: u64. Fresh input cost: spend units per `price_unit` tokens.
 - `cached_price`: u64. Cached input cost: spend units per `price_unit` tokens.
 - `cache_write_price`: u64|null. Cache write cost per `price_unit` tokens; null uses fresh-input price.
 - `output_price`: u64. Output cost: spend units per `price_unit` tokens.
-- `price_unit`: u32. The number of tokens each price is for.
+- `price_unit`: u32. number of tokens each price is for.
 - `efforts`: [16] text[32]. Configured efforts, in order.
 - `effort`: text[32]|null. One of `efforts`; null: default effort.
 
@@ -110,7 +109,7 @@ Wake by message kind; proposals, escalations and cancels always wake.
 - `words`: wake_rule. Task and deployment words; a person's always wake it at once.
 - `notices`: wake_rule. Notices: referenced task done/held, proposal passing through, awaited hold.
 - `news`: wake_rule. News its connectors class as waking for it.
-- `results`: `never`, `each` or `last_or_failure`. Its delegates' results. `never`: None wakes it. `each`: Each delegate's result wakes it. `last_or_failure`: The last delegate's result, or any failure.
+- `results`: `never`, `each` or `last_or_failure`. Its delegates' results. `never`: None wakes it. `each`: Each delegate's result wakes it. `last_or_failure`: last delegate's result, or any failure.
 - `questions`: bool. Whether a delegate's question wakes it.
 - `answers`: bool. Whether an answer to its own question wakes it.
 - `timers`: bool. Whether its timers wake it.
@@ -133,7 +132,7 @@ Executor and defaults for new tasks.
 - `number`: u32. Template number matching `setting.number`; chat: 1, goal: 2.
 - `name`: text. Its name, as clients show it.
 - `executor`: executor. Who runs the task.
-- `contract`: contract. The result the task must give.
+- `contract`: contract. result the task must give.
 - `shallower`: u32. Delegation depth below creator role; 0 makes the template unusable.
 - `budget`: budget. What the task may spend.
 - `deadline`: deadline. By when the task must end.
@@ -149,8 +148,8 @@ Resource resolved at creation.
 - `symbol`: u16. The connector's resource symbol; the forge's 1 is its own goal branch.
 
 ## text
-A text, whole.
-- `bytes`: text[65536]. The text.
+text, whole.
+- `bytes`: text[65536]. text.
 - `cut`: bool. Always false: a value is set whole.
 
 ## executor
@@ -161,9 +160,9 @@ Task executor.
 ## contract
 One required task result.
 - `approval`: approval. Person's approval of exact state; agents can only fail.
-- `report`: report. A report.
+- `report`: report. report.
 - `verdict`: verdict. One of a set of verdicts.
-- `change`: change. A connector's result.
+- `change`: change. connector's result.
 
 ## approval
 Approval of an exact state.
@@ -172,56 +171,56 @@ Approval of an exact state.
 
 ## part
 Connector-owned thing shown by a client.
-- `connector`: u16. The connector that owns it: 1 is the forge.
+- `connector`: u16. connector that owns it: 1 is the forge.
 - `kind`: `resource`, `pool`, `result`, `procedure`, `effect`, `outbox` or `hold`. What kind of thing it is.
 - `key`: key. Which one.
 
 ## key
 Which thing: a one-member object.
 - `path`: [9] hex[32768]. Hex resource segments: `forge`, host, owner, repository, `branch`, branch segments.
-- `number`: u64. A number the connector knows it by.
+- `number`: u64. number the connector knows it by.
 
 ## report
 Report in words.
-- `words`: u32. The most bytes the report may hold.
+- `words`: u32. most bytes the report may hold.
 
 ## verdict
 One verdict choice and its required fields.
-- `choices`: [1048576] choice. The choices the task gives one of.
+- `choices`: [1048576] choice. choices the task gives one of.
 - `cut`: bool. Always false: a value is set whole.
 
 ## choice
 A verdict choice.
 - `code`: u32. Its number, unique among the choices.
-- `words`: u32. The most bytes of the verdict's explanation.
+- `words`: u32. most bytes of the verdict's explanation.
 - `followups`: u32. Max verdict follow-up delegates.
-- `fields`: [32] choice_field. The fields the verdict must fill, each named once.
+- `fields`: [32] choice_field. fields the verdict must fill, each named once.
 
 ## choice_field
 A field a verdict fills.
 - `name`: hex[32768]. Its name as hex, not empty.
-- `max`: u32. The most bytes of its value.
+- `max`: u32. most bytes of its value.
 
 ## change
 A connector's result: for the forge, a change.
-- `connector`: u16. The connector that gives the result: 1 is the forge.
+- `connector`: u16. connector that gives the result: 1 is the forge.
 - `kind`: u16. Result kind: forge 1 landed change, 2 change made but not landed.
 - `words`: u32. Most report bytes, per change title and body.
 
 ## budget
 Task spend.
-- `given`: The creator gives it, within their allotment.
+- `given`: creator gives it, within their allotment.
 - `amount`: u64. This much.
 - `as_allowed`: as_allowed. Creator's remaining funds at task creation.
 
 ## as_allowed
 As much as fits.
-- `cap`: u64|null. The most it may be, or null for no cap.
+- `cap`: u64|null. most it may be, or null for no cap.
 
 ## deadline
 Task end time.
 - `none`: No deadline.
-- `given`: The creator gives one, or none.
+- `given`: creator gives one, or none.
 - `span`: nanoseconds. This long after the task is made.
 
 ## flags
@@ -236,28 +235,28 @@ Task ending.
 - `result`: Its run's result.
 - `requester`: Requester alone; needs `conversation` and charter `executor`, else `shape`.
 - `standing`: Only cancel; an agent with no conversation or tracking.
-- `closer`: closer. A named procedure ends it.
+- `closer`: closer. named procedure ends it.
 
 ## closer
 Closes task when nothing remains to await.
-- `connector`: u16. The closing procedure's connector.
-- `code`: u32. The procedure's code.
+- `connector`: u16. closing procedure's connector.
+- `code`: u32. procedure's code.
 
 ## llm
 The models a task asks for.
 - `account`: u32|null. Paying account; null: any able to pay.
-- `main`: model_effort. The main model and its effort.
-- `subagents`: [64] model_effort. The models its runs' sub-agents may use, each named once.
+- `main`: model_effort. main model and its effort.
+- `subagents`: [64] model_effort. models its runs' sub-agents may use, each named once.
 - `later`: llm-later. Optional, left out none: the choice after the task's first activation.
 
 ## llm-later
 Model choice after the first activation.
-- `main`: model_effort. The later main model and its effort.
+- `main`: model_effort. later main model and its effort.
 - `subagents`: [64] model_effort. Absent: []. Models for later runs' sub-agents, each named once.
 
 ## model_effort
-A model, by name, and its effort.
-- `model`: text[4096]. A configured model's name, one the task's charter offers.
+model, by name, and its effort.
+- `model`: text[4096]. configured model's name, one the task's charter offers.
 - `effort`: text[32]|null. Model's effort; null if it takes none.
 
 ## policy
@@ -266,13 +265,13 @@ Project policy copied at creation; changes affect later projects.
 - `ceiling`: authority. Project task ceiling; within rules, else `rules` refusal.
 - `projections`: [32] grant. Goal projection writes to project homes; each grant within `ceiling`.
 - `period_spend`: u64. What the project may spend in a period; within `rules.period_spend`.
-- `roles`: [32] role. The project's roles: what a party in each may do.
+- `roles`: [32] role. project's roles: what a party in each may do.
 - `requirements`: [32] requirement. Project effect needs, beside rules' requirements.
 - `permissions`: [32] permission. Project role given by forge collaborator permission at adoption.
-- `templates`: [16] template_override. The project's overrides of templates.
+- `templates`: [16] template_override. project's overrides of templates.
 
 ## role
-A role in a project.
+role in a project.
 - `number`: u32. 0 owner, 1 maintainer, 2 member, 3 observer; others policy-defined. 0 must allow task creation, else `owner` refusal.
 - `authority`: authority. Max party task allotment, within policy `ceiling`.
 - `period_spend`: u64. Party allotment per period, within policy `period_spend`.
@@ -281,7 +280,7 @@ A role in a project.
 
 ## template_override
 Project template override; null keeps the template's member.
-- `template`: u32. The template's number; offered, and once in the policy.
+- `template`: u32. template's number; offered, and once in the policy.
 - `executor`: executor|null. Its executor, or null.
 - `budget`: budget|null. Its budget, or null.
 - `deadline`: deadline|null. Its deadline, or null.
@@ -289,35 +288,35 @@ Project template override; null keeps the template's member.
 
 ## permission
 Forge collaborator permission and its project role at adoption.
-- `connector`: u16. The connector: 1 is the forge.
-- `permission`: u16. The permission: 0 none, 1 read, 2 write, 3 admin.
-- `role`: u32. The role it gives, one of the policy's `roles`.
+- `connector`: u16. connector: 1 is the forge.
+- `permission`: u16. permission: 0 none, 1 read, 2 write, 3 admin.
+- `role`: u32. role it gives, one of the policy's `roles`.
 
 ## rules
 Deployment ceilings, reread per decision. Narrowing affects existing tasks; widening never widens them.
-- `ceiling`: authority. The most any project may have.
-- `period_spend`: u64. The most a project's period spend may be.
-- `minimum_run_spend`: u64. A run starts only with more than this to spend.
+- `ceiling`: authority. most any project may have.
+- `period_spend`: u64. most a project's period spend may be.
+- `minimum_run_spend`: u64. run starts only with more than this to spend.
 - `maximum_run_spend`: u64. Maximum run funds; above `minimum_run_spend`, within `ceiling` spend.
 - `implies`: [32] implication. Kinds of a connector's whose grant grants other kinds too.
 - `requirements`: [32] requirement. What an effect needs, in every project.
 
 ## implication
 One kind whose grant grants another.
-- `connector`: u16. The connector: 1 is the forge.
-- `kind`: u16. The kind whose grant also grants `implies`.
-- `implies`: u16. The kind it grants.
+- `connector`: u16. connector: 1 is the forge.
+- `kind`: u16. kind whose grant also grants `implies`.
+- `implies`: u16. kind it grants.
 
 ## authority
 Authority: tools, models, grants, delegation, spend and deadline.
-- `models`: models. The models its runs may use.
+- `models`: models. models its runs may use.
 - `tools`: u64. Engine tool bits: 1 delegate, 2 message, 4 amend/cancel/release, 8 decide/withdraw, 16 propose, 32 subscribe, 64 effect, 128 note, 256 recall, 512 forge reads, 1024 settings, 2048 asking.
 - `grants`: [1048576] grant. Permitted connector effects and reads on resources.
-- `delegation`: delegation. The delegates it may make.
-- `spend`: u64. The most its tree may spend.
-- `deadline`: nanoseconds since 1970 UTC|null. The latest it may end, or null for no deadline.
+- `delegation`: delegation. delegates it may make.
+- `spend`: u64. most its tree may spend.
+- `deadline`: nanoseconds since 1970 UTC|null. latest it may end, or null for no deadline.
 - `notes`: u8. Note scope bits: 1 its goal, 2 its project, 4 deployment.
-- `note_resources`: [1048576] resource. The resources it may write notes on.
+- `note_resources`: [1048576] resource. resources it may write notes on.
 
 ## models
 Models offered.
@@ -326,14 +325,14 @@ Models offered.
 
 ## grant
 Leave for a connector effect or read on resources.
-- `connector`: u16. The connector: 1 is the forge.
+- `connector`: u16. connector: 1 is the forge.
 - `kind`: u16. Forge kinds: 1 read; 2 push; 3/10/11/12 PR open/edit/update from base/close-reopen; 4 merge; 5 review; 6 status; 7 comment; 8 open issue; 9 branch; 13 edit issue; 14 reviewers; 15 delete branch.
-- `pattern`: pattern. The resources it covers.
+- `pattern`: pattern. resources it covers.
 
 ## pattern
 Exact `segments`, then `last`. Repository: `forge`/host/owner/repository; branch: append `branch`/segments.
-- `segments`: [9] hex[32768]. The first segments, each as hex, each matched exactly.
-- `last`: last. The segment after them.
+- `segments`: [9] hex[32768]. first segments, each as hex, each matched exactly.
+- `last`: last. segment after them.
 
 ## last
 Last segment: a one-member object.
@@ -348,30 +347,30 @@ The delegates a task may make.
 
 ## delegate
 A kind of delegate: a one-member object.
-- `charter`: u32. An agent under this charter, which must be offered.
+- `charter`: u32. agent under this charter, which must be offered.
 - `procedure`: u32. This procedure: 2 is the forge's change.
-- `role`: u32. A person in this role.
+- `role`: u32. person in this role.
 - `job`: u32. Jobs: 1 prepares a landing, 3 merges, 4 closes a goal.
 
 ## resource
 Resources it may write notes on.
-- `connector`: u16. The connector: 1 is the forge.
-- `pattern`: pattern. The resources.
+- `connector`: u16. connector: 1 is the forge.
+- `pattern`: pattern. resources.
 
 ## requirement
 Requirements for a connector effect on resources, independent of authority.
-- `connector`: u16. The connector whose effect it constrains: 1 is the forge.
-- `kind`: u16. The kind of effect; implications do not apply.
-- `pattern`: pattern. The resources it applies to.
+- `connector`: u16. connector whose effect it constrains: 1 is the forge.
+- `kind`: u16. kind of effect; implications do not apply.
+- `pattern`: pattern. resources it applies to.
 - `judge`: judge. Who judges it.
 - `guard`: guard. When it is judged.
 - `must_be_guarded`: bool. Require guarding as the effect acts; unguardable effects refuse.
 
 ## judge
 Requirement's judging connector and criterion.
-- `connector`: u16. The judging connector: 1 is the forge.
+- `connector`: u16. judging connector: 1 is the forge.
 - `requirement`: u16. Forge criteria: 1 CI passed at head, 2 head up to date with base, 3 gate, 4 approvals.
-- `parameters`: u32. A number the judging connector reads the criterion's terms by.
+- `parameters`: u32. number the judging connector reads the criterion's terms by.
 
 ## guard
 When to judge.
@@ -387,8 +386,8 @@ Criteria for every covered landing.
 - `pattern`: landing-pattern. `forge`, host, owner, repository, `branch`, branch segments. Project rules may start at `branch`, matching that branch in every project repository.
 - `enforce`: bool. True: criteria for every covered landing. False: change procedure alone checks.
 - `ci`: bool. CI must have passed at the change's head.
-- `up_to_date`: bool. The change's head must contain its base's tip.
-- `gates`: [64] landing-gate. The gates every change it covers asks for.
+- `up_to_date`: bool. change's head must contain its base's tip.
+- `gates`: [64] landing-gate. gates every change it covers asks for.
 - `approvals`: [64] landing-approval. Distinct people per role required to approve by forge review.
 - `sets`: [6] u8. Unique project path sets 1-6; default []. Empty omitted; none for deployments.
 
@@ -400,19 +399,19 @@ Each change needs agent review, or a repository check without CI.
 
 ## landing-approval
 Distinct project role holders approve by forge reviews.
-- `role`: u32. A role in the project's policy whose people approve the change.
+- `role`: u32. role in the project's policy whose people approve the change.
 - `people`: u32. Distinct role holders required to approve the change.
 - `freshness`: `exact` or `clean`. At which later heads an approval still counts. `exact`: Verdict counts at its given head. `clean`: Verdict also counts at later heads from cleanly merged updates.
 
 ## landing-pattern
 Base segments and final segment/prefix. Project rules may start at `branch` across their repositories.
-- `segments`: [9] hex[4096]. The exact base segments of the resources the rule covers.
+- `segments`: [9] hex[4096]. exact base segments of the resources the rule covers.
 - `last`: landing-last. Final exact segment or open prefix, and descendants.
 
 ## landing-last
 Final resource segment, in hex.
 - `exact`: hex[4096]. One last segment equal to these bytes.
-- `open`: hex[4096]. A final segment beginning with these bytes, with all below it.
+- `open`: hex[4096]. final segment beginning with these bytes, with all below it.
 
 ## forge-charter
 Charter number, 0 to 4,294,967,295. Setting 1: change; setting 2: reviews.
@@ -444,7 +443,7 @@ Owned, writable repository. Absent/empty branch: landing branch.
 - `branch`: text[4096]. Absent/empty: landing branch.
 
 ## follow-owner
-A project person or live standing role.
+project person or live standing role.
 - `person`: u64. Project person's number.
 - `task`: u64. Standing role task number.
 
@@ -467,26 +466,26 @@ Project display and goal start. Absent: drafts true, others false, way 0.
 - `way`: u32. Goal's starting template: project-offered, tracked set; 0 for the first.
 
 ## project-questions
-The route a project's change takes when its maker names none.
+route a project's change takes when its maker names none.
 - `none`: No question route; the stock's value.
-- `up`: A change's questions go up to its parent.
+- `up`: change's questions go up to its parent.
 
 ## project-classes
 Classes by kind and path set; absent: Agents review's table.
-- `items`: [20] class-item. The table's class items.
-- `sets`: [6] path-set. The path sets its items may name.
+- `items`: [20] class-item. table's class items.
+- `sets`: [6] path-set. path sets its items may name.
 
 ## class-item
 Kind/set, optional words, class; one wordless item per subject. Money, irreversible, rules and other always wait, with no item.
 - `kind`: `wording`, `retry`, `implementation`, `tests`, `dependency`, `departure` or `findings`. Exactly one of kind or set.
-- `set`: u8. A set in this table, from 1 to 6; exactly one of kind or set.
+- `set`: u8. set in this table, from 1 to 6; exactly one of kind or set.
 - `words`: text[120]. Optional wording for this item, empty when absent.
 - `class`: `decide`, `ask` or `ask-away`. Wait is never a table class. `decide`: Agents decide and list it. `ask`: Ask the person; Away may decide. `ask-away`: Ask the person even when away.
 
 ## path-set
 Repository-relative path patterns, uniquely numbered 1 to 6.
 - `number`: u8. Distinct within the table, from 1 to 6.
-- `name`: text[40]. A nonempty name.
+- `name`: text[40]. nonempty name.
 - `patterns`: [6] text[80]. Nonempty repository-relative patterns: * within segments, ** for a whole segment.
 
 ## charter-words
@@ -573,8 +572,8 @@ A named scope of project work and its owner.
 
 ## area-owner
 Owner: task, party, role or charter.
-- `task`: u64. A live task of the project.
-- `party`: u64. A party with a role in the project.
+- `task`: u64. live task of the project.
+- `party`: u64. party with a role in the project.
 - `role`: u32. Below authority.roles; 0 is the owners.
 - `charter`: u32. From 1 through tasks.charters.
 
@@ -591,10 +590,24 @@ Map: <=128 unique names (<=64 UTF-8 bytes) to unsigned integers within each type
 Map: <=64 unique endpoint names (<=64 UTF-8 bytes) to agent-limits.
 
 ## agent-limits
-An endpoint's limits; every integer is positive.
+Endpoint limits; all integers >0.
 - `window`: u32. Input tokens.
 - `output`: u32. Output tokens, reasoning included.
 - `reasoning_item`: u32. Reasoning item bytes.
 - `head_ms`: u64. Milliseconds.
 - `idle_ms`: u64. Milliseconds.
 - `oversized`: `fail` or `drop`. Oversized reasoning behavior. `fail`: Refuse an oversized reasoning item. `drop`: Drop an oversized reasoning item.
+
+## limits
+Core limit overrides: whole list, empty default; no number/project.
+Whole value: list[256] limit-override.
+
+## temper-limits
+Application limits, kind 22; as limits.
+Whole value: list[256] limit-override.
+
+## limit-override
+One reasoned override.
+- `name`: text[64]. ! 1-64 bytes: a-z/0-9/_/.; ascending, unique.
+- `value`: u64. ! limit's unit.
+- `reason`: text[120]. ! 1-120 UTF-8 bytes: why override stock.

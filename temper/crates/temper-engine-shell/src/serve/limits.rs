@@ -164,7 +164,13 @@ fn opened(
                 }
                 jig_protocol_store::Event::Corrupt { .. } => return Err("store opening failed".into()),
                 jig_protocol_store::Event::Ran { .. } => {}
-                event @ (jig_protocol_store::Event::Rehearsing { .. }
+                event @ (jig_protocol_store::Event::Restored { .. }
+                | jig_protocol_store::Event::RestoreRefused { .. }
+                | jig_protocol_store::Event::Checkpointed { .. }
+                | jig_protocol_store::Event::CheckpointHeld { .. }
+                | jig_protocol_store::Event::CheckpointRemoved { .. }
+                | jig_protocol_store::Event::CheckpointRefused { .. }
+                | jig_protocol_store::Event::Rehearsing { .. }
                 | jig_protocol_store::Event::Decoded { .. }
                 | jig_protocol_store::Event::Undecodable { .. }
                 | jig_protocol_store::Event::Back { .. }

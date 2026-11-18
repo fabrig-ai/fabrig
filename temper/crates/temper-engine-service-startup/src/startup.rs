@@ -499,7 +499,7 @@ fn load_document_limits(
             problems.push(indexed(index).member(b"memory_bytes"), What::Jig(config::What::Fixed));
             continue;
         }
-        if shape == Shape::EngineAlone {
+        if shape == Shape::EngineAlone || is_box {
             continue;
         }
         if check_start {
@@ -817,9 +817,13 @@ fn checked_start_limits(
     let mut parsed = load_document_limits(&document, directories, true, given, limits, is_box)?
         .1
         .ok_or(problem(Path::root().member(b"engine"), What::Standalone))?;
-    let agent = match parsed.workers.first() {
-        Some(_) => Some(agent.ok_or(problem(indexed(0).member(b"agent"), What::Half(EngineWhat::Agent)))?),
-        None => None,
+    let agent = if is_box {
+        Some(agent.ok_or(problem(indexed(0).member(b"agent"), What::Half(EngineWhat::Agent)))?)
+    } else {
+        match parsed.workers.first() {
+            Some(_) => Some(agent.ok_or(problem(indexed(0).member(b"agent"), What::Half(EngineWhat::Agent)))?),
+            None => None,
+        }
     };
     let declaration = match agent {
         Some(agent) => Some(agent.clone()),

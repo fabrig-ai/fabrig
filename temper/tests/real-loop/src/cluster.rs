@@ -183,14 +183,14 @@ impl Shape {
                 // Every configured position admitted: the small profile admits two workers.
                 document.jig_over("fleet.workers", workers.len());
                 // One attempt per one-slot worker: the fleet counts attempts across the whole fleet.
-                document["engine"]["limits"]["overrides"]["fleet.attempts"] = workers.len().into();
-                document["engine"]["limits"]["overrides"]["hub.turns"] = 1.into();
-                document["engine"]["limits"]["overrides"]["link.ping_ms"] = ping_ms.into();
-                document["engine"]["limits"]["overrides"]["link.silence_ms"] = silence_ms.into();
-                document["engine"]["limits"]["overrides"]["hub.held"] = 1.into();
-                document["engine"]["limits"]["overrides"]["hub.program_sources"] = 0.into();
+                document.jig_over("fleet.attempts", workers.len());
+                document.jig_over("hub.turns", 1);
+                document.jig_over("link.ping_ms", ping_ms);
+                document.jig_over("link.silence_ms", silence_ms);
+                document.jig_over("hub.held", 1);
+                document.jig_over("hub.program_sources", 0);
                 if grace_ms >= 1_000 {
-                    document["engine"]["limits"]["overrides"]["link.ceiling_ms"] = 1_000.into();
+                    document.jig_over("link.ceiling_ms", 1_000);
                 }
                 let items: Vec<_> = workers.iter().enumerate().map(|(index, name)| {
                     let secret = format!("{name}-fixture-secret");

@@ -47,7 +47,8 @@ pub struct Resolved {
     pub root: temper_engine_domain::Limits,
     pub left_out: List<LeftOut>,
     pub store: jig_protocol_store::Limits,
-    pub worker: limits::Limits,
+    /// The carrier payload fixed at this engine start.
+    pub payload: u32,
 }
 
 impl LimitInputs {
@@ -124,10 +125,6 @@ fn known(overrides: &[Override], kind: LimitKind, left_out: &mut List<LeftOut>) 
     }
     kept.into_boxed()
 }
-fn worker(name: &[u8]) -> bool {
-    temper_service_core::limits::shared_name(name)
-}
-
 /// Resolve in the design's order and check the entire result against the
 /// start's facts and the store's stock envelope. Unknown names are retained as
 /// observations, not applied. No engine or IO is constructed here.
@@ -154,22 +151,14 @@ fn resolve(
     let store = super::checked_store(&stock_root, &stock_jig.store, None)?;
     let mut sources = stock_own;
     for item in temper {
-        if inputs.is_box && worker(&item.name) {
-            return Err(super::problem(
-                Path::root().member(&item.name),
-                What::Jig(config::What::Because(b"this is a worker's limit; it is not taken from temper-limits")),
-            ));
-        }
         if (item.name.as_ref() == b"live_goals" || item.name.as_ref() == b"tool_payload")
             && let Err(why) = limits::apply(&mut sources, &item.name, item.value)
         {
             return Err(super::problem(Path::root().member(&item.name), What::Override(why)));
         }
     }
-    let source = match &inputs.agent {
-        Some(_) => inputs.sources,
-        None => Sources { payload: sources.tool_payload, ..inputs.sources },
-    };
+    let source = inputs.sources;
+    let payload = source.payload.max(sources.tool_payload);
     let (mut base, mut own) = if inputs.base.is_some()
         && sources.live_goals == stock_own.live_goals
         && sources.tool_payload == stock_own.tool_payload
@@ -198,7 +187,7 @@ fn resolve(
             return Err(super::problem(Path::root().member(&item.name), What::Override(why)));
         }
     }
-    if inputs.is_box {
+    if inputs.is_box && inputs.base.is_none() {
         let document = match config::document(
             &inputs.document,
             &config::DocumentLimits { bytes: 1_048_576, tokens: 1_048_576, depth: 32 },
@@ -207,8 +196,12 @@ fn resolve(
             Err(found) => return Err(Problems::jig(single(found), &Path::root())),
         };
         if let Some(slots) = derived::slots(&document) {
-            own.checkout.workspaces = slots;
-            own.git_component.operations = slots;
+            if supplied(temper, b"checkout.workspaces").is_none() {
+                own.checkout.workspaces = slots;
+            }
+            if supplied(temper, b"git_component.operations").is_none() {
+                own.git_component.operations = own.checkout.workspaces;
+            }
         }
     }
     let followers = inputs.base.is_none() || !temper.is_empty();
@@ -270,18 +263,7 @@ fn resolve(
     ) {
         return Err(checks::store_refusal(crate::store::Refusal::Map(why)));
     }
-    let mut worker = match inputs.base {
-        Some(_) => stock_own,
-        None => match limits::base(derived::LIVE_GOALS, derived::STOCK.payload, inputs.sources) {
-            Ok((_, worker)) => worker,
-            Err(found) => return Err(Problems::jig(single(found), &Path::root())),
-        },
-    };
-    if inputs.is_box {
-        worker.checkout.workspaces = own.checkout.workspaces;
-        worker.git_component.operations = own.git_component.operations;
-    }
-    Ok(Resolved { jig, temper: own, root, left_out, store, worker })
+    Ok(Resolved { jig, temper: own, root, left_out, store, payload })
 }
 
 fn derived_floors(

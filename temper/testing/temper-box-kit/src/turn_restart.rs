@@ -102,14 +102,14 @@ pub fn staging_limits(value: &mut temper_playground::documents::Configuration) {
     value.jig_over("tasks.inbox_bytes", 82 * 63_738);
     value.jig_over("core.policy_bytes", 8192);
     value.jig_over("core.call_answer_bytes", 63_740);
-    value["workers"][0]["limits"]["overrides"]["core.call_answer_bytes"] = 63_740.into();
-    value["workers"][0]["limits"]["profile"] = "standard".into();
-    value["workers"][0]["limits"]["overrides"]["tasks.result_bytes"] = 63_738.into();
-    value["workers"][0]["limits"]["overrides"]["tasks.message_bytes"] = 63_738.into();
+    value.jig_over("core.call_answer_bytes", 63_740);
+
+    value.jig_over("tasks.result_bytes", 63_738);
+    value.jig_over("tasks.message_bytes", 63_738);
     value.jig_over("hub.outcome_bytes", 63_740);
-    value["workers"][0]["limits"]["overrides"]["hub.outcome_bytes"] = 63_740.into();
+    value.jig_over("hub.outcome_bytes", 63_740);
     value.jig_over("hub.event_bytes", 63_738);
-    value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = 63_738.into();
+    value.jig_over("hub.event_bytes", 63_738);
 }
 
 /// Share the owned turn setup while selecting the story's batch bound.
@@ -136,21 +136,17 @@ pub(super) fn configure_batch(root: &Path, repository: u64, batch: u16) -> tempe
     config.jig_over("tasks.spec_bytes", prepare.spec);
     config.jig_over("tasks.message_bytes", prepare.result);
     config.jig_over("tasks.result_bytes", prepare.result);
-    config["workers"][0]["limits"]["overrides"]["tasks.result_bytes"] = prepare.result.into();
+    config.jig_over("tasks.result_bytes", prepare.result);
     config.temper_over("forge.client.op_bytes", prepare.result);
     let mut agent = temper_agent_fixtures::read(root);
     // A JSON string's quotes share the tool payload with its message.
     let tool_payload = prepare.result + 2;
     agent["profile"]["declared"]["tool_payload"] = tool_payload.into();
     config.jig_over("hub.outcome_bytes", tool_payload);
-    config["workers"][0]["limits"]["overrides"]["hub.outcome_bytes"] = tool_payload.into();
-    config["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = prepare.result.into();
+    config.jig_over("hub.outcome_bytes", tool_payload);
+    config.jig_over("hub.event_bytes", prepare.result);
     // Let the call carriers follow the agent's declared payload.
     config.jig_over("core.call_answer_bytes", jig_protocol_config::stock().core.call_answer_bytes);
-    config["workers"][0]["limits"]["overrides"]
-        .as_object_mut()
-        .expect("worker overrides")
-        .remove("core.call_answer_bytes");
     super::configuration::turn_bounds::apply(&mut config, super::configuration::turn_bounds::turn_body(&agent));
     temper_agent_fixtures::apply(&mut config, root, &agent);
     write_private(&path, &serde_json::to_vec(&config).expect("configuration JSON"));

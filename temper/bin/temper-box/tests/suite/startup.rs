@@ -844,7 +844,7 @@ fn shipped_bounds_fit_the_configured_charters_and_worker() {
 
     let scratch = support::Scratch::startup("owned-admission");
     let bounded = support::owned::bounded(scratch.path());
-    let mut value: serde_json::Value = serde_json::from_slice(&bounded.document).expect("deployment JSON");
+    let value: serde_json::Value = serde_json::from_slice(&bounded.document).expect("deployment JSON");
     let engine =
         temper_service::startup::engine(&configuration_document(&value["engine"]), 0, &config::Directories::working())
             .expect("engine configuration");
@@ -878,7 +878,10 @@ fn shipped_bounds_fit_the_configured_charters_and_worker() {
         git: Some(b"/usr/bin/git".as_slice().into()),
     };
     let own = &temper_playground::documents::Configuration::stock(value.clone()).limits;
-    assert!(worker.jig.limits.as_ref().expect("configured worker limits").hub.event_bytes >= u64::from(agent.bounds.message_bytes));
+    assert!(
+        worker.jig.limits.as_ref().expect("configured worker limits").hub.event_bytes
+            >= u64::from(agent.bounds.message_bytes)
+    );
     assert!(u64::from(own.checkout.message_bytes) >= agent.host_limits.call_bytes);
     let prepared = service::worker_settings::prepare(worker, agent, &service::limits::worker(own))
         .expect("complete worker bounds");
@@ -1697,71 +1700,22 @@ fn the_store_page_holds_the_templates_largest_turn_frame() {
     scratch.remove();
 }
 
-/// Hold only the limit maps this derivation owns; keep the document's other text.
+/// Documents carry no turn maps; workers receive them from the engine.
 fn turn_bound_document(path: &std::path::Path, turn: u32, escaped: bool) {
     let text = fs::read_to_string(path).expect("turn-bound document");
-    let plain = if escaped { text.replace("{{", "{").replace("}}", "}") } else { text.clone() };
-    let before: serde_json::Value = serde_json::from_str(&plain).expect("document JSON");
-    let mut after = before.clone();
-    temper_playground::documents::turn_bounds::apply_workers(&mut after, turn);
-    if let (Some(before), Some(after)) = (before["workers"].as_array(), after["workers"].as_array_mut()) {
-        for (before, after) in before.iter().zip(after) {
-            let limits = &before["limits"]["overrides"];
-            if limits.get("hub.turn_bytes").is_none() && limits.get("io.output").is_none() {
-                // The start derives these when the document supplies no carrier override.
-                *after = before.clone();
-            }
+    let plain = if escaped { text.replace("{{", "{").replace("}}", "}") } else { text };
+    let document: serde_json::Value = serde_json::from_str(&plain).expect("document JSON");
+    assert!(turn > 0, "the generated agent has a bounded turn");
+    for name in ["engine", "application"] {
+        if let Some(part) = document.get(name) {
+            assert!(part.get("limits").is_none(), "{}: {name}.limits moved to settings", path.display());
         }
     }
-    let mut maps = Vec::new();
-    for pointer in ["/engine/limits/overrides", "/application/limits/overrides"] {
-        if let Some(previous) = before.pointer(pointer) {
-            maps.push((previous, after.pointer(pointer).expect("same map")));
+    if let Some(workers) = document["workers"].as_array() {
+        for worker in workers {
+            assert!(worker.get("limits").is_none(), "{}: workers take engine figures", path.display());
         }
     }
-    let write = temper_test_env::rewrite();
-    if !write {
-        assert_eq!(
-            before,
-            after,
-            "{}: run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-box --test suite -E 'test(turn_bounds)'",
-            path.display()
-        );
-        return;
-    }
-    let mut result = String::new();
-    let mut rest = plain.as_str();
-    while let Some(at) = rest.find("\"overrides\"") {
-        let start = at + rest[at..].find('{').expect("override map");
-        let end = start + rest[start..].find('}').expect("flat numeric overrides") + 1;
-        let previous: serde_json::Value = serde_json::from_str(&rest[start..end]).expect("override JSON");
-        let (_, next) = maps.iter().find(|(old, _)| **old == previous).expect("known override map");
-        result.push_str(&rest[..start]);
-        let indent = rest[..at].rsplit_once('\n').map_or("", |(_, line)| line);
-        let indent = &indent[..indent.len() - indent.trim_start().len()];
-        let map = serde_json::to_string_pretty(next).expect("limit map JSON");
-        result.push_str(&map.replace('\n', &format!("\n{indent}")));
-        rest = &rest[end..];
-    }
-    result.push_str(rest);
-    if escaped {
-        // Only JSON object braces are doubled in the fixture's format; interpolation
-        // braces inside quoted strings remain the fixture reader's expressions.
-        let mut in_string = false;
-        let mut slash = false;
-        result = result.chars().fold(String::new(), |mut out, c| {
-            if !in_string && matches!(c, '{' | '}') {
-                out.push(c);
-            }
-            out.push(c);
-            if c == '"' && !slash {
-                in_string = !in_string;
-            }
-            slash = c == '\\' && !slash;
-            out
-        });
-    }
-    fs::write(path, result).expect("write derived turn bounds");
 }
 
 #[test]
@@ -1824,7 +1778,7 @@ fn the_live_github_configuration_passes_startup_admission() {
             let mut descriptors = Vec::new();
             let service = temper_worker_shell::worker::from_figures(
                 part,
-                support::cluster::figures(&engine),
+                support::cluster::figures_with_limits(&engine),
                 &files,
                 &directories,
                 &mut descriptors,

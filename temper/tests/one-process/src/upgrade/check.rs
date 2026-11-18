@@ -35,6 +35,10 @@ fn configured(document: &temper_playground::documents::Configuration) -> temper_
     .unwrap_or_else(|why| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&why))))
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one driver covers the restart cuts and both rehearsal reaches on the same disk"
+)]
 fn drive(
     disk: &mut Machine,
     document: &temper_playground::documents::Configuration,

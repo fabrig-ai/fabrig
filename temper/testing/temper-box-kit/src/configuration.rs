@@ -17,35 +17,7 @@ pub mod turn_bounds {
 /// Leave the agent's carriers to the product's stock, derivations, overrides order
 /// (temper/docs/design/protocol/configuration/derived.md, 4 and 5.1).
 pub fn use_derived(document: &mut temper_playground::documents::Configuration) {
-    let stock = temper_playground::documents::Configuration::stock(serde_json::Value::Null);
-    for name in [
-        "hub.turn_bytes",
-        "core.resume_bytes",
-        "hub.transcript_bytes",
-        "hub.turn_queue_bytes",
-        "io.output",
-        "tasks.message_bytes",
-        "tasks.result_bytes",
-        "tasks.inbox_bytes",
-        "hub.event_bytes",
-        "hub.outcome_bytes",
-        "core.call_answer_bytes",
-    ] {
-        document.jig_over(name, stock.jig_value(name));
-    }
-    for name in [
-        "root.journal.transcript_bytes",
-        "root.loads.transcript_bytes",
-        "root.loads.bytes",
-        "root.loads.reply_bytes",
-        "root.loads.read_bytes",
-        "checkout.message_bytes",
-        "forge.client.op_bytes",
-        "forge.client.answer_bytes",
-        "forge_component.body_bytes",
-    ] {
-        document.temper_over(name, stock.temper_value(name));
-    }
+    document.use_stock_carriers();
 }
 
 // Eight native exchanges beside Small's two event streams (jig/docs/design/protocol/client/default-http.md, 5).
@@ -69,15 +41,10 @@ pub fn typed_documents(directory: &Path, _program: &str) -> (Vec<u8>, temper_pla
     value["workers"] = worker["workers"].clone();
     value.jig_over("tasks.inbox_bytes", 4096);
     value.jig_over("tasks.run_inbox", 8);
-    value["workers"][0]["limits"]["overrides"]["tasks.run_inbox"] = 8.into();
-    value["workers"][0]["limits"]["overrides"]["hub.inbox"] = 8.into();
-    value["workers"][0]["limits"]["overrides"]["hub.held"] = 8.into();
-    value["workers"][0]["limits"].as_object_mut().expect("worker limits").remove("profile");
-    value["workers"][0]["limits"]["overrides"]
-        .as_object_mut()
-        .expect("worker overrides")
-        .entry("tasks.result_bytes")
-        .or_insert(512.into());
+    value.jig_over("tasks.run_inbox", 8);
+    value.jig_over("hub.inbox", 8);
+    value.jig_over("hub.held", 8);
+    value.jig_over("tasks.result_bytes", 512);
     for worker in value["workers"].as_array_mut().expect("workers") {
         let worker = worker.as_object_mut().expect("worker");
         worker.remove("memory_bytes");
@@ -87,10 +54,10 @@ pub fn typed_documents(directory: &Path, _program: &str) -> (Vec<u8>, temper_pla
     value["workers"][0]["engine"] = serde_json::json!({"in_process":"workers"});
     value["workers"][0].as_object_mut().expect("worker").remove("agent");
     value["workers"][0].as_object_mut().expect("worker").remove("limits");
-    value["engine"]["limits"]["overrides"]["hub.accounts"] = 4.into();
-    value["engine"]["limits"]["overrides"]["hub.held"] = 8.into();
+    value.jig_over("hub.accounts", 4);
+    value.jig_over("hub.held", 8);
     value["workers"][0]["name"] = "local".into();
-    value["engine"]["limits"]["overrides"]["fleet.slots"] = 4.into();
+    value.jig_over("fleet.slots", 4);
     value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);
     value["engine"]["llm"]["endpoints"] = serde_json::json!([{
         "name":"fake","number":1,"dialect":3,"provider":"openai",
@@ -148,6 +115,9 @@ pub fn typed_documents(directory: &Path, _program: &str) -> (Vec<u8>, temper_pla
     agent["profile"]["policy"]["check_timeout"] = 60_000.into();
     agent["endpoints"][0]["limits"]["idle"] = 30_000.into();
     agent["programs"] = serde_json::json!({});
+    value.jig_over("hub.run_calls", agent["profile"]["declared"]["calls_per_response"].as_u64().expect("agent calls"));
+    value.jig_over("hub.inbox", agent["profile"]["policy"]["inbox"].as_u64().expect("agent inbox"));
+    use_derived(&mut value);
     turn_bounds::apply(&mut value, turn_bounds::turn_body(&agent));
     (serde_json::to_vec(&agent).expect("agent JSON"), value)
 }

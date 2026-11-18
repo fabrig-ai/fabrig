@@ -64,9 +64,9 @@ pub fn prepare(
     engine.jig_over("hub.outcome_bytes", payload);
     engine.temper_over("forge.client.op_bytes", prepare.result);
     engine.temper_over("tool_payload", payload);
-    worker["workers"][0]["limits"]["overrides"]["tasks.result_bytes"] = prepare.result.into();
-    worker["workers"][0]["limits"]["overrides"]["hub.outcome_bytes"] = payload.into();
-    worker["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = prepare.result.into();
+    worker.jig_over("tasks.result_bytes", prepare.result);
+    worker.jig_over("hub.outcome_bytes", payload);
+    worker.jig_over("hub.event_bytes", prepare.result);
     worker.temper_over("checkout.message_bytes", payload);
     let turn = support::configuration::turn_bounds::turn_body(&agent);
     support::configuration::turn_bounds::apply(&mut engine, turn);

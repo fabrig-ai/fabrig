@@ -409,7 +409,7 @@ pub fn rewrite(temper: &[u8], paths: &Paths, peers: &Peers) -> Result<Documents,
         let _value = read::text(&d, bundle, 4096, &ap.member(b"clients").member(b"bundle"))?;
     }
     edits.text(&d, bundle, &paths.bundle, &ap.member(b"clients").member(b"bundle"))?;
-    capacity(&d, &mut edits)?;
+    capacity();
     Ok(Documents {
         temper: edits.finish(&d)?,
         github: forge_document(&github, &paths.data, &d, clients)?,
@@ -465,13 +465,12 @@ fn object_member(d: &Document, at: u32, name: &[u8], value: &[u8], edits: &mut E
         append(d, at, &read::joined(&[b"{", &text(name)?, b":", value, b"}"]), edits)
     }
 }
-fn capacity(d: &Document, edits: &mut Edits) -> Result<(), Refusal> {
+fn capacity() {
     let stock = jig_protocol_config::stock();
     assert!(
         stock.core.documents.lines >= PROVIDER_LINES && stock.core.accounts.credentials >= 4,
         "the stock carries the fake backend provider offer and credentials"
     );
-    Ok(())
 }
 fn forge(
     d: &Document,

@@ -295,6 +295,6 @@ fn temper_limits_wire_keeps_the_largest_list() {
     let bytes = encode(&value);
     assert_eq!(bytes.len(), 51_204);
     assert_eq!(size(&value), 51_204);
-    assert!(decode(21, &bytes, &BOUNDS).unwrap().value == value, "all 256 overrides survive the wire");
-    assert!(decode(21, &bytes[..bytes.len() - 1], &BOUNDS).is_none());
+    assert!(decode(22, &bytes, &BOUNDS).unwrap().value == value, "all 256 overrides survive the wire");
+    assert!(decode(22, &bytes[..bytes.len() - 1], &BOUNDS).is_none());
 }

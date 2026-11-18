@@ -94,7 +94,7 @@ fn parties_changes_and_proposals_use_the_starts_words_and_item_position() {
 
 #[test]
 fn names_are_checked_at_entry_even_when_the_start_would_leave_them_out() {
-    let mut state = state();
+    let state = state();
     for (temper_kind, name, expected) in [
         (false, b"tasks.gone".as_slice(), b"tasks.gone is no limit of this release".as_slice()),
         (true, b"forge.gone", b"forge.gone is no limit of this release"),
@@ -105,11 +105,6 @@ fn names_are_checked_at_entry_even_when_the_start_would_leave_them_out() {
         let setting = bad.setting;
         assert_eq!(judged(refused(&state, Box::new([bad]), false), 0, setting).as_ref(), expected);
     }
-    state.inputs.is_box = true;
-    let why = judged(refused(&state, Box::new([temper(Box::new([item(b"checkout.workspaces", 1)]))]), true), 0, TEMPER);
-    assert!(
-        String::from_utf8_lossy(&why).contains("checkout.workspaces (setting temper-limits): this is a worker's limit")
-    );
 }
 
 fn call(input: &[u8]) -> root::HostRequest {
@@ -233,6 +228,7 @@ fn owned() -> crate::Service {
     service.engine.as_mut().unwrap().step(root::Event::Party(root::PartyInput::SignedIn {
         reply_to: ReplyTo::new(REPLY),
         held: None,
+        until: None,
         identity: people::Identity {
             key: people::IdentityKey { provider: 1, subject: b"owner-a".as_slice().into() },
             login: b"owner".as_slice().into(),
@@ -426,4 +422,35 @@ fn the_other_kind_comes_from_durable_settings_not_the_running_figures() {
     let before = format!("{together:?}");
     let admitted = admission::party(Some(state), together).expect("both kinds resolved together");
     assert_eq!(format!("{admitted:?}"), before, "the admitted request is unchanged");
+}
+
+#[test]
+fn agents_edits_are_bounded_by_the_carrier_payload_fixed_at_start() {
+    let state = state();
+    let bound = state.in_force.payload;
+    let setting = s::Setting::Application { kind: 21, scope: 0, number: 1 };
+    for payload in [bound, bound + 1] {
+        let agents = super::agents_with_payload(payload);
+        let value = f::Value::AgentFigures(agents.clone());
+        let item =
+            s::Item { setting, edit: s::Edit::Set(s::Value::Application(temper_engine_smith::kinds::encode(&value))) };
+        let kinds = [root::KindValue {
+            kind: 21,
+            scope: 0,
+            number: 1,
+            value: f::SizedValue { size: temper_engine_smith::kinds::size(&value), value },
+        }];
+        let items = [s::Item { setting: s::Setting::Rules, edit: s::Edit::Reset }, item];
+        let refusal = state.check(&items, &kinds);
+        if payload == bound {
+            assert!(refusal.is_none(), "the current carrier bound is allowed");
+        } else {
+            let why = judged(refusal.expect("a larger call needs larger carriers"), 1, setting);
+            let why = ::core::str::from_utf8(&why).unwrap();
+            assert!(why.contains("agents.declared.tool_payload"));
+            assert!(why.contains("raise tool_payload in temper-limits and restart first"));
+        }
+        let f::Value::AgentFigures(unchanged) = &kinds[0].value.value else { panic!("agents") };
+        assert_eq!(unchanged, &agents, "admission never rewrites the agents profile");
+    }
 }

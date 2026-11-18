@@ -56,7 +56,14 @@ fn lookups_apply_sets_removals_additions_and_resets_without_a_third_set() {
     assert_eq!(current.charter(1), Some(&original));
     assert_eq!(
         current.offered().as_slice(),
-        &[Setting::Charter(1), Setting::Charter(2), Setting::Rules, Setting::Limits, Setting::Worker(1), Setting::Worker(2)]
+        &[
+            Setting::Charter(1),
+            Setting::Charter(2),
+            Setting::Rules,
+            Setting::Limits,
+            Setting::Worker(1),
+            Setting::Worker(2)
+        ]
     );
 }
 fn fault_case(fault: Fault) {

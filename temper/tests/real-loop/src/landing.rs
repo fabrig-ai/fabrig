@@ -129,14 +129,13 @@ pub fn configure(value: &mut temper_playground::documents::Configuration, agent:
         value.jig_over(name, size);
     }
     value["workers"][0]["slots"] = 1.into();
-    let limits = &mut value["engine"]["limits"]["overrides"];
-    limits["hub.slots"] = 1.into();
-    limits["hub.inbox"] = agent["profile"]["policy"]["inbox"].clone();
-    limits["tasks.run_inbox"] = agent["profile"]["policy"]["inbox"].clone();
-    limits["core.call_answer_bytes"] = 4096.into();
-    limits["hub.event_bytes"] = 4094.into();
-    // The worker validates core message bounds even when its profile is standard.
-    limits["tasks.result_bytes"] = 512.into();
+    value.jig_over("hub.slots", 1);
+    let inbox = agent["profile"]["policy"]["inbox"].as_u64().expect("agent inbox");
+    value.jig_over("hub.inbox", inbox);
+    value.jig_over("tasks.run_inbox", inbox);
+    value.jig_over("core.call_answer_bytes", 4096);
+    value.jig_over("hub.event_bytes", 4094);
+    value.jig_over("tasks.result_bytes", 512);
     agent["profile"]["declared"]["tool_payload"] = 4096.into();
     agent["profile"]["policy"]["max_turns"] = 800.into();
     agent["profile"]["policy"]["check_timeout"] = 1000.into();

@@ -162,7 +162,8 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
                 && kind != 14
                 && kind != 15
                 && kind != 20
-                && kind != 21 && kind != 22
+                && kind != 21
+                && kind != 22
             {
                 out.key(b"number");
                 out.unsigned(u64::from(number));

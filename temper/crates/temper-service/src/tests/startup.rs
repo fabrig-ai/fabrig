@@ -77,24 +77,22 @@ fn a_read_bound_set_to_the_refusals_number_starts() {
     for turn in [fixtures::startup_agent().limits.bodies.turn_body, TRANSCRIPT] {
         let mut agent = fixtures::startup_agent();
         agent.limits.bodies.turn_body = turn;
-        let mut value: serde_json::Value = serde_json::from_slice(&transcript_document(TRANSCRIPT)).unwrap();
+        let mut document = transcript_document(TRANSCRIPT);
         // The test pins read admission when the transcript drives the page.
-        value["application"]["limits"]["overrides"]["forge.changes"] = 0_u32.into();
-        let mut document = serde_json::to_vec(&value).unwrap().into_boxed_slice();
+        document.own.forge.changes = 0;
         if turn == TRANSCRIPT {
             document.jig.hub.turn_bytes = u64::from(turn);
             document.jig.core.resume_bytes = turn + 4;
             document.jig.hub.transcript_bytes = u64::from(turn + 4) * 4;
             document.jig.hub.turn_queue_bytes = u64::from(turn) * 8;
             document.own.root.journal.transcript_bytes = turn + 4;
-            let mut value: serde_json::Value = serde_json::from_slice(&document).unwrap();
-            let overrides = &mut value["engine"]["limits"]["overrides"];
             let bodies = jig_protocol_worker_wire::v17::Limits {
                 turn_body: turn,
-                turn_refused: u32::try_from(overrides["tasks.run_inbox"].as_u64().unwrap()).unwrap(),
+                turn_refused: document.jig.core.tasks.run_inbox,
                 ..jig_protocol_worker_wire::v17::CEILINGS
             };
-            document.jig.io.output = u32::try_from(jig_protocol_worker_wire::v17::Turn::encoded_bound(&bodies).unwrap() + 8).unwrap();
+            document.jig.io.output =
+                u32::try_from(jig_protocol_worker_wire::v17::Turn::encoded_bound(&bodies).unwrap() + 8).unwrap();
         }
         let store =
             fixtures::document_store_limits(&document, &config::Directories::working(), Some(&agent.declaration()))
@@ -551,7 +549,7 @@ fn a_box_without_document_limits_starts_at_the_stock_budget_and_worker_figures()
     stock.checkout.message_bytes = 63_740;
     let worker = crate::limits::worker(&stock);
     let (settings, prepared) = checked.worker.as_ref().unwrap();
-    assert_eq!(settings.jig.limits.hub.run_calls, 48);
+    assert_eq!(settings.jig.limits.as_ref().unwrap().hub.run_calls, 48);
     assert_eq!(prepared.root.checkout, crate::worker_settings::checkout(worker.checkout));
     assert_eq!(prepared.payload, crate::worker_settings::payload_limits(&worker).unwrap());
     assert_eq!(checked.engine.limits.git_component, stock.git_component);

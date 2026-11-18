@@ -405,7 +405,8 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>, value: &mut temper_pla
     }
     value["application"] = owned::application(&owned);
     value.temper_over("root.brief.gather_ms", BRIEF_GATHER_MS);
-    let mut agent = serde_json::from_slice(&super::configuration::documents(directory, "/fixture/temper").0).expect("agent JSON");
+    let mut agent =
+        serde_json::from_slice(&super::configuration::documents(directory, "/fixture/temper").0).expect("agent JSON");
     temper_real_loop_world::settings::stage_policies(value);
     landing::configure(value, &mut agent, *api);
     value.as_object_mut().expect("deployment").remove("world_settings");

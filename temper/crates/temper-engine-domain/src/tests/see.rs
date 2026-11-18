@@ -672,7 +672,7 @@ fn limit_addresses_are_unnumbered_and_deployment_scoped() {
     assert_eq!(address(b"settings limits", 7), Address::Setting(Setting::Limits));
     assert_eq!(
         address(b"settings temper-limits", 7),
-        Address::Setting(Setting::Application { kind: 21, scope: 0, number: 1 })
+        Address::Setting(Setting::Application { kind: 22, scope: 0, number: 1 })
     );
     assert_eq!(address(b"settings limits 1", 7), Address::Unknown);
     assert_eq!(address(b"settings temper-limits project", 7), Address::Unknown);

@@ -12,7 +12,7 @@ this document says how settings lie over it.
 ## 1. In one page
 
 - **Two kinds** (section 2): jig's `limits`, a kind of jig's core, holds
-  overrides of jig's limits; temper's kind 21, `temper-limits`, holds
+  overrides of jig's limits; temper's kind 22, `temper-limits`, holds
   overrides of temper's, `live_goals`, `tool_payload` and
   `transcript_memory` among them. Each value is a list of overrides, an
   override a name, a value and a reason. No override is the stock.
@@ -90,10 +90,10 @@ this document says how settings lie over it.
 - **On jig's client wire** a `SettingValue` of its own, so the wire
   moves its version (jig's `protocol/client/README.md`).
 
-### 2.3 temper's kind, 21, `temper-limits`
+### 2.3 temper's kind, 22, `temper-limits`
 
 - **An application kind** of temper's (`settings.md`, section 2):
-  number 21, the deployment's scope, the forge connector's, one value,
+  number 22, the deployment's scope, the forge connector's, one value,
   naming no charter. Its value is a list of overrides of temper's names,
   kept and judged by the forge child as every temper kind is; its judge
   is `check_overrides`. Its default is the empty list.
@@ -134,7 +134,7 @@ this document says how settings lie over it.
   1. it opens the store at the stock's figures;
   2. it reads the two kinds' current values, jig's from the core's
      settings family (its change of `Setting::Limits`, if any) and
-     temper's from the forge's settings rows (kind 21's change, if any);
+     temper's from the forge's settings rows (kind 22's change, if any);
      a first start, or a kind no change is over, reads the empty list;
   3. it resolves the limits (below), checks them whole, and builds the
      engine with them, the store's codec ceilings among them;
@@ -337,7 +337,7 @@ this document says how settings lie over it.
 Focused and fuzzy, in the crates that hold each piece:
 
 - **The kinds:** an override list's shape, each fault by position; jig's
-  kind set, reset and shown, kept across a restart; temper's kind 21
+  kind set, reset and shown, kept across a restart; temper's kind 22
   judged and kept.
 - **The start:** a store holding each kind's change starts with its
   figures; a first start with none takes the stock; a name a release
@@ -366,7 +366,7 @@ These names cross changes:
   `OVERRIDES`, `check_overrides`.
 - jig's `Setting::Limits` and `Value::Limits(Box<[Override]>)`, and
   `jig_protocol_config::with_overrides`.
-- temper's kind 21: `settings::Kind::Limits` in
+- temper's kind 22: `settings::Kind::Limits` in
   `temper-engine-domain-forge-vocabulary`, its value a list of
   `Override`; its settings file's name `temper-limits`.
 - temper's names table: the rows `live_goals`, `tool_payload` and

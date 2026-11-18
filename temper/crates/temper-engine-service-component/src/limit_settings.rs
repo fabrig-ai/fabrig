@@ -84,13 +84,13 @@ impl Store {
         let (mut jig, own) = inputs.stock()?;
         let root = temper_engine_service_startup::startup::engine_limits(&mut jig, &own, None)?;
         let store = temper_engine_service_startup::startup::checked_store(&root, &jig.store, None)?;
-        Ok(Self::new(&root, &store, models, inputs.seeds.installation))
+        Ok(Self::new(&root, &store, models, &inputs.seeds))
     }
     /// After Opened and before Restart: read, resolve, then install the codecs.
     /// A held pair replaces both kinds only for resolution, not the retained settings.
     pub fn resolve_settings(
         &mut self,
-        inputs: LimitInputs,
+        mut inputs: LimitInputs,
         held: Option<(&[Override], &[Override])>,
     ) -> Result<LimitSettings, Problems> {
         let key = settings_key();
@@ -103,6 +103,18 @@ impl Store {
         let bounds = temper_protocol_store::bounds(&stock_root.forge, stock_root.tasks.spec_bytes)
             .ok_or(bad(b"temper-limits"))?;
         let temper = temper_list(temper, &bounds).ok_or(bad(b"temper-limits"))?;
+        let agents_key = settings::SettingKey { kind: 21, scope: 0, number: 1, slot: settings::SettingSlot::Change };
+        let agents_key =
+            temper_protocol_store::keys::encode(&forge::Key::Setting(agents_key), self.host.limits().store.key)
+                .ok_or(bad(b"agents"))?;
+        let agents = self.host.component.opening_setting(agents_key).or(Err(bad(b"agents")))?;
+        let agents = opening_value(agents, &bounds).or(Err(bad(b"agents")))?;
+        inputs.sources.payload = if let Some(agents) = agents {
+            let settings::Value::AgentFigures(agents) = agents else { return Err(bad(b"agents")) };
+            temper_engine_service_vocabulary::figures::tool_payload(&agents)
+        } else {
+            temper_service_core::derived::STOCK.payload
+        };
         let resolved = match held {
             Some((jig, temper)) => resolve_limits(&inputs, jig, temper)?,
             None => resolve_limits(&inputs, &jig, &temper)?,
@@ -121,12 +133,12 @@ impl Store {
                 }
             });
         }
-        self.routes = crate::store::route::Routes::new(
-            resolved.root.loads.loads,
+        self.routes = Self::routes(
             &resolved.root,
             temper_protocol_store::bounds(&resolved.root.forge, resolved.root.tasks.spec_bytes)
                 .ok_or(bad(b"temper-limits"))?
                 .with_stock(&bounds),
+            &inputs.seeds,
         );
         Ok(LimitSettings { inputs, jig, temper, in_force: resolved, revision: 0, held: held.is_some() })
     }
@@ -446,6 +458,9 @@ fn forge_fit(failure: &forge::RestoreFit) -> Option<&'static [u8]> {
         | S::LandingGates
         | S::LandingAsks
         | S::LandingEntries
+        | S::LandingFlakeReruns
+        | S::LandingFlakeFindings
+        | S::LandingFlakeJobs
         | S::NameBytes
         | S::ContextProjects => None,
     }
@@ -505,18 +520,18 @@ fn jig_list(row: Option<jig_protocol_store::Row>) -> Option<Box<[Override]>> {
     let value = changed.value?;
     Some(Box::from(value.as_limits()?))
 }
-fn temper_list(
+fn opening_value(
     row: Option<jig_protocol_store::Row>,
     bounds: &temper_protocol_store::Bounds,
-) -> Option<Box<[Override]>> {
+) -> Result<Option<settings::Value>, ()> {
     let Some(row) = row else {
-        return Some(Box::new([]));
+        return Ok(None);
     };
     let value = match row {
         jig_protocol_store::Row::Application { key, value } => (key, value),
-        jig_protocol_store::Row::Jig(_) => return None,
+        jig_protocol_store::Row::Jig(_) => return Err(()),
     };
-    let row = match temper_protocol_store::records::row(&value.0, &value.1, bounds).ok()? {
+    let row = match temper_protocol_store::records::row(&value.0, &value.1, bounds).or(Err(()))? {
         forge::Stored::Setting(row) => row,
         forge::Stored::RefusedSetting(_)
         | forge::Stored::Call { .. }
@@ -568,15 +583,22 @@ fn temper_list(
         | forge::Stored::HistoryEvent(_)
         | forge::Stored::HistoryChange(_)
         | forge::Stored::HistoryLanding(_)
-        | forge::Stored::HistoryLast(_) => return None,
+        | forge::Stored::HistoryLast(_) => return Err(()),
     };
-    let value = match row.edit {
-        settings::Edit::Set(value) => value.value,
-        settings::Edit::Remove | settings::Edit::Reset => return Some(Box::new([])),
-    };
+    Ok(match row.edit {
+        settings::Edit::Set(value) => Some(value.value),
+        settings::Edit::Remove | settings::Edit::Reset => None,
+    })
+}
+fn temper_list(
+    row: Option<jig_protocol_store::Row>,
+    bounds: &temper_protocol_store::Bounds,
+) -> Option<Box<[Override]>> {
+    let Some(value) = opening_value(row, bounds).ok()? else { return Some(Box::new([])) };
     match value {
         settings::Value::Limits(items) => Some(items),
-        settings::Value::Landing(_)
+        settings::Value::AgentFigures(_)
+        | settings::Value::Landing(_)
         | settings::Value::Gates(_)
         | settings::Value::Welcome(_)
         | settings::Value::Rule(_)

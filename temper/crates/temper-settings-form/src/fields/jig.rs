@@ -1,6 +1,6 @@
 use super::{Bound, Choice, Field, Form, Limit, Shape, Value, Width, Word};
 pub static FORMS: [Form; 92] = [
-    Form { shape: Shape::File, name: b"file", choice: Choice::Every, line: b"File read by `settings apply` and `settings propose`." },
+    Form { shape: Shape::File, name: b"file", choice: Choice::Every, line: b"`settings apply`/`settings propose` file." },
     Form { shape: Shape::Item, name: b"item", choice: Choice::Every, line: b"A `setting` and exactly one of `set`, `edit` and `overlay`." },
     Form { shape: Shape::Setting, name: b"setting", choice: Choice::Every, line: b"Kind and number, or project for project settings." },
     Form { shape: Shape::Charter, name: b"charter", choice: Choice::Every, line: b"Run policy from the task's creation revision." },
@@ -121,10 +121,10 @@ pub static FORMS: [Form; 92] = [
     Form { shape: Shape::Agents, name: b"agents", choice: Choice::Every, line: b"Agent profile and endpoint limits, taken at each worker's next start." },
     Form { shape: Shape::AgentProfile, name: b"agent-profile", choice: Choice::Every, line: b"Map: <=128 unique names (<=64 UTF-8 bytes) to unsigned integers within each type; profile declared/policy overrides over standard." },
     Form { shape: Shape::AgentEndpoints, name: b"agent-endpoints", choice: Choice::Every, line: b"Map: <=64 unique endpoint names (<=64 UTF-8 bytes) to agent-limits." },
-    Form { shape: Shape::AgentLimits, name: b"agent-limits", choice: Choice::Every, line: b"An endpoint's limits; every integer is positive." },
-    Form { shape: Shape::Limits, name: b"limits", choice: Choice::List { item: Shape::LimitOverride, bound: Bound::Most(256) }, line: b"Core limit overrides: ascending names; whole list, empty default; no number or project." },
-    Form { shape: Shape::TemperLimits, name: b"temper-limits", choice: Choice::List { item: Shape::LimitOverride, bound: Bound::Most(256) }, line: b"As limits, for application limits (kind 22)." },
-    Form { shape: Shape::LimitOverride, name: b"limit-override", choice: Choice::Every, line: b"One override, with a required reason." },
+    Form { shape: Shape::AgentLimits, name: b"agent-limits", choice: Choice::Every, line: b"Endpoint limits; all integers >0." },
+    Form { shape: Shape::Limits, name: b"limits", choice: Choice::List { item: Shape::LimitOverride, bound: Bound::Most(256) }, line: b"Core limit overrides: whole list, empty default; no number/project." },
+    Form { shape: Shape::TemperLimits, name: b"temper-limits", choice: Choice::List { item: Shape::LimitOverride, bound: Bound::Most(256) }, line: b"Application limits, kind 22; as limits." },
+    Form { shape: Shape::LimitOverride, name: b"limit-override", choice: Choice::Every, line: b"One reasoned override." },
 ];
 pub static FIELDS: [Field; 314] = [
     Field {
@@ -1414,9 +1414,9 @@ pub static FIELDS: [Field; 314] = [
     Field { shape: Shape::AgentLimits, name: b"head_ms", value: Value::Integer(Width::U64), list: None, null: false, line: b"Milliseconds." },
     Field { shape: Shape::AgentLimits, name: b"idle_ms", value: Value::Integer(Width::U64), list: None, null: false, line: b"Milliseconds." },
     Field { shape: Shape::AgentLimits, name: b"oversized", value: Value::Words(&[Word { word: b"fail", line: b"Refuse an oversized reasoning item." }, Word { word: b"drop", line: b"Drop an oversized reasoning item." }]), list: None, null: false, line: b"Oversized reasoning behavior." },
-    Field { shape: Shape::LimitOverride, name: b"name", value: Value::Text(Bound::Most(64)), list: None, null: false, line: b"Required; 1-64 bytes: a-z, 0-9, _ or .; strictly ascending, no duplicates." },
+    Field { shape: Shape::LimitOverride, name: b"name", value: Value::Text(Bound::Most(64)), list: None, null: false, line: b"Required; 1-64 bytes: a-z/0-9/_/.; ascending, unique." },
     Field { shape: Shape::LimitOverride, name: b"value", value: Value::Integer(Width::U64), list: None, null: false, line: b"Required; limit's unit." },
-    Field { shape: Shape::LimitOverride, name: b"reason", value: Value::Text(Bound::Most(120)), list: None, null: false, line: b"Required; 1-120 UTF-8 bytes: why it departs from stock." },
+    Field { shape: Shape::LimitOverride, name: b"reason", value: Value::Text(Bound::Most(120)), list: None, null: false, line: b"Required; 1-120 UTF-8 bytes: why override stock." },
 ];
 const FRESHNESS: &[Word] = &[
     Word { word: b"exact", line: b"Verdict counts at its given head." },

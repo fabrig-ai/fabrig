@@ -86,15 +86,6 @@ impl Configuration {
         world
     }
     #[must_use]
-    pub fn worker_application(&self) -> Value {
-        let mut overrides = serde_json::Map::new();
-        for name in temper_service_core::limits::SHARED_NAMES {
-            let row = limits::find(name.as_bytes()).expect("shared figure");
-            overrides.insert((*name).into(), Value::from((row.value)(&self.limits)));
-        }
-        serde_json::json!({"limits":{"overrides":overrides}})
-    }
-    #[must_use]
     pub fn jig_limits_document(&self) -> Value {
         let mut values = serde_json::Map::new();
         for name in &self.jig_given {
@@ -142,9 +133,12 @@ impl Configuration {
         self.workspaces_given |= name == "checkout.workspaces";
         self.operations_given |= name == "git_component.operations";
         limits::apply(&mut self.limits, name.as_bytes(), value).expect("world's temper limit");
-        if self.document.get("engine").is_none() && self.document.get("workers").is_some() {
-            self.document["application"]["limits"]["overrides"][name] = value.into();
-        }
+    }
+    /// Reset carrier figures to the stock derivation before a world's agent-specific turn.
+    pub fn use_stock_carriers(&mut self) {
+        let sources = temper_service_core::derived::STOCK.with_payload(self.limits.tool_payload);
+        temper_service_core::derived::engine(&mut self.jig, sources).expect("world carriers");
+        limits::derive(&mut self.limits, sources).expect("world carriers");
     }
     /// A world's unoverridden places follow its worker's slots, as at a start.
     pub fn derive_places(&mut self) {

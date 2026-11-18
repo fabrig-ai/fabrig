@@ -46,12 +46,11 @@ impl Store {
         seeds: &crate::settings::Seeds,
     ) -> Self {
         let installation = seeds.installation;
-        let routes = route::Routes::new(
-            application.loads.loads,
+        let routes = Self::routes(
             application,
             temper_protocol_store::bounds(&application.forge, application.tasks.spec_bytes)
                 .expect("checked family bounds"),
-            skein_lib::CryptoRng::new(&seeds.crypto, 0x4348_5054).expect("validated cryptographic seed"),
+            seeds,
         );
         let application_sizes = temper_protocol_store::application(&application.forge, application.tasks.spec_bytes)
             .expect("checked application sizes");
@@ -80,6 +79,18 @@ impl Store {
             pending_generation: false,
             installation,
         }
+    }
+    pub(crate) fn routes(
+        application: &root::Limits,
+        bounds: temper_protocol_store::Bounds,
+        seeds: &crate::settings::Seeds,
+    ) -> route::Routes {
+        route::Routes::new(
+            application.loads.loads,
+            application,
+            bounds,
+            skein_lib::CryptoRng::new(&seeds.crypto, 0x4348_5054).expect("validated cryptographic seed"),
+        )
     }
     /// The binary's name for the floor row, supplied before adopting the store.
     pub fn build_name(&mut self, name: &'static str) {

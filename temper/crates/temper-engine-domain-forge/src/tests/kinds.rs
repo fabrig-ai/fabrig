@@ -1126,8 +1126,8 @@ fn landing_removals_and_resets_need_no_value_judgement() {
 fn limits_are_judged_kept_restarted_and_reset_to_empty() {
     let default = SizedValue { value: Value::Limits(Box::new([])), size: 2 };
     let mut d = domain();
-    d.give_settings_defaults(Box::new([Stock { kind: 21, scope: 0, number: 1, value: default.clone() }]));
-    assert_eq!(d.setting(21, 0, 1), Some(&default));
+    d.give_settings_defaults(Box::new([Stock { kind: 22, scope: 0, number: 1, value: default.clone() }]));
+    assert_eq!(d.setting(22, 0, 1), Some(&default));
     let value = SizedValue {
         value: Value::Limits(Box::new([jig_domain_core_vocabulary::settings::Override {
             name: b"forge.entries".as_slice().into(),
@@ -1136,25 +1136,25 @@ fn limits_are_judged_kept_restarted_and_reset_to_empty() {
         }])),
         size: 40,
     };
-    let asked = item(21, 0, 1, Edit::Set(value.clone()));
+    let asked = item(22, 0, 1, Edit::Set(value.clone()));
     assert_eq!(d.judge_settings(&BOUNDS, from_ref(&asked)).as_ref(), &[Judged::Accept { size: 40, charter: None }]);
     let mut out = Queue::uncapped();
     d.keep_settings(&env(), 2, None, from_ref(&asked), &mut out);
-    assert_eq!(out.pop(), Some(save(&item(21, 0, 1, Edit::Set(default.clone())), SettingSlot::Replaced(2))));
+    assert_eq!(out.pop(), Some(save(&item(22, 0, 1, Edit::Set(default.clone())), SettingSlot::Replaced(2))));
     assert_eq!(out.pop(), Some(save(&asked, SettingSlot::Change)));
-    assert_eq!(d.setting(21, 0, 1), Some(&value));
+    assert_eq!(d.setting(22, 0, 1), Some(&value));
     let mut restarted = domain();
     for (&key, edit) in &d.setting_rows {
         restore(&mut restarted, &item(key.kind, key.scope, key.number, edit.clone()), key.slot);
     }
-    restarted.give_settings_defaults(Box::new([Stock { kind: 21, scope: 0, number: 1, value: default.clone() }]));
+    restarted.give_settings_defaults(Box::new([Stock { kind: 22, scope: 0, number: 1, value: default.clone() }]));
     outputs(&mut restarted, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    assert_eq!(restarted.setting(21, 0, 1), Some(&value));
-    let reset = item(21, 0, 1, Edit::Reset);
+    assert_eq!(restarted.setting(22, 0, 1), Some(&value));
+    let reset = item(22, 0, 1, Edit::Reset);
     assert_eq!(
         restarted.judge_settings(&BOUNDS, from_ref(&reset)).as_ref(),
         &[Judged::Accept { size: 2, charter: None }]
     );
     restarted.keep_settings(&env(), 3, None, from_ref(&reset), &mut out);
-    assert_eq!(restarted.setting(21, 0, 1), Some(&default));
+    assert_eq!(restarted.setting(22, 0, 1), Some(&default));
 }

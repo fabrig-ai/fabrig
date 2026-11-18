@@ -102,6 +102,10 @@ pub fn decode(kind: u32, bytes: &[u8], bounds: &Bounds) -> Option<settings::Size
 
 /// Encode a typed value within the wire's schema ceilings.
 #[must_use]
+#[expect(
+    clippy::too_many_lines,
+    reason = "each setting value has its own wire representation, including limits and agents"
+)]
 pub fn encode(value: &settings::Value) -> Box<[u8]> {
     match value {
         settings::Value::AgentFigures(record) => {

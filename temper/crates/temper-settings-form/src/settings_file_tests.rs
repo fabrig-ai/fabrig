@@ -1115,6 +1115,7 @@ fn both_limit_kinds_use_a_whole_list_of_named_values_and_reasons() {
     }
     for kind in [br#"{"kind":"limits","number":1}"#.as_slice(), br#"{"kind":"temper-limits","project":1}"#] {
         assert!(file::decode(&kind_file(kind, list), &limits).is_err(), "unnumbered deployment kind");
+    }
 }
 
 #[test]

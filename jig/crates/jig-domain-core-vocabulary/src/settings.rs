@@ -45,8 +45,14 @@ impl Value {
     pub fn as_limits(&self) -> Option<&[Override]> {
         match self {
             Self::Limits(value) => Some(value),
-            Self::Charter(_) | Self::Overlay(_) | Self::Template(_) | Self::Policy(_) | Self::Rules(_)
-            | Self::Model(_) | Self::Worker(_) | Self::Application(_) => None,
+            Self::Charter(_)
+            | Self::Overlay(_)
+            | Self::Template(_)
+            | Self::Policy(_)
+            | Self::Rules(_)
+            | Self::Model(_)
+            | Self::Worker(_)
+            | Self::Application(_) => None,
         }
     }
     #[must_use]

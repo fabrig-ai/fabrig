@@ -269,7 +269,7 @@ fn a_local_worker_derives_from_its_agent_instead_of_the_stock_agent() {
     let mut agent = fixtures::startup_agent_with_spend(u64::MAX);
     agent.tool_payload = 4096;
     agent.bounds.message_bytes = 4094;
-    let mut input = document(None, None);
+    let mut input = document(None);
     let sources = temper_service_core::derived::Sources::agent(&agent.declaration());
     let (jig, own) = crate::limits::base(40, 4096, sources).unwrap();
     input.jig.core.tasks.message_bytes = jig.core.tasks.message_bytes;

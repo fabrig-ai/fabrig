@@ -519,7 +519,7 @@ pub fn application_request(number: u64, value: Secret) -> jig_protocol_store::Se
     }
 }
 
-pub fn stock_document() -> Box<[u8]> {
+pub fn stock_document() -> Start {
     super::stock::generated()
 }
 pub fn stock_files() -> settings::Files {

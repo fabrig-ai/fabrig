@@ -881,7 +881,7 @@ fn limit_override(name: &[u8], reason: &[u8]) -> jig_domain_core_vocabulary::set
     jig_domain_core_vocabulary::settings::Override { name: name.into(), value: 16, reason: reason.into() }
 }
 fn limits_item(values: Box<[jig_domain_core_vocabulary::settings::Override]>) -> Item {
-    Item { kind: 21, scope: 0, number: 1, value: Some(Value::Limits(values)) }
+    Item { kind: 22, scope: 0, number: 1, value: Some(Value::Limits(values)) }
 }
 #[test]
 fn limits_refuse_count() {

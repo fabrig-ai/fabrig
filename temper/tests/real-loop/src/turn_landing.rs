@@ -113,9 +113,9 @@ fn fixture() -> forge::Fixture {
                 value.jig_over(name, size);
             }
             value["workers"][0]["slots"] = 2.into();
-            value["workers"][0]["limits"]["overrides"]["hub.slots"] = 2.into();
+            value.jig_over("hub.slots", 2);
             value.jig_over("core.call_answer_bytes", 8192);
-            value["workers"][0]["limits"]["overrides"]["core.call_answer_bytes"] = 8192.into();
+            value.jig_over("core.call_answer_bytes", 8192);
             // The shared prepare carriers, rather than the small chat profile.
             let prepare = temper_service::limits::prepare_bound();
             for (name, bytes) in [
@@ -126,9 +126,9 @@ fn fixture() -> forge::Fixture {
                 value.jig_over(name, bytes);
             }
             value.jig_over("hub.outcome_bytes", prepare.result + 2);
-            value["workers"][0]["limits"]["overrides"]["tasks.result_bytes"] = prepare.result.into();
-            value["workers"][0]["limits"]["overrides"]["hub.outcome_bytes"] = (prepare.result + 2).into();
-            value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = prepare.result.into();
+            value.jig_over("tasks.result_bytes", prepare.result);
+            value.jig_over("hub.outcome_bytes", prepare.result + 2);
+            value.jig_over("hub.event_bytes", prepare.result);
             value.temper_over("checkout.message_bytes", prepare.result + 2);
             value.temper_over("forge.client.op_bytes", prepare.result);
             agent["profile"]["declared"]["tool_payload"] = (prepare.result + 2).into();

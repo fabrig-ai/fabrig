@@ -539,8 +539,7 @@ mod tests {
     }
 
     fn tier_configuration() -> (serde_json::Value, temper_playground::documents::Configuration) {
-        let (agent, value) =
-            documents(Path::new("/private/test"), Path::new("/test/temper"), Path::new("/test/bundle"));
+        let (agent, value) = documents(Path::new("/private/test"), Path::new("/test/bundle"));
         (serde_json::from_slice(&agent).expect("agent JSON"), value)
     }
     fn stock_defaults(value: &temper_playground::documents::Configuration) -> jig_domain_core::settings::Defaults {
@@ -562,8 +561,7 @@ mod tests {
     }
     #[test]
     fn the_tier_passes_startup_validation_with_stock_defaults() {
-        let (_, deployment) =
-            documents(Path::new("/private/test"), Path::new("/test/temper"), Path::new("/test/bundle"));
+        let (_, deployment) = documents(Path::new("/private/test"), Path::new("/test/bundle"));
         let shape = temper_service::startup::shape(
             &serde_json::to_vec(&deployment).expect("deployment document"),
             &jig_protocol_config::Directories::working(),

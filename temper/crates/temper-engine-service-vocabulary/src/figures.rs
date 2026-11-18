@@ -16,6 +16,17 @@ pub fn compose(engine: &settings::Engine, agents: &s::AgentFigures) -> w::Figure
     Composer::new(&engine.jig, &engine.limits).compose(agents)
 }
 
+/// The agent's call bound, independent of the carriers' `tool_payload` floor.
+#[must_use]
+pub fn tool_payload(agents: &s::AgentFigures) -> u32 {
+    for figure in agents.profile() {
+        if figure.name() == b"declared.tool_payload" {
+            return u32::try_from(figure.value()).expect("judged agent payload fits u32");
+        }
+    }
+    temper_service_core::derived::STOCK.payload
+}
+
 /// Startup values retained while the stored agents setting changes.
 #[derive(Debug)]
 pub struct Composer {

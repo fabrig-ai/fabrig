@@ -832,7 +832,8 @@ fn owner_refusal(domain: &Domain, bounds: &settings::Bounds, asked: &settings::A
         | settings::Value::Dependency(_)
         | settings::Value::Follow(_)
         | settings::Value::AgentFigures(_)
-        | settings::Value::Welcome(_) | settings::Value::Limits(_) => None,
+        | settings::Value::Welcome(_)
+        | settings::Value::Limits(_) => None,
     }
 }
 fn owner_of_project(domain: &Domain, bounds: &settings::Bounds, project: u32, owner: settings::AreaOwner) -> bool {

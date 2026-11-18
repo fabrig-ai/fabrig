@@ -24,7 +24,8 @@ pub(crate) fn projects(items: &[super::Item]) -> Box<[u32]> {
             | Setting::Policy(_)
             | Setting::Worker(_)
             | Setting::Model(_)
-            | Setting::Rules | Setting::Limits => people::DEPLOYMENT,
+            | Setting::Rules
+            | Setting::Limits => people::DEPLOYMENT,
         };
         names.insert(scope, ()).expect("one scope per item");
     }

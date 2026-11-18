@@ -143,7 +143,7 @@ pub fn deployment(paths: &[PathBuf; 3]) -> temper_playground::documents::Configu
     worker["profile"]["declared"]["calls_per_response"] = 1.into();
     // The stock carriers also hold the stock's 82-message inbox; keep their
     // floor when the one-call recipe makes the agent's turn smaller.
-    let stock_turn = value["engine"]["limits"]["overrides"]["hub.turn_bytes"].as_u64().expect("stock turn");
+    let stock_turn = value.jig.hub.turn_bytes;
     let turn = turn_bounds::turn_body(&worker).max(u32::try_from(stock_turn).expect("stock turn fits"));
     turn_limits(&mut value, turn);
     // Walk 1's admitted declarations, not a phase-bound increase.

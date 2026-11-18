@@ -34,20 +34,27 @@ pub struct Cluster {
 /// Compose the engine fixture as the running engine does, without opening it.
 #[must_use]
 pub fn figures(document: &Value) -> jig_protocol_worker_wire::Figures {
+    figures_with_limits(&temper_playground::documents::Configuration::from_jig(document.clone()))
+}
+#[must_use]
+pub fn figures_with_limits(
+    document: &temper_playground::documents::Configuration,
+) -> jig_protocol_worker_wire::Figures {
     let bytes = serde_json::to_vec(&document["engine"]).expect("engine JSON");
     let parsed = jig_protocol_config::document(
         &bytes,
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 1_048_576, depth: 32 },
     )
     .expect("engine document");
-    let engine = temper_service::startup::engine(&parsed, 0, &jig_protocol_config::Directories::working())
-        .expect("fixture engine");
-    let application = &document["application"]["limits"];
-    let mut own = temper_limits_fixtures::small();
-    for (name, value) in application["overrides"].as_object().expect("limits overrides") {
-        temper_engine_service_vocabulary::limits::apply(&mut own, name.as_bytes(), value.as_u64().expect("scalar"))
-            .expect("fixture limit");
-    }
+    let engine = temper_service::startup::engine_over(
+        &parsed,
+        0,
+        &jig_protocol_config::Directories::working(),
+        &temper_service::stock::Given::Stock,
+        &mut document.jig.clone(),
+    )
+    .expect("fixture engine");
+    let own = document.limits;
     let mut figures = temper_engine_service_vocabulary::figures::Composer::new(&engine, &own)
         .compose(&temper_service::stock::agents())
         .into_parts();

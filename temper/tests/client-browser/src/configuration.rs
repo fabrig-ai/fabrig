@@ -21,24 +21,14 @@ const RELATIVE: &[&str] = &[
     "workspaces",
 ];
 
-pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box<[u8]>, Box<[u8]>) {
-    let (agent, value) = typed_documents(directory, program, bundle);
+pub(crate) fn documents(directory: &Path, bundle: &Path) -> (Box<[u8]>, Box<[u8]>) {
+    let (agent, value) = typed_documents(directory, bundle);
     (agent, serde_json::to_vec(&value).expect("deployment JSON").into())
 }
 pub(crate) fn typed_documents(
     directory: &Path,
-    program: &Path,
     bundle: &Path,
 ) -> (Box<[u8]>, temper_playground::documents::Configuration) {
-    let agent = serde_json::json!({
-        "profile":{"name":"standard","declared":{"memory":2_147_483_648_u64,"tool_payload":2048,"read_window":256,
-            "conversations":1,"calls_per_response":1},
-            "policy":{"max_turns":800,"group_stop":10,"inbox":8,"unacknowledged":8,"check_timeout":60000}},
-        "endpoints":[{"name":"fake","number":1,"dialect":3,"provider":"openai",
-            "address":UNREACHED,"transport":"tls","server_name":"skein.test","trust_der":directory.join("root.der"),
-            "connect":1000,"handshake":1000,
-            "limits": {"window":1_048_576,"output":8192,"reasoning_item":64,"head":60000,"idle":30000}}],
-        "environment":[]});
     let mut value = temper_playground::documents::Configuration::from_jig(
         serde_json::from_slice(&jig_channel_kit::fixtures::engine_document()).expect("engine JSON"),
     );
@@ -73,15 +63,10 @@ pub(crate) fn typed_documents(
     value["workers"] = worker["workers"].clone();
     value.jig_over("tasks.inbox_bytes", 4096);
     value.jig_over("tasks.run_inbox", 8);
-    value["workers"][0]["limits"]["overrides"]["tasks.run_inbox"] = 8.into();
-    value["workers"][0]["limits"]["overrides"]["hub.inbox"] = 8.into();
-    value["workers"][0]["limits"]["overrides"]["hub.held"] = 8.into();
-    value["workers"][0]["limits"].as_object_mut().expect("worker limits").remove("profile");
-    value["workers"][0]["limits"]["overrides"]
-        .as_object_mut()
-        .expect("worker overrides")
-        .entry("tasks.result_bytes")
-        .or_insert(512.into());
+    value.jig_over("tasks.run_inbox", 8);
+    value.jig_over("hub.inbox", 8);
+    value.jig_over("hub.held", 8);
+    value.jig_over("tasks.result_bytes", 512);
     for worker in value["workers"].as_array_mut().expect("workers") {
         let worker = worker.as_object_mut().expect("worker");
         worker.remove("memory_bytes");
@@ -91,8 +76,8 @@ pub(crate) fn typed_documents(
     value["workers"][0]["engine"] = serde_json::json!({"in_process":"workers"});
     value["workers"][0].as_object_mut().expect("worker").remove("agent");
     value["workers"][0].as_object_mut().expect("worker").remove("limits");
-    value["engine"]["limits"]["overrides"]["hub.accounts"] = 4.into();
-    value["engine"]["limits"]["overrides"]["hub.event_bytes"] = 2046.into();
+    value.jig_over("hub.accounts", 4);
+    value.jig_over("hub.event_bytes", 2046);
     value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);
     value["engine"]["llm"]["endpoints"][0]["dialect"] = 3.into();
     value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":UNREACHED});
@@ -117,6 +102,13 @@ pub(crate) fn typed_documents(
     value.temper_over("forge.resources_per_task", 2_u64);
     value.temper_over("git_component.stdout_bytes", 131_072_u64);
 
+    let mut agent = temper_agent_fixtures::configuration(&value);
+    agent["profile"]["policy"]["check_timeout"] = 60_000.into();
+    agent["endpoints"][0]["limits"]["idle"] = 30_000.into();
+    agent["programs"] = serde_json::json!({});
+    value.jig_over("hub.run_calls", agent["profile"]["declared"]["calls_per_response"].as_u64().expect("agent calls"));
+    value.jig_over("hub.inbox", agent["profile"]["policy"]["inbox"].as_u64().expect("agent inbox"));
+    value.use_stock_carriers();
     turn_bounds::apply(&mut value, turn_bounds::turn_body(&agent));
     absolute_paths(&mut value, directory);
     (serde_json::to_vec(&agent).expect("agent JSON").into_boxed_slice(), value)
@@ -222,9 +214,7 @@ pub(crate) fn demo(directory: &Path, program: &Path, bundle: &Path) {
     let mut value = temper_playground::documents::Configuration::from_jig(
         serde_json::from_slice(&fs::read(&path).expect("demo deployment")).expect("JSON"),
     );
-    let agent_path = directory.join("agent.json");
-    let mut agent = serde_json::from_slice(&fs::read(&agent_path).expect("demo agent")).expect("JSON");
-    own_demo_listeners(&mut value, &mut agent);
+    own_demo_listeners(&mut value);
     value["application"]["clients"]["bundle"] = serde_json::json!(bundle);
     private(&path, &serde_json::to_vec(&value).expect("demo JSON"));
 }
@@ -424,7 +414,7 @@ mod tests {
     #[test]
     fn the_picker_fixture_admits_stock_models_for_every_charter() {
         let directory = std::path::Path::new("/fixture");
-        let (agent, value) = super::typed_documents(directory, &directory.join("temper"), &directory.join("bundle"));
+        let (agent, value) = super::typed_documents(directory, &directory.join("bundle"));
         let agent: serde_json::Value = serde_json::from_slice(&agent).expect("agent JSON");
         let engine = stock_engine(&value);
         let core = jig_protocol_config::core(&engine, [0; 16], 1);
@@ -444,7 +434,7 @@ mod tests {
     #[test]
     fn the_browser_fixture_admits_every_stock_charter() {
         let directory = std::path::Path::new("/fixture");
-        let (agent, bytes) = super::typed_documents(directory, &directory.join("temper"), &directory.join("bundle"));
+        let (agent, bytes) = super::typed_documents(directory, &directory.join("bundle"));
         let value = bytes;
         let engine = stock_engine(&value);
         let agent: serde_json::Value = serde_json::from_slice(&agent).expect("agent JSON");

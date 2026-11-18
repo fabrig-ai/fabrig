@@ -31,6 +31,13 @@ impl Store {
         Ok((jig, application))
     }
 
+    /// Read an application's additional sizing setting at the opening cut,
+    /// before runtime codecs or restore. The key is relative to its application tag.
+    pub fn opening_setting(&mut self, key: Box<[u8]>) -> Result<Option<Row>, InstallRefusal> {
+        self.before_restore()?;
+        crate::gets::row(self, Token::new(0), Get::Application(key)).or(Err(InstallRefusal::NotOpening))
+    }
+
     /// Replace runtime core/codec ceilings without moving any KV or driver
     /// envelope. No restore, non-setting read, switch or commit may precede it.
     pub fn install_limits(

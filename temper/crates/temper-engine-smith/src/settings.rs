@@ -22,6 +22,10 @@ fn positive(value: &Value, name: &'static [u8]) -> Result<u32, Problem> {
     let n = value.small(name)?;
     if n == 0 { Err(Problem::Range(name)) } else { Ok(n) }
 }
+#[expect(
+    clippy::too_many_lines,
+    reason = "the read routes numbered and unnumbered settings through the same validation"
+)]
 pub(crate) fn read(value: &Value, bytes: &[u8]) -> Result<engine::Tool, Problem> {
     only(value, &[b"setting", b"revision", b"history", b"from"], b"settings")?;
     let from = match value.field(b"from")? {

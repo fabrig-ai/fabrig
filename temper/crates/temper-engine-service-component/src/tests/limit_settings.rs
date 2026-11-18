@@ -77,6 +77,7 @@ fn opening(inputs: &LimitInputs, kept: Option<jig_protocol_store::Stores>) -> St
     });
     store.host.component = jig_protocol_store::Store::over(&limits, application, &[], kept);
     store.host.ask(jig_protocol_store::Request::Open {
+        purpose: jig_protocol_store::Purpose::Serve,
         owner: Token::new(1),
         root: jig_protocol_store::Root { token: Token::new(2), fd: skein_io::kernel::Fd::new(3) },
         installation: inputs.seeds.installation,
@@ -395,4 +396,44 @@ fn a_written_store_resolves_both_kinds_before_a_restarted_engine_restores() {
     let mut service = build(store, state);
     fixtures::restart(&mut service);
     assert_eq!(service.engine.as_ref().unwrap().limits().tasks.tasks, 768);
+}
+
+fn agents_with_payload(payload: u32) -> f::AgentFigures {
+    use temper_client_protocol_wire::v1 as w;
+    let mut parts = crate::stock::agents().into_parts();
+    parts.profile = List::from_boxed(Box::new([w::AgentFigure::new(
+        &w::CEILINGS,
+        w::AgentFigureParts { name: b"declared.tool_payload".as_slice().into(), value: u64::from(payload) },
+    )
+    .unwrap()]));
+    w::AgentFigures::new(&w::CEILINGS, parts).unwrap()
+}
+
+#[test]
+fn restart_derives_carriers_from_the_larger_of_the_limit_and_stored_agents_payload() {
+    for (floor, expected) in [(8192, 32_000), (48_000, 48_000)] {
+        let input = inputs();
+        let mut store = opening(&input, None);
+        let state = store.resolve_settings(input, None).unwrap();
+        let mut service = build(store, state);
+        fixtures::restart(&mut service);
+        let value = f::Value::AgentFigures(agents_with_payload(32_000));
+        let size = temper_engine_smith::kinds::size(&value);
+        let row = forge::Stored::Setting(f::SettingRow {
+            key: f::SettingKey { kind: 21, scope: 0, number: 1, slot: f::SettingSlot::Change },
+            edit: f::Edit::Set(f::SizedValue { value, size }),
+        });
+        save_rows(&mut service, Box::new([]), Box::new([item(b"tool_payload", floor)]), &[row]);
+        let input = inputs();
+        let mut store = opening(&input, Some(kept(service)));
+        let state = store.resolve_settings(input, None).unwrap();
+        assert_eq!(
+            state.in_force.temper.tool_payload,
+            u32::try_from(floor).unwrap(),
+            "the limit retains its own meaning"
+        );
+        assert_eq!(state.in_force.payload, expected);
+        assert_eq!(state.in_force.jig.core.tasks.message_bytes, expected - 2);
+        assert_eq!(state.in_force.temper.checkout.message_bytes, expected);
+    }
 }

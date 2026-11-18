@@ -441,7 +441,7 @@ fn measure_worker() {
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
     )
     .unwrap();
-    let jig = temper_service_core::derived::worker_document(
+    let mut jig = temper_service_core::derived::worker_document(
         &document,
         0,
         &jig_protocol_config::Directories::working(),

@@ -63,6 +63,7 @@ fn copy_defaults(own: &Defaults) -> Defaults {
     }
     Defaults {
         limits: own.limits.clone(),
+        workers: Box::new([]),
         models: own.models.clone(),
         charters: own.charters.clone(),
         templates: own.templates.clone(),

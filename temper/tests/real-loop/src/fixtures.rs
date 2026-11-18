@@ -20,11 +20,10 @@ pub fn pinned_agent_program(directory: &Path) -> std::path::PathBuf {
 }
 #[must_use]
 pub fn documents(
-    directory: &Path,
+    _directory: &Path,
     llm: SocketAddr,
     forge: SocketAddr,
 ) -> (serde_json::Value, temper_playground::documents::Configuration) {
-    let program = directory.join("temper-agent");
     let agent = serde_json::json!({
         "profile":{"name":"standard","declared":{"memory":2_147_483_648_u64,"tool_payload":2048,"read_window":256,
             "conversations":1,"calls_per_response":1},
@@ -48,15 +47,10 @@ pub fn documents(
     value["workers"] = worker["workers"].clone();
     value.jig_over("tasks.inbox_bytes", 4096);
     value.jig_over("tasks.run_inbox", 8);
-    value["workers"][0]["limits"]["overrides"]["tasks.run_inbox"] = 8.into();
-    value["workers"][0]["limits"]["overrides"]["hub.inbox"] = 8.into();
-    value["workers"][0]["limits"]["overrides"]["hub.held"] = 8.into();
-    value["workers"][0]["limits"].as_object_mut().expect("worker limits").remove("profile");
-    value["workers"][0]["limits"]["overrides"]
-        .as_object_mut()
-        .expect("worker overrides")
-        .entry("tasks.result_bytes")
-        .or_insert(512.into());
+    value.jig_over("tasks.run_inbox", 8);
+    value.jig_over("hub.inbox", 8);
+    value.jig_over("hub.held", 8);
+    value.jig_over("tasks.result_bytes", 512);
     for worker in value["workers"].as_array_mut().expect("workers") {
         let worker = worker.as_object_mut().expect("worker");
         worker.remove("memory_bytes");
@@ -66,11 +60,11 @@ pub fn documents(
     value["workers"][0]["engine"] = serde_json::json!({"in_process":"workers"});
     value["workers"][0].as_object_mut().expect("worker").remove("agent");
     value["workers"][0].as_object_mut().expect("worker").remove("limits");
-    value["engine"]["limits"]["overrides"]["hub.accounts"] = 4.into();
-    value["engine"]["limits"]["overrides"]["hub.event_bytes"] = 2046.into();
-    value["engine"]["limits"]["overrides"]["hub.run_calls"] = 1.into();
+    value.jig_over("hub.accounts", 4);
+    value.jig_over("hub.event_bytes", 2046);
+    value.jig_over("hub.run_calls", 1);
     value["workers"][0]["name"] = "local".into();
-    value["engine"]["limits"]["overrides"]["fleet.slots"] = 4.into();
+    value.jig_over("fleet.slots", 4);
     value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);
     value["engine"]["llm"]["endpoints"][0]["dialect"] = 3.into();
     value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":llm.to_string()});
@@ -209,7 +203,7 @@ pub(crate) fn bind(
     config["world_settings"] = serde_json::from_slice(&std::fs::read(directory.join("world-settings.json"))?)?;
     bind_documents(&mut agent, config, llm, forge);
     private(&directory.join("world-agent.json"), &serde_json::to_vec(&agent)?)?;
-    temper_agent_fixtures::apply(&mut config, directory, &agent);
+    temper_agent_fixtures::apply(config, directory, &agent);
     finish_configuration(directory, config)
 }
 

@@ -107,7 +107,7 @@ impl ServiceHost {
     pub(crate) fn configured_only(
         path: PathBuf,
         signals: Fd,
-        configure: fn(&mut serde_json::Value, &mut serde_json::Value),
+        configure: fn(&mut temper_playground::documents::Configuration, &mut serde_json::Value),
     ) -> Self {
         Self::with_shape(path, signals, None, false, None, None, None, Some(configure))
     }
@@ -124,7 +124,7 @@ impl ServiceHost {
         cluster: Option<crate::cluster::Shape>,
         github: Option<crate::github::Fixture>,
         issuer: Option<SocketAddr>,
-        configure: Option<fn(&mut serde_json::Value, &mut serde_json::Value)>,
+        configure: Option<fn(&mut temper_playground::documents::Configuration, &mut serde_json::Value)>,
     ) -> Self {
         let clients_listener = github.map(|_| {
             let [listener] = temper_fixtures::ports::reserve::<1>(&[]);
@@ -152,6 +152,20 @@ impl ServiceHost {
             configuration.document =
                 serde_json::from_slice(&std::fs::read(path.join("temper.json")).expect("deployment"))
                     .expect("deployment JSON");
+            if let Some(configure) = configure {
+                let mut agent = serde_json::from_slice(&std::fs::read(path.join("world-agent.json")).expect("agent"))
+                    .expect("agent JSON");
+                configure(&mut configuration, &mut agent);
+                configuration = temper_playground::documents::Configuration::from_jig_over(
+                    configuration.document.clone(),
+                    &configuration.jig,
+                    &configuration.limits,
+                );
+                fixtures::turn_bounds::apply(&mut configuration, fixtures::turn_bounds::turn_body(&agent));
+                fixtures::private(&path.join("world-agent.json"), &serde_json::to_vec(&agent).expect("agent JSON"))
+                    .expect("agent configuration");
+                temper_agent_fixtures::apply(&mut configuration, &path, &agent);
+            }
             fixtures::finish_configuration(&path, &mut configuration).expect("world defaults separated from startup");
         }
         if let Some(shape) = &cluster {
@@ -490,16 +504,15 @@ impl ServiceHost {
             )
         } else {
             let (given, projects) = fixtures::given_and_projects(&self.path, &self.configuration);
-            temper_box_shell::prepare_in_with_limits(
+            temper_box_shell::prepare_in_with_inputs_and_limits(
                 "temper",
-                &environment,
+                &fixtures::environment(&self.path),
                 b"/",
                 &Self::directories(&self.path, self.cluster.is_some()),
                 &given,
                 Some(&self.path.join("temper-agent")),
                 &projects,
-                &self.configuration.jig,
-                &self.configuration.limits,
+                Some((&self.configuration.jig, &self.configuration.limits)),
             )
             .expect("standalone preparation")
         };
@@ -760,6 +773,7 @@ impl Host for ServiceHost {
                     self.started_at.get_or_insert(now);
                 }
                 self.service = Some(service);
+                self.seed_log_cues();
                 self.tries_revision = None;
             }
         }
@@ -784,8 +798,6 @@ impl Host for ServiceHost {
                 self.figures = Some(figures);
                 self.fetch = None;
             }
-            self.service = Some(service);
-            self.seed_log_cues();
         }
         if let Some(service) = &mut self.service {
             self.local_completion = false;

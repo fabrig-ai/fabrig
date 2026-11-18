@@ -13,7 +13,7 @@ use skein_io::kernel::{Exit, Signal};
 use skein_lib::{Duration, Time};
 use skein_shell::{Clock, Host};
 use skein_world::{Referee, real};
-use std::{cell::RefCell, collections::BTreeMap, fs, path::Path};
+use std::{cell::RefCell, collections::BTreeMap, path::Path};
 
 // Hello is task 1, the landing chat 2. Its one delegate batch makes these
 // siblings before any producer starts. The latch is a report, not a change.
@@ -211,12 +211,11 @@ pub fn message_room(root: &Path, value: &mut temper_playground::documents::Confi
     value.jig_over("fleet.slots", value["workers"][0]["slots"].as_u64().expect("worker slots"));
     value.jig_over("hub.inbox", 8);
     value.jig_over("hub.outcome_bytes", 8192);
-    let slots = value["workers"][0]["slots"].clone();
-    let limits = &mut value["engine"]["limits"]["overrides"];
-    limits["hub.accounts"] = 4.into();
-    limits["hub.slots"] = slots;
-    limits["hub.event_bytes"] = 8190.into();
-    limits["hub.outcome_bytes"] = 8192.into();
+    let slots = value["workers"][0]["slots"].as_u64().expect("worker slots");
+    value.jig_over("hub.accounts", 4);
+    value.jig_over("hub.slots", slots);
+    value.jig_over("hub.event_bytes", 8190);
+    value.jig_over("hub.outcome_bytes", 8192);
     value.temper_over("forge.client.op_bytes", 4096);
     // Turn read-back observes Forgejo's asynchronous manual-merge mark.
     // Use the shipped paces, within this story's wall bound.

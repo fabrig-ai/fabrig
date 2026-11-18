@@ -10,7 +10,12 @@ fn opened() -> crate::Store {
     let mut store = crate::Store::over(&limits, fixtures::APPLICATION, &[], fixtures::stores());
     let events = fixtures::run(
         &mut store,
-        Request::Open { owner: Token::new(1), root: fixtures::ROOT, installation: fixtures::INSTALLATION },
+        Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: Token::new(1),
+            root: fixtures::ROOT,
+            installation: fixtures::INSTALLATION,
+        },
     );
     let Some(Event::Opened { .. }) = events.first() else {
         panic!("store opens: {events:?}");

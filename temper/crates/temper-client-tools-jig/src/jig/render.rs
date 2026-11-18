@@ -422,7 +422,7 @@ pub(crate) fn reads(
             }
             Readout::Family { .. } if reading.called.call.tool == crate::jig::rows::SETTINGS_AT && *local == 3 => {
                 let query = crate::jig::runner::application::Query::Setting(contract::Setting::Application {
-                    kind: 21,
+                    kind: 22,
                     scope: 0,
                     number: 1,
                 });
