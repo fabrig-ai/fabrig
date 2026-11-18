@@ -708,6 +708,7 @@ Drafts:
 - [`draft/claude-provider.md`](draft/claude-provider.status.md)
 - [`draft/claude-sign-in.md`](draft/claude-sign-in.status.md)
 - [`draft/cli.md`](draft/cli.status.md)
+- [`draft/codec-shape.md`](draft/codec-shape.status.md) — K2, goal 7547: generated codec modules named by family, `src/generated/<stem>.rs`, with their version a constant inside; no array counting a schema's items, `LIMIT_NAMES` a slice, booleans as named fields, and functions split by declaration and field, never by number; fingerprints computed from the embedded schema texts, with jig's store's `generated/layouts.rs` and its layouts' row (key `00 03` never reused), smith's local store's `generated/layouts.rs` and skein-oauth's `FINGERPRINT` removed; fabrig's merge job making a codec module again with `skein-codegen`'s command where its schema texts and generator merged clean (`protocol/tooling.md`, 4.1); `src/generated/` marked generated for forges and searches, and `AGENTS.md` saying no generated file is merged by hand.
 - [`draft/commit-failed-why.md`](draft/commit-failed-why.status.md)
 - [`draft/config.md`](draft/config.status.md)
 - [`draft/configuring.md`](draft/configuring.status.md)
