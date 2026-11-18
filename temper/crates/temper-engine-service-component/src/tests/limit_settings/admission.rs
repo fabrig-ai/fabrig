@@ -138,7 +138,7 @@ fn decode(service: &mut crate::Service, input: &[u8]) -> root::Event {
 fn standalone() -> crate::Service {
     let mut service = fixtures::start_with_store(&[(1, 100)], None);
     fixtures::restart(&mut service);
-    service.engine.as_mut().unwrap().limits_in_force = Some(state());
+    service.engine.as_mut().unwrap().limits_in_force = Some(Box::new(state()));
     service
 }
 

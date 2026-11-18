@@ -38,9 +38,7 @@ fn set(document: &mut temper_playground::documents::Configuration, part: Part, n
 fn edge(part: Part, name: &str) {
     let scratch = support::Scratch::startup(&format!("plan-chat-{name}"));
     let mut document = support::configuration(scratch.path(), &support::Forge::Unreached);
-    let admit = |document: &temper_playground::documents::Configuration| {
-        support::configuration::admission(scratch.path(), document)
-    };
+    let admit = |document: &temper_playground::documents::Configuration| support::admission(scratch.path(), document);
     admit(&document).expect("unmodified fixture must start");
     let turn = number(&document, Part::Engine, "hub.turn_bytes");
     let resume = number(&document, Part::Engine, "core.resume_bytes");
@@ -96,9 +94,8 @@ fn transcript_padding_covers_all_resume_window_remainders() {
             let part = Part::Engine;
             set(&mut document, part, "hub.transcript_bytes", transcript);
         }
-        let admit = |document: &temper_playground::documents::Configuration| {
-            support::configuration::admission(scratch.path(), document)
-        };
+        let admit =
+            |document: &temper_playground::documents::Configuration| support::admission(scratch.path(), document);
         admit(&document).expect("both hubs hold the padded configured window");
         {
             let part = Part::Engine;

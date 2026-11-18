@@ -6970,6 +6970,7 @@ dependencies = [
  "temper-playground",
  "temper-protocol-store",
  "temper-protocol-worker-wire",
+ "temper-service",
  "temper-service-shell",
  "temper-shell",
  "temper-test-env",

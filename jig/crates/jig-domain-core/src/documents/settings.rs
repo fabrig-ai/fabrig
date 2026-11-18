@@ -201,9 +201,9 @@ mod tests {
             Setting::Template(1),
             Setting::Template(2),
             Setting::Rules,
-            Setting::Limits,
             Setting::Worker(1),
             Setting::Worker(2),
+            Setting::Limits,
         ];
         assert_eq!(settings.len(), wanted.len());
         for (line, setting) in settings.iter().zip(wanted) {

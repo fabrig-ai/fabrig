@@ -14,7 +14,7 @@ const RELEASE_CYCLES: u32 = 22;
 )]
 #[expect(missing_debug_implementations, reason = "the engine owns account token records")]
 pub struct Engine {
-    pub(crate) limits_in_force: Option<crate::limit_settings::LimitSettings>,
+    pub(crate) limits_in_force: Option<Box<crate::limit_settings::LimitSettings>>,
     // Keep the root's state out of service construction and movement frames.
     pub(crate) domain: Box<root::Domain>,
     pub(crate) upgrade: Option<crate::upgrade::State>,
@@ -231,7 +231,7 @@ impl Engine {
     }
     pub(crate) fn step(&mut self, event: root::Event) {
         self.restored_limit_revision();
-        let event = match crate::limit_settings::admission::party(self.limits_in_force.as_ref(), event) {
+        let event = match crate::limit_settings::admission::party(self.limits_in_force.as_deref(), event) {
             Ok(event) => event,
             Err(reply) => {
                 self.clients.down(*reply);

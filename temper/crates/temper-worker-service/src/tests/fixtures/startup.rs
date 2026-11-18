@@ -8,8 +8,8 @@ use jig_domain_link::{Bounds, EndpointBound};
 use skein_lib::{List, Secret};
 pub fn worker_alone_document() -> Box<[u8]> {
     let document = br#"{"workers":[{
-"engine":{"socket":"127.0.0.1:7100"},"name":"worker-a","secret":"worker-secret","slots":1,
-"name":"w1"}],"application":{}}"#;
+"engine":{"socket":"127.0.0.1:7100"},"name":"worker-a","secret":"worker-secret","slots":1
+}],"application":{}}"#;
     document.as_slice().into()
 }
 pub fn with(input: &[u8], path: &[u8], json: &[u8]) -> Box<[u8]> {

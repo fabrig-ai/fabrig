@@ -36,41 +36,8 @@ fn a_worker_alone_with_the_owned_examples_worker_fits_one_ring() {
     agent.host_limits.message_bytes = 63_740;
     agent.host_limits.messages = 82;
     let mut part = crate::startup::worker_part(&input, &directories, Some(b"/usr/bin/git"), &[]).unwrap();
-    let owned = include_bytes!("../../../../docs/examples/owned.json");
-    let document =
-        config::document(owned, &config::DocumentLimits { bytes: 1_048_576, tokens: 1_048_576, depth: 32 }).unwrap();
-    let ats = config::read::list(
-        &document,
-        temper_service_core::startup::member(&document, 0, b"workers").unwrap(),
-        document.len(),
-    )
-    .unwrap();
-    let worker =
-        config::worker(&document, *ats.get(0).unwrap(), &directories, &temper_service_core::startup::fixed_worker())
-            .unwrap();
-    let engine_at = temper_service_core::startup::member(&document, 0, b"engine").unwrap();
-    let engine = config::engine(
-        &document,
-        engine_at,
-        &directories,
-        config::Defaults::Passed,
-        &temper_engine_service_startup::startup::fixed(&directories).unwrap(),
-    )
-    .unwrap();
-    agent.host_limits.accounts = engine.limits.hub.accounts;
-    part.worker.jig.limits = Some(engine.limits);
-    part.worker.jig.slots = worker.slots;
-    let application = temper_service_core::startup::member(&document, 0, b"application").unwrap();
-    let at = temper_service_core::startup::member(&document, application, b"limits").unwrap();
-    part.limits = crate::worker_settings::Limits::shared(
-        temper_service_core::startup::configured_limits(
-            &document,
-            at,
-            &Path::root(),
-            &mut crate::startup::Problems::empty(),
-        )
-        .unwrap(),
-    );
+    crate::figures::apply(&mut part, super::figures::stock_figures()).unwrap();
+    agent.host_limits.accounts = part.worker.jig.limits.as_ref().unwrap().hub.accounts;
     let payload = crate::worker_settings::payload_limits(&part.limits).unwrap();
     let link = crate::worker_settings::link_limits(&part.worker.jig, &payload, part.limits.peer.forges).unwrap();
     assert_eq!(

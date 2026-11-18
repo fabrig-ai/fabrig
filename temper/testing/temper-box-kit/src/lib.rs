@@ -1,6 +1,8 @@
 //! Shared processes, forges, people and fixtures for temper-box tests.
 //!
 //! Compiled once for the binaries (tools/crates/design.md, 3.2).
+mod admission;
+pub use admission::admission;
 pub mod account_move;
 pub mod account_transfer;
 pub mod batch_landing;

@@ -148,7 +148,7 @@ pub(crate) fn root(engine: &mut Engine) {
             None => Stop::Binding,
         },
     };
-    let stopped = match crate::limit_settings::restore_refusal(engine.limits_in_force.as_ref(), &stopped) {
+    let stopped = match crate::limit_settings::restore_refusal(engine.limits_in_force.as_deref(), &stopped) {
         Some(named) => named,
         None => stopped,
     };

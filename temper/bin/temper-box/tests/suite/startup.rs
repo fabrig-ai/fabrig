@@ -596,7 +596,7 @@ fn eight_slots(case: &str) -> (support::Scratch, temper_playground::documents::C
 #[test]
 fn serve_prepares_eight_slots_and_ten_workspaces_on_the_owned_example() {
     let (scratch, document) = eight_slots("eight-slots");
-    support::configuration::admission(scratch.path(), &document).expect("eight-place startup");
+    support::admission(scratch.path(), &document).expect("eight-place startup");
     assert!(document["engine"].get("limits").is_none());
     scratch.remove();
 }
@@ -615,7 +615,7 @@ fn serve_names_what_to_raise_for_eight_slots() {
         ),
     ] {
         let (scratch, mut document) = eight_slots(&format!("eight-slots-{name}"));
-        support::configuration::admission(scratch.path(), &document).expect("complete figures");
+        support::admission(scratch.path(), &document).expect("complete figures");
         document.jig_over("hub.slots", 7);
         let part = temper_service::startup::box_worker_with_limits(
             &serde_json::to_vec(&document).expect("deployment JSON"),
@@ -634,7 +634,7 @@ fn serve_names_what_to_raise_for_eight_slots() {
         } else {
             document.temper_over(name, 7);
         }
-        let why = support::configuration::admission(scratch.path(), &document).expect_err("short limit refuses");
+        let why = support::admission(scratch.path(), &document).expect_err("short limit refuses");
         assert_eq!(why, format!("{line}\n"), "{name}");
         scratch.remove();
     }
@@ -673,7 +673,7 @@ fn serve_refuses_an_explicit_call_bound_below_the_agents_call_input() {
         (63740, None),
     ] {
         document.jig_over("core.call_answer_bytes", bound);
-        let prepared = support::configuration::admission(scratch.path(), &document);
+        let prepared = support::admission(scratch.path(), &document);
         match expected {
             Some(lines) => assert_eq!(prepared.err().expect("call input refused"), lines),
             None => assert!(prepared.is_ok(), "{}", prepared.err().unwrap_or_default()),

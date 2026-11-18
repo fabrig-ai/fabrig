@@ -43,7 +43,7 @@ fn refused(directory: &Path, field: &str, figures: &temper_playground::documents
     let bytes = fs::read(directory.join("temper.json")).expect("configuration");
     let mut configuration = figures.clone();
     configuration.document = serde_json::from_slice(&bytes).expect("provider document");
-    let why = support::configuration::admission(directory, &configuration).expect_err("provider admission refuses");
+    let why = support::admission(directory, &configuration).expect_err("provider admission refuses");
     assert!(why.contains("provider") && why.contains(field), "{why}");
 }
 

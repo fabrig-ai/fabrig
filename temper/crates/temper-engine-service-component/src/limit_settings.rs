@@ -24,15 +24,15 @@ impl crate::Engine {
     pub fn take_limit_store(&mut self, store: Store, state: LimitSettings) {
         assert!(self.limits_in_force.is_none(), "limit settings installed once before restore");
         self.replace_store(store);
-        self.limits_in_force = Some(state);
+        self.limits_in_force = Some(Box::new(state));
     }
     #[must_use]
     pub fn limits_in_force(&self) -> Option<&LimitSettings> {
-        self.limits_in_force.as_ref()
+        self.limits_in_force.as_deref()
     }
     #[must_use]
     pub fn limits_in_force_mut(&mut self) -> Option<&mut LimitSettings> {
-        self.limits_in_force.as_mut()
+        self.limits_in_force.as_deref_mut()
     }
     /// Take a revision whole at once only when all changed figures are raises
     /// of the names declared at-once (configuration/limit-settings.md, 4–5).

@@ -139,7 +139,6 @@ pub(super) fn stock_figures() -> w::Figures {
     use temper_engine_service_startup::{limits, stock};
     let mut input: serde_json::Value =
         serde_json::from_slice(include_bytes!("../../../temper-init/template/temper.json")).unwrap();
-    input["engine"]["limits"] = serde_json::json!({"overrides":{}});
     input["engine"]["clients"]["provider"] = serde_json::Value::Null;
     for endpoint in input["engine"]["llm"]["endpoints"].as_array_mut().unwrap() {
         if endpoint["address"]["socket"] == "$llm" {

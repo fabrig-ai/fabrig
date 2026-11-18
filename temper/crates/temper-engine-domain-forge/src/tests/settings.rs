@@ -918,8 +918,8 @@ fn limits_refuse_reason_at_its_position() {
 }
 #[test]
 fn limits_have_one_deployment_value_and_judge_shape_not_names_or_figures() {
-    assert_eq!(Kind::of(21), Some(Kind::Limits));
-    assert_eq!(Kind::Limits.number(), 21);
+    assert_eq!(Kind::of(22), Some(Kind::Limits));
+    assert_eq!(Kind::Limits.number(), 22);
     let item = limits_item(Box::new([limit_override(b"not.a.known.limit", "développement".as_bytes())]));
     assert_eq!(judge(&item, &BOUNDS), Ok(()));
     assert_eq!(judge(&Item { scope: 1, ..item.clone() }, &BOUNDS), Err(Refusal::Scope));

@@ -461,11 +461,11 @@ fn host_request(engine: &mut Engine, request: root::HostRequest) {
                 &engine.domain.catalogue(),
                 &engine.domain.repository_identities(task),
             );
-            engine.events.push(crate::limit_settings::admission::host(engine.limits_in_force.as_ref(), event));
+            engine.events.push(crate::limit_settings::admission::host(engine.limits_in_force.as_deref(), event));
         }
         root::HostRequest::SettingsNote { to, call, body } => {
             let event = crate::tools::settings_note(to, *call, &body, &engine.domain.catalogue());
-            engine.events.push(crate::limit_settings::admission::host(engine.limits_in_force.as_ref(), event));
+            engine.events.push(crate::limit_settings::admission::host(engine.limits_in_force.as_deref(), event));
         }
         root::HostRequest::Dropped { .. } => {}
     }

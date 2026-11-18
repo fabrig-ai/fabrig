@@ -19,11 +19,11 @@ fn a_raised_outbox_retains_the_ninth_entry_without_reconstruction() {
     assert_eq!(domain.limit_usage(&LimitSet::Entries), Some(8));
     assert_eq!(
         out.pop(),
-        Some(Request::ResourceRefused {
+        Some(Request::Outcome {
+            entry: 9,
             task: 7,
-            operation: b"enqueue effect",
-            resource: None,
-            cause: RefusalCause::Limit { member: "forge.entries", configured: 8, needed: 9 },
+            account: None,
+            outcome: skein_forge_client::Outcome::Failed(skein_forge::api::Error::Busy),
         })
     );
     env.limits.entries = 16;

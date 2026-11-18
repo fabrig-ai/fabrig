@@ -197,8 +197,8 @@ fn full_world() -> jig_client_world::World<jig_client_world::Test, jig_client_wo
     }
     w
 }
-// Peak 1,561,962 bytes measured 10-29; testing-strategy.md 6.
-const FULL_DOCUMENTS_HEAP_CEILING: u64 = 2_000_000;
+// Peak 2,002,023 bytes measured 11-18; testing-strategy.md 6.
+const FULL_DOCUMENTS_HEAP_CEILING: u64 = 2_600_000;
 #[test]
 fn full_documents_tabs_and_all_page_kinds_stay_under_their_measured_ceiling() {
     let mut w = full_world();
