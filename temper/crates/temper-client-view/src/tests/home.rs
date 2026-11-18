@@ -2311,10 +2311,10 @@ fn home_groups_milestones_counts_goals_and_names_their_dependencies() {
         &w::CEILINGS,
         w::MilestoneTotalsParts {
             task: f::milestones::TASK,
-            done: 0,
+            done: 2,
             failed: 0,
             closed: 0,
-            live: 1,
+            live: 4,
             ended: None,
             last_landing: None,
             spent: 0,
@@ -2341,7 +2341,11 @@ fn home_groups_milestones_counts_goals_and_names_their_dependencies() {
             contains(&f::nodes_text(subtree(view.tree(), region)), "waits on S3");
         }
     }
-    f::milestones::live(&mut root, &limits, goals, &[waiting, child], false);
+    waiting.parts = List::from_boxed(Box::new([temper_fixtures::client_documents::goal_part(
+        Some((b"K3 lands the codec's shape", f::NOW)),
+        None,
+    )]));
+    f::milestones::live(&mut root, &limits, goals, &[waiting.clone(), child.clone()], false);
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
         main_find(view.tree(), Role::Link, b"All 2 goals");
         let region = main_find(view.tree(), Role::Region, b"Goals");
@@ -2352,6 +2356,32 @@ fn home_groups_milestones_counts_goals_and_names_their_dependencies() {
                 .count(),
             2
         );
+    }
+    let before = f::main_text(f::page_view(&root).tree());
+    let browser_before = f::main_text(f::browser_page_view(&root).tree());
+    contains(&before, "2 / 6 done");
+    contains(&before, "running");
+    contains(&before, "K3 lands the codec's shape");
+    let busy = List::from_boxed(Box::new([c::RowPart::Failed(c::PartFailure::Busy)]));
+    milestone.parts = busy.clone();
+    child.parts = busy.clone();
+    waiting.parts = busy;
+    f::milestones::live(&mut root, &limits, listed, &[milestone], false);
+    f::milestones::live(&mut root, &limits, goals, &[waiting, child], false);
+    for (view, expected, browser) in
+        [(f::page_view(&root), before, false), (f::browser_page_view(&root), browser_before, true)]
+    {
+        let text = f::main_text(view.tree());
+        assert_eq!(text, expected, "a busy delivery changes no row or headline");
+        if browser {
+            let strip = main_nodes(view.tree())
+                .iter()
+                .filter(|node| node.styles.as_slice().contains(&crate::look::MS_STRIP))
+                .count();
+            assert_eq!(strip, 1);
+        } else {
+            contains(&text, "2 done of 6");
+        }
     }
 }
 

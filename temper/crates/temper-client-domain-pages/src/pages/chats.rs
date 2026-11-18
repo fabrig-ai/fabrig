@@ -137,11 +137,16 @@ impl Chats {
         };
         for lines in [live, closed] {
             for line in lines {
-                if let Some(part) = parts::chat(line)
-                    && let Some(document) = part.into_parts().document
-                {
-                    let document =
-                        c::DocumentText::complete(Text::new(document, 512).expect("chat part document bound"));
+                let document = match parts::chat(line) {
+                    Some(part) => match part.into_parts().document {
+                        Some(document) => {
+                            Some(c::DocumentText::complete(Text::new(document, 512).expect("chat part document bound")))
+                        }
+                        None => None,
+                    },
+                    None => self.documents.get(&line.chip.task).cloned(),
+                };
+                if let Some(document) = document {
                     documents.insert(line.chip.task, document).expect("live and closed chat rows fit");
                 }
             }

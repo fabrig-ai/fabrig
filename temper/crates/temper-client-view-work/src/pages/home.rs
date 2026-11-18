@@ -294,7 +294,7 @@ fn goals(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, pro
     b.style(look::GOALS_ROWS);
     let names = super::goals::Names::of(root);
     let milestones = root.pages().milestones();
-    for row in &home_rows(live, goals.ended(), milestones, times.now) {
+    for row in &home_rows(live, goals.ended(), milestones, goals, times.now) {
         match *row {
             GroupRow::Goal(task) => {
                 if let Some(line) = goal(live, goals.ended(), task) {
