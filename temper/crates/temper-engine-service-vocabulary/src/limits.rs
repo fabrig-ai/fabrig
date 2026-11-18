@@ -337,8 +337,8 @@ const BRIEF: engine::BriefLimits = engine::BriefLimits {
         now: 4096,
     },
     // Three 131,584-byte task, pull and review sections, cut within charter 5’s
-    // 319,686-byte stock host room after 64 titles and framing, with 66 bytes spare.
-    brief_bytes: 319_686 - 64 * (16 + 7) - 66,
+    // 319,584-byte stock host room after 64 titles and framing, with 66 bytes spare.
+    brief_bytes: 319_584 - 64 * (16 + 7) - 66,
     // Fabrig’s development of 2026-11-16: 300 seconds to gather sequential forge reads.
     gather: Duration::from_secs(300),
 };
