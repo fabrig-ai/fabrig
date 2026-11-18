@@ -318,6 +318,16 @@ pub fn playground_offered(root: &dyn Root) -> Option<bool> {
     }
 }
 
+/// The outside screen replaces a project's page only once these facts are known
+/// (temper/docs/design/client/pages/welcome.md, 1, With no project yet).
+#[must_use]
+pub fn no_project(root: &dyn Root) -> bool {
+    if let crate::Address::Welcome { .. } = root.pages().address() {
+        return false;
+    }
+    root.pages().me(root.client()).is_some() && root.pages().project().is_none() && root.forge().deployment().is_some()
+}
+
 /// The welcome reads model facts, including an ended watch.
 #[must_use]
 pub fn model_usable(root: &dyn Root) -> Option<bool> {

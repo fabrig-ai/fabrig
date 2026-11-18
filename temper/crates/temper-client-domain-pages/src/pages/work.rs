@@ -1,6 +1,9 @@
 //! Work places each item by its own facts (temper/docs/design/client/pages/work.md, 1).
 
-use crate::pages::Root;
+use crate::pages::{Budget, Root};
+
+/// Stream, then one batch, whatever the project's size (client/pages/work.md, 1, Its budget).
+pub const BUDGET: Budget = Budget { waves: 2, requests: 2 };
 use alloc::boxed::Box;
 use core::cmp::Reverse;
 use jig_client::contract as c;

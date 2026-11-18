@@ -1797,23 +1797,6 @@ fn goals_opens_in_its_projects_frame() {
                 "drafts, changes, people, standing roles and the new project's ways and classes: {out:?}"
             );
             let Some(Request::Unlinked {
-                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { subject, .. } },
-            }) = out.pop()
-            else {
-                panic!("drafts watch")
-            };
-            assert_eq!(Some(subject), temper_client_domain::forge::drafts::watch(fixtures::PROJECT, &env.limits.forge));
-            let Some(Request::Unlinked {
-                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { subject, .. } },
-            }) = out.pop()
-            else {
-                panic!("changes watch")
-            };
-            assert_eq!(
-                Some(subject),
-                temper_client_domain::forge::changes::watch(fixtures::PROJECT, &env.limits.forge)
-            );
-            let Some(Request::Unlinked {
                 request:
                     jig_client::UnlinkedRequest::Down {
                         down:
@@ -1842,6 +1825,23 @@ fn goals_opens_in_its_projects_frame() {
                 panic!("rail’s standing roles")
             };
             assert_eq!((query.project, query.label), (Some(fixtures::PROJECT), Some(3)));
+            let Some(Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { subject, .. } },
+            }) = out.pop()
+            else {
+                panic!("changes watch")
+            };
+            assert_eq!(
+                Some(subject),
+                temper_client_domain::forge::changes::watch(fixtures::PROJECT, &env.limits.forge)
+            );
+            let Some(Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { subject, .. } },
+            }) = out.pop()
+            else {
+                panic!("drafts watch")
+            };
+            assert_eq!(Some(subject), temper_client_domain::forge::drafts::watch(fixtures::PROJECT, &env.limits.forge));
             let mut kinds = skein_lib::List::with_capacity(2);
             while let Some(request) = out.pop() {
                 let Request::Unlinked {

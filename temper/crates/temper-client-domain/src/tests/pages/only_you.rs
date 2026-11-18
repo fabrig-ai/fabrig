@@ -117,16 +117,17 @@ fn only_you_reads_the_persons_deciding_login_sources_in_document_order() {
         assert_eq!(read.items.room(), 0, "{case}: capacity is the counted items");
 
         let mut root = crate::unlinked(&fixtures::limits(), fixtures::SEED);
-        let (me, accounts) = fixtures::start_accounts(&mut root, List::with_capacity(0));
+        let me = fixtures::start(&mut root, List::with_capacity(0));
         assert!(only_you::read(&root).items.is_empty(), "{case}: no document");
         assert!(!only_you::read(&root).cut, "{case}: no document is not cut");
+        let out = super::accounts::deliver(&mut root, me, fixtures::frame(fixtures::PARTY));
+        let accounts = fixtures::accounts_watch(&out);
+        assert!(only_you::read(&root).items.is_empty(), "{case}: me alone gives no accounts");
         super::accounts::deliver(
             &mut root,
             accounts,
             c::WatchEvent::Delivered(c::Delivery::Accounts(Box::new(document.clone()))),
         );
-        assert!(only_you::read(&root).items.is_empty(), "{case}: no me");
-        assert!(!only_you::read(&root).cut, "{case}: no me is not cut");
         if let Some(provider) = playground {
             let mut parts =
                 wire::decode_playground_answer(&playground::answer(b"A change"), &w::CEILINGS).unwrap().into_parts();
@@ -139,7 +140,6 @@ fn only_you_reads_the_persons_deciding_login_sources_in_document_order() {
                 },
             );
         }
-        super::accounts::deliver(&mut root, me, fixtures::frame(fixtures::PARTY));
         assert_eq!(only_you::read(&root), read, "{case}: read gathers the root's facts");
         assert_eq!(
             crate::pages::parts::needs_facts(&root, skein_lib::Wall::EPOCH).only,

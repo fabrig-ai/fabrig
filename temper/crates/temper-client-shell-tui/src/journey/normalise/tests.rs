@@ -122,11 +122,13 @@ fn decimal_ports_require_whole_byte_elements_and_honor_stood() {
 }
 
 #[test]
-fn committed_sign_in_approved_normalises_and_replays_to_the_end() {
-    let file = include_bytes!("../../../../../docs/design/client/tui/journeys/sign-in-approved/recording");
-    let result = normalise(file).expect("committed recording");
-    assert_eq!(result.recording.as_ref(), file, "committed recording is its own normalisation");
-    assert_eq!((result.build, result.port, result.code, result.places, result.stood), (0, 0, 0, 0, 0));
+fn an_approved_sign_in_normalises_and_replays_to_the_end() {
+    let file = crate::journey::redact::tests::approval_recording(ADDRESS.as_bytes());
+    let result = normalise(&file).expect("approval recording");
+    assert_eq!((result.port, result.code, result.stood), (1, 1, 0));
+    let again = normalise(&result.recording).expect("normalised recording");
+    assert_eq!(result.recording, again.recording, "normalisation is idempotent");
+    assert_eq!((again.build, again.port, again.code, again.places, again.stood), (0, 0, 0, 0, 0));
     let recorded = lines(&result.recording).expect("normalised lines");
     let mut replay = Replay::new(&result.recording).expect("normalised replay");
     let mut marks = 0;
@@ -137,7 +139,7 @@ fn committed_sign_in_approved_normalises_and_replays_to_the_end() {
             Err(stale) => {
                 let kind =
                     recorded.get(usize::try_from(stale.line - 1).expect("line fits")).expect("stale line").kind();
-                panic!("sign-in-approved: turn {} kind {kind}", stale.turn);
+                panic!("approved sign-in: turn {} kind {kind}", stale.turn);
             }
         }
     }

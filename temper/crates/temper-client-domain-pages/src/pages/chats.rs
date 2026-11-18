@@ -633,8 +633,7 @@ fn newer(a: (skein_lib::Wall, u64), b: (skein_lib::Wall, u64)) -> bool {
 
 pub(crate) fn refresh(root: &mut dyn Routing, out: &mut Queue<Request>) {
     let parts = root.parts();
-    if let Address::Chats { .. } | Address::Work { .. } | Address::Goals { .. } | Address::Changes { .. } =
-        parts.pages.address
+    if let Address::Chats { .. } = parts.pages.address
         && let Some(chats) = &mut parts.pages.chats
     {
         chats.goal_watch(parts.client, parts.forge, chats.window, out);
