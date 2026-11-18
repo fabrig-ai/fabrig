@@ -44,7 +44,6 @@ macro_rules! roots {
     };
 }
 
-#[expect(clippy::disallowed_macros, reason = "decoder oracles embed their fixture texts")]
 pub fn families() -> [Family; 7] {
     [
         Family {

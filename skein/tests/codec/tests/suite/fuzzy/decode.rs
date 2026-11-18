@@ -55,7 +55,6 @@ mod tests {
     }
 
     #[test]
-    #[expect(clippy::disallowed_macros, reason = "fuzz seeds embed the sample and scalars fixture texts")]
     fn arbitrary_and_mutated_golden_bytes_never_panic_and_round_trip_if_valid() {
         let mut rng = Rng::new(0xC0DE_CAFE_8100_0001);
         let mut buffer = [0_u8; 128];
@@ -67,13 +66,11 @@ mod tests {
             check_all(buffer.get(..length).expect("within buffer"));
         }
 
-        let goldens = [
-            include_str!("../../../schema/sample-v1.schema"),
-            include_str!("../../../schema/scalars-v1.schema"),
-        ]
-        .into_iter()
-        .flat_map(|text| skein_codegen::goldens(&skein_codegen::parse(text).expect("seed schema")))
-        .collect::<Vec<_>>();
+        let goldens =
+            [include_str!("../../../schema/sample-v1.schema"), include_str!("../../../schema/scalars-v1.schema")]
+                .into_iter()
+                .flat_map(|text| skein_codegen::goldens(&skein_codegen::parse(text).expect("seed schema")))
+                .collect::<Vec<_>>();
         for name in [
             "record_field_full.bin",
             "record_report_full.bin",

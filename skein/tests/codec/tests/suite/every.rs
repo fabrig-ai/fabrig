@@ -33,7 +33,11 @@ mod tests {
                     .expect("generated decoder for every declaration");
                 match (root.decode)(&bytes) {
                     Decoded::Value { bytes: encoded, measured, .. } => {
-                        assert_eq!(usize::try_from(measured).expect("measured length"), bytes.len(), "{context}: measure");
+                        assert_eq!(
+                            usize::try_from(measured).expect("measured length"),
+                            bytes.len(),
+                            "{context}: measure"
+                        );
                         assert_eq!(encoded, bytes, "{context}: generated round trip");
                     }
                     Decoded::Problem { path, reason } => panic!("{context}: generated decode: {path}: {reason:?}"),

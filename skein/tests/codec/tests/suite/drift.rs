@@ -19,7 +19,6 @@ mod tests {
     ];
 
     #[test]
-    #[expect(clippy::disallowed_macros, reason = "the construct pin embeds its fixture text")]
     fn every_v3_holds_every_construct() {
         let found = constructs(include_str!("../../schema/every-v3.schema")).expect("every-v3 valid");
         let missing = CONSTRUCTS.iter().filter(|construct| !found.contains(construct)).collect::<Vec<_>>();
@@ -81,8 +80,8 @@ mod tests {
             fs::write(path, text).expect("write generated text");
         } else {
             let committed = fs::read_to_string(path).expect("generated text committed");
-            assert_eq!(
-                committed, text,
+            assert!(
+                committed == text,
                 "{path}: run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p skein-codec-tests --test suite -E 'test(/^drift::/)'"
             );
         }
