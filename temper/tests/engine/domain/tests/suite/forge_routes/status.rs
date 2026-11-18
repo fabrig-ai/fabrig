@@ -329,7 +329,7 @@ fn a_look_after_a_landing_runs_the_agent_and_saves_its_brief() {
     assert_eq!(live_task(&world, parent).executor, tasks::Executor::Procedure { connector: 1, code: 5 });
     let words = core::str::from_utf8(&live_task(&world, agent.task).spec.words).expect("status words are UTF-8");
     assert!(words.contains("Small fix"));
-    assert!(words.contains("Make the widget fix: 0 of 1 delegates done"), "{words}");
+    assert!(words.contains("Make the widget fix: 0 of 1 parts done"), "{words}");
     assert!(!words.contains("Milestones:"));
     assert!(!words.contains("Standing roles:"));
     assert!(words.len() <= usize::try_from(world.env.limits.tasks.spec_bytes).expect("spec bound fits usize"));
@@ -379,6 +379,12 @@ fn restart_status_world(world: &mut World) {
 }
 
 fn standing_role(world: &mut World, key: u8) -> u64 {
+    let assignment = start_standing_role(world, key);
+    park_chat(world, &assignment);
+    assignment.task
+}
+
+fn start_standing_role(world: &mut World, key: u8) -> engine::Assignment {
     let people::Ask::Create { project, mut batch } = world.chat(PROJECT, b"Watch the tests") else {
         panic!("role defaults")
     };
@@ -389,9 +395,38 @@ fn standing_role(world: &mut World, key: u8) -> u64 {
     role.flags.ended_by = people::EndedBy::Standing;
     // Sixteen funds the same eight-unit run after keeping half for delegates.
     role.budget = people::Budget::AsAllowed { cap: Some(16) };
-    let assignment = assigned_chat(world, key, people::Ask::Create { project, batch });
-    park_chat(world, &assignment);
-    assignment.task
+    assigned_chat(world, key, people::Ask::Create { project, batch })
+}
+
+fn person_question(world: &mut World, requester: &engine::Assignment, call: u64) -> u64 {
+    let mut delegate = temper_engine_domain_world::fixtures::report_delegate(b"May I continue?", Box::new([]));
+    delegate.executor = tasks::Executor::Person(tasks::PersonAddress::Person(1));
+    delegate.authority.tools = tasks::Tools(0);
+    delegate.authority.budget.spend = 1;
+    let engine::CallAnswer::Delegated(made) =
+        world.scripted_call(requester, call, engine::Tool::Delegate { batch: Box::new([delegate]) })
+    else {
+        panic!("person question delegated")
+    };
+    made[0].task
+}
+
+fn answer_person_question(world: &mut World, task: u64, key: u8) {
+    let revision = live_task(world, task).revisions.person;
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(u64::from(key))),
+        sign_in: world.signed_in.expect("owner session"),
+        key: [key; 16],
+        ask: people::Ask::AnswerPerson {
+            project: PROJECT,
+            task,
+            revision,
+            result: people::PersonResult::Report { words: b"Go ahead.".as_slice().into() },
+        },
+    }));
+    settle(world);
+    assert!(goal_landing::ended(world, task).is_some(), "person question answered");
 }
 
 fn seed_note(world: &mut World, name: u64, role: u64, description: &[u8], body: &[u8]) {
@@ -422,6 +457,61 @@ fn status_words(world: &World) -> &str {
 }
 
 #[test]
+fn a_goals_status_line_counts_its_open_person_questions() {
+    let (mut world, requester) = opened_chat(true, true);
+    person_question(&mut world, &requester, 100);
+    let people::Ask::Create { project, mut batch } = world.chat(PROJECT, b"Land the other fix") else {
+        panic!("landing chat")
+    };
+    batch[0].budget = people::Budget::AsAllowed { cap: Some(400) };
+    let landing = assigned_chat(&mut world, 110, people::Ask::Create { project, batch });
+    land_and_look(&mut world, &landing);
+    let words = status_words(&world);
+    assert!(words.contains("Make the widget fix: 0 of 1 parts done, 1 question open to a person\n"), "{words}");
+    let agent = run(&world);
+    finish(&mut world, &agent);
+    world.close();
+}
+
+#[test]
+fn a_roles_status_counts_live_person_questions_not_its_unchanged_now() {
+    const NOW: &[u8] = b"Waiting on my person's answers.";
+    let (mut world, requester) = roles_world();
+    let role = start_standing_role(&mut world, 110);
+    assert_eq!(role.task, 41);
+    let first = person_question(&mut world, &role, 100);
+    let second = person_question(&mut world, &role, 101);
+    park_chat(&mut world, &role);
+    seed_note(&mut world, 1, role.task, b"now", NOW);
+    restart_status_world(&mut world);
+    land_and_look(&mut world, &requester);
+    let words = status_words(&world);
+    assert!(
+        words.ends_with("Standing roles:\nRole 41, 2 questions open to a person:\nWaiting on my person's answers.\n"),
+        "{words}"
+    );
+    let agent = run(&world);
+    finish(&mut world, &agent);
+    answer_person_question(&mut world, first, 120);
+    answer_person_question(&mut world, second, 121);
+    let resumed = world.assigned.iter().rev().find(|run| run.task == role.task).expect("role heard answers").clone();
+    park_chat(&mut world, &resumed);
+    world.env.now = world.env.now.saturating_add(Duration::from_secs(3601));
+    world.env.wall = Wall::from_nanos(world.env.now.as_nanos());
+    // The fake credential provider renews the forge grant across clock jumps.
+    world.send(engine::Event::Credential { number: 1, generation: 1, valid: Duration::from_secs(3600) });
+    land_numbered(&mut world, &requester, 94, 2);
+    looked(&mut world, 172);
+    let words = status_words(&world);
+    assert!(words.ends_with("Standing roles:\nRole 41:\nWaiting on my person's answers.\n"), "{words}");
+    let agent = run(&world);
+    finish(&mut world, &agent);
+    // Let the live branch watch hear the second landing before the restart oracle.
+    super::goal_branch::observe_goal_branch(&mut world, b"main");
+    world.close();
+}
+
+#[test]
 fn the_status_words_carry_each_standing_roles_now_after_the_goals() {
     const NOW: &[u8] = b"Repairing the flaky test.\nWaiting for change 52.";
     let (mut world, requester) = roles_world();
@@ -434,7 +524,7 @@ fn the_status_words_carry_each_standing_roles_now_after_the_goals() {
     land_and_look(&mut world, &requester);
     let words = status_words(&world);
     assert!(words.ends_with(
-        "Make the widget fix: 0 of 1 delegates done\nOpen findings: none\nStanding roles:\nRole 41:\nRepairing the flaky test.\nWaiting for change 52.\nRole 42:\nno Now yet\n"
+        "Make the widget fix: 0 of 1 parts done\nOpen findings: none\nStanding roles:\nRole 41:\nRepairing the flaky test.\nWaiting for change 52.\nRole 42:\nno Now yet\n"
     ), "{words}");
     let agent = run(&world);
     finish(&mut world, &agent);
@@ -540,7 +630,7 @@ fn status_words_trim_roles_from_the_end_before_the_goals() {
     assert_eq!(words.len(), usize::try_from(BOUND).expect("spec bound"));
     assert!(words.contains("Small fix"), "{words}");
     assert!(
-        words.contains("Make the widget fix: 0 of 1 delegates done\nOpen findings: none\nStanding roles:\nRole 41:\n"),
+        words.contains("Make the widget fix: 0 of 1 parts done\nOpen findings: none\nStanding roles:\nRole 41:\n"),
         "{words}"
     );
     assert!(!words.contains("Role 42:"));
@@ -623,7 +713,7 @@ fn its_words_name_the_people_who_signed_after_the_goals() {
         let agent = run(&world);
         let words = core::str::from_utf8(&live_task(&world, agent.task).spec.words).expect("status words are UTF-8");
         let (_, after_goals) = words.split_once("Live goals:\n").expect("root adds goals");
-        assert!(after_goals.starts_with("Make the widget fix: 1 of 1 delegates done\n"), "{words}");
+        assert!(after_goals.starts_with("Make the widget fix: 1 of 1 parts done\n"), "{words}");
         if has_signers {
             assert!(
                 after_goals.ends_with(
@@ -689,7 +779,7 @@ fn status_findings_follow_signers_precede_roles_and_trim_from_the_end() {
         restart_status_world(&mut world);
         next_sitting(&mut world, 171);
         let words = status_words(&world);
-        assert!(words.contains("Make the widget fix: 1 of 1 delegates done\nPeople who signed:\n- person 4: no longer a member\nOpen findings: 3\n- qa: 3 high\nHigh ones, newest first:\n"), "{words}");
+        assert!(words.contains("Make the widget fix: 1 of 1 parts done\nPeople who signed:\n- person 4: no longer a member\nOpen findings: 3\n- qa: 3 high\nHigh ones, newest first:\n"), "{words}");
         match bound {
             None => {
                 assert!(
@@ -856,7 +946,7 @@ fn status_names_milestone_goals_and_reports_live_and_recently_ended_milestones()
     world.env.wall = minute(22, 0);
     looked(&mut world, 171);
     let words = status_words(&world);
-    assert!(words.contains("Live goals:\nStore shape › S7 history in task logs: 2 of 3 delegates done\nMilestones:\n- Store shape: whole; 7 of 8 goals done; last landing 2026-11-16T21:38Z\n- Moves: open; 2 of 4 goals done, 1 failed\n- Search: complete at 2026-11-16T21:40Z; 5 of 5 goals done, 1 closed; last landing 2026-11-16T21:40Z\nPeople who signed:\n- person 4: no longer a member\nOpen findings: none\nStanding roles:\n"), "{words}");
+    assert!(words.contains("Live goals:\nStore shape › S7 history in task logs: 2 of 3 parts done\nMilestones:\n- Store shape: whole; 7 of 8 goals done; last landing 2026-11-16T21:38Z\n- Moves: open; 2 of 4 goals done, 1 failed\n- Search: complete at 2026-11-16T21:40Z; 5 of 5 goals done, 1 closed; last landing 2026-11-16T21:40Z\nPeople who signed:\n- person 4: no longer a member\nOpen findings: none\nStanding roles:\n"), "{words}");
     assert!(!words.contains("Old"), "{words}");
     assert!(words.ends_with(&format!("Role {role}:\nno Now yet\n")), "{words}");
     let agent = run(&world);
