@@ -84,6 +84,9 @@ fn owner_steps(tier: &Tier, client: &Path) -> Vec<Step> {
         exited(),
         see(Find::exactly_named(Role::Button, b"Try the playground")),
         press(Find::exactly_named(Role::Button, b"Try the playground")),
+        // The press shows New chat while StartPlayground is still unanswered.
+        // Wait for its answer before a fresh load asks whether to leave.
+        see(Find::exactly_named(Role::Status, b"Ready")),
         Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(b"/chats/new".as_slice()) }),
         see(Find::exactly_named(Role::Status, b"Ready")),
         Step::Person(PersonStep::Gone { find: Find::exactly_named(Role::Status, b"Starting"), within: WITHIN }),

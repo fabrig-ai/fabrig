@@ -33,6 +33,7 @@ temper-service.workspace = true
 temper-forge-setup.workspace = true
 temper-client-shell-terminal.workspace = true
 skein-ui.workspace = true
+skein-ui-screen.workspace = true
 skein-forge-connection.workspace = true
 jig-protocol-config.workspace = true
 skein-io.workspace = true
@@ -70,6 +71,9 @@ temper-box-shell.workspace = true
 
 [target.'cfg(not(all(target_arch = "wasm32", target_os = "unknown")))'.dependencies]
 rustls-std.workspace = true
+
+[dev-dependencies]
+skein-ui-screen-terminal.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"

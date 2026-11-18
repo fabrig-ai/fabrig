@@ -489,7 +489,7 @@ impl<P: ShellPlatform> Shell<P> {
             heading.as_ref().and_then(|element| element.text_content()).unwrap_or_default()
         };
         // Session storage survives reload, but closing the tab loses its requests.
-        let closing_loses = self.store.read_all(&self.platform).iter().any(|record| record.key.len() == 16);
+        let closing_loses = records::closing_loses(&self.store.read_all(&self.platform));
         self.title.set(words.as_bytes(), b"temper", b"en", closing_loses);
         if new_page {
             window.scroll_to_with_x_and_y(0.0, 0.0);
