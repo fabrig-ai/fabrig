@@ -8,10 +8,6 @@ pub use approval::{ApprovalCode, CODE_ALPHABET, CODE_LETTERS, CODE_TYPED_BYTES};
 
 #[expect(clippy::struct_field_names, reason = "The Accounts wire record retains the schema’s accounts field.")]
 #[rustfmt::skip]
-#[path = "generated/v32.rs"]
-pub mod v32;
-#[expect(clippy::struct_field_names, reason = "The Accounts wire record retains the schema’s accounts field.")]
-#[rustfmt::skip]
 #[path = "generated/v33.rs"]
 pub mod v33;
 pub use v33::*;
