@@ -1,7 +1,8 @@
 # documents: status
 
-2026-11-17. Where the tree's code lags or departs from [documents.md](documents.md).
+2026-11-18. Where the tree's code lags or departs from [documents.md](documents.md).
 
+- **Not yet:** 1: a task line's escalation left held names its decider as a bare number on the client wire (`HoldEscalationRejected.by`, v32) and in the client's contract and words, not as a `Requester`'s `Task` or `Person`. [in flight: change 7624]
 
 
 - **Not yet:** 1: the omitted-count mark gap remains `../../../domain/engine/settings.status.md`, 12.
