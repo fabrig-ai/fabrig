@@ -10,13 +10,17 @@ their stop bound. `upgrade --check` names workers that may stay from
 openings kept by the engine (`protocol/wires.md`, 10; `domain/root.md`, 8.2; R5, goal 2288).
 `temper-redeploy` uses the operator's kept description: stage every host,
 checkpoint while the old build serves, check the new build over it,
+and, before the engine goes alone, read the new build's verdict on the
+workers over it too, refusing with nothing stopped a build that cannot;
 then restart the engine alone if workers may stay, using its settled
-stop's checkpoint as backup and rereading the workers' verdict over it;
+stop's checkpoint as backup and rereading the workers' verdict over it
+by links and small copies;
 restart workers in turn when asked, otherwise all parts together,
 draining each worker while the old engine serves. Each redeploy is
 recorded and refereed: workers' agreed versions and returns against
 their waits, no try spent or task held since except for a run's own
-failure (`redeploy.md`; R6, goal 2487; C3, goal 7514).
+failure (`redeploy.md`; R6, goal 2487; C3, goal 7552; its follow-up,
+goal 8397).
 The engine's settled stop tells workers it restarts: those told keep
 runs through the restart wait (default twenty minutes), relayed calls
 and completions waiting within deadlines; the next start holds their
@@ -672,7 +676,7 @@ Drafts:
 - [`draft/change-landing-fixes.md`](draft/change-landing-fixes.status.md)
 - [`draft/change-stall-after.md`](draft/change-stall-after.status.md)
 - [`draft/chat-reading.md`](draft/chat-reading.status.md)
-- [`draft/checkpoints.md`](draft/checkpoints.status.md) — C1, goal 5099: taking one: the store's checkpoint at a barrier in its ordered work, skein-kv's holds on both stores' files and the component's on transcripts' removals, links for what nothing writes again and copies of the prefixes still appended to, its record and a fresh manifest, a temporary renamed into place and swept at open, the newest `store.checkpoints.keep` kept, a held lock skipped; `temper-engine checkpoint` over a stopped deployment, with `--hold NAME -- COMMAND` and `--remove NAME`, and `temper ctl DIR deployment checkpoint`, an owner's act. C2, goal 6983: restore: `temper-engine restore NAME` over a stopped deployment, a safety checkpoint first, the next generation and a transcript tree staged from the checkpoint with a manifest naming no previous generation, then a durable intent that the restore and every open roll forward (jig's `protocol/store/restoring.md`; `protocol/checkpoints.md`, 2.5). C3, goal 7514: the redeploy over a checkpoint: the new build's full check over one taken while the old build serves, a verdict of no draining the workers to the old engine before its stop, the installed build's checkpoint at every settled stop as the backup, the verdict's inputs read again over it by `upgrade --workers`, a rehearsal that copies the maps alone and ends at their rows, and going back after the first commit by the new build's restore, then the previous build (`redeploy.md`, 4; `protocol/binaries.md`, section 2; jig's `protocol/store/opening.md`, 5). Their walks after landing.
+- [`draft/checkpoints.md`](draft/checkpoints.status.md) — C1, goal 5099: taking one: the store's checkpoint at a barrier in its ordered work, skein-kv's holds on both stores' files and the component's on transcripts' removals, links for what nothing writes again and copies of the prefixes still appended to, its record and a fresh manifest, a temporary renamed into place and swept at open, the newest `store.checkpoints.keep` kept, a held lock skipped; `temper-engine checkpoint` over a stopped deployment, with `--hold NAME -- COMMAND` and `--remove NAME`, and `temper ctl DIR deployment checkpoint`, an owner's act. C2, goal 6983: restore: `temper-engine restore NAME` over a stopped deployment, a safety checkpoint first, the next generation and a transcript tree staged from the checkpoint with a manifest naming no previous generation, then a durable intent that the restore and every open roll forward (jig's `protocol/store/restoring.md`; `protocol/checkpoints.md`, 2.5). C3, goal 7552: the redeploy over a checkpoint: the new build's full check over one taken while the old build serves, a verdict of no draining the workers to the old engine before its stop, the installed build's checkpoint at every settled stop as the backup, the verdict's inputs read again over it by `upgrade --workers`, a rehearsal of the maps alone that ends at their rows, and going back after the first commit by the new build's restore, then the previous build (`redeploy.md`, 4; `protocol/binaries.md`, section 2; jig's `protocol/store/opening.md`, 5). Its follow-up, goal 8397: the staged build's `upgrade --workers` read once over the check's checkpoint before the engine stops, refusing with nothing stopped a build without it; that rehearsal linking the snapshot and sealed segments and copying only the newest and the secrets; what a deployment needs before its first redeploy over a checkpoint (`redeploy.md`, 2.3 and 4.1); a restore by the new build keeping the previous build's levels, pinned (jig's `protocol/store/restoring.md`, 4.3). Their walks after landing.
 - [`draft/ci-on-forgejo-17.md`](draft/ci-on-forgejo-17.status.md)
 - [`draft/ci-runner-wait.md`](draft/ci-runner-wait.status.md)
 - [`draft/claude-api.md`](draft/claude-api.status.md)

@@ -647,7 +647,8 @@ deployment's lock as a start does (1, step 1).
   generation's maps, copies them into a scratch deployment as that
   generation, file by file and never by links (the directory it is
   given may be a backup on another file system, and a link would
-  change its files' links), its task logs among them (`logs.md`, 7),
+  change its files' links; `Openings` links what it can, below), its
+  task logs among them (`logs.md`, 7),
   and opens the
   scratch as any start does (1 and 2), with its owner sets, the
   transcripts read where they are and never cut, and no generation
@@ -673,9 +674,23 @@ deployment's lock as a start does (1, step 1).
   again at its stop (temper's `redeploy.md`, 4.2):
   - it locks the directory, refuses an outstanding intent and reads
     `active` as `Whole` does;
-  - it copies that generation into the scratch as `Whole` does, file by
-    file, but for `store/logs/` and every task log in it, which no row
-    it reads names;
+  - it makes that generation in the scratch as an upgrade makes `A + 1`
+    (2, step 2), but for `store/logs/` and every task log in it, which
+    no row it reads names, so that a redeploy's stop, where it runs
+    over the stop's checkpoint, makes links and small copies alone
+    (temper's `draft/checkpoints.md`, 6, step 3):
+    - **linked:** `store/`'s `snapshot` and each of its segments but
+      the newest, the newest found over every page first, by io's
+      `HardLink`;
+    - **copied,** file by file as `Whole` copies: the newest segment,
+      any other file of `store/`, and the whole of `secrets/`;
+    - **a link the file system refuses** (the scratch on another file
+      system than the directory, as a backup's may be) is that file
+      copied instead.
+
+    Nothing writes a linked file again (2, step 2), so the directory's
+    files keep their bytes; only their link counts move, while the
+    scratch holds them;
   - it opens the scratch through the stores' recovery, and answers
     `Rehearsing` with the wires and the openings, as `Whole` does,
     before any check of the levels, the floor or the format;

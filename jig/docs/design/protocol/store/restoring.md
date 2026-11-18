@@ -377,7 +377,12 @@ nothing else:
   intent that doesn't decode; the strays with no intent standing; a
   rehearsal refusing `Unfinished`; the staging table of 4.4 over a
   record with each kind of file, and a log whose file runs past its
-  extent copied.
+  extent copied; and 4.3's levels: a checkpoint taken at levels L,
+  restored by a build at L + 1 over the store it has upgraded to L + 1,
+  leaves the format row (`records.md`, 3) reading L, and a build at L
+  then opens the restored store without a refusal, so that a
+  redeploy's going back by restore starts the previous build (temper's
+  `redeploy.md`, 4.6).
 - **The store's world,** `jig-store-world`, on its simulated disk,
   focused. A checkpoint is taken, more is committed, and the checkpoint
   is restored. The next open finds the state at C by the referee: both

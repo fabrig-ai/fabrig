@@ -232,10 +232,14 @@ default; the document is `temper.json` in the configuration directory
   section 3.1; `../draft/redeploys.md`, 5.1). Exit 0 when the
   registry commit, jobs and restores pass, 1 when a start would be refused there.
 - **`temper-box upgrade --workers DIRECTORY`:** `--check`'s verdict on
-  the workers alone, for a redeploy's stop (`../redeploy.md`, 4.2): a
+  the workers alone, for a redeploy's stop (`../redeploy.md`, 4.2) and
+  once before it, over the check's checkpoint while the engine serves
+  (`../redeploy.md`, 4.1, step 10): a
   rehearsal over DIRECTORY, as `--check`'s, of jig's reach `Openings`
-  (jig's `protocol/store/opening.md`, 5), which copies the active
-  generation's maps without its task logs, recovers them and reads the
+  (jig's `protocol/store/opening.md`, 5), which makes the active
+  generation's maps in its scratch without their task logs, linking
+  the snapshot and every segment but the newest and copying the rest,
+  recovers them and reads the
   wires and the workers' openings they keep, and ends there: no record
   decoded, no level checked, no plan, job or restore run. It prints
   `--check`'s lines from its verdict's alone (`wires.md`, 10.2, steps 1
