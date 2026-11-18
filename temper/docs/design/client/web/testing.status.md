@@ -1,7 +1,8 @@
 # testing: status
 
-2026-11-16. Where the tree's code lags or departs from [testing.md](testing.md).
+2026-11-18. Where the tree's code lags or departs from [testing.md](testing.md).
 
+- **Not yet:** 2, *Addresses*, and the *History* story: `/` and an address that is no page open the inbox at `/`, not Home [in flight: change 8147].
 
 - **Not yet:** 2, 3, 6: the tier holds twelve test functions. Its merged
   tests 2 (with 11 and the call line), 4 (with 5 and the model picker),
