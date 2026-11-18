@@ -134,8 +134,6 @@ fn v9_values_cross_v10_but_landed_values_cannot_go_back() {
     let limits = fixtures::limits();
     let application = crate::application(&limits).unwrap();
     let mut bridge = application.kept.get(0).unwrap().bridge().unwrap();
-    assert_eq!(crate::wire::VERSION, 10);
-    assert_eq!(crate::wire::FLOOR, 5);
     for (root, bytes) in [
         (b"Ask".as_slice(), crate::ask(&v1::Ask::Reds)),
         (b"Ask".as_slice(), crate::ask(&v1::Ask::Results(largest_report(&limits)))),

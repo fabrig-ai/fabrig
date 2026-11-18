@@ -275,6 +275,93 @@ fn a_checked_report_of_the_known_head_sets_it_and_wakes_dependents() {
 }
 
 #[test]
+fn checked_reports_record_the_current_delegate_even_at_the_same_head() {
+    let mut d = producing();
+    for (task, commit, checked, by) in [
+        (CHILD, fixtures::BASE, false, None),
+        (CHILD, fixtures::HEAD, true, Some(CHILD)),
+        (41, fixtures::HEAD, true, Some(41)),
+        (41, fixtures::BASE, false, Some(41)),
+    ] {
+        d.changes.get_mut(&fixtures::CHANGE).unwrap().delegate =
+            Some((task, change::Delegate::Repair(change::Repair::Ci)));
+        let name = run_branch(b"51");
+        outputs(&mut d, Event::Hold { entry: 0, task: fixtures::CHANGE, resource: name.clone(), from: None });
+        outputs(
+            &mut d,
+            Event::Claim {
+                task,
+                attempt: 1,
+                writes: Box::new([name.clone()]),
+                designs: Box::new([]),
+                holders: Box::new([fixtures::CHANGE]),
+            },
+        );
+        let requests =
+            outputs(&mut d, Event::Answered { task, attempt: 1, pushed: Box::new([(name, commit, checked)]) });
+        let row = d.change(fixtures::CHANGE).unwrap();
+        let head = match by {
+            Some(_) => Some(fixtures::HEAD),
+            None => None,
+        };
+        assert_eq!((row.change.last_checked, row.change.last_checked_by), (head, by));
+        let mut durable = false;
+        for request in &requests {
+            if let Request::Save { record: Stored::ChangeHot(row), .. } = request {
+                durable |= (row.change.last_checked, row.change.last_checked_by) == (head, by);
+            }
+        }
+        assert!(durable, "the head and its reporting task are durable: {requests:?}");
+    }
+}
+
+#[test]
+fn only_a_writable_current_delegate_gets_its_own_delivery() {
+    let repair = change::Delegate::Repair(change::Repair::Ci);
+    let resolve = change::Delegate::Resolve { base: fixtures::BASE };
+    let gate = change::Delegate::Gate { number: 1, head: fixtures::HEAD };
+    let parent = Some(fixtures::CHANGE);
+    let own = Some(CHILD);
+    let head = Some(fixtures::HEAD);
+    for (kind, task, parent, context, push, by, expected) in [
+        (repair, CHILD, parent, false, true, own, head),
+        (change::Delegate::Produce, CHILD, parent, false, true, own, head),
+        (resolve, CHILD, parent, false, true, own, head),
+        (repair, 41, parent, false, true, own, None),
+        (change::Delegate::Produce, 41, parent, false, true, own, None),
+        (repair, CHILD, parent, false, true, None, None),
+        (repair, CHILD, parent, true, true, own, None),
+        (repair, CHILD, parent, false, false, own, None),
+        (gate, CHILD, parent, false, true, own, None),
+        (repair, CHILD, None, false, true, own, None),
+    ] {
+        let mut d = producing();
+        let row = d.changes.get_mut(&fixtures::CHANGE).unwrap();
+        row.delegate = Some((task, kind));
+        row.change.last_checked = Some(fixtures::HEAD);
+        row.change.last_checked_by = by;
+        let mut repository = adopted();
+        if context {
+            repository.role = Role::Context;
+        }
+        repository.kinds.push = push;
+        outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
+        let mut seed = seed(false);
+        seed.task = task;
+        seed.parent = parent;
+        assert_eq!(d.workspace_item(seed).unwrap().delivered, expected);
+        assert_eq!(d.prepare_item(REPO, b"ready/9".as_slice().into(), fixtures::BASE, 9).unwrap().delivered, None);
+    }
+    let mut d = producing();
+    let row = d.changes.get_mut(&fixtures::CHANGE).unwrap();
+    row.change.last_checked = Some(fixtures::HEAD);
+    row.change.last_checked_by = Some(CHILD);
+    let mut unrelated = seed(false);
+    unrelated.task = 42;
+    assert_eq!(d.workspace_item(unrelated).unwrap().delivered, None);
+}
+
+#[test]
 fn a_lost_attempts_reread_pins_its_head_without_checking_it() {
     let mut d = producing();
     let name = claim(&mut d, 1);
@@ -284,4 +371,5 @@ fn a_lost_attempts_reread_pins_its_head_without_checking_it() {
     let row = d.change(fixtures::CHANGE).unwrap();
     assert_eq!(row.change.last_head, Some(fixtures::HEAD));
     assert_eq!(row.change.last_checked, None);
+    assert_eq!(row.change.last_checked_by, None);
 }

@@ -47,6 +47,7 @@ fn change_row() -> top::ChangeRow {
             owns_turn: false,
             last_head: None,
             last_checked: None,
+            last_checked_by: None,
             clock: None,
         },
         pull: None,

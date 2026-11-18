@@ -151,6 +151,7 @@ pub enum Access {
         push: Box<[u8]>,
         expected: Option<[u8; 32]>,
         landing: Option<Box<[u8]>>,
+        delivered: Option<[u8; 32]>,
     },
     ReadOnly,
     /// Ordered branches that a prepare may create, and no others.

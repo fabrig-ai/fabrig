@@ -126,6 +126,8 @@ pub struct ForgeRepository {
     pub start: ForgeStart,
     pub push: Option<Box<[u8]>>,
     pub landing: Option<Box<[u8]>>,
+    /// This task's own checked delivery (temper/docs/design/protocol/channel.md, 4).
+    pub delivered: Option<skein_forge::api::Commit>,
     pub identity: u32,
 }
 

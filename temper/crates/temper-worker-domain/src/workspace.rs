@@ -899,8 +899,12 @@ mod tests {
         let mut domain = Domain::new(&limits, Box::new([]));
         let mut items = fixtures::items(&[b"playground", b"work"]);
         for repository in &mut items.repositories {
-            repository.access =
-                wire::Access::Writable { push: Box::from(b"topic".as_slice()), expected: None, landing: None };
+            repository.access = wire::Access::Writable {
+                push: Box::from(b"topic".as_slice()),
+                expected: None,
+                landing: None,
+                delivered: None,
+            };
         }
         let assignment = stage(&mut domain, fixtures::assignment(true, Box::new([])), items).expect("room");
         let workspace = assignment.assignment.workspace.expect("workspace");
@@ -937,8 +941,12 @@ mod tests {
         let mut items = fixtures::items(&[b"playground", b"work"]);
         for (repository, tag) in items.repositories.iter_mut().zip(tags) {
             repository.tag = tag;
-            repository.access =
-                wire::Access::Writable { push: Box::from(b"topic".as_slice()), expected: None, landing: None };
+            repository.access = wire::Access::Writable {
+                push: Box::from(b"topic".as_slice()),
+                expected: None,
+                landing: None,
+                delivered: None,
+            };
         }
         let assignment = stage(&mut domain, fixtures::assignment(true, Box::new([])), items).expect("room");
         let workspace = assignment.assignment.workspace.expect("a workspace");

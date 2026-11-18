@@ -126,6 +126,7 @@ fn check_change_row(task: u64) -> forge::ChangeRow {
             owns_turn: false,
             last_head: None,
             last_checked: None,
+            last_checked_by: None,
             clock: None,
         },
         pull: None,

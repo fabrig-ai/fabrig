@@ -106,6 +106,7 @@ pub fn workspace(items: Option<&v1::Items>) -> Assigned {
                 push: value.push().into(),
                 expected: *value.expected(),
                 landing: value.landing().clone(),
+                delivered: *value.delivered(),
             },
             v1::Access::ReadOnly => worker::Access::ReadOnly,
             v1::Access::Prefixes(value) => worker::Access::Prefixes { branches: value.branches().clone().into_boxed() },
@@ -283,14 +284,8 @@ pub fn value(identity: &v1::Identity) -> Option<crate::identities::Value> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn prefix_access_keeps_every_branch_in_wire_order_without_a_writable_push() {
+    fn items_with_access(access: v1::Access) -> v1::Items {
         let limits = &v1::CEILINGS;
-        let mut branches = List::with_capacity(3);
-        for branch in [b"prefix-1".as_slice(), b"prefix-2", b"prefix-3"] {
-            branches.push(Box::from(branch)).expect("fixture branches");
-        }
-        let access = v1::Access::Prefixes(v1::Prefixes::new(limits, v1::PrefixesParts { branches }).expect("prefixes"));
         let repository = v1::Repository::new(
             limits,
             v1::RepositoryParts {
@@ -308,8 +303,43 @@ mod tests {
         .expect("repository");
         let mut repositories = List::with_capacity(1);
         repositories.push(repository).expect("fixture repository");
-        let items = v1::Items::new(limits, v1::ItemsParts { repositories }).expect("items");
-        let bytes = wire::items(&items);
+        v1::Items::new(limits, v1::ItemsParts { repositories }).expect("items")
+    }
+
+    #[test]
+    fn writable_access_carries_the_tasks_own_delivery_to_the_domain() {
+        for delivered in [None, Some([7; 32])] {
+            let access = v1::Access::Writable(
+                v1::Writable::new(
+                    &v1::CEILINGS,
+                    v1::WritableParts { push: b"change/7".as_slice().into(), expected: None, landing: None, delivered },
+                )
+                .expect("writable"),
+            );
+            let bytes = wire::items(&items_with_access(access));
+            let decoded = v1::Items::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("wire items");
+            let translated = workspace(Some(&decoded));
+            assert_eq!(
+                translated.repositories.first().expect("repository").access,
+                temper_worker_domain::wire::Access::Writable {
+                    push: b"change/7".as_slice().into(),
+                    expected: None,
+                    landing: None,
+                    delivered,
+                },
+            );
+        }
+    }
+
+    #[test]
+    fn prefix_access_keeps_every_branch_in_wire_order_without_a_writable_push() {
+        let limits = &v1::CEILINGS;
+        let mut branches = List::with_capacity(3);
+        for branch in [b"prefix-1".as_slice(), b"prefix-2", b"prefix-3"] {
+            branches.push(Box::from(branch)).expect("fixture branches");
+        }
+        let access = v1::Access::Prefixes(v1::Prefixes::new(limits, v1::PrefixesParts { branches }).expect("prefixes"));
+        let bytes = wire::items(&items_with_access(access));
         let decoded = v1::Items::decode(limits, &mut skein_lib::Reader::new(&bytes)).expect("wire items");
         let translated = workspace(Some(&decoded));
         assert_eq!(
