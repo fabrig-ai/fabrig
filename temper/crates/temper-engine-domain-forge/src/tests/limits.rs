@@ -1,6 +1,38 @@
 use super::*;
 
 #[test]
+fn a_raised_outbox_retains_the_ninth_entry_without_reconstruction() {
+    let mut env = env();
+    env.limits.entries = 8;
+    env.limits.client.entries = 16;
+    let mut domain = domain_with_limits(&env.limits);
+    let mut out = Queue::uncapped();
+    domain.restore_begin(env.wall);
+    step(&mut domain, &env, Event::Restore { record: Stored::Repository(adopted()) }, &mut out);
+    out.clear();
+    for number in 1..=8 {
+        step(&mut domain, &env, Event::Enqueue { entry: status(number, 7) }, &mut out);
+    }
+    assert_eq!(domain.limit_usage(&LimitSet::Entries), Some(8));
+    out.clear();
+    step(&mut domain, &env, Event::Enqueue { entry: status(9, 7) }, &mut out);
+    assert_eq!(domain.limit_usage(&LimitSet::Entries), Some(8));
+    assert_eq!(
+        out.pop(),
+        Some(Request::ResourceRefused {
+            task: 7,
+            operation: b"enqueue effect",
+            resource: None,
+            cause: RefusalCause::Limit { member: "forge.entries", configured: 8, needed: 9 },
+        })
+    );
+    env.limits.entries = 16;
+    step(&mut domain, &env, Event::LimitsRaised, &mut out);
+    step(&mut domain, &env, Event::Enqueue { entry: status(9, 7) }, &mut out);
+    assert_eq!(domain.limit_usage(&LimitSet::Entries), Some(9));
+}
+
+#[test]
 fn entrance_limits_reject_incoherent_names_rows_and_windows() {
     assert!(valid(&LIMITS));
     for limits in [

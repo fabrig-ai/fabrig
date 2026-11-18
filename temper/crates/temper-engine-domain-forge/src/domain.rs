@@ -1013,6 +1013,41 @@ impl Domain {
         })
     }
 
+    /// Raise every holder of the at-once limits (configuration/limit-settings.md, 5).
+    fn raise(&mut self, limits: &Limits) {
+        let before = self.landing.limits;
+        assert!(
+            limits.tasks >= before.tasks
+                && limits.holds >= before.holds
+                && limits.entries >= before.entries
+                && limits.client.entries >= before.client.entries,
+            "at-once limits only rise"
+        );
+        let mut raised = before;
+        raised.tasks = limits.tasks;
+        raised.holds = limits.holds;
+        raised.entries = limits.entries;
+        raised.client.entries = limits.client.entries;
+        assert_eq!(raised, *limits, "other limits wait for the next start");
+        self.names.raise(limits.tasks.checked_add(limits.repositories).expect("checked names capacity"));
+        self.proposed_effects.raise(limits.tasks);
+        self.releases.raise(limits.tasks);
+        self.change_due.raise(limits.changes.checked_add(limits.tasks).expect("checked task capacity"));
+        self.closing.raise(limits.tasks);
+        self.holds.raise(limits.holds);
+        self.lost.raise(limits.holds);
+        self.makings.raise(limits.holds);
+        self.reds.raise(limits.branch_reds.checked_mul(limits.holds).expect("checked red capacity"));
+        self.entries.raise(limits.entries);
+        self.flights.raise(limits.entries);
+        if let Some(outage) = &mut self.outage {
+            outage.raise(limits.entries);
+        }
+        self.reconciliation.raise(limits);
+        self.client.raise(&limits.client);
+        self.landing.limits = *limits;
+    }
+
     /// Whether the landing effect's exact-head condition guards this judge.
     #[must_use]
     pub fn guards_landing(&self, _project: u32, requirement: u16, _parameters: u32) -> bool {
@@ -1571,6 +1606,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         return;
     }
     match event {
+        Event::LimitsRaised => d.raise(&env.limits),
         Event::ReadHistory { read, query } => crate::history::read::begin(d, read, query, out),
         Event::HistoryLoaded { load, rows, next } => crate::history::read::loaded(d, env, load, rows, next, out),
         Event::HistoryUnloaded { load } => crate::history::read::unloaded(d, load, out),

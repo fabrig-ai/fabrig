@@ -33,6 +33,10 @@ pub(super) struct Flight {
     pub(super) cursor: Option<store::Cursor>,
 }
 impl Routes {
+    /// Raise application decoders before any work uses the raised domain limits.
+    pub fn raise_limits(&mut self, forge: &temper_engine_domain_forge::Limits) {
+        self.families.raise(forge);
+    }
     /// Size the continuation table from the root's admitted loads.
     #[must_use]
     pub fn new(table: u32, limits: &engine::Limits, families: families::Bounds) -> Routes {

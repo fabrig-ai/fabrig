@@ -117,6 +117,8 @@ pub struct World {
     pub forge_reads: Option<Vec<(Token, skein_forge::api::Read)>>,
     pub scripted_forge_reads: Vec<(skein_forge::api::Read, Result<skein_forge::api::Answer, skein_forge::api::Error>)>,
     pub adopted: Vec<forge_top::ApplicationOutcome>,
+    /// Durable limit-setting words at the service face.
+    pub limit_settings: Vec<engine::Request>,
     pub follow_answers: Vec<Option<Box<[u8]>>>,
     pub signed_in: Option<u64>,
     pub web_replies: Vec<people::Reply>,
@@ -1420,6 +1422,7 @@ impl World {
             forge_reads: None,
             scripted_forge_reads: Vec::new(),
             adopted: Vec::new(),
+            limit_settings: Vec::new(),
             follow_answers: Vec::new(),
             signed_in: None,
             web_replies: Vec::new(),
@@ -2566,8 +2569,8 @@ impl World {
                         answer: Ok(()),
                     })));
                 }
+                request @ engine::Request::LimitSettingsCommitted { .. } => self.limit_settings.push(request),
                 engine::Request::Account(_)
-                | engine::Request::LimitSettingsCommitted { .. }
                 | engine::Request::ForgeKept(_)
                 | engine::Request::ForgeGone { .. }
                 | engine::Request::ChoosePlace { .. }

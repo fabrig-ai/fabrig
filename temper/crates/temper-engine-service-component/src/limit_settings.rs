@@ -33,14 +33,48 @@ impl crate::Engine {
     pub fn limits_in_force_mut(&mut self) -> Option<&mut LimitSettings> {
         self.limits_in_force.as_mut()
     }
-    /// The durable word's handling point. Updating the running figures is separate.
+    /// Take a revision whole at once only when all changed figures are raises
+    /// of the names declared at-once (configuration/limit-settings.md, 4–5).
     pub(crate) fn limits_committed(&mut self, revision: u32, jig: Box<[Override]>, temper: Box<[Override]>) {
         if let Some(state) = &mut self.limits_in_force {
             state.revision = revision;
             state.jig = jig;
             state.temper = temper;
+            if state.held {
+                return;
+            }
+            let next = resolve_limits(&state.inputs, &state.jig, &state.temper)
+                .expect("durable limit settings passed entry resolution");
+            if !at_once(&state.in_force, &next) {
+                return;
+            }
+            self.store.routes.raise_limits(&next.root.forge);
+            self.env.limits = next.root;
+            temper_engine_domain::try_step(&mut self.domain, &self.env, temper_engine_domain::Event::LimitsRaised)
+                .expect("a durable raise is always admitted");
+            state.in_force = next;
         }
     }
+}
+
+fn at_once(before: &Resolved, next: &Resolved) -> bool {
+    for row in &jig_protocol_config::names::NAMES {
+        if (row.value)(&before.jig) != (row.value)(&next.jig) {
+            return false;
+        }
+    }
+    for row in &crate::limits::NAMES {
+        let old = (row.value)(&before.temper);
+        let new = (row.value)(&next.temper);
+        if old == new {
+            continue;
+        }
+        match row.applies {
+            crate::limits::Applies::AtOnce if new > old => {}
+            crate::limits::Applies::AtOnce | crate::limits::Applies::NextStart => return false,
+        }
+    }
+    true
 }
 
 impl Store {

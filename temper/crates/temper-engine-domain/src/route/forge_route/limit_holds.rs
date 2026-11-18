@@ -28,7 +28,7 @@ impl Domain {
         rows.into_boxed()
     }
 
-    /// End waits on this setting, oldest first, up to the room its figure now provides.
+    /// End every wait on a raised setting; otherwise give freed room oldest first.
     /// Each queued release checks the exact hold revision before going through jig's control path.
     pub fn end_forge_limit_holds(&mut self, member: &[u8], configured: u64) {
         self.changed();
@@ -39,6 +39,10 @@ impl Domain {
                 continue;
             }
             if !current(self, &row) {
+                queue(self, &row);
+                continue;
+            }
+            if configured > row.configured {
                 queue(self, &row);
                 continue;
             }

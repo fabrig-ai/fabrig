@@ -568,6 +568,8 @@ pub enum SetupEnd {
 /// The input union, with one variant for each typed peer.
 #[derive(Hash, Debug)]
 pub enum Event {
+    /// Take the checked at-once raises supplied by the service's environment.
+    LimitsRaised,
     /// Terminal of the protocol-owned plan named by `run`.
     Setup {
         run: Token,

@@ -1923,6 +1923,8 @@ pub struct ChangeDependencies {
 #[derive(PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "change admission carries a full row across the root procedure boundary")]
 pub enum Event {
+    /// Take the checked, raised environment's at-once limits in every holder.
+    LimitsRaised,
     /// Routing's chosen place, or busy after the bounded attempts (protocol/setup/place.md, 2).
     SetupPerson {
         forge: u16,

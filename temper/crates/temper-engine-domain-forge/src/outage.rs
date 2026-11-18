@@ -52,6 +52,9 @@ impl State {
             back: Set::with_capacity(limits.forges),
         }
     }
+    pub(super) fn raise(&mut self, entries: u32) {
+        self.writes.raise(entries);
+    }
     pub(super) fn deadline(&self) -> Option<Time> {
         let mut next = None;
         for (_, reading) in &self.reads {

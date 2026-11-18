@@ -115,6 +115,25 @@ fn one_outbox_place_ends_only_the_oldest_limit_hold() {
     assert_eq!(domain.forge.limit_usage(&forge::LimitSet::Entries), Some(1));
 }
 #[test]
+fn a_raise_ends_every_wait_even_when_only_one_operation_will_fit() {
+    let (mut domain, mut env) = two_tasks();
+    env.limits.forge.entries = 1;
+    let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
+    drive(&mut domain, &env, &mut decision, forge::Event::Enqueue { entry: entry(100, FIRST) });
+    for (task, number) in [(FIRST, 101), (SECOND, 102)] {
+        drive(&mut domain, &env, &mut decision, forge::Event::Enqueue { entry: entry(number, task) });
+        assert!(held(&domain, task));
+    }
+    env.limits.forge.entries = 2;
+    domain.end_forge_limit_holds(b"forge.entries", 2);
+    crate::route::route_into(&mut domain, &env, &mut decision);
+    assert!(domain.forge_limit_holds().is_empty());
+    for task in [FIRST, SECOND] {
+        assert_eq!(domain.core.tasks.task(task).unwrap().due_reason, tasks::Why::Released);
+    }
+}
+
+#[test]
 fn freed_resource_holds_and_task_names_resume_their_waiters() {
     for holds in [true, false] {
         let (mut domain, mut env) = two_tasks();

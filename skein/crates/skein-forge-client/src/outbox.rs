@@ -80,6 +80,9 @@ impl Outbox {
             stop: stop::State::Running,
         }
     }
+    pub(crate) fn raise(&mut self, entries: u32) {
+        self.entries.raise(entries);
+    }
     pub(crate) fn is_ready(&self, keep: &crate::keep::Keep) -> bool {
         if !self.ready || self.paused {
             return false;

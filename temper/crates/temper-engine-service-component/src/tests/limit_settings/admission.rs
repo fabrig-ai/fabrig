@@ -276,6 +276,107 @@ fn durable_words_update_the_service_lists_but_not_its_running_figures() {
     assert_eq!(engine.domain.commits_in_flight(), 0);
 }
 
+fn lowered_start() -> crate::Service {
+    let mut service = owned();
+    let values: Box<[s::Override]> = Box::new([
+        item(b"forge.client.entries", 8),
+        item(b"forge.entries", 8),
+        item(b"forge.holds", 2),
+        item(b"forge.landing_members", 2),
+        item(b"forge.landings", 1),
+        item(b"forge.tasks", 2),
+        item(b"transcript_memory", 1024),
+    ]);
+    service.engine.as_mut().unwrap().step(party(Box::new([temper(values)]), false, 1));
+    fixtures::settle_root(&mut service, &mut Queue::uncapped());
+    let input = service.engine.as_mut().unwrap().limits_in_force.take().unwrap().inputs;
+    let mut store = opening(&input, Some(super::kept(service)));
+    let state = store.resolve_settings(input, None).unwrap();
+    let mut service = build(store, state);
+    fixtures::restart(&mut service);
+    service
+}
+
+#[test]
+fn durable_raises_reach_the_running_environment_and_in_force_together() {
+    let mut service = lowered_start();
+    let engine = service.engine.as_mut().unwrap();
+    let before = engine.env.limits;
+    let values: Box<[s::Override]> = Box::new([
+        item(b"forge.client.entries", 16),
+        item(b"forge.entries", 16),
+        item(b"forge.holds", 4),
+        item(b"forge.landing_members", 2),
+        item(b"forge.landings", 1),
+        item(b"forge.tasks", 4),
+        item(b"transcript_memory", 2048),
+    ]);
+    engine.step(party(Box::new([temper(values.clone())]), false, 2));
+    assert_eq!(engine.env.limits, before, "acceptance alone cannot raise a running limit");
+    fixtures::settle_root(&mut service, &mut Queue::uncapped());
+    let engine = service.engine.as_ref().unwrap();
+    let state = engine.limits_in_force().unwrap();
+    assert_eq!(state.revision, 3);
+    assert_eq!(state.temper, values);
+    assert_eq!(engine.env.limits, state.in_force.root);
+    assert_eq!(engine.env.limits.forge.entries, 16);
+    assert_eq!(engine.env.limits.forge.client.entries, 16);
+    assert_eq!(engine.env.limits.forge.holds, 4);
+    assert_eq!(engine.env.limits.forge.tasks, 4);
+    assert_eq!(engine.env.limits.transcript_memory, 2048);
+}
+
+#[test]
+fn lowerings_and_mixed_revisions_wait_whole_for_the_next_start() {
+    for mixed in [false, true] {
+        let mut service = lowered_start();
+        let engine = service.engine.as_mut().unwrap();
+        let before = engine.env.limits;
+        let issues = engine.limits_in_force().unwrap().in_force.temper.forge.issues;
+        let mut values = vec![item(b"forge.client.entries", 8)];
+        values.push(item(b"forge.entries", if mixed { 16 } else { 4 }));
+        values.push(item(b"forge.holds", 2));
+        if mixed {
+            values.push(item(b"forge.issues", u64::from(issues) + 1));
+        }
+        values.push(item(b"forge.landing_members", 2));
+        values.push(item(b"forge.landings", 1));
+        values.push(item(b"forge.tasks", 2));
+        values.push(item(b"transcript_memory", 1024));
+        if mixed {
+            values[0] = item(b"forge.client.entries", 16);
+        }
+        engine.step(party(Box::new([temper(values.clone().into_boxed_slice())]), false, 2));
+        fixtures::settle_root(&mut service, &mut Queue::uncapped());
+        let engine = service.engine.as_ref().unwrap();
+        let state = engine.limits_in_force().unwrap();
+        assert_eq!(state.revision, 3);
+        assert_eq!(engine.env.limits, before);
+        assert_eq!(state.in_force.root, before);
+        let next = resolve_limits(&state.inputs, &state.jig, &state.temper).unwrap();
+        assert_eq!(next.root.forge.entries, if mixed { 16 } else { 4 });
+        assert_eq!(next.root.forge.issues, if mixed { issues + 1 } else { issues });
+    }
+}
+
+#[test]
+fn limits_held_never_takes_a_raise() {
+    let mut service = lowered_start();
+    let engine = service.engine.as_mut().unwrap();
+    let before = engine.env.limits;
+    let state = engine.limits_in_force_mut().unwrap();
+    state.held = true;
+    let mut values = state.temper.clone();
+    for value in &mut values {
+        if value.name.as_ref() == b"transcript_memory" {
+            value.value *= 2;
+        }
+    }
+    engine.limits_committed(3, Box::new([]), values);
+    assert_eq!(engine.env.limits, before);
+    assert_eq!(engine.limits_in_force().unwrap().in_force.root, before);
+}
+
 #[test]
 fn the_other_kind_comes_from_durable_settings_not_the_running_figures() {
     let mut service = owned();

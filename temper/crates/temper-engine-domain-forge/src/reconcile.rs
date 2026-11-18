@@ -18,6 +18,9 @@ impl Reconciliation {
     pub(crate) fn new(l: &Limits) -> Self {
         Self { references: List::with_capacity(capacity(l).expect("checked reconciliation capacity")) }
     }
+    pub(crate) fn raise(&mut self, limits: &Limits) {
+        self.references.raise(capacity(limits).expect("checked reconciliation capacity"));
+    }
     fn need(&mut self, kind: RecordKind, need: Need) -> Result<(), crate::RestoreFit> {
         let held = self.references.len();
         match self.references.push(Reference { kind, client_repository: false, need }) {

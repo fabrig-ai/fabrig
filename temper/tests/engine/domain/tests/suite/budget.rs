@@ -38,8 +38,22 @@ fn bounds() -> engine::Limits {
 }
 
 // Three real parked conversations with committed history, ready to wake again.
-fn parked() -> (Store, Vec<engine::Assignment>) {
-    let mut driver = Driver::configured(Store::new(), [config(91), config(91)], &bounds());
+fn configuration(settings: bool) -> engine::Config {
+    let mut configuration = config(91);
+    if settings {
+        configuration.core.kinds =
+            temper_engine_service_stock::stock::kinds(&bounds(), configuration.core.connectors[0])
+                .into_iter()
+                .filter(|kind| kind.number == 21)
+                .collect();
+        configuration.kinds_stock =
+            temper_engine_service_stock::stock::forge(&bounds()).into_iter().filter(|stock| stock.kind == 21).collect();
+    }
+    configuration
+}
+
+fn parked(settings: bool) -> (Store, Vec<engine::Assignment>) {
+    let mut driver = Driver::configured(Store::new(), [config(91), configuration(settings)], &bounds());
     driver.send(protocol::hello_slots(WORKER, 3, Box::new([])));
     driver.settle();
     driver.sign_in();
@@ -109,7 +123,7 @@ fn assigned(driver: &Driver) -> usize {
 
 #[test]
 fn due_tasks_activate_within_the_byte_budget_as_earlier_runs_drain() {
-    let (store, runs) = parked();
+    let (store, runs) = parked(false);
     let mut driver = Driver::with_budget(store, config(91), &bounds(), 2 * ALLOWANCE);
     driver.settle();
     driver.send(protocol::hello_slots(WORKER, 3, Box::new([])));
@@ -149,7 +163,7 @@ fn due_tasks_activate_within_the_byte_budget_as_earlier_runs_drain() {
 
 #[test]
 fn a_restart_with_three_due_tasks_activates_them_within_the_budget() {
-    let (mut store, runs) = parked();
+    let (mut store, runs) = parked(false);
     let mut saves = Vec::new();
     for (index, run) in runs.iter().enumerate() {
         let key = engine::Key::Core(core::Key::Tasks(tasks::Key::Live(run.task)));
@@ -218,8 +232,48 @@ fn read_history(driver: &mut Driver, run: &engine::Assignment) {
 }
 
 #[test]
+fn a_durable_transcript_memory_raise_prepares_waiting_work() {
+    let (store, runs) = parked(true);
+    let mut driver = Driver::with_budget(store, configuration(true), &bounds(), ALLOWANCE);
+    driver.settle();
+    driver.send(protocol::hello_slots(WORKER, 3, Box::new([])));
+    driver.settle();
+    wake(&mut driver, &runs);
+    let mut held = Vec::new();
+    hold_transcripts(&mut driver, &mut held);
+    assert_eq!(held.len(), 1);
+    assert_eq!(driver.root.held_bytes(), ALLOWANCE);
+    let value = temper_engine_domain_forge::settings::Value::Limits(Box::new([core::settings::Override {
+        name: b"transcript_memory".as_slice().into(),
+        value: 4 * ALLOWANCE,
+        reason: b"prepare waiting work".as_slice().into(),
+    }]));
+    let item = temper_engine_domain_world::kinds::item(21, 0, 1, &value);
+    let revision = driver.root.settings_revision();
+    driver.send(temper_engine_domain_world::kinds::change(
+        driver.store.header().sign_ins,
+        revision,
+        51,
+        Box::new([item]),
+    ));
+    assert!(!driver.immediate.iter().any(|request| matches!(request, engine::Request::LimitSettingsCommitted { .. })));
+    hold_transcripts(&mut driver, &mut held);
+    assert_eq!(held.len(), 1, "the old budget remains until the service takes the durable word");
+    assert!(driver.immediate.iter().any(|request| matches!(request, engine::Request::LimitSettingsCommitted { revision: durable, .. } if *durable == revision + 1)));
+    driver.env.limits.transcript_memory = 4 * ALLOWANCE;
+    driver.send(engine::Event::LimitsRaised);
+    hold_transcripts(&mut driver, &mut held);
+    assert_eq!(held.len(), 3, "waiting work prepares without draining the previously held transcript");
+    for event in held {
+        driver.send(event);
+    }
+    driver.settle();
+    assert_eq!(assigned(&driver), 3);
+}
+
+#[test]
 fn a_persons_read_is_answered_while_the_budget_binds() {
-    let (store, runs) = parked();
+    let (store, runs) = parked(false);
     let mut driver = Driver::with_budget(store, config(91), &bounds(), ALLOWANCE);
     driver.settle();
     driver.send(protocol::hello_slots(WORKER, 3, Box::new([])));
@@ -239,7 +293,7 @@ fn a_persons_read_is_answered_while_the_budget_binds() {
 
 #[test]
 fn with_no_worker_the_budget_stops_preparations_and_nothing_else() {
-    let (store, runs) = parked();
+    let (store, runs) = parked(false);
     let mut driver = Driver::with_budget(store, config(91), &bounds(), 2 * ALLOWANCE);
     driver.settle();
     wake(&mut driver, &runs);

@@ -81,7 +81,21 @@ pub(crate) use tools::relay_payload;
 pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     crate::domain::invalidate_input(domain, &event);
     assert!(domain.application.is_none(), "application value cleared in its admission step");
-    assert!(domain.limits == env.limits, "root uses configured limits");
+    let raising = match &event {
+        Event::LimitsRaised => true,
+        Event::Setup { .. }
+        | Event::Store(_)
+        | Event::Worker(_)
+        | Event::Party(_)
+        | Event::Account(_)
+        | Event::Credential { .. }
+        | Event::Forge(_)
+        | Event::Released(_)
+        | Event::Restart { .. }
+        | Event::Resume
+        | Event::Stop => false,
+    };
+    assert!(raising || domain.limits == env.limits, "root uses configured limits");
     if domain.journal.stopped() || domain.start_stop().is_some() {
         discard_after_stop(domain, event);
         return;
@@ -95,6 +109,28 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
     };
     match event {
         Event::Setup { .. } => return, // The root keeps nothing of a plan's terminal.
+        Event::LimitsRaised => {
+            let before = domain.limits;
+            assert!(env.limits.transcript_memory >= before.transcript_memory, "transcript budget only rises");
+            let mut next = before;
+            next.transcript_memory = env.limits.transcript_memory;
+            next.forge = env.limits.forge;
+            assert_eq!(next, env.limits, "other root limits wait for the next start");
+            domain.limits = next;
+            let mut raised = Queue::uncapped();
+            forge::step(&mut domain.forge, &environment_forge(env), forge::Event::LimitsRaised, &mut raised);
+            assert!(raised.is_empty(), "raising ceilings emits no forge effects");
+            for (member, old, new) in [
+                (b"forge.tasks".as_slice(), before.forge.tasks, env.limits.forge.tasks),
+                (b"forge.holds".as_slice(), before.forge.holds, env.limits.forge.holds),
+                (b"forge.entries".as_slice(), before.forge.entries, env.limits.forge.entries),
+                (b"forge.client.entries".as_slice(), before.forge.client.entries, env.limits.forge.client.entries),
+            ] {
+                if new > old {
+                    domain.end_forge_limit_holds(member, u64::from(new));
+                }
+            }
+        }
         Event::Resume => {
             crate::domain::resume_routed(domain, env, out);
             return;
@@ -773,6 +809,7 @@ pub(crate) fn discard_after_stop(domain: &mut Domain, event: Event) {
         | Event::Credential { .. }
         | Event::Setup { .. }
         | Event::Restart { .. }
+        | Event::LimitsRaised
         | Event::Resume
         | Event::Stop
         | Event::Store(

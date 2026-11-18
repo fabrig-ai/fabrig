@@ -1239,7 +1239,7 @@ pub(super) fn land_change(world: &mut World, producer: &engine::Assignment, bran
     land_titled_change(world, producer, branch, b"Small fix");
 }
 
-fn land_titled_change(world: &mut World, producer: &engine::Assignment, branch: &[u8], title: &[u8]) {
+pub(super) fn deliver_change(world: &mut World, producer: &engine::Assignment, branch: &[u8], title: &[u8]) {
     push_change(world, branch);
     let tasks::Contract::Change { connector, .. } = live(world, producer.task).contract else {
         panic!("change contract")
@@ -1253,6 +1253,10 @@ fn land_titled_change(world: &mut World, producer: &engine::Assignment, branch: 
         engine::Parts::none(),
     );
     world.send(event);
+}
+
+fn land_titled_change(world: &mut World, producer: &engine::Assignment, branch: &[u8], title: &[u8]) {
+    deliver_change(world, producer, branch, title);
     let tasks::Party::Task(change) = live(world, producer.task).requester else { panic!("change requester") };
     for _ in 0..1000 {
         if matches!(

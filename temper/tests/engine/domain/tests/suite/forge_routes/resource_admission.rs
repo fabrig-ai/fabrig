@@ -418,6 +418,9 @@ fn released_changes_name_the_branch_only_with_a_known_head() {
     }
 }
 
+#[path = "resource_admission/raises.rs"]
+mod raises;
+
 #[test]
 fn releasing_an_initial_admission_hold_rechecks_the_same_bound() {
     let mut configured = World::configured(true, true);

@@ -973,7 +973,8 @@ fn finish_close(
 pub(crate) fn invalidate_input(domain: &mut Domain, event: &Event) {
     match event {
         Event::Resume => {}
-        Event::Setup { .. }
+        Event::LimitsRaised
+        | Event::Setup { .. }
         | Event::Released(_)
         | Event::Forge(_)
         | Event::Stop

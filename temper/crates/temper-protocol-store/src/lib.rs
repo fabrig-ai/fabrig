@@ -65,6 +65,25 @@ pub struct Bounds {
     stock: Option<Box<lowering::Stock>>,
 }
 impl Bounds {
+    /// Raise the runtime codec bounds, retaining the opening stock and format.
+    pub fn raise(&mut self, forge: &temper_engine_domain_forge_vocabulary::Limits) {
+        let mut raised = self.forge;
+        assert!(
+            forge.tasks >= raised.tasks
+                && forge.holds >= raised.holds
+                && forge.entries >= raised.entries
+                && forge.client.entries >= raised.client.entries,
+            "runtime codec bounds only rise"
+        );
+        raised.tasks = forge.tasks;
+        raised.holds = forge.holds;
+        raised.entries = forge.entries;
+        raised.client.entries = forge.client.entries;
+        assert_eq!(raised, *forge, "other codec bounds wait for the next start");
+        let next = bounds(forge, self.change_words).expect("accepted limits fit compile-time codec ceilings");
+        self.limits = next.limits;
+        self.forge = *forge;
+    }
     /// Retain the opening stock to classify a refused runtime row, without
     /// changing either the configured decoder or the durable format.
     #[must_use]

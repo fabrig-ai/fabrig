@@ -964,6 +964,7 @@ fn party_input(event: &root::Event) -> bool {
         | root::Event::Setup { .. }
         | root::Event::Restart { .. }
         | root::Event::Stop
+        | root::Event::LimitsRaised
         | root::Event::Resume => false,
         root::Event::Party(_) => true,
     }
@@ -984,6 +985,7 @@ fn watcher(event: &root::Event) -> Option<skein_lib::Token> {
         | root::Event::Setup { .. }
         | root::Event::Restart { .. }
         | root::Event::Stop
+        | root::Event::LimitsRaised
         | root::Event::Resume => None,
     }
 }

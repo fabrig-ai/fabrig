@@ -2687,6 +2687,20 @@ pub(super) fn start_recovered_change(
         }
     } else {
         change_results(domain, context, recovered);
+        // Registration can persist before its branch hold meets a limit. A
+        // release retries that entrance before the first producer claims it.
+        let resource = forge::branch_name(provider, &branch);
+        let released = match domain.core.tasks.task(task) {
+            Some(owner) => owner.due_reason == tasks::Why::Released,
+            None => false,
+        };
+        let starting = match domain.forge.change(task) {
+            Some(row) => !row.terminal() && row.delegate.is_none() && row.change.last_head.is_none(),
+            None => false,
+        };
+        if !requester_branch && released && starting && domain.forge.hold(&resource).is_none() {
+            domain.work.push(Work::Forge(forge::Event::Hold { entry: 0, task, resource, from: None }));
+        }
     }
     step_dependents(domain, env, task);
     retry_change_names(domain, env, task);
