@@ -1,6 +1,6 @@
 # The setups' catalogue
 
-Provisional, 2026-11-12, revised 2026-11-16, from `../../draft/landed-qa.md`, sections 5,
+Provisional, 2026-11-12, revised 2026-11-18, from `../../draft/landed-qa.md`, sections 5,
 6 and 13, milestones Q3 to Q8 of `../../draft/landed-qa.execution.md`.
 The recipes kept in `temper/docs/development/qa/setups/`, what each
 reaches, on which forge, and where its scripts come from. Their format
@@ -60,15 +60,18 @@ and adds to them is `places.md`.
   takes the token's file and `--git-program`, both named by the box's
   values. The web journey's "Run on this machine" stays the journeys'
   (`../../client/web/journeys.md`, 8.2): QA's state is the one it
-  reaches, Hello with `work/hello` and ChatGPT, on the fake Forgejo in
-  place of the box's own.
+  reaches, Hello with `work/hello`, on the fake Forgejo in place of the
+  box's own, with a fake model key added through ctl. The plan's sign-in
+  opens a new tab the drive cannot follow (`../../draft/sign-in-new-tab.md`,
+  2), so `project-landing` uses `ctl account add-key 1 {model.key}` and
+  `ctl account list --until usable`, as `ctl-hello` does.
 - **No `scripts.json`** of their own, so the box's generated scripts
   answer, strict (`../../protocol/setup/box.md`, 5).
 
 | Recipe | After | Its lines | Reaches |
 |---|---|---|---|
-| `welcome` | none | its check alone | a fresh box's welcome, nothing connected |
-| `project-landing` | `welcome` | `ctl project make Hello`; `ctl forge connect forgejo-admin {forgejo.admin} --first work/hello --project Hello --api {forgejo.api} --git {forgejo.git} --git-program {git}`, waited until `work/hello` is adopted; the fake ChatGPT plan signed in through the web client, as a person signs a model in once a forge is connected; its check a `web see` of Hello's home naming `work/hello` | Hello, `work/hello` its home on the box's fake Forgejo, the fake ChatGPT plan signed in |
+| `welcome` | none | its check alone | a fresh box's root showing "No project yet" and "Set up temper", nothing connected |
+| `project-landing` | `welcome` | `ctl project make Hello`; `ctl forge connect forgejo-admin {forgejo.admin} --first work/hello --project Hello --api {forgejo.api} --git {forgejo.git} --git-program {git}`, waited until `work/hello` is adopted; `ctl account add-key 1 {model.key} --key qa-model`; `ctl account list --until usable`; its check a `web see` of Hello's home naming `work/hello` | Hello, `work/hello` its home on the box's fake Forgejo, the box's fake model key added through ctl |
 | `chat-draft` | `project-landing` | the web journey's, unchanged | Hello's first chat with its first Away mode draft written |
 | `ctl-hello` | none | `project-landing`'s three ctl lines; `ctl account add-key 1 {model.key} --key qa-model`; `ctl account list --until usable`; its check, after `check`, `ctl project show Hello` and `ctl account list --until usable` | Hello, `work/hello` its home on the box's fake Forgejo, the box's fake model the person's account, and any change's review answered approving |
 
@@ -76,7 +79,7 @@ and adds to them is `places.md`.
   holds no `web` and no `tui` line, so that triage with neither surface
   configured offers it (`triage.md`, 3) and its walk is a ctl session
   (`../../client/recipe.md`, 5.1; `../../client/drive.md`, 2.6). A root,
-  since `welcome`'s check and `project-landing`'s sign-in are web lines.
+  since `welcome`'s and `project-landing`'s checks are web lines.
   Its `recipe`, whole:
 
   ```text
@@ -155,8 +158,9 @@ and adds to them is `places.md`.
   its recipes' lines, in the walk's words, through ctl as the walk made
   them (`../../../development/acceptance.md`, 6 and 7). Its parent is
   the state the walk started from.
-- **On the box's fake Forgejo,** as every setup (section 2): the walk's
-  ChatGPT, with the fake Forgejo in place of the walk's owned one, its
+- **On the box's fake Forgejo,** as every setup (section 2): a fake model
+  key in place of the walk's ChatGPT plan, with the fake Forgejo in place
+  of the walk's owned one, its
   repository, pull requests and CI the fake's. A head's CI is what it
   holds (`../fakes.md`, 2): B0's green CI is a head that declares
   nothing, and B1's failed CI and its repair are the gate's declaration
@@ -426,15 +430,14 @@ The walks are the walk's after landing (`../../draft/landed-qa.execution.md`, 1)
 `../../draft/landed-qa.md`, 13 keeps a box's setup that needs nothing of
 a box as the box's until the one framework weighs each (`kinds.md`, 7).
 A box's setup needs a box where its state, or a step of its chain,
-reaches what only a box gives: the box's welcome, the fake ChatGPT plan
-signed in through it, the scripts the box generates for its fake model,
-or a B0 or B1 rung walked on a box (`../../../development/acceptance.md`,
+reaches what only a box gives: the box's first-run page, the scripts the
+box generates for its fake model, or a B0 or B1 rung walked on a box (`../../../development/acceptance.md`,
 6 and 7).
 
 | Setup | What of a box it needs | Weighed |
 |---|---|---|
-| `welcome` | the box's welcome, its check | the box's |
-| `project-landing` | the fake ChatGPT plan signed in at the box's welcome, after `welcome` | the box's |
+| `welcome` | the box's first-run root, its check | the box's |
+| `project-landing` | the first-run root checked by its `welcome` parent; its model is a fake key added through ctl | the box's |
 | `chat-draft` | the box's generated scripts, which answer its chat and write its draft, after `project-landing` | the box's |
 | `tui-chat` | the box's generated scripts, which answer its chat, after `project-landing` | the box's |
 | `widget` | `project-landing`'s chain | the box's |
