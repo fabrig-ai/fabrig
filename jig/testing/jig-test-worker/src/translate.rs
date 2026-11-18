@@ -58,6 +58,7 @@ pub const fn failure(value: &smith::RunFailure) -> host::RunFailure {
             smith::ModelFault::Completion { .. }
             | smith::ModelFault::Unauthorized { .. }
             | smith::ModelFault::Program { .. }
+            | smith::ModelFault::Untooled { .. }
             | smith::ModelFault::Provider
             | smith::ModelFault::Declined
             | smith::ModelFault::Truncated

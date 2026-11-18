@@ -231,6 +231,12 @@ fn model_fault(
                 Err(problem) => return Err(Error::ChannelBody(problem)),
             },
         ),
+        run::Fault::Untooled { name, detail } => channel::ModelFault::Untooled(
+            match channel::ProgramFault::new(limits, channel::ProgramFaultParts { name, exit: None, detail }) {
+                Ok(value) => value,
+                Err(problem) => return Err(Error::ChannelBody(problem)),
+            },
+        ),
         run::Fault::Provider => channel::ModelFault::Provider,
         run::Fault::Declined => channel::ModelFault::Declined,
         run::Fault::Truncated => channel::ModelFault::Truncated,
@@ -449,4 +455,35 @@ fn completion_failure(
         }
         run::CompletionFailure::Exhausted { retry_after } => (channel::CompletionFailure::Exhausted, retry_after),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_untooled_answer_names_the_program_without_an_exit() {
+        let detail = b"smith: the program started without smith's tools";
+        let answer = answer_record(
+            skein_lib::Time::ZERO,
+            run::Answer::Failed {
+                failure: run::RunFailure::Model(run::Fault::Untooled {
+                    name: b"claude_code".as_slice().into(),
+                    detail: detail.as_slice().into(),
+                }),
+                spent: run::Spend::ZERO,
+                turns: 0,
+            },
+            None,
+            &channel::CEILINGS,
+            &wire::CEILINGS,
+        )
+        .expect("answer within bounds");
+        let channel::RunResult::Failed(failed) = answer.result() else { panic!("failed answer") };
+        let channel::RunFailure::Model(model) = failed.reason() else { panic!("model fault") };
+        let channel::ModelFault::Untooled(program) = model.value() else { panic!("untooled fault") };
+        assert_eq!(program.name(), b"claude_code");
+        assert_eq!(program.exit(), &None);
+        assert_eq!(program.detail(), detail);
+    }
 }

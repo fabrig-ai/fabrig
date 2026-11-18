@@ -4,7 +4,7 @@ use crate::support::goldens::assert_measured;
 
 use skein_channel::Direction;
 use skein_lib::Reader;
-use smith_channel::{Answer, CEILINGS, Start, V10, schema};
+use smith_channel::{Answer, CEILINGS, Start, V11, schema};
 
 #[test]
 fn channel_goldens_decode_at_their_measured_length() {
@@ -33,7 +33,7 @@ fn every_required_kind_has_its_direction_and_bound_in_the_schema() {
     assert_eq!(table.versions.len(), 1);
     let version = table.version(smith_channel::wire::VERSION).expect("current version");
     assert_eq!(version.kinds.len(), 22);
-    for (index, rule) in V10.iter().enumerate() {
+    for (index, rule) in V11.iter().enumerate() {
         assert!(rule.required, "all initial kinds are required");
         let kind = version.kind(rule.kind).expect("required kind is listed");
         assert_eq!(kind.direction, rule.direction);
@@ -128,7 +128,7 @@ fn credential_value(scheme: smith_channel::Scheme) -> smith_channel::GrantValue 
     )
 }
 
-fn program_value(name: &[u8]) -> Result<smith_channel::GrantValue, smith_channel::v10::Problem> {
+fn program_value(name: &[u8]) -> Result<smith_channel::GrantValue, smith_channel::v11::Problem> {
     smith_channel::ProgramValue::new(&CEILINGS, smith_channel::ProgramValueParts { name: Box::from(name) })
         .map(smith_channel::GrantValue::Program)
 }
