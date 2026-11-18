@@ -62,12 +62,46 @@ pub enum Layouts {
   that value type's; no two written jobs of the binary's sets naming one
   value type's `Unplanned`, nor one fingerprint of it twice; a job's count names at most 16, each given once
   within the job, 1 to 32 bytes of ASCII letters, digits and `-`.
-- **jig's set declares no job.** Every store at the floor (temper's
-  `draft/store-floor.md`, section 3) needs none of its retired jobs.
-  Their done rows stay, inert, and their names stay reserved: `milestones`,
-  `live-task-parts`, `projection-parts`, `charter-versions`,
-  `retention-rows`, `retention-proposals`, `settle-layouts`,
-  `ended-talk` and `task-logs`.
+- **jig's set declares one job, `escalation-deciders`.** Every store at
+  the floor (temper's `draft/store-floor.md`, section 3) needs none of
+  its retired jobs. Their done rows stay, inert, and their names stay
+  reserved: `milestones`, `live-task-parts`, `projection-parts`,
+  `charter-versions`, `retention-rows`, `retention-proposals`,
+  `settle-layouts`, `ended-talk` and `task-logs`.
+- **`escalation-deciders`** types the decider of each escalation a live
+  task holds as left held (`../../domain/tasks/proposals.md`, *An
+  escalation's decider has its kind*), which stores before it kept as a
+  bare number:
+  - *The layout:* the tasks family's `RejectedEscalation` holds its
+    decider's number, `by`, and its kind after its reason,
+    `by_kind: DeciderKind = person`, with `enum DeciderKind { person,
+    task }` declared before it. A field added with a default is a
+    derived change (`layouts.md`, 6), so no version moves: a value at an
+    older layout reads as a person's until the job types it.
+  - *Its keys:* the live tasks' hot rows, `01 01 00` up to `01 01 01`
+    (`README.md`, 4.4), in task order; it converts nothing (`converts`
+    none) and counts `tasks`, the rejections it types a task's.
+  - *Its rule* (temper's `draft/store-starts.md`, section 2): a
+    rejection whose number names a live ancestor of its held task is
+    that task's; any other stays a person's. Its page's owner walks each
+    such row's requesters up from the held task, `Party::Task` by
+    `Party::Task`, reading each ancestor's hot row through the store
+    while the page is out (3), at the binary's layouts as a page's rows
+    are, and stops at the first ancestor whose number is the decider's,
+    at a requester that is no task, or at one with no live row. It puts
+    the row back with `by_kind` `task` where the rule says so, and
+    writes nothing for any other row. The walk is bounded by the tree's
+    depth (`../../domain/engine/README.md`, section 7), and it reads only
+    for the rows left held.
+  - *Once:* a store runs it once (2). Over its own writes it types
+    nothing more, since a task's rejection is not walked again and a
+    person's still names no live ancestor, so patching a store twice
+    changes nothing. An ended task's record keeps a rejection it held
+    at the default, a person's: no start links an ended task's
+    escalation and no read shows it, and the ancestor that decided it
+    may have ended since.
+  - Its code goes once dev.fabrig.ai has run it, as every job's does
+    (temper's `draft/store-floor.md`).
 - **temper's jobs** (temper's `protocol/store.md`, 4), in this order:
   `test-ids-landing`, `test-ids-receipt`, `test-ids-tier` and
   `test-ids-verification`, written jobs (4) each converting its value
@@ -120,7 +154,9 @@ pub enum Layouts {
   dispatch for its), and answers `Request::Job`. Frame reads have
   their own written sites and routing (`opening.md`, 3). While a page
   is out, the owner may read other ranges of the map through
-  `Store::patch_page`.
+  `Store::patch_page`, its ranges named as the running job's keys
+  are: relative to the application's tag for the application's job,
+  whole for jig's, whose job reads the tasks child's rows.
 - **The answer:** the writes, puts and erases of whole keys (the
   application's relative to its tag), each within skein-kv's bounds,
   together within the store's commit edge (`records.md`, 4) less the
@@ -169,13 +205,16 @@ pub enum JobWrite { Put { key: Box<[u8]>, value: Box<[u8]> }, Erase { key: Box<[
 pub struct JobRefusal { pub key: Option<Box<[u8]>>, pub why: Box<str> }
 // each owner's dispatch, jig's in jig_protocol_store::jobs, the application's in its store crate:
 pub fn page(job: &str, page: &JobPage) -> Result<JobAnswer, JobRefusal>;
+// jig's, given the store whose page is out, to read through `Store::patch_page`:
+pub fn page(job: &str, page: &JobPage, store: &mut Store) -> Result<JobAnswer, JobRefusal>;
 ```
 
 `OpenRefusal::Job { owner: Owner, job: Box<str>, key: Option<Box<[u8]>>, why: Box<str> }`.
-jig's dispatch names no job, and temper's names
-`deleted-repository-forge-rows`: a landing that brings a job adds its
-arm, and a name a dispatch does not know is its refusal, `why` saying
-so.
+jig's dispatch names `escalation-deciders`, reading the live tasks'
+hot rows it needs through the store while its page is out (1), and
+temper's names `deleted-repository-forge-rows`: a landing that brings a
+job adds its arm, and a name a dispatch does not know is its refusal,
+`why` saying so.
 
 ## 4. Written jobs
 

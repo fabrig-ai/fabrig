@@ -104,7 +104,10 @@
     `HelloRefusal` vocabulary; the canonical deployment translation keeps
     the shortfall context limits. These are derived document facts, never
     a new hold or stored state. A task line carries no run wait. Its hold
-    and its escalation if held; its dependencies, each a task's number
+    and its escalation if held, one left held naming who left it so by
+    number alone, a task's or a person's (whether it shows the kind is
+    `../../../domain/tasks/proposals.md`'s open question); its
+    dependencies, each a task's number
     and phase, pending or done, with when and by whom each was added
     after the task was made, and whether they keep it
     (`../../../domain/tasks/lifecycle.md`, 8); for a gathering, who

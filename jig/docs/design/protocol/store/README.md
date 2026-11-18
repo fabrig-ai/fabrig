@@ -805,7 +805,22 @@ The domain owes 10.1 to 10.9; skein owes 10.10, and the application
 
 In each child's keys: the tasks child's history and ended tasks after
 its live families (stubs among these), decided proposals apart from
-pending ones, and past funding periods apart from live ones (4.3);
+pending ones, and past funding periods apart from live ones (4.3). A
+pool's, a recurring task's or a period's ledger closes into the past
+periods once nothing is reserved on it and its project has a newer
+period, so a live task whose budget is 0, which reserves nothing, may
+still name a closed one as its funder. The start reads no past period
+for it: it links such a task by its budget of 0 and its funder's period
+being older than its project's newest live one, and refuses a task
+whose ledger is not live on any other ground, as before. The task's end
+posts nothing to the closed ledger, and what it spent, if anything,
+goes to its project's current period (`../../domain/authority.md`,
+section 7). No ledger is kept open for such a task, and no task is
+moved off its funder. An escalation's decider is stored with its kind,
+a task's or a person's, and linked by it (`../../domain/tasks/proposals.md`,
+*An escalation's decider has its kind*; `jobs.md`, 1, for the stores
+that kept it as a bare number): each party a live task names is linked by its kind, and a
+start refuses what it cannot link;
 
 ### 10.2 The restart reads live work only
 
