@@ -47,12 +47,15 @@ impl Component {
     pub(super) fn batch_denied(&mut self, exchange: Token) {
         self.pending
             .exchanges
-            .insert(exchange, Waiting::Checked {
-                sign_in: 0,
-                expires: skein_lib::Wall::EPOCH,
-                body: Box::new([]),
-                route: routes::Route::Batch,
-            })
+            .insert(
+                exchange,
+                Waiting::Checked {
+                    sign_in: 0,
+                    expires: skein_lib::Wall::EPOCH,
+                    body: Box::new([]),
+                    route: routes::Route::Batch,
+                },
+            )
             .expect("same credential slot");
     }
     pub(super) fn batch_start(&mut self, env: &Env<Limits>, exchange: Token, sign_in: u64, out: &mut Queue<Request>) {

@@ -12,10 +12,10 @@ use jig_domain_people as people;
 use skein_lib::{CryptoRng, Env, Map, Queue, ReplyTo, Time, Token};
 #[path = "approval.rs"]
 mod approval;
-#[path = "batch.rs"]
-mod batch;
 #[path = "asked_link.rs"]
 mod asked_link;
+#[path = "batch.rs"]
+mod batch;
 #[path = "closing.rs"]
 mod closing;
 #[path = "mint.rs"]
