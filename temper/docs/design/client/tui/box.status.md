@@ -1,6 +1,6 @@
 # box: status
 
-2026-11-15. Where the tree's code lags or departs from [box.md](box.md).
+2026-11-18. Where the tree's code lags or departs from [box.md](box.md).
 
 
 - **Not yet:** *The box's stages*, *On the welcome* and *The box's
@@ -17,3 +17,7 @@
   write is the clear, the line and one line feed, with no blank row
   above the line nor between it and Claude Code's [in flight: change
   3603].
+- **Not yet:** *`/web`, temper in the browser*: no `/web`; the printed
+  link is drawn on the welcome alone and never given to the opener,
+  and the TUI keeps no reading of the forges document's `linked` for it
+  [in flight: change 8716].

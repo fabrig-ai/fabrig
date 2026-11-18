@@ -1,6 +1,6 @@
 # pages: status
 
-2026-11-15. Where the tree's code lags or departs from [README.md](README.md).
+2026-11-18. Where the tree's code lags or departs from [README.md](README.md).
 
 - **Not yet:** 1, *The notice*: no group started's notice [in flight:
   change 3434].
@@ -19,6 +19,9 @@
   a space in the box, the caret after it, where it goes to its place
   not yet started; no such place is drawn or kept [in flight: change
   4200].
+- **Not yet:** 1, *Not a notice*, and 2, *The TUI's own commands* and
+  *`/web`*: no `/web` in front, in the commands' list or `/help`'s
+  note, and no `/web` note [in flight: change 8716].
 
 The document's shared words and lists, Home's template-5 composer,
 launchpad and chat, question choices and command handling have no known
