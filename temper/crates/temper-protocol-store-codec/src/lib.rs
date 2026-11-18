@@ -5,5 +5,5 @@ extern crate alloc;
 
 #[rustfmt::skip]
 #[expect(clippy::similar_names, reason = "generated head/held and ending/pending name distinct durable facts")]
-#[path = "generated/v25.rs"]
+#[path = "generated/store.rs"]
 pub mod v25;

@@ -10,7 +10,7 @@ fn records_match_their_generated_code() {
     let output = skein_codegen::generate(&schema);
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").as_deref() == Some(std::ffi::OsStr::new("1"));
     let codec = root.join("../view-codec");
-    check(&codec.join("src/generated/v1.rs"), output.records.as_bytes(), write);
+    check(&codec.join("src/generated/notes.rs"), output.records.as_bytes(), write);
 }
 
 fn check(path: &std::path::Path, bytes: &[u8], write: bool) {
