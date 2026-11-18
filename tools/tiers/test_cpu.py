@@ -498,6 +498,7 @@ class OneProcessTests(unittest.TestCase):
             self.assertEqual(result['layers'], [])
             self.assertEqual(result['trees'], [])
             self.assertEqual(result['references'], [])
+            self.assertEqual(result['swings'], [])
             self.assertEqual(result['suite']['cpu_s'], 1.5)
 
     def reference_case(self, why='new', cpu=0.05):
@@ -659,6 +660,103 @@ class OneProcessTests(unittest.TestCase):
         self.assertEqual(cli.returncode, 2, cli.stdout + cli.stderr)
         with self.assertRaisesRegex(ValueError, 'base.*one-process'):
             CPU['summary'](self.directory, pair='tools', expected=['tool'], base=base)
+
+    def test_swings_three_figures_in_whole_milliseconds(self):
+        self.ledger_case()
+        for alone, swings in (([0.100, 0.160, 0.120], True),
+                              ([0.100, 0.150, 0.120], False),
+                              ([0.036, 0.054, 0.045], False),
+                              ([0.100, 0.200], False),
+                              ([0.000, 0.002, 0.001], True)):
+            with self.subTest(alone=alone):
+                self.main['binaries']['temper-engine::domain'] = self.ledger_entry(
+                    [1], tests={'forge::opens': [0.01]}, alone={'forge::opens': alone})
+                result = self.summary(ledger=self.main)
+                self.assertEqual(result['swings'], [dict(binary_id='temper-engine::domain',
+                    test_name='forge::opens', tree='temper', layer='domain', alone=alone)] if swings else [])
+                figures = ', '.join(f'{figure:.3f}' for figure in alone)
+                self.assertEqual(result['warnings'], [
+                    f'test swings alone at main: temper-engine::domain forge::opens: {figures} CPU s alone'
+                ] if swings else [])
+
+    def test_swings_use_given_ledger_in_binary_and_test_order(self):
+        self.ledger_case()
+        # Neither binary ran: one is unlisted, the other absent from workspace.
+        self.main['binaries']['temper-b::domain'].update(
+            tests={'z': [0.01], 'a': [0.01]},
+            alone={'z': [0.120, 0.100, 0.160], 'a': [0.100, 0.160, 0.120]})
+        self.main['binaries']['skein-c::io'].update(
+            tests={'gone': [0.01]}, alone={'gone': [0.000, 0.002, 0.001]})
+        # A swing only in the run's folded ledger is not a swing at main.
+        folded = copy.deepcopy(self.main)
+        folded['binaries']['temper-a::domain']['alone'] = {'z': [0.100, 0.200, 0.100]}
+        self.write()
+        CPU['save'](self.directory / 'ledger.json', folded)
+        result = self.summary(ledger=self.main)
+        self.assertEqual(result['swings'], [
+            dict(binary_id='skein-c::io', test_name='gone', tree='skein', layer='io', alone=[0.000, 0.002, 0.001]),
+            dict(binary_id='temper-b::domain', test_name='a', tree='temper', layer='domain', alone=[0.100, 0.160, 0.120]),
+            dict(binary_id='temper-b::domain', test_name='z', tree='temper', layer='domain', alone=[0.120, 0.100, 0.160])])
+        self.assertEqual(result['warnings'], [
+            'test swings alone at main: skein-c::io gone: 0.000, 0.002, 0.001 CPU s alone',
+            'test swings alone at main: temper-b::domain a: 0.100, 0.160, 0.120 CPU s alone',
+            'test swings alone at main: temper-b::domain z: 0.120, 0.100, 0.160 CPU s alone'])
+        result = self.summary()
+        self.assertEqual((result['swings'], result['warnings']), ([], []))
+
+    def test_swings_warn_last_without_changing_judgement(self):
+        self.reference_case()
+        self.results['references'].append(self.reference('a', cpu_s=None, outcome='crashed'))
+        path = self.root / 'main.json'
+        budgets = self.root / 'budgets.toml'
+        budgets.write_text(CPU['toml_config'](self.limits))
+        message = 'test swings alone at main: pkg::suite z: 0.100, 0.160, 0.120 CPU s alone'
+        for gate in (False, True):
+            for cpu in (0.03, 0.05):
+                with self.subTest(gate=gate, cpu=cpu):
+                    self.results['references'][0]['cpu_s'] = cpu
+                    self.main['binaries']['pkg::suite']['alone']['z'] = [0.120] * 3
+                    baseline = self.summary(self.limits, gate=gate, ledger=self.main)
+                    CPU['save'](path, self.main)
+                    arguments = ['--budgets', str(budgets), '--ledger', str(path)] + (['--gate'] if gate else [])
+                    baseline_cli = self.cli(*arguments)
+                    self.assertEqual(baseline_cli.returncode, int(gate and cpu > 0.04), baseline_cli.stderr)
+                    self.main['binaries']['pkg::suite']['alone']['z'] = [0.100, 0.160, 0.120]
+                    result = self.summary(self.limits, gate=gate, ledger=self.main)
+                    self.assertEqual(result['warnings'], baseline['warnings'] + [message])
+                    self.assertIn('test not measured alone: pkg::suite a: crashed', baseline['warnings'])
+                    self.assertEqual({key: value for key, value in result.items() if key not in ('warnings', 'swings')},
+                                     {key: value for key, value in baseline.items() if key not in ('warnings', 'swings')})
+                    CPU['save'](path, self.main)
+                    cli = self.cli(*arguments)
+                    self.assertEqual(cli.returncode, baseline_cli.returncode, cli.stdout + cli.stderr)
+                    self.assertIn('warning: ' + message, cli.stdout)
+
+    def test_swings_print_and_cli_json(self):
+        self.ledger_case()
+        self.main['binaries']['temper-engine::domain'] = self.ledger_entry(
+            [1], tests={'forge::opens': [0.01]}, alone={'forge::opens': [0.100, 0.160, 0.120]})
+        result = self.summary(ledger=self.main)
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            CPU['print_summary'](result)
+        self.assertEqual([line for line in output.getvalue().splitlines() if line.startswith('warning:')], [
+            'warning: test swings alone at main: temper-engine::domain forge::opens: 0.100, 0.160, 0.120 CPU s alone'])
+        path = self.root / 'main.json'
+        for version in (3, 2, 1):
+            with self.subTest(version=version):
+                main = copy.deepcopy(self.main)
+                main['ledger'] = version
+                if version != 3:
+                    for entry in main['binaries'].values():
+                        entry['cpu_s'] = entry.pop('cpu')[0]
+                        if version == 1:
+                            del entry['alone']
+                CPU['save'](path, main)
+                cli = self.cli('--ledger', str(path), '--json')
+                self.assertEqual(cli.returncode, 0, cli.stdout + cli.stderr)
+                expected = result if version != 1 else dict(result, swings=[], warnings=[])
+                self.assertEqual(json.loads(cli.stdout), expected)
 
     def test_ledger_fold_alone_history(self):
         self.reference_case()
