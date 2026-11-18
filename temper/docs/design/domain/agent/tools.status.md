@@ -5,9 +5,7 @@
 
 - **Not yet:** the `finding` tool: its declaration to the charters naming the delegate family, its decoding, its acts dispatched to the forge, and its answers [in flight: change 750].
 
-- **Not yet:** *The forge's reads are three tools*, *A branch left out is the default branch* and *A file at a branch's head*: the root reading an empty branch as the default branch, and `Tool::ReadBranchFile`'s branch read then file read (`temper-engine-domain`, `route/tools.rs`, `route/host_route.rs`) [in flight: change 8718].
 
-- **Not yet:** *The forge's reads are three tools*: the declared `what` descriptions, `read_forge`'s table and decoding of a branch left out and of `file` at a branch, and the refusals' sentences (`temper-engine-smith`, `calls.rs`, `forge_reads.rs`) [in flight: change 8720].
 
 - **Not yet:** the whole document: `read_reviews`, `read_remarks` and
   `read_pull_files` take no `skip`, and a page the answer's bytes cut

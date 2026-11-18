@@ -7,7 +7,6 @@
   repository another project writes, kept for its project and read by its
   lookups, runs and follows [in flight: change 97].
 
-- **Not yet:** 8, *The forge's default branch is read where the forge's own is meant*: `read_forge`'s `branch`, `protection` and `file` with no branch [in flight: change 8718].
 
 
 - **Not yet:** 1, "What waits on it": a change's step on a forge not connected reads all the same, and a read of its step answered `NotConnected` holds the change `ResourceRefused` (`temper-engine-domain-forge/src/domain/admission.rs`, `read_failed`), never stepped again on `Connected`.
