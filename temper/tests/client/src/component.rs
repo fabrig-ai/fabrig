@@ -407,7 +407,7 @@ impl Composition {
                     link::Message::Request(bytes) => clients::Message::Request(bytes),
                     link::Message::Read(bytes) => clients::Message::Read(bytes),
                     link::Message::Watch(bytes) => clients::Message::Watch(bytes),
-                    link::Message::Batch(_) => unreachable!("the link sends no batch"),
+                    link::Message::Batch(bytes) => clients::Message::Batch(bytes),
                     link::Message::Unwatch(bytes) => clients::Message::Unwatch(bytes),
                     link::Message::StreamGone(bytes) => clients::Message::Gone(bytes),
                     link::Message::SignInLink(bytes) => clients::Message::SignInLink(bytes),
@@ -421,10 +421,10 @@ impl Composition {
                     message,
                 }));
             }
-            jig_client::Request::OpenStream { credential, replaces: _ } => {
+            jig_client::Request::OpenStream { credential, replaces } => {
                 let stream = self.token();
                 self.streams.insert(client, stream);
-                self.event(Event::Transport(clients::FromTransport::StreamOpen { stream, credential, replaces: None }));
+                self.event(Event::Transport(clients::FromTransport::StreamOpen { stream, credential, replaces }));
             }
             jig_client::Request::CloseStream => {
                 if let Some(stream) = self.streams.remove(&client) {
@@ -777,8 +777,15 @@ impl Composition {
             Request::Transport(message) => match message {
                 clients::ToTransport::Public { .. } => unreachable!("signed-in client sends no public reads"),
                 clients::ToTransport::Reply { exchange, reply } => self.transport_reply(exchange, reply),
-                clients::ToTransport::Part { .. } | clients::ToTransport::Done { .. } => {
-                    unreachable!("this in-process link does not send batches")
+                clients::ToTransport::Part { exchange, message } => {
+                    if let Some((client, local)) = self.exchanges.get(&exchange).copied() {
+                        self.link(client, link::Event::Part { exchange: local, message });
+                    }
+                }
+                clients::ToTransport::Done { exchange } => {
+                    if let Some((client, local)) = self.exchanges.remove(&exchange) {
+                        self.link(client, link::Event::Done { exchange: local });
+                    }
                 }
                 clients::ToTransport::Streamed { stream, message } => {
                     let client = self

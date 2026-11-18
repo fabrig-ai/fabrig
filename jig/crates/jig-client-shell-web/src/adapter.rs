@@ -62,7 +62,13 @@ impl Exchanges {
         let terminal = match report {
             Heard::Answered { status, body, .. } => {
                 if let Some(frames) = &mut answer.frames {
-                    frames.failed(out);
+                    frames.opened(status, out);
+                    if frames.active() {
+                        frames.body(&body, out);
+                    }
+                    if frames.active() {
+                        frames.ended(out);
+                    }
                 } else {
                     out.push(answered(answer.exchange, status, body));
                 }

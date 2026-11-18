@@ -18,6 +18,25 @@ fn send(message: &Message) -> Line {
 }
 
 #[test]
+fn batch_records_parts_and_replacement_names_round_trip_with_their_bytes() {
+    let rows: Vec<(Line, &[u8])> = vec![
+        (send(&Message::Batch(bytes(b"batch"))), b"send 18446744073709551615 batch \"batch\" none\n"),
+        (Line::Part { exchange: 1, bytes: bytes(b"part") }, b"part 1 \"part\"\n"),
+        (Line::Done(1), b"done 1\n"),
+        (
+            Line::Replacing { credential: None, stream: bytes(b"0123456789abcdef") },
+            b"replacing none \"0123456789abcdef\"\n",
+        ),
+    ];
+    for (record, text) in rows {
+        let mut encoded = Vec::new();
+        record.write(&mut encoded);
+        assert_eq!(encoded, text);
+        assert!(lines(text).unwrap() == vec![record]);
+    }
+}
+
+#[test]
 fn login_records_keep_the_number_exit_and_name_but_no_line() {
     use jig_client::contract::LoginExit;
     let rows: Vec<(Line, &[u8])> = vec![
@@ -200,7 +219,7 @@ fn records_have_their_exact_text_and_round_trip() {
 #[test]
 fn unreadable_rows_name_their_line() {
     let rows: &[(&str, &[u8], &str)] = &[
-        ("another version", b"journey 3\n", "unsupported journey version"),
+        ("another version", b"journey 4\n", "unsupported journey version"),
         ("version overflow", b"journey 4294967296\n", "number overflow"),
         ("unknown kind", b"unknown\n", "unknown record kind"),
         ("unknown scheme", b"screen 24 80 other\n", "unknown scheme"),
@@ -280,5 +299,5 @@ fn unreadable_rows_name_their_line() {
         assert_eq!(error, Unreadable { line: 3, why }, "{name}");
     }
     assert!(lines(b"") == Err(Unreadable { line: 1, why: "empty recording" }));
-    assert!(lines(b"journey 3\n") == Err(Unreadable { line: 1, why: "unsupported journey version" }));
+    assert!(lines(b"journey 4\n") == Err(Unreadable { line: 1, why: "unsupported journey version" }));
 }

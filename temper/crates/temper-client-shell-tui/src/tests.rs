@@ -1069,22 +1069,7 @@ pub(crate) fn hello_bytes() -> Box<[u8]> {
 }
 pub(crate) fn me_bytes(duties: &Duties) -> Box<[u8]> {
     let limits = &w::CEILINGS;
-    let watch = duties
-        .asked
-        .iter()
-        .find_map(|request| {
-            if let Request::Exchange { message: Message::Watch(bytes), .. } = request {
-                let open = w::Open::decode(limits, &mut Reader::new(bytes)).expect("watch request");
-                if open.subject().owner() == &w::Owner::Jig
-                    && w::Subject::decode(limits, &mut Reader::new(open.subject().record())).expect("Jig subject")
-                        == w::Subject::Me
-                {
-                    return Some(open.watch());
-                }
-            }
-            None
-        })
-        .expect("Me watch");
+    let watch = watch(duties, &w::Subject::Me);
     let text = |bytes: &[u8]| {
         w::DocumentText::new(limits, w::DocumentTextParts { bytes: bytes.into(), cut: false }).expect("text")
     };
@@ -1253,18 +1238,55 @@ fn project_bytes(project: &w::MeProject) -> Box<[u8]> {
 pub(crate) fn watch(duties: &Duties, subject: &w::Subject) -> u64 {
     maybe_watch(duties, subject).unwrap_or_else(|| panic!("requested watch {subject:?}: {:?}", duties.asked))
 }
+fn openings(message: &Message) -> Vec<w::Open> {
+    match message {
+        Message::Watch(bytes) => vec![w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("watch")],
+        Message::Batch(bytes) => w::Batch::decode(&w::CEILINGS, &mut Reader::new(bytes))
+            .expect("batch")
+            .into_parts()
+            .members
+            .into_boxed()
+            .into_vec()
+            .into_iter()
+            .filter_map(|member| match member {
+                w::Member::Open(open) => Some(open),
+                w::Member::Read(_) | w::Member::Close(_) => None,
+            })
+            .collect(),
+        Message::Authorize(_)
+        | Message::ApprovalAsk(_)
+        | Message::ApprovalRead(_)
+        | Message::ApprovalDecide(_)
+        | Message::SignInApproval(_)
+        | Message::Request(_)
+        | Message::Read(_)
+        | Message::Unwatch(_)
+        | Message::StreamGone(_)
+        | Message::SignInLink(_)
+        | Message::SignInService
+        | Message::SignOut => vec![],
+    }
+}
+fn all_openings(duties: &Duties) -> Vec<w::Open> {
+    duties
+        .asked
+        .iter()
+        .flat_map(|request| if let Request::Exchange { message, .. } = request { openings(message) } else { vec![] })
+        .collect()
+}
 fn maybe_watch(duties: &Duties, subject: &w::Subject) -> Option<u64> {
     duties.asked.iter().rev().find_map(|request| {
-        if let Request::Exchange { message: Message::Watch(bytes), .. } = request {
-            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("watch");
+        let Request::Exchange { message, .. } = request else { return None };
+        openings(message).into_iter().rev().find_map(|open| {
             if open.subject().owner() == &w::Owner::Jig
                 && w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).expect("subject")
                     == *subject
             {
-                return Some(open.watch());
+                Some(open.watch())
+            } else {
+                None
             }
-        }
-        None
+        })
     })
 }
 
@@ -1408,12 +1430,9 @@ fn goal_host() -> Host {
     let mut duties = admit(&mut host, duties);
     let tasks = goal_tasks();
     for _ in 0..host.env.limits.client.domain.watches {
-        let subjects: Vec<_> = duties
-            .asked
-            .iter()
-            .filter_map(|request| {
-                let Request::Exchange { message: Message::Watch(bytes), .. } = request else { return None };
-                let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("watch");
+        let subjects: Vec<_> = all_openings(&duties)
+            .into_iter()
+            .filter_map(|open| {
                 if open.subject().owner() != &w::Owner::Jig {
                     return None;
                 }
@@ -2368,10 +2387,13 @@ fn the_host_goes_to_the_launchpad_and_follows_the_root() {
                     let duties = reply(&mut host, *exchange, created_bytes(9));
                     host.root.pages().address() == &Address::Chat { task: 9 }
                         && host.state().focus() > before
-                        && duties
-                            .asked
-                            .iter()
-                            .any(|request| matches!(request, Request::Exchange { message: Message::Watch(_), .. }))
+                        && duties.asked.iter().any(|request| {
+                            if let Request::Exchange { message, .. } = request {
+                                !openings(message).is_empty()
+                            } else {
+                                false
+                            }
+                        })
                 } else {
                     false
                 }
@@ -2996,38 +3018,101 @@ fn each_event_becomes_its_acts() {
     assert!(failures.is_empty(), "event rows: {failures:?}");
 }
 
-fn read_exchange(duties: &Duties, wanted: &str) -> skein_lib::Token {
-    duties
-        .asked
-        .iter()
-        .find_map(|request| {
-            if let Request::Exchange { exchange, message: Message::Read(bytes), .. } = request {
-                let owned = w::Owned::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("read envelope");
-                if owned.owner() == &w::Owner::Jig {
-                    let read = w::Read::decode(&w::CEILINGS, &mut Reader::new(owned.record())).expect("read");
-                    if wanted == "updates"
-                        && matches!(&read, w::Read::Inbox(read) if read.group() == &w::InboxReadGroup::Updates)
-                    {
-                        return Some(*exchange);
-                    }
-                    if matches!(
-                        (&read, wanted),
-                        (w::Read::Inbox(_), "inbox")
-                            | (w::Read::Question(_), "question")
-                            | (w::Read::Activity(_), "activity")
-                            | (w::Read::Notes(_), "notes")
-                            | (w::Read::Proposal(_), "proposal")
-                    ) {
-                        return Some(*exchange);
+#[derive(Clone, Copy)]
+struct ReplySlot {
+    exchange: skein_lib::Token,
+    member: Option<u16>,
+}
+impl ReplySlot {
+    fn report(self, message: Box<[u8]>) -> Report {
+        let event = if let Some(member) = self.member {
+            let part =
+                w::BatchReply::new(&w::CEILINGS, w::BatchReplyParts { member, reply: Some(message) }).expect("part");
+            let mut writer = Writer::new(usize::try_from(part.measure()).expect("part size"));
+            part.encode(&mut writer).expect("part bytes");
+            jig_client::Event::Part { exchange: self.exchange, message: writer.finish() }
+        } else {
+            jig_client::Event::Reply { exchange: self.exchange, message }
+        };
+        Report::Heard(event)
+    }
+}
+fn batch_members(bytes: &[u8]) -> Vec<(u16, Message)> {
+    let batch = w::Batch::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("batch");
+    batch
+        .into_parts()
+        .members
+        .into_boxed()
+        .into_vec()
+        .into_iter()
+        .enumerate()
+        .map(|(place, record)| {
+            let mut writer = Writer::new(usize::try_from(record.measure() - 1).expect("member size"));
+            let message = match record {
+                w::Member::Read(record) => {
+                    record.encode(&mut writer).expect("read");
+                    Message::Read(writer.finish())
+                }
+                w::Member::Open(record) => {
+                    record.encode(&mut writer).expect("open");
+                    Message::Watch(writer.finish())
+                }
+                w::Member::Close(record) => {
+                    record.encode(&mut writer).expect("close");
+                    Message::Unwatch(writer.finish())
+                }
+            };
+            (u16::try_from(place).expect("member"), message)
+        })
+        .collect()
+}
+fn reply_slot(host: &mut Host, slot: ReplySlot, bytes: Box<[u8]>) -> Duties {
+    host.report(slot.report(bytes))
+}
+
+fn wanted_read(message: &Message, wanted: &str) -> bool {
+    if let Message::Read(bytes) = message {
+        let owned = w::Owned::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("read envelope");
+        if owned.owner() == &w::Owner::Jig {
+            let read = w::Read::decode(&w::CEILINGS, &mut Reader::new(owned.record())).expect("read");
+            if wanted == "updates"
+                && matches!(&read, w::Read::Inbox(read) if read.group() == &w::InboxReadGroup::Updates)
+            {
+                return true;
+            }
+            if matches!(
+                (&read, wanted),
+                (w::Read::Inbox(_), "inbox")
+                    | (w::Read::Question(_), "question")
+                    | (w::Read::Activity(_), "activity")
+                    | (w::Read::Notes(_), "notes")
+                    | (w::Read::Proposal(_), "proposal")
+            ) {
+                return true;
+            }
+        }
+    }
+    false
+}
+fn read_exchange(duties: &Duties, wanted: &str) -> ReplySlot {
+    for request in &duties.asked {
+        if let Request::Exchange { exchange, message, .. } = request {
+            if wanted_read(message, wanted) {
+                return ReplySlot { exchange: *exchange, member: None };
+            }
+            if let Message::Batch(bytes) = message {
+                for (member, message) in batch_members(bytes) {
+                    if wanted_read(&message, wanted) {
+                        return ReplySlot { exchange: *exchange, member: Some(member) };
                     }
                 }
             }
-            None
-        })
-        .unwrap_or_else(|| panic!("fixture read {wanted}: {:?}", duties.asked))
+        }
+    }
+    panic!("fixture read {wanted}: {:?}", duties.asked)
 }
 
-fn read_reply(host: &mut Host, exchange: skein_lib::Token, value: &w::ReadValue) -> Duties {
+fn read_reply(host: &mut Host, exchange: ReplySlot, value: &w::ReadValue) -> Duties {
     let mut writer = Writer::new(usize::try_from(value.measure()).expect("read size"));
     value.encode(&mut writer).expect("read fits");
     let answer = w::ReadAnswer::Value(
@@ -3039,7 +3124,7 @@ fn read_reply(host: &mut Host, exchange: skein_lib::Token, value: &w::ReadValue)
     );
     let mut writer = Writer::new(usize::try_from(answer.measure()).expect("answer size"));
     answer.encode(&mut writer).expect("answer fits");
-    reply(host, exchange, writer.finish())
+    reply_slot(host, exchange, writer.finish())
 }
 
 fn reply_events() {
@@ -3251,14 +3336,32 @@ fn waiting_at(chat: bool) -> Host {
 fn admit_watches(host: &mut Host, mut duties: Duties) -> Duties {
     let mut pending = std::collections::VecDeque::from(core::mem::take(&mut duties.asked));
     while let Some(request) = pending.pop_front() {
-        if matches!(
+        if let Request::Exchange { exchange, message: Message::Batch(bytes), .. } = &request {
+            let mut finished = true;
+            for (member, message) in batch_members(bytes) {
+                if matches!(message, Message::Read(_)) {
+                    finished = false;
+                    continue;
+                }
+                let single = Request::Exchange { exchange: *exchange, credential: None, message };
+                let Some(Report::Heard(jig_client::Event::Reply { message, .. })) = background_single(&single) else {
+                    panic!("watch reply")
+                };
+                pending
+                    .extend(host.report(ReplySlot { exchange: *exchange, member: Some(member) }.report(message)).asked);
+            }
+            if finished {
+                pending.extend(host.report(Report::Heard(jig_client::Event::Done { exchange: *exchange })).asked);
+            }
+        } else if matches!(
             &request,
             Request::Exchange { message: Message::Watch(_) | Message::Unwatch(_), .. }
                 | Request::Save { .. }
                 | Request::Erase { .. }
-        ) && let Some(report) = background_reply(&request)
-        {
-            pending.extend(host.report(report).asked);
+        ) {
+            for report in background_reply(&request) {
+                pending.extend(host.report(report).asked);
+            }
         }
         duties.asked.push(request);
     }
@@ -3268,7 +3371,7 @@ fn admit_watches(host: &mut Host, mut duties: Duties) -> Duties {
 fn admit(host: &mut Host, mut duties: Duties) -> Duties {
     let mut pending = std::collections::VecDeque::from(core::mem::take(&mut duties.asked));
     while let Some(request) = pending.pop_front() {
-        if let Some(report) = background_reply(&request) {
+        for report in background_reply(&request) {
             pending.extend(host.report(report).asked);
         }
         duties.asked.push(request);
@@ -3276,7 +3379,22 @@ fn admit(host: &mut Host, mut duties: Duties) -> Duties {
     duties
 }
 
-pub(crate) fn background_reply(request: &Request) -> Option<Report> {
+pub(crate) fn background_reply(request: &Request) -> Vec<Report> {
+    if let Request::Exchange { exchange, message: Message::Batch(bytes), .. } = request {
+        let mut reports = Vec::new();
+        for (member, message) in batch_members(bytes) {
+            let reply = background_single(&Request::Exchange { exchange: *exchange, credential: None, message })
+                .expect("batch member reply");
+            let Report::Heard(jig_client::Event::Reply { message, .. }) = reply else { panic!("member reply") };
+            reports.push(ReplySlot { exchange: *exchange, member: Some(member) }.report(message));
+        }
+        reports.push(Report::Heard(jig_client::Event::Done { exchange: *exchange }));
+        reports
+    } else {
+        background_single(request).into_iter().collect()
+    }
+}
+fn background_single(request: &Request) -> Option<Report> {
     let Request::Exchange { exchange, message, .. } = request else {
         return matches!(request, Request::Save { .. } | Request::Erase { .. })
             .then_some(Report::Heard(jig_client::Event::Stored));
@@ -3706,12 +3824,9 @@ fn deliver_brief(host: &mut Host, duties: &mut Duties) {
     else {
         panic!("family watch")
     };
-    let watched = duties
-        .asked
-        .iter()
-        .find_map(|request| {
-            let Request::Exchange { message: Message::Watch(bytes), .. } = request else { return None };
-            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("watch");
+    let watched = all_openings(duties)
+        .into_iter()
+        .find_map(|open| {
             if open.subject().owner() == &w::Owner::Jig {
                 return None;
             }
@@ -3720,12 +3835,9 @@ fn deliver_brief(host: &mut Host, duties: &mut Duties) {
             (envelope.record() == record.bytes.as_ref()).then_some(open.watch())
         })
         .expect("status watched");
-    let ended = duties
-        .asked
-        .iter()
-        .filter_map(|request| {
-            let Request::Exchange { message: Message::Watch(bytes), .. } = request else { return None };
-            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("watch");
+    let ended = all_openings(duties)
+        .into_iter()
+        .filter_map(|open| {
             if open.watch() == watched {
                 return None;
             }
@@ -3838,12 +3950,9 @@ pub(crate) fn home_tasks(running: bool) -> w::Tasks {
 }
 
 pub(crate) fn home_subject(duties: &Duties) -> w::Subject {
-    duties
-        .asked
-        .iter()
-        .find_map(|request| {
-            let Request::Exchange { message: Message::Watch(bytes), .. } = request else { return None };
-            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("watch");
+    all_openings(duties)
+        .into_iter()
+        .find_map(|open| {
             if open.subject().owner() != &w::Owner::Jig {
                 return None;
             }

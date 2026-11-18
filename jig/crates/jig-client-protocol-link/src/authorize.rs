@@ -24,10 +24,6 @@ impl Link {
                 | ExchangeKind::WatchClose { .. } => {}
             }
         }
-        if self.in_flight() >= self.limits.exchanges() {
-            out.push(Request::Authorized(Authorized::Busy));
-            return;
-        }
         let Ok(record) = w::Authorize::new(self.limits.wire(), w::AuthorizeParts { query }) else {
             out.push(Request::Authorized(Authorized::Lost));
             return;

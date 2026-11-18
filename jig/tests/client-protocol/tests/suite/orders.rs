@@ -161,14 +161,18 @@ fn terminals(outcome: &'static str) -> Vec<(Token, &'static str)> {
     vec![(Token::new(3), "answer"), (Token::new(2), outcome), (Token::new(4), outcome), (Token::new(5), outcome)]
 }
 
-/// `request_records_durable` and `held_exchanges_fifo`: with all exchange
-/// credit occupied, delayed persistence releases survivors once, in arrival
-/// order, skipping a cancelled attempt even when its credit is reused.
+/// `request_records_durable` and `held_exchanges_fifo`: with one unfinished
+/// transport exchange, delayed persistence releases survivors once, in arrival
+/// order, skipping a cancelled attempt whose logical room is reused.
 #[test]
 fn held_exchanges_wait_for_durability_and_leave_in_order_under_load() {
     let mut world = World::loaded();
     assert!(world.sent.is_empty(), "all admitted keyed requests remain held during the delay");
-    assert_eq!(world.loads, [(EXCHANGES, PENDING_WRITES)]);
+    assert_eq!(
+        world.loads,
+        [(OCCUPIED_READS, PENDING_WRITES)],
+        "only the blocking read is an unfinished transport exchange"
+    );
     world.stored();
     for exchange in world.exchanges.clone() {
         world.answer(exchange);
@@ -191,7 +195,11 @@ fn failed_persistence_never_releases_held_exchanges_under_load() {
     world.stored();
     world.event(Event::NotStored);
     assert_eq!(world.sent.len(), 0);
-    assert_eq!(world.loads, [(EXCHANGES, PENDING_WRITES)]);
+    assert_eq!(
+        world.loads,
+        [(OCCUPIED_READS, PENDING_WRITES)],
+        "only the blocking read is an unfinished transport exchange"
+    );
     assert_eq!(world.terminals, terminals("not kept"));
     assert_eq!(world.link.in_flight(), OCCUPIED_READS);
 }

@@ -1,4 +1,4 @@
-//! One bounded exchange per request-table attempt (protocol/client/README.md, 3).
+//! Requests keep their own attempts; reads and watches can share an exchange (protocol/client/wire.md, 2.3).
 //! A family's admission refusal uses jig's wire (client/domain/contract/requests.md, 3).
 //! Transport admission counts unfinished exchanges (jig/docs/design/protocol/client/README.md, 10).
 //! The link gathers transport work until settling (protocol/client/wire.md, 2.3).
@@ -63,13 +63,14 @@ pub struct Link {
     // Cancellation ends the logical attempt; transport credit ends with its HTTP terminal.
     pub(super) transport: Map<Token, ()>,
     pub(super) gathered: Queue<Gathered>,
+    pub(super) batches: Map<Token, Map<u16, Token>>,
     pub(super) next: u64,
     pub(super) credential: Option<Secret>,
     pub(super) expires: Option<Wall>,
     pub(super) generation: u64,
-    stream: Option<crate::silence::Silence>,
+    pub(super) stream: Option<crate::silence::Silence>,
+    pub(super) retired: Map<u64, Token>,
     pub(super) predecessor: Option<[u8; 16]>,
-    retiring: Option<Token>,
     watches: crate::watches::Watches,
     pub(super) store: crate::store::Store,
 }
@@ -78,7 +79,7 @@ impl Link {
         Ok(Self {
             limits: *limits,
             store: crate::store::Store::new(),
-            attempts: Map::with_capacity(limits.exchanges()),
+            attempts: Map::uncapped(),
             transport: Map::uncapped(),
             gathered: Queue::uncapped(),
             next: 1,
@@ -86,8 +87,9 @@ impl Link {
             expires: None,
             generation: 0,
             stream: None,
+            retired: Map::uncapped(),
             predecessor: None,
-            retiring: None,
+            batches: Map::uncapped(),
             watches: crate::watches::Watches::new(limits),
         })
     }
@@ -96,46 +98,34 @@ impl Link {
         let Some(stream) = &self.stream else { return None };
         Some(stream.silence())
     }
-    /// Whether a read can own a logical attempt now; a completion or cancellation releases room.
+    /// Whether a read can own a logical attempt, independently of transport credit.
     #[must_use]
     pub fn has_exchange_room(&self) -> bool {
-        self.attempts.len() < self.attempts.capacity()
+        let mut reads = 0_u32;
+        for (_, attempt) in &self.attempts {
+            match attempt.kind {
+                ExchangeKind::Read { .. } => reads = reads.saturating_add(1),
+                ExchangeKind::Authorize
+                | ExchangeKind::Approval(_)
+                | ExchangeKind::SignInApproval
+                | ExchangeKind::SignIn
+                | ExchangeKind::SignOut { .. }
+                | ExchangeKind::Attempt { .. }
+                | ExchangeKind::WatchOpen { .. }
+                | ExchangeKind::WatchClose { .. } => {}
+            }
+        }
+        reads < self.limits.client().reads
     }
-    /// Admission usage across logical reservations and unfinished transport exchanges.
+    /// Unfinished transport exchanges; a batch counts once until its terminal.
     #[must_use]
     pub fn in_flight(&self) -> u32 {
-        self.attempts.len().max(self.transport.len())
+        self.transport.len()
     }
     pub(super) fn emit_exchange(&mut self, exchange: Token, credential: Option<Secret>, message: Message) {
         self.gathered.push(Gathered::Exchange { exchange, credential, message });
     }
-    pub fn settle(&mut self, out: &mut Queue<Request>) {
-        for _ in 0..self.gathered.len() {
-            match self.gathered.iter().next().expect("counted gathered transport") {
-                Gathered::Exchange { .. } if self.transport.len() >= self.limits.exchanges() => break,
-                Gathered::Exchange { .. } | Gathered::OpenStream { .. } | Gathered::CloseStream => {}
-            }
-            match self.gathered.pop().expect("counted gathered transport") {
-                Gathered::Exchange { exchange, credential, message } => {
-                    self.transport.insert(exchange, ()).expect("internal exchange accounting is uncapped");
-                    out.push(Request::Exchange { exchange, credential, message });
-                }
-                Gathered::OpenStream { credential } => out.push(Request::OpenStream { credential, replaces: None }),
-                Gathered::CloseStream => out.push(Request::CloseStream),
-            }
-        }
-    }
     pub fn step(&mut self, now: Time, event: Event, out: &mut Queue<Request>) {
-        if let Event::Reply { exchange, .. } | Event::Lost { exchange } = &event
-            && self.retiring == Some(*exchange)
-        {
-            self.transport.remove(exchange);
-            self.retiring = None;
-            if !self.watches.0.is_empty() {
-                self.begin_stream(now);
-            }
-            return;
-        }
         match event {
             Event::SignIn { with } => self.sign_in(with, out),
             Event::SignOut => self.sign_out(out),
@@ -160,12 +150,27 @@ impl Link {
             Event::Read { read, what } => self.read(read, what, out),
             Event::Reply { exchange, message } => {
                 self.transport.remove(&exchange);
-                self.answered(exchange, &message, out);
+                if self.batches.contains_key(&exchange) {
+                    self.batch_lost(exchange, out);
+                    self.batches.remove(&exchange);
+                } else {
+                    self.answered(exchange, &message, out);
+                }
             }
-            Event::Part { .. } | Event::Done { .. } => return,
+            Event::Part { exchange, message } => self.part(exchange, &message, out),
+            Event::Done { exchange } => {
+                if self.batches.contains_key(&exchange) {
+                    self.transport.remove(&exchange);
+                    self.batch_lost(exchange, out);
+                    self.batches.remove(&exchange);
+                }
+            }
             Event::Lost { exchange } => {
                 self.transport.remove(&exchange);
-                if let Some(attempt) = self.attempts.remove(&exchange) {
+                if self.batches.contains_key(&exchange) {
+                    self.batch_lost(exchange, out);
+                    self.batches.remove(&exchange);
+                } else if let Some(attempt) = self.attempts.remove(&exchange) {
                     self.failure(attempt, out);
                 }
             }
@@ -193,7 +198,21 @@ impl Link {
         }
         // An exchange carrying a value either way never left if it cannot be sent.
         let refuse: fn(Token, &mut Queue<Request>) = if carrying { unsent } else { lost };
-        if self.attempts.len() == self.attempts.capacity() {
+        let mut keyed_count = 0_u32;
+        for (_, attempt) in &self.attempts {
+            match attempt.kind {
+                ExchangeKind::Attempt { .. } => keyed_count = keyed_count.saturating_add(1),
+                ExchangeKind::Authorize
+                | ExchangeKind::Approval(_)
+                | ExchangeKind::SignInApproval
+                | ExchangeKind::SignIn
+                | ExchangeKind::SignOut { .. }
+                | ExchangeKind::Read { .. }
+                | ExchangeKind::WatchOpen { .. }
+                | ExchangeKind::WatchClose { .. } => {}
+            }
+        }
+        if keyed_count >= self.limits.client().requests.requests {
             refuse(attempt, out);
             return;
         }
@@ -232,7 +251,7 @@ impl Link {
                     .expect("unbounded family number"),
             ),
         };
-        if self.attempts.len() == self.attempts.capacity() {
+        if !self.has_exchange_room() {
             read_none(read, &owner, jig_client_domain::contract::ReadNone::Unreachable, out);
             return;
         }
@@ -253,7 +272,7 @@ impl Link {
         record.encode(&mut writer).expect("measured read envelope");
         self.exchange(exchange, Message::Read(writer.finish()), out);
     }
-    fn answered(&mut self, exchange: Token, body: &[u8], out: &mut Queue<Request>) {
+    pub(super) fn answered(&mut self, exchange: Token, body: &[u8], out: &mut Queue<Request>) {
         let Some(attempt) = self.attempts.remove(&exchange) else { return };
         match attempt.kind {
             ExchangeKind::SignIn | ExchangeKind::SignInApproval | ExchangeKind::SignOut { .. } => {
@@ -437,9 +456,22 @@ fn read_value(attempt: &Attempt, record: w::Owned, limits: &Limits) -> Result<Re
     }
 }
 fn read_none(read: Token, owner: &w::Owner, why: jig_client_domain::contract::ReadNone, out: &mut Queue<Request>) {
+    use jig_client_domain::contract::ReadNone;
+    // Busy and loss belong to the exchange, not the family's document: callers can retry them
+    // (protocol/client/wire.md, 2.3; protocol/client/README.md, 11).
+    let transient = match why {
+        ReadNone::Busy | ReadNone::Unreachable => true,
+        ReadNone::TooLarge { .. }
+        | ReadNone::TooLinked { .. }
+        | ReadNone::Malformed
+        | ReadNone::Unknown
+        | ReadNone::Refused
+        | ReadNone::Gone
+        | ReadNone::SignedOut => false,
+    };
     let result = match owner {
-        w::Owner::Jig => Readout::Jig(jig_client_domain::contract::ReadResult::None(why)),
-        w::Owner::Family(owner) => Readout::Family { family: owner.number(), record: None },
+        w::Owner::Family(owner) if !transient => Readout::Family { family: owner.number(), record: None },
+        w::Owner::Jig | w::Owner::Family(_) => Readout::Jig(jig_client_domain::contract::ReadResult::None(why)),
     };
     out.push(Request::Read { read, result });
 }
@@ -516,30 +548,32 @@ impl Link {
         };
         self.watches.0.insert(watch, opening).expect("checked watch capacity");
         match &self.stream {
-            None if self.retiring.is_none() => {
-                if let Some(stream) = self.predecessor.take() {
-                    self.retiring = Some(name);
-                    self.gone(name, stream, out);
-                } else {
-                    self.begin_stream(now);
-                }
-            }
+            None => self.begin_stream(now),
             Some(stream) if stream.name.is_some() => self.send_open(watch, out),
-            None | Some(_) => {}
+            Some(_) => {}
         }
     }
     fn begin_stream(&mut self, now: Time) {
         self.stream = Some(crate::silence::Silence::new(self.limits.client().heartbeat, now));
         self.gathered.push(Gathered::OpenStream { credential: self.credential.clone() });
     }
+    fn has_watch_room(&self) -> bool {
+        let mut sent = self.retired.len();
+        for (_, opening) in &self.watches.0 {
+            if opening.subject.is_none() {
+                sent = sent.saturating_add(1);
+            }
+        }
+        sent < self.limits.client().watches
+    }
     fn send_open(&mut self, watch: Token, out: &mut Queue<Request>) {
-        let Some(stream) = &self.stream else { return };
-        let Some(stream) = stream.name else { return };
-        if !self.has_exchange_room() || self.in_flight() >= self.limits.exchanges() {
+        if !self.has_watch_room() {
             let opening = self.watches.0.get_mut(&watch).expect("pending opening");
             opening.held = Some(Token::new(opening.name));
             return;
         }
+        let Some(stream) = &self.stream else { return };
+        let Some(stream) = stream.name else { return };
         let Some(exchange) = self.token() else {
             self.watches.end(watch, jig_client_domain::contract::WatchEnd::Dropped, out);
             return;
@@ -566,7 +600,10 @@ impl Link {
         if opening.closing {
             return;
         }
-        if opening.subject.is_some() {
+        let name = opening.name;
+        let unsent = opening.subject.is_some() || self.unsent_open(watch, name);
+        if unsent {
+            self.cancel_open(watch, name);
             self.watches.end(watch, jig_client_domain::contract::WatchEnd::Closed, out);
             return;
         }
@@ -574,6 +611,33 @@ impl Link {
         let opening = self.watches.0.get_mut(&watch).expect("closing watch");
         opening.closing = true;
         opening.held = Some(order);
+    }
+    fn unsent_open(&self, watch: Token, name: u64) -> bool {
+        for pending in &self.gathered {
+            match pending {
+                Gathered::Exchange { exchange, .. } => {
+                    if let Some(attempt) = self.attempts.get(exchange) {
+                        match attempt.kind {
+                            ExchangeKind::WatchOpen { name: pending } => {
+                                if pending == name && attempt.token == watch {
+                                    return true;
+                                }
+                            }
+                            ExchangeKind::Authorize
+                            | ExchangeKind::Approval(_)
+                            | ExchangeKind::SignInApproval
+                            | ExchangeKind::SignIn
+                            | ExchangeKind::SignOut { .. }
+                            | ExchangeKind::Attempt { .. }
+                            | ExchangeKind::Read { .. }
+                            | ExchangeKind::WatchClose { .. } => {}
+                        }
+                    }
+                }
+                Gathered::OpenStream { .. } | Gathered::CloseStream => {}
+            }
+        }
+        false
     }
     fn send_close(&mut self, watch: Token, out: &mut Queue<Request>) {
         let Some(stream) = &self.stream else { return };
@@ -594,12 +658,12 @@ impl Link {
     }
     fn resume_watches(&mut self, out: &mut Queue<Request>) {
         for _ in 0..self.watches.0.len() {
-            if !self.has_exchange_room() || self.in_flight() >= self.limits.exchanges() {
-                return;
-            }
             let mut first: Option<(Token, Token)> = None;
             for (watch, opening) in &self.watches.0 {
                 if let Some(order) = opening.held {
+                    if !opening.closing && !self.has_watch_room() {
+                        continue;
+                    }
                     if opening.closing && !opening.admitted {
                         continue;
                     }
@@ -619,8 +683,8 @@ impl Link {
             }
         }
     }
-    fn cancel_open(&mut self, watch: Token, name: u64) {
-        let mut tokens = skein_lib::List::with_capacity(self.limits.exchanges());
+    pub(super) fn cancel_open(&mut self, watch: Token, name: u64) {
+        let mut tokens = skein_lib::List::with_capacity(self.attempts.len());
         for (exchange, attempt) in &self.attempts {
             match attempt.kind {
                 ExchangeKind::WatchOpen { name: old } | ExchangeKind::WatchClose { name: old } => {
@@ -643,18 +707,18 @@ impl Link {
     }
     fn forget(&mut self, watch: Token, out: &mut Queue<Request>) {
         if let Some(opening) = self.watches.0.remove(&watch) {
-            self.cancel_open(watch, opening.name);
-            if opening.subject.is_none()
-                && let Some(stream) = &self.stream
-            {
-                let stream = stream.name.expect("sent opening has hello");
-                if let Some(exchange) = self.token() {
-                    self.unwatch(exchange, stream, opening.name, out);
-                }
+            if opening.subject.is_some() || self.unsent_open(watch, opening.name) {
+                self.cancel_open(watch, opening.name);
+                return;
+            }
+            self.retired.insert(opening.name, watch).expect("retired watches keep their engine room");
+            if opening.admitted {
+                self.cancel_open(watch, opening.name);
+                self.retired_close(watch, opening.name, out);
             }
         }
     }
-    fn unwatch(&mut self, exchange: Token, stream: [u8; 16], watch: u64, out: &mut Queue<Request>) {
+    pub(super) fn unwatch(&mut self, exchange: Token, stream: [u8; 16], watch: u64, out: &mut Queue<Request>) {
         let record =
             w::WatchClose::new(self.limits.wire(), w::WatchCloseParts { stream, watch }).expect("fixed closing names");
         let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
@@ -663,6 +727,7 @@ impl Link {
     }
     fn watch_answer(&mut self, attempt: Attempt, name: u64, body: &[u8], out: &mut Queue<Request>) {
         if self.watches.named(name) != Some(attempt.token) {
+            self.retired_answer(attempt, name, body, out);
             return;
         }
         match attempt.kind {
@@ -718,7 +783,7 @@ impl Link {
     pub(super) fn failure(&mut self, attempt: Attempt, out: &mut Queue<Request>) {
         match attempt.kind {
             ExchangeKind::WatchOpen { name } | ExchangeKind::WatchClose { name } => {
-                if self.watches.named(name) == Some(attempt.token) {
+                if self.watches.named(name) == Some(attempt.token) || self.retired.get(&name) == Some(&attempt.token) {
                     self.drop_stream(out);
                 }
             }
@@ -782,6 +847,7 @@ impl Link {
                         return Err(StreamRefusal::Record(crate::Undecodable::Malformed));
                     }
                 }
+                self.predecessor = Some(*hello.stream());
                 if let Err(why) = self.save_stream(*hello.stream(), out) {
                     return Err(StreamRefusal::Record(why));
                 }
@@ -820,6 +886,9 @@ impl Link {
             w::StreamEvent::Ended(value) => {
                 if stream.name.is_none() {
                     return Err(StreamRefusal::Order);
+                }
+                if let Some(watch) = self.retired.remove(&value.watch()) {
+                    self.cancel_open(watch, value.watch());
                 }
                 if let Some(watch) = self.watches.named(value.watch()) {
                     self.cancel_open(watch, value.watch());
@@ -888,12 +957,29 @@ impl Link {
             let watch = *watch;
             self.watches.end(watch, jig_client_domain::contract::WatchEnd::SignedOut, out);
         }
+        self.retired = Map::uncapped();
+        self.discard_watch_messages();
         if self.stream.take().is_some() {
             self.gathered.push(Gathered::CloseStream);
         }
     }
-    fn drop_stream(&mut self, out: &mut Queue<Request>) {
-        let Some(stream) = self.stream.take() else { return };
+    fn discard_watch_messages(&mut self) {
+        for _ in 0..self.gathered.len() {
+            let value = self.gathered.pop().expect("counted gathered transport");
+            match value {
+                Gathered::Exchange { message: Message::Watch(_) | Message::Unwatch(_), .. } => {}
+                value @ (Gathered::Exchange { .. } | Gathered::OpenStream { .. } | Gathered::CloseStream) => {
+                    self.gathered.push(value);
+                }
+            }
+        }
+    }
+    pub(super) fn drop_stream(&mut self, out: &mut Queue<Request>) {
+        let Some(_) = self.stream.take() else { return };
+        let retired = core::mem::replace(&mut self.retired, Map::uncapped());
+        for (name, watch) in &retired {
+            self.cancel_open(*watch, *name);
+        }
         let mut watches = skein_lib::List::with_capacity(self.limits.client().watches);
         for (watch, _) in &self.watches.0 {
             watches.push(*watch).expect("bounded watches");
@@ -903,19 +989,9 @@ impl Link {
             self.cancel_open(*watch, name);
             self.watches.end(*watch, jig_client_domain::contract::WatchEnd::Dropped, out);
         }
-        if let Some(stream) = stream.name
-            && let Some(exchange) = self.token()
-        {
-            self.gone(exchange, stream, out);
-        }
+        self.discard_watch_messages();
         self.gathered.push(Gathered::CloseStream);
         out.push(Request::Fact { fact: Fact::StreamDropped });
-    }
-    fn gone(&mut self, exchange: Token, stream: [u8; 16], out: &mut Queue<Request>) {
-        let record = w::Gone::new(self.limits.wire(), w::GoneParts { stream }).expect("fixed stream name");
-        let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
-        record.encode(&mut writer).expect("measured stream gone");
-        self.exchange(exchange, Message::StreamGone(writer.finish()), out);
     }
 }
 

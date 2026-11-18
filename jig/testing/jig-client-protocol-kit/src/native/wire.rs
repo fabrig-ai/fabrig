@@ -17,6 +17,7 @@ enum Kind {
 #[derive(Default)]
 pub struct Wire {
     exchanges: BTreeMap<Token, Kind>,
+    batches: BTreeMap<Token, BTreeMap<u16, Kind>>,
     watches: BTreeMap<u64, jig_client_test_domain::family::Subject>,
     credential: Option<Secret>,
 }
@@ -44,6 +45,35 @@ impl Wire {
             self.watches.clear();
         }
         let Request::Exchange { exchange, message, .. } = request else { return vec![] };
+        if let Message::Batch(bytes) = message {
+            let batch = w::Batch::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("batch bytes");
+            let mut members = BTreeMap::new();
+            for (place, member) in batch.into_parts().members.into_boxed().into_iter().enumerate() {
+                let mut writer = skein_lib::Writer::new(
+                    usize::try_from(member.measure().checked_sub(1).expect("member has a tag")).expect("member bytes"),
+                );
+                // The member's discriminant belongs to the batch, not its own exchange's record.
+                let message = match member {
+                    w::Member::Read(record) => {
+                        record.encode(&mut writer).expect("read room");
+                        Message::Read(writer.finish())
+                    }
+                    w::Member::Open(record) => {
+                        record.encode(&mut writer).expect("open room");
+                        Message::Watch(writer.finish())
+                    }
+                    w::Member::Close(record) => {
+                        record.encode(&mut writer).expect("close room");
+                        Message::Unwatch(writer.finish())
+                    }
+                };
+                self.sent_with(&Request::Exchange { exchange: *exchange, credential: None, message }, family);
+                let kind = self.exchanges.remove(exchange).expect("member observed");
+                members.insert(u16::try_from(place).expect("at most 64 members"), kind);
+            }
+            self.batches.insert(*exchange, members);
+            return vec![];
+        }
         let kind = match message {
             Message::Request(bytes) => Kind::Request(compound::message(bytes)),
             Message::Read(bytes) => {
@@ -128,8 +158,18 @@ impl Wire {
             }
             return Vec::new();
         }
-        let Event::Reply { exchange, message } = event else { return Vec::new() };
-        match self.exchanges.get(exchange) {
+        let part;
+        let (exchange, message, kind) = match event {
+            Event::Reply { exchange, message } => (exchange, message, self.exchanges.get(exchange)),
+            Event::Part { exchange, message } => {
+                part =
+                    w::BatchReply::decode(&w::CEILINGS, &mut Reader::new(message)).expect("batch reply").into_parts();
+                let Some(message) = &part.reply else { return vec![] };
+                (exchange, message, self.batches.get(exchange).and_then(|b| b.get(&part.member)))
+            }
+            _ => return vec![],
+        };
+        match kind {
             Some(Kind::Request(words)) => {
                 match w::KeyedAnswer::decode(&w::CEILINGS, &mut Reader::new(message)).expect("answer bytes") {
                     w::KeyedAnswer::FinalAnswer(value) if matches!(value.owner(), w::Owner::Family(_)) => {
@@ -173,6 +213,18 @@ impl Wire {
     }
     /// Decode the same public bytes under the application's declared receiving profile.
     pub fn received_with(&mut self, event: &Event, limits: jig_client_protocol_link::Limits) -> Vec<Received> {
+        let reply;
+        let event = if let Event::Part { exchange, message } = event {
+            let part =
+                w::BatchReply::decode(&w::CEILINGS, &mut Reader::new(message)).expect("batch reply").into_parts();
+            let Some(kind) = self.batches.get_mut(exchange).and_then(|b| b.remove(&part.member)) else { return vec![] };
+            let Some(message) = part.reply else { return vec![] };
+            self.exchanges.insert(*exchange, kind);
+            reply = Event::Reply { exchange: *exchange, message };
+            &reply
+        } else {
+            event
+        };
         match event {
             Event::Reply { exchange, message } => match self.exchanges.remove(exchange) {
                 Some(Kind::Request(_)) => {
@@ -232,12 +284,12 @@ impl Wire {
                     | w::StreamEvent::Ended(_) => vec![],
                 }
             }
-            Event::Lost { exchange } => {
+            Event::Done { exchange } | Event::Lost { exchange } => {
+                self.batches.remove(exchange);
                 self.exchanges.remove(exchange);
                 vec![]
             }
             Event::Part { .. }
-            | Event::Done { .. }
             | Event::Start { .. }
             | Event::StartUnlinked { .. }
             | Event::SignIn { .. }

@@ -3,6 +3,8 @@ use jig_client_protocol_wire::v28 as w;
 use skein_lib::Duration;
 /// Retained connector accounts have their own bound (client/domain/contract/documents.md, 3).
 pub(crate) const HOLD_ACCOUNT_BYTES: u32 = 512;
+/// The most bytes of a gathered batch's record (protocol/client/wire.md, 2.3).
+pub const BATCH_BYTES: u32 = 131_072;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Limits {
     client: jig_client_domain::Limits,

@@ -371,17 +371,33 @@ pub(super) fn committed_chat() -> NativeClient {
     let mut work = Queue::with_capacity(host.out.capacity());
     let mut task_watch = None;
     while let Some(request) = host.out.pop() {
-        if let domain::Request::Client {
-            request: Request::Exchange { message: jig_client::Message::Watch(bytes), .. },
-        } = &request
-        {
-            let open = w::Open::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("watch open");
-            if open.subject().owner() == &w::Owner::Jig {
-                let subject = w::Subject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(open.subject().record()))
-                    .expect("watch subject");
-                if let w::Subject::Task(task) = subject {
-                    assert_eq!(task.task(), TASK);
-                    task_watch = Some(open.watch());
+        if let domain::Request::Client { request: Request::Exchange { message, .. } } = &request {
+            let mut opens = skein_lib::List::with_capacity(64);
+            if let jig_client::Message::Watch(bytes) = message {
+                opens
+                    .push(w::Open::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("opening"))
+                    .expect("one opening");
+            } else if let jig_client::Message::Batch(bytes) = message {
+                for member in w::Batch::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes))
+                    .expect("batch")
+                    .into_parts()
+                    .members
+                    .into_boxed()
+                {
+                    if let w::Member::Open(open) = member {
+                        opens.push(open).expect("bounded openings");
+                    }
+                }
+            }
+            for open in &opens {
+                if open.subject().owner() == &w::Owner::Jig {
+                    let subject =
+                        w::Subject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(open.subject().record()))
+                            .expect("watch subject");
+                    if let w::Subject::Task(task) = subject {
+                        assert_eq!(task.task(), TASK);
+                        task_watch = Some(open.watch());
+                    }
                 }
             }
         }

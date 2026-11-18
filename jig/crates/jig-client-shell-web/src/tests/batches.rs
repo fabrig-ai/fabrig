@@ -15,6 +15,70 @@ fn part(bytes: &[u8]) -> Heard {
 }
 
 #[test]
+fn a_pieced_flight_answered_whole_releases_each_part_then_done() {
+    let mut exchanges = Exchanges::default();
+    exchanges.insert(ID, TOKEN, Some(&LIMITS));
+    let mut out = Queue::uncapped();
+    report(
+        &mut exchanges,
+        fetch::Report::Answered {
+            exchange: ID,
+            status: 200,
+            body: b"\0\0\0\x03abc\0\0\0\x01d".as_slice().into(),
+            headers: vec![],
+        },
+        &mut out,
+    );
+    assert_eq!(out.pop(), Some(part(b"abc")));
+    assert_eq!(out.pop(), Some(part(b"d")));
+    assert_eq!(out.pop(), Some(Heard::Done { exchange: TOKEN }));
+    report(&mut exchanges, fetch::Report::Failed { exchange: ID }, &mut out);
+    assert!(out.is_empty(), "the whole answer retires the flight");
+}
+
+#[test]
+fn a_whole_pieced_refusal_is_lost_once() {
+    let mut exchanges = Exchanges::default();
+    exchanges.insert(ID, TOKEN, Some(&LIMITS));
+    let mut out = Queue::uncapped();
+    report(
+        &mut exchanges,
+        fetch::Report::Answered {
+            exchange: ID,
+            status: 500,
+            body: b"\0\0\0\x03abc\0\0\0\x01d".as_slice().into(),
+            headers: vec![],
+        },
+        &mut out,
+    );
+    assert_eq!(out.pop(), Some(Heard::Lost { exchange: TOKEN }));
+    report(&mut exchanges, fetch::Report::Failed { exchange: ID }, &mut out);
+    report(&mut exchanges, fetch::Report::Ended { exchange: ID }, &mut out);
+    assert!(out.is_empty(), "a refused whole answer retires the flight");
+}
+
+#[test]
+fn a_whole_pieced_body_cut_inside_a_frame_keeps_only_whole_parts() {
+    let mut exchanges = Exchanges::default();
+    exchanges.insert(ID, TOKEN, Some(&LIMITS));
+    let mut out = Queue::uncapped();
+    report(
+        &mut exchanges,
+        fetch::Report::Answered {
+            exchange: ID,
+            status: 200,
+            body: b"\0\0\0\x03abc\0\0\0\x02d".as_slice().into(),
+            headers: vec![],
+        },
+        &mut out,
+    );
+    assert_eq!(out.pop(), Some(part(b"abc")));
+    assert_eq!(out.pop(), Some(Heard::Lost { exchange: TOKEN }));
+    report(&mut exchanges, fetch::Report::Ended { exchange: ID }, &mut out);
+    assert!(out.is_empty(), "a short whole answer retires the flight");
+}
+
+#[test]
 fn a_batch_fetch_gives_parts_before_its_end() {
     assert_eq!(
         adapter::read_on_exchange(&fetch::Report::Opened { exchange: ID, status: 200, headers: vec![] }),

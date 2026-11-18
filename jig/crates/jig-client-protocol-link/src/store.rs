@@ -67,7 +67,7 @@ impl Link {
         out: &mut Queue<Request>,
     ) {
         let tracked = match &message {
-            Message::Batch(_) => unreachable!("the link sends no batch"),
+            Message::Batch(_) => unreachable!("batches are built only at settling"),
             Message::Request(_) | Message::Read(_) | Message::Watch(_) => true,
             Message::Unwatch(_)
             | Message::StreamGone(_)
@@ -85,7 +85,7 @@ impl Link {
         }
         // A request carrying a value is never kept, so never waits on a write.
         let keyed = match &message {
-            Message::Batch(_) => unreachable!("the link sends no batch"),
+            Message::Batch(_) => unreachable!("batches are built only at settling"),
             Message::Request(_) => match self.attempts.get(&exchange) {
                 Some(attempt) => !attempt.carrying(),
                 None => true,
@@ -119,15 +119,18 @@ impl Link {
     }
     fn gather(&mut self, out: &mut Queue<Request>) {
         self.store.waiting = true;
+        // A keyed duty still in the composer's output queue has not reached its transport.
+        // Keep the write barrier ahead of it; batches contain no keyed requests.
         let mut pending = core::mem::replace(&mut self.gathered, Queue::uncapped());
-        let count = out.len();
-        for _ in 0..count {
-            match out.pop().expect("counted step outputs") {
-                Request::Exchange { exchange, message, credential } => {
+        for _ in 0..out.len() {
+            let value = out.pop().expect("counted composer outputs");
+            match value {
+                Request::Exchange { exchange, message: message @ Message::Request(_), credential } => {
                     self.transport.remove(&exchange);
-                    self.gathered.push(Gathered::Exchange { exchange, message, credential });
+                    self.emit_exchange(exchange, credential, message);
                 }
-                value @ (Request::Save { .. }
+                value @ (Request::Exchange { .. }
+                | Request::Save { .. }
                 | Request::Erase { .. }
                 | Request::Kept { .. }
                 | Request::Dropped
@@ -148,14 +151,15 @@ impl Link {
                 | Request::Fact { .. }) => out.push(value),
             }
         }
-        while let Some(value) = pending.pop() {
+        for _ in 0..pending.len() {
+            let value = pending.pop().expect("counted pending transport");
             self.gathered.push(value);
         }
         let count = self.gathered.len();
         for _ in 0..count {
             match self.gathered.pop().expect("counted gathered transport") {
                 Gathered::Exchange { exchange, message, credential } => match message {
-                    Message::Batch(_) => unreachable!("the link sends no batch"),
+                    Message::Batch(_) => unreachable!("batches are built only at settling"),
                     message @ (Message::ApprovalAsk(_)
                     | Message::ApprovalRead(_)
                     | Message::ApprovalDecide(_)

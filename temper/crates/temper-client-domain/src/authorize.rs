@@ -215,15 +215,26 @@ mod tests {
         crate::settle(&mut root, &env, &mut out);
         let mut watch = None;
         while let Some(request) = out.pop() {
-            if let Request::Client {
-                request: jig_client::Request::Exchange { message: jig_client::Message::Watch(body), .. },
-            } = request
-            {
-                let open = w::Open::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&body)).unwrap();
-                let subject =
-                    w::Subject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(open.subject().record())).unwrap();
-                if subject == w::Subject::Me {
-                    watch = Some(open.watch());
+            if let Request::Client { request: jig_client::Request::Exchange { message, .. } } = request {
+                let mut opens = skein_lib::List::with_capacity(64);
+                if let jig_client::Message::Watch(body) = &message {
+                    opens.push(w::Open::decode(&w::CEILINGS, &mut skein_lib::Reader::new(body)).unwrap()).unwrap();
+                } else if let jig_client::Message::Batch(body) = &message {
+                    let batch = w::Batch::decode(&w::CEILINGS, &mut skein_lib::Reader::new(body)).unwrap();
+                    for member in batch.into_parts().members.into_boxed() {
+                        if let w::Member::Open(open) = member {
+                            opens.push(open).unwrap();
+                        }
+                    }
+                }
+                for open in &opens {
+                    if open.subject().owner() == &w::Owner::Jig
+                        && w::Subject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(open.subject().record()))
+                            .unwrap()
+                            == w::Subject::Me
+                    {
+                        watch = Some(open.watch());
+                    }
                 }
             }
         }

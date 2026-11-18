@@ -111,8 +111,8 @@ fn deferred_reads_leave_in_order_under_load() {
         ],
     );
     assert_eq!(world.reads(), vec![BLOCKING_PROJECT, PROJECT_A, PROJECT_B, PROJECT_C]);
-    assert_eq!(world.at("free"), &[page(OCCUPIED, c::ReadNone::Unknown), Edge::Read(PROJECT_A)]);
-    assert_eq!(world.at("a_done"), &[page(A, c::ReadNone::Unknown), Edge::Read(PROJECT_B)]);
+    assert_eq!(world.at("free"), &[page(OCCUPIED, c::ReadNone::Unknown), Edge::Read(PROJECT_A), Edge::Read(PROJECT_B)]);
+    assert_eq!(world.at("a_done"), &[page(A, c::ReadNone::Unknown)]);
     assert_eq!(world.at("b_done"), &[page(B, c::ReadNone::Unknown), Edge::Read(PROJECT_C)]);
     assert_eq!(world.at("c_done"), &[page(C, c::ReadNone::Unknown)]);
     for label in ["obsolete", "a", "cancelled", "unwatch", "b", "c", "stale"] {

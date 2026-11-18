@@ -267,7 +267,7 @@ fn a_malformed_read_body_is_malformed() {
     assert_eq!(h.read_terminals(), 1);
 }
 #[test]
-fn reads_and_attempts_share_the_exchange_admission_bound() {
+fn reads_and_attempts_share_transport_credit_not_logical_admission() {
     let limits = Limits::new(*fixtures::limits().client(), 1).unwrap();
     let mut h = fixtures::Harness::new(&limits);
     h.send(fixtures::ATTEMPT, fixtures::KEY, fixtures::message());
@@ -277,9 +277,12 @@ fn reads_and_attempts_share_the_exchange_admission_bound() {
         &mut h.out,
     );
     h.link.settle(&mut h.out);
-    h.read_unreachable();
-    assert_eq!(h.read_terminals(), 1);
-    assert_eq!(h.out.len(), 2);
+    assert_eq!(h.read_terminals(), 0, "the read waits behind the keyed exchange");
+    assert_eq!(h.out.len(), 1);
+    let Some(Request::Exchange { exchange, .. }) = h.out.pop() else { panic!("keyed exchange") };
+    h.answer(exchange, &fixtures::answer_busy());
+    assert_eq!(h.exchanges(), 1, "the waiting read leaves after a terminal");
+    assert_eq!(h.read_terminals(), 0);
 }
 
 #[test]

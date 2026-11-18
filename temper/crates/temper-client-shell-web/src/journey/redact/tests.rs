@@ -33,6 +33,22 @@ fn changed(lines: &[Line], given: &[Box<[u8]>]) -> (Redacted, Vec<Line>) {
 fn lines_of(result: &Redacted) -> Vec<Line> {
     lines(&result.recording).expect("redacted lines read")
 }
+#[test]
+fn a_replacement_query_redacts_to_the_hex_of_its_kept_stream_name() {
+    let hex = "61622f2b3d223c265c73616d706c6521";
+    let source = [
+        Line::Stored { key: jig_client::STREAM_KEY.into(), value: kept(VALUE) },
+        Line::Open { piece: 64, path: format!("/jig/v1/stream?replaces={hex}").into_bytes().into(), headers: vec![] },
+    ];
+    let (_, redacted) = changed(&source, &[]);
+    let [Line::Stored { value, .. }, Line::Open { path, .. }] = redacted.as_slice() else {
+        panic!("stored name and opening")
+    };
+    let kept = w::Kept::decode(&w::CEILINGS, &mut Reader::new(value)).expect("kept name");
+    assert_eq!(kept.record(), HIDDEN);
+    assert_eq!(path.as_ref(), b"/jig/v1/stream?replaces=78787878787878787878787878787878");
+}
+
 fn input(value: &[u8]) -> Line {
     Line::Act {
         act: Act::Input { value: value.into() },

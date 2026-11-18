@@ -53,12 +53,14 @@ fn linked_at(path: &[u8], records: Vec<skein_ui_web::store::Record>) -> Host {
         .into_iter()
         .find_map(|request| {
             let Asked::Exchange { id, call, .. } = request else { return None };
-            if call.path.as_ref() != b"/jig/v1/watch" {
-                return None;
-            }
-            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(&call.body)).expect("watch envelope");
-            let subject = w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).expect("subject");
-            if matches!(subject, w::Subject::Me) {
+            let open = openings(&call.path, &call.body).into_iter().find(|open| {
+                open.subject().owner() == &w::Owner::Jig
+                    && w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).expect("subject")
+                        == w::Subject::Me
+            })?;
+            if call.path.as_ref() == b"/jig/v1/batch" {
+                batch_admitted(&mut host, id, &call.body);
+            } else {
                 let answer = w::OpenAnswer::Admitted;
                 host.heard(Heard::Answered {
                     exchange: id,
@@ -66,10 +68,8 @@ fn linked_at(path: &[u8], records: Vec<skein_ui_web::store::Record>) -> Host {
                     body: encoded(answer.measure(), |writer| answer.encode(writer)),
                     headers: Vec::new(),
                 });
-                Some(open.watch())
-            } else {
-                None
             }
+            Some(open.watch())
         })
         .expect("me watch");
     host.client(jig_client::Event::Stored);

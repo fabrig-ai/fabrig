@@ -135,6 +135,8 @@ pub struct World {
     now: Time,
     trace: Vec<(&'static str, Edge)>,
     exchanges: Vec<Exchange>,
+    parts: BTreeMap<Token, (Token, u16)>,
+    next_member: u64,
     completed_reads: Vec<Token>,
     writes: VecDeque<Write>,
     durable: BTreeMap<Box<[u8]>, client::Record>,
@@ -181,6 +183,8 @@ impl World {
             now: Time::ZERO,
             trace: Vec::new(),
             exchanges: Vec::new(),
+            parts: BTreeMap::new(),
+            next_member: u64::MAX,
             completed_reads: Vec::new(),
             writes: VecDeque::new(),
             durable: BTreeMap::new(),
@@ -343,6 +347,21 @@ impl World {
     }
 
     fn deliver(&mut self, event: Event) {
+        let mut done = None;
+        let event = match event {
+            Event::Reply { exchange, message } if self.parts.contains_key(&exchange) => {
+                let (batch, member) = self.parts.remove(&exchange).expect("member");
+                if !self.parts.values().any(|(parent, _)| *parent == batch) {
+                    done = Some(batch);
+                }
+                let part = w::BatchReply::new(&w::CEILINGS, w::BatchReplyParts { member, reply: Some(message) })
+                    .expect("part");
+                let mut writer = Writer::new(skein_lib::length::usize_of(part.measure()));
+                part.encode(&mut writer).expect("part bytes");
+                Event::Part { exchange: batch, message: writer.finish() }
+            }
+            other => other,
+        };
         if let Event::Read { handle, .. } = &event {
             self.readers.take(*handle);
             self.readers.open(*handle, ());
@@ -367,6 +386,9 @@ impl World {
                 machine.reclaim();
             }
             Machine::Root(..) => self.root_event(root::Event::Client { event }),
+        }
+        if let Some(exchange) = done {
+            self.deliver(Event::Done { exchange });
         }
     }
 
@@ -489,6 +511,35 @@ impl World {
     }
 
     fn wire(&mut self, token: Token, message: Message) {
+        if let Message::Batch(bytes) = &message {
+            let batch = w::Batch::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("batch");
+            let mut members = Vec::new();
+            for (place, member) in batch.into_parts().members.into_boxed().into_iter().enumerate() {
+                let local = Token::new(self.next_member);
+                self.next_member -= 1;
+                self.parts.insert(local, (token, u16::try_from(place).expect("member")));
+                members.push((local, member));
+            }
+            for (local, member) in members {
+                let mut writer = Writer::new(skein_lib::length::usize_of(member.measure() - 1));
+                let message = match member {
+                    w::Member::Read(record) => {
+                        record.encode(&mut writer).expect("read");
+                        Message::Read(writer.finish())
+                    }
+                    w::Member::Open(record) => {
+                        record.encode(&mut writer).expect("open");
+                        Message::Watch(writer.finish())
+                    }
+                    w::Member::Close(record) => {
+                        record.encode(&mut writer).expect("close");
+                        Message::Unwatch(writer.finish())
+                    }
+                };
+                self.wire(local, message);
+            }
+            return;
+        }
         let kind = match message {
             Message::Watch(bytes) => {
                 let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("open record");
@@ -913,6 +964,7 @@ pub fn stop() -> client::Ask {
 
 /// The list's object demands finish routing inside the report, before the shell settles.
 #[test]
+#[expect(clippy::too_many_lines, reason = "one report answers the list then settles its ordered follow-on batch")]
 fn a_roots_list_answer_and_its_demands_leave_at_one_settle() {
     let mut world = World::run(Mode::root(), vec![("admit_me", Command::AdmitMe)]);
     let Machine::Root(machine, limits) = &mut world.machine else { unreachable!("root fixture") };
@@ -929,16 +981,34 @@ fn a_roots_list_answer_and_its_demands_leave_at_one_settle() {
     root::settle(machine, &env, &mut out);
     let mut needs = None;
     while let Some(request) = out.pop() {
-        if let root::Request::Client {
-            request: client::Request::Exchange { exchange, message: Message::Read(bytes), .. },
-        } = request
-        {
-            let owned = w::Owned::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("owned read");
-            let read = w::Read::decode(&w::CEILINGS, &mut Reader::new(owned.record())).expect("read");
-            if let w::Read::Inbox(read) = read
-                && *read.group() == w::InboxReadGroup::Needs
-            {
-                needs = Some(exchange);
+        if let root::Request::Client { request: client::Request::Exchange { exchange, message, .. } } = request {
+            let reads: Vec<_> = match message {
+                Message::Read(bytes) => {
+                    vec![(None, w::Owned::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("read"))]
+                }
+                Message::Batch(bytes) => w::Batch::decode(&w::CEILINGS, &mut Reader::new(&bytes))
+                    .expect("batch")
+                    .into_parts()
+                    .members
+                    .into_boxed()
+                    .into_vec()
+                    .into_iter()
+                    .enumerate()
+                    .filter_map(|(i, m)| {
+                        if let w::Member::Read(read) = m {
+                            Some((Some(u16::try_from(i).expect("member")), read))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect(),
+                _ => vec![],
+            };
+            for (member, owned) in reads {
+                let read = w::Read::decode(&w::CEILINGS, &mut Reader::new(owned.record())).expect("read");
+                if matches!(read, w::Read::Inbox(read) if *read.group() == w::InboxReadGroup::Needs) {
+                    needs = Some((exchange, member));
+                }
             }
         }
     }
@@ -959,14 +1029,17 @@ fn a_roots_list_answer_and_its_demands_leave_at_one_settle() {
     let answer = w::ReadAnswer::Value(owned);
     let mut bytes = Writer::new(skein_lib::length::usize_of(answer.measure()));
     answer.encode(&mut bytes).expect("answer bytes");
-    root::step(
-        machine,
-        &env,
-        root::Event::Client {
-            event: Event::Reply { exchange: needs.expect("needs list read"), message: bytes.finish() },
-        },
-        &mut out,
-    );
+    let (exchange, member) = needs.expect("needs list read");
+    let event = if let Some(member) = member {
+        let part =
+            w::BatchReply::new(&w::CEILINGS, w::BatchReplyParts { member, reply: Some(bytes.finish()) }).expect("part");
+        let mut writer = Writer::new(skein_lib::length::usize_of(part.measure()));
+        part.encode(&mut writer).expect("part bytes");
+        Event::Part { exchange, message: writer.finish() }
+    } else {
+        Event::Reply { exchange, message: bytes.finish() }
+    };
+    root::step(machine, &env, root::Event::Client { event }, &mut out);
     // A second demand from the same platform report follows the list's own object demand.
     root::step(
         machine,
@@ -995,15 +1068,17 @@ fn a_roots_list_answer_and_its_demands_leave_at_one_settle() {
     }
     out.clear();
     root::settle(machine, &env, &mut out);
+    let Some(root::Request::Client { request: client::Request::Exchange { message: Message::Batch(bytes), .. } }) =
+        out.pop()
+    else {
+        panic!("settled batch")
+    };
+    assert!(out.is_empty());
+    let batch = w::Batch::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("batch");
     let mut reads = Vec::new();
-    while let Some(request) = out.pop() {
-        let root::Request::Client { request: client::Request::Exchange { message: Message::Read(bytes), .. } } =
-            request
-        else {
-            panic!("settling hands out gathered exchanges: {request:?}");
-        };
-        let owned = w::Owned::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("owned demand");
-        reads.push(w::Read::decode(&w::CEILINGS, &mut Reader::new(owned.record())).expect("demand"));
+    for member in batch.members() {
+        let w::Member::Read(owned) = member else { panic!("read members") };
+        reads.push(w::Read::decode(&w::CEILINGS, &mut Reader::new(owned.record())).expect("read"));
     }
     assert_eq!(reads.len(), 2, "the list's object demand and the report's next demand leave together: {reads:?}");
     assert!(matches!(reads.first(), Some(w::Read::PersonTask(_))));

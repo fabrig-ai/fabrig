@@ -209,88 +209,13 @@ impl Harness {
         assert!(self.has(&Request::FamilyDelivery { watch: WATCH, record: family_read() }));
     }
 }
-impl Harness {
-    pub fn gone_name(&self) -> [u8; 16] {
-        for request in &self.out {
-            match request {
-                Request::Exchange { message: Message::StreamGone(body), .. } => {
-                    return *w::Gone::decode(limits().wire(), &mut Reader::new(body)).unwrap().stream();
-                }
-                Request::Exchange { .. }
-                | Request::Answer { .. }
-                | Request::NotKept { .. }
-                | Request::Read { .. }
-                | Request::OpenStream { .. }
-                | Request::CloseStream
-                | Request::Watch { .. }
-                | Request::FamilyDelivery { .. }
-                | Request::Ended { .. }
-                | Request::Hello { .. }
-                | Request::Save { .. }
-                | Request::Erase { .. }
-                | Request::Kept { .. }
-                | Request::Dropped
-                | Request::Signing { .. }
-                | Request::ServiceCredential { .. }
-                | Request::Approval(_)
-                | Request::Authorized(_)
-                | Request::StreamsFull { .. }
-                | Request::Fact { .. } => {}
-            }
-        }
-        panic!("no stream-gone exchange")
-    }
-    pub fn assert_run_subject(&self) {
-        for request in &self.out {
-            match request {
-                Request::Exchange { message: Message::Watch(body), .. } => {
-                    let lim = *limits().wire();
-                    let open = w::Open::decode(&lim, &mut Reader::new(body)).unwrap();
-                    let subject = w::Subject::decode(&lim, &mut Reader::new(open.subject().record())).unwrap();
-                    let turn = w::ProvisionalTurnName::new(
-                        &lim,
-                        w::ProvisionalTurnNameParts { attempt: 9, number: 2, retry: 3 },
-                    )
-                    .unwrap();
-                    assert_eq!(
-                        subject,
-                        w::Subject::Run(
-                            w::SubjectRun::new(&lim, w::SubjectRunParts { task: 7, turn: Some(turn), offset: 123 })
-                                .unwrap()
-                        )
-                    );
-                    return;
-                }
-                Request::Exchange { .. }
-                | Request::Answer { .. }
-                | Request::NotKept { .. }
-                | Request::Read { .. }
-                | Request::OpenStream { .. }
-                | Request::CloseStream
-                | Request::Watch { .. }
-                | Request::FamilyDelivery { .. }
-                | Request::Ended { .. }
-                | Request::Hello { .. }
-                | Request::Save { .. }
-                | Request::Erase { .. }
-                | Request::Kept { .. }
-                | Request::Dropped
-                | Request::Signing { .. }
-                | Request::ServiceCredential { .. }
-                | Request::Approval(_)
-                | Request::Authorized(_)
-                | Request::StreamsFull { .. }
-                | Request::Fact { .. } => {}
-            }
-        }
-        panic!("no run opening")
-    }
-}
 
 pub const EXCHANGE_ROOM: u32 = 8;
 impl Harness {
     pub fn admitted_stream() -> Self {
-        let limits = Limits::new(*limits().client(), EXCHANGE_ROOM).unwrap();
+        let limits =
+            Limits::new(jig_client_domain::Limits { reads: EXCHANGE_ROOM, ..*limits().client() }, EXCHANGE_ROOM)
+                .unwrap();
         let mut harness = Self::new(&limits);
         harness.open(WATCH, frame_subject());
         harness.stream_record(&hello_event(HEARTBEAT));

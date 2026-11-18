@@ -205,12 +205,20 @@ fn the_streams_name_goes() {
             let kept = w::Kept::decode(&w::CEILINGS, &mut Reader::new(value)).expect("stream kept");
             assert!(kept.record() == [b'x'; 16], "saved name is placeholder");
         }
-        if let Line::Exchange { path, body, .. } = &line
-            && path.as_ref() == b"/jig/v1/watch"
-        {
-            watches += 1;
-            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(body)).expect("watch envelope");
-            assert!(open.stream() == &[b'x'; 16], "watch name is placeholder");
+        if let Line::Exchange { path, body, .. } = &line {
+            if path.as_ref() == b"/jig/v1/watch" {
+                watches += 1;
+                let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(body)).expect("watch envelope");
+                assert!(open.stream() == &[b'x'; 16], "watch name is placeholder");
+            } else if path.as_ref() == b"/jig/v1/batch" {
+                let batch = w::Batch::decode(&w::CEILINGS, &mut Reader::new(body)).expect("batch envelope");
+                for member in batch.members() {
+                    if let w::Member::Open(open) = member {
+                        watches += 1;
+                        assert_eq!(open.stream(), &[b'x'; 16], "batch watch name is placeholder");
+                    }
+                }
+            }
         }
     }
     assert!(saves > 0 && watches > 0, "saved stream and watches checked");
@@ -231,18 +239,18 @@ fn a_stored_stream_replays() {
     let recording = walk::stored_stream(record);
     let before = lines(&recording).expect("stored walk lines");
     assert!(
-        before.iter().any(|line| matches!(line, Line::Exchange { path, body, .. }
-        if path.as_ref() == b"/jig/v1/stream-gone" && find(body, &[7; 16]).is_some())),
-        "start drops stored predecessor"
+        before.iter().any(|line| matches!(line, Line::Open { path, .. }
+        if path.as_ref() == b"/jig/v1/stream?replaces=07070707070707070707070707070707")),
+        "start names the stored predecessor"
     );
     let result = redacted(&recording);
     let proved = proved(&result);
     absent(&proved, &[7; 16]);
     let records = lines(&proved).expect("proved stored lines");
     assert!(
-        records.iter().any(|line| matches!(line, Line::Exchange { path, body, .. }
-        if path.as_ref() == b"/jig/v1/stream-gone" && find(body, &[b'x'; 16]).is_some())),
-        "stream-gone carries placeholder"
+        records.iter().any(|line| matches!(line, Line::Open { path, .. }
+        if path.as_ref() == b"/jig/v1/stream?replaces=78787878787878787878787878787878")),
+        "the replacement query carries the placeholder's lowercase hex"
     );
 }
 #[test]

@@ -107,12 +107,12 @@ fn a_mismatched_table_storage_key_drops_its_record() {
 fn a_cancelled_opening_already_in_the_step_queue_is_never_sent_after_writing() {
     let mut harness = fixtures::Harness::streaming(fixtures::family_subject());
     let (exchange, _) = harness.opening();
+    harness.clear();
     harness.link.step(Time::ZERO, Event::Lost { exchange }, &mut harness.out);
     harness.link.settle(&mut harness.out);
     harness.save(fixtures::saved_table(fixtures::message()));
     harness.written();
-    assert_eq!(harness.exchanges(), 1, "the uncertain opening drops its stream");
-    assert_eq!(harness.gone_name(), fixtures::STREAM);
+    assert_eq!(harness.exchanges(), 0, "no stream gone is sent");
     harness.assert_no_watch_exchange();
     assert_eq!(harness.ended(fixtures::WATCH), Some(c::WatchEnd::Dropped));
 }
@@ -137,8 +137,8 @@ fn a_full_table_and_the_stream_s_name_start() {
     }
     h.clear();
     h.open(fixtures::WATCH, fixtures::frame_subject());
-    assert_eq!(h.gone_name(), fixtures::STREAM);
-    assert!(!h.has(&Request::OpenStream { credential: None, replaces: None }));
+    assert_eq!(h.exchanges(), 0);
+    assert!(h.has(&Request::OpenStream { credential: None, replaces: Some(fixtures::STREAM) }));
 }
 
 #[test]

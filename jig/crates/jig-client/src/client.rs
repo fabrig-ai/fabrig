@@ -138,6 +138,7 @@ pub struct Client {
     saves: Queue<Record>,
     erases: Queue<Box<[u8]>>,
     reads: Queue<DeferredRead>,
+    submitted_reads: skein_lib::Map<Token, ()>,
 }
 /// Payload-free admission counters, copied only for an explicit diagnostic.
 #[derive(Debug)]
@@ -204,6 +205,7 @@ impl Client {
             saves: Queue::uncapped(),
             erases: Queue::uncapped(),
             reads: Queue::uncapped(),
+            submitted_reads: skein_lib::Map::uncapped(),
         }
     }
     pub fn step(&mut self, now: Time, wall: Wall, event: Event, out: &mut Queue<Request>) {
@@ -551,16 +553,35 @@ impl Client {
             }
         }
     }
+    fn send_read(&mut self, now: Time, read: Token, what: Readable) {
+        self.submitted_reads.insert(read, ()).expect("submitted reads are bounded by domain admission");
+        self.link_step(now, link::Event::Read { read, what });
+    }
+    fn prune_link_reads(&mut self, env: &Env<DomainLimits>) {
+        let mut ended = List::with_capacity(self.submitted_reads.len());
+        for (read, ()) in &self.submitted_reads {
+            if !self.domain.has_read(*read) || self.domain.read_refusal(*read).is_some() {
+                ended.push(*read).expect("submitted reads");
+            }
+        }
+        for read in &ended {
+            self.link.as_mut().expect("linked reads").cancel_read(*read);
+            self.submitted_reads.remove(read);
+            if let Some(result) = self.domain.read_refusal(*read) {
+                self.up(env, Up::ReadDone { read: *read, result });
+            }
+        }
+    }
     fn defer_read(&mut self, now: Time, read: Token, what: Readable) {
         self.prune_reads();
         if self.reads.is_empty() && self.link.as_ref().expect("linked read").has_exchange_room() {
-            self.link_step(now, link::Event::Read { read, what });
+            self.send_read(now, read, what);
             return;
         }
         // Validate before retaining cursor/filter/family payloads within their wire envelope.
         // Invalid reads keep their existing terminal; only local exchange pressure waits.
         if link::translate::reads::owned(what.clone(), self.link_limits.wire()).is_err() {
-            self.link_step(now, link::Event::Read { read, what });
+            self.send_read(now, read, what);
             return;
         }
         self.reads.push(DeferredRead { read, what });
@@ -578,6 +599,7 @@ impl Client {
         // Link and domain outputs answer each other within this step; the routed event's bounded
         // fan-out ends this settle (client_settled below).
         loop {
+            self.prune_link_reads(env);
             // link_requests_dispatched: route the link's consequences before the next domain request.
             if let Some(request) = self.link_out.pop() {
                 self.route_link(env, request, out);
@@ -627,7 +649,7 @@ impl Client {
                 }
                 match refusal {
                     Some(result) => self.up(env, Up::ReadDone { read: read.read, result }),
-                    None => self.link_step(env.now, link::Event::Read { read: read.read, what: read.what }),
+                    None => self.send_read(env.now, read.read, read.what),
                 }
             } else {
                 break;
@@ -683,7 +705,10 @@ impl Client {
             link::Request::Watch { watch, event } => self.up(env, Up::Watched { watch, event }),
             link::Request::FamilyDelivery { watch, record } => self.up(env, Up::FamilyDelivered { watch, record }),
             link::Request::Ended { watch, end } => self.up(env, Up::WatchEnded { watch, end }),
-            link::Request::Read { read, result } => self.up(env, Up::ReadDone { read, result }),
+            link::Request::Read { read, result } => {
+                self.submitted_reads.remove(&read);
+                self.up(env, Up::ReadDone { read, result });
+            }
             link::Request::Hello { family: None, versions } => {
                 let served = match versions {
                     Some(range) => link::serves(range),

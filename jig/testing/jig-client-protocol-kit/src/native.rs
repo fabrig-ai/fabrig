@@ -449,4 +449,4 @@ impl Host for NativeClient {
 
 pub mod wire;
 mod world;
-pub use world::{Outcome, run, run_terminal, settings};
+pub use world::{Outcome, batch, run, run_terminal, settings};

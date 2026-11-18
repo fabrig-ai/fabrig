@@ -15,6 +15,7 @@ macro_rules! encode {
         writer.finish()
     }};
 }
+mod batch;
 pub mod changes;
 pub mod local;
 pub mod moves;
@@ -687,7 +688,8 @@ impl Frame {
             return;
         }
         socket.answered = true;
-        match path.as_slice() {
+        let route = path.split(|byte| *byte == b'?').next().expect("route");
+        match route {
             b"/jig/v1/sign-in/link" | b"/jig/v1/sign-in/deployment" => {
                 self.link_posts.push(socket.request[end + 4..].into());
                 self.link_bearers.push(head.lines().find_map(|line| {
@@ -737,6 +739,7 @@ impl Frame {
                 socket.reply.extend(format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n", body.len()).bytes());
                 socket.reply.extend(body.iter().copied());
             }
+            b"/jig/v1/batch" => self.batch(fd),
             b"/jig/v1/stream" => self.hello(fd),
             b"/jig/v1/watch" => {
                 let open = w::Open::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&socket.request[end + 4..]))

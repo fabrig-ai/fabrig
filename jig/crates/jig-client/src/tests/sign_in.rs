@@ -22,18 +22,20 @@ fn a_watch_asked_before_signing_in_opens_once_signed_in() {
     assert_eq!(*told, Told::Link { link: Link::Starting });
     assert_eq!(credential, &Some(fixtures::credential(&CREDENTIAL)));
     c.stream(fixtures::hello(jig_client_protocol_wire::VERSION));
-    assert_eq!(c.requests.len(), 3);
+    assert_eq!(c.requests.len(), 2);
     let Request::Save { records } = c.requests.as_slice().first().expect("hello saves its stream") else {
         panic!("hello saves its stream");
     };
     assert_eq!(records.len(), 1);
     assert_eq!(records.as_slice().first().unwrap().key.as_ref(), STREAM_KEY);
-    assert_eq!(c.requests.len().saturating_sub(1), HELD_WATCHES);
-    for request in c.requests.iter().skip(1) {
-        let Request::Exchange { credential, message: Message::Watch(_), .. } = request else {
-            panic!("one exchange for each held watch: {request:?}");
-        };
-        assert_eq!(credential, &Some(fixtures::credential(&CREDENTIAL)));
+    let Request::Exchange { credential, message: Message::Batch(bytes), .. } = c.requests.get(1).unwrap() else {
+        panic!("one batch for held openings")
+    };
+    assert_eq!(credential, &Some(fixtures::credential(&CREDENTIAL)));
+    let batch = w::Batch::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).unwrap();
+    assert_eq!(batch.members().len(), HELD_WATCHES);
+    for member in batch.members() {
+        let w::Member::Open(_) = member else { panic!("held opening") };
     }
 }
 
