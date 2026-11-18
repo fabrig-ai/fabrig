@@ -90,11 +90,11 @@ impl Peer {
             let mut writer = Writer::new(usize::try_from(answer.measure()).expect("answer size"));
             answer.encode(&mut writer).expect("admitted");
             self.respond(owner, response(&writer.finish()));
-        } else if bytes.starts_with(b"GET /jig/v1/stream ") {
+        } else if bytes.starts_with(format!("GET /jig/v1/stream?version={} ", w::VERSION).as_bytes()) {
             self.stream = Some(owner);
             self.respond(
                 owner,
-                [b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n\r\n".to_vec(), hello()].concat(),
+                [b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n\r\n".to_vec(), opened()].concat(),
             );
         } else if bytes.starts_with(b"POST /jig/v1/sign-in/link ") {
             self.respond(owner, signed_in());
@@ -213,7 +213,7 @@ fn signed_in() -> Vec<u8> {
     answer.encode(&mut writer).expect("sign-in answer");
     response(&writer.finish())
 }
-fn hello() -> Vec<u8> {
+fn opened() -> Vec<u8> {
     let mut served = skein_lib::List::with_capacity(1);
     served
         .push(
@@ -228,10 +228,13 @@ fn hello() -> Vec<u8> {
             .expect("served version"),
         )
         .expect("one version");
-    sse(&w::StreamEvent::Hello(
+    let hello =
         w::Hello::new(&w::CEILINGS, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
-            .expect("hello"),
-    ))
+            .expect("hello");
+    let mut me = jig_client_test_records::frame_record().into_parts();
+    me.party = w::MeParty::new(&w::CEILINGS, w::MePartyParts { number: 17, ..me.party.into_parts() })
+        .expect("signed-in party");
+    sse(&jig_client_test_records::opened(hello, w::Me::new(&w::CEILINGS, me).expect("me")))
 }
 fn terminal(watch: u64) -> Vec<u8> {
     let login = w::TerminalLogin::new(
