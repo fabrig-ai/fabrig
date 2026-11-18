@@ -1,6 +1,6 @@
 # findings: status
 
-2026-11-11. Where temper's code lags or departs from [findings.md](findings.md).
+2026-11-18. Where temper's code lags or departs from [findings.md](findings.md).
 
 - **Not yet:** 2, 6 and 9: the `Finding` record, numbered in its project, without the fields its issue and matching add; 6's acts by its holder or a project owner, handed on, to a goal with the goal's news, to the backlog and dropped; 9's requests `FileFinding`, `HandFinding` and `TriageFinding`, the subject `findings` and the read `Finding`, and the store's family bounded by `forge.findings_per_project` [in flight: change 746].
 - **Not yet:** 4, *Who files*: the root, for a red of no goal's, once per landing [in flight: change 751].

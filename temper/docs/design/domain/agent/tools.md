@@ -136,7 +136,9 @@
   or a timer, and `subscribe_forge` each take one of the task's
   subscriptions, at most `tasks.subscriptions` (jig's `domain/tasks/messages.md`, 4, and `jig/docs/design/domain/tasks/README.md`, 6
   ), where the topics the core keeps for a goal
-  (`../forge/README.md`, 5.2) count too. A call past that room is refused, saying
+  (`../forge/README.md`, 5.2) count too, and so does the project's
+  findings topic the root keeps for a finding's holder, which alone is
+  admitted one past that room (`../areas.md`, section 5). A call past that room is refused, saying
   why, as jig's `domain/engine/executors.md`, 3 has every refusal do:
   `subscribe` answers "Refused: task 4 busy: it holds its most
   subscriptions (at most 4, counting the topics the engine keeps for a
