@@ -1,6 +1,6 @@
 //! The shared component bridge machine (jig/docs/design/protocol/channel/bridges.md, 5 and 9).
 use crate::translation::Translation;
-use crate::{self as channel, Agreed, Application, Carried, Kept, Root, Spoken, v16 as wire};
+use crate::{self as channel, Agreed, Application, Carried, Kept, Root, Spoken, v17 as wire};
 use skein_channel::{Frame, frame_writer};
 use skein_codec::{
     bridge::Bridge,
@@ -119,6 +119,66 @@ fn assignment(charter: Box<[u8]>) -> wire::Assignment {
     parts.workspace = None;
     parts.grants = List::with_capacity(16);
     wire::Assignment::new(&wire::CEILINGS, parts).unwrap()
+}
+
+fn failed_answer(failure: wire::RunFailure) -> wire::FromWorker {
+    let mut answer = super::fixtures::answer_failed().into_parts();
+    let wire::Ending::Failed(failed) = answer.ending else { panic!("failed answer") };
+    let mut failed = failed.into_parts();
+    failed.failure = wire::Failure::Run(
+        wire::RunFailureValue::new(&wire::CEILINGS, wire::RunFailureValueParts { value: failure }).unwrap(),
+    );
+    answer.ending = wire::Ending::Failed(wire::Failed::new(&wire::CEILINGS, failed).unwrap());
+    wire::FromWorker::Answer(wire::Answer::new(&wire::CEILINGS, answer).unwrap())
+}
+
+#[test]
+fn an_untooled_answer_is_unheld_below_seventeen() {
+    let record = failed_answer(wire::RunFailure::Untooled);
+    let refusal = opaque().send(worker(&record), 16, &agreed(16, 5), &wire::CEILINGS).unwrap_err();
+    assert_eq!(refusal.wire.as_ref(), b"jig-worker-wire");
+    assert_eq!(refusal.version, 17);
+    let Halt::Unheld(_) = refusal.halt else { panic!("untooled is unheld: {refusal:?}") };
+}
+
+#[test]
+fn older_run_failures_round_trip_through_sixteen_without_changing() {
+    let mut sender = opaque();
+    let mut receiver = opaque();
+    for failure in [
+        wire::RunFailure::Model,
+        wire::RunFailure::Budget,
+        wire::RunFailure::Policy,
+        wire::RunFailure::Cancelled,
+        wire::RunFailure::Stale,
+        wire::RunFailure::Limited(
+            wire::LimitedAccount::new(
+                &wire::CEILINGS,
+                wire::LimitedAccountParts { account: 7, reset: Some(skein_lib::Duration::from_secs(9)) },
+            )
+            .unwrap(),
+        ),
+        wire::RunFailure::Refused(
+            wire::RefusedAccount::new(&wire::CEILINGS, wire::RefusedAccountParts { account: 7 }).unwrap(),
+        ),
+        wire::RunFailure::Exceeded(
+            wire::Exceeded::new(&wire::CEILINGS, wire::ExceededParts { bound: wire::Bound::Window, value: 8192 })
+                .unwrap(),
+        ),
+        wire::RunFailure::Transcript,
+    ] {
+        let record = failed_answer(failure);
+        let down = sender.send(worker(&record), 16, &agreed(16, 5), &wire::CEILINGS).unwrap();
+        let up = receiver.receive(down.kind(), body(&down), 16, &agreed(16, 5), &wire::CEILINGS).unwrap();
+        assert_eq!(worker_value(&up), record);
+    }
+}
+
+#[test]
+fn a_worker_of_seventeen_cannot_send_whole_to_an_engine_of_sixteen() {
+    let agreed = [Agreed { name: "jig-worker-wire", version: 16 }];
+    assert_eq!(opaque().incomplete(&agreed).as_slice(), &agreed);
+    assert!(opaque().incomplete(&[Agreed { name: "jig-worker-wire", version: 17 }]).is_empty());
 }
 
 #[test]
