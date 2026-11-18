@@ -80,7 +80,7 @@ pub fn offered(current: &Current, defaults: bool, items: &[Item]) -> skein_lib::
 /// One constructor for every range refusal (domain/engine/settings.md, 1).
 #[must_use]
 pub fn range_failure(setting: Setting) -> Failure {
-    Failure { setting, fault: Fault::Shape, detail: None }
+    Failure { setting, fault: Fault::Range, detail: None }
 }
 
 fn out_of_range(current: &Current, defaults: bool, setting: Setting, value: &Value) -> bool {
