@@ -10,7 +10,7 @@ fn each_page_round_trips_through_its_path() {
         (Address::Members, b"/deployment/members"),
         (Address::Remembered, b"/remembered"),
         (Address::Limits, b"/deployment/limits"),
-        (Address::Inbox { filter: Filter::ALL }, b"/"),
+        (Address::Inbox { filter: Filter::ALL }, b"/needs"),
         (Address::Chats { filter: ChatsFilter::All }, b"/chats"),
         (Address::Chat { task: 7 }, b"/chats/7"),
         (Address::Task { task: 7 }, b"/tasks/7"),
@@ -57,18 +57,18 @@ fn each_page_round_trips_through_its_path() {
 #[test]
 fn each_inbox_filter_round_trips_through_its_query() {
     let filters: [(Filter, &[u8]); 9] = [
-        (Filter { project: Some(3), ..Filter::ALL }, b"/?project=3"),
-        (Filter { kind: Some(Kind::Proposal), ..Filter::ALL }, b"/?kind=proposal"),
-        (Filter { kind: Some(Kind::Question), ..Filter::ALL }, b"/?kind=question"),
-        (Filter { kind: Some(Kind::Held), ..Filter::ALL }, b"/?kind=held"),
-        (Filter { kind: Some(Kind::PersonTask), ..Filter::ALL }, b"/?kind=person-task"),
-        (Filter { goal: Some(9), ..Filter::ALL }, b"/?goal=9"),
+        (Filter { project: Some(3), ..Filter::ALL }, b"/needs?project=3"),
+        (Filter { kind: Some(Kind::Proposal), ..Filter::ALL }, b"/needs?kind=proposal"),
+        (Filter { kind: Some(Kind::Question), ..Filter::ALL }, b"/needs?kind=question"),
+        (Filter { kind: Some(Kind::Held), ..Filter::ALL }, b"/needs?kind=held"),
+        (Filter { kind: Some(Kind::PersonTask), ..Filter::ALL }, b"/needs?kind=person-task"),
+        (Filter { goal: Some(9), ..Filter::ALL }, b"/needs?goal=9"),
         (
             Filter { project: Some(3), kind: Some(Kind::PersonTask), goal: Some(9) },
-            b"/?project=3&kind=person-task&goal=9",
+            b"/needs?project=3&kind=person-task&goal=9",
         ),
-        (Filter { project: Some(u32::MAX), ..Filter::ALL }, b"/?project=4294967295"),
-        (Filter { goal: Some(u64::MAX), ..Filter::ALL }, b"/?goal=18446744073709551615"),
+        (Filter { project: Some(u32::MAX), ..Filter::ALL }, b"/needs?project=4294967295"),
+        (Filter { goal: Some(u64::MAX), ..Filter::ALL }, b"/needs?goal=18446744073709551615"),
     ];
     for (filter, path) in filters {
         let address = Address::Inbox { filter };
@@ -79,8 +79,10 @@ fn each_inbox_filter_round_trips_through_its_query() {
 
 #[test]
 fn the_inbox_prints_its_set_fields_in_one_order() {
-    let filters: [(Filter, &[u8]); 2] =
-        [(Filter::ALL, b"/"), (Filter { project: Some(3), goal: Some(9), ..Filter::ALL }, b"/?project=3&goal=9")];
+    let filters: [(Filter, &[u8]); 2] = [
+        (Filter::ALL, b"/needs"),
+        (Filter { project: Some(3), goal: Some(9), ..Filter::ALL }, b"/needs?project=3&goal=9"),
+    ];
     for (filter, path) in filters {
         assert_eq!(&*print(&Address::Inbox { filter }), path, "{filter:?}");
     }
@@ -100,24 +102,24 @@ fn another_pages_query_is_dropped() {
 fn a_field_it_cannot_read_is_dropped() {
     let project = Filter { project: Some(3), ..Filter::ALL };
     let fields: &[(&[u8], Filter)] = &[
-        (b"/?secret=s", Filter::ALL),
-        (b"/?kind=reply&project=3", project),
-        (b"/?kind=Question", Filter::ALL),
-        (b"/?project=07", Filter::ALL),
-        (b"/?project=4294967296", Filter::ALL),
-        (b"/?goal=", Filter::ALL),
-        (b"/?kind", Filter::ALL),
-        (b"/?=3", Filter::ALL),
-        (b"/?", Filter::ALL),
-        (b"/?&&", Filter::ALL),
-        (b"/?project=3&project=4", project),
-        (b"/?project=x&project=4", Filter { project: Some(4), ..Filter::ALL }),
-        (b"/?goal=9&project=3", Filter { goal: Some(9), ..project }),
-        (b"/?goal=18446744073709551616", Filter::ALL),
-        (b"/?kind=question=held", Filter::ALL),
-        (b"/?kind=held&kind=question", Filter { kind: Some(Kind::Held), ..Filter::ALL }),
-        (b"/?goal=x&goal=9&goal=10", Filter { goal: Some(9), ..Filter::ALL }),
-        (b"/?kind=reply&kind=question", Filter { kind: Some(Kind::Question), ..Filter::ALL }),
+        (b"/needs?secret=s", Filter::ALL),
+        (b"/needs?kind=reply&project=3", project),
+        (b"/needs?kind=Question", Filter::ALL),
+        (b"/needs?project=07", Filter::ALL),
+        (b"/needs?project=4294967296", Filter::ALL),
+        (b"/needs?goal=", Filter::ALL),
+        (b"/needs?kind", Filter::ALL),
+        (b"/needs?=3", Filter::ALL),
+        (b"/needs?", Filter::ALL),
+        (b"/needs?&&", Filter::ALL),
+        (b"/needs?project=3&project=4", project),
+        (b"/needs?project=x&project=4", Filter { project: Some(4), ..Filter::ALL }),
+        (b"/needs?goal=9&project=3", Filter { goal: Some(9), ..project }),
+        (b"/needs?goal=18446744073709551616", Filter::ALL),
+        (b"/needs?kind=question=held", Filter::ALL),
+        (b"/needs?kind=held&kind=question", Filter { kind: Some(Kind::Held), ..Filter::ALL }),
+        (b"/needs?goal=x&goal=9&goal=10", Filter { goal: Some(9), ..Filter::ALL }),
+        (b"/needs?kind=reply&kind=question", Filter { kind: Some(Kind::Question), ..Filter::ALL }),
     ];
     for &(path, filter) in fields {
         assert_eq!(parse(path), Place::Address(Address::Inbox { filter }), "{path:?}");
@@ -471,7 +473,7 @@ fn other_paths_read_as_before() {
     assert_eq!(parse(b"/publicx"), Place::Missing);
     assert_eq!(parse(b"/publicx/projects/0123456789abcdef"), Place::Missing);
     assert_eq!(parse(b"/chats/7"), Place::Address(Address::Chat { task: 7 }));
-    assert_eq!(parse(b"/"), Place::Address(Address::Inbox { filter: Filter::ALL }));
+    assert_eq!(parse(b"/needs"), Place::Address(Address::Inbox { filter: Filter::ALL }));
 }
 
 #[test]
@@ -595,4 +597,17 @@ fn tell_address_round_trips() {
     let address = Address::Tell { project: 3 };
     assert_eq!(parse(b"/projects/3/tell"), Place::Address(address.clone()));
     assert_eq!(print(&address).as_ref(), b"/projects/3/tell");
+}
+
+#[test]
+fn the_root_waits_for_home_unless_its_query_sets_an_inbox_field() {
+    for path in [b"/".as_slice(), b"/?x=1", b"/?kind=reply"] {
+        assert_eq!(parse(path), Place::Root, "{path:?}");
+    }
+    let inbox = Address::Inbox { filter: Filter { kind: Some(Kind::Question), goal: Some(9), ..Filter::ALL } };
+    assert_eq!(parse(b"/?kind=question&goal=9"), Place::Address(inbox.clone()));
+    assert_eq!(print(&inbox).as_ref(), b"/needs?kind=question&goal=9");
+    for path in [b"/needs".as_slice(), b"/needs/"] {
+        assert_eq!(parse(path), Place::Address(Address::Inbox { filter: Filter::ALL }));
+    }
 }

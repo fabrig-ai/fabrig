@@ -49,9 +49,9 @@
    That the secret leaves the address before the first request is held by
    the shell's start order (`README.md`, 2.1), and is not tested.
 2. **Addresses:** skein's `back_and_forward` (skein's `ui/web/testing.md`,
-   2), from the chats to a chat by its link and back; an address
-   that is no page opens the inbox, and the address reads `/` once it
-   shows (`README.md`, 2.3).
+   2), from the chats to a chat by its link and back; `/` and an
+   address that is no page open Home, and the address reads that Home's
+   once it shows (`README.md`, 2.3).
 3. **The composer:** in the chats, Enter starts a chat with the words
    once, and Shift+Enter makes a new line in them (`look.md`). The chat opens
    with its composer focused, the focus stays there after Enter and after
@@ -354,8 +354,8 @@ setup across desktop and phone widths. The twelve test functions in
    pressed after reloading `/chats?state=closed`, then All pressed after
    Back to `/chats`, each by its exact button name within `WITHIN`
    (skein's `ui/web/testing.md`, 2), independently of a Drafts button arriving
-   before Closed. An address that is no page opens
-   the inbox at `/` (1, 2). Its chat's model scripts a run of calls: the folded
+   before Closed. `/` and an address that is no page open
+   Home, its address replacing theirs (1, 2). Its chat's model scripts a run of calls: the folded
    line hides its rows until a press, and stays open on its node across a reply,
    `details[open]` being the browser's, which the model doesn't hold
    (`../pages/README.md`).
@@ -434,7 +434,7 @@ Not in the tier, each in the lowest world that shows it:
   `suite::public::an_ended_public_goal_is_retained_by_the_public_referee`.
 - **Address-codec edge rows:** `temper-client-domain`'s
   `tests::address::{a_path_that_is_no_page_is_missing,each_number_spans_its_types_range}`.
-  Browser test 2 keeps the shell's replacement of a missing address with `/`.
+  Browser test 2 keeps the shell's replacement of a missing address with Home's.
 - **Repeated loads at the watcher bound:** the client world's
   `suite::reloads::repeated_loads_release_the_previous_clients_watches`.
 - **Composer bounds:** the client domain's

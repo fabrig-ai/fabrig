@@ -19,13 +19,13 @@ pub(crate) fn top(
     use crate::words::Shell;
     use temper_client_domain::{Address, address::Filter, pages::Act};
     let me = root.pages().me(root.client());
+    let home = match w.shell {
+        Shell::Browser => temper_client_domain::pages::rail::root_home(me),
+        Shell::Terminal => Address::Inbox { filter: Filter::ALL },
+    };
     b.open(Role::Banner);
     b.style(look::TOP);
-    crate::link(
-        b,
-        &w.say(Word::Brand, &[]),
-        bindings.insert(Act::Go { address: Address::Inbox { filter: Filter::ALL } }),
-    );
+    crate::link(b, &w.say(Word::Brand, &[]), bindings.insert(Act::Go { address: home }));
     b.style(look::BRAND);
     w.text(b, Word::Brand, &[]);
     b.close();
