@@ -1,4 +1,3 @@
-#![expect(clippy::disallowed_macros, reason = "unit tests read committed golden records")]
 //! New settings records translate in both directions, including framed reviews.
 use super::encoders as e;
 use super::*;
@@ -8,76 +7,76 @@ use jig_client_test_records::settings_proposals as values;
 fn every_settings_proposal_record_translates_both_ways() {
     let limits = Limits::new(jig_client_domain::Limits { rows: 8, ..*fixtures::limits().client() }, 4).expect("limits");
     {
-        let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/record_propose_settings_smallest.bin");
+        let bytes = client_values::value("record_propose_settings_smallest.bin");
         let wire = w::ProposeSettings::decode(limits.wire(), &mut Reader::new(bytes)).expect("wire fixture");
         let client = t::restore_propose_settings(&wire, &limits).expect("client record");
         assert_eq!(t::wire_propose_settings(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/record_origin_revision_smallest.bin");
+        let bytes = client_values::value("record_origin_revision_smallest.bin");
         let wire = w::OriginRevision::decode(limits.wire(), &mut Reader::new(bytes)).expect("wire fixture");
         let client = t::restore_origin_revision(&wire).expect("client record");
         assert_eq!(e::wire_origin_revision(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/record_review_item_smallest.bin");
+        let bytes = client_values::value("record_review_item_smallest.bin");
         let wire = w::ReviewItem::decode(limits.wire(), &mut Reader::new(bytes)).expect("wire fixture");
         let client = t::restore_review_item(&wire, &limits).expect("client record");
         assert_eq!(e::wire_review_item(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/record_settings_review_smallest.bin");
+        let bytes = client_values::value("record_settings_review_smallest.bin");
         let wire = w::SettingsReview::decode(limits.wire(), &mut Reader::new(bytes)).expect("wire fixture");
         let client = t::restore_settings_review(&wire, &limits).expect("client record");
         assert_eq!(e::wire_settings_review(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes =
-            include_bytes!("../../../jig-client-protocol-wire/golden/record_proposal_action_settings_smallest.bin");
+            client_values::value("record_proposal_action_settings_smallest.bin");
         let wire = w::ProposalActionSettings::decode(limits.wire(), &mut Reader::new(bytes)).expect("wire fixture");
         let client = t::restore_owner_proposal_action_settings(&wire, &limits).expect("client record");
         assert_eq!(e::wire_owner_proposal_action_settings(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes =
-            include_bytes!("../../../jig-client-protocol-wire/golden/record_retained_action_settings_smallest.bin");
+            client_values::value("record_retained_action_settings_smallest.bin");
         let wire = w::RetainedActionSettings::decode(limits.wire(), &mut Reader::new(bytes)).expect("wire fixture");
         let client = t::restore_owner_retained_action_settings(&wire, &limits).expect("client record");
         assert_eq!(e::wire_owner_retained_action_settings(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/enum_setting_origin_default_smallest.bin");
+        let bytes = client_values::value("enum_setting_origin_default_smallest.bin");
         let wire = w::SettingOrigin::decode(limits.wire(), &mut Reader::new(bytes)).expect("wire fixture");
         let client = t::restore_setting_origin(&wire).expect("client record");
         assert_eq!(e::wire_setting_origin(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/enum_setting_origin_change_smallest.bin");
+        let bytes = client_values::value("enum_setting_origin_change_smallest.bin");
         let wire = w::SettingOrigin::decode(limits.wire(), &mut Reader::new(bytes)).expect("wire fixture");
         let client = t::restore_setting_origin(&wire).expect("client record");
         assert_eq!(e::wire_setting_origin(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes =
-            include_bytes!("../../../jig-client-protocol-wire/golden/enum_setting_origin_not_offered_smallest.bin");
+            client_values::value("enum_setting_origin_not_offered_smallest.bin");
         let wire = w::SettingOrigin::decode(limits.wire(), &mut Reader::new(bytes)).expect("wire fixture");
         let client = t::restore_setting_origin(&wire).expect("client record");
         assert_eq!(e::wire_setting_origin(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/enum_review_value_value_smallest.bin");
+        let bytes = client_values::value("enum_review_value_value_smallest.bin");
         let wire = w::ReviewValue::decode(limits.wire(), &mut Reader::new(bytes)).expect("wire fixture");
         let client = t::restore_review_value(&wire, &limits).expect("client record");
         assert_eq!(e::wire_review_value(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/enum_review_value_too_large_smallest.bin");
+        let bytes = client_values::value("enum_review_value_too_large_smallest.bin");
         let wire = w::ReviewValue::decode(limits.wire(), &mut Reader::new(bytes)).expect("wire fixture");
         let client = t::restore_review_value(&wire, &limits).expect("client record");
         assert_eq!(e::wire_review_value(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/enum_review_value_none_smallest.bin");
+        let bytes = client_values::value("enum_review_value_none_smallest.bin");
         let wire = w::ReviewValue::decode(limits.wire(), &mut Reader::new(bytes)).expect("wire fixture");
         let client = t::restore_review_value(&wire, &limits).expect("client record");
         assert_eq!(e::wire_review_value(&client, limits.wire()), Ok(wire));

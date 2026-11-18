@@ -2,7 +2,7 @@
 //! jig/docs/design/protocol/client/public-reads.md).
 use jig_client_protocol_wire::{PublicIndexBounds, public_limits, public_v1::*};
 use skein_lib::{Reader, Rng, Writer};
-use std::{fmt::Arguments, fs};
+use std::fmt::Arguments;
 
 const FIRST_SEED: u64 = 0x7075_b11c;
 const SEEDS: u64 = 4;
@@ -90,17 +90,17 @@ fn mutated(seed: u64, rng: &mut Rng, limits: &Limits, bounds: &str, golden: &[u8
     }
 }
 
+#[expect(clippy::disallowed_macros, reason = "fuzzy seeds embed the public family's schema text")]
+fn public_values() -> Vec<skein_codegen::Golden> {
+    let text = include_str!("../../../../../crates/jig-client-protocol-wire/schema/public-v1.schema");
+    skein_codegen::goldens(&skein_codegen::parse(text).expect("public schema"))
+}
+
 #[test]
 fn public_records_decode_without_panic_and_re_encode_what_they_decode() {
-    let root = skein_scratch::paths::tree().join("crates/jig-client-protocol-wire/golden/public");
-    let mut paths: Vec<_> = fs::read_dir(root)
-        .expect("public golden directory")
-        .map(|entry| entry.expect("public golden entry").path())
-        .filter(|path| path.extension().is_some_and(|extension| extension == "bin"))
-        .collect();
-    paths.sort();
-    assert!(!paths.is_empty(), "public golden corpus, seed {FIRST_SEED:#x}");
-    let goldens: Vec<_> = paths.iter().map(|path| fs::read(path).expect("public golden bytes")).collect();
+    let mut goldens = public_values();
+    goldens.sort_by(|left, right| left.name.cmp(&right.name));
+    assert!(!goldens.is_empty(), "public golden corpus, seed {FIRST_SEED:#x}");
     for seed in FIRST_SEED..FIRST_SEED.checked_add(SEEDS).expect("seed range") {
         let mut rng = Rng::new(seed);
         for (bounds_name, bounds) in [
@@ -112,7 +112,7 @@ fn public_records_decode_without_panic_and_re_encode_what_they_decode() {
             let limits = public_limits(&bounds).expect("public bounds within ceilings");
             arbitrary(seed, &mut rng, &limits, bounds_name);
             for (golden_index, golden) in goldens.iter().enumerate() {
-                mutated(seed, &mut rng, &limits, bounds_name, golden, golden_index);
+                mutated(seed, &mut rng, &limits, bounds_name, &golden.bytes, golden_index);
             }
         }
     }

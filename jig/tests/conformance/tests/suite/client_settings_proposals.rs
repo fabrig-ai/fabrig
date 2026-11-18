@@ -95,9 +95,7 @@ fn pending_reviews_keep_origins_values_sizes_and_the_cut_fact() {
     let wire = wire_owner_proposal_action_settings(&pending, limits.wire()).expect("settings action");
     let mut parts = w::Proposal::decode(
         limits.wire(),
-        &mut Reader::new(include_bytes!(
-            "../../../../crates/jig-client-protocol-wire/golden/record_proposal_smallest.bin"
-        )),
+        &mut Reader::new(super::client_values::value("record_proposal_smallest.bin")),
     )
     .expect("proposal envelope")
     .into_parts();
@@ -137,9 +135,7 @@ fn retained_settings_actions_keep_the_revision_they_made() {
     let wire = wire::wire_retained_action_settings(&retained, limits.wire()).expect("retained settings");
     let mut proposal = w::ProposalHistory::decode(
         limits.wire(),
-        &mut Reader::new(include_bytes!(
-            "../../../../crates/jig-client-protocol-wire/golden/record_proposal_history_smallest.bin"
-        )),
+        &mut Reader::new(super::client_values::value("record_proposal_history_smallest.bin")),
     )
     .expect("history envelope")
     .into_parts();
@@ -177,9 +173,7 @@ fn retained_settings_actions_keep_the_revision_they_made() {
     );
     let mut ended = w::Ended::decode(
         limits.wire(),
-        &mut Reader::new(include_bytes!(
-            "../../../../crates/jig-client-protocol-wire/golden/record_ended_smallest.bin"
-        )),
+        &mut Reader::new(super::client_values::value("record_ended_smallest.bin")),
     )
     .expect("ended envelope")
     .into_parts();

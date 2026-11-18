@@ -122,3 +122,11 @@ mod answers;
 mod encoders;
 
 mod approval;
+
+#[path = "../../../tests/client-values.rs"]
+#[expect(
+    clippy::disallowed_types,
+    clippy::disallowed_methods,
+    reason = "fixed-rule test values use ordinary Rust under jig/tests/clippy.toml"
+)]
+mod client_values;
