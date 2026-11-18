@@ -2,470 +2,339 @@
 
 Draft, 2026-11-18, with the user. The first journey of the UX draft
 (J0, "the try"), step by step: from a person typing `./temper box`
-after the download to their first project open, in the terminal and
-the browser at once. First on paper, here: each step, what the person
-does, what each screen says, what temper does behind it, how long it
-takes and how far it is built. The mockups come next, a web frame and
-a terminal frame for each step (section 5). Where the journey trips,
-section 4 proposes a change; the user's own changes are to come.
+after the download to their first change landed on their own machine,
+in the terminal and the browser at once. Rewritten the same day: the
+user set the playground aside, so the try is the set up, and chose to
+start from Forgejo on this machine, with the welcome choosing by what
+the person wants, in the words section 4 proposes, and fewer choices
+(the user, 2026-11-18). GitHub's way is the second path, designed next
+(section 6). On paper first; the mockups follow (section 8).
 
 ## 1. In one page
 
 - **What the try is for:** a person who has just downloaded temper sees,
-  in about ten minutes and connecting nothing, the line held on a
-  change: written by an agent, checked by code, reviewed by an agent,
-  and merged at the commit that was checked, with no merge an agent's.
-  Then they set temper up for real.
-- **Where it ends:** their first project, Hello, open on its Home in the
-  browser and on its launchpad in the terminal, with `work/hello` on a
-  Forgejo of their own and their model signed in. The first day with
-  their own code starts there.
-- **Three parts:** the start (steps 1 to 3, a minute), the playground
-  (4 to 9, about three minutes) and the set up (10 to 13, about five).
-- **Two screens, one door each:** the browser acts and the terminal
-  follows it, saying where the set up stands. The terminal acts once:
-  Claude Code's sign-in, which it lends the terminal for (step 11).
-- **How far it is built:** the start, the welcome, the playground's
-  start and the set up as far as the Model step are built and recorded
-  (`../client/web/journeys/welcome-playground/`,
-  `../client/web/journeys/welcome-set-up/`). From the playground's first
-  request to its landing, and from Model to Ready, is built and played
-  by the real loop's stories, the process tier and the client's world,
-  but no journey records it.
-  No time below is measured; each is an estimate from what runs.
-- **What trips it** (section 4): the line the playground holds is
-  nowhere said where the person looks; no code that changed can be
-  seen; its way out is worded two ways; and Claude needs Claude Code
-  installed, which nothing says before it fails.
+  on their own machine and with their own model, a change written by an
+  agent, checked by CI, reviewed by an agent, and merged at the commit
+  that was checked, with no merge an agent's. Then they bring their own
+  code, or say how they work.
+- **One press to start:** the welcome asks what the person wants, "Try
+  temper here" or "Work on your GitHub repositories", each with what it
+  costs: the time, what leaves the machine, what gets access. Trying
+  here starts a Forgejo on this machine with a small sample project, at
+  once, with no sheet and no form (4.1).
+- **Three steps, not four:** Start, Model, Ready. Ready makes the
+  project by itself once the forge and the model are; the person names
+  nothing (4.2, 4.3).
+- **A first change worth making:** the sample is a small program with a
+  test its CI runs, so the check is real; Home offers three first
+  changes for it (4.4, 4.5).
+- **The card says the line:** a change's card in the chat reads
+  "Written by an agent", "Checked by CI", "Reviewed by an agent",
+  "Landed", each with its fact, the same commit in the last three
+  (4.6). temper says it, not the model.
+- **Claude Code said first:** Claude's card says whether Claude Code is
+  on the machine before it is pressed (4.7).
+- **About seven minutes** to the first change landed, none of it
+  measured (section 3).
 
-## 2. The steps
+## 2. How it feels
 
-Each step says: **You**, what the person does; **Terminal** and
-**Browser**, what each shows, in its words; **Behind**, what temper
-does; **Time**; and **Built**, how far. Task numbers are illustrative:
-the chat is task 1 on a fresh box, its change task 2.
+A developer on their laptop has downloaded `temper` from the site,
+which said "try it in ten minutes". They are curious and a little
+wary: another tool that wants their accounts?
 
-### Step 1. `./temper box`
+**0:00, the terminal.** `./temper box`. The terminal turns into temper
+at once: its mark, "temper box · a whole deployment on this machine",
+and "Welcome. Set temper up in your browser: open this link on this
+machine." Under it, for a few seconds, "Downloading temper-box, once
+for this build: 12.3 of 24.1 MB". Nothing asks anything yet. Then the
+link appears where it said it would.
 
-- **You:** in a terminal, in the directory the download landed in,
-  `./temper box`.
-- **Terminal:** the TUI takes the whole terminal at once, before the box
-  runs (`../client/tui/box.md`, *The box's stages*):
+**0:15, the link.** A click, or a copy. The browser opens on the
+welcome; the terminal ticks "✓ Signed in as the owner" by itself. The
+two are one thing, and the terminal is following.
 
-  ```
-    ▄█▀▀   temper 0.0.0 (b948f40d6df1)
-   ▄█▄█▄█  temper box · a whole deployment on this machine
+**0:20, the choice.** Two cards, and the first answers the wary
+question before it is asked:
 
-   Welcome. Set temper up in your browser: open this link on this machine.
+```
+Try temper here                          Work on your GitHub repositories
+A forge on this machine, with a          temper's GitHub App, on the
+small sample project to change.          repositories you choose.
 
-   The link comes here once the box has started.
+Nothing leaves this machine.             Needs your GitHub account.
+Nothing gets access to your accounts.    temper's changes land in them.
+About five minutes.                      About ten minutes.
 
-   It signs you in as this temper's owner, once, within 2 hours.
+[ Start ]                                [ Connect GitHub ]
+Or start from a copy of a public repository ›
+```
 
-   In the browser  1 Welcome · 2 Forge · 3 Model · 4 Ready
-  ```
+They wanted to see it on their own code, but not to hand an unknown
+tool their GitHub. "Nothing gets access" settles it, and the copy line
+says their own public code can come along. They press Start. Nothing
+else is asked.
 
-  with, on the quiet line, "● Connecting" and the stage on its right:
-  "Downloading temper-box, once for this build: 12.3 of 24.1 MB", then
-  "Starting the box…", then the box's last log line.
-- **Browser:** nothing yet.
-- **Behind:** `temper` checks the machine (git 2.41 or later,
-  `/usr/bin/rg`, `/bin/sh`: `../release.md`, 4), downloads `temper-box`
-  of its own build from fabrig.ai once, checked against the site's
-  sums (`../client/box-binary.md`, 3), and starts it behind the TUI. The
-  box binds its port first, draws the link's secret, prints it to the
-  TUI, then starts serve, a worker and its steps
-  (`box-link-first.md`).
-- **Time:** the download, a few seconds on a good line; the start,
-  about 4 s.
-- **Built:** yes; the stage's line on the quiet line is in flight
-  (`../client/tui/box.status.md`).
+**0:25, the model.** "Connect a model: temper's agents run on a plan you
+sign in to." Two cards, Claude's first: "Signs in from the terminal
+where temper runs". Beside them, a pane already moving: "Forgejo ·
+work/hello · Fetching Forgejo, 18%". temper is working while they
+choose; that is the first good feeling.
 
-### Step 2. The link
+**0:40, the sign-in.** "Sign in to Claude Code". The browser says
+"Claude Code is signing in, in the terminal where temper runs". The
+terminal has cleared: "temper: Claude Code signs in here. Approve it on
+Anthropic's page, in the tab it opens…", then Claude Code's own screen,
+and a tab opens on Anthropic's page. Three windows at once: this is the
+try's most confusing minute, and every one of them says where to look
+next. Approve; the terminal comes back with "Claude Code signed in"; the
+browser reads "✓ Claude subscription, through Claude Code, signed in",
+then "answered in 3 s": temper has tried it, and it works.
 
-- **You:** open the link in a browser on this machine: a click where the
-  terminal makes links clickable, else a copy.
-- **Terminal:** the link in place of "The link comes here…", whole and
-  wrapped: `http://127.0.0.1:8367/jig/v1/sign-in/link?secret=…`. The
-  TUI never opens it.
-- **Browser:** the link signs the person in as the box's owner and opens
-  the welcome.
-- **Behind:** jig's sign-in spends the link: one live at a time, two
-  hours; opened again once spent, a fresh one is printed.
-- **Time:** seconds.
-- **Built:** yes, recorded (`welcome-playground`, 01).
+**2:00, ready.** "Continue". If Forgejo is still starting, "Almost
+ready: Forgejo is setting up, 80%. Your project opens by itself." It
+does, a few seconds later. No name to choose: the project is Hello,
+after its repository, renamed whenever they like.
 
-### Step 3. The welcome
+**2:30, Home.** "Hello is ready. Your agents run on your Claude
+subscription, and Forgejo on this machine." Then "To begin":
 
-- **You:** read; choose between setting up and the playground.
-- **Browser:** the welcome's first step (`../client/pages/welcome.md`,
-  1), under a top bar with temper's mark and the four steps, Welcome,
-  Forge, Model, Ready:
-  - "Welcome to temper", "Reliable, scalable and flexible software
-    factory. You describe what you want and how you want it done, and
-    it happens.";
-  - the card "Set up temper", first and the default: "Your forge: a
-    Forgejo temper runs for you, or GitHub. Your model: ChatGPT or
-    Claude.", "About five minutes", the button "Set up temper";
-  - the card "Try the playground": "A scripted model and a forge, built
-    in. A taste of how temper feels, with nothing to connect.", "Fully
-    offline · Ready at once", the button "Try the playground";
-  - "Tried the playground first? Set up whenever you like; the
-    playground then steps aside.";
-  - "temper box · on this machine, to try it · more later, from
-    Settings · Run temper on a server ↗".
-- **Terminal:** "Setting temper up in your browser", then "✓ Signed in
-  as the owner", "▸ 1 Welcome", "· 2 Forge", "· 3 Model", "· 4 Ready",
-  and "The steps are the browser's; this screen follows them."
-- **Time:** as long as the person reads.
-- **Built:** yes, recorded (`welcome-playground`, 01; `welcome-set-up`,
-  01 and 02).
+```
+1  Ask for a first change
+   An agent writes it, CI checks it, another agent reviews it,
+   and temper merges it.
+   [ Add a --name option ]  [ Greet in Italian with --lang it ]
+   [ Add a --shout option ]
+2  Tell temper how you work                         Ask temper ›
+3  Bring your own code                Copy a repository · GitHub ›
+```
 
-### Step 4. "Try the playground"
+"Open Forgejo ↗" shows the sample on a real Forgejo: a short `hello`
+script, its test, and a CI file that runs it. Small enough to read in
+ten seconds, so the change to come can be judged.
 
-- **You:** press "Try the playground".
-- **Browser:** a new chat in the project Demo
-  (`../client/pages/welcome.md`, 2):
-  - the banner above it: "This is the playground: a scripted model and
-    in-memory forge. Use the wizard to set up temper", its last words a
-    link;
-  - the rail: Demo and its repository, `playground/widget`; Home, Needs
-    you, Work, Ask temper, How work runs; "New draft or change"; at its
-    foot "Set up temper";
-  - the chat's head: "Starting", then "Ready"; `playground/widget`;
-    "Say what you want; the agent works in playground/widget.";
-  - three suggested requests: "Add CSV export to widget", "Add a dark
-    theme to widget", "Fix widget's empty search state";
-  - the composer, its model "Scripted model".
-- **Terminal:** Demo's launchpad, its headline "This is the playground:
-  a scripted model and in-memory forge. Set temper up in your browser
-  when you're ready to leave it.", and on the quiet line "● Live · Demo
-  · Scripted model" and "playground".
-- **Behind:** the box starts its playground group, a fake model and a
-  fake Forgejo. The engine makes the fake forge's record, the scripted
-  account and the project Demo, and adopts `playground/widget` into it
-  (`../protocol/setup/playground.md`, *Its start*). The repository is a
-  small Rust program whose `main` prints a table of names and counts.
-- **Time:** a few seconds.
-- **Built:** yes, recorded (`welcome-playground`, 02).
+**3:00, the first change.** "Add a --name option". A chat opens: their
+model, in its own words, says it will make the change in work/hello,
+and under it the change's card:
 
-### Step 5. "Add CSV export to widget"
+```
+T2 · CHANGE                                                Running
+Add a --name option to hello
+  ✓ Written by an agent        task 3 · 2 files · View on Forgejo ↗
+  ▸ Checked by CI              running at 3f2a1c9
+  · Reviewed by an agent
+  · Landed
+```
 
-- **You:** press the first suggestion.
-- **Browser:** the chat opens in place of the new chat, its first turn:
-  "I'll delegate this change in playground/widget. It will push a
-  branch, open a pull request, check CI and land into main on
-  Playground forge." Under it the change's card (`../client/view.md`,
-  5): "T2 · CHANGE", "Running", its title "Export widget's table as
-  CSV", its steps "Branch pushed", "Pull request opened", "CI passed",
-  "Landed", none done yet, and "Task 2 ↗".
-- **Terminal:** the launchpad's "Where you left off" gains the chat,
-  "Demo  Add CSV export to widget, a chat · just now · Working". Opened
-  there, the chat shows the same turn and a line for the card, "✦ T2 ·
-  CHANGE Export widget's table as CSV · Running".
-- **Behind:** the scripted model plays the chat's script: the text, then
-  a delegation to the change procedure on `playground/widget`, landing on
-  `main`, then a wait.
-- **Time:** a second or two.
-- **Built:** yes, played by the real loop's playground stories; not
-  recorded.
+The terminal, on Hello's launchpad, says the same chat is working.
 
-### Step 6. The change runs
+**3:00 to 6:00, the wait.** The longest watched wait of the try, and
+something new every half minute: the pull request on Forgejo, its diff
+readable there; CI's run, on this machine's runner; the review's words.
+If CI fails, the card says so and that an agent is repairing it, "1 of
+3": the try shows the line holding, not breaking.
 
-- **You:** watch the card's steps tick, or open "Task 2 ↗".
-- **Browser, the card:** "Branch pushed", "Pull request opened", "CI
-  passed" and "Landed" tick in turn.
-- **Browser, the task's page** (`../client/pages/task.md`, 3): "Change
-  · Task 2 · Demo", its title, "Running", "PR #1 · playground/widget ·
-  BRANCH → main"; six steps, "Producing", "Opening", "Checking",
-  "Gating", "Queued", "Landed", the current one's line under them
-  ("Producing its branch.", "Waiting for CI at its head.", "Waiting for
-  its gates at its head.", "Merging at its head."); "Its tasks", task 3
-  writing it and task 4 reviewing it; "Gates at its head", "CI at its
-  head · Passed" and "Gate 1 · review · blocking · Approved"; its
-  bounds. No "View on forge ↗": the fake forge has no pages.
-- **Terminal:** the chat's card line, its state as it changes.
-- **Behind,** each step code, but for the agents' two:
-  1. *Producing:* an agent, task 3, reads `src/main.rs`, edits it so
-     that `widget --csv` prints a header line `name,count` and a line a
-     row, and finishes the change "Add CSV export to widget". The
-     worker, not the agent, commits and pushes the branch.
-  2. *Opening:* the procedure opens the pull request on the fake forge.
-  3. *Checking:* the fake forge's CI, one check, passes at once at the
-     branch's head.
-  4. *Gating:* gate 1, the stock rule's agent review, blocking: an
-     agent, task 4, reviews the change at that head and approves it,
-     "Checked widget CSV export." (the stock rule:
-     `../protocol/configuration/stock.md`, kind 2).
-  5. *Queued, then landing:* first in `main`'s queue, the procedure
-     merges at the head CI and the review saw; neither agent holds a
-     tool that merges.
-- **Time:** not measured; the model answers at once, so the agents'
-  start-up and the engine's steps make it, perhaps half a minute.
-- **Built:** yes, played; not recorded.
+**6:00, landed.**
 
-### Step 7. Landed
+```
+T2 · CHANGE                                                 Landed
+Add a --name option to hello
+  ✓ Written by an agent        task 3 · 2 files
+  ✓ Checked by CI              passed at 3f2a1c9
+  ✓ Reviewed by an agent       task 4 approved 3f2a1c9: "Adds --name, with a test."
+  ✓ Landed                     merged 3f2a1c9 into main, by temper
+```
 
-- **You:** read the chat's last turn.
-- **Browser:** the card "Landed", its four steps ticked, the change's
-  words, "widget --csv prints the table as CSV: a header line, then a
-  line for each row. This was a scripted change."; and the chat's
-  turn: "CSV export is available from widget's table. The change
-  landed on Playground forge. This was a scripted change." The task's
-  page reads "Landed · merge commit ABCDEFG".
-- **Terminal:** the card's line, "Landed"; the launchpad's row, its
-  state as Home words it.
-- **Behind:** the change's result wakes the chat, which plays its third
-  turn and waits again: the chat stays open.
-- **Built:** yes, played; not recorded.
+The same commit three times: what was checked is what was reviewed is
+what was merged, and the last line is temper's, not an agent's. On
+Forgejo, `main` holds the merge. That is the line, seen once, on their
+own machine.
 
-### Step 8. The other two requests, if the person likes
+**6:30, what next.** To begin's first step is ticked. The next two say
+where the climb goes: "Tell temper how you work", the way this change
+ran, Agents review, being one they can change; and "Bring your own
+code". Ctrl+C in the terminal asks "Stop the box?" while anything runs,
+and `./temper box` tomorrow opens on Hello, signed in, with nothing to
+click.
 
-- **You:** "Add a dark theme to widget" or "Fix widget's empty search
-  state", or anything typed.
-- **Browser and terminal:** one text each, saying what it would change
-  and why, then "I am the scripted model and play this from a script,
-  so nothing is changed: connect a model from Accounts to have the work
-  done." Anything else is answered that the scripted model answers only
-  the suggested requests, and to "connect a model from Accounts".
-- **Built:** yes; the way out it names is wrong (4.3).
+## 3. The steps
 
-### Step 9. "Set up temper": leaving the playground
+Each with what the screens say beyond section 2, what temper does
+behind it, and how far it is built. "New" marks what section 4 adds.
 
-- **You:** the banner's "set up temper", or the rail's "Set up temper".
-- **Browser:** "Leaving the playground…" in the banner's place, then the
-  welcome's Forge step.
-- **Terminal:** the welcome again, at "▸ 1 Welcome" while the browser
-  shows Forge: the terminal follows the store, empty again, not the tab
-  (`../client/tui/box.md`, *The welcome*).
-- **Behind:** the reset, at once and with no question: Demo deleted
-  with its chats and tasks, the fake forge removed, the scripted
-  account removed (`../protocol/setup/playground.md`, *Its reset*).
-- **Time:** a few seconds.
-- **Built:** yes; not recorded.
+| Step | Browser | Terminal | Behind | Built |
+|---|---|---|---|---|
+| 1. `./temper box` | nothing | the welcome, "Downloading temper-box…", then "Starting the box…" | checks git 2.41, `/usr/bin/rg`, `/bin/sh` (`../release.md`, 4); fetches `temper-box` once, checked (`../client/box-binary.md`); the box binds its port, draws the link, starts serve (`box-link-first.md`) | yes, recorded |
+| 2. The link | signed in as the owner | "✓ Signed in as the owner" | jig spends the link: one live, two hours | yes, recorded |
+| 3. The choice | New: the two cards of section 2 | "▸ 1 Start" | none until a press | the welcome is built, its words and cards New |
+| 4. Start | Model, the pane's Forgejo line | "▸ 2 Model", "✓ 1 Start · fetching Forgejo…" | New: one `SetUp`, Forgejo on this machine, its first repository the sample (4.4) | the set up is built, recorded to Model; the sample New |
+| 5. Model | Claude's and ChatGPT's cards; New: Claude Code found or not (4.7) | lent to Claude Code, then "✓ 2 Model · Claude subscription, through Claude Code" | Claude Code in an environment of its own; the try, one short turn (`../client/pages/welcome.md`, 1, *The try*) | yes, not recorded past Model's first frame |
+| 6. Ready | "Almost ready", the forge's bar, then Hello's Home | "▸ 3 Ready", then Hello's launchpad | New: the project made by itself, named after the repository, which is adopted into it (4.3) | Ready's form is built; New without it |
+| 7. Home | "Hello is ready.", To begin, New: its first step (4.5) | Hello's launchpad, "● Live · Hello · Claude Opus 5.5 · high" | the adoption runs on | Home and To begin are built; the first step New |
+| 8. The first change | the chat, the card New (4.6), the task's page, "View on forge ↗" | the launchpad, "Hello  Add a --name option, a chat · Working" | the chat's agent delegates a change: an agent writes it, the worker pushes it, the pull request opens, the box's runner runs CI, gate 1 an agent's review, the merge at that head (`../protocol/configuration/stock.md`, kind 2) | the change's way is built; not recorded on this path |
+| 9. Landed | the card's four facts | the card's line, "Landed" | the chat wakes on the change's result | yes, but for the card's words |
 
-### Step 10. Forge: Forgejo on this machine
+## 4. The changes it needs
 
-- **You:** on "Forgejo", "Run on this machine"; in its sheet, "An empty
-  repository" (the default, `work/hello`), then "Run on this machine".
-- **Browser:** two cards, Forgejo's first, "A forge of your own: temper
-  starts it on this machine and manages it. You can import existing
-  repositories into it, from GitHub or elsewhere.", then GitHub's. The
-  sheet "Forgejo on this machine", "temper starts it here and connects
-  to it; you connect your model meanwhile.", and "Start it with": "An
-  empty repository" ("A README and a starter CI check."), "Copies of
-  public repositories", "Nothing for now". Run moves on to Model at
-  once.
-- **Terminal:** "▸ 2 Forge · fetching Forgejo…", then "setting up
-  Forgejo…", "making its first repository…", then "✓ 2 Forge".
-- **Behind:** the box fetches Forgejo and its runner, pinned and
-  checked, starts them, sets temper up as their admin and makes
-  `work/hello`, unadopted until Ready.
-- **Time:** the fetch, the longest wait of the try, runs on under the
-  Model step: not measured.
-- **Built:** yes, recorded to Model (`welcome-set-up`, 03 to 07).
+Each small unless it says otherwise, and each the client's unless it
+names another part.
 
-### Step 11. Model: the person's own plan
+### 4.1 The welcome chooses by what the person wants
 
-- **You,** with Claude, the default: "Sign in to Claude Code"; in the
-  terminal, Claude Code's own sign-in, which opens Anthropic's page in a
-  tab; approve there; come back to the browser and press "Continue".
-  With ChatGPT: "Continue with ChatGPT", sign in in a new tab, and the
-  page moves on by itself.
-- **Browser:** "Connect a model", "temper's agents run on a plan you
-  sign in to."; the Claude card, "Your Claude subscription, through a
-  Claude Code temper keeps apart from your own.", "Signs in from the
-  terminal where temper runs"; the ChatGPT card. While Claude Code signs
-  in, the note "Claude Code is signing in, in the terminal where temper
-  runs" and Cancel. After: "✓ Claude subscription", "through Claude Code,
-  signed in", "Continue". Beside it all, the pane "Forge and model",
-  Forgejo's set up line with its bar, and the model's.
-- **Terminal:** cleared and lent to Claude Code
-  (`../client/tui/box.md`, *Lending its terminal*): "temper: Claude
-  Code signs in here. Approve it on Anthropic's page, in the tab it
-  opens; if that page shows a code, paste it here. temper comes back
-  when it's done, or when you press Cancel in the browser.", then
-  Claude Code's own screens. Back, the notice "Claude Code signed in"
-  and "✓ 3 Model · Claude subscription, through Claude Code".
-- **Behind:** temper runs Claude Code in an environment of its own,
-  apart from the person's, and never reads its login; once usable, it
-  tries the account with one short turn, the try, whose line says
-  "Trying: Claude answers", then "answered in N s".
-- **Time:** a minute or two, the person's.
-- **Built:** yes, but not recorded past the Model step's first frame;
-  the lent terminal's blank rows are in flight.
+- **Two cards,** replacing "Set up temper" and the Forge step's choice:
+  "Try temper here", the default, its button "Start" primary; "Work on
+  your GitHub repositories", its button "Connect GitHub". Each says what
+  it costs in three short facts: the time, what leaves the machine,
+  what gets access (section 2's words).
+- **Start sends the set up at once:** Forgejo on this machine, its first
+  repository the sample, `work/hello`; no sheet. The sheet's other two
+  ways stay, behind quiet links under the card: "Or start from a copy
+  of a public repository ›", its addresses' field in place, and "or
+  with no repository ›".
+- **The Forge step leaves the Forgejo path;** "Connect GitHub" opens
+  GitHub's way (section 6). A forge cut short still offers "Start over".
+- **The playground** keeps a quiet link under the cards, or none: its
+  place is open (section 9).
 
-### Step 12. Ready: the first project
+### 4.2 Three steps: Start, Model, Ready
 
-- **You:** keep the offered name, Hello, or write another; "Create your
-  project".
-- **Browser:** "Ready", "Everything is connected. Create your first
-  project, with work/hello in it, and start working."; the field "Your
-  first project", "Hello"; "Create your project"; "Rename it whenever
-  you like."; the pane: "✓ Forgejo · connected as temper · work/hello
-  made · Open Forgejo ↗" and "✓ Claude subscription · through Claude
-  Code, signed in · answered in N s".
-- **Terminal:** "▸ 4 Ready".
-- **Behind:** the project is made on the stock way and `work/hello`
-  adopted into it, the adoption running on (`first-run-projects.md`,
-  4).
-- **Built:** yes; not recorded.
+The top bar's steps, and the terminal's "In the browser  1 Start · 2
+Model · 3 Ready". Start is done once a forge is kept, as Forge is now.
 
-### Step 13. The end: Hello
+### 4.3 Ready makes the project by itself
 
-- **Browser:** Hello's Home: "Hello is ready.", "Your agents run on your
-  Claude subscription, and Forgejo on this machine.", and the card "To
-  begin", "Optional", its steps: `work/hello` in Hello ("Adopting
-  work/hello into Hello…", then "temper can change its code now."), and
-  "Tell temper how you work", to Ask temper (`../client/pages/home.md`,
-  1).
-- **Terminal:** Hello's launchpad, the quiet line "● Live · Hello ·
-  Claude Opus 5.5 · high".
-- **Built:** yes; not recorded.
+Once a real forge is connected and a model usable, Ready makes the
+person's first project, named after its first repository, "Hello", and
+adopts the repository into it, as its form's act does today
+(`first-run-projects.md`, 4), then opens its Home. No field and no
+press: the name is renamed from the switcher. Until then Ready says
+what it waits for, "Almost ready: Forgejo is setting up, 80%. Your
+project opens by itself.", or "Almost ready: connect a model." A name
+already taken opens that project, as today.
 
-### After the try: closing and coming back
+### 4.4 A sample worth changing
 
-- **Ctrl+C** in the terminal asks "Stop the box?" while work runs, and
-  stops it at once otherwise; the browser goes offline with it.
-- **`./temper box` again** shows "Starting temper" and its four steps,
-  the box, temper, the sign-in and the projects, then Hello's launchpad,
-  signed in with nothing to open: the link is for a first run alone
-  (`../client/tui/box.md`, *The starting screen*). Whether the
-  browser's tab, offline meanwhile, comes back by itself is not checked.
+The empty repository becomes the sample, `work/hello`: a short POSIX
+`sh` script, `hello`, that prints a greeting; its test, `test.sh`; and
+the starter workflow running `sh test.sh`, which needs nothing the
+machine lacks, since temper already needs `/bin/sh`. A change that
+breaks the greeting fails CI, so the check is real. It crosses into the
+set up's first repository (`../protocol/setup/owned.md`, 7) and skein's
+`Create`, whose files are bounded at two of 4 KiB; the sample needs
+four, Forgejo's README with them. Medium.
 
-## 3. The ten minutes
+### 4.5 Home's first step: ask for a first change
 
-| Steps | Part | Time | Waits on |
-|---|---|---|---|
-| 1 to 3 | the start | under a minute | the download of `temper-box` |
-| 4 to 8 | the playground | two to three minutes | the agents' start-up |
-| 9 | leaving it | seconds | |
-| 10 to 12 | the set up | about five minutes | Forgejo's fetch, under the person's sign-in |
-| 13 | the end | | |
+While the project's repository is the sample, To begin opens with "Ask
+for a first change", "An agent writes it, CI checks it, another agent
+reviews it, and temper merges it.", and three requests fit to the
+sample, each starting a chat with its words: "Add a --name option",
+"Greet in Italian with --lang it", "Add a --shout option". Its other
+steps follow: "Tell temper how you work", and "Bring your own code",
+to a copy or GitHub. To begin then shows three steps, where it shows
+two at most today (`../client/pages/home.md`, 1).
 
-None of it measured: the try's first recording measures it (5).
+### 4.6 The card says the line
 
-## 4. Where the try trips
+A change's card in a chat (`../client/view.md`, 5) gets four steps in
+place of "Branch pushed", "Pull request opened", "CI passed" and
+"Landed": "Written by an agent", "Checked by CI", "Reviewed by an agent"
+and "Landed", each with its fact once done: the task that wrote it and
+its files, with "View on Forgejo ↗" once its pull request is open; CI's
+verdict at the head; each review gate's verdict and its words at the
+head; the merge commit. The last three name the same commit. A change
+with no review gate has no "Reviewed" step; a failed check reads
+"failed at ABCDEFG; an agent is repairing it, 1 of 3". The card reads
+the change's panel, as the task's page does (`../client/pages/task.md`,
+3), not the chip alone. Medium.
 
-Each with what happens today and a proposal, the default until the
-user says otherwise. The first two are about the try's point.
+### 4.7 Claude's card knows Claude Code
 
-### 4.1 The line is held but never said
+Claude's way runs the person's `claude`, which temper does not install
+(`../release.md`, 4). The card says, before it is pressed, whether it is
+on this machine: found, as today; not found, "Needs Claude Code on this
+machine: install it, then come back", a link to its install page, and
+ChatGPT's card the default. The engine says whether it found it, beside
+the `accounts` document's `lendable`. Medium.
 
-- **Today:** the chat's card shows "Branch pushed", "Pull request
-  opened", "CI passed" and "Landed": no review. The review is on the
-  change's page, one click away, as "Gate 1 · review · blocking ·
-  Approved", and its words on task 4's page, two; the commit CI and the
-  review saw,
-  and the commit merged, are said nowhere side by side. The chat's last
-  words are "CSV export is available from widget's table." A person who
-  does not open the task's page leaves with "an agent changed some
-  code", the line unseen.
-- **Proposal:** the card's steps gain "Reviewed", between "CI passed" and
-  "Landed", for any change with a review gate; and its landed state names
-  the commit, "Landed at ABCDEFG, the commit checked and reviewed". The
-  playground's last turn says the line in four short lines, each a
-  link: written by an agent (task 3), checked by CI at ABCDEFG, reviewed
-  by an agent at ABCDEFG (task 4, "Checked widget CSV export."), merged
-  at ABCDEFG by temper, no agent holding a merge.
+## 5. Where it may still feel wrong
 
-### 4.2 No code to see
+- **Forgejo's fetch on a slow line,** the try's first long wait if the
+  sign-in is quick: Ready's bar and "opens by itself" let the person
+  look away. Its size and time are not measured.
+- **The sign-in's three windows:** the browser, Anthropic's tab and the
+  terminal. Each says where to look; the mockups will show whether
+  that is enough.
+- **The first change's minutes:** the card's steps and the pull request
+  on Forgejo keep it moving; a change that takes longer than about five
+  minutes would want the card to say so.
+- **A red in the first change:** shown as a repair under way, not a
+  failure; the try's words for a change held for good are open.
+- **The person's plan is spent:** a first change costs a few turns of
+  their subscription. Home's lede says what the agents run on; whether
+  the try says more is open.
 
-- **Today:** the fake forge has no pages, so no "View on forge ↗", and
-  nothing in temper shows a change's diff. The person never sees what
-  the agent wrote.
-- **Proposal:** for the try, the scripted change's result says its diff,
-  as a short code block in the chat, cheap and scripted. Later, and for
-  every change, a "What changed" on the task's page, its files and
-  lines, read from the forge's git at the change's head: a feature of
-  its own, past the try.
+## 6. GitHub, the second path
 
-### 4.3 The playground's way out, said two ways
+To be designed next, from the same welcome. What differs:
 
-- **Today:** the banner and the rail's foot say "Set up temper"; the
-  scripted answers say "connect a model from Accounts", and the model
-  picker in the playground offers "Connect a plan or key ›" for OpenAI
-  and Claude (recorded, `welcome-playground`, 02), though nothing can be
-  connected there (`first-run-projects.md`, 3). Both are known
-  (`../protocol/setup/playground.status.md`). The banner says "Use the
-  wizard", a word the welcome never uses.
-- **Proposal:** one way out, said once: the scripted answers end "Set up
-  temper, from the banner, to have it done for real."; the playground's
-  picker offers no connect; the banner reads "This is the playground: a
-  scripted model and an in-memory forge. Set up temper when you're
-  ready; the playground goes with it."
+- **Connect GitHub:** temper's App made from a manifest on GitHub, then
+  installed on the repositories the person chooses
+  (`../client/forge/deployment.md`). The box is on loopback, so
+  GitHub's webhooks cannot reach it: temper reads the App's delivery log
+  instead.
+- **Ready adopts nothing:** the person chooses a repository on Home.
+- **The first change runs on their own CI and protection,** the readiness
+  gap of the UX draft: what a first change needs to pass is unknown
+  until it runs.
+- **Their review is GitHub's:** a change waiting for them reaches their
+  phone through GitHub's app, the UX draft's other gap.
+- **About ten minutes,** none measured.
 
-### 4.4 Claude needs Claude Code, unsaid
+## 7. The playground, set aside
 
-- **Today:** Claude's way runs the person's `claude`, which temper does
-  not install (`../release.md`, 4). The welcome's Claude card, the
-  default, does not say it is needed; what a press does without it is
-  not checked.
-- **Proposal:** the Claude card says, before it is pressed, whether
-  Claude Code is on this machine: with none, its muted line "Needs
-  Claude Code on this machine: install it, then press here" and ChatGPT's
-  card the default.
+The user set it aside on 2026-11-18. This draft's first version walked
+it step by step and found its way out said two ways (the scripted
+answers and the model picker send the person to Accounts, where nothing
+can be connected), its reset taking Demo at once with no question, and
+the terminal offering none of its requests. Those stand for whenever it
+is taken up again; its own status records the first
+(`../protocol/setup/playground.status.md`).
 
-### 4.5 Leaving the playground takes it all, at once
+## 8. The mockups to make
 
-- **Today:** one press deletes Demo, its chats and its change, with no
-  question; the person may still be reading.
-- **Proposal:** keep the one press, and say what goes before it: the
-  rail's "Set up temper" and the banner's link open a short confirmation,
-  "Demo, its chats and its change go; your set up starts", "Set up
-  temper", "Stay".
-
-### 4.6 The terminal shows the playground, but offers nothing in it
-
-- **Today:** the TUI shows Demo's launchpad; its suggested requests are
-  the browser's alone, so the terminal, the second door, sits idle.
-- **Proposal:** the launchpad's Start lists the three requests while
-  the playground runs, each sent as its words: the same chat, from the
-  terminal.
-
-### 4.7 "Say how you work" is missing from the try
-
-- **Today:** the try shows "Agents do the rest" and "Code holds the
-  line"; nothing points at the way the change just followed, Agents
-  review, which How work runs holds.
-- **Proposal:** the playground's last turn ends with one line, "It ran
-  as Demo's way says: CI and an agent's review before landing. How work
-  runs ›". Later, a fourth suggestion that changes the way ("Ask me
-  before landing") is its own design.
-
-## 5. The mockups to make
-
-Next, once the user has read this. One frame a step, web and terminal
-side by side, in the greenfield mock's look (`../client/web/greenfield/`)
-and the terminal's (`../client/tui/journeys/theme.css`), each step's
-words as section 2 has them, and the proposals of section 4 drawn under
-a switch, so that each can be seen with it and without:
+One frame a step, web and terminal side by side, in the greenfield
+mock's look (`../client/web/greenfield/`) and the terminal's
+(`../client/tui/journeys/theme.css`), with section 2's words, each
+change of section 4 under a switch so that each can be seen with it and
+without:
 
 | Step | Web | Terminal |
 |---|---|---|
 | 1 | | the welcome, downloading |
 | 2 | | the welcome, its link |
-| 3 | the welcome | signed in, step 1 |
-| 4 | Demo's new chat | Demo's launchpad |
-| 5 | the chat and its card, running | the chat |
-| 6 | the task's page, gating | the launchpad, working |
-| 7 | the chat, landed (and 4.1, 4.2, 4.7) | the chat, landed |
-| 9 | leaving (and 4.5) | the welcome, step 2 |
-| 10 | Forge, its sheet | step 2, fetching |
-| 11 | Model, Claude Code signing in | lent to Claude Code |
-| 12 | Ready | step 4 |
-| 13 | Hello's Home | Hello's launchpad |
+| 3 | the choice, two cards | signed in, "▸ 1 Start" |
+| 4 | Model, Forgejo fetching in the pane | "▸ 2 Model", Forgejo fetching |
+| 5 | Claude Code signing in; Claude Code not found | lent to Claude Code; back |
+| 6 | Almost ready | "▸ 3 Ready" |
+| 7 | Hello's Home, To begin | Hello's launchpad |
+| 8 | the chat and its card, checking | the launchpad, working |
+| 9 | the card, landed | the chat, landed |
 
-Recorded frames stand for steps 1 to 4 and 10 where they exist; a
-recording of the whole try, once its changes land, is a walk after
-landing, and measures section 3.
+The recorded frames stand for steps 1, 2 and the Model step's first
+frame. A recording of the whole try, once its changes land, is a walk
+after landing, and measures section 3's times.
 
-## 6. Open questions
+## 9. Open questions
 
-- **The try's order:** the welcome's default is "Set up temper", the
-  playground second (the user, 2026-11-04). The try assumes the person
-  picks the playground. Default: as it stands; the try is one of two
-  first runs.
-- **A machine without a browser,** a box over SSH: the link is on
-  loopback. Default: out of the try; the second door from another
-  machine is its own design.
+- **The sample's language:** POSIX `sh`, which needs nothing more, or a
+  language a developer would recognise as real, which needs its
+  toolchain on the machine. Default: `sh`.
+- **The playground's place on the welcome:** a quiet link under the two
+  cards, or nowhere until it is taken up again. Default: a quiet link,
+  "Or look around a scripted playground first ›".
+- **Ready with no press:** some people may want a moment to name the
+  project. Default: no press; the switcher renames it.
+- **To begin's third step,** "Bring your own code": on Home, or only in
+  the rail's switcher and How work runs. Default: on Home, while the
+  project holds only the sample.
