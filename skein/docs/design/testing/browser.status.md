@@ -14,7 +14,3 @@ lookups, and the memory suite runs it under its ceilings (section 8).
 
 - **Not yet:** 9: the real-Chromium viewport story is compiled; its runtime
   check awaits the browser tier after landing.
-- **Not yet:** 5 to 9: a page's requests, `Request::Page`'s `requests`,
-  `Sent` and `Answered`, `Limits::requests` and the request's `Trouble`,
-  with their step tests, the world's fake browser and referee, and the
-  real-Chromium requests story, compiled. [in flight: change 8608]
