@@ -1446,19 +1446,20 @@ fn sections_draw_top_down_without_changing_earlier_sections_in_both_shells() {
     for up in &source.answers {
         answers.push((answer_rank(&source, reads.as_slice(), up), up.clone())).unwrap();
     }
-    for words in [f::browser_words(), f::words()] {
-        for last in 0_u8..6 {
-            let mut page = Fixture::new(None, false);
-            page.open_milestones();
-            let mut sorted = skein_lib::Map::uncapped();
-            for (index, (rank, up)) in answers.iter().enumerate() {
-                sorted.insert((*rank == last, *rank, index), (*rank, up.clone())).unwrap();
-            }
-            let mut order = List::uncapped();
-            for (_, answer) in &sorted {
-                order.push(answer.clone()).unwrap();
-            }
-            let (initial, _) = page.tree(&words);
+    let words = [f::browser_words(), f::words()];
+    for last in 0_u8..6 {
+        let mut page = Fixture::new(None, false);
+        page.open_milestones();
+        let mut sorted = skein_lib::Map::uncapped();
+        for (index, (rank, up)) in answers.iter().enumerate() {
+            sorted.insert((*rank == last, *rank, index), (*rank, up.clone())).unwrap();
+        }
+        let mut order = List::uncapped();
+        for (_, answer) in &sorted {
+            order.push(answer.clone()).unwrap();
+        }
+        let mut before = words.each_ref().map(|words| {
+            let (initial, _) = page.tree(words);
             let held = styled(&initial, look::WORK_HEADLINE);
             assert_eq!(held.len(), usize::from(words.shell == crate::words::Shell::Browser));
             if let Some(held) = held.first() {
@@ -1469,10 +1470,12 @@ fn sections_draw_top_down_without_changing_earlier_sections_in_both_shells() {
             assert!(has(&initial, "Shop · Work"));
             assert!(has(&initial, "Everything on Shop"));
             assert_eq!(styled(&initial, look::WORK_CHIP).len(), 1);
-            let mut before = section_trees(&initial);
-            for (index, (rank, up)) in order.iter().enumerate() {
-                page.up(up.clone());
-                let (tree, _) = page.tree(&words);
+            section_trees(&initial)
+        });
+        for (index, (rank, up)) in order.iter().enumerate() {
+            page.up(up.clone());
+            for (words, before) in words.iter().zip(&mut before) {
+                let (tree, _) = page.tree(words);
                 let after = section_trees(&tree);
                 assert!(after.as_slice().starts_with(before.as_slice()), "last={last}, answer={index}, rank={rank}");
                 if last == 5
@@ -1487,9 +1490,11 @@ fn sections_draw_top_down_without_changing_earlier_sections_in_both_shells() {
                     assert!(!has(&tree, "Three in flight,"));
                     assert_eq!(styled(&tree, look::WORK_CHIP).len(), 1);
                 }
-                before = after;
+                *before = after;
             }
-            let (tree, _) = page.tree(&words);
+        }
+        for (words, before) in words.iter().zip(&before) {
+            let (tree, _) = page.tree(words);
             assert_eq!(before.len(), 3);
             assert!(has(&tree, "Three in flight, one draft, one landed this week."));
             assert!(has(&tree, "Goals · 1"));
