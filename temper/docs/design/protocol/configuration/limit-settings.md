@@ -198,10 +198,12 @@ this document says how settings lie over it.
   checked by the same function the start runs (section 3, steps 1 to 6
   of the order), with the start's inputs that are no setting (the
   sources, the document's members) as the start had them. A failure
-  refuses the request there: a party's as out of shape, its `at` the
-  item and its words the start's; a run's with the start's words, which
-  it reads as a tool's refusal. A name no names table holds is refused
-  the same way, naming it.
+  refuses the request there: a party's as judged (jig's
+  `Refusal::Judged`), its `at` the item, its setting the item's and its
+  words the start's, as a judge's refusal reads, since out of shape
+  carries a charter's facts and no words; a run's with the start's
+  words, which it reads as a tool's refusal. A name no names table holds
+  is refused the same way, naming it.
 - **So the next start takes what an owner accepted.** A proposal is
   checked when it is made, against its revision; any newer revision
   withdraws it (jig's `domain/engine/settings.md`, 6), so its acceptance
