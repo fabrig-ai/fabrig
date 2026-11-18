@@ -220,8 +220,8 @@ fn an_amendment_cannot_add_a_dependency_to_a_gathering() {
             reply_to,
             by: PERSON_PARTY,
             places: Box::new([]),
-            funder: None,
             operation: t::Amend {
+                funder: None,
                 task: 1,
                 message: 100,
                 stop_run: false,

@@ -1782,8 +1782,6 @@ pub enum Event {
         reply_to: ReplyTo,
         by: Party,
         operation: crate::Amend,
-        /// The accepter's source; a direct amendment keeps its present funding.
-        funder: Option<Funder>,
     },
     /// Root-authorized person adoption of one live task, with its reservation moved to that person's pool.
     Move {

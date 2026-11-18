@@ -245,6 +245,7 @@ fn words_questions_and_amendments_to_a_job_are_refused_as_its_executor() {
                 2,
                 ProcedureDecision {
                     amendments: Box::new([tasks::Amend {
+                        funder: None,
                         task: JOB,
                         message: 10,
                         stop_run: false,

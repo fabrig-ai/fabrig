@@ -173,8 +173,7 @@ fn check_parts(
 ) -> Result<(), crate::Problem> {
     let project = record(domain, number).expect("step task checked").project;
     for part in &decision.amendments {
-        let plan = match crate::control::check_amend(domain, staged, env, Party::Task(number), part.clone(), &[], None)
-        {
+        let plan = match crate::control::check_amend(domain, staged, env, Party::Task(number), part.clone(), &[]) {
             Ok(plan) => crate::compound::Plan::Amend(Box::new(plan)),
             Err(problem) => return Err(*problem),
         };

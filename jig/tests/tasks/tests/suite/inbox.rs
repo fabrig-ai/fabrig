@@ -320,10 +320,10 @@ fn extend_goal_deadline(world: &mut World) {
     let reply = jig_tasks_world::response(world, |reply_to| Event::Amend {
         reply_to,
         by: PERSON_PARTY,
-        funder: Some(funder),
         places: Box::new([]),
         operation: jig_domain_tasks::Amend {
             task: 1,
+            funder: Some(funder),
             message: 24,
             stop_run: false,
             amendment: Box::new(jig_domain_tasks::Amendment {

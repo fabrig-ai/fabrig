@@ -594,6 +594,7 @@ fn a_party_amendment_dropping_a_started_from_dependency_is_refused_naming_it() {
         &env,
         core::Event::Tasks(tasks::Event::Amend {
             operation: tasks::Amend {
+                funder: None,
                 task: procedure,
                 message: before.last_message + 1,
                 stop_run: false,
@@ -602,7 +603,6 @@ fn a_party_amendment_dropping_a_started_from_dependency_is_refused_naming_it() {
             reply_to: ReplyTo::new(Token::new(9900)),
             by: tasks::Party::Person(PARTY),
             places: Box::new([]),
-            funder: None,
         }),
     );
     let problem = tasks::Problem::naming(Some(procedure), tasks::Refusal::Dependencies, &[dependency]);
