@@ -682,8 +682,9 @@ fn restoring_a_maximum_foreign_history_stays_within_the_counted_bound() {
             );
             assert_eq!(prompt.messages[1].role, smith_domain_session::llm::Role::Assistant);
             // The saved opener has no account and this opening has account 0:
-            // carry-over keeps portable history and releases the opaque block.
-            assert!(prompt.messages[1].content.is_empty());
+            // carry-over releases the opaque block and marks the emptied message.
+            assert!(matches!(prompt.messages[1].content.as_ref(), [Block::Text { text, replay: None }]
+                if text.as_ref() == b"[reasoning not carried over]"));
         }
     }
     assert!(completed, "maximum admitted history separately preserves complete provider receiving room");
