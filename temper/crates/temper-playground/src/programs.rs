@@ -290,6 +290,7 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
         Some(b"/usr/bin/git"),
     )
     .unwrap_or_else(|problems| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&problems))));
+    checked.engine_mut().demo = documents::playground(&typed_document);
     H::configure_engine(&mut checked.engine_mut().jig, &typed_document);
     checked.engine_mut().directories =
         jig_protocol_config::Directories::given(b"/config", b"/setup", b"/cache").expect("world directories");
@@ -306,7 +307,7 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
             agent: documents::pinned_agent(),
         }),
         // Demo compositions model the box's welcome and use its default.
-        (!typed_document["application"]["demo"].is_null()).then_some(256),
+        (typed_document["world_settings"]["playground"] == true).then_some(256),
         None,
         Box::new([]),
     )

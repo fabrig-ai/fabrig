@@ -22,6 +22,7 @@ section 17; the records are `../../protocol/store/README.md`, 4.4.
   | rules | none: one setting | the deployment's rules, whole (../authority.md, section 6) | at every decision: the newest |
   | model | the model's, 1 to 64, never given to another name (11) | a model whole: its name, shown name, LLM provider, endpoint, window, output, efforts and default effort, prices, description, whether a picker shows it, whether it is withdrawn, where it came from (the binary, a provider's list or a person), whether its prices are estimated and when a list first gave it | at each decision and when `me` is served: the newest; a run reads it from its charter (11) |
   | worker | the worker's, 1 to the fleet's configured workers, never given to another name (`workers.md`, 2) | a worker whole: its name, its places, its secret's digest, whether it is withdrawn (`workers.md`, 1) | at each opening and each hello, and when a deployment document is built: the newest (`workers.md`, 4) |
+  | provider | the LLM provider's, 1 to 16, never given to another name (`llm-providers.md`, 3) | a provider whole: its name, its sources, its list's patterns, its terms and its endpoints, whether it is withdrawn (`llm-providers.md`, 1 and 2) | by the check and the keeping ask: the newest; by what dials, signs in and lists: the providers the start ran, so a change applies at the next start (`llm-providers.md`, 5) |
   | an application's kind | the application's | bytes jig never reads, kept by the connector that owns the kind (5) | by the application, from that connector: the newest |
 
 - **The defaults are the binary's.** The application passes them as
@@ -67,7 +68,7 @@ section 17; the records are `../../protocol/store/README.md`, 4.4.
   child's span), *owner* (a policy's owner role unable to be a root's
   requester).
 - **What is not a setting:** the limits, which size memory at the
-  start; the hosts but the workers (`workers.md`), the LLM providers and their endpoints, the connectors, the
+  start; the hosts but the workers (`workers.md`), the connectors, the
   clients and the first owners, the document's; and each project's own
   policy, which its owners change (../people/acts.md, 2).
 

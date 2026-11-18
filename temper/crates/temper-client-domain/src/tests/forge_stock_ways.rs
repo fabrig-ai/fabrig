@@ -271,6 +271,7 @@ fn policy(ceiling: &[c::AuthorityExecutor], owner: &[c::AuthorityExecutor]) -> B
             | c::SettingValue::Charter(_)
             | c::SettingValue::Template(_)
             | c::SettingValue::Rules(_)
+            | c::SettingValue::Provider(_)
             | c::SettingValue::Worker(_)
             | c::SettingValue::Model(_)
             | c::SettingValue::Application(_) => {}

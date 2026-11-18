@@ -71,6 +71,57 @@ pub(crate) fn text(
     settings_form::render::text(&a::form_read_value(value), crate::jig::call::number(call, 0), &a::limits(limits), out);
 }
 
+pub(super) fn provider_marks(value: &c::ReadValue, reading: &crate::jig::runner::reads::Reading, out: &mut Text) {
+    if let c::ReadValue::Setting(document) = value
+        && let c::Setting::Provider(number) = document.setting
+    {
+        if let Some(c::SettingValue::Provider(provider)) = &document.value
+            && provider.withdrawn
+        {
+            out.put(b"withdrawn\n");
+        }
+        if reading.provider_defaults.contains(&number.number) {
+            out.put(b"the stock's default\n");
+        }
+    }
+}
+pub(super) fn providers_text(
+    reading: &crate::jig::runner::reads::Reading,
+    limits: &Limits,
+    vocabulary: &dyn Parts,
+    out: &mut Text,
+) {
+    let mut any = false;
+    for (_, page) in reading.pages.range(8..) {
+        if let jig_client::Readout::Jig(c::ReadResult::Value(value @ c::ReadValue::Setting(_))) = page {
+            text(value, &reading.called.call, limits, vocabulary, out);
+            provider_marks(value, reading, out);
+            any = true;
+        }
+    }
+    if !any {
+        out.put(b"no provider settings\n");
+    }
+}
+pub(super) fn providers_encode(reading: &crate::jig::runner::reads::Reading, out: &mut Encoder) {
+    out.object_start();
+    out.key(b"providers");
+    out.array_start();
+    for (_, page) in reading.pages.range(8..) {
+        if let jig_client::Readout::Jig(c::ReadResult::Value(value @ c::ReadValue::Setting(_))) = page {
+            encode(value, out);
+        }
+    }
+    out.array_end();
+    out.key(b"stock");
+    out.array_start();
+    for number in &reading.provider_defaults {
+        out.unsigned(u64::from(*number));
+    }
+    out.array_end();
+    out.object_end();
+}
+
 pub(super) fn edit_word(edit: &c::RevisionItemEdit) -> &'static [u8] {
     settings_form::render::edit_word(&a::form_revision_item_edit(edit))
 }

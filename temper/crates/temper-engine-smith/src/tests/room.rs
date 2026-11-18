@@ -227,9 +227,14 @@ pub(crate) fn stock_defaults() -> jig_domain_core::settings::Defaults {
     let document =
         config::document(&engine_bytes, &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 })
             .unwrap();
-    let engine =
-        config::engine(&document, 0, &config::Directories::working(), config::Defaults::Passed, &config::Fixed::NONE)
-            .unwrap();
+    let engine = config::engine(
+        &document,
+        0,
+        &config::Directories::working(),
+        config::Defaults::PassedProviders,
+        &config::Fixed::NONE,
+    )
+    .unwrap();
     temper_engine_service_stock::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes)
 }
 

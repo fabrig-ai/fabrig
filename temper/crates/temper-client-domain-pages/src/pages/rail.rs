@@ -137,3 +137,16 @@ pub fn across(root: &dyn Root) -> bool {
     root.pages().address() == &Address::AllHome
         || if let Address::Inbox { filter } = root.pages().address() { filter.project.is_none() } else { false }
 }
+
+/// Home reached from the browser's root and marks (client/web/README.md, 2.3).
+#[must_use]
+pub fn root_home(me: Option<&jig_client::contract::Me>) -> Address {
+    if let Some(me) = me
+        && me.projects.len() == 1
+        && let Some(project) = me.projects.as_slice().first()
+    {
+        Address::Home { project: project.project }
+    } else {
+        Address::AllHome
+    }
+}

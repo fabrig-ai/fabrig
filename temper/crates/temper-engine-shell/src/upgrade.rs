@@ -109,7 +109,11 @@ fn run_inner(
             |service, binary, directories, source| Some(lines(binary, service.upgrade_report()?, directories, source))
         }
     };
-    let exit = stopped::drive(binary, directories, service, source, report);
+    let copy_providers = match request {
+        Request::Check(_) | Request::Workers(_) => false,
+        Request::Back => true,
+    };
+    let exit = stopped::drive(binary, directories, service, source, report, copy_providers);
     if exit.is_err() {
         close(owned);
     }

@@ -26,7 +26,9 @@ fn a_seed_naming_a_policy_copies_it() {
     for mode in [Defaults::Document, Defaults::Passed] {
         let mut engine = match mode {
             Defaults::Document => defaults::parse(&document, mode).unwrap(),
-            Defaults::Passed => defaults::parse(&without_defaults(&document), mode).unwrap(),
+            Defaults::Passed | Defaults::PassedProviders => {
+                defaults::parse(&without_defaults(&document), mode).unwrap()
+            }
         };
         if mode == Defaults::Passed {
             let mut defaults = given();
@@ -54,7 +56,7 @@ fn a_seed_naming_an_unknown_policy_is_refused() {
     for mode in [Defaults::Document, Defaults::Passed] {
         let problems = match mode {
             Defaults::Document => defaults::parse(&document, mode).unwrap_err(),
-            Defaults::Passed => {
+            Defaults::Passed | Defaults::PassedProviders => {
                 let mut engine = defaults::parse(&without_defaults(&document), mode).unwrap();
                 crate::pass(&mut engine, given()).unwrap_err()
             }

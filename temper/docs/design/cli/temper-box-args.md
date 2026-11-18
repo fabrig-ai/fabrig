@@ -20,19 +20,13 @@ Generated from temper-box's table (`skein/docs/design/runtime/shell.md`, 14.3): 
 - Write a deployment that starts, with temper's default configuration, into the three directories.
 - **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 - **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`
-- **Notes:** Init chooses loopback ports: 8367 for clients, 8371 for webhooks. With `--box`, it adds the welcome, owned Forgejo and playground, and ports 8368 for owned Forgejo, 8369 for the fake forge and 8370 for the demo LLM. Taken ports fall back to the kernel. `temper.json` holds the matching addresses. Worker figures come from the engine; init writes no agent configuration.
+- **Notes:** Init reserves loopback 8367 for clients and 8371 for webhooks, falling back to the kernel when taken. `temper.json` keeps those addresses, never LLM providers or the scripted model's port. `--box` prepares playground directories and its git launcher. At start the box chooses the scripted listener: 8370 when free, else the kernel's; forges choose their places at setup. Worker figures come from the engine; init writes no agent configuration.
 
-To choose ports for another box, leave the first running and give init
-separate empty configuration, data and cache directories. No port flag
-or coordinated edits are needed. See temper help box, step 1.
+To choose ports for another box, keep the first running and give init separate empty configuration, data and cache directories; no port flag or coordinated edits. See temper help box, step 1.
 
-The saved addresses are fixed: later starts reuse them and refuse an
-occupied address. A separate `temper-box init` closes its reserved listeners
-on exit. On empty directories, `temper-box` runs init itself and keeps
-all five reservations through startup; use that first-run path to avoid
-a gap between selection and startup.
+Saved addresses are fixed; later starts reuse them or refuse an occupied address. Separate `temper-box init` closes its reservations on exit. On empty directories `temper-box` runs init itself and keeps both reservations through startup, avoiding a selection/startup gap.
 
-Refused, changing nothing, when the configuration directory already holds temper.json.
+Refused without changes if the configuration directory holds temper.json.
 
 ### `temper-box serve`
 

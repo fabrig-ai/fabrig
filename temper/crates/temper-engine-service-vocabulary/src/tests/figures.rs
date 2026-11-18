@@ -16,7 +16,7 @@ fn compose_keeps_startup_limits_profile_and_endpoint_order_with_named_or_fallbac
     openai.dialect = 2;
     openai.provider = b"remote-provider".as_slice().into();
     openai.program = Some(b"remote-program".as_slice().into());
-    openai.address = config::Address::Host { name: b"endpoint.example".as_slice().into(), port: 7443 };
+    openai.address = config::EndpointAddress::Host { name: b"endpoint.example".as_slice().into(), port: 7443 };
     openai.transport = config::llm::Transport::Tls {
         server_name: b"server.example".as_slice().into(),
         trust: Some(b"trust.pem".as_slice().into()),
@@ -29,7 +29,7 @@ fn compose_keeps_startup_limits_profile_and_endpoint_order_with_named_or_fallbac
     local.name = b"local".as_slice().into();
     local.number = 2;
     local.program = None;
-    local.address = config::Address::Addr(skein_io::Addr::Ip(([127, 0, 0, 1], 8080).into()));
+    local.address = config::EndpointAddress::Socket(([127, 0, 0, 1], 8080).into());
     engine.jig.llm.endpoints = Box::new([openai, local]);
     let named = s::AgentLimits::new(
         &s::CEILINGS,

@@ -23,7 +23,7 @@ const FORMS: &[(&str, &str)] = &[
     ("inbox", "task N · me"),
     (
         "settings",
-        "settings charter N · settings template N · settings policy N · settings model N · settings worker N · settings forge-charter N · settings rules · settings landing-rule N · settings landing-rule N project · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings project-classes · revisions · help settings",
+        "settings charter N · settings template N · settings policy N · settings model N · settings worker N · settings provider N · settings forge-charter N · settings rules · settings landing-rule N · settings landing-rule N project · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings project-classes · revisions · help settings",
     ),
     ("settings charter N", "settings · revisions · help settings-fields"),
     ("settings template N", "settings · revisions · help settings-fields"),

@@ -171,6 +171,12 @@ test = "tests::worker::list_reads_launch_temper_without_credentials_or_a_run_slo
 cpu_s = 0.15
 why = "Same-work backlog (the user, 11-18): its CPU alone swings 1.7 times on the same code (main's figures 0.096, 0.057 s), so a gate can flag it on noise. The line is half again its largest figure; the repair that makes its work the same at every run drops it (skein/docs/foundation/testing-strategy.md, 10)."
 
+[[gate.default.reasons]]
+binary = "temper-engine-shell"
+test = "forge_sign_in::tests::credentials_are_private_whole_and_left_in_place_on_a_second_run"
+cpu_s = 0.21
+why = "Same-work backlog (the user, 11-18): its CPU alone swings 2.0 times on the same code (main's figures 0.068, 0.098, 0.071 s; 0.135 s at a docs-only candidate, 11-18 13:39Z), so a gate can flag it on noise. The line is half again its largest figure; the repair that makes its work the same at every run drops it (skein/docs/foundation/testing-strategy.md, 10)."
+
 [gate.default.skein]
 ideal_s = 40
 

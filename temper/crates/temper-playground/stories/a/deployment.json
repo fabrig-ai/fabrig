@@ -1,4 +1,34 @@
 {
+  "world_settings": {
+    "playground": true,
+    "llm": {
+      "endpoints": [
+        {
+          "address": {
+            "socket": "127.0.0.1:443"
+          },
+          "connect_ms": 10000,
+          "dialect": 3,
+          "handshake_ms": 10000,
+          "headers": [],
+          "name": "fake",
+          "number": 1,
+          "provider": "fake-provider",
+          "transport": "plaintext"
+        }
+      ],
+      "providers": [
+        {
+          "name": "fake-provider",
+          "number": 1,
+          "sources": {
+            "keys": true
+          },
+          "endpoint": "fake"
+        }
+      ]
+    }
+  },
   "application": {
     "clients": {
       "bundle": null,
@@ -6,30 +36,6 @@
         "socket": "127.0.0.1:7102"
       },
       "public": null
-    },
-    "demo": {
-      "llm": {
-        "asked": [
-          {
-            "cue": "Add CSV export to widget"
-          },
-          {
-            "cue": "Add a dark theme to widget"
-          },
-          {
-            "cue": "Fix widget's empty search state"
-          }
-        ],
-        "cued": [],
-        "key": "/setup/llm.key",
-        "listen": {
-          "socket": "127.0.0.1:443"
-        },
-        "otherwise": [
-          "The story's scripts are in its LLM document."
-        ],
-        "provider": 1
-      }
     },
     "limits": {
       "overrides": {
@@ -137,33 +143,6 @@
         "views.runs": 1,
         "views.text_bytes": 1024
       }
-    },
-    "llm": {
-      "endpoints": [
-        {
-          "address": {
-            "socket": "127.0.0.1:443"
-          },
-          "connect_ms": 10000,
-          "dialect": 3,
-          "handshake_ms": 10000,
-          "headers": [],
-          "name": "fake",
-          "number": 1,
-          "provider": "fake-provider",
-          "transport": "plaintext"
-        }
-      ],
-      "providers": [
-        {
-          "name": "fake-provider",
-          "number": 1,
-          "sources": {
-            "keys": true
-          },
-          "endpoint": "fake"
-        }
-      ]
     },
     "memory_bytes": 1152921504606846976,
     "owners": [

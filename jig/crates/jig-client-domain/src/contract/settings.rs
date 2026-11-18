@@ -17,6 +17,7 @@ pub enum Setting {
     Rules,
     Model(SettingNumber),
     Worker(SettingNumber),
+    Provider(SettingNumber),
     Application {
         kind: u32,
         scope: u32,
@@ -162,6 +163,7 @@ pub enum SettingValue {
     Rules(Box<Rules>),
     Model(Box<CatalogueEntry>),
     Worker(Box<WorkerSetting>),
+    Provider(Box<ProviderSetting>),
     Application(Box<[u8]>),
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -215,6 +217,7 @@ pub enum SettingFault {
     Owner,
     Judged,
     Linked,
+    Accounts,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct MalformedSettings {
@@ -570,6 +573,86 @@ pub fn worker_number(workers: &[super::WorkerState], name: &[u8]) -> WorkerNumbe
         number = number.checked_add(1).expect("worker count leaves a free number");
     }
     unreachable!("one more candidate than held numbers")
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum EndpointAddress {
+    Socket(core::net::SocketAddr),
+    Host { name: Box<[u8]>, port: u16 },
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ProviderSetting {
+    pub provider: Provider,
+    pub endpoints: Box<[Endpoint]>,
+    pub withdrawn: bool,
+}
+/// One configured LLM provider.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Provider {
+    /// Its name for showing.
+    pub name: Box<[u8]>,
+    pub number: u32,
+    /// The endpoint its added models take (configuration.md, 3).
+    pub endpoint: Option<Box<[u8]>>,
+    /// The program-free endpoint its sign-ins and keys take (configuration.md, 3).
+    pub direct: Option<Box<[u8]>>,
+    pub list: Option<ProviderList>,
+    pub signed_in_plan: bool,
+    pub manage_usage: Option<Box<[u8]>>,
+    /// The sign-in it offers, with its public registration.
+    pub sign_in: Option<Registration>,
+    /// Whether it offers a key.
+    pub keys: bool,
+    /// The programs it offers, such as `claude_code`.
+    pub programs: Box<[Box<[u8]>]>,
+}
+
+/// A provider's public registration for its sign-in: a client secret is refused.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Registration {
+    pub issuer: Box<[u8]>,
+    pub client: Box<[u8]>,
+    pub scopes: Box<[Box<[u8]>]>,
+    pub name_hint: Option<Box<[u8]>>,
+    pub authorization: Box<[u8]>,
+    pub token: Box<[u8]>,
+    pub revocation: Option<Box<[u8]>>,
+    pub keys: Box<[u8]>,
+    pub endpoint_transport: Transport,
+    pub must_grant: Box<[Box<[u8]>]>,
+    pub resource: Option<Box<[u8]>>,
+    pub redirect_path: Box<[u8]>,
+    pub redirect_port: Option<u16>,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Endpoint {
+    pub name: Box<[u8]>,
+    pub number: u32,
+    pub dialect: u32,
+    pub provider: Box<[u8]>,
+    pub program: Option<Box<[u8]>>,
+    pub address: EndpointAddress,
+    pub transport: Transport,
+    pub headers: Box<[Header]>,
+    pub connect: Duration,
+    pub handshake: Duration,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Header {
+    pub name: Box<[u8]>,
+    pub value: Box<[u8]>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Transport {
+    Tls { server_name: Box<[u8]>, trust: Option<Box<[u8]>> },
+    Plaintext,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ProviderList {
+    pub keep: Box<[Box<[u8]>]>,
+    pub drop: Box<[Box<[u8]>]>,
 }
 
 #[cfg(test)]

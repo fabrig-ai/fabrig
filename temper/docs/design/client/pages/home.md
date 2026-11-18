@@ -424,7 +424,9 @@
   story's `home.html` and `phone-home.html`, `web/whole-story/`):
   `AllHome`, at `/home`, Home for every project the person is in, as
   `me` lists them and in its order, the first 16 read (`all_home::ACROSS`)
-  and the rest left out. It draws in the open project's frame, as `Inbox`
+  and the rest left out. The root, `/`, opens it for a person in two
+  projects or more or in none, and a project's Home for one in one
+  (`../web/README.md`, 2.3). It draws in the open project's frame, as `Inbox`
   does: the rail and the tab bar are the open project's, or with none open
   `me`'s first project's, "Home" current (`../view.md`, 3). Going to it opens no
   project and moves none. With no project in `me` it draws its intro

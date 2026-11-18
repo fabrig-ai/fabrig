@@ -19,6 +19,7 @@ pub(crate) fn configuration(source: &root::Config) -> root::Config {
         first: source.first.clone(),
         second: source.second.clone(),
         core: core::Config {
+            fixed_providers: core.fixed_providers.clone(),
             parts: core.parts.clone(),
             jobs: core.jobs.clone(),
             kept_starts: core.kept_starts.clone(),
@@ -31,6 +32,7 @@ pub(crate) fn configuration(source: &root::Config) -> root::Config {
             grants: core.grants.clone(),
             kinds: core.kinds.clone(),
             defaults: core::settings::Defaults {
+                providers: core.defaults.providers.clone(),
                 workers: core.defaults.workers.clone(),
                 models: core.defaults.models.clone(),
                 charters: core.defaults.charters.clone(),

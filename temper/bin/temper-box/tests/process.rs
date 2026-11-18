@@ -2808,11 +2808,11 @@ fn imported_restart_account(scratch: &std::path::Path, paths: &[std::path::PathB
     let read = |path| -> serde_json::Value {
         serde_json::from_slice(&std::fs::read(path).expect("fixture configuration")).expect("configuration JSON")
     };
-    let donor = read(donor_paths[0].join("temper.json"));
+    let donor = temper_agent_fixtures::providers::read(&donor_paths[1]);
     let config = paths[0].join("temper.json");
     let mut destination = read(config.clone());
-    destination["engine"]["llm"]["providers"][0]["sources"]["sign_in"] =
-        donor["engine"]["llm"]["providers"][0]["sources"]["sign_in"].clone();
+    temper_agent_fixtures::providers::input(&mut destination)["providers"][0]["sources"]["sign_in"] =
+        donor["providers"][0]["sources"]["sign_in"].clone();
     support::write_private(&config, &serde_json::to_vec(&destination).expect("fixture configuration JSON"));
 }
 

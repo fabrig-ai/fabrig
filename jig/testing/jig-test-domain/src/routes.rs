@@ -352,7 +352,8 @@ fn route_ask(
             domain.now.push(crate::Request::StoreCatalogue { names: names.into_boxed() });
             domain.now.push(crate::Request::ClientsCatalogue { models });
         }
-        core::Ask::DropSubscription { .. }
+        core::Ask::Providers(_)
+        | core::Ask::DropSubscription { .. }
         | core::Ask::ForgetProjection { .. }
         | core::Ask::Hold { .. }
         | core::Ask::RepairRefused { .. }

@@ -36,9 +36,9 @@ fn standalone_and_given_documents_read_take_lines() {
 #[test]
 fn deployment_demo_refuses_take_lines() {
     let mut document = demo::fixture();
-    document["application"]["demo"]["llm"]["otherwise"] = json!([taking()]);
+    document["scripts"]["otherwise"] = json!([taking()]);
     let error = demo::read(&document).unwrap_err();
-    assert!(error.line().starts_with(b"application.demo.llm.otherwise[0].lines[0]."));
+    assert!(error.line().starts_with(b"demo.otherwise[0].lines[0]."));
     assert!(error.line().ends_with(b": unknown member\n"));
 }
 
