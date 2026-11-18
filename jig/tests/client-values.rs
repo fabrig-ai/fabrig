@@ -17,6 +17,6 @@ pub(super) fn value(name: &str) -> &'static [u8] {
 }
 
 fn text() -> String {
-    include_str!("../crates/jig-client-protocol-wire/schema/client-v33.schema").to_owned()
-        + include_str!("../crates/jig-client-protocol-wire/schema/client-v33-part1.schema")
+    include_str!("../crates/jig-client-protocol-wire/schema/client-v34.schema").to_owned()
+        + include_str!("../crates/jig-client-protocol-wire/schema/client-v34-part1.schema")
 }
