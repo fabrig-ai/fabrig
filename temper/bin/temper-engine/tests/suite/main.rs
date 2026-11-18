@@ -8,6 +8,55 @@ fn upgrade_refuses_an_empty_deployment_directory() {
     upgrade::empty_directory("temper-engine");
 }
 
+#[path = "../../../../crates/temper-engine-shell/src/upgrade/tests/deployment.rs"]
+mod deployment;
+
+#[test]
+fn upgrade_check_names_the_record_a_start_refuses_without_switching_generation() {
+    let (scratch, _directories) = deployment::deployment();
+    let config = scratch.path().join("config");
+    let data = scratch.path().join("data");
+    let cache = scratch.path().join("cache");
+    let configuration = config.join("temper.json");
+    let mut document: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&configuration).expect("configuration")).expect("document");
+    // The owner's subject fits; the kept person's full identity does not.
+    document["engine"]["limits"]["overrides"]["people.identity_bytes"] = 7.into();
+    std::fs::write(configuration, serde_json::to_vec(&document).expect("document bytes")).expect("configuration");
+    let active_path = data.join("state/active");
+    let active = std::fs::read(&active_path).expect("active generation");
+    let refusal = "restart refused during core restore: PeopleBound(IdentityBytes), key People(Person(1))";
+    let mut check_refusal = None;
+    for arguments in [vec!["upgrade", "--check"], vec!["serve"]] {
+        let checking = arguments[0] == "upgrade";
+        let mut command = Command::new(skein_scratch::paths::binary("temper-engine"));
+        command
+            .args(arguments)
+            .env_clear()
+            .env("TEMPER_CONFIG", &config)
+            .env("TEMPER_DATA", &data)
+            .env("TEMPER_CACHE", &cache)
+            .stdin(Stdio::null());
+        if checking {
+            command.arg(data.join("state"));
+        }
+        let output = command.output().expect("run engine");
+        let out = String::from_utf8_lossy(&output.stdout);
+        let err = String::from_utf8_lossy(&output.stderr);
+        assert_eq!(output.status.code(), Some(1), "{out}\n{err}");
+        let text = format!("{out}{err}");
+        let line = text.lines().find(|line| line.contains(refusal)).expect(&text).to_owned();
+        if checking {
+            assert!(err.is_empty(), "{err}");
+            assert!(out.contains(refusal), "{out}");
+            assert_eq!(std::fs::read(&active_path).expect("active after refused check"), active);
+            check_refusal = Some(line);
+        } else {
+            assert_eq!(Some(line), check_refusal, "a start refuses the same record in the same words");
+        }
+    }
+}
+
 const WORKER: &str = r#"{"workers":[{"engine":{"socket":"127.0.0.1:1"}}]}"#;
 const STANDALONE: &str = r#"{"engine":{"hosts":{"listener":[{"in_process":"workers"}]}}}"#;
 const SERVE: &[&str] = &["serve", "--config", "CONFIG", "--data", "DATA", "--cache", "CACHE"];
