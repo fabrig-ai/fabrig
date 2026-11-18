@@ -675,7 +675,7 @@ fn serve_refuses_an_explicit_call_bound_below_the_agents_call_input() {
         document.jig_over("core.call_answer_bytes", bound);
         let prepared = support::admission(scratch.path(), &document);
         match expected {
-            Some(lines) => assert_eq!(prepared.err().expect("call input refused"), lines),
+            Some(lines) => assert_eq!(prepared.expect_err("call input refused"), lines),
             None => assert!(prepared.is_ok(), "{}", prepared.err().unwrap_or_default()),
         }
     }

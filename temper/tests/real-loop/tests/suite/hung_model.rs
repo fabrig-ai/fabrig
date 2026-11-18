@@ -223,7 +223,12 @@ fn a_model_request_held_once_retries_and_finishes() {
     let cluster = run(true);
     check(&cluster, true);
     let read: Value = serde_json::from_slice(&cluster.calls()[READ].stdout).expect("task JSON");
-    assert_eq!(read["task"]["result"]["value"]["report"]["bytes"], REPORT, "accepted result: {read}");
+    // Until-ended can observe the live terminal row or its reclaimed result.
+    let report = read
+        .pointer("/task/result/value/report/bytes")
+        .or_else(|| read.pointer("/task/result/ending/done/report/bytes"))
+        .expect("accepted report in the live ending or reclaimed result");
+    assert_eq!(report, REPORT, "accepted result: {read}");
 }
 
 #[test]
