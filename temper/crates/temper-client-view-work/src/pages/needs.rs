@@ -139,17 +139,19 @@ fn flow(
     let inbox = root.pages().inbox().expect("flow inbox");
     let session = root.pages().needs();
     let open = session.all(inbox, root.forge().approvals());
-    let total = lines.len().checked_add(open.len()).expect("bounded session and inbox");
+    let counted = session.counted(inbox, root.forge().approvals());
+    let (count, cut) = super::home::needs_count(counted);
+    let open_count = match counted {
+        temper_client_domain::pages::home::Needs::Count { count, .. } => count,
+        temper_client_domain::pages::home::Needs::Unknown => 0,
+    };
+    let total = lines
+        .len()
+        .checked_add(usize::try_from(open_count).expect("bounded needs"))
+        .expect("bounded session and inbox");
     let at = lines.len().checked_add(1).expect("bounded session");
     let head = w.say(
-        if *inbox.cut.first().expect("needs cut")
-            || root.forge().approvals().more() != 0
-            || root.pages().needs().findings().cut_for(inbox.filter)
-        {
-            Word::NeedsProgressCut
-        } else {
-            Word::NeedsProgress
-        },
+        if cut { Word::NeedsProgressCut } else { Word::NeedsProgress },
         &[
             Hole::Number(u64::try_from(at).expect("bounded count")),
             Hole::Number(u64::try_from(total).expect("bounded count")),
@@ -162,21 +164,15 @@ fn flow(
     }
     ask::text(b, Role::Text, &head, look::NEEDS_BAR_AT);
     b.close();
-    intro(b, root, w, &open, times.now);
+    intro(b, root, w, counted, times.now);
     b.open(Role::Slot);
     b.style(look::NEEDS_HEAD);
-    let cut = *inbox.cut.first().expect("needs cut")
-        || root.forge().approvals().more() != 0
-        || root.pages().needs().findings().cut_for(inbox.filter);
-    let heading = w.say(
-        if cut { Word::NeedsHeadCut } else { Word::HomeNeedsCount },
-        &[Hole::Number(u64::try_from(open.len()).expect("bounded needs"))],
-    );
+    let heading = w.say(if cut { Word::NeedsHeadCut } else { Word::HomeNeedsCount }, &[Hole::Number(u64::from(count))]);
     b.open(Role::Heading { level: 2 });
     b.style(look::HOME_HEAD);
     b.name(&heading);
     b.text(Run::Plain, &skein_lib::bytes::concat(&[&w.say(Word::NeedsYou, &[]), &w.say(Word::ToolSeparator, &[])]));
-    b.text(Run::Strong, skein_lib::Decimal::of(u64::try_from(open.len()).expect("bounded needs")).as_bytes());
+    b.text(Run::Strong, skein_lib::Decimal::of(u64::from(count)).as_bytes());
     if cut {
         b.text(Run::Strong, b"+");
     }
@@ -445,7 +441,7 @@ fn intro(
     b: &mut Builder,
     root: &Domain,
     w: &Words,
-    open: &[temper_client_domain::pages::findings::Need<'_>],
+    counted: temper_client_domain::pages::home::Needs,
     now: skein_lib::Wall,
 ) {
     let inbox = root.pages().inbox().expect("intro inbox");
@@ -459,18 +455,7 @@ fn intro(
         }
         None => w.say(Word::NeedsAcross, &[]),
     };
-    let cut = *inbox.cut.first().expect("needs cut")
-        || root.forge().approvals().more() != 0
-        || root.pages().needs().findings().cut_for(inbox.filter);
-    let sentence = super::home::needs_sentence(
-        w,
-        temper_client_domain::pages::home::Needs::Count {
-            count: u32::try_from(open.len()).expect("bounded inbox"),
-            cut,
-            findings: temper_client_domain::pages::findings::counted(root.pages().needs().findings(), open),
-        },
-        b"",
-    );
+    let sentence = super::home::needs_sentence(w, counted, b"");
     let showing = parts::needs_facts(root, now).showing;
     let sentence = if showing > 0 {
         let decided = if showing == 1 {
