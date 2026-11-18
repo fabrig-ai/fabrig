@@ -218,6 +218,7 @@ fn settings_show_charter_renders_its_documents() {
                 c::Setting::Template(_) => vec!["settings", "show", "template", "4"],
                 c::Setting::Policy(_)
                 | c::Setting::Rules
+                | c::Setting::Limits
                 | c::Setting::Worker(_)
                 | c::Setting::Model(_)
                 | c::Setting::Application { .. }

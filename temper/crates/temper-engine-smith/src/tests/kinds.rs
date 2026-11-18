@@ -148,7 +148,7 @@ fn each_kind_round_trips_its_value() {
             settings::Value::ProjectTriager(_) => 15,
             settings::Value::AgentFigures(_) => 21,
             settings::Value::Welcome(_) => 20,
-            settings::Value::Limits(_) => 21,
+            settings::Value::Limits(_) => 22,
         };
         let bytes = encode(&value);
         assert_eq!(decode(kind, &bytes, &BOUNDS).expect("shaped value").value, value);

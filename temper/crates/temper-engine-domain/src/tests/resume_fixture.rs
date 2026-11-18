@@ -799,7 +799,6 @@ impl StartStore {
         (rows.into_boxed(), next)
     }
 
-    #[expect(clippy::too_many_lines, reason = "the startup fixture routes the complete root output vocabulary")]
     pub fn run(&mut self, root: &mut engine::Domain, env: &Env<engine::Limits>, pause_at_wires: bool) {
         let mut out = skein_lib::Queue::uncapped();
         for _ in 0_u32..1024 {

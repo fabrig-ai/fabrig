@@ -7,6 +7,7 @@ use temper_engine_domain_forge as forge;
 fn release() -> forge::Stored {
     forge::Stored::Release(forge::ReleaseRow {
         task: 1,
+        room: None,
         root: 2,
         ending: forge::ReleaseEnding::Cancelled,
         close_pull: None,

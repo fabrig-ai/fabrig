@@ -359,9 +359,15 @@ fn a_lowered_forge_codec_cause_survives_the_page_route() {
     let stock = temper_protocol_store::bounds(&root.forge, root.tasks.spec_bytes).unwrap();
     root.forge.client.op_bytes = 200;
     let bounds = temper_protocol_store::bounds(&root.forge, root.tasks.spec_bytes).unwrap().with_stock(&stock);
-    let mut routes = route::Routes::new(2, &root, bounds);
+    let mut routes = route::Routes::new(
+        2,
+        &root,
+        bounds,
+        skein_lib::CryptoRng::new(&skein_lib::Secret::new(Box::new([7; 32])), 1).unwrap(),
+    );
     let row = forge::Stored::Release(forge::ReleaseRow {
         task: 1,
+        room: None,
         root: 2,
         ending: forge::ReleaseEnding::Cancelled,
         close_pull: None,
