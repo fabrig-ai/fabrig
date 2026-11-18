@@ -82,7 +82,7 @@ fn a_fixed_run_draws_its_seed_on_the_tuis_stream_and_keeps_the_starts_first_read
     let (seed, clock) = super::fixed_run(&start);
     let mut bytes = [0u8; 8];
     start.draw(4, &mut bytes);
-    assert_eq!(seed, u64::from_le_bytes(bytes));
+    assert_eq!(seed, u64::from_le_bytes(bytes), "the seed given to local_run");
     assert_ne!(seed, start.seed);
     assert_eq!(clock.now(), skein_shell::Now { now: skein_shell::FixedStart::NOW, wall: start.wall });
 }

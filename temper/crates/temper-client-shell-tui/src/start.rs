@@ -93,7 +93,7 @@ pub fn fixed_start(environment: &[EnvironmentEntry], engine: SocketAddr) -> Resu
 const TUI_SEED_STREAM: u64 = 4;
 
 // Draw a walk's seed on the TUI's stream and keep it with its loop clock at startup.
-fn fixed_run(start: &FixedStart) -> (u64, Clock) {
+pub(crate) fn fixed_run(start: &FixedStart) -> (u64, Clock) {
     let mut bytes = [0u8; 8];
     start.draw(TUI_SEED_STREAM, &mut bytes);
     let seed = u64::from_le_bytes(bytes);

@@ -100,6 +100,15 @@ pub fn stream() -> Option<jig_client_protocol_http::Limits> {
 /// Refuses unusable client, view or HTTP stream decoder bounds.
 #[must_use]
 pub fn valid(client: &client::Limits) -> bool {
-    let Some(stream) = stream() else { return false };
-    client::valid(client) && view(client).is_some() && jig_client_protocol_http::valid(&stream)
+    checked(client).is_some()
+}
+/// Keep the checked view and words when the page's bounds are usable.
+pub(crate) fn checked(
+    client: &client::Limits,
+) -> Option<(temper_client_view::Limits, temper_client_view::words::Words)> {
+    let stream = stream()?;
+    if !client::valid(client) || !jig_client_protocol_http::valid(&stream) {
+        return None;
+    }
+    view(client)
 }

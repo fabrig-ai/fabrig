@@ -741,11 +741,39 @@ pub fn reply_composer(document: (c::Read, c::ReadValue)) -> temper_client_domain
         None,
     )
 }
-#[expect(clippy::too_many_lines, reason = "one fixture delivers the inbox and its reply composer through public reads")]
+#[must_use]
+pub fn inbox_with_refused_proposer(proposer: c::Proposer) -> temper_client_domain::Domain {
+    inbox_read_at(
+        temper_client_domain::Address::Inbox {
+            filter: temper_client_domain::address::Filter {
+                kind: Some(temper_client_domain::address::Kind::Proposal),
+                ..temper_client_domain::address::Filter::ALL
+            },
+        },
+        Some((
+            c::Read::Proposal { proposal: c::ProposalKey { proposer, number: INBOX_QUESTION } },
+            c::ReadResult::None(c::ReadNone::Refused),
+        )),
+        proposer,
+        false,
+        None,
+    )
+}
 #[must_use]
 pub fn inbox_facts_at(
     address: temper_client_domain::Address,
     document: Option<(c::Read, c::ReadValue)>,
+    proposer: c::Proposer,
+    cut: bool,
+    unread: Option<c::Count>,
+) -> temper_client_domain::Domain {
+    let document = document.map(|(read, page)| (read, c::ReadResult::Value(page)));
+    inbox_read_at(address, document, proposer, cut, unread)
+}
+#[expect(clippy::too_many_lines, reason = "one fixture delivers the inbox and its reply composer through public reads")]
+fn inbox_read_at(
+    address: temper_client_domain::Address,
+    document: Option<(c::Read, c::ReadResult)>,
     proposer: c::Proposer,
     cut: bool,
     unread: Option<c::Count>,
@@ -905,7 +933,7 @@ pub fn inbox_facts_at(
             } = request
             {
                 let result = if what == read && page.is_some() {
-                    contract::ReadResult::Value(page.take().expect("one matching card read"))
+                    page.take().expect("one matching card read")
                 } else if finish {
                     contract::ReadResult::None(contract::ReadNone::Unknown)
                 } else {

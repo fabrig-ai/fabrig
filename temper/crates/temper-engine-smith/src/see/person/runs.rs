@@ -235,6 +235,7 @@ pub(super) fn turn(task: u64, attempt: u64, turn: u32, answer: &Answer, lines: &
             EndedValue::WithheldTurn(record) => Some((record, true)),
             EndedValue::Task { .. }
             | EndedValue::Proposal(_)
+            | EndedValue::PartyProposal(_)
             | EndedValue::PersonProposal { .. }
             | EndedValue::Escalation { .. }
             | EndedValue::Question { .. }

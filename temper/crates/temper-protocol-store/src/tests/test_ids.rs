@@ -1,7 +1,7 @@
 //! The four written jobs' page contract (temper/docs/design/protocol/store.md, 4).
 #![expect(clippy::disallowed_macros, clippy::disallowed_types, reason = "ordinary Rust job fixtures")]
 use super::fixtures::{self, layouts};
-use crate::{jobs, keys, records};
+use crate::{jobs, records};
 use jig_protocol_store::{JobAnswer, JobPage, JobRoom, JobRow, JobWrite};
 use temper_engine_domain_forge_tiers as t;
 use temper_engine_domain_forge_vocabulary as d;
@@ -14,9 +14,6 @@ pub(super) fn tier() -> d::TierRow {
     tier.record.flakes = Box::new([t::Flake { test: b"flake".as_slice().into(), count: 2 }]);
     tier.result = None;
     tier
-}
-pub(super) fn row(stored: &d::Stored, variant: &str) -> JobRow {
-    JobRow { key: keys::encode(&d::stored_key(stored), u32::MAX).unwrap(), value: layouts::at_floor(stored, variant) }
 }
 fn input(row: JobRow, variant: &str) -> JobPage {
     JobPage {
@@ -37,6 +34,7 @@ fn put(answer: &JobAnswer) -> (&[u8], &[u8]) {
 
 #[test]
 fn short_ids_keep_the_binary_encoding_after_the_floor_plan() {
+    let mut floor = layouts::Floor::new();
     let tier = d::Stored::Tier(tier());
     let bytes = records::encode(&tier);
     // Bound widths do not change the encoded count or bytes' length.
@@ -44,17 +42,17 @@ fn short_ids_keep_the_binary_encoding_after_the_floor_plan() {
     let mut value = skein_codec::value::Value::with_room(100_000);
     value.decode(&wide, wide.find(b"Row").unwrap(), bytes.clone()).unwrap();
     assert_eq!(value.bytes(), bytes.as_ref());
-    let input = input(row(&tier, "tier"), "tier");
+    let input = input(floor.row(&tier, "tier"), "tier");
     let answer = page("test-ids-tier", &input).unwrap();
     assert_eq!(put(&answer), (input.rows[0].key.as_ref(), bytes.as_ref()));
     assert_eq!(answer.through, None);
     assert_eq!(answer.counts.as_ref(), [0, 0, 0]);
 }
 
-pub(super) fn long_tier() -> (JobRow, d::TierRow) {
-    long_tier_as(false)
+pub(super) fn long_tier(floor: &mut layouts::Floor) -> (JobRow, d::TierRow) {
+    long_tier_as(floor, false)
 }
-fn long_tier_as(suspect: bool) -> (JobRow, d::TierRow) {
+fn long_tier_as(floor: &mut layouts::Floor, suspect: bool) -> (JobRow, d::TierRow) {
     let mut tier = tier();
     let a: Box<[u8]> = Box::new([b'a'; 10]);
     let b: Box<[u8]> = Box::new([b'b'; 10]);
@@ -76,7 +74,7 @@ fn long_tier_as(suspect: bool) -> (JobRow, d::TierRow) {
         change: None,
     }]);
     tier.posting = Some(Box::new(posting));
-    let mut row = row(&d::Stored::Tier(tier.clone()), "tier");
+    let mut row = floor.row(&d::Stored::Tier(tier.clone()), "tier");
     row.value = layouts::replace_id(&row.value, &[b'b'; 10], &[b'b'; 2000]);
     row.value = layouts::replace_id(&row.value, &[b'y'; 10], &[b'y'; 3000]);
     tier.record.failing = t::Failures::Many;
@@ -88,8 +86,9 @@ fn long_tier_as(suspect: bool) -> (JobRow, d::TierRow) {
 
 #[test]
 fn long_ids_make_many_drop_only_long_flakes_and_remap_posted_indices() {
+    let mut floor = layouts::Floor::new();
     for suspect in [false, true] {
-        let (row, tier) = long_tier_as(suspect);
+        let (row, tier) = long_tier_as(&mut floor, suspect);
         let key = row.key.clone();
         let answer = page("test-ids-tier", &input(row, "tier")).unwrap();
         assert!(
@@ -103,9 +102,10 @@ fn long_ids_make_many_drop_only_long_flakes_and_remap_posted_indices() {
 
 #[test]
 fn the_id_boundary_keeps_1024_and_narrows_1025() {
+    let mut floor = layouts::Floor::new();
     for length in [1024, 1025] {
         let mut tier = tier();
-        let mut row = row(&d::Stored::Tier(tier.clone()), "tier");
+        let mut row = floor.row(&d::Stored::Tier(tier.clone()), "tier");
         row.value = layouts::replace_id(&row.value, b"t::a", &vec![b'a'; length]);
         row.value = layouts::replace_id(&row.value, b"flake", &vec![b'f'; length]);
         let answer = page("test-ids-tier", &input(row, "tier")).unwrap();
@@ -167,6 +167,7 @@ pub(super) fn verification() -> d::Stored {
     reason = "the fixture holds only the three value types with settled failures"
 )]
 fn receipt_result_goal_and_verification_failures_narrow_independently() {
+    let mut floor = layouts::Floor::new();
     let mut tier = tier();
     tier.result = Some(receipt());
     tier.goals = Box::new([d::TierGoal {
@@ -183,7 +184,7 @@ fn receipt_result_goal_and_verification_failures_narrow_independently() {
         ("tier", d::Stored::Tier(tier), b"receipt-id".as_slice(), 2),
     ];
     for (variant, mut expected, marker, many) in cases {
-        let mut row = row(&expected, variant);
+        let mut row = floor.row(&expected, variant);
         row.value = layouts::replace_id(&row.value, marker, &[b'!'; 2000]);
         match &mut expected {
             d::Stored::Receipt { receipt, .. } => receipt.failures = Some(t::Failures::Many),
@@ -206,19 +207,20 @@ fn receipt_result_goal_and_verification_failures_narrow_independently() {
 
 #[test]
 fn in_flight_runs_postings_and_landing_selections_refuse_by_key() {
+    let mut floor = layouts::Floor::new();
     let mut tier = tier();
     tier.record.run = fixtures::tier_row().record.run;
     // A long id in a probe's finding is just as in flight as its selection.
-    let mut run = row(&d::Stored::Tier(tier.clone()), "tier");
+    let mut run = floor.row(&d::Stored::Tier(tier.clone()), "tier");
     run.value = layouts::replace_id(&run.value, &[1; 256], &[b'r'; 2000]);
-    let (mut posting, _) = long_tier();
+    let (mut posting, _) = long_tier(&mut floor);
     let wide = layouts::wide();
     // Rebuild with a pending posting, while keeping the owns index into the long failure.
     tier.record.run = None;
     tier.probe = None;
     tier.record.failing = t::Failures::Tests(Box::new([b"posted-id".as_slice().into()]));
     tier.posting = Some(Box::new(fixtures::tier_posting(&tier.record.failing)));
-    posting.value = layouts::replace_id(&row(&d::Stored::Tier(tier), "tier").value, b"posted-id", &[b'p'; 2000]);
+    posting.value = layouts::replace_id(&floor.row(&d::Stored::Tier(tier), "tier").value, b"posted-id", &[b'p'; 2000]);
     for (row, why) in [
         (run, "a tier run in flight holds a failing test's id past 1,024 bytes"),
         (posting, "a tier posting in flight would change for a failing test's id past 1,024 bytes"),
@@ -272,7 +274,8 @@ pub(super) fn landing() -> d::Stored {
 
 #[test]
 fn paging_counts_only_consumed_rows_and_refuses_an_unfittable_first_row() {
-    let (row, _) = long_tier();
+    let mut floor = layouts::Floor::new();
+    let (row, _) = long_tier(&mut floor);
     let mut input = input(JobRow { key: row.key.clone(), value: row.value.clone() }, "tier");
     input.rows = Box::new([
         JobRow { key: row.key.clone(), value: row.value.clone() },

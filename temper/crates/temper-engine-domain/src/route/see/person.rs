@@ -316,6 +316,7 @@ fn tracked(part: &Part) -> bool {
         Part::Jig(Answer::Ended(ended)) => match &ended.value {
             core::reads::EndedValue::Task { document, .. } => document.priority.is_some(),
             core::reads::EndedValue::Proposal(_)
+            | core::reads::EndedValue::PartyProposal(_)
             | core::reads::EndedValue::PersonProposal { .. }
             | core::reads::EndedValue::Escalation { .. }
             | core::reads::EndedValue::Question { .. }

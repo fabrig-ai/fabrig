@@ -81,7 +81,7 @@ fn projected(core: &mut Core, limits: &Limits, task: u64, project: u32, needs: &
     people::step(
         &mut core.people,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people },
-        people::Event::Waiting { task, entries: entries.into_boxed() },
+        people::Event::Waiting { source: people::NeedSource::Task(task), entries: entries.into_boxed() },
         &mut Queue::uncapped(),
     );
 }

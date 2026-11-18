@@ -760,10 +760,11 @@ fn object(
                     },
                     None => None,
                 };
+                let history = documents::party_proposal_history(limits, value)?;
                 match value.state {
                     tasks::PersonProposalState::Accepted { .. }
                     | tasks::PersonProposalState::SettingsAccepted { .. }
-                        if decision.is_none() =>
+                        if decision.is_none() && history.is_none() =>
                     {
                         return Ok(Some(Answer::None(Why::Gone)));
                     }
@@ -788,7 +789,11 @@ fn object(
                         (Some(*at), Some(tasks::Party::Person(value.proposer)))
                     }
                 };
-                Ok(Some(ended_answer(EndedValue::PersonProposal { proposal: value.clone(), decision }, at, by)))
+                let value = match history {
+                    Some(history) => EndedValue::PartyProposal(history),
+                    None => EndedValue::PersonProposal { proposal: value.clone(), decision },
+                };
+                Ok(Some(ended_answer(value, at, by)))
             }
             Record::Tasks(
                 tasks::Stored::Live(_)
@@ -1333,8 +1338,8 @@ fn inbox_row(
                 }
                 let object = match entry.kind {
                     jig_domain_people::EntryKind::Question { message } => documents::InboxObject::Question { message },
-                    jig_domain_people::EntryKind::Proposal { number } => {
-                        documents::InboxObject::Proposal { proposer: Proposer::Task(owner.number), number }
+                    jig_domain_people::EntryKind::Proposal { proposer, number } => {
+                        documents::InboxObject::Proposal { proposer, number }
                     }
                     jig_domain_people::EntryKind::Escalation { revision } => {
                         documents::InboxObject::Escalation { revision }

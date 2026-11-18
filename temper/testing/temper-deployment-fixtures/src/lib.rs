@@ -1,11 +1,11 @@
-//! A stopped deployment copied from the floor store for upgrade command tests.
+//! A stopped deployment copied from the floor store for shell command tests.
 use std::{
     os::unix::{ffi::OsStrExt, fs::PermissionsExt},
     path::Path,
 };
 use temper_shell::directories::Directories;
 
-pub(super) fn copy(source: &Path, target: &Path) {
+pub fn copy(source: &Path, target: &Path) {
     std::fs::create_dir(target).expect("copy directory");
     std::fs::set_permissions(target, std::fs::Permissions::from_mode(0o700)).expect("private directory");
     for entry in std::fs::read_dir(source).expect("source directory") {
@@ -20,7 +20,8 @@ pub(super) fn copy(source: &Path, target: &Path) {
     }
 }
 
-pub(crate) fn deployment() -> (skein_scratch::Scratch, Directories) {
+#[must_use]
+pub fn deployment() -> (skein_scratch::Scratch, Directories) {
     let scratch = skein_scratch::Scratch::new_in(&skein_scratch::paths::target_tmp(), "upgrade-deployment");
     let config = scratch.path().join("config");
     let data = scratch.path().join("data");
@@ -42,7 +43,7 @@ pub(crate) fn deployment() -> (skein_scratch::Scratch, Directories) {
         }
     }
     let mut document: serde_json::Value =
-        serde_json::from_slice(include_bytes!("../../../../../docs/examples/owned.json")).expect("owned example");
+        serde_json::from_slice(include_bytes!("../../../docs/examples/owned.json")).expect("owned example");
     document["workers"] = serde_json::json!([]);
 
     document["engine"]["hosts"]["listener"] = serde_json::json!([{"socket":"127.0.0.1:7103"}]);

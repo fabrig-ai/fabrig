@@ -176,11 +176,12 @@ A part on a fixed start reads its clocks from skein's `FixedClock`
 - **Its own seed, not the page's:** a client's seed starts the request
   keys it draws (jig-client-domain's `RequestTable`), and the engine
   refuses a key already kept for another request as `KeyConflict`. A TUI
-  journey's setup walks a page on the start's seed for the same person
-  before the TUI starts, so a TUI on that seed would draw the page's
-  keys again and have its first Create refused. Stream 4 is no other
-  part's: `internal serve` draws on 1, 2 and 3, and the page takes the
-  seed itself.
+  journey's setup signs in with a page on the start's seed for the same
+  person before the TUI starts, so a TUI on that seed would draw the
+  page's keys again and have its first Create refused. Stream 4 is no
+  other part's: `internal serve` draws on 1, 2 and 3, and the page takes
+  the seed itself. Drawn on a stream of its own, the TUI's keys are its
+  own, as a real client's random ones are.
 - **Its recording:** the host is still made at zero, so the recording's
   `clocks` stay `0 0` (`tui/journeys.md`, 3.2), and its first turn is at
   the start's `Now`; the run's file is named by the fixed wall,
@@ -279,7 +280,8 @@ browser, terminal or box, and no fuzzy test.
   one start and distinct by use.
 - **The TUI's:** the variable honoured at a loopback address and ignored
   at another, a bad value refused by name, a run's seed the start's
-  draw on stream 4 and its first turn the start's; and, on the journeys'
+  draw on stream 4 and its first turn the start's; its first request key
+  other than a host's on the start's own seed, and, on the journeys'
   start, the TUI's first request keys none of the page's.
 - **The browser's:** the setting honoured on loopback alone and taken out
   of the address everywhere; a host started on a fixed start recording

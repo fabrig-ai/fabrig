@@ -41,6 +41,156 @@ fn rows(object: ObjectKey, group: InboxGroup, project: u32) -> List<contract::In
     rows.push(fixtures::inbox_entry(object, group, project, POSITION)).expect("one row");
     rows
 }
+fn card_page(root: &mut crate::Domain, page: contract::ReadResult) {
+    let handle = root.pages().inbox().unwrap().cards.get(0).unwrap().handle;
+    crate::route::told(
+        root,
+        &fixtures::env(&fixtures::limits()),
+        jig_client::Told::Page { handle, page: jig_client::Readout::Jig(page) },
+        &mut Queue::uncapped(),
+    );
+}
+fn proposal_act(root: &mut crate::Domain, act: Act) -> Queue<Request> {
+    let mut out = Queue::uncapped();
+    crate::step(
+        root,
+        &fixtures::env(&fixtures::limits()),
+        crate::Event::Act { action: crate::Action::Pages(act) },
+        &mut out,
+    );
+    out
+}
+#[test]
+fn a_partys_amendment_is_decided_with_its_project() {
+    use contract::{ActKind, Proposer, ReadResult};
+    let (mut root, watch) = fixtures::inbox_home(Filter::ALL);
+    let page = fixtures::acts::amendment(Proposer::Party(fixtures::PARTY));
+    let contract::ReadValue::Proposal(proposal) = &page else { panic!("proposal") };
+    let key = proposal.key;
+    let object = ObjectKey::Proposal(key);
+    fixtures::inbox_entries(&mut root, watch, rows(object, InboxGroup::Proposals, OTHER_PROJECT));
+    card_page(&mut root, ReadResult::Value(page.clone()));
+    assert_eq!(root.pages().inbox().unwrap().cards.get(0).unwrap().page.as_ref(), Some(&page));
+    assert!(reads(&mut proposal_act(&mut root, fixtures::acts::decide(object, ActKind::Accept))).is_empty());
+    let mut out = proposal_act(&mut root, Act::Confirm);
+    let mut sent = List::with_capacity(1);
+    while let Some(request) = out.pop() {
+        if let Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Send { request: jig_client::Ask::Jig(ask), .. },
+                },
+        } = request
+        {
+            sent.push(*ask).unwrap();
+        }
+    }
+    assert_eq!(
+        sent.as_slice(),
+        [contract::Ask::Decide {
+            project: PROJECT,
+            on: contract::DecideOn::Proposal { proposal: key, decision: contract::Decision::Accepted, running: None }
+        }]
+    );
+}
+#[test]
+fn a_refused_proposal_read_offers_withdraw_only_to_its_signed_in_maker() {
+    use contract::{ActKind, ProposalKey, Proposer, ReadNone, ReadResult};
+    for proposer in [Proposer::Party(fixtures::PARTY), Proposer::Party(fixtures::PARTY + 1), Proposer::Task(TASK)] {
+        for refusal in [ReadNone::Refused, ReadNone::Malformed] {
+            let (mut root, watch) = fixtures::inbox_home(Filter::ALL);
+            let object = ObjectKey::Proposal(ProposalKey { proposer, number: MESSAGE });
+            fixtures::inbox_entries(&mut root, watch, rows(object, InboxGroup::Proposals, PROJECT));
+            card_page(&mut root, ReadResult::None(refusal));
+            let expected = proposer == Proposer::Party(fixtures::PARTY);
+            let card = root.pages().inbox().unwrap().cards.get(0).unwrap();
+            assert_eq!(crate::acts::card_allowed(card, ActKind::Withdraw), expected);
+            assert!(!crate::acts::card_allowed(card, ActKind::Accept));
+            proposal_act(&mut root, fixtures::acts::decide(object, ActKind::Withdraw));
+            assert_eq!(root.pages().confirmation().is_some(), expected);
+            let mut out = proposal_act(&mut root, Act::Confirm);
+            let mut sent = List::with_capacity(1);
+            while let Some(request) = out.pop() {
+                if let Request::Unlinked {
+                    request:
+                        jig_client::UnlinkedRequest::Down {
+                            down: jig_client::Down::Send { request: jig_client::Ask::Jig(ask), .. },
+                        },
+                } = request
+                {
+                    sent.push(*ask).unwrap();
+                } else if let Request::Unlinked {
+                    request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Read { .. } },
+                } = request
+                {
+                    panic!("Withdraw does not read");
+                }
+            }
+            if expected {
+                assert_eq!(sent.as_slice(), [contract::Ask::Withdraw { project: PROJECT, proposal: MESSAGE }]);
+            } else {
+                assert!(sent.is_empty());
+            }
+        }
+    }
+}
+#[test]
+fn an_answered_withdrawal_leaves_with_its_inbox_entry_and_is_told_once() {
+    use contract::{ActKind, Admission};
+    for entry_first in [false, true] {
+        let (mut root, watch) = fixtures::inbox_home(Filter::ALL);
+        let object = ObjectKey::Proposal(fixtures::acts::PROPOSAL);
+        fixtures::inbox_entries(&mut root, watch, rows(object, InboxGroup::Proposals, PROJECT));
+        card_page(
+            &mut root,
+            contract::ReadResult::Value(fixtures::acts::proposal(ActKind::Withdraw, Admission::Allowed)),
+        );
+        proposal_act(&mut root, fixtures::acts::decide(object, ActKind::Withdraw));
+        let mut out = proposal_act(&mut root, Act::Confirm);
+        let mut attempt = None;
+        while let Some(request) = out.pop() {
+            if let Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt: sent, .. } },
+            } = request
+            {
+                attempt = Some(sent);
+            }
+        }
+        let answer = jig_client::Up::Answer {
+            attempt: attempt.unwrap(),
+            envelope: skein_lib::RequestEnvelope::Final,
+            answer: Some(jig_client::Answered::Jig(contract::Answer::Done(contract::Outcome::Document(
+                contract::DocumentOutcome::Withdrawn { proposal: MESSAGE },
+            )))),
+            why: None,
+        };
+        if entry_first {
+            fixtures::inbox_entries(&mut root, watch, List::uncapped());
+            assert_eq!(root.pages().inbox().unwrap().cards.len(), 1, "the in-flight card stays");
+        }
+        crate::step(
+            &mut root,
+            &fixtures::env(&fixtures::limits()),
+            crate::Event::Client { event: jig_client::Event::Up { up: answer.clone() } },
+            &mut Queue::uncapped(),
+        );
+        assert!(root.pages().confirmation().is_none());
+        let shown = crate::pages::shown(root.pages());
+        crate::step(
+            &mut root,
+            &fixtures::env(&fixtures::limits()),
+            crate::Event::Client { event: jig_client::Event::Up { up: answer } },
+            &mut Queue::uncapped(),
+        );
+        assert_eq!(crate::pages::shown(root.pages()), shown, "the duplicate answer is not told again");
+        if !entry_first {
+            assert!(root.pages().inbox().unwrap().cards.get(0).unwrap().withdrawn());
+            fixtures::inbox_entries(&mut root, watch, List::uncapped());
+        }
+        assert!(root.pages().inbox().unwrap().cards.is_empty(), "entry first: {entry_first}");
+        assert!(root.pages().inbox().unwrap().rows.is_empty());
+    }
+}
 fn reads(out: &mut Queue<Request>) -> Box<[Read]> {
     let mut reads = List::with_capacity(out.len());
     while let Some(request) = out.pop() {

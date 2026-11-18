@@ -52,8 +52,7 @@ pub struct Replay {
 impl Replay {
     pub fn new(recording: &[u8]) -> Result<Self, Unreadable> {
         let lines = lines(recording)?;
-        let (facts, at) = facts(&lines)?;
-        envelope(&lines, at)?;
+        let (facts, at) = checked_facts(&lines)?;
         let (host, start) = facts.start();
         Ok(Self { lines, at, turn: 0, host, start: Some(start), ended: false, failed: None })
     }
@@ -283,6 +282,12 @@ fn text(line: &Line) -> Box<[u8]> {
     line.write(&mut bytes);
     bytes.pop();
     bytes.into()
+}
+
+pub(super) fn checked_facts(lines: &[Line]) -> Result<(Facts, usize), Unreadable> {
+    let (facts, at) = facts(lines)?;
+    envelope(lines, at)?;
+    Ok((facts, at))
 }
 
 #[expect(clippy::too_many_lines, reason = "one reader checks the recording's ordered start facts and their defaults")]

@@ -58,6 +58,11 @@ impl View {
             revision: None,
         }
     }
+    /// Recover the phrasebook when discarding this view, for a fresh tree with the same words.
+    #[must_use]
+    pub fn into_words(self) -> Words {
+        self.forge_words
+    }
     /// Revision of the last completed view build; absent before its first build.
     #[must_use]
     pub const fn revision(&self) -> Option<u64> {
