@@ -181,11 +181,5 @@ that proof remains with the after-landing runs (11).
   across versions make what doesn't change more than once.
   [in flight: change 5571]
 
-- **Not yet:** 5: no `testing/temper-agent-fixtures` or
-  `testing/temper-landing-fixtures`: the agent and landing fixtures are
-  `temper-fixtures`' modules, on its eighteen dependencies.
-  [in flight: change 8037]
-- **Not yet:** 5: no `testing/temper-process-guard`: the process guard
-  and its `parent` test are `temper-box-kit`'s. [in flight: change 8038]
 
 
