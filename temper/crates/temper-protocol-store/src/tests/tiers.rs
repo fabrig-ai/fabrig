@@ -308,7 +308,7 @@ fn tier_family_bounds_follow_the_forge_and_full_row_measure() {
     full.started = Some(skein_lib::Time::from_nanos(u64::MAX));
     let row = records::encode(&d::Stored::Tier(full));
     assert_eq!(skein_lib::len_u64(row.len()), crate::v25::TierRow::encoded_bound(l).unwrap() + 3);
-    assert_eq!(row.len(), 198_044);
+    assert_eq!(row.len(), 204_444);
 }
 
 #[test]

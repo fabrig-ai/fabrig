@@ -34,7 +34,9 @@ pub(super) fn restoring(branch: Option<&[u8]>) -> Domain {
     })
 }
 fn restoring_following(follows: Follows) -> Domain {
-    let mut d = domain();
+    restoring_in(domain(), follows)
+}
+fn restoring_in(mut d: Domain, follows: Follows) -> Domain {
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     assert!(d.project_landing(
         5,

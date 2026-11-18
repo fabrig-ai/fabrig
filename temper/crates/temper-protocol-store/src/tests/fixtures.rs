@@ -56,6 +56,7 @@ pub const LIMITS: top::Limits = top::Limits {
     landings: 8,
     landing_members: 2,
     landings_kept: 16,
+    landings_pending: 64,
     changes_rows: 32,
     changes_landed: 8,
     gates: 2,
@@ -1211,9 +1212,7 @@ pub fn tier_posting(failing: &temper_engine_domain_forge_tiers::Failures) -> top
             })
             .unwrap();
     }
-    let mut comments = List::with_capacity(
-        LIMITS.landings_kept.checked_mul(LIMITS.landing_members).unwrap().checked_add(LIMITS.changes).unwrap(),
-    );
+    let mut comments = List::with_capacity(top::tiers::posting_comments(&LIMITS).unwrap());
     for _ in 0..comments.capacity() {
         comments
             .push(top::TierComment {

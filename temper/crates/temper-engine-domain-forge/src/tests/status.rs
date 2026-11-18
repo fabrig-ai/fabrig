@@ -789,10 +789,13 @@ fn signed_landing(task: u64, at: Wall, people: &[u64]) -> LoggedLanding {
         signers.push(signed(*person)).unwrap();
     }
     LoggedLanding {
+        tiers: Box::new([]),
         commit: HEAD,
         branch: b"main".as_slice().into(),
         at,
         changes: Box::new([LoggedChange {
+            goal: None,
+            milestone: None,
             task,
             pull: None,
             title: b"Small fix".as_slice().into(),
@@ -881,10 +884,13 @@ fn its_words_say_what_landed_since_the_brief() {
         title.put(skein_lib::Decimal::of(u64::from(n)).as_bytes()).unwrap();
         landings
             .push(LoggedLanding {
+                tiers: Box::new([]),
                 commit: [n; 32],
                 branch: b"main".as_slice().into(),
                 at: after(u64::from(n)),
                 changes: Box::new([LoggedChange {
+                    goal: None,
+                    milestone: None,
                     signed: Box::new([]),
                     task: u64::from(n),
                     pull: None,

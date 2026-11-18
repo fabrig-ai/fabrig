@@ -58,6 +58,7 @@ pub const LIMITS: top::Limits = top::Limits {
     landings: 8,
     landing_members: 3,
     landings_kept: 16,
+    landings_pending: 64,
     changes_rows: 32,
     changes_landed: 8,
     gates: 2,

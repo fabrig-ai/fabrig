@@ -525,10 +525,13 @@ fn verification_row(
     let row = forge::Stored::LandingLog(forge::LandingLog {
         repository,
         landings: Box::new([forge::LoggedLanding {
+            tiers: Box::new([]),
             commit: [7; 32],
             branch: temper_codecs_world::drawn(rng, LIMITS.name_bytes).into_boxed_slice(),
             at: skein_lib::Wall::from_nanos(rng.next_u64()),
             changes: Box::new([forge::LoggedChange {
+                goal: None,
+                milestone: None,
                 signed: Box::new([]),
                 task: rng.next_u64(),
                 pull: if rng.below(2) == 0 { None } else { Some(rng.next_u64()) },

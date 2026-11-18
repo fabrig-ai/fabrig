@@ -438,8 +438,12 @@ record GoalFrom { project: u32 chat: u64 goal: u64 at: u64 }
 record KeepAsking { project: u32 subject: ClassSubject at: u64 }
 enum PersonFact { to_begin: ToBegin goal_from: GoalFrom keep_asking: KeepAsking }
 record Dismissed { party: u64 what: PersonFact }
-record LoggedChange { signed: list 8 SignOff task: u64 pull: option u64 title: bytes 256 }
-record LoggedLanding { commit: fixed 32 branch: bytes 4096 at: u64 changes: list 64 LoggedChange }
+record LoggedChange { signed: list 8 SignOff task: u64 pull: option u64 title: bytes 256 goal: option u64 = none milestone: option u64 = none }
+record LoggedCleared { run: u64 }
+record LoggedRed { run: u64 failing: option u32 }
+enum LoggedVerdict { verifying, cleared: LoggedCleared, red: LoggedRed }
+record LoggedTier { tier: bytes 32 verdict: LoggedVerdict }
+record LoggedLanding { commit: fixed 32 branch: bytes 4096 at: u64 changes: list 64 LoggedChange tiers: list 32 LoggedTier = [] }
 record MilestoneLanding { at: u64 goal: u64 change: u64 }
 enum MilestoneOutcome { complete, ended, closed }
 record MilestoneEnd { at: u64 outcome: MilestoneOutcome done: u32 failed: u32 closed: u32 spent: u64 }

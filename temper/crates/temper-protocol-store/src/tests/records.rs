@@ -2395,11 +2395,14 @@ fn landing_log(landings: u32, members: u32, branch_bytes: u32) -> forge::Stored 
         repository: skein_forge::api::Repository { forge: 1, repository: 2 },
         landings: vec![
             forge::LoggedLanding {
+                tiers: Box::new([]),
                 commit: [7; 32],
                 branch: vec![b'x'; usize::try_from(branch_bytes).unwrap()].into(),
                 at: skein_lib::Wall::from_nanos(123),
                 changes: vec![
                     forge::LoggedChange {
+                        goal: None,
+                        milestone: None,
                         signed: Box::new([]),
                         task: 51,
                         pull: Some(2),
@@ -2418,11 +2421,15 @@ fn landing_log(landings: u32, members: u32, branch_bytes: u32) -> forge::Stored 
 #[test]
 fn landing_logs_round_trip_and_refuse_each_configured_bound() {
     let limits = fixtures::LIMITS;
-    assert_eq!(records::encode(&landing_log(16, 2, 64)).len(), 10_797);
+    assert_eq!(records::encode(&landing_log(16, 2, 64)).len(), 10_925);
     let bounds = crate::bounds(&limits, limits.client.op_bytes).unwrap();
     for extra in [0, 1] {
         for row in [
-            landing_log(limits.landings_kept + extra, limits.landing_members, limits.name_bytes),
+            landing_log(
+                limits.landings_kept + limits.landings_pending + extra,
+                limits.landing_members,
+                limits.name_bytes,
+            ),
             landing_log(limits.landings_kept, limits.landing_members + extra, limits.name_bytes),
             landing_log(limits.landings_kept, limits.landing_members, limits.name_bytes + extra),
         ] {
@@ -2439,6 +2446,20 @@ fn landing_logs_round_trip_and_refuse_each_configured_bound() {
         row.landings[0].changes[0].pull = None;
     }
     assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+    for verdict in [
+        forge::LoggedVerdict::Verifying,
+        forge::LoggedVerdict::Cleared { run: u64::MAX },
+        forge::LoggedVerdict::Red { run: 7, failing: Some(u32::MAX) },
+        forge::LoggedVerdict::Red { run: 9, failing: None },
+    ] {
+        let mut row = landing_log(1, 1, 1);
+        if let forge::Stored::LandingLog(row) = &mut row {
+            row.landings[0].changes[0].goal = Some(u64::MAX);
+            row.landings[0].changes[0].milestone = Some(31);
+            row.landings[0].tiers = Box::new([forge::LoggedTier { tier: Box::new([b't'; 32]), verdict }]);
+        }
+        assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+    }
 }
 
 #[test]

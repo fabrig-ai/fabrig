@@ -119,6 +119,7 @@ pub struct Identity {
 pub struct Worker {
     pub root: Box<[u8]>,
 }
+#[expect(clippy::too_many_lines, reason = "resolved overrides are checked together before store sizing")]
 fn configured_limits(
     document: &Document,
     at: u32,
@@ -211,6 +212,35 @@ fn configured_limits(
                 count: limits.forge.changes,
                 bound,
                 ceiling: temper_protocol_store::tier_landings_ceiling(),
+            }),
+        );
+    }
+    let ceiling = temper_protocol_store::v25::CEILINGS.landing_log_landings;
+    let bound = ceiling.saturating_sub(limits.forge.landings_kept);
+    if limits.forge.landings_pending > bound {
+        problems.push(
+            super::checks::own(b"forge.landings_pending"),
+            What::Half(crate::startup::EngineWhat::LandingPending {
+                count: limits.forge.landings_pending,
+                bound,
+                kept: limits.forge.landings_kept,
+                ceiling,
+            }),
+        );
+    }
+    let ceiling = temper_protocol_store::v25::CEILINGS.tier_posting_comments;
+    let bound = ceiling
+        .saturating_sub(limits.forge.changes)
+        .checked_div(limits.forge.landing_members)
+        .unwrap_or(0)
+        .saturating_sub(limits.forge.landings_kept);
+    if limits.forge.landings_pending > bound {
+        problems.push(
+            super::checks::own(b"forge.landings_pending"),
+            What::Half(crate::startup::EngineWhat::LandingComments {
+                count: limits.forge.landings_pending,
+                bound,
+                ceiling,
             }),
         );
     }

@@ -79,6 +79,7 @@ Every limit application.limits.overrides takes: its unit, the stock's value and 
 - `forge.changes_rows`: count, 32. Bounds queued rows across the changes document's queues.
 - `forge.changes_landed`: count, 8. Bounds recent landed changes in the changes document.
 - `forge.landings_kept`: count, 16. Bounds retained landings per repository.
+- `forge.landings_pending`: count, 64. Bounds landings kept per repository until every tier following their branch has judged them.
 - `forge.landings`: count, 32. Bounds live landing procedure rows.
 - `forge.key_entries`: count, 256. Bounds the entries of one tree a landing's gate key reads.
 - `forge.branch_reds`: count, 64. Bounds the reds held by a goal.

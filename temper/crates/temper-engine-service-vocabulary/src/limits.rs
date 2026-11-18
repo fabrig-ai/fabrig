@@ -185,6 +185,7 @@ const FORGE: forge::Limits = forge::Limits {
     // Fabrig’s development of 2026-11-16: dev’s 4, capped by the worker wire’s five prefixes.
     landing_members: 5,
     landings_kept: 16,
+    landings_pending: 64,
     changes_rows: 32,
     changes_landed: 8,
     gates: 2,

@@ -132,6 +132,7 @@ pub(crate) fn judged(
     out: &mut Queue<Request>,
 ) {
     assert_eq!(landings.len(), verdict.landings.len(), "one blame per landing in the judged range");
+    crate::landing_log::judged(d, repository, tier, verdict, landings, out);
     let subject = crate::views::changes_mark(d, repository);
     let mut keys = List::with_capacity(d.verifications.len());
     for ((repo, commit), _) in &d.verifications {

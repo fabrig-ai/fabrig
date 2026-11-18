@@ -15,6 +15,8 @@ pub enum EngineWhat {
     OldAgentCommand,
     NoWebhooks,
     TierChanges { count: u32, bound: u32, ceiling: u32 },
+    LandingPending { count: u32, bound: u32, kept: u32, ceiling: u32 },
+    LandingComments { count: u32, bound: u32, ceiling: u32 },
     TestIdBytes { bytes: u32, bound: u32 },
     StorePage { transcript: u32, frame: u32, page: u32, ceiling: u32 },
     StoreMap(jig_protocol_store::sizes::SizeRefusal),
@@ -57,7 +59,7 @@ fn words(what: EngineWhat) -> &'static [u8] {
         EngineWhat::LandingStored => b"landing rules live in the store; read them with temper ctl settings show landing-rule",
         EngineWhat::ProjectLandingStored => b"landing rules live in the store; read them with temper ctl settings show landing-rule --project",
         EngineWhat::CharterStored => b"the forge's charters live in the store; read them with temper ctl settings show forge-charter 1",
-EngineWhat::FigureEndpoints { .. } | EngineWhat::FleetGrace { .. } | EngineWhat::Room(_) | EngineWhat::Stock(_) | EngineWhat::TierChanges { .. } | EngineWhat::TestIdBytes { .. } | EngineWhat::StorePage { .. } | EngineWhat::StoreMap(_) | EngineWhat::StoreTask { .. } | EngineWhat::Admission { .. } => b"",
+EngineWhat::FigureEndpoints { .. } | EngineWhat::FleetGrace { .. } | EngineWhat::Room(_) | EngineWhat::Stock(_) | EngineWhat::TierChanges { .. } | EngineWhat::LandingPending { .. } | EngineWhat::LandingComments { .. } | EngineWhat::TestIdBytes { .. } | EngineWhat::StorePage { .. } | EngineWhat::StoreMap(_) | EngineWhat::StoreTask { .. } | EngineWhat::Admission { .. } => b"",
  }
 }
 fn redirect_listener(listener: super::Listener, writer: &mut Writer, length: &mut usize, measuring: bool) {
@@ -165,6 +167,7 @@ fn stock(floor: crate::stock::Floor, writer: &mut Writer, length: &mut usize, me
     put(writer, length, measuring, unit);
     put(writer, length, measuring, b"; raise it in engine.limits.overrides");
 }
+#[expect(clippy::too_many_lines, reason = "one exhaustive rendering of engine startup refusals")]
 fn render(problems: &Problems, writer: &mut Writer, measuring: bool) -> usize {
     let mut length = 0_usize;
     for problem in &problems.problems {
@@ -216,6 +219,29 @@ fn render(problems: &Problems, writer: &mut Writer, measuring: bool) -> usize {
                     measuring,
                     b", the most the store's tier rows hold (2 * forge.changes + 1 within ",
                 );
+                put(writer, &mut length, measuring, Decimal::of(u64::from(ceiling)).as_bytes());
+                put(writer, &mut length, measuring, b")");
+            }
+            EngineWhat::LandingPending { count, bound, kept, ceiling } => {
+                put(writer, &mut length, measuring, Decimal::of(u64::from(count)).as_bytes());
+                put(writer, &mut length, measuring, b", past its bound of ");
+                put(writer, &mut length, measuring, Decimal::of(u64::from(bound)).as_bytes());
+                put(
+                    writer,
+                    &mut length,
+                    measuring,
+                    b", the most the store's landing log holds beside forge.landings_kept ",
+                );
+                put(writer, &mut length, measuring, Decimal::of(u64::from(kept)).as_bytes());
+                put(writer, &mut length, measuring, b" (within ");
+                put(writer, &mut length, measuring, Decimal::of(u64::from(ceiling)).as_bytes());
+                put(writer, &mut length, measuring, b")");
+            }
+            EngineWhat::LandingComments { count, bound, ceiling } => {
+                put(writer, &mut length, measuring, Decimal::of(u64::from(count)).as_bytes());
+                put(writer, &mut length, measuring, b", past its bound of ");
+                put(writer, &mut length, measuring, Decimal::of(u64::from(bound)).as_bytes());
+                put(writer, &mut length, measuring, b", the most the store's tier comments hold ((forge.landings_kept + forge.landings_pending) * forge.landing_members + forge.changes within ");
                 put(writer, &mut length, measuring, Decimal::of(u64::from(ceiling)).as_bytes());
                 put(writer, &mut length, measuring, b")");
             }
