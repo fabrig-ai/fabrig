@@ -33,7 +33,8 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   port fell back to another is named by its address.
 - **The link is never an argument,** as `temper ctl`'s isn't
   (`../ctl/README.md`, 6.1): the TUI takes it pasted on its sign-in screen
-  (`pages/README.md`), and refuses it as ADDRESS.
+  (`pages/README.md`), and refuses it as ADDRESS, in either of its forms
+  (`../README.md`, section 4).
 - **One argument at most,** an address: a first word that is no
   address and no command is no command, as before
   (`temper: no command WORD; temper --help lists them`).
