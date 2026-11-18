@@ -106,7 +106,8 @@ class RunnerFixture(unittest.TestCase):
                        version='1.2.3', authors=['A', 'B'],
                        targets=[dict(name='fixture', kind=['lib'], test=True),
                                 dict(name='suite', kind=['test'], test=True)])
-        self.metadata = {'packages': [package], 'workspace_root': str(self.root)}
+        self.metadata = {'packages': [package], 'workspace_members': ['fixture-id'],
+                         'workspace_root': str(self.root)}
         self.env['CARGO_HOME'] = str(self.root / 'cargo-home')
         self.listing = {'rust-suites': {}, 'rust-build-meta': {
             'target-directory': str(self.root / 'target'), 'base-output-directories': ['debug'],
@@ -581,6 +582,120 @@ class BaseTests(RunnerFixture):
         return subprocess.run([*command, *extra], cwd=self.root, env=env, stdin=subprocess.DEVNULL,
                               capture_output=True, text=True, timeout=10)
 
+    def test_two_packages_list_only_their_targets(self):
+        self.binary('zebra', names=('c',))
+        self.listing['rust-suites']['zebra'].update({
+            'package-id': 'zebra-id', 'kind': 'lib', 'binary-name': 'zebra'})
+        self.metadata['packages'].insert(0, dict(
+            self.metadata['packages'][0], id='zebra-id', name='zebra',
+            targets=[dict(name='zebra', kind=['rlib'], test=True)]))
+        self.metadata['workspace_members'].append('zebra-id')
+        for package in self.metadata['packages']:
+            listing = dict(self.listing, **{'rust-suites': {
+                binary: suite for binary, suite in self.listing['rust-suites'].items()
+                if suite['package-id'] == package['id']}})
+            (self.root / f"listing-{package['name']}.json").write_text(json.dumps(listing))
+        self.head([self.flagged('c', 'zebra'), self.flagged('b'), self.flagged('a')], profile='candidate')
+        self.config.write_text('[profile.default]\n[profile.candidate]\nglobal-timeout="2s"\n')
+        self.metadata['target_directory'] = str(self.root / 'target')
+        result = self.invoke_base(default_out=True, extra=('-E', 'all()', '--no-fail-fast'),
+                                  hold=str(self.root / 'hold'))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        calls = [json.loads(line) for line in (self.root / 'cargo-argv.jsonl').read_text().splitlines()]
+        listing_args = ['nextest', 'list', '--message-format', 'json', '--profile', 'candidate',
+                        '--config-file', str(self.config)]
+        self.assertEqual(calls, [['metadata', '--format-version', '1', '--no-deps'],
+                                 ['metadata', '--format-version', '1', '--no-deps'],
+                                 [*listing_args, '-p', 'fixture', '--test', 'suite', '-E', 'all()'],
+                                 [*listing_args, '-p', 'zebra', '--lib', '-E', 'all()']])
+        prefixed = [json.loads(line) for line in (self.root / 'prefix-argv.jsonl').read_text().splitlines()]
+        self.assertEqual([call[1:] for call in prefixed[:2]], calls[2:])
+        self.assertEqual(len(prefixed), 3)
+        events = [json.loads(line) for line in (self.root / 'hold-events.jsonl').read_text().splitlines()]
+        self.assertEqual(events[0][0], 'hold-start')
+        self.assertEqual([event[1] for event in events if event[0] == 'cargo'], calls)
+        self.assertEqual(events[-1], ['hold-end', result.stdout.splitlines()[-1]])
+        base = Path(result.stdout.splitlines()[0])
+        output = (base / 'command-output.txt').read_text()
+        self.assertLess(output.index('fixture::suite'), output.index('"zebra"'))
+        self.assertEqual(output.count('fixture listing prefix'), 2)
+        self.assertEqual(output.count('fixture listing suffix'), 2)
+        results = json.loads((base / 'results.json').read_text())
+        self.assertEqual([(r['binary_id'], r['test_name'], r['why'], r['outcome'])
+                          for r in results['references']],
+                         [('fixture::suite', 'a', 'base', 'passed'),
+                          ('fixture::suite', 'b', 'base', 'passed'), ('zebra', 'c', 'base', 'passed')])
+        self.assertEqual(len(results['processes']), 5)
+        for row in results['references']:
+            reference, empty = (results['processes'][row[key]] for key in ('process', 'empty_process'))
+            self.assertEqual((reference['binary_id'], reference['kind'], reference['tests']),
+                             (row['binary_id'], 'reference', [row['test_name']]))
+            self.assertEqual((empty['binary_id'], empty['kind'], empty['tests']),
+                             (row['binary_id'], 'empty', []))
+            self.assertIsInstance(row['cpu_s'], (int, float))
+
+    def test_one_package_combines_targets_in_binary_id_order(self):
+        self.binary('fixture', names=('a',))
+        self.listing['rust-suites']['fixture'].update({'kind': 'lib', 'binary-name': 'fixture'})
+        self.head([self.flagged(), self.flagged('a', 'fixture')])
+        result = self.invoke_base()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        calls = [json.loads(line) for line in (self.root / 'cargo-argv.jsonl').read_text().splitlines()]
+        self.assertEqual(calls, [['metadata', '--format-version', '1', '--no-deps'],
+                                 ['nextest', 'list', '--message-format', 'json', '--profile', 'default',
+                                  '--config-file', str(self.config), '-p', 'fixture', '--lib', '--test', 'suite']])
+        results = json.loads((self.root / 'base output/results.json').read_text())
+        self.assertEqual([(r['binary_id'], r['outcome']) for r in results['references']],
+                         [('fixture', 'passed'), ('fixture::suite', 'passed')])
+        self.assertEqual(len(results['processes']), 4)
+
+    def test_binary_target_uses_bin_flag(self):
+        self.metadata['packages'][0]['targets'].append(dict(name='tool', kind=['bin'], test=True))
+        self.binary('fixture::bin/tool', names=('a',))
+        self.listing['rust-suites']['fixture::bin/tool'].update({'kind': 'bin', 'binary-name': 'tool'})
+        self.head([self.flagged('a', 'fixture::bin/tool')])
+        result = self.invoke_base()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        calls = [json.loads(line) for line in (self.root / 'cargo-argv.jsonl').read_text().splitlines()]
+        self.assertEqual(calls[1:], [
+            ['nextest', 'list', '--message-format', 'json', '--profile', 'default',
+             '--config-file', str(self.config), '-p', 'fixture', '--bin', 'tool']])
+        results = json.loads((self.root / 'base output/results.json').read_text())
+        row, = results['references']
+        self.assertEqual((row['binary_id'], row['outcome']), ('fixture::bin/tool', 'passed'))
+
+    def test_example_and_bench_target_flags(self):
+        for kind in ('example', 'bench'):
+            with self.subTest(kind=kind):
+                self.assertEqual(self.module['target_flags'](f'fixture::{kind}/tool'), ['--' + kind, 'tool'])
+
+    def test_listing_build_environments_are_unioned(self):
+        first = {'rust-suites': {'fixture::suite': {}}, 'rust-build-meta': {
+            'target-directory': '/target', 'base-output-directories': ['debug'],
+            'non-test-binaries': {'fixture-id': [{'name': 'one'}]},
+            'build-script-out-dirs': {'fixture-id': 'out/fixture'},
+            'linked-paths': {'shared': ['fixture-id']}}}
+        second = {'rust-suites': {'zebra': {}}, 'rust-build-meta': {
+            'target-directory': '/target', 'base-output-directories': ['debug', 'custom'],
+            'non-test-binaries': {'fixture-id': [{'name': 'one'}, {'name': 'two'}],
+                                  'zebra-id': [{'name': 'zebra'}]},
+            'build-script-out-dirs': {'zebra-id': 'out/zebra'},
+            'linked-paths': {'shared': ['fixture-id', 'zebra-id'], 'other': ['zebra-id']}}}
+        listing = self.module['merge_listings']([first, second])
+        self.assertEqual(set(listing['rust-suites']), {'fixture::suite', 'zebra'})
+        self.assertEqual(listing['rust-build-meta'], {
+            'target-directory': '/target', 'base-output-directories': ['debug', 'custom'],
+            'non-test-binaries': {'fixture-id': [{'name': 'one'}, {'name': 'two'}],
+                                  'zebra-id': [{'name': 'zebra'}]},
+            'build-script-out-dirs': {'fixture-id': 'out/fixture', 'zebra-id': 'out/zebra'},
+            'linked-paths': {'shared': ['fixture-id', 'zebra-id'], 'other': ['zebra-id']}})
+
+    def test_listings_with_different_target_directories_are_refused(self):
+        listings = [{'rust-suites': {}, 'rust-build-meta': {'target-directory': target}}
+                    for target in ('/first', '/second')]
+        with self.assertRaisesRegex(ValueError, 'different target directories'):
+            self.module['merge_listings'](listings)
+
     def test_head_base_and_judgement_meet(self):
         self.env['FIXTURE_CASE'] = 'slow'
         ledger = dict(profile='default', budgets={}, moves=[], binaries={'fixture::suite': dict(
@@ -610,11 +725,13 @@ class BaseTests(RunnerFixture):
         self.assertGreaterEqual(row['cpu_s'], 0)
         self.assertEqual(times.read_bytes(), times_before)
         calls = [json.loads(line) for line in (self.root / 'cargo-argv.jsonl').read_text().splitlines()]
-        self.assertEqual(calls[0], ['nextest', 'list', '--message-format', 'json', '--profile', 'default',
-                                   '--config-file', str(self.config), '-p', 'fixture', '-E', 'test(=b)'])
+        self.assertEqual(calls, [['metadata', '--format-version', '1', '--no-deps'],
+                                 ['nextest', 'list', '--message-format', 'json', '--profile', 'default',
+                                  '--config-file', str(self.config), '-p', 'fixture', '--test', 'suite',
+                                  '-E', 'test(=b)']])
         prefixed = [json.loads(line) for line in (self.root / 'prefix-argv.jsonl').read_text().splitlines()]
         self.assertEqual(len(prefixed), 2)
-        self.assertEqual(prefixed[0][1:], calls[0])
+        self.assertEqual(prefixed[0][1:], calls[1])
         self.assertEqual(prefixed[1][-2:], ['lanes', str(base / 'plan.json')])
         summary = self.module['CPU']['summary'](
             self.directory, {'gate': {'default': {'references': {'checks': 1}}}}, ledger=ledger, base=base)
@@ -636,7 +753,9 @@ class BaseTests(RunnerFixture):
 
     def test_missing_and_filtered_names_at_base(self):
         self.head([self.flagged('gone'), self.flagged(binary='absent::bin/tool'), self.flagged(),
-                   self.flagged('a', why='new')])
+                   self.flagged(binary='fixture::removed'), self.flagged('a', why='new')])
+        # Even an over-inclusive listing cannot supply a target absent from metadata.
+        self.binary('fixture::removed', names=('b',))
         self.listing['rust-suites']['fixture::suite']['testcases']['b']['filter-match'] = {
             'status': 'mismatch', 'reason': 'default-filter'}
         self.config.write_text('[profile.default]\ndefault-filter="none()"\n')
@@ -647,6 +766,7 @@ class BaseTests(RunnerFixture):
         self.assertEqual([(r['binary_id'], r['test_name'], r['why'], r['outcome'])
                           for r in results['references']],
                          [('absent::bin/tool', 'b', 'base', 'missing'),
+                          ('fixture::removed', 'b', 'base', 'missing'),
                           ('fixture::suite', 'b', 'base', 'passed'),
                           ('fixture::suite', 'gone', 'base', 'missing')])
         for row in results['references']:
@@ -656,17 +776,29 @@ class BaseTests(RunnerFixture):
                               (base / 'command-output.txt').read_text())
         self.assertEqual([p['tests'] for p in results['processes']], [['b'], []])
         calls = [json.loads(line) for line in (self.root / 'cargo-argv.jsonl').read_text().splitlines()]
-        self.assertEqual(calls[0][-4:], ['-p', 'absent', '-p', 'fixture'])
+        self.assertEqual(calls, [['metadata', '--format-version', '1', '--no-deps'],
+                                 ['nextest', 'list', '--message-format', 'json', '--profile', 'default',
+                                  '--config-file', str(self.config), '-p', 'fixture', '--test', 'suite']])
         self.assertFalse((self.root / 'target/tiers-one-process/times.json').exists())
 
     def test_all_missing_has_no_process(self):
-        self.head([self.flagged(binary='absent')])
+        self.metadata['packages'][0]['targets'].append(dict(name='disabled', kind=['test'], test=False))
+        self.metadata['packages'].append(dict(self.metadata['packages'][0], id='dependency-id', name='dependency'))
+        self.head([self.flagged(binary=binary) for binary in
+                   ('absent', 'fixture::removed', 'fixture::disabled', 'dependency::suite')])
         result = self.invoke_base()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        results = json.loads((self.root / 'base output/results.json').read_text())
-        self.assertEqual(results['processes'], [])
-        row, = results['references']
-        self.assertEqual((row['outcome'], row['cpu_s']), ('missing', None))
+        base = self.root / 'base output'
+        self.assertEqual({p.name for p in base.iterdir()},
+                         {'plan.json', 'run.json', 'results.json', 'command-output.txt'})
+        results = json.loads((base / 'results.json').read_text())
+        self.assertEqual((results['processes'], results['tests'], results['unobserved']), ([], [], []))
+        self.assertEqual([(row['binary_id'], row['outcome'], row['cpu_s']) for row in results['references']],
+                         [(binary, 'missing', None) for binary in
+                          ('absent', 'dependency::suite', 'fixture::disabled', 'fixture::removed')])
+        calls = [json.loads(line) for line in (self.root / 'cargo-argv.jsonl').read_text().splitlines()]
+        self.assertEqual(calls, [['metadata', '--format-version', '1', '--no-deps']])
+        self.assertFalse((self.root / 'prefix-argv.jsonl').exists())
 
     def test_nonpasses_still_exit_zero_and_use_head_profile_bound(self):
         for scenario, name, native, outcome in (
