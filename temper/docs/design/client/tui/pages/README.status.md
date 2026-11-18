@@ -1,7 +1,14 @@
 # pages: status
 
-2026-11-15. Where the tree's code lags or departs from [README.md](README.md).
+2026-11-18. Where the tree's code lags or departs from [README.md](README.md).
 
+- **Not yet:** *The link's state*: "Refused" for a build refused out
+  of front [in flight: change 8878].
+- **Not yet:** *The link's state*: "Offline: " and why at a name while
+  the last handshake failed [in flight: change 8886].
+- **Not yet:** 3, *Its second line*, and 2, *`/open`*: the place and
+  the address made from the origin, NAME and `https://NAME` at a name
+  [in flight: change 8877].
 - **Not yet:** 1, *The notice*: no group started's notice [in flight:
   change 3434].
 - **Not yet:** 2, *`/quit`*: the commands reference's notes for bare

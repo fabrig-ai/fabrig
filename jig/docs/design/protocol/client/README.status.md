@@ -1,7 +1,11 @@
 # client: status
 
-2026-11-17. Where jig's code lags or departs from [README.md](README.md).
+2026-11-18. Where jig's code lags or departs from [README.md](README.md).
 Unlisted sections have no known gap.
+
+- **Not yet:** 9, *Its engine, plain or over TLS*: the native shell's
+  `Engine`, its connections over `skein-tls`, the addresses in order and
+  `Shell::refused` [in flight: change 8860].
 
 
 Sections 10 and 11's transport accounting is present: emitted exchanges

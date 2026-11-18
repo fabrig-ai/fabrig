@@ -5,6 +5,15 @@
 
 - **Not yet:** 2: there is no `temper-client-web-page`: the shell is the bundle's `cdylib`.
 
+- **Not yet:** 4, *Loopback, or TLS by name*: the TUI at a name over
+  HTTPS [in flight: change 8886].
+- **Not yet:** 4.1, *The tab's address*: `approval_address(origin, code)`,
+  `https://NAME/terminal` with no code at a name [in flight: change
+  8877].
+- **Not yet:** 4.1, *It asks* and *Each outcome's line*: at a name the
+  approval alone and "PLACE doesn't sign terminals in from the
+  browser." [in flight: change 8885].
+
 
 
 - **Not yet:** 3.6: the sheet for deleting a project, absent from `confirm.rs` [in flight: change 633].

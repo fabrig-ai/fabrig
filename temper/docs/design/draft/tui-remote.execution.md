@@ -41,7 +41,7 @@ the nearest thing, and says so in the draft's status.
 
 | | Milestone | Executes (`tui-remote.md`) | Needs | State |
 |---|---|---|---|---|
-| M1 | The TUI at a name | 3, 4, 5.2, 5.5, 6, 7 | | not started |
+| M1 | The TUI at a name | 3, 4, 5.2, 5.5, 6, 7 | | landed |
 | M2 | Approval across the internet | 5.3, 5.4, and 5.1's engine and page | | not started |
 | M3 | One click | 5.1's terminal | M1, M2 | not started |
 

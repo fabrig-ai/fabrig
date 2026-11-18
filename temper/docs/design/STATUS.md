@@ -406,7 +406,8 @@ link's state first on every screen's bottom row, at its first column
 The deployment's client is `temper`, at `bin/temper`, with its capture,
 `skein_shell::Table` and dispatch in `temper-client-shell`. Its public rows
 are `[ADDRESS]` and `help`; `ctl` is internal. It runs the TUI and ctl from
-shared shells, and `--version` reads `temper-version`. Its ctl story signs
+shared shells, and `--version` reads `temper-version`. The TUI also
+takes `https://NAME` (`draft/tui-remote.md`, M1). Its ctl story signs
 in to a `temper-engine` and runs after landing. Its closure is held by the
 boundary test's row, with five shared vocabulary crates as named
 exceptions (`protocol/binaries.status.md`; `client/README.status.md`, 2).
@@ -540,6 +541,7 @@ Design documents:
 - [`client/tui/pages/chat.md`](client/tui/pages/chat.status.md)
 - [`client/tui/pages/design-session.md`](client/tui/pages/design-session.status.md)
 - [`client/tui/pages/launchpad.md`](client/tui/pages/launchpad.status.md)
+- [`client/tui/pages/refused.md`](client/tui/pages/refused.status.md)
 - [`client/tui/pages/sign-in.md`](client/tui/pages/sign-in.status.md)
 - [`client/tui/theme.md`](client/tui/theme.status.md)
 - [`client/view.md`](client/view.status.md)
