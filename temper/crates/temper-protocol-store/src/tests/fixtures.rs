@@ -1,3 +1,4 @@
+pub mod layouts;
 use skein_lib::{Duration, List, Rng};
 use temper_engine_domain_forge_vocabulary as top;
 pub const REPO: skein_forge::api::Repository = skein_forge::api::Repository { forge: 1, repository: 2 };
@@ -456,6 +457,7 @@ fn add_releases(name: &top::Name, rows: &mut List<(&'static str, top::Stored)>) 
         rows.push((
             label,
             top::Stored::Release(top::ReleaseRow {
+                room: None,
                 task: 1,
                 root: 2,
                 ending,
@@ -891,8 +893,10 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         Change, Delegate, EffectResult, Freshness, Gate, GateKind, GateReport, Hold, Status,
     };
     top::ChangeRow {
+        room: None,
         source: None,
         kept: None,
+        regate: None,
         task_release: Some(top::TaskRelease { revision: 3, at: skein_lib::Wall::from_nanos(7) }),
         job: None,
         signed: Box::new([]),
@@ -925,11 +929,13 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
             repairs: 10,
             resolutions: 11,
             updates: 12,
+            stale: None,
             since: skein_lib::Wall::from_nanos(13),
             ready_since: Some(skein_lib::Wall::from_nanos(14)),
             owns_turn: true,
             last_head: Some([15; 32]),
             last_checked: None,
+            last_checked_by: None,
             clock: None,
         },
         pull: Some(16),
@@ -937,6 +943,8 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         effect: EffectResult::Made,
         delegate: Some((18, Delegate::Gate { number: 19, head: [20; 32] })),
         delegate_status: Status::Passed,
+        delegate_flake: false,
+        delegate_head: None,
         verdicts: Box::new([GateReport { number: 21, head: [22; 32], status: Status::Failed }]),
         milestone: None,
         goal: None,

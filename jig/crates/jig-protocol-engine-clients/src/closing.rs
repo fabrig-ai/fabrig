@@ -32,7 +32,8 @@ impl Component {
             let mut found = None;
             for (exchange, waiting) in &self.pending.exchanges {
                 match waiting {
-                    Waiting::SignOut { sign_in: number, committed: false }
+                    Waiting::LinkAskWhose { sign_in: number, .. }
+                    | Waiting::SignOut { sign_in: number, committed: false }
                     | Waiting::Watch { sign_in: number, .. }
                     | Waiting::Keep { sign_in: number, .. }
                     | Waiting::Get { owner: super::services::GetOwner::SignIn(number), .. }
@@ -50,7 +51,9 @@ impl Component {
                         found = Some(*exchange);
                         break;
                     }
-                    Waiting::ApprovalWhose { .. }
+                    Waiting::LinkAskWhose { .. }
+                    | Waiting::AskedWhose { .. }
+                    | Waiting::ApprovalWhose { .. }
                     | Waiting::ApprovalCore { .. }
                     | Waiting::Core { .. }
                     | Waiting::LinkGet { .. }
@@ -73,6 +76,7 @@ impl Component {
             };
             match self.pending.exchanges.remove(&exchange).expect("ended exchange") {
                 Waiting::LinkGet { .. } => self.link_sign_in(exchange, None, out),
+                Waiting::LinkAskWhose { .. } => self.denied(env, exchange, Route::LinkAsk),
                 Waiting::Keep { answer: crate::sign_in::Answer::Approval(_), .. } => {
                     self.respond(exchange, routes::approval_sign_in(w::ApprovalSignInAnswer::Refused));
                 }
@@ -110,7 +114,10 @@ impl Component {
                         .insert(exchange, Waiting::SignOut { sign_in, committed: true })
                         .expect("same sign-out slot");
                 }
-                Waiting::ApprovalWhose { .. } | Waiting::ApprovalCore { .. } | Waiting::Core { .. } => {}
+                Waiting::AskedWhose { .. }
+                | Waiting::ApprovalWhose { .. }
+                | Waiting::ApprovalCore { .. }
+                | Waiting::Core { .. } => {}
             }
         }
         self.end_streams(Some(sign_in));
@@ -124,6 +131,7 @@ impl Component {
         self.printed = super::Slot::new();
         self.local = super::Slot::new();
         self.approval = super::approval::State::new();
+        self.asked = super::asked_link::State::new(self.asked.capacity());
         self.pending.exchanges = Map::with_capacity(self.pending.exchanges.capacity());
         self.pending.carried = Map::with_capacity(self.pending.carried.capacity());
     }
@@ -165,7 +173,9 @@ impl Component {
                         found = Some(*exchange);
                         break;
                     }
-                    Waiting::ApprovalWhose { .. }
+                    Waiting::LinkAskWhose { .. }
+                    | Waiting::AskedWhose { .. }
+                    | Waiting::ApprovalWhose { .. }
                     | Waiting::ApprovalCore { .. }
                     | Waiting::Core { .. }
                     | Waiting::LinkGet { .. }
@@ -199,6 +209,7 @@ impl Component {
             self.printed = super::Slot::new();
             self.local = super::Slot::new();
             self.approval = super::approval::State::new();
+            self.asked = super::asked_link::State::new(self.asked.capacity());
             self.stop();
         }
     }

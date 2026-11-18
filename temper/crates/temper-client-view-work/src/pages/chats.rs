@@ -208,7 +208,7 @@ fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, 
             previous = Some((chosen.ended_at.unwrap_or(chosen.last_activity), chosen.chip.task));
         }
         b.close();
-    } else if chats.known(root.client()) && (chats.filter != ChatsFilter::Drafts || chats.documents_known()) {
+    } else if chats.known(root.client()) {
         let empty = words.say(Word::ChatsNone, &[]);
         b.open(Role::Paragraph);
         b.name(&empty);
@@ -272,12 +272,9 @@ pub fn row(b: &mut Builder, root: &Domain, line: &TaskLine, words: &Words, bindi
         {
             words.text(b, Word::ToolSeparator, &[]);
             words.text(b, Word::ChatRowGoal, &[]);
-            crate::bindings::link(
-                b,
-                chip.title.bytes(),
-                bindings.insert(Act::Go { address: Address::Task { task: goal } }),
-            );
-            b.text(Run::Plain, chip.title.bytes());
+            let title = crate::common::chat::row_title(chip.title.bytes());
+            crate::bindings::link(b, &title, bindings.insert(Act::Go { address: Address::Task { task: goal } }));
+            b.text(Run::Plain, &title);
             b.close();
         }
     }
@@ -310,8 +307,9 @@ pub fn row(b: &mut Builder, root: &Domain, line: &TaskLine, words: &Words, bindi
     b.close();
     b.open(Role::Paragraph);
     b.style(crate::look::CHATS_LINE);
-    b.name(line.chip.title.bytes());
-    b.text(Run::Plain, line.chip.title.bytes());
+    let title = crate::common::chat::row_title(line.chip.title.bytes());
+    b.name(&title);
+    b.text(Run::Plain, &title);
     b.close();
     if (line.ended_at.is_some() || ended(&line.chip)) && line.flags.retention == jig_client::contract::Retention::Kept {
         b.open(Role::Paragraph);

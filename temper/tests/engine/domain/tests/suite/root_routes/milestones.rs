@@ -36,6 +36,7 @@ fn member(driver: &Driver, words: &[u8], spend: u64) -> people::Member {
     let people::Ask::Create { batch, .. } = driver.chat_ask(1, words) else { panic!("create fixture") };
     let mut member = batch[0].clone();
     member.budget = people::Budget::Named;
+    member.authority.notes = 1;
     member.authority.spend = spend;
     member.authority.delegation =
         people::Delegation { kinds: Box::new([people::Executor::Charter(1)]), tasks: 1, depth: 1 };
@@ -68,6 +69,10 @@ fn fixture() -> Driver {
     bounds.authority.projects = 3;
     bounds.forge.judge_projects = 3;
     for config in &mut configs {
+        config.core.parts = forge::parts::kinds(0);
+        config.core.defaults.rules.ceiling.notes = authority::Scopes(1);
+        config.core.seed_projects[0].policy.policy.ceiling.notes = authority::Scopes(1);
+        config.core.seed_projects[0].policy.policy.roles[0].authority.notes = authority::Scopes(1);
         let kinds: Box<[authority::Executor]> =
             Box::new([authority::Executor::Charter(1), authority::Executor::Procedure(jig_domain_core::GATHERING)]);
         config.core.defaults.rules.ceiling.delegation.kinds.clone_from(&kinds);
@@ -164,6 +169,128 @@ fn finish(driver: &mut Driver, task: u64, spent: u64, result: tasks::TaskResult)
     advance(driver);
 }
 
+fn part(driver: &mut Driver) -> temper_client_protocol_wire::v1::MilestonePart {
+    use skein_lib::Reader;
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let mut query = super::parts::query(wire::MILESTONE_PART);
+    query.label = Some(8);
+    let page = super::parts::read(driver, query);
+    let row = page
+        .live
+        .get(0)
+        .or_else(|| {
+            if let jig_domain_core::reads::EndedGroup::Rows { rows, .. } = &page.ended { rows.get(0) } else { None }
+        })
+        .expect("milestone query row");
+    w::MilestonePart::decode(&w::CEILINGS, &mut Reader::new(super::parts::bytes(row))).expect("milestone part fixture")
+}
+fn goal_numbers(part: &temper_client_protocol_wire::v1::MilestonePart) -> Vec<u64> {
+    part.goals()
+        .iter()
+        .map(|goal| {
+            let line = jig_client_protocol_wire::TaskLine::decode(
+                &jig_client_protocol_wire::CEILINGS,
+                &mut skein_lib::Reader::new(goal.line()),
+            )
+            .expect("milestone part fixture");
+            let preset = temper_client_tools::limits::client().client;
+            let limits =
+                jig_client_protocol_link::Limits::new(preset.domain, preset.exchanges).expect("milestone part fixture");
+            jig_client_protocol_link::translate::documents::chip(line.chip().clone(), &limits)
+                .expect("milestone part fixture")
+                .task
+        })
+        .collect()
+}
+
+#[test]
+fn milestone_parts_join_live_and_ended_goals_and_keep_their_totals() {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let mut driver = fixture();
+    let run = assigned_task(&driver, 2);
+    super::parts::note(&mut driver, &run, 710, 0, b"report: Goal landed");
+    finish(&mut driver, 2, 2, tasks::TaskResult::Report { words: b"done".as_slice().into() });
+    driver.env.wall = Wall::from_nanos(driver.env.wall.as_nanos() + 1);
+    finish(&mut driver, 3, 3, tasks::TaskResult::Failure { reason: b"failed".as_slice().into() });
+    let before = part(&mut driver);
+    assert_eq!(*before.whole(), None);
+    assert_eq!(goal_numbers(&before), vec![4, 3, 2]);
+    assert_eq!(
+        before.goals().get(2).expect("milestone part fixture").headline().as_deref(),
+        Some(b"Goal landed".as_slice())
+    );
+    assert_eq!(before.more(), 0);
+    let totals = read(&mut driver, 1, 1).expect("milestone part fixture");
+    assert_eq!(before.totals(), &forge::parts::totals(&totals, &w::CEILINGS).expect("milestone part fixture"));
+    let loads = driver.loads.len();
+    assert_eq!(part(&mut driver), before);
+    assert_eq!(driver.loads.len(), loads);
+    let mut query = super::parts::query(wire::GOAL_PART);
+    query.requester = None;
+    query.parent = Some(1);
+    let goals = super::parts::read(&mut driver, query);
+    let goal = w::GoalPart::decode(
+        &w::CEILINGS,
+        &mut skein_lib::Reader::new(super::parts::bytes(goals.live.get(0).expect("milestone part fixture"))),
+    )
+    .expect("milestone part fixture");
+    assert_eq!(*goal.milestone(), Some(1));
+    ask(&mut driver, 82, people::Ask::Conclude { project: 1, task: 1 });
+    let concluded = driver.task(1).expect("milestone part fixture").concluded.expect("milestone part fixture").at;
+    finish(&mut driver, 4, 1, tasks::TaskResult::Report { words: b"last".as_slice().into() });
+    let ended = part(&mut driver);
+    assert_eq!(*ended.whole(), Some(concluded.as_nanos()));
+    assert_eq!(
+        ended.totals(),
+        &forge::parts::totals(&read(&mut driver, 1, 1).expect("milestone part fixture"), &w::CEILINGS)
+            .expect("milestone part fixture")
+    );
+    let mut query = super::parts::query(wire::MILESTONE_PART);
+    query.requester = None;
+    query.parent = Some(1);
+    let page = super::parts::read(&mut driver, query);
+    let jig_domain_core::reads::EndedGroup::Rows { rows, .. } = &page.ended else { panic!("goals") };
+    assert_eq!(
+        rows.get(0).expect("milestone part fixture").parts.get(0),
+        Some(&jig_domain_core::documents::RowPart::Failed(jig_domain_core::PartFailure::Unreadable))
+    );
+}
+
+#[test]
+fn a_saved_forge_milestone_marks_its_parts_watch() {
+    use jig_domain_core::documents as d;
+    let mut driver = fixture();
+    let mut query = super::parts::query(temper_client_protocol_wire::MILESTONE_PART);
+    query.label = Some(8);
+    driver.send(engine::Event::Party(engine::PartyInput::Watch {
+        watcher: Token::new(812),
+        sign_in: driver.session(),
+        subject: d::Watched::Query { query },
+        window: d::Window { rows: 1, after: None },
+    }));
+    advance(&mut driver);
+    let documents = |driver: &Driver| {
+        driver
+            .delivered
+            .iter()
+            .filter(|delivery| matches!(delivery, Delivery::Document { watcher, .. } if *watcher == Token::new(812)))
+            .count()
+    };
+    assert_eq!(documents(&driver), 1);
+    driver.send(engine::Event::Party(engine::PartyInput::Delivered { watcher: Token::new(812) }));
+    advance(&mut driver);
+    let Record::Forge { row } =
+        driver.store.rows.get(&Key::Forge(forge::Key::Milestone(1))).expect("milestone part fixture")
+    else {
+        panic!("forge row")
+    };
+    let forge::Stored::Milestone(mut row) = row.as_ref().clone() else { panic!("milestone") };
+    row.name = b"A moved milestone row".as_slice().into();
+    driver.send(engine::Event::Forge(Box::new(forge::Event::Milestone { row })));
+    advance(&mut driver);
+    assert_eq!(documents(&driver), 2, "a forge record change delivers its row again without a task change");
+}
+
 #[test]
 fn milestone_totals_sum_settled_and_live_spend_then_keep_the_ended_row() {
     let mut driver = fixture();
@@ -229,6 +356,7 @@ fn milestone_reads_reject_other_tasks_projects_and_parties_without_a_role() {
     assert_eq!(read(&mut driver, 2, 1), None, "a milestone of another project");
     assert_eq!(read(&mut driver, 1, 999), None, "no milestone record");
     driver.send(engine::Event::Party(engine::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(901)),
         identity: people::Identity {

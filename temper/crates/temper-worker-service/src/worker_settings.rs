@@ -49,7 +49,7 @@ pub(crate) fn problem(member: &[u8], what: What) -> Problems {
 
 /// Check the root, host adapter and link before any state is allocated.
 pub fn prepare(worker: &settings::Worker, agent: &Agent, own: &Limits) -> Result<Prepared, Problems> {
-    if !io::valid(&worker.jig.limits.io) {
+    if !io::valid(&worker.jig.limits.as_ref().expect("checked worker limits").io) {
         return Err(problem(b"limits", What::Bound));
     }
     let address = match worker.jig.engine {
@@ -74,9 +74,19 @@ pub fn prepare(worker: &settings::Worker, agent: &Agent, own: &Limits) -> Result
     }
     let prefix = crate::tokens::worker(0).ok_or(problem(b"slots", What::Bound))?;
     worker.jig.slots.checked_mul(4).ok_or(problem(b"slots", What::Bound))?;
-    worker.jig.limits.core.accounts.accounts.checked_add(1).ok_or(problem(b"limits", What::Bound))?;
+    worker
+        .jig
+        .limits
+        .as_ref()
+        .expect("checked worker limits")
+        .core
+        .accounts
+        .accounts
+        .checked_add(1)
+        .ok_or(problem(b"limits", What::Bound))?;
     let bodies = &agent.limits.bodies;
-    if credential_bytes(worker.jig.limits.token) > bodies.credential_value_bytes
+    if credential_bytes(worker.jig.limits.as_ref().expect("checked worker limits").token)
+        > bodies.credential_value_bytes
         || u32::try_from(smith_host_domain::SourceName::BYTES).expect("bounded source name") > bodies.program_value_name
     {
         return Err(problem(b"limits", What::Bound));
@@ -86,7 +96,7 @@ pub fn prepare(worker: &settings::Worker, agent: &Agent, own: &Limits) -> Result
 
 #[must_use]
 pub fn root_limits(worker: &settings::Worker, agent: &Agent, own: &Limits) -> root::Limits {
-    let mut host = worker.jig.limits.hub;
+    let mut host = worker.jig.limits.as_ref().expect("checked worker limits").hub;
     host.slots = worker.jig.slots;
     let largest = payload::largest(&v1::CEILINGS).expect("schema ceilings fit the channel");
     host.application_ask_bytes = largest.ask;
@@ -105,8 +115,8 @@ pub fn root_limits(worker: &settings::Worker, agent: &Agent, own: &Limits) -> ro
                 .jig
                 .stop_bound
                 .as_nanos()
-                .saturating_sub(worker.jig.limits.link.ping.as_nanos())
-                .saturating_sub(worker.jig.limits.link.silence.as_nanos())
+                .saturating_sub(worker.jig.limits.as_ref().expect("checked worker limits").link.ping.as_nanos())
+                .saturating_sub(worker.jig.limits.as_ref().expect("checked worker limits").link.silence.as_nanos())
                 .saturating_sub(worker.jig.graces.grace.as_nanos()),
         ),
         watermark: root::WATERMARK,
@@ -125,52 +135,20 @@ pub fn payload_limits(own: &Limits) -> Option<v1::Limits> {
 /// Jig's link profile, with every temper part priced by the generated codec.
 #[must_use]
 pub fn link_limits(worker: &config::Worker, payload: &v1::Limits, forges: u32) -> Option<link::Limits> {
-    let jig = &worker.limits;
-    let core = jig.core;
-    let hub = jig.hub;
+    link_limits_from(worker, worker.limits.as_ref()?, payload, forges)
+}
+pub(crate) fn link_limits_from(
+    worker: &config::Worker,
+    jig: &config::Limits,
+    payload: &v1::Limits,
+    forges: u32,
+) -> Option<link::Limits> {
     let profile = jig.link;
-    let ceilings = jig_protocol_worker_wire::CEILINGS;
-    let largest = payload::largest(payload)?;
-    let sizes = jig_protocol_worker_wire::sizes::Sizes {
-        application_ask: largest.ask,
-        application_answer: largest.answer,
-        program_sources: core.fleet.program_sources,
-        piece: hub.piece_bytes,
-        charter: u32::try_from(hub.charter_bytes).ok()?,
-        transcript: u32::try_from(hub.transcript_bytes).ok()?,
-        turn: u32::try_from(hub.turn_bytes).ok()?,
-        message: core.tasks.message_bytes,
-        sender: ceilings.message_sender,
-        call_name: u32::try_from(core.fleet.call_name_bytes).ok()?,
-        tool_name: ceilings.call_tool,
-        call_input: core.call_answer_bytes,
-        answer: core.call_answer_bytes,
-        result: u32::try_from(hub.outcome_bytes).ok()?,
-        detail: hub.detail_bytes,
-        grant: grant_bytes(credential_bytes(jig.token), largest.grant)?,
-        name: profile.name,
-        secret: profile.secret,
-
-        items: largest.items,
-        left: largest.left,
-        saved: largest.saved,
-        evidence: u32::try_from(hub.delivery_evidence_bytes).ok()?,
-        resource: largest.resource,
-        slots: worker.slots,
-        calls: hub.run_calls,
-        turns: hub.turns,
-        inbox: core.tasks.run_inbox,
-        answered: core.call_records,
-        models: ceilings.bounds_endpoints,
-        workstreams: core.fleet.workstreams,
-        accounts: core.accounts.accounts,
-        credentials: forges,
-        facts: profile.facts,
-    };
+    let sizes = temper_service_core::derived::worker_sizes(jig, worker.slots, payload, forges)?;
     Some(link::Limits {
         sizes,
         chunk: profile.chunk,
-        room: worker.limits.io.largest_room(),
+        room: jig.io.largest_room(),
         handshake: profile.handshake,
         ping: profile.ping,
         silence: profile.silence,
@@ -205,6 +183,7 @@ pub fn credential(
     limits: &v1::Limits,
 ) -> Result<link::Credential, skein_codec::bridge::BridgeError> {
     Ok(link::Credential {
+        opening: jig_protocol_worker_wire::Opening::Link,
         name: worker.jig.name.clone(),
         secret: config::secret(secret.into()),
         application: payload::application(limits)?,
@@ -329,19 +308,7 @@ impl Limits {
     }
     #[must_use]
     pub fn bounds(&self) -> payload::Bounds {
-        payload::Bounds {
-            repositories: self.checkout.repositories,
-            name_bytes: self.checkout.name_bytes,
-            remote_bytes: self.checkout.name_bytes,
-            conflicts: self.checkout.conflicts,
-            path_bytes: self.checkout.path_bytes,
-            token_bytes: v1::CEILINGS.token_token,
-            entries: self.peer.installations,
-            entry_token_bytes: self.peer.token_bytes,
-            text_bytes: v1::CEILINGS.identity_name,
-            reds: v1::CEILINGS.reds_reds,
-            red_key_bytes: v1::CEILINGS.red_key,
-        }
+        temper_service_core::derived::checkout_bounds(&self.checkout, &self.peer)
     }
 }
 /// The worker's mirror of the close kind (protocol/services.md, 2).

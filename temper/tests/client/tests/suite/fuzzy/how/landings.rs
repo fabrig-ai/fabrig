@@ -182,6 +182,7 @@ impl Drawing {
             chip.task = number;
             chip.title = text(format!("Role {number}").as_bytes());
             rows.push(c::TaskLine {
+                parts: List::with_capacity(0),
                 chip,
                 project: 1,
                 requester: c::Requester::Person(1),
@@ -206,6 +207,7 @@ impl Drawing {
             Up::Watched {
                 watch: roles_watch.expect("roles watch"),
                 event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                    ended_mark: 0,
                     rows: List::from_boxed(rows.into_boxed_slice()),
                     more: false,
                 }))),

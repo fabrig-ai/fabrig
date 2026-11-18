@@ -105,7 +105,9 @@ it. Its messages and their bytes are `../../../protocol/client/README.md`'s.
   a request presented with a valid one is that party's, and everything
   after is checked by their role and authority.
 - **Its built-in ways of signing in:** the printed link's one-time
-  secret, on a loopback listener, for one person's machine; a
+  secret, on a loopback listener, for one person's machine; the asked
+  link, a fresh one a person's signed-in client asks for that person's
+  browser, signing in the asker's own party no longer than the asker; a
   service's credential, issued when an owner makes the service; and a
   sign-in approved by a signed-in browser, for that browser's own
   party: a client asks, the browser, by its cookie alone, approves the
@@ -472,6 +474,9 @@ party reads is therefore never lost by a crash.
   party's conversations, of a project's goals by priority, of a task's
   ended delegates, are each a task query.
 - **Live first, then ended,** in two groups, each with its own cursor.
+- **Parts and the ended mark:** a query may name an application's parts,
+  which each row carries, and its answers carry its ended group's mark
+  (`parts.md`).
 - **Live tasks are scanned,** in the order asked: the tasks child keeps
   no secondary index, and its live tasks are bounded by its limits, so
   any conjunction of the keys costs no more than one scan. The fixed set
@@ -509,7 +514,7 @@ party reads is therefore never lost by a crash.
 
 | Subject | Its document | Who may watch |
 |---|---|---|
-| `me` | `me` | the party, always |
+| `me` | `me` | the party, always; every stream watches it from its opening, its first value in the hello (section 6) |
 | `task{n}` | the task's document | a party who may see it |
 | `tree{root}` | a task's live subtree, within a window | likewise |
 | `chips` | a bounded set of tasks the client names, as chips | likewise, each |
@@ -692,7 +697,9 @@ any watch's deliveries do (`../../../protocol/client/README.md`, section 5).
   each application's by the application, and every message names its
   owner and its version (`../../../protocol/client/README.md`, section 6).
 - **The engine serves a range of each owner's versions,** which the hello
-  of its stream states; `me` carries none.
+  of its stream states first, then `me`, at the version of jig's the
+  stream's opening names (`../../../protocol/client/wire.md`, section 2);
+  `me` carries no range.
 - **A version not served is refused with a typed answer,** *version not
   served* (section 3), naming the owner and the ranges the engine
   serves, with nothing read, made or kept; a read and a watch in it
@@ -883,9 +890,6 @@ designs (`../../../protocol/client/README.md`):
   `../../../domain/people/README.md`, section 11. Default: the current public records,
   projected from that document's memory-only index (13.9); no history is
   reconstructed by the client contract.
-- **Bundling parts:** whether a jig read's answer should carry the
-  application's parts it names, put together by the engine's root, to
-  save a client the second round trip.
 - **Windows of a large tree:** how a tree watch's window follows what a
   person opened, so that a tree of hundreds of tasks costs what is shown.
 - **Finer cuts among a project's parties**

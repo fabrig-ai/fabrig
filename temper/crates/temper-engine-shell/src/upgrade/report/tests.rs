@@ -10,7 +10,8 @@ fn check_lines_name_decoded_count_and_undecodable_places() {
             .0;
     for binary in ["temper", "temper-box", "temper-engine"] {
         let mut report = Report {
-            workers: configured(&[]),
+            checkpoint: None,
+            workers: configured(),
             events: Queue::uncapped(),
             elapsed: Duration::ZERO,
             end: None,
@@ -28,7 +29,8 @@ fn check_lines_name_decoded_count_and_undecodable_places() {
             (Undecoded::Frame { transcript: "7".into(), offset: 256 }, "transcript 7 at 256"),
         ] {
             let mut report = Report {
-                workers: configured(&[]),
+                checkpoint: None,
+                workers: configured(),
                 events: Queue::uncapped(),
                 elapsed: Duration::ZERO,
                 end: None,
@@ -55,9 +57,8 @@ fn check_lines_name_decoded_count_and_undecodable_places() {
 }
 
 // A single sending kind keeps the report tests about routing judge's verdict, not schema derivation.
-pub(super) fn configured(names: &[&str]) -> Workers {
+pub(super) fn configured() -> Workers {
     Workers {
-        names: names.iter().map(|name| name.as_bytes().into()).collect::<Vec<_>>().into_boxed_slice(),
         room: 4096,
         schema: skein_channel::Schema {
             magic: *b"test",
@@ -100,9 +101,9 @@ fn opening(name: &str) -> WorkerOpening {
     }
 }
 
-fn verdict(wires: Option<Box<[KeptWire]>>, openings: Box<[WorkerOpening]>, names: &[&str]) -> String {
+fn verdict(wires: Option<Box<[KeptWire]>>, openings: Box<[WorkerOpening]>) -> String {
     let mut report = super::tests::report(Event::Rehearsing { owner: Token::new(1), wires, openings });
-    report.workers = configured(names);
+    report.workers = configured();
     report.restored = true;
     let dirs =
         temper_shell::directories::resolve(&[], &[(b"HOME".as_slice().into(), b"/home/test".as_slice().into())], b"/")
@@ -117,22 +118,15 @@ const COMPATIBLE: &str = "temper-box upgrade: worker w1 may stay: opened 2026-11
 const NO: &str = "temper-box upgrade: workers may stay: no\n";
 
 #[test]
-fn compatible_openings_follow_configuration_order_ignoring_unconfigured_names() {
+fn compatible_openings_follow_the_stored_openings() {
     let mut wires = kept().into_vec();
     // Only the engine's own contracts are read from Wires, not a worker's wires.
     wires.retain(|wire| wire.name.as_ref() != "smith-charter");
     wires.push(KeptWire { name: "retired".into(), version: 999 });
+    assert_eq!(verdict(Some(wires.into_boxed_slice()), Box::new([opening("w1"), opening("w2")])), COMPATIBLE);
     assert_eq!(
-        verdict(
-            Some(wires.into_boxed_slice()),
-            Box::new([opening("w2"), opening("unconfigured"), opening("w1")]),
-            &["w1", "w2"]
-        ),
-        COMPATIBLE
-    );
-    assert_eq!(
-        verdict(Some(kept()), Box::new([opening("unconfigured")]), &[]),
-        "temper-box upgrade: workers may stay: yes\n"
+        verdict(Some(kept()), Box::new([opening("unconfigured")])),
+        "temper-box upgrade: worker unconfigured may stay: opened 2026-11-13T10:00:00Z\ntemper-box upgrade: workers may stay: yes\n"
     );
 }
 
@@ -193,9 +187,9 @@ fn worker_refusals_keep_the_openings_wire_and_limits_words() {
         ),
         (terms, "w2", "w1", "limits: 384".into()),
     ] {
-        // The failing worker precedes the compatible worker in configuration order.
+        // The failing worker precedes the compatible worker in stored opening order.
         assert_eq!(
-            verdict(Some(kept()), Box::new([opening, self::opening(other)]), &[name, other]),
+            verdict(Some(kept()), Box::new([opening, self::opening(other)])),
             format!(
                 "temper-box upgrade: worker {name} may not stay: {reason}\ntemper-box upgrade: worker {other} may stay: opened 2026-11-13T10:00:00Z\n{NO}"
             )
@@ -204,19 +198,9 @@ fn worker_refusals_keep_the_openings_wire_and_limits_words() {
 }
 
 #[test]
-fn a_configured_worker_without_an_opening_is_unknown_and_cannot_stay() {
-    assert_eq!(
-        verdict(Some(kept()), Box::new([opening("w1")]), &["w1", "w2"]),
-        format!(
-            "temper-box upgrade: worker w1 may stay: opened 2026-11-13T10:00:00Z\ntemper-box upgrade: worker w2 unknown: no opening kept since the engine's last start\n{NO}"
-        )
-    );
-}
-
-#[test]
 fn no_kept_wires_makes_the_verdict_unknown_without_judging_workers() {
     assert_eq!(
-        verdict(None, Box::new([opening("w1")]), &["w1"]),
+        verdict(None, Box::new([opening("w1")])),
         "temper-box upgrade: workers may stay: unknown; the copy keeps no wires\n"
     );
 }
@@ -240,7 +224,7 @@ fn engine_contracts_must_be_kept_in_range_but_do_not_hide_worker_lines() {
         (missing, "wire temper-host-tools is not kept by the copy".into()),
     ] {
         assert_eq!(
-            verdict(Some(wires.into_boxed_slice()), Box::new([opening("w1"), opening("w2")]), &["w1", "w2"]),
+            verdict(Some(wires.into_boxed_slice()), Box::new([opening("w1"), opening("w2")])),
             format!("temper-box upgrade: {reason}\n{}", COMPATIBLE.replace("stay: yes", "stay: no"))
         );
     }

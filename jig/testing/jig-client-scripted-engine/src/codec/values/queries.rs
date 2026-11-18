@@ -5,6 +5,7 @@ pub(in crate::codec) fn wire_task_page(value: &c::TaskPage, limits: &w::Limits) 
     w::TaskPage::new(
         limits,
         w::TaskPageParts {
+            ended_mark: 0,
             live: pieces(
                 value.live.iter().map(|item| wire_task_line(item, limits)),
                 w::TaskLine::measure,
@@ -20,6 +21,7 @@ pub(in crate::codec) fn wire_task_line(value: &c::TaskLine, limits: &w::Limits) 
     w::TaskLine::new(
         limits,
         w::TaskLineParts {
+            parts: skein_lib::List::with_capacity(0),
             chip: facts::chip(&value.chip, limits)?,
             project: value.project,
             requester: wire_requester(&value.requester, limits)?,

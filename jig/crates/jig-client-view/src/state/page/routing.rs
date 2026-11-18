@@ -378,7 +378,7 @@ pub(crate) fn delivery(
                 && let Subject::Tasks { query, .. } = &watch.subject
                 && domain.shown_conversations() == Some(query.project)
                 && let Some(me) = domain.frame(lent).document
-                && crate::state::queries::chats(me, query.project) == Some(*query)
+                && crate::state::queries::chats(me, query.project) == Some(query.clone())
             {
                 super::conversations::delivered(domain, env, source, *tasks, out, lent);
             } else {

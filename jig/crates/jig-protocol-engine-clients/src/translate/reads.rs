@@ -122,6 +122,7 @@ pub(crate) fn answer(
     answer: &reads::Answer,
     models: &[crate::Model],
     private: &crate::Private,
+    settings: &crate::Settings,
     limits: &w::Limits,
 ) -> Result<w::ReadAnswer, w::Problem> {
     let value = match answer {
@@ -135,7 +136,13 @@ pub(crate) fn answer(
         )?),
         reads::Answer::Revisions(value) => w::ReadValue::Revisions(super::settings::revisions(value, limits)?),
         reads::Answer::TaskText(value) => w::ReadValue::TaskText(task_text(value, limits)?),
-        reads::Answer::Tasks(page) => pages::tasks(page, limits)?,
+        reads::Answer::Tasks(page) => {
+            let reads::Read::Tasks { query, .. } = read else {
+                return Err(super::problem(skein_codec::Reason::Tag));
+            };
+            let slots = super::parts::plan(&query.parts, settings, limits);
+            pages::tasks(page, query, &slots, limits)?
+        }
         reads::Answer::Page(page) => pages::page(models, read, page, private, limits)?,
         reads::Answer::Document(_) | reads::Answer::Ended(_) => objects::document(answer, models, private, limits)?,
     };

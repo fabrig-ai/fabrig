@@ -1,5 +1,6 @@
 //! The test's shell: linked sign-in played as platform reports, through bytes.
-use jig_client_protocol_wire::{VERSION, v27 as w};
+use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::VERSION;
 use jig_client_shell_web::adapter::{Asked, Heard};
 use skein_lib::{
     Duration, List, Overflow, Reader, Time, Wall, Writer,
@@ -216,24 +217,13 @@ fn linked() -> Walk {
             )
             .expect("two families");
     }
-    let asks = walk.streamed(&w::StreamEvent::Hello(
+    let asks = walk.streamed(&jig_client_test_records::opened(
         w::Hello::new(&w::CEILINGS, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
             .expect("hello"),
+        jig_client_test_records::frame_record(),
     ));
-    let watch = asks
-        .into_iter()
-        .find_map(|ask| {
-            let Asked::Exchange { call, .. } = ask else {
-                return None;
-            };
-            if call.path.as_ref() != b"/jig/v1/watch" {
-                return None;
-            }
-            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(&call.body)).expect("watch envelope");
-            let subject = w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).expect("subject");
-            matches!(subject, w::Subject::Me).then_some(open.watch())
-        })
-        .expect("me watch");
+    let _ = asks;
+    let watch = 0;
     let value = me_with_openai();
     walk.streamed(&w::StreamEvent::Delivery(
         w::Delivery::new(
@@ -393,24 +383,13 @@ fn key_ready() -> Walk {
             )
             .expect("two families");
     }
-    let asks = walk.streamed(&w::StreamEvent::Hello(
+    let asks = walk.streamed(&jig_client_test_records::opened(
         w::Hello::new(&w::CEILINGS, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
             .expect("hello"),
+        jig_client_test_records::frame_record(),
     ));
-    let watch = asks
-        .into_iter()
-        .find_map(|ask| {
-            let Asked::Exchange { call, .. } = ask else {
-                return None;
-            };
-            if call.path.as_ref() != b"/jig/v1/watch" {
-                return None;
-            }
-            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(&call.body)).expect("watch envelope");
-            let subject = w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).expect("subject");
-            matches!(subject, w::Subject::Me).then_some(open.watch())
-        })
-        .expect("me watch");
+    let _ = asks;
+    let watch = 0;
     let value = me_with_openai_key();
     walk.streamed(&w::StreamEvent::Delivery(
         w::Delivery::new(

@@ -14,6 +14,15 @@ pub(super) fn query(value: w::TaskQuery) -> Option<d::TaskQuery> {
         Some(w::Requester::Deployment(_)) => return None,
     };
     Some(d::TaskQuery {
+        parts: {
+            let mut parts = List::with_capacity(value.parts.len());
+            for ask in &value.parts {
+                parts
+                    .push(d::PartAsk { owner: ask.owner().number(), kind: ask.kind(), version: ask.version() })
+                    .expect("bounded parts");
+            }
+            parts
+        },
         project: value.project,
         requester,
         root: value.root,
@@ -86,10 +95,18 @@ pub(super) fn waits(value: WaitsOn, limits: &w::Limits) -> Result<w::WaitsOn, w:
         WaitsOn::Nothing => w::WaitsOn::Nothing,
     })
 }
-pub(super) fn line(value: &d::TaskLine, limits: &w::Limits) -> Result<w::TaskLine, w::Problem> {
+pub fn line(value: &d::TaskLine, limits: &w::Limits) -> Result<w::TaskLine, w::Problem> {
+    line_parts(value, &List::with_capacity(0), limits)
+}
+pub(super) fn line_parts(
+    value: &d::TaskLine,
+    slots: &List<super::parts::Slot>,
+    limits: &w::Limits,
+) -> Result<w::TaskLine, w::Problem> {
     w::TaskLine::new(
         limits,
         w::TaskLineParts {
+            parts: super::parts::row(&value.parts, slots, limits)?,
             chip: chips::chip(&value.chip, limits)?,
             project: value.project,
             requester: owner::requester(value.requester, limits)?,
@@ -118,14 +135,18 @@ pub(super) fn line(value: &d::TaskLine, limits: &w::Limits) -> Result<w::TaskLin
         },
     )
 }
-pub(crate) fn lines(value: &d::Lines, limits: &w::Limits) -> Result<w::Tasks, w::Problem> {
+pub(crate) fn lines(
+    value: &d::Lines,
+    slots: &List<super::parts::Slot>,
+    limits: &w::Limits,
+) -> Result<w::Tasks, w::Problem> {
     let mut rows = List::with_capacity(value.lines.len());
     for row in &value.lines {
-        let row = line(row, limits)?;
+        let row = line_parts(row, slots, limits)?;
         let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut writer).expect("measured task line");
         rows.push(writer.finish()).expect("same line count");
     }
     let rows = super::pieces(&rows, limits.tasks_rows, w::Path::TasksRows)?;
-    w::Tasks::new(limits, w::TasksParts { rows, more: value.next.is_some() })
+    w::Tasks::new(limits, w::TasksParts { ended_mark: value.ended_mark, rows, more: value.next.is_some() })
 }

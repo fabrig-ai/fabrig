@@ -14,10 +14,16 @@ pub fn text(bytes: &[u8], maximum: u32) -> Text {
     Text { bytes: copy_of(prefix), cut: prefix.len() < bytes.len() }
 }
 
+/// The chip's first-line title, without constructing its phase and details.
+#[must_use]
+pub fn chip_title(row: &tasks::TaskRecord, maximum: u32) -> Text {
+    let first = skein_lib::bytes::find(&row.spec.words, b"\n").unwrap_or(row.spec.words.len());
+    text(row.spec.words.get(..first).expect("first line prefix"), maximum)
+}
+
 pub fn chip_from_row(limits: &Limits, row: &tasks::TaskRecord) -> Result<Chip, Missing> {
     let number = row.number;
-    let first = skein_lib::bytes::find(&row.spec.words, b"\n").unwrap_or(row.spec.words.len());
-    let title = text(row.spec.words.get(..first).expect("first line prefix"), limits.documents.text_bytes);
+    let title = chip_title(row, limits.documents.text_bytes);
     let executor = executor_kind(row.executor);
     let phase = match &row.phase {
         tasks::Phase::Waiting => {

@@ -8,10 +8,10 @@ pub(crate) fn run(directories: &Directories, request: &Request) -> Result<u8, St
     let (service, deployment) = prepare(directories).map_err(|why| crate::prefixed("temper-box upgrade", &why))?;
     temper_engine_shell::upgrade::run_prepared("temper-box", directories, request, service, &deployment)
 }
-fn prepare(directories: &Directories) -> Result<(temper_engine_service::Service, Box<[u8]>), String> {
+pub(crate) fn prepare(directories: &Directories) -> Result<(temper_engine_service::Service, Box<[u8]>), String> {
     let bytes = directories.read()?;
     let mut named = crate::setup::check(&bytes, &jig_directories(directories))?.named;
-    let agent = named.worker.as_ref().map(temper_worker_shell::agent::preflight_worker).transpose()?;
+    let agent = crate::serve::configured_agent(&bytes, directories, &[])?;
     let engine::Inputs { files, google, bundle } = engine::before_root(
         &mut named.files,
         &mut named.asked_files,
@@ -21,7 +21,7 @@ fn prepare(directories: &Directories) -> Result<(temper_engine_service::Service,
         skein_shell::effective_user(),
         false,
     )?;
-    let engine::Runtimes { roots, github } = engine::runtimes(&named.machine)?;
+    let engine::Runtimes { roots, github } = engine::runtimes(named.test_github.as_ref())?;
     let config = engine::settings(&bytes, directories, &service::stock::Given::Stock);
     let accounts = engine::accounts(&config)?;
     let seeds = engine::seeds(None, None)?;
@@ -29,7 +29,7 @@ fn prepare(directories: &Directories) -> Result<(temper_engine_service::Service,
         &bytes,
         &jig_directories(directories),
         &files,
-        agent.as_ref(),
+        agent.as_ref().map(|prepared| &prepared.agent),
         &seeds,
         Some(accounts),
         &service::stock::Given::Stock,

@@ -146,220 +146,110 @@ fn root_charter_becomes_a_smith_start_with_ordered_brief_and_exact_budget() {
     assert_eq!(charter.brief.sections[0].title.as_ref(), b"Task");
     assert_eq!(charter.brief.sections[0].text.as_ref(), b"Say hello");
     assert_eq!(charter.budget.spend, 40);
-    assert_eq!(charter.grants.host_tools.len(), 40);
+    assert_eq!(charter.grants.host_tools.len(), 7);
     assert_eq!(grants[0].name.generation, 2);
     assert!(transcript.is_none());
 }
 
-fn goal_tools(timeout: Duration) -> Box<[run::HostTool]> {
-    let mut expected = crate::calls::tools_for(
-        timeout,
-        engine::RunPolicy::EVERY_FAMILY,
-        tasks::Tools(!jig_domain_core::ToolFamilies::JIG.control.0),
-    );
-    for tool in &mut expected {
-        tool.reserve = tool.name.as_ref() == b"message";
+#[expect(clippy::manual_find, reason = "step fixtures use loops rather than iterator closures")]
+fn declaration_named<'a>(tools: &'a [run::HostTool], name: &[u8]) -> Option<&'a run::HostTool> {
+    for tool in tools {
+        if tool.name.as_ref() == name {
+            return Some(tool);
+        }
     }
-    expected
+    None
 }
 
 #[test]
-fn settings_tools_are_offered_only_with_the_runs_settings_family() {
-    // Without the charter's delegate family, message and settings add one and two declarations.
-    const WITHOUT_SETTINGS: usize = 35;
-    const WITH_SETTINGS: usize = 37;
-    let settings = jig_domain_core::ToolFamilies::JIG.settings;
-    let authority = 1 | jig_domain_core::ToolFamilies::JIG.message.0;
-    for (charter, authority, allowed, count) in [
-        (0, authority, false, WITHOUT_SETTINGS),
-        (0, authority | settings, false, WITHOUT_SETTINGS),
-        (settings, authority, false, WITHOUT_SETTINGS),
-        (settings, authority | settings, true, WITH_SETTINGS),
-    ] {
-        let mut assignment = assignment();
-        assignment.run.policy.tools = tasks::Tools(charter);
-        assignment.run.authority.tools = tasks::Tools(authority);
-        let charter = crate::charter(&assignment);
-        assert_eq!(charter.grants.host_tools.len(), count);
-        for name in [b"settings".as_slice(), b"propose_settings"] {
-            let mut found = false;
-            for tool in &charter.grants.host_tools {
-                if tool.name.as_ref() == name {
-                    found = true;
-                }
-            }
-            assert_eq!(found, allowed);
-        }
-        for tool in goal_tools(Duration::from_secs(10)) {
-            if tool.name.as_ref() != b"settings"
-                && tool.name.as_ref() != b"propose_settings"
-                && tool.name.as_ref() != b"read_task"
-                && tool.name.as_ref() != b"goal"
-                && tool.name.as_ref() != b"change"
-                && tool.name.as_ref() != b"delegate"
-                && tool.name.as_ref() != b"finding"
-                && tool.name.as_ref() != b"red"
-                && tool.name.as_ref() != b"follow"
-            {
-                assert!(charter.grants.host_tools.contains(&tool), "unchanged declaration: {:?}", tool.name);
-            }
-        }
-    }
-}
-
-#[test]
-#[expect(clippy::too_many_lines, reason = "one table checks asking schemas and both charter-family gates")]
-fn settings_and_delegate_tools_need_the_charters_family() {
-    type AskingNames = Option<&'static [&'static [u8]]>;
-    let stock = 1_539;
-    let mut assignment = assignment();
-    assignment.run.policy.tools = tasks::Tools(512);
-    assignment.run.authority.tools = tasks::Tools(stock | 1024);
-    let charter = crate::charter(&assignment);
-    let mut offered = charter.grants.host_tools.iter();
-    for tool in goal_tools(Duration::from_secs(10)) {
-        if tool.name.as_ref() != b"settings"
-            && tool.name.as_ref() != b"propose_settings"
-            && tool.name.as_ref() != b"goal"
-            && tool.name.as_ref() != b"change"
-            && tool.name.as_ref() != b"delegate"
-            && tool.name.as_ref() != b"finding"
-            && tool.name.as_ref() != b"red"
-            && tool.name.as_ref() != b"follow"
-        {
-            assert_eq!(offered.next(), Some(&tool), "unchanged declaration and order: {:?}", tool.name);
-        }
-    }
-    assert_eq!(offered.next(), None, "no settings, delegate or additional tools");
-    let timeout = Duration::from_secs(13);
-    let rows: [(u64, u64, AskingNames); 8] = [
-        (u64::MAX, u64::MAX, None),
-        (3_584, 3_584, None),
-        (3_072, 3_072, Some(&[b"see", b"document", b"remember", b"propose_settings"])),
-        (2_048, 3_072, Some(&[b"see", b"document", b"remember"])),
-        (3_072, 1_024, Some(&[b"propose_settings"])),
-        (1_023, u64::MAX, None),
-        (1_920, u64::MAX, None),
-        (1_022, u64::MAX, None),
+fn each_family_needs_both_charter_and_authority() {
+    let f = jig_domain_core::ToolFamilies::JIG;
+    let rows: &[(u64, &[&[u8]])] = &[
+        (f.delegate.0, &[b"finding", b"red", b"follow", b"goal", b"change", b"delegate"]),
+        (f.message.0, &[b"message", b"introduce"]),
+        (f.control.0, &[b"decided", b"amend", b"cancel", b"release"]),
+        (f.decide.0, &[b"decide", b"decide_escalation", b"withdraw"]),
+        (f.propose.0, &[b"propose"]),
+        (f.subscribe.0, &[b"subscribe", b"unsubscribe", b"subscribe_forge"]),
+        (f.effect.0, &[b"effect_forge"]),
+        (f.note.0, &[b"note"]),
+        (f.recall.0, &[b"recall"]),
+        (f.read.0, &[b"read_task", b"read_forge", b"read_issues", b"read_ci"]),
+        (f.settings, &[b"settings", b"propose_settings"]),
     ];
-    for (charter, authority, asking_names) in rows {
-        let offered = crate::calls::tools_for(timeout, tasks::Tools(charter), tasks::Tools(authority));
-        if charter == 1_022 {
-            for (name, declared) in [
-                (b"goal".as_slice(), false),
-                (b"change", false),
-                (b"delegate", false),
-                (b"note", true),
-                (b"recall", true),
-                (b"read_branch", true),
-                (b"read_file", true),
-            ] {
-                let mut found = false;
-                for tool in &offered {
-                    if tool.name.as_ref() == name {
-                        found = true;
-                    }
+    let all = engine::RunPolicy::EVERY_FAMILY;
+    for &(family, names) in rows {
+        let family = tasks::Tools(family);
+        for (charter, authority, allowed) in
+            [(family, all, true), (family, tasks::Tools(all.0 & !family.0), false), (tasks::Tools(0), all, false)]
+        {
+            let offered = crate::calls::tools_for(Duration::from_secs(1), charter, authority);
+            let mut offered = offered.iter();
+            if allowed {
+                for name in names {
+                    assert_eq!(offered.next().expect("family tool").name.as_ref(), *name);
                 }
-                assert_eq!(found, declared, "drafter: {name:?}");
             }
+            assert_eq!(offered.next().expect("read_docs for non-asking runs").name.as_ref(), b"read_docs");
+            assert_eq!(offered.next(), None, "only this family's tools: {family:?}");
+        }
+    }
+}
+
+#[test]
+fn asking_charters_keep_their_own_forms_and_require_authority() {
+    let timeout = Duration::from_secs(13);
+    let rows: &[(u64, u64, &[&[u8]])] = &[
+        (3_072, 3_072, &[b"see", b"document", b"remember", b"propose_settings"]),
+        (2_048, 3_072, &[b"see", b"document", b"remember"]),
+        (3_072, 1_024, &[b"propose_settings"]),
+        (2_048, 1_024, &[]),
+    ];
+    for &(charter, authority, names) in rows {
+        let offered = crate::calls::tools_for(timeout, tasks::Tools(charter), tasks::Tools(authority));
+        assert_eq!(offered.len(), names.len());
+        for (tool, name) in offered.iter().zip(names) {
+            assert_eq!(tool.name.as_ref(), *name);
         }
         for tool in &offered {
             assert_eq!(tool.timeout, timeout);
+            if tool.name.as_ref() == b"propose_settings" {
+                let schema = crate::json::parse(&tool.schema).unwrap();
+                let properties = schema.required(b"properties").unwrap();
+                assert!(properties.field(b"note").unwrap().is_none());
+                assert!(properties.field(b"more").unwrap().is_some());
+            }
         }
-        if let Some(names) = asking_names {
-            assert_eq!(offered.len(), names.len(), "charter {charter}");
-            for (tool, name) in offered.iter().zip(names) {
-                assert_eq!(tool.name.as_ref(), *name, "charter {charter}");
-            }
-            for tool in &offered {
-                if tool.name.as_ref() == b"propose_settings" {
-                    let schema = crate::json::parse(&tool.schema).unwrap();
-                    let properties = schema.required(b"properties").unwrap();
-                    assert!(properties.field(b"note").unwrap().is_none());
-                    assert!(properties.field(b"more").unwrap().is_some());
-                    assert_eq!(
-                        schema.required(b"required").unwrap(),
-                        &crate::json::Value::Array(Box::new([
-                            crate::json::Value::String(b"against".as_slice().into()),
-                            crate::json::Value::String(b"reason".as_slice().into()),
-                            crate::json::Value::String(b"items".as_slice().into()),
-                        ]))
-                    );
-                }
-            }
-        } else {
-            let expected = crate::calls::tools_for(
-                timeout,
-                engine::RunPolicy::EVERY_FAMILY,
-                tasks::Tools(authority & if charter & 1_024 == 0 { !1_024 } else { u64::MAX }),
-            );
-            let mut declarations = offered.iter();
-            for tool in &expected {
-                if charter & 1 == 0
-                    && (tool.name.as_ref() == b"goal"
-                        || tool.name.as_ref() == b"change"
-                        || tool.name.as_ref() == b"delegate"
-                        || tool.name.as_ref() == b"finding"
-                        || tool.name.as_ref() == b"red"
-                        || tool.name.as_ref() == b"follow")
-                {
-                    continue;
-                }
-                assert_eq!(declarations.next(), Some(tool), "unchanged declarations for charter {charter}");
-            }
-            assert_eq!(declarations.next(), None, "no additional tools for charter {charter}");
-            let mut proposal = false;
-            for tool in &offered {
-                assert!(
-                    tool.name.as_ref() != b"see"
-                        && tool.name.as_ref() != b"document"
-                        && tool.name.as_ref() != b"remember"
-                );
-                if tool.name.as_ref() == b"propose_settings" {
-                    proposal = true;
-                    assert!(
-                        crate::json::parse(&tool.schema)
-                            .unwrap()
-                            .required(b"properties")
-                            .unwrap()
-                            .field(b"note")
-                            .unwrap()
-                            .is_some()
-                    );
-                }
-            }
-            assert_eq!(proposal, charter & authority & 1_024 != 0);
+    }
+    let all = engine::RunPolicy::EVERY_FAMILY;
+    assert!(!engine::asking(all));
+    let offered = crate::calls::tools_for(timeout, all, all);
+    for name in [b"see".as_slice(), b"document", b"remember"] {
+        assert!(declaration_named(&offered, name).is_none());
+    }
+    let proposal = declaration_named(&offered, b"propose_settings").unwrap();
+    let properties = crate::json::parse(&proposal.schema).unwrap();
+    assert!(properties.required(b"properties").unwrap().field(b"more").unwrap().is_none());
+    for spec in &crate::calls::SPECS {
+        if spec.name == b"propose_settings" {
+            let whole = crate::json::parse(spec.whole()).unwrap();
+            assert!(whole.required(b"properties").unwrap().field(b"note").unwrap().is_some());
         }
     }
 }
 
 #[test]
-fn message_is_offered_only_with_the_runs_message_family() {
-    let families = jig_domain_core::ToolFamilies::JIG;
-    for settings in [false, true] {
-        for (role, authority, message) in [
-            ("coder", families.read.0 | families.effect.0, false),
-            ("repairer", families.read.0 | families.effect.0, false),
-            ("reviewer", families.read.0, false),
-            ("chat", families.read.0 | families.message.0, true),
-            ("goal", families.delegate.0 | families.message.0, true),
-        ] {
-            let mut assignment = assignment();
-            assignment.run.authority.tools = tasks::Tools(authority | if settings { families.settings } else { 0 });
-            let charter = crate::charter(&assignment);
-            let expected = goal_tools(Duration::from_secs(10));
-            let mut offered = charter.grants.host_tools.iter();
-            for tool in &expected {
-                if (!settings && (tool.name.as_ref() == b"settings" || tool.name.as_ref() == b"propose_settings"))
-                    || (!message && tool.name.as_ref() == b"message")
-                    || (authority & families.read.0 == 0 && tool.name.as_ref() == b"read_task")
-                {
-                    continue;
-                }
-                assert_eq!(offered.next(), Some(tool), "{role}: unchanged declaration and order");
-            }
-            assert_eq!(offered.next(), None, "{role}: no additional tools");
-        }
+fn stock_coder_and_goal_offers_follow_their_family_intersection() {
+    let coder = crate::calls::tools_for(Duration::from_secs(1), tasks::Tools(514), tasks::Tools(514));
+    assert_eq!(coder.len(), 7);
+    for tool in &coder {
+        assert!(
+            tool.name.as_ref() == b"message" || tool.name.as_ref() == b"introduce" || tool.name.starts_with(b"read_")
+        );
+    }
+    let goal = crate::calls::tools_for(Duration::from_secs(1), tasks::Tools(1_023), tasks::Tools(4_007));
+    for name in [b"decide".as_slice(), b"decide_escalation", b"withdraw", b"propose", b"effect_forge"] {
+        assert!(declaration_named(&goal, name).is_none(), "{name:?}");
     }
 }
 
@@ -381,18 +271,24 @@ fn declarations_name_no_asking_tool_the_caller_lacks() {
             read = Some(tool);
         }
     }
-    let decided = decided.expect("decided declared");
-    assert_eq!(decided.description.as_ref(), b"Ask whether you may decide this for your person. Carry on only if decided; otherwise its answer says how you can ask.");
+    assert!(decided.is_none(), "read authority lacks control");
+    let control = crate::calls::tools_for(
+        Duration::from_secs(10),
+        engine::RunPolicy::EVERY_FAMILY,
+        tasks::Tools(jig_domain_core::ToolFamilies::JIG.control.0),
+    );
+    let decided = declaration_named(&control, b"decided").expect("control declaration");
+    assert_eq!(
+        decided.description.as_ref(),
+        b"Ask whether you may decide for your person. Carry on only if decided; otherwise the answer says how to ask."
+    );
     let schema = crate::json::parse(&decided.schema).expect("schema");
     let under = schema.required(b"properties").unwrap().required(b"under").unwrap().required(b"description").unwrap();
-    assert_eq!(
-        under.text(b"description").unwrap().as_ref(),
-        b"The item with words of the project's classes that covers this choice."
-    );
+    assert_eq!(under.text(b"description").unwrap().as_ref(), b"Covering item in the project's classes.");
     let read = read.expect("task read declared");
     assert_eq!(
         read.description.as_ref(),
-        b"Specs/results, from=next. Durable question numbers and answerers, for an answer."
+        b"Specs/results; from=next. For an answer: durable question numbers and answerers."
     );
     for text in [&decided.description, &decided.schema, &read.description] {
         assert!(skein_lib::bytes::find(text, b"message").is_none());
@@ -413,7 +309,7 @@ fn a_charters_mode_is_its_tasks_ending() {
     {
         let mut assignment = assignment();
         assignment.run.ended_by = ended_by;
-        assignment.run.contract = tasks::Contract::Change { connector: 1, kind: 1, words: 128 };
+        assignment.run.contract = tasks::Contract::Change { connector: 1, kind: 1, words: 128, choices: Box::new([]) };
         let charter = crate::charter(&assignment);
         assert_eq!(charter.mode, mode);
         assert!(charter.grants.wait);
@@ -447,6 +343,7 @@ fn delivering_assignment() -> engine::Assignment {
         start: engine::ForgeStart::Base(b"temper/23/g23".as_slice().into()),
         push: Some(b"temper/23/r23".as_slice().into()),
         landing: None,
+        delivered: None,
         identity: 1,
     }]);
     assignment
@@ -490,7 +387,7 @@ fn an_open_run_cannot_deliver_its_repository() {
 fn an_open_run_cannot_modify_even_when_policy_requests_it() {
     let mut assignment = assignment();
     assignment.run.ended_by = tasks::EndedBy::Requester;
-    assignment.run.contract = tasks::Contract::Change { connector: 1, kind: 1, words: 128 };
+    assignment.run.contract = tasks::Contract::Change { connector: 1, kind: 1, words: 128, choices: Box::new([]) };
     assignment.run.policy.modify = true;
     assignment.run.policy.shell = true;
     let charter = crate::charter(&assignment);
@@ -504,7 +401,7 @@ fn an_open_run_cannot_modify_even_when_policy_requests_it() {
 fn a_finite_change_run_keeps_its_modify_policy() {
     for modify in [false, true] {
         let mut assignment = assignment();
-        assignment.run.contract = tasks::Contract::Change { connector: 1, kind: 1, words: 128 };
+        assignment.run.contract = tasks::Contract::Change { connector: 1, kind: 1, words: 128, choices: Box::new([]) };
         assignment.run.policy.modify = modify;
         let charter = crate::charter(&assignment);
         assert_eq!(charter.mode, run::Mode::Finite);
@@ -646,24 +543,9 @@ fn tool_cases() -> &'static [(&'static [u8], &'static [u8], &'static [u8])] {
         (b"settings", br"{}", br#"{"from":-1}"#),
         (b"read_task", br#"{"task":23}"#, br#"{"task":0}"#),
         (b"propose_settings", br#"{"against":1,"items":[],"reason":"why"}"#, br#"{"against":0,"items":[],"reason":"why"}"#),
-        (b"read_items", br#"{"repository":"qa/pilot","since":0,"page":1}"#, br#"{"repository":"qa/pilot","page":0}"#),
-        (b"read_item", br#"{"repository":"qa/pilot","number":1,"after":0}"#, br#"{"repository":"qa/pilot","page":0}"#),
-        (b"read_pull", br#"{"repository":"qa/pilot","number":1}"#, br#"{"repository":"qa/pilot","page":0}"#),
-        (b"read_pull_for", br#"{"repository":"qa/pilot","head":"h","base":"b"}"#, br#"{"repository":"qa/pilot","page":0}"#),
-        (b"read_reviews", br#"{"repository":"qa/pilot","number":1,"page":1}"#, br#"{"repository":"qa/pilot","page":0}"#),
-        (b"read_statuses", br#"{"repository":"qa/pilot","commit":"0000000000000000000000000000000000000000000000000000000000000000","page":1}"#, br#"{"repository":"qa/pilot","page":0}"#),
-        (b"read_remarks", br#"{"repository":"qa/pilot","number":1,"review":1,"page":1}"#, br#"{"repository":"qa/pilot","page":0}"#),
-        (b"read_branch", br#"{"repository":"qa/pilot","branch":"main"}"#, br#"{"repository":"qa/pilot","page":0}"#),
-        (b"read_branches", br#"{"repository":"qa/pilot","prefix":"temper/"}"#, br#"{"repository":"qa/pilot","kind":"wrong"}"#),
-        (b"read_pull_files", br#"{"repository":"qa/pilot","number":1,"head":"0000000000000000000000000000000000000000000000000000000000000000","page":1}"#, br#"{"repository":"qa/pilot","page":0}"#),
-        (b"read_compare", br#"{"repository":"qa/pilot","before":"0000000000000000000000000000000000000000000000000000000000000000","after":"0000000000000000000000000000000000000000000000000000000000000000"}"#, br#"{"repository":"qa/pilot","page":0}"#),
-        (b"read_checks", br#"{"repository":"qa/pilot","commit":"0000000000000000000000000000000000000000000000000000000000000000"}"#, br#"{"repository":"qa/pilot","page":0}"#),
-        (b"read_file", br#"{"repository":"qa/pilot","head":"0000000000000000000000000000000000000000000000000000000000000000","path":"file","max_bytes":32}"#, br#"{"repository":"qa/pilot","page":0}"#),
-        (b"read_job", br#"{"repository":"qa/pilot","head":"0000000000000000000000000000000000000000000000000000000000000000","run":1,"job":1,"attempt":1,"max_bytes":32}"#, br#"{"repository":"qa/pilot","page":0}"#),
-        (b"read_protection", br#"{"repository":"qa/pilot","branch":"main"}"#, br#"{"repository":"qa/pilot","page":0}"#),
-        (b"read_settings", br#"{"repository":"qa/pilot"}"#, br#"{"repository":"qa/pilot","kind":"wrong"}"#),
-        (b"read_collaborators", br#"{"repository":"qa/pilot","page":1}"#, br#"{"repository":"qa/pilot","page":0}"#),
-        (b"read_permission", br#"{"repository":"qa/pilot","user":1}"#, br#"{"repository":"qa/pilot","page":0}"#),
+        (b"read_forge", br#"{"repository":"qa/pilot","what":"branch","branch":"main"}"#, br#"{"what":"branch","branch":1}"#),
+        (b"read_issues", br#"{"repository":"qa/pilot","what":"item","number":7}"#, br#"{"what":"item","number":0}"#),
+        (b"read_ci", br#"{"repository":"qa/pilot","what":"checks","commit":"0000000000000000000000000000000000000000"}"#, br#"{"what":"checks","commit":"bad"}"#),
         (b"effect_forge", br#"{"repository":{"forge":1,"repository":2},"resource":{"kind":"repository"},"write":{"kind":"close","number":3}}"#, br#"{"repository":{"forge":1,"repository":2},"resource":{},"write":{"kind":"close","number":3}}"#),
         (b"subscribe_forge", br#"{"topic":{"repository":{"forge":1,"repository":2},"kind":"pull","number":3}}"#, br#"{"topic":{}}"#),
         (b"change", br#"{"words":"edit README"}"#, br#"{"words":""}"#),
@@ -956,17 +838,15 @@ fn amendments_replace_tracking_and_instructions_including_empty_words() {
 }
 
 #[test]
-fn the_declared_deadline_example_decodes_the_whole_authority() {
+#[expect(clippy::disallowed_methods, reason = "step fixture looks up its whole declaration")]
+fn the_whole_deadline_example_decodes_the_whole_authority() {
     const EXAMPLE: &[u8] = br#"{"target":3,"revision":1,"amendment":{"reason":"Finish by Friday.","authority":{"tools":5,"grants":[],"delegation":{"kinds":[],"tasks":0,"depth":0},"budget":{"spend":1000,"deadline":1793404800000000000},"notes":0}}}"#;
-    for tool in tools(Duration::from_secs(10)) {
-        if tool.name.as_ref() == b"amend" {
-            let schema = crate::json::parse(&tool.schema).expect("amend schema");
-            assert_eq!(
-                schema.required(b"examples").expect("examples").array(b"examples").expect("examples array"),
-                &[crate::json::parse(EXAMPLE).expect("example")]
-            );
-        }
-    }
+    let spec = crate::calls::SPECS.iter().find(|spec| spec.name == b"amend").unwrap();
+    let schema = crate::json::parse(spec.whole()).expect("amend whole schema");
+    assert_eq!(
+        schema.required(b"examples").expect("examples").array(b"examples").expect("examples array"),
+        &[crate::json::parse(EXAMPLE).expect("example")]
+    );
     let engine::Tool::Amend { keep_parameters: false, target, revision, amendment } =
         decided(b"amend", EXAMPLE).expect("deadline example").tool
     else {
@@ -1211,8 +1091,11 @@ fn root_call_answers_become_bounded_smith_text_or_error() {
         assert_eq!(crate::unasked_kind(&read), Some(phrase));
         for (rendered, tool) in [
             (answer(&read), "the read"),
-            (crate::answer_for_tool(&read, b"read_file", 4096, crate::ForgeReadBounds::STOCK), "read_file"),
-            (crate::answer_for_tool(&read, b"read_compare", 4096, crate::ForgeReadBounds::STOCK), "read_compare"),
+            (crate::answer_for_tool(&read, b"read_file", 4096, crate::ForgeReadBounds::STOCK), "read_forge what=file"),
+            (
+                crate::answer_for_tool(&read, b"read_compare", 4096, crate::ForgeReadBounds::STOCK),
+                "read_forge what=compare",
+            ),
             (crate::answer_bounded(&read, 4096), "the read"),
             (
                 crate::answer_for_task(&read, b"read_commit", 4096, CALL_TASK, crate::ForgeReadBounds::STOCK),
@@ -1228,7 +1111,7 @@ fn root_call_answers_become_bounded_smith_text_or_error() {
         for cap in [0, 32] {
             let rendered = crate::answer_for_tool(&read, b"read_compare", cap, crate::ForgeReadBounds::STOCK);
             let expected = format!(
-                "Forge read refused: read_compare got an {phrase}, which it never asks for. Nothing was read; read again."
+                "Forge read refused: read_forge what=compare got an {phrase}, which it never asks for. Nothing was read; read again."
             );
             assert!(rendered.error());
             assert_eq!(rendered.text(), &expected.as_bytes()[..usize::try_from(cap).unwrap()]);
@@ -1365,7 +1248,7 @@ fn resolved_checks_and_statuses_name_the_api_job_attempt_in_every_state() {
                 job: Some(api::JobAttempt { head: *head, run: 7, job: 8, attempt: 2 }),
             };
             let status_line = format!(
-                "build: {state} CI result https://forge.example/org/repo/actions/runs/3/jobs/0\nread_job head "
+                "build: {state} CI result https://forge.example/org/repo/actions/runs/3/jobs/0\nread_ci what=job commit "
             );
             let attempt_line = b" run 7 job 8 attempt 2\n";
             for (read, prefix, suffix) in [
@@ -1800,15 +1683,14 @@ fn a_batch_contract_refusal_names_the_member_and_report_bounds() {
 
 #[test]
 fn delegates_contract_schema_names_the_person_report_floor() {
-    let declared = tools(Duration::from_secs(10));
     let mut delegate = None;
-    for tool in &declared {
-        if tool.name.as_ref() == b"delegate" {
+    for tool in &crate::calls::SPECS {
+        if tool.name == b"delegate" {
             delegate = Some(tool);
         }
     }
     let delegate = delegate.expect("delegate declared");
-    let schema = crate::json::parse(&delegate.schema).expect("delegate JSON schema");
+    let schema = crate::json::parse(delegate.whole()).expect("delegate whole JSON schema");
     let contract = schema
         .required(b"properties")
         .unwrap()
@@ -2448,44 +2330,30 @@ fn change_batch_keeps_member_options(options: &str) {
 }
 
 #[test]
-fn change_batch_declares_each_member() {
-    let mut found = false;
-    for tool in tools(Duration::from_secs(10)) {
-        if tool.name.as_ref() != b"change" {
-            continue;
-        }
-        found = true;
-        let schema = crate::json::parse(&tool.schema).expect("plan schema");
-        let properties = schema.required(b"properties").unwrap();
-        let batch = properties.required(b"changes").unwrap();
-        assert_eq!(batch.required(b"minItems").unwrap().number(b"minItems"), Ok(1));
-        let item = batch.required(b"items").unwrap();
-        assert_eq!(
-            item.required(b"required").unwrap().array(b"required").unwrap(),
-            &[crate::json::Value::String(b"words".as_slice().into())]
+#[expect(clippy::disallowed_methods, reason = "step fixture compares whole batch and root members")]
+fn change_batch_whole_form_keeps_each_member() {
+    let spec = crate::calls::SPECS.iter().find(|spec| spec.name == b"change").unwrap();
+    let schema = crate::json::parse(spec.whole()).expect("whole plan schema");
+    let properties = schema.required(b"properties").unwrap();
+    let batch = properties.required(b"changes").unwrap();
+    assert_eq!(batch.required(b"minItems").unwrap().number(b"minItems"), Ok(1));
+    let item = batch.required(b"items").unwrap();
+    assert_eq!(
+        item.required(b"required").unwrap().array(b"required").unwrap(),
+        &[crate::json::Value::String(b"words".as_slice().into())]
+    );
+    let member = item.required(b"properties").unwrap();
+    let crate::json::Value::Object(fields) = member else { panic!("batch member properties") };
+    let crate::json::Value::Object(root) = properties else { panic!("root properties") };
+    for (name, value) in fields {
+        assert!(
+            root.iter().any(|(key, root_value)| key == name && root_value == value),
+            "{name:?}: whole batch member matches root"
         );
-        let member = item.required(b"properties").unwrap();
-        for field in [
-            b"words".as_slice(),
-            b"repository",
-            b"name",
-            b"landing",
-            b"branch",
-            b"merge",
-            b"after",
-            b"producer",
-            b"llm",
-            b"questions",
-            b"repairs",
-        ] {
-            assert_eq!(member.required(field), properties.required(field), "{field:?}");
-            assert!(member.field(field).unwrap().is_some(), "member declares {field:?}");
-        }
-        assert!(member.field(b"changes").unwrap().is_none(), "batches do not nest");
-        let words = member.required(b"words").unwrap();
-        assert_eq!(words.required(b"minLength").unwrap().number(b"minLength"), Ok(1));
     }
-    assert!(found, "change offered");
+    assert!(member.field(b"changes").unwrap().is_none(), "batches do not nest");
+    let words = member.required(b"words").unwrap();
+    assert_eq!(words.required(b"minLength").unwrap().number(b"minLength"), Ok(1));
 }
 
 #[test]
@@ -2528,18 +2396,21 @@ fn change_refuses_words_with_changes_and_empty_members() {
 
 #[test]
 fn change_offers_its_plan_members_only_with_control() {
-    let legacy = br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."}},"required":["words"]}"#;
-    let plan = br#"{"type":"object","properties":{"words":{"type":"string","description":"Change's complete brief.","minLength":1},"repository":{"type":"string","description":"owner/name; omit if sole writable."},"name":{"type":"string","description":"A name for after."},"landing":{"type":"string","description":"goal/name; omit: held goal/base."},"branch":{"type":"string","enum":["mine"],"description":"mine: goal into base; omit: a new."},"merge":{"type":"string","description":"Catch-up: 40/64 hex commit."},"after":{"type":"array","description":"Live delegate IDs/earlier names.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"Producer charter; omit: forge default."},"llm":{"type":"object","description":"producer/review:{main:{model,effort},sub_agents:[{model,effort}]}."},"changes":{"type":"array","description":"Batch: put all options inside each item.","items":{"type":"object","properties":{"words":{"type":"string","description":"Change's complete brief.","minLength":1},"repository":{"type":"string","description":"owner/name; omit if sole writable."},"name":{"type":"string","description":"A name for after."},"landing":{"type":"string","description":"goal/name; omit: held goal/base."},"branch":{"type":"string","enum":["mine"],"description":"mine: goal into base; omit: a new."},"merge":{"type":"string","description":"Catch-up: 40/64 hex commit."},"after":{"type":"array","description":"Live delegate IDs/earlier names.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"Producer charter; omit: forge default."},"llm":{"type":"object","description":"producer/review:{main:{model,effort},sub_agents:[{model,effort}]}."},"repairs":{"type":"string","description":"Red landing's 40/64 hex merge commit.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","up"],"description":"up, none; omit: project setting."}},"required":["words"]},"minItems":1},"repairs":{"type":"string","description":"Red landing's 40/64 hex merge commit.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","up"],"description":"up, none; omit: project setting."}}}"#;
     let stock = 1_539;
-    for (authority, schema) in [(stock, legacy.as_slice()), (stock | 0b100, plan.as_slice())] {
+    let mut plan_schema = None;
+    for (authority, plan) in [(stock, false), (stock | 0b100, true)] {
         let mut found = false;
         for tool in
             crate::calls::tools_for(Duration::from_secs(10), engine::RunPolicy::EVERY_FAMILY, tasks::Tools(authority))
         {
             if tool.name.as_ref() == b"change" {
                 found = true;
-                assert_eq!(tool.schema.as_ref(), schema);
-                assert_eq!(tool.description.as_ref(), b"Have one change written on a branch of a repository of this project, opened as a pull request and merged once its checks pass; you hear its result.");
+                let schema = crate::json::parse(&tool.schema).expect("change schema");
+                let properties = schema.required(b"properties").unwrap();
+                assert_eq!(properties.field(b"changes").unwrap().is_some(), plan);
+                if plan {
+                    plan_schema = Some(tool.schema);
+                }
             }
         }
         assert!(found, "change offered");
@@ -2548,11 +2419,10 @@ fn change_offers_its_plan_members_only_with_control() {
     for tool in tools(Duration::from_secs(10)) {
         if tool.name.as_ref() == b"change" {
             found = true;
-            assert_eq!(tool.schema.as_ref(), plan);
-            crate::json::parse(&tool.schema).expect("plan schema");
+            assert_eq!(Some(tool.schema), plan_schema, "complete registry includes the plan form");
         }
     }
-    assert!(found, "complete registry includes plan schema");
+    assert!(found, "complete registry includes change");
 }
 
 #[test]
@@ -2634,7 +2504,7 @@ mod brief_fit;
 mod docs;
 mod json;
 mod reference;
-mod room;
+pub(crate) mod room;
 
 #[test]
 fn flat_forge_reads_decode_the_repository_name_and_name_bad_members() {
@@ -2702,74 +2572,13 @@ fn flat_forge_reads_decode_the_repository_name_and_name_bad_members() {
 }
 
 #[test]
-fn every_forge_read_declares_its_flat_members_as_json() {
-    let members: &[(&[u8], &[&[u8]])] = &[
-        (b"read_items", &[b"since", b"page", b"item_kind"]),
-        (b"read_item", &[b"number", b"after"]),
-        (b"read_pull", &[b"number"]),
-        (b"read_pull_for", &[b"head", b"base"]),
-        (b"read_reviews", &[b"number", b"page", b"skip"]),
-        (b"read_statuses", &[b"commit", b"page"]),
-        (b"read_remarks", &[b"number", b"review", b"page", b"skip"]),
-        (b"read_branch", &[b"branch"]),
-        (b"read_branches", &[b"prefix"]),
-        (b"read_pull_files", &[b"number", b"head", b"page", b"skip"]),
-        (b"read_compare", &[b"before", b"after"]),
-        (b"read_checks", &[b"commit"]),
-        (b"read_file", &[b"head", b"path", b"max_bytes"]),
-        (b"read_job", &[b"head", b"run", b"job", b"attempt", b"max_bytes"]),
-        (b"read_protection", &[b"branch"]),
-        (b"read_settings", &[]),
-        (b"read_collaborators", &[b"page"]),
-        (b"read_permission", &[b"user"]),
-    ];
-    let mut count = 0;
-    for tool in tools(Duration::from_secs(1)) {
-        let mut names = None;
-        for (name, fields) in members {
-            if *name == tool.name.as_ref() {
-                names = Some(fields);
-                break;
-            }
-        }
-        let Some(names) = names else {
-            continue;
-        };
-        count += 1;
-        let schema = crate::json::parse(&tool.schema).expect("JSON schema");
-        assert!(!schema.required(b"additionalProperties").unwrap().boolean(b"additionalProperties").unwrap());
-        let properties = schema.required(b"properties").unwrap();
-        let crate::json::Value::Object(fields) = properties else {
-            panic!("properties object");
-        };
-        assert_eq!(fields.len(), names.len() + 1);
-        assert_eq!(
-            properties.required(b"repository").unwrap().required(b"type").unwrap().text(b"type").unwrap().as_ref(),
-            b"string"
-        );
-        let description =
-            properties.required(b"repository").unwrap().required(b"description").unwrap().text(b"description").unwrap();
-        assert!(
-            skein_lib::bytes::find(&description, b"leave it out, or empty").is_some()
-                || skein_lib::bytes::find(&description, b"omit or empty").is_some()
-        );
-        for name in *names {
-            let property = properties.required(name).unwrap();
-            assert!(!property.required(b"description").unwrap().text(b"description").unwrap().is_empty());
-            assert!(property.field(b"type").unwrap().is_some());
-        }
-    }
-    assert_eq!(count, members.len());
-}
-
-#[test]
 fn a_missing_job_refusal_names_the_asked_head_run_job_and_attempt_with_recovery() {
     for (head, digits, run, job, attempt) in
         [([0; 32], "0".repeat(40), 2, 0, 1), ([0xab; 32], "ab".repeat(32), 8, 15, 3)]
     {
         let pin = skein_forge::api::JobAttempt { head, run, job, attempt };
         let expected = format!(
-            "Forge read failed: job missing. No job attempt at head {digits}, run {run}, job {job}, attempt {attempt}, as asked. read_checks at this head names each Actions job's run, job and attempt as read_job takes them; a link's run number and its index of the job are not those ids."
+            "Forge read failed: job missing. No job attempt at head {digits}, run {run}, job {job}, attempt {attempt}, as asked. read_ci what=checks at this head names each Actions job's run, job and attempt as read_ci what=job takes them; a link's run number and its index of the job are not those ids."
         );
         let rendered = crate::answer_for_job(
             &engine::CallAnswer::ForgeRead(Box::new(Err(skein_forge::api::Error::MissingJob))),
@@ -2825,14 +2634,13 @@ fn job_and_attempt_zero_decode_but_run_and_explicit_byte_limit_remain_positive()
     ] {
         assert_eq!(decided(b"read_job", input).err(), Some(Problem::Range(field)));
     }
-    let tools = tools(Duration::from_secs(10));
     let mut schema = None;
-    for tool in &tools {
-        if tool.name.as_ref() == b"read_job" {
-            schema = Some(&tool.schema);
+    for spec in &crate::calls::SPECS {
+        if spec.name == b"read_ci" {
+            schema = Some(spec.whole());
         }
     }
-    let schema = schema.expect("read_job tool");
+    let schema = schema.expect("read_ci what=job tool");
     let schema = crate::json::parse(schema).expect("job schema");
     let properties = schema.required(b"properties").unwrap();
     for (name, minimum) in [(b"run".as_slice(), 1), (b"job".as_slice(), 0), (b"attempt".as_slice(), 0)] {
@@ -2840,8 +2648,8 @@ fn job_and_attempt_zero_decode_but_run_and_explicit_byte_limit_remain_positive()
         assert_eq!(property.required(b"minimum").unwrap().number(b"minimum").unwrap(), minimum);
         if name != b"attempt" {
             let words = property.required(b"description").unwrap().text(b"description").unwrap();
-            assert!(skein_lib::bytes::find(&words, b"read_checks").is_some(), "{words:?}");
-            assert!(skein_lib::bytes::find(&words, b"not a link's").is_some());
+            assert!(skein_lib::bytes::find(&words, b"read_ci what=checks").is_some(), "{words:?}");
+            assert!(skein_lib::bytes::find(&words, b"never a link's").is_some());
             assert!(!words.contains(&b'0'), "no job-zero invitation");
         }
     }
@@ -2962,6 +2770,45 @@ fn a_chats_answer_refusal_names_its_persons_inbox_question() {
         tasks::Refusal::PersonAnswers { question: 42 },
         None,
         b"Refused: task 99 your person answers question 42 in their inbox",
+    );
+}
+
+#[test]
+fn a_numbered_verdict_preserves_its_fields_and_cannot_claim_a_resource() {
+    let answer = || run::Answer::Accepted {
+        outcome: run::outcome::Declared::Verdict(run::outcome::Verdict {
+            name: b"1".as_slice().into(),
+            text: b"flaky".as_slice().into(),
+            fields: Box::new([run::outcome::Field {
+                name: b"reason".as_slice().into(),
+                value: b"test".as_slice().into(),
+            }]),
+            items: Box::new([]),
+        }),
+        spent: spend(3),
+        turns: 1,
+    };
+    assert_eq!(
+        result(answer(), None),
+        Ok(crate::Terminal {
+            cumulative: 3,
+            turns: 1,
+            end: tasks::End::Finished {
+                result: tasks::TaskResult::Verdict {
+                    code: 1,
+                    words: b"flaky".as_slice().into(),
+                    fields: Box::new([tasks::ResultField {
+                        name: b"reason".as_slice().into(),
+                        value: b"test".as_slice().into()
+                    }]),
+                },
+                cancel_delegates: false,
+            },
+        })
+    );
+    assert_eq!(
+        result(answer(), Some(ChangeResource { connector: 1, kind: 2, resource: 42 })),
+        Err(Problem::Type(b"verdict"))
     );
 }
 
@@ -3177,7 +3024,7 @@ fn comparisons_answer_names_counts_and_containment_with_omissions() {
             let left = changed - u64::try_from(paths.len()).unwrap();
             if left > 0 {
                 expected.push_str(&format!(
-                    "[{left} not listed: read_pull_files lists a pull's files; read_file reads a path at each commit]\n"
+                    "[{left} not listed: read_issues what=pull_files lists a pull's files; read_forge what=file reads a path at each commit]\n"
                 ));
             }
             assert!(!rendered.error());
@@ -3203,8 +3050,8 @@ fn read_compare_too_large_names_bounds_and_paged_fallback() {
         "commit ids were read",
         "another id won't help",
         "Never retry with a changed or guessed id",
-        "read_pull_files",
-        "read_file",
+        "read_issues what=pull_files",
+        "read_forge what=file",
         "both endpoints",
         "max_bytes",
     ] {
@@ -3241,7 +3088,10 @@ fn forge_read_too_large_names_configured_bounds_and_clips() {
     ] {
         let refused = engine::CallAnswer::ForgeRead(Box::new(Err(Error::TooLarge(excess))));
         for (tool, recovery) in [
-            (b"read_branches".as_slice(), "Use a longer prefix, or read_branch for one name."),
+            (
+                b"read_branches".as_slice(),
+                "The names under this prefix pass forge.client.answer_bytes, the one bound a branch list has: name a longer prefix, as temper/goal/ in place of temper/, or read one branch by its name with read_forge what=branch.",
+            ),
             (b"read_reviews", "Advance page to list the rest; a later page skips this oversized page."),
         ] {
             let expected = format!("Forge read failed: too large: past {expected}. {recovery}");
@@ -3264,9 +3114,9 @@ fn forge_read_too_large_names_configured_bounds_and_clips() {
 #[test]
 fn a_refused_branch_read_says_what_to_read_instead() {
     use skein_forge::api::Error;
-    const BRANCHES_EMPTY: &str = "Forge read failed: empty. read_branches needs a nonempty prefix, as temper/ for temper's branches. read_settings names the default branch, and read_branch reads one branch by its name.";
-    const BRANCHES_TOO_LARGE: &str = "Forge read failed: too large: past forge.client.answer_bytes (65536): at least 65537 bytes. Use a longer prefix, or read_branch for one name.";
-    const BRANCH_MISSING: &str = "Forge read failed: missing. The forge has no branch of that name in this repository. read_settings names its default branch, and read_branches lists the names under a prefix, as temper/. A goal's own branch is there only where its goal holds one, and a run branch from its first push.";
+    const BRANCHES_EMPTY: &str = "Forge read failed: empty. read_forge what=branches needs a nonempty prefix, as temper/ for temper's branches. read_forge what=settings names the default branch, and read_forge what=branch reads one branch by its name.";
+    const BRANCHES_TOO_LARGE: &str = "Forge read failed: too large: past forge.client.answer_bytes (65536): at least 65537 bytes. The names under this prefix pass forge.client.answer_bytes, the one bound a branch list has: name a longer prefix, as temper/goal/ in place of temper/, or read one branch by its name with read_forge what=branch.";
+    const BRANCH_MISSING: &str = "Forge read failed: missing. The forge has no branch of that name in this repository. read_forge what=settings names its default branch, and read_forge what=branches lists the names under a prefix, as temper/. A goal's own branch is there only where its goal holds one, and a run branch from its first push.";
     for (tool, error, expected) in [
         (b"read_branches".as_slice(), Error::Empty, BRANCHES_EMPTY),
         (
@@ -3406,16 +3256,15 @@ fn branch_lists_render_whole_within_the_host_byte_bound() {
 #[test]
 fn declarations_say_when_to_call_goal_and_what_prefix_to_give() {
     let mut count = 0_usize;
-    for tool in tools(Duration::from_secs(1)) {
-        match tool.name.as_ref() {
-            b"goal" => assert_eq!(tool.description.as_ref(), b"Have one goal tracked, only for work your person wants agreed first (set agree) or a survey that changes nothing. For a change to a repository, call change."),
-            b"delegate" => assert!(tool.description.ends_with(b"For a change to a repository, call change.")),
-            b"read_branches" => {
-                assert_eq!(tool.description.as_ref(), b"List the branches whose names start with a prefix. The names fit forge.client.answer_bytes; a longer prefix reads fewer.");
-                let schema = crate::json::parse(&tool.schema).expect("JSON schema");
+    for tool in crate::calls::SPECS {
+        match tool.name {
+            b"goal" => assert_eq!(tool.description, b"Have one goal tracked, only for work your person wants agreed first (set agree) or a survey that changes nothing. For a change to a repository, call change."),
+            b"delegate" => assert!(tool.description.ends_with(b"Repository changes: call change.")),
+            b"read_forge" => {
+                let schema = crate::json::parse(tool.whole()).expect("whole JSON schema");
                 let prefix = schema.required(b"properties").unwrap().required(b"prefix").unwrap();
                 let description = prefix.required(b"description").unwrap().text(b"description").unwrap();
-                assert_eq!(description.as_ref(), b"A nonempty prefix of the names, as temper/.");
+                assert_eq!(description.as_ref(), b"Nonempty name prefix, as temper/; longer reads fewer.");
             }
             _ => continue,
         }
@@ -3451,12 +3300,12 @@ fn successful_compare_over_host_bound_keeps_measured_feedback() {
         "host answer limit 2048 bytes",
         "forge.client.rows (8)",
         "forge.client.answer_bytes (65536)",
-        "read_pull",
-        "read_pull_files",
-        "read_file",
+        "read_issues what=pull",
+        "read_issues what=pull_files",
+        "read_forge what=file",
         "max_bytes",
         "core.call_answer_bytes",
-        "agent.json",
+        "agents setting",
     ] {
         assert!(skein_lib::bytes::find(rendered.text(), phrase.as_bytes()).is_some(), "missing {phrase}");
     }
@@ -3541,7 +3390,7 @@ fn oversized_file_feedback(tool: &[u8], value: skein_forge::api::Answer, size: u
     let words = feedback.text();
     let size_text = skein_lib::Decimal::of(u64::try_from(size).expect("fixture size"));
     assert!(skein_lib::bytes::find(words, size_text.as_bytes()).is_some());
-    for required in ["10240", "read_file", "max_bytes", "overhead"] {
+    for required in ["10240", "read_forge what=file", "max_bytes", "overhead"] {
         assert!(skein_lib::bytes::find(words, required.as_bytes()).is_some(), "missing {required}: {words:?}");
     }
     if tool == b"read_pull_files" {
@@ -3641,7 +3490,7 @@ fn file_and_pull_rendering_boundaries() {
         let feedback = crate::answer_for_tool(&recorded, tool, 1024, crate::ForgeReadBounds::STOCK);
         let words = feedback.text();
         assert!(feedback.error());
-        for required in ["Forge read failed: too large: past an unnamed bound.", "read_file", "max_bytes"] {
+        for required in ["Forge read failed: too large: past an unnamed bound.", "read_forge what=file", "max_bytes"] {
             assert!(skein_lib::bytes::find(words, required.as_bytes()).is_some(), "missing {required}: {words:?}");
         }
     }
@@ -4027,3 +3876,5 @@ mod remember;
 
 #[path = "tests/wire.rs"]
 mod wire;
+
+mod forge_reads;

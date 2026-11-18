@@ -171,6 +171,24 @@ impl Bindings {
                         PageAct::AmendPriority { priority: u32::try_from(skein_ui::number(&value)?).ok()? }
                     }
                     (PageAct::AmendTracked, skein_ui::Act::Toggle) => PageAct::AmendTracked,
+                    (PageAct::Builders(act), skein_ui::Act::Input { value }) => {
+                        use temper_client_domain::pages::builders::Act;
+                        PageAct::Builders(match act {
+                            Act::Places { number, .. } => Act::Places { number: *number, value },
+                            Act::Name(_) => Act::Name(value),
+                            Act::AddPlaces(_) => Act::AddPlaces(value),
+                            Act::Digest(_) => Act::Digest(value),
+                            Act::Change(_) | Act::Remove(_) | Act::Add => return None,
+                        })
+                    }
+                    (PageAct::Builders(act), skein_ui::Act::Submit) => {
+                        use temper_client_domain::pages::builders::Act;
+                        PageAct::Builders(match act {
+                            Act::Places { number, .. } => Act::Change(*number),
+                            Act::Name(_) | Act::AddPlaces(_) | Act::Digest(_) => Act::Add,
+                            Act::Change(_) | Act::Remove(_) | Act::Add => return None,
+                        })
+                    }
                     (PageAct::Models(act), skein_ui::Act::Toggle) => PageAct::Models(act.clone()),
                     (
                         PageAct::Models(temper_client_domain::pages::models::Act::Name(..)),

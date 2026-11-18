@@ -229,7 +229,7 @@ pub fn start_accounts(
         },
         &mut out,
     );
-    let mut frame = None;
+    let frame = Token::new(0);
     let mut accounts = None;
     while let Some(request) = out.pop() {
         if let Request::Unlinked {
@@ -242,17 +242,8 @@ pub fn start_accounts(
         {
             accounts = Some(*watch);
         }
-        if let Request::Unlinked {
-            request:
-                jig_client::UnlinkedRequest::Down {
-                    down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(contract::Subject::Me) },
-                },
-        } = request
-        {
-            frame = Some(watch);
-        }
     }
-    (frame.expect("start opens a frame watch"), accounts.expect("start opens accounts"))
+    (frame, accounts.expect("start opens accounts"))
 }
 pub fn confirm(root: &mut crate::Domain, watch: Token, party: u64, out: &mut Queue<Request>) {
     let limits = limits();

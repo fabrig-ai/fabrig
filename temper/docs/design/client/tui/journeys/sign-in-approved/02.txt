@@ -1,9 +1,9 @@
 
-  ▄█▀▀   temper 0.0.0 (ee9cffd3db2c-dirty)
- ▄█▄█▄█  127.0.0.1:35671
+  ▄█▀▀   temper 0.0.0 (000000000000)
+ ▄█▄█▄█  127.0.0.1:10001
 
  No project yet
- Setting temper up makes your first project: open http://127.0.0.1:35671 in a
+ Setting temper up makes your first project: open http://127.0.0.1:10001 in a
  browser.
 
 

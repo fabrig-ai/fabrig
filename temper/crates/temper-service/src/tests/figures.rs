@@ -1,0 +1,118 @@
+#![expect(clippy::disallowed_macros, reason = "ordinary tests supply environment entries as JSON")]
+use crate::startup;
+use crate::tests::fixtures;
+
+#[test]
+fn the_box_keeps_entries_then_its_own_home_and_path() {
+    let mut document: serde_json::Value = serde_json::from_slice(&fixtures::stock_document()).unwrap();
+    document["application"]["environment"] = serde_json::json!([{"name":"CARGO_TARGET_DIR","value":"/srv/target"}]);
+    let own = [
+        (Box::from(b"PATH".as_slice()), Box::from(b"/usr/bin:/bin".as_slice())),
+        (Box::from(b"OTHER".as_slice()), Box::from(b"x".as_slice())),
+        (Box::from(b"HOME".as_slice()), Box::from(b"/home/w".as_slice())),
+    ];
+    let part = startup::box_worker(
+        &serde_json::to_vec(&document).unwrap(),
+        &jig_protocol_config::Directories::working(),
+        &crate::stock::Given::Stock,
+        &crate::stock::agents(),
+        &own,
+    )
+    .unwrap()
+    .unwrap();
+    assert_eq!(
+        part.environment.as_ref(),
+        [
+            (Box::from(b"CARGO_TARGET_DIR".as_slice()), Box::from(b"/srv/target".as_slice())),
+            (Box::from(b"HOME".as_slice()), Box::from(b"/home/w".as_slice())),
+            (Box::from(b"PATH".as_slice()), Box::from(b"/usr/bin:/bin".as_slice())),
+        ]
+    );
+    let checked = startup::checked_start_with_worker(
+        &serde_json::to_vec(&document).unwrap(),
+        &jig_protocol_config::Directories::working(),
+        &fixtures::stock_files(),
+        Some(&fixtures::parsed_agent(fixtures::stock_configuration(63_740, 48_000).unwrap())),
+        &fixtures::seeds(),
+        skein_lib::List::with_capacity(0),
+        None,
+        &crate::stock::Given::Stock,
+        None,
+        Some(part),
+    )
+    .unwrap();
+    assert!(checked.worker.is_some());
+}
+
+#[test]
+fn an_engine_alone_refuses_application_environment() {
+    let mut document: serde_json::Value = serde_json::from_slice(&fixtures::engine_alone_document()).unwrap();
+    document["application"]["environment"] = serde_json::json!([{"name":"A","value":"one"}]);
+    let found = startup::box_worker(
+        &serde_json::to_vec(&document).unwrap(),
+        &jig_protocol_config::Directories::working(),
+        &crate::stock::Given::Stock,
+        &crate::stock::agents(),
+        &[],
+    )
+    .unwrap_err();
+    assert_eq!(startup::lines(&found).as_ref(), b"application.environment: unknown member\n");
+}
+#[test]
+fn in_process_opening_is_quiet_until_the_engines_figures_change() {
+    let document = fixtures::stock_document();
+    let directories = jig_protocol_config::Directories::working();
+    let files = fixtures::stock_files();
+    let agent = fixtures::parsed_agent(fixtures::stock_configuration(63_740, 48_000).unwrap());
+    let seeds = fixtures::seeds();
+    let given = crate::stock::Given::Stock;
+    let agents = crate::stock::agents();
+    let part = startup::box_worker(&document, &directories, &given, &agents, &[]).unwrap().unwrap();
+    let built = part.figures.clone().unwrap();
+    let mut checked = startup::checked_start_with_worker(
+        &document,
+        &directories,
+        &files,
+        Some(&agent),
+        &seeds,
+        skein_lib::List::with_capacity(0),
+        None,
+        &given,
+        None,
+        Some(part),
+    )
+    .unwrap();
+    assert_eq!(
+        checked.worker.as_ref().unwrap().0.jig.limits.as_ref().unwrap().hub.source_interval,
+        skein_lib::Duration::from_millis(60_000)
+    );
+    let mut opening = temper_engine_service::figures::compose(&checked.engine, &agents).into_parts();
+    opening.places = checked.engine.jig.limits.core.fleet.slots;
+    let opening = jig_protocol_worker_wire::Figures::new(&jig_protocol_worker_wire::CEILINGS, opening).unwrap();
+    assert_eq!(built, opening, "the in-process host sends what the box composed");
+    // This worker-notice fixture has no accounts shell.
+    for provider in &mut checked.engine.jig.llm.providers {
+        provider.sign_in = None;
+    }
+    let mut service = startup::from_checked(
+        checked,
+        &files,
+        Some(&agent),
+        &seeds,
+        None,
+        Some(fixtures::worker_runtime()),
+        None,
+        None,
+        Box::default(),
+    )
+    .unwrap();
+    let worker = service.worker.as_mut().unwrap();
+    worker.link(fixtures::NOW, jig_protocol_worker_link::Request::Figures { figures: opening.clone() });
+    assert_eq!(worker.notes().pop(), None);
+    let mut changed = opening.into_parts();
+    changed.places = changed.places.checked_add(1).unwrap();
+    let changed = jig_protocol_worker_wire::Figures::new(&jig_protocol_worker_wire::CEILINGS, changed).unwrap();
+    worker.link(fixtures::NOW, jig_protocol_worker_link::Request::Figures { figures: changed });
+    assert_eq!(worker.notes().pop(), Some(crate::worker_alone::Note::FiguresChanged));
+    assert_eq!(worker.notes().pop(), None);
+}

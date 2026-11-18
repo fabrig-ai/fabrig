@@ -41,6 +41,8 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
                 },
                 above,
             );
+        } else if last == 0 && store.directory.purpose == crate::Purpose::Checkpoint {
+            refuse(store, owner, OpenRefusal::Unready { why: crate::Unready::Upgrade }, above);
         } else if last == 0 {
             if let Err(why) = crate::registry::open(store, true) {
                 return refuse(store, owner, why, above);
@@ -53,6 +55,9 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
     };
     let binary = admission::binary(&store.owner_sets);
     let Some(found) = decode(store, owner, &found, binary.jig, above) else { return };
+    if !crate::restoring::deployment(store, found.deployment) {
+        return refuse(store, owner, OpenRefusal::Deployment, above);
+    }
     let found_levels = found.levels;
     let compared = format::compare(found_levels, binary);
     if let Err(why) = &compared
@@ -78,6 +83,9 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
         Ok(pending) => pending,
         Err(why) => return refuse(store, owner, why, above),
     };
+    if jobs && store.directory.purpose == crate::Purpose::Checkpoint {
+        return refuse(store, owner, OpenRefusal::Unready { why: crate::Unready::Upgrade }, above);
+    }
     if jobs {
         store.directory.patch = Some(Box::new(found_levels));
     }
@@ -85,6 +93,9 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
         Ok(writing) => writing,
         Err(why) => return refuse(store, owner, why, above),
     };
+    if registry && store.directory.purpose == crate::Purpose::Checkpoint {
+        return refuse(store, owner, OpenRefusal::Unready { why: crate::Unready::Upgrade }, above);
+    }
     if registry && store.directory.patch.is_none() {
         store.directory.patch = Some(Box::new(found_levels));
     }

@@ -105,6 +105,12 @@ pub struct PanelApproval {
     pub remaining: Option<u32>,
     pub refused: bool,
 }
+/// Why a change waits (domain/forge/room.md, 7).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum PanelWait {
+    OutboxRoom,
+}
+
 /// The pushed source and selected head (domain/forge/change/opened.md, 6).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct PanelSource {
@@ -114,6 +120,7 @@ pub struct PanelSource {
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Panel {
+    pub landing_held: bool,
     pub way: change::Way,
     pub in_landing: Option<u64>,
     pub task: u64,
@@ -127,6 +134,7 @@ pub struct Panel {
     pub pull: Option<u64>,
     pub step: PanelStep,
     pub hold: Option<change::Hold>,
+    pub wait: Option<PanelWait>,
     pub runs: Option<u64>,
     pub ci: change::Status,
     /// Whether this repository and its effective landing rules ask for CI.
@@ -140,6 +148,12 @@ pub struct Panel {
     pub questions: PanelQuestions,
 }
 impl Panel {
+    /// The operator's run-wide waiting reason (domain/landing-settings.md, 1.3).
+    #[must_use]
+    pub fn landing_hold(&self) -> Option<&'static [u8]> {
+        if self.landing_held { Some(b"landing held until the engine starts without landing-held") } else { None }
+    }
+
     /// Heap bytes owned by the approval explanation, charged at document admission.
     #[must_use]
     pub fn approval_bytes(&self) -> usize {

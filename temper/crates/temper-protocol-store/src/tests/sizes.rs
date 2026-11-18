@@ -2,12 +2,12 @@ use super::fixtures;
 use crate::{Undecodable, application, keys, records};
 use temper_engine_domain_forge_vocabulary as forge;
 
-// The closer's optional question and deferred messages dominate Row at these limits.
-const APPLICATION_ROW_BYTES: u32 = 604_927;
+// Project gates dominate Row: the carrier plus its stored setting and row framing.
+const APPLICATION_ROW_BYTES: u32 = forge::settings::CARRIER + 34;
 
 #[test]
 fn the_application_sizes_are_the_largest_key_and_row() {
-    // The bound includes the closer's retained question, answer and deferred messages.
+    // The bound includes the largest project-gates setting envelope.
     assert_eq!(
         application(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes),
         Some(jig_protocol_store::sizes::Application {
@@ -20,20 +20,41 @@ fn the_application_sizes_are_the_largest_key_and_row() {
 #[test]
 fn the_change_bound_follows_the_tier_landings_ceilings() {
     let ceilings = crate::v25::CEILINGS;
-    let least = ceilings.tier_row_pending.min(ceilings.tier_run_landings).min(ceilings.tier_finding_blamed);
+    let least = ceilings
+        .tier_row_pending
+        .min(ceilings.tier_run_landings)
+        .min(ceilings.tier_finding_blamed)
+        .min(ceilings.tier_probe_waiting)
+        .min(ceilings.tier_posting_landings);
     let bound = crate::forge_changes_bound().expect("tier rows hold a landing");
     assert_eq!(crate::tier_landings_ceiling(), least);
-    assert_eq!([ceilings.tier_row_pending, ceilings.tier_run_landings, ceilings.tier_finding_blamed], [759; 3]);
-    assert_eq!(bound, 379);
+    assert_eq!(
+        [
+            ceilings.tier_row_pending,
+            ceilings.tier_run_landings,
+            ceilings.tier_finding_blamed,
+            ceilings.tier_probe_waiting,
+            ceilings.tier_posting_landings
+        ],
+        [1537; 5]
+    );
+    assert_eq!(bound, 768);
+    assert_eq!(crate::test_id_ceiling(), 1024);
+    assert_eq!(
+        [ceilings.failing_test_test_id, ceilings.tier_flake_test, ceilings.receipt_test_key],
+        [1024, 1024, 4096]
+    );
     assert_eq!(bound, (least - 1) / 2);
-    assert_eq!(crate::v25::TierRow::encoded_bound(&ceilings), Some(4_294_744_175));
+    assert_eq!(crate::v25::TierRow::encoded_bound(&ceilings), Some(1_905_271_545));
     let mut forge = fixtures::LIMITS;
     forge.changes = bound;
     let limits = records::limits(&forge).unwrap();
     assert_eq!(limits.tier_row_pending, 2 * bound + 1);
     assert_eq!(limits.tier_run_landings, 2 * bound + 1);
     assert_eq!(limits.tier_finding_blamed, 2 * bound + 1);
-    crate::v25::check_limits(&limits).expect("the boundary fits all three ceilings");
+    assert_eq!(limits.tier_probe_waiting, 2 * bound + 1);
+    assert_eq!(limits.tier_posting_landings, 2 * bound + 1);
+    crate::v25::check_limits(&limits).expect("the boundary fits all five ceilings");
     forge.changes = bound + 1;
     assert!(crate::v25::check_limits(&records::limits(&forge).unwrap()).is_err());
 }
@@ -90,7 +111,7 @@ fn plan_text_uses_the_body_bound_without_changing_the_format() {
     let old_view = crate::v25::GoalView::encoded_bound(&before).expect("old view size");
     let new_view = crate::v25::GoalView::encoded_bound(&after).expect("new view size");
     assert_eq!(new_view - old_view, EXTRA_PLAN_BYTES);
-    // The schema's fixed framing plus the measured view; the closer still dominates Row.
+    // The schema's fixed framing plus the measured view; project gates dominate Row.
     assert_eq!(old_view, 5238);
     assert_eq!(new_view, 7286);
     assert_eq!(crate::v25::IssueRow::encoded_bound(&before), Some(5657));

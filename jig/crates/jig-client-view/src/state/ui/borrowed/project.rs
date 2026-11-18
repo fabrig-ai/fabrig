@@ -53,7 +53,7 @@ impl<'a> Borrowed<'a> {
                         == jig_client::contract::Subject::Tasks {
                             query: jig_client::contract::TaskQuery {
                                 project: self.ui.shown_project(),
-                                ..page.task_filter
+                                ..page.task_filter.clone()
                             },
                             window: self.client.domain_limits().rows,
                         } =>

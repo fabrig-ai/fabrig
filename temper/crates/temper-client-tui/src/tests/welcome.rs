@@ -564,18 +564,37 @@ fn starting_root(live: bool) -> Domain {
     assert!(root.pages().me(root.client()).is_none());
     root
 }
+enum StartingRoot {
+    SignedOut,
+    Refused(jig_client_protocol_wire::SignInAnswer),
+    Signing,
+    Offline,
+    SignedIn,
+}
+impl StartingRoot {
+    fn domain(self) -> Domain {
+        match self {
+            Self::SignedOut => f::signed_out(),
+            Self::Refused(answer) => f::refused(answer),
+            Self::Signing => starting_root(false),
+            Self::Offline => {
+                let (mut root, watch) = f::live(None);
+                f::client(&mut root, jig_client::Event::Up { up: Up::WatchEnded { watch, end: c::WatchEnd::Dropped } });
+                root
+            }
+            Self::SignedIn => starting_root(true),
+        }
+    }
+}
 #[test]
-#[expect(clippy::large_stack_arrays, reason = "the fact rows own a client root each")]
 #[expect(clippy::too_many_lines, reason = "one fact table checks the starting steps, tokens, failure and quiet line")]
 fn the_starting_steps_follow_the_facts() {
     use crate::BoxStage;
     use jig_client_protocol_wire::SignInAnswer;
-    let (mut offline, watch) = f::live(None);
-    f::client(&mut offline, jig_client::Event::Up { up: Up::WatchEnded { watch, end: c::WatchEnd::Dropped } });
     let rows = [
         (
             BoxStage::Fetching { done: 12_300_000, total: Some(24_100_000) },
-            f::signed_out(),
+            StartingRoot::SignedOut,
             [
                 "Downloading temper-box, once for this build: 12.3 of 24.1 MB",
                 "temper starting",
@@ -586,7 +605,7 @@ fn the_starting_steps_follow_the_facts() {
         ),
         (
             BoxStage::Running,
-            f::signed_out(),
+            StartingRoot::SignedOut,
             [
                 "The box started · its log in /srv/temper/box/logs/box.log",
                 "temper starting…",
@@ -597,7 +616,7 @@ fn the_starting_steps_follow_the_facts() {
         ),
         (
             BoxStage::Running,
-            f::refused(SignInAnswer::NotReady),
+            StartingRoot::Refused(SignInAnswer::NotReady),
             [
                 "The box started · its log in /srv/temper/box/logs/box.log",
                 "temper starting…",
@@ -608,7 +627,7 @@ fn the_starting_steps_follow_the_facts() {
         ),
         (
             BoxStage::Running,
-            f::refused(SignInAnswer::Busy),
+            StartingRoot::Refused(SignInAnswer::Busy),
             [
                 "The box started · its log in /srv/temper/box/logs/box.log",
                 "temper starting…",
@@ -619,7 +638,7 @@ fn the_starting_steps_follow_the_facts() {
         ),
         (
             BoxStage::Running,
-            f::refused(SignInAnswer::LinkUsed),
+            StartingRoot::Refused(SignInAnswer::LinkUsed),
             [
                 "The box started · its log in /srv/temper/box/logs/box.log",
                 "temper started",
@@ -630,7 +649,7 @@ fn the_starting_steps_follow_the_facts() {
         ),
         (
             BoxStage::Running,
-            starting_root(false),
+            StartingRoot::Signing,
             [
                 "The box started · its log in /srv/temper/box/logs/box.log",
                 "temper started",
@@ -641,7 +660,7 @@ fn the_starting_steps_follow_the_facts() {
         ),
         (
             BoxStage::Running,
-            offline,
+            StartingRoot::Offline,
             [
                 "The box started · its log in /srv/temper/box/logs/box.log",
                 "temper started",
@@ -652,7 +671,7 @@ fn the_starting_steps_follow_the_facts() {
         ),
         (
             BoxStage::Running,
-            starting_root(true),
+            StartingRoot::SignedIn,
             [
                 "The box started · its log in /srv/temper/box/logs/box.log",
                 "temper started",
@@ -663,6 +682,7 @@ fn the_starting_steps_follow_the_facts() {
         ),
     ];
     for (stage, root, labels, marks) in rows {
+        let root = root.domain();
         let mut tui = starting_tui();
         tui.step(Told::Stage { stage });
         tui.step(Told::BoxLine { line: BoxLine::Starting { name: b"Forgejo".as_slice().into() } });
@@ -967,14 +987,18 @@ fn welcome_read(rows: &[w::ForgeRow], linked: bool, model: Option<c::Accounts>, 
         },
     );
     append(&mut out, f::client(&mut root, jig_client::Event::Up { up: Up::Served { served: true, versions: None } }));
+    let me_opened = {
+        let mut me = f::me(&[]);
+        me.deployment_role = Some(c::HeldRole::Owner);
+        Up::Watched { watch: skein_lib::Token::new(0), event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) }
+    };
+    let mut me_output = f::client(&mut root, jig_client::Event::Up { up: me_opened });
+    while let Some(request) = me_output.pop() {
+        out.push(request);
+    }
     while let Some(request) = out.pop() {
         let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else { continue };
         let up = match down {
-            jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Me) } => {
-                let mut me = f::me(&[]);
-                me.deployment_role = Some(c::HeldRole::Owner);
-                Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) }
-            }
             jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Accounts) } => {
                 let Some(accounts) = &model else { continue };
                 Up::Watched {

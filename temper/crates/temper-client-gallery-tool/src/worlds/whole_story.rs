@@ -510,13 +510,25 @@ pub(super) fn domain(name: &str, address: Address) -> Domain {
     ] {
         step(&mut root, name, Event::Client { event }, &mut out);
     }
+    step(
+        &mut root,
+        name,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: Up::Watched {
+                    watch: Token::new(0),
+                    event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me.clone()))),
+                },
+            },
+        },
+        &mut out,
+    );
     for _ in 0..512 {
         let Some(request) = out.pop() else { break };
         let Some(request) = down(request) else { continue };
         match request {
             Down::Open { watch, subject: Watchable::Jig(subject) } => {
                 let value = match subject {
-                    c::Subject::Me => c::Delivery::Me(Box::new(me.clone())),
                     c::Subject::Accounts => c::Delivery::Accounts(Box::new(super::accounts(World::Solo, Then::Shown))),
                     c::Subject::Settings => {
                         let mut settings = List::with_capacity(me.projects.len());
@@ -538,9 +550,11 @@ pub(super) fn domain(name: &str, address: Address) -> Domain {
                             pending: List::with_capacity(0),
                         }))
                     }
-                    c::Subject::Tasks { .. } => {
-                        c::Delivery::Tasks(Box::new(c::Tasks { rows: List::with_capacity(0), more: false }))
-                    }
+                    c::Subject::Tasks { .. } => c::Delivery::Tasks(Box::new(c::Tasks {
+                        ended_mark: 0,
+                        rows: List::with_capacity(0),
+                        more: false,
+                    })),
                     c::Subject::Inbox { .. } => c::Delivery::Inbox(Box::new(documents::inbox(
                         entries(name),
                         me.needs_total,
@@ -596,6 +610,7 @@ pub(super) fn domain(name: &str, address: Address) -> Domain {
                     c::Read::Escalation { .. } => c::ReadValue::Escalation(Box::new(funds(name))),
                     c::Read::Task { task: number } => c::ReadValue::Task(Box::new(task(name, number))),
                     c::Read::Tasks { .. } => c::ReadValue::Tasks(Box::new(c::TaskPage {
+                        ended_mark: 0,
                         live: List::with_capacity(0),
                         live_after: None,
                         ended: c::EndedGroup::Rows { rows: List::with_capacity(0), after: None, cut: false },
@@ -618,7 +633,7 @@ pub(super) fn domain(name: &str, address: Address) -> Domain {
                         Some(wire::setting_answer(
                             &w::SettingAnswer::new(
                                 &w::CEILINGS,
-                                w::SettingAnswerParts { value: Some(writer.finish()) },
+                                w::SettingAnswerParts { revision: None, value: Some(writer.finish()) },
                             )
                             .expect("ways answer"),
                         ))

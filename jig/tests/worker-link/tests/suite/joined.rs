@@ -175,7 +175,7 @@ mod joined_story {
         ];
         for row in rows {
             // Reuse the shipped Small profile's sizes: its cap admits the burst.
-            let sizes = jig_test_service::limits::profile_limits(jig_protocol_config::Profile::Small).workers.sizes;
+            let sizes = jig_test_service::limits::small(&jig_protocol_config_fixtures::small()).workers.sizes;
             let limits = jig_protocol_worker_link::Limits { sizes, ..fixtures::joined_limits() };
             let mut world = Joined::new(&limits, 1);
             world.run();
@@ -257,8 +257,8 @@ mod joined_story {
         world.finish();
     }
     #[test]
-    fn a_wrong_secret_worker_redials_after_unauthorized() {
-        refusal(Credential { secret: Secret::new(b"wrong".as_slice().into()), ..fixtures::credential() }, 256);
+    fn a_wrong_secret_worker_redials_after_not_admitted() {
+        refusal(Credential { secret: Secret::new(b"wrong".as_slice().into()), ..fixtures::credential() }, 260);
     }
     #[test]
     fn another_wire_version_worker_redials_after_wires() {
@@ -456,7 +456,7 @@ fn resumed_continues(world: &mut joined::Joined) {
 #[test]
 fn a_resumed_start_fits_the_room_on_each_stock_profile() {
     use jig_domain_host as host;
-    use jig_protocol_config::{Profile, profile};
+
     use jig_protocol_engine_workers as engine;
     use jig_protocol_worker_link::{Limits, Request};
     use jig_protocol_worker_wire::fit::cut_words;
@@ -470,9 +470,9 @@ fn a_resumed_start_fits_the_room_on_each_stock_profile() {
     const FEW: u32 = 3;
     const EXCESS: u32 = 2;
     let mut failures = Vec::new();
-    for p in [Profile::Small, Profile::Standard] {
-        let config = profile(p);
-        let engine = jig_test_service::limits::for_profile(p, &config).workers;
+    for p in [jig_protocol_config_fixtures::small(), jig_protocol_config::stock()] {
+        let config = p;
+        let engine = jig_test_service::limits::small(&config).workers;
         // The world's worker fixtures keep their deadlines and entrances;
         // its wire sizes are the profile's, with io's room capping its pipe.
         let limits =

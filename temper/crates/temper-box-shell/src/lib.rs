@@ -55,6 +55,14 @@ pub enum Command {
         directories: Directories,
         request: temper_engine_shell::upgrade::Request,
     },
+    Checkpoint {
+        directories: Directories,
+        request: temper_engine_shell::checkpoint::Request,
+    },
+    Restore {
+        directories: Directories,
+        name: jig_protocol_store::CheckpointName,
+    },
     Usage(&'static skein_shell::Command),
     Claude {
         program: OsString,
@@ -237,6 +245,14 @@ fn configure_row(
             return temper_engine_shell::upgrade::configure(*mode == "--check", arguments, environment, working)
                 .map(|(directories, request)| Command::Upgrade { directories, request });
         }
+        ["checkpoint"] => {
+            return temper_engine_shell::checkpoint::configure(arguments, environment, working)
+                .map(|(directories, request)| Command::Checkpoint { directories, request });
+        }
+        ["restore"] => {
+            return temper_engine_shell::restore::configure(arguments, environment, working)
+                .map(|(directories, name)| Command::Restore { directories, name });
+        }
         ["--mcp-relay"] => return Ok(Command::Relay),
         ["--program-child"] => return Ok(Command::ProgramChild),
         ["fake", ..] => return fake::configure(row, arguments, environment, working),
@@ -312,6 +328,26 @@ pub fn run(
         Command::Upgrade { directories, request } => {
             return upgrade::run(&directories, &request);
         }
+        Command::Checkpoint { directories, request } => {
+            let (mut service, deployment) =
+                upgrade::prepare(&directories).map_err(|why| prefixed("temper-box checkpoint", &why))?;
+            service.engine_component().build_name(commit);
+            return temper_engine_shell::checkpoint::run_prepared(
+                "temper-box",
+                &directories,
+                &request,
+                environment,
+                working,
+                service,
+                &deployment,
+            );
+        }
+        Command::Restore { directories, name } => {
+            let (mut service, deployment) =
+                upgrade::prepare(&directories).map_err(|why| prefixed(&format!("{} restore", TABLE.binary), &why))?;
+            service.engine_component().build_name(commit);
+            return temper_engine_shell::restore::run_prepared(TABLE.binary, &directories, name, service, &deployment);
+        }
         Command::Overview => {
             print!("{}", TABLE.help());
             return Ok(0);
@@ -361,13 +397,8 @@ pub fn run(
             return temper_agent_shell::list("temper internal agent-list", &configuration);
         }
         Command::ProgramLogin { directories, name } => {
-            return temper_worker_shell::program_login::run(
-                &directories,
-                &name,
-                environment,
-                Some(program_login::deployment),
-            )
-            .map_err(|why| prefixed("temper-box program-login", &why.lines().collect::<Vec<_>>().join("; ")));
+            return program_login::run(&directories, &name, environment)
+                .map_err(|why| prefixed("temper-box program-login", &why.lines().collect::<Vec<_>>().join("; ")));
         }
         Command::Fake { arguments } => return fake::run(&arguments),
         Command::FakeCheck { directories, check } => return Ok(fake::check::run(&directories, &check)),
@@ -408,9 +439,8 @@ pub fn prepare(
     bytes: &[u8],
     owned: &mut Vec<Fd>,
 ) -> Result<Service, String> {
-    serve::prepare("temper", environment, working, directories, bytes, owned)
+    prepare_with_store(environment, working, directories, bytes, owned).map(|(service, _)| service)
 }
-#[cfg(test)]
 fn prepare_with_store(
     environment: &[EnvironmentEntry],
     working: &[u8],
@@ -418,7 +448,7 @@ fn prepare_with_store(
     bytes: &[u8],
     owned: &mut Vec<Fd>,
 ) -> Result<(Service, Box<[u8]>), String> {
-    serve::prepare_with_store("temper", environment, working, directories, bytes, owned)
+    serve::prepare_with_store("temper", environment, working, directories, bytes, owned, true)
 }
 /// The kernel operations a standalone start keeps in flight at most (its ring's size),
 /// derived without retaining its descriptors.
@@ -447,6 +477,16 @@ pub fn prepare_in(
     serve::prepare_in("temper", environment, working, directories)
 }
 /// Prepare an in-process world's service with the supplied defaults.
+/// A world's typed seed configuration, after the same checked document start.
+pub fn prepare_in_with_projects(
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    directories: &Directories,
+    given: &temper_service::stock::Given,
+    projects: &[jig_protocol_config::Project],
+) -> Result<Service, String> {
+    serve::prepare_in_with_projects("temper", environment, working, directories, given, projects)
+}
 pub fn prepare_in_with(
     environment: &[EnvironmentEntry],
     working: &[u8],
@@ -454,6 +494,16 @@ pub fn prepare_in_with(
     given: &service::stock::Given,
 ) -> Result<Service, String> {
     serve::prepare_in_with("temper", environment, working, directories, given)
+}
+/// A world supplies its fake agent through typed startup facts, never a document.
+pub fn prepare_in_with_program(
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    directories: &Directories,
+    given: &service::stock::Given,
+    program: Option<&std::path::Path>,
+) -> Result<Service, String> {
+    serve::prepare_in_with_program("temper", environment, working, directories, given, program)
 }
 /// The same for an in-process world's service, with the supplied defaults.
 pub fn operations_in_with(
@@ -526,3 +576,15 @@ pub fn service_ending(
 
 #[cfg(test)]
 mod worker_lines_tests;
+
+/// Prepare a world's agent program and typed project seeds together.
+pub fn prepare_in_with_program_and_projects(
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    directories: &Directories,
+    given: &temper_service::stock::Given,
+    program: Option<&std::path::Path>,
+    projects: &[jig_protocol_config::Project],
+) -> Result<Service, String> {
+    serve::prepare_in_with_inputs("temper", environment, working, directories, given, program, projects)
+}

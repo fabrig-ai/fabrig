@@ -101,19 +101,25 @@ fn derive(
         Err(why) => Err(Unplanned::Underived(why)),
     }
 }
-fn job(store: &Store, key: &RowKey, row: &Row) -> Option<&'static str> {
+fn job(store: &mut Store, key: &RowKey, row: &Row) -> Result<Option<&'static str>, OpenRefusal> {
+    let mut one = None;
     for set in store.owner_sets.sets {
         for job in set.jobs {
             if let Some(converts) = &job.converts
                 && key.0.as_ref() == converts.family
                 && key.1 == converts.value_type
-                && row.value.layout() == &converts.from
             {
-                return Some(job.name);
+                match converts.from {
+                    crate::Layouts::One(from) if row.value.layout() == &from => one = Some(job.name),
+                    crate::Layouts::Unplanned if !crate::jobs::kept::done(store, set.owner, job)? => {
+                        return Ok(Some(job.name));
+                    }
+                    crate::Layouts::One(_) | crate::Layouts::Unplanned => {}
+                }
             }
         }
     }
-    None
+    Ok(one)
 }
 /// Log layouts remain held even when the map census is empty (logs.md, 8).
 pub(super) fn history_type(family: &str, number: u16) -> bool {
@@ -170,14 +176,8 @@ pub(super) fn plans(
             continue;
         }
         let declared = declaration(store, key);
-        let written = job(store, key, row);
         let found = match declared {
-            Some((index, _)) => {
-                if let Some(name) = written {
-                    layouts.written.insert((index, key.2), name).expect("uncapped written ids");
-                }
-                Some(index)
-            }
+            Some((index, _)) => Some(index),
             None => None,
         };
         let values = if history_type(&key.0, key.1) {
@@ -239,8 +239,9 @@ pub(super) fn plans(
         }
         if let Unplanned::Underived(_) = why
             && !history_type(&key.0, key.1)
-            && job(store, key, layouts.rows.get(key).expect("held row")).is_some()
+            && let Some(name) = job(store, key, layouts.rows.get(key).expect("held row"))?
         {
+            layouts.written.insert(key.clone(), name).expect("uncapped written ids");
             continue;
         }
         return Err(OpenRefusal::Layout { family: key.0.clone(), value_type: key.1, id: key.2, values, why });

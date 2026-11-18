@@ -504,25 +504,28 @@ pub fn contract(value: &domain::Contract, limits: &wire::Limits) -> Result<wire:
         domain::Contract::Report { words } => {
             wire::Contract::Report(wire::Report::new(limits, wire::ReportParts { words: *words })?)
         }
-        domain::Contract::Change { connector, kind, words } => wire::Contract::Change(wire::ChangeContract::new(
-            limits,
-            wire::ChangeContractParts { connector: *connector, kind: *kind, words: *words },
-        )?),
-        domain::Contract::Verdict { choices } => {
-            let mut members = List::with_capacity(limits.choices_choices);
-            for choice in choices {
-                let domain::Verdict { code, words, followups, fields } = choice;
-                let rules = super::pieces::rules(fields, limits)?;
-                let choice = wire::Verdict::new(
-                    limits,
-                    wire::VerdictParts { code: *code, words: *words, followups: *followups, fields: rules },
-                )?;
-                if members.push(choice).is_err() {
-                    return Err(problem(wire::Path::ChoicesChoices));
-                }
-            }
-            wire::Contract::Verdict(wire::Choices::new(limits, wire::ChoicesParts { choices: members })?)
+        domain::Contract::Change { connector, kind, words, choices } => {
+            wire::Contract::Change(wire::ChangeContract::new(
+                limits,
+                wire::ChangeContractParts {
+                    connector: *connector,
+                    kind: *kind,
+                    words: *words,
+                    choices: contract_choices(
+                        choices,
+                        limits.change_contract_choices,
+                        wire::Path::ChangeContractChoices,
+                        limits,
+                    )?,
+                },
+            )?)
         }
+        domain::Contract::Verdict { choices } => wire::Contract::Verdict(wire::Choices::new(
+            limits,
+            wire::ChoicesParts {
+                choices: contract_choices(choices, limits.choices_choices, wire::Path::ChoicesChoices, limits)?,
+            },
+        )?),
     })
 }
 /// Read a result contract.
@@ -535,25 +538,50 @@ pub fn read_contract(value: wire::Contract, limits: &wire::Limits) -> Result<dom
         }
         wire::Contract::Report(value) => domain::Contract::Report { words: value.into_parts().words },
         wire::Contract::Change(value) => {
-            let wire::ChangeContractParts { connector, kind, words } = value.into_parts();
-            domain::Contract::Change { connector, kind, words }
+            let wire::ChangeContractParts { connector, kind, words, choices } = value.into_parts();
+            domain::Contract::Change { connector, kind, words, choices: read_contract_choices(choices, limits)? }
         }
         wire::Contract::Verdict(value) => {
-            let choices = value.into_parts().choices;
-            let mut members = List::with_capacity(choices.len());
-            for choice in choices.into_boxed() {
-                let wire::VerdictParts { code, words, followups, fields } = choice.into_parts();
-                let rules = super::pieces::read_rules(fields, limits)?;
-                members
-                    .push(domain::Verdict { code, words, followups, fields: rules })
-                    .expect("same number of choices");
-            }
-            domain::Contract::Verdict { choices: members.into_boxed() }
+            domain::Contract::Verdict { choices: read_contract_choices(value.into_parts().choices, limits)? }
         }
     };
     check_contract(&value, limits)?;
     Ok(value)
 }
+fn contract_choices(
+    choices: &[domain::Verdict],
+    count: u32,
+    path: wire::Path,
+    limits: &wire::Limits,
+) -> Result<List<wire::Verdict>, wire::Problem> {
+    let mut members = List::with_capacity(count);
+    for choice in choices {
+        let domain::Verdict { code, words, followups, fields } = choice;
+        let rules = super::pieces::rules(fields, limits)?;
+        let choice = wire::Verdict::new(
+            limits,
+            wire::VerdictParts { code: *code, words: *words, followups: *followups, fields: rules },
+        )?;
+        if members.push(choice).is_err() {
+            return Err(problem(path));
+        }
+    }
+    Ok(members)
+}
+
+fn read_contract_choices(
+    choices: List<wire::Verdict>,
+    limits: &wire::Limits,
+) -> Result<Box<[domain::Verdict]>, wire::Problem> {
+    let mut members = List::with_capacity(choices.len());
+    for choice in choices.into_boxed() {
+        let wire::VerdictParts { code, words, followups, fields } = choice.into_parts();
+        let rules = super::pieces::read_rules(fields, limits)?;
+        members.push(domain::Verdict { code, words, followups, fields: rules }).expect("same number of choices");
+    }
+    Ok(members.into_boxed())
+}
+
 /// Translate a resource authority pattern.
 pub fn pattern(value: &domain::Pattern, limits: &wire::Limits) -> Result<wire::Pattern, wire::Problem> {
     let domain::Pattern { segments, last } = value;
@@ -755,24 +783,27 @@ fn check_contract(value: &domain::Contract, limits: &wire::Limits) -> Result<(),
                 return Err(problem(wire::Path::ReportWords));
             }
         }
-        domain::Contract::Change { words, .. } => {
+        domain::Contract::Change { words, choices, .. } => {
             if skein_lib::length::usize_of(*words) > bound {
                 return Err(problem(wire::Path::ChangeContractWords));
             }
+            check_choices(choices, bound)?;
         }
-        domain::Contract::Verdict { choices } => {
-            for choice in choices {
-                let mut bytes = skein_lib::length::usize_of(choice.words);
-                for field in &choice.fields {
-                    bytes =
-                        bytes.saturating_add(field.name.len()).saturating_add(skein_lib::length::usize_of(field.max));
-                }
-                if bytes > bound {
-                    return Err(problem(wire::Path::VerdictFields));
-                }
-            }
-        }
+        domain::Contract::Verdict { choices } => check_choices(choices, bound)?,
         domain::Contract::Approval { .. } => {}
+    }
+    Ok(())
+}
+
+fn check_choices(choices: &[domain::Verdict], bound: usize) -> Result<(), wire::Problem> {
+    for choice in choices {
+        let mut bytes = skein_lib::length::usize_of(choice.words);
+        for field in &choice.fields {
+            bytes = bytes.saturating_add(field.name.len()).saturating_add(skein_lib::length::usize_of(field.max));
+        }
+        if bytes > bound {
+            return Err(problem(wire::Path::VerdictFields));
+        }
     }
     Ok(())
 }

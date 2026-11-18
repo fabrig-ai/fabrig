@@ -73,12 +73,30 @@ struct ProposalRead {
     owned_approval: bool,
     again: bool,
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Line {
+    Unknown,
+    Known(Option<u32>),
+}
+impl Line {
+    fn newer_than(self, revision: Option<u32>) -> bool {
+        match self {
+            Self::Known(Some(last)) => Some(last) > revision,
+            Self::Known(None) => revision.is_some(),
+            Self::Unknown => false,
+        }
+    }
+}
 #[derive(Debug)]
 struct Slot {
     value: Option<Asked>,
     pending: Option<Reading>,
     again: bool,
-    line: Option<(Option<u32>, c::SettingFollows)>,
+    line: Line,
+    // The newest revision named by a read or the settings inventory.
+    revision: Option<u32>,
+    read_named: bool,
+    newer: bool,
     setting: Option<Setting>,
     refused: Option<c::Refusal>,
     retry_at: Option<Time>,
@@ -89,6 +107,8 @@ struct Reading {
     handle: Handle,
     project: u32,
     publish: bool,
+    // A line received while this read was pending may still need a read.
+    line_changed: bool,
 }
 #[derive(Debug)]
 struct Setting {
@@ -103,7 +123,10 @@ impl Slot {
             value: None,
             pending: None,
             again: false,
-            line: None,
+            line: Line::Unknown,
+            revision: None,
+            read_named: false,
+            newer: false,
             setting: None,
             refused: None,
             retry_at: None,
@@ -112,11 +135,27 @@ impl Slot {
     }
     fn forget(&mut self) {
         self.value = None;
-        self.line = None;
+        self.line = Line::Unknown;
+        self.revision = None;
+        self.read_named = false;
+        self.newer = false;
         self.again = true;
         self.refused = None;
         self.retry_at = None;
         self.wait = Duration::from_secs(1);
+    }
+    fn notice(&mut self, line: Line) {
+        if self.line != line {
+            self.line = line;
+            self.newer = line.newer_than(if self.read_named { self.revision } else { None });
+            match line {
+                Line::Known(last) => self.revision = self.revision.max(last),
+                Line::Unknown => {}
+            }
+            if let Some(pending) = &mut self.pending {
+                pending.line_changed = true;
+            }
+        }
     }
 }
 impl State {
@@ -263,7 +302,7 @@ pub fn configure(side: &mut Side, out: &mut Queue<Request>) {
         side.changed();
         return;
     }
-    if side.party.is_some() && side.ways.watch == Watch::Unknown {
+    if side.link == Link::Live && side.ways.watch == Watch::Unknown {
         side.ways.watch = Watch::Open;
         out.push(Request::Client {
             asked: jig_client::Event::Watch {
@@ -312,14 +351,8 @@ pub fn progress(
     }
     if let Some(project) = shown {
         let line = line(side.ways.document.as_deref(), project, Control::Classes);
-        if side.ways.shown_classes.line != line {
-            side.ways.shown_classes.line = line;
-            side.ways.shown_classes.again = true;
-        }
+        side.ways.shown_classes.notice(line);
         read_slot(side, now, Control::Classes, true, limits, out);
-    }
-    if on_tab && !side.ways.on_tab {
-        side.ways.questions.again = true;
     }
     side.ways.on_tab = on_tab;
     if !on_tab {
@@ -332,24 +365,18 @@ pub fn progress(
         }
         let line = line(side.ways.document.as_deref(), project, control);
         let slot = side.ways.slot_mut(control);
-        if slot.line != line {
-            slot.line = line;
-            slot.again = true;
-        }
+        slot.notice(line);
         read(side, now, control, limits, out);
     }
 }
-fn line(
-    document: Option<&c::SettingsDocument>,
-    project: u32,
-    control: Control,
-) -> Option<(Option<u32>, c::SettingFollows)> {
-    for line in &document?.settings {
+fn line(document: Option<&c::SettingsDocument>, project: u32, control: Control) -> Line {
+    let Some(document) = document else { return Line::Unknown };
+    for line in &document.settings {
         if line.setting == setting(project, control) {
-            return Some((line.last, line.follows.clone()));
+            return Line::Known(line.last);
         }
     }
-    None
+    Line::Known(None)
 }
 fn read(side: &mut Side, now: Time, control: Control, limits: Limits, out: &mut Queue<Request>) {
     read_slot(side, now, control, false, limits, out);
@@ -360,7 +387,7 @@ fn read_slot(side: &mut Side, now: Time, control: Control, shown: bool, limits: 
         return;
     }
     let slot = side.ways.reading_slot(control, shown);
-    if !slot.again || slot.pending.is_some() || side.party.is_none() {
+    if (!slot.again && !slot.newer) || slot.pending.is_some() || side.party.is_none() {
         return;
     }
     if let Some(at) = slot.retry_at
@@ -376,8 +403,9 @@ fn read_slot(side: &mut Side, now: Time, control: Control, shown: bool, limits: 
     side.serial = side.serial.checked_add(1).expect("forge handles fit");
     let handle = Handle { asker: crate::owner::Owner::Forge.asker(), number: side.serial };
     let slot = side.ways.reading_slot_mut(control, shown);
-    slot.pending = Some(Reading { handle, project, publish: true });
+    slot.pending = Some(Reading { handle, project, publish: true, line_changed: false });
     slot.again = false;
+    slot.newer = false;
     slot.retry_at = None;
     out.push(Request::Client {
         asked: jig_client::Event::Read {
@@ -476,7 +504,15 @@ pub fn told(
                             slot.retry_at = Some(now.saturating_add(slot.wait));
                             slot.wait = slot.wait.saturating_mul(2).min(Duration::from_secs(30));
                         } else {
-                            slot.value = value(page, control, limits);
+                            match value(page, control, limits) {
+                                Some((value, revision)) => {
+                                    slot.value = Some(value);
+                                    slot.revision = slot.revision.max(revision);
+                                    slot.read_named = revision.is_some();
+                                    slot.newer = pending.line_changed && slot.line.newer_than(revision);
+                                }
+                                None => slot.value = None,
+                            }
                             slot.retry_at = None;
                             slot.wait = Duration::from_secs(1);
                         }
@@ -542,17 +578,18 @@ fn transient(client: &jig_client::Client, page: &Readout) -> bool {
         Readout::Jig(c::ReadResult::Value(_)) | Readout::Family { .. } | Readout::NotServed { .. } => false,
     }
 }
-fn value(page: &Readout, control: Control, limits: Limits) -> Option<Asked> {
-    let bytes = match page {
+fn value(page: &Readout, control: Control, limits: Limits) -> Option<(Asked, Option<u32>)> {
+    let answer = match page {
         Readout::Family { family, record } if *family == wire::FORGE => {
-            wire::decode_setting_answer(record.as_ref()?, &wire_limits(&limits)?)?.into_parts().value
+            wire::decode_setting_answer(record.as_ref()?, &wire_limits(&limits)?)?.into_parts()
         }
         Readout::Family { .. } | Readout::Jig(_) | Readout::NotServed { .. } | Readout::Limit => return None,
     };
-    let Some(bytes) = bytes else {
-        return Some(stock(control));
-    };
-    let mut reader = Reader::new(&bytes);
+    Some((setting_value(answer.value.as_deref(), control, limits)?, answer.revision))
+}
+fn setting_value(bytes: Option<&[u8]>, control: Control, limits: Limits) -> Option<Asked> {
+    let Some(bytes) = bytes else { return Some(stock(control)) };
+    let mut reader = Reader::new(bytes);
     let value = match control {
         Control::Ways => {
             let value = w::ProjectWays::decode(&wire_limits(&limits)?, &mut reader).ok()?;
@@ -854,13 +891,7 @@ fn proposal_values(page: &Readout, limits: Limits) -> Option<(List<Proposed>, bo
             continue;
         };
         let decoded = match item.edit {
-            w::SettingEdit::Set(set) => {
-                let bytes = wire::setting_answer(
-                    &w::SettingAnswer::new(&bounds, w::SettingAnswerParts { value: Some(set.into_parts().value) })
-                        .ok()?,
-                );
-                value(&Readout::Family { family: wire::FORGE, record: Some(bytes) }, control, limits)?
-            }
+            w::SettingEdit::Set(set) => setting_value(Some(set.value()), control, limits)?,
             w::SettingEdit::Removed | w::SettingEdit::Reset => stock(control),
         };
         values

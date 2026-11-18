@@ -72,6 +72,7 @@ pub fn kinds(limits: &Limits, connector: u16) -> Box<[Kind]> {
             .push(settings::Area { name: word(32), words: word(480), owner: settings::AreaOwner::Task(u64::MAX) })
             .expect("bounded areas");
     }
+    let agents_bytes = largest_agents().measure();
     Box::new([
         Kind {
             number: 1,
@@ -96,6 +97,27 @@ pub fn kinds(limits: &Limits, connector: u16) -> Box<[Kind]> {
             value_bytes: size(&settings::Value::Charter(1)),
             per_scope: 2,
             charters: 1,
+        },
+        Kind {
+            number: 4,
+            scope: KindScope::Project,
+            connector,
+            value_bytes: size(&settings::Value::Landing(settings::ProjectLanding {
+                merge_job: Some(word(4096)),
+                close_job: Some(word(4096)),
+                check_timeout_ms: Some(u64::MAX),
+                ..settings::ProjectLanding::default()
+            })),
+            per_scope: 1,
+            charters: 0,
+        },
+        Kind {
+            number: 5,
+            scope: KindScope::Project,
+            connector,
+            value_bytes: settings::CARRIER,
+            per_scope: 1,
+            charters: 0,
         },
         Kind {
             number: 6,
@@ -187,10 +209,71 @@ pub fn kinds(limits: &Limits, connector: u16) -> Box<[Kind]> {
             per_scope: 1,
             charters: 0,
         },
+        Kind {
+            number: 20,
+            scope: KindScope::Deployment,
+            connector,
+            value_bytes: size(&settings::Value::Welcome(settings::Welcome { shown: true })),
+            per_scope: 1,
+            charters: 0,
+        },
+        Kind {
+            number: 21,
+            scope: KindScope::Deployment,
+            connector,
+            value_bytes: agents_bytes,
+            per_scope: 1,
+            charters: 0,
+        },
     ])
 }
 
 #[expect(clippy::disallowed_macros, reason = "allocate the bounded worst-case word at its final length")]
 fn word(len: u32) -> Box<[u8]> {
     alloc::vec![b'x'; skein_lib::usize_of(len)].into_boxed_slice()
+}
+
+fn largest_agents() -> temper_client_protocol_wire::v1::AgentFigures {
+    use temper_client_protocol_wire::v1 as w;
+    let limits = w::AgentLimits::new(
+        &w::CEILINGS,
+        w::AgentLimitsParts {
+            window: u32::MAX,
+            output: u32::MAX,
+            reasoning_item: u32::MAX,
+            head_ms: u64::MAX,
+            idle_ms: u64::MAX,
+            oversized: w::Oversized::Drop,
+        },
+    )
+    .expect("fixed limits fields");
+    let mut profile = List::with_capacity(w::CEILINGS.agent_figures_profile);
+    for _ in 0..w::CEILINGS.agent_figures_profile {
+        profile
+            .push(
+                w::AgentFigure::new(
+                    &w::CEILINGS,
+                    w::AgentFigureParts { name: word(w::CEILINGS.agent_figure_name), value: u64::MAX },
+                )
+                .expect("full figure"),
+            )
+            .expect("full profile");
+    }
+    let mut endpoints = List::with_capacity(w::CEILINGS.agent_figures_endpoints);
+    for _ in 0..w::CEILINGS.agent_figures_endpoints {
+        endpoints
+            .push(
+                w::AgentEndpointLimits::new(
+                    &w::CEILINGS,
+                    w::AgentEndpointLimitsParts {
+                        endpoint: word(w::CEILINGS.agent_endpoint_limits_endpoint),
+                        limits: limits.clone(),
+                    },
+                )
+                .expect("full endpoint"),
+            )
+            .expect("full endpoints");
+    }
+    w::AgentFigures::new(&w::CEILINGS, w::AgentFiguresParts { profile, endpoints, fallback: limits })
+        .expect("full agents")
 }

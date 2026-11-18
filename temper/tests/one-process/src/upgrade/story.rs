@@ -44,6 +44,11 @@ impl Harness for Upgrade {
     fn files() -> temper_service::settings::Files {
         fixtures::files()
     }
+    fn configure_engine(engine: &mut jig_protocol_config::Engine, _: &serde_json::Value) {
+        // The history world holds the playground reset while its work is inspected.
+        engine.acts = Box::new([]);
+        engine.limits.core.people.act_grants = 0;
+    }
     fn given(document: &serde_json::Value) -> temper_service::stock::Given {
         let temper_service::stock::Given::Own { mut jig, forge, ways } = temper_playground::documents::given(document)
         else {
@@ -68,7 +73,7 @@ struct State {
     before: Option<Maps>,
     before_files: std::collections::BTreeMap<Vec<u8>, Option<Vec<u8>>>,
     seal_cut: bool,
-    ran: Vec<u32>,
+    ran: Vec<(u32, Box<str>)>,
     checked: bool,
     starts: u32,
     issue: bool,
@@ -96,6 +101,7 @@ thread_local! { static STATE: RefCell<State> = RefCell::new(State::default()); }
 struct Observer {
     inner: ServiceObserver,
     cuts: cuts::Capture,
+    clients_ready: bool,
 }
 impl Observe for Observer {
     fn started(root: Fd, inherited: &skein_world::Inherited) -> Self {
@@ -105,7 +111,11 @@ impl Observe for Observer {
             s.epoch += 1;
             if s.epoch > 1 {
                 if s.seal_cut {
-                    assert_eq!(s.ran, [1], "the cut follows the job's last page");
+                    assert_eq!(
+                        s.ran,
+                        crate::upgrade::JOBS.map(|name| (1, Box::from(name))),
+                        "the cut follows every job's last page"
+                    );
                     assert!(s.points.seal.is_some(), "seal completed before the cut");
                     let mut disk = s.disk.as_ref().expect("disk").borrow_mut();
                     let before = s.before.as_ref().expect("source generation");
@@ -124,7 +134,7 @@ impl Observe for Observer {
         });
         let mut inner = ServiceObserver::started(root, inherited);
         inner.wire.keep_starts();
-        Self { inner, cuts: cuts::Capture::new(root) }
+        Self { inner, cuts: cuts::Capture::new(root), clients_ready: false }
     }
     fn complete(&mut self, complete: Complete, service: &mut temper_service::Service) -> Option<Complete> {
         if STATE.with(|s| s.borrow().upgrade)
@@ -140,17 +150,30 @@ impl Observe for Observer {
         self.inner.complete(complete, service)
     }
     fn before_iterate(&mut self, service: &mut temper_service::Service, now: Time, wall: Wall) -> bool {
+        while let Some(note) = service.listening().pop() {
+            if matches!(
+                note,
+                temper_service::Note::Engine(temper_service::EngineNote::Listening {
+                    listener: temper_service::Listening::Clients,
+                    ..
+                })
+            ) {
+                self.clients_ready = true;
+            }
+        }
         for note in service.notes().iter() {
             if let temper_service::Note::Engine(temper_engine_service::Note::Ran { of, job, .. }) = note {
-                assert_eq!(
-                    (*of, job.as_ref()),
-                    (jig_protocol_store::Owner::Application, crate::upgrade::JOB),
-                    "only the omitted production job runs"
-                );
+                assert_eq!(*of, jig_protocol_store::Owner::Application, "only application jobs are pending");
                 STATE.with(|s| {
                     let mut s = s.borrow_mut();
                     let epoch = s.epoch;
-                    s.ran.push(epoch);
+                    let at = s.ran.iter().rev().take_while(|(seen, _)| *seen == epoch).count();
+                    assert_eq!(
+                        crate::upgrade::JOBS.get(at).copied(),
+                        Some(job.as_ref()),
+                        "pending jobs run in order in each start"
+                    );
+                    s.ran.push((epoch, job.clone()));
                 });
             }
         }

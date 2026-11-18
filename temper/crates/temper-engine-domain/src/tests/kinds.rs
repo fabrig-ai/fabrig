@@ -673,16 +673,26 @@ fn reader_in(role: Option<jig_domain_people::Role>, project: u32) -> (Domain, En
     assert!(domain.core.people.start_complete(&people_env));
     (domain, env)
 }
-#[expect(
-    clippy::wildcard_enum_match_arm,
-    reason = "the fixture handles store acknowledgements and one party read answer"
-)]
 fn read_forge(
     domain: &mut Domain,
     env: &Env<RootLimits>,
     sign_in: u64,
     scope: jig_domain_people::ApplicationScope,
     query: crate::ForgeRead,
+) -> Delivery {
+    read_forge_with_revision(domain, env, sign_in, scope, query, None)
+}
+#[expect(
+    clippy::wildcard_enum_match_arm,
+    reason = "the fixture handles store acknowledgements and one party read answer"
+)]
+fn read_forge_with_revision(
+    domain: &mut Domain,
+    env: &Env<RootLimits>,
+    sign_in: u64,
+    scope: jig_domain_people::ApplicationScope,
+    query: crate::ForgeRead,
+    revision: Option<&jig_domain_core::settings::Revision>,
 ) -> Delivery {
     crate::try_step(
         domain,
@@ -702,7 +712,28 @@ fn read_forge(
                         env,
                         crate::Event::Store(crate::StoreInput::ReadLoaded {
                             load,
-                            result: jig_domain_core::reads::Loaded::Page { rows: Box::new([]), next: None },
+                            result: jig_domain_core::reads::Loaded::Page {
+                                rows: match revision {
+                                    None => Box::from([]),
+                                    Some(revision) => Box::from([jig_domain_core::reads::Row {
+                                        value: jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Settings(
+                                            jig_domain_core::settings::Record::Revision {
+                                                history: false,
+                                                revision: revision.clone(),
+                                            },
+                                        )),
+                                        owner: None,
+                                        summary: None,
+                                        ancestors: Box::new([]),
+                                        related: None,
+                                        unjoined: None,
+                                        ended_read: None,
+                                        linked: Box::new([]),
+                                        inbox: None,
+                                    }]),
+                                },
+                                next: None,
+                            },
                         }),
                     )
                     .unwrap();
@@ -761,7 +792,10 @@ fn forge_setting_reads_follow_kept_removed_and_reset_values() {
             };
             assert_eq!(
                 read_forge(&mut domain, &env, READ_SIGN_IN, ApplicationScope::Deployment, query.clone()),
-                Delivery::ForgeRead { reply: READ_REPLY, answer: crate::ForgeReadAnswer::Setting(expected) }
+                Delivery::ForgeRead {
+                    reply: READ_REPLY,
+                    answer: crate::ForgeReadAnswer::Setting { value: expected, revision: None }
+                }
             );
         }
         assert_eq!(
@@ -772,8 +806,164 @@ fn forge_setting_reads_follow_kept_removed_and_reset_values() {
                 ApplicationScope::Deployment,
                 crate::ForgeRead::Setting { kind, scope: 0, number: RULE + 1 }
             ),
-            Delivery::ForgeRead { reply: READ_REPLY, answer: crate::ForgeReadAnswer::Setting(None) }
+            Delivery::ForgeRead {
+                reply: READ_REPLY,
+                answer: crate::ForgeReadAnswer::Setting { value: None, revision: None }
+            }
         );
+    }
+}
+
+#[test]
+fn a_revision_setting_answer_names_the_revision_it_read() {
+    use jig_domain_core::settings::{self as s, application as a};
+    use jig_domain_people::{ApplicationScope, Role};
+    for has_value in [false, true] {
+        let (mut domain, env) = reader_in(Some(Role::Member), PROJECT);
+        let revision = domain.core.current.newest();
+        domain.forge.keep_settings(
+            &crate::translate::environment_forge(&env),
+            u64::from(revision),
+            None,
+            &[settings::Asked { kind: 7, scope: PROJECT, number: 1, edit: settings::Edit::Set(ways(0)) }],
+            &mut Queue::uncapped(),
+        );
+        let record = s::Revision {
+            head: domain.core.current.newest_head().clone(),
+            items: Box::new([]),
+            applications: if has_value {
+                Box::from([a::RevisionRecorded {
+                    kind: 7,
+                    scope: PROJECT,
+                    number: 1,
+                    edit: a::SizedEdit::Set { size: 7 },
+                    replaced: a::Replaced::NotOffered,
+                }])
+            } else {
+                Box::from([])
+            },
+        };
+        assert_eq!(
+            read_forge_with_revision(
+                &mut domain,
+                &env,
+                READ_SIGN_IN,
+                ApplicationScope::Project(PROJECT),
+                crate::ForgeRead::RevisionSetting { kind: 7, scope: PROJECT, number: 1, revision },
+                Some(&record),
+            ),
+            Delivery::ForgeRead {
+                reply: READ_REPLY,
+                answer: crate::ForgeReadAnswer::Setting {
+                    value: if has_value { Some(ways(0)) } else { None },
+                    revision: Some(revision),
+                },
+            }
+        );
+    }
+}
+
+#[test]
+fn a_setting_answer_names_the_same_revision_as_its_committed_inventory() {
+    use jig_domain_core::settings::{self as s, Kind, KindScope};
+    use jig_domain_people::{self as people, ApplicationScope};
+    let mut config = resume_fixture::config(7);
+    config.core.kinds = Box::new([
+        Kind { number: 7, scope: KindScope::Project, connector: 0, value_bytes: 7, per_scope: 1, charters: 0 },
+        Kind { number: 6, scope: KindScope::Project, connector: 0, value_bytes: 1, per_scope: 1, charters: 0 },
+    ]);
+    config.kinds_stock = Box::new([settings::Stock { kind: 7, scope: PROJECT, number: 1, value: ways(0) }]);
+    let identity = config.core.owners[0].identity.clone();
+    let limits = resume_fixture::limits();
+    let mut domain = Domain::new(config, &limits).unwrap();
+    let env = Env { now: skein_lib::Time::ZERO, wall: Wall::EPOCH, limits };
+    crate::step(&mut domain, &env, crate::Event::Restart { pending: false });
+    resume_fixture::StartStore::new().run(&mut domain, &env, false);
+    let people::Reply::SignedIn { sign_in, .. } = room_checks::settled(
+        &mut domain,
+        &env,
+        crate::PartyInput::SignedIn {
+            until: None,
+            held: None,
+            reply_to: READ_REPLY,
+            identity: people::Identity { key: identity, login: Box::new([]), name: Box::new([]) },
+        },
+    ) else {
+        panic!("the configured owner signs in")
+    };
+    let setting = s::Setting::Application { kind: 7, scope: PROJECT, number: 1 };
+    let query = crate::ForgeRead::Setting { kind: 7, scope: PROJECT, number: 1 };
+    let read = |domain: &mut Domain, expected, revision| {
+        let inventory = jig_domain_core::documents::settings_inventory(&domain.core);
+        let mut found = None;
+        for line in &inventory.settings {
+            if line.setting == setting {
+                found = Some(line);
+            }
+        }
+        assert_eq!(found.expect("kind 7 inventory line").last, revision);
+        assert_eq!(
+            read_forge(domain, &env, sign_in, ApplicationScope::Project(PROJECT), query.clone()),
+            Delivery::ForgeRead {
+                reply: READ_REPLY,
+                answer: crate::ForgeReadAnswer::Setting { value: expected, revision }
+            }
+        );
+        domain.reclaim();
+    };
+    read(&mut domain, Some(ways(0)), None);
+    let changed = settings::SizedValue {
+        size: 7,
+        value: settings::Value::Ways(settings::ProjectWays { drafts: false, goals: true, changes: true, way: 0 }),
+    };
+    for (key, kind, edit, expected, revision) in [
+        (1, 7, settings::Edit::Set(changed.clone()), Some(changed.clone()), Some(2)),
+        (
+            2,
+            6,
+            settings::Edit::Set(settings::SizedValue {
+                size: 1,
+                value: settings::Value::Questions(temper_engine_domain_forge_change::Route::Up),
+            }),
+            Some(changed),
+            Some(2),
+        ),
+        (3, 7, settings::Edit::Remove, None, Some(4)),
+        (4, 7, settings::Edit::Reset, Some(ways(0)), None),
+    ] {
+        let core_edit = match &edit {
+            settings::Edit::Set(_) => s::Edit::Set(s::Value::Application(Box::new([]))),
+            settings::Edit::Remove => s::Edit::Removed,
+            settings::Edit::Reset => s::Edit::Reset,
+        };
+        let kinds = match edit {
+            settings::Edit::Set(value) => Box::from([KindValue { kind, scope: PROJECT, number: 1, value }]),
+            settings::Edit::Remove | settings::Edit::Reset => Box::from([]),
+        };
+        let against = domain.core.current.newest();
+        assert_eq!(
+            room_checks::settled(
+                &mut domain,
+                &env,
+                crate::PartyInput::ChangeSettings {
+                    reply_to: READ_REPLY,
+                    sign_in,
+                    key: [key; 16],
+                    digest: [key; 32],
+                    kinds,
+                    change: Box::new(s::Change {
+                        against,
+                        items: Box::new([s::Item {
+                            setting: s::Setting::Application { kind, scope: PROJECT, number: 1 },
+                            edit: core_edit
+                        }]),
+                        running: s::Running::Stays
+                    }),
+                }
+            ),
+            jig_domain_people::Reply::Outcome(jig_domain_people::Outcome::SettingsChanged { revision: against + 1 })
+        );
+        read(&mut domain, expected, revision);
     }
 }
 
@@ -984,7 +1174,7 @@ fn forge_reads_wait_for_the_preceding_settings_commit() {
         out.pop(),
         Some(crate::Request::Party(crate::PartyRequest::Deliver(Delivery::ForgeRead {
             reply: READ_REPLY,
-            answer: crate::ForgeReadAnswer::Setting(Some(rule(false))),
+            answer: crate::ForgeReadAnswer::Setting { value: Some(rule(false)), revision: None },
         })))
     );
     assert!(out.is_empty());
@@ -1114,13 +1304,16 @@ fn a_project_reads_its_own_kinds_with_a_role_there() {
                 &[settings::Asked { kind, scope: query_scope, number: 1, edit: settings::Edit::Set(value.clone()) }],
                 &mut Queue::uncapped(),
             );
-            for (query, read_value) in [
-                (crate::ForgeRead::Setting { kind, scope: query_scope, number: 1 }, Some(value)),
-                (crate::ForgeRead::RevisionSetting { kind, scope: query_scope, number: 1, revision: 1 }, None),
+            for (query, read_value, revision) in [
+                (crate::ForgeRead::Setting { kind, scope: query_scope, number: 1 }, Some(value), None),
+                (crate::ForgeRead::RevisionSetting { kind, scope: query_scope, number: 1, revision: 1 }, None, None),
             ] {
                 let answer = read_forge(&mut domain, &env, READ_SIGN_IN, scope, query);
                 let expected = if good {
-                    Delivery::ForgeRead { reply: READ_REPLY, answer: crate::ForgeReadAnswer::Setting(read_value) }
+                    Delivery::ForgeRead {
+                        reply: READ_REPLY,
+                        answer: crate::ForgeReadAnswer::Setting { value: read_value, revision },
+                    }
                 } else {
                     Delivery::Read { reply: READ_REPLY, answer: Answer::None(Why::Unknown) }
                 };
@@ -1569,10 +1762,10 @@ fn follows_resolve_adopted_branches_and_allow_member_reads_but_not_outsiders() {
                 read,
                 Delivery::ForgeRead {
                     reply: READ_REPLY,
-                    answer: crate::ForgeReadAnswer::Setting(Some(settings::SizedValue {
-                        value: settings::Value::Follow(expected.clone()),
-                        size
-                    }))
+                    answer: crate::ForgeReadAnswer::Setting {
+                        value: Some(settings::SizedValue { value: settings::Value::Follow(expected.clone()), size }),
+                        revision: None
+                    }
                 }
             );
         } else {
@@ -1750,5 +1943,91 @@ fn a_tier_act_admits_only_project_or_deployment_owners_and_carries_the_party() {
             );
         }
         crate::domain::close(&mut domain, &env, decision, &mut Queue::uncapped());
+    }
+}
+
+fn judge_landing_value(
+    domain: &mut Domain,
+    env: &Env<RootLimits>,
+    kind: u32,
+    scope: u32,
+    value: settings::Value,
+) -> connector::Judged {
+    let size = if let settings::Value::Landing(v) = &value {
+        settings::landing_record(v).measure()
+    } else {
+        let settings::Value::Gates(v) = &value else { panic!("landing setting fixture") };
+        settings::gates_record(v).measure()
+    };
+    domain.kinds = Box::new([KindValue { kind, scope, number: 1, value: settings::SizedValue { value, size } }]);
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+    judge(
+        domain,
+        env,
+        &mut decision,
+        None,
+        Box::new([application::Item { kind, scope, number: 1, edit: application::Edit::Set(Box::new([])) }]),
+    );
+    let answer = answer(domain)[0].clone();
+    crate::domain::close(domain, env, decision, &mut Queue::uncapped());
+    answer
+}
+#[test]
+fn turn_settings_need_the_prepare_jobs_configured_capacity() {
+    for (spec, result, field) in [
+        (16_383, 4_096, Some(b"tasks.spec_bytes".as_slice())),
+        (16_384, 4_095, Some(b"tasks.result_bytes".as_slice())),
+        (16_384, 4_096, None),
+    ] {
+        let (mut domain, env) = root();
+        domain.config.prepare_capacity = (spec, result);
+        domain.config.turn_capacity = None; // This focused case admits the other turn resources.
+        domain.config.prepare_kind = Some(jig_domain_link::JobBound {
+            kind: jig_domain_link::JobKind(1),
+            spec: 16_384,
+            result: 4_096,
+            deadline: skein_lib::Duration::from_secs(60),
+        });
+        let value = settings::Value::Landing(settings::ProjectLanding {
+            by: temper_engine_domain_forge_change::Way::Turn,
+            ..settings::ProjectLanding::default()
+        });
+        let judged = judge_landing_value(&mut domain, &env, 4, PROJECT, value);
+        if let Some(field) = field {
+            let connector::Judged::Refuse { why } = judged else { panic!("short prepare capacity must refuse") };
+            assert!(skein_lib::bytes::find(&why, field).is_some());
+            assert!(skein_lib::bytes::find(&why, b"prepare job kind 1").is_some());
+        } else {
+            let connector::Judged::Accept { .. } = judged else { panic!("valid landing setting accepted") };
+        }
+        let connector::Judged::Accept { .. } = judge_landing_value(
+            &mut domain,
+            &env,
+            4,
+            PROJECT,
+            settings::Value::Landing(settings::ProjectLanding::default()),
+        ) else {
+            panic!("queue needs no prepare")
+        };
+    }
+}
+#[test]
+fn gates_settings_name_a_repository_of_another_project() {
+    for project in [1, 2] {
+        let (mut domain, env) = follow_root();
+        let value = settings::Value::Gates(settings::ProjectGates {
+            repositories: Box::new([forge::RepositoryGates {
+                repository: skein_forge::api::Repository { forge: 1, repository: 12 },
+                gates: Box::new([]),
+                tiers: Box::new([]),
+            }]),
+        });
+        let judged = judge_landing_value(&mut domain, &env, 5, project, value);
+        if project == 1 {
+            let connector::Judged::Refuse { why } = judged else { panic!("repository belongs to project 2") };
+            assert!(skein_lib::bytes::find(&why, b"repository 1/12 is not of project 1").is_some());
+        } else {
+            let connector::Judged::Accept { .. } = judged else { panic!("valid landing setting accepted") };
+        }
     }
 }

@@ -74,6 +74,11 @@ pub enum Output {
 #[derive(Debug)]
 pub enum Action {
     PrepareDeployment,
+    ReadDeploymentWorker,
+    ReadSettingsFiles {
+        directory: Option<PathBuf>,
+        args: Vec<Box<[u8]>>,
+    },
     ReadDeploymentPatch {
         document: crate::line::Document,
         path: Box<[u8]>,
@@ -149,6 +154,8 @@ pub enum Action {
 #[derive(Debug)]
 pub enum Event {
     DeploymentPrepared(Result<deployment::Values, String>),
+    DeploymentWorker(Result<deployment::Worker, String>),
+    SettingsFiles(Result<Vec<Box<[u8]>>, String>),
     DeploymentPatch(Result<deployment::RenderedFile, String>),
     DeploymentWritten(Result<(), String>),
     ProcessLine { process: Process, output: Output, line: Box<[u8]> },
@@ -196,6 +203,7 @@ enum Phase {
     Diagnosing,
     Ctl,
     CtlValues,
+    CtlFiles,
     Forge,
     TuiStarting,
     TuiBrowse,
@@ -292,6 +300,10 @@ impl Machine {
             return out;
         }
         match event {
+            Event::SettingsFiles(result) if self.phase == Phase::CtlFiles => match result {
+                Ok(args) => self.ctl_run(&args, now, &mut out),
+                Err(why) => self.answer(Some(why), &mut out),
+            },
             Event::BoxLog(result) if self.phase == Phase::CtlValues => self.ctl_values(result, now, &mut out),
             Event::BoxLog(_) | Event::ForgeFiles(_) | Event::ForgeResponse { .. } | Event::ForgeFailure(_) => {
                 self.forge_event(event, now, &mut out);
@@ -337,7 +349,9 @@ impl Machine {
                     Action::Finished(Exit::own(why)),
                 ]);
             }
-            Event::DeploymentPrepared(_)
+            Event::SettingsFiles(_)
+            | Event::DeploymentPrepared(_)
+            | Event::DeploymentWorker(_)
             | Event::DeploymentPatch(_)
             | Event::DeploymentWritten(_)
             | Event::BoxLine { .. }
@@ -400,10 +414,8 @@ impl Machine {
             Record::Empty => self.answer(None, out),
             Record::End => unreachable!("end dispatched"),
             Record::Deployment(patch) => {
-                let crate::line::Deployment::Patch { document, path } = patch;
-                let patch = crate::line::Deployment::Patch { document: *document, path: path.clone() };
-                self.place.patch(&patch, now, out);
-                self.wait_for_place();
+                let progress = self.place.patch(patch, self.tui_running, &self.plan, now, out);
+                self.progress(progress, now, out);
             }
             Record::Forge(_) => self.forge_start(now, out),
             Record::Tui(_) => self.tui(now, out),
@@ -456,6 +468,14 @@ impl Machine {
             self.answer(Some(why), out);
             return;
         }
+        if crate::line::settings_paths(args).is_empty() {
+            self.ctl_run(args, now, out);
+        } else {
+            self.wait(Phase::CtlFiles, now, STEP);
+            out.push(Action::ReadSettingsFiles { directory: self.plan.options.files.clone(), args: args.to_vec() });
+        }
+    }
+    fn ctl_run(&mut self, args: &[Box<[u8]>], now: Time, out: &mut Vec<Action>) {
         let program = self.plan.ctl(args, Input::Null);
         self.wait(Phase::Ctl, now, ctl_bound(args));
         out.push(Action::Start { process: Process::Ctl, program });
@@ -487,12 +507,10 @@ impl Machine {
                         format!("ctl sign-in exited {code}")
                     };
                     self.fail_place(why, now, out);
-                } else if self.plan.options.ctl {
-                    self.first = None;
-                    self.session_ready(out);
+                } else if self.place.signed_in(now, out) {
+                    self.wait_for_place();
                 } else {
-                    self.wait(Phase::Spent, now, Duration::from_secs(30));
-                    out.push(Action::Open(self.first.take().expect("first link")));
+                    self.after_sign_in(now, out);
                 }
             }
             Process::Ctl if self.phase == Phase::Ctl => {
@@ -507,6 +525,15 @@ impl Machine {
             | Process::Worker
             | Process::SignIn
             | Process::Ctl => {}
+        }
+    }
+    fn after_sign_in(&mut self, now: Time, out: &mut Vec<Action>) {
+        if self.plan.options.ctl {
+            self.first = None;
+            self.session_ready(out);
+        } else {
+            self.wait(Phase::Spent, now, Duration::from_secs(30));
+            out.push(Action::Open(self.first.take().expect("first link")));
         }
     }
     fn found(&mut self, node: Option<NodeId>, now: Time, out: &mut Vec<Action>) {
@@ -699,7 +726,7 @@ impl Machine {
         self.progress(progress, now, out);
     }
     fn stop_place(&mut self, now: Time, out: &mut Vec<Action>) {
-        let progress = self.place.stop(now, out);
+        let progress = self.place.stop(&self.plan, now, out);
         self.progress(progress, now, out);
     }
     fn wait_for_place(&mut self) {
@@ -728,6 +755,7 @@ impl Machine {
         match progress {
             Progress::None => {}
             Progress::Waiting => self.wait_for_place(),
+            Progress::Started => self.after_sign_in(now, out),
             Progress::First(first) => {
                 self.first = Some(first.link.strip_suffix(b"\n").unwrap_or(&first.link).into());
                 self.origin = first.origin;

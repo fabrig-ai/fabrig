@@ -8,7 +8,13 @@ fn source(connectors: &[u16], lines: u32) -> (Core, Limits) {
     limits.connectors = u32::try_from(connectors.len()).unwrap();
     limits.documents.lines = lines;
     let mut config = config(71);
-    config.worker_names = Box::new([b"alpha".as_slice().into()]);
+    config.defaults.workers = Box::new([crate::settings::WorkerSetting {
+        number: 1,
+        name: b"alpha".as_slice().into(),
+        places: 1,
+        digest: Some([7; 32]),
+        withdrawn: false,
+    }]);
     config.connectors = connectors.into();
     let mut core = seeded_core(config, &limits).expect("fixture core configuration");
     restore_key_account(&mut core, &limits, 0, 1, 1);

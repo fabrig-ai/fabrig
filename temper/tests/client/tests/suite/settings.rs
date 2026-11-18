@@ -114,6 +114,7 @@ fn a_switch_on_the_tab_changes_works_filters_and_a_member_is_refused() {
     let driver = &mut world.front().engine;
     let reply = skein_lib::ReplyTo::new(skein_lib::Token::new(u64::from(ROSTER)));
     driver.send(engine::Event::Party(engine::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(u64::from(ROSTER))),
         identity: jig_domain_people::Identity {

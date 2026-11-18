@@ -8,40 +8,12 @@ use skein_lib::{Queue, Token};
 use skein_shell::{Config, Kernel, Wait};
 use std::{
     num::NonZeroU16,
-    os::unix::{
-        ffi::OsStrExt,
-        fs::{MetadataExt, PermissionsExt},
-    },
+    os::unix::{ffi::OsStrExt, fs::PermissionsExt},
     path::{Path, PathBuf},
 };
 
-type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
-/// Candidate names only: relative PATH entries are never searched.
-pub(crate) fn candidates(environment: &[EnvironmentEntry], name: &[u8]) -> Vec<PathBuf> {
-    let Some(value) = temper_shell::environment::PATH.value(environment) else { return Vec::new() };
-    value
-        .split(|byte| *byte == b':')
-        .filter(|entry| entry.starts_with(b"/"))
-        .map(|entry| path(entry).join(std::ffi::OsStr::from_bytes(name)))
-        .collect()
-}
-/// Pure choice over supplied facts; the shell alone inspects candidates.
-pub(crate) fn lookup(environment: &[EnvironmentEntry], name: &[u8], facts: &[(PathBuf, bool)]) -> Option<PathBuf> {
-    candidates(environment, name)
-        .into_iter()
-        .find(|candidate| facts.iter().any(|(path, executable)| path == candidate && *executable))
-}
-fn find(environment: &[EnvironmentEntry], name: &[u8]) -> Option<PathBuf> {
-    let entries = candidates(environment, name)
-        .into_iter()
-        .map(|path| {
-            let executable =
-                std::fs::metadata(&path).is_ok_and(|metadata| metadata.is_file() && metadata.mode() & 0o111 != 0);
-            (path, executable)
-        })
-        .collect::<Vec<_>>();
-    lookup(environment, name, &entries)
-}
+use temper_shell::directories::EnvironmentEntry;
+use temper_shell::lookup::find;
 /// A small, synchronous startup shell over the binary's io adapter.
 struct Io {
     kernel: Kernel,
@@ -100,7 +72,7 @@ impl Io {
     /// listened first between this one's bind and listen spends a try; a
     /// replacement asks the kernel for another port, as a taken port does.
     fn listened(&mut self, mut fd: Fd, mut address: std::net::SocketAddr) -> Result<(Fd, NonZeroU16), String> {
-        let backlog = jig_protocol_config::profile(jig_protocol_config::Profile::Small).io.backlog;
+        let backlog = jig_protocol_config::stock().io.backlog;
         for attempt in 1..=crate::fake_backends::PORT_ATTEMPTS {
             match self.perform(Op::Listen { fd, backlog }) {
                 Ok(_) => return Ok((fd, NonZeroU16::new(address.port()).expect("bound port"))),
@@ -185,7 +157,7 @@ pub(crate) fn write(
     directories: &Directories,
     environment: &[EnvironmentEntry],
     binary: &Path,
-    preferred: [u16; 5],
+    preferred: [u16; 3],
 ) -> Result<Written, String> {
     write_with_program(directories, environment, binary, preferred, None)
 }
@@ -193,7 +165,7 @@ pub(crate) fn write_with_program(
     directories: &Directories,
     environment: &[EnvironmentEntry],
     binary: &Path,
-    preferred: [u16; 5],
+    preferred: [u16; 3],
     program: Option<&Path>,
 ) -> Result<Written, String> {
     write_deployment(directories, environment, binary, &preferred, program, true)
@@ -207,11 +179,7 @@ pub(crate) fn write_bare(
     write_deployment(directories, environment, binary, &preferred, None, false)
 }
 fn check_destinations(directories: &Directories, boxed: bool) -> Result<(), String> {
-    let mut destinations = vec![
-        directories.document(),
-        path(&directories.data).join("worker.secret"),
-        path(&directories.data).join("worker.digest"),
-    ];
+    let mut destinations = vec![directories.document(), path(&directories.data).join("worker.secret")];
     if boxed {
         destinations
             .extend([path(&directories.data).join("demo/llm.key"), path(&directories.data).join("demo/bin/git")]);
@@ -271,10 +239,8 @@ fn write_deployment(
                     sign_in: no_sign_in.is_none(),
                     ports: temper_init::Ports {
                         clients: listeners[0].1,
-                        owned: listeners[1].1,
-                        forge: listeners[2].1,
-                        llm: listeners[3].1,
-                        webhooks: listeners[4].1,
+                        llm: listeners[1].1,
+                        webhooks: listeners[2].1,
                     },
                 },
                 &directories_facts,
@@ -338,7 +304,7 @@ fn write_deployment(
 }
 pub(crate) fn core(directories: &Directories, environment: &[crate::EnvironmentEntry]) -> Result<Written, String> {
     let binary = std::env::current_exe().map_err(|why| why.to_string())?;
-    write(directories, environment, &binary, [8367, 8368, 8369, 8370, 8371])
+    write(directories, environment, &binary, [8367, 8370, 8371])
 }
 pub(crate) fn bare(directories: &Directories, environment: &[crate::EnvironmentEntry]) -> Result<Written, String> {
     let binary = std::env::current_exe().map_err(|why| why.to_string())?;

@@ -43,14 +43,19 @@ pub fn command(
     deployment: Option<Deployment>,
 ) -> Result<std::process::Command, String> {
     let name = source_name(name)?;
+    let environment: Vec<_> = environment.into_iter().collect();
     let bytes = directories.read()?;
     let worker = match temper_service_core::startup::nearest(&bytes) {
         Some(temper_service_core::startup::Shape::WorkerAlone) | None => {
-            let part =
-                temper_worker_service::startup::worker_part(&bytes, &jig_directories(directories)).map_err(|why| {
-                    String::from_utf8_lossy(&temper_service_core::startup::problems::lines(&why)).into_owned()
-                })?;
-            part.named
+            let own: Vec<EnvironmentEntry> =
+                environment.iter().map(|(name, value)| (name.as_bytes().into(), value.as_bytes().into())).collect();
+            let part = temper_worker_service::startup::worker_part(&bytes, &jig_directories(directories), None, &own)
+                .map_err(|why| {
+                String::from_utf8_lossy(&temper_service_core::startup::problems::lines(&why)).into_owned()
+            })?;
+            let executable = std::env::current_exe().map_err(|why| why.to_string())?;
+            let agent = executable.parent().ok_or("worker executable has no directory")?.join("temper-agent");
+            return from_machine(&part, directories, name, environment, &agent);
         }
         Some(temper_service_core::startup::Shape::Standalone | temper_service_core::startup::Shape::EngineAlone) => {
             deployment.ok_or("temper.json holds no worker alone")?(&bytes, &jig_directories(directories))?
@@ -73,6 +78,42 @@ pub fn command(
     let source = smith_agent_document::program::prepare(super::path(&program.directory), name)
         .map_err(|why| super::agent::program_directory_refusal(&why))?;
     Ok(smith_agent_document::program::sign_in(super::path(&program.path), &source, environment))
+}
+
+/// A box and a worker alone use their worker entry, never a retained agent document.
+pub fn from_machine(
+    part: &temper_worker_service::startup::WorkerPart,
+    directories: &directories::Directories,
+    name: &str,
+    environment: Vec<(std::ffi::OsString, std::ffi::OsString)>,
+    agent: &std::path::Path,
+) -> Result<std::process::Command, String> {
+    let name = source_name(OsStr::new(name))?;
+    let captured: Vec<_> =
+        environment.iter().map(|(name, value)| (Box::from(name.as_bytes()), Box::from(value.as_bytes()))).collect();
+    let program = match part.claude.as_deref() {
+        Some(program) => {
+            super::worker::executable_file(super::path(program), "application.workers[0].claude")?;
+            super::path(program).to_path_buf()
+        }
+        None => super::worker::find_claude(&captured).unwrap_or_else(|| {
+            super::agent::launcher(&super::path(&directories.data).join("programs")).expect("programs launcher")
+        }),
+    };
+    let programs = super::path(&directories.data).join("programs");
+    if super::agent::launcher(&programs).as_ref() == Some(&program) {
+        super::worker::executable_file(agent, "the derived agent program")?;
+        temper_launcher::place(program.parent().expect("launcher parent"), super::path(&directories.cache), agent)
+            .map_err(|why| format!("programs.claude_code: {why}"))?;
+    }
+    let source = smith_agent_document::program::prepare(&programs, name)
+        .map_err(|why| super::agent::program_directory_refusal(&why))?;
+    Ok(smith_agent_document::program::sign_in(&program, &source, environment))
+}
+/// Take the terminal immediately before replacing the caller with its prepared command.
+pub fn run_command(mut command: std::process::Command) -> Result<u8, String> {
+    take_terminal(std::io::stdin().is_terminal(), skein_shell::take_foreground)?;
+    Err(format!("exec: {}", command.exec()))
 }
 
 fn take_terminal(terminal: bool, take: impl FnOnce(Fd) -> Result<(), Error>) -> Result<(), String> {

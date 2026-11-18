@@ -261,5 +261,8 @@ fn build(
     let mut projects = skein_lib::Map::with_capacity(1);
     projects.insert(1, landing.clone()).expect("one project landing rule");
     config.kinds_stock = engine::landing_stock(&landing, &projects, 1, 4);
+    for worker in &mut config.core.defaults.workers {
+        worker.places = limits.fleet.slots;
+    }
     (config, limits)
 }

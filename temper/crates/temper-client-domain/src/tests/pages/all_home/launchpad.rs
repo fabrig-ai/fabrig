@@ -19,6 +19,13 @@ fn offer_goals(fixture: &mut Across) {
 fn task_subject(fixture: &Across, project: Option<u32>, tracked: Option<bool>) -> Watchable {
     Watchable::Jig(c::Subject::Tasks {
         query: c::TaskQuery {
+            parts: if project.is_some() && tracked.is_none() {
+                List::from_boxed(Box::new([temper_client_domain_forge::parts::asks(
+                    temper_client_protocol_wire::CHAT_PART,
+                )]))
+            } else {
+                List::with_capacity(0)
+            },
             project,
             requester: Some(c::Requester::Person(f::PARTY)),
             root: None,
@@ -94,7 +101,7 @@ fn tasks(fixture: &mut Across, watch: Token, project: u32, tracked: Option<bool>
     rows.push(task_line(project, tracked)).expect("fixture rows grow");
     fixture.up(Up::Watched {
         watch,
-        event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks { rows, more }))),
+        event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks { rows, more, ended_mark: 0 }))),
     });
 }
 
@@ -227,6 +234,7 @@ fn launchpad_looks_once_per_project_and_joins_home_and_across_statuses() {
             fixture.up(Up::ReadDone {
                 read: *read,
                 result: Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(c::TaskPage {
+                    ended_mark: 0,
                     live: List::uncapped(),
                     live_after: None,
                     ended: c::EndedGroup::None,
@@ -455,6 +463,7 @@ fn launchpad_home_reads_roles_nows_one_at_a_time_and_leaves_them() {
         }
         fixture.go(Address::Home { project: FIRST });
         let query = c::TaskQuery {
+            parts: List::with_capacity(0),
             project: Some(FIRST),
             label: Some(3),
             order: c::QueryOrder::Number,
@@ -475,7 +484,11 @@ fn launchpad_home_reads_roles_nows_one_at_a_time_and_leaves_them() {
         let rows = List::from_boxed(Box::new([first, second]));
         let out = fixture.up(Up::Watched {
             watch,
-            event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks { rows: rows.clone(), more: false }))),
+            event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                ended_mark: 0,
+                rows: rows.clone(),
+                more: false,
+            }))),
         });
         assert_eq!(now_reads(&out).len(), usize::from(enabled));
         if enabled {
@@ -501,7 +514,11 @@ fn launchpad_home_reads_roles_nows_one_at_a_time_and_leaves_them() {
             }
             let out = fixture.up(Up::Watched {
                 watch,
-                event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false }))),
+                event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                    ended_mark: 0,
+                    rows,
+                    more: false,
+                }))),
             });
             let reads = now_reads(&out);
             let (task, pending) = *reads.first().expect("refresh Now");

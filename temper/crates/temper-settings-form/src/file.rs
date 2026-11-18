@@ -195,6 +195,36 @@ impl Decoder<'_> {
         }
         Err(error(b"JSON", b"unfinished object"))
     }
+    /// A bounded map whose keys are the value's names, not schema members.
+    pub fn named(&self, start: u32, most: u32) -> Result<Fields, Error> {
+        if self.kind(start)? != Kind::ObjectStart {
+            return Err(error(b"JSON", b"expected object"));
+        }
+        let mut fields = List::with_capacity(most);
+        let mut depth = 0_u32;
+        for at in start.checked_add(1).ok_or(error(b"JSON", b"position bound"))?..self.doc.len() {
+            match self.kind(at)? {
+                Kind::Key if depth == 0 => {
+                    let key = self.string(at)?;
+                    if optional(&fields, key).is_some() {
+                        return Err(error(key, b"duplicate member"));
+                    }
+                    fields
+                        .push((key.into(), at.checked_add(1).ok_or(error(key, b"position bound"))?))
+                        .or(Err(bound(key, most)))?;
+                }
+                Kind::ObjectStart | Kind::ArrayStart => depth = depth.checked_add(1).expect("bounded JSON depth"),
+                Kind::ObjectEnd | Kind::ArrayEnd => {
+                    if depth == 0 {
+                        return Ok(fields);
+                    }
+                    depth = depth.checked_sub(1).expect("positive depth");
+                }
+                Kind::Key | Kind::String | Kind::Number | Kind::True | Kind::False | Kind::Null | Kind::Long => {}
+            }
+        }
+        Err(error(b"JSON", b"unfinished object"))
+    }
     pub fn array(&self, start: u32, most: u32, name: &[u8]) -> Result<List<u32>, Error> {
         if self.kind(start)? != Kind::ArrayStart {
             return Err(error(name, b"expected array"));
@@ -271,8 +301,12 @@ fn setting(d: &Decoder<'_>, at: u32) -> Result<c::Setting, Error> {
         b"project-classes",
         b"charter-words",
         b"project-words",
+        b"project-landing",
+        b"project-gates",
         b"project-areas",
         b"project-triager",
+        b"agents",
+        b"welcome",
     ]
     .contains(&kind)
     {
@@ -304,6 +338,7 @@ fn setting(d: &Decoder<'_>, at: u32) -> Result<c::Setting, Error> {
         b"charter" => Ok(c::Setting::Charter(number)),
         b"template" => Ok(c::Setting::Template(number)),
         b"model" => Ok(c::Setting::Model(number)),
+        b"worker" => Ok(c::Setting::Worker(number)),
         b"policy" => Ok(c::Setting::Policy(number)),
         _ => Err(error(b"kind", b"unknown setting kind")),
     }
@@ -327,6 +362,7 @@ fn item(d: &Decoder<'_>, at: u32) -> Result<c::SettingItem, Error> {
     let edit = match (optional(&fields, b"set"), optional(&fields, b"edit")) {
         (Some(at), None) => {
             let value = match setting {
+                c::Setting::Worker(number) => c::SettingValue::Worker(Box::new(values::worker(d, at, number.number)?)),
                 c::Setting::Model(_) => c::SettingValue::Model(Box::new(values::catalogue(d, at)?)),
                 c::Setting::Charter(_) => c::SettingValue::Charter(Box::new(values::charter(d, at)?)),
                 c::Setting::Template(_) => c::SettingValue::Template(Box::new(values::template(d, at)?)),

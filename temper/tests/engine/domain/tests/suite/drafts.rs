@@ -289,6 +289,7 @@ fn draft_requests_require_a_role_and_documents_do_not_cross_projects() {
     assert_eq!(answers(&driver).len(), 0);
     driver.delivered.clear();
     driver.send(root::Event::Party(root::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(300)),
         identity: people::Identity {

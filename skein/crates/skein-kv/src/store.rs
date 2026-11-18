@@ -17,7 +17,7 @@ use crate::frame;
 use crate::logs::{Append, Logs, Read};
 use crate::map::{KvMap, Queued};
 use crate::snapshot;
-use crate::{Census, CensusRule, Direction, Limits, LogFrame, LogRule};
+use crate::{Census, CensusRule, Direction, HELD_REMOVALS, HeldSegment, Limits, LogFrame, LogRule};
 
 mod compaction;
 mod payload;
@@ -63,6 +63,42 @@ enum Phase {
 }
 
 impl Phase {
+    /// The segment still appended to, once earlier commits have been answered.
+    fn held_log(&self) -> Option<Log> {
+        match self {
+            Self::Ready { log } | Self::SnapIo { log } | Self::Payload { resume: Resume::Ready { log }, .. } => {
+                Some(*log)
+            }
+            Self::Payload {
+                resume:
+                    Resume::Batch { .. }
+                    | Resume::Recovery
+                    | Resume::Closing { .. }
+                    | Resume::Repair
+                    | Resume::OpenFailed { .. },
+                ..
+            }
+            | Self::Listing
+            | Self::OpeningLog { .. }
+            | Self::ReadingLog { .. }
+            | Self::ClosingRecovered { .. }
+            | Self::RemovingTail { .. }
+            | Self::Creating { .. }
+            | Self::Announcing { .. }
+            | Self::Writing { .. }
+            | Self::Syncing { .. }
+            | Self::Closing
+            | Self::RecoveryClosing
+            | Self::RolloverClosing
+            | Self::SnapshotFailureClosing { .. }
+            | Self::OpenFailureClosing { .. }
+            | Self::OpeningSnapshot
+            | Self::ReadingSnapshot { .. }
+            | Self::ClosingSnapshot { .. }
+            | Self::RemovingTempOnOpen { .. } => None,
+        }
+    }
+
     /// The open log, when no file request is outstanding and none must be.
     fn ready(&self) -> Option<Log> {
         match self {
@@ -94,6 +130,7 @@ impl Phase {
 #[derive(Clone, Copy, Debug)]
 struct Log {
     file: Token,
+    first: u64,
     offset: u64,
 }
 
@@ -113,15 +150,31 @@ pub struct Store {
     cache: payload::Cache,
     reads: Queue<Read>,
     drops: Queue<u64>,
+    hold: Hold,
+    held_drops: Queue<u64>,
+}
+
+/// An ordered barrier without a commit number of its own (data/kv.md, 2.3).
+#[derive(Debug)]
+enum Hold {
+    None,
+    Waiting { owner: Token, last: u64 },
+    Placed,
+}
+
+impl Hold {
+    fn placed(&self) -> bool {
+        match self {
+            Self::Placed => true,
+            Self::None | Self::Waiting { .. } => false,
+        }
+    }
 }
 
 /// The store's life (skein/docs/foundation/programming-model.md, 5.4).
-#[cfg_attr(
-    target_pointer_width = "64",
-    expect(
-        clippy::large_enum_variant,
-        reason = "the open state owns its directory and phase inline without another allocation"
-    )
+#[expect(
+    clippy::large_enum_variant,
+    reason = "the open state owns its directory and phase inline without another allocation"
 )]
 #[derive(Debug)]
 enum State {
@@ -153,6 +206,7 @@ struct Dir {
     segments: Vec<Box<[u8]>>,
     compaction: Compaction,
     log_bytes: u64,
+    snapshot_start: Option<u64>,
 }
 
 /// Who hears when the store serves (skein/docs/design/data/kv.md, 2).
@@ -183,6 +237,7 @@ impl Dir {
             segments: Vec::new(),
             compaction: Compaction::Idle,
             log_bytes: 0,
+            snapshot_start: None,
         }
     }
 
@@ -251,6 +306,8 @@ impl Store {
             cache: payload::Cache::new(),
             reads: Queue::uncapped(),
             drops: Queue::uncapped(),
+            hold: Hold::None,
+            held_drops: Queue::uncapped(),
         }
     }
 
@@ -341,6 +398,25 @@ impl Store {
         self.map.len() == 0
     }
 
+    fn end_hold(&mut self, above: &mut Queue<Event>) {
+        match mem::replace(&mut self.hold, Hold::None) {
+            Hold::Waiting { owner, .. } => above.push(Event::Refused { owner, refusal: Refusal::Unavailable }),
+            Hold::None | Hold::Placed => {}
+        }
+        self.held_drops.clear();
+    }
+
+    /// True even past the bound: recovery's sweep owns excess removals.
+    fn defer_drop(&mut self, log: u64) -> bool {
+        if !self.hold.placed() {
+            return false;
+        }
+        if usize_of(self.held_drops.len()) < HELD_REMOVALS {
+            self.held_drops.push(log);
+        }
+        true
+    }
+
     fn next_number(&self, phase: &Phase) -> Option<u64> {
         let in_flight = match phase {
             Phase::Writing { batch, .. }
@@ -381,7 +457,7 @@ impl Store {
         if self.queue.is_empty() {
             return dir.at(Phase::Ready { log });
         }
-        let Log { file, offset } = log;
+        let Log { file, offset, first: _ } = log;
         if offset >= limits.segment {
             below.push(file::Request::Close { owner: IO_OWNER, file });
             return dir.at(Phase::RolloverClosing);
@@ -389,10 +465,17 @@ impl Store {
         let mut batch = Queue::with_capacity(limits.queued);
         let mut count = 0_u32;
         for pending in &self.queue {
+            match self.hold {
+                Hold::Waiting { last, .. } if pending.number > last => break,
+                Hold::None | Hold::Placed | Hold::Waiting { .. } => {}
+            }
             count = count.checked_add(1).expect("queue count fits");
             if !pending.drops.is_empty() {
                 break;
             }
+        }
+        if count == 0 {
+            return dir.at(Phase::Ready { log });
         }
         for _ in 0..count {
             let pending = self.queue.pop().expect("batch takes the queue's initial prefix");
@@ -412,11 +495,14 @@ impl Store {
 
     fn recover(&mut self, mut dir: Dir, step: &mut Step<'_>) -> State {
         self.last = 0;
+        self.hold = Hold::None;
+        self.held_drops.clear();
         self.logs.clear();
         self.map = KvMap::new(&step.env.limits);
         dir.segments.clear();
         dir.compaction = Compaction::Idle;
         dir.log_bytes = 0;
+        dir.snapshot_start = None;
         step.below.push(file::Request::List { owner: IO_OWNER, root: dir.root });
         dir.at(Phase::Listing)
     }
@@ -626,8 +712,8 @@ pub fn down(
             }
             State::Open { dir, phase } => commit_disk(store, dir, phase, owner, ops, &mut step),
         },
-        Request::ReadLog { owner, log, at, direction, max } => {
-            read_requested(store, state, owner, log, at, direction, max, &mut step)
+        Request::ReadLog { owner, log, at, direction, max, rows } => {
+            read_requested(store, state, owner, log, at, direction, max, rows, &mut step)
         }
         Request::Get { owner, key } => {
             let available = match &state {
@@ -647,18 +733,118 @@ pub fn down(
             load(store, owner, range, max, available, &mut step);
             state
         }
+        Request::Hold { owner } => hold_requested(store, state, owner, &mut step),
+        Request::Release { owner } => {
+            if store.hold.placed() {
+                store.hold = Hold::None;
+                step.above.push(Event::Released { owner });
+                match state {
+                    State::Open { dir, phase } => match phase.ready() {
+                        Some(log) => follow_ready(store, dir, log, &mut step),
+                        None => dir.at(phase),
+                    },
+                    state @ (State::Memory | State::Closed) => state,
+                }
+            } else {
+                step.above.push(Event::Refused { owner, refusal: Refusal::Unavailable });
+                state
+            }
+        }
         Request::Close { owner } => match state {
             State::Closed => {
                 step.above.push(Event::Refused { owner, refusal: Refusal::Unavailable });
                 State::Closed
             }
             State::Memory => {
+                store.hold = Hold::None;
                 step.above.push(Event::Closed { owner });
                 State::Closed
             }
             State::Open { dir, phase } => close_requested(store, dir, phase, owner, &mut step),
         },
     };
+}
+
+fn hold_requested(store: &mut Store, state: State, owner: Token, step: &mut Step<'_>) -> State {
+    let none = match store.hold {
+        Hold::None => true,
+        Hold::Waiting { .. } | Hold::Placed => false,
+    };
+    let usable = match &state {
+        State::Closed => false,
+        State::Memory => true,
+        State::Open { dir, phase } => available(dir, phase) && dir.close_owner.is_none(),
+    };
+    if !none || !usable {
+        step.above.push(Event::Refused { owner, refusal: Refusal::Unavailable });
+        return state;
+    }
+    match state {
+        State::Closed => unreachable!("unavailable hold refused"),
+        State::Memory => {
+            store.hold = Hold::Placed;
+            step.above.push(Event::Held { owner, last: store.last, snapshot: false, segments: Box::new([]) });
+            State::Memory
+        }
+        State::Open { dir, phase } => {
+            let last = match store.next_number(&phase) {
+                Some(next) => next.checked_sub(1).expect("next commit is positive"),
+                None => u64::MAX,
+            };
+            store.hold = Hold::Waiting { owner, last };
+            let renaming = match phase {
+                Phase::SnapIo { .. } => dir.compaction.renaming(),
+                Phase::Payload { .. }
+                | Phase::Listing
+                | Phase::OpeningLog { .. }
+                | Phase::ReadingLog { .. }
+                | Phase::ClosingRecovered { .. }
+                | Phase::RemovingTail { .. }
+                | Phase::Creating { .. }
+                | Phase::Announcing { .. }
+                | Phase::Ready { .. }
+                | Phase::Writing { .. }
+                | Phase::Syncing { .. }
+                | Phase::Closing
+                | Phase::RecoveryClosing
+                | Phase::RolloverClosing
+                | Phase::SnapshotFailureClosing { .. }
+                | Phase::OpenFailureClosing { .. }
+                | Phase::OpeningSnapshot
+                | Phase::ReadingSnapshot { .. }
+                | Phase::ClosingSnapshot { .. }
+                | Phase::RemovingTempOnOpen { .. } => false,
+            };
+            place_hold(store, &dir, phase.held_log(), renaming, step.above);
+            dir.at(phase)
+        }
+    }
+}
+
+#[expect(clippy::disallowed_types, reason = "held segments are bounded by the directory's segment list")]
+fn place_hold(store: &mut Store, dir: &Dir, log: Option<Log>, renaming: bool, above: &mut Queue<Event>) {
+    let (owner, last) = match store.hold {
+        Hold::Waiting { owner, last } if last == store.last && !renaming => (owner, last),
+        Hold::Waiting { .. } | Hold::None | Hold::Placed => return,
+    };
+    let mut segments = Vec::new();
+    for name in &dir.segments {
+        let first = log_number(name).expect("a segment has a numbered name");
+        if first <= last && first >= dir.snapshot_start.unwrap_or(0) {
+            let end = match log {
+                Some(log) if log.first == first => Some(log.offset),
+                Some(_) | None => None,
+            };
+            segments.push(HeldSegment { first, end });
+        }
+    }
+    store.hold = if dir.close_owner.is_some() { Hold::None } else { Hold::Placed };
+    above.push(Event::Held {
+        owner,
+        last,
+        snapshot: dir.snapshot_start.is_some(),
+        segments: segments.into_boxed_slice(),
+    });
 }
 
 fn available(dir: &Dir, phase: &Phase) -> bool {
@@ -814,14 +1000,11 @@ fn close_requested(store: &mut Store, mut dir: Dir, phase: Phase, owner: Token, 
         return dir.at(phase);
     }
     dir.close_owner = Some(owner);
+    if store.hold.placed() {
+        store.hold = Hold::None;
+    }
     match phase.ready() {
-        Some(log) => {
-            if dir.compaction.is_idle() && store.queue.is_empty() {
-                close_payload(store, dir, Resume::Closing { log }, step)
-            } else {
-                dir.at(Phase::Ready { log })
-            }
-        }
+        Some(log) => follow_ready(store, dir, log, step),
         None => dir.at(phase),
     }
 }
@@ -907,13 +1090,13 @@ pub fn up(
                 Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => wrong_answer(),
             },
             Phase::OpeningSnapshot => match event {
-                Done::Opened { file, len } => snapshot_opened(dir, file, len, &mut step),
+                Done::Opened { file, len } => snapshot_opened(store, dir, file, len, &mut step),
                 Done::Failed { .. } => open_failed(store, dir, Failure::Io, &mut step),
                 Done::Listed { .. } | Done::Read { .. } | Done::Finished => wrong_answer(),
             },
             Phase::ReadingSnapshot { file, len, at, reader } => match event {
                 Done::Read { bytes } => snapshot_read(store, dir, ReadAt { file, len, at }, reader, bytes, &mut step),
-                Done::Failed { .. } => open_failed_file(dir, file, Failure::Io, step.below),
+                Done::Failed { .. } => open_failed_file(store, dir, file, Failure::Io, &mut step),
                 Done::Listed { .. } | Done::Opened { .. } | Done::Finished => wrong_answer(),
             },
             Phase::ClosingSnapshot { next } | Phase::ClosingRecovered { next } => match event {
@@ -930,7 +1113,7 @@ pub fn up(
                 Done::Read { bytes: read } => {
                     log_read(store, dir, ReadAt { file, len, at }, bytes, next, read, &mut step)
                 }
-                Done::Failed { .. } => open_failed_file(dir, file, Failure::Io, step.below),
+                Done::Failed { .. } => open_failed_file(store, dir, file, Failure::Io, &mut step),
                 Done::Listed { .. } | Done::Opened { .. } | Done::Finished => wrong_answer(),
             },
             Phase::RemovingTail { name } => match event {
@@ -945,7 +1128,7 @@ pub fn up(
             },
             Phase::Announcing { file } => match event {
                 Done::Finished => segment_announced(store, dir, file, &mut step),
-                Done::Failed { .. } => open_failed_file(dir, file, Failure::Io, step.below),
+                Done::Failed { .. } => open_failed_file(store, dir, file, Failure::Io, &mut step),
                 Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => wrong_answer(),
             },
             Phase::Writing { log, batch } => match event {
@@ -1034,13 +1217,13 @@ struct ReadAt {
     at: u64,
 }
 
-fn snapshot_opened(dir: Dir, file: Token, len: u64, step: &mut Step<'_>) -> State {
+fn snapshot_opened(store: &mut Store, dir: Dir, file: Token, len: u64, step: &mut Step<'_>) -> State {
     if len == 0 {
-        return open_failed_file(dir, file, Failure::Corrupt, step.below);
+        return open_failed_file(store, dir, file, Failure::Corrupt, step);
     }
     let cap = step.env.limits.budget.saturating_mul(2).saturating_add(1024);
     if len > cap {
-        return open_failed_file(dir, file, Failure::Full, step.below);
+        return open_failed_file(store, dir, file, Failure::Full, step);
     }
     read_next(file, len, 0, step);
     dir.at(Phase::ReadingSnapshot { file, len, at: 0, reader: snapshot::Reader::new() })
@@ -1048,7 +1231,7 @@ fn snapshot_opened(dir: Dir, file: Token, len: u64, step: &mut Step<'_>) -> Stat
 
 fn snapshot_read(
     store: &mut Store,
-    dir: Dir,
+    mut dir: Dir,
     source: ReadAt,
     mut reader: snapshot::Reader,
     read: Box<[u8]>,
@@ -1056,18 +1239,19 @@ fn snapshot_read(
 ) -> State {
     let ReadAt { file, len, .. } = source;
     let Some(end) = read_end(&source, &read) else {
-        return open_failed_file(dir, file, Failure::Corrupt, step.below);
+        return open_failed_file(store, dir, file, Failure::Corrupt, step);
     };
     if let Err(failure) = store.apply_snapshot(&mut reader, &read, &step.env.limits) {
-        return open_failed_file(dir, file, failure, step.below);
+        return open_failed_file(store, dir, file, failure, step);
     }
     if end < len {
         read_next(file, len, end, step);
         dir.at(Phase::ReadingSnapshot { file, len, at: end, reader })
     } else {
         let Some(start) = reader.finish() else {
-            return open_failed_file(dir, file, Failure::Corrupt, step.below);
+            return open_failed_file(store, dir, file, Failure::Corrupt, step);
         };
+        dir.snapshot_start = Some(start);
         let mut next = dir.segments.len();
         for (index, name) in dir.segments.iter().enumerate() {
             match log_number(name) {
@@ -1095,12 +1279,12 @@ fn log_opened(
 ) -> State {
     let cap = step.env.limits.segment.saturating_add(step.env.limits.queued_bytes);
     if len > cap {
-        return open_failed_file(dir, file, Failure::Full, step.below);
+        return open_failed_file(store, dir, file, Failure::Full, step);
     }
     let first = log_number(&name).expect("an opened log has a numbered name");
     if len != 0 {
         let Some(number) = store.last.checked_add(1) else {
-            return open_failed_file(dir, file, Failure::Corrupt, step.below);
+            return open_failed_file(store, dir, file, Failure::Corrupt, step);
         };
         if first != number {
             return log_damaged(store, dir, file, step.below);
@@ -1127,12 +1311,12 @@ fn log_read(
 ) -> State {
     let ReadAt { file, len, .. } = source;
     let Some(end) = read_end(&source, &read) else {
-        return open_failed_file(dir, file, Failure::Corrupt, step.below);
+        return open_failed_file(store, dir, file, Failure::Corrupt, step);
     };
     bytes.reserve_exact(read.len());
     bytes.extend_from_slice(&read);
     match store.replay(&mut dir, &mut bytes, &step.env.limits) {
-        Err(failure) => return open_failed_file(dir, file, failure, step.below),
+        Err(failure) => return open_failed_file(store, dir, file, failure, step),
         Ok(false) => return log_damaged(store, dir, file, step.below),
         Ok(true) => {}
     }
@@ -1171,7 +1355,8 @@ fn segment_announced(store: &mut Store, mut dir: Dir, file: Token, step: &mut St
         Repair::Clean => announce_recovered(&mut dir, store.last, step.above),
         Repair::Required => {}
     }
-    follow_ready(store, dir, Log { file, offset: 0 }, step)
+    let first = store.last.checked_add(1).expect("commit number did not overflow");
+    follow_ready(store, dir, Log { file, first, offset: 0 }, step)
 }
 
 fn batch_written(dir: Dir, log: Log, batch: Queue<Pending>, below: &mut Queue<file::Request>) -> State {
@@ -1194,7 +1379,9 @@ fn batch_synced(
         store.admitted.applied(&pending.ops, pending.number);
         store.logs.applied(&pending.appends, &pending.drops, pending.number);
         for &log in &pending.drops {
-            store.drops.push(log);
+            if !store.defer_drop(log) {
+                store.drops.push(log);
+            }
         }
         store.last = pending.number;
         bytes = bytes.checked_add(skein_lib::len_u64(pending.frame.len())).expect("batch size fits u64");
@@ -1206,14 +1393,28 @@ fn batch_synced(
 }
 
 fn follow_ready(store: &mut Store, dir: Dir, log: Log, step: &mut Step<'_>) -> State {
+    place_hold(store, &dir, Some(log), false, step.above);
+    if !store.hold.placed() && dir.compaction.is_idle() && !store.held_drops.is_empty() {
+        let mut drops = Queue::uncapped();
+        for _ in 0..store.held_drops.len() {
+            let log = store.held_drops.pop().expect("initial held removal count");
+            // A later append may have given this name a live extent again.
+            if store.logs.extent(&store.map, log) == 0 {
+                drops.push(log);
+            }
+        }
+        if !drops.is_empty() {
+            return start_payload(store, dir, payload::Task::drops(drops), Resume::Ready { log }, step);
+        }
+    }
     if let Some(read) = store.reads.pop() {
         start_payload(store, dir, payload::Task::read(read), Resume::Ready { log }, step)
-    } else if !store.drops.is_empty() {
+    } else if !store.drops.is_empty() && store.held_drops.is_empty() {
         let drops = mem::replace(&mut store.drops, Queue::uncapped());
         start_payload(store, dir, payload::Task::drops(drops), Resume::Ready { log }, step)
     } else if !store.queue.is_empty() {
         store.start_batch(dir, log, &step.env.limits, step.below)
-    } else if dir.close_owner.is_some() && dir.compaction.is_idle() {
+    } else if dir.close_owner.is_some() && dir.compaction.is_idle() && store.held_drops.is_empty() {
         close_payload(store, dir, Resume::Closing { log }, step)
     } else {
         dir.at(Phase::Ready { log })
@@ -1250,6 +1451,7 @@ fn commits_failed(
     step: &mut Step<'_>,
 ) -> State {
     store.repair = Repair::Required;
+    store.end_hold(step.above);
     dir.serving = match dir.serving {
         Serving::Yes | Serving::Recovering => Serving::Recovering,
         state @ Serving::Opening { .. } => state,
@@ -1287,8 +1489,9 @@ fn announce_recovered(dir: &mut Dir, last: u64, above: &mut Queue<Event>) {
 }
 
 fn open_failed(store: &mut Store, mut dir: Dir, failure: Failure, step: &mut Step<'_>) -> State {
+    store.end_hold(step.above);
     if let Some(file) = mem::replace(&mut dir.compaction, Compaction::Idle).file() {
-        return open_failed_file(dir, file, failure, step.below);
+        return open_failed_file(store, dir, file, failure, step);
     }
     if !store.cache.is_empty() {
         return close_payload(store, dir, Resume::OpenFailed { failure }, step);
@@ -1304,8 +1507,9 @@ fn open_failed(store: &mut Store, mut dir: Dir, failure: Failure, step: &mut Ste
     State::Closed
 }
 
-fn open_failed_file(dir: Dir, file: Token, failure: Failure, below: &mut Queue<file::Request>) -> State {
-    below.push(file::Request::Close { owner: IO_OWNER, file });
+fn open_failed_file(store: &mut Store, dir: Dir, file: Token, failure: Failure, step: &mut Step<'_>) -> State {
+    store.end_hold(step.above);
+    step.below.push(file::Request::Close { owner: IO_OWNER, file });
     dir.at(Phase::OpenFailureClosing { failure })
 }
 
@@ -1316,8 +1520,10 @@ pub fn is_ready(store: &Store, limits: &Limits) -> bool {
         State::Closed | State::Memory => false,
         State::Open { dir, phase } => match phase.ready() {
             Some(_) => {
-                !dir.compaction.is_idle()
-                    || dir.log_bytes >= limits.snapshot_bound(store.map.live())
+                dir.compaction.runnable(store.hold.placed())
+                    || (dir.compaction.is_idle()
+                        && !store.hold.placed()
+                        && dir.log_bytes >= limits.snapshot_bound(store.map.live()))
                     || dir.close_owner.is_some()
             }
             None => false,
@@ -1352,6 +1558,7 @@ fn continue_payload(
     step: &mut Step<'_>,
 ) -> State {
     if task.failed() && task.answer.is_none() {
+        store.end_hold(step.above);
         match &resume {
             Resume::Batch { .. } | Resume::Ready { .. } => dir.serving = Serving::Recovering,
             Resume::Recovery | Resume::Closing { .. } | Resume::Repair | Resume::OpenFailed { .. } => {}
@@ -1419,6 +1626,7 @@ fn read_requested(
     at: u64,
     direction: Direction,
     max: u32,
+    rows: u32,
     step: &mut Step<'_>,
 ) -> State {
     let usable = match &state {
@@ -1430,11 +1638,11 @@ fn read_requested(
         step.above.push(Event::Refused { owner, refusal: Refusal::Unavailable });
         return state;
     }
-    if max == 0 || max > step.env.limits.page.bytes {
+    if max == 0 || max > step.env.limits.page.bytes || rows == 0 {
         step.above.push(Event::Refused { owner, refusal: Refusal::TooLarge(Large::Page) });
         return state;
     }
-    let read = Read::new(owner, log, at, direction, max, store.logs.extent(&store.map, log));
+    let read = Read::new(owner, log, at, direction, max, rows, store.logs.extent(&store.map, log));
     if read.finished() {
         step.above.push(read.answer());
         return state;

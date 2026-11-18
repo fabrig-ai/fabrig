@@ -96,6 +96,7 @@ fn pasted() -> Walk {
             | Request::Erase { .. }
             | Request::Told { .. }
             | Request::Authorized(_)
+            | Request::AskedLink(_)
             | Request::Approval(_)
             | Request::ServiceCredential { .. } => None,
         })
@@ -543,7 +544,7 @@ fn duties_keep_the_seams_order_and_fields() {
             },
             Request::Save { records: saved },
             Request::Erase { records: erased },
-            Request::OpenStream { credential: None },
+            Request::OpenStream { credential: None, version: jig_client_protocol_wire::VERSION },
             Request::CloseStream,
         ],
         keep: Some(Some(credential())),
@@ -765,7 +766,7 @@ fn setup_and_log_facts_are_ordered_optional_and_replayed() {
 #[test]
 fn front_reports_replay_through_box_line_read() {
     use crate::host::tests::{delivery_report, home_subject, home_tasks, launchpad_me, watch};
-    use jig_client_protocol_wire::v27 as w;
+    use jig_client_protocol_wire as w;
     use temper_client_tui::{BoxEnd, BoxLine, BoxStage};
     let (mut walk, duties) = linked_walk_duties(true);
     let stages =
@@ -823,7 +824,7 @@ fn front_reports_replay_through_box_line_read() {
 fn lending_reports_and_duties_replay_through_the_host() {
     use crate::host::tests::{delivery_report, terminal_document, watch};
     use jig_client::contract::LoginExit;
-    use jig_client_protocol_wire::v27 as w;
+    use jig_client_protocol_wire as w;
     let (mut walk, duties) = linked_walk_duties(true);
     let duties = walk.admit(duties);
     let subject = w::Subject::Terminal(

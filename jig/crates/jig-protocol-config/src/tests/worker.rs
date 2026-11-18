@@ -5,7 +5,7 @@ use skein_lib::Duration;
 fn worker(bytes: &[u8]) -> Result<crate::Worker, crate::Problems> {
     let limits = crate::DocumentLimits { bytes: 8192, tokens: 128, depth: 8 };
     let document = crate::document(bytes, &limits).expect("worker fixture JSON");
-    crate::worker(&document, 0, &crate::Directories::working())
+    crate::worker(&document, 0, &crate::Directories::working(), &crate::FixedWorker::NONE)
 }
 fn small() -> crate::Worker {
     worker(fixtures::WORKER_SMALL).unwrap()
@@ -90,8 +90,8 @@ fn invalid_drain_members_name_their_field() {
 }
 fn a_silence_under_three_pings_is_refused() {
     refuses(
-        br#""profile": "small""#,
-        br#""profile": "small", "overrides": {"link.silence_ms": 14999}"#,
+        br#""profile": "standard""#,
+        br#""profile": "standard", "overrides": {"link.silence_ms": 14999}"#,
         fixtures::path(&[b"limits", b"link.silence_ms"]),
         What::Silence,
     );
@@ -100,15 +100,15 @@ fn a_silence_under_three_pings_is_refused() {
 fn a_silence_of_exactly_three_pings_is_accepted() {
     let bytes = fixtures::with(
         fixtures::WORKER_SMALL,
-        br#""profile": "small""#,
-        br#""profile": "small", "overrides": {"link.ping_ms": 1000, "link.silence_ms": 3000}"#,
+        br#""profile": "standard""#,
+        br#""profile": "standard", "overrides": {"link.ping_ms": 1000, "link.silence_ms": 3000}"#,
     );
     assert_eq!(worker(&bytes).unwrap().stop_bound, Duration::from_secs(59));
 }
 fn three_pings_past_a_duration_are_refused() {
     refuses(
-        br#""profile": "small""#,
-        br#""profile": "small", "overrides": {"link.ping_ms": 9223372036854}"#,
+        br#""profile": "standard""#,
+        br#""profile": "standard", "overrides": {"link.ping_ms": 9223372036854}"#,
         fixtures::path(&[b"limits", b"link.silence_ms"]),
         What::Silence,
     );
@@ -156,8 +156,8 @@ fn the_small_worker_document_parses_whole() {
     assert_eq!(worker.slots, 2);
     assert_eq!(worker.graces, graces());
     assert_eq!(worker.stop_bound, Duration::from_secs(75));
-    assert_eq!(worker.agent.program.as_ref(), b"jig-test");
-    assert_eq!(worker.agent.arguments.as_ref(), &[Box::from(&b"agent"[..])]);
+    assert_eq!(worker.agent.as_ref().expect("configured agent").program.as_ref(), b"jig-test");
+    assert_eq!(worker.agent.as_ref().expect("configured agent").arguments.as_ref(), &[Box::from(&b"agent"[..])]);
     assert_eq!(worker.memory, Some(1_073_741_824));
 }
 fn an_agent_without_a_program_is_refused() {
@@ -166,12 +166,44 @@ fn an_agent_without_a_program_is_refused() {
 fn a_worker_name_past_the_profiles_bound_is_refused() {
     refuses(b"worker-a", b"012345678901234567890123456789012", fixtures::path(&[b"name"]), What::Bound);
 }
+#[test]
+fn a_workers_hub_slots_follow_its_places_unless_overridden() {
+    for slots in [12, 24] {
+        let places =
+            fixtures::with(br#""slots": SLOTS"#, b"SLOTS", skein_lib::Decimal::of(u64::from(slots)).as_bytes());
+        let bytes = fixtures::with(fixtures::WORKER_SMALL, br#""slots": 2"#, &places);
+        let bytes = fixtures::with(&bytes, br#""profile": "standard""#, br#""overrides": {}"#);
+        let parsed = worker(&bytes).unwrap();
+        assert_eq!(parsed.slots, slots);
+        assert_eq!(parsed.limits.expect("configured limits").hub.slots, slots);
+        let explicit = fixtures::with(
+            br#""overrides": {"hub.slots": SLOTS}"#,
+            b"SLOTS",
+            skein_lib::Decimal::of(u64::from(slots)).as_bytes(),
+        );
+        let at = fixtures::with(&bytes, br#""overrides": {}"#, &explicit);
+        assert_eq!(worker(&at).unwrap().limits.expect("configured limits").hub.slots, slots);
+        let below = fixtures::with(&bytes, br#""overrides": {}"#, br#""overrides": {"hub.slots": 8}"#);
+        let errors = worker(&below).unwrap_err();
+        assert_eq!(
+            errors.problems.as_slice(),
+            &[Problem { path: fixtures::path(&[b"slots"]), what: What::SlotsPastHub }]
+        );
+    }
+}
 fn more_slots_than_the_hub_can_host_are_refused() {
-    refuses(br#""slots": 2"#, br#""slots": 3"#, fixtures::path(&[b"slots"]), What::SlotsPastHub);
+    let bytes = fixtures::with(
+        fixtures::WORKER_SMALL,
+        br#""profile": "standard""#,
+        br#""profile": "standard", "overrides": {"hub.slots": 2}"#,
+    );
+    let bytes = fixtures::with(&bytes, br#""slots": 2"#, br#""slots": 3"#);
+    let errors = worker(&bytes).unwrap_err();
+    assert_eq!(errors.problems.get(0), Some(&Problem { path: fixtures::path(&[b"slots"]), what: What::SlotsPastHub }));
 }
 fn a_worker_with_no_profile_adds_no_bound_of_small() {
     let bytes = fixtures::with(fixtures::WORKER_SMALL, br#""slots": 2"#, br#""slots": 3"#);
-    let bytes = fixtures::with(&bytes, br#""profile": "small""#, br#""profile": "standrd""#);
+    let bytes = fixtures::with(&bytes, br#""profile": "standard""#, br#""profile": "standrd""#);
     let problems = worker(&bytes).unwrap_err();
     assert_eq!(problems.problems.len(), 1, "{problems:?}");
     assert_eq!(problems.past, 0, "{problems:?}");
@@ -230,7 +262,7 @@ fn a_workers_present_memory_bytes_must_be_an_unsigned_integer() {
 }
 #[test]
 fn a_workers_hub_guard_runs_without_memory_bytes() {
-    let mut limits = crate::profile(crate::Profile::Small);
+    let mut limits = crate::stock();
     limits.hub.source_timeout = Duration::ZERO;
     let mut problems = crate::Problems::empty();
     crate::check::worker(&limits, Some(graces()), &mut problems);
@@ -264,7 +296,7 @@ fn table<const N: usize>(cases: [Case; N]) {
 
 #[test]
 fn program_source_resources_have_positive_bounded_admission() {
-    let limits = crate::profile(crate::Profile::Small).hub;
+    let limits = crate::stock().hub;
     assert_eq!(limits.program_sources, 12);
     assert!(jig_domain_host::valid_hub(&limits));
     assert!(!jig_domain_host::valid_hub(&jig_domain_host::Limits { source_interval: Duration::ZERO, ..limits }));
@@ -276,7 +308,7 @@ fn a_worker_configures_its_local_login_check_interval() {
     let bytes = fixtures::with(fixtures::WORKER_SMALL, b"\"check_interval_ms\":60000", b"\"check_interval_ms\":1250");
     let parsed = worker(&bytes).expect("positive source interval");
     assert_eq!(parsed.check_interval, Duration::from_millis(1_250));
-    assert_eq!(parsed.limits.hub.source_interval, Duration::from_millis(1_250));
+    assert_eq!(parsed.limits.expect("configured limits").hub.source_interval, Duration::from_millis(1_250));
 }
 #[test]
 fn a_zero_login_check_interval_names_the_invalid_field() {
@@ -290,4 +322,67 @@ fn a_zero_login_check_interval_names_the_invalid_field() {
 #[test]
 fn a_missing_login_check_interval_names_the_missing_field() {
     refuses(b"\"check_interval_ms\":60000", b"", fixtures::path(&[b"programs", b"check_interval_ms"]), What::Missing);
+}
+
+fn fixed_worker(bytes: &[u8], fixed: &crate::FixedWorker) -> Result<crate::Worker, crate::Problems> {
+    let document = crate::document(bytes, &crate::DocumentLimits { bytes: 8192, tokens: 256, depth: 8 }).unwrap();
+    crate::worker(&document, 0, &crate::Directories::working(), fixed)
+}
+fn without_fixed_members() -> Box<[u8]> {
+    let bytes = fixtures::with(fixtures::WORKER_SMALL, br#""graces": {"grace_ms": 30000, "drain_ms": 10000, "agent_stop_ms": 10000, "delivery_ms": 20000, "save_ms": 5000},"#, b"");
+    fixtures::with(&bytes, br#""programs":{"check_interval_ms":60000},"#, b"")
+}
+#[test]
+fn fixed_worker_members_are_consumed_and_refused_whole() {
+    for (fixed, name) in [
+        (crate::FixedWorker { graces: Some(graces()), check_interval: None }, b"graces".as_slice()),
+        (crate::FixedWorker { graces: None, check_interval: Some(Duration::from_secs(7)) }, b"programs".as_slice()),
+    ] {
+        let found = fixed_worker(fixtures::WORKER_SMALL, &fixed).unwrap_err();
+        assert_eq!(found.problems.as_slice(), &[Problem { path: Path::root().member(name), what: What::Fixed }]);
+    }
+}
+#[test]
+fn fixed_worker_values_feed_the_stop_bound_and_source_interval() {
+    let given = Graces {
+        grace: Duration::from_secs(300),
+        drain: Duration::from_secs(180),
+        agent_stop: Duration::from_secs(5),
+        delivery: Duration::from_secs(1),
+        save: Duration::from_secs(1),
+    };
+    let interval = Duration::from_secs(7);
+    let fixed = crate::FixedWorker { graces: Some(given), check_interval: Some(interval) };
+    let worker = fixed_worker(&without_fixed_members(), &fixed).unwrap();
+    assert_eq!(worker.graces, given);
+    assert_eq!(worker.stop_bound, Duration::from_secs(326));
+    assert_eq!(worker.check_interval, interval);
+    assert_eq!(worker.limits.as_ref().expect("configured limits").hub.source_interval, interval);
+    let zero = crate::FixedWorker { check_interval: Some(Duration::ZERO), ..fixed };
+    let found = fixed_worker(&without_fixed_members(), &zero).unwrap_err();
+    assert_eq!(found.problems.get(0).unwrap().path, Path::root().member(b"programs").member(b"check_interval_ms"));
+    assert_eq!(found.problems.get(0).unwrap().what, What::Bound);
+}
+
+#[test]
+fn worker_agent_and_limits_are_independently_optional() {
+    for (agent, limits) in [(false, true), (true, false), (false, false)] {
+        let mut input: Box<[u8]> = fixtures::WORKER_SMALL.into();
+        if !agent {
+            input = fixtures::with(
+                &input,
+                br#""agent": {"program": "jig-test", "arguments": ["agent"], "configuration": "agent.json"},"#,
+                b"",
+            );
+        }
+        if !limits {
+            input = fixtures::with(&input, br#""limits": {"profile": "standard"},"#, b"");
+        }
+        let parsed = worker(&input).unwrap();
+        assert_eq!(parsed.agent.is_some(), agent);
+        assert_eq!(parsed.limits.is_some(), limits);
+        let files = crate::worker_files(&parsed);
+        assert_eq!(files.len(), if agent { 2 } else { 1 });
+        assert_eq!(files.first().unwrap().path.as_ref(), b"secrets/worker-a.secret");
+    }
 }

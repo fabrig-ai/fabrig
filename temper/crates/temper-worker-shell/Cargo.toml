@@ -8,6 +8,8 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+serde_json.workspace = true
+jig-protocol-worker-wire.workspace = true
 jig-domain-host.workspace = true
 temper-service-core.workspace = true
 temper-worker-service.workspace = true
@@ -25,8 +27,11 @@ skein-io.workspace = true
 skein-lib.workspace = true
 
 [dev-dependencies]
+temper-limits-fixtures.workspace = true
+temper-fixtures.workspace = true
 skein-scratch.workspace = true
-serde_json.workspace = true
+temper-engine-service-vocabulary.workspace = true
+temper-service.workspace = true
 skein-tls-kit.workspace = true
 jig-channel-kit.workspace = true
 temper-playground.workspace = true

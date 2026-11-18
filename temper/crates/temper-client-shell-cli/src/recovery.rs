@@ -29,6 +29,7 @@ impl Recovery {
             | Event::Read { .. }
             | Event::Send { .. }
             | Event::Carry { .. }
+            | Event::AskLink
             | Event::AskApproval
             | Event::ReadApproval { .. }
             | Event::DecideApproval { .. }

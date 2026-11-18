@@ -164,7 +164,7 @@ fn render_owner(value: &mut Value, owner: &str) {
 pub fn configure_engine(value: &mut Value, owner: &str, api: SocketAddr, git: SocketAddr, workers: SocketAddr) {
     render_owner(value, owner);
     value["engine"]["hosts"]["listener"][0]["socket"] = workers.to_string().into();
-    value["application"]["machine"]["github"] = json!({"api":{"socket":api.to_string()},"transport":"plaintext","remote":format!("http://{git}"),"web":format!("http://{git}")});
+    value["application"]["test"]["github"] = json!({"api":{"socket":api.to_string()},"transport":"plaintext","remote":format!("http://{git}"),"web":format!("http://{git}")});
     value["application"]["limits"]["overrides"]["forge_component.log_poll_ms"] = 15000.into();
 }
 fn configure_llm(path: &Path, inputs: &Inputs) -> Result<(), String> {
@@ -302,13 +302,11 @@ impl Judge<'_> {
             self.stage = Stage::Engine;
         } else if self.stage == Stage::Engine && self.members.is_up() {
             self.members.prepare("w1");
-            let path = self.members.dir("w1").join("config/temper.json");
-            let mut value = read_document(&path)?;
-            value["application"]["workers"][0]["git"] = json!(self.inputs.git);
-            save(&path, &value)?;
+            self.members.git_on_path("w1", self.inputs.git.parent().ok_or("git directory")?);
             self.members.up(&["w1"]);
+            cluster::admit_workers(&self.members, host, &self.inputs.scratch.join("client"))?;
             self.stage = Stage::Worker;
-        } else if self.stage == Stage::Worker && self.members.is_up() {
+        } else if self.stage == Stage::Worker && self.members.is_up() && host.is_empty() {
             if self.members.linked("w1") != 1 {
                 return Err(format!(
                     "assertion `left == right` failed\n  left: {:?}\n right: {:?}",

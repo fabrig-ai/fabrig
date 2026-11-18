@@ -376,6 +376,7 @@ pub(super) fn told(state: &mut Forges, env: &Env<Limits>, told: &Told, out: &mut
                 | w::Request::HandFinding(_)
                 | w::Request::TriageFinding(_)
                 | w::Request::SetDraft(_)
+                | w::Request::Checkpoint
                 | w::Request::TryAccount(_)
                 | w::Request::Dismiss(_)
                 | w::Request::OpenChange(_)
@@ -501,6 +502,8 @@ fn answer(value: &Answered, limits: &Limits) -> Option<Answer> {
         | w::Outcome::OverturnRefused(_)
         | w::Outcome::Looked
         | w::Outcome::Dismissed
+        | w::Outcome::Checkpointed(_)
+        | w::Outcome::CheckpointRefused(_)
         | w::Outcome::EndRefused(_) => None,
     }
 }

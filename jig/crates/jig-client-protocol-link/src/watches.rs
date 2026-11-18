@@ -2,11 +2,12 @@
 use crate::{Limits, Request};
 use jig_client_domain::Family;
 use jig_client_domain::contract::{WatchEnd, WatchEvent};
-use jig_client_protocol_wire::v27 as w;
+use jig_client_protocol_wire as w;
 use skein_lib::{Map, Queue, Token};
 #[derive(Debug)]
 pub(crate) struct Opening {
     pub(crate) name: u64,
+    pub(crate) parts: skein_lib::List<jig_client_domain::contract::PartAsk>,
     pub(crate) owner: w::Owner,
     pub(crate) version: u32,
     pub(crate) subject: Option<w::Owned>,
@@ -21,6 +22,14 @@ pub(crate) struct Watches(pub(crate) Map<Token, Opening>);
 impl Watches {
     pub(crate) fn new(limits: &Limits) -> Self {
         Self(Map::with_capacity(limits.client().watches))
+    }
+    pub(crate) fn opening(&self) -> bool {
+        for (_, opening) in &self.0 {
+            if opening.subject.is_none() && !opening.admitted {
+                return true;
+            }
+        }
+        false
     }
     pub(crate) fn named(&self, name: u64) -> Option<Token> {
         for (token, opening) in &self.0 {
@@ -78,6 +87,9 @@ impl Watches {
             }
             w::Owner::Jig => {
                 let value = crate::translate::watches::delivery(record.record(), limits)?;
+                if let jig_client_domain::contract::Delivery::Tasks(tasks) = &value {
+                    crate::translate::queries::check_rows(&tasks.rows, &opening.parts)?;
+                }
                 self.opened(watch, out);
                 out.push(Request::Watch { watch, event: WatchEvent::Delivered(value) });
                 Ok(())

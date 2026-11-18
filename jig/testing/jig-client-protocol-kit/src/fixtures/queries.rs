@@ -6,6 +6,7 @@ pub const SECOND_QUERY_TASK: u64 = 2;
 #[must_use]
 pub fn task_query(project: u32) -> c::TaskQuery {
     c::TaskQuery {
+        parts: List::with_capacity(0),
         project: Some(project),
         requester: None,
         root: None,

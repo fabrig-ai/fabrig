@@ -61,13 +61,12 @@ fn title(b: &mut Builder, tasks: &skein_lib::List<c::ProposedTask>, words: &Word
     for task in tasks {
         let written = task.spec.specification.words.bytes();
         let end = skein_lib::bytes::find(written, b"\n").unwrap_or(written.len());
-        text(b, Role::Heading { level }, written.get(..end).expect("title prefix"));
-        if end < written.len() {
-            skein_ui::markdown::read(
-                written.get(end..).expect("spec body"),
-                level.checked_add(1).expect("proposal heading fits"),
-                b,
-            );
+        let first = written.get(..end).expect("title prefix");
+        let heading = crate::common::chat::row_title(first);
+        text(b, Role::Heading { level }, &heading);
+        let body = if heading.as_ref() == first { written.get(end..).expect("spec body") } else { written };
+        if !body.is_empty() {
+            skein_ui::markdown::read(body, level.checked_add(1).expect("proposal heading fits"), b);
         }
     }
 }
@@ -752,6 +751,7 @@ fn settings_lines(b: &mut Builder, root: &temper_client_domain::Domain, facts: &
             c::Setting::Charter(_)
             | c::Setting::Template(_)
             | c::Setting::Policy(_)
+            | c::Setting::Worker(_)
             | c::Setting::Model(_)
             | c::Setting::Rules => {}
         }
@@ -1072,6 +1072,7 @@ fn setting_base(setting: c::Setting) -> Box<[u8]> {
         c::Setting::Template(n) => (b"template".as_slice(), Some(n.number)),
         c::Setting::Policy(n) => (b"policy".as_slice(), Some(n.number)),
         c::Setting::Model(n) => (b"model".as_slice(), Some(n.number)),
+        c::Setting::Worker(n) => (b"worker".as_slice(), Some(n.number)),
         c::Setting::Rules => (b"rules".as_slice(), None),
         c::Setting::ProjectPolicy { project } => (b"project policy".as_slice(), Some(project)),
         c::Setting::Application { kind: 1 | 2, number, .. } => (b"landing rule".as_slice(), Some(number)),
@@ -1084,8 +1085,12 @@ fn setting_base(setting: c::Setting) -> Box<[u8]> {
         c::Setting::Application { kind: 8, scope, .. } => (b"project-classes".as_slice(), Some(scope)),
         c::Setting::Application { kind: 9, number, .. } => (b"charter-words".as_slice(), Some(number)),
         c::Setting::Application { kind: 10, scope, .. } => (b"project-words".as_slice(), Some(scope)),
+        c::Setting::Application { kind: 4, scope, .. } => (b"project-landing".as_slice(), Some(scope)),
+        c::Setting::Application { kind: 5, scope, .. } => (b"project-gates".as_slice(), Some(scope)),
         c::Setting::Application { kind: 14, scope, .. } => (b"project-areas".as_slice(), Some(scope)),
+        c::Setting::Application { kind: 21, .. } => (b"agents".as_slice(), None),
         c::Setting::Application { kind: 15, scope, .. } => (b"project-triager".as_slice(), Some(scope)),
+        c::Setting::Application { kind: 20, .. } => (b"welcome".as_slice(), None),
         c::Setting::Application { kind, scope, number } => {
             return joined(&[
                 b"application kind ",
@@ -1170,7 +1175,9 @@ pub(crate) fn line(card: &temper_client_domain::pages::inbox::Card, _words: &Wor
     let title = if let Some(tasks) = batch(page)
         && let Some(task) = tasks.as_slice().first()
     {
-        task.spec.specification.words.bytes()
+        let written = task.spec.specification.words.bytes();
+        let end = skein_lib::bytes::find(written, b"\n").unwrap_or(written.len());
+        return Some(crate::common::chat::row_title(written.get(..end).expect("proposal first line")));
     } else if let c::ReadValue::Proposal(proposal) = page {
         proposal.reason.bytes()
     } else {

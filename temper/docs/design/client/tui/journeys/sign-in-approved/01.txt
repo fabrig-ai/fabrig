@@ -1,11 +1,11 @@
 ╭─ temper ─────────────────────────────────────────────────────────────────────╮
-│ Sign in this terminal to 127.0.0.1:35671                                     │
+│ Sign in this terminal to 127.0.0.1:10001                                     │
 │ A tab opened in your browser. Check it shows                                 │
-│ TJJT-BDWB, then press Approve.                                               │
-│ No tab? Open http://127.0.0.1:35671/terminal?code=TJJT-BDWB                  │
+│ BBBB-BBBB, then press Approve.                                               │
+│ No tab? Open http://127.0.0.1:10001/terminal?code=BBBB-BBBB                  │
 │ The code expires in 9 min.                                                   │
 │ Paste the link temper printed, then Enter.                                   │
-│ ❯ Link: http://127.0.0.1:35671/jig/v1/sign-in/link?secret=… (enter sends)    │
+│ ❯ Link: http://127.0.0.1:10001/jig/v1/sign-in/link?secret=… (enter sends)    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 

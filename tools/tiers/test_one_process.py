@@ -481,9 +481,9 @@ class EndToEndTests(RunnerFixture):
         self.assertEqual(code, 0)
         ledger = cpu['ledger'](self.directory / 'ledger.json')
         result = cpu['summary'](self.directory)
-        self.assertEqual(ledger, dict(ledger=2, profile='default', budgets={}, moves=[], binaries={
+        self.assertEqual(ledger, dict(ledger=3, profile='default', budgets={}, moves=[], binaries={
             'fixture::suite': dict(tree='repository', layer='checks',
-                                  cpu_s=sum(p['cpu_s'] for p in result['processes']),
+                                  cpu=[sum(p['cpu_s'] for p in result['processes'])],
                                   tests={t['test_name']: [t['wall_s']] for t in result['tests']}, alone={})}))
         self.assertEqual(set(ledger['binaries']['fixture::suite']['tests']), {'a', 'b', 'c'})
 
@@ -587,7 +587,7 @@ class BaseTests(RunnerFixture):
     def test_head_base_and_judgement_meet(self):
         self.env['FIXTURE_CASE'] = 'slow'
         ledger = dict(profile='default', budgets={}, moves=[], binaries={'fixture::suite': dict(
-            tree='repository', layer='checks', cpu_s=1.0,
+            tree='repository', layer='checks', cpu=[1.0],
             tests={'a': [10], 'b': [0], 'c': [10]}, alone={'b': [100]})})
         head = self.invoke(ledger=ledger)
         self.assertEqual([(r['test_name'], r['why']) for r in head['references']], [('b', 'flagged')])

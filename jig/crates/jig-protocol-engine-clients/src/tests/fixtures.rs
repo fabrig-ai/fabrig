@@ -31,7 +31,13 @@ pub fn wire() -> w::Limits {
 }
 pub fn settings() -> Settings {
     let mut served = List::with_capacity(2);
-    served.push(crate::Served { family: None, first: 27, last: 27 }).expect("one jig range");
+    served
+        .push(crate::Served {
+            family: None,
+            first: jig_client_protocol_wire::VERSION,
+            last: jig_client_protocol_wire::VERSION,
+        })
+        .expect("one jig range");
     served.push(crate::Served { family: Some(9), first: 2, last: 2 }).expect("one family range");
     Settings {
         private: crate::Private::none(),
@@ -209,10 +215,14 @@ impl Exchange {
         owner
     }
     pub fn stream_open(&mut self) -> Token {
+        self.stream_open_version(None)
+    }
+    pub fn stream_open_version(&mut self, version: Option<u32>) -> Token {
         let owner = self.component.name();
         self.component.down(
             &self.env,
             Event::Transport(crate::FromTransport::StreamOpen {
+                version,
                 stream: owner,
                 credential: Some(Secret::new(self.token.clone())),
             }),
@@ -695,7 +705,7 @@ mod answers;
 pub use answers::*;
 impl Exchange {
     pub fn ask(&mut self) -> (Token, ReplyTo) {
-        self.ask_version(27)
+        self.ask_version(jig_client_protocol_wire::VERSION)
     }
     pub fn ask_version(&mut self, version: u32) -> (Token, ReplyTo) {
         let body = keyed(w::Owner::Jig, version, encode_ask(&start(&self.env.limits.wire)));
@@ -774,7 +784,7 @@ pub fn final_record(record: w::KeyedAnswer, limits: &w::Limits) -> w::Final {
     match record {
         w::KeyedAnswer::FinalAnswer(value) => {
             assert_eq!(value.owner(), &w::Owner::Jig);
-            assert_eq!(value.version(), 27);
+            assert_eq!(value.version(), jig_client_protocol_wire::VERSION);
             w::Final::decode(limits, &mut skein_lib::Reader::new(value.record())).expect("jig answer")
         }
         other @ (w::KeyedAnswer::NotServed(_)
@@ -807,7 +817,9 @@ impl Exchange {
     }
     pub fn approval_sign_in(&mut self, identity: &people::Identity) -> ReplyTo {
         let Some(Request::Core(event)) = self.out.pop() else { panic!("SignIn event") };
-        let core::Event::SignIn { reply_to, identity: given, held } = *event else { panic!("ordinary SignIn") };
+        let core::Event::SignIn { until: None, reply_to, identity: given, held } = *event else {
+            panic!("ordinary SignIn")
+        };
         assert_eq!(&given, identity);
         assert_eq!(held, None);
         reply_to

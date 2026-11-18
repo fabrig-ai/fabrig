@@ -114,6 +114,23 @@ fn first_run_words(
             &mut out,
         );
     }
+    let mut me = demo_me();
+    if owner_settings {
+        me.projects.get_mut(0).expect("settings project").role = c::HeldRole::Owner;
+    }
+    client::step(
+        &mut root,
+        &env,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: Token::new(0),
+                    event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))),
+                },
+            },
+        },
+        &mut out,
+    );
     for _ in 0..128 {
         let Some(request) = out.pop() else { break };
         let up = match request {
@@ -171,13 +188,6 @@ fn first_run_words(
                         held: List::with_capacity(0),
                         pending: List::with_capacity(0),
                     }))),
-                    c::Subject::Me => {
-                        let mut me = demo_me();
-                        if owner_settings {
-                            me.projects.get_mut(0).expect("settings project").role = c::HeldRole::Owner;
-                        }
-                        Some(c::Delivery::Me(Box::new(me)))
-                    }
                     c::Subject::Task { task } => {
                         let mut document = delegation_task(task, landed);
                         if line.is_some() {
@@ -211,7 +221,8 @@ fn first_run_words(
                         Some(c::Delivery::Task(Box::new(document)))
                     }
                     c::Subject::Accounts if landed => Some(c::Delivery::Accounts(Box::new(demo_accounts()))),
-                    c::Subject::Deployment
+                    c::Subject::Me
+                    | c::Subject::Deployment
                     | c::Subject::Tree { .. }
                     | c::Subject::Chips { .. }
                     | c::Subject::Inbox { .. }
@@ -315,7 +326,11 @@ fn first_run_words(
                         result: jig_client::Readout::Family {
                             family: wire::FORGE,
                             record: Some(wire::setting_answer(
-                                &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: None }).unwrap(),
+                                &w::SettingAnswer::new(
+                                    &w::CEILINGS,
+                                    w::SettingAnswerParts { revision: None, value: None },
+                                )
+                                .unwrap(),
                             )),
                         },
                     })

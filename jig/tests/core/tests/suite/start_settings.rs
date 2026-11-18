@@ -64,7 +64,7 @@ fn changed_defaults_commit_the_release_revision_before_sweep_and_switch() {
         for _ in 0..h.out.len() {
             let write = match h.out.pop().expect("release output") {
                 core::Request::Write(write) => write,
-                core::Request::Ask { ask: core::Ask::Catalogue { .. }, .. } => continue,
+                core::Request::Ask { ask: core::Ask::Catalogue { .. } | core::Ask::Workers(_), .. } => continue,
                 other => panic!("unexpected release output: {other:?}"),
             };
             match write {

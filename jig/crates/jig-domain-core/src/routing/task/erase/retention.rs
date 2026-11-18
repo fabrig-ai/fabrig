@@ -163,7 +163,7 @@ pub(super) fn loaded(
             }
             Some(crate::Record::Tasks(tasks::Stored::Summary(summary))) => {
                 if row.stage == Stage::Summary {
-                    super::erase_ended_indexes(&summary, out);
+                    super::erase_ended_indexes(core, &summary, out);
                     out.push(Request::Write(Write::Erase(Key::Tasks(tasks::Key::Summary(row.number)))));
                     move_row(out, row, None);
                     next(core, env, out, walk);

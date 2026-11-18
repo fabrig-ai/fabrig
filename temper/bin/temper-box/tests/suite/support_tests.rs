@@ -25,10 +25,11 @@ fn cluster_turn_setup_declares_the_paced_gate_and_prepare_job() {
     );
     assert_eq!(producer[4]["lines"][0]["call"], "deliver");
     let engine = cluster_turn_setup::read(&cluster.dir("engine").join("config/temper.json"));
-    let project = &engine["application"]["landing"]["projects"][0];
+    let landing = cluster_turn_setup::read(&cluster.dir("engine").join("config/landing-settings.json"));
+    let project = &landing["items"][0]["set"];
     assert_eq!(project["by"], "turn");
     assert_eq!(project["batch"], 1);
-    assert_eq!(project["gates"][0]["gates"][0]["workflow"], "gate.yml");
+    assert_eq!(landing["items"][1]["set"]["repositories"][0]["gates"][0]["workflow"], "gate.yml");
     let limits = jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 };
     let bytes = serde_json::to_vec(&engine["engine"]).expect("engine JSON");
     let document = jig_protocol_config::document(&bytes, &limits).expect("engine document");
@@ -37,8 +38,10 @@ fn cluster_turn_setup_declares_the_paced_gate_and_prepare_job() {
         temper_service::limits::prepare_jobs(&engine.limits).contains(&temper_service::limits::prepare_bound()),
         "the worker's merge train must be declared"
     );
-    support::write_private(&cluster.dir("llm").join("root.der"), skein_tls_kit::pki::ROOT);
-    let agent = temper_worker_shell::agent::read(&cluster.dir("w1").join("config/agent.json")).expect("agent profile");
+    let document = cluster_turn_setup::read(&cluster.dir("engine").join("config/temper.json"));
+    let bytes = serde_json::to_vec(&support::cluster::agent_configuration(&document, &cluster.dir("w1").join("data")))
+        .expect("agent JSON");
+    let agent = temper_worker_shell::agent::prepare_bytes(bytes.into()).expect("agent profile").agent;
     for process in ["engine", "w1"] {
         let root = cluster.dir(process);
         let directories = temper_real_loop_world::cluster::directories_in([
@@ -57,7 +60,7 @@ fn cluster_turn_setup_declares_the_paced_gate_and_prepare_job() {
                 startup::named(&bytes, &directories).expect("checked engine alone");
             }
             startup::Shape::WorkerAlone => {
-                startup::worker_part(&bytes, &directories).expect("checked worker alone");
+                startup::worker_part(&bytes, &directories, None, &[]).expect("checked worker alone");
             }
             startup::Shape::Standalone => panic!("separate deployment processes"),
         }
@@ -162,6 +165,11 @@ fn a_judge_keeps_an_action_finding_for_watch() {
 }
 
 #[test]
+fn person_a_new_project_waits_for_its_applied_home() {
+    support::person::a_new_project_waits_for_its_applied_home();
+}
+
+#[test]
 fn person_a_chat_waits_for_the_model_watch_before_pressing_start() {
     support::person::a_chat_waits_for_the_model_watch_before_pressing_start();
 }
@@ -254,7 +262,7 @@ fn landing_configuration_admission(case: &str, configure: fn(&std::path::Path, u
         let bytes = std::fs::read(root.join(path)).expect("fixture file");
         entries.push((file.path, Secret::new(bytes.into_boxed_slice()))).expect("named file count");
     }
-    let agent = temper_worker_shell::agent::read(&root.join("agent.json")).expect("story agent");
+    let agent = temper_fixtures::agent::prepared(root).agent;
     let seeds = Seeds {
         link_secret: None,
         local_secret: None,

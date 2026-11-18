@@ -114,24 +114,100 @@ fn the_deployment_read_stays_answered_before_any_party() {
     }
 }
 
+fn deployment_welcome(service: &mut crate::Service) -> bool {
+    let engine = service.engine.as_mut().unwrap();
+    crate::engine::iterate(engine, skein_lib::Time::ZERO, skein_lib::Wall::EPOCH);
+    let mut input = read_input(people::ApplicationScope::Deployment);
+    if let kit::ToApplication::Read { record, sign_in, .. } = &mut input {
+        *sign_in = 0;
+        *record = wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Deployment }).unwrap());
+    }
+    let Err(answer) = family::to_root(
+        &jig_protocol_config::Directories::working(),
+        input,
+        &fixtures::forge_table(&[]),
+        engine.demo.as_ref(),
+        &engine.clients.deployment,
+        engine.domain.playground(),
+        &w::CEILINGS,
+    ) else {
+        panic!("deployment read")
+    };
+    let kit::Event::Application(kit::FromApplication::Read { record: Some(record), .. }) = *answer else {
+        panic!("deployment answer")
+    };
+    wire::decode_deployment_answer(&record, &w::CEILINGS).unwrap().welcome()
+}
+
 #[test]
-fn deployment_owned_needs_the_document_and_the_box() {
-    for (document_owned, under_box, expected) in
-        [(false, false, false), (false, true, false), (true, false, false), (true, true, true)]
-    {
-        assert_eq!(crate::system::deployment_owned(document_owned, under_box), expected);
+fn deployment_reads_follow_the_box_default_and_committed_welcome_changes() {
+    use forge::settings as f;
+    use jig_domain_core::settings as s;
+    use temper_engine_domain::{self as root, KindValue};
+    for under_box in [true, false] {
+        let mut config = fixtures::engine();
+        let mut owner = config.jig.owners[0].clone();
+        owner.project = people::DEPLOYMENT;
+        let identity = owner.identity.clone();
+        config.jig.owners = Box::new([config.jig.owners[0].clone(), owner]);
+        config.jig.limits.core.people.initial_owners = 2;
+        let mut service = fixtures::start_configured(config, &[(1, 100)], None, false, under_box);
+        fixtures::restart(&mut service);
+        assert_eq!(deployment_welcome(&mut service), under_box, "fresh deployment default");
+        service.engine.as_mut().unwrap().step(root::Event::Party(root::PartyInput::SignedIn {
+            until: None,
+            held: None,
+            reply_to: REPLY,
+            identity: people::Identity {
+                key: identity,
+                login: b"owner".as_slice().into(),
+                name: b"Owner".as_slice().into(),
+            },
+        }));
+        fixtures::settle_root(&mut service, &mut skein_lib::Queue::uncapped());
+        let value = f::Value::Welcome(f::Welcome { shown: !under_box });
+        let bytes = temper_engine_smith::kinds::encode(&value);
+        for (against, edit, expected) in
+            [(1, s::Edit::Set(s::Value::Application(bytes)), !under_box), (2, s::Edit::Reset, under_box)]
+        {
+            let kinds: Box<[KindValue]> = if against == 1 {
+                Box::new([KindValue {
+                    kind: 20,
+                    scope: 0,
+                    number: 1,
+                    value: f::SizedValue { size: temper_engine_smith::kinds::size(&value), value: value.clone() },
+                }])
+            } else {
+                Box::default()
+            };
+            service.engine.as_mut().unwrap().step(root::Event::Party(root::PartyInput::ChangeSettings {
+                kinds,
+                reply_to: REPLY,
+                sign_in: 1,
+                key: [u8::try_from(against).unwrap(); 16],
+                digest: [u8::try_from(against).unwrap(); 32],
+                change: Box::new(s::Change {
+                    against,
+                    items: Box::new([s::Item {
+                        setting: s::Setting::Application { kind: 20, scope: 0, number: 1 },
+                        edit,
+                    }]),
+                    running: s::Running::Stays,
+                }),
+            }));
+            fixtures::settle_root(&mut service, &mut skein_lib::Queue::uncapped());
+            assert_eq!(deployment_welcome(&mut service), expected, "fresh reads use the live setting with no restart");
+        }
     }
 }
 
 #[test]
-fn playground_config_needs_the_welcome() {
+fn playground_config_is_ready_whenever_demo_is_configured() {
     let service = fixtures::demo_service();
     let demo = service.engine.as_ref().unwrap().demo.as_ref().unwrap();
     let deadline = skein_lib::Duration::from_secs(10);
-    for (demo, welcome, offered) in
-        [(None, false, false), (None, true, false), (Some(demo), false, false), (Some(demo), true, true)]
-    {
-        let config = crate::system::playground_config(demo, welcome, deadline);
+    for (demo, offered) in [(None, false), (Some(demo), true)] {
+        let config = crate::system::playground_config(demo, deadline);
         assert_eq!(config.is_some(), offered);
         if let Some(config) = config {
             assert_eq!(config.provider, demo.unwrap().provider);
@@ -139,4 +215,3 @@ fn playground_config_needs_the_welcome() {
         }
     }
 }
-

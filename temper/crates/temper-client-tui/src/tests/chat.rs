@@ -202,39 +202,28 @@ fn root(input: &Input) -> Domain {
         Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } } },
     );
     let mut out = Queue::uncapped();
+    let mut me = f::me(&[b"Hello"]);
+    if input.session || input.asking {
+        let mut template = super::foot::template(if input.session { 6 } else { 5 });
+        template.executor = c::TemplateExecutor::Charter(if input.session { 12 } else { 1 });
+        me.projects.get_mut(0).unwrap().templates = List::from_boxed(Box::new([template]));
+    }
+    let mut replies = chat_event(
+        &mut root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: skein_lib::Token::new(0),
+                    event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))),
+                },
+            },
+        },
+    );
+    while let Some(reply) = replies.pop() {
+        out.push(reply);
+    }
     while let Some(request) = opened.pop() {
-        match request {
-            d::Request::Unlinked {
-                request:
-                    UnlinkedRequest::Down {
-                        down: Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Me) },
-                    },
-            } => {
-                let mut me = f::me(&[b"Hello"]);
-                if input.session || input.asking {
-                    let mut template = super::foot::template(if input.session { 6 } else { 5 });
-                    template.executor = c::TemplateExecutor::Charter(if input.session { 12 } else { 1 });
-                    me.projects.get_mut(0).unwrap().templates = List::from_boxed(Box::new([template]));
-                }
-                let mut replies = chat_event(
-                    &mut root,
-                    Event::Client {
-                        event: jig_client::Event::Up {
-                            up: jig_client::Up::Watched {
-                                watch,
-                                event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))),
-                            },
-                        },
-                    },
-                );
-                while let Some(reply) = replies.pop() {
-                    out.push(reply);
-                }
-            }
-            request => {
-                out.push(request);
-            }
-        }
+        out.push(request);
     }
     let mut task = match &input.task {
         Some(task) => task.as_ref().clone(),

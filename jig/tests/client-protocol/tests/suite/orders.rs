@@ -2,7 +2,7 @@
 //! See skein/docs/foundation/programming-model.md, 7.2.
 use jig_client_domain::{Ask, Asker, Held, Key, Readable, contract};
 use jig_client_protocol_link::{Event, Link, Message, Record, Request, Saved};
-use jig_client_protocol_wire::v27 as w;
+use jig_client_protocol_wire as w;
 use jig_client_protocol_world::fixtures::{self, PROJECT};
 use skein_lib::{Duration, Queue, Reader, RequestKey, RequestRecord, Time, Token, Writer};
 use std::collections::BTreeMap;
@@ -98,10 +98,12 @@ impl World {
                 Request::Answer { attempt, .. } => self.terminals.push((attempt, "answer")),
                 Request::NotKept { attempt } => self.terminals.push((attempt, "not kept")),
                 other @ (Request::Exchange { .. }
+                | Request::AskedLink(_)
                 | Request::Approval(_)
                 | Request::Authorized(_)
                 | Request::Erase { .. }
                 | Request::Kept { .. }
+                | Request::NotWritten { .. }
                 | Request::Dropped
                 | Request::ServiceCredential { .. }
                 | Request::OpenStream { .. }
@@ -112,6 +114,7 @@ impl World {
                 | Request::FamilyDelivery { .. }
                 | Request::Ended { .. }
                 | Request::Hello { .. }
+                | Request::ReadAgain { .. }
                 | Request::Read { .. }
                 | Request::Fact { .. }) => panic!("unplanned neighbor request: {other:?}"),
             }

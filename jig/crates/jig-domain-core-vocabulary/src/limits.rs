@@ -245,8 +245,22 @@ fn context_carrier(limits: &Limits) -> Option<u64> {
         .checked_add(u64::from(task.result_bytes))
 }
 
-pub fn problems(names: Box<[Box<[u8]>]>, limits: &Limits) -> Result<Membership, Problem> {
-    Membership::new(names, limits.fleet.configured_workers, limits.fleet.worker_name_bytes)
+pub fn problems(workers: &[crate::settings::WorkerSetting], limits: &Limits) -> Result<Membership, Problem> {
+    let mut members = List::with_capacity(limits.fleet.configured_workers);
+    for worker in workers {
+        if members
+            .push(jig_domain_link::Member {
+                number: worker.number,
+                name: worker.name.clone(),
+                places: worker.places,
+                withdrawn: worker.withdrawn,
+            })
+            .is_err()
+        {
+            return Err(Problem::Workers { limit: limits.fleet.configured_workers });
+        }
+    }
+    Membership::new(members.into_boxed(), limits.fleet.configured_workers, limits.fleet.worker_name_bytes)
 }
 
 /// Whether the core's limits and edge bounds are representable (programming-model.md, 6.3).

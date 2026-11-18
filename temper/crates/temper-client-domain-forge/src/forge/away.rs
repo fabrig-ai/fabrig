@@ -125,7 +125,7 @@ pub fn configure(side: &mut Side, limits: Limits, out: &mut Queue<Request>) {
         side.changed();
         return;
     }
-    if side.party.is_some()
+    if side.link == Link::Live
         && !side.away_open
         && let State::Unknown = side.away
     {
@@ -284,6 +284,8 @@ fn answered(record: &Family, limits: Limits) -> Option<Answer> {
         | w::Outcome::NotTheirs
         | w::Outcome::Overturned
         | w::Outcome::OverturnRefused(_)
+        | w::Outcome::Checkpointed(_)
+        | w::Outcome::CheckpointRefused(_)
         | w::Outcome::EndRefused(_)
         | w::Outcome::MakeKept
         | w::Outcome::DeviceAdded(_)

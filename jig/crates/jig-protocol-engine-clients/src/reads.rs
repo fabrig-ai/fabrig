@@ -3,12 +3,7 @@ use super::{Box, Component, Env, Limits, Queue, ReplyTo, Request, Token, Waiting
 use skein_lib::{Reader, Writer};
 impl Component {
     pub(super) fn serves(&self, family: Option<u16>, version: u32) -> bool {
-        for range in &self.settings.served {
-            if range.family == family && range.first <= version && version <= range.last {
-                return true;
-            }
-        }
-        false
+        crate::served::serves(&self.settings, family, version)
     }
     pub(super) fn read(
         &mut self,
@@ -48,10 +43,14 @@ impl Component {
                     self.respond(exchange, routes::read_none(core::reads::Why::Unknown, &env.limits.wire));
                     return;
                 };
+                let Some(core_read) = crate::translate::parts::read(&what, &self.settings, &env.limits.wire) else {
+                    self.respond(exchange, routes::read_none(core::reads::Why::Unknown, &env.limits.wire));
+                    return;
+                };
                 let request = Request::Core(Box::new(core::Event::Read {
                     reply: ReplyTo::new(exchange),
                     sign_in,
-                    read: what.clone(),
+                    read: core_read,
                 }));
                 self.pending
                     .exchanges
@@ -98,6 +97,7 @@ impl Component {
                         answer,
                         &self.settings.models,
                         &self.settings.private,
+                        &self.settings,
                         &env.limits.wire,
                     ),
                     &env.limits.wire,
@@ -119,6 +119,8 @@ impl Component {
                 }
             },
             Waiting::Authorize { .. }
+            | Waiting::LinkAskWhose { .. }
+            | Waiting::AskedWhose { .. }
             | Waiting::ApprovalWhose { .. }
             | Waiting::ApprovalCore { .. }
             | Waiting::Core { .. }
@@ -158,6 +160,8 @@ impl Component {
                 self.read_response(exchange, answer, &env.limits.wire);
             }
             Waiting::Authorize { .. }
+            | Waiting::LinkAskWhose { .. }
+            | Waiting::AskedWhose { .. }
             | Waiting::ApprovalWhose { .. }
             | Waiting::ApprovalCore { .. }
             | Waiting::Core { .. }

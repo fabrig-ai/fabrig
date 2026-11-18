@@ -52,6 +52,7 @@ fn world_with_owner(identity: people::IdentityKey) -> World {
     forge_with_only_temper(&mut world);
     world.until(Until::Ready);
     world.send(engine::Event::Party(engine::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(90)),
         identity: people::Identity {
@@ -382,7 +383,11 @@ fn drop_approvals(world: &mut World) {
                         | settings::Value::CharterWords(_)
                         | settings::Value::Goal(_)
                         | settings::Value::Classes(_)
+                        | settings::Value::Welcome(_)
                         | settings::Value::ProjectAreas(_)
+                        | settings::Value::AgentFigures(_)
+                        | settings::Value::Landing(_)
+                        | settings::Value::Gates(_)
                         | settings::Value::ProjectTriager(_)
                         | settings::Value::ProjectWords(_)
                         | settings::Value::Dependency(_)
@@ -905,6 +910,7 @@ fn linked_box_world() -> World {
         state: forge_top::Connection::Connected { id: 1, login: b"bot".as_slice().into() },
     })));
     world.send(engine::Event::Party(engine::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(90)),
         identity: people::Identity {
@@ -939,6 +945,7 @@ fn sign_in_other_project(world: &mut World) {
     let project = *project;
     assert_ne!(project, 1);
     world.send(engine::Event::Party(engine::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(161)),
         identity: people::Identity {
@@ -1303,6 +1310,7 @@ fn assert_stock_roles() {
 fn give_writer_legacy_membership(world: &mut World) {
     let owner = world.signed_in.expect("owner session");
     world.send(engine::Event::Party(engine::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(150)),
         identity: people::Identity {

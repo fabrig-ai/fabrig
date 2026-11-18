@@ -6,6 +6,7 @@ use super::{
     wire_document_text, wire_funder, wire_payer_readiness, wire_proposer, wire_provider_offer, wire_requester,
     wire_seen_through, wire_task_link,
 };
+use skein_lib::List;
 pub(in crate::codec) fn wire_task_source_place(
     value: &c::AccountPlace,
     _limits: &w::Limits,
@@ -106,9 +107,27 @@ pub(in crate::codec) fn wire_deployment(
     value: &c::Deployment,
     limits: &w::Limits,
 ) -> Result<w::Deployment, w::Problem> {
+    let mut worker_settings = List::with_capacity(value.worker_settings.len());
+    for row in &value.worker_settings {
+        worker_settings
+            .push(w::WorkerState::new(
+                limits,
+                w::WorkerStateParts {
+                    number: row.number,
+                    name: row.name.clone(),
+                    places: row.places,
+                    digest: row.digest,
+                    withdrawn: row.withdrawn,
+                    linked: row.linked,
+                    since: row.since.map(skein_lib::Wall::as_nanos),
+                },
+            )?)
+            .expect("worker row count");
+    }
     w::Deployment::new(
         limits,
         w::DeploymentParts {
+            worker_settings,
             skein_bools: [value.cut, value.connectors_cut, value.providers_cut, value.readiness_cut],
             store: wire_store_fill(&value.store, limits)?,
             census: value.census.as_deref().map(|value| wire_store_census(value, limits)).transpose()?,

@@ -17,10 +17,10 @@ fn opening() -> Machine {
     process_line(&mut machine, Process::Forgejo, Output::Stdout, "listening forge\n");
     process_line(&mut machine, Process::Model, Output::Stdout, "listening model\n");
     engine_ready(&mut machine);
-    process_line(&mut machine, Process::Worker, Output::Stderr, "linked worker\n");
     assert!(process_line(&mut machine, Process::Engine, Output::Stdout, "http://ignored/before-sign-in\n").is_empty());
-    let actions = step(&mut machine, exited(Process::SignIn, 0));
-    let [Action::RemoveLink, Action::Open(url)] = actions.as_slice() else { panic!("{actions:?}") };
+    admit_worker(&mut machine);
+    let actions = process_line(&mut machine, Process::Worker, Output::Stderr, "linked worker\n");
+    let [Action::DeploymentLog { .. }, Action::Open(url)] = actions.as_slice() else { panic!("{actions:?}") };
     assert_eq!(url.as_ref(), b"http://127.0.0.1:4101/link?secret=not-logged");
     machine
 }
@@ -42,7 +42,11 @@ fn running_tui(machine: &mut Machine) {
     assert_eq!(program.program, Path::new("/build/bin/temper"));
     assert_eq!(program.args, [OsStr::from_bytes(ORIGIN)]);
     step(machine, Event::TuiReady);
-    step(machine, Event::TuiSaved(super::super::tui::saves().1));
+    // The drive reads only the browse record here; rendering a TUI world is unrelated to deployment control.
+    let mut saved = Vec::new();
+    temper_client_shell_tui::journey::Line::Browse(b"http://127.0.0.1:4101/terminal?code=WDJB-MJHT".as_slice().into())
+        .write(&mut saved);
+    step(machine, Event::TuiSaved(saved.into()));
     step(machine, Event::BrowserAddress([ORIGIN, b"/"].concat().into()));
     step(machine, Event::FaceDone(Ok(())));
     step(machine, Event::Found(Some(NodeId(1))));
@@ -199,5 +203,47 @@ fn full_patch_validates_then_stops_tui_and_reloads_before_answering() {
         assert_eq!(machine.next_deadline(), None);
         assert!(!machine.tui_running);
         assert!(!line(&mut machine, "ctl me").is_empty(), "deployment still takes lines");
+    }
+}
+
+#[test]
+fn restart_keeps_documents_and_reloads_only_a_full_session() {
+    let mut boxed = super::super::ready();
+    let actions = line(&mut boxed, "deployment restart");
+    assert!(matches!(actions.as_slice(), [Action::Answer(answer)]
+        if answer.failed.as_deref() == Some("line 1: a box takes no deployment line")));
+    for ctl in [true, false] {
+        let mut machine = if ctl { deployment_ready() } else { ready_page() };
+        if !ctl {
+            running_tui(&mut machine);
+        }
+        let source = "deployment restart";
+        let actions = line(&mut machine, source);
+        if ctl {
+            stop(&actions, Process::Worker, false);
+        } else {
+            assert!(matches!(actions.as_slice(), [Action::StopTui]), "{actions:?}");
+            stop(&step(&mut machine, Event::TuiStopped), Process::Worker, false);
+        }
+        stop(&step(&mut machine, exited(Process::Worker, 0)), Process::Engine, false);
+        // No patch write: the next effect is starting the engine with the same documents.
+        assert_start(&step(&mut machine, exited(Process::Engine, 0)), Process::Engine);
+        assert_start(&engine_ready(&mut machine), Process::Worker);
+        let mut actions = process_line(&mut machine, Process::Worker, Output::Stderr, "linked worker\n");
+        if !ctl {
+            assert!(
+                matches!(actions.as_slice(), [Action::DeploymentLog { .. }, Action::Open(url)]
+                if url.as_ref() == b"http://127.0.0.1:4101/"),
+                "{actions:?}"
+            );
+            step(&mut machine, Event::FaceDone(Ok(())));
+            actions = step(&mut machine, Event::Found(Some(NodeId(1))));
+        }
+        assert!(answer(&actions).failed.is_none());
+        assert!(
+            actions.iter().any(|action| matches!(action, Action::Keep(kept) if kept.as_ref() == source.as_bytes()))
+        );
+        assert!(machine.ready());
+        assert!(!machine.tui_running);
     }
 }

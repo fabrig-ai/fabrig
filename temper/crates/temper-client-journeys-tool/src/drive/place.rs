@@ -52,7 +52,7 @@ impl Ports {
 
 pub(super) enum Place {
     Box(BoxState),
-    Deployment(DeploymentState),
+    Deployment(Box<DeploymentState>),
 }
 pub(super) struct BoxState {
     stage: BoxStage,
@@ -86,6 +86,9 @@ pub(super) enum Stage {
     Idle,
     PatchTui,
     Reading,
+    WorkerFile,
+    WorkerList,
+    WorkerAdd,
     Stopping(bool),
     Writing,
     Classifying,
@@ -100,6 +103,7 @@ pub(super) struct DeploymentState {
     pub link: bool,
     pub first: Option<Box<[u8]>>,
     pub patch: Option<deployment::RenderedFile>,
+    pub worker: Option<deployment::Worker>,
     pub until: Option<Time>,
     pub patch_until: Option<Time>,
 }
@@ -128,6 +132,7 @@ pub(super) enum Progress {
     None,
     Waiting,
     First(First),
+    Started,
     Link { link: Box<[u8]>, replace: bool },
     Failed(String),
     LostLine(String),
@@ -140,7 +145,7 @@ pub(super) enum Progress {
 impl Place {
     pub fn start(plan: &Plan, now: Time) -> (Self, Action) {
         if plan.options.deployment.is_some() {
-            (Self::Deployment(DeploymentState::new(now)), Action::PrepareDeployment)
+            (Self::Deployment(Box::new(DeploymentState::new(now))), Action::PrepareDeployment)
         } else {
             (
                 Self::Box(BoxState {
@@ -228,13 +233,28 @@ impl Place {
         let admin = self.value(BoxValue::Admin, log)?;
         Ok(Some(([git.as_ref(), b"/api/v1"].concat().into(), PathBuf::from(std::ffi::OsStr::from_bytes(&admin)))))
     }
-    pub fn patch(&mut self, patch: &Deployment, now: Time, out: &mut Vec<Action>) {
+    pub fn patch(&mut self, change: &Deployment, tui: bool, plan: &Plan, now: Time, out: &mut Vec<Action>) -> Progress {
         let Self::Deployment(state) = self else { unreachable!("admitted deployment line") };
-        let Deployment::Patch { document, path } = patch;
-        state.stage = Stage::Reading;
         state.patch_until = Some(now.saturating_add(Duration::from_secs(300)));
         state.until = state.patch_until;
-        out.push(Action::ReadDeploymentPatch { document: *document, path: path.clone() });
+        match change {
+            Deployment::Patch { document, path } => {
+                state.stage = Stage::Reading;
+                out.push(Action::ReadDeploymentPatch { document: *document, path: path.clone() });
+                Progress::Waiting
+            }
+            Deployment::Restart => state.restart(tui, plan, now, out),
+        }
+    }
+    pub fn signed_in(&mut self, now: Time, out: &mut Vec<Action>) -> bool {
+        if let Self::Deployment(state) = self {
+            state.stage = Stage::WorkerFile;
+            state.until = Some(now.saturating_add(STEP));
+            out.push(Action::ReadDeploymentWorker);
+            true
+        } else {
+            false
+        }
     }
     pub fn event(
         &mut self,
@@ -290,7 +310,7 @@ impl Place {
             }
         }
     }
-    pub fn stop(&mut self, now: Time, out: &mut Vec<Action>) -> Progress {
+    pub fn stop(&mut self, plan: &Plan, now: Time, out: &mut Vec<Action>) -> Progress {
         match self {
             Self::Box(state) if state.exited => {
                 state.classifying(state.failed.clone().unwrap_or_else(|| "the box exited".into()), out);
@@ -302,7 +322,7 @@ impl Place {
                 out.push(Action::Stop { process: Process::Box, force: false });
                 Progress::Waiting
             }
-            Self::Deployment(state) => state.stop(false, now, out),
+            Self::Deployment(state) => state.stop(false, plan, now, out),
         }
     }
     pub fn browser_close_expired(&mut self, out: &mut Vec<Action>) {

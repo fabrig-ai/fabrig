@@ -26,7 +26,7 @@ pub const CTL: Command = Command {
     set: Set::Internal,
     forms: &[
         "DIR GROUP VERB [ARGUMENT...] [--json]",
-        "DIR me|inbox|sign-in|sign-out|pending [ARGUMENT...] [--json]",
+        "DIR me|inbox|sign-in|sign-out|link|pending [ARGUMENT...] [--json]",
         "DIR --call FILE [--json]",
         "help [GROUP [VERB]]",
     ],

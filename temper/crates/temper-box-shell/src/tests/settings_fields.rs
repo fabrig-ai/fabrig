@@ -106,6 +106,7 @@ fn encode(value: &settings_form::view::SettingValue, out: &mut Encoder) {
     use settings_form::{values, view::SettingValue};
     match value {
         SettingValue::Overlay(value) => values::encode_overlay(value, out),
+        SettingValue::Worker(value) => values::encode_worker(value, out),
         SettingValue::Model(value) => values::encode_catalogue(value, out),
         SettingValue::Charter(value) => values::encode_charter(value, out),
         SettingValue::Template(value) => values::encode_template(value, out),
@@ -229,10 +230,8 @@ fn every_member_ctl_prints_for_the_stock_is_a_field() {
     const STOCK_VALUES: usize = 22;
     let llm = llm();
     let models = models(&llm);
-    let stock = temper_service::stock::with_models(
-        llm.models.clone(),
-        jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Standard).core.tasks.result_bytes,
-    );
+    let stock =
+        temper_service::stock::with_models(llm.models.clone(), jig_protocol_config::stock().core.tasks.result_bytes);
     let mut checked = 0;
     for value in stock.models {
         walk(Shape::Catalogue, printed(&StockValue::Model(Box::new(value)), &models));

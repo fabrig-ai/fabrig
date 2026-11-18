@@ -81,6 +81,10 @@ pub(crate) fn start_closer_step(domain: &mut Domain, env: &Env<Limits>, context:
             return;
         }
         c::Decision::Make(kind) => {
+            if kind == c::Step::Land && domain.forge.landing_held() {
+                submit(domain, env, row, ProcedureStep::new(StepEnd::Wait));
+                return;
+            }
             let branch = branch.expect("only a held goal branch makes a step");
             let delegate = match delegate(domain, env, &row, &repository, &branch, &goal_words, kind) {
                 Ok(delegate) => delegate,
@@ -264,7 +268,7 @@ fn child(domain: &Domain, task: u64) -> c::Child {
 
 fn attempt_bound(domain: &Domain, task: u64) -> u8 {
     let project = domain.core.tasks.task(task).expect("live closer").project;
-    match domain.config.landings.get(&project) {
+    match domain.forge.landing_settings(project) {
         Some(landing) => landing.landing_attempts,
         None => crate::LANDING_ATTEMPTS,
     }
@@ -297,6 +301,7 @@ fn branch_reason(held: Option<super::forge_change::Hold>) -> Option<&'static [u8
             | Hold::BranchMoved
             | Hold::Retargeted
             | Hold::Failed
+            | Hold::Flake
             | Hold::Authority(_)
             | Hold::Questions,
         )

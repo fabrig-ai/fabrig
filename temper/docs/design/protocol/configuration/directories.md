@@ -6,7 +6,7 @@ variable, else its default.
 
 | Directory | Flag, variable | Default | Holds | Kept |
 |---|---|---|---|---|
-| configuration | `--config DIR`, `TEMPER_CONFIG` | `$XDG_CONFIG_HOME/temper` | the document, `temper.json`; smith's agent configuration, `agent.json`; the charters' instructions, until `settings.md` moves them into the binary; trusted roots' files | as a person's own files are: copied, synced or published, so it holds no secret |
+| configuration | `--config DIR`, `TEMPER_CONFIG` | `$XDG_CONFIG_HOME/temper` | the document, `temper.json`, with no `agent.json` beside it, which a start refuses (`figures.md`, section 7); the charters' instructions, until `settings.md` moves them into the binary; trusted roots' files | as a person's own files are: copied, synced or published, so it holds no secret |
 | data | `--data DIR`, `TEMPER_DATA` | `$XDG_DATA_HOME/temper` | the deployment's directory, with the store, transcripts and jig's secrets' store; the worker's secret and its digest; the worker's root; each set-up forge's directory, named by its number (../setup/README.md, section 3); the scripted model's key and the fake git's link, in `demo/` (../setup/playground.md); the box's groups, in `box/groups/`, and its records of the groups it has started, in `box/started/` (../setup/box.md, 1); the box's logs of its last two runs, in `box/logs/` and `box/logs.previous/` (../setup/box.md, 2); the programs directory | the deployment: backed up whole |
 | cache | `--cache DIR`, `TEMPER_CACHE` | `$XDG_CACHE_HOME/temper` | binaries fetched again at will: an owned forge's Forgejo and runner, `temper-box forge fetch`'s in `forgejo/VERSION/` and `forgejo-runner/RUNNER_VERSION/` (../setup/owned.md, 6) | never backed up |
 
@@ -33,8 +33,8 @@ variable, else its default.
     (`engine.md`); the
     worker's agent's `configuration` is one in jig's parts, which
     standalone requires absolute (below);
-  - *data paths:* jig's `engine.deployment.directory`, each of
-    `engine.hosts.workers`' `digest` and the worker's `secret`; each of
+  - *data paths:* jig's `engine.deployment.directory` and the worker's
+    `secret`; each of
     `application.workers`' `root` (`README.md`, section 3); `application.machine`'s
     `fake.git` and `github.git` (`engine.md`); and `application.demo`'s
     `llm.key` (../setup/playground.md);
@@ -47,15 +47,14 @@ variable, else its default.
     `configuration` and `arguments` (`README.md`, section 4), which are installed
     programs and files, or the spawn's own; every path in smith's agent
     configuration, which is smith's format.
-- **No secret in the configuration directory:** a worker's secret and
-  its digest, an owned or fake forge's handover, every set-up forge's
+- **No secret in the configuration directory:** a worker's secret, an owned or fake forge's handover, every set-up forge's
   file and the scripted model's key are under data, and jig's secrets'
   store is in the deployment's directory.
 - **The box passes its three on** to each step, as flags, each absolute
   (../setup/box.md, 1).
 - **Each of the cluster's processes has its own three** (`../cluster.md`, 1):
-  an engine alone's data holds the deployment's directory and each
-  worker's digest; a worker alone's, its secret and its root. No two
+  an engine alone's data holds the deployment's directory, its
+  workers' digests being their settings'; a worker alone's, its secret and its root. No two
   processes share a data or cache directory.
 - **Tests give all three,** each a directory of the test's own: no test
   resolves a default under `$HOME` (`../../testing/README.md`).
@@ -180,11 +179,11 @@ ordinary managed Forgejo backed by its separate fake. Program login is the
 ordinary command with its configured fake adapter, not an automatic login.
 The fake program way uses the pinned `fake-claude` executable provisioned
 beside `temper`, resolved to that exact absolute sibling path, and its
-private adapter directory D'/programs. Preparation supplies that path as
-init's program fact; source import takes an existing adapter's `"fetched"`
-(../setup/init.md, 2) or its bounded absolute shape, without looking for Claude on
-PATH. The pure rewrite writes the exact sibling and private directory
-whichever the source names.
+private adapter directory D'/programs. Preparation keeps the exact sibling
+in the private effective-config file `fake-claude.path`, outside the
+deployment's fixed worker members. Serve and program-login read this bounded
+file, check it against their binary's sibling, and use it instead of discovering
+Claude on PATH. Source import does not carry an adapter or login state.
 Init writes Anthropic's provider, number 2 (../setup/init.md, 3), so the rewrite
 finds it written and swaps in its own: the provider's one model, the model
 and the endpoint, each found by Anthropic's name and replaced where it stands,
@@ -202,8 +201,8 @@ is absent, it retains the named profile's capacity, raised to at least 3,
 alongside the credential capacity in the same object. No
 startup path discovers or falls back to a real `claude` from PATH.
 
-Reuse requires agent.json/programs/claude_code/path to equal that sibling.
-A different retained path refuses with that member named and explicit reset
+Reuse requires `fake-claude.path` to equal that sibling.
+A different retained path refuses with that file named and explicit reset
 instructions; no credential or login state is imported. A correct path with
 a missing or nonexecutable sidecar instead refuses with the executable path
 and the provisioning command `cargo build -p temper-fake-claude`, without
@@ -211,7 +210,7 @@ asking for a reset. Startup builds or fetches nothing. A walk that needs a
 fake program story provisions it outside startup, then uses ordinary
 program-login; the product links no fake-adapter story machinery.
 
-The required retained documents are temper.json, agent.json, github.json,
+The required retained documents are temper.json, github.json,
 oauth.json, llm.json and forgejo.json. One validation path checks every
 required file before any child starts. A missing required file refuses by
 name with reset instructions, without generating a replacement on reuse.

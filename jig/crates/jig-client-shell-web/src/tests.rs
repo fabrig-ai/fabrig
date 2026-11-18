@@ -96,7 +96,7 @@ fn the_stream_s_pieces_are_cut_to_the_client_s_piece() {
     assert_eq!(
         requests.stream,
         Some(transport::StreamDuty::Open {
-            path: b"/jig/v1/stream".as_slice().into(),
+            path: b"/jig/v1/stream?version=28".as_slice().into(),
             headers: vec![(b"Jig-Client".as_slice().into(), b"browser".as_slice().into())],
             bound: PIECE
         })

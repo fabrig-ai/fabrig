@@ -95,7 +95,7 @@ struct Resolution {
 
 fn config(seed: u64) -> engine::Config {
     let mut config = super::agreement::config(seed);
-    let mut jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    let mut jig = jig_protocol_config_fixtures::small();
     jig.core.tasks = temper_engine_domain_world::forge_routes::box_limits().tasks;
     config.core.jobs = temper_service_core::limits::merge_jobs(&jig);
     assert_eq!(config.core.jobs.as_ref(), [temper_service_core::limits::merge_bound()]);
@@ -110,25 +110,6 @@ fn config(seed: u64) -> engine::Config {
         for role in &mut project.policy.policy.roles {
             role.authority.delegation.kinds.clone_from(kinds);
         }
-    }
-    let mut landing = engine::ProjectLanding {
-        gate_retries: 2,
-        batch: 1,
-        combine_main: engine::Combine::Merge,
-        combine_other: engine::Combine::Squash,
-        gate_timeout: skein_lib::Duration::from_millis(3_600_000),
-        landing_attempts: engine::LANDING_ATTEMPTS,
-        check_timeout: None,
-        close_job: None,
-        merge_job: Some(b".temper/merge".as_slice().into()),
-        by: engine::Way::Queue,
-        repositories: Box::new([]),
-        after: engine::AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 },
-    };
-    if let Some(existing) = config.landings.get_mut(&1) {
-        existing.merge_job = landing.merge_job.take();
-    } else {
-        config.landings.insert(1, landing).expect("project landing room");
     }
     // The changed base takes the update route before the forge's merge.
     let rule = engine::LandingRule {
@@ -146,6 +127,8 @@ fn config(seed: u64) -> engine::Config {
         approvals: Box::new([]),
     };
     config.kinds_stock = engine::landing_stock(&[rule], &skein_lib::Map::with_capacity(0), 2, 4);
+    temper_engine_domain_world::oracle::config::landing(&mut config, 1).merge_job =
+        Some(b".temper/merge".as_slice().into());
     config
 }
 
@@ -416,7 +399,7 @@ impl World {
         assert_eq!(channel, super::CHANNEL);
         assert_eq!(job.kind.0, 3);
         assert_eq!(job.deadline, Duration::from_secs(600));
-        let mut own = temper_service_core::limits::profile(temper_service_core::limits::Profile::Small);
+        let mut own = temper_service_core::limits::stock();
         let checkout = &self.worker_env.limits.checkout;
         own.checkout.repositories = checkout.repositories;
         own.checkout.name_bytes = checkout.name_bytes;

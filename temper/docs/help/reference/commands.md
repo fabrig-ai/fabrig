@@ -43,7 +43,7 @@ Reads no directory and no configuration, so it works before temper init. A name 
 
 `temper ctl DIR GROUP VERB [ARGUMENT...] [--json]`
 
-`temper ctl DIR me|inbox|sign-in|sign-out|pending [ARGUMENT...] [--json]`
+`temper ctl DIR me|inbox|sign-in|sign-out|link|pending [ARGUMENT...] [--json]`
 
 `temper ctl DIR --call FILE [--json]`
 
@@ -109,6 +109,33 @@ Makes the previous generation active again, before the patched one's first commi
 
 Stop the deployment first, then start the old binary after going back. Past the patched generation's first commit, going back is restoring a backup.
 
+### temper-engine checkpoint
+
+`temper-engine checkpoint [DIRECTORIES]`
+
+`temper-engine checkpoint --hold NAME [DIRECTORIES] -- COMMAND [ARGUMENT...]`
+
+`temper-engine checkpoint --remove NAME [DIRECTORIES]`
+
+takes a checkpoint of the stopped deployment; --hold runs a command under one's lock, --remove removes one
+
+- `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
+- `NAME`: A checkpoint name: 20 decimal digits, a hyphen and 16 hexadecimal digits.
+- `COMMAND [ARGUMENT...]`: The child command and its arguments, only with --hold and after --.
+
+--hold and --remove exclude each other. Uses the configuration serve reads. Taking one requires a stopped deployment; holding or removing one also works while it serves. --hold inherits the working directory and environment, sets TEMPER_CHECKPOINT to the checkpoint's absolute directory, and holds its lock until the child is closed. Exit 0 on success, 1 on refusal, 2 for invalid arguments; --hold exits as its child did, 128 plus its terminating signal, or 127 when the command cannot run.
+
+### temper-engine restore
+
+`temper-engine restore NAME [DIRECTORIES]`
+
+restores a checkpoint over the stopped deployment, after a safety checkpoint of it
+
+- `NAME`: A checkpoint name: 20 decimal digits, a hyphen and 16 hexadecimal digits.
+- `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
+
+Uses the configuration serve reads. Stop the deployment first. The state before restoring is kept as a safety checkpoint; restore that checkpoint to bring it back. Exit 0 on success, 1 on refusal, 2 for invalid arguments.
+
 ### temper-engine help
 
 `temper-engine help [NAME | pages | --search WORDS...]`
@@ -124,18 +151,18 @@ Download an owned forge's Forgejo and runner binaries into the cache. Internal: 
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 - `FORGE`: A forge's number in the configuration.
 
-Fetches only the binaries the forge's setup gives as "fetched", at temper's pinned versions, for amd64 or arm64; another machine is refused, naming its architecture. It says how far each binary has gone on its stdout, a line at each percent. A forge with no group's file takes `application.machine.owned`, in `<data>/forge-N`, and writes nothing under `box/`.
+Fetches only the binaries the forge's setup gives as "fetched", at temper's pinned versions, for amd64 or arm64; another machine is refused, naming its architecture. It says how far each binary has gone on its stdout, a line at each percent. Reads the forge's immutable setup file in its data directory.
 
 ### temper-engine forge prepare
 
-`temper-engine forge prepare [DIRECTORIES] FORGE`
+`temper-engine forge prepare [DIRECTORIES] FORGE [--listen ADDR --person LOGIN EMAIL] [SETUP FLAGS]`
 
 Prepare an owned forge before its Forgejo first runs. Internal: it may change without notice.
 
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 - `FORGE`: A forge's number in the configuration.
 
-A forge with no group's file takes `application.machine.owned`, in `<data>/forge-N`, and writes nothing under `box/`.
+The first prepare writes the immutable setup file. Required: --listen ADDR --person LOGIN EMAIL. Optional: --remote URL, --public ORIGIN, --forgejo PATH (default fetched), --runner-label LABEL (repeatable; enables a runner), --runner-binary PATH (default fetched), --runner-capacity N (default 1), --runner-path PATH (default /usr/local/bin:/usr/bin:/bin), --sign-in CLIENT. Later flags must equal the file; with none it is read.
 
 ### temper-engine forge run
 
@@ -146,7 +173,7 @@ Run an owned forge's Forgejo or its runner. Internal: it may change without noti
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 - `FORGE`: A forge's number in the configuration.
 
-Checks the binary and the preparation, and takes the forge's lock, first. Run alone, it replaces itself by the program, whose exit status is then its own; given the forge's listener, as the box gives it, it runs the program as its child. A forge with no group's file takes `application.machine.owned`, in `<data>/forge-N`, and writes nothing under `box/`.
+Checks the binary and the preparation, and takes the forge's lock, first. Run alone, it replaces itself by the program, whose exit status is then its own; given the forge's listener, as the box gives it, it runs the program as its child. Reads the forge's immutable setup file in its data directory.
 
 ### temper-engine forge sign-in
 
@@ -237,7 +264,7 @@ As temper help, above.
 
 Run one agent for a worker's run, on smith's agent configuration. Internal: it may change without notice.
 
-- `AGENT.json`: The agent's configuration, as the worker's agent.configuration names it.
+- `AGENT.json`: The agent's configuration, written and pinned under the worker's root.
 
 ### temper-agent --list
 
@@ -245,7 +272,7 @@ Run one agent for a worker's run, on smith's agent configuration. Internal: it m
 
 Read one endpoint's model list, on smith's agent configuration. Internal: it may change without notice.
 
-- `AGENT.json`: The agent's configuration, as the worker's agent.configuration names it.
+- `AGENT.json`: The agent's configuration, written and pinned under the worker's root.
 
 ### temper-agent --mcp-relay
 
@@ -292,7 +319,7 @@ Write a deployment that starts, with temper's default configuration, into the th
 
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 
-Alone, init chooses two ports on `127.0.0.1`, preferring 8367 for clients and 8371 for webhooks. With `--box`, it adds the welcome, owned Forgejo and playground: five ports, preferring 8367 for clients, 8368 for owned Forgejo, 8369 for the fake forge, 8370 for the demo LLM and 8371 for webhooks. Taken ports fall back to the kernel. It writes matching addresses in `temper.json` and `agent.json`.
+Init chooses loopback ports: 8367 for clients, 8371 for webhooks. With `--box`, it adds the welcome, owned Forgejo and playground, and ports 8368 for owned Forgejo, 8369 for the fake forge and 8370 for the demo LLM. Taken ports fall back to the kernel. `temper.json` holds the matching addresses. Worker figures come from the engine; init writes no agent configuration.
 
 To choose ports for another box, leave the first running and give init
 separate empty configuration, data and cache directories. No port flag
@@ -346,6 +373,22 @@ As temper-engine upgrade --check, above.
 
 As temper-engine upgrade --back, above.
 
+### temper-box checkpoint
+
+`temper-box checkpoint [DIRECTORIES]`
+
+`temper-box checkpoint --hold NAME [DIRECTORIES] -- COMMAND [ARGUMENT...]`
+
+`temper-box checkpoint --remove NAME [DIRECTORIES]`
+
+As temper-engine checkpoint, above.
+
+### temper-box restore
+
+`temper-box restore NAME [DIRECTORIES]`
+
+As temper-engine restore, above.
+
 ### temper-box forge fetch
 
 `temper-box forge fetch [DIRECTORIES] FORGE`
@@ -354,7 +397,7 @@ As temper-engine forge fetch, above.
 
 ### temper-box forge prepare
 
-`temper-box forge prepare [DIRECTORIES] FORGE`
+`temper-box forge prepare [DIRECTORIES] FORGE [--listen ADDR --person LOGIN EMAIL] [SETUP FLAGS]`
 
 As temper-engine forge prepare, above.
 
@@ -386,7 +429,7 @@ As temper-engine forge sign-in, above.
 
 `temper-box ctl DIR GROUP VERB [ARGUMENT...] [--json]`
 
-`temper-box ctl DIR me|inbox|sign-in|sign-out|pending [ARGUMENT...] [--json]`
+`temper-box ctl DIR me|inbox|sign-in|sign-out|link|pending [ARGUMENT...] [--json]`
 
 `temper-box ctl DIR --call FILE [--json]`
 
@@ -411,7 +454,7 @@ For people; an agent works through temper ctl.
 
 Run one agent for a worker's run, on smith's agent configuration. Internal: it may change without notice.
 
-- `AGENT.json`: The agent's configuration, as the worker's agent.configuration names it.
+- `AGENT.json`: The agent's configuration, written and pinned under the worker's root.
 
 ### temper-box internal agent-list
 
@@ -419,7 +462,7 @@ Run one agent for a worker's run, on smith's agent configuration. Internal: it m
 
 Read one endpoint's model list, on smith's agent configuration. Internal: it may change without notice.
 
-- `AGENT.json`: The agent's configuration, as the worker's agent.configuration names it.
+- `AGENT.json`: The agent's configuration, written and pinned under the worker's root.
 
 ### temper-box internal serve
 

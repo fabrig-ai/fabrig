@@ -867,6 +867,7 @@ fn a_milestone_filter_takes_approvals_of_its_merged_goals() {
                     read: ended.expect("milestone's ended goals read"),
                     result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(
                         c::TaskPage {
+                            ended_mark: 0,
                             live: List::uncapped(),
                             live_after: None,
                             ended: c::EndedGroup::Rows {
@@ -1692,7 +1693,11 @@ fn stop_fixture(
         let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).unwrap());
         record.encode(&mut writer).unwrap();
         let bytes = wire::setting_answer(
-            &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(writer.finish()) }).unwrap(),
+            &w::SettingAnswer::new(
+                &w::CEILINGS,
+                w::SettingAnswerParts { revision: None, value: Some(writer.finish()) },
+            )
+            .unwrap(),
         );
         super::welcome::up(
             &mut root,
@@ -1830,7 +1835,8 @@ fn stop_show_elsewhere(root: &mut crate::Domain) {
     let mut writer = skein_lib::Writer::new(usize::try_from(classes.measure()).unwrap());
     classes.encode(&mut writer).unwrap();
     let record = wire::setting_answer(
-        &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(writer.finish()) }).unwrap(),
+        &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { revision: None, value: Some(writer.finish()) })
+            .unwrap(),
     );
     ways::told(
         &mut root.forge,

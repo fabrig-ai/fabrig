@@ -1,7 +1,8 @@
 //! A press opens the sign-in's tab; its answer points it while the page holds.
 use super::*;
-use jig_client_protocol_wire::{VERSION, v27 as w};
-use skein_lib::{Duration, Reader};
+use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::VERSION;
+use skein_lib::Duration;
 use temper_client_protocol_wire as wire;
 
 fn exchange(host: &mut Host) -> (u32, Box<[u8]>) {
@@ -43,35 +44,14 @@ fn linked_at(path: &[u8], records: Vec<skein_ui_web::store::Record>) -> Host {
     }
     streamed(
         &mut host,
-        &w::StreamEvent::Hello(
+        &jig_client_test_records::opened(
             w::Hello::new(&w::CEILINGS, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
                 .expect("hello"),
+            jig_client_test_records::frame_record(),
         ),
     );
-    let watch = host
-        .requests()
-        .into_iter()
-        .find_map(|request| {
-            let Asked::Exchange { id, call, .. } = request else { return None };
-            if call.path.as_ref() != b"/jig/v1/watch" {
-                return None;
-            }
-            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(&call.body)).expect("watch envelope");
-            let subject = w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).expect("subject");
-            if matches!(subject, w::Subject::Me) {
-                let answer = w::OpenAnswer::Admitted;
-                host.heard(Heard::Answered {
-                    exchange: id,
-                    status: 200,
-                    body: encoded(answer.measure(), |writer| answer.encode(writer)),
-                    headers: Vec::new(),
-                });
-                Some(open.watch())
-            } else {
-                None
-            }
-        })
-        .expect("me watch");
+    let watch = 0;
+    admit_watches(&mut host);
     host.client(jig_client::Event::Stored);
     host.requests();
     let mut me = jig_client_test_records::frame_record().into_parts();

@@ -5,7 +5,8 @@
 use crate::{Event, Fact, Limits, Message, Request, Streamed, Unusable, translate};
 use alloc::boxed::Box;
 use jig_client_domain::{Answered, Ask, Family, Readable, Readout, Retry, Watchable};
-use jig_client_protocol_wire::{self as wire, v27 as w};
+use jig_client_protocol_wire as w;
+use jig_client_protocol_wire as wire;
 use skein_lib::{Map, Queue, Reader, RequestEnvelope, RequestKey, Secret, Time, Token, Wall, Writer};
 #[derive(Debug)]
 pub(crate) struct Attempt {
@@ -14,12 +15,14 @@ pub(crate) struct Attempt {
     pub(super) version: u32,
     pub(super) kind: ExchangeKind,
     pub(super) held: Option<Secret>,
+    pub(super) parts: skein_lib::List<jig_client_domain::contract::PartAsk>,
 }
 impl Attempt {
     pub(super) fn carrying(&self) -> bool {
         match self.kind {
-            ExchangeKind::Attempt { carrying } => carrying,
-            ExchangeKind::Approval(_)
+            ExchangeKind::Attempt { carrying, .. } => carrying,
+            ExchangeKind::LinkAsk
+            | ExchangeKind::Approval(_)
             | ExchangeKind::SignInApproval
             | ExchangeKind::Authorize
             | ExchangeKind::SignIn
@@ -30,8 +33,9 @@ impl Attempt {
         }
     }
 }
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug)]
 pub(super) enum ExchangeKind {
+    LinkAsk,
     Authorize,
     Approval(crate::approval::ApprovalKind),
     SignInApproval,
@@ -39,8 +43,8 @@ pub(super) enum ExchangeKind {
     SignOut { generation: u64 },
     // `carrying`: an exchange carrying a value either way, sent once and never held
     // behind the store (protocol/client/README.md, 3 and 7).
-    Attempt { carrying: bool },
-    Read { turn: Option<(u64, u64, u32)> },
+    Attempt { carrying: bool, key: RequestKey },
+    Read { turn: Option<(u64, u64, u32)>, retry: Option<Readable> },
     WatchOpen { name: u64 },
     WatchClose { name: u64 },
 }
@@ -113,15 +117,15 @@ impl Link {
         {
             self.transport.remove(exchange);
             self.retiring = None;
-            if !self.watches.0.is_empty() {
-                self.begin_stream(now, out);
-            }
+            self.begin_stream(now, out);
             return;
         }
         match event {
             Event::SignIn { with } => self.sign_in(with, out),
             Event::SignOut => self.sign_out(out),
+            Event::OpenStream => self.open_stream(now, out),
             Event::Authorize { query } => self.authorize(query, out),
+            Event::AskLink => self.ask_link(out),
             Event::AskApproval => self.ask_approval(out),
             Event::ReadApproval { code } => self.read_approval(code, out),
             Event::DecideApproval { code, approve } => self.decide_approval(code, approve, out),
@@ -130,16 +134,17 @@ impl Link {
             Event::Erase { key } => self.erase(key, out),
             Event::Stored => self.written(out),
             Event::NotStored => self.write_failed(out),
-            Event::Open { watch, subject } => self.open(now, watch, subject, out),
+            Event::Open { watch, subject } => self.open(watch, subject, out),
             Event::Continue { watch, subject } => {
                 self.forget(watch, out);
-                self.open(now, watch, Watchable::Jig(subject), out);
+                self.open(watch, Watchable::Jig(subject), out);
             }
             Event::Close { watch } => self.close(watch, out),
             Event::Streamed { message } => self.streamed(now, message, out),
             Event::StreamGone => self.drop_stream(out),
             Event::Send { attempt, key, ask, value } => self.send(attempt, key, ask, value, out),
-            Event::Read { read, what } => self.read(read, what, out),
+            Event::Read { read, what } => self.read(read, what, false, out),
+            Event::ReadAgain { read, what } => self.read(read, what, true, out),
             Event::Reply { exchange, message } => {
                 self.transport.remove(&exchange);
                 self.answered(exchange, &message, out);
@@ -189,18 +194,19 @@ impl Link {
         let exchange = Token::new(self.next);
         self.next = next;
         let state = Attempt {
+            parts: skein_lib::List::with_capacity(0),
             held: None,
             token: attempt,
             owner: record.owner().clone(),
             version: record.version(),
-            kind: ExchangeKind::Attempt { carrying },
+            kind: ExchangeKind::Attempt { carrying, key },
         };
         self.attempts.insert(exchange, state).expect("checked exchange capacity");
         let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
         record.encode(&mut writer).expect("measured envelope");
         self.exchange(exchange, Message::Request(writer.finish()), out);
     }
-    fn read(&mut self, read: Token, what: Readable, out: &mut Queue<Request>) {
+    fn read(&mut self, read: Token, what: Readable, again: bool, out: &mut Queue<Request>) {
         let turn = if let Readable::Jig(jig_client_domain::contract::Read::Turn { task, attempt, turn }) = &what {
             Some((*task, *attempt, *turn))
         } else {
@@ -221,14 +227,25 @@ impl Link {
             read_none(read, &owner, jig_client_domain::contract::ReadNone::Unreachable, out);
             return;
         };
+        let retry = if again { None } else { Some(what.clone()) };
+        let parts = match &what {
+            Readable::Jig(jig_client_domain::contract::Read::Tasks { query, .. }) => query.parts.clone(),
+            Readable::Jig(_) | Readable::Family { .. } => skein_lib::List::with_capacity(0),
+        };
         let Ok(record) = translate::reads::owned(what, self.limits.wire()) else {
             read_none(read, &owner, jig_client_domain::contract::ReadNone::Unreachable, out);
             return;
         };
         let exchange = Token::new(self.next);
         self.next = next;
-        let state =
-            Attempt { held: None, token: read, owner, version: record.version(), kind: ExchangeKind::Read { turn } };
+        let state = Attempt {
+            parts,
+            held: None,
+            token: read,
+            owner,
+            version: record.version(),
+            kind: ExchangeKind::Read { turn, retry },
+        };
         self.attempts.insert(exchange, state).expect("checked exchange capacity");
         let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
         record.encode(&mut writer).expect("measured read envelope");
@@ -239,6 +256,10 @@ impl Link {
         match attempt.kind {
             ExchangeKind::SignIn | ExchangeKind::SignInApproval | ExchangeKind::SignOut { .. } => {
                 self.signing_answer(attempt.kind, attempt.held, body, out);
+                return;
+            }
+            ExchangeKind::LinkAsk => {
+                self.asked_link(body, out);
                 return;
             }
             ExchangeKind::Approval(kind) => {
@@ -335,7 +356,7 @@ impl Link {
                 })),
             };
         }
-        if record.owner() == &w::Owner::Jig && record.version() == wire::VERSION && attempt.owner != w::Owner::Jig {
+        if record.owner() == &w::Owner::Jig && record.version() == w::VERSION && attempt.owner != w::Owner::Jig {
             let answer = translate::answers::answer(w::KeyedAnswer::FinalAnswer(record), &self.limits)?;
             return match answer {
                 answer @ jig_client_domain::contract::Answer::Refused { .. } => Ok(Answered::Jig(answer)),
@@ -345,7 +366,7 @@ impl Link {
         Err(translate::Undecodable::Version)
     }
     fn read_answer(&mut self, attempt: Attempt, body: &[u8], out: &mut Queue<Request>) {
-        if let ExchangeKind::Read { turn: Some(identity) } = attempt.kind {
+        if let ExchangeKind::Read { turn: Some(identity), .. } = attempt.kind {
             match translate::turn::inspect(body, identity, &self.limits) {
                 Ok(None) => {}
                 Ok(Some(why)) => {
@@ -389,7 +410,8 @@ impl Link {
                     ExchangeKind::Read { .. } => {
                         read_none(attempt.token, &attempt.owner, jig_client_domain::contract::ReadNone::Malformed, out);
                     }
-                    ExchangeKind::Approval(_)
+                    ExchangeKind::LinkAsk
+                    | ExchangeKind::Approval(_)
                     | ExchangeKind::SignInApproval
                     | ExchangeKind::Authorize
                     | ExchangeKind::Attempt { .. }
@@ -409,6 +431,15 @@ fn read_value(attempt: &Attempt, record: w::Owned, limits: &Limits) -> Result<Re
     match record.owner() {
         w::Owner::Jig => {
             let value = translate::reads::value(record.record(), limits)?;
+            if let jig_client_domain::contract::ReadValue::Tasks(page) = &value {
+                translate::queries::check_rows(&page.live, &attempt.parts)?;
+                match &page.ended {
+                    jig_client_domain::contract::EndedGroup::Rows { rows, .. } => {
+                        translate::queries::check_rows(rows, &attempt.parts)?;
+                    }
+                    jig_client_domain::contract::EndedGroup::None => (),
+                }
+            }
             Ok(Readout::Jig(jig_client_domain::contract::ReadResult::Value(value)))
         }
         w::Owner::Family(owner) => {
@@ -426,6 +457,9 @@ fn read_none(read: Token, owner: &w::Owner, why: jig_client_domain::contract::Re
 }
 fn failed(attempt: Attempt, out: &mut Queue<Request>) {
     match attempt.kind {
+        ExchangeKind::LinkAsk => {
+            out.push(Request::AskedLink(crate::AskedLink::NotAsked(crate::NotAsked::Lost)));
+        }
         ExchangeKind::Approval(kind) => out.push(Request::Approval(kind.lost())),
         ExchangeKind::Authorize => out.push(Request::Authorized(crate::Authorized::Lost)),
         ExchangeKind::Attempt { .. } => lost(attempt.token, out),
@@ -452,7 +486,7 @@ fn keyed(key: RequestKey, ask: Ask, value: Option<Secret>, limits: &w::Limits) -
             let record = translate::asks::ask(&ask, limits)?;
             let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
             record.encode(&mut writer).expect("measured ask");
-            (w::Owner::Jig, wire::VERSION, writer.finish())
+            (w::Owner::Jig, w::VERSION, writer.finish())
         }
         Ask::Family { scope, record } => {
             let owner = w::Family::new(limits, w::FamilyParts { number: record.family })?;
@@ -469,14 +503,19 @@ impl Link {
         self.next = next;
         Some(token)
     }
-    fn open(&mut self, now: Time, watch: Token, subject: Watchable, out: &mut Queue<Request>) {
+    fn open(&mut self, watch: Token, subject: Watchable, out: &mut Queue<Request>) {
         if self.watches.0.contains_key(&watch) {
             return;
         }
-        if self.watches.0.len() == self.watches.0.capacity() {
+        let reserved = u32::from(!self.watches.0.contains_key(&Token::new(0)));
+        if self.watches.0.len() >= self.watches.0.capacity().saturating_sub(reserved) {
             out.push(Request::Ended { watch, end: jig_client_domain::contract::WatchEnd::Busy });
             return;
         }
+        let parts = match &subject {
+            Watchable::Jig(jig_client_domain::contract::Subject::Tasks { query, .. }) => query.parts.clone(),
+            Watchable::Jig(_) | Watchable::Family { .. } => skein_lib::List::with_capacity(0),
+        };
         let Ok(subject) = translate::watches::owned(subject, self.limits.wire()) else {
             out.push(Request::Ended { watch, end: jig_client_domain::contract::WatchEnd::Dropped });
             return;
@@ -486,6 +525,7 @@ impl Link {
             return;
         };
         let opening = crate::watches::Opening {
+            parts,
             name: name.raw(),
             owner: subject.owner().clone(),
             version: subject.version(),
@@ -496,27 +536,50 @@ impl Link {
             held: None,
         };
         self.watches.0.insert(watch, opening).expect("checked watch capacity");
-        match &self.stream {
-            None if self.retiring.is_none() => {
-                if let Some(stream) = self.predecessor.take() {
-                    self.retiring = Some(name);
-                    self.gone(name, stream, out);
-                } else {
-                    self.begin_stream(now, out);
-                }
-            }
-            Some(stream) if stream.name.is_some() => self.send_open(watch, out),
-            None | Some(_) => {}
+        if let Some(stream) = &self.stream
+            && stream.name.is_some()
+        {
+            self.send_open(watch, out);
+        }
+    }
+    fn open_stream(&mut self, now: Time, out: &mut Queue<Request>) {
+        if self.stream.is_some() || self.retiring.is_some() {
+            return;
+        }
+        if let Some(stream) = self.predecessor.take() {
+            let Some(exchange) = self.token() else { return };
+            self.retiring = Some(exchange);
+            self.gone(exchange, stream, out);
+        } else {
+            self.begin_stream(now, out);
         }
     }
     fn begin_stream(&mut self, now: Time, out: &mut Queue<Request>) {
+        self.watches
+            .0
+            .insert(
+                Token::new(0),
+                crate::watches::Opening {
+                    parts: skein_lib::List::with_capacity(0),
+                    name: 0,
+                    owner: w::Owner::Jig,
+                    version: wire::VERSION,
+                    subject: None,
+                    live: false,
+                    admitted: true,
+                    closing: false,
+                    held: None,
+                },
+            )
+            .expect("room reserved for stream me");
         self.stream = Some(crate::silence::Silence::new(self.limits.client().heartbeat, now));
-        out.push(Request::OpenStream { credential: self.credential.clone() });
+        out.push(Request::OpenStream { credential: self.credential.clone(), version: wire::VERSION });
     }
     fn send_open(&mut self, watch: Token, out: &mut Queue<Request>) {
         let Some(stream) = &self.stream else { return };
         let Some(stream) = stream.name else { return };
-        if !self.has_exchange_room() || self.in_flight() >= self.limits.exchanges() {
+        // Space watch handshakes so a reconnect does not burst every opening at the listener.
+        if self.watches.opening() || !self.has_exchange_room() || self.in_flight() >= self.limits.exchanges() {
             let opening = self.watches.0.get_mut(&watch).expect("pending opening");
             opening.held = Some(Token::new(opening.name));
             return;
@@ -531,6 +594,7 @@ impl Link {
         let record = w::Open::new(self.limits.wire(), w::OpenParts { stream, watch: opening.name, subject })
             .expect("checked owned subject");
         let attempt = Attempt {
+            parts: skein_lib::List::with_capacity(0),
             held: None,
             token: watch,
             owner: opening.owner.clone(),
@@ -564,6 +628,7 @@ impl Link {
         let name = opening.name;
         opening.held = None;
         let attempt = Attempt {
+            parts: skein_lib::List::with_capacity(0),
             held: None,
             token: watch,
             owner: opening.owner.clone(),
@@ -597,6 +662,11 @@ impl Link {
                 self.send_close(watch, out);
             } else {
                 self.send_open(watch, out);
+                if let Some(opening) = self.watches.0.get(&watch)
+                    && opening.held.is_some()
+                {
+                    return;
+                }
             }
         }
     }
@@ -609,7 +679,8 @@ impl Link {
                         tokens.push(*exchange).expect("bounded exchanges");
                     }
                 }
-                ExchangeKind::Approval(_)
+                ExchangeKind::LinkAsk
+                | ExchangeKind::Approval(_)
                 | ExchangeKind::SignInApproval
                 | ExchangeKind::Authorize
                 | ExchangeKind::Attempt { .. }
@@ -685,7 +756,8 @@ impl Link {
                     }
                 }
             }
-            ExchangeKind::Approval(_)
+            ExchangeKind::LinkAsk
+            | ExchangeKind::Approval(_)
             | ExchangeKind::SignInApproval
             | ExchangeKind::Authorize
             | ExchangeKind::Attempt { .. }
@@ -707,8 +779,14 @@ impl Link {
             ExchangeKind::SignIn | ExchangeKind::SignInApproval | ExchangeKind::SignOut { .. } => {
                 out.push(Request::Signing { signing: crate::Signing::Lost });
             }
+            ExchangeKind::LinkAsk => {
+                out.push(Request::AskedLink(crate::AskedLink::NotAsked(crate::NotAsked::Lost)));
+            }
             ExchangeKind::Approval(kind) => out.push(Request::Approval(kind.lost())),
-            ExchangeKind::Authorize | ExchangeKind::Attempt { .. } | ExchangeKind::Read { .. } => failed(attempt, out),
+            ExchangeKind::Read { retry: Some(what), .. } => out.push(Request::ReadAgain { read: attempt.token, what }),
+            ExchangeKind::Authorize | ExchangeKind::Attempt { .. } | ExchangeKind::Read { retry: None, .. } => {
+                failed(attempt, out);
+            }
         }
     }
     fn streamed(&mut self, now: Time, message: Streamed, out: &mut Queue<Request>) {
@@ -755,39 +833,26 @@ impl Link {
                 if stream.name.is_some() {
                     return Err(StreamRefusal::Order);
                 }
-                if let Err(why) = stream.hello(&hello) {
+                let served = match hello_versions(&hello, None) {
+                    Some(range) => crate::serves(range),
+                    None => false,
+                };
+                if served {
+                    return Err(StreamRefusal::Order);
+                }
+                self.hello(hello, out)?;
+            }
+            w::StreamEvent::Opened(opened) => {
+                if stream.name.is_some() {
+                    return Err(StreamRefusal::Order);
+                }
+                let opened = opened.into_parts();
+                self.hello(opened.hello, out)?;
+                let value =
+                    w::Delivery::new(self.limits.receiving(), w::DeliveryParts { watch: 0, document: opened.me })
+                        .expect("decoded opening fits delivery");
+                if let Err(why) = self.watches.delivery(value, &self.limits, out) {
                     return Err(StreamRefusal::Record(why));
-                }
-                for served in hello.served() {
-                    if served.first() > served.last() {
-                        return Err(StreamRefusal::Record(crate::Undecodable::Malformed));
-                    }
-                }
-                if let Err(why) = self.save_stream(*hello.stream(), out) {
-                    return Err(StreamRefusal::Record(why));
-                }
-                out.push(Request::Hello { family: None, versions: hello_versions(&hello, None) });
-                for owner in self.limits.client().owners {
-                    let family = Some(owner.family);
-                    out.push(Request::Hello { family, versions: hello_versions(&hello, family) });
-                }
-                let mut pending = skein_lib::List::with_capacity(self.limits.client().watches);
-                for (watch, opening) in &self.watches.0 {
-                    let family = match &opening.owner {
-                        w::Owner::Jig => None,
-                        w::Owner::Family(owner) => Some(owner.number()),
-                    };
-                    let served = match hello_versions(&hello, family) {
-                        Some(range) => range.contains(opening.version),
-                        None => false,
-                    };
-                    if opening.subject.is_some() && served {
-                        pending.push(*watch).expect("bounded watches");
-                    }
-                }
-                for watch in &pending {
-                    let opening = self.watches.0.get_mut(watch).expect("pending opening");
-                    opening.held = Some(Token::new(opening.name));
                 }
             }
             w::StreamEvent::Delivery(value) => {
@@ -801,6 +866,15 @@ impl Link {
             w::StreamEvent::Ended(value) => {
                 if stream.name.is_none() {
                     return Err(StreamRefusal::Order);
+                }
+                if value.watch() == 0 {
+                    if value.why() == &w::WatchEnd::SignedOut {
+                        self.end_sign_in(out);
+                        out.push(Request::Signing { signing: crate::Signing::SignedOut });
+                    } else {
+                        self.drop_stream(out);
+                    }
+                    return Ok(());
                 }
                 if let Some(watch) = self.watches.named(value.watch()) {
                     self.cancel_open(watch, value.watch());
@@ -822,7 +896,7 @@ impl Link {
                 if let Some(watch) = self.watches.named(value.watch()) {
                     let opening = self.watches.0.get(&watch).expect("named run watch");
                     if !opening.closing {
-                        if opening.owner != w::Owner::Jig || opening.version != wire::VERSION {
+                        if opening.owner != w::Owner::Jig || opening.version != w::VERSION {
                             return Err(StreamRefusal::Record(crate::Undecodable::Version));
                         }
                         let value = match translate::live::run_text(value.into_parts().value, &self.limits) {
@@ -843,6 +917,44 @@ impl Link {
         self.watches.alive(out);
         Ok(())
     }
+    fn hello(&mut self, hello: w::Hello, out: &mut Queue<Request>) -> Result<(), StreamRefusal> {
+        let stream = self.stream.as_mut().expect("active stream");
+        if let Err(why) = stream.hello(&hello) {
+            return Err(StreamRefusal::Record(why));
+        }
+        for served in hello.served() {
+            if served.first() > served.last() {
+                return Err(StreamRefusal::Record(crate::Undecodable::Malformed));
+            }
+        }
+        if let Err(why) = self.save_stream(*hello.stream(), out) {
+            return Err(StreamRefusal::Record(why));
+        }
+        out.push(Request::Hello { family: None, versions: hello_versions(&hello, None) });
+        for owner in self.limits.client().owners {
+            let family = Some(owner.family);
+            out.push(Request::Hello { family, versions: hello_versions(&hello, family) });
+        }
+        let mut pending = skein_lib::List::with_capacity(self.limits.client().watches);
+        for (watch, opening) in &self.watches.0 {
+            let family = match &opening.owner {
+                w::Owner::Jig => None,
+                w::Owner::Family(owner) => Some(owner.number()),
+            };
+            let served = match hello_versions(&hello, family) {
+                Some(range) => range.contains(opening.version),
+                None => false,
+            };
+            if opening.subject.is_some() && served {
+                pending.push(*watch).expect("bounded watches");
+            }
+        }
+        for watch in &pending {
+            let opening = self.watches.0.get_mut(watch).expect("pending opening");
+            opening.held = Some(Token::new(opening.name));
+        }
+        Ok(())
+    }
     pub(super) fn end_sign_in(&mut self, out: &mut Queue<Request>) {
         self.credential = None;
         self.expires = None;
@@ -850,6 +962,9 @@ impl Link {
             let key = *key;
             let attempt = self.attempts.remove(&key).expect("listed attempt");
             match attempt.kind {
+                ExchangeKind::LinkAsk => {
+                    out.push(Request::AskedLink(crate::AskedLink::NotAsked(crate::NotAsked::Lost)));
+                }
                 ExchangeKind::Approval(kind) => out.push(Request::Approval(kind.lost())),
                 ExchangeKind::Authorize => out.push(Request::Authorized(crate::Authorized::Lost)),
                 ExchangeKind::SignInApproval
@@ -865,6 +980,8 @@ impl Link {
                 lost(attempt.token, out);
             }
         }
+        // The sign-in's terminal ends the domain's me; it has no opening to answer.
+        self.watches.0.remove(&Token::new(0));
         while let Some((watch, _)) = (&self.watches.0).into_iter().next() {
             let watch = *watch;
             self.watches.end(watch, jig_client_domain::contract::WatchEnd::SignedOut, out);

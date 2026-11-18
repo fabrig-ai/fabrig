@@ -11,8 +11,8 @@ fn two_agents_run_at_once_under_the_real_host_limits() {
     assert_eq!(agent.host_limits.agents, 1, "smith sizes one agent's host");
     let mut settings = fixtures::worker_settings();
     settings.jig.slots = 2;
-    settings.jig.limits = jig_protocol_config::profile(jig_protocol_config::Profile::Standard);
-    let hub = &mut settings.jig.limits.hub;
+    settings.jig.limits = Some(jig_protocol_config::stock());
+    let hub = &mut settings.jig.limits.as_mut().expect("worker limits").hub;
     hub.slots = 2;
     hub.accounts = agent.host_limits.accounts;
     hub.turns = agent.host_limits.turns;
@@ -26,7 +26,7 @@ fn two_agents_run_at_once_under_the_real_host_limits() {
     own.checkout.workspaces = 2;
     let payload = crate::worker_settings::payload_limits(&own).unwrap();
     let link = crate::worker_settings::link_limits(&settings.jig, &payload, own.peer.forges).unwrap();
-    settings.jig.limits.io.output =
+    settings.jig.limits.as_mut().expect("checked worker limits").io.output =
         jig_protocol_worker_wire::sizes::largest_body(&link.sizes, jig_protocol_worker_wire::Kind::Turn)
             .unwrap()
             .checked_add(8)

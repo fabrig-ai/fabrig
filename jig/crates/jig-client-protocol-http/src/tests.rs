@@ -6,7 +6,7 @@ mod fixtures;
 mod stream;
 use fixtures::{credential, mapping};
 const EXCHANGE: u64 = 11;
-const ROUTES: [&[u8]; 13] = [
+const ROUTES: [&[u8]; 14] = [
     b"/jig/v1/request",
     b"/jig/v1/read",
     b"/jig/v1/watch",
@@ -20,6 +20,7 @@ const ROUTES: [&[u8]; 13] = [
     b"/jig/v1/approval/read",
     b"/jig/v1/approval/decide",
     b"/jig/v1/sign-in/approval",
+    b"/jig/v1/link/ask",
 ];
 const STATUSES: [u16; 4] = [201, 401, 500, 503];
 #[test]
@@ -84,6 +85,25 @@ fn a_printed_link_gives_its_host_and_secret() {
     assert_eq!(result.secret.expose(), &fixtures::LINK_SECRET);
 }
 #[test]
+fn an_asked_link_url_has_the_printed_links_bytes_and_round_trips() {
+    let secret = skein_lib::Secret::new(Box::new([7; 32]));
+    let url = link_url(&mapping(), b"127.0.0.1:8080", &secret);
+    assert_eq!(
+        url.as_ref(),
+        b"http://127.0.0.1:8080/jig/v1/sign-in/link?secret=BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc"
+    );
+    for (prefix, host, bytes) in
+        [(b"/jig".as_slice(), b"127.0.0.1:8080".as_slice(), [7; 32]), (b"/other", b"[::1]:8081", [255; 32])]
+    {
+        let secret = skein_lib::Secret::new(Box::new(bytes));
+        let mapping = Mapping::new(prefix).unwrap();
+        let parsed = printed(&mapping, &link_url(&mapping, host, &secret)).unwrap();
+        assert_eq!(parsed.host.as_ref(), host);
+        assert_eq!(parsed.secret, secret);
+    }
+}
+
+#[test]
 fn a_printed_link_under_another_prefix_is_refused() {
     assert_eq!(
         printed(
@@ -127,4 +147,15 @@ fn debug_of_a_keyed_call_shows_lengths_never_the_bearer_or_body() {
             "Header { name: [65, 117, 116, 104, 111, 114, 105, 122, 97, 116, 105, 111, 110], value_len: 61 }], body_len: 22 }"
         )
     );
+}
+
+#[test]
+fn the_stream_names_the_version_under_its_prefix() {
+    for (version, path) in
+        [(28, b"/jig/v1/stream?version=28".as_slice()), (u32::MAX, b"/jig/v1/stream?version=4294967295".as_slice())]
+    {
+        let call = stream(&mapping(), None, version);
+        assert_eq!(call.method, Method::Get);
+        assert_eq!(call.path.as_ref(), path);
+    }
 }

@@ -365,7 +365,8 @@ pub(super) fn stop(world: &mut World, goal: &engine::Assignment) {
             grace: None,
         },
     }));
-    ticks(world);
+    // Cancellation drains internal work; hosted terminals need no quiet-time window.
+    world.until(Until::Ready);
     for run in world.assigned.clone() {
         if !ended(world, run.task) {
             let event =
@@ -686,6 +687,24 @@ fn a_failed_early_producer_waits_and_the_next_merges_the_landing_tip() {
     finish(&mut world, &upstream, b"Add C4");
     landed(&mut world, c4);
     let next = questions::next_producer(&mut world, c6);
+    assert_eq!(
+        engine::wire::answer(
+            &world.root,
+            next.task,
+            next.attempt,
+            engine::wire::Ask::Landed { head: translate::commit(head) }
+        ),
+        engine::wire::Answer::Landed
+    );
+    assert_eq!(
+        engine::wire::answer(
+            &world.root,
+            producer.task,
+            producer.attempt,
+            engine::wire::Ask::Landed { head: translate::commit(head) }
+        ),
+        engine::wire::Answer::Unlanded
+    );
     let tip = branch_tip(&mut world, &branch);
     let c6_branch = producer.workspace.repositories[0].push.clone().expect("C6 branch");
     assert_ne!(next.task, producer.task, "the once rule makes a new producer");
@@ -701,6 +720,77 @@ fn a_failed_early_producer_waits_and_the_next_merges_the_landing_tip() {
     );
     finish(&mut world, &next, b"Add C6");
     landed(&mut world, c6);
+    stop(&mut world, &goal);
+}
+
+#[test]
+fn a_running_early_producer_asks_then_catches_up_with_a_squashed_dependency() {
+    use engine::wire::{Answer, Ask, answer};
+    let EarlyStory { mut world, goal, branch, base, dependency: c2, change: c3, upstream, producer, head } =
+        early_story(b"Add C2", b"Add C3");
+    let dependency_head = translate::commit(head);
+    assert_eq!(
+        answer(&world.root, producer.task, producer.attempt, Ask::Landed { head: dependency_head }),
+        Answer::Unlanded
+    );
+    let start = merged_start(&mut world, base, head);
+    let w = push(&mut world, &producer, start, b"C3");
+    finish(&mut world, &upstream, b"Add C2");
+    landed(&mut world, c2);
+    assert_eq!(world.fake.branch(b"org/repo", &upstream.workspace.repositories[0].push.clone().unwrap()), None);
+    let tip = branch_tip(&mut world, &branch);
+    assert_ne!(tip, head, "the dependency lands squashed");
+    assert_eq!(world.fake.object(tip).unwrap().parent, Some(base));
+    assert_eq!(world.fake.object(tip).unwrap().merge_parent, None);
+    let before = world.root.deployment().commits;
+    assert_eq!(
+        answer(&world.root, producer.task, producer.attempt, Ask::Landed { head: dependency_head }),
+        Answer::Landed
+    );
+    for (task, attempt, asked_head) in [
+        (producer.task, producer.attempt, translate::commit(w)),
+        (producer.task, producer.attempt + 1, dependency_head),
+        (goal.task, goal.attempt, dependency_head),
+    ] {
+        assert_eq!(answer(&world.root, task, attempt, Ask::Landed { head: asked_head }), Answer::Unlanded);
+    }
+    assert_eq!(world.root.deployment().commits, before, "the ask keeps nothing");
+    // The checkout keeps W, then merges the fetched landing tip, work first.
+    let files = world
+        .fake
+        .object(w)
+        .unwrap()
+        .tree
+        .iter()
+        .map(|(path, content)| raw::File { path: path.clone(), content: content.clone() })
+        .collect();
+    let caught_up = fake::merge_commit(&mut world.fake, &world.fake_env.limits, w, tip, files, b"Merge landing tip")
+        .expect("caught-up checkout");
+    assert_eq!(world.fake.object(caught_up).unwrap().parent, Some(w));
+    assert_eq!(world.fake.object(caught_up).unwrap().merge_parent, Some(tip));
+    let destination = producer.workspace.repositories[0].push.clone().unwrap();
+    assert_eq!(
+        world.external(2, raw::Op::Git(raw::Git::Push { branch: destination, commit: caught_up, expected: Some(w) })),
+        raw::Answer::Pushed(raw::Pushed::Pushed)
+    );
+    report_checked_push(&mut world, &producer, caught_up);
+    assert_eq!(
+        answer(&world.root, producer.task, producer.attempt, Ask::Landed { head: dependency_head }),
+        Answer::Unlanded
+    );
+    let resumed = continue_producer(&mut world, &producer);
+    assert_eq!(
+        answer(&world.root, resumed.task, resumed.attempt, Ask::Landed { head: dependency_head }),
+        Answer::Landed
+    );
+    finish(&mut world, &resumed, b"Add C3");
+    landed(&mut world, c3);
+    assert_eq!(
+        answer(&world.root, resumed.task, resumed.attempt, Ask::Landed { head: dependency_head }),
+        Answer::Unlanded
+    );
+    let tip = branch_tip(&mut world, &branch);
+    assert_landed_tree(&world, base, tip, head, caught_up);
     stop(&mut world, &goal);
 }
 

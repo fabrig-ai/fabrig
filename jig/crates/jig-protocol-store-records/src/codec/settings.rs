@@ -13,6 +13,7 @@ use jig_domain_tasks as tasks;
 use settings::application;
 use skein_lib::{List, Reader, Wall, Writer};
 const EMPTY: wire::Limits = wire::Limits {
+    worker_setting_name: 0,
     text_bytes: 0,
     model_name_name: 0,
     model_name_efforts: 0,
@@ -104,6 +105,9 @@ fn encode_setting(value: &settings::Setting, limits: &wire::Limits) -> Result<wi
         settings::Setting::Model(number) => {
             wire::Setting::Model(wire::ModelNumber::new(limits, wire::ModelNumberParts { number: *number })?)
         }
+        settings::Setting::Worker(number) => {
+            wire::Setting::Worker(wire::WorkerNumber::new(limits, wire::WorkerNumberParts { number: *number })?)
+        }
         settings::Setting::Application { kind, scope, number } => {
             wire::Setting::Application(wire::ApplicationSetting::new(
                 limits,
@@ -129,6 +133,7 @@ fn decode_setting(value: wire::Setting) -> settings::Setting {
         wire::Setting::ProjectPolicy(value) => settings::Setting::ProjectPolicy { project: value.project() },
         wire::Setting::Rules => settings::Setting::Rules,
         wire::Setting::Model(number) => settings::Setting::Model(number.number()),
+        wire::Setting::Worker(number) => settings::Setting::Worker(number.number()),
         wire::Setting::Application(value) => {
             let wire::ApplicationSettingParts { kind, scope, number } = value.into_parts();
             settings::Setting::Application { kind, scope, number }
@@ -354,7 +359,7 @@ fn encode_contract(value: &tasks::Contract, limits: &wire::Limits) -> Result<wir
             }
             wire::Contract::Verdict(wire::VerdictChoices::new(limits, wire::VerdictChoicesParts { choices: list_3 })?)
         }
-        tasks::Contract::Change { connector, kind, words } => wire::Contract::Change(wire::Change::new(
+        tasks::Contract::Change { connector, kind, words, .. } => wire::Contract::Change(wire::Change::new(
             limits,
             wire::ChangeParts { connector: *connector, kind: *kind, words: *words },
         )?),
@@ -381,7 +386,7 @@ fn decode_contract(value: wire::Contract, limits: &wire::Limits) -> Result<tasks
         }
         wire::Contract::Change(entry) => {
             let wire::ChangeParts { connector, kind, words } = entry.into_parts();
-            tasks::Contract::Change { connector, kind, words }
+            tasks::Contract::Change { connector, kind, words, choices: Box::new([]) }
         }
     })
 }
@@ -424,6 +429,16 @@ fn encode_value(value: &settings::Value, limits: &wire::Limits) -> Result<wire::
         settings::Value::Template(entry) => wire::Value::Template(Box::new(encode_template(entry, limits)?)),
         settings::Value::Policy(entry) => wire::Value::Policy(Box::new(encode_configured_policy(entry, limits)?)),
         settings::Value::Rules(entry) => wire::Value::Rules(Box::new(encode_rules(entry, limits)?)),
+        settings::Value::Worker(value) => wire::Value::Worker(Box::new(wire::WorkerSetting::new(
+            limits,
+            wire::WorkerSettingParts {
+                number: value.number,
+                name: value.name.clone(),
+                places: value.places,
+                digest: value.digest,
+                withdrawn: value.withdrawn,
+            },
+        )?)),
         settings::Value::Model(value) => wire::Value::Model(Box::new(encode_catalogue(value, limits)?)),
         settings::Value::Overlay(item) => wire::Value::Overlay(Box::new(encode_overlay(item, limits)?)),
         settings::Value::Application(_) => return Err(bound()),
@@ -436,6 +451,13 @@ fn decode_value(value: wire::Value, limits: &wire::Limits) -> Result<settings::V
         wire::Value::Template(entry) => settings::Value::Template(Box::new(decode_template(*entry, limits)?)),
         wire::Value::Policy(entry) => settings::Value::Policy(Box::new(decode_configured_policy(*entry))),
         wire::Value::Rules(entry) => settings::Value::Rules(Box::new(decode_rules(*entry, limits)?)),
+        wire::Value::Worker(value) => settings::Value::Worker(Box::new(settings::WorkerSetting {
+            number: value.number(),
+            name: skein_lib::bytes::copy_of(value.name()),
+            places: value.places(),
+            digest: *value.digest(),
+            withdrawn: value.withdrawn(),
+        })),
         wire::Value::Model(value) => settings::Value::Model(Box::new(decode_catalogue(*value))),
     })
 }
@@ -2035,6 +2057,7 @@ fn decode_recorded(values: List<wire::Recorded>) -> Box<[application::Recorded]>
 #[must_use]
 pub fn limits(domain: &core::Limits) -> Option<wire::Limits> {
     let mut limits = wire::CEILINGS;
+    limits.worker_setting_name = domain.fleet.worker_name_bytes;
     limits.text_bytes = core::EFFORT_BYTES;
     limits.catalogue_model_shown_some = core::MODEL_NAME_BYTES;
     limits.catalogue_model_description_some = core::MODEL_DESCRIPTION_BYTES;
@@ -2108,6 +2131,7 @@ pub fn encode(
                 settings::Setting::Charter(_)
                 | settings::Setting::Template(_)
                 | settings::Setting::Policy(_)
+                | settings::Setting::Worker(_)
                 | settings::Setting::Model(_)
                 | settings::Setting::Rules
                 | settings::Setting::ProjectPolicy { .. } => return Err(bound()),
@@ -2170,6 +2194,7 @@ pub fn decode(
             settings::Setting::Charter(_)
             | settings::Setting::Template(_)
             | settings::Setting::Policy(_)
+            | settings::Setting::Worker(_)
             | settings::Setting::Model(_)
             | settings::Setting::Rules
             | settings::Setting::ProjectPolicy { .. } => settings::Record::Changed {

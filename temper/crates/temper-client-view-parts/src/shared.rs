@@ -20,7 +20,7 @@ pub use refusal::{Feedback, composer_refusals, live_tasks_words, outcome_feedbac
 pub use refusal::{outcome_refusal, refusal, start_goal_refusal};
 pub use words::{
     NeedKind, NeedLine, Run, RunLine, TerminalWord, all_home_headline, chat_state, closed_line, description, heading,
-    home_headline, joined_brief, need_line, note, offered, running, say,
+    home_headline, joined_brief, need_line, note, offered, only_title, row_title, running, say,
 };
 
 /// Ready's first usable ACCOUNT and whether its source is a program

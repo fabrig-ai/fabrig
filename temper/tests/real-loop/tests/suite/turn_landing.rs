@@ -1,4 +1,5 @@
-//! The setup's copied scripts prove one ctl-released batch (testing/qa/setups.md, 6).
+//! A ctl answer releases a latched report batch; the setup's scripts prove the red top.
+//! testing/real-loop.md, the turn-landing setup's stories; testing/qa/setups.md, 6.
 use crate::cpu;
 use serde_json::Value;
 use skein_fake_forge_domain::{api, object_bytes};
@@ -7,67 +8,71 @@ use temper_real_loop_world::{Exit, Ran, turn_landing as story};
 const REPOSITORY: &[u8] = b"acme/app";
 
 #[test]
-fn two_goals_land_in_one_green_turn() {
+fn one_ctl_answer_releases_the_latched_batch() {
+    use story::latched;
     let start = cpu();
-    let ran = story::run(false);
-    before_release(&ran, false);
-    let list = story::document(&ran, ran.calls().len() - 2);
-    let [landing] = list["landings"].as_array().expect("landings").as_slice() else { panic!("one landing: {list}") };
-    assert_eq!(landing["phase"], "landed");
-    let mut changes: Vec<_> = landing["changes"]
-        .as_array()
-        .expect("changes")
-        .iter()
-        .map(|change| change.as_u64().expect("change number"))
-        .collect();
-    changes.sort_unstable();
-    assert_eq!(changes, story::CHANGES);
-    let panel = story::document(&ran, ran.calls().len() - 1);
-    assert_eq!(panel["task"], landing["task"]);
-    assert_eq!(panel["phase"], "landed");
-    let members = panel["members"].as_array().expect("members");
-    assert_eq!(members.len(), 2);
-    let top = &members.last().expect("top")["candidate"];
-    let runs = gate_runs(&ran);
-    let [run] = runs.as_slice() else { panic!("the top dispatches once: {runs:?}") };
-    assert_eq!(run.conclusion, Some(api::Conclusion::Success));
-    same_head(top, run.commit);
-    assert_eq!(main(&ran), run.commit);
-    assert_eq!(panel["round"]["number"], 1, "one successful round");
-    let proof = &members.last().expect("top")["gates"][0]["proof"];
-    assert_eq!(proof["passed"]["run"], run.id, "green receipt at the top: {proof}");
-    for member in members {
-        let api::Answer::Pull(pull) = ran
-            .forge()
-            .read(REPOSITORY, &api::Read::Pull { number: member["pull"]["number"].as_u64().expect("member pull") })
-        else {
-            panic!("member pull")
+    let ran = latched::run();
+    for (at, call) in ran.calls().iter().enumerate() {
+        assert_eq!(call.exit, Some(Exit::Code(0)), "call {at}: {call:?}");
+    }
+    assert_eq!(ran.number(1), latched::GOAL);
+    let tree = story::document(&ran, 3);
+    let delegates = tree["delegates"].as_array().expect("goal delegates");
+    let numbers: Vec<_> = delegates.iter().map(|task| task["chip"]["task"].as_u64().expect("delegate")).collect();
+    assert_eq!(numbers, [latched::LATCH, latched::REPORTS[0], latched::REPORTS[1]], "{tree}");
+    for (at, task) in latched::BEFORE.into_iter().zip(latched::REPORTS) {
+        let pending = story::document(&ran, at);
+        assert_eq!(pending["chip"]["task"], task);
+        assert_eq!(
+            pending["chip"]["details"]["owner"]["phase"]["waiting"]["dependencies"],
+            serde_json::json!([latched::LATCH]),
+            "{pending}"
+        );
+        let [fact] = pending["dependency_facts"].as_array().expect("dependency facts").as_slice() else {
+            panic!("one pending latch: {pending}")
         };
-        assert!(pull.merged.is_some(), "autodetected member merge");
-        same_head(&member["candidate"], pull.merged.expect("merged"));
-        let index = story::CHANGES.iter().position(|change| member["change"] == *change).expect("member change");
-        let change = story::document(&ran, story::RELEASE + 1 + index);
-        assert_eq!(change["task"], member["change"]);
-        assert_eq!(change["step"], "landed");
-        assert_eq!(change["merge"], sha(pull.merged.expect("member merge")));
+        assert_eq!(fact["number"], latched::LATCH);
+        assert_eq!(fact["pending"], true);
+        let details = &pending["chip"]["details"]["owner"]["details"];
+        assert!(details["run_since"].is_null(), "not run before release: {pending}");
+        assert!(details["attempt"].is_null(), "no attempt before release: {pending}");
     }
-    let api::Answer::Tree(tree) = ran.forge().read(REPOSITORY, &api::Read::Tree { commit: main(&ran) }) else {
-        panic!("main tree")
-    };
-    for (path, content) in [
-        (b"turn-a.txt".as_slice(), b"First turn member\n".as_slice()),
-        (b"turn-b.txt".as_slice(), b"Second turn member\n".as_slice()),
-    ] {
-        assert_eq!(tree.iter().find(|file| file.path.as_ref() == path).expect("landed file").content.as_ref(), content);
+    let latch = story::document(&ran, latched::PERSON);
+    assert_eq!(latch["chip"]["task"], latched::LATCH);
+    assert_eq!(latch["chip"]["executor"], serde_json::json!({"party":{"party":1}}));
+    assert_eq!(latch["result_contract"], serde_json::json!({"report":{"words":64}}));
+    assert_eq!(latch["person_revision"]["value"], 0, "revision used by the answer");
+    assert_eq!(ran.calls()[latched::RELEASE].exit, Some(Exit::Code(0)));
+    let latch = story::document(&ran, latched::LATCH_ENDED);
+    let ended = |task: &Value| task["chip"]["details"]["owner"]["details"]["ended_at"].as_u64().expect("ended wall");
+    assert_eq!(latch["chip"]["phase"], "ended");
+    let released = ended(&latch);
+    assert_eq!(latch["result"]["value"]["report"]["bytes"], "Ready together");
+    for ((at, task), report) in latched::AFTER.into_iter().zip(latched::REPORTS).zip(["X ended.", "Y ended."]) {
+        let done = story::document(&ran, at);
+        assert_eq!(done["chip"]["task"], task);
+        assert_eq!(done["chip"]["phase"], "ended");
+        assert!(ended(&done) >= released);
+        let [fact] = done["dependency_facts"].as_array().expect("dependency facts").as_slice() else {
+            panic!("one met latch: {done}")
+        };
+        assert_eq!(fact["number"], latched::LATCH);
+        assert_eq!(fact["pending"], false);
+        let started = done["chip"]["details"]["owner"]["details"]["run_since"].as_u64().expect("report run start");
+        assert!(started >= released, "report started after latch ended: {done}; latch {latch}");
+        assert_eq!(done["result"]["value"]["report"]["bytes"], report);
     }
-    eprintln!("green story CPU: {} ns (user + system, children included)", cpu() - start);
+    let goal = story::document(&ran, latched::ENDED);
+    assert_eq!(goal["chip"]["phase"], "ended");
+    assert_eq!(goal["result"]["value"]["report"]["bytes"], "Both reports ended.");
+    eprintln!("latched story CPU: {} ns (user + system, children included)", cpu() - start);
 }
 
 #[test]
 fn a_failing_member_turns_the_dispatched_top_red() {
     let start = cpu();
-    let ran = story::run(true);
-    before_release(&ran, true);
+    let ran = story::run();
+    before_release(&ran);
     let failed = ran
         .forge()
         .dispatched()
@@ -118,10 +123,9 @@ fn a_failing_member_turns_the_dispatched_top_red() {
     eprintln!("red story CPU: {} ns (user + system, children included)", cpu() - start);
 }
 
-fn before_release(ran: &Ran, red: bool) {
+fn before_release(ran: &Ran) {
     for (at, call) in ran.calls().iter().enumerate() {
-        if red
-            && [story::RELEASE + 2, story::RELEASE + 4, story::RELEASE + 6].contains(&at)
+        if [story::RELEASE + 2, story::RELEASE + 4, story::RELEASE + 6].contains(&at)
             && call.exit == Some(Exit::Code(2))
             && String::from_utf8_lossy(&call.stderr).contains("ended")
         {
@@ -152,33 +156,6 @@ fn before_release(ran: &Ran, red: bool) {
     assert!(latch["person_revision"].is_object(), "a ctl-answerable person task: {latch}");
 }
 
-fn gate_runs(ran: &Ran) -> Vec<api::Run> {
-    let api::Answer::Runs(runs) = ran.forge().read(
-        REPOSITORY,
-        &api::Read::Runs {
-            workflow: Some(b"gate.yml".as_slice().into()),
-            commit: None,
-            number: None,
-            page: 1,
-            limit: 32,
-        },
-    ) else {
-        panic!("gate runs")
-    };
-    for run in &runs {
-        assert_eq!(run.event, api::RunEvent::Dispatch, "dispatch-only gate");
-        assert_eq!(run.workflow.as_deref(), Some(b"gate.yml".as_slice()));
-        assert_eq!(run.state, api::RunState::Completed);
-        let api::Answer::Jobs(jobs) = ran.forge().read(REPOSITORY, &api::Read::Jobs { run: run.id }) else {
-            panic!("gate jobs")
-        };
-        let [job] = jobs.as_ref() else { panic!("one gate job") };
-        assert_eq!(job.name.as_ref(), b"gate");
-        assert_eq!(job.conclusion, run.conclusion);
-    }
-    runs.into_vec()
-}
-
 fn main(ran: &Ran) -> u64 {
     let api::Answer::Commit(commit) =
         ran.forge().read(REPOSITORY, &api::Read::Branch { branch: b"main".as_slice().into() })
@@ -186,13 +163,6 @@ fn main(ran: &Ran) -> u64 {
         panic!("main")
     };
     commit
-}
-fn same_head(value: &Value, commit: u64) {
-    assert!(
-        value.as_str().expect("commit text").starts_with(sha(commit).as_str().expect("SHA-1")),
-        "same commit: {value}, {}",
-        sha(commit)
-    );
 }
 fn sha(commit: u64) -> Value {
     use std::fmt::Write as _;

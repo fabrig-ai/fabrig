@@ -250,6 +250,111 @@ fn a_made_project_is_opened_on_its_home_page() {
         assert!(f.out.is_empty(), "membership updates do not reopen the project");
     }
 }
+fn creation_finished_without_opening(f: &mut Fixture) {
+    while let Some(request) = f.out.pop() {
+        assert_ne!(request, Request::Show { address: Address::Home { project: MADE } });
+    }
+    assert_eq!(f.pages.switcher().pending(), None);
+    assert_eq!(f.pages.switcher().new_words(), b"");
+    let mut listed = false;
+    for row in &f.pages.me(f.root.client()).unwrap().projects {
+        listed |= row.project == MADE;
+    }
+    assert!(listed, "the creation still joins me's projects");
+}
+
+#[test]
+fn leaving_supersedes_a_made_projects_opening() {
+    // Leave before either delivery, or between them, in either order.
+    for (listed_first, leave_after_first) in [(false, false), (true, false), (false, true), (true, true)] {
+        let mut f = fixture();
+        let key = create(&mut f);
+        if !leave_after_first {
+            event(&mut f, Event::Went { address: Address::Accounts });
+        }
+        if listed_first {
+            update_me(&mut f, with_made_project());
+        } else {
+            answer(&mut f, key, done(c::DocumentOutcome::ProjectMade { project: MADE }));
+        }
+        if leave_after_first {
+            event(&mut f, Event::Went { address: Address::Accounts });
+        }
+        if listed_first {
+            answer(&mut f, key, done(c::DocumentOutcome::ProjectMade { project: MADE }));
+        } else {
+            update_me(&mut f, with_made_project());
+        }
+        creation_finished_without_opening(&mut f);
+        assert_eq!(f.pages.address(), &Address::Accounts);
+    }
+}
+
+#[test]
+fn a_project_choice_supersedes_a_made_projects_opening() {
+    for (listed_first, open) in [(false, false), (true, false), (false, true), (true, true)] {
+        let mut f = fixture();
+        let key = create(&mut f);
+        let act = if open { PageAct::OpenProject { project: MEMBER } } else { PageAct::Project { project: MEMBER } };
+        event(&mut f, Event::Act { act });
+        if listed_first {
+            update_me(&mut f, with_made_project());
+        }
+        answer(&mut f, key, done(c::DocumentOutcome::ProjectMade { project: MADE }));
+        if !listed_first {
+            update_me(&mut f, with_made_project());
+        }
+        creation_finished_without_opening(&mut f);
+        assert_eq!(f.pages.project(), Some(MEMBER));
+    }
+}
+
+#[test]
+fn an_asked_move_or_return_supersedes_a_made_projects_opening() {
+    for (listed_first, returned) in [(false, false), (true, false), (false, true), (true, true)] {
+        let mut f = fixture();
+        let key = create(&mut f);
+        let move_on = if returned {
+            Event::Returned { address: chats() }
+        } else {
+            Event::Act { act: PageAct::Go { address: Address::Accounts } }
+        };
+        event(&mut f, move_on);
+        if listed_first {
+            update_me(&mut f, with_made_project());
+        }
+        answer(&mut f, key, done(c::DocumentOutcome::ProjectMade { project: MADE }));
+        if !listed_first {
+            update_me(&mut f, with_made_project());
+        }
+        creation_finished_without_opening(&mut f);
+        assert_eq!(f.pages.address(), &chats(), "the asked move has not been applied");
+    }
+}
+
+#[test]
+fn staying_put_keeps_a_made_projects_opening() {
+    for listed_first in [false, true] {
+        let mut f = fixture();
+        let key = create(&mut f);
+        event(&mut f, Event::Went { address: chats() });
+        event(&mut f, Event::Act { act: PageAct::Go { address: chats() } });
+        assert_eq!(f.out.pop(), Some(Request::Show { address: chats() }));
+        if listed_first {
+            update_me(&mut f, with_made_project());
+        }
+        answer(&mut f, key, done(c::DocumentOutcome::ProjectMade { project: MADE }));
+        if !listed_first {
+            update_me(&mut f, with_made_project());
+        }
+        assert_eq!(f.pages.project(), Some(MADE));
+        assert_eq!(f.out.pop(), Some(Request::Show { address: Address::Home { project: MADE } }));
+        creation_finished_without_opening(&mut f);
+        update_me(&mut f, with_made_project());
+        creation_finished_without_opening(&mut f);
+    }
+}
+
 #[test]
 fn one_request_at_a_time() {
     for form in [Form::Rename, Form::New] {

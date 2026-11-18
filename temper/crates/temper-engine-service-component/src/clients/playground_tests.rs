@@ -142,7 +142,12 @@ fn the_playground_read_uses_the_restored_engine_row() {
         Box::new([root::Write::Save(root::Record::Forge { row: Box::new(forge::Stored::Playground(row)) })]),
     );
     previous.store.host.above.pop().expect("playground saved");
-    let mut service = fixtures::restarting_from(previous);
+    let reopened = fixtures::reopened_store(previous.store, &previous.env.limits);
+    let mut settings = fixtures::engine();
+    // Hold the reset at its project so the read observes the restored row.
+    settings.jig.acts = Box::new([]);
+    settings.jig.limits.core.people.act_grants = 0;
+    let mut service = fixtures::start_configured(settings, &[(1, 100)], Some(reopened), false, false);
     fixtures::restart(&mut service);
     let engine = service.engine.as_ref().unwrap();
     let resetting = forge::Playground { state: forge::PlaygroundState::Resetting(forge::ResetStep::Project), ..row };

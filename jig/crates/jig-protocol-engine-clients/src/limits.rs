@@ -18,7 +18,7 @@ pub struct Limits {
     pub exchanges_per_client: u32,
     /// A message's bytes, owned by the component (protocol/client/wire.md, 2.2, and protocol/client/README.md, 10).
     pub message_bytes: u32,
-    pub wire: jig_client_protocol_wire::v27::Limits,
+    pub wire: jig_client_protocol_wire::Limits,
     pub link_span: Duration,
 }
 /// Whether these limits are representable: every edge bound they size
@@ -28,6 +28,7 @@ pub fn valid(limits: &Limits) -> bool {
     if limits.wire.signed_in_token_some < 40
         || limits.wire.made_service_credential < 40
         || limits.wire.link_sign_in_secret < 32
+        || limits.wire.link_asked_secret < 32
         || limits.wire.approval_asked_secret < 32
         || limits.wire.approval_sign_in_secret < 32
         || limits.identity_bytes < 8
@@ -44,10 +45,10 @@ pub fn valid(limits: &Limits) -> bool {
     {
         return false;
     }
-    jig_client_protocol_wire::v27::check_limits(&limits.wire).is_ok()
-        && jig_client_protocol_wire::v27::KeyedAnswer::encoded_bound(&limits.wire).is_some()
-        && jig_client_protocol_wire::v27::ReadAnswer::encoded_bound(&limits.wire).is_some()
-        && jig_client_protocol_wire::v27::AuthorizeAnswer::encoded_bound(&limits.wire).is_some()
+    jig_client_protocol_wire::check_limits(&limits.wire).is_ok()
+        && jig_client_protocol_wire::KeyedAnswer::encoded_bound(&limits.wire).is_some()
+        && jig_client_protocol_wire::ReadAnswer::encoded_bound(&limits.wire).is_some()
+        && jig_client_protocol_wire::AuthorizeAnswer::encoded_bound(&limits.wire).is_some()
         && limits.exchanges.checked_add(limits.exchanges).is_some()
         && provider_bounds(&provider_limits(limits)).is_some()
 }
@@ -107,8 +108,8 @@ impl PublicLimits {
 /// Whole first deliveries for every watch beside the in-flight hello, including stream-event tags
 /// (jig/docs/design/protocol/client/README.md, 10).
 #[must_use]
-pub fn stream_queue_bytes(watches: u32, wire: &jig_client_protocol_wire::v27::Limits) -> Option<u32> {
-    let delivery = jig_client_protocol_wire::v27::Delivery::encoded_bound(wire)?.checked_add(1)?;
-    let hello = jig_client_protocol_wire::v27::Hello::encoded_bound(wire)?.checked_add(1)?;
+pub fn stream_queue_bytes(watches: u32, wire: &jig_client_protocol_wire::Limits) -> Option<u32> {
+    let delivery = jig_client_protocol_wire::Delivery::encoded_bound(wire)?.checked_add(1)?;
+    let hello = jig_client_protocol_wire::Hello::encoded_bound(wire)?.checked_add(1)?;
     u32::try_from(delivery.checked_mul(u64::from(watches))?.checked_add(hello)?).ok()
 }

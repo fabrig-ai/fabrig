@@ -185,11 +185,7 @@ fn a_catch_up_whose_merge_is_retrying_lands_at_the_goal_branchs_pushed_tip() {
 
 #[test]
 fn a_failed_merge_released_after_its_base_holds_its_head_lands_without_resending() {
-    let stall =
-        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small)
-            .forge
-            .change_policy
-            .stall;
+    let stall = temper_limits_fixtures::small().forge.change_policy.stall;
     let (mut world, task, head) = at_first(Some(stall));
     let number = change_row(&world, task).pull.expect("pull");
     fake::check(&mut world.fake, &world.fake_env, b"org/repo", number, Duration::ZERO);

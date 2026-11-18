@@ -168,7 +168,8 @@ impl Host for Process {
             shell.iterate(now, wall);
             if !self.started && shell.loaded().is_some() {
                 self.started = true;
-                shell.down(client::Request::OpenStream { credential: None });
+                shell
+                    .down(client::Request::OpenStream { credential: None, version: jig_client_protocol_wire::VERSION });
                 Self::exchange(shell, 1);
             }
             while let Some(event) = shell.events().pop() {
@@ -191,6 +192,7 @@ impl Host for Process {
                     other @ (client::Event::Start { .. }
                     | client::Event::StartUnlinked { .. }
                     | client::Event::SignIn { .. }
+                    | client::Event::AskLink
                     | client::Event::AskApproval
                     | client::Event::ReadApproval { .. }
                     | client::Event::DecideApproval { .. }

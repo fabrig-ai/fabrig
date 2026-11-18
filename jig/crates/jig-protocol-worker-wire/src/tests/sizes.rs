@@ -15,8 +15,9 @@ fn the_engine_cap_for_one_slot_is_the_hand_summed_bytes() {
     // Sources84 + two checks44 + two sign-outs44 add260 and five frames.
     // One read list (read8 + endpoint4 + grant57 + header8) adds77 and one frame.
     // The statement adds 4 + 16*(4+32+2) + header8 =620 and one frame.
+    // Figures adds its fixed schema bound 10,062,736 + header8 and one frame.
     // Two application answers: 2 * (24 + tag1 + length4 + bytes16 + header8) =106.
-    assert_eq!(engine_cap(&SIZES_ONE_SLOT), Some(Cap { bytes: 1790, frames: 17 }));
+    assert_eq!(engine_cap(&SIZES_ONE_SLOT), Some(Cap { bytes: 10_064_534, frames: 18 }));
 }
 
 #[test]

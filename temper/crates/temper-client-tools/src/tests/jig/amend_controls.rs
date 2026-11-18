@@ -21,6 +21,12 @@ fn task() -> c::Task {
     task.dependencies.push(c::TaskLink::Stored { number: 43, status: None }).unwrap();
     task
 }
+fn person() -> c::Task {
+    let mut task = task();
+    task.person_revision = Some(c::Revision { value: 23 });
+    task.chip.executor = c::ChipExecutor::Party { party: 1 };
+    task
+}
 fn no_change() -> c::Amendment {
     c::Amendment {
         addressed: None,
@@ -56,6 +62,145 @@ fn deadline_change(task: &c::Task, deadline: Option<Wall>) -> c::Amendment {
     let mut authority = task.authority.whole().expect("whole authority");
     authority.deadline = deadline;
     c::Amendment { authority: Some(authority), ..no_change() }
+}
+#[test]
+fn amend_sends_a_person_address_even_where_it_waits() {
+    sends(
+        &["task", "amend", "41", "--to-party", "1", "because"],
+        person(),
+        expected(
+            c::Amendment {
+                addressed: Some(c::AddressChange {
+                    revision: c::Revision { value: 23 },
+                    address: c::PersonAddress::Party(1),
+                }),
+                ..no_change()
+            },
+            REVISION,
+        ),
+    );
+}
+#[test]
+fn amend_sends_a_role_address() {
+    sends(
+        &["task", "amend", "41", "--to-role", "2", "because"],
+        person(),
+        expected(
+            c::Amendment {
+                addressed: Some(c::AddressChange {
+                    revision: c::Revision { value: 23 },
+                    address: c::PersonAddress::Role(2),
+                }),
+                ..no_change()
+            },
+            REVISION,
+        ),
+    );
+}
+#[test]
+fn amend_sends_a_keyed_address() {
+    sends(
+        &["task", "amend", "41", "--to-role", "2", "because", "--key", "pass-up"],
+        person(),
+        expected(
+            c::Amendment {
+                addressed: Some(c::AddressChange {
+                    revision: c::Revision { value: 23 },
+                    address: c::PersonAddress::Role(2),
+                }),
+                ..no_change()
+            },
+            REVISION,
+        ),
+    );
+}
+#[test]
+fn amend_sends_a_priority_beside_an_address_without_rev() {
+    sends(
+        &["task", "amend", "41", "--priority", "3", "--to-party", "1", "because"],
+        person(),
+        expected(
+            c::Amendment {
+                addressed: Some(c::AddressChange {
+                    revision: c::Revision { value: 23 },
+                    address: c::PersonAddress::Party(1),
+                }),
+                tracked: Some(c::Tracking::Tracked { priority: 3 }),
+                ..no_change()
+            },
+            REVISION,
+        ),
+    );
+}
+#[test]
+fn amend_checks_an_address_explicit_spec_revision() {
+    refuses(
+        &["task", "amend", "41", "--rev", "6", "--to-party", "1", "because"],
+        person(),
+        b"task 41 moved: its spec revision is 7, not 6; read again: task show 41\n",
+    );
+}
+#[test]
+fn amend_refuses_an_address_on_no_person_task() {
+    refuses(
+        &["task", "amend", "41", "--to-party", "1", "because"],
+        task(),
+        b"task 41 is not a person task: only a person task takes --to-party or --to-role\n",
+    );
+}
+#[test]
+fn amend_refuses_no_person_task_before_other_checks() {
+    refuses(
+        &["task", "amend", "41", "--rev", "6", "--to-role", "2", "because"],
+        task(),
+        b"task 41 is not a person task: only a person task takes --to-party or --to-role\n",
+    );
+}
+#[test]
+fn amend_renders_a_moved_person_revision_refusal() {
+    let (mut root, call) = f::send_choice_amend(&["task", "amend", "41", "--to-party", "1", "because"], person());
+    assert_eq!(
+        f::act_ask(&root, call),
+        &expected(
+            c::Amendment {
+                addressed: Some(c::AddressChange {
+                    revision: c::Revision { value: 23 },
+                    address: c::PersonAddress::Party(1)
+                }),
+                ..no_change()
+            },
+            REVISION
+        )
+    );
+    root.answered(
+        call,
+        c::Answer::Refused {
+            refusal: c::Refusal::Moved { now: c::Revision { value: 24 }, what: c::Moved::PersonTask },
+            at: None,
+        },
+    );
+    let answer = root.answer(call).expect("refusal");
+    assert_eq!(
+        (answer.status, answer.stderr.as_ref()),
+        (2, b"task amend: The object changed\nread again: task show 41\n".as_slice())
+    );
+}
+#[test]
+fn amend_address_keeps_other_changes_revision_rules() {
+    assert_eq!(
+        f::parse(&["task", "amend", "41", "--to-party", "1", "--untracked", "because"]),
+        Err(Usage::AmendmentRevision),
+    );
+}
+#[test]
+fn amend_role_address_checks_its_range() {
+    for role in ["0", "4294967295"] {
+        f::parse(&["task", "amend", "41", "--to-role", role, "because"]).expect("role in range");
+    }
+    assert_eq!(
+        f::parse(&["task", "amend", "41", "--to-role", "4294967296", "because"]),
+        Err(Usage::Kind { tool: 31, form: 0, argument: 15 })
+    );
 }
 #[test]
 fn amend_sends_a_priority_alone_without_a_revision() {
@@ -263,6 +408,7 @@ fn amend_refuses_both_of_a_pair() {
         (["--priority", "3", "--untracked"].as_slice(), 3),
         (["--deadline", "2030-01-02T03:04Z", "--no-deadline"].as_slice(), 5),
         (["--dependency", "43", "--no-dependencies"].as_slice(), 9),
+        (["--to-party", "1", "--to-role", "2"].as_slice(), 15),
     ] {
         let argv = f::extended(&["task", "amend", "41", "--rev", "7", "because"], flags);
         assert_eq!(f::parse(argv.as_slice()), Err(Usage::Twice { tool: 31, form: 0, argument }), "{flags:?}");
@@ -305,6 +451,8 @@ fn amend_refuses_a_repeated_flag() {
         (["--untracked", "--untracked"].as_slice(), 3),
         (["--instructions", "one", "--instructions", "two"].as_slice(), 6),
         (["--model", "chosen-model", "--model", "plain-model"].as_slice(), 10),
+        (["--to-party", "1", "--to-party", "2"].as_slice(), 14),
+        (["--to-role", "1", "--to-role", "2"].as_slice(), 15),
     ] {
         let argv = f::extended(&["task", "amend", "41", "--rev", "7", "because"], flags);
         assert_eq!(f::parse(argv.as_slice()), Err(Usage::Twice { tool: 31, form: 0, argument }), "{flags:?}");

@@ -1,5 +1,7 @@
-//! Three file drivers over the simulated crashing machine (protocol/store/README.md, 9).
+//! Four file drivers over the simulated crashing machine (protocol/store/README.md, 9).
 use crate::{model::Model, root};
+mod checkpoint;
+mod restoring;
 use jig_domain_core as core;
 use jig_protocol_store::{
     Arrived, Below, Event, Get, Io, Load, OpenRefusal, Owner, OwnerSets, Request, Restore, Root, Row, Secrets, Store,
@@ -48,7 +50,7 @@ pub struct World {
     sim: Sim,
     pid: Pid,
     root: Root,
-    io: [FileIo; 3],
+    io: [FileIo; 4],
     file_limits: FileLimits,
     store: Store,
     env: Env<jig_protocol_store::Limits>,
@@ -141,13 +143,13 @@ fn file_heap(event: &file::Event) -> u64 {
     u64::try_from(bytes).expect("input heap fits")
 }
 
-fn drivers(root: skein_io::kernel::Fd, limits: &jig_protocol_store::Limits) -> ([FileIo; 3], FileLimits) {
-    let whole = limits.store.chunk.max(jig_protocol_store::sizes::MANIFEST_BYTES);
+fn drivers(root: skein_io::kernel::Fd, limits: &jig_protocol_store::Limits) -> ([FileIo; 4], FileLimits) {
+    let whole = jig_protocol_store::host::max_whole(limits);
     jig_protocol_store::sizes::whole(whole).expect("world drivers hold the largest manifest");
     // A rehearsal's patch holds deployment/scratch/transcript roots, three directory pairs, and two copy files.
     let files = FileLimits {
         files: 11,
-        read: limits.store.chunk.max(limits.store.record.saturating_add(17)),
+        read: jig_protocol_store::host::max_read(limits).max(limits.store.record.saturating_add(17)),
         entries: 32,
         whole,
         timeout: limits.store.deadline,
@@ -165,6 +167,7 @@ fn below() -> Below {
         store: Queue::with_capacity(QUEUE),
         secrets: Queue::with_capacity(QUEUE),
         transcripts: Queue::with_capacity(QUEUE),
+        checkpoints: Queue::uncapped(),
     }
 }
 
@@ -200,8 +203,8 @@ impl World {
         let pid = sim.spawn_process();
         let fd = sim.root(pid, Handle::new(handle.raw()));
         let (mut io, file_limits) = drivers(fd, &limits);
-        let [store, secrets, transcripts] = &mut io;
-        let seeded = jig_protocol_store::seed([store, secrets, transcripts], seed);
+        let [store, secrets, transcripts, checkpoints] = &mut io;
+        let seeded = jig_protocol_store::seed([store, secrets, transcripts, checkpoints], seed);
         if let Some(observe) = observer {
             observe(Step::Construct);
         }
@@ -376,9 +379,9 @@ impl World {
         self.starts += 1;
         self.scratch = None;
         (self.io, self.file_limits) = drivers(fd, &self.env.limits);
-        let [store, secrets, transcripts] = &mut self.io;
+        let [store, secrets, transcripts, checkpoints] = &mut self.io;
         let seeded = jig_protocol_store::seed(
-            [store, secrets, transcripts],
+            [store, secrets, transcripts, checkpoints],
             seed ^ 0xd1b5_4a32_d192_ed03_u64.wrapping_mul(self.starts),
         );
         self.store = Store::on_directory(&self.env.limits, root::APPLICATION, &[], seeded);
@@ -490,6 +493,71 @@ impl World {
         self.model.recovered(last);
     }
 
+    /// One background step, optionally followed by one terminal on a file lane.
+    pub fn checkpoint_step(&mut self, lane: Option<usize>) -> Vec<Event> {
+        jig_protocol_store::fire(&mut self.store, &self.env, &mut self.above, &mut self.below);
+        if let Some(lane) = lane {
+            let request = match lane {
+                0 => self.below.store.pop(),
+                1 => self.below.secrets.pop(),
+                2 => self.below.transcripts.pop(),
+                3 => self.below.checkpoints.pop(),
+                _ => panic!("four lanes"),
+            };
+            if let Some(request) = request {
+                self.file(lane, request);
+                self.operations += 1;
+            }
+        }
+        answers(&mut self.above)
+    }
+    #[must_use]
+    pub fn checkpoint_file(&self) -> Option<&file::Request> {
+        self.below.checkpoints.iter().next()
+    }
+    #[must_use]
+    pub fn store_file(&self) -> Option<&file::Request> {
+        self.below.store.iter().next()
+    }
+    /// Open an independent copy, never the immutable checkpoint itself.
+    #[must_use]
+    pub fn checkpoint_copy(&mut self, name: jig_protocol_store::CheckpointName) -> Self {
+        let prefix = [b"checkpoints/".as_slice(), &name.bytes(), b"/"].concat();
+        let mut copy = Self::unopened_observed(71, self.env.limits, None);
+        copy.owner_sets(self.sets);
+        copy.model = Model {
+            acknowledged: name.store,
+            prefixes: BTreeMap::from([(
+                name.store,
+                self.model.prefixes.get(&name.store).expect("checkpoint model cut").clone(),
+            )]),
+        };
+        let items: Vec<_> = self
+            .contents()
+            .into_iter()
+            .filter_map(|(path, bytes)| {
+                let path = path.strip_prefix(prefix.as_slice())?;
+                Some(match bytes {
+                    Some(bytes) => skein_fake_machine::Item::file(path, &bytes).mode(0o600),
+                    None => skein_fake_machine::Item::directory(path).mode(0o700),
+                })
+            })
+            .collect();
+        copy.lay(&items);
+        copy
+    }
+    /// An outside actor removes a selected name without going through the store.
+    pub fn remove_source(&mut self, path: &[u8]) {
+        let at = path.iter().rposition(|byte| *byte == b'/').expect("source parent");
+        let root = self.machine.reopen_root(0);
+        let directory =
+            self.machine.open(root, &path[..at], skein_fake_machine::How::DirectoryNoFollow).expect("source parent");
+        self.machine.remove(directory, &path[at + 1..], false).expect("source present");
+        self.machine.sync(directory);
+        self.machine.close(directory);
+        self.machine.close(root);
+    }
+
     pub fn enqueue(&mut self, request: Request) {
         self.observe(Step::Begin { input: 0, patching: jig_protocol_store::sizes::is_patching(&self.store) });
         jig_protocol_store::down(&mut self.store, &self.env, request, &mut self.above, &mut self.below);
@@ -556,6 +624,7 @@ impl World {
                 && self.below.store.is_empty()
                 && self.below.secrets.is_empty()
                 && self.below.transcripts.is_empty()
+                && self.below.checkpoints.is_empty()
                 && self.subs.is_empty()
                 && self.completions.is_empty(),
             "complete inventory requires a quiescent fixture boundary"
@@ -640,7 +709,12 @@ impl World {
     /// A start request for stories that inspect its events without answering frame sites or jobs.
     #[must_use]
     pub fn open_request(&self) -> Request {
-        Request::Open { owner: OWNER, root: self.root, installation: self.drawn }
+        Request::Open {
+            purpose: jig_protocol_store::Purpose::Serve,
+            owner: OWNER,
+            root: self.root,
+            installation: self.drawn,
+        }
     }
 
     /// Start an open whose fixture job pages the caller answers itself.
@@ -683,7 +757,13 @@ impl World {
                         self.refusal = Some(why);
                         return None;
                     }
-                    other @ (Event::Decoded { .. }
+                    other @ (Event::Checkpointed { .. }
+                    | Event::CheckpointRefused { .. }
+                    | Event::Restored { .. }
+                    | Event::RestoreRefused { .. }
+                    | Event::CheckpointHeld { .. }
+                    | Event::CheckpointRemoved { .. }
+                    | Event::Decoded { .. }
                     | Event::Undecodable { .. }
                     | Event::Rehearsing { .. }
                     | Event::Back { .. }
@@ -743,7 +823,7 @@ impl World {
             }
             token = Some(found);
         }
-        let root = Root { token: token.expect("three drivers"), fd };
+        let root = Root { token: token.expect("four drivers"), fd };
         self.scratch = Some(root);
         root
     }
@@ -797,8 +877,8 @@ impl World {
         let pid = self.sim.spawn_process();
         let fd = self.sim.root(pid, Handle::new(handle.raw()));
         let (mut io, limits) = drivers(fd, &self.env.limits);
-        let [public, private, transcripts] = &mut io;
-        let seeded = jig_protocol_store::seed([public, private, transcripts], 5);
+        let [public, private, transcripts, checkpoints] = &mut io;
+        let seeded = jig_protocol_store::seed([public, private, transcripts, checkpoints], 5);
         let component = Store::on_directory(&self.env.limits, root::APPLICATION, &[], seeded);
         let old_store = std::mem::replace(&mut self.store, component);
         let old_io = std::mem::replace(&mut self.io, io);
@@ -995,8 +1075,12 @@ impl World {
                 .pop()
                 .map(|request| (0, request))
                 .or_else(|| self.below.secrets.pop().map(|request| (1, request)))
-                .or_else(|| self.below.transcripts.pop().map(|request| (2, request)));
+                .or_else(|| self.below.transcripts.pop().map(|request| (2, request)))
+                .or_else(|| self.below.checkpoints.pop().map(|request| (3, request)));
             let Some((driver, request)) = next else {
+                if self.store.work_pending() {
+                    continue;
+                }
                 return;
             };
             let synced = driver == 2 && matches!(&request, file::Request::Sync { .. });
@@ -1014,8 +1098,8 @@ impl World {
         panic!("store did not quiesce");
     }
 
-    fn file(&mut self, driver: usize, request: file::Request) {
-        let io = self.io.get_mut(driver).expect("three drivers");
+    fn file_terminal(&mut self, driver: usize, request: file::Request) -> Option<Arrived> {
+        let io = self.io.get_mut(driver).expect("four drivers");
         assert!(io.takes());
         let mut events = Queue::with_capacity(QUEUE);
         let env = self.env.with(self.file_limits);
@@ -1037,7 +1121,7 @@ impl World {
                             }
                             if self.cut == Some(self.operations) {
                                 self.halted = true;
-                                return;
+                                return None;
                             }
                             self.operations += 1;
                         }
@@ -1062,23 +1146,29 @@ impl World {
         }
         assert!(io.takes(), "a calm file operation settles");
         assert!(!events.is_empty(), "one file terminal");
-        while let Some(event) = events.pop() {
-            let fd = if let file::Event::Opened { file, .. } = &event { io.descriptor(*file) } else { None };
-            let input = if self.observer.is_some() { file_heap(&event) } else { 0 };
-            let arrived = Arrived { event, fd };
-            let event = match driver {
-                0 => Io::Store(arrived),
-                1 => Io::Secrets(arrived),
-                2 => Io::Transcripts(arrived),
-                _ => panic!("three drivers"),
-            };
-            if let Some(observe) = self.observer {
-                observe(Step::Begin { input, patching: jig_protocol_store::sizes::is_patching(&self.store) });
-            }
-            jig_protocol_store::up(&mut self.store, &self.env, event, &mut self.above, &mut self.below);
-            if let Some(observe) = self.observer {
-                observe(Step::End { patching: jig_protocol_store::sizes::is_patching(&self.store) });
-            }
+        let event = events.pop().expect("file request terminal");
+        assert!(events.is_empty(), "one terminal per file request");
+        let fd = if let file::Event::Opened { file, .. } = &event { io.descriptor(*file) } else { None };
+        Some(Arrived { event, fd })
+    }
+    fn file(&mut self, driver: usize, request: file::Request) {
+        let Some(arrived) = self.file_terminal(driver, request) else {
+            return;
+        };
+        let input = if self.observer.is_some() { file_heap(&arrived.event) } else { 0 };
+        let event = match driver {
+            0 => Io::Store(arrived),
+            1 => Io::Secrets(arrived),
+            2 => Io::Transcripts(arrived),
+            3 => Io::Checkpoints(arrived),
+            _ => panic!("four drivers"),
+        };
+        if let Some(observe) = self.observer {
+            observe(Step::Begin { input, patching: jig_protocol_store::sizes::is_patching(&self.store) });
+        }
+        jig_protocol_store::up(&mut self.store, &self.env, event, &mut self.above, &mut self.below);
+        if let Some(observe) = self.observer {
+            observe(Step::End { patching: jig_protocol_store::sizes::is_patching(&self.store) });
         }
     }
 

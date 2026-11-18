@@ -1,8 +1,8 @@
 //! Jobs are checked with their sets, before the open writes (protocol/store/jobs.md, 1).
-use crate::{Job, KeptMap, KeyRange, Owner, OwnerSet, OwnerSets};
+use crate::{Job, KeptMap, KeyRange, Layouts, Owner, OwnerSet, OwnerSets};
 
 pub(crate) fn check(sets: &OwnerSets) -> Result<(), Owner> {
-    for set in sets.sets {
+    for (set_index, set) in sets.sets.iter().enumerate() {
         let refusal = set.owner;
         for (index, job) in set.jobs.iter().enumerate() {
             if job.name.len() > 64 || job.keys.is_empty() {
@@ -16,9 +16,32 @@ pub(crate) fn check(sets: &OwnerSets) -> Result<(), Owner> {
             if !counts(job) || !ranges(set, job) || !converts(set, job) {
                 return Err(refusal);
             }
+            for earlier_set in sets.sets.get(..=set_index).expect("sets through this one") {
+                let earlier = if earlier_set.owner == set.owner {
+                    set.jobs.get(..index).expect("earlier jobs")
+                } else {
+                    earlier_set.jobs
+                };
+                for previous in earlier {
+                    if overlaps(previous, job) {
+                        return Err(refusal);
+                    }
+                }
+            }
         }
     }
     Ok(())
+}
+fn overlaps(previous: &Job, job: &Job) -> bool {
+    let (Some(previous), Some(converts)) = (previous.converts, job.converts) else { return false };
+    if previous.family != converts.family || previous.value_type != converts.value_type {
+        return false;
+    }
+    match (previous.from, converts.from) {
+        (Layouts::Unplanned, Layouts::Unplanned) => true,
+        (Layouts::One(a), Layouts::One(b)) => a == b,
+        (Layouts::One(_), Layouts::Unplanned) | (Layouts::Unplanned, Layouts::One(_)) => false,
+    }
 }
 fn counts(job: &Job) -> bool {
     if job.counts.len() > 16 {

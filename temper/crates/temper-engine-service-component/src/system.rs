@@ -168,6 +168,19 @@ impl Service {
     pub fn upgrade_report(&self) -> Option<&crate::upgrade::Report> {
         self.engine.as_ref()?.upgrade_report()
     }
+    pub fn checkpoint_store(
+        &mut self,
+        directory: Fd,
+        user: u32,
+        adoption: jig_protocol_store::host::Adoption,
+        child: Option<crate::checkpoint::Child>,
+    ) -> Result<(), Fd> {
+        self.engine_component().checkpoint_store(directory, user, adoption, child)
+    }
+    #[must_use]
+    pub fn checkpoint_outcome(&self) -> Option<&crate::checkpoint::Outcome> {
+        self.engine.as_ref()?.checkpoint_outcome()
+    }
     /// Push hosts awaiting this send's resolution (domain/forge/attention.md, 7.3).
     #[must_use]
     #[expect(clippy::type_complexity, reason = "resolution pairs an exchange token with its host and port")]
@@ -342,12 +355,13 @@ impl Service {
 }
 /// Core settings with the application's private tools (domain/agent/ask-temper.md, 4).
 pub(crate) fn core_config(config: &jig_protocol_config::Engine, seeds: &settings::Seeds) -> jig_domain_core::Config {
-    let mut core = jig_protocol_config::core(config, seeds.deployment, seeds.seed);
+    let mut core = temper_engine_service_vocabulary::startup::core(config, seeds.deployment, seeds.seed);
     let mut tools = List::with_capacity(1);
     for tool in temper_engine_smith::PRIVATE_TOOLS {
         tools.push(Box::from(tool)).expect("private tool names");
     }
     core.settings.private_tools = tools.into_boxed();
+    core.parts = temper_engine_domain_forge::parts::kinds(temper_client_protocol_wire::FORGE);
     core
 }
 
@@ -451,7 +465,13 @@ fn held_listener_closed(service: &Service, event: &io::Event) -> bool {
 fn route_events(service: &mut Service) {
     for _ in 0..service.process.told_count() {
         let event = service.process.told().pop().expect("io event count");
-        if let io::Event::Shutdown { .. } = event {
+        if let io::Event::Shutdown { signal, .. } = event {
+            if let Some(engine) = &mut service.engine
+                && let Some(state) = &mut engine.checkpoint
+            {
+                state.shutdown(signal);
+                continue;
+            }
             service.shutdown();
             continue;
         }
@@ -501,11 +521,6 @@ impl Service {
     }
 }
 
-/// Whether the deployment can set up an owned forge (temper/docs/design/client/forge/records.md).
-pub(crate) const fn deployment_owned(document_owned: bool, under_box: bool) -> bool {
-    document_owned && under_box
-}
-
 /// Render a checked socket's IP for a domain place.
 #[must_use]
 pub fn socket_host(address: core::net::SocketAddr) -> Box<[u8]> {
@@ -526,30 +541,5 @@ impl Service {
     }
     pub fn resolved(&mut self, forge: u16, address: Option<core::net::SocketAddr>) {
         self.engine_component().resolved(forge, address);
-    }
-}
-
-#[cfg(test)]
-mod box_tests {
-    use crate::tests::fixtures;
-
-    #[test]
-    fn machine_context_carries_only_the_owned_persons_login() {
-        let mut machine = fixtures::machine();
-        assert!(super::machine_config(&machine).owned_person.is_empty());
-        let temper_forge_setup::setup::Mode::Owned(owned) = fixtures::owned_setup(1).entry.mode else {
-            panic!("owned machine fixture")
-        };
-        machine.owned = Some(temper_forge_setup::machine::OwnedMachine {
-            sign_in: None,
-            listen: owned.listen,
-            remote: b"http://forge.example".as_slice().into(),
-            person: owned.person,
-            public: owned.public,
-            fetch: owned.fetch,
-            forgejo: owned.forgejo,
-            runner: owned.runner,
-        });
-        assert_eq!(super::machine_config(&machine).owned_person.as_ref(), b"owner");
     }
 }

@@ -9,6 +9,7 @@ use temper_engine_domain_forge::settings;
 use crate::{Decision, Domain, Limits, Work};
 mod dependencies;
 mod follows;
+mod landing;
 
 #[expect(clippy::wildcard_enum_match_arm, reason = "the forge dispatcher selects only the settings asks")]
 pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, number: u16, ask: connector::Ask) {
@@ -33,6 +34,11 @@ pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             let asked = typed_items(domain, proposal, &items);
             let holders = super::findings::settings_holders(domain, &asked);
             domain.forge.keep_settings(&super::environment_forge(env), revision, proposal, &asked, &mut out);
+            for item in &asked {
+                if item.kind == 21 {
+                    worker_figures(domain, env, decision, u32::try_from(revision).expect("settings revision is u32"));
+                }
+            }
             super::findings::settings_saved(domain, env, decision, holders.as_slice());
             for item in &asked {
                 if item.kind == 14 || item.kind == 15 {
@@ -66,6 +72,29 @@ pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
     if !out.is_empty() {
         domain.work.push(Work::ForgeSettings(out));
     }
+}
+
+/// Give the current setting whole, with its durable revision.
+pub(super) fn worker_figures(domain: &Domain, env: &Env<Limits>, decision: &mut Decision, revision: u32) {
+    if domain.forge.setting(21, 0, 1).is_some() {
+        super::emit(
+            decision,
+            &env.limits,
+            crate::Delivery::WorkerFigures { agents: Box::new(domain.forge.agent_figures().clone()), revision },
+        );
+    }
+}
+
+pub(super) fn restored_figures(domain: &Domain, env: &Env<Limits>, decision: &mut Decision) {
+    let setting = jig_domain_core::settings::Setting::Application { kind: 21, scope: 0, number: 1 };
+    let revision = match domain.core.current.applications.get(&setting) {
+        Some(state) => match state.follows {
+            application::Follows::Default => 1,
+            application::Follows::Changed { revision } | application::Follows::Removed { revision } => revision,
+        },
+        None => 1,
+    };
+    worker_figures(domain, env, decision, revision);
 }
 
 fn restore(
@@ -110,6 +139,7 @@ fn restore(
                 Some(_) => Some(settings::Refusal::Way.words()),
                 None => follows::refusal(domain, &asked)
                     .or(dependencies::refusal(domain, &asked))
+                    .or(landing::refusal(domain, &asked))
                     .or(owner_refusal_words(domain, &settings::Bounds { roles: owner_roles, ..*bounds }, &asked)),
             };
             if let Some(why) = why {
@@ -156,6 +186,7 @@ fn judge(
             why: match item.kind {
                 14 => b"areas: value does not decode".as_slice().into(),
                 15 => b"triager: value does not decode".as_slice().into(),
+                21 => b"agents: value does not decode".as_slice().into(),
                 _ => settings::Refusal::Value.words(),
             },
         };
@@ -175,6 +206,7 @@ fn judge(
                 .or(approval_refusal(domain, &asked))
                 .or(follows::refusal(domain, &asked))
                 .or(dependencies::refusal(domain, &asked))
+                .or(landing::refusal(domain, &asked))
                 .or(owner_refusal_words(domain, &settings::Bounds { roles: owner_roles, ..*bounds }, &asked))
             {
                 Some(why) => connector::Judged::Refuse { why },
@@ -200,6 +232,10 @@ fn way_refusal(domain: &Domain, owner: Option<skein_lib::Token>, asked: &setting
         | settings::Value::CharterWords(_)
         | settings::Value::Classes(_)
         | settings::Value::ProjectAreas(_)
+        | settings::Value::AgentFigures(_)
+        | settings::Value::Landing(_)
+        | settings::Value::Gates(_)
+        | settings::Value::Welcome(_)
         | settings::Value::ProjectTriager(_)
         | settings::Value::ProjectWords(_) => return None,
     };
@@ -261,6 +297,10 @@ fn approval_for_projects(domain: &Domain, asked: &settings::Asked, projects: &[u
         | settings::Value::Goal(_)
         | settings::Value::CharterWords(_)
         | settings::Value::ProjectAreas(_)
+        | settings::Value::AgentFigures(_)
+        | settings::Value::Landing(_)
+        | settings::Value::Gates(_)
+        | settings::Value::Welcome(_)
         | settings::Value::ProjectTriager(_)
         | settings::Value::ProjectWords(_)
         | settings::Value::Ways(_) => return None,
@@ -379,6 +419,11 @@ fn fake_approval_words(project: u32) -> Box<[u8]> {
 
 fn bounds(limits: &Limits) -> settings::Bounds {
     settings::Bounds {
+        landing_members: limits.forge.landing_members,
+        repositories: limits.forge.repositories,
+        landing_gates: limits.forge.gates,
+        tiers: limits.forge.tiers.tiers,
+        ignored_paths: limits.forge.ignored_paths,
         landing_rules: limits.forge.landing_rules,
         gates: limits.forge.change_policy.gates,
         roles: limits.forge.roles,
@@ -493,7 +538,18 @@ pub(super) fn read(
                 }
                 crate::ForgeRead::ProgramEnvironment => crate::ForgeReadAnswer::ProgramEnvironment,
                 crate::ForgeRead::Setting { kind, scope, number } => {
-                    crate::ForgeReadAnswer::Setting(domain.forge.setting(kind, scope, number).cloned())
+                    let inventory = jig_domain_core::documents::settings_inventory(&domain.core);
+                    let mut revision = None;
+                    for line in &inventory.settings {
+                        if line.setting == (jig_domain_core::settings::Setting::Application { kind, scope, number }) {
+                            revision = line.last;
+                            break;
+                        }
+                    }
+                    crate::ForgeReadAnswer::Setting {
+                        value: domain.forge.setting(kind, scope, number).cloned(),
+                        revision,
+                    }
                 }
                 crate::ForgeRead::RevisionSetting { .. } => unreachable!("revision reads load their metadata"),
                 crate::ForgeRead::ProposalItems { key } => {
@@ -532,6 +588,8 @@ fn read_refusal(
                     crate::ForgeRead::ProgramEnvironment => {
                         domain.core.people.role(party, DEPLOYMENT) == Some(jig_domain_people::Role::Owner)
                     }
+                    crate::ForgeRead::Setting { kind: 20, scope: 0, number: 1 }
+                    | crate::ForgeRead::RevisionSetting { kind: 20, scope: 0, number: 1, .. } => true,
                     crate::ForgeRead::Setting { .. }
                     | crate::ForgeRead::RevisionSetting { .. }
                     | crate::ForgeRead::ProposalItems { .. } => domain.core.people.role(party, DEPLOYMENT).is_some(),
@@ -631,7 +689,7 @@ pub(super) fn revision_answer(
     let crate::ForgeRead::RevisionSetting { kind, scope, number, revision } = query else {
         unreachable!("only revision reads await metadata")
     };
-    let value = match &answer {
+    let setting = match &answer {
         jig_domain_core::reads::Answer::Revision(answer) => match answer.as_ref() {
             jig_domain_core::reads::RevisionAnswer::Revision { revision: record, .. } => revision_value(
                 domain,
@@ -641,18 +699,16 @@ pub(super) fn revision_answer(
                 jig_domain_core::reads::settings::oldest(&domain.core, &super::environment_core(env).limits),
             ),
             jig_domain_core::reads::RevisionAnswer::Unknown
-            | jig_domain_core::reads::RevisionAnswer::Forgotten { .. } => None,
+            | jig_domain_core::reads::RevisionAnswer::Forgotten { .. } => {
+                crate::ForgeReadAnswer::Setting { value: None, revision: None }
+            }
         },
         _ => {
             super::emit(decision, &env.limits, crate::Delivery::Read { reply, answer });
             return;
         }
     };
-    super::emit(
-        decision,
-        &env.limits,
-        crate::Delivery::ForgeRead { reply, answer: crate::ForgeReadAnswer::Setting(value) },
-    );
+    super::emit(decision, &env.limits, crate::Delivery::ForgeRead { reply, answer: setting });
 }
 
 fn revision_value(
@@ -661,18 +717,20 @@ fn revision_value(
     selector: (u32, u32, u32),
     revision: u32,
     oldest: u32,
-) -> Option<settings::SizedValue> {
+) -> crate::ForgeReadAnswer {
     if record.head.number != revision || revision < oldest {
-        return None;
+        return crate::ForgeReadAnswer::Setting { value: None, revision: None };
     }
+    let mut value = None;
     for item in &record.applications {
         if (item.kind, item.scope, item.number) == selector
             && let application::SizedEdit::Set { .. } = item.edit
         {
-            return domain.forge.revision_setting(item.kind, item.scope, item.number, revision).cloned();
+            value = domain.forge.revision_setting(item.kind, item.scope, item.number, revision).cloned();
+            break;
         }
     }
-    None
+    crate::ForgeReadAnswer::Setting { value, revision: Some(record.head.number) }
 }
 
 fn owner_refusal_words(domain: &Domain, bounds: &settings::Bounds, asked: &settings::Asked) -> Option<Box<[u8]>> {
@@ -708,7 +766,9 @@ fn owner_refusal(domain: &Domain, bounds: &settings::Bounds, asked: &settings::A
                 Some(settings::Refusal::Owner { name: b"triager".as_slice().into(), owner: value.owner })
             }
         }
-        settings::Value::Rule(_)
+        settings::Value::Landing(_)
+        | settings::Value::Gates(_)
+        | settings::Value::Rule(_)
         | settings::Value::Charter(_)
         | settings::Value::Questions(_)
         | settings::Value::Ways(_)
@@ -717,7 +777,9 @@ fn owner_refusal(domain: &Domain, bounds: &settings::Bounds, asked: &settings::A
         | settings::Value::CharterWords(_)
         | settings::Value::ProjectWords(_)
         | settings::Value::Dependency(_)
-        | settings::Value::Follow(_) => None,
+        | settings::Value::Follow(_)
+        | settings::Value::AgentFigures(_)
+        | settings::Value::Welcome(_) => None,
     }
 }
 fn owner_of_project(domain: &Domain, bounds: &settings::Bounds, project: u32, owner: settings::AreaOwner) -> bool {

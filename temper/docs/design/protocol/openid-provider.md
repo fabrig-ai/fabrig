@@ -317,8 +317,11 @@ its reasons are kept here.
   It is the entry for the kept forge of mode owned, under 7's check, whatever
   its number. A client it names that the provider lacks refuses the start at its
   path.
-- **The redirect is known at init,** since the owned `listen` socket is written
-  there: 7's check holds it against the forge's browser origin as ever.
+- **The redirect is known at set-up,** since the owned forge's port is
+  chosen then: its client is added to the provider while the engine runs,
+  and its setup file's `sign_in` names it, in place of
+  `machine.owned.sign_in` (`setup/place.md`, 6); 7's check holds it
+  against the forge's browser origin as ever.
 
 **The claims** (4), which Forgejo's `auto` needs both of:
 

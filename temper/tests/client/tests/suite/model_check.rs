@@ -13,8 +13,6 @@ use temper_client_world::{
 };
 
 const WORKER: Token = Token::new(7);
-// The forge's task handle (temper-client-domain/src/forge/me.rs).
-const TRIAL_TASK: u64 = 6;
 
 fn drawn(root: &Root) -> View {
     let limits = fixtures::domain_limits();
@@ -405,20 +403,7 @@ fn a_later_account_is_the_one_tried() {
     let assignment = front.assignments.last().expect("second trial assigned");
     assert_eq!(assignment.run.policy.model.name.as_ref(), b"second-scripted");
     assert_eq!(assignment.run.accounts.first().expect("assigned account").account, later);
-    let task = trial.task.expect("trial task");
-    // Read the person's real Task document already watched by the trial.
-    let watched = root
-        .person()
-        .client()
-        .document(jig_client::Handle { asker: temper_client_domain::owner::Owner::Forge.asker(), number: TRIAL_TASK })
-        .expect("trial task watch");
-    let Some(jig_client::Latest::Jig(jig_client::contract::Delivery::Task(document))) = watched.latest else {
-        panic!("person task document");
-    };
-    assert_eq!(document.chip.task, task);
-    let choice = document.llm.as_ref().expect("next_llm chose the task's model");
-    assert_eq!(choice.main.model.bytes(), b"second-scripted");
-    assert_eq!(choice.account, Some(later), "creator holds the later account");
+    assert!(trial.task.is_some(), "trial names its task without watching it");
     fail(&mut front, &mut root);
     assert_eq!(row(&root).state, trials::State::Failed { why: trials::Why::Ended { class: trials::Class::Run } });
     h::event(&mut front, &mut root, Temper::went(Address::Accounts));

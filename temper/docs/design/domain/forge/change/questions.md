@@ -379,6 +379,22 @@ early, by these rules:
   that kept moving until the sibling landed
   (`../../../draft/early-start-checked.md`). A checked push is work its
   producer offered; a save is work in progress.
+- **Who pushed it.** Beside `last_checked` the change keeps the delegate
+  task whose report set it, `last_checked_by`: every checked push a
+  delegate's answer reports on the change's branch sets both, that
+  delegate's task number in it, even where the head is the one already
+  recorded, and nothing else sets or clears either. It is stored with
+  the change, so it too holds across a park and a restart. A delegate's
+  next assignment names `last_checked` as its own delivery
+  (`../../worker/README.md`, 4.1; `../../../protocol/channel.md`, 4)
+  exactly when `last_checked_by` is that delegate's task and its item
+  is writable, so a producer, a repair or a resolution that delivered,
+  asked and parked delivers that head again when its next run finishes
+  with nothing new (`../../worker/checkouts.md`, *A task's own delivery
+  outlives its hold*). Any other task's assignment names none: a repair's
+  first run starts on its producer's checked head, which is no delivery
+  of its own, and a clean finish there is still nothing
+  (`../../../draft/delivered-across-runs.md`, 2).
 - **From what.** Its producer's workspace starts from the landing
   branch's tip with those last checked heads merged into it, one by one
   in the order of the change's dependencies (`../../worker/checkouts.md`).
@@ -435,6 +451,33 @@ early, by these rules:
   amendment naming a revision of the design that landed into the
   branch, works on the branch as it now stands, as one into main is
   brought up to date by the forge's update (`../README.md`, section 6).
+- **A running producer catches up.** A dependency started from may land
+  while the early producer that started from it still runs. Its landing
+  squashes its work into one new commit (`../../landing.md`, 5.2) and
+  its branch is deleted as its task closes (`../branches.md`), so the
+  head the producer's workspace merged is on no branch of the forge any
+  more, and a delivery or a save whose second parent it is would be
+  refused for good (`../../../protocol/git.md`, 4.7). Instead the
+  producer's checkout asks whether that head's dependency has landed
+  and, if it has, merges the landing branch's tip into its work and
+  delivers from there (`../../worker/checkouts.md`, *A landed
+  dependency's catch-up*). The engine answers that ask, `landed`, from
+  the change's own record: the asking run's change, found as a goal's
+  reds find it (`../reds.md`, 5.1), answers `landed` when one of the
+  dependencies it records it started from (`StartedFrom`, its early
+  start live or spent) has that head and that dependency's change has
+  landed (its row `Landed`). Any other head, a dependency not landed
+  (producing, kept, cancelled, failed, or ended with no change, whose
+  head no landing holds), a task not live, an attempt not current, or a
+  run of no change is answered `unlanded`, and the delivery is refused
+  as before. The answer decides nothing and keeps nothing. Why: on
+  2026-11-15 an early producer's dependency landed squashed while it
+  ran, and from then on it could neither deliver nor save, its work held
+  only in its checkout (`../../../draft/early-start-squash.md`). Only
+  the checkout holds that work, so the catch-up is the run's hold's own;
+  only the engine knows whether the dependency landed, since a squashed
+  landing and a cancelled change's deleted branch look alike on the
+  forge, so the engine is asked.
 - **Done while kept.** The early producer's result is the change's head,
   as any producer's: the change opens its pull request, and is checked
   and gated as its rules ask, but is not ready until its last dependency

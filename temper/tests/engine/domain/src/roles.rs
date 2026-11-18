@@ -487,6 +487,7 @@ impl World {
         }
     }
 
+    #[expect(clippy::too_many_lines, reason = "one exhaustive root-output routing pass")]
     fn observe(&mut self) {
         while let Some(request) = self.out.pop() {
             self.trace.push(format!("output {request:?}"));
@@ -527,6 +528,10 @@ impl World {
                         return;
                     }
                 }
+                engine::Request::Store(engine::StoreRequest::PartRead { waiter, range }) => {
+                    let result = self.store.read(range);
+                    self.queue(engine::Event::Store(engine::StoreInput::PartLoaded { waiter, result }), 0);
+                }
                 engine::Request::Store(engine::StoreRequest::Read { load, range }) => {
                     let result = self.store.read(range);
                     self.queue(engine::Event::Store(engine::StoreInput::ReadLoaded { load, result }), 0);
@@ -556,6 +561,7 @@ impl World {
                 | engine::Request::Party(engine::PartyRequest::Deliver(delivery)) => {
                     panic!("unexpected role-world delivery {delivery:?}")
                 }
+                engine::Request::Worker(engine::WorkerRequest::Settings(_)) => {}
                 engine::Request::Stop => panic!("role root stopped: {:?}", self.trace),
                 other @ (engine::Request::Forge { .. }
                 | engine::Request::Worker(_)
@@ -563,6 +569,7 @@ impl World {
                 | engine::Request::Account(_)
                 | engine::Request::ForgeKept(_)
                 | engine::Request::ForgeGone { .. }
+                | engine::Request::ChoosePlace { .. }
                 | engine::Request::BoxGroup { .. }
                 | engine::Request::PlaygroundActs { .. }
                 | engine::Request::ResetAct { .. }
@@ -581,6 +588,7 @@ impl World {
                 | engine::Request::Setup { .. }
                 | engine::Request::Busy(_)
                 | engine::Request::Unsettled(_)
+                | engine::Request::Store(engine::StoreRequest::Checkpoint { .. })
                 | engine::Request::Restarting { .. }
                 | engine::Request::Drained) => panic!("unexpected role output {other:?}"),
             }

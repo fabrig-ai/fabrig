@@ -56,7 +56,10 @@ pub(super) fn scan(streams: &Streams, originals: &Originals) -> Option<(u32, Wha
                     );
                 }
             }
-            w::StreamEvent::Hello(_) | w::StreamEvent::Delivery(_) | w::StreamEvent::Ended(_) => {}
+            w::StreamEvent::Hello(_)
+            | w::StreamEvent::Opened(_)
+            | w::StreamEvent::Delivery(_)
+            | w::StreamEvent::Ended(_) => {}
         }
     }
     for group in &mut groups {

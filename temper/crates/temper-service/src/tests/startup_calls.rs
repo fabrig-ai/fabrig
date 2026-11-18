@@ -5,35 +5,26 @@ use super::*;
 use crate::tests::fixtures;
 use core::fmt::Write;
 
-fn document(engine: Option<u32>, worker: Option<u32>) -> Box<[u8]> {
+fn document(engine: Option<u32>) -> Box<[u8]> {
     let input = fixtures::document();
-    let mut remaining = core::str::from_utf8(&input).unwrap();
-    let mut text = String::new();
-    for bound in [engine, worker] {
-        let (before, after) = remaining.split_once(",\"core.call_answer_bytes\":2048").unwrap();
-        text.push_str(before);
-        if let Some(bytes) = bound {
-            write!(text, ",\"core.call_answer_bytes\":{bytes}").unwrap();
-        }
-        remaining = after;
+    let remaining = core::str::from_utf8(&input).unwrap();
+    let (before, after) = remaining.split_once(",\"core.call_answer_bytes\":2048").unwrap();
+    let mut text = String::from(before);
+    if let Some(bytes) = engine {
+        write!(text, ",\"core.call_answer_bytes\":{bytes}").unwrap();
     }
-    text.push_str(remaining);
+    text.push_str(after);
     text.into_bytes().into_boxed_slice()
 }
 
 #[test]
 fn omitted_call_answers_reach_the_core_store_and_both_wire_sides() {
     let directories = config::Directories::working();
-    for (engine, worker, payload, expected_engine, expected_worker) in [
-        (None, None, 4096, 69_632, 69_632),
-        (None, None, 32_768, 69_632, 69_632),
-        (None, None, 40_960, 69_632, 69_632),
-        (Some(4096), None, 4096, 4096, 69_632),
-        (None, Some(4096), 4096, 69_632, 4096),
-        (Some(32_768), Some(32_768), 32_768, 32_768, 32_768),
-        (Some(40_960), Some(40_960), 4096, 40_960, 40_960),
-    ] {
-        let input = document(engine, worker);
+    for (engine, payload, expected_engine) in
+        [(None, 4096, 135_168), (Some(4096), 4096, 4096), (Some(32_768), 32_768, 32_768)]
+    {
+        let expected_worker = expected_engine;
+        let input = document(engine);
         let mut agent = fixtures::startup_agent();
         agent.tool_payload = payload;
         let checked = checked_start(
@@ -88,7 +79,7 @@ fn omitted_call_answers_reach_the_core_store_and_both_wire_sides() {
 #[test]
 fn store_readers_require_local_agent_metadata_but_leave_remote_engines_configured() {
     let directories = config::Directories::working();
-    let found = store_limits(&document(None, None), &directories, None).unwrap_err();
+    let found = store_limits(&document(None), &directories, None).unwrap_err();
     assert_eq!(found.problems.get(0).unwrap().path, indexed(0).member(b"agent"));
     assert_eq!(found.problems.get(0).unwrap().what, What::Half(EngineWhat::Agent));
     let input = fixtures::engine_alone_document();
@@ -98,7 +89,7 @@ fn store_readers_require_local_agent_metadata_but_leave_remote_engines_configure
     for metadata in [None, Some(&declaration)] {
         assert_eq!(
             store_limits(input.as_bytes(), &directories, metadata).unwrap().store.core.call_answer_bytes,
-            69_632
+            135_168
         );
     }
 }
@@ -143,20 +134,16 @@ fn standalone_refusals(input: &[u8], agent: &settings::Agent) -> [Problems; 3] {
     ]
 }
 
-fn core_answer_floor(engine: bool) {
+fn core_answer_floor() {
     let agent = fixtures::startup_agent();
-    let input = if engine { document(Some(2047), Some(2048)) } else { document(Some(2048), Some(2047)) };
-    let path = if engine {
-        "engine.limits.overrides.core.call_answer_bytes"
-    } else {
-        "workers[0].limits.overrides.core.call_answer_bytes"
-    };
+    let input = document(Some(2047));
+    let path = "engine.limits.overrides.core.call_answer_bytes";
     let expected = call_input_lines(path, 2047, 2048, 4096, 65_536) + &answer_floor_line(path, 2047);
     for found in standalone_refusals(&input, &agent) {
         assert_eq!(core::str::from_utf8(&lines(&found)).unwrap(), expected);
     }
     let service = startup(
-        &document(Some(2048), Some(2048)),
+        &document(Some(2048)),
         &config::Directories::working(),
         &fixtures::files(),
         &agent,
@@ -171,7 +158,7 @@ fn core_answer_floor(engine: bool) {
 
 #[test]
 fn the_engines_call_answer_bound_must_hold_the_documentation_answer() {
-    core_answer_floor(true);
+    core_answer_floor();
 }
 
 #[test]
@@ -192,27 +179,12 @@ fn an_engine_without_a_local_agent_still_needs_the_documentation_answer_bound() 
 #[test]
 fn explicit_short_call_inputs_refuse_every_standalone_entrance() {
     let directories = config::Directories::working();
-    // The old M2 explicit cases remain refusals, alongside P - 1 at each override.
-    for (engine, worker, payload, paths, bound) in [
-        (Some(4095), None, 4096, vec!["engine"], 4095),
-        (None, Some(4095), 4096, vec!["workers[0]"], 4095),
-        (Some(2048), Some(2048), 4096, vec!["engine", "workers[0]"], 2048),
-        (Some(32_768), None, 40_960, vec!["engine"], 32_768),
-        (None, Some(32_768), 40_960, vec!["workers[0]"], 32_768),
-    ] {
-        let input = document(engine, worker);
+    for (engine, payload) in [(4095, 4096), (2048, 4096), (32_768, 40_960)] {
+        let input = document(Some(engine));
         let mut agent = fixtures::startup_agent();
         agent.tool_payload = payload;
-        let mut expected = String::new();
-        for path in paths {
-            expected.push_str(&call_input_lines(
-                &format!("{path}.limits.overrides.core.call_answer_bytes"),
-                bound,
-                payload,
-                4096,
-                65_536,
-            ));
-        }
+        let expected =
+            call_input_lines("engine.limits.overrides.core.call_answer_bytes", engine, payload, 4096, 65_536);
         let found = [
             startup(
                 &input,
@@ -241,17 +213,12 @@ fn explicit_short_call_inputs_refuse_every_standalone_entrance() {
         ];
         for problems in found {
             assert_eq!(core::str::from_utf8(&lines(&problems)).unwrap(), expected);
-            assert_eq!(problems.problems.len(), if engine.is_some() && worker.is_some() { 2 } else { 1 });
+            assert_eq!(problems.problems.len(), 1);
         }
         // A refusal preserves each configured value, rather than silently deriving it.
         let mut parsed = parse(&input, &directories).unwrap();
         parsed.compose(&agent.declaration()).unwrap_err();
-        if let Some(bytes) = engine {
-            assert_eq!(parsed.engine.limits.core.call_answer_bytes, bytes);
-        }
-        if let Some(bytes) = worker {
-            assert_eq!(parsed.workers[0].limits.core.call_answer_bytes, bytes);
-        }
+        assert_eq!(parsed.engine.limits.core.call_answer_bytes, engine);
     }
 }
 
@@ -260,7 +227,7 @@ fn an_engine_without_a_local_agent_keeps_its_explicit_call_bound() {
     let input = fixtures::engine_alone_document();
     let directories = config::Directories::working();
     let mut agent = fixtures::startup_agent();
-    for payload in [1, 2047, 2048, 4096, u32::MAX] {
+    for payload in [1, u32::MAX] {
         agent.tool_payload = payload;
         let checked = checked_start(
             &input,
@@ -273,6 +240,11 @@ fn an_engine_without_a_local_agent_keeps_its_explicit_call_bound() {
         )
         .unwrap();
         assert_eq!(checked.engine.jig.limits.core.call_answer_bytes, 2048);
+        assert_eq!(checked.engine.jig.limits.core.tasks.message_bytes, 512);
+        assert_eq!(
+            store_limits(&input, &directories, Some(&agent.declaration())).unwrap().store.core.tasks.message_bytes,
+            512
+        );
         assert_eq!(
             store_limits(&input, &directories, Some(&agent.declaration())).unwrap().store.core.call_answer_bytes,
             2048
@@ -281,21 +253,17 @@ fn an_engine_without_a_local_agent_keeps_its_explicit_call_bound() {
 }
 
 #[test]
-fn a_workers_call_answer_bound_must_hold_the_documentation_answer() {
-    core_answer_floor(false);
-}
-#[test]
 fn a_local_agents_tool_payload_must_hold_the_documentation_answer() {
     let mut agent = fixtures::startup_agent();
     agent.tool_payload = 2047;
     let expected = answer_floor_line("workers[0].agent.profile.declared.tool_payload", 2047);
-    for found in standalone_refusals(&document(Some(2048), Some(2048)), &agent) {
+    for found in standalone_refusals(&document(Some(2048)), &agent) {
         assert_eq!(core::str::from_utf8(&lines(&found)).unwrap(), expected);
     }
     agent.tool_payload = 2048;
     let directories = config::Directories::working();
     startup(
-        &document(Some(2048), Some(2048)),
+        &document(Some(2048)),
         &directories,
         &fixtures::files(),
         &agent,
@@ -305,4 +273,48 @@ fn a_local_agents_tool_payload_must_hold_the_documentation_answer() {
         fixtures::forge_runtime(),
     )
     .unwrap();
+}
+
+#[test]
+fn a_local_worker_derives_from_its_agent_instead_of_the_stock_agent() {
+    let mut input: serde_json::Value = serde_json::from_slice(&document(None)).unwrap();
+    for limits in ["/engine/limits/overrides"] {
+        let overrides = input.pointer_mut(limits).unwrap().as_object_mut().unwrap();
+        for name in ["tasks.message_bytes", "tasks.result_bytes", "tasks.inbox_bytes", "hub.event_bytes"] {
+            overrides.remove(name);
+        }
+    }
+    let overrides = input["application"]["limits"]["overrides"].as_object_mut().unwrap();
+    for name in ["forge.client.op_bytes", "forge_component.body_bytes", "checkout.message_bytes"] {
+        overrides.remove(name);
+    }
+    // This story varies payload carriers, not the agent's spend admission.
+    let mut agent = fixtures::startup_agent_with_spend(u64::MAX);
+    agent.tool_payload = 4096;
+    agent.bounds.message_bytes = 4094;
+    let input = serde_json::to_vec(&input).unwrap();
+    let checked = checked_start(
+        &input,
+        &config::Directories::working(),
+        &fixtures::files(),
+        Some(&agent),
+        &fixtures::seeds(),
+        fixtures::forge_runtime(),
+        None,
+    )
+    .unwrap();
+    assert_eq!(checked.engine.jig.limits.core.tasks.message_bytes, 4094);
+    assert_eq!(checked.engine.jig.limits.hub.event_bytes, 4094);
+    let (worker, _) = checked.worker.as_ref().unwrap();
+    assert_eq!(worker.jig.limits.as_ref().unwrap().hub.event_bytes, 4094);
+    assert_eq!(checked.engine.limits.checkout.message_bytes, 4096);
+    assert_eq!(
+        store_limits(&input, &config::Directories::working(), Some(&agent.declaration()))
+            .unwrap()
+            .store
+            .core
+            .tasks
+            .message_bytes,
+        4094
+    );
 }

@@ -179,6 +179,7 @@ fn set_roles(driver: &mut Driver, key: u8, holdings: Box<[people::Holding]>) {
 
 fn member(driver: &mut Driver) -> u64 {
     driver.send(Event::Party(PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(11)),
         identity: people::Identity {
@@ -396,39 +397,38 @@ fn view_driver() -> (Driver, engine::Assignment) {
     template.tracked = Some(1);
     template.resources = Box::new([people::Symbol { connector: 0, symbol: 1 }]);
     config.core.defaults.templates = config.core.defaults.templates.into_vec().into_iter().chain([template]).collect();
-    config
-        .landings
-        .insert(
-            PROJECT,
-            engine::ProjectLanding {
-                gate_retries: 2,
-                batch: 1,
-                combine_main: engine::Combine::Merge,
-                combine_other: engine::Combine::Squash,
-                gate_timeout: skein_lib::Duration::from_millis(3_600_000),
-                landing_attempts: engine::LANDING_ATTEMPTS,
-                check_timeout: None,
-                by: engine::Way::Queue,
-                close_job: None,
-                merge_job: None,
-                repositories: Box::new([engine::RepositoryChecks {
-                    repository: skein_forge::api::Repository { forge: FORGE, repository: 2 },
-                    gates: Box::new([]),
-                    tiers: Box::new([engine::TierCheck {
-                        name: b"focused".as_slice().into(),
-                        workflow: b"checks.yml".as_slice().into(),
-                        ignored: Box::new([]),
-                        artifact: b"result".as_slice().into(),
-                        format: temper_engine_domain_forge_tiers::Format::Junit,
-                        follows: forge::Follows::Branch(b"main".as_slice().into()),
-                        span_ms: 0,
-                        description: Box::default(),
-                    }]),
+    temper_engine_domain_world::oracle::config::set_landing(
+        &mut config,
+        PROJECT,
+        temper_fixtures::landing::ProjectLanding {
+            gate_retries: 2,
+            batch: 1,
+            combine_main: engine::Combine::Merge,
+            combine_other: engine::Combine::Squash,
+            gate_timeout: skein_lib::Duration::from_millis(3_600_000),
+            landing_attempts: engine::LANDING_ATTEMPTS,
+            check_timeout: None,
+            by: temper_fixtures::landing::Way::Queue,
+            close_job: None,
+            merge_job: None,
+            repositories: Box::new([temper_fixtures::landing::RepositoryChecks {
+                repository: skein_forge::api::Repository { forge: FORGE, repository: 2 },
+                gates: Box::new([]),
+                tiers: Box::new([temper_fixtures::landing::TierCheck {
+                    name: b"focused".as_slice().into(),
+                    workflow: b"checks.yml".as_slice().into(),
+                    ignored: Box::new([]),
+                    artifact: b"result".as_slice().into(),
+                    format: temper_engine_domain_forge_tiers::Format::Junit,
+                    follows: forge::Follows::Branch(b"main".as_slice().into()),
+                    span_ms: 0,
+                    description: Box::default(),
                 }]),
-                after: engine::AfterLandingCheck { tier_retries: 1, verification_bound_ms: 60_000 },
-            },
-        )
-        .expect("one project landing");
+            }]),
+            tier_retries: 1,
+            verification_bound_ms: 60_000,
+        },
+    );
     let mut driver = Driver::cold(Store::with_limits(&limits), config, &limits);
     driver.forge = Some(ForgeStand::new());
     driver.settle();
@@ -678,6 +678,7 @@ fn views_draw_stored_ways_paths_charters_and_waiting_proposals() {
     let owner_view = read_view(&mut driver, owner, "charter 4");
     assert_eq!(read_view(&mut driver, member, "charter 4"), owner_view);
     driver.send(Event::Party(PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(60)),
         identity: people::Identity {
@@ -765,7 +766,7 @@ fn path_driver(ci_and_tiers: bool, equal_paths: bool) -> Driver {
     }
     if ci_and_tiers {
         let tiers = [(b"slow".as_slice(), forge::Follows::Landing), (b"goal".as_slice(), forge::Follows::Goals)].map(
-            |(name, follows)| engine::TierCheck {
+            |(name, follows)| temper_fixtures::landing::TierCheck {
                 name: name.into(),
                 workflow: name.into(),
                 ignored: Box::new([]),
@@ -776,35 +777,35 @@ fn path_driver(ci_and_tiers: bool, equal_paths: bool) -> Driver {
                 description: Box::default(),
             },
         );
-        assert!(
-            config
-                .landings
-                .insert(
-                    PROJECT,
-                    engine::ProjectLanding {
-                        gate_retries: 2,
-                        batch: 1,
-                        combine_main: engine::Combine::Merge,
-                        combine_other: engine::Combine::Squash,
-                        gate_timeout: skein_lib::Duration::from_millis(3_600_000),
-                        landing_attempts: engine::LANDING_ATTEMPTS,
-                        check_timeout: None,
-                        by: engine::Way::Queue,
-                        close_job: None,
-                        merge_job: Some(b"merge".as_slice().into()),
-                        repositories: Box::new([engine::RepositoryChecks {
-                            repository: skein_forge::api::Repository { forge: FORGE, repository: 2 },
-                            gates: Box::new([]),
-                            tiers: Box::new(tiers),
-                        }]),
-                        after: engine::AfterLandingCheck { tier_retries: 0, verification_bound_ms: 1000 },
-                    }
-                )
-                .is_ok()
-        );
+        assert!({
+            temper_engine_domain_world::oracle::config::set_landing(
+                &mut config,
+                PROJECT,
+                temper_fixtures::landing::ProjectLanding {
+                    gate_retries: 2,
+                    batch: 1,
+                    combine_main: engine::Combine::Merge,
+                    combine_other: engine::Combine::Squash,
+                    gate_timeout: skein_lib::Duration::from_millis(3_600_000),
+                    landing_attempts: engine::LANDING_ATTEMPTS,
+                    check_timeout: None,
+                    by: temper_fixtures::landing::Way::Queue,
+                    close_job: None,
+                    merge_job: Some(b"merge".as_slice().into()),
+                    repositories: Box::new([temper_fixtures::landing::RepositoryChecks {
+                        repository: skein_forge::api::Repository { forge: FORGE, repository: 2 },
+                        gates: Box::new([]),
+                        tiers: Box::new(tiers),
+                    }]),
+                    tier_retries: 0,
+                    verification_bound_ms: 1000,
+                },
+            );
+            true
+        });
     }
     let restart = temper_engine_domain_world::oracle::config::copy(&config);
-    config.landings = skein_lib::Map::with_capacity(1);
+    config.kinds_stock = config.kinds_stock.into_vec().into_iter().filter(|v| v.kind != 4 && v.kind != 5).collect();
     let accounts = fixtures::account_rows(&config.core.settings.llm_providers);
     let bootstrap = temper_engine_domain_world::oracle::config::copy(&config);
     let mut cold = Driver::cold(Store::with_limits(&limits), bootstrap, &limits);

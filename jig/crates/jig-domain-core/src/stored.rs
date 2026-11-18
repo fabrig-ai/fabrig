@@ -123,6 +123,7 @@ impl Core {
             }
             CoreRecord::Deployment(deployment) => {
                 self.counters = Counters::new(deployment);
+                self.ended_groups.restart(deployment.commits);
                 Restored::Deployment { commits: deployment.commits }
             }
             CoreRecord::Call(record) => {

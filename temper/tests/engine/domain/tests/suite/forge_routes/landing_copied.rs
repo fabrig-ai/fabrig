@@ -226,7 +226,7 @@ fn approve(world: &mut World, changes: &[u64]) {
     }
 }
 
-fn reviewed(world: &World, number: u64) -> bool {
+pub(super) fn reviewed(world: &World, number: u64) -> bool {
     let row = goal_landing::row(world, number);
     row.delegate.is_none()
         && row

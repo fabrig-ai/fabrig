@@ -54,10 +54,6 @@ fn reads(root: &Path, landing: u64, change: u64) -> Result<Reads, String> {
 #[must_use]
 pub fn start(scratch: &super::Scratch) -> Throwaway {
     let forge = Throwaway::start_bare(scratch);
-    let path = scratch.path().join("temper.json");
-    let mut config: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-    config["application"]["landing"]["projects"] = json!([]);
-    write_private(&path, &serde_json::to_vec(&config).expect("configuration JSON"));
     let forge = forge.with_repository(scratch, 20, landing_by_turn::WORKFLOW);
     forge.detect_manual_merges();
     forge
@@ -75,9 +71,16 @@ pub fn configure(root: &Path, repository: u64) {
 }
 
 /// The narrowed batch reports failed ids and accepts a selected probe.
-pub(super) fn selected_gate(value: &mut Value) {
-    let gate = &mut value["application"]["landing"]["projects"][0]["gates"][0]["gates"][0];
-    gate["report"] = json!({"artifact":"failed-tests", "format":"lines"});
+pub(super) fn selected_gate(root: &Path) {
+    let path = root.join("landing-settings.json");
+    let mut settings: Value = serde_json::from_slice(&fs::read(&path).expect("landing settings")).expect("JSON");
+    settings["items"][1]["set"]["repositories"][0]["gates"][0]["report"] =
+        json!({"artifact":"failed-tests", "format":"lines"});
+    let bytes = serde_json::to_vec(&settings).expect("landing JSON");
+    write_private(&path, &bytes);
+    if root.join("state").is_dir() {
+        temper_real_loop_world::fixtures::seed_settings_file(&root.join("state"), &bytes);
+    }
 }
 
 const STAGING_LIFETIME: skein_lib::Duration = skein_lib::Duration::from_secs(300);
@@ -101,25 +104,29 @@ pub fn staging_limits(value: &mut Value) {
     value["engine"]["limits"]["overrides"]["tasks.inbox_bytes"] = (82 * 63_738).into();
     value["engine"]["limits"]["overrides"]["core.policy_bytes"] = 8192.into();
     value["engine"]["limits"]["overrides"]["core.call_answer_bytes"] = 63_740.into();
-    value["workers"][0]["limits"]["overrides"]["core.call_answer_bytes"] = 63_740.into();
-    value["workers"][0]["limits"]["profile"] = "standard".into();
-    value["workers"][0]["limits"]["overrides"]["tasks.result_bytes"] = 63_738.into();
-    value["workers"][0]["limits"]["overrides"]["tasks.message_bytes"] = 63_738.into();
+    value["engine"]["limits"]["overrides"]["core.call_answer_bytes"] = 63_740.into();
+    value["engine"]["limits"]["profile"] = "standard".into();
+    value["engine"]["limits"]["overrides"]["tasks.result_bytes"] = 63_738.into();
+    value["engine"]["limits"]["overrides"]["tasks.message_bytes"] = 63_738.into();
     value["engine"]["limits"]["overrides"]["hub.outcome_bytes"] = 63_740.into();
-    value["workers"][0]["limits"]["overrides"]["hub.outcome_bytes"] = 63_740.into();
+    value["engine"]["limits"]["overrides"]["hub.outcome_bytes"] = 63_740.into();
     value["engine"]["limits"]["overrides"]["hub.event_bytes"] = 63_738.into();
-    value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = 63_738.into();
+    value["engine"]["limits"]["overrides"]["hub.event_bytes"] = 63_738.into();
 }
 
 /// Share the owned turn setup while selecting the story's batch bound.
 pub(super) fn configure_batch(root: &Path, repository: u64, batch: u16) {
     let path = root.join("temper.json");
     let mut config: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-    config["application"]["landing"]["projects"] = json!([{
-        "project":1,"by":"turn","batch":batch,
-        "gates":[{"forge":1,"repository":repository,
-            "gates":[{"name":"gate","workflow":"gate.yml","ignored":["docs"],"blocking":true,"base":true}]}]
-    }]);
+    let settings = json!({"items":[
+        {"setting":{"kind":"project-landing","project":1},"set":{"by":"turn","batch":batch}},
+        {"setting":{"kind":"project-gates","project":1},"set":{"repositories":[{"forge":1,"repository":repository,"gates":[{"name":"gate","workflow":"gate.yml","ignored":["docs"],"blocking":true,"base":true}],"tiers":[]}]}}
+    ]});
+    let bytes = serde_json::to_vec(&settings).expect("landing settings");
+    write_private(&root.join("landing-settings.json"), &bytes);
+    if root.join("state").is_dir() {
+        temper_real_loop_world::fixtures::seed_settings_file(&root.join("state"), &bytes);
+    }
     // Each member and the train need watched branches
     // (temper/docs/design/protocol/configuration/limits.md, forge.landing_members).
     let members = u32::from(batch);
@@ -131,26 +138,21 @@ pub(super) fn configure_batch(root: &Path, repository: u64, batch: u16) {
     config["engine"]["limits"]["overrides"]["tasks.spec_bytes"] = prepare.spec.into();
     config["engine"]["limits"]["overrides"]["tasks.message_bytes"] = prepare.result.into();
     config["engine"]["limits"]["overrides"]["tasks.result_bytes"] = prepare.result.into();
-    config["workers"][0]["limits"]["overrides"]["tasks.result_bytes"] = prepare.result.into();
+    config["engine"]["limits"]["overrides"]["tasks.result_bytes"] = prepare.result.into();
     config["application"]["limits"]["overrides"]["forge.client.op_bytes"] = prepare.result.into();
-    let agent_path = root.join("agent.json");
-    let mut agent: Value =
-        serde_json::from_slice(&fs::read(&agent_path).expect("agent configuration")).expect("agent JSON");
+    let mut agent = temper_fixtures::agent::read(root);
     // A JSON string's quotes share the tool payload with its message.
     let tool_payload = prepare.result + 2;
     agent["profile"]["declared"]["tool_payload"] = tool_payload.into();
     config["engine"]["limits"]["overrides"]["hub.outcome_bytes"] = tool_payload.into();
-    config["workers"][0]["limits"]["overrides"]["hub.outcome_bytes"] = tool_payload.into();
-    config["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = prepare.result.into();
+    config["engine"]["limits"]["overrides"]["hub.outcome_bytes"] = tool_payload.into();
+    config["engine"]["limits"]["overrides"]["hub.event_bytes"] = prepare.result.into();
     config["application"]["limits"]["overrides"]["checkout.message_bytes"] = tool_payload.into();
     // Let the call carriers follow the agent's declared payload.
     config["engine"]["limits"]["overrides"].as_object_mut().expect("engine overrides").remove("core.call_answer_bytes");
-    config["workers"][0]["limits"]["overrides"]
-        .as_object_mut()
-        .expect("worker overrides")
-        .remove("core.call_answer_bytes");
+    config["engine"]["limits"]["overrides"].as_object_mut().expect("worker overrides").remove("core.call_answer_bytes");
     super::configuration::turn_bounds::apply(&mut config, super::configuration::turn_bounds::turn_body(&agent));
-    write_private(&agent_path, &serde_json::to_vec(&agent).expect("agent JSON"));
+    temper_fixtures::agent::apply(&mut config, root, &agent);
     write_private(&path, &serde_json::to_vec(&config).expect("configuration JSON"));
     let path = root.join("native-landing-settings.json");
     let mut settings: Value =
@@ -161,7 +163,8 @@ pub(super) fn configure_batch(root: &Path, repository: u64, batch: u16) {
 
 /// Leave landing tasks a share of the seeded project's open period (domain/landing.md, 4.2).
 pub(super) fn setup(root: &Path) -> Vec<ctl::Step> {
-    let mut steps = native_settings_setup(root);
+    let agents = super::agents_value(&fs::read(root.join("agents.setting")).expect("agents setting copy"));
+    let mut steps = native_settings_setup(root, Some(agents));
     steps.push(ctl::Step::Run(ctl::Call::new(&["project", "show", "1", "--json"]).in_directory("private")));
     steps.push(ctl::Step::Then(Box::new(|calls| {
         let project = ctl::json(calls.last().expect("project read"));
@@ -202,7 +205,7 @@ pub mod tests {
             "the turn declares the prepare job"
         );
         assert!(
-            config["workers"][0]["limits"]["overrides"]["tasks.result_bytes"].as_u64().expect("worker result carrier")
+            config["engine"]["limits"]["overrides"]["tasks.result_bytes"].as_u64().expect("worker result carrier")
                 >= u64::from(prepare.result),
             "the worker carries the prepare result"
         );

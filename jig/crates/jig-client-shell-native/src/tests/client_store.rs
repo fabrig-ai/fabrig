@@ -1,8 +1,9 @@
 //! A linked client's next request must leave after a folded erase and save.
 use super::*;
 use client::{Ask, Asker, Event, Key, Message, Request, contract};
-use jig_client_protocol_wire::{VERSION, v27 as w};
-use skein_lib::{Duration, List, Reader, Wall};
+use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::VERSION;
+use skein_lib::{Duration, List, Wall};
 
 const FIRST: Key = Key { asker: Asker::JIG, number: 1 };
 const NEXT: Key = Key { asker: Asker::JIG, number: 2 };
@@ -85,19 +86,14 @@ pub(super) fn mixed_turn() -> (client::Client, Queue<Request>) {
         .expect("one family");
     stream(
         &mut machine,
-        &w::StreamEvent::Hello(
+        &jig_client_test_records::opened(
             w::Hello::new(&w::CEILINGS, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(1) })
                 .expect("hello"),
+            jig_client_test_records::frame_record(),
         ),
         &mut out,
     );
-    let watch = out
-        .iter()
-        .find_map(|request| {
-            let Request::Exchange { message: Message::Watch(bytes), .. } = request else { return None };
-            Some(w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("watch").watch())
-        })
-        .expect("client's me watch");
+    let watch = 0;
     discard(&mut out);
     let mut parts = jig_client_test_records::frame_record().into_parts();
     parts.retention = Duration::from_secs(60);

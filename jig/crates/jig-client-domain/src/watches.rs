@@ -122,9 +122,7 @@ impl Domain {
         w.latest = Some(latest);
         w.state = State::Live;
         w.span = None;
-        if w.own {
-            self.set_link(crate::Link::Live, out);
-        }
+        let own = w.own;
         self.select_handles(id);
         for index in 0..self.scratch.len() {
             let handle = *self.scratch.get(index).expect("selected handle");
@@ -137,6 +135,9 @@ impl Domain {
             }
         }
         self.scratch.clear();
+        if own {
+            self.set_link(crate::Link::Live, out);
+        }
     }
     pub(crate) fn refuse_watch(&mut self, id: u64, why: Why, out: &mut Queue<Request>) {
         if self.watches.get(&id).expect("refused watch").closing {
@@ -165,7 +166,9 @@ impl Domain {
     }
     fn ended(&mut self, env: &Env<Limits>, id: u64, end: WatchEnd, out: &mut Queue<Request>) {
         let w = self.watches.get_mut(&id).expect("terminal watch");
-        w.name = None;
+        if !w.own {
+            w.name = None;
+        }
         w.answered = false;
         if w.closing {
             self.watches.remove(&id);
@@ -193,20 +196,25 @@ impl Domain {
         };
         match why {
             None => {
-                let span = match w.span {
-                    Some(s) => core::cmp::min(s.saturating_mul(2), env.limits.backoff.most),
-                    None => env.limits.backoff.first,
-                };
-                w.span = Some(span);
                 w.state = State::Behind;
-                let nanos = span.as_nanos();
-                w.until =
-                    Some(env.now.saturating_add(Duration::from_nanos(self.rng.between(nanos.div_euclid(2), nanos))));
+                if !w.own {
+                    let span = match w.span {
+                        Some(s) => core::cmp::min(s.saturating_mul(2), env.limits.backoff.most),
+                        None => env.limits.backoff.first,
+                    };
+                    w.span = Some(span);
+                    w.state = State::Behind;
+                    let nanos = span.as_nanos();
+                    w.until = Some(
+                        env.now.saturating_add(Duration::from_nanos(self.rng.between(nanos.div_euclid(2), nanos))),
+                    );
+                }
             }
             Some(_) => {
                 w.state = State::Ended;
             }
         }
+        let keep = w.own && end == WatchEnd::NotServed;
         if w.own && why.is_none() {
             self.set_link(crate::Link::Offline, out);
         }
@@ -229,7 +237,7 @@ impl Domain {
             }
         }
         self.scratch.clear();
-        if why.is_some() {
+        if why.is_some() && !keep {
             self.watches.remove(&id);
         }
     }

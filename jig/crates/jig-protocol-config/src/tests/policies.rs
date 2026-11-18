@@ -99,8 +99,8 @@ fn an_override_must_name_a_configured_template() {
 fn configured_policies_at_the_capacity_are_admitted() {
     let document = fixtures::with(
         &configured(),
-        br#""profile": "small""#,
-        br#""profile": "small", "overrides": {"authority.projects": 2}"#,
+        br#""profile": "standard""#,
+        br#""profile": "standard", "overrides": {"authority.projects": 2}"#,
     );
     assert_eq!(
         fixtures::engine(&document).expect("policies at capacity").policies.len(),
@@ -111,8 +111,8 @@ fn configured_policies_at_the_capacity_are_admitted() {
 fn too_many_configured_policies_are_refused_at_the_list() {
     let document = fixtures::with(
         &configured(),
-        br#""profile": "small""#,
-        br#""profile": "small", "overrides": {"authority.projects": 1}"#,
+        br#""profile": "standard""#,
+        br#""profile": "standard", "overrides": {"authority.projects": 1}"#,
     );
     refuses(&document, fixtures::path(&[b"policies"]), What::Bound);
 }
@@ -185,8 +185,8 @@ fn configured_permissions_must_name_the_policys_roles() {
 fn seed_and_configured_policies_have_separate_capacity() {
     let document = fixtures::with(
         &configured(),
-        br#""profile": "small""#,
-        br#""profile": "small", "overrides": {"authority.projects": 2}"#,
+        br#""profile": "standard""#,
+        br#""profile": "standard", "overrides": {"authority.projects": 2}"#,
     );
     let mut engine = fixtures::engine(&document).expect("configured policies at capacity");
     let seed = fixtures::with(fixtures::ENGINE_SMALL, br#""projects": [{"number": 1"#, br#""projects": [{"number": 5"#);

@@ -139,6 +139,7 @@ pub(crate) fn cursor() -> c::Cursor {
 pub(crate) fn task_line() -> c::TaskLine {
     let task = goal(TASK, waiting_on_me());
     c::TaskLine {
+        parts: List::with_capacity(0),
         chip: {
             let mut chip = task.chip;
             chip.title = document_text(b"goal");
@@ -176,6 +177,7 @@ pub(crate) fn task_page_with_cursor() -> c::ReadResult {
     let mut rows = List::with_capacity(PAGE_ROWS);
     rows.push(task_line()).expect("one task row");
     c::ReadResult::Value(c::ReadValue::Tasks(Box::new(c::TaskPage {
+        ended_mark: 0,
         live: rows,
         live_after: Some(cursor()),
         ended: c::EndedGroup::None,
@@ -245,6 +247,10 @@ pub(crate) fn no_provisional() -> c::Delivery {
 }
 impl Harness {
     pub fn deliver_subject(&mut self, wanted: &client::Watchable, delivery: c::Delivery) {
+        if *wanted == client::Watchable::Jig(c::Subject::Me) {
+            self.deliver(delivery);
+            return;
+        }
         let mut tokens = List::with_capacity(OUTPUTS);
         for (token, subject) in &self.watches {
             if subject == wanted {
@@ -409,6 +415,7 @@ pub(crate) fn ended_page() -> c::ReadResult {
     let mut rows = List::with_capacity(PAGE_ROWS);
     rows.push(task_line()).expect("ended task");
     c::ReadResult::Value(c::ReadValue::Tasks(Box::new(c::TaskPage {
+        ended_mark: 0,
         live: List::with_capacity(EMPTY),
         live_after: None,
         ended: c::EndedGroup::Rows { rows, after: Some(cursor()), cut: false },
@@ -452,7 +459,7 @@ pub(crate) fn maximally_escaped_json_text(size: u32) -> Box<[u8]> {
 /// Four nine-segment paths can fill DOCUMENT while each segment stays at TEXT.
 const DOCUMENT_RESOURCES: u32 = 4;
 pub(crate) fn document_at_byte_bound() -> c::Task {
-    use jig_client_protocol_wire::v27 as w;
+    use jig_client_protocol_wire as w;
     let client = crate::limits::client().client;
     let link = jig_client_protocol_link::Limits::new(client.domain, client.exchanges).expect("shipped link limits");
     let mut parts = jig_client_test_records::task_record().into_parts();
@@ -476,7 +483,7 @@ pub(crate) fn document_at_byte_bound() -> c::Task {
     jig_client_protocol_link::translate::documents::task(record, &link).expect("document admitted by shipped limits")
 }
 fn resource_pieces(link: &jig_client_protocol_link::Limits, payload: u32) -> Box<[u8]> {
-    use jig_client_protocol_wire::v27 as w;
+    use jig_client_protocol_wire as w;
     let mut rows = List::with_capacity(DOCUMENT_RESOURCES);
     let mut left = payload;
     let mut size = 0_u32;

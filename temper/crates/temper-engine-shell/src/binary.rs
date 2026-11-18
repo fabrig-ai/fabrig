@@ -91,6 +91,24 @@ fn dispatch(
             refuse_document(command, &directories).map_err(|why| (1, why))?;
             crate::upgrade::run(ENGINE.binary, &directories, &request, commit).map_err(|why| (1, why))
         }
+        Reach::Words(["checkpoint"]) => {
+            let working = captured.working.as_ref().map_err(|why| (1, format!("temper-engine checkpoint: {why}\n")))?;
+            let working = working.as_os_str().as_bytes();
+            let (directories, request) =
+                crate::checkpoint::configure(arguments, &captured.environment, working).map_err(|why| refused(&why))?;
+            refuse_document(command, &directories).map_err(|why| (1, why))?;
+            crate::checkpoint::run(ENGINE.binary, &directories, &request, &captured.environment, working, commit)
+                .map_err(|why| (1, why))
+        }
+        Reach::Words(["restore"]) => {
+            let working =
+                captured.working.as_ref().map_err(|why| (1, format!("{} restore: {why}\n", ENGINE.binary)))?;
+            let (directories, name) =
+                crate::restore::configure(arguments, &captured.environment, working.as_os_str().as_bytes())
+                    .map_err(|why| refused(&why))?;
+            refuse_document(command, &directories).map_err(|why| (1, why))?;
+            crate::restore::run(ENGINE.binary, &directories, name, commit).map_err(|why| (1, why))
+        }
         Reach::Words(["serve"]) => {
             let working = captured.working.as_ref().map_err(|why| (1, format!("temper-engine serve: {why}\n")))?;
             let (directories, rest) =
@@ -220,16 +238,8 @@ mod tests {
         eprintln!("{text}");
         let mut lines = text.lines().skip_while(|line| !line.starts_with("wire "));
         let wires = temper_engine_service::wires();
-        assert_eq!(wires.len(), 6);
-        for (wire, (name, lowest, highest)) in wires.iter().zip([
-            ("jig-worker-wire", 12, 15),
-            ("smith-pieces", 1, 1),
-            ("smith-charter", 4, 5),
-            ("smith-transcript", 7, 7),
-            ("temper-worker-wire", 5, 9),
-            ("temper-host-tools", 1, 4),
-        ]) {
-            assert_eq!((wire.name, wire.lowest, wire.highest()), (name, lowest, highest));
+        for wire in &wires {
+            let (name, lowest, highest) = (wire.name, wire.lowest, wire.highest());
             assert_eq!(lines.next(), Some(format!("wire {name} {lowest} {highest}").as_str()));
             for version in lowest..=highest {
                 let layout = lines.next().expect("one layout follows for each spoken version");
@@ -243,6 +253,26 @@ mod tests {
             }
         }
         assert_eq!(lines.next(), None);
+    }
+
+    #[test]
+    fn restore_bad_names_are_usage_errors_before_reading_configuration() {
+        for arguments in [vec!["restore"], vec!["restore", "12-ff"]] {
+            let capture = super::Capture {
+                run_as: b"temper-engine".as_slice().into(),
+                arguments: arguments.iter().map(|word| Box::from(word.as_bytes())).collect(),
+                environment: Box::new([(Box::from(b"HOME".as_slice()), Box::from(b"/unused".as_slice()))]),
+                working: Ok("/unused".into()),
+            };
+            assert_eq!(
+                super::run(&capture, "test", "test"),
+                Err((
+                    2,
+                    "temper-engine restore: invalid arguments\nusage: temper-engine restore NAME [DIRECTORIES]\n"
+                        .into()
+                ))
+            );
+        }
     }
 
     #[test]

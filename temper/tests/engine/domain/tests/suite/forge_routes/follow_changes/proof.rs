@@ -357,7 +357,6 @@ fn a_follow_without_the_targets_context_adoption_is_refused() {
     world.close();
 }
 
-#[expect(clippy::too_many_lines, reason = "one ctl exchange reads the engine's frame and follow document")]
 fn ctl_list(world: &mut World) -> String {
     use jig_client::{self as client, contract as c};
     use skein_lib::{Env, List, Queue};
@@ -372,18 +371,6 @@ fn ctl_list(world: &mut World) -> String {
         client::Event::Up { up: client::Up::Served { served: true, versions: None } },
     ] {
         root::step(&mut root, &env, root::Event::Client { event }, &mut out);
-    }
-    let mut me_watch = None;
-    while let Some(request) = out.pop() {
-        if let root::Request::Unlinked {
-            request:
-                client::UnlinkedRequest::Down {
-                    down: client::Down::Open { watch, subject: client::Watchable::Jig(c::Subject::Me) },
-                },
-        } = request
-        {
-            me_watch = Some(watch);
-        }
     }
     let jig_domain_core::reads::Answer::Document(document) = world.party_read(jig_domain_core::reads::Read::Frame)
     else {
@@ -421,7 +408,7 @@ fn ctl_list(world: &mut World) -> String {
     let me = jig_client_protocol_link::translate::documents::frame(frame, &link).expect("client frame");
     let event = client::Event::Up {
         up: client::Up::Watched {
-            watch: me_watch.expect("ctl watches me"),
+            watch: skein_lib::Token::new(0),
             event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))),
         },
     };

@@ -12,7 +12,7 @@ prefix; jig's test application mounts it at `/jig`.
 
 | Route | Message |
 |---|---|
-| `GET <prefix>/v1/stream` | opening the stream, answered with server-sent events (2) |
+| `GET <prefix>/v1/stream?version=<version>` | opening the stream, naming the version of jig's wire the client speaks, in decimal, answered with server-sent events (2) |
 | `POST <prefix>/v1/request` | a keyed request |
 | `POST <prefix>/v1/read` | a read |
 | `POST <prefix>/v1/watch` | opening a watch |
@@ -24,6 +24,7 @@ prefix; jig's test application mounts it at `/jig`.
 | `POST <prefix>/v1/approval/ask` | asking an approval |
 | `POST <prefix>/v1/approval/read` | reading an approval by its code |
 | `POST <prefix>/v1/approval/decide` | approving or refusing an approval by its code |
+| `POST <prefix>/v1/link/ask` | asking a link, with a person's credential (`sign-in.md`, the asked link) |
 | `POST <prefix>/v1/sign-out` | signing out |
 | `POST <prefix>/v1/authorize` | an OpenID authorization (`openid.md`) |
 | `GET <prefix>/v1/public/<owner>/<version>/<kind>[/<id>[/<id>]]` | a public read (5, `public-reads.md`) |
@@ -46,7 +47,10 @@ prefix; jig's test application mounts it at `/jig`.
   `Referrer-Policy: no-referrer`; the shell takes the secret out of the
   address and `POST`s it, with the browser header, which signs in
   (`../browser/README.md`, section 11). A native client sends the secret by the
-  same `POST`.
+  same `POST`. An asked link's URL (`sign-in.md`) is the same, with its
+  secret, on the address its client reaches the engine at: the mapping's
+  client end makes it, byte for byte as the engine end makes the printed
+  link's, and parses it as it parses the printed link's.
 - **No provider route.** The application's sign-in runs on its own
   routes; after a `Minted`, its server sets the credential's cookie on
   its own answer with the mapping's function for it (3). So do the
@@ -61,6 +65,15 @@ prefix; jig's test application mounts it at `/jig`.
   record's bytes in base64; a heartbeat a comment line. No event names
   and no ids: a record says what it is, and a client reopens by its own
   backoffs, never by the event stream's retry.
+- **Its version.** The `GET`'s `version` names the version of jig's
+  wire the client speaks, the component's `StreamOpen` `version`
+  (`wire.md`, 2.2). A `GET` of the path with no `version`, as an
+  earlier client sends it, names none, and is answered the hello alone
+  (`wire.md`, section 2); a `version` that is not a decimal `u32` is
+  `400`. Nothing is written before the hello, which waits for `me`, so
+  a stream the engine ends before it (signed out, or busy, for want of
+  room for its `me`) is answered by status, as now: `401` signed out,
+  and a `409` with no body, which the client takes as gone.
 - **Paced by its connection.** The engine end says `StreamTaken` once an
   event's bytes are in the connection's send buffer, bounded by the
   mapping's limits; a client that reads slowly fills it, and nothing

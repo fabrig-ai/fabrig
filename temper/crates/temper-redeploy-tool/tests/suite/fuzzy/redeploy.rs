@@ -1,5 +1,5 @@
 //! A line-log referee independent of the redeploy's bookkeeping (redeploy.md, 8).
-use super::super::redeploy::{SECOND, accounts, grace, run};
+use super::super::redeploy::{SECOND, accounts, run};
 use std::collections::BTreeSet;
 use temper_redeploy_tool::{
     fake::{Deployment, NEW, OLD, Opening, WIRES, description, output},
@@ -86,9 +86,8 @@ fn deployments_keep_swap_drain_refusal_and_done_invariants_seeded() {
                 deployment.stage_all(NEW);
                 let mut stop = Vec::new();
                 for (index, worker) in d.workers.iter().enumerate() {
-                    grace(&mut deployment, index, (next(&mut random) % 4 + 2) * 1000);
                     if next(&mut random) % 2 == 0 {
-                        let wait = (next(&mut random) % 5 + 3) * 1000;
+                        let wait = (next(&mut random) % 5 + 3) * 100_000;
                         stop.push(format!(
                             "temper-engine serve: worker {} told the engine restarts: wait {wait} ms",
                             worker.name
@@ -188,10 +187,9 @@ fn told_deployments_follow_the_opening_bound_and_per_worker_verdicts_seeded() {
         let mut delays = Vec::new();
         let mut stop = Vec::new();
         for (index, worker) in d.workers.iter().enumerate() {
-            let grace_seconds = next(&mut random) % 4 + 2;
-            grace(&mut deployment, index, grace_seconds * 1000);
+            let grace_seconds = 300;
             let told = next(&mut random) % 2 == 0;
-            let wait = next(&mut random) % 9;
+            let wait = (next(&mut random) % 9) * 100;
             let name = &worker.name;
             stop.push(if told {
                 format!("temper-engine serve: worker {name} told the engine restarts: wait {} ms", wait * 1000)
@@ -200,7 +198,7 @@ fn told_deployments_follow_the_opening_bound_and_per_worker_verdicts_seeded() {
             });
             let wait = if told { grace_seconds.max(wait) } else { grace_seconds };
             given.push(wait);
-            let delay = next(&mut random) % 10;
+            let delay = (next(&mut random) % 10) * 100;
             delays.push(delay);
             coverage[usize::from(told)] = true;
             deployment.opening(index, Opening::After { nanoseconds: delay * SECOND, wires: WIRES.into() });

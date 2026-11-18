@@ -12,6 +12,7 @@ mod admission;
 mod agent_reads;
 mod applications;
 mod budget;
+mod checkpoints;
 mod configuring;
 mod deleted_project;
 mod direct_driver;
@@ -57,6 +58,7 @@ mod fuzzy {
     mod escalation;
     mod findings;
     mod follows;
+    mod landing_settings;
     mod loads;
     #[expect(clippy::duplicate_mod, reason = "the same crash cases run in both profiles")]
     #[path = "../removal.rs"]

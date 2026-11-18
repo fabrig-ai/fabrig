@@ -365,6 +365,52 @@ fn starting_a_chat_sends_the_chat_template_filled_once() {
     assert_eq!(fixtures::acts::sent(&mut out).as_ref(), [expected]);
 }
 #[test]
+fn chats_wait_for_me_to_name_the_party_and_template_label() {
+    use jig_client::{Down, Link, UnlinkedRequest, Up};
+    let mut root = crate::unlinked(&fixtures::limits(), fixtures::SEED);
+    let me = fixtures::start(&mut root, List::uncapped());
+    super::accounts::event(
+        &mut root,
+        crate::Event::Went { place: crate::Place::Address(crate::Address::Chats { filter: ChatsFilter::All }) },
+    );
+    let mut live = Queue::uncapped();
+    crate::route::told(&mut root, &fixtures::env(&fixtures::limits()), Told::Link { link: Link::Live }, &mut live);
+    let mut early = false;
+    for request in &live {
+        if let crate::Request::Unlinked {
+            request: UnlinkedRequest::Down { down: Down::Open { subject: Watchable::Jig(Subject::Tasks { .. }), .. } },
+        } = request
+        {
+            early = true;
+        }
+    }
+    assert!(!early, "the query needs me");
+    let mut frame = fixtures::chats::me();
+    frame.projects.get_mut(0).unwrap().templates.get_mut(0).unwrap().label = 19;
+    let with_me = super::accounts::event(
+        &mut root,
+        crate::Event::Client {
+            event: Event::Up {
+                up: Up::Watched { watch: me, event: WatchEvent::Delivered(Delivery::Me(Box::new(frame))) },
+            },
+        },
+    );
+    let mut found = false;
+    for request in &with_me {
+        if let crate::Request::Unlinked {
+            request:
+                UnlinkedRequest::Down { down: Down::Open { subject: Watchable::Jig(Subject::Tasks { query, .. }), .. } },
+        } = request
+        {
+            assert_eq!(query.requester, Some(Requester::Person(fixtures::PARTY)));
+            assert_eq!(query.label, Some(19));
+            found = true;
+        }
+    }
+    assert!(found, "the query leaves in me's step");
+}
+
+#[test]
 fn the_chats_watch_live_lines_by_last_activity() {
     let limits = fixtures::limits();
     let me = fixtures::chats::me();
@@ -372,6 +418,9 @@ fn the_chats_watch_live_lines_by_last_activity() {
     let mut out = Queue::with_capacity(OUTPUTS);
     chats.configure(Some(&me), Some(fixtures::PROJECT), &limits, &mut out);
     let query = TaskQuery {
+        parts: List::from_boxed(Box::new([temper_client_domain_forge::parts::asks(
+            temper_client_protocol_wire::CHAT_PART,
+        )])),
         project: Some(fixtures::PROJECT),
         requester: Some(Requester::Person(fixtures::PARTY)),
         label: Some(7),
@@ -403,6 +452,10 @@ fn closed_chats_are_read_a_page_at_a_time() {
         panic!("closed read")
     };
     assert_eq!(
+        query.parts.as_slice(),
+        &[temper_client_domain_forge::parts::asks(temper_client_protocol_wire::CHAT_PART)]
+    );
+    assert_eq!(
         (handle, query.phase, query.order, live, ended),
         (chats.closed, Some(PhaseClass::Ended), QueryOrder::Ended, None, None)
     );
@@ -411,11 +464,13 @@ fn closed_chats_are_read_a_page_at_a_time() {
         Told::Page {
             handle,
             page: Readout::Jig(ReadResult::Value(ReadValue::Tasks(Box::new(TaskPage {
+                ended_mark: 0,
                 live: List::with_capacity(0),
                 live_after: None,
                 ended: EndedGroup::Rows { rows: List::with_capacity(0), after: Some(cursor.clone()), cut: false },
             })))),
         },
+        crate::unlinked(&limits, fixtures::SEED).client(),
         &crate::Address::Chats { filter: ChatsFilter::All },
         &mut out,
     );
@@ -517,6 +572,7 @@ fn new_chat_and_filter_moves_keep_the_draft_and_the_closed_page() {
         (chats.live, chats.closed)
     };
     let closed = TaskPage {
+        ended_mark: 0,
         live: List::with_capacity(0),
         live_after: None,
         ended: EndedGroup::Rows { rows: List::with_capacity(0), after: None, cut: false },
@@ -559,11 +615,8 @@ fn new_chat_and_filter_moves_keep_the_draft_and_the_closed_page() {
         assert_eq!(chats.page.as_ref(), Some(&closed));
         while let Some(request) = out.pop() {
             match request {
-                Request::Client(jig_client::Event::Read { handle, read: Readable::Jig(Read::Notes { .. }) }) => {
-                    assert_eq!(handle, chats.notes);
-                }
                 Request::Client(jig_client::Event::Unwatch { handle }) => {
-                    assert!([chats.notes, chats.goals].contains(&handle));
+                    assert_eq!(handle, chats.goals);
                 }
                 other @ (Request::Push(_)
                 | Request::Screen { .. }
@@ -630,6 +683,7 @@ fn live_updates_do_not_replace_an_older_closed_page() {
     chats.configure(Some(&fixtures::chats::me()), Some(fixtures::PROJECT), &limits, &mut out);
     while out.pop().is_some() {}
     chats.page = Some(TaskPage {
+        ended_mark: 0,
         live: List::with_capacity(0),
         live_after: None,
         ended: EndedGroup::Rows {
@@ -640,7 +694,12 @@ fn live_updates_do_not_replace_an_older_closed_page() {
     });
     chats.older(&mut out);
     out.pop();
-    chats.told(Told::Changed { handle: chats.live }, &crate::Address::Chats { filter: ChatsFilter::All }, &mut out);
+    chats.told(
+        Told::Changed { handle: chats.live },
+        crate::unlinked(&limits, fixtures::SEED).client(),
+        &crate::Address::Chats { filter: ChatsFilter::All },
+        &mut out,
+    );
     assert!(out.is_empty(), "an older page stays put");
 }
 
@@ -649,6 +708,7 @@ pub(super) fn chat_line() -> TaskLine {
     let ChipPhaseFacts { details, .. } = task.chip.details.as_ref();
     let budget = details.budget.clone();
     TaskLine {
+        parts: List::with_capacity(0),
         chip: task.chip,
         project: fixtures::PROJECT,
         requester: Requester::Person(fixtures::PARTY),
@@ -737,7 +797,133 @@ fn open_chat_rows(
     (root, watch.expect("live watch"), read.expect("first closed page"), facts)
 }
 
+struct ClosedReads {
+    root: crate::Domain,
+    watch: skein_lib::Token,
+    out: Queue<crate::Request>,
+}
+impl ClosedReads {
+    fn new() -> (Self, skein_lib::Token) {
+        let (root, watch, read) = opened_chats();
+        (Self { root, watch, out: Queue::uncapped() }, read)
+    }
+    fn up(&mut self, up: jig_client::Up) {
+        crate::step(
+            &mut self.root,
+            &fixtures::env(&fixtures::limits()),
+            crate::Event::Client { event: Event::Up { up } },
+            &mut self.out,
+        );
+    }
+    fn live(&mut self, rows: &[TaskLine], ended_mark: u64) {
+        self.up(jig_client::Up::Watched {
+            watch: self.watch,
+            event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks {
+                ended_mark,
+                rows: List::from_boxed(rows.into()),
+                more: false,
+            }))),
+        });
+    }
+    fn answer(&mut self, read: skein_lib::Token, ended_mark: u64, more: bool) {
+        self.up(jig_client::Up::ReadDone {
+            read,
+            result: Readout::Jig(ReadResult::Value(ReadValue::Tasks(Box::new(TaskPage {
+                ended_mark,
+                live: List::with_capacity(0),
+                live_after: None,
+                ended: EndedGroup::Rows {
+                    rows: List::with_capacity(0),
+                    after: if more {
+                        Some(Cursor::new(b"next".as_slice().into(), CURSOR_BYTES).unwrap())
+                    } else {
+                        None
+                    },
+                    cut: false,
+                },
+            })))),
+        });
+    }
+    fn reads(&mut self) -> Box<[(skein_lib::Token, Option<Cursor>)]> {
+        let mut reads = List::uncapped();
+        while let Some(request) = self.out.pop() {
+            if let crate::Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: jig_client::Down::Read { read, what: Readable::Jig(Read::Tasks { query, live, ended }) },
+                    },
+            } = request
+            {
+                assert_eq!((query.phase, query.order, live), (Some(PhaseClass::Ended), QueryOrder::Ended, None));
+                reads.push((read, ended)).expect("scripted closed reads fit");
+            }
+        }
+        assert!(reads.len() <= 1, "one closed read at a time");
+        reads.into_boxed()
+    }
+}
+fn first_closed(reads: &[(skein_lib::Token, Option<Cursor>)]) -> skein_lib::Token {
+    assert_eq!(reads.len(), 1, "one first closed page");
+    assert_eq!(reads[0].1, None);
+    reads[0].0
+}
+
 #[test]
+fn closed_chats_read_again_only_when_the_mark_grows() {
+    let (mut h, first) = ClosedReads::new();
+    h.answer(first, 5, false);
+    assert!(h.reads().is_empty(), "the opening answer needs no follow-up");
+    h.live(&[chat_line()], 5);
+    assert!(h.reads().is_empty(), "the first delivery keeps the opening answer");
+    let mut changed = chat_line();
+    changed.last_activity = skein_lib::Wall::from_nanos(1);
+    h.live(core::slice::from_ref(&changed), 5);
+    assert!(h.reads().is_empty(), "changed live rows do not refresh closed chats");
+    h.live(core::slice::from_ref(&changed), 6);
+    let refresh = first_closed(&h.reads());
+    h.answer(refresh, 6, true);
+    assert!(h.reads().is_empty(), "equal live rows with a grown mark needed just one read");
+    crate::step(
+        &mut h.root,
+        &fixtures::env(&fixtures::limits()),
+        crate::Event::Act { action: crate::Action::Pages(crate::pages::Act::ClosedChats) },
+        &mut h.out,
+    );
+    let older = h.reads();
+    assert_eq!(older.len(), 1);
+    assert!(older[0].1.is_some(), "More closed chats keeps its cursor");
+    h.answer(older[0].0, 6, false);
+    h.live(&[changed], 7);
+    assert!(h.reads().is_empty(), "a grown mark does not replace an older page");
+}
+
+#[test]
+fn closed_chats_coalesce_marks_while_the_read_is_under_way() {
+    for answered_mark in [5, 6, 7] {
+        let (mut h, first) = ClosedReads::new();
+        h.live(&[], 6);
+        assert!(h.reads().is_empty(), "the opening read is in flight");
+        h.live(&[], 5);
+        assert!(h.reads().is_empty(), "keep the greatest delivery mark");
+        h.answer(first, answered_mark, false);
+        let reads = h.reads();
+        if answered_mark < 6 {
+            let refresh = first_closed(&reads);
+            h.live(&[], 7);
+            h.live(&[], 6);
+            assert!(h.reads().is_empty(), "the follow-up is in flight");
+            h.answer(refresh, 6, false);
+            let next = first_closed(&h.reads());
+            h.answer(next, 7, false);
+            assert!(h.reads().is_empty(), "one follow-up per uncovered mark suffices");
+        } else {
+            assert!(reads.is_empty(), "the answer covers the delivery");
+        }
+    }
+}
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "one ending refreshes the live group and the independent closed page")]
 fn an_ending_chat_refreshes_the_first_closed_page_and_remains_listed() {
     use crate::{Action, pages::Act};
     let limits = fixtures::limits();
@@ -752,6 +938,7 @@ fn an_ending_chat_refreshes_the_first_closed_page_and_remains_listed() {
                 up: jig_client::Up::ReadDone {
                     read: first_read,
                     result: Readout::Jig(ReadResult::Value(ReadValue::Tasks(Box::new(TaskPage {
+                        ended_mark: 5,
                         live: List::with_capacity(0),
                         live_after: None,
                         ended: EndedGroup::Rows { rows: List::with_capacity(0), after: None, cut: false },
@@ -763,7 +950,7 @@ fn an_ending_chat_refreshes_the_first_closed_page_and_remains_listed() {
     );
     let mut rows = List::with_capacity(1);
     rows.push(chat_line()).expect("one live chat");
-    for rows in [rows, List::with_capacity(0)] {
+    for (rows, ended_mark) in [(rows, 5), (List::with_capacity(0), 6)] {
         crate::step(
             &mut root,
             &env,
@@ -771,7 +958,11 @@ fn an_ending_chat_refreshes_the_first_closed_page_and_remains_listed() {
                 event: Event::Up {
                     up: jig_client::Up::Watched {
                         watch,
-                        event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks { rows, more: false }))),
+                        event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks {
+                            ended_mark,
+                            rows,
+                            more: false,
+                        }))),
                     },
                 },
             },
@@ -810,6 +1001,7 @@ fn an_ending_chat_refreshes_the_first_closed_page_and_remains_listed() {
                 up: jig_client::Up::ReadDone {
                     read: refreshed.expect("ending re-reads first page"),
                     result: Readout::Jig(ReadResult::Value(ReadValue::Tasks(Box::new(TaskPage {
+                        ended_mark: 6,
                         live: List::with_capacity(0),
                         live_after: None,
                         ended: EndedGroup::Rows { rows, after: None, cut: false },
@@ -925,12 +1117,13 @@ fn settings_selects_the_newest_open_asking_chat() {
             let up = if from_watch {
                 jig_client::Up::Watched {
                     watch,
-                    event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks { rows, more: false }))),
+                    event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks { ended_mark: 0, rows, more: false }))),
                 }
             } else {
                 jig_client::Up::ReadDone {
                     read,
                     result: Readout::Jig(ReadResult::Value(ReadValue::Tasks(Box::new(TaskPage {
+                        ended_mark: 0,
                         live: rows,
                         live_after: None,
                         ended: EndedGroup::None,
@@ -1157,108 +1350,115 @@ fn adding_a_draft_replaces_the_new_chat_address() {
 }
 
 #[test]
-fn reads_tasks_as_it_opens() {
+fn opening_and_filtering_chats_read_no_notes() {
     let mut page = Page::new(fixtures::chats::me(), crate::Address::NewChat { draft: false });
     page.event(crate::pages::Event::Went { address: crate::Address::Chats { filter: ChatsFilter::All } });
-    let notes = page.pages.chats().unwrap().notes;
-    assert_eq!(
-        page.out.pop(),
-        Some(Request::Client(Event::Read {
-            handle: notes,
-            read: Readable::Jig(Read::Notes {
-                scope: NoteScope::Tasks { project: fixtures::PROJECT },
-                description: None,
-                after: None,
-            }),
-        }))
-    );
-    assert!(page.out.is_empty());
+    assert!(page.out.is_empty(), "the same rows carry their documents");
     page.event(crate::pages::Event::Went { address: crate::Address::Chats { filter: ChatsFilter::Drafts } });
     assert!(page.out.is_empty(), "filtering has no read");
 }
 
-fn list_note(number: u64, task: u64, title: &[u8]) -> Note {
-    let mut note = super::chat::draft_note(number, 1, b"");
-    note.scope = NoteScope::Task { project: fixtures::PROJECT, task };
-    note.description = DocumentText::complete(Text::new(title.into(), 32).unwrap());
-    note
+pub(super) use temper_fixtures::client_documents::chat_part as document_part;
+fn document_line(task: u64, part: RowPart) -> TaskLine {
+    let mut line = chat_line();
+    line.chip.task = task;
+    line.parts = List::from_boxed(Box::new([part]));
+    line
 }
-fn note_page(notes: &[Note], after: Option<Cursor>) -> Told {
-    let Readout::Jig(ReadResult::Value(ReadValue::Notes(mut page))) = super::chat::notes_page(notes) else {
-        panic!("notes page")
-    };
-    page.after = after;
-    Told::Page { handle: Chats::new(FIRST).notes, page: Readout::Jig(ReadResult::Value(ReadValue::Notes(page))) }
-}
-#[test]
-fn pages_follow_to_the_rows_bound() {
-    const ROWS: u32 = 4;
-    let mut chats = Chats::new(FIRST);
-    let root = crate::unlinked(&fixtures::limits(), fixtures::SEED);
-    let mut out = Queue::uncapped();
-    chats.open_documents(fixtures::PROJECT, ROWS, &mut out);
-    out.pop();
-    let cursor = Cursor::new(b"next".as_slice().into(), CURSOR_BYTES).unwrap();
-    let first = note_page(&[list_note(9, 4, b"Later"), list_note(5, 4, b"Earlier")], Some(cursor.clone()));
-    assert!(chats.notes_told(skein_lib::Time::ZERO, root.client(), &first, &mut out));
-    assert_eq!(
-        out.pop(),
-        Some(Request::Client(Event::Read {
-            handle: chats.notes,
-            read: Readable::Jig(Read::Notes {
-                scope: NoteScope::Tasks { project: fixtures::PROJECT },
-                description: None,
-                after: Some(cursor.clone())
-            }),
-        }))
-    );
-    let second = note_page(
-        &[list_note(2, 4, b"Lowest"), list_note(1, 8, b"Another"), list_note(1, 7, b"Past bound")],
-        Some(cursor),
-    );
-    chats.notes_told(skein_lib::Time::ZERO, root.client(), &second, &mut out);
-    assert!(out.is_empty(), "no page past four notes");
-    assert_eq!(chats.documents.get(&4).unwrap().bytes(), b"Lowest");
-    assert_eq!(chats.documents.get(&8).unwrap().bytes(), b"Another");
-    assert!(!chats.documents.contains_key(&7));
-}
-#[test]
-fn document_reads_retry_transient_ends_and_clear_a_refusal() {
-    use skein_lib::{Duration, Time};
-    let mut chats = Chats::new(FIRST);
-    let root = crate::unlinked(&fixtures::limits(), fixtures::SEED);
-    let mut out = Queue::uncapped();
-    chats.open_documents(fixtures::PROJECT, 2, &mut out);
-    let read = out.pop().unwrap();
-    chats.notes_told(
-        Time::ZERO,
-        root.client(),
-        &Told::Page { handle: chats.notes, page: Readout::Jig(ReadResult::None(ReadNone::Busy)) },
-        &mut out,
-    );
-    let due = Time::ZERO.saturating_add(Duration::from_secs(1));
-    assert_eq!(chats.next_deadline(), Some(due));
-    chats.fire(Time::ZERO, &mut out);
-    assert!(out.is_empty());
-    chats.fire(due, &mut out);
-    assert_eq!(out.pop(), Some(read));
-    chats.notes_told(due, root.client(), &note_page(&[list_note(1, 4, b"Draft")], None), &mut out);
-    assert!(chats.documents.contains_key(&4));
-    chats.notes_told(
-        due,
-        root.client(),
-        &Told::Page { handle: chats.notes, page: Readout::Jig(ReadResult::None(ReadNone::Refused)) },
-        &mut out,
-    );
-    assert!(chats.documents.is_empty());
-    assert_eq!(chats.next_deadline(), None);
-    let closed = chats.leave(&mut out);
-    let mut cancelled = false;
+fn no_notes(out: &mut Queue<crate::Request>) {
     while let Some(request) = out.pop() {
-        cancelled |= request == Request::Client(Event::Unwatch { handle: chats.notes });
+        if let crate::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Read { what: Readable::Jig(Read::Notes { .. }), .. },
+                },
+        } = request
+        {
+            panic!("chat rows must not read notes");
+        }
     }
-    assert!(cancelled);
-    assert!(closed > chats.goals.number);
+}
+
+#[test]
+fn documents_arrive_in_both_row_windows_and_leave_with_their_rows() {
+    let (mut h, read) = ClosedReads::new();
+    h.up(jig_client::Up::ReadDone {
+        read,
+        result: Readout::Jig(ReadResult::Value(ReadValue::Tasks(Box::new(TaskPage {
+            ended_mark: 0,
+            live: List::with_capacity(0),
+            live_after: None,
+            ended: EndedGroup::Rows {
+                rows: List::from_boxed(Box::new([
+                    document_line(8, document_part(Some(b"Ended draft"))),
+                    document_line(7, document_part(None)),
+                ])),
+                after: None,
+                cut: false,
+            },
+        })))),
+    });
+    h.live(&[document_line(4, document_part(Some(b"away-mode.md")))], 0);
+    let chats = h.root.pages().chats().unwrap();
+    assert_eq!(chats.documents.get(&4).unwrap().bytes(), b"away-mode.md");
+    assert_eq!(chats.documents.get(&8).unwrap().bytes(), b"Ended draft");
+    assert!(!chats.documents.contains_key(&7));
+    no_notes(&mut h.out);
+    h.live(&[], 0);
+    assert!(!h.root.pages().chats().unwrap().documents.contains_key(&4));
+    assert!(h.root.pages().chats().unwrap().documents.contains_key(&8));
+    no_notes(&mut h.out);
+}
+
+#[test]
+fn unavailable_chat_parts_wait_for_the_next_delivery_without_reads() {
+    for part in [
+        RowPart::Unknown,
+        RowPart::NotServed(NotServed {
+            owner: Owner::Family(temper_client_protocol_wire::FORGE),
+            served: List::with_capacity(0),
+        }),
+        RowPart::Failed(PartFailure::Unreadable),
+        document_part(None),
+    ] {
+        let (mut h, read) = ClosedReads::new();
+        h.answer(read, 0, false);
+        h.live(&[document_line(4, part)], 0);
+        assert!(h.root.pages().chats().unwrap().documents.is_empty());
+        no_notes(&mut h.out);
+        h.live(&[document_line(4, document_part(Some(b"away-mode.md")))], 0);
+        assert_eq!(h.root.pages().chats().unwrap().documents.get(&4).unwrap().bytes(), b"away-mode.md");
+        h.live(&[document_line(4, document_part(None))], 0);
+        assert!(
+            h.root.pages().chats().unwrap().documents.is_empty(),
+            "a replacement with no document clears the draft"
+        );
+        no_notes(&mut h.out);
+    }
+}
+
+#[test]
+fn chat_parts_require_the_forge_version_and_a_complete_record() {
+    use temper_client_domain_forge::parts;
+    let part = document_part(Some(b"away-mode.md"));
+    let RowPart::Value(value) = &part else { unreachable!() };
+    assert_eq!(
+        parts::chat(&document_line(4, part.clone())).unwrap().into_parts().document.unwrap().as_ref(),
+        b"away-mode.md"
+    );
+    let mut trailing = List::uncapped();
+    for byte in value.bytes.iter().copied() {
+        trailing.push(byte).unwrap();
+    }
+    trailing.push(0).unwrap();
+    for value in [
+        jig_client::Family { family: 99, ..value.clone() },
+        jig_client::Family { version: 0, ..value.clone() },
+        jig_client::Family { bytes: Box::new([]), ..value.clone() },
+        jig_client::Family { bytes: trailing.into_boxed(), ..value.clone() },
+    ] {
+        assert!(parts::chat(&document_line(4, RowPart::Value(value))).is_none());
+    }
 }
 
 #[test]
@@ -1299,6 +1499,7 @@ fn goal_chips_cover_only_the_newest_rows_across_both_lists() {
         Up::ReadDone {
             read,
             result: Readout::Jig(ReadResult::Value(ReadValue::Tasks(Box::new(TaskPage {
+                ended_mark: 0,
                 live: List::with_capacity(0),
                 live_after: None,
                 ended: EndedGroup::Rows { rows: closed, after: None, cut: false },
@@ -1306,7 +1507,7 @@ fn goal_chips_cover_only_the_newest_rows_across_both_lists() {
         },
         Up::Watched {
             watch,
-            event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks { rows: live, more: false }))),
+            event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks { ended_mark: 0, rows: live, more: false }))),
         },
         Up::FamilyDelivered {
             watch: facts.expect("person facts watch"),
@@ -1335,31 +1536,6 @@ fn goal_chips_cover_only_the_newest_rows_across_both_lists() {
     }
     assert_eq!(count, 1, "one chips watch for both lists");
     assert_eq!(watched.unwrap().as_slice(), [120, 110], "newest chat, then lower-numbered tie");
-}
-
-#[test]
-fn the_chats_list_excludes_working_notes_from_documents() {
-    let limits = fixtures::limits();
-    let root = crate::unlinked(&limits, fixtures::SEED);
-    let mut chats = Chats::new(FIRST);
-    let mut out = Queue::uncapped();
-    chats.open_documents(fixtures::PROJECT, 4, &mut out);
-    while out.pop().is_some() {}
-    chats.notes_told(
-        skein_lib::Time::ZERO,
-        root.client(),
-        &note_page(
-            &[
-                list_note(1, 4, b"work: settings"),
-                list_note(2, 4, b"Visible document"),
-                list_note(3, 8, b"work: only memory"),
-            ],
-            None,
-        ),
-        &mut out,
-    );
-    assert_eq!(chats.documents.get(&4).unwrap().bytes(), b"Visible document");
-    assert!(!chats.documents.contains_key(&8), "a working note is not a draft");
 }
 
 fn composer_chats(words: Box<[u8]>) -> (Chats, Me, crate::Limits, Queue<Request>) {
@@ -1400,6 +1576,7 @@ fn a_kilobyte_pasted_is_sent_whole() {
                 what: Made::Tasks { tasks },
             }))),
         },
+        crate::unlinked(&limits, fixtures::SEED).client(),
         &crate::Address::NewChat { draft: false },
         &mut out,
     );
@@ -1436,6 +1613,7 @@ fn a_lost_closed_read_keeps_the_page_and_is_no_answer() {
                 up: jig_client::Up::Watched {
                     watch,
                     event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks {
+                        ended_mark: 0,
                         rows: List::with_capacity(0),
                         more: false,
                     }))),
@@ -1449,6 +1627,7 @@ fn a_lost_closed_read_keeps_the_page_and_is_no_answer() {
     crate::route::told(&mut root, &fixtures::env(&fixtures::limits()), lost.clone(), &mut Queue::uncapped());
     assert!(!root.pages().chats().unwrap().known(root.client()));
     let kept = TaskPage {
+        ended_mark: 0,
         live: List::with_capacity(0),
         live_after: None,
         ended: EndedGroup::Rows { rows: List::from_boxed(Box::new([chat_line()])), after: None, cut: false },

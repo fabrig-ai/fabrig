@@ -200,6 +200,7 @@ fn heard(event: &Event) -> Line {
         | Event::SignIn { .. }
         | Event::SignOut
         | Event::Authorize { .. }
+        | Event::AskLink
         | Event::AskApproval
         | Event::ReadApproval { .. }
         | Event::DecideApproval { .. }
@@ -225,7 +226,7 @@ pub(super) fn asked(duties: &Duties) -> Vec<Line> {
                 message: Sent::of(message),
                 credential: credential.as_ref().map(|secret| secret.expose().into()),
             }),
-            Request::OpenStream { credential } => {
+            Request::OpenStream { credential, .. } => {
                 lines.push(Line::Stream(credential.as_ref().map(|secret| secret.expose().into())));
             }
             Request::CloseStream => lines.push(Line::Unstream),
@@ -241,6 +242,7 @@ pub(super) fn asked(duties: &Duties) -> Vec<Line> {
             }
             Request::Told { .. }
             | Request::Authorized(_)
+            | Request::AskedLink(_)
             | Request::Approval(_)
             | Request::ServiceCredential { .. } => {
                 panic!("a duty outside the native shell's seam")

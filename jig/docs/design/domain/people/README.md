@@ -131,7 +131,7 @@ inbox are the views child's (../engine/views.md).
   lifetime. Creation and restoration arm both expiry conditions; timer
   scheduling translates the saved wall expiry at the current supplied
   clocks (../root.md, section 3; ../engine/views.md).
-- **Three ways of signing in are jig's own:**
+- **Four ways of signing in are jig's own:**
   - *the printed link,* on one person's machine: the clients' component
     draws a one-time secret at start, which the application's startup
     prints in a URL of its own; presenting it signs in the configured
@@ -148,7 +148,17 @@ inbox are the views child's (../engine/views.md).
     sees an ordinary sign-in of the approver's person, counted, full and
     expiring as any; an approver whose sign-in has ended is no signer,
     and the take signs no one in. Nothing of the approval reaches
-    people before the take.
+    people before the take;
+  - *an asked link:* the clients' component draws it for a person's
+    sign-in that asks, and at its sign-in asks people `Whose` the asking
+    sign-in is and signs that identity in afresh, held none, with the
+    asking sign-in's saved expiry as its cap
+    (`../../protocol/client/sign-in.md`, the asked link). The core hands
+    the cap to people with the sign-in, `until`: the sign-in made
+    expires at the earlier of its lifetime and the cap, by both clocks,
+    as any sign-in's saved expiry arms them; a cap not after people's
+    wall time signs no one in, answered refused. Every other sign-in has
+    no cap, and a held sign-in kept keeps its own expiry.
 - **A sign-in held is kept.** A person signing in by the printed link
   while presenting the credential of a sign-in of their own keeps that
   sign-in, rather than making another beside it:
@@ -179,7 +189,7 @@ inbox are the views child's (../engine/views.md).
     no longer live there, and the person signs in afresh.
 
   Only the printed link offers a held sign-in: a `Mint`, a service's
-  sign-in and an approval's take sign in afresh.
+  sign-in, an approval's take and an asked link sign in afresh.
 - **Full sign-ins say so.** The deployment holds at most
   `limits.people.sign_ins` sign-ins (`../../protocol/limits.md`
   ). A sign-in that would make one more is answered *full*,

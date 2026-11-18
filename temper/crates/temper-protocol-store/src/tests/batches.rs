@@ -7,6 +7,8 @@ use temper_engine_domain_forge_landing as landing;
 
 fn seed() -> forge::LandingRow {
     forge::LandingRow {
+        flake_reruns: Box::new([]),
+        room: None,
         job: None,
         landing: landing::Landing {
             task: 61,
@@ -92,6 +94,27 @@ fn batch_members_and_leave_causes_round_trip() {
         let bounds = crate::bounds(&limits, limits.client.op_bytes).unwrap();
         assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
     }
+}
+
+#[test]
+fn landing_flake_reruns_round_trip_with_the_pending_jobs() {
+    let mut row = seed();
+    row.flake_reruns = Box::new([forge::FlakeRerun {
+        key: forge::ReceiptKey {
+            project: 5,
+            repository: skein_forge::api::Repository { forge: 1, repository: 2 },
+            check: forge::Check::Gate(b"gate".as_slice().into()),
+            key: [7; 32],
+        },
+        run: 8,
+        findings: Box::new([3, 7]),
+        pending: Box::new([skein_forge::api::JobAttempt { head: [3; 32], run: 8, job: 9, attempt: 2 }]),
+        redispatch: true,
+        ended: true,
+    }]);
+    let row = forge::Stored::Landing(row);
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
 }
 
 #[test]

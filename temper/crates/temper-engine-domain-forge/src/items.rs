@@ -41,6 +41,7 @@ impl Domain {
             start: Start::Commit(base),
             push: Some(branch),
             landing: None,
+            delivered: None,
             holder: Some(holder),
             credential,
             bytes,
@@ -195,6 +196,12 @@ impl Domain {
         if repository.role == Role::Context || !repository.kinds.push {
             push = None;
         }
+        let delivered = match inherited {
+            Some((row, _)) if push.is_some() && row.change.last_checked_by == Some(seed.task) => {
+                row.change.last_checked
+            }
+            Some(_) | None => None,
+        };
         let landing = match inherited {
             Some((row, change::Delegate::Produce)) => match &push {
                 Some(_) => Some(row.base.clone()),
@@ -254,6 +261,7 @@ impl Domain {
             start,
             push,
             landing,
+            delivered,
             holder,
             credential: match self.records.get(&repository.provider.forge) {
                 Some(record) => Some(u32::from(record.number)),

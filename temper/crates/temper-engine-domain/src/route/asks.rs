@@ -15,6 +15,11 @@ use skein_lib::Token;
 #[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher translates the core's ask vocabulary")]
 pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, connector: u16, ask: core::Ask) {
     let request = match ask {
+        core::Ask::Parts(ask) => {
+            super::parts::ask(domain, env, decision, connector, ask);
+            None
+        }
+
         ask @ core::Ask::Public { .. } => {
             super::public::ask(domain, env, connector, ask);
             None
@@ -123,6 +128,13 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                 decision,
                 &env.limits,
                 Delivery::Read { reply, answer: core::reads::Answer::None(core::reads::Why::Unknown) },
+            );
+            None
+        }
+        core::Ask::Workers(workers) => {
+            assert!(
+                super::now(domain, crate::Request::Worker(crate::WorkerRequest::Settings(workers))),
+                "worker table door reserved"
             );
             None
         }

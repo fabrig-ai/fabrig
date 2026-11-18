@@ -418,13 +418,15 @@ impl Task {
             Io::DropOpen { log } => match event {
                 Done::Opened { file, .. } => {
                     self.held.push(file);
-                    step.below.push(file::Request::RemoveIn {
-                        owner: IO_OWNER,
-                        root: file,
-                        name: logs::name(log),
-                        directory: false,
-                    });
-                    self.io = Io::Remove { directory: file };
+                    if !store.defer_drop(log) {
+                        step.below.push(file::Request::RemoveIn {
+                            owner: IO_OWNER,
+                            root: file,
+                            name: logs::name(log),
+                            directory: false,
+                        });
+                        self.io = Io::Remove { directory: file };
+                    }
                 }
                 Done::Failed { error: Error::NotFound } => {}
                 Done::Failed { .. } => self.fail(),

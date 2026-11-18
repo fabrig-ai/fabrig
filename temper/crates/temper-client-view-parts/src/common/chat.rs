@@ -1,5 +1,6 @@
 //! Shared chat items (temper/docs/design/client/view-crates.md, 3.3).
 use alloc::boxed::Box;
+use jig_client::contract as c;
 use temper_client_domain::Domain;
 
 /// A chat's heading is at most this many characters, its ellipsis included.
@@ -41,6 +42,30 @@ pub(crate) fn short_title(title: &[u8]) -> Box<[u8]> {
     }
     let words = title.get(..end).expect("trimmed words are within the title");
     cut_title(words, SHORT_TITLE, true)
+}
+
+/// A task's row title includes its ellipsis within this bound (client/pages/README.md, 2).
+pub const ROW_TITLE: usize = 80;
+
+/// A task's title on a line keeps punctuation at the cut (client/pages/README.md, 2).
+#[must_use]
+pub fn row_title(title: &[u8]) -> Box<[u8]> {
+    cut_title(title, ROW_TITLE, false)
+}
+
+/// Whether complete words contain only their title and trailing blanks (client/pages/README.md, 2).
+#[must_use]
+pub fn only_title(words: &c::DocumentText) -> bool {
+    if words.cut {
+        return false;
+    }
+    let Some(end) = skein_lib::bytes::find(words.bytes(), b"\n") else { return true };
+    for byte in words.bytes().get(end..).expect("line feed is within the words") {
+        if !title_space(*byte) {
+            return false;
+        }
+    }
+    true
 }
 
 /// Cut at a word to a character bound, including the ellipsis (client/pages/work.md, 1).

@@ -54,7 +54,7 @@ fn started() -> Service {
     core.views.watchers = 4;
     core.views.subjects_per_change = 4;
     core.documents.rows = 2;
-    parsed.limits = crate::limits::for_profile(jig_protocol_config::Profile::Small, &parsed.engine.limits);
+    parsed.limits = crate::limits::small(&parsed.engine.limits);
     parsed.limits.root.journal = f::journal(&parsed.limits.root);
     let (mut engine, io) = crate::startup::engine_startup(parsed, &f::files(&document), None, &f::seeds(), None, false)
         .expect("fixture startup");
@@ -109,6 +109,7 @@ fn a_first_start_opens_each_seeded_projects_period() {
     let mut service = started();
     settle(&mut service);
     f::engine(&mut service).parties_in().push(core::Event::SignIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(10)),
         identity: people::Identity {

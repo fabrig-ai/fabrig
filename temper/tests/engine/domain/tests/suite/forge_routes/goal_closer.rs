@@ -358,7 +358,7 @@ fn numbered_history(world: &mut World, goal: &engine::Assignment, branch: &[u8])
         let mut delegate = ordinary_delegate(world, goal, words);
         if words != b"Unrelated report" {
             delegate.executor = tasks::Executor::Procedure { connector: 0, code: 2 };
-            delegate.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 4096 };
+            delegate.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 4096, choices: Box::new([]) };
             delegate.authority = live_task(world, goal.task).authority.clone();
             delegate.authority.delegation.depth -= 1;
             delegate.authority.delegation.tasks = 6;
@@ -1240,7 +1240,7 @@ fn a_goals_report_quotes_each_main_pulls_ci_selection() {
     let assigned = world.assigned.len();
     let mut delegate = ordinary_delegate(&world, &goal, b"Repair main");
     delegate.executor = tasks::Executor::Procedure { connector: 0, code: 2 };
-    delegate.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 4096 };
+    delegate.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 4096, choices: Box::new([]) };
     delegate.authority = live_task(&world, goal.task).authority.clone();
     delegate.authority.delegation.depth -= 1;
     delegate.authority.delegation.tasks = 6;
@@ -1360,5 +1360,26 @@ fn a_closers_inflight_check_steps_nothing_until_the_next_start() {
     world.restart_same();
     wait_ended(&mut world, task);
     assert!(closer_row(&world, task).expect("closer stepped on restart").done);
+    world.close();
+}
+
+pub(crate) fn the_operator_hold_stops_the_goal_closers_land_step() {
+    let (mut world, goal, branch) = goal_world(false, true);
+    add_change(&mut world, &goal, &branch, 93, b"First", b"done");
+    world.drain_cut();
+    let merged = world.merges;
+    world.restart_with_landing_held(true);
+    world.until(Until::Ready);
+    let closer = make_closer(&mut world, &goal, 94);
+    for _ in 0..300 {
+        world.tick();
+    }
+    let row = closer_row(&world, closer).expect("waiting closer");
+    assert!(row.landing_changes.is_empty(), "no land-step change is made under the operator hold");
+    assert_eq!(world.merges, merged);
+    world.drain_cut();
+    world.restart_with_landing_held(false);
+    wait_ended(&mut world, closer);
+    assert_eq!(closer_row(&world, closer).expect("closer").landing_changes.len(), 1);
     world.close();
 }

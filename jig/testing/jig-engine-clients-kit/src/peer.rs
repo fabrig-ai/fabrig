@@ -4,7 +4,7 @@ mod closing;
 mod public;
 mod public_http;
 use crate::fixtures;
-use jig_client_protocol_wire::v27 as w;
+use jig_client_protocol_wire as w;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_protocol_engine_clients::{
@@ -37,6 +37,7 @@ struct Exchange {
     upload: Option<Box<[u8]>>,
     body: Vec<u8>,
     status: Option<u16>,
+    headers: Box<[skein_http::Header]>,
     done: bool,
     streaming: bool,
     paused: bool,
@@ -79,6 +80,7 @@ impl Exchange {
             upload: Some(body),
             body: Vec::new(),
             status: None,
+            headers: Box::new([]),
             done: false,
             streaming: method == skein_http::Method::Get,
             paused: false,
@@ -128,6 +130,7 @@ impl Exchange {
                 }
                 http::Event::Response(response) => {
                     self.status = Some(response.status);
+                    self.headers = response.headers;
                     self.read();
                 }
                 http::Event::Body(Up::Bytes(bytes)) => {
@@ -567,21 +570,27 @@ impl Peer {
     }
     pub fn open_stream(&mut self) -> [u8; 16] {
         let socket = self.request_stream();
+        self.remember_stream(socket)
+    }
+    pub fn remember_stream(&mut self, socket: Token) -> [u8; 16] {
         let events = self.stream_records(socket);
-        let Some(w::StreamEvent::Hello(hello)) = events.first() else {
-            panic!("hello first: {:?}", self.sockets.get(&socket).expect("stream").body);
+        let hello = match events.first().expect("first stream record") {
+            w::StreamEvent::Hello(hello) => hello,
+            w::StreamEvent::Opened(opened) => opened.hello(),
+            event => panic!("hello first: {event:?}"),
         };
         let name = *hello.stream();
         self.streams.insert(name, socket);
         name
     }
     pub fn request_stream(&mut self) -> Token {
+        self.request_stream_target(b"/jig/v1/stream")
+    }
+    pub fn request_stream_target(&mut self, target: &[u8]) -> Token {
         let socket = Token::new(self.next_socket);
         self.next_socket += 1;
-        self.sockets.insert(
-            socket,
-            Exchange::new(skein_http::Method::Get, b"/jig/v1/stream", Box::new([]), self.bearer.as_deref()),
-        );
+        self.sockets
+            .insert(socket, Exchange::new(skein_http::Method::Get, target, Box::new([]), self.bearer.as_deref()));
         self.server.up(
             skein_io::Event::Accepted { owner: Token::new(0), socket, peer: fixtures::address() },
             &mut self.server_out,
@@ -594,7 +603,8 @@ impl Peer {
         let exchange = self.sockets.get(&socket).expect("requested exchange");
         (exchange.status, &exchange.body)
     }
-    fn stream_records(&self, socket: Token) -> Vec<w::StreamEvent> {
+    #[must_use]
+    pub fn stream_records(&self, socket: Token) -> Vec<w::StreamEvent> {
         let body = &self.sockets.get(&socket).expect("stream").body;
         let mut events = Vec::new();
         let mut rest = body.as_slice();
@@ -624,7 +634,7 @@ impl Peer {
         subject.encode(&mut record).expect("subject");
         let subject = w::Owned::new(
             &self.env.limits.wire,
-            w::OwnedParts { owner: w::Owner::Jig, version: 27, record: record.finish() },
+            w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: record.finish() },
         )
         .expect("subject owner");
         let open = w::Open::new(&self.env.limits.wire, w::OpenParts { stream, watch: self.next_watch, subject })
@@ -752,8 +762,20 @@ impl Peer {
         );
         self.pump();
     }
-    pub fn advance_time(&mut self, span: skein_lib::Duration) {
+    pub fn elapse_without_firing(&mut self, span: skein_lib::Duration) {
         self.env.now = self.env.now.saturating_add(span);
+        self.server.clock(self.env.now, self.env.wall);
+    }
+    #[must_use]
+    pub fn next_deadline(&self) -> Option<Time> {
+        self.component.next_deadline()
+    }
+    #[must_use]
+    pub fn response_headers(&self, socket: Token) -> &[skein_http::Header] {
+        &self.sockets.get(&socket).expect("exchange socket").headers
+    }
+    pub fn advance_time(&mut self, span: skein_lib::Duration) {
+        self.elapse_without_firing(span);
         self.component.fire(&self.env);
         self.pump();
     }
@@ -790,6 +812,10 @@ impl Peer {
         let mut out = Writer::new(skein_lib::length::usize_of(record.measure()));
         record.encode(&mut out).expect("encoded link");
         out.finish()
+    }
+    pub fn post_signed(&mut self, target: &[u8], body: Box<[u8]>) -> Token {
+        let bearer = self.bearer.clone().expect("signed in");
+        self.post(target, body, Some(&bearer))
     }
     pub fn post(&mut self, target: &[u8], body: Box<[u8]>, bearer: Option<&[u8]>) -> Token {
         self.http_exchange(Exchange::new(skein_http::Method::Post, target, body, bearer))
@@ -850,7 +876,7 @@ impl Peer {
         let event = self.core.pop_front().expect("core sign-in");
         // The assertion first checks the variant; destructuring reads its public vocabulary.
         assert!(matches!(event, core::Event::SignIn { .. }));
-        if let core::Event::SignIn { held: None, reply_to, identity } = event {
+        if let core::Event::SignIn { until: None, held: None, reply_to, identity } = event {
             assert_eq!(identity, self.mint_identity.take().unwrap_or_else(fixtures::first_owner));
             reply_to
         } else {
@@ -858,13 +884,13 @@ impl Peer {
         }
     }
     pub fn answer_signed_in(&mut self, sign_in: u64, person: u64) {
+        self.answer_signed_in_until(sign_in, person, fixtures::expires());
+    }
+    pub fn answer_signed_in_until(&mut self, sign_in: u64, person: u64, expires: Wall) {
         let to = self.take_sign_in();
         self.sign_ins.insert(sign_in, person);
 
-        self.event(Event::Reply {
-            to,
-            reply: people::Reply::SignedIn { sign_in, person, expires: fixtures::expires() },
-        });
+        self.event(Event::Reply { to, reply: people::Reply::SignedIn { sign_in, person, expires } });
     }
     pub fn refuse_sign_in(&mut self) {
         let to = self.take_sign_in();

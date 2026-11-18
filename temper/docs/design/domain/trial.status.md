@@ -1,6 +1,7 @@
 # trial: status
 
-2026-11-07. Where temper's code lags or departs from [trial.md](trial.md).
+2026-11-17. Where temper's code lags or departs from [trial.md](trial.md).
+
 
 Unlisted sections have no known gap. Charter 10, the person's projectless
 task, the rows and wire, cancellation at the first ending or minute, and

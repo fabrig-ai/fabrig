@@ -66,8 +66,9 @@ pub fn card_words(page: &ReadValue) -> Box<[u8]> {
         | ReadValue::Notes(_)
         | ReadValue::Deployment(_) => return Box::default(),
     };
+    let title = super::chat::row_title(title);
     let words = spec.specification.words.bytes();
-    crate::accounts::words::join(&[title, if title.is_empty() || words.is_empty() { b"" } else { b" " }, words])
+    crate::accounts::words::join(&[&title, if title.is_empty() || words.is_empty() { b"" } else { b" " }, words])
 }
 
 #[must_use]

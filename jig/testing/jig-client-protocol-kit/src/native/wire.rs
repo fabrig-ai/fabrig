@@ -2,7 +2,7 @@
 use super::Received;
 use jig_client::{Event, Message, Request, Streamed};
 use jig_client_protocol_link::translate;
-use jig_client_protocol_wire::v27 as w;
+use jig_client_protocol_wire as w;
 use skein_lib::{Reader, Secret, Token};
 use std::collections::BTreeMap;
 
@@ -81,7 +81,8 @@ impl Wire {
                 }
                 Kind::Other
             }
-            Message::ApprovalAsk(_)
+            Message::LinkAsk(_)
+            | Message::ApprovalAsk(_)
             | Message::ApprovalRead(_)
             | Message::ApprovalDecide(_)
             | Message::Authorize(_)
@@ -225,6 +226,8 @@ impl Wire {
                         translate::watches::delivery(value.document().record(), &limits)
                             .map_or_else(|_| vec![], |value| vec![Received::Delivery(value)])
                     }
+                    w::StreamEvent::Opened(value) => translate::watches::delivery(value.me().record(), &limits)
+                        .map_or_else(|_| vec![], |value| vec![Received::Delivery(value)]),
                     w::StreamEvent::Hello(_)
                     | w::StreamEvent::Delivery(_)
                     | w::StreamEvent::Text(_)
@@ -238,6 +241,7 @@ impl Wire {
             Event::Start { .. }
             | Event::StartUnlinked { .. }
             | Event::SignIn { .. }
+            | Event::AskLink
             | Event::AskApproval
             | Event::ReadApproval { .. }
             | Event::DecideApproval { .. }

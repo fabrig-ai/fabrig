@@ -126,6 +126,8 @@ pub struct ForgeRepository {
     pub start: ForgeStart,
     pub push: Option<Box<[u8]>>,
     pub landing: Option<Box<[u8]>>,
+    /// This task's own checked delivery (temper/docs/design/protocol/channel.md, 4).
+    pub delivered: Option<skein_forge::api::Commit>,
     pub identity: u32,
 }
 
@@ -146,13 +148,7 @@ pub struct KindValue {
     pub value: forge::settings::SizedValue,
 }
 
-/// Whether a charter offers only the asking family's tools and optional settings
-/// (temper/docs/design/domain/agent/tools.md).
-#[must_use]
-pub fn asking(tools: jig_domain_tasks::Tools) -> bool {
-    let families = jig_domain_core::ToolFamilies::JIG;
-    tools.0 & families.ask.0 != 0 && tools.0 & !(families.ask.0 | families.settings) == 0
-}
+pub use temper_engine_domain_room::asking;
 
 /// A run of this policy is given no repository: an asking charter's, or one that
 /// names none of inspect, modify and shell (temper/docs/design/domain/agent/charter.md, 2).
@@ -606,6 +602,14 @@ pub type TranscriptTexts = Box<[TurnText]>;
 
 #[derive(Hash, Debug)]
 pub enum StoreInput {
+    Checkpointed {
+        token: Token,
+        checkpoint: Checkpointed,
+    },
+    CheckpointRefused {
+        token: Token,
+        why: CheckpointWhy,
+    },
     /// The named map census (jig's protocol/store/README.md, 6.3).
     Census(Box<core::documents::StoreCensus>),
     /// A startup page's missing owner, handed in before that page's Loaded.
@@ -642,6 +646,11 @@ pub enum StoreInput {
     Unloaded {
         /// Echoed generational load token, fenced after its one terminal and reclaim.
         owner: Token,
+    },
+    /// A joined milestone-delegates load owned by the root.
+    PartLoaded {
+        waiter: Token,
+        result: core::reads::Loaded,
     },
     /// The one terminal of a core read load (jig's `client/domain/contract/README.md`, 4).
     ReadLoaded {
@@ -762,9 +771,22 @@ pub enum WorkerInput {
     ResultRead { payload: Token, end: tasks::End },
 }
 /// A keyed request owned by the root, or forwarded to the forge (client/engine.md).
+/// A row made by the root, joining the child's trial to jig's next-run wait
+/// (temper/docs/design/domain/trial.md, 4 and 6).
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub struct TrialRow {
+    pub account: u32,
+    pub task: Option<u64>,
+    pub took: Option<u32>,
+    pub step: temper_engine_domain_trials::Step,
+    pub state: temper_engine_domain_trials::State,
+    pub run_wait: Option<jig_domain_core::documents::TaskRunWait>,
+}
+
 /// Trials: temper/docs/design/domain/trial.md, 6.
 #[derive(Clone, Hash, Debug, PartialEq, Eq)]
 pub enum Application {
+    Checkpoint,
     OpenChange(forge::OpenChange),
     Tier(forge::TierActRequest),
     Follow { project: u32, follow: u32, act: forge::follows::FollowAct },
@@ -783,6 +805,7 @@ pub enum Application {
 /// The family's terminal answer (client/forge/records.md).
 #[derive(Clone, Hash, Debug, PartialEq, Eq)]
 pub enum ApplicationAnswer {
+    Checkpoint(Result<Checkpointed, CheckpointWhy>),
     Tier(Result<(), forge::TierRefusal>),
     Follow(Option<Box<[u8]>>),
     Make(forge::MakeAnswer),
@@ -860,7 +883,10 @@ pub enum ForgeReadAnswer {
     Finding(Option<forge::FindingAnswer>),
     View(Box<temper_engine_domain_ways::View>),
     ProgramEnvironment,
-    Setting(Option<forge::settings::SizedValue>),
+    Setting {
+        value: Option<forge::settings::SizedValue>,
+        revision: Option<u32>,
+    },
     /// The proposal's items and whether an enforcing approval covers an owned Forgejo (domain/forge/change/questions.md, 2).
     ProposalItems {
         items: Box<[(forge::settings::SettingKey, forge::settings::Edit)]>,
@@ -944,6 +970,8 @@ pub enum PartyInput {
     SignedIn {
         /// Authenticated sign-in offered beside the printed link.
         held: Option<u64>,
+        /// Cap on a new sign-in's expiry, handed to people unchanged.
+        until: Option<Wall>,
         /// Web-issued right to this one sign-in reply, moved through people to a durable terminal.
         reply_to: ReplyTo,
         /// Protocol-authenticated forge/user key and display bytes, bounded by people
@@ -974,7 +1002,7 @@ pub enum PartyInput {
     Read {
         reply_to: ReplyTo,
         sign_in: u64,
-        read: core::reads::Read,
+        read: Box<core::reads::Read>,
     },
     /// The forge's typed read, answered after preceding commits (client/forge/served.md).
     ForgeRead {
@@ -1019,6 +1047,11 @@ pub enum PartyInput {
 /// and 4). Every output crosses the journal door in its peer's vocabulary.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Request {
+    ChoosePlace {
+        request: Token,
+        kind: forge::BoxKind,
+        login: Box<[u8]>,
+    },
     /// A making's copy mark has crossed the root (temper/docs/design/domain/forge/adoption.md, 5).
     MakingCopied {
         key: forge::MakingKey,
@@ -1131,6 +1164,9 @@ pub enum Request {
 }
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum StoreRequest {
+    Checkpoint {
+        token: Token,
+    },
     /// Replace the names before the catalogue decision commits (jig jig/docs/design/domain/engine/settings.md, 11).
     Catalogue {
         names: Box<[core::settings::ModelName]>,
@@ -1157,6 +1193,11 @@ pub enum StoreRequest {
         /// Hard decoded-page byte limit, enforced before and after protocol decoding.
         bytes: u32,
     },
+    /// Joined rows for a root-owned milestone part, answered by `PartLoaded`.
+    PartRead {
+        waiter: Token,
+        range: Box<core::reads::Range>,
+    },
     /// One core read load after every preceding commit, answered by `ReadLoaded`.
     Read {
         load: Token,
@@ -1165,6 +1206,7 @@ pub enum StoreRequest {
 }
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum WorkerRequest {
+    Settings(Box<[core::settings::WorkerSetting]>),
     Host(Box<HostRequest>),
     /// Read an ended answer's opaque outcome in the protocol routing.
     ReadResult {
@@ -1206,6 +1248,8 @@ pub enum PartyRequest {
 #[derive(Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "events stay inline in the bounded route queue priced at startup")]
 pub(crate) enum Work {
+    PartsLoaded { waiter: Token, result: core::reads::Loaded },
+    PartsFailed { waiter: Token },
     CheckResults { task: u64, attempt: u64, results: crate::wire::CheckResults },
     StartDone(jig_domain_core::start::Phase),
     Start(jig_domain_core::start::Action),
@@ -1229,6 +1273,7 @@ pub(crate) enum Work {
     ProposalFailed { waiter: Token },
     TaskProposalLoaded { waiter: Token, rows: Option<Box<[Record]>> },
     EndedLoaded { waiter: Token, rows: Box<[Record]> },
+    ChangeFromLoaded { task: u64, row: Option<Box<jig_domain_tasks::TaskRecord>> },
     EndedFailed { waiter: Token },
 }
 
@@ -1295,6 +1340,7 @@ pub(crate) struct AssignmentParts {
 /// An ended owner row the core asked the root to load.
 #[derive(Hash, Debug)]
 pub(crate) enum EndedRead {
+    ChangeFrom { task: u64 },
     EndedTask { request: Token, task: u64 },
     SeenConversation { request: Token, task: u64 },
     Position { request: Token, task: u64, party: u64 },
@@ -1315,6 +1361,7 @@ pub(crate) enum Read {
     GoalWords(Box<GoalWords>),
     Notes { owner: Token },
     SettingsNote { to: Token, call: Box<Call> },
+    Parts(Box<crate::route::parts::Flight>),
     Document(Box<crate::route::document::DocumentRead>),
     Remember(Box<crate::route::remember::RememberRead>),
 }
@@ -1368,6 +1415,7 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
         | Delivery::Refuse { .. }
         | Delivery::TurnBusy { .. }) => Request::Worker(WorkerRequest::Deliver(delivery)),
         delivery @ (Delivery::Push(_)
+        | Delivery::WorkerFigures { .. }
         | Delivery::PlaygroundNote { .. }
         | Delivery::Forges { .. }
         | Delivery::ForgeDocument { .. }
@@ -1385,6 +1433,7 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
         | Delivery::WatchEnded { .. }
         | Delivery::SourceSignedOut { .. }
         | Delivery::Result { .. }) => Request::Party(PartyRequest::Deliver(delivery)),
+        Delivery::PartLoad { waiter, range } => Request::Store(StoreRequest::PartRead { waiter, range }),
         Delivery::ReadLoad { load, range } => Request::Store(StoreRequest::Read { load, range }),
         Delivery::Restarting { wait } => Request::Restarting { wait },
         Delivery::Drained => Request::Drained,
@@ -1445,4 +1494,31 @@ pub struct JobDiagnostic {
 pub enum JobDiagnosticEnding {
     Failed { failure: jig_domain_host::JobFailure, detail: Box<[u8]> },
     Refused(jig_domain_host::JobRefusal),
+}
+
+/// The store's cut and figures (temper/docs/design/protocol/checkpoints.md, 3).
+#[derive(Clone, Hash, Debug, PartialEq, Eq)]
+pub struct Checkpointed {
+    pub name: Box<[u8]>,
+    pub store: u64,
+    pub secrets: u64,
+    pub linked: u32,
+    pub copied: u32,
+    pub bytes: u64,
+    pub paused: u64,
+    pub took: u64,
+    pub held: u64,
+    pub removed: u32,
+    pub skipped: u32,
+}
+/// Refusals a serving engine meets, plus deployment ownership (protocol/checkpoints.md, 3).
+#[derive(Clone, Hash, Debug, PartialEq, Eq)]
+pub enum CheckpointWhy {
+    NotOwner,
+    InProgress,
+    Unavailable,
+    Files,
+    Unrecognized { path: Box<str> },
+    Vanished { path: Box<str> },
+    Failed { path: Box<str>, error: Box<str> },
 }

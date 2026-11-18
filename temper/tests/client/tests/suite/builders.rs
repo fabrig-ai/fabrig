@@ -5,24 +5,19 @@ use temper_client_domain::pages::builders::Read;
 use temper_client_world::fixtures as f;
 
 #[test]
-fn an_owner_reads_the_engines_worker_on_builders() {
+fn an_owner_reads_worker_settings_not_the_connected_hosts() {
     let mut world = f::accounts_world(f::SEED);
     world.front().engine.hello(skein_lib::Token::new(7));
     let client = open(&mut world, b"/projects/1/settings/builders");
-    follow(
-        &mut world,
-        client,
-        vec![
-            see(Role::Heading { level: 2 }, "Workers · 1".as_bytes()),
-            see(Role::Text, b"worker"),
-            see(Role::Text, "1 slot · 0 in use".as_bytes()),
-            see(Role::Text, b"Connected"),
-        ],
-    );
+    follow(&mut world, client, vec![see(Role::Heading { level: 2 }, "Workers · 1".as_bytes())]);
     let root = world.root(client).person();
     let Read::Hosts(doc) = root.pages().builders().unwrap().read(root.client()) else {
         panic!("engine deployment read")
     };
+    assert_eq!(doc.worker_settings.len(), 1);
+    let setting = doc.worker_settings.get(0).expect("default worker");
+    assert_eq!(setting.name.as_ref(), b"worker");
+    assert!(setting.linked);
     let worker = doc.hosts.get(0).expect("one worker");
     assert_eq!(doc.hosts.len(), 1);
     assert_eq!(worker.channel, 7);

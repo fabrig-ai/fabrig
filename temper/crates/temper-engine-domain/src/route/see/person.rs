@@ -339,6 +339,7 @@ fn tracked(part: &Part) -> bool {
 
 fn query(project: u32, order: documents::QueryOrder) -> documents::TaskQuery {
     documents::TaskQuery {
+        parts: List::with_capacity(0),
         project: Some(project),
         requester: None,
         root: None,
@@ -416,7 +417,11 @@ pub(super) fn read(
 }
 
 fn ask(domain: &mut Domain, to: ReplyTo, key: crate::CallKey, read: Read) {
-    domain.work.push(Work::Core(core::Event::NamedAction { to, key, action: core::NamedAction::PersonRead(read) }));
+    domain.work.push(Work::Core(core::Event::NamedAction {
+        to,
+        key,
+        action: core::NamedAction::PersonRead(Box::new(read)),
+    }));
 }
 
 pub(crate) fn is_reading(domain: &Domain, right: Token) -> bool {
@@ -429,7 +434,7 @@ pub(crate) fn is_reading(domain: &Domain, right: Token) -> bool {
         FlightRender::Plain
         | FlightRender::ProjectRead
         | FlightRender::TaskRead
-        | FlightRender::ForgeRead
+        | FlightRender::ForgeRead(_)
         | FlightRender::Settings { see: None, .. }
         | FlightRender::Amended(_)
         | FlightRender::Change(_)
@@ -457,7 +462,7 @@ fn flight_context(render: &mut FlightRender) -> (&mut SeeFlight, u32) {
         FlightRender::Plain
         | FlightRender::ProjectRead
         | FlightRender::TaskRead
-        | FlightRender::ForgeRead
+        | FlightRender::ForgeRead(_)
         | FlightRender::Settings { see: None, .. }
         | FlightRender::Amended(_)
         | FlightRender::Change(_)

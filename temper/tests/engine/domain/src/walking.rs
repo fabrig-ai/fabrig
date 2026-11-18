@@ -149,9 +149,9 @@ pub fn limits() -> engine::Limits {
     };
     let mut limits = engine::Limits {
         streams: 1,
-        routes: jig_protocol_config::profile(jig_protocol_config::Profile::Small).routes,
-        policy_bytes: jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.policy_bytes,
-        call_answer_bytes: jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.call_answer_bytes,
+        routes: jig_protocol_config_fixtures::small().routes,
+        policy_bytes: jig_protocol_config_fixtures::small().core.policy_bytes,
+        call_answer_bytes: jig_protocol_config_fixtures::small().core.call_answer_bytes,
         host_reply_bytes: None,
         settings: jig_domain_core::settings::Limits {
             revisions: 4,
@@ -161,9 +161,9 @@ pub fn limits() -> engine::Limits {
             permissions: 32,
             proposals: 4,
         },
-        templates: jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.templates,
+        templates: jig_protocol_config_fixtures::small().core.templates,
         documents: jig_domain_core::documents::DocumentLimits {
-            roles: jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.documents.roles,
+            roles: jig_protocol_config_fixtures::small().core.documents.roles,
             segments: 9,
             grants: authority_limits().grants.max(tasks.authority_grants),
             executors: authority_limits().executors.max(tasks.executor_kinds),
@@ -295,6 +295,7 @@ fn authority_rules(ceiling: authority::Authority) -> authority::Rules {
 
 /// Real authority policy and an authenticated owner, rather than allow flags.
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "the story constructs the whole engine configuration and worker settings")]
 pub fn config(seed: u64) -> engine::Config {
     let ceiling = authority_value(1000, Box::new([authority::Executor::Charter(1)]));
     let rules = authority_rules(ceiling.clone());
@@ -323,13 +324,14 @@ pub fn config(seed: u64) -> engine::Config {
         ways_stock: temper_engine_service_stock::stock::ways(),
         period_span: PERIOD_SPAN,
         core: jig_domain_core::Config {
+            parts: Box::new([]),
             deployment: [31; 16],
             seed,
             // The worlds' workers run apart from the engine (domain/root.md, 2).
             workers_in_process: false,
             jobs: Box::new([]),
             kept_starts: Box::new([]),
-            worker_names: Box::new([Box::from(b"worker".as_slice())]),
+
             hub_turns: HUB_TURNS,
             owners: Box::new([people::InitialOwner {
                 project: 1,
@@ -338,6 +340,13 @@ pub fn config(seed: u64) -> engine::Config {
             grants: Box::new([]),
             kinds: Box::default(),
             defaults: jig_domain_core::settings::Defaults {
+                workers: Box::new([jig_domain_core::settings::WorkerSetting {
+                    number: 1,
+                    name: Box::from(b"worker".as_slice()),
+                    places: 1,
+                    digest: Some([7; 32]),
+                    withdrawn: false,
+                }]),
                 models: Box::default(),
                 rules,
                 charters: Box::new([charter()]),
@@ -383,7 +392,7 @@ pub fn config(seed: u64) -> engine::Config {
             // The forge is the deployment's one connector.
             connectors: Box::new([0]),
         },
-        landings: skein_lib::Map::with_capacity(1),
+        landing_held: false,
         forge: temper_engine_domain_forge::Config {
             push: None,
             namespace: Box::from(&b"root"[..]),
@@ -746,6 +755,7 @@ impl World {
             self.person_sent = true;
             self.queue(
                 engine::Event::Party(engine::PartyInput::SignedIn {
+                    until: None,
                     held: None,
                     reply_to: ReplyTo::new(Token::new(101)),
                     identity: people::Identity {
@@ -847,6 +857,10 @@ impl World {
                     }
                     self.store.pending.push_back((number, writes));
                 }
+                engine::Request::Store(engine::StoreRequest::PartRead { waiter, range }) => {
+                    let result = self.store.read(range);
+                    self.queue(engine::Event::Store(engine::StoreInput::PartLoaded { waiter, result }), 0);
+                }
                 engine::Request::Store(engine::StoreRequest::Read { load, range }) => {
                     let result = self.store.read(range);
                     self.queue(engine::Event::Store(engine::StoreInput::ReadLoaded { load, result }), 0);
@@ -864,12 +878,14 @@ impl World {
                 }
                 engine::Request::Worker(engine::WorkerRequest::Deliver(delivery))
                 | engine::Request::Party(engine::PartyRequest::Deliver(delivery)) => self.delivery(delivery),
+                engine::Request::Worker(engine::WorkerRequest::Settings(_)) => {}
                 engine::Request::Stop => panic!("walking story stopped: {:?}", self.trace),
                 other @ (engine::Request::Worker(_)
                 | engine::Request::Party(_)
                 | engine::Request::Account(_)
                 | engine::Request::ForgeKept(_)
                 | engine::Request::ForgeGone { .. }
+                | engine::Request::ChoosePlace { .. }
                 | engine::Request::BoxGroup { .. }
                 | engine::Request::PlaygroundActs { .. }
                 | engine::Request::ResetAct { .. }
@@ -888,6 +904,7 @@ impl World {
                 | engine::Request::Setup { .. }
                 | engine::Request::Busy(_)
                 | engine::Request::Unsettled(_)
+                | engine::Request::Store(engine::StoreRequest::Checkpoint { .. })
                 | engine::Request::Restarting { .. }
                 | engine::Request::Drained
                 | engine::Request::Forge { .. }) => panic!("unexpected walking output {other:?}"),
@@ -993,7 +1010,7 @@ impl World {
                 assert_eq!((run.raw(), attempt.raw()), (assignment.task, assignment.attempt));
                 assert!(self.terminal_snapshot.is_some(), "only a committed terminal has no adopted claim");
             }
-            Delivery::Link { down: host::LinkDown::Grant { .. }, .. } => {}
+            Delivery::WorkerFigures { .. } | Delivery::Link { down: host::LinkDown::Grant { .. }, .. } => {}
             Delivery::TurnBusy { turn, .. } => self.turn(turn),
             Delivery::Result { person, task, words } => {
                 if let Err(why) = self.referee.result(&self.store.rows, person, task, &words) {
@@ -1018,6 +1035,7 @@ impl World {
             | Delivery::CarriedUnused { .. }
             | Delivery::ForgeRead { .. }
             | Delivery::Read { .. }
+            | Delivery::PartLoad { .. }
             | Delivery::ReadLoad { .. }
             | Delivery::Public { .. }
             | Delivery::PublicWait { .. }

@@ -174,7 +174,7 @@ pub fn configure(root: &Path, repository: u64) {
     turn_restart::configure_batch(root, repository, 3);
     let path = root.join("temper.json");
     let mut value: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-    turn_restart::selected_gate(&mut value);
+    turn_restart::selected_gate(root);
     value["workers"][0]["slots"] = 8.into();
     for name in ["checkout.workspaces", "git_component.operations"] {
         value["application"]["limits"]["overrides"][name] = 8.into();
@@ -192,8 +192,7 @@ pub fn configure(root: &Path, repository: u64) {
 /// Hold the prepare job and the batch call under the standard engine profile.
 pub fn message_room(root: &Path, value: &mut Value) {
     // The one model call carries three independent change authorities and a latch.
-    let agent_path = root.join("agent.json");
-    let mut agent: Value = serde_json::from_slice(&fs::read(&agent_path).expect("agent configuration")).expect("JSON");
+    let mut agent = temper_fixtures::agent::read(root);
     agent["profile"]["declared"]["tool_payload"] = 63_740.into();
     for endpoint in agent["endpoints"].as_array_mut().expect("agent endpoints") {
         endpoint["limits"]["output"] = 48_000.into();
@@ -216,9 +215,9 @@ pub fn message_room(root: &Path, value: &mut Value) {
         "hub.outcome_bytes":8192
     }});
     // Both ends declare the same assignment and job carriers at opening.
-    value["workers"][0]["limits"] = value["engine"]["limits"].clone();
+    value["engine"]["limits"] = value["engine"]["limits"].clone();
     let slots = value["workers"][0]["slots"].clone();
-    let limits = &mut value["workers"][0]["limits"]["overrides"];
+    let limits = &mut value["engine"]["limits"]["overrides"];
     limits["hub.accounts"] = 4.into();
     limits["hub.slots"] = slots;
     limits["hub.event_bytes"] = 8190.into();
@@ -242,7 +241,7 @@ pub fn message_room(root: &Path, value: &mut Value) {
     }
     value["application"]["limits"]["overrides"]["root.loads.read_bytes"] = 16_777_216.into();
     value["application"]["limits"]["overrides"]["root.journal.transcript_bytes"] = 8_388_608.into();
-    super::write_private(&agent_path, &serde_json::to_vec(&agent).expect("agent JSON"));
+    temper_fixtures::agent::apply(value, root, &agent);
 }
 
 fn get(forge: &Throwaway, route: &str) -> Value {
@@ -341,9 +340,7 @@ pub mod tests {
             spend + stock.rules.maximum_run_spend <= owner.authority.budget.spend,
             "the chat funds every delegate and retains one run for itself"
         );
-        let agent: serde_json::Value =
-            serde_json::from_slice(&std::fs::read(scratch.path().join("agent.json")).expect("agent configuration"))
-                .expect("JSON");
+        let agent = temper_fixtures::agent::read(scratch.path());
         assert!(
             u64::try_from(arguments.len()).expect("call length")
                 <= agent["profile"]["declared"]["tool_payload"].as_u64().expect("payload"),

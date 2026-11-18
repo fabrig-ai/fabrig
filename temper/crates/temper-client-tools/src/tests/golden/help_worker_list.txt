@@ -1,0 +1,7 @@
+worker list
+Read the workers not withdrawn, in number order
+Prints: A line per worker: WORKER, its places, up since TIME, down since TIME or down, and its runs' count
+--json: the record workers.
+Key: none.
+Runs are those of the connected host of the worker's name.
+JSON gives each worker not withdrawn, with its runs' count.

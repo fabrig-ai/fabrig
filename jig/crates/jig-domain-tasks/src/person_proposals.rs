@@ -196,6 +196,7 @@ pub(crate) fn valid_settings(items: &[crate::SettingHead]) -> bool {
             | crate::Setting::Charter(_)
             | crate::Setting::Template(_)
             | crate::Setting::Policy(_)
+            | crate::Setting::Worker(_)
             | crate::Setting::Rules => {}
         }
         for earlier in items.iter().take(at) {

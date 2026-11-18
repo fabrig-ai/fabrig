@@ -44,13 +44,195 @@ fn without_deleted_repository_job() -> OwnerSets {
                 .iter()
                 .map(
                     |set| {
-                        if set.name == "temper" { OwnerSet { jobs: &crate::OWNER_SET.jobs[1..], ..*set } } else { *set }
+                        if set.name == "temper" { OwnerSet { jobs: &crate::OWNER_SET.jobs[..4], ..*set } } else { *set }
                     },
                 )
                 .collect::<Vec<_>>()
                 .into_boxed_slice(),
         ),
     }
+}
+
+fn floor_sets() -> OwnerSets {
+    use super::fixtures::layouts;
+    let schema = skein_codec::schema::parse(layouts::FLOOR.as_bytes()).unwrap();
+    let mut application = crate::OWNER_SET;
+    application.jobs = &[];
+    application.families = Box::leak(
+        application
+            .families
+            .iter()
+            .map(|family| {
+                if family.name != "temper-store" {
+                    return *family;
+                }
+                let types: Vec<_> = family
+                    .types
+                    .iter()
+                    .copied()
+                    .filter(|ty| schema.root(ty.root.as_bytes(), ty.variant.map(str::as_bytes)).is_some())
+                    .collect();
+                let keys = family
+                    .keys
+                    .iter()
+                    .copied()
+                    .filter(|key| {
+                        types.iter().any(|ty| ty.keys.iter().any(|range| range.from == key.from && range.to == key.to))
+                    })
+                    .collect::<Vec<_>>();
+                store::KeptFamily {
+                    current: layouts::FLOOR,
+                    types: Box::leak(types.into_boxed_slice()),
+                    keys: Box::leak(keys.into_boxed_slice()),
+                    ..*family
+                }
+            })
+            .collect::<Vec<_>>()
+            .into_boxed_slice(),
+    );
+    OwnerSets {
+        sets: Box::leak(
+            SETS.sets
+                .iter()
+                .map(|set| if set.name == "temper" { application } else { *set })
+                .collect::<Vec<_>>()
+                .into_boxed_slice(),
+        ),
+    }
+}
+
+fn seed_floor(disk: &mut Disk, rows: Vec<store::JobRow>) -> OwnerSets {
+    let sets = floor_sets();
+    let mut before = component(disk, sets);
+    let events = disk.open(&mut before);
+    let [Event::Opened { last: 0, .. }, Event::Census { .. }] = events.as_slice() else {
+        panic!("first open: {events:?}")
+    };
+    let events = disk.request(&mut before, Request::Commit { number: 1, writes: Box::new([Write::Save(header(1))]) });
+    let [Event::Committed { .. }] = events.as_slice() else { panic!("commit: {events:?}") };
+    let writes = core::iter::once(Write::Save(header(2)))
+        .chain(rows.into_iter().map(|row| Write::Put { key: row.key, value: row.value }))
+        .collect();
+    let events = disk.request(&mut before, Request::Commit { number: 2, writes });
+    let [Event::Committed { .. }] = events.as_slice() else { panic!("commit: {events:?}") };
+    drop(before);
+    disk.restart();
+    sets
+}
+
+#[test]
+fn the_four_id_jobs_open_floor_rows_before_deleted_repositories_are_read() {
+    use super::{fixtures, test_ids};
+    use temper_engine_domain_forge_vocabulary as d;
+    let mut disk = Disk::new();
+    let (long, expected) = test_ids::long_tier();
+    let short = [test_ids::landing(), test_ids::receipt_row(), test_ids::verification()];
+    let mut rows: Vec<_> = short
+        .iter()
+        .zip(["landing", "receipt", "verification"])
+        .map(|(stored, variant)| test_ids::row(stored, variant))
+        .collect();
+    rows.push(long);
+    rows.push(test_ids::row(&fixtures::adopted(d::Protection::Absent), "repository"));
+    seed_floor(&mut disk, rows);
+    let mut current = component(&disk, SETS);
+    let bounds = crate::bounds(&fixtures::LIMITS, disk.limits().core.tasks.spec_bytes).unwrap();
+    let mut events = alloc::collections::VecDeque::from(disk.open(&mut current));
+    let mut ran = Vec::new();
+    let mut seen = Vec::new();
+    let mut opened = false;
+    while let Some(event) = events.pop_front() {
+        match event {
+            Event::Job { owner, of: store::Owner::Application, job, page } => {
+                if !page.rows.is_empty() {
+                    seen.push(job.clone());
+                }
+                let present = crate::jobs::read_present(&mut current, &bounds).unwrap();
+                let answer = crate::jobs::page(&job, &page, &present, &bounds);
+                events.extend(disk.request(&mut current, Request::Job { owner, answer }));
+            }
+            Event::Ran { of: store::Owner::Application, job, counts, .. } => {
+                if job.as_ref() == "test-ids-tier" {
+                    assert_eq!(counts.iter().map(|count| count.count).collect::<Vec<_>>(), [1, 1, 1]);
+                } else {
+                    assert!(counts.iter().all(|count| count.count == 0));
+                }
+                ran.push(job);
+            }
+            Event::Opened { pending: true, .. } => opened = true,
+            Event::Census { .. } => {}
+            other => panic!("floor open: {other:?}; {:?}", current.start_open_failure()),
+        }
+    }
+    assert!(opened);
+    assert_eq!(
+        ran.iter().map(AsRef::as_ref).collect::<Vec<&str>>(),
+        [
+            "test-ids-landing",
+            "test-ids-receipt",
+            "test-ids-tier",
+            "test-ids-verification",
+            "deleted-repository-forge-rows"
+        ]
+    );
+    // The floor predates landing search by test, so its layout is derived, not written.
+    assert!(!seen.iter().any(|job| job.as_ref() == "test-ids-landing"));
+    for row in short.into_iter().chain([d::Stored::Tier(expected)]) {
+        let row = super::jobs::encoded(&row);
+        let events =
+            disk.request(&mut current, Request::Get { owner: Token::new(1), key: Get::Application(row.key.clone()) });
+        let [Event::Got { row: Some(Row::Application { key, value }), .. }] = events.as_slice() else {
+            panic!("readback: {events:?}")
+        };
+        assert_eq!((key, value), (&row.key, &row.value));
+        crate::v25::Row::decode(&crate::v25::CEILINGS, &mut skein_lib::Reader::new(value)).unwrap();
+    }
+}
+
+#[test]
+fn an_in_flight_long_id_refuses_open_without_changing_the_active_store() {
+    use super::{fixtures, test_ids};
+    let mut disk = Disk::new();
+    let mut tier = test_ids::tier();
+    tier.record.run = fixtures::tier_row().record.run;
+    let mut row = test_ids::row(&temper_engine_domain_forge_vocabulary::Stored::Tier(tier), "tier");
+    row.value = fixtures::layouts::replace_id(&row.value, b"t::a", &[b't'; 2000]);
+    let key = row.key.clone();
+    let original = row.value.clone();
+    let sets = seed_floor(&mut disk, vec![row]);
+    let mut current = component(&disk, SETS);
+    let mut events = alloc::collections::VecDeque::from(disk.open(&mut current));
+    let bounds = crate::bounds(&fixtures::LIMITS, disk.limits().core.tasks.spec_bytes).unwrap();
+    let mut refused = false;
+    while let Some(event) = events.pop_front() {
+        match event {
+            Event::Job { owner, job, page, .. } => {
+                let answer = crate::jobs::page(&job, &page, &crate::jobs::Present::default(), &bounds);
+                events.extend(disk.request(&mut current, Request::Job { owner, answer }));
+            }
+            Event::Ran { .. } => {}
+            Event::OpenRefused { why: store::OpenRefusal::Job { job, key: bad, why, .. }, .. } => {
+                assert_eq!(&*job, "test-ids-tier");
+                assert_eq!(bad.as_ref(), Some(&key));
+                assert_eq!(&*why, "a tier run in flight holds a failing test's id past 1,024 bytes");
+                refused = true;
+            }
+            other => panic!("refused start: {other:?}"),
+        }
+    }
+    assert!(refused);
+    drop(current);
+    disk.restart();
+    let mut before = component(&disk, sets);
+    let events = disk.open(&mut before);
+    let [Event::Opened { last: 2, pending: false, .. }, Event::Census { .. }] = events.as_slice() else {
+        panic!("active store: {events:?}")
+    };
+    let events = disk.request(&mut before, Request::Get { owner: Token::new(1), key: Get::Application(key) });
+    let [Event::Got { row: Some(Row::Application { value, .. }), .. }] = events.as_slice() else {
+        panic!("old row: {events:?}")
+    };
+    assert_eq!(value.get(2..), original.get(2..), "the active value remains at the floor's encoding");
 }
 
 fn pull(repository: skein_forge::api::Repository, number: u64) -> temper_engine_domain_forge_vocabulary::Stored {
@@ -144,7 +326,7 @@ fn deleted_repository_job_runs_over_directory_pages_once_and_preserves_present_a
                 assert_eq!(&*job, JOB);
                 ran += 1;
                 let names: Vec<_> = counts.iter().map(|c| &*c.name).collect();
-                assert_eq!(names, crate::OWNER_SET.jobs[0].counts);
+                assert_eq!(names, crate::OWNER_SET.jobs[4].counts);
                 let counts: Vec<_> = counts.iter().map(|c| c.count).collect();
                 assert_eq!(counts, [u64::from(orphans + 2), 0, u64::from(orphans), 0, 0, 0, 0, 0, 0, 1, 1]);
             }

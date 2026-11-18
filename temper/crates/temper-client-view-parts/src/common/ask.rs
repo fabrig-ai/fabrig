@@ -18,6 +18,7 @@ pub enum Kind {
 pub struct Asked<'a> {
     pub card: &'a Card,
     pub kind: Kind,
+    /// The task's title for a row; identity and navigation use `source` and the card.
     pub title: Box<[u8]>,
     pub source: Option<u64>,
     pub parsed: Option<temper_client_domain::question::Parsed>,
@@ -91,7 +92,7 @@ pub fn read_parts<'a>(card: &'a Card, w: &Words, whole: bool) -> Asked<'a> {
                             Some(task) => {
                                 let words = task.spec.specification.words.bytes();
                                 let end = skein_lib::bytes::find(words, b"\n").unwrap_or(words.len());
-                                words.get(..end).expect("batch heading").into()
+                                super::chat::row_title(words.get(..end).expect("batch heading"))
                             }
                             None => title.clone(),
                         },
@@ -147,7 +148,7 @@ fn title_for(card: &Card, w: &Words, numbered: Word) -> Box<[u8]> {
         && let Some(title) = super::inbox::task_title(page)
         && !title.is_empty()
     {
-        return title.into();
+        return super::chat::row_title(title);
     }
     match super::inbox::source_task(card.object) {
         Some(task) => w.say(numbered, &[Hole::Number(task)]),

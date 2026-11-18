@@ -28,7 +28,6 @@ fn started(input: &[u8], files: &crate::settings::Files, agent: &crate::settings
 fn standalone_shape_is_required_of_jigs_parts() {
     let mut engine = fixtures::engine().jig;
     let mut clients = fixtures::engine().clients;
-    engine.hosts.workers = Box::new([engine.hosts.workers.into_iter().next().unwrap()]);
     let mut workers = Box::new([fixtures::worker_settings().jig, fixtures::worker_settings().jig]);
     for (change, path, what) in standalone_shapes() {
         let count = apply_shape(change, &mut engine, &mut clients, &mut *workers);
@@ -37,6 +36,21 @@ fn standalone_shape_is_required_of_jigs_parts() {
         assert_eq!(found.problems.len(), 1, "row {path:?}");
         assert_eq!(found.problems.get(0).unwrap().what, what, "row {path:?}");
         assert_eq!(found.problems.get(0).unwrap().path, path, "row {change:?}");
+    }
+    for member in ["program", "configuration"] {
+        let mut input: serde_json::Value = serde_json::from_slice(&fixtures::document()).unwrap();
+        input["workers"][0]["agent"] = serde_json::json!({(member):"relative"});
+        let found =
+            crate::startup::shape(&serde_json::to_vec(&input).unwrap(), &config::Directories::working()).unwrap_err();
+        assert_eq!(found.problems.len(), 1);
+        assert_eq!(
+            found.problems.get(0).unwrap().path,
+            Path::root().member(b"workers").child(config::Segment::Index(0)).member(b"agent")
+        );
+        assert_eq!(
+            found.problems.get(0).unwrap().what,
+            What::Jig(config::What::Because(temper_worker_service::startup::worker::MOVED_AGENT))
+        );
     }
 }
 #[test]
@@ -48,17 +62,17 @@ fn the_smallest_resumed_start_fits_the_engines_room_or_names_it() {
     let mut engine = fixtures::engine().jig;
     for (profile, smallest, words) in [
         (
-            config::Profile::Small,
+            jig_protocol_config_fixtures::small(),
             SMALL,
             "engine.limits.io.output: 6816 bytes, short of the smallest resumed start, 6817 bytes\n",
         ),
         (
-            config::Profile::Standard,
+            config::stock(),
             STANDARD,
             "engine.limits.io.output: 27200 bytes, short of the smallest resumed start, 27201 bytes\n",
         ),
     ] {
-        let limits = config::profile(profile);
+        let limits = profile;
         for (row, output, expected) in
             [("stock", limits.io.output, ""), ("met", smallest, ""), ("one short", smallest - 1, words)]
         {
@@ -72,8 +86,7 @@ fn the_smallest_resumed_start_fits_the_engines_room_or_names_it() {
 }
 #[test]
 fn the_longest_remote_of_an_empty_machine_measures_github_com() {
-    let machine = temper_forge_setup::machine::Machine { owned: None, fake: None, github: None };
-    assert_eq!(checks::machine_remote(&machine, 10), Some(44));
+    assert_eq!(checks::machine_remote(None, 10), Some(48));
 }
 #[test]
 fn a_remote_past_the_checkouts_names_refuses_the_start() {
@@ -100,7 +113,7 @@ fn a_checkout_with_one_repository_can_start() {
 }
 #[test]
 fn default_engine_and_worker_grants_fit_the_channel_and_link() {
-    let own = crate::limits::profile(crate::limits::Profile::Small);
+    let own = temper_limits_fixtures::small();
     for limits in [
         crate::translate::limits(&own).unwrap(),
         crate::worker_settings::payload_limits(&crate::limits::worker(&own)).unwrap(),
@@ -112,23 +125,23 @@ fn default_engine_and_worker_grants_fit_the_channel_and_link() {
     }
     assert!(started(&fixtures::document(), &fixtures::files(), &fixtures::startup_agent()).is_empty());
     let worker =
-        crate::startup::worker_part(&fixtures::worker_alone_document(), &config::Directories::working()).unwrap();
+        crate::startup::worker_part(&fixtures::worker_alone_document(), &config::Directories::working(), None, &[])
+            .unwrap();
     assert_eq!(worker.limits.peer.installations, crate::limits::FORGE_INSTALLATIONS);
     assert_eq!(worker.limits.peer.token_bytes, crate::limits::FORGE_TOKEN_BYTES);
 }
 
 #[test]
 fn a_worker_alone_takes_installation_and_token_bounds_from_its_configuration() {
-    let document = fixtures::with(
-        &fixtures::worker_alone_document(),
-        b"application.limits.overrides",
-        br#"{"forges.installations":3,"forge_component.token_bytes":64}"#,
-    );
-    let part = crate::startup::worker_part(&document, &config::Directories::working()).unwrap();
+    let mut part =
+        crate::startup::worker_part(&fixtures::worker_alone_document(), &config::Directories::working(), None, &[])
+            .unwrap();
+    part.limits.peer.installations = 3;
+    part.limits.peer.token_bytes = 64;
     let limits = crate::worker_settings::payload_limits(&part.limits).unwrap();
     assert_eq!(limits.entries_entries, 3);
     assert_eq!(limits.entry_token, 64);
-    let mut engine = crate::limits::profile(crate::limits::Profile::Small);
+    let mut engine = temper_limits_fixtures::small();
     crate::limits::apply(&mut engine, b"forges.installations", 3).unwrap();
     crate::limits::apply(&mut engine, b"forge_component.token_bytes", 64).unwrap();
     let engine_limits = crate::translate::limits(&engine).unwrap();
@@ -137,49 +150,31 @@ fn a_worker_alone_takes_installation_and_token_bounds_from_its_configuration() {
 }
 
 #[test]
-fn an_endpoint_or_model_missing_from_the_agent_is_named() {
-    let document = fixtures::document();
-    for (row, endpoints, models, expected) in [
-        (
-            "endpoint",
-            false,
-            true,
-            b"engine.llm.endpoints[0]: not in the agent's configuration under the same name\n".as_slice(),
-        ),
-        ("model", true, false, b"engine.charters[0].model: not in the agent's configuration under the same name"),
-    ] {
-        let mut agent = fixtures::startup_agent();
-        if !endpoints {
-            agent.endpoints = smith_protocol_channel::Endpoints::new(skein_lib::List::with_capacity(0));
-        }
-        if !models {
-            agent.bounds.endpoints = Box::new([]);
-        }
-        let result = fixtures::start(
-            &document,
-            &config::Directories::working(),
-            &fixtures::files(),
-            &agent,
-            &fixtures::seeds(),
-            None,
-            fixtures::worker_runtime(),
-            fixtures::forge_runtime(),
-        );
-        if models {
-            assert_eq!(&*lines(&result.err().expect("endpoint is deployment configuration")), expected, "row {row}");
-        } else {
-            let mut service = result.expect("a charter model shortfall warns");
-            assert_eq!(
-                service.notes().pop(),
-                Some(crate::Note::Engine(crate::EngineNote::StartupWarning { line: expected.into() }))
-            );
-            assert_eq!(service.notes().pop(), None, "one selected warning");
-        }
-    }
+fn a_model_missing_from_the_agent_is_named() {
+    let mut agent = fixtures::startup_agent();
+    agent.bounds.endpoints = Box::new([]);
+    let mut service = fixtures::start(
+        &fixtures::document(),
+        &config::Directories::working(),
+        &fixtures::files(),
+        &agent,
+        &fixtures::seeds(),
+        None,
+        fixtures::worker_runtime(),
+        fixtures::forge_runtime(),
+    )
+    .expect("a charter model shortfall warns");
+    assert_eq!(
+        service.notes().pop(),
+        Some(crate::Note::Engine(crate::EngineNote::StartupWarning {
+            line: b"engine.charters[0].model: not in the agent's configuration under the same name".as_slice().into(),
+        }))
+    );
+    assert_eq!(service.notes().pop(), None, "one selected warning");
 }
 #[test]
 fn git_component_limits_against_the_checkout_name_both() {
-    let mut own = crate::limits::profile(crate::limits::Profile::Small);
+    let mut own = temper_limits_fixtures::small();
     own.checkout.name_bytes = 600;
     let git = own.git_component;
     for (git, expected) in [
@@ -206,7 +201,7 @@ fn checkout_capacity_names_stdout_and_both_link_rooms() {
     );
     let mut document: serde_json::Value = serde_json::from_slice(&document).unwrap();
     document["engine"]["limits"]["overrides"]["io.output"] = 1_048_576_u32.into();
-    document["workers"][0]["limits"]["overrides"]["io.output"] = 1_048_576_u32.into();
+    document["engine"]["limits"]["overrides"]["io.output"] = 1_048_576_u32.into();
     let mut agent = fixtures::startup_agent();
     agent.host_limits.conflicts = 1024;
     agent.host_limits.path_bytes = 4096;
@@ -214,7 +209,7 @@ fn checkout_capacity_names_stdout_and_both_link_rooms() {
     assert_eq!(found.problems.len(), 1);
     assert_eq!(
         String::from_utf8_lossy(&lines(&found)),
-        "checkout.conflicts 1024, checkout.path_bytes 4096, checkout.repositories 2: raise these with them\ngit_component.stdout_bytes: 262144 bytes, short of checkout.conflicts * (checkout.path_bytes + 1), 4195328 bytes\nengine.limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 8401238 bytes\nworkers[0].limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 8401238 bytes\n"
+        "checkout.conflicts 1024, checkout.path_bytes 4096, checkout.repositories 2: raise these with them\ngit_component.stdout_bytes: 262144 bytes, short of checkout.conflicts * (checkout.path_bytes + 1), 4195328 bytes\nengine.limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 8528072 bytes\nworkers[0].limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 8528072 bytes\n"
     );
 }
 
@@ -248,13 +243,13 @@ fn checkout_capacity_keeps_the_agent_saved_and_rooms_in_one_refusal() {
     assert_eq!(found.problems.len(), 1);
     assert_eq!(
         String::from_utf8_lossy(&lines(&found)),
-        "checkout.conflicts 1024, checkout.path_bytes 4096, checkout.repositories 4: raise these with them\ngit_component.stdout_bytes: 262144 bytes, short of checkout.conflicts * (checkout.path_bytes + 1), 4195328 bytes\nworkers[0].agent.conflicts: 512 paths, short of checkout.conflicts, 1024 paths\nworkers[0].agent.path_bytes: 255 bytes, short of checkout.path_bytes, 4096 bytes\njig's Work.saved: 16777216 bytes, short of Saved's encoded bound, 16793660 bytes\nengine.limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 16798148 bytes\nworkers[0].limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 16798148 bytes\n"
+        "checkout.conflicts 1024, checkout.path_bytes 4096, checkout.repositories 4: raise these with them\ngit_component.stdout_bytes: 262144 bytes, short of checkout.conflicts * (checkout.path_bytes + 1), 4195328 bytes\nworkers[0].agent.conflicts: 512 paths, short of checkout.conflicts, 1024 paths\nworkers[0].agent.path_bytes: 255 bytes, short of checkout.path_bytes, 4096 bytes\njig's Work.saved: 16777216 bytes, short of Saved's encoded bound, 16793660 bytes\n"
     );
 }
 
 #[test]
 fn a_channel_limit_past_a_ceiling_names_the_limit() {
-    let mut own = crate::limits::profile(crate::limits::Profile::Small);
+    let mut own = temper_limits_fixtures::small();
     own.checkout.name_bytes = 600;
     let normal = payload::Bounds {
         repositories: 1,
@@ -286,20 +281,18 @@ fn a_channel_limit_past_a_ceiling_names_the_limit() {
 fn one_ios_entities_hold_both_services_and_their_children() {
     let document = fixtures::with(&fixtures::document(), b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":131072,"git_component.operations":61}"#);
     let found = crate::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
-    assert_eq!(&*lines(&found), b"engine.limits.io.sockets: 260 bytes, past its bound of 256\n".as_slice());
+    assert_eq!(&*lines(&found), b"engine.limits.io.sockets: 320 bytes, past its bound of 256\n".as_slice());
 }
 
 #[derive(Clone, Copy, Debug)]
 enum Shape {
     TwoWorkers,
     WorkerSocket,
+    WorkerName,
     HostSocket,
     ClientProcess,
     ClientRemote,
     ClientRemoteApproval,
-    Connectors,
-    Program,
-    Configuration,
 }
 fn apply_shape(
     shape: Shape,
@@ -315,13 +308,15 @@ fn apply_shape(
     clients.listener = socket.clone();
     engine.connectors = Box::new([1]);
     for worker in workers.iter_mut() {
+        worker.name = b"local".as_slice().into();
         worker.engine = local.clone();
-        worker.agent.program = b"/opt/temper".as_slice().into();
-        worker.agent.configuration = b"/opt/agent.json".as_slice().into();
+        worker.agent.as_mut().expect("checked worker agent").program = b"/opt/temper".as_slice().into();
+        worker.agent.as_mut().expect("checked worker agent").configuration = b"/opt/agent.json".as_slice().into();
     }
     match shape {
         Shape::TwoWorkers => return 2,
         Shape::WorkerSocket => workers[0].engine = socket,
+        Shape::WorkerName => workers[0].name = b"not-local".as_slice().into(),
         Shape::HostSocket => engine.hosts.listener = Box::new([socket]),
         Shape::ClientProcess => clients.listener = local,
         Shape::ClientRemote => {
@@ -334,16 +329,18 @@ fn apply_shape(
             engine.clients.approval = true;
             engine.clients.link = false;
         }
-        Shape::Connectors => engine.connectors = Box::new([1, 2]),
-        Shape::Program => workers[0].agent.program = b"temper".as_slice().into(),
-        Shape::Configuration => workers[0].agent.configuration = b"agent.json".as_slice().into(),
     }
     1
 }
 
-fn standalone_shapes() -> [(Shape, Path, What); 9] {
+fn standalone_shapes() -> [(Shape, Path, What); 7] {
     [
         (Shape::TwoWorkers, Path::root().member(b"workers"), What::Standalone),
+        (
+            Shape::WorkerName,
+            Path::root().member(b"workers").child(config::Segment::Index(0)).member(b"name"),
+            What::Standalone,
+        ),
         (
             Shape::WorkerSocket,
             Path::root().member(b"workers").child(config::Segment::Index(0)).member(b"engine"),
@@ -364,21 +361,6 @@ fn standalone_shapes() -> [(Shape, Path, What); 9] {
             Shape::ClientRemoteApproval,
             Path::root().member(b"application").member(b"clients").member(b"listener"),
             What::Half(crate::startup::EngineWhat::Loopback),
-        ),
-        (
-            Shape::Connectors,
-            Path::root().member(b"engine").member(b"connectors"),
-            What::Half(crate::startup::EngineWhat::Connectors),
-        ),
-        (
-            Shape::Program,
-            Path::root().member(b"workers").child(config::Segment::Index(0)).member(b"agent").member(b"program"),
-            What::Absolute,
-        ),
-        (
-            Shape::Configuration,
-            Path::root().member(b"workers").child(config::Segment::Index(0)).member(b"agent").member(b"configuration"),
-            What::Absolute,
         ),
     ]
 }
@@ -426,10 +408,10 @@ fn webhook_listeners_on_port_zero_do_not_clash() {
 #[test]
 fn hook_connections_past_the_process_sockets_are_refused() {
     let document =
-        fixtures::with(&fixtures::webhook_document(), b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":131072,"forge_component.hooks":228}"#);
+        fixtures::with(&fixtures::webhook_document(), b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":131072,"forge_component.hooks":236}"#);
     assert_eq!(
         &*lines(&crate::named(&document, &jig_protocol_config::Directories::working()).unwrap_err()),
-        b"engine.limits.io.sockets: 257 bytes, past its bound of 256\n"
+        b"engine.limits.io.sockets: 317 bytes, past its bound of 256\n"
     );
 }
 #[test]
@@ -461,9 +443,7 @@ fn fixed_redirect_ports_reject_listeners_on_the_reserved_number() {
     for (port, listener, expected) in [
         (7100, Listener::Clients, "redirect_port: fixed port conflicts with application.clients.listener\n"),
         (7101, Listener::Webhooks, "redirect_port: fixed port conflicts with application.webhooks.listener\n"),
-        (7100, Listener::Owned(2), "redirect_port: fixed port conflicts with application.machine.owned.listen\n"),
         (7100, Listener::Demo, "redirect_port: fixed port conflicts with application.demo.llm.listen\n"),
-        (7100, Listener::Fake(2), "redirect_port: fixed port conflicts with application.machine.fake.listen\n"),
     ] {
         let mut problems = Problems::empty();
         checks::redirect_ports(&fixed_redirects(), Some(port), listener, &mut problems);
@@ -531,9 +511,14 @@ fn every_offered_adapter_must_be_declared_by_the_agent() {
     )
     .unwrap();
     let engine_at = config::read::Object::new(&document, 0).unwrap().member(&document, b"engine").unwrap();
-    let mut engine =
-        config::engine(&document, engine_at, &jig_protocol_config::Directories::working(), config::Defaults::Passed)
-            .unwrap();
+    let mut engine = config::engine(
+        &document,
+        engine_at,
+        &jig_protocol_config::Directories::working(),
+        config::Defaults::Passed,
+        &crate::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
+    )
+    .unwrap();
     let defaults =
         crate::stock::with_models(Box::new([fixtures::small_model()]), engine.limits.core.tasks.result_bytes);
     config::pass(&mut engine, defaults).unwrap();
@@ -633,7 +618,7 @@ fn direct_model_bounds_are_checked_as_well_as_the_program_way() {
         agent.endpoints = smith_protocol_channel::Endpoints::new(endpoints);
         let mut identity = Problems::empty();
         checks::agent(&engine, &agent.declaration(), &mut identity);
-        assert_eq!(identity.is_empty(), window.is_some(), "the direct endpoint must also resolve");
+        assert!(identity.is_empty(), "endpoint names are supplied by construction");
         let core = config::core(&engine, [7; 16], 7);
         let mut problems = Problems::empty();
         let warnings = checks::admission(&core, &engine, &agent.declaration(), &mut problems);
@@ -647,7 +632,7 @@ fn direct_model_bounds_are_checked_as_well_as_the_program_way() {
 #[test]
 fn credential_capacity_is_checked_on_both_sides_and_against_smith() {
     let mut engine = fixtures::engine().jig;
-    let mut worker = fixtures::worker_settings().jig.limits;
+    let mut worker = fixtures::worker_settings().jig.limits.expect("checked worker limits");
     let agent = fixtures::worker_agent();
     let bound = agent.limits.bodies.credential_value_bytes;
     for (sent, received, accepted) in
@@ -673,15 +658,21 @@ fn configured_keys_use_the_token_bound_instead_of_the_moved_file_ceiling() {
     );
     let document =
         config::document(&input, &config::DocumentLimits { bytes: 65_536, tokens: 4096, depth: 32 }).unwrap();
-    let mut engine =
-        config::engine(&document, 0, &jig_protocol_config::Directories::working(), config::Defaults::Passed).unwrap();
+    let mut engine = config::engine(
+        &document,
+        0,
+        &jig_protocol_config::Directories::working(),
+        config::Defaults::Passed,
+        &crate::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
+    )
+    .unwrap();
     let defaults =
         crate::stock::with_models(Box::new([fixtures::small_model()]), engine.limits.core.tasks.result_bytes);
     config::pass(&mut engine, defaults).unwrap();
     engine.limits.token = 1;
     let key = engine.limits.token;
     assert_eq!(crate::values::credential_bytes(&engine), key);
-    let mut worker = fixtures::worker_settings().jig.limits;
+    let mut worker = fixtures::worker_settings().jig.limits.expect("checked worker limits");
     worker.token = 1;
     let mut agent = fixtures::worker_agent();
     for bytes in [key - 1, key, key + 1] {
@@ -838,11 +829,6 @@ fn an_engine_alone_names_each_shape_departure() {
     let rows: &[ShapeRow] = &[
         (b"workers", b"[{}]", vec![(root.member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone))]),
         (
-            b"application.workers",
-            br#"[{"root":"worker-root","git":null}]"#,
-            vec![(root.member(b"application").member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone))],
-        ),
-        (
             b"engine.hosts.listener",
             br#"[{"socket":"127.0.0.1:0"},{"in_process":"workers"}]"#,
             vec![
@@ -866,17 +852,9 @@ fn an_engine_alone_names_each_shape_departure() {
             vec![(listener.child(Index(0)).member(b"transport"), What::Jig(config::What::Unknown))],
         ),
         (
-            b"engine.hosts.workers",
-            b"[]",
-            vec![(hosts.member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone))],
-        ),
-        (
-            b"engine.hosts.workers",
-            br#"[{"name":"worker-a","digest":"same"},{"name":"worker-b","digest":"same"}]"#,
-            vec![(
-                hosts.member(b"workers").child(Index(1)).member(b"digest"),
-                What::Half(crate::startup::EngineWhat::EngineAlone),
-            )],
+            b"engine.hosts",
+            br#"{"listener":[{"socket":"127.0.0.1:0"}],"workers":[]}"#,
+            vec![(hosts.member(b"workers"), What::Jig(config::What::Because(b"workers are settings in the store")))],
         ),
     ];
     for (member, value, expected) in rows {
@@ -886,26 +864,20 @@ fn an_engine_alone_names_each_shape_departure() {
 }
 
 #[test]
-fn the_socket_listener_in_the_old_hostsocket_case_now_names_both_local_worker_lists() {
+fn the_socket_listener_in_the_old_hostsocket_case_names_the_local_worker_list() {
     let input = fixtures::with(&fixtures::document(), b"engine.hosts.listener", br#"[{"socket":"127.0.0.1:7100"}]"#);
     assert_eq!(
         shape_problems(&input),
-        vec![
-            (Path::root().member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone)),
-            (
-                Path::root().member(b"application").member(b"workers"),
-                What::Half(crate::startup::EngineWhat::EngineAlone)
-            ),
-        ]
+        vec![(Path::root().member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone)),]
     );
 }
 
 #[test]
 fn each_turn_bound_accepts_equality_and_names_one_byte_short() {
     const TURN: u32 = 65_536;
-    let mut engine = config::profile(config::Profile::Small);
+    let mut engine = jig_protocol_config_fixtures::small();
     let mut worker = fixtures::worker_settings().jig;
-    let mut own = crate::limits::profile(crate::limits::Profile::Small);
+    let mut own = temper_limits_fixtures::small();
     let mut agent = fixtures::startup_agent();
     agent.limits.bodies.turn_body = TURN;
     let loaded = TURN + u32::try_from(size_of::<temper_engine_domain::Record>()).unwrap();
@@ -925,12 +897,12 @@ fn each_turn_bound_accepts_equality_and_names_one_byte_short() {
         (
             "engine.limits.overrides.hub.outcome_bytes",
             agent.host_limits.outcome_bytes,
-            "the agent's outcome (agent.json profile.declared.tool_payload)",
+            "the agent's outcome (agents setting declared.tool_payload)",
         ),
         (
             "workers[0].limits.overrides.hub.outcome_bytes",
             agent.host_limits.outcome_bytes,
-            "the agent's outcome (agent.json profile.declared.tool_payload)",
+            "the agent's outcome (agents setting declared.tool_payload)",
         ),
         (
             "application.limits.overrides.forge.client.op_bytes",
@@ -941,28 +913,28 @@ fn each_turn_bound_accepts_equality_and_names_one_byte_short() {
     for (index, (path, needs, of)) in rows.into_iter().enumerate() {
         engine.core.resume_bytes = TURN + 4;
         engine.hub.turn_bytes = u64::from(TURN);
-        worker.limits.hub.turn_bytes = u64::from(TURN);
+        worker.limits.as_mut().expect("checked worker limits").hub.turn_bytes = u64::from(TURN);
         engine.hub.transcript_bytes = window;
-        worker.limits.hub.transcript_bytes = window;
+        worker.limits.as_mut().expect("checked worker limits").hub.transcript_bytes = window;
         own.root.loads.transcript_bytes = TURN;
         own.root.loads.bytes = loaded;
         own.root.loads.reply_bytes = loaded;
         engine.hub.outcome_bytes = agent.host_limits.outcome_bytes;
-        worker.limits.hub.outcome_bytes = agent.host_limits.outcome_bytes;
+        worker.limits.as_mut().expect("checked worker limits").hub.outcome_bytes = agent.host_limits.outcome_bytes;
         own.forge.client.op_bytes = engine.core.tasks.result_bytes;
         let mut found = Problems::empty();
         checks::turns(Some(&engine), core::slice::from_ref(&worker), &own, Some(&agent.declaration()), &mut found);
         assert_eq!(&*lines(&found), b"", "{path} at equality");
         match index {
             0 => engine.hub.turn_bytes -= 1,
-            1 => worker.limits.hub.turn_bytes -= 1,
+            1 => worker.limits.as_mut().expect("checked worker limits").hub.turn_bytes -= 1,
             2 => engine.core.resume_bytes -= 1,
             3 => own.root.loads.transcript_bytes -= 1,
             4 => own.root.loads.bytes -= 1,
             5 => engine.hub.transcript_bytes -= 1,
-            6 => worker.limits.hub.transcript_bytes -= 1,
+            6 => worker.limits.as_mut().expect("checked worker limits").hub.transcript_bytes -= 1,
             7 => engine.hub.outcome_bytes -= 1,
-            8 => worker.limits.hub.outcome_bytes -= 1,
+            8 => worker.limits.as_mut().expect("checked worker limits").hub.outcome_bytes -= 1,
             9 => own.forge.client.op_bytes -= 1,
             _ => unreachable!("ten turn and payload relations"),
         }
@@ -984,8 +956,8 @@ fn the_cluster_shapes_accept_both_loopback_families_and_the_whole_v4_range() {
 }
 #[test]
 fn turn_checks_use_only_what_each_process_knows() {
-    let engine = config::profile(config::Profile::Small);
-    let own = crate::limits::profile(crate::limits::Profile::Small);
+    let engine = jig_protocol_config_fixtures::small();
+    let own = temper_limits_fixtures::small();
     // The small hub's 262144 bytes hold its 65536-byte resume window exactly.
     let mut found = Problems::empty();
     checks::turns(Some(&engine), &[], &own, None, &mut found);

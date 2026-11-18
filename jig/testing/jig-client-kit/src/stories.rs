@@ -91,7 +91,7 @@ fn configured_rows(settings: Settings, rows: u32) -> World<Test, Scripted> {
         settings,
         Scripted::new(
             Script {
-                versions: VersionRange { first: 27, last: 27 },
+                versions: VersionRange { first: 32, last: 32 },
                 truth,
                 bounds: Bounds {
                     text: 32,
@@ -281,6 +281,7 @@ pub fn chat_world(seed: u64) -> World<Test, Scripted> {
                         ended: None,
                     },
                     rows: jig_client_scripted_engine::Rows::Tasks(vec![TaskLine {
+                        parts: skein_lib::List::with_capacity(0),
                         chip: {
                             let mut chip = task.chip.clone();
                             chip.title = DocumentText::complete(text(b"Hello"));
@@ -523,6 +524,7 @@ pub fn deployment() -> Deployment {
         cut: false,
     };
     Deployment {
+        worker_settings: skein_lib::List::with_capacity(0),
         store: StoreFill { bytes: 1, mark: 1024 },
         census: None,
         hosts: list([host(1), host(2)]),

@@ -330,7 +330,7 @@ pub fn root_at_with_classes(
         Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } } },
         &mut out,
     );
-    let mut watch = None;
+    let watch = Token::new(0);
     let mut inbox_watch = None;
     let mut tree_watch = None;
     let mut account_watch = None;
@@ -363,9 +363,7 @@ pub fn root_at_with_classes(
                 },
         }) = request
         {
-            if subject == Subject::Me {
-                watch = Some(token);
-            } else if subject == Subject::Accounts {
+            if subject == Subject::Accounts {
                 account_watch = Some(token);
             } else if let Subject::Tree { .. } = subject {
                 tree_watch = Some(token);
@@ -386,10 +384,7 @@ pub fn root_at_with_classes(
         &env,
         Event::Client {
             event: jig_client::Event::Up {
-                up: jig_client::Up::Watched {
-                    watch: watch.expect("frame opened"),
-                    event: WatchEvent::Delivered(Delivery::Me(Box::new(frame))),
-                },
+                up: jig_client::Up::Watched { watch, event: WatchEvent::Delivered(Delivery::Me(Box::new(frame))) },
             },
         },
         &mut out,
@@ -551,7 +546,9 @@ pub fn root_at_with_classes(
                             },
                             _ => None,
                         };
-                        let answer = w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value }).unwrap();
+                        let answer =
+                            w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { revision: None, value })
+                                .unwrap();
                         temper_client_domain::step(
                             &mut root,
                             &env,
@@ -594,17 +591,7 @@ pub fn root_at_with_classes(
             empty_session(&mut root, read.expect("playground read"), account_watch.expect("accounts watch"));
         }
     }
-    (
-        root,
-        watch.expect("me opened"),
-        inbox_watch,
-        tree_watch,
-        account_watch,
-        forges,
-        settings_watch,
-        needs_watch,
-        away_watch,
-    )
+    (root, watch, inbox_watch, tree_watch, account_watch, forges, settings_watch, needs_watch, away_watch)
 }
 pub fn empty_session(root: &mut temper_client_domain::Domain, read: Token, watch: Token) {
     deliver_no_playground(root, read);
@@ -1786,22 +1773,19 @@ impl ReadPage {
             root: temper_client_domain::unlinked(&domain_limits(), SEED),
             out: Queue::uncapped(),
             inbox: None,
-            me: None,
+            me: Some(Token::new(0)),
             chats: None,
             reads: List::uncapped(),
         };
         page.event(Event::Start { address, kept: List::with_capacity(0), with: Some(jig_client::With::Transport) });
         page.up(Up::Served { served: true, versions: None });
+        let source = chat::messaging_root();
+        let mut me = source.pages().me(source.client()).unwrap().clone();
+        me.projects.get_mut(0).unwrap().name = fixture_me(b"Shop").projects.get(0).unwrap().name.clone();
+        page.up(Up::Watched { watch: Token::new(0), event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) });
         while let Some(request) = page.out.pop() {
             let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else { continue };
             match down {
-                Down::Open { watch, subject: Watchable::Jig(c::Subject::Me) } => {
-                    page.me = Some(watch);
-                    let source = chat::messaging_root();
-                    let mut me = source.pages().me(source.client()).unwrap().clone();
-                    me.projects.get_mut(0).unwrap().name = fixture_me(b"Shop").projects.get(0).unwrap().name.clone();
-                    page.up(Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) });
-                }
                 Down::Open { watch, subject: Watchable::Jig(c::Subject::Inbox { .. }) } => {
                     page.inbox = Some(watch);
                     page.up(Up::Watched { watch, event: c::WatchEvent::Opened });
@@ -1874,6 +1858,7 @@ impl ReadPage {
         self.up(jig_client::Up::Watched {
             watch: self.chats.unwrap(),
             event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                ended_mark: 0,
                 rows: List::from_boxed(lines.into()),
                 more: false,
             }))),
@@ -1913,6 +1898,7 @@ impl ReadPage {
         self.answer(
             read,
             c::ReadResult::Value(c::ReadValue::Tasks(Box::new(c::TaskPage {
+                ended_mark: 0,
                 live: List::with_capacity(0),
                 live_after: None,
                 ended: c::EndedGroup::Rows { rows: List::from_boxed(lines.into()), after: None, cut: false },
@@ -1963,6 +1949,7 @@ pub fn answer_empty_chats(root: &mut temper_client_domain::Domain) {
             } => jig_client::Up::Watched {
                 watch,
                 event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                    ended_mark: 0,
                     rows: List::with_capacity(0),
                     more: false,
                 }))),
@@ -1975,6 +1962,7 @@ pub fn answer_empty_chats(root: &mut temper_client_domain::Domain) {
             } => jig_client::Up::ReadDone {
                 read,
                 result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(c::TaskPage {
+                    ended_mark: 0,
                     live: List::with_capacity(0),
                     live_after: None,
                     ended: c::EndedGroup::Rows { rows: List::with_capacity(0), after: None, cut: false },

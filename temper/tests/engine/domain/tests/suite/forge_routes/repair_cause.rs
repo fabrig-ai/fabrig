@@ -9,8 +9,7 @@ const AFTER_UPDATE: &str =
 const PRESERVE: &str = " Preserve the requested change and unrelated base content, including both independent appended lines and existing blank lines, and do not remove content to make a check pass, unless the change's request as revised, or an answer given on it, says otherwise.";
 
 fn updated_change() -> (World, u64, u64, u64) {
-    let small =
-        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small);
+    let small = temper_limits_fixtures::small();
     let world = World::configured_limits(
         true,
         true,

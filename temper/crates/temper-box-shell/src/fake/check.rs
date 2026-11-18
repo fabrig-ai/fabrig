@@ -17,7 +17,6 @@ use skein_shell::Host as _;
 use std::{
     fs::File,
     io::{BufRead, BufReader, Read, Take, Write},
-    os::unix::ffi::OsStrExt,
     path::{Path, PathBuf},
 };
 use temper_fake::check::{self, Reason};
@@ -81,13 +80,8 @@ fn configuration(directories: &Directories) -> Result<temper_service::startup::S
     let bytes = skein_shell::read_file(&document, crate::CONFIG_BYTES)
         .map_err(|why| format!("configuration {}: {}", document.display(), crate::unread(why)))?;
     let jig = jig_directories(directories);
-    let crate::setup::Deployment { named, .. } = crate::setup::check(&bytes, &jig)?;
-    let agent = named
-        .worker
-        .as_ref()
-        .map(|worker| temper_worker_shell::agent::read(Path::new(std::ffi::OsStr::from_bytes(&worker.agent))))
-        .transpose()?;
-    let declaration = agent.as_ref().map(temper_service::settings::Agent::declaration);
+    let agent = crate::serve::configured_agent(&bytes, directories, &[])?;
+    let declaration = agent.as_ref().map(|prepared| prepared.agent.declaration());
     let limits = temper_service::startup::store_limits(&bytes, &jig, declaration.as_ref())
         .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())?;
     Ok(limits)

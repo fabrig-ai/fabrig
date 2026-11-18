@@ -1,5 +1,5 @@
 //! The engine component seam (temper/docs/design/protocol/services.md, 4).
-use crate::system::{accounts_driver, core_config, deployment_owned, machine_config, playground_config, start_problem};
+use crate::system::{accounts_driver, core_config, machine_config, playground_config, start_problem};
 use crate::{AccountsRuntime, accounts, clients, engine, limits, settings, store, values, workers};
 use crate::{End, ForgeRuntime, Stop, forge, forges, route::box_link};
 use alloc::boxed::Box;
@@ -46,14 +46,14 @@ impl engine::Engine {
             seeds,
             &limits.journal,
             settings.sign_in.as_ref(),
-            settings.machine.owned.as_ref(),
+            None,
             settings.files.entries.as_slice(),
         )?;
         clients.program_environment.clone_from(&settings.program_environment);
         clients.deployment = crate::family::Deployment {
             program_login,
-            welcome: settings.welcome,
-            owned: deployment_owned(settings.machine.owned.is_some(), box_line_bytes.is_some()),
+            welcome: false,
+            owned: box_line_bytes.is_some(),
             push: match &settings.push {
                 Some(push) => Some(*push.key.public()),
                 None => None,
@@ -73,21 +73,25 @@ impl engine::Engine {
         let mut core = core_config(&settings.jig, seeds);
         core.kinds.clone_from(&settings.kinds);
         core.jobs = limits::jobs(&settings.jig.limits);
+        let places = crate::places::Places::new(&settings);
         let config = temper_engine_domain::Config {
             host_part: settings.host_part,
-            kinds_stock: settings.kinds_stock,
+            kinds_stock: temper_engine_service_stock::stock::with_welcome(
+                settings.kinds_stock,
+                box_line_bytes.is_some(),
+            ),
             ways_stock: settings.ways_stock,
             period_span: settings.period_span,
             core,
-            landings: settings.landings,
+            landing_held: settings.landing_held,
             forge: forge_config,
             identities,
-            machine: Some(machine_config(&settings.machine)),
+            machine: Some(machine_config(settings.test_github.as_ref())),
             forges: Box::new([]),
             under_box: box_line_bytes.is_some(),
-            playground: playground_config(settings.demo.as_ref(), settings.welcome, settings.limits.setup.deadline),
+            playground: playground_config(settings.demo.as_ref(), settings.limits.setup.deadline),
         };
-        let store = store::Store::new(&limits, &store_limits, &config.core.settings.models, seeds.installation);
+        let store = store::Store::new(&limits, &store_limits, &config.core.settings.models, seeds);
         let demo = settings.demo;
         let own = settings.limits;
         let mut engine = engine::Engine::new(
@@ -98,10 +102,19 @@ impl engine::Engine {
             values,
             first_periods,
         )?;
+        engine.places = Some(places);
         if let Some(line_bytes) = box_line_bytes {
             engine.box_link = box_link::Link::new(line_bytes, false);
         }
         Ok(engine)
+    }
+    /// Keep kind 21 in the box's data directory (protocol/configuration/figures.md, 4).
+    pub fn keep_agents(&mut self, path: Box<[u8]>, initial: Option<temper_client_protocol_wire::v1::AgentFigures>) {
+        self.workers.keep_agents(path, initial);
+    }
+    #[expect(clippy::type_complexity, reason = "a file act is its destination and whole value bytes")]
+    pub fn take_agents_write(&mut self) -> Option<(Box<[u8]>, Box<[u8]>)> {
+        self.workers.take_agents_write()
     }
     pub fn take_handover_read(&mut self) -> Option<crate::HandoverRead> {
         let engine = &mut *self;
@@ -139,6 +152,10 @@ impl engine::Engine {
         self.setup.page(forge, state, now)
     }
     /// The binary's build name for the store floor (jig's protocol/store/records.md, 3).
+    /// The shell supplies the immutable hold before starting the loop.
+    pub fn hold_landings(&mut self, held: bool) {
+        self.domain.hold_landings(held);
+    }
     pub fn build_name(&mut self, name: &'static str) {
         self.store.build_name(name);
     }
@@ -168,6 +185,24 @@ impl engine::Engine {
             user,
             engine.store.installation,
             jig_protocol_store::host::Adoption::Back,
+        )
+    }
+    /// Restore a checkpoint over the stopped deployment (protocol/checkpoints.md, 2.5).
+    /// Retain its terminal through teardown as for going back.
+    pub fn restore_store(
+        &mut self,
+        directory: Fd,
+        user: u32,
+        name: jig_protocol_store::CheckpointName,
+        draw: [u8; 16],
+    ) -> Result<(), Fd> {
+        crate::upgrade::prepare(self, false);
+        self.upgrade.as_mut().expect("prepared restore").report.checkpoint = Some(name);
+        self.store.host.adopt_mode(
+            directory,
+            user,
+            self.store.installation,
+            jig_protocol_store::host::Adoption::Restore { name, draw },
         )
     }
     /// Retained through teardown for shells and worlds alike.
@@ -269,7 +304,15 @@ impl engine::Engine {
             }
             process.raw_submissions().push(engine.store.submitted.pop().expect("store submissions"));
         }
-        if engine.store.opened || engine.end.is_some() {
+        if let Some(state) = &mut engine.checkpoint {
+            for _ in 0..state.io.len() {
+                if process.room() < io::MAX_OUT_DOWN.submissions || !process.io().takes() {
+                    break;
+                }
+                process.down(state.io.pop().expect("checkpoint child requests"));
+            }
+        }
+        if engine.store.opened || engine.end.is_some() || engine.checkpoint.is_some() {
             for _ in 0..engine.setup.io.len() {
                 if process.room() < io::MAX_OUT_DOWN.submissions || !process.io().takes() {
                     break;
@@ -329,7 +372,9 @@ impl engine::Engine {
             io::Event::Resized | io::Event::Shutdown { .. } => None,
         };
         let error = if let io::Event::Failed { error, .. } = &event { Some(*error) } else { None };
-        if let Some(owner) = owner
+        if owner == Some(crate::checkpoint::CHILD) {
+            engine.checkpoint.as_mut().expect("checkpoint child").up(event);
+        } else if let Some(owner) = owner
             && crate::tokens::prefix(owner) == 11
         {
             engine.setup.up(event);
@@ -364,6 +409,9 @@ impl engine::Engine {
             (crate::Listening::Workers, engine.workers.host.listening.take()),
         ] {
             if let Some(addr) = addr {
+                if let Some(places) = &mut engine.places {
+                    places.listening(addr);
+                }
                 engine
                     .listening
                     .try_push(crate::Note::Listening { listener, addr })
@@ -402,6 +450,10 @@ impl engine::Engine {
         &self.domain
     }
     pub fn shutdown(&mut self) {
+        if let Some(state) = &mut self.checkpoint {
+            state.shutdown(io::kernel::ServiceSignal::Terminate);
+            return;
+        }
         crate::stop::shutdown(self);
     }
     pub fn agents_ended(&mut self, ended: bool) {

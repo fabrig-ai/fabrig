@@ -1,8 +1,8 @@
 # Turn landing's scripts
 
 `scripts.json` is the box's `--scripts` object, not a whole model document.
-The real-loop stories decode it with `Document::decode_with_scripts` and use
-that domain unchanged. The setup catalogue copies these bytes in a later change.
+The real-loop red story decodes it with `Document::decode_with_scripts` and uses
+that domain unchanged. The setup catalogue copies these bytes.
 
 ## Goal cues
 
@@ -69,10 +69,9 @@ nothing-more notice; they use no fake-model hold or referee release.
 Both reviewed changes are then kept by one person task. Answering L is one
 durable completion making them eligible together, not two timed releases.
 
-The green referee reads both changes landed, both goals ended, one landing
-of two and its panel, and the fake Forgejo API's single green dispatch at
-the top, main at that top, and both member pulls merged at their prefixes.
-For red it reads the first failed gate receipt in landing history, captures
+The green landing on these scripts belongs to the setup's walk and the
+engine domain world's story: both changes land in one landing of two, the
+gate green at the top. The real-loop red story reads the first failed gate receipt in landing history, captures
 the dispatched run/jobs/tree through the forge API before any rerun replaces
 that attempt, then cancels the goals and landing for teardown. It checks that
 the red member is not an ancestor of main. No outcome of narrowing or repair

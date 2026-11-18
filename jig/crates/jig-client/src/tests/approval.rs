@@ -1,6 +1,6 @@
 use super::*;
 use fixtures::{CREDENTIAL, Client};
-use jig_client_protocol_wire::v27 as w;
+use jig_client_protocol_wire as w;
 use skein_lib::{Secret, Time, Token, Wall, Writer};
 
 pub(super) fn code() -> ApprovalCode {
@@ -58,7 +58,8 @@ fn an_approval_is_asked_read_and_decided_once_each() {
                     );
                     if record.approve() { Box::from([0]) } else { Box::from([1]) }
                 }
-                other @ (Message::Authorize(_)
+                other @ (Message::LinkAsk(_)
+                | Message::Authorize(_)
                 | Message::SignInApproval(_)
                 | Message::Request(_)
                 | Message::Read(_)

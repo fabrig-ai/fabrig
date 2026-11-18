@@ -742,9 +742,14 @@ impl Joint {
             if let Some(sign_in) = self.transport.sign_in(who) {
                 self.component.sign_out(who, sign_in);
                 self.pump_component();
+                self.drain();
             }
             self.detach(who);
         }
+        let mut transport = Transport::new(self.transport.served());
+        transport.models.clone_from(&self.transport.models);
+        transport.providers.clone_from(&self.transport.providers);
+        self.transport = transport;
         self.component = crate::component::Composition::with_printed_link(
             config,
             limits.client.domain,
@@ -787,6 +792,7 @@ impl Joint {
                 }
                 jig_client::Request::CloseStream
                 | jig_client::Request::Told { .. }
+                | jig_client::Request::AskedLink(_)
                 | jig_client::Request::Approval(_)
                 | jig_client::Request::Authorized(_)
                 | jig_client::Request::ServiceCredential { .. } => {}
@@ -1036,9 +1042,7 @@ impl Joint {
     /// The small profile carries a whole turn while an activity page can size it.
     #[must_use]
     pub fn with_large_turns(seed: u64, limits: &client::Limits) -> Self {
-        let profile =
-            temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small)
-                .root;
+        let profile = temper_limits_fixtures::small().root;
         Self::with_turn_bytes(seed, limits, profile.journal.transcript_bytes, profile.loads.read_bytes, None)
     }
     /// A committed turn past jig small's cap, with a configured whole-read allowance.
@@ -1729,6 +1733,7 @@ impl Joint {
         self.next_limits = Some(limits);
     }
     fn hello(&mut self, who: ClientId) {
+        self.component.open_stream(who);
         self.callbacks.push((
             who,
             translate::callback(jig_client_test_domain::Event::Client {
@@ -2621,6 +2626,10 @@ impl Front<Temper> for Joint {
         // A story can establish the person's membership before opening its Home.
         if self.transport.clients().contains(&who) {
             assert_eq!(self.transport.party(who), party, "the fixture-bound person");
+            if self.transport.sign_in(who).is_some() && self.component.refresh(who) {
+                self.transport.detach(who);
+                self.callbacks.retain(|(client, _)| *client != who);
+            }
             return;
         }
         assert_eq!(party, self.caller, "the configured caller");

@@ -6,7 +6,7 @@ pub const SPENT: u64 = 7;
 pub const BELOW: u64 = 2;
 #[must_use]
 pub fn document() -> c::Task {
-    use jig_client_protocol_wire::v27 as w;
+    use jig_client_protocol_wire as w;
     let mut record = jig_client_test_records::task_record().into_parts();
     record.chip = jig_client_test_records::owner_waiting_chip_record();
     let record = w::Task::new(&w::CEILINGS, record).expect("checked fixture");
@@ -273,6 +273,12 @@ pub fn agent_root_for(
         E::StartUnlinked { kept: List::with_capacity(0) },
         E::SignIn { with: jig_client::With::Transport },
         E::Up { up: Up::Served { served: true, versions: None } },
+        E::Up {
+            up: Up::Watched {
+                watch: skein_lib::Token::new(0),
+                event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(reader))),
+            },
+        },
     ] {
         temper_client_domain::step(&mut root, &env, Event::Client { event }, &mut out);
     }
@@ -285,10 +291,10 @@ pub fn agent_root_for(
                     },
             } => {
                 let value = match subject {
-                    c::Subject::Me => Some(c::Delivery::Me(Box::new(reader.clone()))),
                     c::Subject::Task { task } if task == number => Some(c::Delivery::Task(Box::new(document.clone()))),
                     c::Subject::Tree { .. } => tree.clone(),
                     c::Subject::Task { .. }
+                    | c::Subject::Me
                     | c::Subject::Chips { .. }
                     | c::Subject::Inbox { .. }
                     | c::Subject::Tasks { .. }

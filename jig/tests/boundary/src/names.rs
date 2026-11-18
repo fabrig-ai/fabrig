@@ -323,13 +323,13 @@ fn approval_input_bound_keeps_its_contract_name_only_in_the_wire_module() {
 #[test]
 fn versioned_codec_names_require_a_schema() {
     let path = Path::new("fixture/codecs.rs");
-    let source = "use crate::{public_v1, cursor_v1, unknown_v1, public_v2, cursor_v2};";
+    let source = "use crate::{public_v1, cursor_v2, unknown_v1, public_v2, cursor_v3};";
     assert_eq!(
         breaches(path, source),
         [
             "fixture/codecs.rs:1: identifier unknown_v1",
             "fixture/codecs.rs:1: identifier public_v2",
-            "fixture/codecs.rs:1: identifier cursor_v2",
+            "fixture/codecs.rs:1: identifier cursor_v3",
         ]
     );
 }

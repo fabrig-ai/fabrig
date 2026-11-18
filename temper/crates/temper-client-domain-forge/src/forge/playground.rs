@@ -295,6 +295,8 @@ fn end_answer(outcome: &jig_client::Outcome, limits: Limits) -> Option<EndAnswer
         | w::Outcome::NotTheirs
         | w::Outcome::Overturned
         | w::Outcome::OverturnRefused(_)
+        | w::Outcome::Checkpointed(_)
+        | w::Outcome::CheckpointRefused(_)
         | w::Outcome::RemoveRefused(_) => None,
     }
 }
@@ -379,6 +381,8 @@ pub fn answer(value: &jig_client::Answered, limits: &Limits) -> Option<StartAnsw
         | w::Outcome::NotTheirs
         | w::Outcome::Overturned
         | w::Outcome::OverturnRefused(_)
+        | w::Outcome::Checkpointed(_)
+        | w::Outcome::CheckpointRefused(_)
         | w::Outcome::EndRefused(_)
         | w::Outcome::Connecting
         | w::Outcome::Link(_)

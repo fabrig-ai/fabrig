@@ -91,6 +91,7 @@ pub(super) fn start(store: &mut Store, owner: Token, mut read: Read, above: &mut
         at: read.position,
         direction: if read.backwards { skein_kv::Direction::Backward } else { skein_kv::Direction::Forward },
         max: *max,
+        rows: 1,
     };
     let mut events = Queue::uncapped();
     skein_kv::down(
@@ -123,9 +124,13 @@ fn record(
     below: &mut Below,
 ) -> Result<bool, ()> {
     let Step::Log { max, waiting: true } = read.step else { return Err(()) };
-    // Each decode may stop at a written patch site. Only its first record is
-    // consumed; the next demand starts at that record's opposite edge.
-    let record = records.ok_or(())?.into_iter().next().ok_or(())?;
+    // Each decode may stop at a written patch site. Demand one record so the
+    // next body is read only after this frame completes.
+    let mut records = records.ok_or(())?.into_iter();
+    let record = records.next().ok_or(())?;
+    if records.next().is_some() {
+        return Err(());
+    }
     if record.end > read.end
         || record.at >= record.end
         || (if read.backwards { record.end } else { record.at }) != read.position
