@@ -874,11 +874,8 @@ fn holds_require_loopback_control() {
 #[test]
 fn deployment_refuses_pieces_with_a_hold() {
     let mut doc = demo::fixture();
-    doc["application"]["demo"]["llm"]["otherwise"] = json!([piece_turn(json!([{"text":"held","hold":"gate"}]))]);
-    assert_eq!(
-        demo::read(&doc).unwrap_err().line().as_ref(),
-        b"application.demo.llm.otherwise[0].lines[0].pieces: unknown member\n"
-    );
+    doc["scripts"]["otherwise"] = json!([piece_turn(json!([{"text":"held","hold":"gate"}]))]);
+    assert_eq!(demo::read(&doc).unwrap_err().line().as_ref(), b"demo.otherwise[0].lines[0].pieces: unknown member\n");
 }
 
 // A byte-side driver honours the reused HTTP machine's stream demands; no io or clock.
@@ -1148,11 +1145,8 @@ fn llm_failure_positions_are_checked_by_skein() {
 #[test]
 fn deployment_refuses_failing_lines() {
     let mut doc = demo::fixture();
-    doc["application"]["demo"]["llm"]["otherwise"] = json!([failing_turn(json!("unauthorized"), json!([]))]);
-    assert_eq!(
-        demo::read(&doc).unwrap_err().line().as_ref(),
-        b"application.demo.llm.otherwise[0].lines[0].fail: unknown member\n"
-    );
+    doc["scripts"]["otherwise"] = json!([failing_turn(json!("unauthorized"), json!([]))]);
+    assert_eq!(demo::read(&doc).unwrap_err().line().as_ref(), b"demo.otherwise[0].lines[0].fail: unknown member\n");
 }
 
 #[test]

@@ -419,14 +419,14 @@ fn a_claude_configuration_replaces_openai_and_keeps_the_demo() {
     assert_eq!(agent["profile"], agent_before["profile"]);
     assert_eq!(agent["environment"], agent_before["environment"]);
     assert_eq!(
-        value["engine"]["llm"],
+        temper_agent_fixtures::providers::read(&paths[1]),
         json!({
             "providers":[{"name":"anthropic", "number":2, "signed_in_plan":false,
                 "manage_usage":"https://claude.ai/settings/usage", "endpoint":"claude",
-                "sources":{"programs":["claude_code"]}}, before["engine"]["llm"]["providers"].as_array().unwrap().iter().find(|entry| entry["name"] == "demo").unwrap()],
+                "sources":{"programs":["claude_code"]}}],
             "endpoints":[{"name":"claude", "number":2, "dialect":2, "provider":"anthropic", "program":"claude_code",
                 "address":{"host":"api.anthropic.com", "port":443}, "transport":"tls", "server_name":"api.anthropic.com",
-                "headers":[], "connect_ms":10000, "handshake_ms":10000}, before["engine"]["llm"]["endpoints"].as_array().unwrap().iter().find(|entry| entry["name"] == "demo").unwrap()]
+                "headers":[], "connect_ms":10000, "handshake_ms":10000}]
         })
     );
     let application = before["application"].clone();
@@ -443,7 +443,7 @@ fn a_claude_configuration_replaces_openai_and_keeps_the_demo() {
 }
 
 #[test]
-fn stock_charters_choose_claude_before_the_demo_model() {
+fn stock_charters_keep_seven_models_and_choose_the_boxs_scripted_default() {
     let (scratch, paths) = initialized_deployment("live-claude-charters");
     configure_claude(&paths);
     let deployment = std::fs::read(paths[0].join("temper.json")).expect("deployment");
@@ -456,26 +456,34 @@ fn stock_charters_choose_claude_before_the_demo_model() {
         .expect("object")
         .member(&document, b"engine")
         .expect("engine");
-    let engine = temper_service::startup::engine(
+    let given = temper_service::stock::Given::Stock.with_providers(
+        temper_agent_fixtures::providers::values(&temper_agent_fixtures::providers::read(&paths[1])),
+        Box::new([temper_service::stock::scripted(([127, 0, 0, 1], 8370).into())]),
+    );
+    let engine = temper_service::startup::engine_with(
         &document,
         at,
         &jig_directories(&support::configuration::directories(&paths[0])),
+        &given,
     )
     .expect("engine schema");
-    let defaults = temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    let defaults = given.defaults(&engine.llm, engine.limits.core.tasks.result_bytes).expect("stock");
     for charter in &defaults.charters {
-        assert_eq!(
-            (charter.policy.model.name.as_ref(), charter.policy.model.endpoint),
-            (b"claude-opus-5-5".as_slice(), 2)
-        );
+        assert_eq!((charter.policy.model.name.as_ref(), charter.policy.model.endpoint), (b"demo".as_slice(), 3));
         let resolved = jig_domain_core::settings::charters::resolved(charter, &defaults.models, &engine.limits.core)
             .expect("stock charter");
-        let alternatives: Vec<_> =
+        let mut alternatives: Vec<_> =
             resolved.policy.alternatives.iter().map(|model| (model.name.as_ref(), model.endpoint)).collect();
-        assert_eq!(
-            alternatives,
-            [(b"claude-sonnet-5-5".as_slice(), 2), (b"claude-fable-5-1".as_slice(), 2), (b"demo".as_slice(), 3)]
-        );
+        let mut ordinary: Vec<_> = defaults
+            .models
+            .iter()
+            .filter(|entry| entry.number != 8)
+            .map(|entry| (entry.model.name.as_ref(), entry.model.endpoint))
+            .collect();
+        assert_eq!(ordinary.len(), 7);
+        alternatives.sort();
+        ordinary.sort();
+        assert_eq!(alternatives, ordinary);
     }
     scratch.remove();
 }
@@ -508,10 +516,15 @@ fn live_model_world(
         .expect("object")
         .member(&document, b"engine")
         .expect("engine");
-    let engine = temper_service::startup::engine(
+    let given = temper_service::stock::Given::Stock.with_providers(
+        temper_agent_fixtures::providers::values(&temper_agent_fixtures::providers::read(&paths[1])),
+        Box::new([temper_service::stock::scripted(([127, 0, 0, 1], 8370).into())]),
+    );
+    let engine = temper_service::startup::engine_with(
         &document,
         at,
         &jig_directories(&support::configuration::directories(&paths[0])),
+        &given,
     )
     .expect("engine schema");
     let stock = temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
@@ -540,7 +553,10 @@ fn live_model_world(
         ]);
         config.core.defaults.models.clone_from(&stock.models);
         config.core.defaults.charters = stock.charters.iter().take(2).cloned().collect();
-        let llm = jig_protocol_config::core(&engine, config.core.deployment, fixtures::SEED).settings;
+        let core = jig_protocol_config::core(&engine, config.core.deployment, fixtures::SEED);
+        config.core.defaults.providers = core.defaults.providers;
+        config.core.fixed_providers = core.fixed_providers;
+        let llm = core.settings;
         config.core.settings.models = llm.models;
         config.core.settings.endpoints = llm.endpoints;
         config.core.settings.llm_providers = llm.llm_providers;
@@ -2049,9 +2065,10 @@ fn a_key_configuration_changes_only_anthropics_list_policy_and_starts() {
     use std::fs;
     let (scratch, paths) = initialized_deployment("live-key-configuration");
     let path = paths[0].join("temper.json");
-    let mut expected: Value = serde_json::from_slice(&fs::read(&path).expect("init configuration")).expect("JSON");
+    let expected: Value = serde_json::from_slice(&fs::read(&path).expect("init configuration")).expect("JSON");
+    let mut expected_providers = temper_agent_fixtures::providers::read(&paths[1]);
     let agent = temper_agent_fixtures::read(&paths[0]);
-    let provider = expected["engine"]["llm"]["providers"]
+    let provider = expected_providers["providers"]
         .as_array_mut()
         .expect("providers")
         .iter_mut()
@@ -2063,7 +2080,8 @@ fn a_key_configuration_changes_only_anthropics_list_policy_and_starts() {
     assert!(provider.remove("drop").is_some());
     configure_key(&paths);
     let configured: Value = serde_json::from_slice(&fs::read(path).expect("key configuration")).expect("JSON");
-    assert_eq!(configured, expected, "OpenAI, demo and both Anthropic endpoints remain as init writes them");
+    assert_eq!(configured, expected, "the startup document is unchanged");
+    assert_eq!(temper_agent_fixtures::providers::read(&paths[1]), expected_providers, "only Anthropic's list changes");
     assert_eq!(temper_agent_fixtures::read(&paths[0]), agent, "Claude Code's program stays as init writes it");
     scratch.remove();
     assert_live_startup("live-key-startup", configure_key);

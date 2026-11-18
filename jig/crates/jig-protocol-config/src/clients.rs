@@ -171,7 +171,7 @@ pub(crate) fn check_provider(engine: &crate::Engine, problems: &mut Problems) {
     }
 }
 
-/// Refuse configurations whose admitted settings exceed client wire 23.
+/// Refuse configurations whose admitted settings exceed the client wire.
 pub(crate) fn check_settings(limits: &crate::Limits, problems: &mut Problems) {
     let core = &limits.core;
     let wire = &limits.clients.wire;
@@ -186,7 +186,7 @@ pub(crate) fn check_settings(limits: &crate::Limits, problems: &mut Problems) {
     if core.settings.proposals > wire.settings_document_pending {
         problems.push(path.member(b"core.settings.proposals"), crate::What::Bound);
     }
-    // Defaults and changes may name disjoint settings; model and worker numbers each share their bounded range.
+    // Defaults and changes may name disjoint settings; model, worker and provider numbers each share their bounded range.
     let inventory = match jig_domain_core_vocabulary::settings::capacity(core) {
         Some(count) => inventory_settings(count, core.fleet.configured_workers),
         None => None,
@@ -233,7 +233,11 @@ pub(crate) fn check_settings(limits: &crate::Limits, problems: &mut Problems) {
     }
 }
 fn inventory_settings(count: u32, workers: u32) -> Option<u32> {
-    count.checked_mul(2)?.checked_sub(jig_domain_tasks::MODELS)?.checked_sub(workers)
+    count
+        .checked_mul(2)?
+        .checked_sub(jig_domain_tasks::MODELS)?
+        .checked_sub(workers)?
+        .checked_sub(jig_domain_core_vocabulary::settings::PROVIDERS)
 }
 
 #[cfg(test)]
@@ -350,12 +354,12 @@ mod settings_tests {
     #[test]
     fn inventory_counts_both_defaults_and_changes() {
         let mut limits = crate::stock();
-        // Stock has 25 other slots per set and shared ranges of 64 models and 64 workers.
-        limits.core.tasks.charters = 167;
+        // Stock has 25 other slots per set and shared ranges of 64 models, 64 workers and 16 providers.
+        limits.core.tasks.charters = 159;
         let mut problems = Problems::empty();
         check_settings(&limits, &mut problems);
         assert!(problems.is_empty());
-        limits.core.tasks.charters = 168;
+        limits.core.tasks.charters = 160;
         check_settings(&limits, &mut problems);
         assert_eq!(problems.problems.len(), 3);
     }

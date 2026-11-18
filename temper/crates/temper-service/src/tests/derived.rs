@@ -237,12 +237,25 @@ fn inbox_carrier() {
         let document =
             config::document(&input, &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 }).unwrap();
         let fixed = crate::startup::fixed(&config::Directories::working()).unwrap();
-        config::engine_over(&document, 0, &config::Directories::working(), config::Defaults::Passed, &fixed, &jig)
-            .unwrap();
+        config::engine_over(
+            &document,
+            0,
+            &config::Directories::working(),
+            config::Defaults::PassedProviders,
+            &fixed,
+            &jig,
+        )
+        .unwrap();
         jig.core.tasks.inbox_bytes = jig.core.tasks.message_bytes - 1;
-        let found =
-            config::engine_over(&document, 0, &config::Directories::working(), config::Defaults::Passed, &fixed, &jig)
-                .unwrap_err();
+        let found = config::engine_over(
+            &document,
+            0,
+            &config::Directories::working(),
+            config::Defaults::PassedProviders,
+            &fixed,
+            &jig,
+        )
+        .unwrap_err();
         let mut problems = Problems::empty();
         problems.append(found, &config::Path::root());
         names(&lines(&problems), b"tasks.inbox_bytes", b"tasks.message_bytes");

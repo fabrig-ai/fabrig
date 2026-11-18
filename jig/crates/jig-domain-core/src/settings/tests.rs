@@ -27,7 +27,7 @@ fn charter(current: &mut Current) -> &mut Charter {
     match &mut current.defaults.get_mut(&Setting::Charter(1)).unwrap().value {
         Value::Charter(value) => value,
         Value::Template(_) | Value::Policy(_) | Value::Rules(_) => unreachable!(),
-        Value::Overlay(_) | Value::Worker(_) | Value::Model(_) | Value::Application(_) => {
+        Value::Overlay(_) | Value::Provider(_) | Value::Worker(_) | Value::Model(_) | Value::Application(_) => {
             unreachable!("an application's setting: apps-core")
         }
     }
@@ -56,7 +56,14 @@ fn lookups_apply_sets_removals_additions_and_resets_without_a_third_set() {
     assert_eq!(current.charter(1), Some(&original));
     assert_eq!(
         current.offered().as_slice(),
-        &[Setting::Charter(1), Setting::Charter(2), Setting::Rules, Setting::Worker(1), Setting::Worker(2)]
+        &[
+            Setting::Charter(1),
+            Setting::Charter(2),
+            Setting::Rules,
+            Setting::Worker(1),
+            Setting::Worker(2),
+            Setting::Provider(1)
+        ]
     );
 }
 fn fault_case(fault: Fault) {
@@ -128,7 +135,7 @@ fn fault_case(fault: Fault) {
                 .unwrap();
             Setting::Policy(1)
         }
-        Fault::Linked | Fault::Judged => unreachable!("an application's setting: apps-core"),
+        Fault::Accounts | Fault::Linked | Fault::Judged => unreachable!("an application's setting: apps-core"),
     };
     let detail = if fault == Fault::Shape {
         let charter = current.charter(1).unwrap();
@@ -334,7 +341,7 @@ fn decision_edits_apply_each_kind_over_defaults_and_additions() {
             }
             Value::Policy(value) => Some((Setting::Policy(2), Value::Policy(value))),
             Value::Rules(_) => None,
-            Value::Overlay(_) | Value::Worker(_) | Value::Model(_) | Value::Application(_) => {
+            Value::Overlay(_) | Value::Provider(_) | Value::Worker(_) | Value::Model(_) | Value::Application(_) => {
                 unreachable!("an application's setting: apps-core")
             }
         };
@@ -1362,4 +1369,160 @@ fn workers_restore_replace_and_refuse_removing_a_linked_channel() {
     let (result, out) = decide_worker(&mut core, &env, Box::new([worker_item(changed.clone())]));
     result.expect("worker decision accepted");
     assert_eq!(workers_told(&out).expect("digest replaces admission").first(), Some(&changed));
+}
+
+fn provider_item(value: ProviderSetting) -> Item {
+    Item { setting: Setting::Provider(value.provider.number), edit: Edit::Set(Value::Provider(Box::new(value))) }
+}
+fn providers_told(out: &skein_lib::Queue<crate::Request>) -> Option<&[ProviderSetting]> {
+    for request in out {
+        if let crate::Request::Ask { ask: crate::Ask::Providers(values), .. } = request {
+            return Some(values);
+        }
+    }
+    None
+}
+#[test]
+fn providers_check_current_models_and_keep_running_facts_until_start() {
+    let limits = limits();
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let mut core = Core::new(config(1), &limits).unwrap();
+    let local = crate::tests::provider_setting(4, b"local", 5);
+    let mut model = core.current.value(Setting::Model(1)).unwrap().as_model().unwrap().clone();
+    model.number = 2;
+    model.model.name = b"local-model".as_slice().into();
+    model.model.provider = 4;
+    model.model.endpoint = 5;
+    let mut header = local.clone();
+    header.endpoints.first_mut().unwrap().headers =
+        Box::new([Header { name: b"AUTHORIZATION".as_slice().into(), value: b"not-a-credential".as_slice().into() }]);
+    for (value, fault) in [
+        (header, Fault::Shape),
+        (crate::tests::provider_setting(1, b"other", 5), Fault::Shape),
+        (crate::tests::provider_setting(17, b"local", 5), Fault::Count),
+        (crate::tests::provider_setting(4, b"local", 1), Fault::Shape),
+    ] {
+        let number = value.provider.number;
+        let (result, _) = decide_worker(
+            &mut core,
+            &env,
+            Box::new([Item { setting: Setting::Template(1), edit: Edit::Reset }, provider_item(value)]),
+        );
+        assert_eq!(
+            result,
+            Err(people::Refusal::NotWellFormed {
+                at: 1,
+                why: people::Malformed::Settings { setting: Setting::Provider(number), fault, detail: None }
+            })
+        );
+    }
+    let (result, out) = decide_worker(
+        &mut core,
+        &env,
+        Box::new([
+            provider_item(local.clone()),
+            Item { setting: Setting::Model(2), edit: Edit::Set(Value::Model(Box::new(model.clone()))) },
+        ]),
+    );
+    result.unwrap();
+    assert_eq!(providers_told(&out).unwrap().last(), Some(&local));
+    assert_eq!(core.current.value(Setting::Provider(4)).unwrap().as_provider(), Some(&local));
+    assert!(core.settings.llm_providers.get(4).is_none());
+    assert_eq!(core.settings.endpoints.len(), 1);
+    assert!(core.offer(jig_domain_tasks::Payer::Project(1), 1, jig_domain_tasks::Models::ALL).is_empty());
+    let (result, _) =
+        decide_worker(&mut core, &env, Box::new([Item { setting: Setting::Provider(4), edit: Edit::Removed }]));
+    assert_eq!(
+        result,
+        Err(people::Refusal::NotWellFormed {
+            at: 0,
+            why: people::Malformed::Settings { setting: Setting::Model(2), fault: Fault::Reference, detail: None }
+        })
+    );
+    let (result, out) = decide_worker(
+        &mut core,
+        &env,
+        Box::new([
+            Item { setting: Setting::Provider(4), edit: Edit::Removed },
+            Item { setting: Setting::Model(2), edit: Edit::Removed },
+        ]),
+    );
+    result.unwrap();
+    assert!(core.current.value(Setting::Provider(4)).unwrap().as_provider().unwrap().withdrawn);
+    assert_eq!(providers_told(&out).unwrap().len(), 1);
+    let (result, out) = decide_worker(
+        &mut core,
+        &env,
+        Box::new([Item {
+            setting: Setting::Model(2),
+            edit: Edit::Set(Value::Model(Box::new(CatalogueModel { withdrawn: true, picker: false, ..model }))),
+        }]),
+    );
+    result.unwrap();
+    assert!(providers_told(&out).is_none());
+    let mut restarted = Core::new(config(1), &limits).unwrap();
+    assert!(restarted.restore_setting(
+        Record::Changed {
+            setting: Setting::Provider(4),
+            changed: Changed { revision: 2, value: Some(Value::Provider(Box::new(local.clone()))) }
+        },
+        &limits
+    ));
+    let mut out = skein_lib::Queue::uncapped();
+    assert!(restarted.finish_restored_settings(&env, &mut out));
+    assert_eq!(providers_told(&out).unwrap().last(), Some(&local));
+    assert!(restarted.settings.llm_providers.get(4).is_none());
+}
+#[test]
+fn providers_with_accounts_are_not_removed_and_fixed_providers_are_references_only() {
+    let limits = limits();
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let mut configured = config(1);
+    configured.fixed_providers = Box::new([crate::tests::provider_setting(3, b"fixed", 3)]);
+    let mut core = Core::new(configured, &limits).unwrap();
+    let local = crate::tests::provider_setting(4, b"local", 5);
+    decide_worker(&mut core, &env, Box::new([provider_item(local)])).0.unwrap();
+    crate::tests::restore_key_account(&mut core, &limits, 1, 1, 4);
+    let (result, _) = decide_worker(
+        &mut core,
+        &env,
+        Box::new([
+            Item { setting: Setting::Template(1), edit: Edit::Reset },
+            Item { setting: Setting::Provider(4), edit: Edit::Removed },
+        ]),
+    );
+    assert_eq!(
+        result,
+        Err(people::Refusal::NotWellFormed {
+            at: 1,
+            why: people::Malformed::Settings { setting: Setting::Provider(4), fault: Fault::Accounts, detail: None }
+        })
+    );
+    let (result, _) =
+        decide_worker(&mut core, &env, Box::new([Item { setting: Setting::Provider(3), edit: Edit::Reset }]));
+    assert_eq!(
+        result,
+        Err(people::Refusal::NotWellFormed {
+            at: 0,
+            why: people::Malformed::Settings { setting: Setting::Provider(3), fault: Fault::Shape, detail: None }
+        })
+    );
+    let mut model = core.current.value(Setting::Model(1)).unwrap().as_model().unwrap().clone();
+    model.number = 2;
+    model.model.name = b"fixed-model".as_slice().into();
+    model.model.provider = 3;
+    model.model.endpoint = 3;
+    let (result, out) = decide_worker(
+        &mut core,
+        &env,
+        Box::new([Item { setting: Setting::Model(2), edit: Edit::Set(Value::Model(Box::new(model))) }]),
+    );
+    result.unwrap();
+    assert!(providers_told(&out).is_none());
+    let mut out = skein_lib::Queue::uncapped();
+    core.tell_providers(&mut out);
+    assert_eq!(providers_told(&out).unwrap().len(), 2);
+    for value in providers_told(&out).unwrap() {
+        assert_ne!(value.provider.number, 3);
+    }
 }

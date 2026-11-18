@@ -11,7 +11,7 @@ use skein_lib::{Duration, Env, Queue, Wall};
 use temper_engine_domain as engine;
 use temper_engine_domain_world::{store::Store, walking};
 const CLIENT: ClientId = ClientId(0);
-pub const PROVIDER: u32 = 17;
+pub const PROVIDER: u32 = 3;
 pub const SMALL_ROWS: u32 = 2;
 #[must_use]
 pub fn fixture(seed: u64) -> (Joint, Root) {
@@ -709,6 +709,7 @@ fn fixture_root(
             // with room for the retry before their retention ends.
             engine_limits.people.requests = 12;
         }
+        config.core.defaults.providers = jig_test_profile::fixtures::provider_references(&config.core.settings);
         (config, engine_limits)
     });
     let printed_config = lending_story.then(|| temper_engine_domain_world::oracle::config::copy(&config));

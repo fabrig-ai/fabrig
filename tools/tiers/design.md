@@ -781,6 +781,11 @@ change to the build command a caller wraps changes none of them.
 - `tools/tiers/one-process --alone HEAD_DIR [--out DIR] [NEXTEST_ARGS...]`:
   a head run's flagged tests run alone at this checkout, the base's
   (`tools/tiers/references.md`, 5).
+- `python3 -I -B tools/tiers/figures.py --base BASE [--head HEAD]`: refuses,
+  exit 1, a change from BASE to HEAD that raises a figure of
+  `tools/tiers/budgets.toml` or adds a reason's line, naming each, unless it
+  changes that file alone; 0 where it passes, 2 for a usage or git failure
+  (`tools/tiers/budgets.md`, 10.1).
 
 ### 10.2 `cpu.py`
 
@@ -871,7 +876,7 @@ Relative paths are the caller's working directory's, the checkout root.
 | `pair` | the pair, or `tools` |
 | `verdict` | `over budget`, `starved`, `within budget` (the pair has a table) or `no budget set` |
 | `failures` | `"BINARY_ID TEST_NAME"` for each test whose failure stands (7.3); for tools, `"ID suite"` |
-| `over_budget` | one line for each CPU budget passed, naming its test or suite, and with `gate` each layer over its budget (`tools/tiers/budgets.md`, 4) |
+| `over_budget` | one entry for each CPU budget passed, naming its test or suite, and with `gate` each layer over its budget (`tools/tiers/budgets.md`, 4) and each test past its reference; every entry ends with the repair line (`tools/tiers/budgets.md`, 10.1) |
 | `warnings` | one line for each `auto_reap` declaration and each unobserved attempt; in a one-process run, each unplaced binary and, without `gate`, each layer over its budget |
 | `unobserved` | `{binary_id, test_name, attempt}` for each attempt cancellation stopped before its record (7.3); always empty for tools |
 | `tests` | for each test: `binary_id`, `test_name`, `attempts`, `cpu_s`, `user_s`, `system_s`, `wall_s`, `starved`, `leaked`, `incomplete` |

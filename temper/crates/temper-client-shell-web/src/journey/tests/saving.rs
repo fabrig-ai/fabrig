@@ -130,9 +130,13 @@ fn a_report_and_its_turn_and_asks_fit_together_or_end_the_recording() {
             let (mut comparison, mut other_page) = facts.start();
             comparison.report(Report::Start);
             comparison.draw(&mut other_page, &mut Vec::new());
-            let report = || Report::Place { path: b"/?kind=reply&project=3".as_slice().into() };
+            let report = || Report::Place { path: b"/needs?kind=reply&project=3".as_slice().into() };
             let later = recorder.report(&mut host, &page, report());
-            assert_eq!(later.show, Some((Box::from(b"/?project=3".as_slice()), true)), "the live host returns duties");
+            assert_eq!(
+                later.show,
+                Some((Box::from(b"/needs?project=3".as_slice()), true)),
+                "the live host returns duties"
+            );
             assert_eq!(record::asked(&later), record::asked(&comparison.report(report())));
             host.draw(&mut page, &mut Vec::new());
             comparison.draw(&mut other_page, &mut Vec::new());

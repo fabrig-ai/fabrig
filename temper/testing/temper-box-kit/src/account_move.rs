@@ -31,7 +31,9 @@ fn document(directory: &Path) -> serde_json::Value {
 fn configure(directory: &Path, llm: SocketAddr) -> oauth::Peer {
     let issuer = sign_in::configuration(directory);
     let mut value = document(directory);
-    value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket": llm.to_string()});
+    let mut providers = temper_agent_fixtures::providers::read(directory);
+    providers["endpoints"][0]["address"] = serde_json::json!({"socket": llm.to_string()});
+    temper_agent_fixtures::providers::write(directory, &providers);
     // Keep init's LLM registration, charters and worker, with no forge records
     // (temper/docs/design/protocol/setup/init.md, 3).
     let (_, fixture) = super::configuration::documents(
@@ -39,7 +41,7 @@ fn configure(directory: &Path, llm: SocketAddr) -> oauth::Peer {
         skein_scratch::paths::binary("temper-box").to_str().expect("a UTF-8 path"),
     );
     let fixture: serde_json::Value = serde_json::from_slice(&fixture).expect("fixture JSON");
-    for field in ["machine", "demo", "webhooks", "workers", "clients"] {
+    for field in ["machine", "webhooks", "workers", "clients"] {
         value["application"][field] = fixture["application"][field].clone();
     }
     super::write_private(&directory.join("temper.json"), &serde_json::to_vec(&value).expect("configuration JSON"));
@@ -484,10 +486,10 @@ pub fn run(directory: &Path) {
     }
     let mut issuer = configure(&a, llm);
     drop(configure(&b, llm));
-    let registration = document(&a)["engine"]["llm"]["providers"][0]["sources"]["sign_in"].clone();
-    let mut second = document(&b);
-    second["engine"]["llm"]["providers"][0]["sources"]["sign_in"] = registration.clone();
-    super::write_private(&b.join("temper.json"), &serde_json::to_vec(&second).expect("B's configuration"));
+    let registration = temper_agent_fixtures::providers::read(&a)["providers"][0]["sources"]["sign_in"].clone();
+    let mut second = temper_agent_fixtures::providers::read(&b);
+    second["providers"][0]["sources"]["sign_in"] = registration.clone();
+    temper_agent_fixtures::providers::write(&b, &second);
     let address: SocketAddr = registration["issuer"]
         .as_str()
         .expect("issuer")

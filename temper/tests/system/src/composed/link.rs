@@ -30,7 +30,7 @@ pub fn assignment(assignment: &engine::Assignment) -> (host::Assignment, wire::W
     let forges = forges();
     let encoding = temper_engine_service_vocabulary::assignment::Encoding {
         limits: v1::CEILINGS,
-        endpoints: worker_protocol::endpoints(),
+        endpoints: worker_protocol::endpoints_with_dialect(3),
         deployment: [0; 16],
         charter_bytes: 65_536,
     };
@@ -61,7 +61,7 @@ pub fn job(
 ) -> temper_worker_domain::Event {
     let encoding = temper_engine_service_vocabulary::assignment::Encoding {
         limits: *limits,
-        endpoints: worker_protocol::endpoints(),
+        endpoints: worker_protocol::endpoints_with_dialect(3),
         deployment: [0; 16],
         charter_bytes: 65_536,
     };

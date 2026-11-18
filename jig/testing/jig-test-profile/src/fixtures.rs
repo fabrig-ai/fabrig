@@ -429,3 +429,103 @@ pub fn conversation_member(forgettable: bool) -> people::Member {
         llm: None,
     }
 }
+
+#[must_use]
+pub fn provider_setting(number: u32, name: &[u8], endpoint: u32) -> jig_domain_core::settings::ProviderSetting {
+    use jig_domain_core::settings::{Endpoint, EndpointAddress, Provider, ProviderSetting, Transport};
+    ProviderSetting {
+        provider: Provider {
+            number,
+            name: name.into(),
+            endpoint: Some(name.into()),
+            direct: None,
+            list: None,
+            signed_in_plan: false,
+            manage_usage: None,
+            sign_in: None,
+            keys: false,
+            programs: Box::new([]),
+        },
+        endpoints: Box::new([Endpoint {
+            number: endpoint,
+            name: name.into(),
+            provider: name.into(),
+            dialect: 3,
+            program: None,
+            address: EndpointAddress::Socket(::core::net::SocketAddr::from(([127, 0, 0, 1], 8080))),
+            transport: Transport::Plaintext,
+            headers: Box::new([]),
+            connect: skein_lib::Duration::from_millis(10_000),
+            handshake: skein_lib::Duration::from_millis(10_000),
+        }]),
+        withdrawn: false,
+    }
+}
+
+/// Numbered provider/endpoint references for worlds whose accounts and dials are independent fakes.
+/// A projection has no OAuth registration or address; these defaults keep sources with those fakes.
+#[must_use]
+pub fn provider_references(settings: &core::Settings) -> Box<[core::settings::ProviderSetting]> {
+    use core::settings::{EndpointAddress, ProviderSetting, Transport};
+    let mut values: Vec<ProviderSetting> = settings
+        .llm_providers
+        .providers
+        .iter()
+        .map(|provider| {
+            let mut value = provider_setting(provider.number, &provider.name, 1);
+            value.provider.endpoint = None;
+            value.provider.keys = provider.offers.key;
+            value.provider.programs.clone_from(&provider.offers.programs);
+            value.endpoints = Box::new([]);
+            if !value.provider.programs.is_empty() {
+                value.provider.manage_usage = Some(b"https://usage.example/".as_slice().into());
+            }
+            value
+        })
+        .collect();
+    if values.is_empty() {
+        return values.into_boxed_slice();
+    }
+    for facts in &settings.endpoints {
+        let named = settings
+            .models
+            .iter()
+            .find(|model| !model.is_hole() && model.endpoint == facts.number)
+            .map(|model| model.provider);
+        let owner = values
+            .iter()
+            .position(|value| Some(value.provider.number) == named)
+            .or_else(|| values.iter().position(|value| facts.providers.contains(&value.provider.number)))
+            .unwrap_or(0);
+        let value = &mut values[owner];
+        let name =
+            skein_lib::bytes::concat(&[b"endpoint-", skein_lib::Decimal::of(u64::from(facts.number)).as_bytes()]);
+        let endpoint = core::settings::Endpoint {
+            number: facts.number,
+            name: name.clone(),
+            provider: value.provider.name.clone(),
+            dialect: facts.dialect,
+            program: facts.program.clone(),
+            address: EndpointAddress::Socket(::core::net::SocketAddr::from(([127, 0, 0, 1], 8080))),
+            transport: Transport::Plaintext,
+            headers: Box::new([]),
+            connect: skein_lib::Duration::from_millis(10_000),
+            handshake: skein_lib::Duration::from_millis(10_000),
+        };
+        if let Some(program) = &facts.program {
+            if !value.provider.programs.contains(program) {
+                let mut programs = value.provider.programs.to_vec();
+                programs.push(program.clone());
+                value.provider.programs = programs.into_boxed_slice();
+            }
+            value.provider.manage_usage = Some(b"https://usage.example/".as_slice().into());
+        }
+        if value.provider.endpoint.is_none() {
+            value.provider.endpoint = Some(name);
+        }
+        let mut endpoints = value.endpoints.to_vec();
+        endpoints.push(endpoint);
+        value.endpoints = endpoints.into_boxed_slice();
+    }
+    values.into_boxed_slice()
+}

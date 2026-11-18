@@ -5,8 +5,8 @@ use temper_client_world::{
     front::{Joint, account_acts as accounts},
 };
 const KEY: &[u8] = b"test-private-key";
-const ADD: &[&[u8]] = &[b"account", b"add-key", b"17", b"file", b"--key", b"tools-key"];
-const SECOND: &[&[u8]] = &[b"account", b"add-key", b"17", b"file", b"--key", b"second-key"];
+const ADD: &[&[u8]] = &[b"account", b"add-key", b"3", b"file", b"--key", b"tools-key"];
+const SECOND: &[&[u8]] = &[b"account", b"add-key", b"3", b"file", b"--key", b"second-key"];
 fn call(front: &mut Joint, root: &mut Root, number: u32, words: &[&[u8]], value: Option<Secret>) {
     let Event::Call { call, json, .. } = fixtures::call(words) else { unreachable!() };
     accounts::event(front, root, Event::Call { number, call, json, value });
@@ -34,7 +34,7 @@ fn a_lost_tools_key_answer_recovers_one_account() {
 fn a_tools_connect_wait_settles_at_the_sign_in_end() {
     use jig_domain_accounts as a;
     let (mut front, mut root) = accounts::tools_fixture(fixtures::SEED);
-    call(&mut front, &mut root, 1, &[b"account", b"connect", b"17", b"--key", b"sign-in"], None);
+    call(&mut front, &mut root, 1, &[b"account", b"connect", b"3", b"--key", b"sign-in"], None);
     let source = accounts::signing(&front);
     front.engine.send(temper_engine_domain::Event::Account(a::Event::Visited {
         source,
@@ -151,7 +151,7 @@ fn a_tools_declaration_is_visible_with_its_host_in_accounts() {
         &mut front,
         &mut root,
         1,
-        &[b"account", b"declare", b"17", b"claude_code", b"claude-work", b"--key", b"declare-login"],
+        &[b"account", b"declare", b"3", b"claude_code", b"claude-work", b"--key", b"declare-login"],
         None,
     );
     let declared = root.agent().printed(1).expect("durable declaration");
@@ -273,7 +273,7 @@ fn a_forgotten_declaration_is_declared_again_under_its_name() {
         &mut front,
         &mut root,
         1,
-        &[b"account", b"declare", b"17", b"claude_code", b"claude-work", b"--key", b"declare-login"],
+        &[b"account", b"declare", b"3", b"claude_code", b"claude-work", b"--key", b"declare-login"],
         None,
     );
     assert_eq!(root.agent().printed(1).expect("first declaration").status, 0);
@@ -292,7 +292,7 @@ fn a_forgotten_declaration_is_declared_again_under_its_name() {
     assert_eq!(forgotten.status, 0, "{forgotten:?}");
     assert!(skein_lib::bytes::find(&forgotten.stdout, b"Signed out on every machine.").is_some());
     let Event::Call { call: declaration, json, .. } =
-        fixtures::call(&[b"account", b"declare", b"17", b"claude_code", b"claude-work", b"--key", b"declare-again"])
+        fixtures::call(&[b"account", b"declare", b"3", b"claude_code", b"claude-work", b"--key", b"declare-again"])
     else {
         unreachable!()
     };
@@ -330,7 +330,7 @@ fn a_forgotten_declaration_is_declared_again_under_its_name() {
         &mut front,
         &mut root,
         6,
-        &[b"account", b"declare", b"17", b"claude_code", b"claude-work", b"--key", b"declare-taken"],
+        &[b"account", b"declare", b"3", b"claude_code", b"claude-work", b"--key", b"declare-taken"],
         None,
     );
     let taken = root.agent().printed(6).expect("live name refused");

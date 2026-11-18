@@ -1053,6 +1053,65 @@ fn agents_form_round_trips_named_maps_and_reports_duplicates() {
 }
 
 #[test]
+fn provider_files_proposals_and_reads_keep_the_whole_value_and_number() {
+    const SETTING: &[u8] = br#"{"kind":"provider","number":3}"#;
+    const VALUE: &[u8] = br#"{"number":3,"name":"local","endpoint":"local","signed_in_plan":false,"sources":{},"endpoints":[{"name":"local","number":5,"dialect":3,"address":{"socket":"127.0.0.1:8080"},"transport":"plaintext","headers":[],"connect_ms":10000,"handshake_ms":10000}]}"#;
+    let limits = Limits::standard();
+    let items = file::decode(&kind_file(SETTING, VALUE), &limits).unwrap();
+    let item = items.get(0).unwrap();
+    assert_eq!(item.setting, c::Setting::Provider(c::SettingNumber { number: 3 }));
+    let c::SettingEdit::Set(set) = &item.edit else { panic!("set") };
+    let c::SettingValue::Provider(value) = &set.value else { panic!("provider") };
+    assert_eq!(value.provider.number, 3);
+    assert_eq!(value.provider.name.as_ref(), b"local");
+    let endpoint = value.endpoints.first().unwrap();
+    assert_eq!(endpoint.name.as_ref(), b"local");
+    assert_eq!(endpoint.number, 5);
+    assert_eq!(endpoint.provider.as_ref(), b"local");
+    assert_eq!(endpoint.connect.as_millis(), 10000);
+    let mut measured = Encoder::measure(&skein_json::writer::Limits { depth: 32, length: 32768 });
+    crate::render::encode_value(&set.value, &mut measured);
+    let mut out =
+        Encoder::write(measured.measured().unwrap(), &skein_json::writer::Limits { depth: 32, length: 32768 });
+    crate::render::encode_value(&set.value, &mut out);
+    assert_eq!(file::decode(&kind_file(SETTING, &out.finish()), &limits).unwrap(), items);
+    let shown = shown(&c::ReadValue::Setting(Box::new(c::SettingDocument {
+        setting: item.setting,
+        revision: 2,
+        value: Some(set.value.clone()),
+        overlay: None,
+        application: None,
+        proposed: None,
+    })));
+    assert!(skein_lib::bytes::find(&shown, VALUE).is_some());
+    let proposal = joined(&[
+        br#"{"against":1,"reason":"Add provider","items":[{"setting":"#,
+        SETTING,
+        br#", "set":"#,
+        VALUE,
+        b"}]}",
+    ]);
+    assert_eq!(file::proposal_items(&proposal, &limits).unwrap(), items);
+    let mismatch = joined(&[br#"{"number":4,"name":"local","sources":{},"endpoints":[]}"#]);
+    let why = file::decode(&kind_file(SETTING, &mismatch), &limits).unwrap_err();
+    assert!(skein_lib::bytes::find(&why, b"number").is_some(), "{why:?}");
+    for (edit, expected) in [
+        (br#""remove":true"#.as_slice(), c::SettingEdit::Removed),
+        (br#""reset":true"#, c::SettingEdit::Reset),
+        (br#""edit":"removed""#, c::SettingEdit::Removed),
+        (br#""edit":"reset""#, c::SettingEdit::Reset),
+    ] {
+        let bytes = joined(&[br#"{"items":[{"setting":"#, SETTING, b",", edit, b"}]}"]);
+        let items = file::decode(&bytes, &limits).unwrap();
+        assert_eq!(items.get(0).unwrap(), &c::SettingItem { setting: item.setting, edit: expected });
+    }
+    let read = joined(&[br#"{"setting":"#, SETTING, b"}"]);
+    assert_eq!(file::read_setting(&read, &limits).unwrap(), item.setting);
+    let page = crate::fields::page(&limits);
+    assert!(skein_lib::bytes::find(&page, b"taken at the engine's next start").is_some());
+}
+
+#[test]
 fn worker_files_proposals_and_reads_keep_the_digest_as_lowercase_hex() {
     const SETTING: &[u8] = br#"{"kind":"worker","number":2}"#;
     const DIGEST: &[u8] = b"abababababababababababababababababababababababababababababababab";
