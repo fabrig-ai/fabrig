@@ -1437,6 +1437,7 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::Move { .. }
         | tasks::Event::Subscribe { .. }
         | tasks::Event::SubscribeTopic { .. }
+        | tasks::Event::SubscribeTopicApart { .. }
         | tasks::Event::Unsubscribe { .. }
         | tasks::Event::Notice { .. }
         | tasks::Event::Introduce { .. }
