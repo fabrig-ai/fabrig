@@ -136,7 +136,10 @@ impl Configuration {
     }
     /// A hosted world's engine supplies the same hub bounds as its current agent.
     pub fn agent_bounds(&mut self, agent: &temper_service::settings::Agent) {
-        self.jig_over("core.call_answer_bytes", self.jig.core.call_answer_bytes.max(agent.tool_payload).max(agent.limits.bodies.host_ask_input));
+        self.jig_over(
+            "core.call_answer_bytes",
+            self.jig.core.call_answer_bytes.max(agent.tool_payload).max(agent.limits.bodies.host_ask_input),
+        );
         self.jig_over("hub.accounts", agent.host_limits.accounts);
         self.jig_over("hub.run_calls", agent.host_limits.calls);
         self.jig_over("hub.inbox", self.jig.hub.inbox.max(agent.bounds.inbox));

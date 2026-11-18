@@ -13,7 +13,8 @@ enum Part {
 impl Part {
     fn refusal(self, name: &str) -> String {
         match self {
-            Self::Engine | Self::Application => format!("{name} (the stock)"),
+            Self::Engine => format!("engine.limits.overrides.{name}"),
+            Self::Application => format!("application.limits.overrides.{name}"),
         }
     }
 }
@@ -37,18 +38,8 @@ fn set(document: &mut temper_playground::documents::Configuration, part: Part, n
 fn edge(part: Part, name: &str) {
     let scratch = support::Scratch::startup(&format!("plan-chat-{name}"));
     let mut document = support::configuration(scratch.path(), &support::Forge::Unreached);
-    let directories = support::configuration::directories(scratch.path());
     let admit = |document: &temper_playground::documents::Configuration| {
-        temper_box_shell::operations_in_with_limits(
-            "temper",
-            &[],
-            b"/",
-            &directories,
-            &serde_json::to_vec(document).expect("JSON"),
-            &temper_service::stock::Given::Stock,
-            &document.jig,
-            &document.limits,
-        )
+        support::configuration::admission(scratch.path(), document)
     };
     admit(&document).expect("unmodified fixture must start");
     let turn = number(&document, Part::Engine, "hub.turn_bytes");
@@ -96,7 +87,6 @@ fn transcript_padding_covers_all_resume_window_remainders() {
     for remainder in 0..LENGTH_BYTES {
         let scratch = support::Scratch::startup(&format!("plan-chat-window-{remainder}"));
         let mut document = support::configuration(scratch.path(), &support::Forge::Unreached);
-        let directories = support::configuration::directories(scratch.path());
         let base = number(&document, Part::Engine, "core.resume_bytes");
         let window = (base / LENGTH_BYTES + 1) * LENGTH_BYTES + remainder;
         let transcript = window + (box_bytes - LENGTH_BYTES) * (window / LENGTH_BYTES);
@@ -107,16 +97,7 @@ fn transcript_padding_covers_all_resume_window_remainders() {
             set(&mut document, part, "hub.transcript_bytes", transcript);
         }
         let admit = |document: &temper_playground::documents::Configuration| {
-            temper_box_shell::operations_in_with_limits(
-                "temper",
-                &[],
-                b"/",
-                &directories,
-                &serde_json::to_vec(document).expect("JSON"),
-                &temper_service::stock::Given::Stock,
-                &document.jig,
-                &document.limits,
-            )
+            support::configuration::admission(scratch.path(), document)
         };
         admit(&document).expect("both hubs hold the padded configured window");
         {

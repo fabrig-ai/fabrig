@@ -5638,6 +5638,7 @@ dependencies = [
  "temper-real-loop-world",
  "temper-service",
  "temper-service-core",
+ "temper-service-shell",
  "temper-settings-form",
  "temper-shell",
  "temper-test-env",

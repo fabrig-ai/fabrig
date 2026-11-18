@@ -119,7 +119,8 @@ fn the_process_workers_figures_follow_the_agents_setting() {
                 temper_service::limits::stock().live_goals,
                 payload,
                 temper_service_core::derived::Sources::agent(&agent.declaration()),
-            ).expect("derived engine figures");
+            )
+            .expect("derived engine figures");
             jig.core.people.words = jig.core.people.words.min(payload - 2);
             let part = temper_service::startup::box_worker_with_limits(
                 &serde_json::to_vec(&document).expect("deployment JSON"),

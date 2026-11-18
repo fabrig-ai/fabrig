@@ -669,9 +669,21 @@ fn limit_settings_reach_the_box_workers_checkout_git_and_peer() {
         Some((&input.jig, &input.own)),
     );
     let overrides = [
-        jig_domain_core::settings::Override { name: b"checkout.repositories".as_slice().into(), value: 8, reason: b"more repositories".as_slice().into() },
-        jig_domain_core::settings::Override { name: b"git_component.stderr_bytes".as_slice().into(), value: 1024, reason: b"more git diagnostic room".as_slice().into() },
-        jig_domain_core::settings::Override { name: b"forge_component.token_bytes".as_slice().into(), value: 256, reason: b"bounded tokens".as_slice().into() },
+        jig_domain_core::settings::Override {
+            name: b"checkout.repositories".as_slice().into(),
+            value: 8,
+            reason: b"more repositories".as_slice().into(),
+        },
+        jig_domain_core::settings::Override {
+            name: b"git_component.stderr_bytes".as_slice().into(),
+            value: 1024,
+            reason: b"more git diagnostic room".as_slice().into(),
+        },
+        jig_domain_core::settings::Override {
+            name: b"forge_component.token_bytes".as_slice().into(),
+            value: 256,
+            reason: b"bounded tokens".as_slice().into(),
+        },
     ];
     let resolved = crate::startup::resolve_limits(&inputs, &[], &overrides).unwrap();
     let part = crate::startup::box_worker_with_limits(
@@ -682,7 +694,9 @@ fn limit_settings_reach_the_box_workers_checkout_git_and_peer() {
         &[],
         Some(&agent.declaration()),
         (&resolved.jig, &resolved.temper),
-    ).unwrap().unwrap();
+    )
+    .unwrap()
+    .unwrap();
     assert_eq!(part.limits.checkout.repositories, 8);
     assert_eq!(part.limits.git_component.stderr_bytes, 1024);
     assert_eq!(part.limits.peer.token_bytes, 256);

@@ -660,6 +660,7 @@ use temper_worker_shell::agent;
 pub struct Bounded {
     figures: Option<jig_protocol_worker_wire::Figures>,
     pub document: Vec<u8>,
+    limits: temper_playground::documents::Configuration,
     pub files: temper_service::settings::Files,
     pub agent: temper_service::settings::Agent,
     pub seeds: temper_service::settings::Seeds,
@@ -750,23 +751,38 @@ impl Bounded {
                 result
             });
         }
-        let accounts = value.get("engine").map(|_| self.accounts());
-        temper_service::startup::check(
+        temper_service::startup::checked_start_with_limits(
             &self.document,
             &jig_protocol_config::Directories::working(),
             &self.files,
-            &self.agent,
+            Some(&self.agent),
             &self.seeds,
-            accounts.as_ref(),
             self.forges(),
             value.get("engine").map(|_| &self.setup),
+            &temper_service::stock::Given::Stock,
+            None,
+            &self.limits.jig,
+            &self.limits.limits,
         )
+        .map(|_| ())
     }
 
     pub fn startup(&self, document: &[u8]) -> Result<temper_service::Service, temper_service::startup::Problems> {
-        temper_service::startup::with_setup(
+        let checked = temper_service::startup::checked_start_with_limits(
             document,
             &jig_protocol_config::Directories::working(),
+            &self.files,
+            Some(&self.agent),
+            &self.seeds,
+            self.forges(),
+            Some(&self.setup),
+            &temper_service::stock::Given::Stock,
+            None,
+            &self.limits.jig,
+            &self.limits.limits,
+        )?;
+        temper_service::startup::from_checked(
+            checked,
             &self.files,
             Some(&self.agent),
             &self.seeds,
@@ -777,9 +793,9 @@ impl Bounded {
                 path: b"/worker".as_slice().into(),
                 agent: temper_playground::documents::pinned_agent(),
             }),
-            self.forges(),
-            Some(&self.setup),
             None,
+            None,
+            Box::new([]),
         )
     }
 }
@@ -891,7 +907,9 @@ fn bounded_template_profile(directory: &Path, room: Option<&[u8]>) -> Bounded {
         document["engine"]["limits"]["overrides"]["io.output"] =
             room["worker"]["limits"]["overrides"]["io.output"].clone();
         merge_profile(&mut document["engine"]["limits"], room["worker"]["limits"].clone());
-        merge_profile(&mut document["application"], room["application"].clone());
+        if let Some(application) = room.get("application") {
+            merge_profile(&mut document["application"], application.clone());
+        }
         let document = temper_playground::documents::Configuration::from_jig(document);
         super::write_private(&document_path, &serde_json::to_vec(&document).expect("reference document JSON"));
         super::limit_settings::remember(directory, &document);
@@ -1011,6 +1029,7 @@ pub fn deployment_profile(directory: &Path, relative: &str) -> Bounded {
     }
     Bounded {
         figures,
+        limits: temper_playground::documents::Configuration::from_jig(value),
         document,
         agent,
         setup,
@@ -1093,6 +1112,11 @@ fn bounded_document(directory: &Path, value: &serde_json::Value, forge: temper_s
     }
     Bounded {
         figures: None,
+        limits: if directory.join("fixture-limits.json").exists() {
+            super::limit_settings::configuration(directory)
+        } else {
+            temper_playground::documents::Configuration::from_jig(value.clone())
+        },
         document,
         setup,
         files: Files { entries },

@@ -577,44 +577,33 @@ fn serve_prepares_once_on_the_owned_example() {
     assert!(prepared.is_ok(), "{}", prepared.err().unwrap_or_default());
     scratch.remove();
 }
-/// The owned example, raised by what a worker of 8 slots and 10 workspaces needs.
-fn eight_slots(case: &str, leave: Option<&str>) -> support::Scratch {
+/// The owned example with typed engine figures for eight places and ten workspaces.
+fn eight_slots(case: &str) -> (support::Scratch, temper_playground::documents::Configuration) {
     let scratch = owned_example(case);
     let path = scratch.path().join("temper.json");
-    let mut document: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
+    let mut document = temper_playground::documents::Configuration::from_jig(
+        serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON"),
+    );
     document["workers"][0]["slots"] = 8.into();
-    for (part, name, value) in [
-        ("engine", "hub.slots", 8),
-        ("engine", "fleet.slots", 8),
-        ("application", "checkout.workspaces", 10),
-        ("application", "git_component.operations", 10),
-    ] {
-        let limits = if part == "worker" { &mut document["workers"][0] } else { &mut document[part] };
-        if leave == Some(name) {
-            limits["limits"]["overrides"].as_object_mut().expect("overrides").remove(name);
-        } else {
-            limits["limits"]["overrides"][name] = value.into();
-        }
-    }
+    document.jig_over("hub.slots", 8);
+    document.jig_over("fleet.slots", 8);
+    document.temper_over("checkout.workspaces", 10);
+    document.temper_over("git_component.operations", 10);
     fs::write(path, serde_json::to_vec(&document).expect("JSON")).expect("deployment");
-    scratch
+    (scratch, document)
 }
 
 #[test]
 fn serve_prepares_eight_slots_and_ten_workspaces_on_the_owned_example() {
-    let scratch = eight_slots("eight-slots", None);
-    let prepared = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(scratch.path()));
-    assert!(prepared.is_ok(), "{}", prepared.err().unwrap_or_default());
+    let (scratch, document) = eight_slots("eight-slots");
+    support::configuration::admission(scratch.path(), &document).expect("eight-place startup");
+    assert!(document["engine"].get("limits").is_none());
     scratch.remove();
 }
 
 #[test]
 fn serve_names_what_to_raise_for_eight_slots() {
     for (name, line) in [
-        (
-            "hub.slots",
-            "workers[0].slots: past this worker's limits.overrides.hub.slots, which must be at least its slots",
-        ),
         ("fleet.slots", "workers[0].slots: must agree with engine.limits.overrides.fleet.slots, at least the slots"),
         (
             "checkout.workspaces",
@@ -625,50 +614,28 @@ fn serve_names_what_to_raise_for_eight_slots() {
             "application.limits.overrides.git_component.operations: must agree with checkout.workspaces",
         ),
     ] {
-        let scratch = eight_slots(&format!("eight-slots-{name}"), Some(name));
-        let directories = support::configuration::directories(scratch.path());
-        let prepared = temper_box_shell::prepare_in(&[], b"/", &directories);
-        assert!(prepared.is_ok(), "{name}: {}", prepared.err().unwrap_or_default());
-        drop(prepared);
-        let path = scratch.path().join("temper.json");
-        let mut document: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
-        let mut worker = document["workers"][0].clone();
-        worker["engine"] = serde_json::json!({"socket":"127.0.0.1:7100"});
-        let worker_document = serde_json::json!({"workers":[worker],"application":{}});
-        let part = temper_service::startup::worker_part(
-            &serde_json::to_vec(&worker_document).unwrap(),
+        let (scratch, mut document) = eight_slots(&format!("eight-slots-{name}"));
+        support::configuration::admission(scratch.path(), &document).expect("complete figures");
+        document.jig_over("hub.slots", 7);
+        let part = temper_service::startup::box_worker_with_limits(
+            &serde_json::to_vec(&document).expect("deployment JSON"),
             &jig_protocol_config::Directories::working(),
-            None,
+            &temper_service::stock::Given::Stock,
+            &temper_service::stock::agents(),
             &[],
+            None,
+            (&document.jig, &document.limits),
         )
-        .expect("resolved worker places");
-        assert!(part.worker.jig.limits.expect("derived worker limits").hub.slots >= 8);
-        assert!(part.limits.checkout.workspaces >= 8);
-        assert!(part.limits.git_component.operations >= part.limits.checkout.workspaces);
-        let owner = if name == "hub.slots" || name == "fleet.slots" {
-            &mut document["engine"]
+        .expect("engine figures")
+        .expect("worker");
+        assert_eq!(part.worker.jig.limits.expect("applied figures").hub.slots, 8);
+        if name == "fleet.slots" {
+            document.jig_over(name, 7);
         } else {
-            &mut document["application"]
-        };
-        owner["limits"]["overrides"][name] = 7.into();
-        fs::write(path, serde_json::to_vec(&document).unwrap()).unwrap();
-        let prepared = temper_box_shell::prepare_in(&[], b"/", &directories);
-        if name == "hub.slots" {
-            // The worker hub's places follow its admitted slots (configuration/figures.md, 3).
-            assert!(prepared.is_ok(), "hub slots come from worker slots");
-            let part = temper_service::startup::box_worker(
-                &serde_json::to_vec(&document).expect("deployment JSON"),
-                &jig_protocol_config::Directories::working(),
-                &temper_service::stock::Given::Stock,
-                &temper_service::stock::agents(),
-                &[],
-            )
-            .expect("engine figures")
-            .expect("worker");
-            assert_eq!(part.worker.jig.limits.expect("applied figures").hub.slots, 8);
-        } else {
-            assert_eq!(prepared.err().expect("short limit refuses"), format!("temper serve: {line}\n"), "{name}");
+            document.temper_over(name, 7);
         }
+        let why = support::configuration::admission(scratch.path(), &document).expect_err("short limit refuses");
+        assert_eq!(why, format!("{line}\n"), "{name}");
         scratch.remove();
     }
 }
@@ -691,22 +658,22 @@ fn serve_prepares_once_on_a_bare_init() {
 fn serve_refuses_an_explicit_call_bound_below_the_agents_call_input() {
     let scratch = owned_example("owned-call-input-bound");
     let path = scratch.path().join("temper.json");
-    let mut document: serde_json::Value =
-        serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
+    let mut document = temper_playground::documents::Configuration::from_jig(
+        serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON"),
+    );
     // The owned agent declares tool_payload 63740; one below refuses, equality prepares.
     for (bound, expected) in [
         (
             63739,
             Some(concat!(
-                "temper serve: engine.limits.overrides.core.call_answer_bytes: 63739 bytes, short of the agent's call input (profile.declared.tool_payload), 63740 bytes; raise it to at least 63740 bytes, or omit it to follow the agent's call input\n",
-                "temper serve: engine.limits.overrides.core.call_answer_bytes: call input 63740 bytes; wire answer 63739 bytes; smith host_reply_bytes 63740 bytes\n",
+                "engine.limits.overrides.core.call_answer_bytes: 63739 bytes, short of the agent's call input (profile.declared.tool_payload), 63740 bytes; raise it to at least 63740 bytes, or omit it to follow the agent's call input\n",
+                "engine.limits.overrides.core.call_answer_bytes: call input 63740 bytes; wire answer 63739 bytes; smith host_reply_bytes 63740 bytes\n",
             )),
         ),
         (63740, None),
     ] {
-        document["engine"]["limits"]["overrides"]["core.call_answer_bytes"] = bound.into();
-        support::write_private(&path, &serde_json::to_vec(&document).expect("configuration JSON"));
-        let prepared = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(scratch.path()));
+        document.jig_over("core.call_answer_bytes", bound);
+        let prepared = support::configuration::admission(scratch.path(), &document);
         match expected {
             Some(lines) => assert_eq!(prepared.err().expect("call input refused"), lines),
             None => assert!(prepared.is_ok(), "{}", prepared.err().unwrap_or_default()),
@@ -755,7 +722,7 @@ fn serve_checks_the_owned_agents_admission_at_each_bound() {
             "tool_payload",
             63739,
             Some(
-                "engine.limits: needs 63738-byte messages (tasks.message_bytes); the agent offers 63737 (tool_payload less 2)\n",
+                "workers[0].limits.overrides.hub.event_bytes: 63738 bytes, past agents setting declared.tool_payload less the 2-byte separator of 63737\n",
             ),
         ),
         ("tool_payload", 63740, None),
@@ -763,7 +730,7 @@ fn serve_checks_the_owned_agents_admission_at_each_bound() {
             "tool_payload",
             600,
             Some(
-                "engine.limits: needs 63738-byte messages (tasks.message_bytes); the agent offers 598 (tool_payload less 2)\ntemper serve: workers[0].agent.profile.declared.tool_payload: 600 bytes, short of temper's documentation answer (read_docs), 2048 bytes\n",
+                "engine.limits: needs 10660-byte messages (tasks.message_bytes); the agent offers 598 (tool_payload less 2)\ntemper serve: workers[0].agent.profile.declared.tool_payload: 600 bytes, short of temper's documentation answer (read_docs), 2048 bytes\n",
             ),
         ),
     ] {
@@ -1930,14 +1897,15 @@ fn the_template_agent_refuses_jigs_small_hub_turn_bound_before_serving() {
         .output()
         .expect("init");
     assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
-    let path = scratch.path().join("temper.json");
-    let mut document: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
     let hub = jig_protocol_config_fixtures::small().hub;
-    let limits = &mut document["engine"]["limits"]["overrides"];
-    limits["hub.turn_bytes"] = hub.turn_bytes.into();
-    limits["hub.transcript_bytes"] = hub.transcript_bytes.into();
-    limits["hub.turn_queue_bytes"] = hub.turn_queue_bytes.into();
-    fs::write(&path, serde_json::to_vec(&document).expect("JSON")).expect("deployment");
+    support::write_private(
+        &scratch.path().join("limits-held"),
+        format!(
+            "hub.turn_bytes {}\nhub.transcript_bytes {}\nhub.turn_queue_bytes {}\n",
+            hub.turn_bytes, hub.transcript_bytes, hub.turn_queue_bytes
+        )
+        .as_bytes(),
+    );
     let output = std::process::Command::new(skein_scratch::paths::binary("temper-box"))
         .arg("serve")
         .args(support::configuration::flags(scratch.path()))
@@ -1946,8 +1914,8 @@ fn the_template_agent_refuses_jigs_small_hub_turn_bound_before_serving() {
     let agent = temper_agent_fixtures::read(scratch.path());
     let turn = support::configuration::turn_bounds::turn_body(&agent);
     assert!(!output.status.success());
-    assert!(String::from_utf8_lossy(&output.stderr).lines().find(|line| line.starts_with("temper serve:")).expect("startup problem").starts_with(&format!(
-        "temper serve: engine.limits.overrides.hub.turn_bytes: 65536 bytes, short of the agent's largest turn, {turn} bytes"
+    assert!(String::from_utf8_lossy(&output.stderr).contains(&format!(
+        "temper serve: limits-held line 1: hub.turn_bytes (setting limits): 65536 bytes, short of the source's derivation, {turn} bytes"
     )), "{}", String::from_utf8_lossy(&output.stderr));
     scratch.remove();
 }

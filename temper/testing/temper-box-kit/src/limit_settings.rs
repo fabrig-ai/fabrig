@@ -18,7 +18,7 @@ pub fn remember(directory: &Path, configuration: &Configuration) {
     let own: Vec<_> = temper_service::limits::NAMES
         .iter()
         .filter_map(|row| {
-                        let value = (row.value)(&configuration.limits);
+            let value = (row.value)(&configuration.limits);
             (value != (row.value)(&stock.limits))
                 .then(|| json!({"name":row.name,"value":value,"reason":"subprocess fixture"}))
         })
@@ -148,7 +148,7 @@ pub fn install_at(directories: &temper_box_shell::directories::Directories) {
     for kind in ["limits", "temper-limits"] {
         for item in figures[kind].as_array().expect("kind figures") {
             let name = item["name"].as_str().expect("name");
-                        overrides.push((kind, name, item["value"].as_u64().expect("figure"), "subprocess fixture"));
+            overrides.push((kind, name, item["value"].as_u64().expect("figure"), "subprocess fixture"));
         }
     }
     apply(directories, &overrides);

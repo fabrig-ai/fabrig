@@ -100,8 +100,14 @@ fn removed_names_are_left_out_and_box_worker_names_come_from_the_engine() {
     let resolved = startup::resolve_limits(
         &inputs,
         &[],
-        &[item(b"forge.gone", 16), item(b"checkout.repositories", 8), item(b"git_component.stderr_bytes", 1024), item(b"forge_component.token_bytes", 256)],
-    ).unwrap();
+        &[
+            item(b"forge.gone", 16),
+            item(b"checkout.repositories", 8),
+            item(b"git_component.stderr_bytes", 1024),
+            item(b"forge_component.token_bytes", 256),
+        ],
+    )
+    .unwrap();
     assert_eq!(
         resolved.left_out,
         List::from_boxed(Box::new([startup::LeftOut {
