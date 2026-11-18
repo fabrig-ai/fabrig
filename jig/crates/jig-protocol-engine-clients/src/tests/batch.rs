@@ -295,6 +295,7 @@ fn a_stream_replaces_only_a_live_stream_of_its_sign_in_before_admission() {
         world.component.down(
             &world.env,
             Event::Transport(FromTransport::StreamOpen {
+                version: Some(jig_client_protocol_wire::VERSION),
                 stream: owner,
                 credential,
                 replaces: Some(if absent { [0; 16] } else { old_name }),
