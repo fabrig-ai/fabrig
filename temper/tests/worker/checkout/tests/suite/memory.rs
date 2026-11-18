@@ -69,6 +69,7 @@ fn full_spec(limits: &Limits, n: u32) -> Spec {
             save: Some(bytes(limits.name_bytes)),
             git: None,
             expected: None,
+            delivered: None,
             landing: Some(bytes(limits.name_bytes)),
             name: name(limits.name_bytes, place),
             remote: name(limits.name_bytes, place),

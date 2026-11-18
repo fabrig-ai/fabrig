@@ -308,6 +308,8 @@ pub struct Change {
     pub last_head: Option<Commit>,
     /// The last delegate push whose checks passed (questions.md, 1, A checked head).
     pub last_checked: Option<Commit>,
+    /// The delegate task whose checked report set `last_checked` (questions.md, 1, Who pushed it).
+    pub last_checked_by: Option<u64>,
 }
 
 /// Observed state of the change's pull request.

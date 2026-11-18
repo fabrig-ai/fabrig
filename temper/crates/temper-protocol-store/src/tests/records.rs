@@ -425,6 +425,10 @@ fn a_changes_last_checked_head_round_trips_some_and_none() {
     for checked in [Some([29; 32]), None] {
         let mut row = fixtures::change_row(State::Producing { requested: true });
         row.change.last_checked = checked;
+        row.change.last_checked_by = match checked {
+            Some(_) => Some(41),
+            None => None,
+        };
         let row = fixtures::change_hot(row);
         assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
     }
@@ -451,6 +455,45 @@ fn a_changes_execution_clock_round_trips_for_each_last_reading() {
         let row = fixtures::change_hot(row);
         assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
     }
+}
+
+/// Registered additions default during layout conversion, without a version move.
+#[test]
+fn a_change_written_without_a_checked_delegate_decodes_with_none() {
+    let mut family = None;
+    for candidate in crate::OWNER_SET.families {
+        if candidate.name == "temper-store" {
+            family = Some(candidate);
+        }
+    }
+    let family = family.unwrap();
+    let before = family.current.replace(" last_checked_by: option u64 = none", "");
+    assert_ne!(before, family.current);
+    let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
+    let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
+    let mut row = fixtures::change_row(temper_engine_domain_forge_change::State::Producing { requested: true });
+    row.change.last_checked = Some([29; 32]);
+    row.change.last_checked_by = Some(41);
+    let mut bytes = records::encode(&fixtures::change_hot(row.clone()));
+    for (source, target) in [(&new, &old), (&old, &new)] {
+        let plan = skein_codec::layout::Plan::derive(
+            source,
+            source.root(b"Row", None).unwrap(),
+            &[],
+            target,
+            target.root(b"Row", None).unwrap(),
+            &[],
+        )
+        .unwrap();
+        let mut work = skein_codec::layout::Workspace::new();
+        assert!(work.fit(&plan));
+        let mut out = skein_lib::Buffer::with_capacity(131_072);
+        plan.convert(&bytes, &mut out, &mut work).unwrap();
+        bytes = out.as_slice().into();
+    }
+    row.change.last_checked_by = None;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    assert_eq!(records::decode(&bytes, &bounds), Ok(fixtures::change_hot(row)));
 }
 
 /// Registered additions default during layout conversion, without a version move.

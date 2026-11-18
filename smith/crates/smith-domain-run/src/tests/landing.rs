@@ -76,6 +76,49 @@ fn a_change_runs_each_repositorys_checks_then_is_delivered_and_accepted() {
 }
 
 #[test]
+fn a_change_finish_after_a_delivered_run_parks_is_accepted_once_with_its_report() {
+    let (mut harness, conversation) = coding_after_delivery_and_park();
+    let owner = harness.land(conversation, 7);
+    let requests = harness.step(pass_checks(owner));
+    let [Request::Check { owner: second, program, .. }, Request::Checking { .. }] = requests.as_ref() else {
+        panic!("expected the second check, got {requests:?}");
+    };
+    assert_eq!((*second, program.root), (owner, Token::new(901)));
+    let requests = harness.step(pass_checks(owner));
+    let [Request::Deliver { host_run, owner: submitted, change: report, .. }] = requests.as_ref() else {
+        panic!("expected finish delivery, got {requests:?}");
+    };
+    assert_eq!((*host_run, *submitted, report), (Token::new(1), owner, &change()));
+    assert_eq!(
+        harness.step(Event::Delivered { owner, delivery: delivered() }).as_ref(),
+        &[returned(7, Returned::Delivered(receipts())), Request::Close { peer: PEER }]
+    );
+    let accepted = Answer::Accepted { outcome: Declared::Change(change()), spent: Spend::ZERO, turns: 0 };
+    assert_eq!(answered(harness.step(ended(conversation, End::Closed, Spend::ZERO))), (2, accepted));
+    assert!(harness.step(Event::Delivered { owner, delivery: delivered() }).is_empty());
+    assert!(harness.step(ended(conversation, End::Closed, Spend::ZERO)).is_empty(), "only one answer");
+    harness.domain.reclaim();
+    assert_eq!((harness.domain.runs(), harness.domain.conversations(), harness.domain.calls()), (0, 0, 0));
+}
+
+#[test]
+fn nothing_to_a_change_finish_after_a_park_is_feedback_and_the_run_can_retry() {
+    let (mut harness, conversation) = coding_after_delivery_and_park();
+    let owner = harness.land(conversation, 7);
+    drop(harness.step(pass_checks(owner)));
+    drop(harness.step(pass_checks(owner)));
+    assert_eq!(
+        harness.step(Event::Delivered { owner, delivery: Delivery::Nothing }).as_ref(),
+        &[returned(7, Returned::Nothing)]
+    );
+    let requests = harness.step(end_turn(conversation));
+    let [Request::Say { peer, .. }] = requests.as_ref() else {
+        panic!("a retry is nudged without ending the run, got {requests:?}");
+    };
+    assert_eq!(*peer, PEER);
+}
+
+#[test]
 fn each_directory_retries_a_timed_out_check_under_the_same_lease() {
     let limits = Limits { check_timeout: Duration::from_secs(60), ..LIMITS };
     let mut harness = Harness::new(limits);
@@ -749,6 +792,82 @@ fn a_mid_run_delivery_uses_the_change_contracts_optional_checks() {
         harness.step(Event::Delivered { owner, delivery: delivered() }).as_ref(),
         [returned(50, Returned::Delivered(receipts()))]
     );
+}
+
+fn coding_after_delivery_and_park() -> (Harness, Token) {
+    let mut harness = Harness::new(LIMITS);
+    let mut policy = coding();
+    policy.grants.deliver = mid_report().grants.deliver;
+    let waiting = policy.waiting;
+    let (run, conversation) = harness.coding_policy(1, 100, policy);
+    let requests = harness.step(mid_ask(conversation, 3));
+    let [Request::Check { owner, .. }, Request::Checking { .. }] = requests.as_ref() else {
+        panic!("mid-run delivery checks first, got {requests:?}");
+    };
+    let owner = *owner;
+    drop(harness.step(pass_checks(owner)));
+    let requests = harness.step(pass_checks(owner));
+    let [Request::Deliver { owner: submitted, .. }] = requests.as_ref() else {
+        panic!("mid-run delivery follows both checks, got {requests:?}");
+    };
+    assert_eq!(*submitted, owner);
+    let mut delivery = MidDelivery { harness, run, conversation, owner };
+    delivery.accepted_delivery();
+    let mut harness = delivery.harness;
+    assert_eq!(
+        harness
+            .step(Event::Delegated {
+                conversation,
+                call: Token::new(51),
+                name: crate::CallName { activation: 1, completion: 4, position: 0 },
+                ask: Ask::Wait,
+                deadline: EXPIRY,
+            })
+            .as_ref(),
+        &[Request::Waiting { host_run: Token::new(1), read: None }]
+    );
+    harness.after(waiting);
+    assert_eq!(harness.fire().as_ref(), &[returned(51, Returned::Withheld), Request::Close { peer: PEER }]);
+    assert_eq!(
+        answered(harness.step(ended(conversation, End::Closed, Spend::ZERO))),
+        (1, Answer::Parked { spent: Spend::ZERO, turns: 0 })
+    );
+    harness.domain.reclaim();
+
+    // The parent binds the parked main's transcript by its conversation token;
+    // this domain passes the binding on without decoding the transcript.
+    let transcript = conversation;
+    let requests = harness.step(Event::Start {
+        reply_to: ReplyTo::new(Token::new(2)),
+        host_run: Token::new(1),
+        activation: 2,
+        identity: None,
+        window: crate::Window { turns: u32::MAX, bytes: u64::MAX, largest_turn: 1 },
+        messages: Box::default(),
+        charter: Charter { resume: true, ..coding() },
+        workspace: Some(coding_workspace()),
+        transcript: Some(transcript),
+        resumed: true,
+    });
+    let [Request::Admitted { run: next_run, host_run }, Request::Read { .. }] = requests.as_ref() else {
+        panic!("a fresh run is admitted for the same task, got {requests:?}");
+    };
+    assert_eq!(*host_run, Token::new(1));
+    assert_ne!(*next_run, run);
+    let next_run = *next_run;
+    drop(harness.step(Event::Read { owner: next_run, read: Read::Missing }));
+    drop(harness.step(Event::Probed { owner: next_run, executable: true }));
+    drop(harness.step(Event::Read { owner: next_run, read: Read::Missing }));
+    let requests = harness.step(Event::Probed { owner: next_run, executable: true });
+    let [Request::Open { conversation: next, opening }] = requests.as_ref() else {
+        panic!("resumed main opens, got {requests:?}");
+    };
+    assert_eq!(opening.transcript, Some(transcript));
+    assert_eq!(opening.activation, 2);
+    assert_ne!(*next, conversation);
+    let next = *next;
+    assert!(harness.step(Event::Started { conversation: next, peer: PEER }).is_empty());
+    (harness, next)
 }
 
 struct MidDelivery {

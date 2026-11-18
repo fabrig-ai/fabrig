@@ -1,8 +1,12 @@
 # agent: status
 
-2026-11-16. Where temper's code lags or departs from [README.md](README.md).
+2026-11-17. Where temper's code lags or departs from [README.md](README.md).
 
 
+- **Not yet:** 5: a producer, a repair or a resolution that delivered,
+  asked and parked is answered nothing to a change finish with nothing
+  new in its next run, so it can't finish as a change [in flight:
+  change 7051].
 - **Not yet:** 5: a save's head found by the read that frees the attempt's
   writer, its answer reporting no push, is saved as the branch's head but not
   recorded in the change (`temper-engine-domain-forge/src/domain.rs`,

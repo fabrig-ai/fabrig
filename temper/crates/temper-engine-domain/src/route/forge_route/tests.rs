@@ -899,6 +899,105 @@ fn pushed_heads_route_only_to_their_own_forges_hold() {
 }
 
 #[test]
+fn a_workspace_repository_copies_the_tasks_delivery() {
+    let (domain, _) = two_forges();
+    for delivered in [Some(SHA1), None] {
+        let mut item = domain
+            .forge
+            .prepare_item(
+                skein_forge::api::Repository { forge: 3, repository: 1 },
+                b"temper/7".as_slice().into(),
+                SHA1,
+                7,
+            )
+            .unwrap();
+        item.delivered = delivered;
+        let repository =
+            super::workspace_repository(item, Some(b"temper/7".as_slice().into()), b"temper/s41".as_slice().into())
+                .unwrap();
+        assert_eq!(repository.delivered, delivered);
+    }
+}
+
+#[test]
+fn a_parked_answers_checked_push_reaches_the_change_before_lost_writer_reads() {
+    use super::{Work, forge, forge_change as change};
+    use jig_domain_core as core;
+    use jig_domain_host as host;
+    use jig_domain_hub_link as hub;
+    use skein_lib::{Queue, Token};
+    let (mut domain, env) = two_forges();
+    let mut row = change_row(None);
+    row.delegate = Some((41, change::Delegate::Repair(change::Repair::Ci)));
+    let name = forge::Name {
+        forge: 3,
+        repository: 1,
+        what: forge::What::Branch(Box::new([b"temper".as_slice().into(), b"7".as_slice().into()])),
+    };
+    let forge_env = env.with(env.limits.forge);
+    let mut out = Queue::uncapped();
+    forge::step(
+        &mut domain.forge,
+        &forge_env,
+        forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
+        &mut out,
+    );
+    forge::step(
+        &mut domain.forge,
+        &forge_env,
+        forge::Event::Restore {
+            record: forge::Stored::Hold(forge::Hold {
+                name: name.clone(),
+                task: 7,
+                writer: Some(forge::Writer::Run { task: 41, attempt: 1 }),
+                design_writers: Box::new([]),
+                drift: None,
+            }),
+        },
+        &mut out,
+    );
+    let payload = domain.hub_link.retain(crate::Payload::Answer {
+        task: 41,
+        attempt: 1,
+        cumulative: 0,
+        read: None,
+        refused: Box::new([]),
+        end: hub::Ending::Link(host::Ending::Parked { work: host::Work { left: None, saved: None } }),
+    });
+    domain
+        .answer_parts
+        .insert(
+            payload,
+            crate::Parts {
+                saved: None,
+                pushed: Box::new([forge::Pushed { tag: forge::tag(3, 1), commit: SHA1, checked: true }]),
+                preparation: None,
+            },
+        )
+        .unwrap();
+    crate::link::answer(&mut domain, Token::new(41), Token::new(1), payload);
+    let Some(Work::Core(core::Event::AnswerPayload { end, .. })) = domain.work.pop() else { panic!("parked answer") };
+    assert_eq!(end, jig_domain_tasks::End::Parked);
+    // The core's terminal acknowledgement asks Lost for parked and ended answers alike.
+    let connector = domain.config.forge_connector;
+    let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
+    super::super::asks::ask(&mut domain, &env, &mut decision, connector, core::Ask::Lost { task: 41, attempt: 1 });
+    let Some(Work::Forge(answer @ forge::Event::Answered { .. })) = domain.work.pop() else {
+        panic!("reported head before Lost")
+    };
+    forge::step(&mut domain.forge, &forge_env, answer, &mut out);
+    let row = domain.forge.change(7).unwrap();
+    assert_eq!((row.change.last_checked, row.change.last_checked_by), (Some(SHA1), Some(41)));
+    let Some(Work::Forge(lost @ forge::Event::Lost { .. })) = domain.work.pop() else {
+        panic!("Lost follows Answered")
+    };
+    let mut lost_out = Queue::uncapped();
+    forge::step(&mut domain.forge, &forge_env, lost, &mut lost_out);
+    assert!(lost_out.is_empty(), "the reported writer needs no lost read: {lost_out:?}");
+    assert_eq!(domain.forge.hold(&name).unwrap().writer, None);
+}
+
+#[test]
 fn forge_resource_holds_name_the_branch_holder_and_failed_run() {
     use super::{forge, holds};
     let (domain, _) = two_forges();
@@ -1045,6 +1144,7 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
             owns_turn: false,
             last_head: None,
             last_checked: None,
+            last_checked_by: None,
             clock: None,
         },
         pull,

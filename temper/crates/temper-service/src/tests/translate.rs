@@ -125,7 +125,12 @@ fn each_workspace_access_reaches_its_items() {
             wire::Access::Writable(
                 wire::Writable::new(
                     &limits,
-                    wire::WritableParts { push: b"out".as_slice().into(), expected: None, landing: None },
+                    wire::WritableParts {
+                        push: b"out".as_slice().into(),
+                        expected: None,
+                        landing: None,
+                        delivered: None,
+                    },
                 )
                 .unwrap(),
             ),

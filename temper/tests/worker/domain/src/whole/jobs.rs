@@ -204,7 +204,12 @@ impl World {
                 git: None,
                 start: wire::Start::Base { branch: b"main".as_slice().into() },
                 access: if name == b"work" && delivers {
-                    wire::Access::Writable { push: b"topic".as_slice().into(), landing: None, expected: None }
+                    wire::Access::Writable {
+                        push: b"topic".as_slice().into(),
+                        landing: None,
+                        expected: None,
+                        delivered: None,
+                    }
                 } else {
                     wire::Access::ReadOnly
                 },

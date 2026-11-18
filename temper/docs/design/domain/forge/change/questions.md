@@ -379,6 +379,22 @@ early, by these rules:
   that kept moving until the sibling landed
   (`../../../draft/early-start-checked.md`). A checked push is work its
   producer offered; a save is work in progress.
+- **Who pushed it.** Beside `last_checked` the change keeps the delegate
+  task whose report set it, `last_checked_by`: every checked push a
+  delegate's answer reports on the change's branch sets both, that
+  delegate's task number in it, even where the head is the one already
+  recorded, and nothing else sets or clears either. It is stored with
+  the change, so it too holds across a park and a restart. A delegate's
+  next assignment names `last_checked` as its own delivery
+  (`../../worker/README.md`, 4.1; `../../../protocol/channel.md`, 4)
+  exactly when `last_checked_by` is that delegate's task and its item
+  is writable, so a producer, a repair or a resolution that delivered,
+  asked and parked delivers that head again when its next run finishes
+  with nothing new (`../../worker/checkouts.md`, *A task's own delivery
+  outlives its hold*). Any other task's assignment names none: a repair's
+  first run starts on its producer's checked head, which is no delivery
+  of its own, and a clean finish there is still nothing
+  (`../../../draft/delivered-across-runs.md`, 2).
 - **From what.** Its producer's workspace starts from the landing
   branch's tip with those last checked heads merged into it, one by one
   in the order of the change's dependencies (`../../worker/checkouts.md`).
