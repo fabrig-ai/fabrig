@@ -162,6 +162,7 @@ pub(crate) fn repository_rows(repository: skein_forge::api::Repository) -> [Stor
             token: 1,
             until: Wall::EPOCH,
             outcome: ApplicationOutcome::Adopted(AdoptedRepository {
+                landing: b"main".as_slice().into(),
                 repository,
                 owner: b"org".as_slice().into(),
                 name: b"repo".as_slice().into(),

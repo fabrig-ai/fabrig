@@ -7,7 +7,6 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::process::{Command, Stdio};
-use std::sync::OnceLock;
 
 use serde_json::Value;
 
@@ -18,7 +17,7 @@ const CONTEXTS: &[&str] = &["x86_64-unknown-linux-gnu", "aarch64-apple-darwin", 
 const PLATFORM_ENTRIES: &[(&str, &[&str])] =
     &[("rustls", &["wasm32-unknown-unknown"]), ("rustls-std", &["x86_64-unknown-linux-gnu", "aarch64-apple-darwin"])];
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct Request {
     features: Features,
     defaults: bool,
@@ -93,6 +92,7 @@ fn record_entries(
     members: &Features,
 ) -> Result<Vec<Entry>, String> {
     let mut result = Vec::new();
+    let mut declared = None;
     for dependency in node["deps"].as_array().ok_or("metadata: no node deps array")? {
         let id = field(dependency, "pkg")?;
         let resolved = package(packages, id)?;
@@ -101,16 +101,24 @@ fn record_entries(
         }
         let code_name = field(dependency, "name")?;
         let kinds = dependency["dep_kinds"].as_array().ok_or("metadata: no dep_kinds array")?;
-        let mut found = false;
-        for record in member["dependencies"].as_array().ok_or("metadata: no dependencies array")? {
-            let name = match record.get("rename") {
-                Some(Value::String(name)) => name.as_str(),
-                Some(Value::Null) => field(record, "name")?,
-                Some(_) | None => return Err("metadata: invalid dependency rename".to_owned()),
-            };
-            if name.replace('-', "_") != code_name || field(record, "name")? != resolved.name {
-                continue;
+        if declared.is_none() {
+            let mut index = BTreeMap::new();
+            for record in member["dependencies"].as_array().ok_or("metadata: no dependencies array")? {
+                let name = match record.get("rename") {
+                    Some(Value::String(name)) => name.as_str(),
+                    Some(Value::Null) => field(record, "name")?,
+                    Some(_) | None => return Err("metadata: invalid dependency rename".to_owned()),
+                };
+                index
+                    .entry((name.replace('-', "_"), field(record, "name")?))
+                    .or_insert_with(Vec::new)
+                    .push((name, record));
             }
+            declared = Some(index);
+        }
+        let mut found = false;
+        let records = declared.as_ref().expect("external dependencies index their declarations");
+        for &(name, record) in records.get(&(code_name.to_owned(), resolved.name.as_str())).into_iter().flatten() {
             if !kinds
                 .iter()
                 .any(|kind| kind.get("kind") == record.get("kind") && kind.get("target") == record.get("target"))
@@ -148,19 +156,21 @@ fn metadata(text: &str) -> Result<Metadata, String> {
             package(&packages, field(dependency, "pkg")?)?;
         }
     }
+    let by_id: BTreeMap<_, _> = metadata["packages"]
+        .as_array()
+        .expect("packages were read")
+        .iter()
+        .map(|member| Ok((field(member, "id")?, member)))
+        .collect::<Result<_, String>>()?;
+    let mut by_node = BTreeMap::new();
+    for node in nodes {
+        by_node.entry(field(node, "id")?).or_insert(node);
+    }
     let mut entries = Vec::new();
     for id in &members {
         package(&packages, id)?;
-        let member = metadata["packages"]
-            .as_array()
-            .ok_or("metadata: no packages array")?
-            .iter()
-            .find(|member| member["id"].as_str() == Some(id))
-            .ok_or_else(|| format!("metadata: no member {id}"))?;
-        let node = nodes
-            .iter()
-            .find(|node| node["id"].as_str() == Some(id))
-            .ok_or_else(|| format!("metadata: no resolve node for {id}"))?;
+        let member = by_id.get(id.as_str()).ok_or_else(|| format!("metadata: no member {id}"))?;
+        let node = by_node.get(id.as_str()).ok_or_else(|| format!("metadata: no resolve node for {id}"))?;
         entries.extend(record_entries(member, node, &packages, &members)?);
     }
     Ok(Metadata { packages, entries })
@@ -195,6 +205,13 @@ fn asked(request: &Request, table: &FeatureTable) -> Features {
 }
 
 fn occurrences(text: &str, metadata: &Metadata) -> Result<Vec<Occurrence>, String> {
+    let mut by_name = BTreeMap::new();
+    for (id, package) in &metadata.packages {
+        by_name
+            .entry((package.name.as_str(), package.version.as_str()))
+            .and_modify(|candidate| *candidate = None)
+            .or_insert(Some((id, package)));
+    }
     let mut result = Vec::new();
     for line in text.lines().filter(|line| !line.is_empty()) {
         let line = line.strip_suffix(" (*)").unwrap_or(line);
@@ -209,12 +226,7 @@ fn occurrences(text: &str, metadata: &Metadata) -> Result<Vec<Occurrence>, Strin
         } else {
             version
         };
-        let candidates: Vec<_> = metadata
-            .packages
-            .iter()
-            .filter(|(_, package)| package.name == name && package.version == version)
-            .collect();
-        let [(id, package)] = candidates.as_slice() else {
+        let Some(Some((id, package))) = by_name.get(&(name, version)) else {
             return Err(format!("tree: metadata does not hold a unique package {printed}"));
         };
         let features: Features =
@@ -232,7 +244,12 @@ fn occurrences(text: &str, metadata: &Metadata) -> Result<Vec<Occurrence>, Strin
 
 fn findings(context: &str, metadata: &Metadata, occurrences: &[Occurrence]) -> Vec<String> {
     let mut result = BTreeSet::new();
+    let mut unions: BTreeMap<&str, Features> = BTreeMap::new();
+    for occurrence in occurrences {
+        unions.entry(&occurrence.package).or_default().extend(occurrence.features.iter().cloned());
+    }
     let mut requests: BTreeMap<&str, (&str, &Request)> = BTreeMap::new();
+    let mut missing_by_request = BTreeMap::new();
     for entry in &metadata.entries {
         if let Some((member, request)) = requests.get(entry.name.as_str()) {
             if *request != &entry.request {
@@ -248,19 +265,19 @@ fn findings(context: &str, metadata: &Metadata, occurrences: &[Occurrence]) -> V
             result.insert(format!("{context}: {} names entry {} outside its platforms", entry.member, entry.name));
         }
         let package = metadata.packages.get(&entry.package).expect("entry package was read");
-        let asked = asked(&entry.request, &package.features);
-        let missing: Features = occurrences
-            .iter()
-            .filter(|occurrence| occurrence.package == entry.package)
-            .flat_map(|occurrence| occurrence.features.difference(&asked).cloned())
-            .collect();
+        let missing = missing_by_request.entry((&entry.package, &entry.request)).or_insert_with(|| {
+            let asked = asked(&entry.request, &package.features);
+            unions
+                .get(entry.package.as_str())
+                .map_or_else(Features::new, |union| union.difference(&asked).cloned().collect())
+        });
         if !missing.is_empty() {
             result.insert(format!(
                 "{context}: entry {}: {} v{} does not ask for {}",
                 entry.name,
                 package.name,
                 package.version,
-                missing.into_iter().collect::<Vec<_>>().join(",")
+                missing.iter().cloned().collect::<Vec<_>>().join(",")
             ));
         }
     }
@@ -334,46 +351,42 @@ struct Reading {
     occurrences: Vec<Occurrence>,
 }
 
-fn readings() -> &'static Result<Vec<Reading>, String> {
-    static READINGS: OnceLock<Result<Vec<Reading>, String>> = OnceLock::new();
-    READINGS.get_or_init(|| {
-        CONTEXTS
-            .iter()
-            .map(|context| {
-                let metadata = metadata(&cargo(&[
-                    "metadata",
-                    "--format-version",
-                    "1",
-                    "--offline",
-                    "--locked",
-                    "--filter-platform",
-                    context,
-                ])?)?;
-                let tree = cargo(&[
-                    "tree",
-                    "--workspace",
-                    "--offline",
-                    "--locked",
-                    "--target",
-                    context,
-                    "-e",
-                    "normal,build,dev",
-                    "--prefix",
-                    "none",
-                    "--format",
-                    "{p}|{f}",
-                ])?;
-                let occurrences = occurrences(&tree, &metadata)?;
-                Ok(Reading { context, metadata, occurrences })
-            })
-            .collect()
-    })
+fn readings() -> Result<Vec<Reading>, String> {
+    CONTEXTS
+        .iter()
+        .map(|context| {
+            let metadata = metadata(&cargo(&[
+                "metadata",
+                "--format-version",
+                "1",
+                "--offline",
+                "--locked",
+                "--filter-platform",
+                context,
+            ])?)?;
+            let tree = cargo(&[
+                "tree",
+                "--workspace",
+                "--offline",
+                "--locked",
+                "--target",
+                context,
+                "-e",
+                "normal,build,dev",
+                "--prefix",
+                "none",
+                "--format",
+                "{p}|{f}",
+            ])?;
+            let occurrences = occurrences(&tree, &metadata)?;
+            Ok(Reading { context, metadata, occurrences })
+        })
+        .collect()
 }
 
 #[test]
 fn workspace_entries_carry_every_contexts_union() {
     let failures: Vec<_> = readings()
-        .as_ref()
         .expect("workspace feature readings")
         .iter()
         .flat_map(|reading| findings(reading.context, &reading.metadata, &reading.occurrences))

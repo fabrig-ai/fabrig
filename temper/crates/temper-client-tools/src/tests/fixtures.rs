@@ -240,6 +240,7 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["account", "export", "43", "record"],
     &["account", "import", "record", "--key", "move-in"],
     &["settings", "show"],
+    &["settings", "show", "provider"],
     &["settings", "show", "charter", "3"],
     &["settings", "show", "rules"],
     &["settings", "show", "landing-rule", "1", "--project", "shop"],

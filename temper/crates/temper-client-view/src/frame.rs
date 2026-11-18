@@ -420,7 +420,10 @@ pub(crate) fn rail(
     b.style(crate::look::RAIL);
     let name = crate::pages::project_name(root.pages().me(root.client()), project).expect("open project has a name");
     b.name(&name);
-    let (home, _) = targets(root, project);
+    let home = match w.shell {
+        Shell::Browser => rail::root_home(root.pages().me(root.client())),
+        Shell::Terminal => targets(root, project).0,
+    };
     crate::link(b, &w.say(Word::BrandHome, &[]), bindings.insert(PageAct::Go { address: home }));
     b.style(crate::look::BRAND);
     w.text(b, Word::Brand, &[]);

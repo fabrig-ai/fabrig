@@ -645,6 +645,7 @@ fn watcher_union_fits_distinct_names_and_refuses_conversion() {
 
 fn adopted_outcome() -> ApplicationOutcome {
     ApplicationOutcome::Adopted(AdoptedRepository {
+        landing: b"main".as_slice().into(),
         repository: REPO,
         owner: b"org".as_slice().into(),
         name: b"repo".as_slice().into(),

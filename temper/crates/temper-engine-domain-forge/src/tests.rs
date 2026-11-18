@@ -365,6 +365,7 @@ fn ready(d: &mut Domain) -> Box<[Request]> {
 pub(crate) fn adopted() -> Repository {
     Repository {
         contexts: Box::new([]),
+        landing: b"main".as_slice().into(),
         workflows: Box::default(),
         project: 5,
         home: true,
@@ -3090,6 +3091,27 @@ fn a_merge_delegate_asks_for_a_merge_in_progress_named_as_its_repository() {
         let payload = FIXED_ITEM_BYTES + branch.len();
         assert_eq!(item.bytes, u64::try_from(size_of::<items::Item>() + payload).expect("sized merge item"));
     }
+}
+
+#[test]
+fn a_writable_task_without_a_goal_branch_starts_at_the_adopted_landing() {
+    let mut d = domain();
+    let mut repository = adopted();
+    repository.landing = b"staging".as_slice().into();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
+    let item = d
+        .workspace_item(items::Seed {
+            project: 5,
+            modify: true,
+            task: 90,
+            parent: None,
+            repository: REPO,
+            run_branch: b"run".as_slice().into(),
+            saved_branch: None,
+        })
+        .expect("writable task item");
+    assert_eq!(item.start, items::Start::Base(b"staging".as_slice().into()));
+    assert_eq!(item.push.as_deref(), Some(b"run".as_slice()));
 }
 
 #[test]

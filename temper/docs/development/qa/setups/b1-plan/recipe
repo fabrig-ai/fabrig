@@ -7,5 +7,5 @@ ctl inbox --until waiting
 ctl task show 1 --until phase:idle
 ctl chat show 1
 ctl inbox --kind questions
-web reload "/"
+web reload "/needs"
 web see "I inspected src/main.rs: the widget is currently a hard-coded table of (name, count) pairs printed in aligned columns. Plan: add CSV output for that table, including a header row and properly escaped fields, while preserving the existing display behavior (likely with a command-line option to select CSV). Shall I go ahead?"

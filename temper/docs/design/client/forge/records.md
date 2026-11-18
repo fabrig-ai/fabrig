@@ -52,6 +52,8 @@
 - **Its outcome,** `Answer`'s:
   - *adopted,* with the repository as the forge connector recorded it:
     its forge's number, its kind and its id; its owner and name; its role;
+    its landing branch, `landing`, at most 1,024 bytes, empty for an
+    outcome kept before it (`../../domain/forge/adoption.md`, 8);
     whether it is the project's home; what temper may do there (the
     forge's `Kinds`: read, push, open, land, review, status, comment,
     issue, branch); whether branch protection was read (unknown,
@@ -257,7 +259,8 @@
   `repository`, an option of `DraftRepository`, none for the project's
   only repository; `branch`, 1 to 1024 bytes; `at`, an option of 40 or
   64 bytes, lowercase hexadecimal digits; `into`, an option of 1 to 1024
-  bytes, none for the repository's default branch; `title`, 1 to 256
+  bytes, none for the repository's landing branch
+  (`../../domain/forge/adoption.md`, 8); `title`, 1 to 256
   bytes; `body`, an option of 1 to 16,384 bytes; and `budget`,
   `OpenBudget`: `amount`, u64, or `as_allowed`, no fields. Its outcomes,
   appended after the family's last: *opened*, `opened`, `Opened`, its
@@ -654,8 +657,8 @@
   document, `ChangesPanel`:
   - `project`;
   - `landing`, the branch to name while nothing is queued: the newest
-    landing's, else the default branch of the project's home repository,
-    else of its first, else empty;
+    landing's, else the landing branch of the project's home repository
+    (`../../domain/forge/adoption.md`, 8), else of its first, else empty;
   - `queues`, at most 32, by repository then branch, one per landing branch
     with ready changes, a change owning its queue, or red (`README.md`, section 3), each a
     `ChangesQueue`: `repository`, `owner/name`; `branch`; `red`; and
@@ -671,7 +674,9 @@
     landing, each a `ChangesLanded`: `task`, `title` and `at`, the landing
     log's (`../../domain/after-landing.md`, section 10); `commit`, the
     landing's, 32 bytes; `default_branch`, whether the branch the
-    landing moved is its repository's default branch; and `signed`, at
+    landing moved is its repository's landing branch, the main one
+    (`../../domain/forge/adoption.md`, 8), whatever the forge's default
+    branch; and `signed`, at
     most 8, the landing log's sign-offs of the change, in its order, each
     a `ChangesSigned`: `party`; `head`, the commit their review named, 32
     bytes; and `at`, when they reviewed, nanoseconds since the epoch

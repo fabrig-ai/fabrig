@@ -310,12 +310,13 @@ fn a_provider_with_no_stock_takes_its_endpoint_and_the_dearest_figures() {
         Box::new([config.core.settings.llm_providers.providers[0].clone(), other]);
     config.core.settings.endpoints = Box::new([
         config.core.settings.endpoints[0].clone(),
-        core::EndpointFacts { direct: Box::new([]), number: 2, dialect: 4, program: None, providers: Box::new([2]) },
+        core::EndpointFacts { direct: Box::new([]), number: 2, dialect: 2, program: None, providers: Box::new([2]) },
     ]);
+    config.core.defaults.providers = jig_test_profile::fixtures::provider_references(&config.core.settings);
     let mut expected = config.core.defaults.models[1].model.clone();
     expected.provider = 2;
     expected.endpoint = 2;
-    expected.dialect = 4;
+    expected.dialect = 2;
     expected.name = b"local-model".as_slice().into();
     let listed = s::catalogue::new_model(
         2,
@@ -325,7 +326,7 @@ fn a_provider_with_no_stock_takes_its_endpoint_and_the_dearest_figures() {
         &[core::EndpointFacts {
             direct: Box::new([]),
             number: 2,
-            dialect: 4,
+            dialect: 2,
             program: Some(b"backend".as_slice().into()),
             providers: Box::new([2]),
         }],

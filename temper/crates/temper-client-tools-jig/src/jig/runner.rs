@@ -12,6 +12,7 @@ pub mod application;
 pub(crate) mod milestone;
 mod moves;
 pub(crate) mod proposal;
+pub(crate) mod providers;
 pub mod reads;
 mod recovery;
 mod role;

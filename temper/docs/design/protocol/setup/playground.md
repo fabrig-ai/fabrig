@@ -29,7 +29,7 @@ them as it does any Forgejo.
   ), its bot `temper`, its setup entry the playground's: its directory
   `playground-N`, its seed's owner `playground` and its one repository
   `widget` (`init.md`). Its account is the deployment's account of the
-  scripted provider, `application.demo.llm.provider`.
+  scripted provider, the box's provider 3 (`../configuration/providers.md`, 4).
 - **Offered while no real forge is kept:** `StartPlayground` is
   refused *not offered* while any forge but the playground's own is
   kept, whatever its state but ended: an unfinished one is started over
@@ -37,8 +37,9 @@ them as it does any Forgejo.
   (`../../domain/forge/adoption.md`, 1), is in no list and counts for nothing, as
   the welcome counts it (`../../client/pages/README.md`); also while the
   row reads resetting, and when the document shows no welcome
-  (../configuration/engine.md), has no `application.demo` or the
-  machine no `fake`. A real account alone does not end it. It is offered again
+  (../configuration/engine.md), runs outside a box, whose scripted
+  provider it needs (`../configuration/providers.md`, 4), or the
+  machine has no `fake`. A real account alone does not end it. It is offered again
   once its reset is done, while no real forge is kept: it has no ended
   state and no end but its reset, and no other forge's connect changes
   it.
@@ -86,8 +87,9 @@ them as it does any Forgejo.
   project allows only the scripted model, and no other project allows
   it, so a person's own account added before the start never runs the
   playground's scripts, nor the scripted account a real project's work.
-  The scripted provider stays in `engine.llm` (`init.md`, 3), its endpoint the
-  fake LLM's port, the machine's (`README.md`, section 9).
+  The scripted provider is the box's constant, its endpoint the fake
+  LLM's port, chosen at the box's start, and its key made at the
+  playground's start (`../configuration/providers.md`, 4).
 - **Its reset,** `EndPlayground`, the banner's "set up temper"
   (`../../client/forge/family.md`, 7), of the deployment's scope: in one
   decision the row reads *resetting*, a start under way is answered *not
@@ -144,7 +146,11 @@ them as it does any Forgejo.
   no state across its starts (below), so the engine's records of the
   branches it lost would outlive it. The start resets the playground,
   as the banner does, and the person meets the welcome.
-- **`application.demo`,** or null for none:
+- **The scripts,** the box's constant, `temper-fake`'s
+  `demo/scripts.json` (`../configuration/providers.md`, 4), in the form
+  `application.demo` had, which a document no longer holds
+  (`../configuration/moved.md`, 3); its `listen`, `provider` and `key`
+  are the scripted provider's port, number and key:
 
   ```
   "demo": {

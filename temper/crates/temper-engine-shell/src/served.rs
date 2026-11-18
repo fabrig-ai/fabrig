@@ -48,6 +48,13 @@ pub fn resolve(service: &mut service::Engine) {
 }
 /// Read and remove only the handovers the engine asks for.
 pub fn handover(service: &mut service::Engine) {
+    while let Some((path, providers)) = service.take_providers_write() {
+        if let Err(why) = temper_service_shell::providers::write(crate::path(&path), &providers) {
+            service.notes().push(service::Note::StartupWarning {
+                line: format!("providers.setting: not written: {why}").into_bytes().into_boxed_slice(),
+            });
+        }
+    }
     while let Some(io) = service.take_place_io() {
         match io {
             service::PlaceIo::Choose { request } => {

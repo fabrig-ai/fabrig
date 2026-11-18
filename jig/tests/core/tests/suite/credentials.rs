@@ -147,6 +147,7 @@ fn signing_configuration(seed: u64) -> (root::Config, root::Limits) {
     // The accounts story also opens the deployment watch, beside the project role.
     limits.core.people.projects = 2;
     jig_core_world::peers::journal(&mut limits);
+    config.core.defaults.providers = jig_test_profile::fixtures::provider_references(&config.core.settings);
     (config, limits)
 }
 fn signing(seed: u64) -> World {
@@ -753,6 +754,7 @@ pub(super) fn program_configuration(seed: u64) -> (root::Config, root::Limits) {
         u32::try_from(core::charter_owned_bytes(&config.core.defaults.charters[0]).expect("program charter size"))
             .expect("fixture policy fits u32"),
     );
+    config.core.defaults.providers = jig_test_profile::fixtures::provider_references(&config.core.settings);
     (config, limits)
 }
 #[test]

@@ -24,6 +24,7 @@ pub fn configuration(directory: &Path) {
             "must_grant":["openid","read"], "resource":"api", "redirect_path":"callback"
         }}
     }]);
+    value["engine"]["llm"]["endpoints"][0]["provider"] = "Fake".into();
     private(&path, &serde_json::to_vec(&value).expect("configuration JSON"));
 }
 fn client(procs: &mut [Process]) -> Result<&mut NativeClient, String> {

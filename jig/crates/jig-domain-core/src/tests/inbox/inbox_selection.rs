@@ -1153,6 +1153,8 @@ fn inbox_context_memory_prices_every_reserved_container_and_complete_document_en
                 + TEMPLATE_ENVELOPES
                 + u64::from(limits.documents.lines) * (offer + previews)
                 + settings_document_bytes(&limits)
+                + 2 * crate::settings::providers::set_bound().unwrap()
+                + 2 * u64::from(crate::settings::PROVIDERS) * u64::try_from(size_of::<SettingLine>()).unwrap()
                 + List::<WorkerState>::price(limits.fleet.configured_workers).unwrap()
                 + u64::from(limits.fleet.configured_workers) * u64::from(limits.fleet.worker_name_bytes)
                 + u64::from(limits.people.words)

@@ -25,6 +25,8 @@ fn driver() -> Driver {
                 offers: accounts::Offers { sign_in: true, key: true, programs: Box::new([]) },
             }]),
         };
+
+        config.core.defaults.providers = jig_test_profile::fixtures::provider_references(&config.core.settings);
         config
     });
     let mut driver = Driver::configured(Store::new(), config, &walking::limits());

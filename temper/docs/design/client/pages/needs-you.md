@@ -149,7 +149,7 @@
   (`../../draft/surfaces.md`, section 4; the whole story's `needs.html` and
   `phone-need.html`): no filter menus and no "+ New chat". Updates
   leave the browser's page and no page replaces them; `Seen` marking
-  stays as it is. Its unfiltered address, `/`, works across projects,
+  stays as it is. Its unfiltered address, `/needs`, works across projects,
   each card's from line opening with its project's chip. On a wide page
   it is a list of the open cards (1, *What the client keeps*), every
   open need among them, whether its card is read or not, in
@@ -933,7 +933,7 @@
   answer.
 - **Across projects, in one project** (1, *Its intro* and an item's
   "PROJECT ›"; the look request `one-project`, which settles the switcher
-  alone, `../view.md`, 3, *All projects*): on `/` with one project, the
+  alone, `../view.md`, 3, *All projects*): on `/needs` with one project, the
   kicker reads "Needs you · all projects" and each item "PROJECT ›",
   though the switcher names the project. A look question for the user.
   Default: as they are.

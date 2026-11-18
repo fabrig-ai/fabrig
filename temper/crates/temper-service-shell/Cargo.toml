@@ -14,6 +14,7 @@ skein-shell.workspace = true
 skein-io.workspace = true
 skein-lib.workspace = true
 jig-protocol-config.workspace = true
+skein-json.workspace = true
 
 [dev-dependencies]
 skein-scratch.workspace = true

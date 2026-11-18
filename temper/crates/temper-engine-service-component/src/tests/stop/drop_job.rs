@@ -28,6 +28,7 @@ fn rows() -> Vec<Stored> {
         Stored::ForgeNumber { last: 1 },
         Stored::Repository(forge::Repository {
             contexts: Box::new([]),
+            landing: b"main".as_slice().into(),
             workflows: Box::new([]),
             project: 1,
             home: true,

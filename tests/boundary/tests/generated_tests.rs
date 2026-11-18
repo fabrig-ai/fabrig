@@ -8,7 +8,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use fabrig_boundary::{Package, has_test_code, packages, record_family};
+use fabrig_boundary::{Package, has_test_code, packages, record_source};
 use skein_scratch::Scratch;
 
 struct Exception {
@@ -106,24 +106,13 @@ fn directory(package: &Package, relative: &str, check: &mut Check) -> Vec<PathBu
 }
 
 fn inspect(package: &Package, check: &mut Check) {
-    let records: Vec<_> = directory(package, "src/generated", check)
-        .into_iter()
-        .filter(|file| match record_family(file) {
-            Ok(family) => family.is_some(),
-            Err(why) => {
-                check.unreadable(package, file, &why);
-                false
-            }
-        })
-        .collect();
-    if records.is_empty() {
-        return;
-    }
-    for file in records {
-        let name = file.file_name().expect("record filename");
-        let relative = format!("src/generated/{}", name.to_string_lossy());
-        match fs::read_to_string(&file) {
-            Ok(source) => {
+    let mut has_records = false;
+    for file in directory(package, "src/generated", check) {
+        match record_source(&file) {
+            Ok(Some(source)) => {
+                has_records = true;
+                let name = file.file_name().expect("record filename");
+                let relative = format!("src/generated/{}", name.to_string_lossy());
                 if has_test_code(&source) {
                     check.finding(
                         package,
@@ -132,8 +121,12 @@ fn inspect(package: &Package, check: &mut Check) {
                     );
                 }
             }
+            Ok(None) => (),
             Err(why) => check.unreadable(package, &file, &why),
         }
+    }
+    if !has_records {
+        return;
     }
     if package.targets.iter().any(|target| {
         target.test
@@ -150,12 +143,16 @@ fn inspect(package: &Package, check: &mut Check) {
     }
 }
 
-fn findings(metadata: &str, exceptions: &[Exception]) -> Result<Vec<String>, String> {
+fn scan(metadata: &str) -> Result<Check, String> {
     let mut check = Check::default();
     for package in packages(metadata)? {
         inspect(&package, &mut check);
     }
-    Ok(check.finish(exceptions))
+    Ok(check)
+}
+
+fn findings(metadata: &str, exceptions: &[Exception]) -> Result<Vec<String>, String> {
+    Ok(scan(metadata)?.finish(exceptions))
 }
 
 #[test]
@@ -167,10 +164,11 @@ fn workspace_generated_tests_compile_apart() {
         .expect("cargo metadata starts");
     assert!(output.status.success(), "cargo metadata: {}\n{}", output.status, String::from_utf8_lossy(&output.stderr));
     let metadata = String::from_utf8(output.stdout).expect("cargo metadata is UTF-8");
-    for finding in findings(&metadata, &[]).expect("workspace metadata reads") {
+    let check = scan(&metadata).expect("workspace metadata reads");
+    for finding in check.failures.iter().chain(check.rules.values().flatten()) {
         eprintln!("{finding}");
     }
-    let failures = findings(&metadata, EXCEPTIONS).expect("workspace metadata reads");
+    let failures = check.finish(EXCEPTIONS);
     assert!(failures.is_empty(), "Generated-test findings:\n{}", failures.join("\n"));
 }
 

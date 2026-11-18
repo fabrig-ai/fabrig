@@ -47,7 +47,7 @@ fn a_dump_directory_reaches_the_agent_as_its_one_variable() {
 
 #[test]
 fn a_dump_directory_on_an_engine_alone_does_nothing() {
-    let mut service = crate::startup::with_setup(
+    let mut service = fixtures::with_setup(
         &fixtures::engine_alone_document(),
         &jig_protocol_config::Directories::working(),
         &fixtures::files(),

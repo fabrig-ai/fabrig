@@ -1,4 +1,5 @@
 //! Cross-domain checks of kind 12 (temper/docs/design/domain/forge/follows.md, 2).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
 use crate::Domain;
 use alloc::boxed::Box;
 use skein_lib::{Decimal, List};
@@ -13,12 +14,12 @@ pub(super) fn defaults(domain: &Domain, edit: &mut settings::Edit) {
     if follow.source.branch.is_empty()
         && let Some(source) = domain.forge.repository(follow.source.repository)
     {
-        follow.source.branch.clone_from(&source.settings.default_branch);
+        follow.source.branch.clone_from(&source.landing);
     }
     if follow.target.branch.is_empty()
         && let Some(target) = domain.forge.repository(follow.target.repository)
     {
-        follow.target.branch.clone_from(&target.settings.default_branch);
+        follow.target.branch.clone_from(&target.landing);
     }
     if follow.producer.as_deref() == Some(b"") {
         follow.producer = None;

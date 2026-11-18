@@ -1,4 +1,5 @@
 //! A goal's mechanical close, landing and report (temper/docs/design/domain/forge/branches.md, 2).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
 use super::{Box, Domain, Env, Limits, List, ProcedureStep, StepEnd, Work, append, forge, tasks};
 use temper_engine_domain_forge_closer as c;
 mod relay;
@@ -76,7 +77,7 @@ pub(crate) fn start_closer_step(domain: &mut Domain, env: &Env<Limits>, context:
                 step: procedure_step,
                 repository: repository.provider,
                 branch: branch.expect("only a held goal branch asks containment"),
-                base: repository.settings.default_branch.clone(),
+                base: repository.landing.clone(),
             }));
             return;
         }
@@ -505,7 +506,7 @@ fn delegate(
             append(&mut words, b"'s status.");
             (words.into_boxed(), branch.into(), None)
         }
-        c::Step::Land => (landing_words(goal_words), repository.settings.default_branch.clone(), Some(branch.into())),
+        c::Step::Land => (landing_words(goal_words), repository.landing.clone(), Some(branch.into())),
     };
     let mut change = crate::ChangeCall::words(words, None);
     change.questions = Some(crate::ChangeQuestions::Up);
@@ -609,7 +610,7 @@ fn report(domain: &Domain, closer: &forge::CloserRow, words: &[u8], branch: Opti
                     .expect("goal tree bounds report");
             }
             if let Some(repository) = domain.forge.repository(row.repository)
-                && row.base == repository.settings.default_branch
+                && row.base == repository.landing
             {
                 selections.push(c::Selection { pull, line: None }).expect("goal tree bounds selections");
             }

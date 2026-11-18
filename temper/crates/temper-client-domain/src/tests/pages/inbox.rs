@@ -481,7 +481,7 @@ fn a_kind_chosen_shows_the_inbox_at_its_address() {
         &mut out,
     );
     assert_eq!(out.pop(), Some(Request::Show { address: crate::Address::Inbox { filter }, replace: false }));
-    assert_eq!(&*crate::address::print(&crate::Address::Inbox { filter }), b"/?kind=question");
+    assert_eq!(&*crate::address::print(&crate::Address::Inbox { filter }), b"/needs?kind=question");
     assert!(out.is_empty());
 }
 #[test]
@@ -491,7 +491,7 @@ fn the_inbox_at_a_filtered_path_reads_that_filter() {
     crate::step(
         &mut root,
         &fixtures::env(&fixtures::limits()),
-        crate::Event::Went { place: crate::address::parse(b"/?project=3&kind=question&goal=9") },
+        crate::Event::Went { place: crate::address::parse(b"/needs?project=3&kind=question&goal=9") },
         &mut out,
     );
     let mut watch = None;

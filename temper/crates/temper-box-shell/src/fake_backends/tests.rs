@@ -35,7 +35,7 @@ fn initialized_source(scratch: &Scratch) -> Directories {
     let source = scratch.dirs();
     let binary = std::env::current_exe().expect("fixture binary");
     // Optional executables are explicitly absent, independent of the test runner's PATH.
-    let initialized = crate::init::write(&source, &[], &binary, [0; 3]).expect("source init without PATH");
+    let initialized = crate::init::write(&source, &[], &binary, [0; 2]).expect("source init without PATH");
     crate::close(initialized.listeners.into_iter().map(|(fd, _)| fd).collect());
     for path in initialized.paths {
         if fs::symlink_metadata(&path).expect("fixture metadata").is_file() {
@@ -85,16 +85,11 @@ fn stock_box_source(scratch: &Scratch, sign_in: bool) -> Directories {
             binary: binary.as_os_str().as_bytes(),
             git: None,
             claude: None,
-            ports: temper_init::Ports {
-                clients: port,
-                llm: NonZeroU16::new(8372).expect("model port"),
-                webhooks: NonZeroU16::new(8373).expect("webhooks port"),
-            },
+            ports: temper_init::Ports { clients: port, webhooks: NonZeroU16::new(8373).expect("webhooks port") },
             login: Some(b"ada"),
             sign_in,
         },
         &temper_init::Directories { config: &source.config, data: &source.data },
-        &[0; 32],
         &[0; 32],
     )
     .expect("stock box files");
@@ -131,7 +126,8 @@ fn untouched_box_init_imports_with_and_without_sign_in() {
 }
 
 fn assert_rebased_box_paths(temper: &Json, effective: &Directories, sign_in: bool) {
-    for (pointer, name) in [("workers/0/secret", "worker.secret"), ("application/demo/llm/key", "demo/llm.key")] {
+    {
+        let (pointer, name) = ("workers/0/secret", "worker.secret");
         assert_eq!(
             resolved(crate::path(&effective.data), temper.string(pointer).expect("resource path")).expect("resolved"),
             crate::path(&effective.data).join(name),
@@ -494,8 +490,8 @@ fn bundle_paths_check_both_sides_of_the_absolute_bound() {
 }
 
 fn prepare_empty(scratch: &Scratch, source: &Directories) -> Prepared {
-    // Init holds three ordinary listeners; the four welcome peers each add one.
-    const INIT_LISTENERS: usize = 7;
+    // Init holds clients and webhooks; the four welcome peers each add one.
+    const INIT_LISTENERS: usize = 6;
     let supplied = provision_bundle(&scratch.0.join("explicit-bundle"));
     let prepared = start(source, Some(&supplied)).expect("init directly into effective directories");
     let tree = read_json(&prepared.directories.document());
@@ -832,11 +828,7 @@ fn reservations_avoid_every_port_the_peer_check_refuses() {
     let (_source, first) = prepared_source(&scratch);
     let document = read_json(&first.directories.document());
     let ports = ordinary_ports(&first.directories, &first.bytes).expect("ports");
-    for pointer in [
-        "/application/clients/listener/socket",
-        "/application/webhooks/listener/socket",
-        "/application/demo/llm/listen/socket",
-    ] {
+    for pointer in ["/application/clients/listener/socket", "/application/webhooks/listener/socket"] {
         let socket = document.pointer(pointer).unwrap().as_str().expect("socket");
         let port = socket.parse::<SocketAddr>().expect("address").port();
         assert!(ports.contains(&port), "{socket}");
@@ -1328,14 +1320,9 @@ fn named_ports() -> ([SocketAddr; 9], Chosen) {
     (addresses, chosen_ports(OsStr::new(&value)).expect("nine chosen ports"))
 }
 
-fn prepared_ports(prepared: &Prepared) -> [u16; 7] {
+fn prepared_ports(prepared: &Prepared) -> [u16; 6] {
     let document = read_json(&prepared.directories.document());
-    let listeners = [
-        "/application/clients/listener/socket",
-        "/application/demo/llm/listen/socket",
-        "/application/webhooks/listener/socket",
-    ]
-    .map(|pointer| {
+    let listeners = ["/application/clients/listener/socket", "/application/webhooks/listener/socket"].map(|pointer| {
         document
             .pointer(pointer)
             .expect("listener")
@@ -1346,7 +1333,7 @@ fn prepared_ports(prepared: &Prepared) -> [u16; 7] {
             .port()
     });
     let Peers { github, oauth, llm, forgejo } = prepared.peers;
-    [listeners[0], listeners[1], listeners[2], github.port(), oauth.port(), llm.port(), forgejo.port()]
+    [listeners[0], listeners[1], github.port(), oauth.port(), llm.port(), forgejo.port()]
 }
 
 #[test]
@@ -1356,14 +1343,14 @@ fn a_new_sandbox_takes_the_nine_ports_its_test_named_and_a_restart_keeps_them() 
     let bundle = provision_bundle(&scratch.0.join("bundle"));
     let (addresses, chosen) = named_ports();
     let prepared = start_chosen(&source, Some(&bundle), Some(&chosen)).expect("chosen fresh sandbox");
-    assert_eq!(prepared_ports(&prepared), [0, 3, 4, 5, 6, 7, 8].map(|at| addresses[at].port()));
-    for address in [0, 3, 4, 5, 6, 7, 8].map(|at| addresses[at]) {
+    assert_eq!(prepared_ports(&prepared), [0, 4, 5, 6, 7, 8].map(|at| addresses[at].port()));
+    for address in [0, 4, 5, 6, 7, 8].map(|at| addresses[at]) {
         assert!(TcpListener::bind(address).is_err(), "new sandbox holds {address}");
     }
     drop(prepared);
     let (_, others) = named_ports();
     let retained = start_chosen(&source, Some(&bundle), Some(&others)).expect("retained sandbox ignores new choices");
-    assert_eq!(prepared_ports(&retained), [0, 3, 4, 5, 6, 7, 8].map(|at| addresses[at].port()));
+    assert_eq!(prepared_ports(&retained), [0, 4, 5, 6, 7, 8].map(|at| addresses[at].port()));
     drop(retained);
     let _again = addresses.map(|address| TcpListener::bind(address).expect("all nine listen again"));
 }

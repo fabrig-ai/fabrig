@@ -13,6 +13,7 @@ fn addresses_parse_in_the_chats_project() {
         ("settings policy 1", Address::Setting(Setting::Policy(1))),
         ("settings model 1", Address::Setting(Setting::Model(1))),
         ("settings worker 1", Address::Setting(Setting::Worker(1))),
+        ("settings provider 3", Address::Setting(Setting::Provider(3))),
         ("settings rules", Address::Setting(Setting::Rules)),
         ("settings landing-rule 1", Address::Setting(Setting::Application { kind: 1, scope: 0, number: 1 })),
         ("settings landing-rule 3 project", Address::Setting(Setting::Application { kind: 2, scope: 7, number: 3 })),
