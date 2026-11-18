@@ -2,9 +2,6 @@
 
 2026-11-18. Where the tree's code lags or departs from [fleet.md](fleet.md).
 
-- **Not yet:** *A program that starts without its tools leaves that place to its task*: the attempt ended once, refused with its words and no try; the fleet's fault per channel, run and source, `untooled` and `untooled_on`; placement and the claim's recheck taking that login there as unusable for that run; its lifting at the channel's loss, a check sent there, or a login reported other than usable [in flight: change 7668].
-- **Not yet:** *A program that starts without its tools leaves that place to its task*: the wait refined into `TaskWaitWhy::Untooled { worker }` [in flight: change 7670].
-
 
 
 

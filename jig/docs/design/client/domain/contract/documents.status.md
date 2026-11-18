@@ -2,8 +2,6 @@
 
 2026-11-18. Where the tree's code lags or departs from [documents.md](documents.md).
 
-- **Not yet:** 1: an account wait's `Untooled { worker }` [in flight: change 7663].
-
 
 
 - **Not yet:** 1: the omitted-count mark gap remains `../../../domain/engine/settings.status.md`, 12.

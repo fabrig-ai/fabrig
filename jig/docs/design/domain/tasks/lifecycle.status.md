@@ -2,8 +2,6 @@
 
 2026-11-18. Where the tree's code lags or departs from [lifecycle.md](lifecycle.md).
 
-- **Not yet:** 6: a run whose program started without its tools ends once, refused with words naming the program, the source and the worker, spending no try, its task kept off that place [in flight: change 7668].
-
 
 
 - **Not yet:** 2 and 9: a standing task: no `NothingAwaited` notice, a finish parked, its `standing` ending (`standing.md`, section 2).
