@@ -6,6 +6,10 @@ license.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
+[[test]]
+name = "suite"
+path = "tests/suite/main.rs"
+
 [dependencies]
 temper-protocol-reaches.workspace = true
 temper-fixtures.workspace = true
@@ -21,6 +25,7 @@ skein-ui-web.workspace = true
 skein-ui-bundle.workspace = true
 
 [dev-dependencies]
+temper-client-view-kit.workspace = true
 temper-test-env.workspace = true
 skein-fake-person.workspace = true
 skein-scratch.workspace = true

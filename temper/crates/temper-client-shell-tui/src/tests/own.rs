@@ -54,7 +54,6 @@ fn an_own_name_opens_its_empty_place() {
             assert!(host.state().walk().is_none());
             assert!(text(&mut host).contains("or Esc to go back."));
             for character in "fix the README".chars() {
-                host.frame();
                 empty(&host.report(Report::Key(Key::Char(character))));
             }
             assert_eq!(host.words(), b"fix the README");

@@ -448,7 +448,7 @@ impl ServiceHost {
         {
             self.service = None;
             if self.fixture.is_some() || self.github.is_some() {
-                fixtures::seed(&self.path, self.forge_address.expect("forge peer address"), self.github);
+                fixtures::seed(&self.path, self.forge_address.expect("forge peer address"), self.github, Vec::new());
             }
             self.records_seeded = true;
         }
