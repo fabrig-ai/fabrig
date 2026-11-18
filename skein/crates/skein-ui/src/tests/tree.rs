@@ -236,6 +236,49 @@ fn runs_and_link_addresses_keep_their_owner_tokens() {
 }
 
 #[test]
+fn an_empty_text_leaf_keeps_its_place_without_runs() {
+    // A root paragraph and its single text child take two nodes and levels.
+    const NODES: u32 = 2;
+    const DEPTH: u32 = 2;
+    let limits = Limits { nodes: NODES, depth: DEPTH, text_bytes: 0, text_per_node: 0, ..LIMITS };
+    let mut builder = Builder::new(&limits);
+    builder.open(Role::Paragraph);
+    builder.text(Run::Strong, b"");
+    builder.close();
+    let tree = builder.finish();
+    assert_eq!(tree.len(), NODES);
+    assert_eq!(tree.get(0).expect("paragraph").size, NODES);
+    let leaf = tree.get(1).expect("empty text leaf");
+    assert_eq!(leaf.role, Role::Text);
+    assert_eq!(leaf.size, 1);
+    assert_eq!(leaf.name, None);
+    assert!(leaf.text.is_empty());
+    assert_eq!(leaf.text.capacity(), 1);
+}
+
+#[test]
+fn nested_text_replacements_keep_each_nodes_byte_account() {
+    // The parent holds a five-byte name and three-byte description; its child holds
+    // a three-byte name and one-byte run. Both fill their shared byte bound.
+    const PARENT_BYTES: u32 = 8;
+    const TREE_BYTES: u32 = 12;
+    let limits = Limits { text_per_node: PARENT_BYTES, text_bytes: TREE_BYTES, ..LIMITS };
+    let mut builder = Builder::new(&limits);
+    builder.open(Role::Paragraph);
+    builder.name(b"abc");
+    builder.description(b"one");
+    builder.open(Role::Text);
+    builder.name(b"kid");
+    builder.run(Run::Emphasis, b"x");
+    builder.close();
+    builder.name(b"label");
+    builder.close();
+    let used = builder.finish().used();
+    assert_eq!(used.text_per_node, PARENT_BYTES);
+    assert_eq!(used.text_bytes, TREE_BYTES);
+}
+
+#[test]
 fn a_built_text_leaf_reserves_one_run() {
     let mut builder = Builder::new(&LIMITS);
     builder.text(Run::Plain, b"one");
