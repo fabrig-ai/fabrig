@@ -373,6 +373,21 @@ and `jig-client` opens none on the engine until it is signed in (jig's
 `client/domain/client/README.md`, section 9), so no stream leaves without the
 credential.
 
+- **`me` comes with the stream** (jig's `client/domain/client/watches.md`,
+  2): the stream's hello brings it, and the link is live with it, so
+  what waits for `me` (the templates' labels, the party, the projects
+  it lists) is ready when the stream is, and is asked in the step that
+  hears the hello.
+- **What names no party waits for no `me`.** The party's own and the
+  deployment's watches and reads (jig's
+  `client/domain/contract/README.md`, 5.5): the forge side's
+  `dismissed`, `away`, `trials`, `approvals`, `devices` and `forges`,
+  jig's `settings`, and the `deployment`, `playground` and program
+  environment's reads, are asked once the link is live, never after a
+  value of `me`'s, so they leave in the step that hears the hello,
+  beside the page's. A watch or read that needs what `me` says (a
+  deployment role, a template's label, the party's number) still asks
+  in that step, from the hello's `me`.
 - **Another party's kept work** stays parked and is not shown (jig's
   `client/domain/client/README.md`, section 8); the terminal says so in a line
   of its own (`line.md`, 6).

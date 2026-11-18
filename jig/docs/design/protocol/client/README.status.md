@@ -1,7 +1,8 @@
 # client: status
 
-2026-11-11. Where jig's code lags or departs from [README.md](README.md).
+2026-11-17. Where jig's code lags or departs from [README.md](README.md).
 Unlisted sections have no known gap.
+
 
 Sections 10 and 11's transport accounting is present: emitted exchanges
 keep credit through `Reply` or `Lost`, including cancelled watch calls.

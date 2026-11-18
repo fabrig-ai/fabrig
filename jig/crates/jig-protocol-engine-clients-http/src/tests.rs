@@ -212,7 +212,11 @@ fn a_browser_exchange_s_cookie_is_its_credential() {
         let mut out = Queue::with_capacity(16);
         fixtures::call(&mut mount, &mut out, method, path, &fixtures::browser(), b"");
         let expected = if stream {
-            kit::FromTransport::StreamOpen { stream: fixtures::EXCHANGE, credential: Some(fixtures::credential()) }
+            kit::FromTransport::StreamOpen {
+                stream: fixtures::EXCHANGE,
+                credential: Some(fixtures::credential()),
+                version: None,
+            }
         } else {
             kit::FromTransport::Exchange {
                 browser: true,

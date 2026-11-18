@@ -67,7 +67,15 @@ mockups' `../web/home-for-a-person/`.
 - **`Domain::has_goals`** reads both: the project has a goal, or lists a
   milestone, live or ended. `HasGoals` watches the milestones' query as
   it watches the goals', with a window of 1, and reads its ended group's
-  first page.
+  first page, but where the page holds that query's list (Work's and
+  Goals', and the milestones' on the pages that list them): then it
+  takes the list's watch and its ended read, and opens neither of its
+  own. **No narrower twin:** a watch whose subject differs from one the
+  client holds only by a smaller window, or a read the page already
+  makes, is served by the one held. The pages ask their lists before
+  the rail's facts in each step, so a page that opens with its lists
+  opens no twin to close; a fact keeps the value it last read until its
+  own watch's first delivery, when the page that held its list is left.
 
 ## 2. Its words
 

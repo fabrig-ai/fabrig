@@ -111,6 +111,7 @@ pub struct Frame {
     change: bool,
     read_unreachable: bool,
     stream: Option<Fd>,
+    opening: Option<w::Hello>,
     stdout: Vec<u8>,
     next_socket: i32,
     now: Time,
@@ -242,6 +243,7 @@ impl Frame {
             change: false,
             read_unreachable: false,
             stream: None,
+            opening: None,
             stdout: Vec::new(),
             next_socket: 100,
             now: Time::ZERO,
@@ -305,7 +307,7 @@ impl Frame {
     pub fn busy_watches(words: &[&str]) -> Self {
         let mut frame = Self::read(words);
         frame.busy_watches = true;
-        frame.drain();
+        frame.sign_in_then_deliver_me();
         frame
     }
     pub fn sign_in_then_deliver_me(&mut self) {
@@ -769,7 +771,7 @@ impl Frame {
                 });
                 self.reply(fd, &encode!(answer));
             }
-            b"/jig/v1/stream" => self.hello(fd),
+            b"/jig/v1/stream?version=32" => self.hello(fd),
             b"/jig/v1/watch" => {
                 let open = w::Open::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&socket.request[end + 4..]))
                     .expect("watch record");
@@ -796,23 +798,8 @@ impl Frame {
                 }
                 let subject = w::Subject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(open.subject().record()))
                     .expect("watch subject");
-                if subject == w::Subject::Me {
-                    self.me_attempts.push(self.now);
-                    if self.me_busy {
-                        let answer = w::OpenAnswer::Refused(
-                            w::OpenAnswerRefused::new(
-                                &w::CEILINGS,
-                                w::OpenAnswerRefusedParts { why: w::WatchRefusal::Busy },
-                            )
-                            .expect("busy me"),
-                        );
-                        self.reply(fd, &encode!(answer));
-                        return;
-                    }
-                    self.watch = Some(open.watch());
-                } else {
-                    self.wait_task = Some(open.watch());
-                }
+                assert_ne!(subject, w::Subject::Me, "me comes with the stream");
+                self.wait_task = Some(open.watch());
                 let answer = w::OpenAnswer::Admitted;
                 let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("answer size"));
                 answer.encode(&mut writer).expect("answer fits");
@@ -820,9 +807,7 @@ impl Frame {
                 socket.reply.extend(format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n", body.len()).bytes());
                 socket.reply.extend(body.iter().copied());
                 if self.deliver.is_some() {
-                    if subject == w::Subject::Me {
-                        self.deliver_me();
-                    } else if self.move_mode {
+                    if self.move_mode {
                         self.deliver_move_accounts(open.watch(), &subject);
                     } else {
                         self.deliver_task(false);
@@ -864,6 +849,11 @@ impl Frame {
             None if self.move_mode => recovery::chat_me(),
             None => jig_client_test_records::frame_record(),
         };
+        if let Some(hello) = self.opening.take() {
+            let event = jig_client_test_records::opened(hello, me);
+            self.sockets.get_mut(&self.stream.expect("open stream")).expect("stream socket").reply.extend(sse(&event));
+            return;
+        }
         let value = w::DeliveryValue::Me(me);
         let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("delivery size"));
         value.encode(&mut writer).expect("delivery fits");

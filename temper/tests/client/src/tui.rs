@@ -199,10 +199,15 @@ impl Tui {
         while world.now() < until {
             world.run(Until::Steps(1));
             let now = world.now();
-            let heard = world.front().heard(self.who, now);
-            self.clocks(world);
-            for event in heard {
-                self.report(world, Report::Heard(event));
+            loop {
+                let heard = world.front().heard(self.who, now);
+                self.clocks(world);
+                if heard.is_empty() {
+                    break;
+                }
+                for event in heard {
+                    self.report(world, Report::Heard(event));
+                }
             }
             if self.host.deadline().is_some_and(|at| at <= now) {
                 self.report(world, Report::Due);

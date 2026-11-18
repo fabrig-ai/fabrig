@@ -127,6 +127,7 @@ impl Harness {
             other @ (Request::Answer { .. }
             | Request::NotWritten { .. }
             | Request::NotKept { .. }
+            | Request::ReadAgain { .. }
             | Request::Read { .. }
             | Request::OpenStream { .. }
             | Request::CloseStream
@@ -167,6 +168,7 @@ impl Harness {
                 | Request::Answer { .. }
                 | Request::NotWritten { .. }
                 | Request::NotKept { .. }
+                | Request::ReadAgain { .. }
                 | Request::Read { .. }
                 | Request::OpenStream { .. }
                 | Request::CloseStream
@@ -205,6 +207,7 @@ impl Harness {
                     count = count.saturating_add(1);
                 }
                 Request::Exchange { .. }
+                | Request::ReadAgain { .. }
                 | Request::Read { .. }
                 | Request::OpenStream { .. }
                 | Request::CloseStream

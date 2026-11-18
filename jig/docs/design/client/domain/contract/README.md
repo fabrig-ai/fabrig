@@ -514,7 +514,7 @@ party reads is therefore never lost by a crash.
 
 | Subject | Its document | Who may watch |
 |---|---|---|
-| `me` | `me` | the party, always |
+| `me` | `me` | the party, always; every stream watches it from its opening, its first value in the hello (section 6) |
 | `task{n}` | the task's document | a party who may see it |
 | `tree{root}` | a task's live subtree, within a window | likewise |
 | `chips` | a bounded set of tasks the client names, as chips | likewise, each |
@@ -697,7 +697,9 @@ any watch's deliveries do (`../../../protocol/client/README.md`, section 5).
   each application's by the application, and every message names its
   owner and its version (`../../../protocol/client/README.md`, section 6).
 - **The engine serves a range of each owner's versions,** which the hello
-  of its stream states; `me` carries none.
+  of its stream states first, then `me`, at the version of jig's the
+  stream's opening names (`../../../protocol/client/wire.md`, section 2);
+  `me` carries no range.
 - **A version not served is refused with a typed answer,** *version not
   served* (section 3), naming the owner and the ranges the engine
   serves, with nothing read, made or kept; a read and a watch in it

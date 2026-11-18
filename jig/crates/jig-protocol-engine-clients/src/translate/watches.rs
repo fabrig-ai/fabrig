@@ -59,11 +59,7 @@ pub(crate) fn refused(why: core::WatchRefusal) -> w::WatchRefusal {
         core::WatchRefusal::SignedOut => w::WatchRefusal::SignedOut,
     }
 }
-pub(crate) fn hello(
-    name: [u8; 16],
-    settings: &crate::Settings,
-    limits: &w::Limits,
-) -> Result<w::StreamEvent, w::Problem> {
+pub(crate) fn hello(name: [u8; 16], settings: &crate::Settings, limits: &w::Limits) -> Result<w::Hello, w::Problem> {
     let mut served = List::with_capacity(settings.served.len());
     for range in &settings.served {
         let owner = match range.family {
@@ -74,10 +70,7 @@ pub(crate) fn hello(
             .push(w::Served::new(limits, w::ServedParts { owner, first: range.first, last: range.last })?)
             .expect("served ranges fit");
     }
-    Ok(w::StreamEvent::Hello(w::Hello::new(
-        limits,
-        w::HelloParts { stream: name, served, heartbeat: settings.heartbeat },
-    )?))
+    w::Hello::new(limits, w::HelloParts { stream: name, served, heartbeat: settings.heartbeat })
 }
 pub(crate) fn delivery(
     value: &d::Document,

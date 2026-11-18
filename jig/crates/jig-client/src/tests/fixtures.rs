@@ -67,12 +67,21 @@ pub fn hello(version: u32) -> Box<[u8]> {
         w::Served::new(&w::CEILINGS, w::ServedParts { owner: w::Owner::Jig, first: version, last: version }).unwrap();
     let mut rows = List::with_capacity(1);
     rows.push(served).unwrap();
-    event(&w::StreamEvent::Hello(
-        w::Hello::new(
-            &w::CEILINGS,
-            w::HelloParts { stream: [7; 16], served: rows, heartbeat: Duration::from_millis(100) },
-        )
-        .unwrap(),
+    let hello = w::Hello::new(
+        &w::CEILINGS,
+        w::HelloParts { stream: [7; 16], served: rows, heartbeat: Duration::from_millis(100) },
+    )
+    .unwrap();
+    if version != jig_client_protocol_wire::VERSION {
+        return event(&w::StreamEvent::Hello(hello));
+    }
+    let w::StreamEvent::Delivery(delivery) =
+        w::StreamEvent::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&frame(0))).unwrap()
+    else {
+        unreachable!("me fixture");
+    };
+    event(&w::StreamEvent::Opened(
+        w::Opened::new(&w::CEILINGS, w::OpenedParts { hello, me: delivery.into_parts().document }).unwrap(),
     ))
 }
 pub fn event(value: &w::StreamEvent) -> Box<[u8]> {
@@ -143,8 +152,6 @@ impl Client {
     pub fn sign_in(&mut self) {
         self.step(Event::SignIn { with: With::Held(Secret::new(Box::new([7; 40]))) });
         self.stream(hello(jig_client_protocol_wire::VERSION));
-        let watch = self.opened_watch();
-        self.stream(frame(watch));
         self.step(Event::Stored);
         self.requests.clear();
     }

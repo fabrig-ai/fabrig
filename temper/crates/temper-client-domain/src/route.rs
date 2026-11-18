@@ -372,6 +372,7 @@ fn tell(root: &mut Domain, env: &Env<Limits>, told: jig_client::Told, out: &mut 
             forge_ways(root, env, &told, out);
             forge_playground(root, env, &told, out);
             forge_me(root, env, &told, out);
+            forge_configure(root, env, out);
             return;
         }
         Told::Dropped { count } => {
@@ -393,6 +394,7 @@ fn tell(root: &mut Domain, env: &Env<Limits>, told: jig_client::Told, out: &mut 
                 return;
             }
             if forge_me(root, env, &told, out) {
+                forge_configure(root, env, out);
                 return;
             }
             if let Some(event) = forge::told(&root.client, &env.limits, told) {
@@ -417,16 +419,19 @@ fn forge_served(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
 fn forge_me(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out: &mut Queue<Request>) -> bool {
     let mut child = Queue::uncapped();
     let consumed = forge::me::told(&mut root.forge, &root.client, told, &mut child);
-    if consumed {
-        forge::ways::configure(&mut root.forge, &mut child);
-        forge::forges::configure(&mut root.forge, env.limits.forge, &mut child);
-        forge::away::configure(&mut root.forge, env.limits.forge, &mut child);
-        forge::dismissed::configure(&mut root.forge, env.limits.forge, &mut child);
-        forge::trials::configure(&mut root.forge, env.limits.forge, &mut child);
-        forge::approvals::configure(&mut root.forge, env.limits.forge, &mut child);
-    }
     route_forge(root, env, &mut child, out);
     consumed
+}
+
+fn forge_configure(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    let mut child = Queue::uncapped();
+    forge::ways::configure(&mut root.forge, &mut child);
+    forge::forges::configure(&mut root.forge, env.limits.forge, &mut child);
+    forge::away::configure(&mut root.forge, env.limits.forge, &mut child);
+    forge::dismissed::configure(&mut root.forge, env.limits.forge, &mut child);
+    forge::trials::configure(&mut root.forge, env.limits.forge, &mut child);
+    forge::approvals::configure(&mut root.forge, env.limits.forge, &mut child);
+    route_forge(root, env, &mut child, out);
 }
 
 fn forge_playground(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out: &mut Queue<Request>) -> bool {

@@ -693,7 +693,7 @@ fn a_projects_ways_are_changed_by_its_owner_and_read_by_its_member() {
     driver.settle();
     assert!(
         driver.delivered.iter().any(|delivery| matches!(delivery,
-            Delivery::ForgeRead { reply, answer: engine::ForgeReadAnswer::Setting(Some(kept)) }
+            Delivery::ForgeRead { reply, answer: engine::ForgeReadAnswer::Setting { value: Some(kept), revision: Some(2) } }
                 if *reply == ReplyTo::new(Token::new(63)) && kept.value == value
         )),
         "{:?}",
@@ -776,8 +776,8 @@ fn a_project_member_reads_its_kinds_at_their_revisions() {
             driver.settle();
             assert!(
                 driver.delivered.iter().any(|delivery| matches!(delivery,
-                    Delivery::ForgeRead { reply: to, answer: engine::ForgeReadAnswer::Setting(Some(kept)) }
-                        if *to == REPLY && kept.value == value
+                    Delivery::ForgeRead { reply: to, answer: engine::ForgeReadAnswer::Setting { value: Some(kept), revision: Some(read_revision) } }
+                        if *to == REPLY && kept.value == value && *read_revision == revision
                 )),
                 "kind {kind}, revision {revision}: {:?}",
                 driver.delivered

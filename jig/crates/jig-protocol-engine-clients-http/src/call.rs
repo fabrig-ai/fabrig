@@ -178,7 +178,30 @@ impl Call {
                         }
                         None => {
                             self.streaming = true;
-                            jig_protocol_engine_clients::FromTransport::StreamOpen { stream: self.name, credential }
+                            jig_protocol_engine_clients::FromTransport::StreamOpen {
+                                stream: self.name,
+                                credential,
+                                version: match self.route {
+                                    Route::Stream(version) => version,
+                                    Route::Public(_)
+                                    | Route::Link
+                                    | Route::LinkAsk
+                                    | Route::Service
+                                    | Route::SignInApproval
+                                    | Route::ApprovalAsk
+                                    | Route::ApprovalRead
+                                    | Route::ApprovalDecide
+                                    | Route::SignOut
+                                    | Route::Authorize
+                                    | Route::Request
+                                    | Route::Read
+                                    | Route::Watch
+                                    | Route::Unwatch
+                                    | Route::Gone
+                                    | Route::BadQuery
+                                    | Route::Missing => unreachable!("stream route"),
+                                },
+                            }
                         }
                     };
                     out.push(Request::Component(message));

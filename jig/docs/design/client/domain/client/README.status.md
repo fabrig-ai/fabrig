@@ -4,7 +4,7 @@
 
 
 Unlisted sections have no known gap, including `watches.md`, 2's `watches_full`
-fact for `me` and application watches through retries and recovery.
+fact for application watches through retries and recovery.
 
 `watches.md`, section 2's `LinkView.expires` has no known gap: link and service
 sign-ins and approval takes retain the answer's wall expiry, a held

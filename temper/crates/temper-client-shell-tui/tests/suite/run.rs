@@ -736,10 +736,10 @@ impl Engine {
             });
         } else if self.bodies.remove(&owner) {
             self.watch(owner, bytes);
-        } else if bytes.starts_with(b"GET /jig/v1/stream ") && self.deny_stream {
+        } else if bytes.starts_with(b"GET /jig/v1/stream?version=32 ") && self.deny_stream {
             self.denied += 1;
             self.respond(owner, b"HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\n\r\n".as_slice().into());
-        } else if bytes.starts_with(b"GET /jig/v1/stream ") {
+        } else if bytes.starts_with(b"GET /jig/v1/stream?version=32 ") {
             self.stream = Some(owner);
             let mut response = b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n\r\n".to_vec();
             response.extend_from_slice(&hello_event());
@@ -1518,9 +1518,10 @@ fn hello_event() -> Box<[u8]> {
             .expect("Jig version"),
         )
         .expect("one owner");
-    let hello = w::StreamEvent::Hello(
+    let hello = jig_client_test_records::opened(
         w::Hello::new(limits, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
             .expect("hello"),
+        jig_client_test_records::frame_record(),
     );
     sse(&hello)
 }

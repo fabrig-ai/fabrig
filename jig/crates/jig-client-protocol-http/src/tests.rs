@@ -148,3 +148,14 @@ fn debug_of_a_keyed_call_shows_lengths_never_the_bearer_or_body() {
         )
     );
 }
+
+#[test]
+fn the_stream_names_the_version_under_its_prefix() {
+    for (version, path) in
+        [(28, b"/jig/v1/stream?version=28".as_slice()), (u32::MAX, b"/jig/v1/stream?version=4294967295".as_slice())]
+    {
+        let call = stream(&mapping(), None, version);
+        assert_eq!(call.method, Method::Get);
+        assert_eq!(call.path.as_ref(), path);
+    }
+}

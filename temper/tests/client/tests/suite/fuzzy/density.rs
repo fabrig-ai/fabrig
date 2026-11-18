@@ -127,6 +127,9 @@ impl World {
     }
 
     fn watch(&self, subject: &Watchable) -> Option<Token> {
+        if *subject == Watchable::Jig(c::Subject::Me) {
+            return Some(Token::new(0));
+        }
         self.watches.iter().rev().find_map(|(watch, held)| (held == subject).then_some(*watch))
     }
 
@@ -408,8 +411,11 @@ impl World {
             return Some(Readout::Family {
                 family: wire::FORGE,
                 record: Some(wire::setting_answer(
-                    &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(writer.finish()) })
-                        .expect("bounded density fixture"),
+                    &w::SettingAnswer::new(
+                        &w::CEILINGS,
+                        w::SettingAnswerParts { revision: None, value: Some(writer.finish()) },
+                    )
+                    .expect("bounded density fixture"),
                 )),
             });
         }

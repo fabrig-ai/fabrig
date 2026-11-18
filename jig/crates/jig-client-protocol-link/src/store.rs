@@ -148,6 +148,7 @@ impl Link {
                 | Request::FamilyDelivery { .. }
                 | Request::Ended { .. }
                 | Request::Hello { .. }
+                | Request::ReadAgain { .. }
                 | Request::Read { .. }
                 | Request::AskedLink(_)
                 | Request::Approval(_)

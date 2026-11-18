@@ -19,7 +19,8 @@ pub(crate) enum Route {
     Watch,
     Unwatch,
     Gone,
-    Stream,
+    Stream(Option<u32>),
+    BadQuery,
     Missing,
 }
 pub(crate) fn route(prefix: &[u8], call: &skein_http::server::Call) -> Route {
@@ -33,7 +34,28 @@ pub(crate) fn route(prefix: &[u8], call: &skein_http::server::Call) -> Route {
         };
     }
     if call.method == skein_http::Method::Get && path == b"/v1/stream" {
-        return Route::Stream;
+        return Route::Stream(None);
+    }
+    if call.method == skein_http::Method::Get
+        && let Some(query) = path.strip_prefix(b"/v1/stream?")
+    {
+        let Some(digits) = query.strip_prefix(b"version=") else {
+            return Route::BadQuery;
+        };
+        if digits.is_empty() {
+            return Route::BadQuery;
+        }
+        let mut version = 0_u32;
+        for digit in digits {
+            if !digit.is_ascii_digit() {
+                return Route::BadQuery;
+            }
+            let Some(next) = decimal(version, *digit) else {
+                return Route::BadQuery;
+            };
+            version = next;
+        }
+        return Route::Stream(Some(version));
     }
     if call.method != skein_http::Method::Post {
         return Route::Missing;
@@ -75,7 +97,8 @@ pub(crate) fn body_bound(route: &Route, configured: u32) -> u32 {
         | Route::Watch
         | Route::Unwatch
         | Route::Gone
-        | Route::Stream
+        | Route::Stream(_)
+        | Route::BadQuery
         | Route::Missing => configured,
     }
 }
@@ -95,7 +118,7 @@ pub(crate) fn message(route: &Route, body: Box<[u8]>) -> Option<Message> {
         Route::Watch => Message::Watch(body),
         Route::Unwatch => Message::Unwatch(body),
         Route::Gone => Message::Gone(body),
-        Route::Public(_) | Route::Stream | Route::Missing => return None,
+        Route::Public(_) | Route::Stream(_) | Route::BadQuery | Route::Missing => return None,
     })
 }
 
@@ -146,4 +169,33 @@ pub(crate) fn reply(
         bytes.finish()
     };
     (body, Some(cookie))
+}
+
+fn decimal(value: u32, digit: u8) -> Option<u32> {
+    value.checked_mul(10)?.checked_add(u32::from(digit.checked_sub(b'0')?))
+}
+
+impl Route {
+    pub fn stream(&self) -> bool {
+        match self {
+            Self::Stream(_) => true,
+            Self::Public(_)
+            | Self::Link
+            | Self::LinkAsk
+            | Self::Service
+            | Self::SignInApproval
+            | Self::ApprovalAsk
+            | Self::ApprovalRead
+            | Self::ApprovalDecide
+            | Self::SignOut
+            | Self::Authorize
+            | Self::Request
+            | Self::Read
+            | Self::Watch
+            | Self::Unwatch
+            | Self::Gone
+            | Self::BadQuery
+            | Self::Missing => false,
+        }
+    }
 }

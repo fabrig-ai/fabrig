@@ -171,6 +171,9 @@ impl Mount {
                 if !guards::host(&self.settings, &self.hosts, &head) {
                     value.route = dispatch::Route::Missing;
                     value.respond(421, Box::new([]), &env.limits);
+                } else if value.route == dispatch::Route::BadQuery {
+                    value.route = dispatch::Route::Missing;
+                    value.respond(400, Box::new([]), &env.limits);
                 } else if value.route == dispatch::Route::Missing {
                     value.respond(404, Box::new([]), &env.limits);
                 } else if forbidden {
@@ -184,7 +187,7 @@ impl Mount {
                 {
                     value.route = dispatch::Route::Missing;
                     value.respond(413, Box::new([]), &env.limits);
-                } else if value.route == dispatch::Route::Stream && streams >= env.limits.streams {
+                } else if value.route.stream() && streams >= env.limits.streams {
                     value.route = dispatch::Route::Missing;
                     value.respond(
                         409,

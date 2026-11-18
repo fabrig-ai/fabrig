@@ -322,6 +322,7 @@ pub enum FromTransport {
     StreamOpen {
         stream: Token,
         credential: Option<Secret>,
+        version: Option<u32>,
     },
     StreamTaken {
         stream: Token,

@@ -327,6 +327,9 @@ impl Fixture {
     }
     pub(crate) fn watch_token(&self, handle: Handle) -> Option<Token> {
         let subject = &self.ui.handles.watches.get(&handle)?.subject;
+        if *subject == contract::Subject::Me {
+            return Some(Token::new(0));
+        }
         for (held, token) in self.watches.as_slice().iter().rev() {
             if held == subject {
                 return Some(*token);

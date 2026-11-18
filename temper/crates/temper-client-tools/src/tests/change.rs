@@ -269,7 +269,7 @@ fn checking_text_and_json_name_pull_head_gates_bounds_and_same_digest() {
     let digest = Digest::of(&document.finish()).hex();
     contains(&json.stdout, &digest);
     contains(&text.stdout, &digest);
-    assert_eq!(root.watches.len(), 1, "only me remains watched");
+    assert_eq!(root.watches.len(), 0, "no application watch remains");
 }
 #[test]
 fn landed_and_held_repair_panels_keep_whole_facts() {
@@ -318,7 +318,7 @@ fn absent_project_reads_the_task_project_before_opening_the_panel() {
     let mut root = f::signed_in(f::PARTY);
     let call = root.submit(&["change", "show", "2"]);
     assert_eq!(root.reads[&call].1, c::Read::Task { task: 2 });
-    assert_eq!(root.watches.len(), 1);
+    assert_eq!(root.watches.len(), 0);
     serve(&mut root, call, false, false);
     deliver(&mut root, panel(w::Step::Checking));
     assert_eq!(root.answer(call).unwrap().status, 0);
@@ -376,7 +376,7 @@ fn live_task_waits_for_the_next_document_then_reopens_the_panel() {
             event: c::WatchEvent::Delivered(c::Delivery::Task(Box::new(task(false, false)))),
         },
     });
-    assert_eq!(root.watches.len(), 2, "me and task; no premature panel retry");
+    assert_eq!(root.watches.len(), 1, "task only; no premature panel retry");
     let mut next = task(false, false);
     next.activity += 1;
     root.client(client::Event::Up {
@@ -491,7 +491,7 @@ fn a_change_wait_follows_cancelled_and_failed_tasks_beside_the_live_panel() {
             contains(&answer.stdout, why);
             contains(&answer.stdout, b"producing");
             contains(&answer.stdout, b"digest");
-            assert_eq!(root.watches.len(), 1);
+            assert_eq!(root.watches.len(), 0);
         }
     }
 }
@@ -662,7 +662,7 @@ fn a_landing_wait_ends_on_the_change_tasks_hold_without_a_panel_change() {
             contains(&answer.stdout, b"Deadline passed");
             contains(&answer.stdout, b"task release 2 --hold 9");
             contains(&answer.stdout, if json { br#""met":false,"why":"held"# } else { b"not met: held" });
-            assert_eq!(root.watches.len(), 1, "all change watches close: {:?}", root.watches);
+            assert_eq!(root.watches.len(), 0, "all change watches close: {:?}", root.watches);
         }
     }
 }

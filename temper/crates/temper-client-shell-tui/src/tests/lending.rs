@@ -13,14 +13,11 @@ fn front_host() -> (Host, u64) {
     start_local(&mut host, true, false, None, None);
     let duties = host.report(Report::Local { link: Some(local_link("127.0.0.1:8367", LOCAL_SECRET)) });
     reply(&mut host, local_exchange(&duties), sign_in_bytes(&signed_in_answer()));
-    let hello = hello_for(&host);
+    let hello = hello_for_me(&host, launchpad_me(false));
     let duties =
         host.report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(hello) }));
     let duties = admit(&mut host, duties);
     let terminal = watch(&duties, &subject(skein_lib::Rng::new(7).next_u64()));
-    let me = watch(&duties, &w::Subject::Me);
-    let duties = delivery(&mut host, me, &w::DeliveryValue::Me(launchpad_me(false)));
-    admit(&mut host, duties);
     (host, terminal)
 }
 

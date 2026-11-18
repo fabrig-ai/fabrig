@@ -34,6 +34,8 @@ fn records_1(bytes: &[u8]) {
     check!(Owner, bytes);
     check!(Keyed, bytes);
     check!(Owned, bytes);
+    check!(Opened, bytes);
+    check!(StreamEvent, bytes);
     check!(KeyedAnswer, bytes);
     check!(LinkSignIn, bytes);
     check!(SignedIn, bytes);
@@ -709,6 +711,7 @@ fn mutation_seed(path: &Path) -> bool {
             "record_authorize_",
             "enum_authorize_",
             "record_hello_",
+            "record_opened_",
             "enum_stream_event_",
             "record_run_state_",
             "record_task_",

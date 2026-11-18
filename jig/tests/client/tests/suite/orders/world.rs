@@ -13,8 +13,8 @@ use std::collections::{BTreeMap, VecDeque};
 const SEED: u64 = 8601;
 const STREAM: [u8; 16] = [7; 16];
 // The story holds three successive family pages, each with a read and watch,
-// alongside the me watch, one inbox watch and its two reads: 6 + 1 + 3.
-const ROOT_EXCHANGES: u32 = 10;
+// alongside one inbox watch and its two reads: 6 + 3.
+const ROOT_EXCHANGES: u32 = 9;
 // Retention belongs to the supplied peer document, not the world's deadline.
 const RETENTION: skein_lib::Duration = skein_lib::Duration::from_secs(60);
 pub const PAGE_A: first::Address = first::Address { project: 1, item: 10 };
@@ -62,7 +62,6 @@ pub enum Command {
     Client(Event),
     Go(first::Address),
     JigInbox,
-    AdmitMe,
     ReplyRead(u32),
     ReleaseReads,
     Stored(bool),
@@ -110,7 +109,6 @@ struct Exchange {
 }
 
 enum ExchangeKind {
-    Me(u64),
     Read(u32),
     OtherRead,
     Request([u8; 16]),
@@ -204,6 +202,8 @@ impl World {
             schedule.send(Time::ZERO, entrance);
         }
         while let Some((label, command)) = schedule.next(world.now) {
+            world.label = "peer";
+            world.admit_watches();
             world.label = label;
             world.execute(command);
         }
@@ -235,23 +235,38 @@ impl World {
         } else {
             self.deliver(Event::Streamed { message: client::Streamed::Record(hello()) });
         }
-        self.label = "me";
-        let watch = self.me().1;
         if self.unlinked {
             let limits = test::limits().client.domain;
             let bounds = jig_client_protocol_link::Limits::new(limits, ROOT_EXCHANGES).expect("world bounds");
             let frame = jig_client_protocol_link::translate::documents::frame(frame(), &bounds).expect("peer frame");
             self.deliver(Event::Up {
                 up: Up::Watched {
-                    watch: Token::new(watch),
+                    watch: Token::new(0),
                     event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(frame))),
                 },
             });
-        } else {
-            self.deliver(Event::Streamed { message: client::Streamed::Record(delivery(watch)) });
         }
         self.label = "initial_store";
         self.ack_all();
+    }
+
+    fn admit_watches(&mut self) {
+        let pending: Vec<_> = self
+            .exchanges
+            .iter()
+            .filter_map(
+                |exchange| {
+                    if matches!(exchange.kind, ExchangeKind::Watch) { Some(exchange.token) } else { None }
+                },
+            )
+            .collect();
+        for exchange in pending {
+            self.exchanges.retain(|pending| pending.token != exchange);
+            let answer = w::OpenAnswer::Admitted;
+            let mut bytes = Writer::new(skein_lib::length::usize_of(answer.measure()));
+            answer.encode(&mut bytes).expect("opening answer");
+            self.deliver(Event::Reply { exchange, message: bytes.finish() });
+        }
     }
 
     fn execute(&mut self, command: Command) {
@@ -265,11 +280,6 @@ impl World {
                     project: None,
                 })),
             }),
-            Command::AdmitMe => {
-                let (exchange, _) = self.me();
-                self.deliver(Event::Reply { exchange, message: open_answer() });
-                self.remove(exchange);
-            }
             Command::ReplyRead(project) => {
                 let token = self.read_exchange(project);
                 self.complete_read(token);
@@ -480,13 +490,13 @@ impl World {
                     w::Owner::Jig => {
                         let subject = w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record()))
                             .expect("jig subject");
-                        let me = matches!(subject, w::Subject::Me);
+                        assert_ne!(subject, w::Subject::Me, "me comes with the stream");
                         if matches!(subject, w::Subject::Inbox(_)) {
                             self.push(Edge::InboxWatch);
                         } else {
                             self.push(Edge::WatchJig(subject));
                         }
-                        if me { ExchangeKind::Me(open.watch()) } else { ExchangeKind::Watch }
+                        ExchangeKind::Watch
                     }
                     w::Owner::Family(_) => {
                         self.push(Edge::WatchFamily(family_item(open.subject().record(), false)));
@@ -557,9 +567,6 @@ impl World {
                 self.push(Edge::Send(key));
                 self.exchanges.push(Exchange { token: attempt, kind: ExchangeKind::Request(key) });
             }
-            Down::Open { watch, subject: client::Watchable::Jig(c::Subject::Me) } => {
-                self.exchanges.push(Exchange { token: watch, kind: ExchangeKind::Me(watch.raw()) });
-            }
             other @ (Down::Open { .. } | Down::Continue { .. } | Down::Close { .. } | Down::Read { .. }) => {
                 panic!("unexpected unlinked duty: {other:?}")
             }
@@ -610,15 +617,6 @@ impl World {
                 self.child_records.push(record);
             }
         }
-    }
-
-    fn me(&self) -> (Token, u64) {
-        for exchange in &self.exchanges {
-            if let ExchangeKind::Me(watch) = exchange.kind {
-                return (exchange.token, watch);
-            }
-        }
-        panic!("the peer received the own watch")
     }
 
     fn read_exchange(&self, project: u32) -> Token {
@@ -748,6 +746,7 @@ pub fn record(key: client::Key, name: [u8; 16], first_sent: Option<Wall>) -> Req
 pub fn page_outputs(address: first::Address) -> Vec<Edge> {
     vec![
         Edge::ChildSave(root::store::Record::First(first::Record::Place { version: 1, party: PARTY, address })),
+        Edge::Unwatch,
         Edge::ReadFamily(address.item),
         Edge::WatchFamily(address.item),
     ]
@@ -760,6 +759,7 @@ pub fn inbox_outputs() -> Vec<Edge> {
             party: PARTY,
             address: jig_client_view::address::Address::Inbox { project: None },
         })),
+        Edge::Unwatch,
         Edge::InboxWatch,
         Edge::InboxRead(w::InboxReadGroup::Needs),
         Edge::InboxRead(w::InboxReadGroup::Updates),
@@ -803,7 +803,7 @@ fn hello() -> Box<[u8]> {
                 .expect("served owner"),
         );
     }
-    let event = w::StreamEvent::Hello(
+    let event = jig_client_test_records::opened(
         w::Hello::new(
             &w::CEILINGS,
             w::HelloParts {
@@ -813,33 +813,10 @@ fn hello() -> Box<[u8]> {
             },
         )
         .expect("peer hello"),
+        frame(),
     );
     let mut writer = Writer::new(skein_lib::length::usize_of(event.measure()));
     event.encode(&mut writer).expect("hello bytes");
-    writer.finish()
-}
-
-fn delivery(watch: u64) -> Box<[u8]> {
-    let frame = w::DeliveryValue::Me(frame());
-    let mut writer = Writer::new(skein_lib::length::usize_of(frame.measure()));
-    frame.encode(&mut writer).expect("frame bytes");
-    let document = w::Owned::new(
-        &w::CEILINGS,
-        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: writer.finish() },
-    )
-    .expect("owned frame");
-    let event = w::StreamEvent::Delivery(
-        w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch, document }).expect("delivery"),
-    );
-    let mut writer = Writer::new(skein_lib::length::usize_of(event.measure()));
-    event.encode(&mut writer).expect("delivery bytes");
-    writer.finish()
-}
-
-fn open_answer() -> Box<[u8]> {
-    let answer = w::OpenAnswer::Admitted;
-    let mut writer = Writer::new(skein_lib::length::usize_of(answer.measure()));
-    answer.encode(&mut writer).expect("open bytes");
     writer.finish()
 }
 

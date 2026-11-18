@@ -226,6 +226,8 @@ impl Wire {
                         translate::watches::delivery(value.document().record(), &limits)
                             .map_or_else(|_| vec![], |value| vec![Received::Delivery(value)])
                     }
+                    w::StreamEvent::Opened(value) => translate::watches::delivery(value.me().record(), &limits)
+                        .map_or_else(|_| vec![], |value| vec![Received::Delivery(value)]),
                     w::StreamEvent::Hello(_)
                     | w::StreamEvent::Delivery(_)
                     | w::StreamEvent::Text(_)

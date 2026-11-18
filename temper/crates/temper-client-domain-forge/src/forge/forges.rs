@@ -757,7 +757,7 @@ pub fn configure(side: &mut super::Side, limits: super::Limits, out: &mut skein_
         side.changed();
         return;
     }
-    if side.party.is_some()
+    if side.link == Link::Live
         && !side.forges_open
         && let State::Unknown = side.forges
     {

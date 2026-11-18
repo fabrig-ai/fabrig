@@ -112,6 +112,12 @@ fn act(driver: &mut Driver) -> tools::jig::Printed {
         client::Event::StartUnlinked { kept: List::with_capacity(0) },
         client::Event::SignIn { with: client::With::Transport },
         client::Event::Up { up: client::Up::Served { served: true, versions: None } },
+        client::Event::Up {
+            up: client::Up::Watched {
+                watch: Token::new(0),
+                event: c::WatchEvent::Delivered(c::Delivery::Me(me.clone())),
+            },
+        },
     ] {
         root::step(&mut tool, &env, root::Event::Client { event }, &mut out);
     }

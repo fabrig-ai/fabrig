@@ -147,13 +147,13 @@ impl Connections {
                     kind,
                 );
             }
-            client::Request::OpenStream { credential } => {
+            client::Request::OpenStream { credential, version } => {
                 if !self.exchanges.values().any(|value| matches!(value.owner, Owner::Stream))
                     && !self.pending.iter().any(|(owner, _, _, _)| matches!(owner, Owner::Stream))
                 {
                     self.pending.push_back((
                         Owner::Stream,
-                        mapping::stream(&self.mapping, credential.as_ref()),
+                        mapping::stream(&self.mapping, credential.as_ref(), version),
                         now,
                         Kind::Stream,
                     ));

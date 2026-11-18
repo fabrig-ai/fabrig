@@ -231,12 +231,18 @@ impl Connection {
             if capture_only {
                 continue;
             }
-            if let wire::StreamEvent::Delivery(value) =
-                wire::StreamEvent::decode(&wire::CEILINGS, &mut Reader::new(&decoded)).expect("SSE record bytes")
-                && value.document().owner() == &wire::Owner::Jig
+            let document = match wire::StreamEvent::decode(&wire::CEILINGS, &mut Reader::new(&decoded))
+                .expect("SSE record bytes")
+            {
+                wire::StreamEvent::Opened(value) => Some(value.into_parts().me),
+                wire::StreamEvent::Delivery(value) => Some(value.into_parts().document),
+                wire::StreamEvent::Hello(_) | wire::StreamEvent::Text(_) | wire::StreamEvent::Ended(_) => None,
+            };
+            if let Some(document) = document
+                && document.owner() == &wire::Owner::Jig
             {
                 received.push(Received::Delivery(
-                    translate::watches::delivery(value.document().record(), &limits).expect("delivery document"),
+                    translate::watches::delivery(document.record(), &limits).expect("delivery document"),
                 ));
             }
         }

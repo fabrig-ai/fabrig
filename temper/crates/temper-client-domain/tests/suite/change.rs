@@ -168,18 +168,16 @@ mod tests {
         }
         let mut task_watch = None;
         let mut tree_watch = None;
-        let mut me_watch = None;
         for request in &requests {
             if let jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(subject) } = request {
                 match subject {
-                    c::Subject::Me => me_watch = Some(*watch),
                     c::Subject::Task { task: TASK } => task_watch = Some(*watch),
                     c::Subject::Tree { .. } => tree_watch = Some(*watch),
                     _ => (),
                 }
             }
         }
-        let mut after = deliver(&mut root, me_watch.expect("Me watch"), c::Delivery::Me(Box::new(fixture_me(b"Shop"))));
+        let mut after = deliver(&mut root, Token::new(0), c::Delivery::Me(Box::new(fixture_me(b"Shop"))));
         let task_watch = task_watch.expect("task watch");
         after.extend(deliver(&mut root, task_watch, c::Delivery::Task(Box::new(document.clone()))));
         let tree_watch = tree_watch.expect("tree watch");

@@ -1580,8 +1580,11 @@ fn settings_reads_and_answers_require_one_complete_bounded_record() {
         assert_eq!(wire::decode_reading(&bytes, &w::CEILINGS), Some(record));
         assert!(wire::decode_reading(&bytes[..bytes.len() - 1], &w::CEILINGS).is_none());
     }
-    let record =
-        w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(Box::new([6, 0, 0, 0])) }).unwrap();
+    let record = w::SettingAnswer::new(
+        &w::CEILINGS,
+        w::SettingAnswerParts { revision: None, value: Some(Box::new([6, 0, 0, 0])) },
+    )
+    .unwrap();
     let bytes = wire::setting_answer(&record);
     assert_eq!(wire::decode_setting_answer(&bytes, &w::CEILINGS), Some(record));
     let mut limits = w::CEILINGS;

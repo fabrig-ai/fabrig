@@ -247,6 +247,10 @@ pub(crate) fn no_provisional() -> c::Delivery {
 }
 impl Harness {
     pub fn deliver_subject(&mut self, wanted: &client::Watchable, delivery: c::Delivery) {
+        if *wanted == client::Watchable::Jig(c::Subject::Me) {
+            self.deliver(delivery);
+            return;
+        }
         let mut tokens = List::with_capacity(OUTPUTS);
         for (token, subject) in &self.watches {
             if subject == wanted {
