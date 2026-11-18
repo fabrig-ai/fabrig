@@ -63,7 +63,10 @@ fn a_members_symbols_reach_only_their_connector_with_whether_it_is_tracked() {
     let requests = symbol_asks(ask(&mut core, &env, symbolic_goal(SYMBOL_CONNECTOR)));
     assert_eq!(
         requests.as_ref(),
-        &[(FIRST_CONNECTOR, Box::from([]), true, OWNER, OWNER), (SYMBOL_CONNECTOR, Box::from([OWN_RESOURCE]), true, OWNER, OWNER),]
+        &[
+            (FIRST_CONNECTOR, Box::from([]), true, OWNER, OWNER),
+            (SYMBOL_CONNECTOR, Box::from([OWN_RESOURCE]), true, OWNER, OWNER),
+        ]
     );
 }
 
@@ -426,7 +429,10 @@ fn a_proposals_members_keep_their_symbol_order_and_tracking_separately() {
     }
     assert_eq!(
         symbol_asks(first).as_ref(),
-        &[(FIRST_CONNECTOR, Box::from([OWN_RESOURCE]), true, OWNER, OWNER), (SYMBOL_CONNECTOR, Box::from([]), true, OWNER, OWNER),]
+        &[
+            (FIRST_CONNECTOR, Box::from([OWN_RESOURCE]), true, OWNER, OWNER),
+            (SYMBOL_CONNECTOR, Box::from([]), true, OWNER, OWNER),
+        ]
     );
     let request = request.expect("the first member asks for holdings");
     drop(step(

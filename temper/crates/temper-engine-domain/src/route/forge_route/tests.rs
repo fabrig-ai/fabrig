@@ -354,13 +354,7 @@ fn goal_holds_branch_beneath(beneath: bool) -> (super::Domain, skein_lib::Env<su
         &mut out,
     );
     let creator = if beneath {
-        make_goal_task(
-            &mut domain,
-            &env,
-            GOAL_ROOT,
-            tasks::Party::Deployment { project: GOAL_PROJECT },
-            Box::new([]),
-        );
+        make_goal_task(&mut domain, &env, GOAL_ROOT, tasks::Party::Deployment { project: GOAL_PROJECT }, Box::new([]));
         tasks::Party::Task(GOAL_ROOT)
     } else {
         tasks::Party::Deployment { project: GOAL_PROJECT }
