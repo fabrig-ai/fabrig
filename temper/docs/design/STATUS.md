@@ -776,6 +776,7 @@ Drafts:
 - [`draft/version-rebuilds.md`](draft/version-rebuilds.status.md)
 - [`draft/what-reaches-you.md`](draft/what-reaches-you.status.md)
 - [`draft/whole-story.md`](draft/whole-story.status.md)
+- [`draft/widening-funded.md`](draft/widening-funded.status.md)
 
 Archived drafts:
 - [`draft/archive/reference-landing.md`](draft/archive/reference-landing.status.md)
