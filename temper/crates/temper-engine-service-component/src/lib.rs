@@ -84,6 +84,14 @@ pub enum Stop {
         configured: u64,
         held: u64,
     },
+    /// A stock-readable row is past a setting's lowered codec bound. Both
+    /// figures in `bound` are in that setting's units; `held` is the least
+    /// figure admitting the record (temper/docs/design/protocol/configuration/limit-settings.md, 3).
+    CodecRestore {
+        bound: jig_protocol_store::codec::Lowered,
+        kind: limit_settings::LimitKind,
+        row: Option<jig_protocol_store::restore::RowSite>,
+    },
     /// jig's start refused a fit at `phase` (jig jig/docs/design/domain/engine/restart.md).
     StartRefused {
         phase: Option<jig_domain_core::start::Phase>,

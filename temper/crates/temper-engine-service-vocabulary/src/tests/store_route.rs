@@ -331,7 +331,7 @@ fn a_row_that_does_not_decode_fails_its_original_load_once() {
     ];
     for (row, family) in rows.into_iter().zip([(21, "Flight"), (9, "Landed")]) {
         let store::Row::Application { key, .. } = &row else { panic!("application row") };
-        let expected = crate::UnreadableRow { key: key.clone() };
+        let expected = crate::UnreadableRow { key: key.clone(), lowered: None };
         let mut routes = fixtures::routes();
         route::down(&mut routes, engine::StoreRequest::Commit { number: 7, writes: Box::new([]) }).unwrap();
         let Some(store::Request::Restore { owner, .. }) =
@@ -351,6 +351,51 @@ fn a_row_that_does_not_decode_fails_its_original_load_once() {
         failed_load(&mut routes, owner, &mut out);
         assert_eq!(routes.row_failure(), Some(&expected), "late answers cannot replace the refused row");
     }
+}
+
+#[test]
+fn a_lowered_forge_codec_cause_survives_the_page_route() {
+    let (mut root, _, _) = fixtures::store_limits();
+    let stock = temper_protocol_store::bounds(&root.forge, root.tasks.spec_bytes).unwrap();
+    root.forge.client.op_bytes = 200;
+    let bounds = temper_protocol_store::bounds(&root.forge, root.tasks.spec_bytes).unwrap().with_stock(&stock);
+    let mut routes = route::Routes::new(2, &root, bounds);
+    let row = forge::Stored::Release(forge::ReleaseRow {
+        task: 1,
+        root: 2,
+        ending: forge::ReleaseEnding::Cancelled,
+        close_pull: None,
+        comment: Some(Box::new([b'x'; 300])),
+        pending: None,
+        failed: false,
+        effects_settled: true,
+        releasing: true,
+    });
+    let key = temper_protocol_store::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
+    let value = temper_protocol_store::records::encode(&row);
+    let Some(store::Request::Restore { owner, .. }) =
+        route::down(&mut routes, load(engine::Range::Forge, None, 4, 4096))
+    else {
+        panic!("restore")
+    };
+    let mut out = Queue::uncapped();
+    route::up(
+        &mut routes,
+        store::Event::Page {
+            owner,
+            items: items(Box::new([store::Row::Application { key: key.clone(), value }])),
+            next: None,
+        },
+        &mut out,
+    );
+    assert_eq!(
+        routes.row_failure(),
+        Some(&crate::UnreadableRow {
+            key,
+            lowered: Some(store::codec::Lowered { name: b"forge.client.op_bytes", configured: 200, held: 300 }),
+        })
+    );
+    failed_load(&mut routes, owner, &mut out);
 }
 
 fn failed_load(routes: &mut route::Routes, owner: Token, out: &mut Queue<Up>) {

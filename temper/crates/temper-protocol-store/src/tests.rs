@@ -3,6 +3,7 @@ static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Co
 
 pub(crate) mod fixtures;
 mod keys;
+mod lowering;
 mod records;
 mod sizes;
 

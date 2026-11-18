@@ -1085,7 +1085,9 @@ fn unreadable_temper_rows_refuse_restart_by_their_row_key_before_switch() {
                 break;
             }
         }
-        let expected = crate::End::Stopped(crate::Stop::StoreRow { row: crate::UnreadableRow { key: key.clone() } });
+        let expected = crate::End::Stopped(crate::Stop::StoreRow {
+            row: crate::UnreadableRow { key: key.clone(), lowered: None },
+        });
         assert_eq!(service.end(), Some(&expected));
         let engine = service.engine.as_ref().unwrap();
         assert!(!engine.domain.ready());

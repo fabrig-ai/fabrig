@@ -132,13 +132,27 @@ fn save_rows(
     temper: Box<[s::Override]>,
     rows: &[forge::Stored],
 ) {
+    save_all(service, jig, temper, rows, &[]);
+}
+fn save_all(
+    service: &mut crate::Service,
+    jig: Box<[s::Override]>,
+    temper: Box<[s::Override]>,
+    rows: &[forge::Stored],
+    core_rows: &[core::Record],
+) {
     let engine = service.engine.as_mut().unwrap();
     let mut header = engine.domain.deployment();
     header.commits = header.commits.checked_add(1).unwrap();
-    let mut writes = List::with_capacity(3_u32.checked_add(u32::try_from(rows.len()).unwrap()).unwrap());
+    let mut writes = List::with_capacity(
+        3_u32.checked_add(u32::try_from(rows.len().checked_add(core_rows.len()).unwrap()).unwrap()).unwrap(),
+    );
     writes.push(jig_protocol_store::Write::Save(core::Record::Core(core::CoreRecord::Deployment(header)))).unwrap();
     for write in changed(jig, temper) {
         writes.push(write).unwrap();
+    }
+    for row in core_rows {
+        writes.push(jig_protocol_store::Write::Save(row.clone())).unwrap();
     }
     for row in rows {
         writes
@@ -191,6 +205,90 @@ fn repository(number: u32) -> forge::Stored {
         },
     })
 }
+#[test]
+fn lowered_codec_settings_refuse_restart_and_held_stock_recovers_the_same_store() {
+    for temper in [false, true] {
+        let input = inputs();
+        let (stock_jig, stock_own) = input.stock().unwrap();
+        let mut store = opening(&input, None);
+        let state = store.resolve_settings(input, None).unwrap();
+        let mut service = build(store, state);
+        fixtures::restart(&mut service);
+        let (name, configured, held, stock, kind, row_key) = if temper {
+            let mut row = repository(1);
+            let forge::Stored::Repository(value) = &mut row else { unreachable!() };
+            value.host = Box::new([b'x'; 60]);
+            let key = temper_protocol_store::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
+            save_rows(
+                &mut service,
+                Box::new([]),
+                Box::new([item(b"forge.name_bytes", 40)]),
+                &[forge::Stored::Forge(fixtures::forge_record(1)), row],
+            );
+            (
+                b"forge.name_bytes".as_slice(),
+                40,
+                60,
+                u64::from(stock_own.forge.name_bytes),
+                startup::LimitKind::Temper,
+                jig_protocol_store::keys::application(&key, u32::MAX).unwrap(),
+            )
+        } else {
+            let row = core::Record::People(jig_domain_people::Stored::Person {
+                number: 77,
+                identity: jig_domain_people::Identity {
+                    key: jig_domain_people::IdentityKey { provider: 1, subject: b"a person".as_slice().into() },
+                    login: b"ada".as_slice().into(),
+                    name: Box::new([b'x'; 300]),
+                },
+            });
+            let key = jig_protocol_store::keys::encode(&row.key(), u32::MAX).unwrap();
+            save_all(&mut service, Box::new([item(b"people.identity_bytes", 200)]), Box::new([]), &[], &[row]);
+            (
+                b"people.identity_bytes".as_slice(),
+                200,
+                300,
+                u64::from(stock_jig.core.people.identity_bytes),
+                startup::LimitKind::Jig,
+                key,
+            )
+        };
+        let input = inputs();
+        let mut store = opening(&input, Some(kept(service)));
+        let state = store.resolve_settings(input, None).unwrap();
+        let mut service = build(store, state);
+        for _ in 0_u32..512 {
+            fixtures::turn(&mut service);
+            if service.end().is_some() {
+                break;
+            }
+        }
+        let Some(crate::End::Stopped(crate::Stop::CodecRestore { bound, kind: found, row: Some(site) })) =
+            service.end()
+        else {
+            panic!("codec lowering: {:?}", service.end());
+        };
+        assert_eq!(*bound, jig_protocol_store::codec::Lowered { name, configured, held });
+        assert_eq!(*found, kind);
+        assert_eq!(site.key, row_key);
+        assert!(!format!("{:?}", service.end()).contains("xxxxxxxx"));
+        let input = inputs();
+        let mut store = opening(&input, Some(kept(service)));
+        let over = [item(name, stock)];
+        let held: (&[s::Override], &[s::Override]) = if temper { (&[], &over) } else { (&over, &[]) };
+        let state = store.resolve_settings(input, Some(held)).unwrap();
+        assert!(state.held);
+        let mut service = build(store, state);
+        for _ in 0_u32..512 {
+            fixtures::turn(&mut service);
+            if !service.work_pending(skein_lib::Time::from_nanos(1)) {
+                break;
+            }
+        }
+        assert!(service.engine.as_ref().unwrap().domain.ready(), "held recovery: {:?}", service.end());
+    }
+}
+
 #[test]
 fn a_lowered_setting_names_the_figure_and_the_work_the_store_holds() {
     let input = inputs();

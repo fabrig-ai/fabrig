@@ -568,7 +568,8 @@ fn decode(row: store::Row, bounds: &families::Bounds) -> Result<engine::Record, 
             Err(families::Undecodable::Setting(key)) => {
                 Ok(engine::Record::Forge { row: Box::new(temper_engine_domain_forge::Stored::RefusedSetting(key)) })
             }
-            Err(families::Undecodable::Malformed) => Err(UnreadableRow { key }),
+            Err(families::Undecodable::Malformed) => Err(UnreadableRow { key, lowered: None }),
+            Err(families::Undecodable::Lowered(lowered)) => Err(UnreadableRow { key, lowered: Some(lowered) }),
         },
     }
 }

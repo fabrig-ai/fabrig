@@ -75,7 +75,8 @@ impl Store {
             resolved.root.loads.loads,
             &resolved.root,
             temper_protocol_store::bounds(&resolved.root.forge, resolved.root.tasks.spec_bytes)
-                .ok_or(bad(b"temper-limits"))?,
+                .ok_or(bad(b"temper-limits"))?
+                .with_stock(&bounds),
         );
         Ok(InForce { inputs, jig, temper, resolved, held: held.is_some() })
     }
@@ -92,6 +93,10 @@ pub(crate) fn restore_refusal(state: Option<&InForce>, stopped: &crate::Stop) ->
     if state.held {
         return None;
     }
+    if let Some((bound, row)) = codec_lowering(stopped) {
+        let kind = restore_source(state, bound.name)?;
+        return Some(crate::Stop::CodecRestore { bound, kind, row });
+    }
     let (name, held, configured) = match stopped {
         crate::Stop::StartRefused { failure, .. } => core_fit(failure)?,
         crate::Stop::ForgeFit { failure, .. } => {
@@ -102,6 +107,7 @@ pub(crate) fn restore_refusal(state: Option<&InForce>, stopped: &crate::Stop) ->
         | crate::Stop::CommitFailed { .. }
         | crate::Stop::Start(_)
         | crate::Stop::LimitRestore { .. }
+        | crate::Stop::CodecRestore { .. }
         | crate::Stop::Room(_)
         | crate::Stop::RestorePage { .. }
         | crate::Stop::ForgeLink { .. }
@@ -114,6 +120,63 @@ pub(crate) fn restore_refusal(state: Option<&InForce>, stopped: &crate::Stop) ->
     };
     let kind = restore_source(state, name)?;
     Some(crate::Stop::LimitRestore { name, kind, configured, held })
+}
+fn codec_lowering(
+    stopped: &crate::Stop,
+) -> Option<(jig_protocol_store::codec::Lowered, Option<jig_protocol_store::restore::RowSite>)> {
+    use jig_protocol_store::restore::{Cause, DecodeFailure, JoinFailure, RowSite};
+    match stopped {
+        crate::Stop::RestorePage { failure: Some(failure), .. } => {
+            let bound = match &failure.cause {
+                Cause::Decode(DecodeFailure::Lowered(bound))
+                | Cause::Join { failure: JoinFailure::Decode(DecodeFailure::Lowered(bound)), .. } => *bound,
+                Cause::Phase { .. }
+                | Cause::Range(_)
+                | Cause::Walk(_)
+                | Cause::Decode(DecodeFailure::Key | DecodeFailure::Value | DecodeFailure::KeyValueDisagree)
+                | Cause::RowPastPage { .. }
+                | Cause::Join { .. }
+                | Cause::Arithmetic(_) => return None,
+            };
+            let row = match &failure.cause {
+                Cause::Join { target, .. } => Some(target.clone()),
+                Cause::Phase { .. }
+                | Cause::Range(_)
+                | Cause::Walk(_)
+                | Cause::Decode(_)
+                | Cause::RowPastPage { .. }
+                | Cause::Arithmetic(_) => failure.row.clone(),
+            };
+            Some((bound, row))
+        }
+        crate::Stop::StoreRow { row } => {
+            let bound = row.lowered?;
+            let key = jig_protocol_store::keys::application(&row.key, u32::MAX)?;
+            let site = RowSite {
+                family: Some(jig_protocol_store::Family::Application),
+                key_bytes: skein_lib::length::len_u64(key.len()),
+                key,
+                truncated: false,
+            };
+            Some((bound, Some(site)))
+        }
+        crate::Stop::StartRefused { .. }
+        | crate::Stop::ForgeFit { .. }
+        | crate::Stop::FrameTooLarge { .. }
+        | crate::Stop::Journal { .. }
+        | crate::Stop::CommitFailed { .. }
+        | crate::Stop::Start(_)
+        | crate::Stop::LimitRestore { .. }
+        | crate::Stop::CodecRestore { .. }
+        | crate::Stop::Room(_)
+        | crate::Stop::RestorePage { failure: None, .. }
+        | crate::Stop::ForgeLink { .. }
+        | crate::Stop::Binding
+        | crate::Stop::Setting(_)
+        | crate::Stop::StoreOpen { .. }
+        | crate::Stop::Listener { .. }
+        | crate::Stop::Hooks => None,
+    }
 }
 fn restore_source(state: &InForce, name: &[u8]) -> Option<LimitKind> {
     for item in &state.jig {

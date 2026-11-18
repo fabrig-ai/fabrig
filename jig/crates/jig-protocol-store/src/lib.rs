@@ -109,6 +109,9 @@ pub struct Store {
     startup_setting: Option<Box<[u8]>>,
     application: sizes::Application,
     codec_limits: codec::View,
+    /// Opening stock, retained only for classifying a refused runtime read.
+    stock_core: Option<Box<jig_domain_core_vocabulary::Limits>>,
+    read_failure: Option<restore::Failure>,
     layouts: codec::component::Layouts,
     registry: Box<registry::Layouts>,
     layout_work: Box<registry::ReadWork>,
@@ -248,6 +251,8 @@ impl Store {
             startup_setting: None,
             application,
             codec_limits,
+            stock_core: None,
+            read_failure: None,
             layouts: format::layouts(),
             registry: Box::new(registry::Layouts::new()),
             layout_work: Box::new(registry::ReadWork::new()),
@@ -292,6 +297,12 @@ impl Store {
     #[must_use]
     pub fn start_open_failure(&self) -> Option<&restore::OpenFailure> {
         self.start_open_failure.as_deref()
+    }
+
+    /// The last serving read's value-free refusal, before its Corrupt terminal.
+    #[must_use]
+    pub fn read_failure(&self) -> Option<&restore::Failure> {
+        self.read_failure.as_ref()
     }
 
     fn open_failed(&mut self, failure: restore::OpenFailure) {

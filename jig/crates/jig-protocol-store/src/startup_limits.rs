@@ -45,6 +45,9 @@ impl Store {
             Err(why) => return Err(InstallRefusal::Store(why)),
         };
         let codec = runtime_codec(core, transcript_bytes).expect("checked runtime codecs");
+        if self.stock_core.is_none() && *core != self.limits.core {
+            self.stock_core = Some(Box::new(self.limits.core));
+        }
         self.transcripts.reads = skein_lib::Map::with_capacity(limits.reads);
         self.limits = limits;
         self.codec_limits = codec;

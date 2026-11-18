@@ -71,6 +71,7 @@ pub fn ending_with_binary(
                 String::from_utf8_lossy(name),
                 String::from_utf8_lossy(kind.name())
             ),
+            Stop::CodecRestore { bound, kind, row } => codec_restore(binary, bound, *kind, row.as_ref()),
             Stop::Room(short) => {
                 format!("{binary} serve: restart refused: {}\n", String::from_utf8_lossy(&short.words()))
             }
@@ -153,6 +154,25 @@ pub fn ending_with_binary(
         }
     }
     (lines, u8::from(output_failed || end != Some(&End::Drained)))
+}
+
+fn codec_restore(
+    binary: &str,
+    bound: &jig_protocol_store::codec::Lowered,
+    kind: temper_engine_service::startup::LimitKind,
+    row: Option<&jig_protocol_store::restore::RowSite>,
+) -> String {
+    let site = match row {
+        Some(row) => format!(", key {:02x?}", row.key),
+        None => String::new(),
+    };
+    format!(
+        "{binary} serve: {} (setting {}): its figure is {}, but the store holds a record that needs {}{site}; put limits-held in the data directory to start at the stock\n",
+        String::from_utf8_lossy(bound.name),
+        String::from_utf8_lossy(kind.name()),
+        bound.configured,
+        bound.held
+    )
 }
 
 /// Bounded causes without record contents (temper/docs/design/protocol/store.md, 4).
