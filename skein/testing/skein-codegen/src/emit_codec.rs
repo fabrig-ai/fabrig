@@ -2,15 +2,8 @@
 
 //! Measured, canonical wire operations for data/codec/README.md, section 4.
 
-use crate::emit_functions::{self, Member, Method, Statement, Tail};
-use crate::{Declaration, Enumeration, Record, Type, analysis::Context, emit_limits, emit_types};
-
-fn member(record: &Record, name: &str) -> String {
-    match emit_types::bool_index(record, name) {
-        Some(_) => format!("self.{name}()"),
-        None => format!("self.{name}"),
-    }
-}
+use crate::emit_functions::{self, Method, Statement, Tail};
+use crate::{Declaration, Enumeration, Record, Type, analysis::Context, emit_limits};
 
 fn add_size(size: &str, out: &mut Vec<String>) {
     out.push(format!("        size = size.checked_add({size}).expect(\"schema ceilings fit u32\");\n"));
@@ -187,15 +180,12 @@ fn emit_fields(
     emit: impl Fn(&Type, &str, usize, &mut Vec<String>),
 ) {
     for field in &record.fields {
-        if method.name != "measure" || schema.fixed_bytes(&field.ty).is_none() {
-            method.body.push(Statement::new(
-                format!("        let field_{} = &{};\n", field.name, member(record, &field.name)),
-                true,
-            ));
-        }
         let mut text = Vec::new();
+        if method.name != "measure" || schema.fixed_bytes(&field.ty).is_none() {
+            text.push(format!("        let field_{} = &self.{};\n", field.name, field.name));
+        }
         emit(&field.ty, &format!("field_{}", field.name), 0, &mut text);
-        method.body.extend(text.into_iter().map(|text| Statement::new(text, false)));
+        method.body.push(Statement::new(&field.name, text.concat()));
     }
 }
 
@@ -213,7 +203,7 @@ fn emit_record(schema: &Context<'_>, record: &Record, out: &mut String) {
         if record.versioned {
             let mut text = Vec::new();
             add_size("2", &mut text);
-            method.body.extend(text.into_iter().map(|text| Statement::new(text, false)));
+            method.head.extend(text);
         }
         emit_fields(schema, record, &mut method, |ty, value, depth, text| {
             measure_type(ty, schema, value, depth, text);
@@ -229,10 +219,7 @@ fn emit_record(schema: &Context<'_>, record: &Record, out: &mut String) {
         if empty { "        writer.put(&[])\n" } else { "        Ok(())\n" },
     );
     if record.versioned {
-        method.body.push(Statement::new(
-            format!("        writer.put(&{}_u16.to_be_bytes())?;\n", emit_limits::literal(schema.version)),
-            false,
-        ));
+        method.head.push("        writer.put(&VERSION.to_be_bytes())?;\n".into());
     }
     emit_fields(schema, record, &mut method, encode_type);
     emit_functions::render(record, &method, out, &mut helpers);
@@ -260,38 +247,15 @@ fn emit_record(schema: &Context<'_>, record: &Record, out: &mut String) {
             "        let version = reader.u16().ok_or({})?;\n",
             short(&format!("{}Version", record.name))
         ));
-        method.head.push(format!("        if version != {} {{ return Err(Problem {{ path: Path::{}Version, reason: skein_codec::Reason::Version }}); }}\n", emit_limits::literal(schema.version), record.name));
+        method.head.push(format!("        if version != VERSION {{ return Err(Problem {{ path: Path::{}Version, reason: skein_codec::Reason::Version }}); }}\n", record.name));
     }
     for field in &record.fields {
         let bound_name = emit_limits::bound_name(&record.name, &field.name);
         let path = format!("{}{}", record.name, emit_limits::pascal(&field.name));
         let expr = decode_type(&field.ty, schema, &bound_name, &path, 0);
-        method.body.push(Statement {
-            text: format!("        let decoded_{} = {expr};\n", field.name),
-            boundary: true,
-            decoded: Some(field.name.clone()),
-        });
+        method.body.push(Statement::new(&field.name, format!("        let decoded_{} = {expr};\n", field.name)));
     }
-    let mut members = record
-        .fields
-        .iter()
-        .filter(|field| !emit_types::grouped_bools(record) || !matches!(field.ty, Type::Bool))
-        .map(|field| Member::Field(field.name.clone()))
-        .collect::<Vec<_>>();
-    if emit_types::grouped_bools(record) {
-        members.insert(
-            0,
-            Member::Bools(
-                record
-                    .fields
-                    .iter()
-                    .filter(|field| matches!(field.ty, Type::Bool))
-                    .map(|field| field.name.clone())
-                    .collect(),
-            ),
-        );
-    }
-    method.tail = Tail::Members(members);
+    method.tail = Tail::Members(record.fields.iter().map(|field| field.name.clone()).collect());
     emit_functions::render(record, &method, out, &mut helpers);
     out.push_str("}\n\n");
     out.push_str(&helpers);
@@ -368,11 +332,9 @@ fn emit_enum(schema: &Context<'_>, enumeration: &Enumeration, out: &mut String) 
     out.push_str(&format!("            _ => return Err(Problem {{ path: Path::{}Tag, reason: skein_codec::Reason::Tag }}),\n        }};\n        Ok(value)\n    }}\n}}\n\n", enumeration.name));
 }
 
-pub(crate) fn emit(schema: &Context<'_>, out: &mut String) {
-    for declaration in schema.declarations {
-        match declaration {
-            Declaration::Record(record) => emit_record(schema, record, out),
-            Declaration::Enum(enumeration) => emit_enum(schema, enumeration, out),
-        }
+pub(crate) fn emit(schema: &Context<'_>, declaration: &Declaration, out: &mut String) {
+    match declaration {
+        Declaration::Record(record) => emit_record(schema, record, out),
+        Declaration::Enum(enumeration) => emit_enum(schema, enumeration, out),
     }
 }

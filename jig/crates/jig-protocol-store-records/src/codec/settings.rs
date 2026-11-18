@@ -672,7 +672,11 @@ fn encode_run_policy(value: &core::RunPolicy, limits: &wire::Limits) -> Result<w
             alternatives: field_alternatives,
             call_timeout: field_call_timeout,
             tools: field_tools,
-            skein_bools: [field_resume, field_inspect, field_modify, field_shell, field_agents],
+            resume: field_resume,
+            inspect: field_inspect,
+            modify: field_modify,
+            shell: field_shell,
+            agents: field_agents,
         },
     )
 }
@@ -688,7 +692,11 @@ fn decode_run_policy(value: wire::RunPolicy) -> core::RunPolicy {
         alternatives,
         call_timeout,
         tools,
-        skein_bools: [resume, inspect, modify, shell, agents],
+        resume,
+        inspect,
+        modify,
+        shell,
+        agents,
     } = value.into_parts();
     let field_instructions = instructions;
     let field_waiting = waiting;

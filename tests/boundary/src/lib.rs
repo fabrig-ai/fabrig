@@ -191,6 +191,30 @@ fn literal(bytes: &[u8]) -> Option<(usize, bool)> {
     None
 }
 
+/// Whether bracket tokens could contain an array with an element other than `u8`.
+/// This conservative prefilter skips comments and literals; candidates still need
+/// a Rust parse to distinguish array types from expressions and macro bodies.
+#[must_use]
+pub fn may_have_counted_arrays(source: &str) -> bool {
+    let tokens = tokens(source);
+    let mut brackets = Vec::new();
+    for (index, token) in tokens.iter().enumerate() {
+        match token {
+            Token::Symbol(b'[') => {
+                let fixed = tokens.get(index + 1) == Some(&Token::Word("u8"))
+                    && tokens.get(index + 2) == Some(&Token::Symbol(b';'));
+                brackets.push(fixed);
+            }
+            Token::Symbol(b']') => {
+                brackets.pop();
+            }
+            Token::Symbol(b';') if brackets.last() == Some(&false) => return true,
+            Token::Word(_) | Token::String(_) | Token::Symbol(_) | Token::Literal => (),
+        }
+    }
+    false
+}
+
 /// A record module's family stem, distinguished from glue by the generator's
 /// header (tools/crates/design.md, 2.2). Non-Rust files and directories are not records.
 ///

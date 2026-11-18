@@ -51,7 +51,9 @@ pub fn charter() -> Box<[u8]> {
         },
     )
     .expect("model");
-    let families = Families::new(&CEILINGS, FamiliesParts { skein_bools: [false; 4] }).expect("families");
+    let families =
+        Families::new(&CEILINGS, FamiliesParts { inspect: false, modify: false, shell: false, agents: false })
+            .expect("families");
     let tools = Tools::new(
         &CEILINGS,
         ToolsParts { contract: 1, families, wait: false, deliver: None, save: false, host: List::with_capacity(0) },

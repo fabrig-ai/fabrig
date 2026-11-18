@@ -1196,7 +1196,7 @@ pub fn child_charter() -> Box<[u8]> {
         let mut tools = parts.tools.clone().into_parts();
         tools.families = smith_charter::Families::new(
             &smith_charter::CEILINGS,
-            smith_charter::FamiliesParts { skein_bools: [true, false, false, true] },
+            smith_charter::FamiliesParts { inspect: true, modify: false, shell: false, agents: true },
         )
         .expect("child families");
         parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("child tools");

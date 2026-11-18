@@ -3,6 +3,9 @@
 use alloc::boxed::Box;
 use skein_lib::List;
 
+/// This family's schema version.
+pub const VERSION: u16 = 1;
+
 /// The family's adjustable limits, each no larger than its ceiling.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Limits {
@@ -21,7 +24,7 @@ pub const CEILINGS: Limits = Limits {
 };
 
 /// The limits' field names, in field order.
-pub const LIMIT_NAMES: [&str; 4] = [
+pub const LIMIT_NAMES: &[&str] = &[
     "layout_root",
     "layout_variant_some",
     "layout_held",
@@ -31,10 +34,10 @@ pub const LIMIT_NAMES: [&str; 4] = [
 impl Limits {
     /// The limits' values, in `LIMIT_NAMES` order.
     #[must_use]
-    pub fn values(&self) -> [u32; 4] {
-        [
-            self.layout_root, self.layout_variant_some, self.layout_held, self.text_text,
-        ]
+    pub fn values(&self) -> List<u32> {
+        let mut values = List::with_capacity(u32::try_from(LIMIT_NAMES.len()).expect("schema limits fit u32"));
+        self.values_for_layout_record(&mut values);
+        values
     }
 }
 
@@ -100,16 +103,21 @@ pub struct Problem {
 
 /// Checks the family limits, naming the first limit past its ceiling.
 pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
-    check_limits_0(limits)?;
-    Ok(())
+    check_layout_record_limits(limits)
 }
 
-fn check_limits_0(limits: &Limits) -> Result<(), Problem> {
-    if limits.layout_root > CEILINGS.layout_root { return Err(Problem { path: Path::LayoutRoot, reason: skein_codec::Reason::Bound }); }
-    if limits.layout_variant_some > CEILINGS.layout_variant_some { return Err(Problem { path: Path::LayoutVariant, reason: skein_codec::Reason::Bound }); }
-    if limits.layout_held > CEILINGS.layout_held { return Err(Problem { path: Path::LayoutHeld, reason: skein_codec::Reason::Bound }); }
-    if limits.text_text > CEILINGS.text_text { return Err(Problem { path: Path::TextText, reason: skein_codec::Reason::Bound }); }
-    Ok(())
+/// Maximum wire bytes among this family's top-level types.
+#[must_use]
+pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+    if check_limits(limits).is_err() { return None; }
+    layout_encoded_bound_family(limits, 0)
+}
+
+/// Maximum heap held by one decoded top-level value.
+#[must_use]
+pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+    if check_limits(limits).is_err() { return None; }
+    layout_decoded_bound_family(limits, 0)
 }
 
 /// Movable fields of `Layout`.
@@ -182,6 +190,133 @@ impl Layout {
     }
 }
 
+impl Layout {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(2).expect("schema ceilings fit u32");
+        let field_root = &self.root;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_root.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        let field_variant = &self.variant;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_variant {
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(some_0.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        }
+        size = size.checked_add(32).expect("schema ceilings fit u32");
+        size = size.checked_add(32).expect("schema ceilings fit u32");
+        let field_held = &self.held;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(field_held.len().checked_mul(32).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        writer.put(&VERSION.to_be_bytes())?;
+        let field_root = &self.root;
+        writer.put(&u32::try_from(field_root.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_root.as_ref())?;
+        let field_variant = &self.variant;
+        match field_variant {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&u32::try_from(some_0.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(some_0.as_ref())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_layout = &self.layout;
+        writer.put(field_layout)?;
+        let field_text = &self.text;
+        writer.put(field_text)?;
+        let field_held = &self.held;
+        writer.put(&field_held.len().to_be_bytes())?;
+        for item_0 in field_held.as_slice() {
+        writer.put(item_0)?;
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::LayoutTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let version = reader.u16().ok_or(Problem { path: Path::LayoutVersion, reason: skein_codec::Reason::Short })?;
+        if version != VERSION { return Err(Problem { path: Path::LayoutVersion, reason: skein_codec::Reason::Version }); }
+        let decoded_root = match skein_codec::read_text(reader, limits.layout_root.min(CEILINGS.layout_root)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::LayoutRoot, reason }), };
+        let decoded_variant = match reader.u8().ok_or(Problem { path: Path::LayoutVariant, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(match skein_codec::read_text(reader, limits.layout_variant_some.min(CEILINGS.layout_variant_some)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::LayoutVariant, reason }), }), _ => return Err(Problem { path: Path::LayoutVariant, reason: skein_codec::Reason::Tag }) };
+        let decoded_layout = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::LayoutLayout, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
+        let decoded_text = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::LayoutText, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
+        let decoded_held = { let count = match skein_codec::read_count(reader, limits.layout_held.min(CEILINGS.layout_held)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LayoutHeld, reason }), }; if count > reader.remaining() / 32 { return Err(Problem { path: Path::LayoutHeld, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::LayoutHeld, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }; items_0.push(item).expect("count within capacity"); } items_0 };
+        Ok(Self { root: decoded_root, variant: decoded_variant, layout: decoded_layout, text: decoded_text, held: decoded_held })
+    }
+}
+
+impl Layout {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 2_u64;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.layout_root))?)?.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.layout_variant_some))?)?)?;
+        size = size.checked_add(u64::from(32_u32))?.checked_add(u64::from(32_u32))?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.layout_held).checked_mul(u64::from(32_u32))?)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(u64::from(limits.layout_root))?.checked_add(u64::from(limits.layout_variant_some))?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(List::<[u8; 32]>::price(limits.layout_held)?.checked_add(u64::from(limits.layout_held).checked_mul(0_u64)?)?)?;
+        heap.checked_add(0)
+    }
+}
+
+fn layout_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Layout::encoded_bound_within(limits)?);
+    text_encoded_bound_family(limits, biggest)
+}
+
+fn layout_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Layout::decoded_bound_within(limits)?);
+    text_decoded_bound_family(limits, biggest)
+}
+
+fn check_layout_record_limits(limits: &Limits) -> Result<(), Problem> {
+    if limits.layout_root > CEILINGS.layout_root { return Err(Problem { path: Path::LayoutRoot, reason: skein_codec::Reason::Bound }); }
+    if limits.layout_variant_some > CEILINGS.layout_variant_some { return Err(Problem { path: Path::LayoutVariant, reason: skein_codec::Reason::Bound }); }
+    if limits.layout_held > CEILINGS.layout_held { return Err(Problem { path: Path::LayoutHeld, reason: skein_codec::Reason::Bound }); }
+    check_text_record_limits(limits)
+}
+
+impl Limits {
+    fn values_for_layout_record(&self, values: &mut List<u32>) {
+        values.push(self.layout_root).expect("room for every named limit");
+        values.push(self.layout_variant_some).expect("room for every named limit");
+        values.push(self.layout_held).expect("room for every named limit");
+        self.values_for_text_record(values);
+    }
+}
+
 /// Movable fields of `Text`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TextParts {
@@ -218,106 +353,6 @@ impl Text {
     }
 }
 
-/// Movable fields of `Job`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct JobParts {
-    /// The `ended` field.
-    pub ended: u64,
-}
-
-/// `Job` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Job {
-    ended: u64,
-}
-
-impl Job {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: JobParts) -> Result<Self, Problem> {
-        let JobParts { ended } = parts;
-        let value = Self { ended };
-        Ok(value)
-    }
-
-    /// Reads the `ended` field.
-    #[must_use]
-    pub fn ended(&self) -> u64 { self.ended }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> JobParts { JobParts { ended: self.ended } }
-
-}
-
-impl Layout {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(2).expect("schema ceilings fit u32");
-        let field_root = &self.root;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(u32::try_from(field_root.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        let field_variant = &self.variant;
-        size = size.checked_add(1).expect("schema ceilings fit u32");
-        if let Some(some_0) = field_variant {
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(u32::try_from(some_0.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        }
-        size = size.checked_add(32).expect("schema ceilings fit u32");
-        size = size.checked_add(32).expect("schema ceilings fit u32");
-        let field_held = &self.held;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(field_held.len().checked_mul(32).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        writer.put(&1_u16.to_be_bytes())?;
-        let field_root = &self.root;
-        writer.put(&u32::try_from(field_root.len()).expect("field ceiling fits u32").to_be_bytes())?;
-        writer.put(field_root.as_ref())?;
-        let field_variant = &self.variant;
-        match field_variant {
-            Some(some_0) => {
-                writer.put(&[1_u8])?;
-        writer.put(&u32::try_from(some_0.len()).expect("field ceiling fits u32").to_be_bytes())?;
-        writer.put(some_0.as_ref())?;
-            }
-            None => writer.put(&[0_u8])?,
-        }
-        let field_layout = &self.layout;
-        writer.put(field_layout)?;
-        let field_text = &self.text;
-        writer.put(field_text)?;
-        let field_held = &self.held;
-        writer.put(&field_held.len().to_be_bytes())?;
-        for item_0 in field_held.as_slice() {
-        writer.put(item_0)?;
-        }
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::LayoutTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let version = reader.u16().ok_or(Problem { path: Path::LayoutVersion, reason: skein_codec::Reason::Short })?;
-        if version != 1 { return Err(Problem { path: Path::LayoutVersion, reason: skein_codec::Reason::Version }); }
-        let decoded_root = match skein_codec::read_text(reader, limits.layout_root.min(CEILINGS.layout_root)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::LayoutRoot, reason }), };
-        let decoded_variant = match reader.u8().ok_or(Problem { path: Path::LayoutVariant, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(match skein_codec::read_text(reader, limits.layout_variant_some.min(CEILINGS.layout_variant_some)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::LayoutVariant, reason }), }), _ => return Err(Problem { path: Path::LayoutVariant, reason: skein_codec::Reason::Tag }) };
-        let decoded_layout = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::LayoutLayout, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
-        let decoded_text = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::LayoutText, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
-        let decoded_held = { let count = match skein_codec::read_count(reader, limits.layout_held.min(CEILINGS.layout_held)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LayoutHeld, reason }), }; if count > reader.remaining() / 32 { return Err(Problem { path: Path::LayoutHeld, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::LayoutHeld, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }; items_0.push(item).expect("count within capacity"); } items_0 };
-        Ok(Self { root: decoded_root, variant: decoded_variant, layout: decoded_layout, text: decoded_text, held: decoded_held })
-    }
-}
-
 impl Text {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -332,7 +367,7 @@ impl Text {
 
     /// Writes into a writer with room for the measured bytes.
     pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        writer.put(&1_u16.to_be_bytes())?;
+        writer.put(&VERSION.to_be_bytes())?;
         let field_text = &self.text;
         writer.put(&u32::try_from(field_text.len()).expect("field ceiling fits u32").to_be_bytes())?;
         writer.put(field_text.as_ref())?;
@@ -348,74 +383,9 @@ impl Text {
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let version = reader.u16().ok_or(Problem { path: Path::TextVersion, reason: skein_codec::Reason::Short })?;
-        if version != 1 { return Err(Problem { path: Path::TextVersion, reason: skein_codec::Reason::Version }); }
+        if version != VERSION { return Err(Problem { path: Path::TextVersion, reason: skein_codec::Reason::Version }); }
         let decoded_text = { let length = match skein_codec::read_len(reader, limits.text_text.min(CEILINGS.text_text)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::TextText, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::TextText, reason: skein_codec::Reason::Short })?) };
         Ok(Self { text: decoded_text })
-    }
-}
-
-impl Job {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(2).expect("schema ceilings fit u32");
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        writer.put(&1_u16.to_be_bytes())?;
-        let field_ended = &self.ended;
-        writer.put(&field_ended.to_be_bytes())?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::JobTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let version = reader.u16().ok_or(Problem { path: Path::JobVersion, reason: skein_codec::Reason::Short })?;
-        if version != 1 { return Err(Problem { path: Path::JobVersion, reason: skein_codec::Reason::Version }); }
-        let decoded_ended = reader.u64().ok_or(Problem { path: Path::JobEnded, reason: skein_codec::Reason::Short })?;
-        Ok(Self { ended: decoded_ended })
-    }
-}
-
-impl Layout {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 2_u64;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.layout_root))?)?.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.layout_variant_some))?)?)?;
-        size = size.checked_add(u64::from(32_u32))?.checked_add(u64::from(32_u32))?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.layout_held).checked_mul(u64::from(32_u32))?)?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(u64::from(limits.layout_root))?.checked_add(u64::from(limits.layout_variant_some))?;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(List::<[u8; 32]>::price(limits.layout_held)?.checked_add(u64::from(limits.layout_held).checked_mul(0_u64)?)?)?;
-        heap.checked_add(0)
     }
 }
 
@@ -447,6 +417,91 @@ impl Text {
     }
 }
 
+fn text_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Text::encoded_bound_within(limits)?);
+    job_encoded_bound_family(limits, biggest)
+}
+
+fn text_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Text::decoded_bound_within(limits)?);
+    job_decoded_bound_family(limits, biggest)
+}
+
+fn check_text_record_limits(limits: &Limits) -> Result<(), Problem> {
+    if limits.text_text > CEILINGS.text_text { return Err(Problem { path: Path::TextText, reason: skein_codec::Reason::Bound }); }
+    Ok(())
+}
+
+impl Limits {
+    fn values_for_text_record(&self, values: &mut List<u32>) {
+        values.push(self.text_text).expect("room for every named limit");
+    }
+}
+
+/// Movable fields of `Job`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct JobParts {
+    /// The `ended` field.
+    pub ended: u64,
+}
+
+/// `Job` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Job {
+    ended: u64,
+}
+
+impl Job {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: JobParts) -> Result<Self, Problem> {
+        let JobParts { ended } = parts;
+        let value = Self { ended };
+        Ok(value)
+    }
+
+    /// Reads the `ended` field.
+    #[must_use]
+    pub fn ended(&self) -> u64 { self.ended }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> JobParts { JobParts { ended: self.ended } }
+
+}
+
+impl Job {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(2).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        writer.put(&VERSION.to_be_bytes())?;
+        let field_ended = &self.ended;
+        writer.put(&field_ended.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::JobTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let version = reader.u16().ok_or(Problem { path: Path::JobVersion, reason: skein_codec::Reason::Short })?;
+        if version != VERSION { return Err(Problem { path: Path::JobVersion, reason: skein_codec::Reason::Version }); }
+        let decoded_ended = reader.u64().ok_or(Problem { path: Path::JobEnded, reason: skein_codec::Reason::Short })?;
+        Ok(Self { ended: decoded_ended })
+    }
+}
+
 impl Job {
     /// Maximum encoded bytes under these limits.
     #[must_use]
@@ -475,24 +530,13 @@ impl Job {
     }
 }
 
-/// Maximum wire bytes among this family's top-level types.
-#[must_use]
-pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-    if check_limits(limits).is_err() { return None; }
-    let mut biggest = 0_u64;
-    biggest = biggest.max(Layout::encoded_bound_within(limits)?);
-    biggest = biggest.max(Text::encoded_bound_within(limits)?);
-    biggest = biggest.max(Job::encoded_bound_within(limits)?);
+fn job_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Job::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
-/// Maximum heap held by one decoded top-level value.
-#[must_use]
-pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-    if check_limits(limits).is_err() { return None; }
-    let mut biggest = 0_u64;
-    biggest = biggest.max(Layout::decoded_bound_within(limits)?);
-    biggest = biggest.max(Text::decoded_bound_within(limits)?);
-    biggest = biggest.max(Job::decoded_bound_within(limits)?);
+fn job_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Job::decoded_bound_within(limits)?);
     Some(biggest)
 }
+

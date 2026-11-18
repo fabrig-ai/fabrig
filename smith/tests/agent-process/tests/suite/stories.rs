@@ -241,7 +241,7 @@ fn stopped_reasoning_charter() -> Box<[u8]> {
         smith_agent_process_world::wire::budget(parts, 8, 1_000_000);
         let mut tools = parts.tools.clone().into_parts();
         let mut families = tools.families.into_parts();
-        families.skein_bools[0] = true;
+        families.inspect = true;
         tools.families = smith_charter::Families::new(&smith_charter::CEILINGS, families).expect("read authority");
         parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("read and finish");
     })

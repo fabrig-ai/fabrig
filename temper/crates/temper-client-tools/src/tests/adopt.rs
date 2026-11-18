@@ -413,7 +413,17 @@ fn a_read_only_adoption_says_so() {
                     home: false,
                     kinds: w::Kinds::new(
                         &limits,
-                        w::KindsParts { skein_bools: [true, false, false, false, false, false, false, false, false] },
+                        w::KindsParts {
+                            read: true,
+                            push: false,
+                            open: false,
+                            land: false,
+                            review: false,
+                            status: false,
+                            comment: false,
+                            issue: false,
+                            branch: false,
+                        },
                     )
                     .expect("kinds"),
                     protection: w::Protection::Unknown,

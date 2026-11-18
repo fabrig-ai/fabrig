@@ -36,7 +36,7 @@ fn coding_charter() -> Box<[u8]> {
         let mut tools = parts.tools.clone().into_parts();
         tools.families = smith_charter::Families::new(
             limits,
-            smith_charter::FamiliesParts { skein_bools: [true, true, true, false] },
+            smith_charter::FamiliesParts { inspect: true, modify: true, shell: true, agents: false },
         )
         .expect("workspace tools");
         parts.tools = smith_charter::Tools::new(limits, tools).expect("coding tools");

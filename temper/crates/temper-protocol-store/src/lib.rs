@@ -17,7 +17,10 @@ pub use temper_protocol_store_codec::v25;
 mod tests;
 
 /// One version for every durable family (protocol/store.md, section 4).
-pub const STORE_VERSION: u32 = 25;
+pub const STORE_VERSION: u32 = {
+    let [high, low] = v25::VERSION.to_be_bytes();
+    u32::from_be_bytes([0, 0, high, low])
+};
 
 /// The least of the five tier landings ceilings (protocol/store.md, section 4).
 #[must_use]

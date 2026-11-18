@@ -1308,7 +1308,9 @@ fn smallest_charter() -> Box<[u8]> {
     use skein_lib::{Duration, List, Writer};
     use smith_charter::{self as c, CEILINGS};
 
-    let families = c::Families::new(&CEILINGS, c::FamiliesParts { skein_bools: [false; 4] }).expect("no families");
+    let families =
+        c::Families::new(&CEILINGS, c::FamiliesParts { inspect: false, modify: false, shell: false, agents: false })
+            .expect("no families");
     let tools = c::Tools::new(
         &CEILINGS,
         c::ToolsParts { families, wait: false, deliver: None, save: false, host: List::with_capacity(0), contract: 0 },

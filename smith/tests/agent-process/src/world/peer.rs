@@ -132,8 +132,8 @@ pub(super) fn child_charter(bytes: &[u8]) -> Box<[u8]> {
         parts.models = models;
         let mut tools = parts.tools.clone().into_parts();
         let mut families = tools.families.into_parts();
-        families.skein_bools[0] = true;
-        families.skein_bools[3] = true;
+        families.inspect = true;
+        families.agents = true;
         tools.families = smith_charter::Families::new(&smith_charter::CEILINGS, families).expect("child authority");
         parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("tools");
     })

@@ -13,7 +13,7 @@ fn the_application_speaks_from_the_floor_with_its_bridge() {
     assert_eq!(description.patches, crate::patches::PATCHES);
     assert_eq!(description.floor, kept::FLOOR);
     assert_eq!(description.names, v1::LIMIT_NAMES);
-    assert_eq!(description.values.as_slice(), fixtures::limits().values());
+    assert_eq!(description.values.as_slice(), fixtures::limits().values().as_slice());
     assert_eq!(application.spoken.get(0), Some(&crate::spoken()));
     assert_eq!(crate::spoken(), Spoken::of(wire::FAMILY, kept::TEXTS, wire::FLOOR).expect("parsed kept range"));
     assert_eq!(wire::FLOOR, kept::FLOOR);

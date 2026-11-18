@@ -16,6 +16,18 @@ cpu_s = 1.5
 why = "The checkout world's fake-disk delivery, merge, reuse, store and simulation stories run below the real loop in their own binary."
 
 [[gate.default.reasons]]
+binary = "skein-codegen"
+test = "tests::changes_to_different_declarations_merge_line_by_line"
+cpu_s = 0.4
+why = "The acceptance family has 120 records and a long record split across methods; ten generations and three git merge-file merges check that independent declaration edits compose exactly. Landing run 1586 measured 0.266 CPU s alone."
+
+[[gate.default.reasons]]
+binary = "skein-codegen"
+test = "tests::family_and_field_helpers_have_no_ordinals_or_long_functions"
+cpu_s = 0.1
+why = "The 120-record family and 100-field record force family and method splits so the output check can reject ordinal helper names and functions past the line bound. Landing run 1586 measured 0.050 CPU s alone."
+
+[[gate.default.reasons]]
 binary = "temper-engine-domain-world::suite"
 test = "forge_routes::early_start::a_running_early_producer_asks_then_catches_up_with_a_squashed_dependency"
 cpu_s = 0.25
