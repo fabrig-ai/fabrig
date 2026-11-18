@@ -8,10 +8,16 @@ const PROJECT: u32 = 1;
 const SENTENCE: &[u8] = b"The widget fix has landed.";
 const REPORT: &[u8] = b"The widget fix has landed.\n\nThe review passed and the branch is ready.";
 
+#[path = "status/shared.rs"]
+mod shared;
+
 fn status_world(allowed: bool, funded: bool) -> World {
     status_world_with_spec(allowed, funded, None)
 }
 fn status_world_with_spec(allowed: bool, funded: bool, spec_bytes: Option<u32>) -> World {
+    status_world_with_sessions(allowed, funded, spec_bytes, Duration::from_secs(7200))
+}
+fn status_world_with_sessions(allowed: bool, funded: bool, spec_bytes: Option<u32>, lifetime: Duration) -> World {
     let model = walking::models()[0].clone();
     let llm = jig_protocol_config::Llm {
         models: (Box::new([model.clone()]))
@@ -35,7 +41,7 @@ fn status_world_with_spec(allowed: bool, funded: bool, spec_bytes: Option<u32>) 
     };
     let mut limits = temper_engine_domain_world::forge_routes::box_limits();
     // The same signed-in person returns for the next sitting.
-    limits.people.sign_in_lifetime = Duration::from_secs(7200);
+    limits.people.sign_in_lifetime = lifetime;
     if let Some(bytes) = spec_bytes {
         limits.tasks.spec_bytes = bytes;
     }
@@ -80,7 +86,7 @@ fn status_world_with_spec(allowed: bool, funded: bool, spec_bytes: Option<u32>) 
     World::configured_stock_limits(&defaults, &model, &limits)
 }
 fn settle(world: &mut World) {
-    world.until(Until::Ready);
+    world.oracle_settle();
     assert!(world.store.pending.is_empty());
 }
 fn look_request(world: &mut World, number: u8) {
@@ -165,12 +171,21 @@ fn land_and_look(world: &mut World, requester: &engine::Assignment) {
     next_sitting(world, 171);
 }
 fn land(world: &mut World, requester: &engine::Assignment) {
-    let change = super::questions::make_change(world, requester, 93, engine::ChangeQuestions::None);
+    assert!(world.assigned.iter().all(|run| run.charter != 9), "the first look never spends");
+    land_numbered(world, requester, 93, 1);
+}
+fn land_numbered(world: &mut World, requester: &engine::Assignment, number: u64, landed: u64) {
+    let change = super::questions::make_change(world, requester, number, engine::ChangeQuestions::None);
     let producer = super::questions::next_producer(world, change);
     let branch = super::questions::row(world, change).branch.clone();
-    assert!(world.assigned.iter().all(|run| run.charter != 9), "the first look never spends");
-    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
-    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"widget fixed", 1)
+    let raw::Answer::Commit(base) =
+        world.external(1, raw::Op::Read(raw::Read::Branch { branch: b"main".as_slice().into() }))
+    else {
+        panic!("landing head")
+    };
+    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: base }));
+    let body = format!("widget fixed {number}");
+    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", body.as_bytes(), 1)
         .expect("producer pushed");
     let reviewer_index = world.assigned.len();
     answer(
@@ -207,12 +222,19 @@ fn land(world: &mut World, requester: &engine::Assignment) {
     for _ in 0..200 {
         world.tick();
         if world.store.rows.contains_key(&Key::Forge(forge_top::Key::ProjectFacts { project: PROJECT }))
+            && facts(world).landed == landed
             && world.store.pending.is_empty()
         {
             break;
         }
     }
-    assert_eq!(facts(world).landed, 1);
+    assert_eq!(
+        facts(world).landed,
+        landed,
+        "change={:?}; replies={:?}",
+        super::questions::row(world, change),
+        world.call_errors
+    );
 }
 fn run(world: &World) -> engine::Assignment {
     world

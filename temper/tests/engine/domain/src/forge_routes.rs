@@ -3534,7 +3534,8 @@ impl World {
         self.oracle_running = false;
     }
 
-    fn oracle_settle(&mut self) {
+    /// Drain immediate terminals while permitting tasks that wait on an account or a host.
+    pub fn oracle_settle(&mut self) {
         // These are the world's held terminals, not new actions from surviving peers.
         self.release_write_answers();
         if let Some(reads) = self.held_reads.take() {
