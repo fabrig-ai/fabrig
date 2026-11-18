@@ -188,6 +188,13 @@ this document says how settings lie over it.
   figures come from the engine (`../../draft/config.md`, 6.3); temper's
   kind naming one of those names is refused at entry, naming it as a
   worker's. A worker alone's document is unchanged.
+- **A forge command alone,** `temper-box forge prepare|run` and the
+  runner it starts, opens no store: the engine owns it, and may hold it
+  while the command runs. So it reads neither kind and takes the stock's
+  `setup.` figures. The engine's setup host takes them from temper's
+  kind. A test that needs other `setup.` figures in a forge command
+  gives them through the command's reader as typed limits, in process
+  (section 8).
 
 ## 4. A change
 
