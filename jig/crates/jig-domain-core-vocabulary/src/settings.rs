@@ -24,7 +24,7 @@ pub use revisions::history_copy;
 use skein_lib::{List, Map, Wall};
 pub use workers::WorkerSetting;
 
-pub use people::{Running, Setting, SettingFault as Fault};
+pub use people::{NUMBERS, Running, STOCK_NUMBERS, Setting, SettingFault as Fault};
 /// A party's setting value (jig/docs/design/domain/engine/settings.md, 1, 5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Value {
@@ -747,5 +747,17 @@ pub fn is_project_policy(setting: Setting) -> bool {
         | Setting::Model(_)
         | Setting::Rules
         | Setting::Application { .. } => false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn settings_number_constants_bound_stock_and_deployment() {
+        let numbers: u32 = crate::settings::NUMBERS;
+        let stock_numbers: u32 = crate::settings::STOCK_NUMBERS;
+        assert_eq!(numbers, 64);
+        assert_eq!(stock_numbers, 32);
+        assert!(stock_numbers < numbers);
     }
 }
