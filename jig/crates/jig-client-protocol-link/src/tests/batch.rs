@@ -82,6 +82,28 @@ fn result(h: &fixtures::Harness, token: u64) -> Option<&Readout> {
     }
     None
 }
+// The composing client retries a current lost read once before reporting unreachable.
+fn exhaust_lost_reads(h: &mut fixtures::Harness) -> u32 {
+    let mut pending = core::mem::replace(&mut h.out, Queue::uncapped());
+    let mut count = 0_u32;
+    while let Some(request) = pending.pop() {
+        if let Request::ReadAgain { read, what } = request {
+            count = count.saturating_add(1);
+            h.link.step(Time::ZERO, Event::ReadAgain { read, what }, &mut h.out);
+        } else {
+            h.out.push(request);
+        }
+    }
+    h.link.settle(&mut pending);
+    while let Some(request) = pending.pop() {
+        if let Request::Exchange { exchange, .. } = request {
+            h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out);
+        } else {
+            h.out.push(request);
+        }
+    }
+    count
+}
 fn read_count(h: &fixtures::Harness) -> u32 {
     let mut count = 0_u32;
     for request in &h.out {
@@ -281,6 +303,7 @@ fn parts_route_by_member_and_a_cut_batch_keeps_its_answered_reads() {
         assert!(result(&h, 1).is_none());
         part(&mut h, exchange, 2, None);
         h.link.step(Time::ZERO, if done { Event::Done { exchange } } else { Event::Lost { exchange } }, &mut h.out);
+        assert_eq!(exhaust_lost_reads(&mut h), 2, "only unanswered members retry");
         assert_eq!(result(&h, 1), Some(&Readout::Jig(c::ReadResult::None(c::ReadNone::Unreachable))));
         assert_eq!(result(&h, 3), Some(&Readout::Jig(c::ReadResult::None(c::ReadNone::Unreachable))));
         assert_eq!(read_count(&h), 3);
@@ -321,6 +344,7 @@ fn a_family_members_busy_or_lost_reply_keeps_the_transient_reason() {
             2 => h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out),
             _ => h.link.step(Time::ZERO, Event::Done { exchange }, &mut h.out),
         }
+        assert_eq!(exhaust_lost_reads(&mut h), u32::from(ending != 0));
         let why = if ending == 0 { c::ReadNone::Busy } else { c::ReadNone::Unreachable };
         assert_eq!(result(&h, 2), Some(&Readout::Jig(c::ReadResult::None(why))));
         assert_eq!(result(&h, 1), Some(&Readout::Jig(c::ReadResult::None(c::ReadNone::Busy))));
@@ -344,6 +368,7 @@ fn an_invalid_or_repeated_part_loses_unanswered_members_until_the_terminal() {
             1 => part(&mut h, exchange, 64, None),
             _ => h.link.step(Time::ZERO, Event::Part { exchange, message: Box::from([255]) }, &mut h.out),
         }
+        assert_eq!(exhaust_lost_reads(&mut h), 2, "answered members do not retry");
         assert_eq!(result(&h, 1), Some(&Readout::Jig(c::ReadResult::None(c::ReadNone::Unreachable))));
         assert_eq!(result(&h, 2), Some(&Readout::Jig(c::ReadResult::None(c::ReadNone::Busy))));
         part(&mut h, exchange, 0, Some(fixtures::read_none_answer(w::ReadNone::Busy)));
@@ -432,11 +457,13 @@ fn every_stream_opening_names_the_last_known_stream_without_a_gone_exchange() {
     let hello =
         w::StreamEvent::decode(h.link.limits.wire(), &mut Reader::new(&fixtures::hello_event(fixtures::HEARTBEAT)))
             .unwrap();
-    let w::StreamEvent::Hello(hello) = hello else { panic!("hello") };
-    let mut fields = hello.into_parts();
-    fields.stream = [9; 16];
-    h.stream_record(&fixtures::event_bytes(&w::StreamEvent::Hello(
-        w::Hello::new(h.link.limits.wire(), fields).unwrap(),
+    let w::StreamEvent::Opened(opened) = hello else { panic!("opened") };
+    let mut fields = opened.into_parts();
+    let mut hello = fields.hello.into_parts();
+    hello.stream = [9; 16];
+    fields.hello = w::Hello::new(h.link.limits.wire(), hello).unwrap();
+    h.stream_record(&fixtures::event_bytes(&w::StreamEvent::Opened(
+        w::Opened::new(h.link.limits.wire(), fields).unwrap(),
     )));
     h.clear();
     h.link.step(Time::ZERO, Event::StreamGone, &mut h.out);

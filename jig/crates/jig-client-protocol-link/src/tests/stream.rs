@@ -5,6 +5,7 @@ fn opening_a_stream_names_the_clients_wire_version() {
     let mut h = fixtures::Harness::new(&fixtures::limits());
     h.link.step(Time::ZERO, Event::SignIn { with: With::Transport }, &mut h.out);
     h.link.step(Time::ZERO, Event::OpenStream, &mut h.out);
+    h.link.settle(&mut h.out);
     assert!(h.has(&Request::OpenStream {
         credential: None,
         version: jig_client_protocol_wire::VERSION,
@@ -74,16 +75,18 @@ fn a_hello_alone_serving_the_client_is_out_of_order() {
 }
 
 #[test]
-fn a_second_watch_opening_waits_for_the_first_admission() {
+fn a_second_watch_opening_uses_credit_before_the_first_admission() {
     let mut h = fixtures::Harness::streaming(fixtures::application_subject());
     let (first, _) = h.opening();
     h.clear();
     let watch = Token::new(42);
     h.open(watch, fixtures::family_subject());
-    h.assert_no_watch_exchange();
-    h.answer(first, &fixtures::open_answer(&w::OpenAnswer::Admitted));
     let (second, name) = h.opening();
     assert_ne!(name, 0);
+    h.clear();
+    h.answer(first, &fixtures::open_answer(&w::OpenAnswer::Admitted));
+    h.assert_no_watch_exchange();
+    assert!(!h.has(&Request::Watch { watch, event: c::WatchEvent::Opened }));
     h.clear();
     h.answer(second, &fixtures::open_answer(&w::OpenAnswer::Admitted));
     assert!(h.has(&Request::Watch { watch, event: c::WatchEvent::Opened }));
