@@ -20,6 +20,11 @@ them is `tools/tiers/budgets.status.md`'s.
 
 - **Not yet:** 1: the client world's agent page read through Older over long lines is past the system world's 0.6 s reference, about 1.23 s by the gate's CPU on 11-18, once its cases shared one world and client. About 45 per cent is the engine's advance under the domain world's driver, and 12 to 17 per cent is the client's view builds. These measurements are the user's to decide on (`skein/docs/foundation/testing-strategy.md`, 8.1).
 - **Not yet:** 1: the engine's `upgrade --check` naming the record a start refuses is past the end-to-end 2 s reference, 2.99 s by the gate's CPU on 11-18. About 77 per cent is the store's four registry openings, its layout derives about 60 per cent. It belongs to its tier (`skein/docs/foundation/testing-strategy.md`, 2.9), and neither invocation can be dropped.
+- **Not yet:** 1: what the engine's domain-world stories share, their world's construction, its store and the engine's own work at each tick, keeps the result, held-change and goal closer's retry stories past the domain world's 0.2 s reference. [in flight: change 8858]
+- **Not yet:** 1: six of the engine's domain-world stories (a stock goal's subscription to main, B2's two tree stories, the words-only child's landing into its goal branch, and the two task-limit refusals) are past the domain world's 0.2 s reference. [in flight: change 8868]
+- **Not yet:** 1: four of the engine's domain-world stories (a repair clearing its red, the stock resources' fit, and the two follow reds left with the triager) are past the domain world's 0.2 s reference. [in flight: change 8869]
+- **Not yet:** 1: five of the engine's domain-world stories (the oversized forge reads, a failed review repair, the asking chat's project reads, the terminal restart's replay and the landing rule's approval wait) are past the domain world's 0.2 s reference. [in flight: change 8870]
+- **Not yet:** 1: the web shell host's saved sign-in walks and its committed journey's redacted replay are past the machine layer's 0.2 s reference. [in flight: change 8839]
 
 `real-loop.md`'s real-loop goal-delivery story is present, alongside the six
 engine domain stories and the checkout world's later-run cases. It uses

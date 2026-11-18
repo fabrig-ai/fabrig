@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-15. Where skein's code lags or departs from [README.md](README.md).
+2026-11-18. Where skein's code lags or departs from [README.md](README.md).
 
 Unlisted sections have no known gap. Section 6's test-only fork kit and
 its documented process boundary are present, as is the row runner's
@@ -92,6 +92,11 @@ counted around each reused pass, never by an address.
   `github-conformance`'s; folds removed 397 existing test processes and
   added eight row-kit tests of their own. These floor estimates and
   individual instruction counts establish no whole-suite saving.
+  7: the every-v3 family's drift test and its constructs test are past the
+  step tests' 0.04 s reference. [in flight: change 8837]
+  7: GitHub's conformance tool's epoch-refusal and bot-permission tests,
+  library tests that run the hosted fake and write real journals, are past
+  the step tests' 0.04 s reference. [in flight: change 8841]
 - **Departs:** 5, 10: `skein/testing/skein-world/src/lib.rs` fences six
   items `cfg(unix)`, though these sections have the crate native, on
   Linux and macOS, so off unix it fails to build however it is fenced; no
