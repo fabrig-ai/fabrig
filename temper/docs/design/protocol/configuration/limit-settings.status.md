@@ -1,6 +1,6 @@
 # limit-settings: status
 
-2026-11-17. Where the tree's code lags or departs from [limit-settings.md](limit-settings.md).
+2026-11-18. Where the tree's code lags or departs from [limit-settings.md](limit-settings.md).
 
 - **Not yet:** 2.1: the `Override` record, its bounds and `check_overrides`. [in flight: change 6967]
 - **Not yet:** 2.2: jig's kind `limits`, kept, checked and shown by the core. [in flight: change 6967]
@@ -12,6 +12,7 @@
 - **Not yet:** 3: the start reading both kinds from a store sized from the stock, its refusals naming the setting, and `limits-held`. [in flight: change 6982]
 - **Not yet:** 3: a record the store holds past a lowered byte or list bound refusing the restore by its setting, its figure and what is held, apart from a malformed row. [in flight: change 7856]
 - **Not yet:** 4: the check at entry, the root's word of a durable revision, and the service's settings in force. [in flight: change 6985]
+- **Departs:** 4: a party's request that fails the check at entry is refused as judged (jig's `Refusal::Judged`), its `at` the item, its setting the item's and its words the start's, not as out of shape, because out of shape's detail carries a charter's counts and no words, in jig, on both client wires and in the store, and moving all three for a label isn't worth it; a person still sees the item, its setting and the start's words. Decided by the user, 2026-11-18. temper/draft/config brings this section's text in line, or asks for the wider change.
 - **Not yet:** 5: skein's containers' `raise`. [in flight: change 6965]
 - **Not yet:** 5: a raise of the five figures taken at once, and the work held on a raised limit going on. [in flight: change 6986]
 - **Not yet:** 6: a limit's hold naming its setting and going on by itself when room frees and at a start; jig's live tasks naming theirs. [in flight: change 6974]
