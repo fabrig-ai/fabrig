@@ -457,8 +457,8 @@ a switch, so that each can be seen with it and without:
 | 13 | Hello's Home | Hello's launchpad |
 
 Recorded frames stand for steps 1 to 4 and 10 where they exist; a
-recording of the whole try, once its changes land, is temper/tiers'
-walk and measures section 3.
+recording of the whole try, once its changes land, is a walk after
+landing, and measures section 3.
 
 ## 6. Open questions
 
