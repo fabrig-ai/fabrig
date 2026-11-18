@@ -3,9 +3,7 @@
 2026-11-18. Where the design lags or departs from [settings-numbers.md](settings-numbers.md).
 
 - **Design lags:**
-  - 3, 4: jig's `../../../../jig/docs/design/domain/engine/settings.md`, section 1, adds a setting at any number with no default. Its section 11 gives a deployment's model the highest free number as a habit, not a refusal. jig's `../../../../jig/docs/design/protocol/configuration.md`, section 3.1, numbers templates and policies with no range for the stock or a deployment.
-  - 3: `../protocol/configuration/settings.md` numbers the template-goal kind 1 to `core.templates` and the charter-words kind 1 to `tasks.charters`.
-  - 4: `../../help/template.md` and `../../help/charter.md` give no range for a deployment's own items. `../cli/temper-engine-args.md`, `temper-engine upgrade --check`, names no item out of its range.
-  - 5: dev.fabrig.ai holds templates 9 and 16 and charters 17 and 19 below 33 (revision 56).
+  - 5: dev.fabrig.ai holds templates 9 and 16 and charters 17 and 19 below 33 (revision 56), until ops moves them by hand, by the execution file, before dev's first redeploy with R1.
 - **Design departs:** none.
-- **Open:** none.
+- **Open:**
+  - 4, 8: whether a set's or a decision's refusal names the range through a fault of its own, *range* in jig's closed list (`../../../../jig/docs/design/domain/engine/settings.md`, 1), which moves jig's client wire's version, unbridged as a client's wire moves, while section 8 says nothing sent changes form. Asked of draft-3 on 2026-11-18; the design takes *range*, as recommended, until they answer.
