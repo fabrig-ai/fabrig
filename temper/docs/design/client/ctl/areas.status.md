@@ -5,6 +5,7 @@
 
 - **Not yet:** area 2: `goal start`'s and `milestone new`'s `--budget` in ctl's amount, and `--as-allowed`'s help lines saying what it takes [in flight: change 7671].
 - **Not yet:** area 7: no `draft` group or tool [in flight: change 665].
+- **Not yet:** area 2: no `proposal withdraw`, and `proposal show` prints an amendment as `amend` alone, without its target or its authority before and after [in flight: change 8257].
 - **Not yet:** area 2: a budget or tasks raised by `task amend` is not
   funded by the party who gives it: the engine resizes the task's
   existing funder's reservation, whoever amends, as jig's
@@ -23,8 +24,8 @@
   `taken by:` stands beside it.
 - **Not yet:**  the absent command groups remain `tools.status.md`, 1.
    the absent read commands remain `tools.status.md`, 2.  the absent deciding commands remain `tools.status.md`, 3.
-  the whole document: area 2's procedure executor choice for `goal start`,
-  `proposal withdraw` and `seen`; area 3's `party make`, `sign-in --service`, `deployment
+  the whole document: area 2's procedure executor choice for `goal start`
+  and `seen`; area 3's `party make`, `sign-in --service`, `deployment
   show`, `task move`, and the project's
   `policy`, `role` and `pool`; area 4's `create`, `propose` and
   `compound`; area 6's `forge forget`, with no request on the wire.
