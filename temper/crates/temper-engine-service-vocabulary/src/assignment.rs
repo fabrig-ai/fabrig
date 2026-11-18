@@ -219,7 +219,7 @@ fn charter_size(field: &'static str, figure: u64, encoding: &Encoding) -> kit::U
     kit::Unencoded {
         figure: Some(figure),
         bound: Some(encoding.charter_bytes),
-        ceiling: Some(u64::from(jig_protocol_worker_wire::v15::CEILINGS.assignment_charter)),
+        ceiling: Some(u64::from(jig_protocol_worker_wire::v17::CEILINGS.assignment_charter)),
         ..unencoded(field)
     }
 }
@@ -329,7 +329,7 @@ mod tests {
         let decoded =
             smith_protocol_translate::decode_charter(&fitted, &smith_charter::CEILINGS, &encoding.endpoints).unwrap();
         assert!(decoded.owned_bytes().unwrap() <= owned);
-        assert!(decoded.brief.sections[0].text.ends_with(b" bytes; whole: read_pull/read_pull_files]\n"));
+        assert!(decoded.brief.sections[0].text.ends_with(b" bytes; whole: read_issues]\n"));
     }
 
     #[test]
@@ -351,7 +351,110 @@ mod tests {
                 reason: None,
                 figure: Some(owned),
                 bound: Some(encoding.charter_bytes),
-                ceiling: Some(u64::from(jig_protocol_worker_wire::v15::CEILINGS.assignment_charter)),
+                ceiling: Some(u64::from(jig_protocol_worker_wire::v17::CEILINGS.assignment_charter)),
+            })
+        );
+    }
+
+    fn declaration_bytes(total: usize, index: usize) -> usize {
+        total.checked_div(42).unwrap().checked_add(usize::from(index < total.checked_rem(42).unwrap())).unwrap()
+    }
+
+    #[test]
+    fn a_first_goals_fixed_ownership_exceeds_its_room() {
+        // temper/docs/design/draft/tools-by-role.md, 9: first wake joins the first three parts.
+        let mut settings = crate::tests::fixtures::engine();
+        let mut subagent = crate::tests::fixtures::small_model();
+        subagent.number = 2;
+        subagent.model.name = b"small-subagent".as_slice().into();
+        settings.jig.llm.models = Box::new([crate::tests::fixtures::small_model(), subagent]);
+        let mut assignment =
+            crate::tests::fixtures::assignment_with(crate::tests::fixtures::repository(7, b"acme", b"shop"));
+        assignment.charter = 5;
+        for charter in &settings.jig.charters {
+            if charter.number == 5 {
+                assignment.run.policy = charter.policy.clone();
+            }
+        }
+        assignment.run.policy.alternatives = Box::new([settings.jig.llm.models[1].model.clone()]);
+        assignment.run.sources = Box::new([Some(1), Some(1)]);
+        assignment.run.authority.tools = tasks::Tools(settings.jig.policies[0].policy.ceiling.tools.0);
+        let shared = Box::new([b's'; 9_910]);
+        let parts: [Box<[u8]>; 4] =
+            [Box::new([b'a'; 11_031]), Box::new([b'b'; 3_655]), Box::new([b'c'; 1_597]), Box::new([b'd'; 649])];
+        let mut size = shared.len();
+        for part in parts.iter().take(3) {
+            size = size.checked_add(2).unwrap().checked_add(part.len()).unwrap();
+        }
+        let mut instructions = Writer::new(size);
+        instructions.put(shared.as_slice()).unwrap();
+        for part in parts.iter().take(3) {
+            instructions.put(b"\n\n").unwrap();
+            instructions.put(part).unwrap();
+        }
+        assignment.run.policy.instructions = instructions.finish();
+        assignment.run.policy.modify = true;
+        assignment.workspace.repositories[0].delivers = true;
+        assignment.sections = Box::new([root::BriefSection {
+            kind: root::BriefKind::Core(jig_domain_brief::Core::Task),
+            body: root::BriefBody::Text(Box::new([b't'; 2_342])),
+        }]);
+        let mut charter = temper_engine_smith::charter(&assignment);
+        // The draft's declaration bytes are a fixture, independent of the live registry.
+        let mut tools = List::with_capacity(42);
+        for index in 0_usize..42 {
+            let number = skein_lib::Decimal::of(u64::try_from(index).unwrap());
+            let mut name = Writer::new(declaration_bytes(406, index));
+            name.put(b"tool").unwrap();
+            name.put(number.as_bytes()).unwrap();
+            for _ in 0..name.room() {
+                name.put(b"x").unwrap();
+            }
+            let mut description = Writer::new(declaration_bytes(4_746, index));
+            for _ in 0..description.room() {
+                description.put(b"d").unwrap();
+            }
+            let mut schema = Writer::new(declaration_bytes(31_360, index));
+            schema.put(b"{}").unwrap();
+            for _ in 0..schema.room() {
+                schema.put(b" ").unwrap();
+            }
+            tools
+                .push(smith_domain_run::HostTool {
+                    name: name.finish(),
+                    description: description.finish(),
+                    schema: schema.finish(),
+                    reserve: false,
+                    effect: smith_domain_run::HostEffect::Read,
+                    timeout: skein_lib::Duration::from_secs(1),
+                })
+                .unwrap();
+        }
+        charter.grants.host_tools = tools.into_boxed();
+        assert_eq!(charter.grants.host_tools.len(), 42);
+        let (mut names, mut descriptions, mut schemas) = (0_usize, 0_usize, 0_usize);
+        for tool in &charter.grants.host_tools {
+            names = names.checked_add(tool.name.len()).unwrap();
+            descriptions = descriptions.checked_add(tool.description.len()).unwrap();
+            schemas = schemas.checked_add(tool.schema.len()).unwrap();
+        }
+        assert_eq!((names, descriptions, schemas), (406, 4_746, 31_360));
+        assert_eq!(charter.models.len(), 1);
+        assert!(charter.grants.deliver.is_some());
+        let brief = ::core::mem::replace(&mut charter.brief.sections, Box::new([]));
+        let owned = charter.owned_bytes().unwrap();
+        charter.brief.sections = brief;
+        let encoding = crate::tests::fixtures::encoding(&settings);
+        assert_eq!(encoding.charter_bytes, 65_536);
+        assert!(owned > encoding.charter_bytes);
+        assert_eq!(
+            fitted_charter(charter, &encoding),
+            Err(kit::Unencoded {
+                field: "charter.fixed_owned",
+                reason: None,
+                figure: Some(owned),
+                bound: Some(65_536),
+                ceiling: Some(67_108_864),
             })
         );
     }
@@ -382,7 +485,7 @@ mod tests {
                 reason: None,
                 figure: Some(bytes),
                 bound: Some(encoding.charter_bytes),
-                ceiling: Some(u64::from(jig_protocol_worker_wire::v15::CEILINGS.assignment_charter)),
+                ceiling: Some(u64::from(jig_protocol_worker_wire::v17::CEILINGS.assignment_charter)),
             })
         );
         encoding.charter_bytes = bytes;

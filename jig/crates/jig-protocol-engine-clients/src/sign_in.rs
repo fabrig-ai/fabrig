@@ -1,7 +1,7 @@
-//! Independent printed and local links, fresh bearer tokens, and durable digest admission (protocol/client/sign-in.md).
+//! Printed, local and asked links, fresh bearer tokens, and durable digest admission (protocol/client/sign-in.md).
 use crate::{Kept, SecretOwner, routes::Route};
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v28 as w;
+use jig_client_protocol_wire as w;
 use skein_lib::{CryptoRng, Map, Secret, Time, Token, Writer, length::len_u64};
 /// How many past links a component keeps the digests of (protocol/client/sign-in.md).
 pub(crate) const PAST_LINKS: u32 = 8;
@@ -14,6 +14,24 @@ pub(crate) enum Past {
 pub(crate) enum Which {
     Printed,
     Local,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum LinkKind {
+    Startup(Which),
+    Asked,
+}
+#[derive(Debug)]
+pub(crate) struct AskedLink {
+    pub digest: Secret,
+    pub sign_in: u64,
+    pub cap: skein_lib::Wall,
+    pub expires: skein_lib::Wall,
+    pub until: Time,
+}
+#[derive(Debug)]
+pub(crate) enum Reservation {
+    Startup(Which, Link),
+    Asked(AskedLink),
 }
 #[derive(Debug)]
 pub(crate) struct Slot {
@@ -32,6 +50,8 @@ pub(crate) struct Link {
 }
 #[derive(Debug)]
 pub(crate) enum Waiting {
+    LinkAskWhose { sign_in: u64, cap: skein_lib::Wall },
+    AskedWhose { cap: skein_lib::Wall },
     ApprovalWhose { digest: [u8; 32] },
     ApprovalCore { digest: [u8; 32] },
     Authorize { sign_in: u64, authorization: skein_oauth_issuer::Authorization },
@@ -49,7 +69,7 @@ pub(crate) enum Waiting {
     // A request whose carried value the store is keeping: the core sees
     // `request` only once the value is durable (protocol/store/secrets.md).
     Carry { sign_in: u64, family: Option<u16>, version: u32, request: Box<CarriedRequest> },
-    Checked { sign_in: u64, body: Box<[u8]>, route: Route },
+    Checked { sign_in: u64, expires: skein_lib::Wall, body: Box<[u8]>, route: Route },
 }
 /// An admitted value's request, without the value or a speculative carried number.
 #[derive(Debug)]
@@ -140,7 +160,9 @@ impl Waiting {
             Self::ApprovalWhose { .. } | Self::ApprovalCore { .. } | Self::Keep { answer: Answer::Approval(_), .. } => {
                 true
             }
-            Self::Authorize { .. }
+            Self::LinkAskWhose { .. }
+            | Self::AskedWhose { .. }
+            | Self::Authorize { .. }
             | Self::Core { .. }
             | Self::LinkGet { .. }
             | Self::SignOut { .. }

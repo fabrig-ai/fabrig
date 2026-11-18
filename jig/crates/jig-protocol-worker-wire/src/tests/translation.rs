@@ -1,6 +1,6 @@
 //! The shared component bridge machine (jig/docs/design/protocol/channel/bridges.md, 5 and 9).
 use crate::translation::Translation;
-use crate::{self as channel, Agreed, Application, Carried, Kept, Root, Spoken, v15 as wire};
+use crate::{self as channel, Agreed, Application, Carried, Kept, Root, Spoken, v17 as wire};
 use skein_channel::{Frame, frame_writer};
 use skein_codec::{
     bridge::Bridge,
@@ -93,7 +93,7 @@ fn worker_value(frame: &Frame) -> wire::FromWorker {
     wire::FromWorker::decode(&wire::CEILINGS, &mut Reader::new(&bytes)).unwrap()
 }
 fn golden(text: &str, name: &str) -> Box<[u8]> {
-    for golden in skein_codegen::generate(&skein_codegen::parse(text).unwrap()).goldens {
+    for golden in skein_codegen::goldens(&skein_codegen::parse(text).unwrap()) {
         if golden.name.strip_suffix(".bin") == Some(name) {
             return golden.bytes.into_boxed_slice();
         }
@@ -121,48 +121,79 @@ fn assignment(charter: Box<[u8]>) -> wire::Assignment {
     wire::Assignment::new(&wire::CEILINGS, parts).unwrap()
 }
 
+fn failed_answer(failure: wire::RunFailure) -> wire::FromWorker {
+    let mut answer = super::fixtures::answer_failed().into_parts();
+    let wire::Ending::Failed(failed) = answer.ending else { panic!("failed answer") };
+    let mut failed = failed.into_parts();
+    failed.failure = wire::Failure::Run(
+        wire::RunFailureValue::new(&wire::CEILINGS, wire::RunFailureValueParts { value: failure }).unwrap(),
+    );
+    answer.ending = wire::Ending::Failed(wire::Failed::new(&wire::CEILINGS, failed).unwrap());
+    wire::FromWorker::Answer(wire::Answer::new(&wire::CEILINGS, answer).unwrap())
+}
+
 #[test]
-fn enumeration_bridges_cover_every_kind_and_refuse_unheld_variants() {
-    let text = channel::patches::kept::jig_worker_wire::TEXTS.last().unwrap();
-    let goldens = skein_codegen::generate(&skein_codegen::parse(text).unwrap()).goldens;
+fn an_untooled_answer_is_unheld_below_seventeen() {
+    let record = failed_answer(wire::RunFailure::Untooled);
+    let refusal = opaque().send(worker(&record), 16, &agreed(16, 5), &wire::CEILINGS).unwrap_err();
+    assert_eq!(refusal.wire.as_ref(), b"jig-worker-wire");
+    assert_eq!(refusal.version, 17);
+    let Halt::Unheld(_) = refusal.halt else { panic!("untooled is unheld: {refusal:?}") };
+}
+
+#[test]
+fn older_run_failures_round_trip_through_sixteen_without_changing() {
     let mut sender = opaque();
     let mut receiver = opaque();
-    let mut covered = skein_lib::Set::with_capacity(32);
-    for golden in goldens {
-        if !(golden.name.starts_with("enum_from_engine_") || golden.name.starts_with("enum_from_worker_")) {
-            continue;
-        }
-        let base = if golden.name.starts_with("enum_from_engine_") { 0x180 } else { 0x100 };
-        let kind = base + u16::from(golden.bytes[0]);
-        // Calls at the older default, not the codec's all-zero/all-max golden.
-        let mut original = frame(kind, &golden.bytes[1..]);
-        if kind == channel::Kind::Call.number() {
-            let mut call = wire::Call::decode(&wire::CEILINGS, &mut Reader::new(body(&original))).unwrap().into_parts();
-            call.contract = 1;
-            original = worker(&wire::FromWorker::Call(wire::Call::new(&wire::CEILINGS, call).unwrap()));
-        }
-        let expected = skein_lib::bytes::copy_of(original.bytes());
-        let down = sender.send(original, 12, &agreed(12, 5), &wire::CEILINGS);
-        if kind == channel::Kind::Wires.number()
-            || kind == channel::Kind::Ask.number()
-            || kind == channel::Kind::Asked.number()
-            || kind == channel::Kind::Restarting.number()
-        {
-            assert!(down.is_err(), "the appended kind is absent at twelve");
-            continue;
-        }
-        let down = match down {
-            Ok(down) => down,
-            Err(error) => panic!("{}: {error:?}", golden.name),
-        };
-        if kind == channel::Kind::Call.number() {
-            assert_eq!(down.body_len() + 2, u32::try_from(expected.len() - 8).unwrap());
-        }
-        let up = receiver.receive(down.kind(), body(&down), 12, &agreed(12, 5), &wire::CEILINGS).unwrap();
-        assert_eq!(up.bytes(), expected.as_ref(), "{}", golden.name);
-        covered.insert(kind).unwrap();
+    for failure in [
+        wire::RunFailure::Model,
+        wire::RunFailure::Budget,
+        wire::RunFailure::Policy,
+        wire::RunFailure::Cancelled,
+        wire::RunFailure::Stale,
+        wire::RunFailure::Limited(
+            wire::LimitedAccount::new(
+                &wire::CEILINGS,
+                wire::LimitedAccountParts { account: 7, reset: Some(skein_lib::Duration::from_secs(9)) },
+            )
+            .unwrap(),
+        ),
+        wire::RunFailure::Refused(
+            wire::RefusedAccount::new(&wire::CEILINGS, wire::RefusedAccountParts { account: 7 }).unwrap(),
+        ),
+        wire::RunFailure::Exceeded(
+            wire::Exceeded::new(&wire::CEILINGS, wire::ExceededParts { bound: wire::Bound::Window, value: 8192 })
+                .unwrap(),
+        ),
+        wire::RunFailure::Transcript,
+    ] {
+        let record = failed_answer(failure);
+        let down = sender.send(worker(&record), 16, &agreed(16, 5), &wire::CEILINGS).unwrap();
+        let up = receiver.receive(down.kind(), body(&down), 16, &agreed(16, 5), &wire::CEILINGS).unwrap();
+        assert_eq!(worker_value(&up), record);
     }
-    assert_eq!(covered.len(), u32::try_from(channel::KINDS.len().checked_sub(4).unwrap()).unwrap());
+}
+
+#[test]
+fn a_worker_of_seventeen_cannot_send_whole_to_an_engine_of_sixteen() {
+    let agreed = [Agreed { name: "jig-worker-wire", version: 16 }];
+    assert_eq!(opaque().incomplete(&agreed).as_slice(), &agreed);
+    assert!(opaque().incomplete(&[Agreed { name: "jig-worker-wire", version: 17 }]).is_empty());
+}
+
+#[test]
+fn enumeration_bridges_refuse_versions_below_the_breaking_floor() {
+    let record = wire::FromEngine::Cancel(
+        wire::Cancel::new(&wire::CEILINGS, wire::CancelParts { task: 7, attempt: 2 }).unwrap(),
+    );
+    let mut sender = opaque();
+    sender.send(engine(&record), 14, &agreed(14, 5), &wire::CEILINGS).expect_err("below breaking floor");
+    assert_eq!(
+        engine_value(
+            &sender.send(engine(&record), channel::VERSION, &agreed(channel::VERSION, 5), &wire::CEILINGS).unwrap()
+        ),
+        record
+    );
 }
 
 #[test]
@@ -171,13 +202,21 @@ fn smith_charters_results_and_old_window_turns_take_their_own_bridges() {
     let mut worker_side = opaque();
     let current = charter(1);
     let record = wire::FromEngine::Assignment(assignment(current.clone()));
-    let down = engine_side.send(engine(&record), 12, &agreed(12, 4), &wire::CEILINGS).unwrap();
+    let down =
+        engine_side.send(engine(&record), channel::VERSION, &agreed(channel::VERSION, 4), &wire::CEILINGS).unwrap();
     let wire::FromEngine::Assignment(at_worker) = engine_value(&down) else { panic!("assignment") };
     assert_eq!(&at_worker.charter()[..2], &[0, 4]);
-    let up = worker_side.receive(down.kind(), body(&down), 12, &agreed(12, 4), &wire::CEILINGS).unwrap();
+    let up = worker_side
+        .receive(down.kind(), body(&down), channel::VERSION, &agreed(channel::VERSION, 4), &wire::CEILINGS)
+        .unwrap();
     assert_eq!(engine_value(&up), record);
     let refusal = engine_side
-        .send(engine(&wire::FromEngine::Assignment(assignment(charter(2)))), 12, &agreed(12, 4), &wire::CEILINGS)
+        .send(
+            engine(&wire::FromEngine::Assignment(assignment(charter(2)))),
+            channel::VERSION,
+            &agreed(channel::VERSION, 4),
+            &wire::CEILINGS,
+        )
         .unwrap_err();
     assert_eq!(refusal.wire.as_ref(), b"smith-charter");
     assert_eq!(refusal.version, 5);
@@ -202,11 +241,14 @@ fn smith_charters_results_and_old_window_turns_take_their_own_bridges() {
         )
         .unwrap(),
     );
-    let down = worker_side.send(worker(&answer), 12, &agreed(12, 4), &wire::CEILINGS).unwrap();
+    let down =
+        worker_side.send(worker(&answer), channel::VERSION, &agreed(channel::VERSION, 4), &wire::CEILINGS).unwrap();
     let wire::FromWorker::Answer(at_engine) = worker_value(&down) else { panic!("answer") };
     let wire::Ending::Ended(end) = at_engine.ending() else { panic!("ended") };
     assert_eq!(&end.outcome()[..2], &[0, 4]);
-    let up = engine_side.receive(down.kind(), body(&down), 12, &agreed(12, 4), &wire::CEILINGS).unwrap();
+    let up = engine_side
+        .receive(down.kind(), body(&down), channel::VERSION, &agreed(channel::VERSION, 4), &wire::CEILINGS)
+        .unwrap();
     assert_eq!(worker_value(&up), answer);
 
     let old_turn =
@@ -219,14 +261,16 @@ fn smith_charters_results_and_old_window_turns_take_their_own_bridges() {
     let down = engine_side
         .send(
             engine(&wire::FromEngine::Assignment(wire::Assignment::new(&wire::CEILINGS, parts).unwrap())),
-            12,
-            &agreed(12, 4),
+            channel::VERSION,
+            &agreed(channel::VERSION, 4),
             &wire::CEILINGS,
         )
         .unwrap();
     let wire::FromEngine::Assignment(at_worker) = engine_value(&down) else { panic!("assignment") };
     assert_eq!(at_worker.transcript(), window.as_ref(), "old turns cross byte for byte");
-    let up = worker_side.receive(down.kind(), body(&down), 12, &agreed(12, 4), &wire::CEILINGS).unwrap();
+    let up = worker_side
+        .receive(down.kind(), body(&down), channel::VERSION, &agreed(channel::VERSION, 4), &wire::CEILINGS)
+        .unwrap();
     let wire::FromEngine::Assignment(at_worker) = engine_value(&up) else { panic!("assignment") };
     let mut reader = Reader::new(at_worker.transcript());
     let turn = skein_codec::piece::split(&mut reader).unwrap().unwrap();
@@ -234,6 +278,7 @@ fn smith_charters_results_and_old_window_turns_take_their_own_bridges() {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "each carried application root keeps its envelope in one round trip")]
 fn application_roots_translate_parts_and_each_grant_without_touching_its_envelope() {
     let mut sender = Translation::new(application()).unwrap();
     let mut receiver = Translation::new(application()).unwrap();
@@ -243,19 +288,23 @@ fn application_roots_translate_parts_and_each_grant_without_touching_its_envelop
     );
     parts.grants.push(grant()).unwrap();
     let original = wire::FromEngine::Assignment(wire::Assignment::new(&wire::CEILINGS, parts).unwrap());
-    let down = sender.send(engine(&original), 12, &agreed(12, 5), &wire::CEILINGS).unwrap();
+    let down = sender.send(engine(&original), channel::VERSION, &agreed(channel::VERSION, 5), &wire::CEILINGS).unwrap();
     let wire::FromEngine::Assignment(record) = engine_value(&down) else { panic!("assignment") };
     assert_eq!(record.workspace().as_ref().unwrap().items(), OLDER);
     check_grant(record.grants().get(0).unwrap());
-    let up = receiver.receive(down.kind(), body(&down), 12, &agreed(12, 5), &wire::CEILINGS).unwrap();
+    let up = receiver
+        .receive(down.kind(), body(&down), channel::VERSION, &agreed(channel::VERSION, 5), &wire::CEILINGS)
+        .unwrap();
     assert_eq!(engine_value(&up), original);
     let original = wire::FromEngine::Grant(
         wire::Granted::new(&wire::CEILINGS, wire::GrantedParts { task: 7, attempt: 2, grant: grant() }).unwrap(),
     );
-    let down = sender.send(engine(&original), 12, &agreed(12, 5), &wire::CEILINGS).unwrap();
+    let down = sender.send(engine(&original), channel::VERSION, &agreed(channel::VERSION, 5), &wire::CEILINGS).unwrap();
     let wire::FromEngine::Grant(record) = engine_value(&down) else { panic!("grant") };
     check_grant(record.grant());
-    let up = receiver.receive(down.kind(), body(&down), 12, &agreed(12, 5), &wire::CEILINGS).unwrap();
+    let up = receiver
+        .receive(down.kind(), body(&down), channel::VERSION, &agreed(channel::VERSION, 5), &wire::CEILINGS)
+        .unwrap();
     assert_eq!(engine_value(&up), original);
     let job = wire::Job::new(
         &wire::CEILINGS,
@@ -270,7 +319,9 @@ fn application_roots_translate_parts_and_each_grant_without_touching_its_envelop
         },
     )
     .unwrap();
-    let down = sender.send(engine(&wire::FromEngine::Job(job)), 12, &agreed(12, 5), &wire::CEILINGS).unwrap();
+    let down = sender
+        .send(engine(&wire::FromEngine::Job(job)), channel::VERSION, &agreed(channel::VERSION, 5), &wire::CEILINGS)
+        .unwrap();
     let wire::FromEngine::Job(record) = engine_value(&down) else { panic!("job") };
     assert_eq!(record.spec(), OLDER);
     for ending in [
@@ -310,7 +361,8 @@ fn application_roots_translate_parts_and_each_grant_without_touching_its_envelop
         let original = wire::FromWorker::JobAnswer(
             wire::JobAnswer::new(&wire::CEILINGS, wire::JobAnswerParts { task: 7, attempt: 2, ending }).unwrap(),
         );
-        let down = sender.send(worker(&original), 12, &agreed(12, 5), &wire::CEILINGS).unwrap();
+        let down =
+            sender.send(worker(&original), channel::VERSION, &agreed(channel::VERSION, 5), &wire::CEILINGS).unwrap();
         let wire::FromWorker::JobAnswer(record) = worker_value(&down) else { panic!("job answer") };
         match record.ending() {
             wire::JobEnding::Finished(end) => {
@@ -325,7 +377,9 @@ fn application_roots_translate_parts_and_each_grant_without_touching_its_envelop
             }
             wire::JobEnding::Refused(_) => panic!("not refused"),
         }
-        let up = receiver.receive(down.kind(), body(&down), 12, &agreed(12, 5), &wire::CEILINGS).unwrap();
+        let up = receiver
+            .receive(down.kind(), body(&down), channel::VERSION, &agreed(channel::VERSION, 5), &wire::CEILINGS)
+            .unwrap();
         assert_eq!(worker_value(&up), original);
     }
 }
@@ -411,10 +465,8 @@ fn current_links_keep_no_plans_and_only_an_older_family_materializes() {
     assert_eq!((sender.planned(), receiver.planned()), (0, 0));
     assert!(sender.incomplete(&agreed(channel::VERSION, 5)).is_empty());
     assert_eq!(sender.planned(), 0);
-    let old = sender.send(worker(&call), 12, &agreed(12, 5), &wire::CEILINGS).unwrap();
-    let up = receiver.receive(old.kind(), body(&old), 12, &agreed(12, 5), &wire::CEILINGS).unwrap();
-    assert_eq!(worker_value(&up), call);
-    assert_eq!((sender.planned(), receiver.planned()), (1, 1));
+    sender.send(worker(&call), 14, &agreed(14, 5), &wire::CEILINGS).expect_err("below breaking floor");
+    assert_eq!((sender.planned(), receiver.planned()), (1, 0));
 }
 
 #[test]

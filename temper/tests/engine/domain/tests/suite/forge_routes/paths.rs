@@ -20,6 +20,7 @@ const LINES: &[(&str, u32)] = &[("jig's small profile", 4), ("the process tier's
 fn sign_in_reader(world: &mut World) {
     let owner = world.signed_in.take().expect("owner session");
     world.send(engine::Event::Party(engine::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(SIGN_IN_READER),
         identity: people::Identity {
@@ -66,7 +67,7 @@ pub(super) fn read(world: &mut World, read: reads::Read) -> Option<reads::Answer
     world.send(engine::Event::Party(engine::PartyInput::Read {
         reply_to: ReplyTo::new(READ),
         sign_in: world.signed_in.expect("reader session"),
-        read,
+        read: Box::new(read),
     }));
     for _ in 0..40 {
         if let Some(index) = world.reads.iter().position(|(reply, _)| *reply == ReplyTo::new(READ)) {
@@ -79,7 +80,7 @@ pub(super) fn read(world: &mut World, read: reads::Read) -> Option<reads::Answer
 
 fn task_line(world: &mut World, project: u32, task: u64) -> Option<documents::TaskLine> {
     let query =
-        documents::TaskQuery { project: Some(project), requester: None, ..jig_test_profile::fixtures::OWN_TASKS };
+        documents::TaskQuery { project: Some(project), requester: None, ..jig_test_profile::fixtures::own_tasks() };
     let Some(reads::Answer::Tasks(page)) = read(world, reads::Read::Tasks { query, live: None, ended: None }) else {
         return None;
     };

@@ -667,24 +667,11 @@ impl Service {
         if let Some(link) = response.link.take() {
             // The dialect renders its pinned public origin. The fake's Config
             // supplies the origin for every link, including continuation replies.
-            let mut out = Writer::new(usize_of(self.limits.response));
-            let mut rest = link.as_ref();
-            // A numbered page has at most next and last links.
-            for _ in 0..2u32 {
-                let Some(at) = skein_lib::bytes::find(rest, b"<https://api.github.com") else { break };
-                let Some(prefix) = rest.get(..at) else { return Outcome::Reply(answers::failed()) };
-                if local_link_chunk(&mut out, prefix, &self.base).is_err() {
-                    return Outcome::Reply(answers::failed());
-                }
-                let Some(tail) = rest.get(at.saturating_add(b"<https://api.github.com".len())..) else {
-                    return Outcome::Reply(answers::failed());
-                };
-                rest = tail;
-            }
-            if out.put(rest).is_err() {
+            let Some(link) = answers::finish(usize_of(self.limits.response), &Body::LocalLinks(&link, &self.base))
+            else {
                 return Outcome::Reply(answers::failed());
-            }
-            response.link = answers::finish(out);
+            };
+            response.link = Some(link);
         }
         Outcome::Reply(response)
     }
@@ -948,6 +935,17 @@ pub(crate) fn valid_origin(base: &[u8], cap: u32) -> bool {
     true
 }
 
+pub(crate) fn local_links_into(link: &[u8], base: &[u8], out: &mut Writer) -> Result<(), Overflow> {
+    let mut rest = link;
+    // A numbered page has at most next and last links.
+    for _ in 0..2u32 {
+        let Some(at) = skein_lib::bytes::find(rest, b"<https://api.github.com") else { break };
+        let prefix = rest.get(..at).ok_or(Overflow)?;
+        local_link_chunk(out, prefix, base)?;
+        rest = rest.get(at.saturating_add(b"<https://api.github.com".len())..).ok_or(Overflow)?;
+    }
+    out.put(rest)
+}
 fn local_link_chunk(out: &mut Writer, prefix: &[u8], base: &[u8]) -> Result<(), Overflow> {
     out.put(prefix)?;
     out.put(b"<")?;

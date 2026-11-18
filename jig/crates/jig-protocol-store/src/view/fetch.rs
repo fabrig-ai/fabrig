@@ -98,6 +98,7 @@ pub(super) fn advance(store: &mut Store, above: &mut Queue<Event>, below: &mut B
         at: fetch.at,
         direction: Direction::Forward,
         max: store.limits.store.page.bytes,
+        rows: u32::MAX,
     };
     let mut events = Queue::uncapped();
     skein_kv::down(
@@ -117,6 +118,8 @@ pub(super) fn advance(store: &mut Store, above: &mut Queue<Event>, below: &mut B
             | skein_kv::Event::Failed { .. }
             | skein_kv::Event::Got { .. }
             | skein_kv::Event::Loaded { .. }
+            | skein_kv::Event::Held { .. }
+            | skein_kv::Event::Released { .. }
             | skein_kv::Event::Closed { .. }
             | skein_kv::Event::OpenFailed { .. }
             | skein_kv::Event::Recovered { .. }

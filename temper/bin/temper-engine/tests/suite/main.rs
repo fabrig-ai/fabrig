@@ -8,6 +8,86 @@ fn upgrade_refuses_an_empty_deployment_directory() {
     upgrade::empty_directory("temper-engine");
 }
 
+#[path = "../../../../crates/temper-engine-shell/src/upgrade/tests/deployment.rs"]
+mod deployment;
+
+#[test]
+fn upgrade_check_names_the_record_a_start_refuses_without_switching_generation() {
+    let (scratch, _directories) = deployment::deployment();
+    let config = scratch.path().join("config");
+    let data = scratch.path().join("data");
+    let cache = scratch.path().join("cache");
+    let configuration = config.join("temper.json");
+    let mut document: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&configuration).expect("configuration")).expect("document");
+    // The owner's subject fits; the kept person's full identity does not.
+    document["engine"]["limits"]["overrides"]["people.identity_bytes"] = 7.into();
+    std::fs::write(configuration, serde_json::to_vec(&document).expect("document bytes")).expect("configuration");
+    let active_path = data.join("state/active");
+    let active = std::fs::read(&active_path).expect("active generation");
+    let refusal = "restart refused during core restore: PeopleBound(IdentityBytes), key People(Person(1))";
+    let mut check_refusal = None;
+    for arguments in [vec!["upgrade", "--check"], vec!["serve"]] {
+        let checking = arguments[0] == "upgrade";
+        let mut command = Command::new(skein_scratch::paths::binary("temper-engine"));
+        command
+            .args(arguments)
+            .env_clear()
+            .env("TEMPER_CONFIG", &config)
+            .env("TEMPER_DATA", &data)
+            .env("TEMPER_CACHE", &cache)
+            .stdin(Stdio::null());
+        if checking {
+            command.arg(data.join("state"));
+        }
+        let output = command.output().expect("run engine");
+        let out = String::from_utf8_lossy(&output.stdout);
+        let err = String::from_utf8_lossy(&output.stderr);
+        assert_eq!(output.status.code(), Some(1), "{out}\n{err}");
+        let text = format!("{out}{err}");
+        let line = text.lines().find(|line| line.contains(refusal)).expect(&text).to_owned();
+        if checking {
+            // Only wall-time warnings may accompany a refusal; the refusal itself belongs on stdout.
+            assert!(err.lines().all(engine_long_pass), "{err}");
+            assert!(out.contains(refusal), "{out}");
+            assert_eq!(std::fs::read(&active_path).expect("active after refused check"), active);
+            check_refusal = Some(line);
+        } else {
+            assert_eq!(Some(line), check_refusal, "a start refuses the same record in the same words");
+        }
+    }
+}
+
+fn engine_long_pass(line: &str) -> bool {
+    let Some(timings) =
+        line.strip_prefix("temper-engine serve: long pass: ").and_then(|line| line.strip_suffix(" ms bound"))
+    else {
+        return false;
+    };
+    let Some((total, rest)) = timings.split_once(" ms, engine ") else { return false };
+    let Some((engine, bound)) = rest.split_once(" ms of it, past the ") else { return false };
+    [total, engine, bound]
+        .iter()
+        .all(|number| number.bytes().all(|byte| byte.is_ascii_digit()) && number.parse::<u128>().is_ok())
+}
+
+#[test]
+fn only_engine_long_pass_diagnostics_are_accepted_on_stderr() {
+    let warning = "temper-engine serve: long pass: 2378 ms, engine 2378 ms of it, past the 1000 ms bound";
+    assert!(engine_long_pass(warning));
+    for line in [
+        String::new(),
+        warning.replace("2378", "+2378"),
+        warning.replace("1000", ""),
+        warning.replace("engine 2378", "drain 2378"),
+        format!("{warning}; extra output"),
+        "temper-engine serve: restart refused during core restore: PeopleBound(IdentityBytes), key People(Person(1))"
+            .into(),
+    ] {
+        assert!(!engine_long_pass(&line), "{line}");
+    }
+}
+
 const WORKER: &str = r#"{"workers":[{"engine":{"socket":"127.0.0.1:1"}}]}"#;
 const STANDALONE: &str = r#"{"engine":{"hosts":{"listener":[{"in_process":"workers"}]}}}"#;
 const SERVE: &[&str] = &["serve", "--config", "CONFIG", "--data", "DATA", "--cache", "CACHE"];
@@ -32,7 +112,13 @@ fn help(text: &str) -> bool {
     let rows: Vec<_> =
         text.lines().filter(|line| line.starts_with("  ")).filter_map(|line| line.split_whitespace().next()).collect();
     text == ENGINE.help()
-        && ["serve", "versions", "upgrade", "help"].iter().all(|word| rows.contains(word))
+        && text.contains("upgrade --workers")
+        && text
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ")
+            .contains("Judges the workers alone over a copy; switches nothing.")
+        && ["serve", "versions", "upgrade", "checkpoint", "help"].iter().all(|word| rows.contains(word))
         && ["forge", "box", "program-login"].iter().all(|word| !rows.contains(word))
 }
 
@@ -72,7 +158,10 @@ fn forge_help(text: &str) -> bool {
 type Check = fn(&str) -> bool;
 type Case = (&'static [&'static str], Option<&'static str>, i32, Check, &'static str);
 
+const CHECKPOINT_USAGE: &str = "temper-engine checkpoint: invalid arguments\nusage: temper-engine checkpoint [DIRECTORIES]\nusage: temper-engine checkpoint --hold NAME [DIRECTORIES] -- COMMAND [ARGUMENT...]\nusage: temper-engine checkpoint --remove NAME [DIRECTORIES]\n";
 const ROWS: &[Case] = &[
+    (&["checkpoint", "--remove", "12-ff"], None, 2, empty, CHECKPOINT_USAGE),
+    (&["checkpoint", "--hold", "00000000000000000012-00000000000000ff"], None, 2, empty, CHECKPOINT_USAGE),
     (&["--version"], None, 0, version, ""),
     (&["-h"], None, 0, help, ""),
     (&["--help"], None, 0, help, ""),
@@ -119,6 +208,13 @@ const ROWS: &[Case] = &[
         2,
         empty,
         "temper-engine upgrade --check: invalid arguments\nusage: temper-engine upgrade --check [DIRECTORIES] DIRECTORY\n",
+    ),
+    (
+        &["upgrade", "--workers"],
+        None,
+        2,
+        empty,
+        "temper-engine upgrade --workers: invalid arguments\nusage: temper-engine upgrade --workers [DIRECTORIES] DIRECTORY\n",
     ),
     (
         &["upgrade", "--back", "extra"],

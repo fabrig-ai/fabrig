@@ -435,6 +435,7 @@ pub struct Page {
 pub struct TaskPage {
     pub live: List<documents::TaskLine>,
     pub live_next: Option<Cursor>,
+    pub ended_mark: u64,
     pub ended: EndedGroup,
 }
 /// An ended index's rows, or no index for these query keys.

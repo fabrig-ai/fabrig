@@ -13,7 +13,12 @@ fn open() -> Store {
     let mut store = fixtures::over(fixtures::stores());
     let events = fixtures::run(
         &mut store,
-        Request::Open { owner: OWNER, root: fixtures::ROOT, installation: fixtures::INSTALLATION },
+        Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: OWNER,
+            root: fixtures::ROOT,
+            installation: fixtures::INSTALLATION,
+        },
     );
     let [Event::Opened { .. }, Event::Census { .. }] = events.as_ref() else { panic!("store opens") };
     store
@@ -174,7 +179,6 @@ fn an_undecodable_row_refuses_with_its_family_and_key_and_stops() {
         &mut stores,
         &[
             fixtures::format_put(fixtures::DEPLOYMENT),
-            fixtures::layouts_put(),
             fixtures::header_put(fixtures::DEPLOYMENT, 1),
             fixtures::installation_put(fixtures::INSTALLATION),
             skein_kv::Op::Put { key: key.clone(), value: Box::new([255]) },
@@ -183,7 +187,12 @@ fn an_undecodable_row_refuses_with_its_family_and_key_and_stops() {
     let mut store = fixtures::over(stores);
     let events = fixtures::run(
         &mut store,
-        Request::Open { owner: OWNER, root: fixtures::ROOT, installation: fixtures::INSTALLATION },
+        Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: OWNER,
+            root: fixtures::ROOT,
+            installation: fixtures::INSTALLATION,
+        },
     );
     let [Event::Opened { .. }, Event::Census { .. }] = events.as_ref() else {
         panic!("store opens before reading people")

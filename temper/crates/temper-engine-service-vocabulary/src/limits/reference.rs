@@ -89,7 +89,7 @@ pub fn engine_reference_with(out: &mut Writer, introduction: &[u8]) -> Result<()
     out.put(b"\ntemper sizes the engine's watch rooms itself: a stream holds ")?;
     out.put(Decimal::of(u64::from(temper_engine_domain::WATCHES_PER_STREAM)).as_bytes())?;
     out.put(b" watches, and the engine holds clients.streams times that, in all and for one party. Raise clients.streams for more.\n")?;
-    let mut limits = jig_protocol_config::stock();
+    let mut limits = temper_service_core::derived::stock();
     temper_service_core::derived::engine(&mut limits, temper_service_core::derived::STOCK).expect("stock carriers fit");
     let mut owner = "";
     for name in &jig_protocol_config::names::NAMES {

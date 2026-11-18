@@ -58,9 +58,11 @@ pub fn encoded_answer(value: &w::KeyedAnswer) -> Box<[u8]> {
 pub fn final_answer(value: w::Final) -> Box<[u8]> {
     let mut bytes = Writer::new(usize::try_from(value.measure()).unwrap());
     value.encode(&mut bytes).unwrap();
-    let owned =
-        w::Owned::new(limits().wire(), w::OwnedParts { owner: w::Owner::Jig, version: 28, record: bytes.finish() })
-            .unwrap();
+    let owned = w::Owned::new(
+        limits().wire(),
+        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: bytes.finish() },
+    )
+    .unwrap();
     encoded_answer(&w::KeyedAnswer::FinalAnswer(owned))
 }
 pub fn answer_done_chat(task: u64) -> Box<[u8]> {
@@ -99,9 +101,11 @@ pub fn answer_signed_out() -> Box<[u8]> {
     encoded_answer(&w::KeyedAnswer::SignedOut)
 }
 pub fn malformed_final() -> Box<[u8]> {
-    let owned =
-        w::Owned::new(limits().wire(), w::OwnedParts { owner: w::Owner::Jig, version: 28, record: Box::from([255]) })
-            .unwrap();
+    let owned = w::Owned::new(
+        limits().wire(),
+        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: Box::from([255]) },
+    )
+    .unwrap();
     encoded_answer(&w::KeyedAnswer::FinalAnswer(owned))
 }
 pub struct Harness {
@@ -118,10 +122,13 @@ impl Harness {
             Event::Send { attempt, key, ask: Ask::Jig(Box::new(ask)), value: None },
             &mut self.out,
         );
+        self.link.settle(&mut self.out);
         match self.out.iter().next().expect("one exchange") {
             Request::Exchange { exchange, .. } => *exchange,
             other @ (Request::Answer { .. }
+            | Request::NotWritten { .. }
             | Request::NotKept { .. }
+            | Request::ReadAgain { .. }
             | Request::Read { .. }
             | Request::OpenStream { .. }
             | Request::CloseStream
@@ -135,6 +142,7 @@ impl Harness {
             | Request::Dropped
             | Request::Signing { .. }
             | Request::ServiceCredential { .. }
+            | Request::AskedLink(_)
             | Request::Approval(_)
             | Request::Authorized(_)
             | Request::StreamsFull { .. }
@@ -150,6 +158,7 @@ impl Harness {
     }
     pub fn answer(&mut self, exchange: Token, bytes: &[u8]) {
         self.link.step(Time::ZERO, Event::Reply { exchange, message: Box::from(bytes) }, &mut self.out);
+        self.link.settle(&mut self.out);
     }
     pub fn answered(&self, token: Token) -> Option<(RequestEnvelope, Option<&Answered>)> {
         for request in &self.out {
@@ -159,7 +168,9 @@ impl Harness {
                 }
                 Request::Exchange { .. }
                 | Request::Answer { .. }
+                | Request::NotWritten { .. }
                 | Request::NotKept { .. }
+                | Request::ReadAgain { .. }
                 | Request::Read { .. }
                 | Request::OpenStream { .. }
                 | Request::CloseStream
@@ -173,6 +184,7 @@ impl Harness {
                 | Request::Dropped
                 | Request::Signing { .. }
                 | Request::ServiceCredential { .. }
+                | Request::AskedLink(_)
                 | Request::Approval(_)
                 | Request::Authorized(_)
                 | Request::StreamsFull { .. }
@@ -193,8 +205,11 @@ impl Harness {
         let mut count: u32 = 0;
         for value in &self.out {
             match value {
-                Request::Answer { .. } | Request::NotKept { .. } => count = count.saturating_add(1),
+                Request::Answer { .. } | Request::NotKept { .. } | Request::NotWritten { .. } => {
+                    count = count.saturating_add(1);
+                }
                 Request::Exchange { .. }
+                | Request::ReadAgain { .. }
                 | Request::Read { .. }
                 | Request::OpenStream { .. }
                 | Request::CloseStream
@@ -208,6 +223,7 @@ impl Harness {
                 | Request::Dropped
                 | Request::Signing { .. }
                 | Request::ServiceCredential { .. }
+                | Request::AskedLink(_)
                 | Request::Approval(_)
                 | Request::Authorized(_)
                 | Request::StreamsFull { .. }
@@ -259,6 +275,8 @@ pub use turns::*;
 
 mod link_reads;
 pub use link_reads::*;
+mod row_parts;
+pub use row_parts::*;
 
 mod link_stream;
 pub use link_stream::*;
@@ -272,6 +290,7 @@ pub use link_store::*;
 impl Harness {
     pub fn sign_in(&mut self, with: With) -> Option<Token> {
         self.link.step(Time::ZERO, Event::SignIn { with }, &mut self.out);
+        self.link.settle(&mut self.out);
         for request in &self.out {
             if let Request::Exchange { exchange, .. } = request {
                 return Some(*exchange);
@@ -291,6 +310,7 @@ impl Harness {
     pub fn sign_out(&mut self) -> Token {
         self.out = Queue::uncapped();
         self.link.step(Time::ZERO, Event::SignOut, &mut self.out);
+        self.link.settle(&mut self.out);
         for request in &self.out {
             if let Request::Exchange { exchange, .. } = request {
                 return *exchange;
@@ -317,6 +337,7 @@ impl Harness {
         let mut harness = Self::new(&limits());
         let ask = Ask::Family { scope: c::Scope::Own, record: family_read() };
         harness.link.step(Time::ZERO, Event::Send { attempt: ATTEMPT, key: KEY, ask, value: None }, &mut harness.out);
+        harness.link.settle(&mut harness.out);
         let Some(Request::Exchange { exchange, .. }) = harness.out.iter().next() else { panic!("exchange") };
         let exchange = *exchange;
         (harness, exchange)

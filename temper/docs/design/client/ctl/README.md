@@ -1,6 +1,6 @@
 # Tools: temper for agents
 
-Provisional, 2026-10-17, revised 2026-11-05. How agents drive temper:
+Provisional, 2026-10-17, revised 2026-11-17. How agents drive temper:
 they read what it holds, act through jig's operations and wait for what
 changes, with `temper ctl`, a command line. It serves any agent working
 with temper for a person, which reaches the systems temper works with,
@@ -54,6 +54,9 @@ bounds are section 9, and what they take of jig section 10; an MCP endpoint and 
   private file, and returns, and the agent follows it with `forge list
   --until settled`; `forge repositories` reads the picker's page, whose
   rows ride `repository adopt`.
+- **Workers are settings** (`workers.md`): `worker add`, `places` and
+  `remove`, each one settings change by an owner, and `worker list`,
+  each worker up or down and its runs.
 - **Grown by areas,** the first, the fifth and the sixth designed in
   full, the others named (`areas.md`); **later, named:** the MCP endpoint and
   the extraction into `jig-client-tools` (section 11).
@@ -201,9 +204,16 @@ temper                       the binary: `temper ctl` runs the host
   under a name another party's parked request holds (6.2), meets
   `Held`, and exits 1.
 - **A spent-pool refusal keeps its own figures first:**
-  `chat start: refused: your pool in project P had LEFT left, NEEDED needed`.
+  `chat start: refused: your pool in project P had LEFT left, NEEDED needed`,
+  in ctl's amount (`results.md`, 1).
   If today's `me` pool still has less than NEEDED, the `read it:` and
-  `raise it:` calls follow. With room now, the next line is
+  `raise it:` calls follow. Where that pool also holds a reservation
+  for live work it funds (its `reserved` above zero), as an earlier
+  start's `--as-allowed` leaves it (`areas.md`, area 2), a line before
+  them says so and what leaves room: `reserved: R, for the live work
+  your pool funds; a goal or milestone started with --as-allowed takes
+  all your pool may give: start them with --budget AMOUNT to leave
+  room`, R the pool's `reserved`. With room now, the next line is
   `now: your pool has L left; budget B; this key keeps its first answer: start new work with a new --key`.
   Today's pool never replaces the refusal's figures.
 - **Names are the party's.** Agents sharing a party give their names a
@@ -241,6 +251,19 @@ temper                       the binary: `temper ctl` runs the host
   replace` take `--key` optionally, as the other acts do, but the name
   drawn is not kept, so only a name the agent gives can be asked again;
   a rerun without one replaces the key or the tokens again.
+- **An account's uses** (area 5): `account uses ACCOUNT --party N...`
+  and `--project N...` set exactly the named parties and projects, at
+  least one and at most 16 together, the wire's bound. Either flag may
+  repeat or stand alone. `account uses ACCOUNT --default` restores
+  jig's defaults (`uses: None`). Both forms take an optional `--key` and
+  print `done: uses`. The tool resolves the holder as `account rank`
+  does, sends `SetUses` and leaves policy to the engine. A person's
+  plan may pay for its holder's services and projects whose other
+  members are services; another person, or a project with another
+  person, is refused. Provider refusals say that rule in words; an
+  unknown object says unknown account, party or project, as the
+  refusal distinguishes none of them. `account list` prints each use.
+  Naming a service lets its work run on its holder's subscription.
 - **An account's move** (`areas.md`, area 5): `account import`'s `move_in` is
   a request carrying a value, as `account add-key`'s is, under its
   `--key`. `account export`'s `move_out` is a request whose answer
@@ -259,7 +282,7 @@ temper                       the binary: `temper ctl` runs the host
 
 ```
 temper ctl DIRECTORY GROUP VERB [ARGUMENT...] [--json]
-temper ctl DIRECTORY me | inbox | sign-in | sign-out | pending [ARGUMENT...] [--json]
+temper ctl DIRECTORY me | inbox | sign-in | sign-out | link | pending [ARGUMENT...] [--json]
 temper ctl DIRECTORY --call FILE [--json]
 temper ctl help [GROUP [VERB]]
 ```
@@ -332,12 +355,17 @@ temper ctl help [GROUP [VERB]]
     above), the same line without ` as party N`;
   - *spent*, *expired* and *unknown*, the engine's three refusals of a
     link (jig's `protocol/client/sign-in.md`, *Why a link can't sign
-    in*), each its own line: `temper ctl: the sign-in link was refused:
-    it was already used; temper-box serve prints a fresh one`; `temper
-    ctl: the sign-in link was refused: it has expired; temper-box serve
-    prints a fresh one`; `temper ctl: the sign-in link was refused:
-    temper does not know it, as another deployment's link or one it no
-    longer remembers; temper-box serve prints a fresh one`;
+    in*), each its own line, naming both ways to a fresh link:
+    `temper ctl: the sign-in link was refused: it was already used;
+    temper-box serve prints a fresh one, and a signed-in client asks one
+    with temper ctl DIRECTORY link --out FILE`; `temper ctl: the sign-in
+    link was refused: it has expired; temper-box serve prints a fresh
+    one, and a signed-in client asks one with temper ctl DIRECTORY link
+    --out FILE`; `temper ctl: the sign-in link was refused: temper does
+    not know it, as another deployment's link or one it no longer
+    remembers; temper-box serve prints a fresh one, and a signed-in
+    client asks one with temper ctl DIRECTORY link --out FILE`, each
+    `DIRECTORY` and `FILE` as written;
   - *refused* (any other refusal of the link): `temper ctl: the
     sign-in link was refused`; `temper-box serve` prints a fresh link;
   - *full* (jig's `domain/people/README.md`, section 3): `temper ctl: all N
@@ -367,6 +395,38 @@ temper ctl help [GROUP [VERB]]
   `nothing listens at ADDRESS; is temper running?`, or `the engine at
   ADDRESS did not answer within 30 s`. Every other tool
   signs in with the token DIRECTORY holds (`SignIn { with: Held }`).
+- **`link --out FILE`** asks the engine, with the token DIRECTORY
+  holds, for a fresh one-time sign-in link for the party DIRECTORY is
+  signed in as (jig's `protocol/client/sign-in.md`, the asked link), and
+  writes it to FILE: one line, the printed link's URL on DIRECTORY's
+  `address`, `http://HOST:PORT/jig/v1/sign-in/link?secret=SECRET`, made
+  by jig's mapping (jig's `protocol/client/default-http.md`, 1), so that
+  a browser on the machine opens it as it opens the printed link, and
+  `sign-in` reads it into another DIRECTORY. FILE is written as `party
+  make --out` writes a service's credential (section 7): `0o600`,
+  refused if it exists, before anything is sent, and durable before
+  success prints; the link is never printed, logged or an argument. A
+  link asked again replaces the one before, which signs no one in after.
+  Its answers:
+  - *written:* exit 0, one line, `sign-in link written to FILE; it signs
+    in once, until U`, U the link's expiry, `YYYY-MM-DDTHH:MM:SSZ`, and
+    with `--json` the record `{"file": FILE, "expires": U}`;
+  - *not signed in* (no `address`, no `token` or a zero-byte one):
+    `DIRECTORY is not signed in`, as every call's (above), nothing sent;
+  - *FILE exists:* `party make --out`'s refusal of an existing file,
+    naming FILE, nothing sent;
+  - *refused* (the engine gives asked links only to a person's
+    sign-in, where its printed link is enabled): `temper ctl: the engine
+    refused a sign-in link: it gives one to a person's sign-in alone,
+    where its printed link is enabled`;
+  - *signed out:* as any call answered signed out;
+  - *not ready* and *busy* are sent again as `sign-in`'s are, within the
+    call's deadline (6.2); past it, `temper ctl: temper is busy`, or
+    `temper ctl: temper is not ready: it is starting, or its core is not
+    answering, and temper-box serve's log says why`;
+  - *FILE not written* once the link is asked: `FILE could not be
+    written: ERROR`, exit 1; the link is dropped unwritten, and the next
+    `link` replaces it.
 - **Loopback only,** as `temper-box open`, until the clients' listener
   serves TLS: a call checks that `address` is on loopback, `127.0.0.0/8`
   or `[::1]`, before it sends the token, and otherwise exits 1, "the
@@ -484,7 +544,10 @@ An agent runs a wait while it acts, or several agents share a party.
   results are the same either way, and jig judges each request as the
   party whose credential it is (jig's `domain/people/README.md`, section 3).
 - **The person's own:** the printed link's sign-in. An agent's first
-  identity is the deployment's first owner.
+  identity is the deployment's first owner. A DIRECTORY signed in as a
+  person asks a fresh link for that person (`link --out FILE`, 6.1), so
+  that their browser signs in once the printed links are spent; it signs
+  in that party alone, no longer than the DIRECTORY's own sign-in.
 - **Its own, a service's** (area 3): an owner makes a service in a
   project, with a role (`party make`), and jig's clients' component answers
   its credential once; the tool writes it to the file `--out` names,
@@ -492,7 +555,8 @@ An agent runs a wait while it acts, or several agents share a party.
   signs in with it (`sign-in --service FILE`) and acts within that
   role's authority and pool. QA plays several parties this way.
 - **Credentials are files,** private, never arguments, never printed;
-  the printed link too, which `sign-in` reads from a file or stdin.
+  the printed link too, which `sign-in` reads from a file or stdin, and
+  an asked link, which `link` writes to one.
 - **The agent's LLM is not the deployment's.** The LLM the agent itself
   runs on, to drive `temper ctl`, is its harness's. The deployment's
   runs are paid by jig's LLM accounts, added from the client
@@ -750,7 +814,6 @@ Each is named here and designed when it comes.
   engine serves each of the forge's other parts (`../forge/served.md`).
 - **A service's credential reissued, or a service removed** (jig's
   `domain/people/README.md`, section 3): tools of area 3.
-- **An account's uses** set, as a tool of area 5 (section 12).
 - **An older moved form patched at `account import`** (`areas.md`, area 5, the
   file's versions): jig's form patches, then skein's record patches,
   before the engine's checks, when a form 2 exists.
@@ -821,9 +884,6 @@ Each is named here and designed when it comes.
   names one source while an account holds one of each kind. Default:
   by kind, and by a program source's name once an account may hold two
   of a kind.
-- **An account's uses:** no tool, each account taking jig's defaults
-  (jig's `domain/accounts.md`, 4.2). Default: a tool of area 5 once a
-  service paid by a person's account needs one (section 11).
 - **An export's `written` answered to a later call** (`areas.md`, area 5): when
   `account export` ends before `written` is answered, the next call
   that sends it reports its answer as any kept request's, and nothing

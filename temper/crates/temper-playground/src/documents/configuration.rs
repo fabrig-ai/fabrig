@@ -75,7 +75,9 @@ impl Configuration {
         }
         if let Some(workers) = document.get_mut("workers").and_then(Value::as_array_mut) {
             for worker in workers {
-                worker.as_object_mut().expect("fixture worker").remove("memory_bytes");
+                for member in ["memory_bytes", "limits", "agent"] {
+                    worker.as_object_mut().expect("fixture worker").remove(member);
+                }
             }
         }
         let mut world = Self { document, jig, limits: own, workspaces_given, operations_given, jig_given };

@@ -158,7 +158,7 @@ fn a_limit_held_card_sends_one_whole_list_at_the_current_revision_and_stays_runn
     assert_eq!(sent[0].running, c::Running::Stays);
     assert_eq!(sent[0].items.len(), 1);
     let item = sent[0].items.get(0).expect("limits fixture");
-    assert_eq!(item.setting, c::Setting::Application { kind: 21, scope: 0, number: 1 });
+    assert_eq!(item.setting, c::Setting::Application { kind: 22, scope: 0, number: 1 });
     let c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Application(encoded) }) = &item.edit else {
         panic!("one limits list")
     };
@@ -190,7 +190,7 @@ fn release(world: &mut Clients, person: ClientId) {
 }
 fn kept(front: &Joint) -> Option<forge::settings::Edit> {
     let key = engine::Key::Forge(forge::Key::Setting(forge::settings::SettingKey {
-        kind: 21,
+        kind: 22,
         scope: 0,
         number: 1,
         slot: forge::settings::SettingSlot::Change,

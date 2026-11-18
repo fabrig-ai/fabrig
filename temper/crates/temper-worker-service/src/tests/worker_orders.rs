@@ -24,7 +24,7 @@ const ADMITTED_FRAMES: usize = 1;
 const WITH_TURN: usize = ADMITTED_FRAMES + 1;
 const PROCESS_RECORDS: u32 = 3; // The two messages and cancellation.
 // One value per grant, then the assignment, in one link invocation.
-const ASSIGNMENT_GRANTS: u32 = jig_protocol_worker_wire::v15::CEILINGS.assignment_grants;
+const ASSIGNMENT_GRANTS: u32 = jig_protocol_worker_wire::v17::CEILINGS.assignment_grants;
 
 fn chat() -> (Token, Token) {
     let link::Request::Down { down: hub::LinkDown::Assign { assignment }, .. } = fixtures::chat_assignment() else {
@@ -177,9 +177,16 @@ fn finish_cancelled_agent(stand: &mut fixtures::WorkerStand, link: &mut LinkPeer
 fn window_stand() -> (fixtures::WorkerStand, crate::settings::Worker, crate::settings::Agent) {
     let mut settings = fixtures::worker_settings();
     settings.jig.engine = jig_protocol_config::Address::Addr(io::Addr::Ip(([127, 0, 0, 1], 7100).into()));
-    settings.jig.limits.hub.turns = WINDOW;
-    settings.jig.limits.hub.turn_queue_bytes =
-        settings.jig.limits.hub.turn_queue_bytes.checked_mul(u64::from(WINDOW)).expect("four turns fit");
+    settings.jig.limits.as_mut().expect("checked worker limits").hub.turns = WINDOW;
+    settings.jig.limits.as_mut().expect("checked worker limits").hub.turn_queue_bytes = settings
+        .jig
+        .limits
+        .as_ref()
+        .expect("checked worker limits")
+        .hub
+        .turn_queue_bytes
+        .checked_mul(u64::from(WINDOW))
+        .expect("four turns fit");
     let mut agent = fixtures::worker_agent();
     agent.host_limits.turns = WINDOW;
     agent.host_limits.unacknowledged_bytes =
@@ -242,8 +249,8 @@ fn the_hello_precedes_the_replayed_turns_at_a_reconnect() {
 fn a_link_invocations_whole_output_precedes_the_next_invocation() {
     let mut settings = fixtures::worker_settings();
     settings.jig.engine = jig_protocol_config::Address::Addr(io::Addr::Ip(([127, 0, 0, 1], 7100).into()));
-    settings.jig.limits.core.accounts.accounts = ASSIGNMENT_GRANTS;
-    settings.jig.limits.core.accounts.credentials = 0;
+    settings.jig.limits.as_mut().expect("checked worker limits").core.accounts.accounts = ASSIGNMENT_GRANTS;
+    settings.jig.limits.as_mut().expect("checked worker limits").core.accounts.credentials = 0;
     let mut own = fixtures::worker_limits();
     own.peer.forges = 0;
     let agent = fixtures::worker_agent();
@@ -342,6 +349,123 @@ fn progress_at_the_deadline() -> (fixtures::WorkerStand, AgentPeer, Time) {
     let now = stand.worker.root.next_deadline().expect("agent watchdog armed");
     peer.now = now;
     (stand, peer, now)
+}
+
+#[test]
+fn agent_watchdog_logs_once_before_answer_and_not_on_relink() {
+    let mut stand = socket_stand();
+    let mut link = LinkPeer::new();
+    link.open(&mut stand.worker);
+    let peer = AgentPeer::assigned(&mut stand.worker, &fixtures::worker_agent());
+    stand.worker.notes().clear();
+    let due = stand.worker.root.next_deadline().expect("agent watchdog armed");
+    // Keep the engine link alive without giving the agent any progress.
+    for _ in 0..STEPS {
+        let next = link.now.saturating_add(Duration::from_secs(1)).min(due);
+        link.now = next;
+        if next == due {
+            break;
+        }
+        link.component.fire(next, &mut link.out);
+        for _ in 0_u8..32 {
+            link.turn(&mut stand.worker);
+        }
+        assert!(stand.worker.notes().is_empty(), "no stop before the watchdog");
+    }
+    assert_eq!(link.now, due, "the watchdog iteration was reached");
+    stand.worker.iterate(due, Wall::EPOCH);
+    let (run, attempt) = chat();
+    assert_eq!(
+        stand.worker.notes().pop(),
+        Some(crate::worker_alone::Note::AgentStopped {
+            run: run.raw(),
+            attempt: attempt.raw(),
+            failure: hub::AgentFailure::NoProgress,
+            no_progress_ms: Some(fixtures::worker_agent().host_limits.no_progress.as_millis()),
+        })
+    );
+    assert!(stand.worker.notes().is_empty(), "one stop note at the fault");
+    assert_eq!(stand.worker.root.kept_answers(), 0, "cleanup has not concluded the attempt");
+    assert!(!link.records.as_slice().contains(&LinkRecord::Answer(0)), "no answer before the note");
+    for event in [
+        smith_host_domain::process::Event::Hangup { owner: peer.owner },
+        smith_host_domain::process::Event::Exited {
+            owner: peer.owner,
+            exit: Some(smith_host_domain::Exit::Signal(15)),
+        },
+        smith_host_domain::process::Event::Reaped { owner: peer.owner, detail: Box::new([]) },
+    ] {
+        stand.worker.events.push(root::Event::Process(Box::new(event)));
+    }
+    let (answer, parts) = link.answer(&mut stand.worker);
+    let hub::LinkUp::Answer { answer: hub::RunAnswer { ending: hub::Ending::Failed { failure, .. }, .. }, .. } =
+        &answer
+    else {
+        panic!("the watchdog fails the run: {answer:?}");
+    };
+    assert_eq!(*failure, hub::Failure::Agent(hub::AgentFailure::NoProgress));
+    assert!(stand.worker.notes().is_empty(), "cleanup does not repeat the stop");
+    stand.worker.up(due, io::Event::Closed { owner: link.owner });
+    stand.worker.iterate(due, Wall::EPOCH);
+    let redial = stand.worker.next_deadline().expect("redial");
+    stand.worker.iterate(redial, Wall::EPOCH);
+    stand.worker.io().clear();
+    let mut link = LinkPeer::new();
+    link.now = redial;
+    link.open(&mut stand.worker);
+    assert_eq!(link.answer(&mut stand.worker), (answer, parts), "the kept answer is replayed");
+    while let Some(note) = stand.worker.notes().pop() {
+        if let crate::worker_alone::Note::AgentStopped { .. } = note {
+            panic!("replaying an answer emits no stop note: {note:?}");
+        }
+    }
+}
+
+#[test]
+fn worker_encoding_fault_logs_an_agent_stop_without_a_bound() {
+    let mut stand = socket_stand();
+    LinkPeer::new().open(&mut stand.worker);
+    let peer = AgentPeer::assigned(&mut stand.worker, &fixtures::worker_agent());
+    stand.worker.notes().clear();
+    let agent = fixtures::worker_agent();
+    let body = turn_body(&agent, 1);
+    let turn = channel::decode_turn(&body, 1, &agent.limits.transcript, &agent.endpoints).unwrap();
+    let event = smith_host_domain::process::Event::Received {
+        owner: peer.owner,
+        message: smith_host_domain::Up::Turn {
+            turn: smith_host_domain::Turn {
+                opens_window: true,
+                number: 1,
+                spent: 0,
+                read: None,
+                body: smith_host_domain::TurnValue::new(turn, agent.host_limits.turn_bytes).unwrap(),
+            },
+        },
+    };
+    let mut out = skein_lib::Queue::uncapped();
+    root::step(&mut stand.worker.root, &stand.worker.env, root::Event::Process(Box::new(event)), &mut out);
+    let mut encoded = false;
+    while let Some(request) = out.pop() {
+        if let root::Request::Encode { owner, value: root::Encodable::Turn(_) } = request {
+            encoded = true;
+            stand.worker.events.push(root::Event::Encoded { owner, encoded: root::Encoded::Undecodable });
+        } else {
+            stand.worker.route(request);
+        }
+    }
+    assert!(encoded, "a real agent turn goes out to the codec");
+    stand.worker.iterate(fixtures::NOW, Wall::EPOCH);
+    let (run, attempt) = chat();
+    assert_eq!(
+        stand.worker.notes().pop(),
+        Some(crate::worker_alone::Note::AgentStopped {
+            run: run.raw(),
+            attempt: attempt.raw(),
+            failure: hub::AgentFailure::Rules,
+            no_progress_ms: None,
+        })
+    );
+    assert!(stand.worker.notes().is_empty());
 }
 
 #[test]

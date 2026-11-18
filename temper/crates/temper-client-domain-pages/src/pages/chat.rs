@@ -1358,6 +1358,7 @@ impl Chat {
             | Act::Terminal(_)
             | Act::Told(_)
             | Act::Remembered(_)
+            | Act::Builders(_)
             | Act::Models(_)
             | Act::HandArea(_)
             | Act::StopAsking(_)

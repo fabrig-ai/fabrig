@@ -1,4 +1,6 @@
 //! Activation alone waits on the root's transcript and turn budget (domain/root.md, 4.1).
+//! A goal's spend can be raised by its person's amendment.
+use super::forge_routes::{assigned_chat, live_task};
 use jig_domain_core::{self as core, reads};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -6,9 +8,10 @@ use skein_lib::{ReplyTo, Token};
 use temper_engine_domain::{self as engine, Delivery, Record};
 use temper_engine_domain_world::{
     direct::Driver,
+    forge_routes::{Until, World},
     protocol,
     store::Store,
-    walking::{config, limits},
+    walking::{self, config, limits},
 };
 
 const WORKER: Token = Token::new(7);
@@ -210,7 +213,7 @@ fn read_history(driver: &mut Driver, run: &engine::Assignment) {
     driver.send(engine::Event::Party(engine::PartyInput::Read {
         reply_to: ReplyTo::new(READ),
         sign_in: driver.store.header().sign_ins,
-        read: reads::Read::Turn { task: run.task, attempt: run.attempt, turn: 1 },
+        read: Box::new(reads::Read::Turn { task: run.task, attempt: run.attempt, turn: 1 }),
     }));
     for _ in 0..STEPS {
         driver.advance(true);
@@ -314,4 +317,99 @@ fn with_no_worker_the_budget_stops_preparations_and_nothing_else() {
     driver.settle();
     assert_eq!(assigned(&driver), 3);
     assert_eq!(driver.root.held_bytes(), 0);
+}
+
+#[test]
+fn a_goal_refused_funding_at_a_change_cuts_it_after_its_budget_is_raised() {
+    // The run keeps half for delegates; an ordinary delegate below leaves only 2 unreserved.
+    const SMALL: u64 = 62;
+    // The owner's 500-unit pool can fund 200 and leave room for the change and its producer.
+    const WIDER: u64 = 200;
+    let mut world = World::configured(true, true);
+    world.adopt();
+    world.send(protocol::hello_slots(WORKER, 2, Box::new([])));
+    let ask = walking::goal_from(
+        world.chat(1, b"Make a small fix"),
+        people::TaskExecutor::Agent { charter: 1 },
+        jig_test_profile::fixtures::Goal { budget: SMALL, priority: 0, deadline: None },
+    );
+    let people::Ask::Create { project, batch } = ask else { panic!("goal batch") };
+    let mut wider = batch[0].authority.clone();
+    wider.spend = WIDER;
+    let run = assigned_chat(&mut world, 92, people::Ask::Create { project, batch });
+    let row = live_task(&world, run.task);
+    let tasks::Party::Person(person) = row.requester else { panic!("person requested goal") };
+    assert!(matches!(row.funder, tasks::Funder::Pool { project: funded_project, person: funder, .. }
+        if funded_project == project && funder == person));
+    assert_eq!(row.authority.budget.spend, SMALL);
+    let mut delegate = temper_engine_domain_world::fixtures::report_delegate(b"Inspect the small fix", Box::new([]));
+    delegate.authority.tools = row.authority.tools;
+    delegate.authority.budget.spend =
+        row.numbers.budget - row.numbers.reserved - row.numbers.spent - row.numbers.spent_below - 2;
+    let answer = world.scripted_call(&run, 93, engine::Tool::Delegate { batch: Box::new([delegate]) });
+    let engine::CallAnswer::Delegated(ordinary) = answer else { panic!("ordinary delegate: {answer:?}") };
+    assert_eq!(ordinary.len(), 1);
+    let row = live_task(&world, run.task);
+    assert_eq!(
+        (row.numbers.budget - row.numbers.reserved - row.numbers.spent - row.numbers.spent_below) / 2,
+        1,
+        "the running goal leaves too little for a change"
+    );
+    let change =
+        engine::Tool::Change { changes: Box::new([engine::ChangeCall::words(b"Small fix".as_slice().into(), None)]) };
+    let refused = world.scripted_call(&run, 94, change.clone());
+    assert!(
+        matches!(&refused, engine::CallAnswer::DelegationRefused(problem) if problem.why == tasks::Refusal::Funding),
+        "{refused:?}"
+    );
+    assert!(
+        !world.store.rows.values().any(|record| matches!(record,
+            Record::Core(core::Record::Tasks(tasks::Stored::Live(task)))
+                if task.requester == tasks::Party::Task(run.task)
+                    && task.executor == tasks::Executor::Procedure { connector: 0, code: 2 }
+        )),
+        "the refused change creates no change task"
+    );
+    let before = live_task(&world, run.task).clone();
+    let replies = world.web_replies.len();
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(95)),
+        sign_in: world.signed_in.expect("goal's person"),
+        key: [95; 16],
+        ask: people::Ask::Amend {
+            project,
+            task: run.task,
+            revision: before.revisions.spec,
+            release: None,
+            amendment: people::Amendment {
+                tracked: None,
+                addressed: None,
+                instructions: None,
+                spec: None,
+                wake: None,
+                dependencies: None,
+                authority: Some(wider),
+                llm: None,
+                reason: b"Fund the goal's next change".as_slice().into(),
+            },
+        },
+    }));
+    world.until(Until::Ready);
+    assert_eq!(
+        &world.web_replies[replies..],
+        &[people::Reply::Outcome(people::Outcome::Amended { task: run.task, released: false })]
+    );
+    let mut expected = before.authority;
+    expected.budget.spend = WIDER;
+    let raised = live_task(&world, run.task);
+    assert_eq!(raised.authority, expected, "only spend changes");
+    assert_eq!(raised.revisions.spec, before.revisions.spec + 1);
+    assert_eq!(raised.numbers.budget, WIDER);
+    let answer = world.scripted_call(&run, 96, change);
+    let engine::CallAnswer::Delegated(made) = answer else { panic!("change after raise: {answer:?}") };
+    assert_eq!(made.len(), 1);
+    let task = live_task(&world, made[0].task);
+    assert_eq!(task.requester, tasks::Party::Task(run.task));
+    assert_eq!(task.executor, tasks::Executor::Procedure { connector: 0, code: 2 });
 }

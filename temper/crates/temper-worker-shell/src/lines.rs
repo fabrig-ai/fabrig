@@ -22,6 +22,9 @@ pub fn worker_service_ending(
 #[must_use]
 pub fn note_line(binary: &str, note: service::Note) -> String {
     match note {
+        service::Note::FiguresChanged => {
+            "the engine's figures changed; they apply at this worker's next start\n".into()
+        }
         service::Note::Cancelling { run, attempt } => {
             format!("{binary} worker: run {run} attempt {attempt} cancelled by the engine\n")
         }
@@ -34,6 +37,14 @@ pub fn note_line(binary: &str, note: service::Note) -> String {
         }
         service::Note::StopBoundPassed { abandoned } => {
             format!("{binary} worker: stop bound passed; abandoned {abandoned} turns and answers\n")
+        }
+        service::Note::AgentStopped { run, attempt, failure, no_progress_ms } => {
+            let failure = jig_domain_host::Failure::Agent(failure);
+            let prefix = format!("{binary} worker: run {run} attempt {attempt} agent stopped {failure:?}");
+            match no_progress_ms {
+                Some(ms) => format!("{prefix}: no progress for {ms} ms\n"),
+                None => format!("{prefix}\n"),
+            }
         }
         service::Note::Unprepared { run, attempt, failure, detail } => {
             run_detail_line(format!("{binary} worker: run {run} attempt {attempt} failed {failure:?}: "), &detail)
@@ -164,6 +175,7 @@ fn refusal(reason: temper_worker_service::Refusal) -> String {
             Some(Reason::Replaced) => "replaced".into(),
             Some(Reason::NotAdmitted) => "not-admitted".into(),
             Some(Reason::Stopping) => "stopping".into(),
+            Some(Reason::Starting) => "starting".into(),
             None => format!("code-{code}"),
         },
     }

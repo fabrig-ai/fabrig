@@ -28,8 +28,8 @@ pub(super) fn assert_program_usable(call: &super::Ended) {
         .as_array()
         .expect("program hosts")
         .iter()
-        .find(|host| host["name"] == "worker")
-        .expect("worker program facts");
+        .find(|host| host["name"] == "local")
+        .expect("local program facts");
     assert_eq!(host["connected"], true);
     let program = host["programs"]
         .as_array()

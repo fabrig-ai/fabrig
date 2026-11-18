@@ -13,7 +13,7 @@ fn the_shipped_agent_fits_standards_page_with_derived_carriers() {
     }
 
     let mut stock: serde_json::Value =
-        serde_json::from_slice(include_bytes!("../../../../crates/temper-init/template/agent.json"))
+        serde_json::from_slice(serde_json::to_vec(&temper_agent_fixtures::stock(true)).unwrap().as_slice())
             .expect("stock init agent");
     // Only declarations determine the turn bound; use inert direct endpoints.
     stock["programs"] = serde_json::json!({});

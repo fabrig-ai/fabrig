@@ -20,7 +20,7 @@ First:
   [14] Deployment (current)
   * Pat
 Deployment
-The machines temper’s agents run on, each with its slots and how many are in use.
+The machines temper’s agents run on, each with its places and whether it’s up. An owner adds one by its secret’s digest.
 Deployment:
   [15] Accounts
   [16] Forges
@@ -29,11 +29,17 @@ Deployment:
   [19] Members
   [20] Limits
 ## Workers · 2
-No worker is connected.
-worker
-2 slots · 1 in use
-Not connected
-worker
-2 slots · 1 in use
-Not connected
+local 2 places · no runs · in the box Down
+[21] Places for local: 2 (enter sends)
+[-] Change (disabled)
+w1 4 places · no runs · digest abababab… Down since 00:00
+[22] Places for w1: 4 (enter sends)
+[-] Change (disabled)
+[23] Remove
+## Add a worker
+[24] The worker’s name: (empty) (enter sends)
+[25] Places: 4 (enter sends)
+[26] Its secret’s digest: (empty) (enter sends)
+[-] Add (disabled)
+Make its secret on the worker’s machine; temper help server says how. A worker that’s running links once it’s added.
 Each agent’s role names which workers it runs on. Ask temper to change it.

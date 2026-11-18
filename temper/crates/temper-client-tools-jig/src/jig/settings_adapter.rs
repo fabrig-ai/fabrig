@@ -779,6 +779,7 @@ pub fn form_setting(v: c::Setting) -> n::Setting {
         c::Setting::Policy(x) => n::Setting::Policy(form_setting_number(x)),
         c::Setting::Application { kind, scope, number } => n::Setting::Application { kind, scope, number },
         c::Setting::Model(x) => n::Setting::Model(form_setting_number(x)),
+        c::Setting::Worker(x) => n::Setting::Worker(form_setting_number(x)),
         c::Setting::Rules => n::Setting::Rules,
         c::Setting::Limits => n::Setting::Limits,
     }
@@ -790,6 +791,7 @@ pub fn client_setting(v: n::Setting) -> c::Setting {
         n::Setting::Policy(x) => c::Setting::Policy(client_setting_number(x)),
         n::Setting::Application { kind, scope, number } => c::Setting::Application { kind, scope, number },
         n::Setting::Model(x) => c::Setting::Model(client_setting_number(x)),
+        n::Setting::Worker(x) => c::Setting::Worker(client_setting_number(x)),
         n::Setting::Rules => c::Setting::Rules,
         n::Setting::Limits => c::Setting::Limits,
         n::Setting::ProjectPolicy { project } => c::Setting::ProjectPolicy { project },
@@ -834,6 +836,7 @@ pub fn form_setting_fault(v: c::SettingFault) -> n::SettingFault {
         c::SettingFault::Budget => n::SettingFault::Budget,
         c::SettingFault::Grace => n::SettingFault::Grace,
         c::SettingFault::Judged => n::SettingFault::Judged,
+        c::SettingFault::Linked => n::SettingFault::Linked,
         c::SettingFault::Owner => n::SettingFault::Owner,
     }
 }
@@ -1024,6 +1027,13 @@ pub fn client_setting_set(v: &n::SettingSet) -> c::SettingSet {
 pub fn form_setting_value(v: &c::SettingValue) -> n::SettingValue {
     match v {
         c::SettingValue::Overlay(x) => n::SettingValue::Overlay(Box::new(form_overlay(x))),
+        c::SettingValue::Worker(x) => n::SettingValue::Worker(Box::new(n::WorkerSetting {
+            number: x.number,
+            name: x.name.clone(),
+            places: x.places,
+            digest: x.digest,
+            withdrawn: x.withdrawn,
+        })),
         c::SettingValue::Model(x) => n::SettingValue::Model(Box::new(form_catalogue(x))),
         c::SettingValue::Application(x) => n::SettingValue::Application(x.clone()),
         c::SettingValue::Charter(x) => n::SettingValue::Charter(Box::new(form_charter(x))),
@@ -1043,6 +1053,13 @@ pub fn form_setting_value(v: &c::SettingValue) -> n::SettingValue {
 pub fn client_setting_value(v: &n::SettingValue) -> c::SettingValue {
     match v {
         n::SettingValue::Overlay(x) => c::SettingValue::Overlay(Box::new(client_overlay(x))),
+        n::SettingValue::Worker(x) => c::SettingValue::Worker(Box::new(c::WorkerSetting {
+            number: x.number,
+            name: x.name.clone(),
+            places: x.places,
+            digest: x.digest,
+            withdrawn: x.withdrawn,
+        })),
         n::SettingValue::Model(x) => c::SettingValue::Model(Box::new(client_catalogue(x))),
         n::SettingValue::Application(x) => c::SettingValue::Application(x.clone()),
         n::SettingValue::Charter(x) => c::SettingValue::Charter(Box::new(client_charter(x))),

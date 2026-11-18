@@ -21,7 +21,7 @@ fn assignment(charter: &engine::Charter, ended_by: tasks::EndedBy) -> engine::As
                 kind: jig_domain_fleet::HostKind::Worker,
             },
             policy: charter.policy.clone(),
-            contract: tasks::Contract::Change { connector: 1, kind: 1, words: 128 },
+            contract: tasks::Contract::Change { connector: 1, kind: 1, words: 128, choices: Box::new([]) },
             authority: tasks::Authority {
                 tools: tasks::Tools(1),
                 models: tasks::Models::NONE,

@@ -1,7 +1,7 @@
 //! Structural adapters between neutral forms and the shared client wire.
 use crate::{Limits, view as c};
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v28 as w;
+use jig_client_protocol_wire as w;
 use skein_lib::{List, Reader, Wall, Writer, bytes};
 pub fn restore_revisions_page(value: &w::RevisionsPage, limits: &Limits) -> Result<c::RevisionsPage, w::Problem> {
     let mut rows = List::with_capacity(value.rows().len());
@@ -82,6 +82,7 @@ pub(crate) fn settings_restore_setting(value: &w::Setting, limits: &Limits) -> c
         w::Setting::Rules => c::Setting::Rules,
         w::Setting::Limits => c::Setting::Limits,
         w::Setting::Model(item) => c::Setting::Model(settings_restore_setting_number(item, limits)),
+        w::Setting::Worker(item) => c::Setting::Worker(settings_restore_setting_number(item, limits)),
     }
 }
 
@@ -209,6 +210,13 @@ pub(crate) fn settings_restore_setting_value(
             c::SettingValue::Policy(Box::new(settings_restore_setting_policy(item, limits)?))
         }
         w::SettingValue::Application(v) => c::SettingValue::Application(bytes::copy_of(v.bytes())),
+        w::SettingValue::Worker(item) => c::SettingValue::Worker(Box::new(c::WorkerSetting {
+            number: item.number(),
+            name: item.name().into(),
+            places: item.places(),
+            digest: *item.digest(),
+            withdrawn: item.withdrawn(),
+        })),
         w::SettingValue::Model(item) => c::SettingValue::Model(Box::new(restore_catalogue(item, limits)?)),
         w::SettingValue::Limits(value) => {
             let mut overrides = List::with_capacity(value.overrides().len());
@@ -1143,6 +1151,16 @@ pub(crate) fn settings_wire_setting_value(
             limits,
             w::ApplicationValueParts { bytes: v.clone() },
         )?),
+        c::SettingValue::Worker(item) => w::SettingValue::Worker(Box::new(w::WorkerSetting::new(
+            limits,
+            w::WorkerSettingParts {
+                number: item.number,
+                name: item.name.clone(),
+                places: item.places,
+                digest: item.digest,
+                withdrawn: item.withdrawn,
+            },
+        )?)),
         c::SettingValue::Model(item) => w::SettingValue::Model(Box::new(wire_catalogue(item, limits)?)),
         c::SettingValue::Limits(values) => {
             let mut overrides = List::with_capacity(u32::try_from(values.len()).expect("bounded overrides"));
@@ -1737,7 +1755,12 @@ pub(crate) fn settings_wire_charter(value: &c::Charter, limits: &w::Limits) -> R
         w::CharterParts {
             parts,
             documents,
-            skein_bools: [value.rest, value.resume(), value.inspect(), value.modify(), value.shell(), value.agents()],
+            rest: value.rest,
+            resume: value.resume(),
+            inspect: value.inspect(),
+            modify: value.modify(),
+            shell: value.shell(),
+            agents: value.agents(),
             number: value.number,
             instructions: bytes::copy_of(value.instructions.bytes()),
             waiting: value.waiting,
@@ -1805,6 +1828,7 @@ pub(crate) fn settings_wire_setting(value: c::Setting, limits: &w::Limits) -> Re
         c::Setting::Rules => w::Setting::Rules,
         c::Setting::Limits => w::Setting::Limits,
         c::Setting::Model(item) => w::Setting::Model(settings_wire_setting_number(item, limits)?),
+        c::Setting::Worker(item) => w::Setting::Worker(settings_wire_setting_number(item, limits)?),
         c::Setting::ProjectPolicy { project } => {
             w::Setting::ProjectPolicy(w::ProjectPolicySetting::new(limits, w::ProjectPolicySettingParts { project })?)
         }

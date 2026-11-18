@@ -40,7 +40,7 @@ pub fn main(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindin
                 card_view(b, root, words, bindings, times, project, card);
             }
             b.close();
-        } else if drafts_only {
+        } else if drafts_only && placed.drafts_known {
             text(b, Role::Paragraph, look::GOALS_EMPTY, &words.say(Word::GoalsEmpty, &[]));
         }
         if !drafts_only && !placed.landed.is_empty() {
@@ -94,8 +94,12 @@ pub(crate) fn head(
     b.open(Role::Slot);
     b.style(look::WORK_INTRO);
     text(b, Role::Paragraph, look::WORK_KICKER, &words.say(Word::WorkKicker, &[Hole::Name(name.clone())]));
-    if let Some(placed) = &placed {
+    if let Some(placed) = &placed
+        && placed.known
+    {
         text(b, Role::Heading { level: 1 }, look::WORK_HEADLINE, &heading(placed, words));
+    } else {
+        held_heading(b, words, 1, look::WORK_HEADLINE);
     }
     let mut lede = Word::WorkLede;
     if let Some(milestones) = root.pages().milestones()
@@ -125,6 +129,18 @@ pub(crate) fn head(
     filters(b, root, words, bindings, project, placed.as_ref());
     b.close();
     placed
+}
+
+/// The browser holds the heading's line unnamed; the terminal prints nothing for it.
+pub(crate) fn held_heading(b: &mut Builder, words: &Words, level: u8, style: Style) {
+    match words.shell {
+        Shell::Browser => {
+            b.open(Role::Heading { level });
+            b.style(style);
+            b.close();
+        }
+        Shell::Terminal => {}
+    }
 }
 
 pub(crate) fn heading(placed: &Work, words: &Words) -> Box<[u8]> {
@@ -167,8 +183,12 @@ fn filters(
     placed: Option<&Work>,
 ) {
     let counts = match placed {
-        Some(placed) => placed.filters,
-        None => work::Filters::default(),
+        Some(placed) if placed.known => placed.filters,
+        Some(_) | None => work::Filters::default(),
+    };
+    let known = match placed {
+        Some(placed) => placed.known,
+        None => false,
     };
     let shown = work::shown(&counts, work::overrides(root, project));
     let current = root.pages().address();
@@ -221,7 +241,7 @@ fn filters(
             continue;
         }
         let label = match count {
-            Some(count) if placed.is_some() => words.say(word, &[Hole::Number(u64::from(count))]),
+            Some(count) if known => words.say(word, &[Hole::Number(u64::from(count))]),
             Some(_) => words.say(unknown, &[]),
             None => words.say(word, &[]),
         };
@@ -616,7 +636,7 @@ fn landed(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings
         }
         let when = times.say(words, TimeForm::Clock, row.at);
         let origin = match root.pages().changes() {
-            Some(page) => page.from(root.client(), row.change),
+            Some(page) => page.from(row.change),
             None => None,
         };
         let (task, title) = match row.item {

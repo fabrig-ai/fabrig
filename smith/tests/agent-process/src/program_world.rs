@@ -1085,21 +1085,35 @@ pub(crate) fn cancel() -> skein_channel::Frame {
 fn with_transcript(charter: &[u8], value: &smith_channel::GrantValue) -> skein_channel::Frame {
     let frame = crate::start_workspace_message(charter, 8, false, None, value, None);
     crate::wire::edit_start(&frame, |start| {
-        let source = include_bytes!("../../../crates/smith-transcript/golden/v7/record_turn_smallest.bin");
-        let mut turn = smith_transcript::Turn::decode(&smith_transcript::CEILINGS, &mut Reader::new(source))
-            .expect("turn fixture")
-            .into_parts();
-        turn.place = 1;
-        turn.opening = Some(
-            smith_transcript::Opening::decode(
-                &smith_transcript::CEILINGS,
-                &mut Reader::new(include_bytes!(
-                    "../../../crates/smith-transcript/golden/v7/record_opening_smallest.bin"
-                )),
-            )
-            .expect("opening fixture"),
-        );
-        let turn = smith_transcript::Turn::new(&smith_transcript::CEILINGS, turn).expect("opening turn");
+        use smith_transcript::{self as t, CEILINGS};
+        let affinity =
+            t::Affinity::new(&CEILINGS, t::AffinityParts { key: [0; 16], thread: 0 }).expect("affinity fixture");
+        let opening =
+            t::Opening::new(&CEILINGS, t::OpeningParts { affinity, account: None, backend: t::Backend::Direct })
+                .expect("opening fixture");
+        let usage = t::Usage::new(
+            &CEILINGS,
+            t::UsageParts { input: None, output: None, cache_read: None, cache_write: None, reasoning: None },
+        )
+        .expect("usage fixture");
+        let turn = t::Turn::new(
+            &CEILINGS,
+            t::TurnParts {
+                kind: t::TurnKind::Ordinary,
+                opening: Some(opening),
+                endpoint: Box::default(),
+                model: Box::default(),
+                effort: None,
+                dialect: 0,
+                place: 1,
+                usage,
+                spent: 0,
+                jobs: 0,
+                messages: skein_lib::List::with_capacity(0),
+                system: None,
+            },
+        )
+        .expect("opening turn");
         start.transcript =
             smith_protocol_translate::transcript_piece(&[crate::encoded!(turn)]).expect("transcript piece");
     })
@@ -1182,7 +1196,7 @@ pub fn child_charter() -> Box<[u8]> {
         let mut tools = parts.tools.clone().into_parts();
         tools.families = smith_charter::Families::new(
             &smith_charter::CEILINGS,
-            smith_charter::FamiliesParts { skein_bools: [true, false, false, true] },
+            smith_charter::FamiliesParts { inspect: true, modify: false, shell: false, agents: true },
         )
         .expect("child families");
         parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("child tools");

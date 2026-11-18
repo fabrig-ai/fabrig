@@ -17,10 +17,10 @@ fn opening() -> Machine {
     process_line(&mut machine, Process::Forgejo, Output::Stdout, "listening forge\n");
     process_line(&mut machine, Process::Model, Output::Stdout, "listening model\n");
     engine_ready(&mut machine);
-    process_line(&mut machine, Process::Worker, Output::Stderr, "linked worker\n");
     assert!(process_line(&mut machine, Process::Engine, Output::Stdout, "http://ignored/before-sign-in\n").is_empty());
-    let actions = step(&mut machine, exited(Process::SignIn, 0));
-    let [Action::RemoveLink, Action::Open(url)] = actions.as_slice() else { panic!("{actions:?}") };
+    admit_worker(&mut machine);
+    let actions = process_line(&mut machine, Process::Worker, Output::Stderr, "linked worker\n");
+    let [Action::DeploymentLog { .. }, Action::Open(url)] = actions.as_slice() else { panic!("{actions:?}") };
     assert_eq!(url.as_ref(), b"http://127.0.0.1:4101/link?secret=not-logged");
     machine
 }
@@ -32,6 +32,7 @@ fn ready_page() -> Machine {
     step(&mut machine, Event::FaceDone(Ok(())));
     fresh(&mut machine);
     step(&mut machine, Event::FaceDone(Ok(())));
+    step(&mut machine, Event::Found(Some(NodeId(1))));
     step(&mut machine, Event::FaceDone(Ok(())));
     assert!(matches!(step(&mut machine, Event::Found(Some(NodeId(1)))).as_slice(), [Action::Ready]));
     machine
@@ -83,7 +84,11 @@ fn browser_start_takes_only_the_fresh_link_in_either_pipe_order() {
         opened(&actions, b"http://127.0.0.1:4101/link?secret=fresh");
         assert!(step(&mut machine, refused()).is_empty());
         assert!(fresh(&mut machine).is_empty());
-        opened(&step(&mut machine, Event::FaceDone(Ok(()))), b"http://127.0.0.1:4101/");
+        assert!(
+            matches!(step(&mut machine, Event::FaceDone(Ok(()))).as_slice(), [Action::Find(find)] if *find == Find::named(Role::Main, b""))
+        );
+        assert!(step(&mut machine, refused()).is_empty());
+        opened(&step(&mut machine, Event::Found(Some(NodeId(1)))), b"http://127.0.0.1:4101/");
         assert!(step(&mut machine, refused()).is_empty());
         assert!(matches!(step(&mut machine, Event::FaceDone(Ok(()))).as_slice(), [Action::Find(_)]));
         assert!(step(&mut machine, refused()).is_empty());
@@ -111,6 +116,7 @@ fn browser_start_failures_close_before_stops_and_classify_with_deployment_tails(
             } else {
                 fresh(&mut machine);
                 step(&mut machine, Event::FaceDone(Ok(())));
+                step(&mut machine, Event::Found(Some(NodeId(1))));
                 step(&mut machine, Event::FaceDone(Ok(())));
                 step(&mut machine, Event::Found(None));
                 (60, "Main: deadline passed")

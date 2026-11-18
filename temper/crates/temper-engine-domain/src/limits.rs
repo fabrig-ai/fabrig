@@ -328,9 +328,9 @@ pub(crate) fn run_charter_bytes(charter: &RunCharter) -> Option<u64> {
                 .checked_mul(u64::try_from(size_of::<jig_domain_authority::AccountBinding>()).ok()?)?,
         )?;
     match &charter.contract {
-        tasks::Contract::Report { .. } | tasks::Contract::Change { .. } | tasks::Contract::Job { .. } => {}
+        tasks::Contract::Report { .. } | tasks::Contract::Job { .. } => {}
         tasks::Contract::Approval { state, .. } => bytes = bytes.checked_add(skein_lib::len_u64(state.len()))?,
-        tasks::Contract::Verdict { choices } => {
+        tasks::Contract::Verdict { choices } | tasks::Contract::Change { choices, .. } => {
             bytes = bytes.checked_add(
                 skein_lib::len_u64(choices.len()).checked_mul(u64::try_from(size_of::<tasks::Verdict>()).ok()?)?,
             )?;

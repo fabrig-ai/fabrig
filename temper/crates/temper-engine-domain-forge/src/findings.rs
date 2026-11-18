@@ -45,6 +45,40 @@ impl Domain {
     pub fn findings(&self, project: u32) -> impl DoubleEndedIterator<Item = (&(u32, u32), &Finding)> {
         self.finding_rows().range((project, 0)..=(project, u32::MAX))
     }
+    /// One open flake per test suffices; count each chosen finding once (landing-regate.md, 2).
+    pub(crate) fn gate_flakes(
+        &self,
+        project: u32,
+        repository: skein_forge::api::Repository,
+        gate: &[u8],
+        tests: &[crate::ReceiptTest],
+    ) -> Option<Box<[u32]>> {
+        if tests.is_empty() || tests.len() > 64 {
+            return None;
+        }
+        let mut numbers = List::with_capacity(64);
+        for test in tests {
+            let mut matched = None;
+            for (_, row) in self.findings(project) {
+                if row.kind != FindingKind::Flake || row.state == FindingState::Dropped {
+                    continue;
+                }
+                let Some(signature) = &row.signature else { continue };
+                if signature.repository == repository
+                    && (signature.source.as_ref() == gate || signature.source.as_ref() == b"check")
+                    && signature.ids.contains(&test.key)
+                {
+                    matched = Some(row.number);
+                    break;
+                }
+            }
+            let number = matched?;
+            if !numbers.as_slice().contains(&number) {
+                numbers.push(number).expect("one finding per test");
+            }
+        }
+        Some(numbers.into_boxed())
+    }
     fn finding_area(&self, project: u32, name: &[u8]) -> Result<(), FindingRefusal> {
         let areas = self.project_areas(project);
         let mut names = List::with_capacity(16);

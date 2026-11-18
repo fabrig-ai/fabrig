@@ -12,6 +12,7 @@ fn addresses_parse_in_the_chats_project() {
         ("settings template 5", Address::Setting(Setting::Template(5))),
         ("settings policy 1", Address::Setting(Setting::Policy(1))),
         ("settings model 1", Address::Setting(Setting::Model(1))),
+        ("settings worker 1", Address::Setting(Setting::Worker(1))),
         ("settings rules", Address::Setting(Setting::Rules)),
         ("settings landing-rule 1", Address::Setting(Setting::Application { kind: 1, scope: 0, number: 1 })),
         ("settings landing-rule 3 project", Address::Setting(Setting::Application { kind: 2, scope: 7, number: 3 })),
@@ -120,6 +121,7 @@ use skein_lib::{List, Token};
 fn task_query(order: d::QueryOrder, phase: Option<d::PhaseClass>, parent: Option<u64>, tracked: Option<bool>) -> Read {
     Read::Tasks {
         query: d::TaskQuery {
+            parts: List::with_capacity(0),
             project: Some(7),
             requester: None,
             root: None,
@@ -427,7 +429,7 @@ fn take_read(domain: &mut crate::Domain, key: crate::CallKey) -> Read {
     assert_eq!(actual, key);
     let jig_domain_core::NamedAction::PersonRead(read) = action else { panic!("read as the person") };
     assert!(domain.work.is_empty());
-    read
+    *read
 }
 
 fn person_now(
@@ -647,6 +649,7 @@ fn goals_leave_milestones_out_of_live_and_ended_rows() {
         gathered.push(
             &address,
             Part::Jig(Answer::Tasks(Box::new(TaskPage {
+                ended_mark: 0,
                 live: rows.clone(),
                 live_next: None,
                 ended: EndedGroup::Rows { rows, next: None, cut: false },

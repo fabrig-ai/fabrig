@@ -196,6 +196,52 @@ fn largest_parts_are_the_generated_encoded_bounds() {
 }
 
 #[test]
+fn largest_writable_items_count_the_own_delivery_head() {
+    use skein_lib::bytes::zeroed;
+    let limits = v1::Limits { prefixes_branches: 0, merged_heads: 0, ..fixtures::limits() };
+    let writable = v1::Writable::new(
+        &limits,
+        v1::WritableParts {
+            push: zeroed(usize::try_from(limits.writable_push).unwrap()),
+            expected: Some([1; 32]),
+            landing: Some(zeroed(usize::try_from(limits.writable_landing_some).unwrap())),
+            delivered: Some([7; 32]),
+        },
+    )
+    .unwrap();
+    assert_eq!(u64::from(writable.measure()), v1::Writable::encoded_bound(&limits).unwrap());
+    let repository = v1::Repository::new(
+        &limits,
+        v1::RepositoryParts {
+            tag: 7,
+            name: zeroed(usize::try_from(limits.repository_name).unwrap()),
+            remote: zeroed(usize::try_from(limits.repository_remote).unwrap()),
+            git: Some(zeroed(usize::try_from(limits.repository_git_some).unwrap())),
+            start: v1::Start::Merge(
+                v1::Merge::new(
+                    &limits,
+                    v1::MergeParts { branch: zeroed(usize::try_from(limits.merge_branch).unwrap()), base: [1; 32] },
+                )
+                .unwrap(),
+            ),
+            access: v1::Access::Writable(writable),
+            identity: 1,
+            account: Some(2),
+            save: Some(zeroed(usize::try_from(limits.repository_save_some).unwrap())),
+        },
+    )
+    .unwrap();
+    let mut repositories = List::with_capacity(limits.items_repositories);
+    for _ in 0..limits.items_repositories {
+        repositories.push(repository.clone()).unwrap();
+    }
+    let items = v1::Items::new(&limits, v1::ItemsParts { repositories }).unwrap();
+    let bytes = crate::items(&items);
+    assert_eq!(u32::try_from(bytes.len()).unwrap(), crate::largest(&limits).unwrap().items);
+    assert_eq!(v1::Items::decode(&limits, &mut skein_lib::Reader::new(&bytes)).unwrap(), items);
+}
+
+#[test]
 fn identity_rules_refuse_each_forbidden_byte() {
     let original = fixtures::identity(b"forge-token");
     assert!(crate::valid(&original), "ordinary identity");
@@ -312,6 +358,7 @@ fn landing_branch_uses_the_name_bound_and_largest_items_count_it() {
             push: Box::from(&b"topic"[..]),
             expected: None,
             landing: Some(skein_lib::bytes::zeroed(length)),
+            delivered: None,
         };
         let value = v1::Writable::new(&limits, parts);
         if length == 16 {

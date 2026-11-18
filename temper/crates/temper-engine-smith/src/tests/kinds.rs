@@ -146,6 +146,7 @@ fn each_kind_round_trips_its_value() {
             settings::Value::Landing(_) => 4,
             settings::Value::Gates(_) => 5,
             settings::Value::ProjectTriager(_) => 15,
+            settings::Value::AgentFigures(_) => 21,
             settings::Value::Welcome(_) => 20,
             settings::Value::Limits(_) => 21,
         };

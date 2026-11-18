@@ -41,7 +41,7 @@ fn merge_command(out: &mut Writer) -> Result<(), Overflow> {
 
 /// Slot capacity at composition and each deployment limit (temper/docs/design/domain/worker/README.md, 5).
 fn more_slots(out: &mut Writer) -> Result<(), Overflow> {
-    out.put(b"\n## More slots\n\n`workers[0].slots` bounds the runs a worker hosts at once, an agent process each. The host's agents follow it, and nothing in `agent.json` raises them. Each of these must be at least the slots, and a start names the one that's short:\n\n- `hub.slots`, in `workers[0].limits.overrides`.\n- `fleet.slots`, in the setting `limits`. An engine alone can't see a worker's slots: it uses them up to this, and turns away a hello listing more runs.\n- The worker's `checkout.workspaces` and `git_component.operations` follow its slots at start.\n")
+    out.put(b"\n## More slots\n\n`workers[0].slots` bounds the runs a worker hosts at once, an agent process each. The host's agents follow it; the `agents` setting does not raise them. Each of these must be at least the slots, and a start names the one that's short:\n\n- `hub.slots`, in the `limits` setting. Workers take their limits from the engine.\n- `fleet.slots`, in the `limits` setting. An engine alone can't see a worker's slots: it uses them up to this, and turns away a hello listing more runs.\n- `checkout.workspaces`, in the `temper-limits` setting, and `git_component.operations` there, at least the workspaces.\n")
 }
 
 fn accepted(path: &str, engine: bool) -> bool {
@@ -56,6 +56,8 @@ fn accepted(path: &str, engine: bool) -> bool {
     }
     if engine {
         for stored in [
+            "workers[].agent",
+            "workers[].limits",
             "engine.charters",
             "engine.templates",
             "engine.policies",
@@ -135,6 +137,20 @@ fn render_row(
     }
     if engine && row.name == "models" && (shape.name == "llm" || shape.name == "llm-provider") {
         return Ok(());
+    }
+    if engine && shape.name == "worker" {
+        let moved = match row.name {
+            "agent" => Some(super::worker::MOVED_AGENT),
+            "limits" => Some(super::worker::MOVED_LIMITS),
+            _ => None,
+        };
+        if let Some(moved) = moved {
+            out.put(b"- `")?;
+            out.put(row.name.as_bytes())?;
+            out.put(b"`: refused: ")?;
+            out.put(moved)?;
+            return out.put(b"\n");
+        }
     }
     out.put(b"- `")?;
     out.put(row.name.as_bytes())?;

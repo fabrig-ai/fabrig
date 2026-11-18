@@ -170,6 +170,7 @@ pub(crate) fn adoption_given() -> temper_service::stock::Given {
             Given::Own {
                 jig: jig_domain_core::settings::Defaults {
                     limits: jig.limits.clone(),
+                    workers: Box::new([]),
                     charters: jig.charters.clone(),
                     templates: jig.templates.clone(),
                     policies,

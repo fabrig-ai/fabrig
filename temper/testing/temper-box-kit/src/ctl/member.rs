@@ -191,6 +191,8 @@ impl Member {
             assert!(kept, "member token is durable");
             self.close();
         }
+        self.client.settle(now, wall, &mut self.out);
+        self.drain();
     }
     pub fn close(&mut self) {
         self.closing = true;

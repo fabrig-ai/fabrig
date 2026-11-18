@@ -20,6 +20,20 @@ pub(crate) fn session(world: &mut World) {
     }
     world.sign_in();
 }
+/// Keep the owner's live session; this world's wall and monotonic clocks advance together.
+pub(crate) fn owner_session(world: &mut World) -> u64 {
+    world.until(Until::Ready);
+    if let Some(sign_in) = world.signed_in
+        && let Some(Record::Core(jig_domain_core::Record::People(people::Stored::SignIn {
+            person: 1, expires, ..
+        }))) = world.store.rows.get(&Key::Core(jig_domain_core::Key::People(people::Key::SignIn(sign_in))))
+        && *expires > world.env.wall
+    {
+        return sign_in;
+    }
+    session(world);
+    world.signed_in.expect("owner session")
+}
 pub(crate) fn owner(world: &mut World, key: u8, request: FollowAct) {
     assert_eq!(act(world, key, request), None);
     world.drain_cut();
@@ -96,6 +110,23 @@ pub(crate) fn landed(world: &mut World, change: u64) {
         }
     }
     panic!("change did not land: {:?}", questions::row(world, change));
+}
+
+#[test]
+fn owner_session_reuses_a_live_sign_in_and_replaces_a_signed_out_one() {
+    let mut world = fixture();
+    let first = world.signed_in.expect("fixture owner");
+    assert_eq!(owner_session(&mut world), first);
+    world.send(engine::Event::Party(engine::PartyInput::SignOut {
+        reply_to: ReplyTo::new(Token::new(198)),
+        sign_in: first,
+    }));
+    world.drain_cut();
+    let fresh = owner_session(&mut world);
+    assert_ne!(fresh, first);
+    assert!(world.oracle_document(fresh, 2, forge_top::follows_subject(2)).is_some());
+    assert_eq!(owner_session(&mut world), fresh);
+    world.close();
 }
 
 #[test]
@@ -326,7 +357,6 @@ fn a_follow_without_the_targets_context_adoption_is_refused() {
     world.close();
 }
 
-#[expect(clippy::too_many_lines, reason = "one ctl exchange reads the engine's frame and follow document")]
 fn ctl_list(world: &mut World) -> String {
     use jig_client::{self as client, contract as c};
     use skein_lib::{Env, List, Queue};
@@ -341,18 +371,6 @@ fn ctl_list(world: &mut World) -> String {
         client::Event::Up { up: client::Up::Served { served: true, versions: None } },
     ] {
         root::step(&mut root, &env, root::Event::Client { event }, &mut out);
-    }
-    let mut me_watch = None;
-    while let Some(request) = out.pop() {
-        if let root::Request::Unlinked {
-            request:
-                client::UnlinkedRequest::Down {
-                    down: client::Down::Open { watch, subject: client::Watchable::Jig(c::Subject::Me) },
-                },
-        } = request
-        {
-            me_watch = Some(watch);
-        }
     }
     let jig_domain_core::reads::Answer::Document(document) = world.party_read(jig_domain_core::reads::Read::Frame)
     else {
@@ -390,7 +408,7 @@ fn ctl_list(world: &mut World) -> String {
     let me = jig_client_protocol_link::translate::documents::frame(frame, &link).expect("client frame");
     let event = client::Event::Up {
         up: client::Up::Watched {
-            watch: me_watch.expect("ctl watches me"),
+            watch: skein_lib::Token::new(0),
             event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))),
         },
     };

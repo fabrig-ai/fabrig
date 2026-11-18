@@ -1,6 +1,10 @@
 //! Store key, interval and codec properties (protocol/store/README.md, section 9).
+#[expect(clippy::disallowed_macros, reason = "tests embed the component schema to build fixed-rule values")]
+const COMPONENT_SCHEMA: &str = include_str!("../schema/component-v3.schema");
+
 mod admission;
 mod census;
+mod checkpoints;
 mod commits;
 mod directory;
 mod erase_reads;
@@ -21,7 +25,9 @@ mod pages;
 mod preopen;
 mod readers;
 mod reads;
+mod rehearsal;
 mod restore;
+mod restoring;
 mod secrets;
 mod start_pages;
 mod transcripts;

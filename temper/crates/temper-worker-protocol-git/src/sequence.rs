@@ -43,6 +43,7 @@ pub fn first(op: &git::Op) -> Next {
         git::Op::Create { remote, branch, commit, .. } => {
             Command::Create { remote: remote.clone(), branch: branch.clone(), commit: *commit }
         }
+        git::Op::Reset { commit, .. } => Command::SnapshotReset { commit: *commit },
         git::Op::Point { into, commit, .. } => Command::UpdateRef { into: *into, commit: *commit },
         git::Op::CheckOut { commit, .. } => Command::CheckOut { commit: *commit },
         git::Op::Brings { head, upstream, .. } => Command::MergeBases { head: *head, upstream: *upstream },
@@ -107,6 +108,7 @@ pub fn after(
             | git::Op::Make { .. }
             | git::Op::Clone { .. }
             | git::Op::Reds { .. }
+            | git::Op::Reset { .. }
             | git::Op::Point { .. }
             | git::Op::Fetch { .. }
             | git::Op::Create { .. }
@@ -196,6 +198,7 @@ pub fn after(
             | git::Op::Make { .. }
             | git::Op::Clone { .. }
             | git::Op::Reds { .. }
+            | git::Op::Reset { .. }
             | git::Op::Point { .. }
             | git::Op::Fetch { .. }
             | git::Op::Create { .. }
@@ -258,6 +261,7 @@ pub fn after(
             | git::Op::Make { .. }
             | git::Op::Clone { .. }
             | git::Op::Reds { .. }
+            | git::Op::Reset { .. }
             | git::Op::Point { .. }
             | git::Op::Fetch { .. }
             | git::Op::Create { .. }
@@ -336,6 +340,7 @@ fn unmerged(op: &git::Op, stdout: &[u8], checkout: &checkout::Limits) -> Option<
         | git::Op::Make { .. }
         | git::Op::Clone { .. }
         | git::Op::Reds { .. }
+        | git::Op::Reset { .. }
         | git::Op::Point { .. }
         | git::Op::Fetch { .. }
         | git::Op::Create { .. }
@@ -357,6 +362,7 @@ fn commit_tree(op: &git::Op, stdout: &[u8]) -> Option<Command> {
         | git::Op::Make { .. }
         | git::Op::Clone { .. }
         | git::Op::Reds { .. }
+        | git::Op::Reset { .. }
         | git::Op::Point { .. }
         | git::Op::Fetch { .. }
         | git::Op::Create { .. }
@@ -378,6 +384,7 @@ fn checked_out(op: &git::Op) -> Next {
         | git::Op::Make { .. }
         | git::Op::Clone { .. }
         | git::Op::Reds { .. }
+        | git::Op::Reset { .. }
         | git::Op::Point { .. }
         | git::Op::Fetch { .. }
         | git::Op::Create { .. }

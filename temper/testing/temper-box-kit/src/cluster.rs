@@ -30,8 +30,38 @@ pub struct Cluster {
     specs: Vec<Value>,
     bindings: BTreeMap<String, String>,
     prepared: BTreeSet<String>,
-    agent_program: Option<String>,
 }
+/// Compose the engine fixture as the running engine does, without opening it.
+#[must_use]
+pub fn figures(document: &Value) -> jig_protocol_worker_wire::Figures {
+    let bytes = serde_json::to_vec(&document["engine"]).expect("engine JSON");
+    let parsed = jig_protocol_config::document(
+        &bytes,
+        &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 1_048_576, depth: 32 },
+    )
+    .expect("engine document");
+    let engine = temper_service::startup::engine(&parsed, 0, &jig_protocol_config::Directories::working())
+        .expect("fixture engine");
+    let application = &document["application"]["limits"];
+    let mut own = temper_limits_fixtures::small();
+    for (name, value) in application["overrides"].as_object().expect("limits overrides") {
+        temper_engine_service_vocabulary::limits::apply(&mut own, name.as_bytes(), value.as_u64().expect("scalar"))
+            .expect("fixture limit");
+    }
+    let mut figures = temper_engine_service_vocabulary::figures::Composer::new(&engine, &own)
+        .compose(&temper_service::stock::agents())
+        .into_parts();
+    figures.places = engine.limits.core.fleet.slots;
+    jig_protocol_worker_wire::Figures::new(&jig_protocol_worker_wire::CEILINGS, figures).expect("composed figures")
+}
+/// Agent metadata for fixture checks; no worker configuration file is supplied.
+#[must_use]
+pub fn agent_configuration(engine: &Value, data: &Path) -> Value {
+    let bytes = temper_worker_shell::agent::figures::configuration(&figures(engine), None, data, &[])
+        .expect("written fixture agent");
+    serde_json::from_slice(&bytes).expect("agent JSON")
+}
+
 /// The first start records revision 1; apply the fixture's whole values before its first chat.
 #[must_use]
 pub fn settings_change(file: &Path) -> super::ctl::Call {
@@ -48,6 +78,53 @@ pub fn settings_change(file: &Path) -> super::ctl::Call {
 fn private_directory(path: &Path) {
     fs::DirBuilder::new().recursive(true).mode(0o700).create(path).expect("private cluster directory");
 }
+/// Worker settings from a description, applied by its owner after sign-in.
+#[must_use]
+pub fn worker_settings(file: &Path) -> Vec<Value> {
+    let document: Value =
+        serde_json::from_slice(&fs::read(file).expect("description settings")).expect("settings JSON");
+    document["items"]
+        .as_array()
+        .expect("settings items")
+        .iter()
+        .filter(|item| item["setting"]["kind"] == "worker")
+        .cloned()
+        .collect()
+}
+/// The owner admits the fixture's workers through ctl (draft/config.md, 6.7).
+#[must_use]
+pub fn worker_adds(file: &Path) -> Vec<super::ctl::Call> {
+    worker_settings(file)
+        .iter()
+        .map(|row| {
+            let value = &row["set"];
+            super::ctl::Call::new(&[
+                "worker",
+                "add",
+                value["name"].as_str().expect("worker name"),
+                "--places",
+                &value["places"].as_u64().expect("worker places").to_string(),
+                "--digest",
+                value["digest"].as_str().expect("worker digest"),
+                "--key",
+                &format!("add-{}", value["name"].as_str().expect("worker name")),
+            ])
+        })
+        .collect()
+}
+/// Link-only process stories still establish membership through the client's settings door.
+pub fn admit_workers(members: &Members, host: &mut Root, directory: &Path) -> Result<(), String> {
+    let link = format!("http://{}", members.capture("engine", "link").ok_or("engine link")?);
+    let mut client = super::ctl::Calls::linked(&link, directory);
+    client.push(super::ctl::Step::Run(super::ctl::Call::sign_in()));
+    for call in worker_adds(&members.dir("engine").join("settings.json")) {
+        client.push(super::ctl::Step::Run(call));
+    }
+    let Root::Client { calls, .. } = host else { return Err("client root".into()) };
+    *calls = Some(Box::new(client));
+    Ok(())
+}
+
 fn contained(base: &Path, path: &str) -> PathBuf {
     assert!(
         !path.is_empty() && Path::new(path).components().all(|c| matches!(c, Component::Normal(_))),
@@ -125,7 +202,7 @@ impl Cluster {
                 "{name}'s memory bound"
             );
         }
-        let mut cluster = Self { experiment, specs, bindings, prepared: BTreeSet::new(), agent_program: None };
+        let mut cluster = Self { experiment, specs, bindings, prepared: BTreeSet::new() };
         for index in 0..cluster.specs.len() {
             if list(&cluster.specs[index]["ready"])
                 .iter()
@@ -146,7 +223,6 @@ impl Cluster {
             assert!(binary.is_file(), "build the deployment's binary: cargo build -p {name} --bin {name}");
             self.bind(&format!("artifact.{name}"), binary.to_str().expect("deployment binary path"));
         }
-        self.agent_program = Some(self.bindings["artifact.temper-agent"].clone());
         for spec in &mut self.specs {
             if spec["name"] == "engine" {
                 spec["argv"][0] = "{artifact.temper-engine}".into();
@@ -294,19 +370,6 @@ impl Cluster {
             private_directory(target.parent().expect("file parent"));
             let bytes = self.render(&fs::read_to_string(&source).expect("cluster template"));
             super::write_private(&target, bytes.as_bytes());
-            if file["path"] == "config/temper.json"
-                && let Some(program) = &self.agent_program
-            {
-                let mut value: Value = serde_json::from_str(&bytes).expect("rendered cluster document JSON");
-                if let Some(agent) = value.pointer_mut("/workers/0/agent").filter(|agent| !agent.is_null()) {
-                    agent["program"] = program.clone().into();
-                    agent["arguments"] = vec![agent["configuration"].clone()].into();
-                    value.sort_all_objects();
-                    let mut bytes = serde_json::to_vec(&value).expect("canonical cluster document JSON");
-                    bytes.push(b'\n');
-                    super::write_private(&target, &bytes);
-                }
-            }
         }
         if process == "engine" {
             let config = self.dir(process).join("config");
@@ -1081,7 +1144,6 @@ pub mod verdict_tests {
             specs: Vec::new(),
             bindings: BTreeMap::new(),
             prepared: BTreeSet::new(),
-            agent_program: None,
         };
         let (mut members, _) = cluster.members();
         members.failure = Some("worker ended unexpectedly".to_owned());

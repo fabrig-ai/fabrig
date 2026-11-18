@@ -38,9 +38,7 @@ fn a_completion_of_every_call_it_may_make_is_told_and_acknowledged() {
     let turn = completion_turn(limits.domain.run.calls);
     let mut world = World::with_agent_limits(limits.channel, StreamMode::Two);
     world.settle();
-    world.send_start(
-        include_bytes!("../../../../../crates/smith-charter/golden/v5/record_charter_smallest.bin").as_slice().into(),
-    );
+    world.send_start(crate::values::charter("smallest").as_slice().into());
     world.settle();
     world.agent_admits();
     world.settle();
@@ -64,9 +62,7 @@ fn a_window_that_holds_one_turn_of_the_largest_size() {
     };
     let mut world = World::with_agent_limits(limits.channel, StreamMode::Two);
     world.settle();
-    world.send_start(
-        include_bytes!("../../../../../crates/smith-charter/golden/v5/record_charter_smallest.bin").as_slice().into(),
-    );
+    world.send_start(crate::values::charter("smallest").as_slice().into());
     world.settle();
     world.agent_admits();
     world.settle();
@@ -101,10 +97,7 @@ fn a_window_of_more_than_sixty_four_turns_resumes() {
     }
     let mut world = World::with_agent_limits(limits.channel, StreamMode::Two);
     world.settle();
-    world.send_start_with_turns(
-        include_bytes!("../../../../../crates/smith-charter/golden/v5/record_charter_smallest.bin").as_slice().into(),
-        Some(bodies.into_boxed_slice()),
-    );
+    world.send_start_with_turns(crate::values::charter("smallest").as_slice().into(), Some(bodies.into_boxed_slice()));
     world.settle();
     assert!(
         world.observations().contains(&Observation::AgentHistory { turns: 65, place: 1 }),

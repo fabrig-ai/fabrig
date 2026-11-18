@@ -77,7 +77,10 @@ fn a_read_bound_set_to_the_refusals_number_starts() {
     for turn in [fixtures::startup_agent().limits.bodies.turn_body, TRANSCRIPT] {
         let mut agent = fixtures::startup_agent();
         agent.limits.bodies.turn_body = turn;
-        let mut document = transcript_document(TRANSCRIPT);
+        let mut value: serde_json::Value = serde_json::from_slice(&transcript_document(TRANSCRIPT)).unwrap();
+        // The test pins read admission when the transcript drives the page.
+        value["application"]["limits"]["overrides"]["forge.changes"] = 0_u32.into();
+        let mut document = serde_json::to_vec(&value).unwrap().into_boxed_slice();
         if turn == TRANSCRIPT {
             document.jig.hub.turn_bytes = u64::from(turn);
             document.jig.core.resume_bytes = turn + 4;
@@ -85,17 +88,13 @@ fn a_read_bound_set_to_the_refusals_number_starts() {
             document.jig.hub.turn_queue_bytes = u64::from(turn) * 8;
             document.own.root.journal.transcript_bytes = turn + 4;
             let mut value: serde_json::Value = serde_json::from_slice(&document).unwrap();
-            let overrides = &mut value["workers"][0]["limits"]["overrides"];
-            let bodies = jig_protocol_worker_wire::v15::Limits {
+            let overrides = &mut value["engine"]["limits"]["overrides"];
+            let bodies = jig_protocol_worker_wire::v17::Limits {
                 turn_body: turn,
                 turn_refused: u32::try_from(overrides["tasks.run_inbox"].as_u64().unwrap()).unwrap(),
-                ..jig_protocol_worker_wire::v15::CEILINGS
+                ..jig_protocol_worker_wire::v17::CEILINGS
             };
-            overrides["io.output"] = (jig_protocol_worker_wire::v15::Turn::encoded_bound(&bodies).unwrap() + 8).into();
-            overrides["hub.turn_bytes"] = u64::from(turn).into();
-            overrides["hub.transcript_bytes"] = (u64::from(turn + 4) * 4).into();
-            overrides["hub.turn_queue_bytes"] = (u64::from(turn) * 8).into();
-            document.document = serde_json::to_vec(&value).unwrap().into();
+            document.jig.io.output = u32::try_from(jig_protocol_worker_wire::v17::Turn::encoded_bound(&bodies).unwrap() + 8).unwrap();
         }
         let store =
             fixtures::document_store_limits(&document, &config::Directories::working(), Some(&agent.declaration()))
@@ -482,27 +481,25 @@ fn jig_refusals_print_words() {
 #[test]
 fn named_lists_each_file_with_its_bound_and_privacy() {
     let named = fixtures::named(&fixtures::document(), &jig_protocol_config::Directories::working()).unwrap();
-    assert_eq!(named.files.len(), 3, "all files listed");
-    for (name, path, max, private) in [
-        (b"secrets/worker-a.digest".as_slice(), b"engine.hosts.workers[0].digest".as_slice(), 65, true),
-        (b"worker-secret", b"workers[0].secret", 257, true),
-        (fixtures::AGENT_JSON, b"workers[0].agent.configuration", 1_048_576, false),
-    ] {
-        let file = named.files.iter().find(|file| file.path.as_ref() == name).expect("listed file");
-        assert_eq!(file.max, max, "bound {name:?}");
-        assert_eq!(file.private, private, "privacy {name:?}");
-        let mut problems = Problems::empty();
-        problems.push(file.at.clone(), What::Jig(config::What::Missing));
-        let expected = [path, b": missing\n"].concat();
-        assert_eq!(&*lines(&problems), expected.as_slice(), "path {name:?}");
-    }
+    assert_eq!(named.files.len(), 1, "all files listed");
+    let (name, path, max, private) = (b"worker-secret".as_slice(), b"workers[0].secret".as_slice(), 257, true);
+    let file = named.files.iter().find(|file| file.path.as_ref() == name).expect("listed file");
+    assert_eq!(file.max, max, "bound {name:?}");
+    assert_eq!(file.private, private, "privacy {name:?}");
+    let mut problems = Problems::empty();
+    problems.push(file.at.clone(), What::Jig(config::What::Missing));
+    let expected = [path, b": missing\n"].concat();
+    assert_eq!(&*lines(&problems), expected.as_slice(), "path {name:?}");
+    let document = fixtures::with(&fixtures::document(), b"workers[0].secret", br#""agent.json""#);
+    let named = fixtures::named(&document, &config::Directories::working()).unwrap();
+    assert!(named.files.iter().any(|file| file.private && file.path.as_ref() == b"agent.json"));
 }
 #[test]
 fn named_returns_the_worker_root_and_the_agent_configuration() {
     let named = fixtures::named(&fixtures::document(), &jig_protocol_config::Directories::working()).unwrap();
     assert_eq!(named.deployment.as_ref(), b"state");
     assert_eq!(named.worker.as_ref().expect("standalone worker").root.as_ref(), b"workspaces");
-    assert_eq!(named.worker.as_ref().expect("standalone worker").agent.as_ref(), fixtures::AGENT_JSON);
+    assert_eq!(named.worker.as_ref().expect("standalone worker").agent.as_ref(), b"agent.json");
 }
 #[test]
 fn a_file_named_but_not_given_refuses_the_start_naming_it() {
@@ -718,7 +715,7 @@ fn a_workers_missing_or_oversized_secret_keeps_its_absolute_path() {
 #[test]
 fn a_worker_secret_at_its_bound_excludes_its_final_newline() {
     let mut worker = fixtures::worker_settings();
-    worker.jig.limits.link.secret = 4;
+    worker.jig.limits.as_mut().expect("checked worker limits").link.secret = 4;
     let mut entries = List::with_capacity(1);
     entries.push((b"worker-secret".as_slice().into(), skein_lib::Secret::new(b"four\n".as_slice().into()))).unwrap();
     let made = crate::Worker::new(
@@ -804,32 +801,13 @@ fn a_webhook_listener_with_a_bundle_is_refused() {
 }
 
 #[test]
-fn an_old_agent_command_is_refused_with_its_fix() {
-    let document =
-        fixtures::with(&fixtures::document(), b"workers[0].agent.arguments", br#"["agent", "/c/agent.json"]"#);
-    let refused = fixtures::named(&document, &config::Directories::working()).unwrap_err();
-    assert_eq!(
-        lines(&refused).as_ref(),
-        b"workers[0].agent.arguments: \"agent\" is now \"internal\", \"agent\": write [\"internal\", \"agent\", PATH], PATH agent.configuration's\n"
-    );
-    let document =
-        fixtures::with(&document, b"workers[0].agent.arguments", br#"["internal", "agent", "/c/agent.json"]"#);
-    fixtures::named(&document, &config::Directories::working()).expect("the replacement agent command passes");
-}
-
-#[test]
 fn paths_are_resolved_by_kind_and_absolute_only_members_refuse_relative_values() {
     let directories = config::Directories::given(b"/configuration", b"/data", b"/cache").unwrap();
     for (member, input, expected, refused) in [
         (b"workers[0].secret".as_slice(), br#""secret""#.as_slice(), b"/data/secret".as_slice(), false),
         (b"workers[0].secret", br#""/kept/secret""#, b"/kept/secret", false),
-        (b"engine.hosts.workers[0].digest", br#""digest""#, b"/data/digest", false),
-        (b"engine.hosts.workers[0].digest", br#""/kept/digest""#, b"/kept/digest", false),
         (b"application.clients.bundle", br#""bundle""#, b"", true),
         (b"application.clients.bundle", br#""/kept/bundle""#, b"/kept/bundle", false),
-        (b"workers[0].agent.program", br#""temper""#, b"", true),
-        (b"workers[0].agent.configuration", br#""agent.json""#, b"", true),
-        (b"workers[0].agent.arguments", br#"["internal", "agent","agent.json"]"#, b"", true),
     ] {
         let document = fixtures::with(&fixtures::document(), member, input);
         let result = fixtures::named(&document, &directories);
@@ -852,7 +830,10 @@ fn paths_are_resolved_by_kind_and_absolute_only_members_refuse_relative_values()
 fn a_standalone_check_reserve_shortfall_prepares_with_one_warning() {
     let mut agent = fixtures::startup_agent();
     agent.bounds.checks = skein_lib::Duration::from_millis(90_000);
-    let mut service = fixtures::start(
+    let mut defaults = crate::stock::with_models(Box::new([fixtures::small_model()]), 32);
+    defaults.charters.iter_mut().find(|charter| charter.number == 2).unwrap().policy.reserve_time =
+        skein_lib::Duration::from_secs(60);
+    let mut service = crate::startup::startup_with(
         &fixtures::document(),
         &config::Directories::working(),
         &fixtures::files(),
@@ -861,6 +842,7 @@ fn a_standalone_check_reserve_shortfall_prepares_with_one_warning() {
         None,
         fixtures::worker_runtime(),
         fixtures::forge_runtime(),
+        &crate::stock::Given::Own { jig: defaults, forge: Box::default(), ways: crate::stock::ways() },
     )
     .expect("a charter shortfall is a warning");
     assert_eq!(service.notes().pop(), Some(crate::Note::Engine(crate::EngineNote::StartupWarning {
@@ -1146,7 +1128,7 @@ fn capacity_overrides_name_the_failed_dependency() {
         ),
         (b"documents.lines", 8, &[][..]),
         (b"tasks.tree_tasks", 128, &[][..]),
-        (b"tasks.message_bytes", 874_121, &["tasks.message_bytes", "874121", "tasks.inbox_bytes", "874121"]),
+        (b"tasks.message_bytes", 63_739, &["tasks.message_bytes", "63739", "tasks.inbox_bytes", "63739"]),
         (b"authority.grants", 30, &["authority.grants", "30", "notes.scopes", "33"]),
     ] {
         let given = jig_domain_core::settings::Override {

@@ -105,12 +105,12 @@ fn link(root: &mut Domain, link: Link) -> Queue<Request> {
 }
 
 #[test]
-fn the_watch_opens_once_for_a_party() {
+fn the_watch_opens_once_for_a_live_link() {
     let mut root = crate::unlinked(&f::limits(), f::SEED);
     let frame = f::start(&mut root, List::with_capacity(0));
     let mut child = Queue::uncapped();
     away::configure(&mut root.forge, f::limits().forge, &mut child);
-    assert!(child.is_empty(), "no party yet");
+    assert!(child.is_empty(), "the link is starting");
     let mut out = Queue::uncapped();
     let Watchable::Family { scope, window, record } = away::watch(&f::limits().forge).unwrap() else {
         panic!("family watch")
@@ -192,22 +192,17 @@ fn a_refused_watch_stays_refused() {
         up(&mut root, Up::SignedOut);
         assert_eq!(root.forge().away(WHAT.project), None);
         let mut signed_in = up(&mut root, Up::SignedIn);
-        let mut frame = None;
+        let frame = Token::new(0);
         let mut next = None;
         while let Some(request) = signed_in.pop() {
             if let Request::Unlinked {
                 request: jig_client::UnlinkedRequest::Down { down: Down::Open { watch, subject } },
             } = request
+                && subject == away::watch(&f::limits().forge).unwrap()
             {
-                if subject == Watchable::Jig(c::Subject::Me) {
-                    frame = Some(watch);
-                }
-                if subject == away::watch(&f::limits().forge).unwrap() {
-                    next = Some(watch);
-                }
+                next = Some(watch);
             }
         }
-        let frame = frame.expect("next sign-in opens me");
         f::confirm(&mut root, frame, f::PARTY, &mut out);
         let next = opening(&mut out).or(next).expect("next sign-in opens Away");
         assert_ne!(next, watch);
@@ -469,7 +464,11 @@ fn shown_by_classes_or_an_on_row() {
             let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).unwrap());
             record.encode(&mut writer).unwrap();
             let record = wire::setting_answer(
-                &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(writer.finish()) }).unwrap(),
+                &w::SettingAnswer::new(
+                    &w::CEILINGS,
+                    w::SettingAnswerParts { revision: None, value: Some(writer.finish()) },
+                )
+                .unwrap(),
             );
             up(
                 &mut root,
@@ -488,6 +487,7 @@ fn shown_by_classes_or_an_on_row() {
                 Up::Watched {
                     watch: goals_watch.expect("goals watch"),
                     event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                        ended_mark: 0,
                         rows: List::from_boxed(Box::new([goal_line()])),
                         more: false,
                     }))),
@@ -502,6 +502,7 @@ fn goal_line() -> c::TaskLine {
     let task = f::chat::task();
     let budget = task.chip.details.details.budget.clone();
     c::TaskLine {
+        parts: List::with_capacity(0),
         chip: task.chip,
         project: f::PROJECT,
         requester: c::Requester::Person(f::PARTY),

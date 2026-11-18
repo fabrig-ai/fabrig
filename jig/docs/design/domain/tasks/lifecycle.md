@@ -256,6 +256,13 @@ them (8).
   returns to due without a timer. A preparation is stale when its task left
   preparing or its newest word changed: the newest of its inbox and of the
   proposals and escalations waiting on it, which never enter that inbox.
+  Nor is a run whose program started without its tools a failure of its
+  task's: the fault is its place's, the program source's login on its
+  worker (../hosts/hub.md, 3). Its attempt ends once, refused as an
+  untranslated assignment's is, with words naming the program, the
+  source and the worker on its retry notice, spending no try; the task
+  then claims again, never on that place until something changes there,
+  and with no place left waits, saying why (../engine/fleet.md).
   Every attempt, a failed one included, takes a new attempt number.
   A standing task's tries start again as each of its sessions begins
   (`standing.md`, 5.1).
@@ -298,8 +305,9 @@ them (8).
   for fails for good (a procedure's task hears it and steps instead,
   ../connectors.md, 4.2), an effect it asked for is uncertain and of a kind
   that cannot be recovered (../connectors.md, 4.3), its budget or its
-  deadline runs out (../authority.md, section 7; for an agent task, too
-  little left for its next run's reserve and one completion more of its
+  deadline runs out (../authority.md, section 7; for an agent task, its
+  share for its next run, half of what it has left where it may start a
+  delegate and that half is above a run's minimum, too little for that run's reserve and one completion more of its
   main model, and on a program backend one more again, with nothing to
   free more), a party stops it, it waits for a hold past its
   bound (`holds.md`, 2), its joining a queue would close a circle of waits (`holds.md`, 7),

@@ -13,10 +13,10 @@ pub struct Worker {
     pub slots: u32,
     pub graces: Graces,
     pub stop_bound: Duration,
-    pub agent: Agent,
+    pub agent: Option<Agent>,
     /// Positive interval between local source-login observations.
     pub check_interval: Duration,
-    pub limits: Limits,
+    pub limits: Option<Limits>,
     pub memory: Option<u64>,
 }
 /// Members an application fixes (protocol/configuration.md, 3.4).
@@ -81,7 +81,8 @@ pub fn worker_over(
     };
     let mut limits = *base;
     let mut hub_slots_overridden = false;
-    if let Some(at) = object.member(document, b"limits") {
+    let has_limits = object.member(document, b"limits");
+    if let Some(at) = has_limits {
         let (parsed, overridden) = overrides::read_over(document, at, &path.member(b"limits"), base);
         hub_slots_overridden = overridden.hub_slots;
         limits = parsed.limits;
@@ -132,7 +133,7 @@ pub fn worker_over(
         limits.hub.source_interval = interval;
     }
     let mut agent = None;
-    if let Some(at) = object.required(document, b"agent", &path, &mut problems) {
+    if let Some(at) = object.member(document, b"agent") {
         agent = parse_agent(document, at, &path.member(b"agent"), directories, &mut problems);
     }
     let memory = check::optional_integer(&mut object, document, b"memory_bytes", &path, &mut problems);
@@ -148,9 +149,9 @@ pub fn worker_over(
         slots: slots.expect("required member checked"),
         graces: graces.expect("required member checked"),
         stop_bound: bound.expect("duration sum checked"),
-        agent: agent.expect("required member checked"),
+        agent,
         check_interval: check_interval.expect("required member checked"),
-        limits,
+        limits: has_limits.and(Some(limits)),
         memory,
     })
 }

@@ -2,12 +2,13 @@
 mod rows;
 pub use rows::{GroupRow, goal, groups, home_rows};
 
-use super::{Request, report};
+use super::{Request, ended::EndedRead, report};
 use crate::{GoalsFilter, Limits, owner::Owner};
 use jig_client::{Client, Handle, Latest, Readable, Readout, Told, Watchable, contract as c};
 use skein_lib::{List, Queue, Wall};
+use temper_client_domain_forge::parts;
 
-/// The open project's goal fact across pages (temper/docs/design/client/view.md, 3).
+/// The open project's goal fact, taking held lists (temper/docs/design/client/pages/milestone.md, 1).
 #[derive(Debug)]
 pub(super) struct HasGoals {
     goals: Fact,
@@ -17,14 +18,26 @@ impl HasGoals {
     pub(super) fn new() -> Self {
         Self { goals: Fact::new(), milestones: None }
     }
+    #[expect(clippy::too_many_arguments, reason = "the fact takes both held lists and the client's delivered state")]
     pub(super) fn configure(
         &mut self,
         me: Option<&c::Me>,
         project: Option<u32>,
+        goals: Option<&Goals>,
+        milestones: Option<&super::milestones::Milestones>,
+        client: &Client,
         next: &mut u64,
         out: &mut Queue<Request>,
     ) {
-        self.goals.configure(me, project, out);
+        let query = match (me, project) {
+            (Some(me), Some(project)) => query(me, project),
+            (Some(_), None) | (None, Some(_) | None) => None,
+        };
+        let list = match goals {
+            Some(goals) => Some(goals.has_rows(client).unwrap_or(self.goals.has(client, project.unwrap_or(0)))),
+            None => None,
+        };
+        self.goals.configure(query, list, client, out);
         let offered = match (me, project) {
             (Some(me), Some(project)) => super::milestones::query(me, project).is_some(),
             (Some(_), None) | (None, Some(_) | None) => false,
@@ -34,18 +47,35 @@ impl HasGoals {
             *next = next.checked_add(1).expect("page handles fit");
             let read = handle(*next);
             *next = next.checked_add(1).expect("page handles fit");
-            self.milestones = Some(Fact { live, read, milestone: true, query: None, ended: false });
+            self.milestones = Some(Fact {
+                live,
+                read,
+                milestone: true,
+                query: None,
+                ended: false,
+                borrowed: false,
+                until_live: None,
+                ended_read: EndedRead::new(),
+            });
         }
         if let Some(fact) = &mut self.milestones {
-            fact.configure(me, project, out);
+            let query = match (me, project) {
+                (Some(me), Some(project)) => super::milestones::query(me, project),
+                (Some(_), None) | (None, Some(_) | None) => None,
+            };
+            let list = match milestones {
+                Some(list) => Some(list.has_rows(client).unwrap_or(fact.has(client, project.unwrap_or(0)))),
+                None => None,
+            };
+            fact.configure(query, list, client, out);
         }
     }
-    pub(super) fn told(&mut self, told: &Told, out: &mut Queue<Request>) -> bool {
-        if self.goals.told(told, out) {
+    pub(super) fn told(&mut self, told: &Told, client: &Client, out: &mut Queue<Request>) -> bool {
+        if self.goals.told(told, client, out) {
             return true;
         }
         match &mut self.milestones {
-            Some(fact) => fact.told(told, out),
+            Some(fact) => fact.told(told, client, out),
             None => false,
         }
     }
@@ -67,9 +97,12 @@ impl HasGoals {
 struct Fact {
     query: Option<c::TaskQuery>,
     ended: bool,
+    borrowed: bool,
+    until_live: Option<bool>,
     live: Handle,
     read: Handle,
     milestone: bool,
+    ended_read: EndedRead,
 }
 
 impl Fact {
@@ -77,31 +110,43 @@ impl Fact {
         Self {
             query: None,
             ended: false,
+            borrowed: false,
+            until_live: None,
             milestone: false,
+            ended_read: EndedRead::new(),
             live: handle(u64::MAX.checked_sub(1).expect("reserved goal watch handle")),
             read: handle(u64::MAX.checked_sub(2).expect("reserved goal read handle")),
         }
     }
     pub(super) fn leave(&mut self, out: &mut Queue<Request>) {
-        if self.query.take().is_some() {
+        if self.query.take().is_some() && !self.borrowed {
             for handle in [self.live, self.read] {
                 out.push(Request::Client(jig_client::Event::Unwatch { handle }));
             }
         }
         self.ended = false;
+        self.borrowed = false;
+        self.until_live = None;
+        self.ended_read = EndedRead::new();
     }
-    pub(super) fn configure(&mut self, me: Option<&c::Me>, project: Option<u32>, out: &mut Queue<Request>) {
-        let next = if let (Some(me), Some(project)) = (me, project) {
-            if self.milestone { super::milestones::query(me, project) } else { query(me, project) }
-        } else {
-            None
+    fn configure(&mut self, next: Option<c::TaskQuery>, list: Option<bool>, client: &Client, out: &mut Queue<Request>) {
+        let retained = match &next {
+            Some(query) if self.query == next => self.has(client, query.project.unwrap_or(0)),
+            Some(_) | None => false,
         };
-        if self.query == next {
+        if self.query == next && self.borrowed == list.is_some() {
+            if let Some(has) = list {
+                self.ended = has;
+            }
             return;
         }
         self.leave(out);
-        self.query = next;
-        if let Some(query) = next {
+        self.query.clone_from(&next);
+        if let Some(has) = list {
+            self.borrowed = true;
+            self.ended = has;
+        } else if let Some(query) = next {
+            self.until_live = Some(retained);
             out.push(Request::Client(jig_client::Event::Watch {
                 handle: self.live,
                 subject: Watchable::Jig(c::Subject::Tasks { query, window: 1 }),
@@ -109,37 +154,46 @@ impl Fact {
             self.read_ended(out);
         }
     }
-    fn read_ended(&self, out: &mut Queue<Request>) {
-        if let Some(query) = self.query {
+    fn read_ended(&mut self, out: &mut Queue<Request>) {
+        if !self.borrowed
+            && let Some(query) = &self.query
+        {
+            self.ended_read.start();
             out.push(Request::Client(jig_client::Event::Read {
                 handle: self.read,
                 read: Readable::Jig(c::Read::Tasks {
-                    query: c::TaskQuery { phase: Some(c::PhaseClass::Ended), order: c::QueryOrder::Ended, ..query },
+                    query: c::TaskQuery {
+                        phase: Some(c::PhaseClass::Ended),
+                        order: c::QueryOrder::Ended,
+                        ..query.clone()
+                    },
                     live: None,
                     ended: None,
                 }),
             }));
         }
     }
-    pub(super) fn told(&mut self, told: &Told, out: &mut Queue<Request>) -> bool {
+    pub(super) fn told(&mut self, told: &Told, client: &Client, out: &mut Queue<Request>) -> bool {
         match told {
-            Told::Page { handle, page } if *handle == self.read => {
+            Told::Page { handle, page } if *handle == self.read && !self.borrowed => {
                 if self.query.is_some() {
-                    self.ended = match page {
-                        Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(page))) => match &page.ended {
+                    let mut mark = None;
+                    if let Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(page))) = page {
+                        mark = Some(page.ended_mark);
+                        self.ended = match &page.ended {
                             c::EndedGroup::Rows { rows, .. } => !rows.is_empty(),
                             c::EndedGroup::None => false,
-                        },
-                        Readout::Jig(c::ReadResult::Value(_) | c::ReadResult::None(_))
-                        | Readout::Family { .. }
-                        | Readout::NotServed { .. }
-                        | Readout::Limit => self.ended,
-                    };
+                        };
+                    }
+                    if self.ended_read.answered(mark) && self.milestone {
+                        self.read_ended(out);
+                    }
                 }
                 true
             }
-            Told::Changed { handle } if *handle == self.live => {
-                if self.milestone {
+            Told::Changed { handle } if *handle == self.live && !self.borrowed => {
+                self.until_live = None;
+                if self.milestone && self.ended_read.changed(client, self.live) {
                     self.read_ended(out);
                 }
                 true
@@ -156,12 +210,18 @@ impl Fact {
         }
     }
     pub(super) fn has(&self, client: &Client, project: u32) -> bool {
-        let Some(query) = self.query else { return false };
+        let Some(query) = &self.query else { return false };
         if query.project != Some(project) {
             return false;
         }
         if self.ended {
             return true;
+        }
+        if self.borrowed {
+            return false;
+        }
+        if let Some(previous) = self.until_live {
+            return previous;
         }
         if let Some(document) = client.document(self.live)
             && document.state != jig_client::State::Ended
@@ -176,8 +236,6 @@ impl Fact {
 #[derive(Debug)]
 struct Row {
     task: u64,
-    activity: Wall,
-    read_at: Option<Wall>,
     report: Option<report::Report>,
 }
 
@@ -188,17 +246,17 @@ pub struct Goals {
     pub live: Handle,
     pub ended: Handle,
     pub needs: Handle,
-    pub report: Handle,
     query: Option<c::TaskQuery>,
     page: Option<c::TaskPage>,
     first: bool,
-    reading_page: bool,
+    ended_read: EndedRead,
     page_answered: bool,
     count: u32,
     needs_total: Option<u32>,
+    needs_answered: bool,
+    inbox_moves: u64,
     selection: Option<List<c::InboxSelection>>,
     rows: List<Row>,
-    reading_report: Option<(u64, Wall)>,
 }
 
 impl Goals {
@@ -209,24 +267,24 @@ impl Goals {
             live: handle(first),
             ended: handle(first.checked_add(1).expect("page handles fit")),
             needs: handle(first.checked_add(2).expect("page handles fit")),
-            report: handle(first.checked_add(3).expect("page handles fit")),
             query: None,
             page: None,
             first: true,
-            reading_page: false,
+            ended_read: EndedRead::new(),
             page_answered: false,
             count: 0,
             needs_total: None,
+            needs_answered: false,
+            inbox_moves: 0,
             selection: None,
             rows: List::with_capacity(0),
-            reading_report: None,
         }
     }
     pub fn leave(&self, out: &mut Queue<Request>) -> u64 {
-        for handle in [self.live, self.ended, self.needs, self.report] {
+        for handle in [self.live, self.ended, self.needs] {
             out.push(Request::Client(jig_client::Event::Unwatch { handle }));
         }
-        self.report.number.checked_add(1).expect("page handles fit")
+        self.needs.number.checked_add(1).expect("page handles fit")
     }
     pub fn configure(
         &mut self,
@@ -234,6 +292,7 @@ impl Goals {
         project: u32,
         client: &Client,
         limits: &Limits,
+        inbox_moves: u64,
         out: &mut Queue<Request>,
     ) {
         let next = match me {
@@ -244,16 +303,16 @@ impl Goals {
             if self.query.is_some() {
                 self.leave(out);
             }
-            self.query = next;
+            self.query.clone_from(&next);
             self.page = None;
             self.page_answered = false;
-            self.reading_page = false;
+            self.ended_read = EndedRead::new();
             self.first = true;
             self.count = 0;
             self.needs_total = None;
             self.selection = None;
-            self.reading_report = None;
-            self.rows = List::with_capacity(limits.client.domain.rows.checked_mul(2).expect("goal rows fit"));
+            self.needs_answered = false;
+            self.rows = List::with_capacity(0);
             if let Some(query) = next {
                 out.push(Request::Client(jig_client::Event::Watch {
                     handle: self.live,
@@ -266,20 +325,25 @@ impl Goals {
             return;
         }
         if let Some(me) = me
-            && self.needs_total != Some(me.needs_total)
+            && (self.needs_total != Some(me.needs_total) || self.inbox_moves != inbox_moves)
         {
             self.needs_total = Some(me.needs_total);
+            self.inbox_moves = inbox_moves;
             self.read_needs(out);
         }
-        self.reconcile(client, out);
+        self.reconcile(client);
     }
     fn read(&mut self, ended: Option<c::Cursor>, out: &mut Queue<Request>) {
-        if let Some(query) = self.query {
-            self.reading_page = true;
+        if let Some(query) = &self.query {
+            self.ended_read.start();
             out.push(Request::Client(jig_client::Event::Read {
                 handle: self.ended,
                 read: Readable::Jig(c::Read::Tasks {
-                    query: c::TaskQuery { phase: Some(c::PhaseClass::Ended), order: c::QueryOrder::Ended, ..query },
+                    query: c::TaskQuery {
+                        phase: Some(c::PhaseClass::Ended),
+                        order: c::QueryOrder::Ended,
+                        ..query.clone()
+                    },
                     live: None,
                     ended,
                 }),
@@ -287,7 +351,7 @@ impl Goals {
         }
     }
     fn read_needs(&self, out: &mut Queue<Request>) {
-        if let Some(query) = self.query {
+        if let Some(query) = &self.query {
             out.push(Request::Client(jig_client::Event::Read {
                 handle: self.needs,
                 read: Readable::Jig(c::Read::Inbox {
@@ -301,7 +365,7 @@ impl Goals {
         }
     }
     pub(crate) fn older(&mut self, out: &mut Queue<Request>) {
-        if !self.reading_page
+        if !self.ended_read.reading()
             && let Some(page) = &self.page
             && let c::EndedGroup::Rows { after: Some(after), .. } = &page.ended
         {
@@ -310,27 +374,33 @@ impl Goals {
             self.read(Some(after), out);
         }
     }
-    pub(crate) fn told(&mut self, told: Told, out: &mut Queue<Request>) -> bool {
+    pub(crate) fn told(&mut self, told: Told, client: &Client, out: &mut Queue<Request>) -> bool {
         match told {
             Told::Changed { handle } if handle == self.live => {
-                if self.first {
+                if self.first && self.ended_read.changed(client, self.live) {
                     self.read(None, out);
                 }
-                self.read_needs(out);
                 true
             }
             Told::Page { handle, page } if handle == self.ended => {
-                self.reading_page = false;
+                self.page_answered = true;
+                let mut mark = None;
                 if let Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(page))) = page {
+                    if self.first {
+                        mark = Some(page.ended_mark);
+                    }
                     self.page = Some(*page);
-                    self.page_answered = true;
                     let read = u32::try_from(self.ended().len()).expect("goal page fits");
                     self.count =
                         if self.first { read } else { self.count.checked_add(read).expect("goals count fits") };
                 }
+                if self.ended_read.answered(mark) {
+                    self.read(None, out);
+                }
                 true
             }
             Told::Page { handle, page } if handle == self.needs => {
+                self.needs_answered = true;
                 self.selection = match page {
                     Readout::Jig(c::ReadResult::Value(c::ReadValue::Inbox(page))) => page.selection,
                     Readout::Jig(c::ReadResult::Value(_) | c::ReadResult::None(_))
@@ -340,26 +410,14 @@ impl Goals {
                 };
                 true
             }
-            Told::Page { handle, page } if handle == self.report => {
-                if let Some((task, at)) = self.reading_report.take() {
-                    for row in self.rows.iter_mut() {
-                        if row.task == task {
-                            row.read_at = Some(at);
-                            row.report = match &page {
-                                Readout::Jig(c::ReadResult::Value(c::ReadValue::Notes(page))) => {
-                                    match report::newest(&page.rows) {
-                                        Some(note) => Some(report::parse(note)),
-                                        None => None,
-                                    }
-                                }
-                                Readout::Jig(c::ReadResult::Value(_) | c::ReadResult::None(_))
-                                | Readout::Family { .. }
-                                | Readout::NotServed { .. }
-                                | Readout::Limit => None,
-                            };
-                        }
-                    }
-                }
+            Told::Ended { handle, .. } if handle == self.needs => {
+                self.needs_answered = true;
+                self.selection = None;
+                true
+            }
+            Told::Ended { handle, .. } if handle == self.ended => {
+                self.page_answered = true;
+                self.ended_read.answered(None);
                 true
             }
             Told::Ended { handle, .. } if handle == self.live => true,
@@ -374,51 +432,60 @@ impl Goals {
             | Told::Page { .. } => false,
         }
     }
-    fn reconcile(&mut self, client: &Client, out: &mut Queue<Request>) {
-        let mut rows = List::with_capacity(self.rows.capacity());
-        let mut previous = core::mem::replace(&mut self.rows, List::with_capacity(0));
+    fn reconcile(&mut self, client: &Client) {
+        let mut rows = List::uncapped();
         let live = match self.live(client) {
             Some(live) => live.rows.as_slice(),
             None => &[],
         };
         for lines in [live, self.ended()] {
             for line in lines {
-                if rows.len() == rows.capacity() {
-                    break;
-                }
-                let mut row = Row { task: line.chip.task, activity: line.last_activity, read_at: None, report: None };
-                for index in 0..previous.len() {
-                    if previous.get(index).expect("retained goal row").task == row.task {
-                        row = previous.swap_remove(index).expect("retained goal row");
-                        row.activity = line.last_activity;
-                        break;
+                let part = match parts::goal(line) {
+                    Some(part) => part.into_parts().report,
+                    None => None,
+                };
+                let report = match part {
+                    Some(report) => {
+                        let report = report.into_parts();
+                        Some(report::Report {
+                            headline: report.headline,
+                            at: Some(Wall::from_nanos(report.at)),
+                            paragraphs: List::with_capacity(0),
+                            left: None,
+                            risk: None,
+                            decided: List::with_capacity(0),
+                        })
                     }
-                }
-                rows.push(row).expect("live and ended goal rows fit");
+                    None => None,
+                };
+                rows.push(Row { task: line.chip.task, report }).expect("live and ended goal rows fit");
             }
         }
         self.rows = rows;
-        if self.reading_report.is_some() {
-            return;
-        }
-        for row in &self.rows {
-            if row.read_at != Some(row.activity) {
-                self.reading_report = Some((row.task, row.activity));
-                out.push(Request::Client(jig_client::Event::Read {
-                    handle: self.report,
-                    read: Readable::Jig(report::read(
-                        self.query.expect("configured goals").project.expect("project query"),
-                        row.task,
-                    )),
-                }));
-                break;
-            }
-        }
     }
-    /// The live watch has delivered and the ended read has answered with its value, for this query.
+    /// Both goal lists have answered, including refused or failed answers (client/pages/work.md, 1).
     #[must_use]
     pub fn known(&self, client: &Client) -> bool {
-        self.page_answered && self.live(client).is_some()
+        self.query.is_none() || (self.page_answered && super::home::delivered(client, self.live))
+    }
+    /// The needs read has answered, including refusal or failure.
+    #[must_use]
+    pub const fn needs_known(&self) -> bool {
+        self.query.is_none() || self.needs_answered
+    }
+    /// Goals' rows and counts wait for their state and milestone placement facts.
+    #[must_use]
+    pub fn shown(&self, client: &Client, milestones: &super::milestones::Milestones) -> bool {
+        self.known(client) && self.needs_known() && milestones.known(client)
+    }
+    pub(super) fn has_rows(&self, client: &Client) -> Option<bool> {
+        if self.count(client) > 0 {
+            Some(true)
+        } else if self.page_answered || self.live(client).is_some() {
+            Some(false)
+        } else {
+            None
+        }
     }
     #[must_use]
     pub fn live<'a>(&self, client: &'a Client) -> Option<&'a c::Tasks> {
@@ -504,7 +571,10 @@ fn handle(number: u64) -> Handle {
 /// The project's goal template supplies the label (temper/docs/design/client/pages/README.md).
 #[must_use]
 pub fn query(me: &c::Me, project: u32) -> Option<c::TaskQuery> {
+    let mut parts = List::with_capacity(1);
+    parts.push(parts::asks(temper_client_protocol_wire::GOAL_PART)).expect("one goal part");
     Some(c::TaskQuery {
+        parts,
         project: Some(project),
         label: Some(jig_client::shapes::template(me, project, jig_client::shapes::GOAL)?.label),
         tracked: Some(true),

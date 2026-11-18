@@ -7,6 +7,8 @@
 //! checks funder links and commits a task's settlement once; these
 //! snapshots cannot recognize a duplicate settlement.
 
+use crate::{Authority, Rules};
+
 /// The four numbers against one current allotment. Every recorded charge fits within its budget.
 /// Caller-owned allotment snapshot; value queries return replacements without keeping a ledger or
 /// recognizing duplicate settlements. (domain/authority.md, section 7).
@@ -27,6 +29,27 @@ pub struct Numbers {
 #[must_use]
 pub fn left(numbers: Numbers) -> u64 {
     numbers.budget.saturating_sub(numbers.spent).saturating_sub(numbers.spent_below).saturating_sub(numbers.reserved)
+}
+
+/// A run holds back at most half of what its task has left, where half funds a run.
+/// Where the authority may start a delegate and half, rounded down, is above the deployment's
+/// minimum, take half; otherwise take what is left. Either share is capped by the deployment
+/// (jig/docs/design/domain/authority.md, section 7).
+#[must_use]
+pub fn run_spend(rules: &Rules, authority: &Authority, numbers: Numbers) -> u64 {
+    let delegation = &authority.delegation;
+    let available = left(numbers);
+    let half = available.saturating_div(2);
+    let share = if !delegation.kinds.is_empty()
+        && delegation.tasks > 0
+        && delegation.depth > 0
+        && half > rules.minimum_run_spend
+    {
+        half
+    } else {
+        available
+    };
+    share.min(rules.maximum_run_spend)
 }
 
 /// Reserve every budget in one checked batch, or refuse all of it. Pure checked batch reservation

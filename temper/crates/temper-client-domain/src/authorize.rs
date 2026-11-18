@@ -162,7 +162,7 @@ mod tests {
         }
     }
     fn signed_in() -> Domain {
-        use jig_client_protocol_wire::v28 as w;
+        use jig_client_protocol_wire as w;
         let limits = fixtures::limits();
         let mut root = crate::new(&limits, 11);
         let mut out = Queue::uncapped();
@@ -173,6 +173,7 @@ mod tests {
             jig_client::Event::Start { kept: skein_lib::List::with_capacity(0) },
             &mut out,
         );
+        crate::settle(&mut root, &env, &mut out);
         while out.pop().is_some() {}
         crate::route::client(
             &mut root,
@@ -180,6 +181,7 @@ mod tests {
             jig_client::Event::SignIn { with: jig_client::With::Transport },
             &mut out,
         );
+        crate::settle(&mut root, &env, &mut out);
         while out.pop().is_some() {}
         let mut served = skein_lib::List::with_capacity(1);
         served
@@ -195,48 +197,16 @@ mod tests {
                 .unwrap(),
             )
             .unwrap();
-        let hello = w::StreamEvent::Hello(
+        let hello = jig_client_test_records::opened(
             w::Hello::new(
                 &w::CEILINGS,
                 w::HelloParts { stream: [7; 16], served, heartbeat: skein_lib::Duration::from_secs(30) },
             )
             .unwrap(),
+            jig_client_test_records::frame_record(),
         );
         let mut writer = skein_lib::Writer::new(usize::try_from(hello.measure()).unwrap());
         hello.encode(&mut writer).unwrap();
-        crate::route::client(
-            &mut root,
-            &env,
-            jig_client::Event::Streamed { message: jig_client::Streamed::Record(writer.finish()) },
-            &mut out,
-        );
-        let mut watch = None;
-        while let Some(request) = out.pop() {
-            if let Request::Client {
-                request: jig_client::Request::Exchange { message: jig_client::Message::Watch(body), .. },
-            } = request
-            {
-                let open = w::Open::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&body)).unwrap();
-                let subject =
-                    w::Subject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(open.subject().record())).unwrap();
-                if subject == w::Subject::Me {
-                    watch = Some(open.watch());
-                }
-            }
-        }
-        let value = w::DeliveryValue::Me(jig_client_test_records::frame_record());
-        let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).unwrap());
-        value.encode(&mut writer).unwrap();
-        let document = w::Owned::new(
-            &w::CEILINGS,
-            w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: writer.finish() },
-        )
-        .unwrap();
-        let delivery = w::StreamEvent::Delivery(
-            w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch: watch.expect("me watch"), document }).unwrap(),
-        );
-        let mut writer = skein_lib::Writer::new(usize::try_from(delivery.measure()).unwrap());
-        delivery.encode(&mut writer).unwrap();
         crate::route::client(
             &mut root,
             &env,
@@ -270,6 +240,7 @@ mod tests {
                 },
                 &mut out,
             );
+            crate::settle(root, &fixtures::env(limits), &mut out);
             while let Some(request) = out.pop() {
                 if let Request::Client {
                     request: jig_client::Request::Exchange { exchange, message: jig_client::Message::Read(_), .. },
@@ -284,7 +255,7 @@ mod tests {
     }
     #[test]
     fn authorization_waits_for_exchange_credit_and_sends_once() {
-        use jig_client_protocol_wire::v28 as w;
+        use jig_client_protocol_wire as w;
         let limits = fixtures::limits();
         let env = fixtures::env(&limits);
         let mut root = signed_in();
@@ -293,15 +264,23 @@ mod tests {
         went(&mut root, &Place::Authorize { query: query.clone() });
         let mut out = Queue::uncapped();
         progress(&mut root, &env, &mut out);
+        crate::settle(&mut root, &env, &mut out);
         assert_eq!(root.authorization().unwrap().state(), State::Waiting);
         crate::fire(&mut root, &env, &mut out);
+        crate::settle(&mut root, &env, &mut out);
         assert!(out.is_empty(), "a full local exchange edge keeps the first send waiting");
+        let answer = w::ReadAnswer::None(
+            w::ReadAnswerNone::new(&w::CEILINGS, w::ReadAnswerNoneParts { value: w::ReadNone::Unknown }).unwrap(),
+        );
+        let mut body = skein_lib::Writer::new(usize::try_from(answer.measure()).unwrap());
+        answer.encode(&mut body).unwrap();
         crate::step(
             &mut root,
             &env,
-            crate::Event::Client { event: jig_client::Event::Lost { exchange: occupied } },
+            crate::Event::Client { event: jig_client::Event::Reply { exchange: occupied, message: body.finish() } },
             &mut out,
         );
+        crate::settle(&mut root, &env, &mut out);
         assert_eq!(root.authorization().unwrap().state(), State::Pending);
         assert_eq!(root.client.admission().attempts, limits.client.exchanges);
         let mut sent = None;
@@ -316,6 +295,7 @@ mod tests {
             }
         }
         crate::fire(&mut root, &env, &mut out);
+        crate::settle(&mut root, &env, &mut out);
         assert!(out.is_empty(), "an admitted authorization is not sent twice");
         let answer = w::AuthorizeAnswer::Busy;
         let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).unwrap());
@@ -331,13 +311,15 @@ mod tests {
             },
             &mut out,
         );
+        crate::settle(&mut root, &env, &mut out);
         assert_eq!(root.authorization().unwrap().state(), State::Busy);
         crate::fire(&mut root, &env, &mut out);
+        crate::settle(&mut root, &env, &mut out);
         assert!(out.is_empty(), "the peer's busy reply is terminal and is never retried");
     }
     #[test]
     fn signed_in_sends_long_queries_byte_for_byte_once() {
-        use jig_client_protocol_wire::v28 as w;
+        use jig_client_protocol_wire as w;
         for bytes in [1025 - b"/oauth/authorize?".len(), usize::try_from(QUERY_BYTES).unwrap()] {
             let mut root = signed_in();
             let query = query(bytes);
@@ -345,6 +327,7 @@ mod tests {
             let limits = fixtures::limits();
             let mut out = Queue::uncapped();
             progress(&mut root, &fixtures::env(&limits), &mut out);
+            crate::settle(&mut root, &fixtures::env(&limits), &mut out);
             assert_eq!(root.authorization().unwrap().state(), State::Pending);
             let mut sent = 0_u32;
             while let Some(request) = out.pop() {
@@ -359,6 +342,7 @@ mod tests {
             }
             assert_eq!(sent, 1);
             progress(&mut root, &fixtures::env(&limits), &mut out);
+            crate::settle(&mut root, &fixtures::env(&limits), &mut out);
             assert!(out.is_empty());
         }
     }
@@ -375,9 +359,11 @@ mod tests {
                 jig_client::Event::Up { up: jig_client::Up::SignedOut },
                 &mut out,
             );
+            crate::settle(&mut root, &fixtures::env(&limits), &mut out);
             while out.pop().is_some() {}
             went(&mut root, &Place::Authorize { query: query.clone() });
             progress(&mut root, &fixtures::env(&limits), &mut out);
+            crate::settle(&mut root, &fixtures::env(&limits), &mut out);
             assert!(out.is_empty());
             assert_eq!(root.authorization().unwrap().state(), expected);
             root.authorization = Some(Authorization { query, state: State::Pending });
@@ -399,6 +385,7 @@ mod tests {
                     jig_client::Event::Up { up: jig_client::Up::SignedOut },
                     &mut Queue::uncapped(),
                 );
+                crate::settle(&mut root, &fixtures::env(&limits), &mut Queue::uncapped());
             }
             went(
                 &mut root,
@@ -406,6 +393,7 @@ mod tests {
             );
             let mut out = Queue::uncapped();
             progress(&mut root, &fixtures::env(&limits), &mut out);
+            crate::settle(&mut root, &fixtures::env(&limits), &mut out);
             assert!(out.is_empty());
             assert_eq!(root.authorization().expect("page").state(), State::Refused(AuthorizeWhy::Malformed));
         }

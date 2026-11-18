@@ -201,6 +201,20 @@ fn each_named_call_payload_round_trips_unchanged() {
     }
 }
 #[test]
+fn a_base_moved_outcome_round_trips_with_or_without_the_reported_commit() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    for base in [Some([6; 32]), None] {
+        let row = fixtures::named_call(forge::CallPayload::Effect {
+            entry: 8,
+            deadline: skein_lib::Wall::from_nanos(123),
+            outcome: Some(skein_forge_client::Outcome::Failed(skein_forge::api::Error::BaseMoved { base })),
+        });
+        let bytes = records::encode(&row);
+        assert_eq!(records::decode(&bytes, &bounds), Ok(row));
+    }
+}
+
+#[test]
 fn error_tags_are_numbered_as_the_schema_lists_them() {
     for (error, tag) in fixtures::errors() {
         let bytes = fixtures::encoded(&records::encode_error(error));
@@ -432,6 +446,10 @@ fn a_changes_last_checked_head_round_trips_some_and_none() {
     for checked in [Some([29; 32]), None] {
         let mut row = fixtures::change_row(State::Producing { requested: true });
         row.change.last_checked = checked;
+        row.change.last_checked_by = match checked {
+            Some(_) => Some(41),
+            None => None,
+        };
         let row = fixtures::change_hot(row);
         assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
     }
@@ -458,6 +476,45 @@ fn a_changes_execution_clock_round_trips_for_each_last_reading() {
         let row = fixtures::change_hot(row);
         assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
     }
+}
+
+/// Registered additions default during layout conversion, without a version move.
+#[test]
+fn a_change_written_without_a_checked_delegate_decodes_with_none() {
+    let mut family = None;
+    for candidate in crate::OWNER_SET.families {
+        if candidate.name == "temper-store" {
+            family = Some(candidate);
+        }
+    }
+    let family = family.unwrap();
+    let before = family.current.replace(" last_checked_by: option u64 = none", "");
+    assert_ne!(before, family.current);
+    let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
+    let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
+    let mut row = fixtures::change_row(temper_engine_domain_forge_change::State::Producing { requested: true });
+    row.change.last_checked = Some([29; 32]);
+    row.change.last_checked_by = Some(41);
+    let mut bytes = records::encode(&fixtures::change_hot(row.clone()));
+    for (source, target) in [(&new, &old), (&old, &new)] {
+        let plan = skein_codec::layout::Plan::derive(
+            source,
+            source.root(b"Row", None).unwrap(),
+            &[],
+            target,
+            target.root(b"Row", None).unwrap(),
+            &[],
+        )
+        .unwrap();
+        let mut work = skein_codec::layout::Workspace::new();
+        assert!(work.fit(&plan));
+        let mut out = skein_lib::Buffer::with_capacity(131_072);
+        plan.convert(&bytes, &mut out, &mut work).unwrap();
+        bytes = out.as_slice().into();
+    }
+    row.change.last_checked_by = None;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    assert_eq!(records::decode(&bytes, &bounds), Ok(fixtures::change_hot(row)));
 }
 
 /// Registered additions default during layout conversion, without a version move.
@@ -1225,6 +1282,7 @@ fn release_comments_decode_only_within_the_deployment_byte_bound() {
             comment.push(b'x').expect("fixture bytes");
         }
         let row = forge::Stored::Release(forge::ReleaseRow {
+            room: None,
             task: 1,
             root: 1,
             ending: forge::ReleaseEnding::Cancelled,
@@ -1236,6 +1294,26 @@ fn release_comments_decode_only_within_the_deployment_byte_bound() {
             releasing: true,
         });
         assert_eq!(records::decode(&records::encode(&row), &bounds).is_ok(), fits, "{bytes}");
+    }
+}
+
+#[test]
+fn release_room_places_round_trip() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    for room in [None, Some(1), Some(u64::MAX)] {
+        let row = forge::Stored::Release(forge::ReleaseRow {
+            room,
+            task: 1,
+            root: 1,
+            ending: forge::ReleaseEnding::Cancelled,
+            close_pull: Some(3),
+            comment: Some(Box::from(b"cancelled".as_slice())),
+            pending: None,
+            failed: false,
+            effects_settled: true,
+            releasing: true,
+        });
+        assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
     }
 }
 
@@ -1433,6 +1511,8 @@ fn landing_rows_preserve_phases_proofs_asks_and_effects() {
                 Some(c::Ask::Repair { gate: 0, candidate: [1; 32], below: None }),
             ] {
                 let row = forge::Stored::Landing(forge::LandingRow {
+                    flake_reruns: Box::new([]),
+                    room: Some(11),
                     job: Some(forge::history::JobRecord {
                         step: forge::history::JobStep {
                             task: 71,
@@ -1499,6 +1579,8 @@ fn landing_rows_preserve_phases_proofs_asks_and_effects() {
 fn landing_with_clock(clock: Option<temper_engine_domain_forge_change::Clock>) -> forge::Stored {
     use temper_engine_domain_forge_landing as l;
     forge::Stored::Landing(forge::LandingRow {
+        flake_reruns: Box::new([]),
+        room: None,
         job: None,
         landing: l::Landing {
             task: 61,
@@ -1627,6 +1709,8 @@ fn landing_faults_and_own_holds_are_mutually_exclusive() {
             let row = v25::LandingRow::new(
                 &v25::CEILINGS,
                 v25::LandingRowParts {
+                    flake_reruns: List::with_capacity(0),
+                    room: None,
                     landing,
                     asks: List::with_capacity(0),
                     entries: List::with_capacity(0),
@@ -3168,6 +3252,7 @@ fn change_parts_round_trip_agree_with_keys_and_join_the_generated_rows() {
         if row.task & 1 != 0 {
             use jig_domain_tasks::{LlmChoice, ModelEffort};
             use temper_engine_domain_forge_change::{Early, Open, Stands, StartedFrom};
+            row.room = Some(random.next_u64());
             let model = ModelEffort { model: 0, effort: None };
             row.producing_llm =
                 Some(LlmChoice { account: None, main: model, subagents: Box::new([model]), later: None });
@@ -3363,5 +3448,60 @@ fn receipt_row_report_defaults_without_changing_tier_rows() {
         to_new.convert(before.as_slice(), &mut after, &mut workspace).unwrap();
         let restored = skein_lib::bytes::concat(&[&bytes[..3], after.as_slice()]);
         assert_eq!(records::decode(&restored, &bounds).unwrap(), row);
+    }
+}
+
+#[test]
+fn a_stale_updates_first_refusal_survives_the_store() {
+    use temper_engine_domain_forge_change::{EffectResult, State};
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    for stale in [None, Some(skein_lib::Wall::from_nanos(17))] {
+        let mut row = fixtures::change_row(State::Preparing {
+            from: [1; 32],
+            main: [2; 32],
+            ready_since: skein_lib::Wall::from_nanos(0),
+        });
+        row.effect = EffectResult::Stale;
+        row.change.stale = stale;
+        let stored = fixtures::change_hot(row);
+        assert_eq!(records::decode(&records::encode(&stored), &bounds), Ok(stored));
+    }
+}
+
+#[test]
+fn a_flake_terminal_and_hold_round_trip_in_the_hot_part() {
+    use temper_engine_domain_forge_change::{Hold, Repair, State};
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let repairing = State::Repairing { requested: true, why: Repair::Landing { gate: 0 } };
+    for state in [repairing.clone(), State::Held { was: Box::new(repairing), why: Hold::Flake }] {
+        let mut row = fixtures::change_row(state);
+        row.delegate_flake = true;
+        row.delegate_head = Some([6; 32]);
+        let (cold, hot) = row.clone().split();
+        let stored = forge::Stored::ChangeHot(Box::new(hot));
+        let decoded = records::decode(&records::encode(&stored), &bounds).unwrap();
+        assert_eq!(decoded, stored);
+        let forge::Stored::ChangeHot(decoded) = decoded else { panic!("change hot part") };
+        assert_eq!(forge::ChangeRow::join(cold, *decoded), row);
+    }
+}
+
+#[test]
+fn a_changes_regate_round_trips_in_its_hot_part_and_joins_unchanged() {
+    use temper_engine_domain_forge_change::State;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for check in [forge::Check::Gate(b"gate".as_slice().into()), forge::Check::Tier(b"tier".as_slice().into())] {
+        let mut row = fixtures::change_row(State::Ready { head: [3; 32], ready_since: skein_lib::Wall::EPOCH });
+        row.regate = Some(forge::Regate {
+            receipt: forge::ReceiptKey { project: 5, repository: row.repository, check, key: [7; 32] },
+            run: u64::MAX,
+        });
+        let (cold, hot) = row.clone().split();
+        let stored = forge::Stored::ChangeHot(Box::new(hot.clone()));
+        let decoded = records::decode(&records::encode(&stored), &bounds).unwrap();
+        assert_eq!(decoded, stored);
+        let forge::Stored::ChangeHot(decoded) = decoded else { panic!("change hot part") };
+        assert_eq!(forge::ChangeRow::join(cold, *decoded), row);
+        assert_eq!(hot.regate, row.regate);
     }
 }

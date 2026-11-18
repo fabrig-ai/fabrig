@@ -2,7 +2,7 @@
 use crate::component_v3 as wire;
 use alloc::boxed::Box;
 use skein_lib::{List, Reader, Writer};
-pub use wire::{Count, CountParts};
+pub use wire::{CheckpointFile, CheckpointFileParts, Count, CountParts};
 
 /// Each owner's applied patch level (protocol/store/records.md 3).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -149,6 +149,42 @@ impl Manifest {
     }
 }
 
+/// A checkpoint's immutable record (protocol/store/checkpoints.md, 2.3).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Checkpoint {
+    pub store: u64,
+    pub secrets: u64,
+    pub made: u64,
+    pub build: Box<[u8]>,
+    pub deployment: [u8; 16],
+    pub levels: Levels,
+    pub files: List<CheckpointFile>,
+}
+impl Checkpoint {
+    pub fn encode(self) -> Result<Box<[u8]>, wire::Problem> {
+        let row = wire::Checkpoint::new(
+            &wire::CEILINGS,
+            wire::CheckpointParts {
+                store: self.store,
+                secrets: self.secrets,
+                made: self.made,
+                build: self.build,
+                deployment: self.deployment,
+                levels: self.levels.encoded(),
+                files: self.files,
+            },
+        )?;
+        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
+        row.encode(&mut writer).expect("measured checkpoint room");
+        Ok(writer.finish())
+    }
+    pub fn decode(bytes: &[u8]) -> Result<Self, wire::Problem> {
+        let wire::CheckpointParts { store, secrets, made, build, deployment, levels, files } =
+            wire::Checkpoint::decode(&wire::CEILINGS, &mut Reader::new(bytes))?.into_parts();
+        Ok(Self { store, secrets, made, build, deployment, levels: Levels::decoded(levels), files })
+    }
+}
+
 /// The component's transcript row.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Transcript {
@@ -194,64 +230,6 @@ impl Attempt {
         let wire::AttemptParts { first } =
             wire::Attempt::decode(&wire::CEILINGS, &mut Reader::new(bytes))?.into_parts();
         Ok(Self { first })
-    }
-}
-
-/// Each kept family's layout fingerprint, kept by the first commit (protocol/store/records.md, 3).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct Layouts {
-    pub component: [u8; 32],
-    pub core: [u8; 32],
-    pub tasks: [u8; 32],
-    pub people: [u8; 32],
-    pub notes: [u8; 32],
-    pub accounts: [u8; 32],
-    pub settings: [u8; 32],
-    pub secrets: [u8; 32],
-    pub skein_oauth: [u8; 32],
-    pub smith_transcript: [u8; 32],
-}
-
-impl Layouts {
-    /// Encode the ten fixed digests with the component family's version.
-    #[must_use]
-    pub fn encode(&self) -> Box<[u8]> {
-        let row = wire::Layouts::new(
-            &wire::CEILINGS,
-            wire::LayoutsParts {
-                component: self.component,
-                core: self.core,
-                tasks: self.tasks,
-                people: self.people,
-                notes: self.notes,
-                accounts: self.accounts,
-                settings: self.settings,
-                secrets: self.secrets,
-                skein_oauth: self.skein_oauth,
-                smith_transcript: self.smith_transcript,
-            },
-        )
-        .expect("layouts have no bounded fields");
-        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
-        row.encode(&mut writer).expect("measured room");
-        writer.finish()
-    }
-
-    /// Decode one complete row, refusing another version or trailing bytes.
-    pub fn decode(bytes: &[u8]) -> Result<Self, wire::Problem> {
-        let wire::LayoutsParts {
-            component,
-            core,
-            tasks,
-            people,
-            notes,
-            accounts,
-            settings,
-            secrets,
-            skein_oauth,
-            smith_transcript,
-        } = wire::Layouts::decode(&wire::CEILINGS, &mut Reader::new(bytes))?.into_parts();
-        Ok(Self { component, core, tasks, people, notes, accounts, settings, secrets, skein_oauth, smith_transcript })
     }
 }
 

@@ -1,4 +1,5 @@
 //! The worker's agent: its document read and preflighted (protocol/binaries.md, 5; protocol/configuration/README.md, 4).
+pub mod figures;
 use jig_domain_link::{Bounds, EndpointBound};
 use std::{
     os::unix::ffi::OsStrExt,
@@ -14,7 +15,8 @@ pub fn read(configuration: &Path) -> Result<Agent, String> {
 fn settings(configuration: smith_agent_document::config::Configuration) -> Result<Agent, String> {
     let limits = &configuration.service.limits;
     let host_limits =
-        smith_agent_document::host_limits(&configuration.profile, limits).map_err(|_| "agent host limits refused")?;
+        smith_agent_document::host_limits(&configuration.profile, limits, &configuration.service.domain.limits)
+            .map_err(|_| "agent host limits refused")?;
     let channel = limits.channel;
     let mut protocol = smith_host_protocol::Limits {
         bodies: channel.bodies,
@@ -87,18 +89,19 @@ pub struct Prepared {
     pub environment: Box<[Box<[u8]>]>,
 }
 pub fn prepare_worker(worker: &service::startup::NamedWorker) -> Result<Prepared, String> {
-    let prepared = prepare(path(&worker.agent)).map_err(|why| format!("workers[0].agent.configuration: {why}"))?;
-    for program in &prepared.agent.programs {
-        smith_agent_document::program::private_directory(path(&program.directory))
-            .map_err(|why| program_directory_refusal(&why))?;
-    }
-    Ok(prepared)
+    prepare(path(&worker.agent)).map_err(|why| format!("workers[0].agent.configuration: {why}"))
 }
 fn prepare(path: &Path) -> Result<Prepared, String> {
-    let bytes = smith_agent_document::config::read_bytes(path)?;
+    prepare_bytes(smith_agent_document::config::read_bytes(path)?)
+}
+pub fn prepare_bytes(bytes: Box<[u8]>) -> Result<Prepared, String> {
     let configuration = decoded_bytes(&bytes)?
         .resolve(&mut std::io::stderr())
         .map_err(smith_agent_document::config::ConfigurationRefusal::detail)?;
+    if let Some(program) = &configuration.program {
+        smith_agent_document::program::private_directory(&program.directory)
+            .map_err(|why| format!("programs.claude_code.directory: {why}"))?;
+    }
     let environment = configuration.service.environment.command_entries();
     Ok(Prepared { agent: settings(configuration)?, bytes, environment })
 }
@@ -117,7 +120,7 @@ pub fn decoded(configuration: &Path) -> Result<smith_agent_document::config::Dec
     let bytes = smith_agent_document::config::read_bytes(configuration)?;
     decoded_bytes(&bytes)
 }
-fn decoded_bytes(bytes: &[u8]) -> Result<smith_agent_document::config::Decoded, String> {
+pub fn decoded_bytes(bytes: &[u8]) -> Result<smith_agent_document::config::Decoded, String> {
     let substituted = temper_launcher::substituted(bytes)?;
     smith_agent_document::config::decode(substituted.as_deref().unwrap_or(bytes))
 }

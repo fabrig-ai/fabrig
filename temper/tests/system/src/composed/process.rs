@@ -706,6 +706,8 @@ fn host_calls(agent: &Agent, sent_calls: &mut Vec<Token>, now: Time, up: &mut Ve
 
 fn receiving(tool_payload: Option<u32>) -> run::Limits {
     use smith_agent_service::profile::{self, Configuration, Endpoint, Limits as DeclaredLimits};
+    let agents = temper_engine_service_stock::stock::agents();
+    let endpoint = agents.fallback();
     let declarations = Configuration {
         role_bound: None,
         environment_bytes: 0,
@@ -716,20 +718,19 @@ fn receiving(tool_payload: Option<u32>) -> run::Limits {
             connect: Duration::from_secs(10),
             handshake: Duration::from_secs(10),
             limits: DeclaredLimits {
-                window: 1_048_576,
-                output: 8192,
-                reasoning_item: 65_536,
+                window: endpoint.window(),
+                output: endpoint.output(),
+                reasoning_item: endpoint.reasoning_item(),
                 oversized_reasoning: profile::OversizedReasoning::Fail,
-                head: Duration::from_secs(60),
-                idle: Duration::from_secs(30),
+                head: Duration::from_millis(endpoint.head_ms()),
+                idle: Duration::from_millis(endpoint.idle_ms()),
             },
         }]),
     };
-    let mut template: serde_json::Value =
-        serde_json::from_slice(include_bytes!("../../../../crates/temper-init/template/agent.json"))
-            .expect("shipped agent settings");
-    // The composed world's 8192-token endpoint retains its bounded payload.
-    template["profile"]["declared"]["tool_payload"] = tool_payload.unwrap_or(10_662).into();
+    let mut template: serde_json::Value = temper_agent_fixtures::stock(true);
+    if let Some(bytes) = tool_payload {
+        template["profile"]["declared"]["tool_payload"] = bytes.into();
+    }
     let selected = smith_agent_shell::config::profile_from_value(template.get("profile").expect("profile").clone())
         .expect("shipped receiving profile");
     profile::derive(&selected, &declarations).expect("production receiving profile").domain.run

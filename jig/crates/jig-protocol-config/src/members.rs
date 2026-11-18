@@ -26,7 +26,7 @@ pub struct Member {
 }
 
 /// Every object shape the engine and worker decoders read.
-pub static SHAPES: [Shape; 65] = [
+pub static SHAPES: [Shape; 64] = [
     Shape { name: "engine", paths: &["engine"], line: "The engine's configuration, read before startup." },
     Shape {
         name: "limits",
@@ -82,8 +82,7 @@ pub static SHAPES: [Shape; 65] = [
         paths: &["engine.llm.providers[].sources.sign_in"],
         line: "A sign-in's public registration, with no client secret.",
     },
-    Shape { name: "hosts", paths: &["engine.hosts"], line: "Workers the engine accepts and their listener addresses." },
-    Shape { name: "worker-name", paths: &["engine.hosts.workers[]"], line: "One worker accepted by the engine." },
+    Shape { name: "hosts", paths: &["engine.hosts"], line: "The workers' listener addresses." },
     Shape { name: "clients", paths: &["engine.clients"], line: "Client stream heartbeats and sign-in entrances." },
     Shape { name: "client-provider", paths: &["engine.clients.provider"], line: "The deployment's OpenID provider." },
     Shape {
@@ -354,7 +353,7 @@ pub static SHAPES: [Shape; 65] = [
 ];
 
 /// Every named member, including settings read only by the document-defaults bridge.
-pub static MEMBERS: [Member; 278] = [
+pub static MEMBERS: [Member; 276] = [
     Member {
         shape: "engine",
         name: "limits",
@@ -379,7 +378,7 @@ pub static MEMBERS: [Member; 278] = [
         kind: "hosts",
         bound: "",
         required: true,
-        line: "Names the workers and their listener addresses.",
+        line: "Names the workers' listener addresses.",
         gone: None,
     },
     Member {
@@ -1177,11 +1176,11 @@ pub static MEMBERS: [Member; 278] = [
     Member {
         shape: "hosts",
         name: "workers",
-        kind: "list of worker-name",
-        bound: "link.names and fleet.configured_workers",
-        required: true,
-        line: "Names configured workers and their secret digests.",
-        gone: None,
+        kind: "refused",
+        bound: "",
+        required: false,
+        line: "Workers are settings in the store.",
+        gone: Some("workers are settings in the store"),
     },
     Member {
         shape: "hosts",
@@ -1190,24 +1189,6 @@ pub static MEMBERS: [Member; 278] = [
         bound: "loopback or in-process",
         required: true,
         line: "Gives the workers' plaintext listener addresses.",
-        gone: None,
-    },
-    Member {
-        shape: "worker-name",
-        name: "name",
-        kind: "text",
-        bound: "link.name and fleet.worker_name_bytes; at most 4096 bytes",
-        required: true,
-        line: "Gives the worker's unique name.",
-        gone: None,
-    },
-    Member {
-        shape: "worker-name",
-        name: "digest",
-        kind: "text",
-        bound: "4096 bytes; data path",
-        required: true,
-        line: "Names the file holding the worker secret's digest.",
         gone: None,
     },
     Member {
@@ -2754,7 +2735,7 @@ pub static MEMBERS: [Member; 278] = [
         name: "agent",
         kind: "agent",
         bound: "",
-        required: true,
+        required: false,
         line: "Names the agent program, its arguments and its configuration document.",
         gone: None,
     },

@@ -39,7 +39,7 @@ fn read(world: &mut Harness<Temper>, sign_in: u64, read: reads::Read) -> Result<
     world.send(Event::Root(Input::Party(PartyInput::Read {
         reply_to: ReplyTo::new(Token::new(REPLY)),
         sign_in,
-        read,
+        read: Box::new(read),
     })));
     world.drain()?;
     Ok(world.peers.oracle.reads.remove(&REPLY).expect("oracle read answered through the harness"))
@@ -80,7 +80,7 @@ fn document(
 }
 
 pub(super) fn close(world: &mut Harness<Temper>) -> Result<(), Violation> {
-    let mut snapshot = oracle::Snapshot::new(&world.store.rows, skein_lib::Wall::from_nanos(world.clock().now));
+    let mut snapshot = oracle::Snapshot::reads_only(&world.store.rows, skein_lib::Wall::from_nanos(world.clock().now));
     for (sign_in, query) in &snapshot.queries {
         snapshot.answers.push(read(world, *sign_in, query.clone())?);
     }

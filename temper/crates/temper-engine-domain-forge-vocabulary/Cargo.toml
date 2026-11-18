@@ -9,6 +9,7 @@ publish.workspace = true
 
 [dependencies]
 jig-client-protocol-wire.workspace = true
+jig-protocol-engine-clients.workspace = true
 skein-codec.workspace = true
 jig-domain-core-vocabulary.workspace = true
 jig-domain-people.workspace = true

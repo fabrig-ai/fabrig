@@ -1,7 +1,7 @@
 //! Settings proposal documents cross the client wire contract.
 use jig_client_domain::contract as c;
 use jig_client_protocol_link::{Limits, translate};
-use jig_client_protocol_wire::v28 as w;
+use jig_client_protocol_wire as w;
 use jig_client_scripted_engine::wire;
 use jig_client_test_records::settings_proposals as values;
 use skein_lib::{Reader, Writer};
@@ -26,7 +26,13 @@ fn submitted(
     let bearer = jig_engine_clients_kit::fixtures::signed_in(&mut peer);
     let keyed = w::Keyed::new(
         limits.wire(),
-        w::KeyedParts { key: [7; 16], owner: w::Owner::Jig, version: 28, request: encoded!(ask), value: None },
+        w::KeyedParts {
+            key: [7; 16],
+            owner: w::Owner::Jig,
+            version: jig_client_protocol_wire::VERSION,
+            request: encoded!(ask),
+            value: None,
+        },
     )
     .expect("keyed request");
     let socket = peer.post(b"/jig/v1/request", encoded!(&keyed), Some(&bearer));
@@ -89,9 +95,7 @@ fn pending_reviews_keep_origins_values_sizes_and_the_cut_fact() {
     let wire = wire_owner_proposal_action_settings(&pending, limits.wire()).expect("settings action");
     let mut parts = w::Proposal::decode(
         limits.wire(),
-        &mut Reader::new(include_bytes!(
-            "../../../../crates/jig-client-protocol-wire/golden/record_proposal_smallest.bin"
-        )),
+        &mut Reader::new(super::client_values::value("record_proposal_smallest.bin")),
     )
     .expect("proposal envelope")
     .into_parts();
@@ -131,9 +135,7 @@ fn retained_settings_actions_keep_the_revision_they_made() {
     let wire = wire::wire_retained_action_settings(&retained, limits.wire()).expect("retained settings");
     let mut proposal = w::ProposalHistory::decode(
         limits.wire(),
-        &mut Reader::new(include_bytes!(
-            "../../../../crates/jig-client-protocol-wire/golden/record_proposal_history_smallest.bin"
-        )),
+        &mut Reader::new(super::client_values::value("record_proposal_history_smallest.bin")),
     )
     .expect("history envelope")
     .into_parts();
@@ -169,14 +171,10 @@ fn retained_settings_actions_keep_the_revision_they_made() {
         )
         .expect("ended proposal"),
     );
-    let mut ended = w::Ended::decode(
-        limits.wire(),
-        &mut Reader::new(include_bytes!(
-            "../../../../crates/jig-client-protocol-wire/golden/record_ended_smallest.bin"
-        )),
-    )
-    .expect("ended envelope")
-    .into_parts();
+    let mut ended =
+        w::Ended::decode(limits.wire(), &mut Reader::new(super::client_values::value("record_ended_smallest.bin")))
+            .expect("ended envelope")
+            .into_parts();
     ended.key = w::ObjectKey::Proposal(
         w::ObjectKeyProposal::new(limits.wire(), w::ObjectKeyProposalParts { value: key }).expect("proposal subject"),
     );
@@ -199,9 +197,11 @@ fn a_running_choice_refusal_keeps_its_reason() {
     );
     let answer =
         w::Final::Refused(w::Refused::new(limits.wire(), w::RefusedParts { refusal, at: None }).expect("refused"));
-    let owned =
-        w::Owned::new(limits.wire(), w::OwnedParts { owner: w::Owner::Jig, version: 28, record: encoded!(&answer) })
-            .expect("owned refusal");
+    let owned = w::Owned::new(
+        limits.wire(),
+        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: encoded!(&answer) },
+    )
+    .expect("owned refusal");
     assert_eq!(
         translate::answers::answer(w::KeyedAnswer::FinalAnswer(owned), &limits),
         Ok(c::Answer::Refused { refusal: c::Refusal::Malformed { at: 0, why: c::Malformed::Running }, at: None })

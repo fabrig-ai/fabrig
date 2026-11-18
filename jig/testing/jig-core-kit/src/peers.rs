@@ -86,6 +86,7 @@ impl Peers {
             parties::Up::SignIn { to, provider, subject } => {
                 assert!(self.party_flights.insert(to, index).is_none());
                 root::Event::Core(core::Event::SignIn {
+                    until: None,
                     held: None,
                     reply_to: ReplyTo::new(Token::new(to)),
                     identity: people::Identity {
@@ -551,6 +552,7 @@ fn party_refusal(why: people::Refusal) -> parties::Refusal {
                 people::Setting::Template(n) => parties::Setting::Template(n),
                 people::Setting::Policy(n) => parties::Setting::Policy(n),
                 people::Setting::Model(n) => parties::Setting::Model(n),
+                people::Setting::Worker(n) => parties::Setting::Worker(n),
                 people::Setting::Rules => parties::Setting::Rules,
                 people::Setting::Limits => parties::Setting::Limits,
                 people::Setting::Application { kind, scope, number } => {

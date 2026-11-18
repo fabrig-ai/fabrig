@@ -1,9 +1,10 @@
 //! The reference's assignments and root events around the workers' host (service.md, 11.3).
-use crate::{Files, tools, values::Values};
+use crate::{tools, values::Values};
 use alloc::boxed::Box;
 use jig_domain_host as host;
 use jig_protocol_config::{self as config, Problems};
 use jig_protocol_engine_workers as kit;
+use jig_protocol_worker_wire as wire;
 use jig_test_domain as root;
 use skein_io as io;
 use skein_lib::{List, Queue, Time, Token};
@@ -14,23 +15,35 @@ pub(super) struct Workers {
     endpoints: List<jig_protocol_charter::EndpointName>,
 }
 impl Workers {
-    pub fn new(
-        config: &config::Engine,
-        files: &Files,
-        deployment: [u8; 16],
-        limits: &kit::Limits,
-    ) -> Result<Self, Problems> {
+    pub fn new(config: &config::Engine, deployment: [u8; 16], limits: &kit::Limits) -> Result<Self, Problems> {
         let tokens = kit::host::Tokens {
             listeners: crate::tokens::WORKER_LISTENERS,
             connections: crate::tokens::WORKER_CONNECTIONS,
         };
-        let host = kit::host::Workers::new(
+        let mut host = kit::host::Workers::new(
             config,
-            files,
             tokens,
             jig_protocol_worker_wire::Application::opaque(List::with_capacity(0)),
             limits,
         )?;
+        let mut limits_by_name = List::with_capacity(wire::CEILINGS.figures_limits);
+        for (name, value) in &config::overrides::list(&config.limits) {
+            limits_by_name
+                .push(
+                    wire::Limit::new(&wire::CEILINGS, wire::LimitParts { name: name.as_bytes().into(), value: *value })
+                        .expect("named jig limit"),
+                )
+                .expect("uncapped limits");
+        }
+        let agents = wire::Agents::new(
+            &wire::CEILINGS,
+            wire::AgentsParts { profile: List::with_capacity(0), endpoints: List::with_capacity(0) },
+        )
+        .expect("no agents");
+        let figures =
+            wire::Figures::new(&wire::CEILINGS, wire::FiguresParts { places: 0, limits: limits_by_name, agents })
+                .expect("jig limits fit figures");
+        host.down(Time::ZERO, kit::Event::Figures { figures });
         let mut endpoints = List::with_capacity(u32::try_from(config.llm.endpoints.len()).expect("endpoint count"));
         for endpoint in &config.llm.endpoints {
             endpoints
@@ -155,6 +168,7 @@ impl Workers {
                         | jig_protocol_worker_wire::Kind::SignedOut
                         | jig_protocol_worker_wire::Kind::JobAnswer
                         | jig_protocol_worker_wire::Kind::Ask
+                        | jig_protocol_worker_wire::Kind::Figures
                         | jig_protocol_worker_wire::Kind::Restarting
                         | jig_protocol_worker_wire::Kind::Asked
                         | jig_protocol_worker_wire::Kind::Wires => events.push(root::Event::Core(
@@ -163,7 +177,8 @@ impl Workers {
                     },
                 },
                 Some(
-                    kit::host::Output::Told { .. }
+                    kit::host::Output::FiguresTaken { .. }
+                    | kit::host::Output::Told { .. }
                     | kit::host::Output::Opened { .. }
                     | kit::host::Output::Refused { .. }
                     | kit::host::Output::Ended { .. },

@@ -184,14 +184,14 @@ An application that mixes the last two has both.
 | `jig-protocol-worker-agents` | component | worker | the program sources and the worker route, between smith's host half and the channel (`service.md`, section 11) |
 | `jig-protocol-tools` | translation | engine | the core's host tools: their schemas and descriptions, their calls decoded into the core's typed requests, their answers rendered as text (`channel/README.md`, 5.3) |
 | `jig-protocol-accounts` | translation, table | engine | the accounts child's vocabulary to skein's accounts driver's and back, and the values lent, tokens and keys with their scheme (`llm.md`, section 5) |
-| `jig-protocol-accounts-codec` | codecs | engine | the generated record code of `jig-protocol-accounts`' family (`schema/moved-v1.schema`), below it, which keeps its schema and golden bytes and translates it (`tools/crates/design.md`, 3.2) |
+| `jig-protocol-accounts-codec` | codecs | engine | the generated record code of `jig-protocol-accounts`' family (`schema/moved-v1.schema`), below it, which keeps its schema and translates it (`tools/crates/design.md`, 3.2) |
 | `jig-protocol-config` | parsing | engine, worker | jig's part of a configuration, parsed and checked (`configuration.md`) |
-| `jig-protocol-store` | component | engine | jig's records and the application's on skein-kv, transcripts' files, the secrets' store; the owner of its families' current schemas and golden bytes (`store/README.md`) |
+| `jig-protocol-store` | component | engine | jig's records and the application's on skein-kv, transcripts' files, the secrets' store; the owner of its families' current schemas (`store/README.md`) |
 | `jig-protocol-store-records` | translation | engine | jig's records to the store's generated families and back, below `jig-protocol-store`, which re-exports it as its `codec` (`store/crates.md`) |
-| `jig-protocol-store-people`, `jig-protocol-store-tasks`, `jig-protocol-store-core`, `jig-protocol-store-settings`, `jig-protocol-store-families` | codecs | engine | the store's families' generated record code, below `jig-protocol-store-records`, which translates them, and `jig-protocol-store`, which keeps their current schemas and golden bytes (below) |
+| `jig-protocol-store-people`, `jig-protocol-store-tasks`, `jig-protocol-store-core`, `jig-protocol-store-settings`, `jig-protocol-store-families` | codecs | engine | the store's families' generated record code, below `jig-protocol-store-records`, which translates them, and `jig-protocol-store`, which keeps their current schemas (below) |
 | `jig-client-protocol-wire` | codecs | engine, client | jig's wire records, both ends, from schemas: jig's messages, their operations and compound requests, subjects and reads, documents, the stream's events, the small store's records (`client/wire.md`, section 1) |
 | `jig-protocol-engine-clients` | component | engine | the clients' component: jig's messages from the application's transport, each with its credential as opaque bytes, and to it; a `Mint` from the application's server; streams and their pacing; credentials minted, verified, expired and revoked, the printed link's secret; the OpenID provider's codes and access tokens (`client/openid.md`); translation to and from the core's vocabulary. No HTTP, path, cookie or listener (`client/wire.md`, 2.2) |
-| `jig-protocol-engine-clients-codec` | codecs | engine | the generated record code of the clients' component's cursor family, below it, which keeps its schema and golden bytes and translates it (`tools/crates/design.md`, 3.2) |
+| `jig-protocol-engine-clients-codec` | codecs | engine | the generated record code of the clients' component's cursor family, below it, which keeps its schema and translates it (`tools/crates/design.md`, 3.2) |
 | `jig-protocol-engine-clients-http` | mapping | engine | the default HTTP mapping's engine end: its routes under the prefix the application mounts it at, the stream as server-sent events, the credential as a cookie or a bearer, and the example guards (`client/default-http.md`; `browser/README.md`, 12.2), and the server part an application builds its listener on (`service.md`, 11.4) |
 | `jig-client-protocol-link` | component | client | jig's messages encoded and decoded, the stream's events, the small store's records; no HTTP (`client/wire.md`, 2.3) |
 | `jig-client-protocol-http` | mapping | client | the default HTTP mapping's client end: a message as a method, a path, headers and a body; the stream's server-sent events cut into events; for the host and wasm32 (`client/default-http.md`, 4) |
@@ -219,12 +219,12 @@ they compile beside the core's crates rather than after them:
   crate's root, and `jig-protocol-store` re-exports it at its own as
   `jig_protocol_store::people_v17`. A caller may name either path.
 - **The store keeps the rest:** the current schemas, the registered
-  families' declarations (`store/layouts.md`, 2), the layouts' glue
-  (`src/generated/layouts.rs`), the golden bytes, the families' bounds
+  families' declarations (`store/layouts.md`, 2), the families' bounds
   from the domain's limits (`store/README.md`, section 8) and the
-  translations. The drift test, `jig/tests/codec-families.rs`'s
-  inventory, names each family's codec crate for its code, and the store
-  for the rest.
+  translations. The drift test, `jig/tests/codec-families.rs`, compares
+  each family's generated records and refuses unpinned constructs (skein's
+  `data/codec/README.md`, section 6). Its inventory names the codec crates'
+  records and the store's layouts' glue, not golden bytes or generated tests.
 
 Beside them, smith's components, by the agent capability:
 `smith-protocol-llm`, over skein's `skein-llm-connection`, in a process

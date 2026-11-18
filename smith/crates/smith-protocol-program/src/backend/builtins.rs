@@ -41,8 +41,8 @@ impl Backend {
         if let Some(given) = &mut self.given {
             given.push(super::Given::Init(skein_lib::bytes::concat(&[bytes, b"\n"])));
         }
-        if let Some(detail) = self.init_problem(bytes) {
-            self.fail(env, llm::Failure::Program { exit: None }, &detail, up, below);
+        if let Some((failure, detail)) = self.init_problem(bytes) {
+            self.fail(env, failure, &detail, up, below);
             return;
         }
         self.startup.initialized(&mut self.server_up, below);
@@ -62,19 +62,22 @@ impl Backend {
         if let Some(given) = &mut self.given {
             given.push(super::Given::Init(skein_lib::bytes::concat(&[bytes, b"\n"])));
         }
-        if let Some(detail) = self.init_problem(bytes) {
-            self.fail(env, llm::Failure::Program { exit: None }, &detail, up, below);
+        if let Some((failure, detail)) = self.init_problem(bytes) {
+            self.fail(env, failure, &detail, up, below);
         }
     }
 
-    fn init_problem(&self, bytes: &[u8]) -> Option<Box<[u8]>> {
+    fn init_problem(&self, bytes: &[u8]) -> Option<(llm::Failure, Box<[u8]>)> {
         let depth = self.settings.translation.client.depth;
         let tokens = self.settings.stream_tokens;
         if self.compaction() {
             if super::compact::checked_init(bytes, depth, tokens).is_some() {
                 return None;
             }
-            return Some(b"smith: summary program offered tools".as_slice().into());
+            return Some((
+                llm::Failure::Program { exit: None },
+                b"smith: summary program offered tools".as_slice().into(),
+            ));
         }
         let result_contract = self.result_contract();
         let grants = if self.settings.workspace.is_none() {
@@ -87,8 +90,8 @@ impl Backend {
             None
         } else {
             Some(match error {
-                Some(detail) => detail,
-                None => b"smith: the program started without smith's tools".as_slice().into(),
+                Some(detail) => (llm::Failure::Program { exit: None }, detail),
+                None => (llm::Failure::Untooled, b"smith: the program started without smith's tools".as_slice().into()),
             })
         }
     }

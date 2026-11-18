@@ -221,7 +221,7 @@ impl Judge {
         }
         self.advance_write(others)?;
         let checked = STATE.with(|s| s.borrow().checked);
-        if self.upgrade && checked && !self.client_started {
+        if self.upgrade && checked && service.observer.clients_ready && !self.client_started {
             self.start_client(others);
         }
         let complete = if self.upgrade {

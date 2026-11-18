@@ -103,18 +103,7 @@ fn start(inherited: &skein_world::Inherited) -> SignalHost<Tool> {
                 .expect("two providers");
         }
     }
-    let mut files = fixtures::files();
-    for worker in document["engine"]["hosts"]["workers"].as_array().expect("configured workers") {
-        let name = worker["digest"].as_str().expect("digest path").as_bytes();
-        if !files.entries.iter().any(|(path, _)| path.as_ref() == name) {
-            // A SHA-256 digest has 64 hexadecimal digits.
-            const DIGEST_BYTES: usize = 64;
-            files
-                .entries
-                .push((name.into(), skein_lib::Secret::new(Box::new([b'0'; DIGEST_BYTES]))))
-                .expect("remote worker fixture files");
-        }
-    }
+    let files = fixtures::files();
     let mut service = temper_service::startup::restoring_with_limits(
         &serde_json::to_vec(&document).expect("configuration"),
         &jig_protocol_config::Directories::working(),
@@ -128,7 +117,9 @@ fn start(inherited: &skein_world::Inherited) -> SignalHost<Tool> {
     )
     .unwrap_or_else(|why| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&why))));
     let root = |name: &[u8]| inherited.roots.iter().find(|(key, _)| key.as_ref() == name).expect("tool root").1;
-    service.rehearse_store(root(b"source"), root(b"scratch"), 1000).expect("tool roots adopted");
+    service
+        .rehearse_store(root(b"source"), root(b"scratch"), 1000, jig_protocol_store::Reach::Whole)
+        .expect("tool roots adopted");
     let owners = service.wait_state().engine.expect("upgrade engine");
     assert!(
         owners.workers.closed && owners.setup.closed && owners.forge.closed,
@@ -140,7 +131,7 @@ fn start(inherited: &skein_world::Inherited) -> SignalHost<Tool> {
     SignalHost::new(Tool(service, Time::ZERO), Some(inherited.signal))
 }
 
-/// Every floor record decodes and restores, without pending patches or jobs.
+/// Every floor record decodes and restores after the id jobs.
 pub fn golden_check(directory: &Path) {
     golden_check_with(directory, golden::read_configuration(directory), Copy::Whole);
 }
@@ -170,11 +161,6 @@ fn deployment_document(directory: &Path) -> temper_playground::documents::Config
     document["workers"] = serde_json::json!([]);
 
     document["engine"]["hosts"]["listener"] = serde_json::json!([{"socket":"127.0.0.1:7103"}]);
-    document["engine"]["hosts"]["workers"] = serde_json::json!([
-        {"name":"worker-a", "digest":"secrets/worker-a.digest"},
-        {"name":"worker-b", "digest":"secrets/worker-b.digest"},
-        {"name":"worker-c", "digest":"secrets/worker-c.digest"}
-    ]);
     document
 }
 
@@ -236,9 +222,31 @@ fn golden_check_with(directory: &Path, configuration: temper_playground::documen
     eprintln!("{lines}");
     let report = tool.0.upgrade_report().expect("completed report");
     assert!(report.done, "report complete: {lines}");
-    assert!(!report.events.iter().any(|event| matches!(event, Event::Ran { .. })), "no pending work: {lines}");
+    let ran: Vec<_> = report
+        .events
+        .iter()
+        .filter_map(|event| {
+            if let Event::Ran { of, job, counts, .. } = event {
+                assert_eq!(*of, super::job_owner(job));
+                assert!(counts.iter().all(|count| count.count == 0), "short floor ids: {lines}");
+                Some(job.as_ref())
+            } else {
+                None
+            }
+        })
+        .collect();
     match copy {
         Copy::Whole => {
+            assert_eq!(
+                ran,
+                [
+                    "escalation-deciders",
+                    "test-ids-landing",
+                    "test-ids-receipt",
+                    "test-ids-tier",
+                    "test-ids-verification"
+                ]
+            );
             assert_eq!(code, 0, "{lines}");
             assert!(report.restored, "{lines}");
             assert!(
@@ -248,12 +256,14 @@ fn golden_check_with(directory: &Path, configuration: temper_playground::documen
             assert!(lines.contains("registry commit, jobs and restores pass"), "{lines}");
         }
         Copy::Broken => {
+            assert!(ran.is_empty(), "broken store before jobs: {lines}");
             assert_eq!(code, 1, "{lines}");
             assert!(!report.restored);
             assert!(report.events.iter().any(|event| matches!(event, Event::Undecodable { family, version: 0, at: Undecoded::Record { map: KeptMap::Store, key }, .. } if family.as_ref() == "jig-store-core" && key.as_ref() == broken.as_ref())), "broken record named: {lines}");
             assert!(!report.events.iter().any(|event| matches!(event, Event::Decoded { .. })), "{lines}");
         }
         Copy::Floorless => {
+            assert!(ran.is_empty(), "floor before jobs: {lines}");
             assert_eq!(code, 1, "{lines}");
             assert!(!report.restored);
             assert_eq!(

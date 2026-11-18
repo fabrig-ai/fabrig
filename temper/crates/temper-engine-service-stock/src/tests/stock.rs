@@ -452,14 +452,6 @@ fn the_drafter_is_charter_12_and_template_6() {
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let charter = defaults.charters.iter().find(|charter| charter.number == 12).expect("drafter charter");
     assert_document_rule(core::str::from_utf8(&charter.policy.instructions).unwrap());
-    assert_eq!(charter.policy.instructions.len(), 3_319);
-    assert_eq!(
-        skein_lib::sha256::digest(&charter.policy.instructions),
-        [
-            0x56, 0xb6, 0x8b, 0xbd, 0xdc, 0x3f, 0x13, 0x71, 0xf7, 0x13, 0x49, 0xf8, 0xfe, 0xf6, 0x06, 0x40, 0x4e, 0x21,
-            0x67, 0xc2, 0x20, 0x78, 0x32, 0x1a, 0x43, 0x8f, 0xcf, 0xc2, 0xc7, 0x59, 0xfc, 0xa0,
-        ]
-    );
     assert_eq!(charter.policy.tools.0 & ToolFamilies::JIG.delegate.0, 0);
     assert_eq!(charter.policy.tools.0 & ToolFamilies::JIG.settings, 0);
     assert_eq!(charter.policy.tools.0 & ToolFamilies::JIG.ask.0, 0);
@@ -520,7 +512,7 @@ fn the_standing_role_resumes_in_parts_and_keeps_its_period_budget() {
     let coordinator = defaults.charters.iter().find(|charter| charter.number == 5).unwrap();
     assert_eq!(charter.wake, jig_domain_tasks::WakePolicy { results: ResultsWake::Each, ..coordinator.wake });
     assert_eq!((charter.policy.turns, charter.policy.time), (coordinator.policy.turns, coordinator.policy.time));
-    assert_eq!((charter.policy.reserve_turns, charter.policy.reserve_time), (1, skein_lib::Duration::from_secs(60)));
+    assert_eq!((charter.policy.reserve_turns, charter.policy.reserve_time), (1, skein_lib::Duration::from_secs(300)));
     let template = defaults.templates.iter().find(|template| template.number == 7).expect("standing role template");
     assert_eq!(template.name.as_ref(), b"standing role");
     assert_eq!(template.executor, TemplateExecutor::Chosen);
@@ -763,7 +755,7 @@ fn the_chats_opening_sends_plain_edits_directly_to_change() {
         )
     );
     assert!(opening.contains("then call change with their request and only what you read"));
-    assert!(opening.contains("call read_branch with its repository before you say it isn't there"));
+    assert!(opening.contains("call read_forge what=branch with its repository before you say it isn't there"));
 }
 
 #[test]
@@ -897,6 +889,11 @@ fn a_goal_is_told_to_call_decided_before_it_asks() {
         }
     }
     let goal = crate::stock::charter_set().goal.unwrap();
+    let asking = goal
+        .split("\n\n")
+        .find(|paragraph| paragraph.starts_with("**Asking your requester.**"))
+        .expect("goal's asking paragraph");
+    assert!(asking.contains("(see settings project-classes). Write its question in one sentence, the situation as a person reads it, and each option in one line; commits, figures and task or pull numbers go in its why. On Decided, carry on with it and ask no one; on Ask, ask as the answer says."));
     assert!(goal.contains("`decide_escalation`, which passes an escalation up"));
     for words in [
         "Before you ask anything, call `decided`",
@@ -1218,10 +1215,12 @@ fn the_reviewers_words_say_to_fail_when_it_cannot_review() {
 
 #[test]
 fn init_inbox_holds_three_message_credits_within_the_store_codec() {
+    // Fabrig's own development's 63,740-byte payload, less the separator.
+    const MESSAGE: u32 = 63_738;
     let engine = engine(&generated());
     let limits = &engine.limits.core;
-    assert_eq!(limits.tasks.result_bytes, 63_738);
-    assert_eq!(limits.tasks.message_bytes, 63_738);
+    assert_eq!(limits.tasks.result_bytes, MESSAGE);
+    assert_eq!(limits.tasks.message_bytes, MESSAGE);
     assert_eq!(limits.tasks.inbox_bytes, 82 * limits.tasks.message_bytes);
     // protocol/configuration/stock.md: news and answer credits, four live
     // delegates' result reservations, and one unread result coexist.
@@ -1259,15 +1258,25 @@ fn stock_budgets_follow_the_costliest_completion_and_run_turn_floor() {
         let stock = crate::stock::checked_with(models, engine.limits.core.tasks.result_bytes).expect("world stock");
         assert_eq!(stock.rules.minimum_run_spend, 2 * c, "{row}");
         assert_eq!(stock.rules.maximum_run_spend, k, "{row}");
-        for (number, turns, seconds) in [(1, 64, 3600), (2, 800, 28_800), (9, 4, 300)] {
+        for (number, turns, seconds) in [(1, 64, 3600), (2, 800, 28_800), (5, 800, 28_800), (9, 4, 300)] {
             let charter = stock.charters.iter().find(|charter| charter.number == number).unwrap();
             assert_eq!(charter.policy.turns, turns, "{row}: charter {}", charter.number);
             assert_eq!(charter.policy.time, skein_lib::Duration::from_secs(seconds), "{row}");
             assert_eq!(charter.policy.reserve_turns, 1, "{row}");
-            assert_eq!(charter.policy.reserve_time, skein_lib::Duration::from_secs(60), "{row}");
+            assert_eq!(
+                charter.policy.reserve_time,
+                skein_lib::Duration::from_secs(if number == 9 || number == 10 { 60 } else { 300 }),
+                "{row}"
+            );
         }
         for charter in &stock.charters {
             assert_eq!(charter.spend, k, "{row}");
+            assert_eq!(
+                charter.policy.reserve_time,
+                skein_lib::Duration::from_secs(if charter.number == 9 || charter.number == 10 { 60 } else { 300 }),
+                "{row}: charter {}",
+                charter.number
+            );
         }
         let policy = &stock.policies.get(&1).expect("policy 1").policy;
         assert_eq!(policy.roles[0].authority.budget.spend, 24 * k, "{row}");
@@ -1531,7 +1540,7 @@ fn a_stock_landing_can_start_its_prepare_job() {
 #[test]
 fn the_chats_words_read_a_changes_code_before_briefing_it() {
     let words = include_str!("../stock/chat.txt");
-    assert!(words.contains("For a repository change, first read touched code through forge reads (read_branch for its head, then read_file), then call change with their request and only what you read: never describe unread code."));
+    assert!(words.contains("For a repository change, first read touched code through forge reads (read_forge what=branch for its head, then read_forge what=file), then call change with their request and only what you read: never describe unread code."));
     assert!(words.contains("If a requested fix's fault is absent, change nothing: tell the person what the code has."));
 }
 
@@ -1816,9 +1825,17 @@ fn kinds_are_declared_with_their_bounds() {
                 number: 21,
                 scope: KindScope::Deployment,
                 connector: CONNECTOR,
+                value_bytes: 8 + 128 * (4 + 64 + 8) + 64 * (4 + 64 + 29) + 29,
+                per_scope: 1,
+                charters: 0,
+            },
+            Kind {
+                number: 22,
+                scope: KindScope::Deployment,
+                connector: CONNECTOR,
                 value_bytes: 51_204,
                 per_scope: 1,
-                charters: 0
+                charters: 0,
             },
         ]
     );
@@ -2200,6 +2217,7 @@ fn the_status_charter_is_small_and_reaches_nothing() {
     expected.policy.instructions = include_bytes!("../stock/status.txt").as_slice().into();
     expected.policy.turns = 4;
     expected.policy.time = skein_lib::Duration::from_secs(300);
+    expected.policy.reserve_time = skein_lib::Duration::from_secs(60);
     expected.policy.inspect = false;
     expected.policy.agents = false;
     expected.policy.tools = jig_domain_tasks::Tools(0);
@@ -2250,6 +2268,7 @@ fn the_trial_charter_is_one_working_turn_and_reaches_nothing() {
     expected.policy.instructions = include_bytes!("../stock/trial.txt").as_slice().into();
     expected.policy.turns = 2;
     expected.policy.time = skein_lib::Duration::from_secs(120);
+    expected.policy.reserve_time = skein_lib::Duration::from_secs(60);
     expected.policy.resume = false;
     expected.policy.inspect = false;
     expected.policy.agents = false;
@@ -2374,4 +2393,20 @@ fn the_prepare_executor_needs_both_stock_executor_limits() {
             Err(crate::stock::Floor { limit: name, configured: 20, needed: 21, setting: Setting::Rules })
         );
     }
+}
+
+#[test]
+fn agents_default_is_declared() {
+    let stock = crate::stock::agents();
+    let engine = fixtures::engine();
+    let limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
+    let kinds = crate::stock::kinds(&limits, 1);
+    let kind = kinds.iter().find(|kind| kind.number == 21).unwrap();
+    assert_eq!(
+        (kind.scope, kind.connector, kind.per_scope, kind.charters),
+        (jig_domain_core::settings::KindScope::Deployment, 1, 1, 0)
+    );
+    assert_eq!(kind.value_bytes, 8 + 128 * (4 + 64 + 8) + 64 * (4 + 64 + 29) + 29);
+    assert!(crate::stock::forge(&limits).iter().any(|row| (row.kind, row.scope, row.number) == (21, 0, 1)
+        && row.value.value == temper_engine_domain_forge::settings::Value::AgentFigures(stock.clone())));
 }

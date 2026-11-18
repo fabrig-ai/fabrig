@@ -7,8 +7,8 @@
 )]
 use crate::tests::*;
 use jig_domain_link::{
-    Bounds, CountKind, EndpointBound, Form, GrantTable, Hello, Hosting, Login, LoginMethod, LoginState, Membership,
-    Phase, Scheme, SourceFailure, SourceName,
+    Bounds, CountKind, EndpointBound, Form, GrantTable, Hello, Hosting, Login, LoginMethod, LoginState, Phase, Scheme,
+    SourceFailure, SourceName,
 };
 const TASK: u64 = 1;
 const FIRST: Token = Token::new(7);
@@ -192,7 +192,7 @@ fn a_due_agent_s_readiness_is_its_admission_in_every_state() {
             send_task(&mut core, &limits, tasks::Event::Restored);
         }
         let expected = expected.unwrap_or_else(|| {
-            RunAdmission::Allow(Box::new(RunAllowance { choice: core.run_choice(TASK).unwrap(), spend: 100 }))
+            RunAdmission::Allow(Box::new(RunAllowance { choice: core.run_choice(TASK).unwrap(), spend: 50 }))
         });
         let context = core.tasks.run_context(TASK).unwrap();
         assert_eq!(core.tasks.task(TASK).unwrap().phase, tasks::Phase::Active(tasks::Active::Due), "{state:?}");
@@ -320,7 +320,7 @@ fn usable_retained_provider_constrains_the_concrete_host() {
     let RunAdmission::Allow(allowed) = core.run_admission(&stale, Wall::EPOCH, Box::new([])) else {
         panic!("current data allows")
     };
-    assert_eq!(allowed.spend, 100);
+    assert_eq!(allowed.spend, 50);
     assert_eq!(allowed.choice.placement.channel, SECOND);
     assert_eq!(
         allowed.choice.accounts.as_ref(),
@@ -448,6 +448,7 @@ fn terminal_after_zero_reset(account_terminal: bool) -> tasks::Tries {
             saved: None,
             invalid_saved: false,
             unusable_history: false,
+            untooled: false,
             read: None,
             refused: Box::new([]),
         },
@@ -586,9 +587,7 @@ pub(in crate::tests) fn placement_fleet(core: &Core, limits: &Limits) -> fleet::
     config.defaults.charters[0].policy = core.charter(1).unwrap().policy.clone();
     config.defaults.charters[0].policy.alternatives = core.settings.models[1..].into();
     let mut fleet = fixtures::restored_fleet(limits, fleet_needs::configured(&config, limits));
-    fleet.configure_workers(
-        Membership::new(config.worker_names, limits.fleet.configured_workers, limits.fleet.worker_name_bytes).unwrap(),
-    );
+    fleet.configure_workers(crate::limits::problems(&config.defaults.workers, limits).unwrap());
     fleet
 }
 pub(in crate::tests) fn placement_fixture(
@@ -1098,6 +1097,201 @@ fn a_due_tasks_bounds_wait_tracks_its_charters_growth_and_recovery() {
     assert_eq!(document_wait(&core, &limits), before);
 }
 
+fn fault_place(core: &mut Core, limits: &Limits, source: &[u8]) {
+    fleet_event(
+        core,
+        limits,
+        Wall::EPOCH,
+        fleet::Event::Untooled { run: Token::new(TASK), channel: FIRST, source: SourceName::new(source).unwrap() },
+    );
+}
+
+#[test]
+fn a_tasks_documents_name_its_untooled_source_and_worker() {
+    let (mut core, limits) = placement_fixture(accounts::Holder::Party(OWNER), accounts::Holder::Party(OWNER), true);
+    assert_eq!(document_wait(&core, &limits), None);
+    fault_place(&mut core, &limits, b"personal");
+    let expected = Some(TaskRunWait::Account {
+        account: Some(0),
+        source: Some(PERSONAL_SOURCE),
+        why: TaskWaitWhy::Untooled { worker: 1 },
+    });
+    for preparing in [false, true] {
+        if preparing {
+            send_task(&mut core, &limits, tasks::Event::Prepare { reply_to: ReplyTo::new(FIRST), task: TASK });
+        }
+        let row = core.tasks.task(TASK).unwrap();
+        assert_eq!(run_wait(&core, row), expected);
+        assert_eq!(document_wait(&core, &limits), expected);
+    }
+    fleet_event(
+        &mut core,
+        &limits,
+        Wall::EPOCH,
+        fleet::Event::Check { channel: FIRST, name: SourceName::new(b"personal").unwrap() },
+    );
+    assert_eq!(core.run_choice(TASK).unwrap().placement.channel, FIRST);
+    assert_eq!(document_wait(&core, &limits), None);
+}
+
+#[test]
+fn an_untooled_place_explains_a_host_wait_while_another_worker_is_busy() {
+    let (mut core, limits) = placement_fixture(accounts::Holder::Party(OWNER), accounts::Holder::Party(OWNER), true);
+    inventory(&mut core, &limits, SECOND, Box::new([login(b"personal", LoginState::Usable)]));
+    fleet_event(
+        &mut core,
+        &limits,
+        Wall::EPOCH,
+        fleet::Event::Start {
+            placement: Some(fleet::PlacementConstraint { channel: SECOND, kind: fleet::HostKind::Worker }),
+            version: fleet::Version { charter: 1, revision: 1 },
+            grants: Box::new([]),
+            reply_to: ReplyTo::new(Token::new(99)),
+            run: Token::new(99),
+            attempt: Token::new(99),
+            workstream: 1,
+            kinds: fleet::Kinds::Workers,
+            assignment: fleet::Assignment { turns: Token::new(99), answered: Token::new(99) },
+        },
+    );
+    let mut out = Queue::uncapped();
+    fleet::resume(&mut core.fleet, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet }, true, &mut out);
+    assert!(out.iter().any(|request| {
+        if let fleet::Request::Assign { channel, .. } = request { *channel == SECOND } else { false }
+    }));
+    fault_place(&mut core, &limits, b"personal");
+    assert_eq!(core.run_choice(TASK), Err(RunWait::Host));
+    assert_eq!(
+        document_wait(&core, &limits),
+        Some(TaskRunWait::Account {
+            account: Some(0),
+            source: Some(PERSONAL_SOURCE),
+            why: TaskWaitWhy::Untooled { worker: 1 },
+        })
+    );
+}
+
+#[test]
+fn an_untooled_fault_keeps_bounds_and_account_refusals_first() {
+    let (mut core, limits) = placement_fixture(accounts::Holder::Party(OWNER), accounts::Holder::Party(OWNER), true);
+    core.fleet = placement_fleet(&core, &limits);
+    fleet_event(
+        &mut core,
+        &limits,
+        Wall::EPOCH,
+        fleet::Event::Hello {
+            worker: 0,
+            channel: FIRST,
+            hello: Hello {
+                jobs: Box::new([]),
+                bounds: Bounds { turns: 800, ..fixtures::bounds() },
+                stop_bound: Duration::ZERO,
+                slots: 1,
+                workstreams: Box::new([]),
+                hosting: Box::new([]),
+            },
+        },
+    );
+    fault_place(&mut core, &limits, b"personal");
+    let mut needs = fleet_needs::configured(&config(41), &limits);
+    needs.charters[0].turns = 100_000;
+    fleet_event(&mut core, &limits, Wall::EPOCH, fleet::Event::Needs(needs));
+    assert_eq!(
+        document_wait(&core, &limits),
+        Some(TaskRunWait::Refused(TaskWaitRefused::Bounds {
+            kind: fleet::HostKind::Worker,
+            why: Some(fleet::AgentShortfall::Turns { charter: 1 }),
+            figures: Some(fleet::Figures { required: 100_000, offered: 800 }),
+        }))
+    );
+    for (event, source, expected) in [
+        (
+            accounts::Event::Limited { account: PERSONAL_SOURCE, reset: None },
+            PERSONAL_SOURCE,
+            TaskSourceState::Limited { until: None },
+        ),
+        (
+            accounts::Event::Refused { account: PERSONAL_SOURCE, code: Box::new([]), reason: Box::new([]) },
+            PERSONAL_SOURCE,
+            TaskSourceState::Refused,
+        ),
+        (
+            accounts::Event::Component(accounts::FromComponent::Failed {
+                account: 1,
+                failure: accounts::Failure::SignInAgain,
+            }),
+            1,
+            TaskSourceState::NeedsSignIn,
+        ),
+    ] {
+        let (mut core, limits) = placement_fixture(
+            accounts::Holder::Party(OWNER),
+            accounts::Holder::Party(OWNER),
+            source == PERSONAL_SOURCE,
+        );
+        fault_place(&mut core, &limits, b"personal");
+        account(&mut core, &limits, event);
+        assert_eq!(
+            document_wait(&core, &limits),
+            Some(TaskRunWait::Account { account: Some(0), source: Some(source), why: TaskWaitWhy::Source(expected) })
+        );
+    }
+}
+
+#[test]
+fn an_accounts_host_wait_is_not_explained_by_another_or_unresolved_source() {
+    let (mut core, limits) = placement_with_accounts(
+        accounts::Holder::Party(OWNER),
+        accounts::Holder::Party(OWNER),
+        true,
+        vec![
+            accounts::Stored::Source {
+                account: 0,
+                number: 4,
+                place: 2,
+                kind: accounts::Kind::Program,
+                name: b"other".as_slice().into(),
+                held: None,
+            },
+            accounts::Stored::Issued {
+                number: 4,
+                holder: accounts::Holder::Party(OWNER),
+                name: b"other".as_slice().into(),
+                signed_out: false,
+            },
+            accounts::Stored::Issued {
+                number: 5,
+                holder: accounts::Holder::Party(OWNER),
+                name: b"retired".as_slice().into(),
+                signed_out: false,
+            },
+        ],
+    );
+    inventory(&mut core, &limits, FIRST, Box::new([login(b"personal", LoginState::NotSignedIn)]));
+    let expected =
+        Some(TaskRunWait::Account { account: Some(0), source: Some(PERSONAL_SOURCE), why: TaskWaitWhy::Host });
+    assert_eq!(document_wait(&core, &limits), expected, "no fault");
+    fault_place(&mut core, &limits, b"other");
+    assert_eq!(
+        core.run_choice(TASK),
+        Err(RunWait::Account { account: Some(0), source: Some(PERSONAL_SOURCE), why: accounts::WaitWhy::Host })
+    );
+    assert_eq!(document_wait(&core, &limits), expected, "a different live source");
+    for name in [b"retired".as_slice(), b"unknown".as_slice()] {
+        fault_place(&mut core, &limits, name);
+        assert_eq!(document_wait(&core, &limits), expected, "an unresolved source");
+    }
+    fault_place(&mut core, &limits, b"personal");
+    assert_eq!(
+        document_wait(&core, &limits),
+        Some(TaskRunWait::Account {
+            account: Some(0),
+            source: Some(PERSONAL_SOURCE),
+            why: TaskWaitWhy::Untooled { worker: 1 },
+        })
+    );
+}
+
 #[test]
 fn a_standing_refusal_does_not_replace_account_or_credential_waits_or_placed_work() {
     let (mut core, limits) = ready(false);
@@ -1246,6 +1440,7 @@ fn invalid_start_answer(attempt: u64, refused: &[u64]) -> Event {
         saved: None,
         invalid_saved: false,
         unusable_history: false,
+        untooled: false,
         read: None,
         refused: refused.into(),
     }
@@ -1563,6 +1758,7 @@ fn an_invalid_start_spends_a_try_across_fences_and_endings() {
                         saved: None,
                         invalid_saved,
                         unusable_history: false,
+                        untooled: false,
                         read,
                         refused: Box::from(refused),
                     },
@@ -1759,6 +1955,7 @@ fn an_answer_whose_followups_pass_the_batch_bytes_is_invalid() {
                 saved: None,
                 invalid_saved: false,
                 unusable_history: false,
+                untooled: false,
                 read: None,
                 refused: Box::new([]),
             },
@@ -1901,6 +2098,275 @@ fn a_version_refusal_pauses_without_closing_the_window_or_counting_a_try() {
         core.proofs.get(&OPEN_TASK).unwrap().window,
         Some(CurrentWindow { attempt: OPEN_ATTEMPT, turn: 1, closed: false })
     );
+}
+
+fn untooled_fixture() -> (Core, Limits) {
+    let (mut core, limits) = placement_fixture(accounts::Holder::Party(OWNER), accounts::Holder::Party(OWNER), true);
+    inventory(&mut core, &limits, SECOND, Box::new([login(b"personal", LoginState::Usable)]));
+    core.fleet.configure_workers(
+        jig_domain_link::Membership::new(
+            Box::new([
+                jig_domain_link::Member { number: 1, name: b"box-1".as_slice().into(), places: 1, withdrawn: false },
+                jig_domain_link::Member { number: 2, name: b"box-2".as_slice().into(), places: 1, withdrawn: false },
+            ]),
+            limits.fleet.configured_workers,
+            limits.fleet.worker_name_bytes,
+        )
+        .unwrap(),
+    );
+    claim_open(&mut core, &limits, OPEN_ATTEMPT);
+    (core, limits)
+}
+
+fn untooled_answer(attempt: u64) -> Event {
+    let mut answer = invalid_start_answer(attempt, &[]);
+    let Event::AnswerPayload { end, untooled, .. } = &mut answer else { panic!("answer fixture") };
+    *end = tasks::End::Refused;
+    *untooled = true;
+    answer
+}
+
+#[test]
+fn an_untooled_program_refuses_once_without_a_try_and_leaves_its_place_to_other_tasks() {
+    let (mut core, limits) = untooled_fixture();
+    let before = core.tasks.task(OPEN_TASK).unwrap().tries;
+    core.proofs.get_mut(&OPEN_TASK).unwrap().account_terminal = true;
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    drop(step(&mut core, &env, untooled_answer(OPEN_ATTEMPT)));
+    let reason: Box<[u8]> =
+        b"claude_code started without smith's tools: account personal on worker box-1".as_slice().into();
+    let proof = core.proofs.get(&OPEN_TASK).unwrap();
+    assert_eq!(proof.terminal.as_ref().unwrap().end, tasks::End::RefusedWithReason { reason: reason.clone() });
+    let task = core.tasks.task(OPEN_TASK).unwrap().clone();
+    assert_eq!(task.tries, before);
+    assert_eq!(task.retry_notice, Some(tasks::RetryNotice::Refused { count: 1, reason: Some(reason) }));
+    let tasks::Phase::Active(tasks::Active::BackingOff { .. }) = task.phase else {
+        panic!("place refusal pauses without a hold")
+    };
+    drop(step(&mut core, &env, untooled_answer(OPEN_ATTEMPT)));
+    assert_eq!(core.tasks.task(OPEN_TASK).unwrap(), &task);
+    let choice = core.run_choice(OPEN_TASK).unwrap();
+    assert_eq!((choice.placement.channel, choice.accounts[0].source), (SECOND, PERSONAL_SOURCE));
+    let other = core.run_choice(TASK).unwrap();
+    assert_eq!((other.placement.channel, other.accounts[0].source), (FIRST, PERSONAL_SOURCE));
+}
+
+#[test]
+fn an_untooled_task_with_no_place_waits_without_timer_driven_claims() {
+    let (mut core, limits) = untooled_fixture();
+    let mut env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    drop(step(&mut core, &env, untooled_answer(OPEN_ATTEMPT)));
+    let tasks::Phase::Active(tasks::Active::BackingOff { until }) = core.tasks.task(OPEN_TASK).unwrap().phase else {
+        panic!("first pause")
+    };
+    env.now = core.tasks.next_deadline().unwrap();
+    env.wall = until;
+    drop(fire(&mut core, &env, Timer::Tasks));
+    claim_existing_open(&mut core, &limits, OPEN_ATTEMPT + 1);
+    core.proofs.get_mut(&OPEN_TASK).unwrap().placement = Some(SECOND);
+    drop(step(&mut core, &env, untooled_answer(OPEN_ATTEMPT + 1)));
+    assert_eq!(
+        core.fleet.untooled(Token::new(OPEN_TASK)),
+        Some(fleet::Untooled { channel: SECOND, worker: 1, source: SourceName::new(b"personal").unwrap() })
+    );
+    assert_eq!(core.run_choice(OPEN_TASK), Err(RunWait::Host));
+    let tasks::Phase::Active(tasks::Active::BackingOff { until }) = core.tasks.task(OPEN_TASK).unwrap().phase else {
+        panic!("pause")
+    };
+    env.now = core.tasks.next_deadline().unwrap();
+    env.wall = until;
+    drop(fire(&mut core, &env, Timer::Tasks));
+    core.due.push(core.tasks.run_context(OPEN_TASK).unwrap());
+    assert!(!core.due_ready());
+    assert!(core.take_due().is_none());
+    assert_eq!(core.tasks.task(OPEN_TASK).unwrap().attempt, OPEN_ATTEMPT + 1);
+    assert_eq!(core.tasks.task(OPEN_TASK).unwrap().tries, tasks::Tries::NONE);
+}
+
+#[test]
+fn a_program_fault_rechecks_an_already_checked_claim() {
+    let (mut core, limits) = untooled_fixture();
+    assert!(core.claim_bindings_usable(OPEN_TASK, OPEN_ATTEMPT));
+    drop(step(
+        &mut core,
+        &Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
+        Event::Fleet(fleet::Event::Untooled {
+            run: Token::new(OPEN_TASK),
+            channel: FIRST,
+            source: SourceName::new(b"personal").unwrap(),
+        }),
+    ));
+    assert!(!core.claim_bindings_usable(OPEN_TASK, OPEN_ATTEMPT));
+}
+
+#[test]
+fn an_untooled_answer_without_a_main_program_binding_stays_a_run_failure() {
+    let (mut core, limits) = untooled_fixture();
+    core.proofs.get_mut(&OPEN_TASK).unwrap().accounts =
+        Box::new([authority::AccountBinding { provider: 1, account: 0, source: 1 }]);
+    drop(step(&mut core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits }, untooled_answer(OPEN_ATTEMPT)));
+    assert_eq!(
+        core.proofs.get(&OPEN_TASK).unwrap().terminal.as_ref().unwrap().end,
+        tasks::End::Failed(tasks::Class::Run)
+    );
+    assert_eq!(core.tasks.task(OPEN_TASK).unwrap().tries.run, 1);
+    assert_eq!(core.fleet.untooled(Token::new(OPEN_TASK)), None);
+}
+
+#[test]
+fn an_untooled_answer_names_the_current_claim_channel_after_adoption() {
+    let (mut core, limits) = untooled_fixture();
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let mut out = Queue::uncapped();
+    fleet::step(&mut core.fleet, &env.with(limits.fleet), fleet::Event::Lost { channel: SECOND }, &mut out);
+    core.fleet.reclaim();
+    fleet::step(
+        &mut core.fleet,
+        &env.with(limits.fleet),
+        fleet::Event::Adopt {
+            reply_to: ReplyTo::new(Token::new(OPEN_ATTEMPT)),
+            run: Token::new(OPEN_TASK),
+            attempt: Token::new(OPEN_ATTEMPT),
+            kept: 0,
+            kind: fleet::HostKind::Worker,
+            worked: false,
+            holds: Box::new([]),
+            grants: Box::new([]),
+        },
+        &mut out,
+    );
+    fleet::step(
+        &mut core.fleet,
+        &env.with(limits.fleet),
+        fleet::Event::Hello {
+            worker: 1,
+            channel: SECOND,
+            hello: Hello {
+                jobs: Box::new([]),
+                bounds: fixtures::bounds(),
+                stop_bound: Duration::ZERO,
+                slots: 1,
+                workstreams: Box::new([]),
+                hosting: Box::new([Hosting {
+                    run: Token::new(OPEN_TASK),
+                    attempt: Token::new(OPEN_ATTEMPT),
+                    phase: Phase::Active,
+                }]),
+            },
+        },
+        &mut out,
+    );
+    fleet::step(
+        &mut core.fleet,
+        &env.with(limits.fleet),
+        fleet::Event::Answer {
+            channel: SECOND,
+            run: Token::new(OPEN_TASK),
+            attempt: Token::new(OPEN_ATTEMPT),
+            answer: fleet::Answer::Failed { turned: None },
+            payload: Token::new(99),
+        },
+        &mut out,
+    );
+    assert!(
+        core.fleet.attempt_views().iter().any(|claim| claim.run.raw() == OPEN_TASK
+            && claim.placement == fleet::Placement::Connected { channel: SECOND, kind: fleet::HostKind::Worker }),
+        "claims {:?}; hosts {:?}; out {out:?}",
+        core.fleet.attempt_views(),
+        core.fleet.host_views()
+    );
+    drop(step(&mut core, &env, untooled_answer(OPEN_ATTEMPT)));
+    assert_eq!(
+        core.fleet.untooled(Token::new(OPEN_TASK)),
+        Some(fleet::Untooled { channel: SECOND, worker: 1, source: SourceName::new(b"personal").unwrap() })
+    );
+    let end = &core.proofs.get(&OPEN_TASK).unwrap().terminal.as_ref().unwrap().end;
+    assert_eq!(
+        *end,
+        tasks::End::RefusedWithReason {
+            reason: b"claude_code started without smith's tools: account personal on worker box-2".as_slice().into()
+        }
+    );
+}
+
+#[test]
+fn an_untooled_reason_keeps_its_head_and_names_an_unconfigured_worker_by_number() {
+    for program in [b"claude_code".to_vec(), "é".repeat(100).into_bytes(), vec![0xff; 200]] {
+        let (mut core, limits) = untooled_fixture();
+        core.current.test_charter_mut(1).policy.model.program = Some(program.clone().into_boxed_slice());
+        core.settings.models[0].program = Some(program.clone().into_boxed_slice());
+        core.fleet.configure_workers(jig_domain_link::Membership::empty());
+        drop(step(&mut core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits }, untooled_answer(OPEN_ATTEMPT)));
+        let tasks::End::RefusedWithReason { reason } =
+            &core.proofs.get(&OPEN_TASK).unwrap().terminal.as_ref().unwrap().end
+        else {
+            panic!("place refusal")
+        };
+        let expected = if program.len() < 128 {
+            b"claude_code started without smith's tools: account personal on worker worker 1".to_vec()
+        } else if program[0] == 0xff {
+            [vec![b'?'; 122], b" [cut]".to_vec()].concat()
+        } else {
+            ["é".repeat(61).into_bytes(), b" [cut]".to_vec()].concat()
+        };
+        assert_eq!(reason.as_ref(), expected);
+        assert!(reason.len() <= usize::try_from(tasks::REASON_BYTES).unwrap());
+        assert!(skein_lib::bytes::is_utf8(reason));
+    }
+}
+
+#[test]
+fn a_checked_or_resigned_login_reopens_the_tasks_program_place() {
+    for check in [true, false] {
+        let (mut core, limits) = untooled_fixture();
+        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+        drop(step(&mut core, &env, untooled_answer(OPEN_ATTEMPT)));
+        assert_eq!(core.run_choice(OPEN_TASK).unwrap().placement.channel, SECOND);
+        if check {
+            drop(step(
+                &mut core,
+                &env,
+                Event::Fleet(fleet::Event::Check { channel: FIRST, name: SourceName::new(b"personal").unwrap() }),
+            ));
+        } else {
+            inventory(&mut core, &limits, FIRST, Box::new([login(b"personal", LoginState::NotSignedIn)]));
+            inventory(&mut core, &limits, FIRST, Box::new([login(b"personal", LoginState::Usable)]));
+        }
+        assert_eq!(core.run_choice(OPEN_TASK).unwrap().placement.channel, FIRST);
+    }
+}
+
+#[test]
+fn a_program_fault_preserves_the_holders_source_order_on_its_worker() {
+    let (mut core, limits) = untooled_fixture();
+    let mut direct = core.settings.models[0].clone();
+    direct.program = None;
+    direct.name = b"direct".as_slice().into();
+    direct.endpoint = 9;
+    core.settings.models = Box::new([core.settings.models[0].clone(), direct]);
+    core.settings.endpoints = Box::new([
+        core.settings.endpoints[0].clone(),
+        EndpointFacts { providers: Box::new([1]), direct: Box::new([1]), number: 9, dialect: 1, program: None },
+    ]);
+    core.fleet = placement_fleet(&core, &limits);
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    drop(step(
+        &mut core,
+        &env,
+        Event::Fleet(fleet::Event::Sources { sources: Box::new([SourceName::new(b"personal").unwrap()]) }),
+    ));
+    host_with_logins(
+        &mut core,
+        &limits,
+        FIRST,
+        &[b"scripted", b"direct"],
+        Box::new([login(b"personal", LoginState::Usable)]),
+    );
+    assert_eq!(core.run_choice(OPEN_TASK).unwrap().accounts[0].source, PERSONAL_SOURCE);
+    drop(step(&mut core, &env, untooled_answer(OPEN_ATTEMPT)));
+    let choice = core.run_choice(OPEN_TASK).unwrap();
+    assert_eq!((choice.placement.channel, choice.accounts[0].source), (FIRST, 1));
+    assert_eq!(core.run_choice(TASK).unwrap().accounts[0].source, PERSONAL_SOURCE);
 }
 
 #[test]

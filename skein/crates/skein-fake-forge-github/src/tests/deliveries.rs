@@ -9,7 +9,7 @@ use skein_forge::github::{
     document::{Document, Kind, Row},
     log,
 };
-use skein_lib::{Duration, List, ReplyTo, Token, Writer};
+use skein_lib::{Duration, List, ReplyTo, Token};
 fn request(
     service: &mut Service,
     target: &[u8],
@@ -114,10 +114,11 @@ fn github_fake_delivery_sources_render_signed_payloads_and_omit_global_ids() {
             if [b"ping".as_slice(), b"installation", b"installation_repositories"].contains(&row.event.as_ref()) {
                 assert_eq!((row.installation_id, row.repository_id), (None, None));
             }
-            let mut target = Writer::new(128);
-            target.put(b"/app/hook/deliveries/").unwrap();
-            target.put(skein_lib::Decimal::of(row.id).as_bytes()).unwrap();
-            let target = crate::answers::finish(target).unwrap();
+            let target = crate::answers::finish(
+                128,
+                &crate::answers::Body::Parts(&[b"/app/hook/deliveries/", skein_lib::Decimal::of(row.id).as_bytes()]),
+            )
+            .unwrap();
             let reply = request(&mut service, &target, None, wall(1203));
             let (_, doc) = f::decode_with(
                 github::decode::log_delivery_decoder(&row.event, &f::limits().github),
@@ -168,10 +169,9 @@ fn github_fake_log_pages_visibility_retention_and_validator() {
     let link = page.link.unwrap();
     let start = skein_lib::bytes::find(&link, b"?").unwrap();
     let end = skein_lib::bytes::find(&link, b">").unwrap();
-    let mut target = Writer::new(256);
-    target.put(b"/app/hook/deliveries").unwrap();
-    target.put(&link[start..end]).unwrap();
-    let target = crate::answers::finish(target).unwrap();
+    let target =
+        crate::answers::finish(256, &crate::answers::Body::Parts(&[b"/app/hook/deliveries", &link[start..end]]))
+            .unwrap();
     assert_eq!(rows(&request(&mut service, &target, None, wall(1204))).get(0).unwrap().id, first);
     for _ in 0_u32..8 {
         service.release(Delivery::Other, None, wall(1204)).unwrap();

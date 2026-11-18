@@ -133,3 +133,39 @@ fn a_withdrawn_party_proposal_keeps_its_reason_and_heads() {
     .unwrap();
     assert_eq!(ended_proposal_text(&ended, &limits).unwrap().as_ref(), b"proposal p7/3 of settings, withdrawn\nreason:\n  Explain work\n  Keep it readable\nitems:\n  charter 1: set\n  charter 2: removed\n  charter 3: reset\n");
 }
+
+#[test]
+fn a_worker_review_prints_its_head_and_whole_value() {
+    let limits = Limits::standard();
+    let setting = view::Setting::Worker(view::SettingNumber { number: 2 });
+    let value = w::ReviewValue::Value(
+        w::SettingSet::new(
+            &limits.settings,
+            w::SettingSetParts {
+                value: w::SettingValue::Worker(Box::new(
+                    w::WorkerSetting::new(
+                        &limits.settings,
+                        w::WorkerSettingParts {
+                            number: 2,
+                            name: b"w1".as_slice().into(),
+                            places: 4,
+                            digest: None,
+                            withdrawn: false,
+                        },
+                    )
+                    .unwrap(),
+                )),
+            },
+        )
+        .unwrap(),
+    );
+    let mut measure = Text::measure();
+    render::setting_text(setting, &mut measure);
+    review_value(setting, &value, &limits, &mut measure).unwrap();
+    let mut out = Text::writing_exact(measure);
+    render::setting_text(setting, &mut out);
+    review_value(setting, &value, &limits, &mut out).unwrap();
+    let said = out.finish();
+    assert!(skein_lib::bytes::find(&said, b"worker 2").is_some());
+    assert!(skein_lib::bytes::find(&said, br#""number":2,"name":"w1","places":4"#).is_some());
+}

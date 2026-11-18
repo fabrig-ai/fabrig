@@ -210,7 +210,8 @@ impl Harness {
     fn outputs(&mut self, out: &mut Queue<core::Request>) {
         for _ in 0..out.len() {
             match out.pop().expect("core output") {
-                core::Request::Write(_) | core::Request::Ask { ask: core::Ask::Catalogue { .. }, .. } => {}
+                core::Request::Write(_)
+                | core::Request::Ask { ask: core::Ask::Catalogue { .. } | core::Ask::Workers(_), .. } => {}
                 core::Request::Now(now) => {
                     assert!(self.wires, "no outward output before durable Wires");
                     assert!(matches!(*now, core::Now::Account(_)));

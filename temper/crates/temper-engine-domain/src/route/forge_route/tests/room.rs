@@ -5,6 +5,84 @@ use skein_lib::{Env, Queue};
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_forge_change as change;
 
+#[test]
+fn a_release_room_ask_takes_a_fresh_number_unless_cleanup_is_held() {
+    use crate::{Work, route::forge_route::tasks};
+    for held in [false, true] {
+        let (mut domain, env, context) = change_start_fixture();
+        let task = context.task;
+        let mut record = domain.core.tasks.task(task).unwrap().clone();
+        let closing = tasks::Closing {
+            stage: tasks::Stage::Releases,
+            ending: tasks::Ending::Failed { reason: b"failed".as_slice().into() },
+        };
+        record.phase = if held {
+            tasks::Phase::Held { was: tasks::Was::Closing(closing), why: tasks::Hold::EffectFailed, source: None }
+        } else {
+            tasks::Phase::Closing(closing)
+        };
+        domain.core.tasks =
+            crate::Domain::new(crate::tests::resume_fixture::config(7), &env.limits).unwrap().core.tasks;
+        tasks::step(
+            &mut domain.core.tasks,
+            &env.with(env.limits.tasks),
+            tasks::Event::Restore { record: tasks::Stored::Live(Box::new(record)) },
+            &mut Queue::uncapped(),
+        );
+        let mut out = Queue::uncapped();
+        forge::step(
+            &mut domain.forge,
+            &env.with(env.limits.forge),
+            forge::Event::Restore {
+                record: forge::Stored::Release(forge::ReleaseRow {
+                    task,
+                    root: task,
+                    ending: forge::ReleaseEnding::Failed,
+                    close_pull: None,
+                    comment: None,
+                    pending: None,
+                    failed: false,
+                    effects_settled: true,
+                    releasing: true,
+                    room: Some(1),
+                }),
+            },
+            &mut out,
+        );
+        for event in [
+            forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic },
+            forge::Event::ReadAfresh,
+            forge::Event::SettleOutbox,
+        ] {
+            forge::step(&mut domain.forge, &env.with(env.limits.forge), event, &mut out);
+        }
+        assert!(domain.forge.room_asked(task));
+        let mut asked = false;
+        while let Some(request) = out.pop() {
+            if request == (forge::Request::ContinueRelease { task }) {
+                asked = true;
+            }
+        }
+        assert!(asked);
+        out.push(forge::Request::ContinueRelease { task });
+        let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+        super::super::outputs(&mut domain, &env, &mut decision, &mut out);
+        if held {
+            let Some(Work::Forge(forge::Event::RoomUnavailable { task: owner })) = domain.work.pop() else {
+                panic!("a held cleanup returns its room without taking an entry number");
+            };
+            assert_eq!(owner, task);
+        } else {
+            let Some(Work::Forge(forge::Event::ContinueRelease { task: owner, entry })) = domain.work.pop() else {
+                panic!("an unheld closing task receives its fresh cleanup turn");
+            };
+            assert_eq!(owner, task);
+            assert!(entry > 0);
+        }
+        assert!(domain.work.is_empty());
+    }
+}
+
 const FIRST: u64 = 100;
 const KEPT: u32 = 128;
 
@@ -153,6 +231,7 @@ fn unname_keeps_live_or_releasing_changes_and_only_names_an_absent_change() {
                 &env.with(env.limits.forge),
                 forge::Event::Restore {
                     record: forge::Stored::Release(forge::ReleaseRow {
+                        room: None,
                         task: 7,
                         root: 7,
                         ending: forge::ReleaseEnding::Done,

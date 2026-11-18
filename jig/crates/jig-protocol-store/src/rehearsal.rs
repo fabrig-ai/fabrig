@@ -1,9 +1,11 @@
 //! Scratch starts and their cancellable close (protocol/store/opening.md 5).
-use crate::{Arrived, Below, Event, Io, KeptWire, OpenRefusal, Phase, Root, Store, directory, generations, open};
+use crate::{
+    Arrived, Below, Event, Io, KeptWire, OpenRefusal, Phase, Reach, Root, Store, directory, generations, open,
+};
 use alloc::boxed::Box;
 use generations::{Copying, Progress, Removing};
 use skein_io::file;
-use skein_lib::{List, Queue, Token};
+use skein_lib::{Queue, Token};
 mod decode;
 pub(crate) use decode::records;
 
@@ -11,6 +13,7 @@ pub(crate) use decode::records;
 enum Stage {
     Locking,
     Reading,
+    Intent,
     Emptying(Removing),
     Making,
     Copying(Copying),
@@ -26,21 +29,23 @@ pub(crate) struct State {
     scratch: Root,
     owner: Token,
     installation: [u8; 16],
+    reach: Reach,
     active: Option<generations::Active>,
     stage: Stage,
     announced: bool,
     close: Option<Token>,
     fault: bool,
-    pending: u32,
-    handles: List<(crate::host::Lane, Token)>,
+    files: crate::file_handles::Owned,
 }
 
+#[expect(clippy::too_many_arguments, reason = "a rehearsal carries its reach beside the adopted roots")]
 pub(crate) fn begin(
     store: &mut Store,
     owner: Token,
     source: Root,
     scratch: Root,
     installation: [u8; 16],
+    reach: Reach,
     above: &mut Queue<Event>,
     below: &mut Below,
 ) {
@@ -52,24 +57,18 @@ pub(crate) fn begin(
     {
         return open::refuse(store, owner, OpenRefusal::Failed, above);
     }
-    let Some(handles) = crate::host::handles(&store.limits) else {
-        return open::refuse(store, owner, OpenRefusal::Failed, above);
-    };
-    let Some(handles) = handles.checked_mul(3) else {
-        return open::refuse(store, owner, OpenRefusal::Failed, above);
-    };
     store.rehearsal = Some(State {
         source,
         scratch,
         owner,
         installation,
+        reach,
         active: None,
         stage: Stage::Locking,
         announced: false,
         close: None,
         fault: false,
-        pending: 0,
-        handles: List::with_capacity(handles),
+        files: crate::file_handles::Owned::new(),
     });
     store.directory.owner = owner;
     below.store.push(file::Request::Lock { owner: directory::OWNER, root: source.token });
@@ -84,9 +83,13 @@ fn state(store: &mut Store) -> &mut State {
 pub(crate) fn preparing(store: &Store) -> bool {
     let Some(state) = &store.rehearsal else { return false };
     match state.stage {
-        Stage::Locking | Stage::Reading | Stage::Emptying(_) | Stage::Making | Stage::Copying(_) | Stage::Active => {
-            true
-        }
+        Stage::Locking
+        | Stage::Intent
+        | Stage::Reading
+        | Stage::Emptying(_)
+        | Stage::Making
+        | Stage::Copying(_)
+        | Stage::Active => true,
         Stage::Opening | Stage::Closing | Stage::Cleaning(_) | Stage::Finished => false,
     }
 }
@@ -94,6 +97,7 @@ pub(crate) fn waiting(store: &Store) -> Option<&'static str> {
     let state = store.rehearsal.as_ref()?;
     Some(match state.stage {
         Stage::Locking => "lock source",
+        Stage::Intent => "check source intent",
         Stage::Reading => "read source active",
         Stage::Emptying(_) => "empty scratch",
         Stage::Making => "make scratch generations",
@@ -117,11 +121,26 @@ pub(crate) fn up(store: &mut Store, arrived: Arrived, above: &mut Queue<Event>, 
             below.store.push(file::Request::Load {
                 owner: directory::OWNER,
                 root: state.source.token,
-                path: Box::from(generations::ACTIVE),
-                max: generations::ACTIVE_BYTES,
+                path: Box::from(crate::restoring::roll::INTENT),
+                max: 256,
                 no_follow: true,
             });
-            state.stage = Stage::Reading;
+            state.stage = Stage::Intent;
+        }
+        Stage::Intent => {
+            if let file::Event::Failed { error: skein_io::kernel::Error::NotFound, .. } = arrived.event {
+                let state = state(store);
+                below.store.push(file::Request::Load {
+                    owner: directory::OWNER,
+                    root: state.source.token,
+                    path: Box::from(generations::ACTIVE),
+                    max: generations::ACTIVE_BYTES,
+                    no_follow: true,
+                });
+                state.stage = Stage::Reading;
+            } else {
+                refused(store, OpenRefusal::Generations { why: crate::Generations::Unfinished }, above);
+            }
         }
         Stage::Reading => {
             let file::Event::Loaded { bytes, .. } = arrived.event else {
@@ -153,8 +172,15 @@ pub(crate) fn up(store: &mut Store, arrived: Arrived, above: &mut Queue<Event>, 
             let chunk = store.limits.store.chunk;
             let state = state(store);
             let number = state.active.expect("active read before scratch copy").number;
-            state.stage =
-                Stage::Copying(generations::copy_between(state.source, state.scratch, number, number, chunk, below));
+            state.stage = Stage::Copying(generations::copy_between(
+                state.source,
+                state.scratch,
+                number,
+                number,
+                chunk,
+                state.reach,
+                below,
+            ));
         }
         Stage::Copying(mut copying) => match generations::copied(&mut copying, arrived, below) {
             Progress::Pending => state(store).stage = Stage::Copying(copying),
@@ -176,7 +202,7 @@ pub(crate) fn up(store: &mut Store, arrived: Arrived, above: &mut Queue<Event>, 
             let file::Event::Stored { .. } = arrived.event else { return refused(store, OpenRefusal::Failed, above) };
             let state = state(store);
             let (owner, scratch, installation) = (state.owner, state.scratch, state.installation);
-            directory::open(store, owner, scratch, installation, above, below);
+            directory::open(store, owner, scratch, installation, crate::Purpose::Serve, above, below);
         }
         Stage::Opening | Stage::Closing | Stage::Cleaning(_) | Stage::Finished => unreachable!("preparing routed"),
     }
@@ -204,6 +230,18 @@ fn kept_wires(store: &mut Store, owner: Token) -> Option<Box<[KeptWire]>> {
     crate::rows::kept_wires(&bytes)
 }
 
+/// End an openings-only rehearsal after the recovered rows have been announced.
+pub(crate) fn end_openings(store: &mut Store, above: &mut Queue<Event>) -> bool {
+    let Some(state) = &store.rehearsal else { return false };
+    match state.reach {
+        Reach::Whole => false,
+        Reach::Openings => {
+            close(store, state.owner, above);
+            true
+        }
+    }
+}
+
 pub(crate) fn close(store: &mut Store, owner: Token, above: &mut Queue<Event>) {
     let Some(state) = &mut store.rehearsal else { return open::refuse(store, owner, OpenRefusal::Failed, above) };
     if state.close.is_some() {
@@ -221,51 +259,21 @@ pub(crate) fn closing(store: &Store) -> bool {
 }
 
 /// Account every single-terminal file ask, so Close can drain any interrupted phase.
-pub(crate) fn lengths(below: &Below) -> [u32; 3] {
-    [below.store.len(), below.secrets.len(), below.transcripts.len()]
+pub(crate) fn lengths(below: &Below) -> [u32; 4] {
+    [below.store.len(), below.secrets.len(), below.transcripts.len(), below.checkpoints.len()]
 }
-pub(crate) fn issued(store: &mut Store, below: &Below, lengths: [u32; 3]) {
+pub(crate) fn issued(store: &mut Store, below: &Below, lengths: [u32; 4]) {
     let Some(state) = &mut store.rehearsal else { return };
-    for ((lane, queue), length) in [
-        (crate::host::Lane::Store, &below.store),
-        (crate::host::Lane::Secrets, &below.secrets),
-        (crate::host::Lane::Transcripts, &below.transcripts),
-    ]
-    .into_iter()
-    .zip(lengths)
-    {
-        for request in queue.iter().skip(skein_lib::length::usize_of(length)) {
-            state.pending = state.pending.checked_add(1).expect("bounded file asks");
-            if let file::Request::Close { file, .. } = request {
-                let mut found = None;
-                for (index, handle) in state.handles.iter().enumerate() {
-                    if *handle == (lane, *file) {
-                        found = Some(u32::try_from(index).expect("bounded handle index"));
-                        break;
-                    }
-                }
-                if let Some(index) = found {
-                    state.handles.swap_remove(index).expect("found handle");
-                }
-            }
-        }
-    }
+    state.files.issued(below, lengths);
 }
 pub(crate) fn arriving(store: &mut Store, io: &Io) {
     let Some(state) = &mut store.rehearsal else { return };
-    let (lane, arrived) = match io {
-        Io::Store(a) => (crate::host::Lane::Store, a),
-        Io::Secrets(a) => (crate::host::Lane::Secrets, a),
-        Io::Transcripts(a) => (crate::host::Lane::Transcripts, a),
-    };
-    state.pending = state.pending.checked_sub(1).expect("file terminal has an ask");
-    if let file::Event::Opened { file, .. } = &arrived.event {
-        state.handles.push((lane, *file)).expect("three drivers' open handles fit");
-    }
+    state.files.arriving(io);
 }
+
 pub(crate) fn closing_up(store: &mut Store, io: Io, above: &mut Queue<Event>, below: &mut Below) {
     let arrived = match io {
-        Io::Store(a) | Io::Secrets(a) | Io::Transcripts(a) => a,
+        Io::Store(a) | Io::Secrets(a) | Io::Transcripts(a) | Io::Checkpoints(a) => a,
     };
     let state = state(store);
     match &mut state.stage {
@@ -280,6 +288,7 @@ pub(crate) fn closing_up(store: &mut Store, io: Io, above: &mut Queue<Event>, be
             }
         }
         Stage::Locking
+        | Stage::Intent
         | Stage::Reading
         | Stage::Emptying(_)
         | Stage::Making
@@ -291,25 +300,21 @@ pub(crate) fn closing_up(store: &mut Store, io: Io, above: &mut Queue<Event>, be
 }
 pub(crate) fn advance_close(store: &mut Store, above: &mut Queue<Event>, below: &mut Below) {
     let Some(state) = &mut store.rehearsal else { return };
-    if state.close.is_none() || state.pending != 0 {
+    if state.close.is_none() || state.files.pending != 0 {
         return;
     }
     match state.stage {
         Stage::Closing => {
-            if let Some((lane, file)) = state.handles.iter().next().copied() {
-                let queue = match lane {
-                    crate::host::Lane::Store => &mut below.store,
-                    crate::host::Lane::Secrets => &mut below.secrets,
-                    crate::host::Lane::Transcripts => &mut below.transcripts,
-                };
-                queue.push(file::Request::Close { owner: directory::OWNER, file });
-            } else if state.fault {
-                ended(store, false, above);
-            } else {
-                state.stage = Stage::Cleaning(generations::empty(state.scratch, &mut below.transcripts));
+            if state.files.drain(below) {
+                if state.fault {
+                    ended(store, false, above);
+                } else {
+                    state.stage = Stage::Cleaning(generations::empty(state.scratch, &mut below.transcripts));
+                }
             }
         }
         Stage::Locking
+        | Stage::Intent
         | Stage::Reading
         | Stage::Emptying(_)
         | Stage::Making

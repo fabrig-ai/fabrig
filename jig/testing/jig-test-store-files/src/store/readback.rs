@@ -96,8 +96,12 @@ impl Store {
         self.readback_boundary()?;
         let mut requests = VecDeque::from([request]);
         let mut above = Queue::uncapped();
-        let mut below =
-            protocol::Below { store: Queue::uncapped(), secrets: Queue::uncapped(), transcripts: Queue::uncapped() };
+        let mut below = protocol::Below {
+            store: Queue::uncapped(),
+            secrets: Queue::uncapped(),
+            transcripts: Queue::uncapped(),
+            checkpoints: Queue::uncapped(),
+        };
         let mut captured = None;
         loop {
             if self.reached_kill() {
@@ -240,10 +244,6 @@ impl Store {
                     keys::Own::Format => {
                         codec::component::Format::decode(value)
                             .map_err(|failure| inventory(key, format!("format row: {failure:?}")))?;
-                    }
-                    keys::Own::Layouts => {
-                        codec::component::Layouts::decode(value)
-                            .map_err(|failure| inventory(key, format!("layouts row: {failure:?}")))?;
                     }
                     keys::Own::Floor => {
                         protocol::component_v3::Floor::decode(

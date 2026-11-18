@@ -23,7 +23,7 @@ use crate::btree;
 /// up front: the B-tree allocates nodes as it fills (programming-model.md,
 /// 6.1), and
 /// [`Map::price`] counts those nodes.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Map<K, V> {
     entries: BTreeMap<K, V>,
     capacity: u32,

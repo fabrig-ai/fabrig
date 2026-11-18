@@ -348,9 +348,11 @@ pub(super) const CLIENTS: jig_protocol_engine_clients::Limits = jig_protocol_eng
     provider_tokens: 64,
     exchanges: 8,
     exchanges_per_client: 2,
+    reads_per_client: 32,
+    openings_per_client: 31,
     // One full moved file and its keyed account-change envelope.
     message_bytes: 131_328,
-    wire: jig_client_protocol_wire::v28::CEILINGS,
+    wire: jig_client_protocol_wire::CEILINGS,
     link_span: Duration::from_secs(7200),
 };
 
@@ -470,6 +472,7 @@ pub(super) const STORE: jig_protocol_store::Limits = jig_protocol_store::Limits 
     files: 8,
     reads: 12,
     fetch: 16_777_216,
+    checkpoints: jig_protocol_store::checkpoints::Checkpoints { keep: 2 },
     orphan_erases: 1,
     held: CLIENTS.exchanges.checked_mul(2).expect("clients carried capacity"),
 };

@@ -32,7 +32,7 @@ record Verdict { code: u32 words: u32 followups: u32 fields: bytes 1048576 piece
 record Approval { state: bytes 524288 part: Part }
 record Report { words: u32 }
 record Choices { choices: list 64 Verdict }
-record ChangeContract { connector: u16 kind: u16 words: u32 }
+record ChangeContract { connector: u16 kind: u16 words: u32 choices: list 64 Verdict = [] }
 enum Contract { approval: Approval, report: Report, verdict: Choices, change: ChangeContract, job: JobContract }
 record Tools { bits: u64 }
 record Models { bits: u64 all: bool }
@@ -155,7 +155,7 @@ record ProposedAmendment { task: u64 revision: u64 amendment: Amendment }
 record ProposedWidening { task: u64 authority: Authority }
 record ReleasePlaced { task: u64 hold: u64 revision: u64 }
 record SettingNumber { number: u32 }
-enum Setting { charter: SettingNumber, template: SettingNumber, policy: SettingNumber, rules, model: SettingNumber, limits }
+enum Setting { charter: SettingNumber, template: SettingNumber, policy: SettingNumber, rules, model: SettingNumber, worker: SettingNumber, limits }
 enum SettingEdit { set, removed, reset }
 record SettingHead { setting: Setting edit: SettingEdit }
 record ProposedSettings { against: u32 items: list 128 SettingHead projects: list 32 u32 }
@@ -240,7 +240,8 @@ enum EscalationHolder { task: EscalationTask, person: EscalationPerson, role: Es
 record UnheldEscalation { revision: u64 }
 record RoutingEscalation { revision: u64 }
 record WaitingEscalation { revision: u64 holder: EscalationHolder entry: u64 since: u64 }
-record RejectedEscalation { revision: u64 by: u64 reason: bytes 524288 }
+enum DeciderKind { person, task }
+record RejectedEscalation { revision: u64 by: u64 reason: bytes 524288 by_kind: DeciderKind = person }
 enum Escalation { unheld: UnheldEscalation, routing: RoutingEscalation, waiting: WaitingEscalation, rejected: RejectedEscalation }
 record PersonAnswer { by: u64 at: u64 }
 record PersonStallNotice { message: u64 at: u64 activity: u64 }

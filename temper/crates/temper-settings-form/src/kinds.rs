@@ -6,6 +6,7 @@ use alloc::boxed::Box;
 use skein_json::writer::Encoder;
 use skein_lib::{List, Reader, Writer};
 use temper_client_protocol_wire::v1 as w;
+mod agents;
 mod follow;
 mod landing;
 pub(crate) mod limits;
@@ -44,6 +45,7 @@ pub(super) fn setting(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c
         Err(why) => Err(why.at(kind)),
     }
 }
+#[expect(clippy::too_many_lines, reason = "setting identities include both deployment limit kinds and worker settings")]
 fn setting_value(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c::Setting, Error> {
     if kind == b"temper-limits" {
         if optional(fields, b"number").is_some() {
@@ -52,7 +54,7 @@ fn setting_value(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c::Set
         if optional(fields, b"project").is_some() {
             return Err(error(b"project", b"unknown member"));
         }
-        return Ok(c::Setting::Application { kind: 21, scope: 0, number: 1 });
+        return Ok(c::Setting::Application { kind: 22, scope: 0, number: 1 });
     }
     if kind == b"welcome" {
         if optional(fields, b"number").is_some() {
@@ -62,6 +64,15 @@ fn setting_value(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c::Set
             return Err(error(b"project", b"unknown member"));
         }
         return Ok(c::Setting::Application { kind: 20, scope: 0, number: 1 });
+    }
+    if kind == b"agents" {
+        if optional(fields, b"number").is_some() {
+            return Err(error(b"number", b"agents has no number"));
+        }
+        if optional(fields, b"project").is_some() {
+            return Err(error(b"project", b"agents has no project"));
+        }
+        return Ok(c::Setting::Application { kind: 21, scope: 0, number: 1 });
     }
     if [
         b"project-ways".as_slice(),
@@ -142,7 +153,7 @@ fn setting_value(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c::Set
     Ok(c::Setting::Application { kind: if scope == 0 { 1 } else { 2 }, scope, number })
 }
 pub(super) fn value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Error> {
-    if kind == 21 {
+    if kind == 22 {
         return limits::value(d, at);
     }
     if kind == 4 {
@@ -164,6 +175,9 @@ pub(super) fn value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Er
         let mut out = Writer::new(usize::try_from(record.measure()).expect("record length fits"));
         record.encode(&mut out).expect("measured record");
         return Ok(out.finish());
+    }
+    if kind == 21 {
+        return agents::value(d, at);
     }
     if kind == 14 || kind == 15 {
         return area_value(d, at, kind);
@@ -473,7 +487,7 @@ fn approval(d: &Decoder<'_>, at: u32) -> Result<w::RuleApproval, Error> {
 pub(super) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
     let mut reader = Reader::new(bytes);
     match kind {
-        21 => return limits::render(bytes, out),
+        22 => return limits::render(bytes, out),
         4 => {
             let Ok(v) = w::ProjectLanding::decode(&w::CEILINGS, &mut reader) else { return false };
             if !reader.is_empty() {
@@ -498,6 +512,7 @@ pub(super) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
             out.boolean(value.shown());
             out.object_end();
         }
+        21 => return agents::render(bytes, out),
         14 => {
             let Ok(value) = w::ProjectAreas::decode(&w::CEILINGS, &mut reader) else { return false };
             if !reader.is_empty() {

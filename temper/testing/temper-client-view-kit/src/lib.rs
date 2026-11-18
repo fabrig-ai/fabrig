@@ -27,6 +27,7 @@ pub mod connect_forge;
 pub mod connect_model;
 pub mod delegation;
 pub mod document;
+pub mod engine;
 pub mod goal;
 pub mod goals;
 pub mod groups;

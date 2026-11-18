@@ -107,6 +107,8 @@ fn answered(record: &Family, limits: Limits) -> Option<Answer> {
         | w::Outcome::NotTheirs
         | w::Outcome::Overturned
         | w::Outcome::OverturnRefused(_)
+        | w::Outcome::Checkpointed(_)
+        | w::Outcome::CheckpointRefused(_)
         | w::Outcome::EndRefused(_)
         | w::Outcome::MakeKept
         | w::Outcome::MakeRefused(_) => Answer::Refused,

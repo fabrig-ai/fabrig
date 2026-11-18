@@ -5,6 +5,8 @@
 )]
 mod kinds;
 pub use kinds::kinds;
+mod agents;
+pub use agents::{AGENT_ENDPOINTS, AGENT_FALLBACK, AGENT_PROFILE, agents};
 mod ways;
 pub use ways::ways;
 
@@ -448,6 +450,7 @@ pub fn checked_with(models: Box<[CatalogueModel]>, result_bytes: u32) -> Option<
     policies.insert(1, project_policy(period_spend, pool_spend, chat_spend)).expect("one stock policy");
     Some(Defaults {
         limits: Box::default(),
+        workers: Box::new([]),
         models,
         charters,
         templates,
@@ -577,7 +580,12 @@ fn charter(
             turns,
             time,
             reserve_turns: 1,
-            reserve_time: Duration::from_millis(60_000),
+            // Stock charters reserve one check; status and trial only finish.
+            reserve_time: Duration::from_millis(if number == 9 || number == 10 {
+                60_000
+            } else {
+                agents::CHECK_TIMEOUT_MS
+            }),
             inspect: true,
             modify: number != 1,
             shell: false,
@@ -921,7 +929,8 @@ pub fn forge(_limits: &temper_engine_domain::Limits) -> Box<[temper_engine_domai
             )),
         ),
         (9, 16, settings::Value::CharterWords(bytes::copy_of(b"Keeps its area's port in step with its source."))),
-        (21, 1, settings::Value::Limits(Box::new([]))),
+        (21, 1, settings::Value::AgentFigures(agents())),
+        (22, 1, settings::Value::Limits(Box::new([]))),
     ];
     let mut stock = List::with_capacity(u32::try_from(values.len()).expect("stock default count"));
     for (kind, number, value) in values {

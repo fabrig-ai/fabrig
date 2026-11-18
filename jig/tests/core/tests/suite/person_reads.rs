@@ -97,7 +97,8 @@ fn create(world: &mut World, signed: u64, project: u32, key: u8, person: bool) -
     member.flags.listed = true;
     member.tracked = Some(1);
     member.budget = people::Budget::Named;
-    member.authority.spend = 20;
+    // Half funds the twenty-unit run while keeping the same read authority.
+    member.authority.spend = 40;
     member.authority.tools = 2047 | core::ToolFamilies::JIG.ask.0;
     if person {
         member.executor = people::TaskExecutor::Person(people::PersonAddress::Person(PERSON));
@@ -209,6 +210,7 @@ fn project_reads(project: &ProjectTasks) -> Vec<reads::Read> {
         reads::Read::Spend { project, from: None },
         reads::Read::Tasks {
             query: documents::TaskQuery {
+                parts: List::with_capacity(0),
                 project: Some(project),
                 requester: None,
                 root: None,
@@ -269,6 +271,7 @@ fn a_run_reads_its_project_as_its_person_and_no_other() {
     let mut rows: Vec<_> = project_reads(&own).into_iter().map(|read| (read, None)).collect();
     rows.extend(project_reads(&other).into_iter().map(|read| (read, Some(reads::Answer::None(reads::Why::Unknown)))));
     let query = documents::TaskQuery {
+        parts: List::with_capacity(0),
         project: None,
         requester: Some(tasks::Party::Person(PERSON)),
         root: None,
@@ -327,12 +330,12 @@ fn person_application_reads_reach_the_connector_as_the_person() {
             core::Event::NamedAction {
                 to: ReplyTo::new(token),
                 key,
-                action: core::NamedAction::PersonRead(reads::Read::Application {
+                action: core::NamedAction::PersonRead(Box::new(reads::Read::Application {
                     scope: people::ApplicationScope::Project(project),
                     connector: CONNECTOR,
                     read: name,
                     window,
-                }),
+                })),
             },
         );
         let request = out.pop().expect("connector read or unknown");

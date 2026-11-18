@@ -589,6 +589,7 @@ fn whole_policy(page: &Readout, setting: c::Setting, against: u32) -> Option<Box
             | c::SettingValue::Template(_)
             | c::SettingValue::Rules(_)
             | c::SettingValue::Limits(_)
+            | c::SettingValue::Worker(_)
             | c::SettingValue::Model(_)
             | c::SettingValue::Application(_),
         )

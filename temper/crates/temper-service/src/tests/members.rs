@@ -28,7 +28,8 @@ const APPLICATION: &[u8] = br#"{
 "demo":{"llm":{"listen":{"socket":"127.0.0.1:8370"},"provider":1,"key":"demo/llm.key",
  "asked":[{"cue":"Hello","turns":[{"lines":[{"text":"Hello"}],"finish":"stop","tokens":1}]}],
  "cued":[{"cue":"Call","turns":[{"lines":[{"call":"inspect","arguments":{"name":"anything"}}],"finish":"tool_calls","tokens":1}]}],
- "otherwise":["Fallback"]}}
+ "otherwise":["Fallback"]}},
+"environment":[{"name":"CARGO_TARGET_DIR","value":"/srv/target"}]
 }"#;
 
 fn expanded() -> fixtures::Start {

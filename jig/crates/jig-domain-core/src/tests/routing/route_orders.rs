@@ -28,7 +28,8 @@ fn an_unused_carried_value_leaves_before_the_rest_of_a_wide_route() {
         Event::People(people::Event::Roles { project: UNASSIGNED_PROJECT, holdings: Box::new([]) }),
     );
     let identity = core.people.identity(1).expect("fixture owner").clone();
-    let mut signed = step(&mut core, &env, Event::SignIn { reply_to: ReplyTo::new(REPLY), identity, held: None });
+    let mut signed =
+        step(&mut core, &env, Event::SignIn { until: None, reply_to: ReplyTo::new(REPLY), identity, held: None });
     let mut sign_in = None;
     while let Some(request) = signed.pop() {
         if let Request::Held(held) = request

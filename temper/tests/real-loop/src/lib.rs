@@ -121,6 +121,12 @@ impl Ran {
         let world::Kind::Llm(peer) = &self.outcome.procs[0].kind else { panic!("LLM root") };
         peer.peer.observations()
     }
+    /// Receipt times parallel to the peer's Query observations.
+    #[must_use]
+    pub fn llm_query_times(&self) -> &[Time] {
+        let world::Kind::Llm(peer) = &self.outcome.procs[0].kind else { panic!("LLM root") };
+        &peer.queries.times
+    }
     #[must_use]
     pub fn killed(&self) -> &[skein_world::real::Killed] {
         &self.outcome.killed
@@ -257,6 +263,18 @@ pub fn run_forge(
 ) -> Ran {
     let scratch = Scratch::new("real-forge");
     run_forge_on(scratch, fixture, scripts, steps)
+}
+
+/// Run a configured report story without hosting a forge peer.
+#[must_use]
+pub fn run_configured(
+    recipe: impl FnOnce() -> llm::Recipe,
+    configure: fn(&mut serde_json::Value, &mut serde_json::Value),
+    steps: impl FnOnce() -> Vec<calls::Step>,
+) -> Ran {
+    let scratch = Scratch::new("real-configured");
+    let outcome = world::run_configured(&scratch, recipe, configure, steps);
+    checked(Ran { outcome: Outcome::Checked(outcome), scratch })
 }
 
 /// Run a forge story on a scratch with a privately laid program source.

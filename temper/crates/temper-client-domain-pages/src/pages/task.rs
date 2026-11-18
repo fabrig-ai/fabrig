@@ -488,6 +488,7 @@ impl Task {
             | Act::Terminal(_)
             | Act::Told(_)
             | Act::Remembered(_)
+            | Act::Builders(_)
             | Act::Models(_)
             | Act::HandArea(_)
             | Act::StopAsking(_)
@@ -638,6 +639,7 @@ impl Task {
             | Act::Terminal(_)
             | Act::Told(_)
             | Act::Remembered(_)
+            | Act::Builders(_)
             | Act::Models(_)
             | Act::HandArea(_)
             | Act::StopAsking(_)
@@ -1161,6 +1163,7 @@ impl Task {
             ended.handle,
             c::Read::Tasks {
                 query: c::TaskQuery {
+                    parts: List::with_capacity(0),
                     project: None,
                     requester: None,
                     root: None,

@@ -390,7 +390,10 @@ pub fn host(value: &d::Host, limits: &w::Limits) -> Result<w::Host, w::Problem> 
     w::Host::new(
         limits,
         w::HostParts {
-            skein_bools: [value.awaiting_logins, value.draining, value.connected, value.cut],
+            awaiting_logins: value.awaiting_logins,
+            draining: value.draining,
+            connected: value.connected,
+            cut: value.cut,
             name: value.name.clone(),
             rule: host_rule(value.rule, limits)?,
             programs: super::programs::logins(&value.programs, limits, limits.host_programs, w::Path::HostPrograms)?,
@@ -450,7 +453,11 @@ pub fn account(value: &d::Account, limits: &w::Limits) -> Result<w::Account, w::
             },
             runs,
             waiting,
-            skein_bools: [value.plan, value.usable, value.expiring, value.attention, value.cut],
+            plan: value.plan,
+            usable: value.usable,
+            expiring: value.expiring,
+            attention: value.attention,
+            cut: value.cut,
         },
     )
 }
@@ -486,6 +493,7 @@ pub fn task_refusal(value: &tasks::CapacityRefusal, limits: &w::Limits) -> Resul
         },
     )
 }
+#[expect(clippy::too_many_lines, reason = "one deployment carries bounded host, account, capacity and worker facts")]
 pub fn document(value: &d::Deployment, limits: &w::Limits) -> Result<w::Deployment, w::Problem> {
     let mut hosts = List::with_capacity(value.hosts.len());
     for row in &value.hosts {
@@ -543,10 +551,34 @@ pub fn document(value: &d::Deployment, limits: &w::Limits) -> Result<w::Deployme
         connectors.push(*row).expect("supplied rows fit");
     }
 
+    let mut worker_settings = List::with_capacity(value.worker_settings.len());
+    for row in &value.worker_settings {
+        worker_settings
+            .push(w::WorkerState::new(
+                limits,
+                w::WorkerStateParts {
+                    number: row.number,
+                    name: row.name.clone(),
+                    places: row.places,
+                    digest: row.digest,
+                    withdrawn: row.withdrawn,
+                    linked: row.linked,
+                    since: match row.since {
+                        Some(at) => Some(at.as_nanos()),
+                        None => None,
+                    },
+                },
+            )?)
+            .expect("worker row count");
+    }
     w::Deployment::new(
         limits,
         w::DeploymentParts {
-            skein_bools: [value.cut, value.connectors_cut, value.providers_cut, value.readiness_cut],
+            worker_settings,
+            cut: value.cut,
+            connectors_cut: value.connectors_cut,
+            providers_cut: value.providers_cut,
+            readiness_cut: value.readiness_cut,
             providers: super::catalogue::offers(&value.providers, limits.deployment_providers, limits)?,
             key_bytes: value.key_bytes,
             readiness: super::catalogue::readiness(&value.readiness, limits.deployment_readiness, limits)?,

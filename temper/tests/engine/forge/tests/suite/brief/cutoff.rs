@@ -77,7 +77,7 @@ fn refusal(world: &World, stage: &'static str) {
 }
 
 fn files_notice() -> &'static str {
-    "[files cut at the brief's deadline: 0 of 2 files read; read_pull_files from page 1 lists the rest, and read_file reads a path at the head or the base]"
+    "[files cut at the brief's deadline: 0 of 2 files read; read_issues what=pull_files from page 1 lists the rest, and read_forge what=file reads a path at the head or the base]"
 }
 
 #[test]
@@ -92,7 +92,7 @@ fn oversized_files_with_a_deadline_keep_the_count_and_fast_comparison() {
     assert!(calls.contains(&api::Op::Read(api::Read::Compare { before: head, after: base })));
     assert_eq!(calls.iter().filter(|op| matches!(op, api::Op::Read(api::Read::PullFiles { .. }))).count(), 1);
     let words = words(&mut world, SECTION);
-    assert!(words.contains("[files omitted from page 1: past forge.client.answer_bytes (4096): at least 4097 bytes; the pull changes 2 files; read_pull_files from page 2 lists the rest, and read_file reads a path at the head or the base]"), "{words}");
+    assert!(words.contains("[files omitted from page 1: past forge.client.answer_bytes (4096): at least 4097 bytes; the pull changes 2 files; read_issues what=pull_files from page 2 lists the rest, and read_forge what=file reads a path at the head or the base]"), "{words}");
     assert!(words.contains("What landed in the base: 2 commits"), "{words}");
 }
 

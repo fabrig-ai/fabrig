@@ -96,6 +96,7 @@ fn pasted() -> Walk {
             | Request::Erase { .. }
             | Request::Told { .. }
             | Request::Authorized(_)
+            | Request::AskedLink(_)
             | Request::Approval(_)
             | Request::ServiceCredential { .. } => None,
         })
@@ -342,7 +343,7 @@ fn facts_and_only_kept_turns_have_ordered_lines() {
         let file = recorder.save(&mut host);
         let records = lines(&file).expect("facts");
         let mut expected = vec![
-            Line::Journey { version: 2 },
+            Line::Journey { version: 3 },
             Line::Seed(7),
             Line::Clocks { now: Time::ZERO, wall: Wall::EPOCH },
             Line::Screen { size: Size { rows: 12, columns: 48 }, scheme: Some(Scheme::Light) },
@@ -543,7 +544,7 @@ fn duties_keep_the_seams_order_and_fields() {
             },
             Request::Save { records: saved },
             Request::Erase { records: erased },
-            Request::OpenStream { credential: None },
+            Request::OpenStream { credential: None, replaces: None, version: jig_client_protocol_wire::VERSION },
             Request::CloseStream,
         ],
         keep: Some(Some(credential())),
@@ -765,7 +766,7 @@ fn setup_and_log_facts_are_ordered_optional_and_replayed() {
 #[test]
 fn front_reports_replay_through_box_line_read() {
     use crate::host::tests::{delivery_report, home_subject, home_tasks, launchpad_me, watch};
-    use jig_client_protocol_wire::v28 as w;
+    use jig_client_protocol_wire as w;
     use temper_client_tui::{BoxEnd, BoxLine, BoxStage};
     let (mut walk, duties) = linked_walk_duties(true);
     let stages =
@@ -823,7 +824,7 @@ fn front_reports_replay_through_box_line_read() {
 fn lending_reports_and_duties_replay_through_the_host() {
     use crate::host::tests::{delivery_report, terminal_document, watch};
     use jig_client::contract::LoginExit;
-    use jig_client_protocol_wire::v28 as w;
+    use jig_client_protocol_wire as w;
     let (mut walk, duties) = linked_walk_duties(true);
     let duties = walk.admit(duties);
     let subject = w::Subject::Terminal(
@@ -850,7 +851,7 @@ impl Walk {
     fn admit(&mut self, mut duties: Duties) -> Duties {
         let mut pending = std::collections::VecDeque::from(core::mem::take(&mut duties.asked));
         while let Some(request) = pending.pop_front() {
-            if let Some(report) = crate::host::tests::background_reply(&request) {
+            for report in crate::host::tests::background_reply(&request) {
                 for next in self.reports(vec![report]) {
                     pending.extend(next.asked);
                 }

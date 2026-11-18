@@ -289,8 +289,10 @@ fn a_saved_close_preparation_hold_fails_its_held_change() {
 
 fn repair() -> forge::ChangeRow {
     forge::ChangeRow {
+        room: None,
         source: None,
         kept: None,
+        regate: None,
         task_release: None,
         job: None,
         signed: Box::new([]),
@@ -317,11 +319,13 @@ fn repair() -> forge::ChangeRow {
             repairs: 0,
             resolutions: 0,
             updates: 0,
+            stale: None,
             since: skein_lib::Wall::EPOCH,
             ready_since: None,
             owns_turn: false,
             last_head: Some([1; 32]),
             last_checked: None,
+            last_checked_by: None,
             clock: None,
         },
         pull: Some(7),
@@ -329,6 +333,8 @@ fn repair() -> forge::ChangeRow {
         effect: change::EffectResult::None,
         delegate: Some((8, change::Delegate::Repair(change::Repair::Ci))),
         delegate_status: change::Status::Unknown,
+        delegate_flake: false,
+        delegate_head: None,
         verdicts: Box::new([]),
         milestone: None,
         goal: None,

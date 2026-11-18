@@ -33,10 +33,7 @@ pub fn apply(configuration: &mut super::Configuration, turn: u32) {
     let box_bytes = u64::try_from(size_of::<Box<[u8]>>()).expect("turn box slot");
     let window = resume + (box_bytes - 4) * (resume / 4);
     let loaded = turn + u64::try_from(size_of::<temper_engine_domain::Record>()).expect("record slot");
-    let output = configuration["workers"]
-        .as_array()
-        .and_then(|workers| workers.iter().map(|worker| worker_output(&worker["limits"], turn)).max())
-        .unwrap_or_else(|| output(turn, configuration.jig.core.tasks.run_inbox, configuration.jig.io.output));
+    let output = output(turn, configuration.jig.core.tasks.run_inbox, configuration.jig.io.output);
     configuration.jig.hub.turn_bytes = turn;
     configuration.jig.hub.transcript_bytes = window;
     configuration.jig.hub.turn_queue_bytes = 8 * turn;
@@ -47,42 +44,12 @@ pub fn apply(configuration: &mut super::Configuration, turn: u32) {
     configuration.limits.root.loads.bytes = u32::try_from(loaded).expect("loaded");
     configuration.limits.root.loads.reply_bytes = u32::try_from(loaded).expect("loaded");
     configuration.limits.root.loads.read_bytes = 2 * turn;
-    apply_workers(&mut configuration.document, u32::try_from(turn).expect("turn"));
     configuration.derive_places();
 }
-/// Serialized subprocess worlds keep only the worker's document figures.
-pub fn apply_workers(document: &mut Value, turn: u32) {
-    let turn = u64::from(turn);
-    let resume = (turn + 4).max(4_194_304);
-    let box_bytes = u64::try_from(size_of::<Box<[u8]>>()).expect("turn box slot");
-    let window = resume + (box_bytes - 4) * (resume / 4);
-    if let Some(workers) = document["workers"].as_array_mut() {
-        for worker in workers {
-            hub(&mut worker["limits"]["overrides"], turn, window);
-            let output = worker_output(&worker["limits"], turn);
-            worker["limits"]["overrides"]["io.output"] = output.into();
-        }
-    }
-}
-fn worker_output(limits: &Value, turn: u64) -> u64 {
-    let defaults = jig_protocol_config::stock();
-    let overrides = &limits["overrides"];
-    let inbox = overrides["tasks.run_inbox"].as_u64().unwrap_or(u64::from(defaults.core.tasks.run_inbox));
-    output(
-        turn,
-        u32::try_from(inbox).expect("run inbox"),
-        u32::try_from(overrides["io.output"].as_u64().unwrap_or(u64::from(defaults.io.output))).expect("output"),
-    )
-}
 fn output(turn: u64, inbox: u32, initial: u32) -> u64 {
-    use jig_protocol_worker_wire::v15;
+    use jig_protocol_worker_wire::v17;
     let bodies =
-        v15::Limits { turn_body: u32::try_from(turn).expect("turn body"), turn_refused: inbox, ..v15::CEILINGS };
-    let frame = v15::Turn::encoded_bound(&bodies).expect("turn frame") + 8;
+        v17::Limits { turn_body: u32::try_from(turn).expect("turn body"), turn_refused: inbox, ..v17::CEILINGS };
+    let frame = v17::Turn::encoded_bound(&bodies).expect("turn frame") + 8;
     u64::from(initial).max(frame)
-}
-fn hub(limits: &mut Value, turn: u64, window: u64) {
-    limits["hub.turn_bytes"] = turn.into();
-    limits["hub.transcript_bytes"] = window.into();
-    limits["hub.turn_queue_bytes"] = (8 * turn).into();
 }

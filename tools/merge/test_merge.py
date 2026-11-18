@@ -13,6 +13,10 @@ BASELINE = 'temper/scripts/old-forms.txt'
 RECORDING = 'temper/tests/playground/tests/fixtures/story-a.log'
 GENERATOR = 'temper/tests/playground/tests/suite/walk.rs'
 WALK = 'walk::story_a_walks_from_the_welcome_to_the_csv_change_landed'
+CODEC = 'a/src/generated/note.rs'
+SCHEMAS = ['b/schema/note-v1.schema', 'b/schema/note-v1-part1.schema']
+CODEC_SOURCES = ['skein/testing/skein-codegen/src/lib.rs', 'skein/crates/skein-codec/src/schema.rs']
+CODEC_LIST = 'tools/merge/codecs.txt'
 
 
 def counts(first, second, comment='# Head baseline\n'):
@@ -294,6 +298,136 @@ class Merge(unittest.TestCase):
         self.assertIn(b'generator source is missing or unmerged', execution.stderr)
         self.assertFalse((self.job / 'generator-call.json').exists())
         self.assertEqual(self.snapshot(), previous)
+
+    def codec_generator(self, outcome='write'):
+        self.write(CODEC_LIST, '# Module, then ordered schema texts\n' + CODEC + ' ' + ' '.join(SCHEMAS) + '\n')
+        self.write(CODEC, 'common generated module\n')
+        self.write(SCHEMAS[0], self.codec_schema())
+        self.write(SCHEMAS[1], '// schema fragment\n')
+        for source in CODEC_SOURCES:
+            self.write(source, 'common generator source\n')
+        executable = self.job / 'bin/cargo'
+        executable.parent.mkdir()
+        executable.write_text(
+            '#!/usr/bin/python3\n'
+            'import json, os, sys\nfrom pathlib import Path\n'
+            'root = Path.cwd()\n'
+            'job = Path(os.environ["TEMPER_JOB"])\n'
+            'log = job / "codec-call.json"\n'
+            'calls = json.loads(log.read_bytes()) if log.exists() else []\n'
+            'calls.append({"args": sys.argv[1:], "cwd": str(root),\n'
+            '    "write": os.environ.get("SKEIN_CODEGEN_WRITE"),\n'
+            '    "bundle": os.environ.get("TEMPER_INTERNAL_BUNDLE")})\n'
+            'log.write_text(json.dumps(calls))\n'
+            'assert sys.argv[1:8] == ["run", "-p", "skein-codegen", "--bin", "skein-codegen", "--", '
+            f'{SCHEMAS[0]!r}]\n'
+            f'outcome = {outcome!r}\n'
+            'if outcome == "build-fail":\n    sys.exit(1)\n'
+            'directory = Path(sys.argv[-1])\n'
+            'assert directory.is_dir()\n'
+            'target = directory / "note.rs"\n'
+            'assert not target.exists(), "a fresh output is required"\n'
+            'if outcome == "write":\n'
+            '    target.write_text("// stub output\\n" + "".join((root / path).read_text() '
+            'for path in sys.argv[7:-1]))\n'
+            'elif outcome == "fail":\n'
+            '    target.write_text("partial codec")\n    sys.exit(1)\n'
+            'elif outcome == "empty":\n    target.write_bytes(b"")\n'
+            'elif outcome == "markers":\n'
+            '    target.write_text("<<<<<<< head\\n=======\\n>>>>>>> base\\n")\n',
+            encoding='utf-8')
+        executable.chmod(0o755)
+        self.env['PATH'] = str(executable.parent) + ':' + self.env['PATH']
+
+    @staticmethod
+    def codec_schema(left='u8', right='u8'):
+        return ('family note version 1\n'
+                f'record Left = 1 {{\n    value: {left} = 1\n}}\n'
+                '// Separate records change on separate branches.\n\n\n\n'
+                f'record Right = 2 {{\n    value: {right} = 1\n}}\n')
+
+    def codec_conflict(self, **kwargs):
+        self.conflict(baseline=False, other=True, other_path=CODEC,
+                      head_files=[(SCHEMAS[0], self.codec_schema(left='u16'))],
+                      base_files=[(SCHEMAS[0], self.codec_schema(right='u32'))], **kwargs)
+
+    def assert_codec_called(self):
+        calls = json.loads((self.job / 'codec-call.json').read_bytes())
+        self.assertEqual(len(calls), 1, 'only the listed module runs')
+        call = calls[0]
+        temporary = call['args'][-1]
+        self.assertEqual(call, {
+            'args': ['run', '-p', 'skein-codegen', '--bin', 'skein-codegen', '--', *SCHEMAS, temporary],
+            'cwd': str(self.repository), 'write': '1', 'bundle': 'none'})
+        self.assertEqual(Path(temporary).parent, (self.repository / CODEC).parent)
+        self.assertFalse(Path(temporary).exists(), 'scratch output removed')
+
+    def test_codec_is_regenerated_from_clean_merged_texts_and_staged(self):
+        self.codec_generator()
+        self.codec_conflict()
+        target = self.repository / CODEC
+        target.chmod(0o755)
+        self.run_merge([CODEC], [])
+        self.assert_codec_called()
+        expected = ('// stub output\n' + self.codec_schema(left='u16', right='u32') +
+                    '// schema fragment\n').encode()
+        self.assertEqual(target.read_bytes(), expected)
+        self.assertEqual(self.git('show', f':0:{CODEC}').stdout, expected)
+        self.assertEqual(target.stat().st_mode & 0o777, 0o755)
+        self.assertTrue(self.git('ls-files', '--stage', '--', CODEC).stdout.startswith(b'100755 '))
+
+    def test_conflicted_codec_sources_leave_modules_unbuilt(self):
+        for source in [SCHEMAS[0], *CODEC_SOURCES]:
+            with self.subTest(source=source):
+                self.setUp()
+                self.codec_generator()
+                other_codec = 'a/src/generated/second.rs'
+                modules = [CODEC]
+                if source != SCHEMAS[0]:
+                    self.write(other_codec, 'common second module\n')
+                    self.write(CODEC_LIST, CODEC + ' ' + ' '.join(SCHEMAS) + '\n' +
+                               other_codec + ' ' + ' '.join(SCHEMAS) + '\n')
+                    modules.append(other_codec)
+                self.conflict(baseline=False, other=True, other_path=CODEC,
+                              other_paths=[source, *modules[1:]])
+                self.run_merge([], sorted([*modules, source]))
+                self.assertFalse((self.job / 'codec-call.json').exists(), 'nothing is built')
+
+    def test_failed_codec_generation_preserves_conflicted_bytes_mode_and_index(self):
+        for outcome in ('build-fail', 'fail', 'no-output', 'empty', 'markers', 'unavailable'):
+            with self.subTest(outcome=outcome):
+                self.setUp()
+                self.codec_generator(outcome)
+                if outcome == 'unavailable':
+                    (self.job / 'bin/cargo').unlink()
+                self.codec_conflict()
+                target = self.repository / CODEC
+                target.chmod(0o755)
+                mode = target.stat().st_mode
+                self.run_merge([], [CODEC])
+                self.assertEqual(target.stat().st_mode, mode)
+                self.assertEqual(list(target.parent.glob('.merge-codec-*')), [])
+                if outcome != 'unavailable':
+                    self.assert_codec_called()
+
+    def test_only_listed_codecs_run_and_conflicted_contents_supply_no_arguments(self):
+        self.codec_generator()
+        unknown = 'a/src/generated/unlisted.rs'
+        self.write(unknown, '// Generated by skein-codegen from unlisted version 1.\n')
+        self.conflict(baseline=False, other=True, other_path=CODEC, other_paths=[unknown],
+                      head_files=[(CODEC, '// Generated by skein-codegen from evil/schema-v1.schema\n')],
+                      base_files=[(CODEC, '// Generated by skein-codegen from other/schema-v2.schema\n')])
+        self.run_merge([CODEC], [unknown])
+        self.assert_codec_called()
+
+    def test_conflicted_codec_list_is_not_used(self):
+        self.codec_generator()
+        row = CODEC + ' ' + ' '.join(SCHEMAS) + '\n'
+        self.conflict(baseline=False, other=True, other_path=CODEC,
+                      head_files=[(CODEC_LIST, '# Head list\n' + row)],
+                      base_files=[(CODEC_LIST, '# Incoming list\n' + row)])
+        self.run_merge([], [CODEC, CODEC_LIST])
+        self.assertFalse((self.job / 'codec-call.json').exists(), 'a conflicted list supplies no command')
 
     def test_baseline_alone_is_recounted_and_staged(self):
         self.assertTrue(os.access(ROOT / '.temper/merge', os.X_OK))

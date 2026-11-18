@@ -64,6 +64,8 @@ pub(crate) struct Channel {
     pub(crate) mismatched: bool,
     /// Tasks refused here for their values, until this channel is lost.
     pub(crate) untranslated: skein_lib::List<Token>,
+    /// A program started without its tools for this task and source, ordered across channels.
+    pub(crate) untooled: Map<(Token, crate::SourceName), u64>,
     /// The attempts it hosts or holds the answers of, each taking a slot.
     pub(crate) hosts: Set<Id<Attempt>>,
     /// The workstreams it holds workspaces for, by when each was last used,
@@ -118,14 +120,13 @@ fn admit_worker(
     hello: &Hello,
     out: &mut Queue<Request>,
 ) -> bool {
-    let configured = domain.worker_names.len();
     let mut occupied = false;
     for (_, id) in &domain.tokens {
         if let Some(host) = domain.channels.get(*id) {
             occupied |= host.worker == Some(worker);
         }
     }
-    if worker >= configured || occupied {
+    if domain.worker_names.worker(worker).is_none() || occupied {
         refuse(domain, env, channel, hello, crate::HelloRefusal::Position { worker }, None, out);
         return false;
     }
@@ -237,6 +238,8 @@ pub(crate) fn hello(
         refuse(domain, env, channel, &hello, why, None, out);
         return;
     }
+    let _previous = domain.worker_links.insert(worker, (true, env.wall)).expect("configured worker link bound");
+    let places = domain.worker_names.places(worker).expect("admitted worker setting");
     let Hello { slots, workstreams, hosting, stop_bound: _, bounds, jobs } = hello;
     let mut worker = Channel {
         jobs,
@@ -247,11 +250,12 @@ pub(crate) fn hello(
         eligible: crate::needs::eligibility(&domain.needs, &bounds.endpoints),
         kind: HostKind::Worker,
         token: channel,
-        slots: slots.min(limits.slots),
+        slots: slots.min(places).min(limits.slots),
         draining: false,
         shutting_down: false,
         mismatched: false,
         untranslated: skein_lib::List::uncapped(),
+        untooled: Map::uncapped(),
         hosts: Set::with_capacity(limits.slots),
         workstreams: Map::with_capacity(limits.workstreams),
         uses: 0,
@@ -335,6 +339,9 @@ pub(crate) fn lost(domain: &mut Domain, env: &Env<Limits>, channel: Token, out: 
     let entry = domain.channels.get_mut(id).expect("a named channel is in contact");
     crate::sources::lost(&mut entry.sources, channel, out);
     let worker = entry.worker;
+    if let Some(position) = worker {
+        let _previous = domain.worker_links.insert(position, (false, env.wall)).expect("configured worker link bound");
+    }
     let slots = entry.slots;
     let draining = entry.draining || entry.shutting_down || entry.mismatched;
     let hosts = mem::replace(&mut entry.hosts, Set::with_capacity(0));

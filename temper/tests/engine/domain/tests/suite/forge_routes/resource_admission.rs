@@ -157,9 +157,7 @@ fn a_producing_change_watches_only_its_base_until_a_head_is_known() {
     assert_eq!(names(&world, task).as_ref(), &[base]);
     assert!(!kept_branch(&world, &branch), "neither the change nor its producer keeps an unpushed branch");
     let before = branch_reads(&world, &branch);
-    for _ in 0..STEPS {
-        world.tick();
-    }
+    world.advance_ticks(STEPS);
     assert_eq!(branch_reads(&world, &branch), before, "no polling while the producer runs");
     assert!(kept_branch(&world, b"main"));
     assert_eq!(verifying(&mut world, &producer), task);
@@ -211,9 +209,7 @@ fn pressure(world: &mut World, first: u64, second: u64, later: u64) {
         world.pending
     );
     world.send(engine::Event::Forge(Box::new(forge_top::Event::Names { task: first, resources: original })));
-    for _ in 0..SLOTS {
-        world.tick();
-    }
+    world.advance_ticks(SLOTS);
     // Leave one slot for the later change's first head. Its admission then fits
     // exactly, while the departing read still consumes one extra slot.
     let mut steady = names(world, second).to_vec();

@@ -155,7 +155,11 @@ fn run(selection: Option<Selection>, kill: Option<u32>) {
     STATE.with(|s| {
         let s = s.borrow();
         if s.seal_cut {
-            assert_eq!(s.ran, [1, 2], "the next start runs the job again and switches");
+            let expected: Vec<_> = [1, 2]
+                .into_iter()
+                .flat_map(|epoch| crate::upgrade::JOBS.map(|name| (epoch, Box::from(name))))
+                .collect();
+            assert_eq!(s.ran, expected, "the next start runs every job again and switches");
         }
     });
     assert!(STATE.with(|s| s.borrow().checked), "history checked before the root acts");

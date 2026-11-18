@@ -27,6 +27,7 @@ pub(super) struct Parsed {
     clients: bool,
     listener: skein_io::Addr,
     bundle: Option<Box<[u8]>>,
+    worker_defaults: Box<[jig_domain_core::settings::WorkerSetting]>,
 }
 
 fn problem(path: Path, what: What) -> Problems {
@@ -209,6 +210,7 @@ fn parse_in(document: &Document) -> Result<Parsed, Problems> {
         clients,
         listener,
         bundle,
+        worker_defaults: Box::default(),
     })
 }
 
@@ -462,7 +464,7 @@ pub(super) fn engine_startup(
         None
     };
     let workers = if parsed.workers {
-        Some(crate::workers::Workers::new(&parsed.engine, files, seeds.deployment, &parsed.limits.workers)?)
+        Some(crate::workers::Workers::new(&parsed.engine, seeds.deployment, &parsed.limits.workers)?)
     } else {
         None
     };
@@ -474,7 +476,8 @@ pub(super) fn engine_startup(
             parsed.limits.accounts.client.document.token_bytes,
         ),
     };
-    let core = config::core(&parsed.engine, seeds.deployment, seeds.seed);
+    let mut core = config::core(&parsed.engine, seeds.deployment, seeds.seed);
+    core.defaults.workers = parsed.worker_defaults;
     let root = root::Config { core, first: parsed.first, second: parsed.second };
     let mut first_periods = List::with_capacity(parsed.limits.root.core.authority.projects);
     for project in &root.core.seed_projects {
@@ -598,6 +601,15 @@ fn worker_specs_in(document: &Document) -> Result<(bool, List<WorkerSpec>), Prob
                 return Err(problems);
             }
         };
+        if worker.agent.is_none() {
+            problems.push(here.member(b"agent"), What::Missing);
+        }
+        if worker.limits.is_none() {
+            problems.push(here.member(b"limits"), What::Missing);
+        }
+        if !problems.is_empty() {
+            return Err(problems);
+        }
         if let config::Address::Addr(skein_io::Addr::InProcess(_)) = &worker.engine
             && !listeners.contains(&worker.engine)
         {
@@ -626,7 +638,7 @@ pub fn named(document: &[u8]) -> Result<List<Box<[u8]>>, Problems> {
         files.push(name).expect("named files");
     }
     for spec in specs.into_boxed() {
-        for name in [spec.config.secret, spec.config.agent.configuration] {
+        for name in [spec.config.secret, spec.config.agent.expect("checked worker agent").configuration] {
             if !files.as_slice().contains(&name) {
                 files.push(name).expect("named files");
             }
@@ -643,11 +655,25 @@ pub fn startup(
     accounts: Option<crate::AccountsRuntime>,
     runtime: Option<crate::WorkerRuntime>,
 ) -> Result<Service, Problems> {
+    startup_with_workers(document, files, agent, seeds, accounts, runtime, Box::default())
+}
+
+/// Supply the application's default worker settings before the first store restore.
+pub fn startup_with_workers(
+    document: &[u8],
+    files: &Files,
+    agent: Option<&Agent>,
+    seeds: &Seeds,
+    accounts: Option<crate::AccountsRuntime>,
+    runtime: Option<crate::WorkerRuntime>,
+    workers: Box<[jig_domain_core::settings::WorkerSetting]>,
+) -> Result<Service, Problems> {
     let document = self::document(document)?;
     let (has_engine, specs) = worker_specs_in(&document)?;
     let mut bundle = None;
     let engine = if has_engine {
         let mut parsed = parse_in(&document)?;
+        parsed.worker_defaults = workers;
         bundle = parsed.bundle.take();
         Some(engine_startup(parsed, files, agent, seeds, accounts, !specs.is_empty())?)
     } else {
@@ -656,7 +682,7 @@ pub fn startup(
     let mut io = match &engine {
         Some((_, io)) => *io,
         None => {
-            let mut io = specs.get(0).expect("engine or worker").config.limits.io;
+            let mut io = specs.get(0).expect("engine or worker").config.limits.expect("checked worker limits").io;
             io.sockets = 0;
             io.names = 0;
             io
@@ -678,7 +704,7 @@ pub fn startup(
             Path::root().member(b"workers").child(Segment::Index(index)).member(b"agent"),
             What::Refers,
         ))?;
-        if files.contents(&spec.config.agent.configuration).is_none() {
+        if files.contents(&spec.config.agent.as_ref().expect("checked worker agent").configuration).is_none() {
             return Err(problem(
                 Path::root().member(b"workers").child(Segment::Index(index)).member(b"agent").member(b"configuration"),
                 What::Unreadable,
@@ -687,12 +713,18 @@ pub fn startup(
         if !valid_program_endpoints(&agent.bounds.program_endpoints) {
             return Err(problem(path.clone(), What::Bound));
         }
-        io.sockets = io.sockets.checked_add(spec.config.limits.io.sockets).ok_or(problem(path.clone(), What::Bound))?;
-        io.names = io.names.checked_add(spec.config.limits.io.names).ok_or(problem(path.clone(), What::Bound))?;
-        io.intake = io.intake.max(spec.config.limits.io.intake);
-        io.receive = io.receive.max(spec.config.limits.io.receive);
-        io.output = io.output.max(spec.config.limits.io.output);
-        io.sends = io.sends.max(spec.config.limits.io.sends);
+        io.sockets = io
+            .sockets
+            .checked_add(spec.config.limits.expect("checked worker limits").io.sockets)
+            .ok_or(problem(path.clone(), What::Bound))?;
+        io.names = io
+            .names
+            .checked_add(spec.config.limits.expect("checked worker limits").io.names)
+            .ok_or(problem(path.clone(), What::Bound))?;
+        io.intake = io.intake.max(spec.config.limits.expect("checked worker limits").io.intake);
+        io.receive = io.receive.max(spec.config.limits.expect("checked worker limits").io.receive);
+        io.output = io.output.max(spec.config.limits.expect("checked worker limits").io.output);
+        io.sends = io.sends.max(spec.config.limits.expect("checked worker limits").io.sends);
         let worker = crate::Worker::new(spec.config, agent, files, directory, index, seeds.seed)?;
         queue = queue.max(crate::Worker::queue_room());
         workers.push(worker).expect("worker count");

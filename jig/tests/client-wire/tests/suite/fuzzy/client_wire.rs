@@ -1,8 +1,7 @@
 //! Arbitrary and mutated client bytes (skein's data/codec/README.md, section 6).
 //! Job arms follow jig/docs/design/client/domain/contract/documents.md, 7.
-use jig_client_protocol_wire::v28::*;
+use jig_client_protocol_wire::*;
 use skein_lib::{Reader, Rng, Writer, length::len_u64};
-use std::{fs, path::Path};
 
 macro_rules! check {
     ($record:ident, $bytes:expr) => {
@@ -34,6 +33,8 @@ fn records_1(bytes: &[u8]) {
     check!(Owner, bytes);
     check!(Keyed, bytes);
     check!(Owned, bytes);
+    check!(Opened, bytes);
+    check!(StreamEvent, bytes);
     check!(KeyedAnswer, bytes);
     check!(LinkSignIn, bytes);
     check!(SignedIn, bytes);
@@ -43,6 +44,9 @@ fn records_1(bytes: &[u8]) {
     check!(ApprovalAsk, bytes);
     check!(ApprovalAsked, bytes);
     check!(ApprovalAskAnswer, bytes);
+    check!(LinkAsk, bytes);
+    check!(LinkAsked, bytes);
+    check!(LinkAskAnswer, bytes);
     check!(ApprovalRead, bytes);
     check!(ApprovalWaiting, bytes);
     check!(ApprovalState, bytes);
@@ -653,10 +657,7 @@ fn arbitrary(rng: &mut Rng) {
     }
 }
 
-fn mutation_seed(path: &Path) -> bool {
-    let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
-        return false;
-    };
+fn mutation_seed(name: &str) -> bool {
     name.ends_with("_full.bin")
         && [
             "record_charter_",
@@ -706,6 +707,7 @@ fn mutation_seed(path: &Path) -> bool {
             "record_authorize_",
             "enum_authorize_",
             "record_hello_",
+            "record_opened_",
             "enum_stream_event_",
             "record_run_state_",
             "record_task_",
@@ -715,16 +717,12 @@ fn mutation_seed(path: &Path) -> bool {
 }
 
 fn mutated(rng: &mut Rng) {
-    let root = skein_scratch::paths::tree().join("crates/jig-client-protocol-wire/golden");
-    let mut paths: Vec<_> =
-        fs::read_dir(root).expect("golden directory").map(|entry| entry.expect("golden entry").path()).collect();
-    paths.sort();
-    for path in paths {
-        if !mutation_seed(&path) {
+    for value in crate::client_values::client() {
+        if !mutation_seed(&value.name) {
             continue;
         }
-        let golden = fs::read(path).expect("golden bytes");
-        decoders(&golden);
+        let golden = &value.bytes;
+        decoders(golden);
         for _ in 0..1 {
             let mut bytes = golden.clone();
             if !bytes.is_empty() {

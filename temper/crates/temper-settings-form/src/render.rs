@@ -11,6 +11,7 @@ pub fn setting_text(setting: c::Setting, out: &mut Text) {
         c::Setting::Template(n) => (b"template".as_slice(), Some(n.number)),
         c::Setting::Policy(n) => (b"policy".as_slice(), Some(n.number)),
         c::Setting::Model(n) => (b"model".as_slice(), Some(n.number)),
+        c::Setting::Worker(n) => (b"worker".as_slice(), Some(n.number)),
         c::Setting::Application { kind: 1 | 2, scope, number } => {
             out.put(b"landing-rule ");
             out.number(u64::from(number));
@@ -36,8 +37,12 @@ pub fn setting_text(setting: c::Setting, out: &mut Text) {
             out.number(u64::from(scope));
             return;
         }
-        c::Setting::Application { kind: 21, .. } => {
+        c::Setting::Application { kind: 22, .. } => {
             out.put(b"temper-limits");
+            return;
+        }
+        c::Setting::Application { kind: 21, .. } => {
+            out.put(b"agents");
             return;
         }
         c::Setting::Application { kind: 20, .. } => {
@@ -86,7 +91,7 @@ pub fn setting_text(setting: c::Setting, out: &mut Text) {
 /// Mark a project's fallback value when its inventory has no explicit change.
 pub fn stock_text(value: &c::ReadValue, out: &mut Text) {
     if let c::ReadValue::Setting(document) = value
-        && let c::Setting::Application { kind: 6..=8, .. } = document.setting
+        && let c::Setting::Application { kind: 6..=8 | 20 | 21 | 22, .. } = document.setting
     {
         let stock = match &document.application {
             None => true,
@@ -106,6 +111,7 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
         c::Setting::Template(n) => (b"template".as_slice(), Some(n.number)),
         c::Setting::Policy(n) => (b"policy".as_slice(), Some(n.number)),
         c::Setting::Model(n) => (b"model".as_slice(), Some(n.number)),
+        c::Setting::Worker(n) => (b"worker".as_slice(), Some(n.number)),
         c::Setting::Application { kind, scope, number } => {
             out.object_start();
             out.key(b"kind");
@@ -125,7 +131,8 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
                 14 => out.string(b"project-areas"),
                 15 => out.string(b"project-triager"),
                 20 => out.string(b"welcome"),
-                21 => out.string(b"temper-limits"),
+                21 => out.string(b"agents"),
+                22 => out.string(b"temper-limits"),
                 _ => out.unsigned(u64::from(kind)),
             }
             if kind == 4
@@ -142,7 +149,7 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
             {
                 out.key(b"project");
                 out.unsigned(u64::from(scope));
-            } else if kind != 1 && kind != 3 && kind != 9 && kind != 11 && kind != 20 && kind != 21 {
+            } else if kind != 1 && kind != 3 && kind != 9 && kind != 11 && kind != 20 && kind != 21 && kind != 22 {
                 out.key(b"scope");
                 out.unsigned(u64::from(scope));
             }
@@ -155,7 +162,7 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
                 && kind != 14
                 && kind != 15
                 && kind != 20
-                && kind != 21
+                && kind != 21 && kind != 22
             {
                 out.key(b"number");
                 out.unsigned(u64::from(number));
@@ -201,9 +208,9 @@ fn named_value_text(
     limits: &Limits,
     out: &mut Text,
 ) {
-    if let c::Setting::Application { kind: 21, .. } = setting
+    if let c::Setting::Application { kind: 22, .. } = setting
         && let c::SettingValue::Application(bytes) = value
-        && application_value_text(21, bytes, out)
+        && application_value_text(22, bytes, out)
     {
         out.put(b"\n");
         return;
@@ -228,6 +235,7 @@ fn named_value_text(
 pub fn encode_value(value: &c::SettingValue, out: &mut Encoder) {
     match value {
         c::SettingValue::Overlay(v) => values::encode_overlay(v, out),
+        c::SettingValue::Worker(v) => values::encode_worker(v, out),
         c::SettingValue::Model(v) => values::encode_catalogue(v, out),
         c::SettingValue::Charter(v) => values::encode_charter(v, out),
         c::SettingValue::Template(v) => values::encode_template(v, out),
@@ -315,6 +323,7 @@ fn value_details_text(value: &c::SettingValue, overlay: Option<&c::Overlay>, out
             }
         }
         c::SettingValue::Overlay(_)
+        | c::SettingValue::Worker(_)
         | c::SettingValue::Model(_)
         | c::SettingValue::Policy(_)
         | c::SettingValue::Application(_)
@@ -426,6 +435,7 @@ pub fn text(value: &c::ReadValue, requested: Option<u64>, limits: &Limits, out: 
                     c::Setting::Charter(_)
                     | c::Setting::Template(_)
                     | c::Setting::Policy(_)
+                    | c::Setting::Worker(_)
                     | c::Setting::Model(_)
                     | c::Setting::ProjectPolicy { .. }
                     | c::Setting::Rules
@@ -552,6 +562,7 @@ pub const fn fault_word(fault: c::SettingFault) -> &'static [u8] {
         c::SettingFault::Grace => b"grace",
         c::SettingFault::Judged => b"refused by its owner",
         c::SettingFault::Owner => b"owner",
+        c::SettingFault::Linked => b"linked: stop it first",
     }
 }
 
@@ -647,7 +658,8 @@ fn revision_text(answer: &c::RevisionAnswer, requested: u64, limits: &Limits, ou
 fn historical_setting(setting: c::Setting) -> bool {
     match setting {
         c::Setting::Charter(_) | c::Setting::Application { .. } => true,
-        c::Setting::Model(_)
+        c::Setting::Worker(_)
+        | c::Setting::Model(_)
         | c::Setting::Template(_)
         | c::Setting::Policy(_)
         | c::Setting::Rules
@@ -964,7 +976,7 @@ pub fn application_value(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
 }
 /// Render classes and limit overrides in words; other application kinds use inline JSON.
 pub fn application_value_text(kind: u32, bytes: &[u8], out: &mut Text) -> bool {
-    if kind == 21 {
+    if kind == 22 {
         let Some(values) = crate::kinds::limits::decoded(bytes) else { return false };
         for (at, value) in values.iter().enumerate() {
             if at != 0 {
@@ -1068,16 +1080,18 @@ pub fn limit_values(setting: c::Setting, value: &c::SettingValue) -> Option<allo
             c::SettingValue::Application(_)
             | c::SettingValue::Charter(_)
             | c::SettingValue::Overlay(_)
+            | c::SettingValue::Worker(_)
             | c::SettingValue::Model(_)
             | c::SettingValue::Template(_)
             | c::SettingValue::Policy(_)
             | c::SettingValue::Rules(_) => None,
         },
-        c::Setting::Application { kind: 21, .. } => match value {
+        c::Setting::Application { kind: 22, .. } => match value {
             c::SettingValue::Application(bytes) => crate::kinds::limits::decoded(bytes),
             c::SettingValue::Limits(_)
             | c::SettingValue::Charter(_)
             | c::SettingValue::Overlay(_)
+            | c::SettingValue::Worker(_)
             | c::SettingValue::Model(_)
             | c::SettingValue::Template(_)
             | c::SettingValue::Policy(_)
@@ -1085,6 +1099,7 @@ pub fn limit_values(setting: c::Setting, value: &c::SettingValue) -> Option<allo
         },
         c::Setting::Charter(_)
         | c::Setting::Template(_)
+        | c::Setting::Worker(_)
         | c::Setting::Model(_)
         | c::Setting::Policy(_)
         | c::Setting::Rules

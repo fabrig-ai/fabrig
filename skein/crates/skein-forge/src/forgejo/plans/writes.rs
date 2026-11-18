@@ -36,6 +36,7 @@ enum Written {
     Comment,
     Review,
     Edited,
+    Closed { number: u64 },
     Status,
     Branch,
     Bare,
@@ -50,6 +51,7 @@ enum State {
     Resolving { write: api::Write },
     Writing { row: Repository, written: Written },
     Merged { row: Repository },
+    CloseRead,
     OpenHead { row: Repository, open: Open },
     OpenBase { row: Repository, open: Open, head: ObjectId },
     OpenCompare { row: Repository, open: Open },
@@ -63,12 +65,14 @@ enum State {
 enum Errors {
     Asked(Asked),
     Merged,
+    Refused,
 }
 impl Errors {
     fn error(self, error: api::Error) -> api::Error {
         match self {
             Self::Asked(asked) => failure::before_write(asked, error),
             Self::Merged => api::Error::Timeout,
+            Self::Refused => api::Error::Refused,
         }
     }
 }
@@ -108,6 +112,7 @@ impl Plan {
             State::Resolving { .. }
             | State::Writing { .. }
             | State::Merged { .. }
+            | State::CloseRead
             | State::OpenHead { .. }
             | State::OpenBase { .. }
             | State::OpenCompare { .. }
@@ -123,6 +128,7 @@ impl Plan {
         match self.errors() {
             Errors::Asked(asked) => asked,
             Errors::Merged => Asked::Merge,
+            Errors::Refused => Asked::Write,
         }
     }
     fn errors(&self) -> Errors {
@@ -137,6 +143,7 @@ impl Plan {
                 Errors::Asked(Asked::BeforeWrite)
             }
             State::Merged { .. } => Errors::Merged,
+            State::CloseRead => Errors::Refused,
             State::Reviewers { .. } | State::Searching { .. } | State::Adding { .. } | State::Removing { .. } => {
                 Errors::Asked(Asked::Write)
             }
@@ -152,7 +159,8 @@ impl Plan {
             | State::OpenCompare { .. }
             | State::Reviewers { .. }
             | State::Searching { .. }
-            | State::Merged { .. } => 200,
+            | State::Merged { .. }
+            | State::CloseRead => 200,
             State::Adding { .. } => 201,
             State::Removing { .. } => 204,
             State::Writing { written, .. } => written.exchange().1,
@@ -193,6 +201,17 @@ impl Plan {
         word: &[u8],
         tables: &mut Tables,
     ) -> Result<Option<Step>, api::Error> {
+        if self.is_close_read() {
+            let answer = match body {
+                Body::Document(d::Document::Issue(issue))
+                    if self.status == 200 && issue.state == d::IssueState::Closed =>
+                {
+                    Ok(api::Answer::Done)
+                }
+                Body::Document(_) | Body::Empty | Body::Malformed(_) | Body::Raw { .. } => Err(api::Error::Refused),
+            };
+            return Ok(Some(Step::Done(answer)));
+        }
         if self.status == 409
             && let Some(answer) = self.conflict()
         {
@@ -207,6 +226,12 @@ impl Plan {
                 Body::Document(_) | Body::Empty | Body::Raw { .. } | Body::Malformed(_) => None,
             };
             let error = failure::refused(self.asked(), self.status, refusal, self.retry, self.repository, tables);
+            if error == api::Error::Refused
+                && let Some(request) = self.close_item()
+            {
+                self.state = State::CloseRead;
+                return Ok(Some(Step::send(request)));
+            }
             return Ok(Some(Step::Done(Err(self.error(error)))));
         }
         let document = match body {
@@ -235,6 +260,53 @@ impl Plan {
         };
         Ok(Some(step))
     }
+    fn is_close_read(&self) -> bool {
+        match &self.state {
+            State::CloseRead => true,
+            State::New { .. }
+            | State::Resolving { .. }
+            | State::Writing { .. }
+            | State::Merged { .. }
+            | State::OpenHead { .. }
+            | State::OpenBase { .. }
+            | State::OpenCompare { .. }
+            | State::Reviewers { .. }
+            | State::Searching { .. }
+            | State::Adding { .. }
+            | State::Removing { .. }
+            | State::Ended => false,
+        }
+    }
+    fn close_item(&self) -> Option<Request> {
+        match &self.state {
+            State::Writing { row, written } => match written {
+                Written::Closed { number } => Some(Request::Issue { at: row.at(), number: *number }),
+                Written::Issue
+                | Written::Comment
+                | Written::Review
+                | Written::Edited
+                | Written::Status
+                | Written::Branch
+                | Written::Bare
+                | Written::Deleted
+                | Written::Update(_)
+                | Written::Pull
+                | Written::Merge { .. } => None,
+            },
+            State::New { .. }
+            | State::Resolving { .. }
+            | State::CloseRead
+            | State::Merged { .. }
+            | State::OpenHead { .. }
+            | State::OpenBase { .. }
+            | State::OpenCompare { .. }
+            | State::Reviewers { .. }
+            | State::Searching { .. }
+            | State::Adding { .. }
+            | State::Removing { .. }
+            | State::Ended => None,
+        }
+    }
     fn conflict(&self) -> Option<Result<api::Answer, api::Error>> {
         match &self.state {
             State::Writing { written, .. } => match written {
@@ -244,6 +316,7 @@ impl Plan {
                 | Written::Comment
                 | Written::Review
                 | Written::Edited
+                | Written::Closed { .. }
                 | Written::Status
                 | Written::Update(api::UpdateStyle::Merge)
                 | Written::Bare
@@ -254,6 +327,7 @@ impl Plan {
             State::New { .. }
             | State::Resolving { .. }
             | State::Merged { .. }
+            | State::CloseRead
             | State::OpenHead { .. }
             | State::OpenBase { .. }
             | State::OpenCompare { .. }
@@ -274,6 +348,7 @@ impl Plan {
             State::New { .. }
             | State::Writing { .. }
             | State::Merged { .. }
+            | State::CloseRead
             | State::OpenHead { .. }
             | State::OpenBase { .. }
             | State::OpenCompare { .. }
@@ -318,7 +393,7 @@ impl Plan {
                     | State::Searching { row, .. }
                     | State::Adding { row, .. }
                     | State::Removing { row } => row,
-                    State::New { .. } | State::Resolving { .. } | State::Ended => {
+                    State::New { .. } | State::Resolving { .. } | State::CloseRead | State::Ended => {
                         unreachable!("pull answer needs a resolved repository")
                     }
                 };
@@ -416,7 +491,9 @@ impl Written {
             Self::Deleted => (Asked::DeleteBranch, 204),
             Self::Review => (Asked::Write, 200),
             Self::Bare => (Asked::Write, 204),
-            Self::Issue | Self::Comment | Self::Edited | Self::Status | Self::Branch => (Asked::Write, 201),
+            Self::Issue | Self::Comment | Self::Edited | Self::Closed { .. } | Self::Status | Self::Branch => {
+                (Asked::Write, 201)
+            }
         }
     }
 }
@@ -431,7 +508,8 @@ fn writing(write: &api::Write) -> Option<Written> {
         api::Write::CreateIssue { .. } => Written::Issue,
         api::Write::Post { .. } => Written::Comment,
         api::Write::Review { .. } => Written::Review,
-        api::Write::Edit { .. } | api::Write::Close { .. } | api::Write::Reopen { .. } => Written::Edited,
+        api::Write::Edit { .. } | api::Write::Reopen { .. } => Written::Edited,
+        api::Write::Close { number } => Written::Closed { number: *number },
         api::Write::Status { .. } => Written::Status,
         api::Write::CreateBranch { .. } => Written::Branch,
         api::Write::Dispatch { .. } | api::Write::Rerun { .. } => Written::Bare,
@@ -502,6 +580,7 @@ fn next(
             }
             _ => Err(api::Error::Timeout),
         },
+        State::CloseRead => unreachable!("close read settles in done"),
         State::New { .. } | State::Ended => unreachable!("write answer needs an exchange"),
     }
 }
@@ -614,7 +693,7 @@ fn written(row: Repository, written: Written, document: Option<d::Document>) -> 
             }
             _ => Err(api::Error::Timeout),
         },
-        Written::Edited => match document.ok_or(api::Error::Timeout)? {
+        Written::Edited | Written::Closed { .. } => match document.ok_or(api::Error::Timeout)? {
             d::Document::Issue(_) => Ok(api::Answer::Done),
             _ => Err(api::Error::Timeout),
         },

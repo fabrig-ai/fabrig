@@ -190,8 +190,7 @@ pub fn configure(root: &Path, repository: u64) -> temper_playground::documents::
 /// Hold the prepare job and the batch call under the standard engine profile.
 pub fn message_room(root: &Path, value: &mut temper_playground::documents::Configuration) {
     // The one model call carries three independent change authorities and a latch.
-    let agent_path = root.join("agent.json");
-    let mut agent: Value = serde_json::from_slice(&fs::read(&agent_path).expect("agent configuration")).expect("JSON");
+    let mut agent = temper_agent_fixtures::read(root);
     agent["profile"]["declared"]["tool_payload"] = 63_740.into();
     for endpoint in agent["endpoints"].as_array_mut().expect("agent endpoints") {
         endpoint["limits"]["output"] = 48_000.into();
@@ -212,9 +211,8 @@ pub fn message_room(root: &Path, value: &mut temper_playground::documents::Confi
     value.jig_over("fleet.slots", value["workers"][0]["slots"].as_u64().expect("worker slots"));
     value.jig_over("hub.inbox", 8);
     value.jig_over("hub.outcome_bytes", 8192);
-    value["workers"][0]["limits"] = value.jig_limits_document();
     let slots = value["workers"][0]["slots"].clone();
-    let limits = &mut value["workers"][0]["limits"]["overrides"];
+    let limits = &mut value["engine"]["limits"]["overrides"];
     limits["hub.accounts"] = 4.into();
     limits["hub.slots"] = slots;
     limits["hub.event_bytes"] = 8190.into();
@@ -237,7 +235,7 @@ pub fn message_room(root: &Path, value: &mut temper_playground::documents::Confi
     }
     value.temper_over("root.loads.read_bytes", 16_777_216);
     value.temper_over("root.journal.transcript_bytes", 8_388_608);
-    super::write_private(&agent_path, &serde_json::to_vec(&agent).expect("agent JSON"));
+    temper_agent_fixtures::apply(value, root, &agent);
 }
 
 fn get(forge: &Throwaway, route: &str) -> Value {
@@ -338,9 +336,7 @@ pub mod tests {
             spend + stock.rules.maximum_run_spend <= owner.authority.budget.spend,
             "the chat funds every delegate and retains one run for itself"
         );
-        let agent: serde_json::Value =
-            serde_json::from_slice(&std::fs::read(scratch.path().join("agent.json")).expect("agent configuration"))
-                .expect("JSON");
+        let agent = temper_agent_fixtures::read(scratch.path());
         assert!(
             u64::try_from(arguments.len()).expect("call length")
                 <= agent["profile"]["declared"]["tool_payload"].as_u64().expect("payload"),

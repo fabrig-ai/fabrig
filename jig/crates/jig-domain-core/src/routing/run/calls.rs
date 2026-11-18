@@ -404,7 +404,7 @@ pub(crate) fn named_escalation(
         reply_to: ReplyTo::new(token),
         task,
         revision,
-        by: key.task,
+        by: tasks::EscalationDecider::Task(key.task),
         entry,
         decision: semantic,
     })));
@@ -431,7 +431,7 @@ pub(crate) fn named_action(
                 crate::reads::run_task::Read { task, field, from, room, joined: false },
             );
         }
-        NamedAction::PersonRead(read) => return crate::reads::person::run(core, env, to, key, read),
+        NamedAction::PersonRead(read) => return crate::reads::person::run(core, env, to, key, *read),
         NamedAction::Settings(read) => return crate::reads::settings::run(core, env, to, key, read),
         NamedAction::ReadProposal { proposer, number } => {
             return crate::reads::settings::run_proposal(core, env, to, key, proposer, number);

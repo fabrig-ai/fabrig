@@ -1,9 +1,19 @@
 //! Jig's store-owned families and jobs (jig/docs/design/protocol/store/opening.md, 3).
-use crate::{KeptFamily, KeptMap, KeyRange, Keys, Owner, OwnerSet, ValueType};
+use crate::{Job, KeptFamily, KeptMap, KeyRange, Keys, Owner, OwnerSet, ValueType};
 
 /// The store's part of jig's owner set; accounts adds its kept family.
-pub const JIG_STORE_SET: OwnerSet =
-    OwnerSet { jobs: &[], owner: Owner::Jig, name: "jig", level: Some(6), families: &STORE_FAMILIES };
+pub const JIG_STORE_SET: OwnerSet = OwnerSet {
+    jobs: &[Job {
+        name: "escalation-deciders",
+        keys: &[KeyRange { from: &[1, 1, 0], to: &[1, 1, 1] }],
+        converts: None,
+        counts: &["tasks"],
+    }],
+    owner: Owner::Jig,
+    name: "jig",
+    level: Some(6),
+    families: &STORE_FAMILIES,
+};
 
 /// Every store-owned family, in owner-set order.
 #[expect(

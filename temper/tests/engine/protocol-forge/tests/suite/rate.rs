@@ -69,7 +69,7 @@ struct Scheduler {
 }
 impl Scheduler {
     fn run(&mut self, world: &mut Protocol, seconds: u64) {
-        let end = world.wall().as_nanos() + Duration::from_secs(seconds).as_nanos();
+        let end = Wall::from_nanos(world.wall().as_nanos() + Duration::from_secs(seconds).as_nanos());
         loop {
             for request in world.take_seen() {
                 if let forge::Request::WakeProcedure { task } = request {
@@ -129,6 +129,7 @@ impl Scheduler {
                         entry: self.entry,
                         heard: change::Heard {
                             delegate_running: false,
+                            flake: false,
                             delegate_live: false,
                             review_request: None,
                             start_conflict: None,
@@ -151,10 +152,11 @@ impl Scheduler {
             if !world.seen().is_empty() {
                 continue;
             }
-            if world.wall().as_nanos() >= end {
+            if world.wall() >= end {
                 return;
             }
-            world.run_for(1);
+            let next = self.until.iter().flatten().copied().min().unwrap_or(end).min(end);
+            world.run_until_output(next);
         }
     }
 }
@@ -360,7 +362,8 @@ fn pending_changes_installation_requests_per_hour() {
 // A kept procedure still decides on CI changes, but never queues a merge.
 // The worker reports each push; BranchMoved acknowledgement accepts that head.
 fn busy_run(world: &mut Protocol, scheduler: &mut Scheduler, count: usize, moving: bool, from: u64, to: u64) {
-    for second in from..to {
+    let mut second = from;
+    while second < to {
         if moving && second > 0 && second % 600 == 0 {
             world.push_file(b"main", b"other", &second.to_be_bytes());
         }
@@ -385,7 +388,19 @@ fn busy_run(world: &mut Protocol, scheduler: &mut Scheduler, count: usize, movin
                 });
             }
         }
-        scheduler.run(world, 1);
+        // The world fires its own timers; the story only adds claims and main moves.
+        let next_claim = (0..count)
+            .map(|index| {
+                let offset = u64::try_from(index * 300 / count).expect("stagger");
+                let distance = (offset + 300 - second % 300) % 300;
+                second + if distance == 0 { 300 } else { distance }
+            })
+            .min()
+            .expect("at least one change");
+        let next_main = if moving { second + 600 - second % 600 } else { to };
+        let next = next_claim.min(next_main).min(to);
+        scheduler.run(world, next - second);
+        second = next;
     }
 }
 

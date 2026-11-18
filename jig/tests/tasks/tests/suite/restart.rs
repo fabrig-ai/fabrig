@@ -318,7 +318,11 @@ fn waiting_restore_keeps_saved_recipient_entry_and_time_without_routing() {
         Escalation::Waiting { revision: 4, holder: EscalationHolder::Task(2), entry, since },
         Escalation::Waiting { revision: 4, holder: EscalationHolder::Person(1), entry, since },
         Escalation::Waiting { revision: 4, holder: EscalationHolder::Role { project: 1, role: 0 }, entry, since },
-        Escalation::Rejected { revision: 4, by: 1, reason: b"no".as_slice().into() },
+        Escalation::Rejected {
+            revision: 4,
+            by: jig_domain_tasks::EscalationDecider::Person(1),
+            reason: b"no".as_slice().into(),
+        },
     ];
     for state in states {
         for elapsed in [false, true] {
@@ -506,7 +510,7 @@ fn restore_fits_payload_and_collection_bounds_and_keeps_failure_sticky() {
             apply: |row| {
                 row.escalation = jig_domain_tasks::Escalation::Rejected {
                     revision: 1,
-                    by: 1,
+                    by: jig_domain_tasks::EscalationDecider::Person(1),
                     reason: vec![b'x'; skein_lib::length::usize_of(LIMITS.result_bytes + 1)].into_boxed_slice(),
                 }
             },

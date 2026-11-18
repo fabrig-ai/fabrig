@@ -37,16 +37,16 @@ measured largest turn is 18,431,842 bytes. The stock derives its carriers
 from that turn and payload; `room.json` holds only the agent's and worker's
 figures, not engine or application overrides.
 
-Set the agent and every worker before the first start, retaining the
-document's other members. Run these in the deployment's configuration
-directory, with the reference's `room.json`:
+At the stock first start, before starting work, apply the deployment’s `agents`
+setting as an owner. Retain its other figures, set `declared.tool_payload` to
+`room.json`’s `agent.tool_payload`, and each endpoint’s and the fallback’s `output`
+to `agent.output`. `temper ctl DIR settings show agents --json` reads the whole
+current value; `temper help settings` explains applying a whole setting value.
+The box keeps its accepted bytes in the data directory’s `agents.setting`.
 
-```sh
-jq --slurpfile room room.json '.profile.declared.tool_payload = $room[0].agent.tool_payload | .endpoints[].limits.output = $room[0].agent.output' agent.json > agent.next.json
-mv agent.next.json agent.json
-jq --slurpfile room room.json '(.workers[] |= (. * $room[0].worker))' temper.json > temper.next.json
-mv temper.next.json temper.json
-```
+
+Restart on the same directories. The generated and pinned agent configuration
+now takes the accepted setting and the engine limits settings.
 
 `root.journal.run_bytes` bounds a run's stored policy, a charter's whole
 policy and parts among it. The stock's bound and the reference's typed figure

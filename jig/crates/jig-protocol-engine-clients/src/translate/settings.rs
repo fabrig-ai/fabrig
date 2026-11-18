@@ -38,6 +38,7 @@ pub fn setting(value: &w::Setting) -> s::Setting {
         w::Setting::Template(v) => s::Setting::Template(v.number()),
         w::Setting::Policy(v) => s::Setting::Policy(v.number()),
         w::Setting::Model(v) => s::Setting::Model(v.number()),
+        w::Setting::Worker(v) => s::Setting::Worker(v.number()),
         w::Setting::Rules => s::Setting::Rules,
         w::Setting::Limits => s::Setting::Limits,
         w::Setting::ProjectPolicy(v) => s::Setting::ProjectPolicy { project: v.project() },
@@ -59,6 +60,9 @@ pub fn name(value: s::Setting, limits: &w::Limits) -> Result<w::Setting, w::Prob
             w::Setting::Policy(w::SettingNumber::new(limits, w::SettingNumberParts { number })?)
         }
         s::Setting::Model(n) => w::Setting::Model(w::SettingNumber::new(limits, w::SettingNumberParts { number: n })?),
+        s::Setting::Worker(n) => {
+            w::Setting::Worker(w::SettingNumber::new(limits, w::SettingNumberParts { number: n })?)
+        }
         s::Setting::Rules => w::Setting::Rules,
         s::Setting::Limits => w::Setting::Limits,
         s::Setting::Application { kind, scope, number } => w::Setting::Application(w::ApplicationSetting::new(
@@ -203,7 +207,12 @@ fn charter(value: &core::Charter, limits: &w::Limits) -> Result<w::Charter, w::P
         w::CharterParts {
             parts,
             documents,
-            skein_bools: [value.rest, policy.resume, policy.inspect, policy.modify, policy.shell, policy.agents],
+            rest: value.rest,
+            resume: policy.resume,
+            inspect: policy.inspect,
+            modify: policy.modify,
+            shell: policy.shell,
+            agents: policy.agents,
             number: value.number,
             instructions: policy.instructions.clone(),
             waiting: policy.waiting,
@@ -353,6 +362,16 @@ fn rules(value: &a::Rules, models: &[crate::Model], limits: &w::Limits) -> Resul
 }
 pub fn value(value: &s::Value, models: &[crate::Model], limits: &w::Limits) -> Result<w::SettingValue, w::Problem> {
     Ok(match value {
+        s::Value::Worker(v) => w::SettingValue::Worker(Box::new(w::WorkerSetting::new(
+            limits,
+            w::WorkerSettingParts {
+                number: v.number,
+                name: v.name.clone(),
+                places: v.places,
+                digest: v.digest,
+                withdrawn: v.withdrawn,
+            },
+        )?)),
         s::Value::Model(v) => w::SettingValue::Model(Box::new(catalogue(v, limits)?)),
         s::Value::Overlay(v) => w::SettingValue::Overlay(Box::new(overlay(v, limits)?)),
         s::Value::Charter(v) => w::SettingValue::Charter(Box::new(charter(v, limits)?)),

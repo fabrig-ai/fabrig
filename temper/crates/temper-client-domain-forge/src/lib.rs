@@ -11,6 +11,7 @@ pub mod key;
 pub mod limits;
 pub mod milestones;
 pub mod owner;
+pub mod parts;
 pub mod public;
 pub mod question;
 pub mod sign_in;

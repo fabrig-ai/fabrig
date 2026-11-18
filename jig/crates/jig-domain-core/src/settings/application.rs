@@ -22,9 +22,9 @@ pub(crate) fn projects(items: &[super::Item]) -> Box<[u32]> {
             Setting::Charter(_)
             | Setting::Template(_)
             | Setting::Policy(_)
+            | Setting::Worker(_)
             | Setting::Model(_)
-            | Setting::Rules
-            | Setting::Limits => people::DEPLOYMENT,
+            | Setting::Rules | Setting::Limits => people::DEPLOYMENT,
         };
         names.insert(scope, ()).expect("one scope per item");
     }
@@ -59,6 +59,7 @@ pub(crate) fn check(core: &Core, items: &[super::Item]) -> Result<(), Failure> {
                 | super::Value::Charter(_)
                 | super::Value::Template(_)
                 | super::Value::Policy(_)
+                | super::Value::Worker(_)
                 | super::Value::Model(_)
                 | super::Value::Rules(_)
                 | super::Value::Limits(_),
@@ -90,6 +91,7 @@ fn same_scope(setting: Setting, kind: u32, scope: u32) -> bool {
         Setting::Charter(_)
         | Setting::Template(_)
         | Setting::Policy(_)
+        | Setting::Worker(_)
         | Setting::Model(_)
         | Setting::Rules
         | Setting::Limits
@@ -117,6 +119,7 @@ fn named(setting: Setting) -> Option<Name> {
         Setting::Charter(_)
         | Setting::Template(_)
         | Setting::Policy(_)
+        | Setting::Worker(_)
         | Setting::Model(_)
         | Setting::Rules
         | Setting::Limits
@@ -134,6 +137,7 @@ fn translate(item: &super::Item) -> Option<Item> {
             | super::Value::Charter(_)
             | super::Value::Template(_)
             | super::Value::Policy(_)
+            | super::Value::Worker(_)
             | super::Value::Model(_)
             | super::Value::Rules(_)
             | super::Value::Limits(_),
@@ -180,6 +184,7 @@ pub(crate) fn project_templates(core: &Core, owner: Token, project: u32) -> Box<
                 super::Value::Overlay(_)
                 | super::Value::Charter(_)
                 | super::Value::Template(_)
+                | super::Value::Worker(_)
                 | super::Value::Model(_)
                 | super::Value::Rules(_)
                 | super::Value::Limits(_)

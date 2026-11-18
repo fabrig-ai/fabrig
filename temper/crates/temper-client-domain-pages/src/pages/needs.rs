@@ -237,6 +237,8 @@ pub fn handle() -> Handle {
 #[expect(clippy::partial_pub_fields, reason = "the reply's excess count is drawn beside its card's words")]
 pub struct Session {
     watching: bool,
+    delivered: bool,
+    pub(super) inbox_moves: u64,
     answered: List<Answered>,
     later: List<ObjectKey>,
     refused: List<(ObjectKey, Outcome)>,
@@ -250,6 +252,8 @@ impl Default for Session {
     fn default() -> Self {
         Self {
             watching: false,
+            delivered: false,
+            inbox_moves: 0,
             answered: List::with_capacity(CAPACITY),
             later: List::with_capacity(CAPACITY),
             refused: List::with_capacity(CAPACITY),
@@ -493,6 +497,13 @@ impl Session {
     }
     pub(super) fn told(&mut self, told: &Told) -> bool {
         match told {
+            Told::Changed { handle: got } if *got == handle() && self.watching => {
+                if self.delivered {
+                    self.inbox_moves = self.inbox_moves.checked_add(1).expect("inbox moves fit");
+                }
+                self.delivered = true;
+                true
+            }
             Told::Answered { key, outcome } => {
                 for index in 0..self.answered.len() {
                     if self.answered.get(index).expect("bounded line").key == Some(*key) {
@@ -768,6 +779,17 @@ fn undoable(session: &Session, object: ObjectKey, now: Time) -> Option<u32> {
     }
     None
 }
+/// A Home row's At and a press on Needs you use the same card read.
+pub(super) fn read_at(pages: &mut Pages, out: &mut Queue<Request>) {
+    if let Address::Inbox { .. } = pages.address
+        && let Some(object) = pages.needs.at
+        && let Some(inbox) = &mut pages.inbox
+    {
+        inbox.next = inbox.next.max(pages.next);
+        inbox.open(object, out);
+        pages.next = pages.next.max(inbox.next);
+    }
+}
 #[expect(
     clippy::too_many_lines,
     reason = "the Needs acts share one exhaustive dispatch, including session toast variants"
@@ -891,7 +913,10 @@ pub(crate) fn act(
             pages.needs.findings.shown = None;
             pages.needs.at = Some(object);
             match pages.address {
-                Address::Inbox { .. } => return,
+                Address::Inbox { .. } => {
+                    read_at(pages, out);
+                    return;
+                }
                 Address::Home { .. }
                 | Address::Team { .. }
                 | Address::AllHome

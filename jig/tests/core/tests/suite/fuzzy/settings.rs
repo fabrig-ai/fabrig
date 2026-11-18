@@ -178,6 +178,7 @@ fn draw_change(
     let item = match operation {
         0 => settings::Item { setting: settings::Setting::Template(1), edit: settings::Edit::Reset },
         1 | 3 => template_edit(world, 6 + rng.below(8)),
+        4 => worker_item(step),
         5 => overlay_item(format!("overlay {seed} {step}").as_bytes()),
         _ => {
             let mut charter = world.domain.settings().charter(1).expect("settings fixture").clone();
@@ -410,7 +411,10 @@ fn random_settings_proposals_decisions_and_restarts_keep_all_three_owners_in_agr
                 let key = 20 + step;
                 match operation {
                     0 => {
-                        let item = if rng.below(2) == 0 {
+                        let choice = rng.below(3);
+                        let item = if choice == 2 {
+                            worker_item(step)
+                        } else if choice == 0 {
                             overlay_item(format!("proposed overlay {seed} {step}").as_bytes())
                         } else {
                             template_edit(&world, 6 + rng.below(10))
@@ -515,5 +519,18 @@ fn sorted_bounded_limit_overrides_pass_and_a_mutation_fails_at_its_position() {
             };
             assert_eq!(check_overrides(&values), Err(expected));
         }
+    }
+}
+
+fn worker_item(digest: u8) -> settings::Item {
+    settings::Item {
+        setting: settings::Setting::Worker(1),
+        edit: settings::Edit::Set(settings::Value::Worker(Box::new(settings::WorkerSetting {
+            number: 1,
+            name: b"w1".as_slice().into(),
+            places: 1,
+            digest: Some([digest; 32]),
+            withdrawn: false,
+        }))),
     }
 }

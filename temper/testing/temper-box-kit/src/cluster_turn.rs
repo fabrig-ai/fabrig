@@ -35,15 +35,17 @@ pub fn prepare(
     }
     cluster.bind("proc.forge.ready.address", &addresses[3].to_string());
     cluster.bind("proc.llm.ready.address", &addresses[4].to_string());
+    // Source reads and preparation use the engine's git, found on PATH (config.md, 6.5).
+    cluster.git_on_path("engine", root);
     for name in ["engine", "w1"] {
         cluster.prepare(name);
     }
     let engine_path = cluster.dir("engine").join("config/temper.json");
     let worker_path = cluster.dir("w1").join("config/temper.json");
-    let agent_path = cluster.dir("w1").join("config/agent.json");
+
     let mut engine = support::limit_settings::configuration(&cluster.dir("engine").join("config"));
     let mut worker = temper_playground::documents::Configuration::from_jig(read(&worker_path));
-    let mut agent = read(&agent_path);
+    let mut agent = temper_agent_fixtures::read(&cluster.dir("engine").join("config"));
     // domain/worker/jobs.md, kind 1: the engine declares preparation only when
     // its spec and result fit. The worker and the agent must carry that result.
     let prepare = temper_service::limits::prepare_bound();
@@ -77,9 +79,6 @@ pub fn prepare(
         ]}),
     );
     write(&engine_path, &engine);
-    support::limit_settings::remember(&cluster.dir("engine").join("config"), &engine);
-    write(&worker_path, &worker);
-    write(&agent_path, &agent);
     // Stock charters need a model-priced reserve, not the small cluster fixture's spend.
     // Two runs fund production and leave room for its scripted turns after the reserve.
     let configured = temper_real_loop_world::settings::configuration(&engine);
@@ -88,6 +87,8 @@ pub fn prepare(
     for name in ["forge", "llm"] {
         cluster.prepare(name);
     }
+    // The operator installs the LLM's trust root before the engine's first start.
+    support::write_private(&cluster.dir("llm").join("root.der"), skein_tls_kit::pki::ROOT);
     // The person uses the fake's fixed fixture identity, through a private
     // header file rather than a credential in curl's argument vector.
     let token = temper_fake::credential::credential(17, temper_fake::credential::ADMIN_TOKEN);
@@ -170,14 +171,4 @@ pub fn proof_cut(panel: &Value) -> Result<Option<u64>, String> {
         }
         phase => Err(format!("read landing past proving before kill ({phase}): pace.ci_ms={CI_MS}; {panel}")),
     }
-}
-
-/// Initialize settings before the first work in the process story; offline document checks do not call this.
-pub fn seed(cluster: &Cluster) {
-    let engine = cluster.dir("engine");
-    super::forgejo::bootstrap(&engine.join("config"), &engine.join("data"), &engine.join("cache"));
-    temper_real_loop_world::fixtures::seed_settings_file(
-        &engine.join("data/state"),
-        &fs::read(engine.join("config/landing-settings.json")).expect("landing settings"),
-    );
 }

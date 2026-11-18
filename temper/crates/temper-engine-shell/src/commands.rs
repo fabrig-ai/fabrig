@@ -12,7 +12,10 @@ pub const ENGINE: Table = Table {
         SERVE,
         VERSIONS,
         UPGRADE_CHECK,
+        UPGRADE_WORKERS,
         UPGRADE_BACK,
+        CHECKPOINT,
+        RESTORE,
         HELP,
         FETCH,
         PREPARE,
@@ -75,12 +78,21 @@ pub const UPGRADE_CHECK: Command = Command {
     line: "Rehearses an upgrade over a copy; switches nothing.",
     arguments: &[
         DIRECTORIES,
-        Argument { shown: "DIRECTORY", line: "A stopped deployment's data directory or a copy of one; never written." },
+        Argument {
+            shown: "DIRECTORY",
+            line: "A stopped deployment's data directory, a checkpoint of a serving deployment, or a copy of one; never written.",
+        },
     ],
     settings: &[&directories::SETTINGS],
     switches: &[],
     variables: &[],
     notes: "Uses the configuration serve would read and a scratch copy under the cache directory. Reports the jobs it ran, restores, elapsed time and whether workers may stay. What follows the switch is not rehearsed. Exit 0 when its jobs and restores pass, 1 when a start would be refused.",
+};
+pub const UPGRADE_WORKERS: Command = Command {
+    reach: Reach::Words(&["upgrade", "--workers"]),
+    line: "Judges the workers alone over a copy; switches nothing.",
+    notes: "Uses the configuration serve would read and a scratch copy under the cache directory. Recovers the maps without task logs and prints only the workers' verdict, with no record decoded, level checked, plan, job or restore run. Exit 0 for yes, no or unknown; 1 on an opening refusal. Takes only DIRECTORY's lock, never the serving deployment's when reading a checkpoint; writes nothing under --data before the rehearsal.",
+    ..UPGRADE_CHECK
 };
 pub const UPGRADE_BACK: Command = Command {
     reach: Reach::Words(&["upgrade", "--back"]),
@@ -89,6 +101,40 @@ pub const UPGRADE_BACK: Command = Command {
     arguments: &[DIRECTORIES],
     notes: "Stop the deployment first, then start the old binary after going back. Past the patched generation's first commit, going back is restoring a backup.",
     ..UPGRADE_CHECK
+};
+
+pub const CHECKPOINT: Command = Command {
+    reach: Reach::Words(&["checkpoint"]),
+    set: Set::Public,
+    forms: &["[DIRECTORIES]", "--hold NAME [DIRECTORIES] -- COMMAND [ARGUMENT...]", "--remove NAME [DIRECTORIES]"],
+    line: "takes a checkpoint of the stopped deployment; --hold runs a command under one's lock, --remove removes one",
+    arguments: &[
+        DIRECTORIES,
+        Argument { shown: "NAME", line: "A checkpoint name: 20 decimal digits, a hyphen and 16 hexadecimal digits." },
+        Argument {
+            shown: "COMMAND [ARGUMENT...]",
+            line: "The child command and its arguments, only with --hold and after --.",
+        },
+    ],
+    settings: &[&directories::SETTINGS],
+    switches: &[],
+    variables: &[&environment::PATH, &crate::checkpoint::DIRECTORY],
+    notes: "--hold and --remove exclude each other. Uses the configuration serve reads. Taking one requires a stopped deployment; holding or removing one also works while it serves. --hold inherits the working directory and environment, sets TEMPER_CHECKPOINT to the checkpoint's absolute directory, and holds its lock until the child is closed. Exit 0 on success, 1 on refusal, 2 for invalid arguments; --hold exits as its child did, 128 plus its terminating signal, or 127 when the command cannot run.",
+};
+
+pub const RESTORE: Command = Command {
+    reach: Reach::Words(&["restore"]),
+    set: Set::Public,
+    forms: &["NAME [DIRECTORIES]"],
+    line: "restores a checkpoint over the stopped deployment, after a safety checkpoint of it",
+    arguments: &[
+        Argument { shown: "NAME", line: "A checkpoint name: 20 decimal digits, a hyphen and 16 hexadecimal digits." },
+        DIRECTORIES,
+    ],
+    settings: &[&directories::SETTINGS],
+    switches: &[],
+    variables: &[],
+    notes: "Uses the configuration serve reads. Stop the deployment first. The state before restoring is kept as a safety checkpoint; restore that checkpoint to bring it back. Exit 0 on success, 1 on refusal, 2 for invalid arguments.",
 };
 
 pub const FETCH: Command =

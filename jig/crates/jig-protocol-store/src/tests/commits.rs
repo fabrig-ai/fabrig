@@ -82,7 +82,7 @@ fn committed_note() -> Store {
 }
 
 #[test]
-fn a_first_commit_puts_format_layouts_and_installation_with_its_header() {
+fn a_first_commit_puts_format_floor_and_installation_with_its_header() {
     let mut store = committed_header();
     assert_eq!(
         format_row(&mut store),
@@ -99,8 +99,9 @@ fn a_first_commit_puts_format_layouts_and_installation_with_its_header() {
             levels: crate::format::NONE,
         },
     );
-    let layouts = fixtures::get_kv(&mut store, &[0, 3]).expect("layouts row exists");
-    assert_eq!(codec::component::Layouts::decode(&layouts), Ok(store.layouts));
+    assert_eq!(fixtures::get_kv(&mut store, &[0, 3]), None);
+    let skein_kv::Op::Put { value: floor, .. } = fixtures::floor_put() else { panic!("floor put") };
+    assert_eq!(fixtures::get_kv(&mut store, &[0, 13]), Some(floor));
     let installation = fixtures::get_kv(&mut store, &[1, 4, 3]).expect("installation row exists");
     assert_eq!(
         codec::accounts::Installation::decode(&installation),
@@ -236,7 +237,7 @@ fn a_refused_skein_commit_is_answered_failed() {
                     projected: used + 128 + ROW_BYTES,
                 })),
             );
-            assert!(used <= BUDGET && used + ROW_BYTES > BUDGET);
+            assert!(used <= BUDGET && used + 128 + ROW_BYTES > BUDGET);
             assert_eq!(store.stores.store.used(), used);
             assert_eq!(store.stores.store.last(), number - 1);
         }
@@ -314,7 +315,12 @@ fn a_committed_store_reopens_at_its_last_number_with_its_kept_installation() {
     let drawn = [6; 16];
     let events = fixtures::run(
         &mut restarted,
-        Request::Open { owner: Token::new(1), root: fixtures::ROOT, installation: drawn },
+        Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: Token::new(1),
+            root: fixtures::ROOT,
+            installation: drawn,
+        },
     );
     let [Event::Opened { owner, last, installation, pending: false }, Event::Census { .. }] = &*events else {
         panic!("committed store opens: {events:?}");
@@ -433,7 +439,7 @@ fn later_commits_write_none_of_the_three_creation_rows() {
 }
 
 #[test]
-fn only_the_first_commit_records_the_binarys_levels_and_layouts() {
+fn only_the_first_commit_records_the_binarys_levels() {
     use super::owners::{BASE, SETS, levels};
     for (first_sets, later_sets, expected) in [(BASE, SETS, levels(0, 0)), (SETS, BASE, levels(2, 2))] {
         let mut store = fixtures::opened();
@@ -441,12 +447,9 @@ fn only_the_first_commit_records_the_binarys_levels_and_layouts() {
         assert_committed(&commit(&mut store, 1, Box::new([fixtures::header(1)])), 1);
         let first = format_row(&mut store);
         assert_eq!(first.levels, expected);
-        let key = keys::encode_own(&keys::Own::Layouts, store.limits.store.key).expect("layouts key");
-        let layouts = fixtures::get_kv(&mut store, &key).expect("layouts");
         store.owner_sets(later_sets);
-        store.layouts.core[0] ^= 1;
         assert_committed(&commit(&mut store, 2, Box::new([fixtures::header(2)])), 2);
         assert_eq!(format_row(&mut store), first);
-        assert_eq!(fixtures::get_kv(&mut store, &key), Some(layouts));
+        assert_eq!(fixtures::get_kv(&mut store, &[0, 3]), None);
     }
 }

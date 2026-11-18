@@ -54,6 +54,7 @@ pub fn sign_in(w: &mut World) {
         },
     })));
     w.send(root::Event::Core(core::Event::SignIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(70_010)),
         identity: people::Identity {

@@ -26,7 +26,7 @@ fn startup_names_the_public_kinds_and_private_parts() {
     assert_eq!(forge, &expected);
     assert_eq!(
         expected.map(|kind| (kind.owner, kind.kind, kind.first, kind.last, kind.task)),
-        [(2, 1, 2, 2, true), (2, 2, 2, 2, false), (2, 3, 2, 2, true)]
+        [(2, 1, 3, 3, true), (2, 2, 3, 3, false), (2, 3, 3, 3, true)]
     );
     assert_eq!(expected.map(|kind| kind.bound), [822, 67_405, 8716]);
 }

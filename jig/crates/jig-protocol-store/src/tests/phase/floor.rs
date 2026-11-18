@@ -194,7 +194,13 @@ fn floorless_rehearsal_refuses_before_decoding_and_announces_no_fresh_plan() {
     let scratch = disk.scratch_root();
     let events = disk.request(
         &mut reopened,
-        Request::Rehearse { owner: Token::new(1), directory, scratch, installation: fixtures::INSTALLATION },
+        Request::Rehearse {
+            owner: Token::new(1),
+            directory,
+            scratch,
+            installation: fixtures::INSTALLATION,
+            reach: crate::Reach::Whole,
+        },
     );
     assert!(
         {
@@ -212,6 +218,68 @@ fn floorless_rehearsal_refuses_before_decoding_and_announces_no_fresh_plan() {
     );
     assert!(reopened.directory.patch.is_none());
     assert_eq!(contents(&mut disk), before);
+}
+
+#[test]
+fn openings_reads_rows_even_when_whole_refuses_ahead_or_below_floor() {
+    for ahead in [false, true] {
+        let mut disk = Disk::new(&[]);
+        let mut first = store(&disk, BASE);
+        assert!(first.wires(&[crate::Wire { name: "fixture-wire", version: 7 }]));
+        assert_opened(&disk.open(&mut first), 0);
+        let events = disk.request(&mut first, fixtures::commit(1, Box::new([fixtures::header(1), Write::Wires])));
+        assert!({ if let [Event::Committed { .. }] = events.as_ref() { true } else { false } });
+        let key = crate::keys::encode_own(&crate::keys::Own::Format, fixtures::KEY_LIMIT).unwrap();
+        let mut format = crate::codec::component::Format::decode(&fixtures::get_kv(&mut first, &key).unwrap()).unwrap();
+        if ahead {
+            format.levels.jig = Some(3);
+        }
+        registry::raw(
+            &mut disk,
+            &mut first,
+            vec![floor_op(Some(0)), skein_kv::Op::Put { key, value: format.encode().unwrap() }],
+        );
+        let items = disk.items();
+        for reach in [crate::Reach::Whole, crate::Reach::Openings] {
+            let mut disk = Disk::new(&items);
+            let before = disk.contents();
+            let mut reopened = store(&disk, SETS);
+            let directory = disk.root();
+            let scratch = disk.scratch_root();
+            let events = disk.request(
+                &mut reopened,
+                Request::Rehearse {
+                    owner: Token::new(1),
+                    directory,
+                    scratch,
+                    installation: fixtures::INSTALLATION,
+                    reach,
+                },
+            );
+            let [Event::Rehearsing { wires, openings, .. }, terminal] = events.as_ref() else { panic!("{events:?}") };
+            assert_eq!(
+                wires.as_deref(),
+                Some([crate::KeptWire { name: "fixture-wire".into(), version: 7 }].as_slice())
+            );
+            assert!(openings.is_empty());
+            match reach {
+                crate::Reach::Whole => {
+                    let why = if ahead {
+                        OpenRefusal::Ahead { owner: Owner::Jig, found: Some(3), wanted: Some(2) }
+                    } else {
+                        OpenRefusal::OlderBuild { why: crate::Older::Floor }
+                    };
+                    let Event::OpenRefused { why: found, .. } = terminal else { panic!("{terminal:?}") };
+                    assert_eq!(*found, why);
+                }
+                crate::Reach::Openings => assert!(
+                    { if let Event::Closed { removed: true, .. } = terminal { true } else { false } },
+                    "{terminal:?}"
+                ),
+            }
+            assert_eq!(disk.contents(), before);
+        }
+    }
 }
 
 #[test]
@@ -337,7 +405,12 @@ fn job_upgrade_leaves_the_first_commits_floor_unchanged() {
     let mut disk = Disk::new(&disk.items());
     let mut upgraded = store(&disk, upgrade_sets(1));
     upgraded.build_name("test-build");
-    let request = Request::Open { owner: Token::new(1), root: disk.root(), installation: fixtures::INSTALLATION };
+    let request = Request::Open {
+        purpose: crate::Purpose::Serve,
+        owner: Token::new(1),
+        root: disk.root(),
+        installation: fixtures::INSTALLATION,
+    };
     traced_request(&mut disk, &mut upgraded, request, initial.clone());
     assert_eq!(floor(&mut upgraded), initial);
 }

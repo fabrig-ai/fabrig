@@ -152,7 +152,7 @@ pub(crate) fn write(
     fixture: Fixture,
     value: &mut temper_playground::documents::Configuration,
 ) -> std::io::Result<()> {
-    let mut agent: Value = serde_json::from_slice(&std::fs::read(path.join("agent.json"))?)?;
+    let mut agent: Value = serde_json::from_slice(&std::fs::read(path.join("world-agent.json"))?)?;
     value["application"]["clients"]["listener"] = json!({"socket":clients.to_string()});
     value["application"]["test"]["github"] = json!({"api":{"socket":address.to_string()},
         "transport":"plaintext","remote":format!("http://{address}"),"web":format!("http://{address}")});
@@ -174,8 +174,9 @@ pub(crate) fn write(
     }
     (fixture.configure)(value, &mut agent, address);
     fixtures::turn_bounds::apply(value, fixtures::turn_bounds::turn_body(&agent));
+    temper_agent_fixtures::apply(value, path, &agent);
     fixtures::finish_configuration(path, value)?;
-    fixtures::private(&path.join("agent.json"), &serde_json::to_vec(&agent)?)
+    fixtures::private(&path.join("world-agent.json"), &serde_json::to_vec(&agent)?)
 }
 
 #[derive(Debug)]

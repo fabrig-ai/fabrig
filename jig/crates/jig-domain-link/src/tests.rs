@@ -37,8 +37,15 @@ fn source_name_declaration_boundaries() {
 }
 
 fn membership() -> Membership {
-    Membership::new(Box::new([Box::from(b"alpha".as_slice()), Box::from(b"beta".as_slice())]), 2, 32)
-        .expect("bounded membership")
+    Membership::new(
+        Box::new([
+            super::Member { number: 1, name: Box::from(b"alpha".as_slice()), places: 4, withdrawn: false },
+            super::Member { number: 2, name: Box::from(b"beta".as_slice()), places: 4, withdrawn: false },
+        ]),
+        2,
+        32,
+    )
+    .expect("bounded membership")
 }
 #[test]
 fn membership_refuses_a_position_at_its_count() {

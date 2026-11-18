@@ -298,10 +298,7 @@ pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Re
         Event::Trials { event, adoption } => {
             let request = match &event {
                 trials::Event::Answered { key, .. } => Some(skein_lib::Token::new(key.number)),
-                trials::Event::Rows { .. }
-                | trials::Event::RowsEnded
-                | trials::Event::Wait { .. }
-                | trials::Event::TaskEnded => None,
+                trials::Event::Rows { .. } | trials::Event::RowsEnded => None,
             };
             trials::receive(side, event, out);
             if let Some(request) = request
@@ -513,7 +510,7 @@ pub fn told(client: &jig_client::Client, limits: &crate::Limits, told: jig_clien
     if let Some(event) = approvals::told(client, &told, limits.forge) {
         return Some(Event::Approvals { event });
     }
-    if let Some(event) = trials::told(client, &told, limits.forge) {
+    if let Some(event) = trials::told(client, &told, limits) {
         let adoption = match &told {
             Told::Answered { outcome: Outcome::Answered(value), .. } => answer(limits, value),
             Told::Pending { .. } | Told::Answered { .. } => Some(Answer::Unknown),

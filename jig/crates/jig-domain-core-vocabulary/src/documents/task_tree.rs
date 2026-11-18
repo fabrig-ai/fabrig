@@ -130,7 +130,7 @@ pub enum EscalationState {
     /// An identified holder may decide it.
     Waiting { holder: tasks::EscalationHolder, entry: u64, since: Wall },
     /// Decided to leave it held.
-    Rejected { by: u64, reason: Text },
+    Rejected { by: tasks::EscalationDecider, reason: Text },
 }
 
 /// A hold's reason, revision and prior lifecycle, with its escalation.

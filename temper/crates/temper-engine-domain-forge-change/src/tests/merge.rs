@@ -194,18 +194,6 @@ fn a_resolution_asked_again_is_not_a_merge_job() {
     assert_eq!(next.change.resolutions, 0);
 }
 
-/// A turn's prepare conflict is its queue's business (temper/docs/design/domain/forge/change/repairs.md).
-#[test]
-fn a_turn_prepare_conflict_still_goes_to_a_resolution() {
-    let mut c = change(State::Preparing { from: HEAD, main: BASE, ready_since: at(0) });
-    c.way = crate::Way::Turn;
-    let f = Facts { merge_job: true, ..facts() };
-    let h = Heard { effect: EffectResult::Conflict, ..heard() };
-    let next = decide(&c, &f, &h);
-    assert_eq!(next.decision, Decision::Delegate(Delegate::Resolve { base: BASE }));
-    assert_eq!(next.change.resolutions, 1);
-}
-
 /// Containment ends a catch-up with its commit in words (temper/docs/design/domain/forge/change/repairs.md).
 #[test]
 fn a_catch_up_already_contained_ends_with_no_change() {

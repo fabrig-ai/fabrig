@@ -9,7 +9,12 @@ pub fn one_repository() -> wire::Workspace {
             name: b"app".as_slice().into(),
             remote: b"https://forge.example/acme/app.git".as_slice().into(),
             start: wire::Start::Base { branch: b"main".as_slice().into() },
-            access: wire::Access::Writable { push: b"temper/task-7".as_slice().into(), expected: None, landing: None },
+            access: wire::Access::Writable {
+                push: b"temper/task-7".as_slice().into(),
+                expected: None,
+                landing: None,
+                delivered: None,
+            },
             identity: 1,
             account: None,
         }]),
@@ -72,7 +77,7 @@ pub fn worker() -> crate::Worker {
             wires: None,
             root: skein_io::kernel::Fd::new(9),
             path: b"/worker".as_slice().into(),
-            agent: pinned_agent(&worker_settings().jig.agent),
+            agent: pinned_agent(worker_settings().jig.agent.as_ref().expect("checked worker agent")),
         },
         7,
     )
@@ -165,12 +170,12 @@ pub fn worker_settings() -> crate::settings::Worker {
                 save: skein_lib::Duration::from_secs(10),
             },
             stop_bound: skein_lib::Duration::from_secs(60),
-            agent: config::Agent {
+            agent: Some(config::Agent {
                 program: TEMPER.into(),
                 arguments: Box::new([b"internal".as_slice().into(), b"agent".as_slice().into(), AGENT_JSON.into()]),
                 configuration: AGENT_JSON.into(),
-            },
-            limits,
+            }),
+            limits: Some(limits),
             memory: None,
         },
         root: b"worker-root".as_slice().into(),
@@ -231,6 +236,7 @@ fn assigned(repository: bool) -> jig_protocol_worker_link::Request {
                                     push: b"temper/task-7".as_slice().into(),
                                     expected: None,
                                     landing: None,
+                                    delivered: None,
                                 },
                             )
                             .unwrap(),

@@ -562,7 +562,10 @@ fn remember(rows: &mut Map<s::Key, s::Record>, output: &[Request]) {
 }
 fn restart(core: &Core, limits: &Limits, rows: &Map<s::Key, s::Record>) -> Core {
     let mut restarted = load_settings(core, limits, rows);
-    assert!(restarted.finish_restored_settings(&Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits }));
+    assert!(restarted.finish_restored_settings(
+        &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
+        &mut Queue::uncapped()
+    ));
     restarted
 }
 fn load_settings(core: &Core, limits: &Limits, rows: &Map<s::Key, s::Record>) -> Core {
@@ -687,7 +690,7 @@ fn restart_refuses_a_proposal_key_at_or_past_the_counter() {
         let mut restarted = load_settings(&core, &limits, &rows);
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
         assert_eq!(restarted.current.keys, 2);
-        assert_eq!(restarted.finish_restored_settings(&env), key < 2);
+        assert_eq!(restarted.finish_restored_settings(&env, &mut Queue::uncapped()), key < 2);
         if key >= 2 {
             let expected = Failure::Link {
                 record: Key::Core(CoreKey::Settings(s::Key::Proposal { proposer: Proposer::Party(1), proposal: 2 })),
@@ -695,7 +698,7 @@ fn restart_refuses_a_proposal_key_at_or_past_the_counter() {
             };
             assert_eq!(restarted.start_failure(), Some(expected.clone()));
             assert!(!restarted.start_opened());
-            assert!(!restarted.finish_restored_settings(&env));
+            assert!(!restarted.finish_restored_settings(&env, &mut Queue::uncapped()));
             assert_eq!(restarted.start_failure(), Some(expected));
             continue;
         }

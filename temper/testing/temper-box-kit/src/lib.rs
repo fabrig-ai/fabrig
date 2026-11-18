@@ -21,11 +21,12 @@ pub mod held_login;
 pub mod landing_by_turn;
 pub mod limit_settings;
 pub mod owned;
+pub mod screen;
 pub mod socket;
 pub mod terminal;
 pub mod turn_restart;
 pub mod webhooks;
-pub const WITHIN: skein_lib::Duration = skein_lib::Duration::from_secs(60);
+pub use temper_process_guard::WITHIN;
 pub mod forge_land;
 pub mod forge_parent;
 pub mod forge_sign_in;
@@ -38,7 +39,7 @@ pub mod forgejo_sign_in;
 pub mod live;
 pub mod live_github;
 pub mod llm;
-pub mod parent;
+pub use temper_process_guard as parent;
 pub mod patience;
 pub mod person;
 pub mod playground;
@@ -111,18 +112,7 @@ pub fn own_listener_files(directory: &Path) {
     let mut document: serde_json::Value =
         serde_json::from_slice(&std::fs::read(&path).expect("init document")).expect("JSON");
     own_listeners(&mut document);
-    let agent_path = directory.join("agent.json");
-    let mut agent: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(&agent_path).expect("init agent")).expect("JSON");
-    let demo = agent["endpoints"]
-        .as_array_mut()
-        .expect("agent endpoints")
-        .iter_mut()
-        .find(|endpoint| endpoint["number"] == 3)
-        .expect("init demo endpoint");
-    demo["address"] = document["application"]["demo"]["llm"]["listen"]["socket"].clone();
     write_private(&path, &serde_json::to_vec(&document).expect("deployment JSON"));
-    write_private(&agent_path, &serde_json::to_vec(&agent).expect("agent JSON"));
 }
 
 pub enum Forge<'a> {
@@ -140,7 +130,7 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>) -> temper_playground::
         fs::create_dir_all(directory.join(name)).expect("deployment directory");
     }
     for (name, bytes) in jig_channel_kit::fixtures::files(false).entries.into_boxed() {
-        if name.starts_with(b"charters/") {
+        if name.starts_with(b"charters/") || name.as_ref() == b"agent.json" {
             continue;
         }
         write_private(&directory.join(std::str::from_utf8(&name).expect("fixture path")), bytes.expose());
@@ -154,8 +144,8 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>) -> temper_playground::
         directory,
         skein_scratch::paths::binary("temper-box").to_str().expect("a UTF-8 path"),
     );
-    write_private(&directory.join("agent.json"), &agent);
     forgejo::configuration(directory, forge, &mut value);
+    temper_agent_fixtures::apply(&mut value, directory, &serde_json::from_slice(&agent).expect("agent JSON"));
     write_private(&directory.join("temper.json"), &serde_json::to_vec(&value).expect("deployment JSON"));
     limit_settings::remember(directory, &value);
     value
@@ -163,31 +153,17 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>) -> temper_playground::
 
 /// A subprocess story without a limit boundary uses the shipped agent's figures.
 pub fn stock_agent(directory: &Path) {
-    use std::os::unix::fs::PermissionsExt;
     let pending = directory.join("fixture-limits.json");
     if pending.exists() {
         fs::remove_file(pending).expect("stock fixture has no limit change");
     }
-    let stock: serde_json::Value =
-        serde_json::from_slice(include_bytes!("../../../docs/examples/owned/agent.json")).expect("stock agent");
-    let path = directory.join("agent.json");
-    let mut agent: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(&path).expect("fixture agent")).expect("agent JSON");
-    agent["profile"] = stock["profile"].clone();
+    let mut agent = temper_agent_fixtures::read(directory);
+    agent["profile"] = temper_agent_fixtures::stock(true)["profile"].clone();
     for endpoint in agent["endpoints"].as_array_mut().expect("endpoints") {
-        endpoint["limits"]["output"] = 48000.into();
-        endpoint["limits"]["reasoning_item"] = 65536.into();
+        endpoint["limits"]["output"] = 48_000.into();
+        endpoint["limits"]["reasoning_item"] = 65_536.into();
     }
-    std::fs::write(&path, serde_json::to_vec(&agent).expect("agent JSON")).expect("agent file");
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).expect("private agent");
-    let path = directory.join("temper.json");
-    let mut deployment: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(&path).expect("fixture deployment")).expect("deployment JSON");
-    for worker in deployment["workers"].as_array_mut().expect("workers") {
-        worker["limits"] = serde_json::json!({"overrides":{"hub.accounts":4,"hub.run_calls":48}});
-    }
-    std::fs::write(&path, serde_json::to_vec(&deployment).expect("deployment JSON")).expect("deployment file");
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).expect("private deployment");
+    temper_agent_fixtures::install(directory, &agent);
 }
 
 /// A case's scratch, retained if a test panics.
@@ -249,7 +225,7 @@ fn serve_command(directory: &Path) -> Command {
         program: skein_scratch::paths::binary("temper-box"),
         arguments: std::iter::once("serve".into()).chain(configuration::flags(directory)).collect(),
         directory: directory.into(),
-        environment: Vec::new(),
+        environment: vec![("PATH".into(), "/usr/bin:/bin".into())],
     }
 }
 /// Serve the cluster fixture's engine directory on the deployment's engine binary (protocol/binaries.md, 2).
@@ -850,18 +826,36 @@ pub fn run_until_landed(
 }
 // Sign-in, inventory, whole template read, then one owner settings change.
 const NATIVE_SETUP_CALLS: usize = 4;
-fn native_settings_setup(directory: &Path) -> Vec<ctl::Step> {
+fn native_settings_setup(directory: &Path, agents: Option<serde_json::Value>) -> Vec<ctl::Step> {
     use ctl::{Call, Step};
     let file = directory.join("settings.json");
-    vec![
-        Step::Run(Call::sign_in().in_directory("private")),
+    let mut steps = vec![Step::Run(Call::sign_in().in_directory("private"))];
+    if directory.join("native-landing-settings.json").exists() {
+        steps.push(Step::Project {
+            scratch: directory.into(),
+            client: directory.join("private"),
+            name: "Project 1",
+            number: 1,
+        });
+    }
+    steps.extend([
         Step::Run(Call::new(&["settings", "show", "--json"]).in_directory("private")),
         Step::Run(Call::new(&["settings", "show", "template", "1", "--json"]).in_directory("private")),
         Step::Then(Box::new(move |calls| {
             // These scripts deliver their answer through finish; preserve the
             // inherited result ending before the native client makes its chat.
             ctl::setting_change_file(&file, &calls[2], |value| value["flags"]["ended_by"] = "result".into());
-            let landing = file.parent().expect("settings directory").join("native-landing-settings.json");
+            let directory = file.parent().expect("settings directory");
+            if let Some(value) = agents {
+                let mut change: serde_json::Value =
+                    serde_json::from_slice(&fs::read(&file).expect("template settings")).expect("settings JSON");
+                change["items"]
+                    .as_array_mut()
+                    .expect("settings items")
+                    .push(serde_json::json!({"setting":{"kind":"agents"},"set":value}));
+                write_private(&file, &serde_json::to_vec(&change).expect("native settings JSON"));
+            }
+            let landing = directory.join("native-landing-settings.json");
             if landing.exists() {
                 let mut change: serde_json::Value =
                     serde_json::from_slice(&fs::read(&file).expect("template settings")).expect("settings JSON");
@@ -875,7 +869,17 @@ fn native_settings_setup(directory: &Path) -> Vec<ctl::Step> {
             }
             ctl::settings_change(&calls[1], &file, "native-chat-settings").in_directory("private")
         })),
-    ]
+    ]);
+    steps
+}
+fn agents_value(bytes: &[u8]) -> serde_json::Value {
+    use skein_json::writer::{Encoder, Limits};
+    let bounds = Limits { depth: 32, length: 1_048_576 };
+    let mut measure = Encoder::measure(&bounds);
+    assert!(temper_settings_form::render::application_value(21, bytes, &mut measure));
+    let mut out = Encoder::write(measure.measured().expect("agents setting fits"), &bounds);
+    assert!(temper_settings_form::render::application_value(21, bytes, &mut out));
+    serde_json::from_slice(&out.finish()).expect("agents setting JSON")
 }
 fn run_story(
     directory: &Path,
@@ -890,6 +894,11 @@ fn run_story(
         peer.configure(directory);
     }
     limit_settings::install(directory);
+    let agents = if peer.is_some() && directory.join("agents.setting").exists() {
+        Some(agents_value(&fs::read(directory.join("agents.setting")).expect("agents setting copy")))
+    } else {
+        None
+    };
     let mut binary = match ending {
         Ending::Stop => serve(directory),
         Ending::Box => sign_in::start(directory),
@@ -926,7 +935,12 @@ fn run_story(
             Process::Person(Box::new(person::Person::waiting_for_ctl_with_key(root, script)))
         });
         world.spawn_with_fds(fds, || {
-            Process::Calls(Box::new(ctl::Calls::new(ctl_root, native_settings_setup(directory), Some(&streams), None)))
+            Process::Calls(Box::new(ctl::Calls::new(
+                ctl_root,
+                native_settings_setup(directory, agents),
+                Some(&streams),
+                None,
+            )))
         });
     } else {
         fds.push(root);

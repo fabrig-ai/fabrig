@@ -139,6 +139,7 @@ fn configured(
         joint.caller = fixtures::asking_member(&mut joint.engine);
     } else {
         joint.engine.send(engine::Event::Party(engine::PartyInput::SignedIn {
+            until: None,
             held: None,
             reply_to: ReplyTo::new(Token::new(700)),
             identity: identity.clone(),
@@ -188,7 +189,7 @@ fn configured(
                 (b"slow".as_slice(), temper_engine_domain_forge::Follows::Landing),
                 (b"goal".as_slice(), temper_engine_domain_forge::Follows::Goals),
             ]
-            .map(|(name, follows)| temper_fixtures::landing::TierCheck {
+            .map(|(name, follows)| temper_landing_fixtures::TierCheck {
                 name: name.into(),
                 workflow: name.into(),
                 ignored: Box::new([]),
@@ -202,7 +203,7 @@ fn configured(
                 temper_engine_domain_world::oracle::config::set_landing(
                     &mut config,
                     1,
-                    temper_fixtures::landing::ProjectLanding {
+                    temper_landing_fixtures::ProjectLanding {
                         gate_retries: 2,
                         batch: 1,
                         combine_main: engine::Combine::Merge,
@@ -210,10 +211,10 @@ fn configured(
                         gate_timeout: skein_lib::Duration::from_millis(3_600_000),
                         landing_attempts: engine::LANDING_ATTEMPTS,
                         check_timeout: None,
-                        by: temper_fixtures::landing::Way::Queue,
+                        by: temper_landing_fixtures::Way::Queue,
                         close_job: None,
                         merge_job: None,
-                        repositories: Box::new([temper_fixtures::landing::RepositoryChecks {
+                        repositories: Box::new([temper_landing_fixtures::RepositoryChecks {
                             repository: skein_forge::api::Repository { forge: fixtures::FORGE, repository: 7 },
                             gates: Box::new([]),
                             tiers: Box::new(tiers),
@@ -235,6 +236,7 @@ fn configured(
             joint.caller = fixtures::asking_member(&mut joint.engine);
         } else {
             joint.engine.send(engine::Event::Party(engine::PartyInput::SignedIn {
+                until: None,
                 held: None,
                 reply_to: ReplyTo::new(Token::new(702)),
                 identity,

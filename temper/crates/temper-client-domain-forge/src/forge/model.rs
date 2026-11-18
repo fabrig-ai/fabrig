@@ -2,8 +2,8 @@
 use super::{Request, Side};
 use jig_client::{Client, Handle, Latest, contract as c};
 use skein_lib::Queue;
-pub fn progress(side: &mut Side, client: &Client, out: &mut Queue<Request>) {
-    watch_deployment(side, client, out);
+pub fn progress(side: &mut Side, client: &Client, page_needs_model: bool, out: &mut Queue<Request>) {
+    watch_deployment(side, client, page_needs_model, out);
 }
 /// A usable source of a provider other than the playground's, or any provider without a playground.
 #[must_use]
@@ -81,8 +81,8 @@ pub fn owner_deployment<'a>(side: &Side, client: &'a Client) -> Option<&'a c::De
     Some(deployment)
 }
 
-fn watch_deployment(side: &mut Side, client: &Client, out: &mut Queue<Request>) {
-    let needed = owner(client) && side.playground().is_some();
+fn watch_deployment(side: &mut Side, client: &Client, page_needs_model: bool, out: &mut Queue<Request>) {
+    let needed = page_needs_model && owner(client) && side.playground().is_some();
     if !needed {
         if let Some((handle, _)) = side.playground.deployment.take() {
             out.push(Request::Client { asked: jig_client::Event::Unwatch { handle } });

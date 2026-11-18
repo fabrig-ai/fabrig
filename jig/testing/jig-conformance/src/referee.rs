@@ -515,8 +515,8 @@ pub struct Referee {
     restart_position: u32,
 }
 
-fn require(holds: bool, promise: Promise, why: impl Into<String>) -> Result<(), Violation> {
-    if holds { Ok(()) } else { Err(Violation { promise, why: why.into() }) }
+fn require(holds: bool, promise: Promise, why: impl std::fmt::Display) -> Result<(), Violation> {
+    if holds { Ok(()) } else { Err(Violation { promise, why: why.to_string() }) }
 }
 
 impl Referee {
@@ -669,7 +669,7 @@ impl Referee {
                         && self.within(&task.scope, &self.policy.deployment)
                         && source.is_some_and(|scope| self.within(&task.scope, scope)),
                     Promise::Authority,
-                    format!("task {} exceeds policy or its authority source", task.number),
+                    format_args!("task {} exceeds policy or its authority source", task.number),
                 )?;
                 if !self.first.contains_key(&task.number) {
                     let authority_source =
@@ -709,7 +709,7 @@ impl Referee {
             require(
                 total.is_some_and(|total| total <= task.budget) && task.run_reserved <= task.reserved,
                 Promise::Spend,
-                format!("task {} overdraws its durable allotment", task.number),
+                format_args!("task {} overdraws its durable allotment", task.number),
             )?;
             if task.closed() {
                 require(
@@ -1055,7 +1055,11 @@ impl Referee {
                 self.applications.answered(reply, connector, &outcome)?;
             }
             Observed::Durable { number, snapshot } => {
-                require(self.drained.is_none(), Promise::Commit, format!("CommitAfterDrained {{ number: {number} }}"))?;
+                require(
+                    self.drained.is_none(),
+                    Promise::Commit,
+                    format_args!("CommitAfterDrained {{ number: {number} }}"),
+                )?;
                 self.durable(number, snapshot, now)?;
                 self.applications.durable(number, now)?;
             }
@@ -1080,7 +1084,7 @@ impl Referee {
                     require(
                         self.last.receipts.contains(&receipt),
                         Promise::Commit,
-                        format!("outside delivery preceded its durable prerequisite: {receipt:?}"),
+                        format_args!("outside delivery preceded its durable prerequisite: {receipt:?}"),
                     )?;
                     self.seen.insert(receipt);
                 }
@@ -1218,7 +1222,7 @@ impl Referee {
                     require(
                         !must_keep || receipts.contains(receipt),
                         Promise::Commit,
-                        format!("cold store lost an observed prerequisite: {receipt:?}"),
+                        format_args!("cold store lost an observed prerequisite: {receipt:?}"),
                     )?;
                 }
             }
@@ -1265,7 +1269,7 @@ impl Referee {
             require(
                 satisfied || now <= *deadline,
                 Promise::Lost,
-                format!("delivery missed its deadline: {receipt:?}"),
+                format_args!("delivery missed its deadline: {receipt:?}"),
             )?;
         }
         for deadline in self.uncertain.values() {

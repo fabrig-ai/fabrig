@@ -330,8 +330,7 @@ fn unreadable_store(path: &Path, errno: u8) -> Outcome {
 fn agent_metadata_fixture(root: &Path) -> temper_service::settings::Agent {
     let (agent, _) = crate::tests::configuration::documents(root, "/fixture/temper");
     fs::write(root.join("root.der"), skein_tls_kit::pki::ROOT).expect("fixture trust");
-    fs::write(root.join("agent.json"), agent).expect("checked agent metadata fixture");
-    crate::agent::read(&root.join("agent.json")).expect("agent metadata")
+    crate::agent::prepare_bytes(agent.into_boxed_slice()).expect("agent metadata").agent
 }
 #[test]
 fn verb() {
@@ -387,6 +386,14 @@ fn verb() {
         let directory = root.join(name);
         fs::create_dir(&directory).expect("row directory");
         let directories = crate::directories::tests::given(&directory);
+        let data = crate::path(&directories.data);
+        fs::create_dir_all(data).expect("fixture data");
+        let agent_value: serde_json::Value =
+            serde_json::from_slice(&crate::tests::configuration::documents(&root, "/fixture/temper").0)
+                .expect("agent JSON");
+        let mut fixture = crate::tests::configuration::check_document(&root);
+        temper_agent_fixtures::apply(&mut fixture, data, &agent_value);
+        let copy_before = fs::read(data.join("agents.setting")).expect("fixture copy");
         let bytes = document.map(|document| serde_json::to_vec(&document).expect("fixture document"));
         if let Some(bytes) = &bytes {
             fs::write(directories.document(), bytes).expect("document file");
@@ -409,7 +416,8 @@ fn verb() {
             Copy::File => fs::write(&check.store, b"not a store").expect("non-store"),
         }
         assert_eq!(outcome(&directories, &check), expected, "{name}");
-        assert!(!directory.join("data").exists(), "{name}: creates no data directory");
+        assert_eq!(fs::read(data.join("agents.setting")).expect("copy remains"), copy_before, "{name}: read-only copy");
+        assert_eq!(fs::read_dir(data).expect("data entries").count(), 1, "{name}: creates no data resources");
         assert!(!directory.join("cache").exists(), "{name}: creates no cache directory");
     }
     fs::remove_dir_all(root).expect("scratch removed");

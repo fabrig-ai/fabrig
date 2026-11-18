@@ -190,8 +190,10 @@ start afresh. Staging is made again at dev's build for each drill
   its former name (`was`); a change no plan derives is its owner's
   written job (jig's `protocol/store/layouts.md`;
   `jig/docs/design/protocol/store/jobs.md`).
-  `temper-protocol-store/schema/store-v25.schema` and `golden/v25/`
-  hold temper's current text and record bytes, not older map versions.
+  `temper-protocol-store/schema/store-v25.schema` holds temper's current
+  text, not older map versions. Records drift and refusal of unpinned
+  constructs check it; tests build their values, with the bytes pinned
+  by skein's `every` (`skein/docs/design/data/codec/README.md`, 6).
 - **Formats outside the registry are fixed at their versions.** A
   landing changing one designs how dev.fabrig.ai's store gets there:
   an executor, conversion at read, or registration (`AGENTS.md`, 2).
@@ -203,7 +205,8 @@ start afresh. Staging is made again at dev's build for each drill
   landed kept text edited. The stored-change comparison reads landed
   files at the merge base with `origin/main` (or `HEAD` without it;
   during a landing merge, `MERGE_HEAD`). It is not a registered-family
-  patch gate. Each format's golden bytes, registry tests and the
+  patch gate. Each format's byte tests, the schemas' records drift and
+  pinned constructs, built-value round trips, registry tests and the
   golden deployment's outcomes stand beside it.
 - **The wires' rule is unchanged** (`wires.md`, 3): a layout change
   moves its wire version, keeps the old text and brings its patch and

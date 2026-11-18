@@ -53,7 +53,7 @@ fn reports_roundtrip_at_bounds_and_the_ask_envelope_holds_the_worker_ceiling() {
         assert!(bytes.len() <= usize::try_from(largest.ask).unwrap());
         assert_eq!(u64::from(largest.ask), v1::Ask::encoded_bound(&v1::CEILINGS).unwrap());
         assert_eq!(largest.ask, 305_383);
-        assert!(largest.ask <= jig_protocol_worker_wire::v15::CEILINGS.ask_bytes);
+        assert!(largest.ask <= jig_protocol_worker_wire::v17::CEILINGS.ask_bytes);
     }
 }
 
@@ -126,5 +126,31 @@ fn reds_cross_v8_and_v9_but_results_and_kept_cannot_go_back() {
         (b"Answer".as_slice(), crate::answer(&v1::Answer::Kept)),
     ] {
         bridge.translate(9, 8, root, bytes).expect_err("no v8 form");
+    }
+}
+
+#[test]
+fn v9_values_cross_v10_but_landed_values_cannot_go_back() {
+    let limits = fixtures::limits();
+    let application = crate::application(&limits).unwrap();
+    let mut bridge = application.kept.get(0).unwrap().bridge().unwrap();
+    for (root, bytes) in [
+        (b"Ask".as_slice(), crate::ask(&v1::Ask::Reds)),
+        (b"Ask".as_slice(), crate::ask(&v1::Ask::Results(largest_report(&limits)))),
+        (b"Answer".as_slice(), crate::answer(&v1::Answer::Kept)),
+    ] {
+        assert_eq!(bridge.translate(9, 10, root, bytes.clone()).unwrap(), bytes);
+        assert_eq!(bridge.translate(10, 9, root, bytes.clone()).unwrap(), bytes);
+        assert_eq!(bridge.total(9, root), Some(false));
+    }
+    for (root, bytes) in [
+        (
+            b"Ask".as_slice(),
+            crate::ask(&v1::Ask::Landed(v1::Head::new(&limits, v1::HeadParts { head: [37; 32] }).unwrap())),
+        ),
+        (b"Answer".as_slice(), crate::answer(&v1::Answer::Landed)),
+        (b"Answer".as_slice(), crate::answer(&v1::Answer::Unlanded)),
+    ] {
+        bridge.translate(10, 9, root, bytes).expect_err("no v9 form");
     }
 }

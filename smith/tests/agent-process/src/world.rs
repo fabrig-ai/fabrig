@@ -1083,7 +1083,7 @@ impl World {
             let mut tools = parts.tools.clone().into_parts();
             tools.families = smith_charter::Families::new(
                 &smith_charter::CEILINGS,
-                smith_charter::FamiliesParts { skein_bools: [true, false, true, false] },
+                smith_charter::FamiliesParts { inspect: true, modify: false, shell: true, agents: false },
             )
             .expect("shell family");
             parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("tools");

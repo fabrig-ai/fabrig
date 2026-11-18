@@ -161,7 +161,8 @@ impl World {
                         assert_eq!(deadline, self.env.now.saturating_add(timeout));
                         assert!(pending.replace((owner, op)).is_none(), "one IO operation per hold");
                     }
-                    answer @ (Request::Prepared { .. }
+                    answer @ (Request::DependencyLanded { .. }
+                    | Request::Prepared { .. }
                     | Request::Pushed { .. }
                     | Request::Saved { .. }
                     | Request::Released { .. }) => {
@@ -240,7 +241,8 @@ impl World {
         match self.finish(event, ambiguous) {
             Request::Pushed { outcome: Outcome::Pushed { landings }, .. } if !saved => landings,
             Request::Saved { outcome: Outcome::Pushed { landings }, .. } if saved => landings,
-            other @ (Request::Results { .. }
+            other @ (Request::DependencyLanded { .. }
+            | Request::Results { .. }
             | Request::ResultsEnd { .. }
             | Request::Held { .. }
             | Request::Prepared { .. }
@@ -272,6 +274,7 @@ pub fn run(seed: u64, case: Case, facts: u32) -> Report {
             account: None,
             push: Some(b"topic".as_slice().into()),
             expected: Some(translate::commit(world.ours)),
+            delivered: None,
             landing: if matches!(case, Case::Contained | Case::Resumed | Case::Conflict) {
                 Some(b"main".as_slice().into())
             } else {
@@ -392,6 +395,7 @@ pub fn replaced_pin(case: PinCase) {
         account: None,
         push: Some(b"topic".as_slice().into()),
         expected: None,
+        delivered: None,
         landing: Some(b"main".as_slice().into()),
         save: Some(b"saved".as_slice().into()),
     };
@@ -492,6 +496,7 @@ pub fn resolution_conflict(pushed: bool) {
             push: Some(push.into()),
             prefixes: Box::new([]),
             expected,
+            delivered: None,
             landing: None,
         }]),
     };
@@ -631,6 +636,7 @@ fn resume_saved_work(world: &mut World, workspace: Token) {
             account: None,
             push: Some(b"topic".as_slice().into()),
             expected: None,
+            delivered: None,
             landing: Some(b"main".as_slice().into()),
             save: Some(b"saved".as_slice().into()),
         }]),
@@ -669,6 +675,7 @@ pub fn retry_existing_change(movement: Option<bool>, ambiguous: bool) {
             account: None,
             push: Some(b"topic".as_slice().into()),
             expected: None,
+            delivered: None,
             landing: if retry { Some(b"main".as_slice().into()) } else { None },
         }]),
     };
@@ -745,6 +752,7 @@ fn heads_spec(heads: &[u64]) -> Spec {
             account: None,
             push: Some(b"early".as_slice().into()),
             expected: None,
+            delivered: None,
             landing: None,
             save: Some(b"saved".as_slice().into()),
         }]),
@@ -752,8 +760,12 @@ fn heads_spec(heads: &[u64]) -> Spec {
 }
 
 fn prepare_heads(world: &mut World, heads: &[u64]) -> (Token, Vec<u8>) {
+    prepare_heads_spec(world, heads_spec(heads))
+}
+
+fn prepare_heads_spec(world: &mut World, spec: Spec) -> (Token, Vec<u8>) {
     let Request::Prepared { prepared: Prepared::Ready { workspace, conflicts }, .. } =
-        world.finish(Event::Prepare { client: Token::new(9), spec: heads_spec(heads) }, false)
+        world.finish(Event::Prepare { client: Token::new(9), spec }, false)
     else {
         panic!("merged heads prepared")
     };
@@ -894,6 +906,7 @@ pub fn goal_later_run(case: Case) {
             account: None,
             push: Some(b"topic".as_slice().into()),
             expected: None,
+            delivered: None,
             landing: Some(b"main".as_slice().into()),
             save: Some(b"saved".as_slice().into()),
         }]),
@@ -1000,6 +1013,7 @@ fn design_start() -> (World, Vec<u8>, u64) {
             account: None,
             push: Some(b"g".as_slice().into()),
             expected: Some(translate::commit(world.ours)),
+            delivered: None,
             landing: Some(b"g".as_slice().into()),
             save: Some(b"saved".as_slice().into()),
         }]),
@@ -1166,5 +1180,297 @@ pub fn design_no_unchecked_save() {
     let saved = world.push(true, false);
     assert!(matches!(&*saved, [Landing::Landed { .. }]), "saved-work branch remains writable");
     assert_eq!(world.forge.branch(b"forge/temper", b"g"), Some(tip));
+    release_heads(&mut world);
+}
+
+fn catch_up_start() -> (World, Vec<u8>) {
+    let mut world = World::new(83, Case::Clean, 64);
+    let mut spec = heads_spec(&[world.ours]);
+    spec.repositories[0].landing = Some(b"main".as_slice().into());
+    let (_, at) = prepare_heads_spec(&mut world, spec);
+    world.forge.moves();
+    (world, at)
+}
+
+fn checkout_head(world: &World, at: &[u8]) -> u64 {
+    u64::from_le_bytes(
+        world.disk.content(&[at, b"/.git/temper-head"].concat()).expect("HEAD").try_into().expect("fake id"),
+    )
+}
+
+fn land_dependency(world: &mut World, ancestry: bool, conflict: bool) -> u64 {
+    let mut tree = world.expected.clone();
+    if conflict {
+        tree.insert(b"work".to_vec(), b"landed edit\n".to_vec());
+    }
+    let tip = world
+        .forge
+        .store(world.base, ancestry.then_some(world.ours), false, tree, b"Dependency landed")
+        .expect("a landing changes main");
+    assert_eq!(
+        world.forge.push(b"forge/temper", b"main", tip, Some(world.base)),
+        Ok(temper_fake_checkout::git::Pushed::Pushed)
+    );
+    world
+        .forge
+        .api(
+            b"forge/temper",
+            2,
+            skein_fake_forge_domain::api::Op::Write(skein_fake_forge_domain::api::Write::DeleteBranch {
+                branch: b"topic".as_slice().into(),
+            }),
+        )
+        .expect("dependency branch deleted");
+    assert_eq!(world.forge.branch(b"forge/temper", b"topic"), None);
+    assert_eq!(world.forge.merge_parent(tip), ancestry.then_some(world.ours));
+    world.forge.moves();
+    tip
+}
+
+fn start_delivery(world: &mut World, unchecked: bool) -> Request {
+    let hold = world.hold.expect("prepared");
+    let event = if unchecked {
+        Event::PushUnchecked { hold }
+    } else {
+        Event::Push {
+            hold,
+            message: Message { title: b"Producer work".as_slice().into(), body: b"Checked tree".as_slice().into() },
+        }
+    };
+    world.finish(event, false)
+}
+
+fn ask_dependency(world: &mut World, unchecked: bool) {
+    assert_eq!(
+        start_delivery(world, unchecked),
+        Request::DependencyLanded { client: Token::new(9), head: translate::commit(world.ours) }
+    );
+    assert_eq!(
+        world.trace.iter().filter(|line| line.starts_with("DependencyLanded")).count(),
+        1,
+        "exactly one question, no operation in flight"
+    );
+    assert_eq!(world.push_attempts, 0);
+}
+
+fn answer_dependency(world: &mut World, landed: bool) -> Box<[Landing]> {
+    let hold = world.hold.expect("waiting");
+    let answer = world.finish(Event::DependencyLanded { hold, landed }, false);
+    let Request::Pushed { outcome: Outcome::Pushed { landings }, .. } = answer else { panic!("push ends: {answer:?}") };
+    landings
+}
+
+fn assert_pin(world: &World, at: &[u8], tip: u64) {
+    assert_eq!(world.disk.content(&[at, b"/.git/refs/temper/landing"].concat()), Some(tip.to_le_bytes().as_slice()));
+}
+
+/// Squashed heads absent from the remote cause a local catch-up before another checked delivery.
+pub fn dependency_caught_up(unchecked: bool) {
+    for edited in [false, true] {
+        let (mut world, at) = catch_up_start();
+        let prepared = checkout_head(&world, &at);
+        if edited {
+            world.disk.write(&[at.as_slice(), b"/work"].concat(), b"producer work\n");
+        }
+        let tip = land_dependency(&mut world, false, false);
+        ask_dependency(&mut world, unchecked);
+        let landings = answer_dependency(&mut world, true);
+        let merge = checkout_head(&world, &at);
+        assert_pin(&world, &at, tip);
+        assert_eq!(world.pins, 2, "only prepare and catch-up move the pin");
+        assert_eq!(world.forge.merge_parent(merge), Some(tip));
+        let work = world.forge.parent(merge).expect("work is first");
+        if edited {
+            assert_eq!(world.forge.parent(work), Some(prepared));
+            assert_eq!(
+                world.forge.message(work),
+                if unchecked {
+                    b"Unchecked: work in progress, saved before a question".as_slice()
+                } else {
+                    b"Producer work\n\nChecked tree".as_slice()
+                }
+            );
+            assert_eq!(world.forge.tree(work).get(b"work".as_slice()), Some(&b"producer work\n".to_vec()));
+        } else {
+            assert_eq!(work, prepared, "an unchanged tree commits nothing before merging");
+        }
+        let mut expected = world.forge.tree(tip);
+        if edited {
+            expected.insert(b"work".to_vec(), b"producer work\n".to_vec());
+        }
+        assert_eq!(world.forge.tree(merge), expected);
+        assert_eq!(world.forge.message(merge), b"Merge main");
+        if unchecked {
+            assert_eq!(
+                &*landings,
+                &[Landing::CaughtUpSaved { commit: translate::commit(merge), tip: translate::commit(tip) }]
+            );
+            assert_eq!(world.forge.branch(b"forge/temper", b"early"), Some(merge));
+            let checked = world.push(false, false);
+            let [Landing::Landed { commit }] = &*checked else { panic!("checked delivery lands") };
+            assert_ne!(translate::fake(*commit), merge, "a checked delivery after a save makes a fresh commit");
+            assert_eq!(world.forge.parent(translate::fake(*commit)), Some(merge));
+        } else {
+            assert_eq!(&*landings, &[Landing::CaughtUp { tip: translate::commit(tip) }]);
+            assert_eq!(world.push_attempts, 0, "the checked tree preceded the merge: push nothing");
+            assert_eq!(world.forge.moves(), Vec::new());
+            assert_eq!(world.forge.branch(b"forge/temper", b"early"), None);
+            assert_eq!(&*world.push(false, false), &[Landing::Landed { commit: translate::commit(merge) }]);
+        }
+        let pushed = world.forge.branch(b"forge/temper", b"early").expect("delivery lands");
+        assert_eq!(world.forge.tree(pushed), expected);
+        release_heads(&mut world);
+    }
+}
+
+pub fn dependency_kept_ancestry() {
+    let (mut world, at) = catch_up_start();
+    world.disk.write(&[at.as_slice(), b"/work"].concat(), b"producer work\n");
+    let tip = land_dependency(&mut world, true, false);
+    let landings = world.push(false, false);
+    let [Landing::Landed { commit }] = &*landings else { panic!("reachable second parent lands") };
+    assert!(world.trace.iter().all(|line| !line.starts_with("DependencyLanded")));
+    assert_eq!(world.forge.tree(translate::fake(*commit)).get(b"work".as_slice()), Some(&b"producer work\n".to_vec()));
+    assert!(world.forge.is_ancestor(world.ours, tip));
+    assert_pin(&world, &at, world.base);
+    release_heads(&mut world);
+}
+
+pub fn dependency_catch_up_conflict() {
+    for unchecked in [false, true] {
+        let (mut world, at) = catch_up_start();
+        world.disk.write(&[at.as_slice(), b"/work"].concat(), b"producer work\n");
+        let tip = land_dependency(&mut world, false, true);
+        ask_dependency(&mut world, unchecked);
+        assert_eq!(
+            &*answer_dependency(&mut world, true),
+            &[Landing::CaughtUpConflict { files: Box::new([b"work".as_slice().into()]) }]
+        );
+        assert_eq!(
+            world.disk.content(&[at.as_slice(), b"/.git/MERGE_HEAD"].concat()),
+            Some(tip.to_le_bytes().as_slice())
+        );
+        let work = checkout_head(&world, &at);
+        assert_eq!(world.forge.branch(b"forge/temper", b"early"), None);
+        let Request::Pushed { outcome: Outcome::Pushed { landings }, .. } = start_delivery(&mut world, true) else {
+            panic!("save refused")
+        };
+        assert_eq!(&*landings, &[Landing::Conflicted { files: Box::new([b"work".as_slice().into()]) }]);
+        assert_eq!(world.push_attempts, 0);
+        world.disk.write(&[at.as_slice(), b"/work"].concat(), b"settled\n");
+        let landings = world.push(false, false);
+        let [Landing::Landed { commit }] = &*landings else { panic!("settled merge lands") };
+        let merge = translate::fake(*commit);
+        assert_eq!(world.forge.parent(merge), Some(work));
+        assert_eq!(world.forge.merge_parent(merge), Some(tip));
+        assert_pin(&world, &at, tip);
+        release_heads(&mut world);
+    }
+}
+
+fn assert_parent_refused(landings: &[Landing]) {
+    let [Landing::Explained { fault: Fault::Refused, diagnostic }] = landings else {
+        panic!("parent refused: {landings:?}")
+    };
+    assert_eq!(diagnostic.output(), b"delivery second parent is not reachable from the branch's remote");
+}
+
+pub fn dependency_not_landed() {
+    for unchecked in [false, true] {
+        let (mut world, at) = catch_up_start();
+        let head = checkout_head(&world, &at);
+        world.disk.write(&[at.as_slice(), b"/work"].concat(), b"producer work\n");
+        land_dependency(&mut world, false, false);
+        ask_dependency(&mut world, unchecked);
+        assert_parent_refused(&answer_dependency(&mut world, false));
+        assert_eq!(checkout_head(&world, &at), head, "refusal commits nothing");
+        assert_pin(&world, &at, world.base);
+        assert_eq!(world.forge.moves(), Vec::new());
+        assert_eq!(world.push_attempts, 0);
+        release_heads(&mut world);
+    }
+}
+
+pub fn non_starting_parent_refused() {
+    use temper_fake_checkout::git;
+    for committed in [false, true] {
+        let (mut world, at) = catch_up_start();
+        let head = checkout_head(&world, &at);
+        world.disk.write(&[at.as_slice(), b"/local"].concat(), b"unpushed\n");
+        let second = git::commit(&mut world.forge, &mut world.disk, &at, head, b"Unpushed")
+            .expect("parent present")
+            .expect("new tree");
+        git::check_out(&world.forge, &mut world.disk, &at, head).expect("head present");
+        git::merge(&world.forge, &mut world.disk, &at, second).expect("second present");
+        if committed {
+            git::commit_merging(&mut world.forge, &mut world.disk, &at, head, second, b"Local merge")
+                .expect("local merge");
+        }
+        let before = checkout_head(&world, &at);
+        assert_parent_refused(&world.push(false, false));
+        assert_eq!(checkout_head(&world, &at), before);
+        assert!(world.trace.iter().all(|line| !line.starts_with("DependencyLanded")));
+        assert_pin(&world, &at, world.base);
+        assert_eq!(world.forge.moves(), Vec::new());
+        release_heads(&mut world);
+    }
+}
+
+pub fn dependency_wait_interrupted() {
+    for stop in 0..3 {
+        let (mut world, at) = catch_up_start();
+        let head = checkout_head(&world, &at);
+        let hold = world.hold.expect("prepared");
+        // A late answer when no question is outstanding is dropped.
+        step(&mut world.domain, &world.env, Event::DependencyLanded { hold, landed: true }, &mut world.out);
+        assert!(world.out.is_empty());
+        world.disk.write(&[at.as_slice(), b"/work"].concat(), b"producer work\n");
+        land_dependency(&mut world, false, false);
+        ask_dependency(&mut world, false);
+        let event = match stop {
+            0 => Event::Abort { hold },
+            1 => Event::Release { hold },
+            2 => Event::Cut { hold },
+            _ => unreachable!(),
+        };
+        step(&mut world.domain, &world.env, event, &mut world.out);
+        assert_eq!(
+            world.out.pop(),
+            Some(Request::Pushed {
+                client: Token::new(9),
+                outcome: Outcome::Pushed { landings: Box::new([Landing::Aborted]) }
+            })
+        );
+        if stop == 1 {
+            assert_eq!(world.out.pop(), Some(Request::Released { client: Token::new(9) }));
+        }
+        assert!(world.out.is_empty(), "no operation or cancellation while waiting");
+        step(&mut world.domain, &world.env, Event::DependencyLanded { hold, landed: true }, &mut world.out);
+        assert!(world.out.is_empty(), "the interrupted answer is dropped too");
+        assert_eq!(checkout_head(&world, &at), head);
+        assert_pin(&world, &at, world.base);
+        assert_eq!(world.forge.moves(), Vec::new());
+        if stop != 1 {
+            release_heads(&mut world);
+        }
+    }
+}
+
+pub fn dependency_in_progress() {
+    use temper_fake_checkout::git;
+    let (mut world, at) = catch_up_start();
+    git::check_out(&world.forge, &mut world.disk, &at, world.base).expect("base present");
+    git::merge(&world.forge, &mut world.disk, &at, world.ours).expect("starting head present");
+    world.disk.write(&[at.as_slice(), b"/work"].concat(), b"producer work\n");
+    let tip = land_dependency(&mut world, false, false);
+    ask_dependency(&mut world, false);
+    assert_eq!(&*answer_dependency(&mut world, true), &[Landing::CaughtUp { tip: translate::commit(tip) }]);
+    let merge = checkout_head(&world, &at);
+    let work = world.forge.parent(merge).expect("work first");
+    assert_eq!(world.forge.parent(work), Some(world.base));
+    assert_eq!(world.forge.merge_parent(work), Some(world.ours), "the snapshot's in-progress parent is kept");
+    assert_eq!(world.forge.merge_parent(merge), Some(tip));
+    world.push(false, false);
+    assert_eq!(world.forge.branch(b"forge/temper", b"early"), Some(merge));
     release_heads(&mut world);
 }

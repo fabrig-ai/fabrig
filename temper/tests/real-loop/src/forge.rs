@@ -49,13 +49,14 @@ pub fn write(
     fixture: &Fixture,
     config: &mut temper_playground::documents::Configuration,
 ) -> std::io::Result<()> {
-    let mut agent: serde_json::Value = serde_json::from_slice(&std::fs::read(scratch.join("agent.json"))?)?;
+    let mut agent: serde_json::Value = serde_json::from_slice(&std::fs::read(scratch.join("world-agent.json"))?)?;
     config["application"]["webhooks"] = serde_json::json!({"listener":{"socket":"127.0.0.1:0"}});
 
     (fixture.configure)(config, &mut agent, forge);
     fixtures::turn_bounds::apply(config, fixtures::turn_bounds::turn_body(&agent));
+    temper_agent_fixtures::apply(config, scratch, &agent);
     fixtures::finish_configuration(scratch, config)?;
-    fixtures::private(&scratch.join("agent.json"), &serde_json::to_vec(&agent)?)
+    fixtures::private(&scratch.join("world-agent.json"), &serde_json::to_vec(&agent)?)
 }
 /// The outside forge API at each change of its branches or open pulls.
 pub struct Snapshot {
@@ -229,8 +230,10 @@ impl Seen {
             }
             self.observations.push(observed);
         }
-        // Every forge change is observed; unchanged passes need no outside API read.
-        if self.snapshots.is_empty() || self.observations.len() != previous {
+        // Every forge change, including CI completion, is observed. Unchanged
+        // passes need neither a branch snapshot nor a dispatch listing.
+        let changed = self.snapshots.is_empty() || self.observations.len() != previous;
+        if changed {
             let forge = handle.borrow();
             let branches: Box<[_]> =
                 forge.domain.branches(repository).iter().map(|(name, head)| (name.clone(), *head)).collect();
@@ -253,7 +256,9 @@ impl Seen {
                 self.snapshots.push(Snapshot { at: now, branches, pulls });
             }
         }
-        self.read_dispatches(repository)?;
+        if changed {
+            self.read_dispatches(repository)?;
+        }
         self.collect_deliveries(peer.observations())
     }
     fn collect_deliveries(&mut self, records: &[Observation]) -> Result<(), String> {

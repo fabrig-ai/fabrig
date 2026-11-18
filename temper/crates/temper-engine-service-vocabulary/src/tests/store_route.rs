@@ -697,7 +697,12 @@ fn window_turns_past_store_row_or_page_room_are_carried_cut() {
         let mut limits = limits;
         limits.loads.bytes = page_bound;
         let bounds = temper_protocol_store::bounds(&limits.forge, limits.tasks.spec_bytes).unwrap();
-        let mut routes = route::Routes::new(2, &limits, bounds);
+        let mut routes = route::Routes::new(
+            2,
+            &limits,
+            bounds,
+            skein_lib::CryptoRng::new(&skein_lib::Secret::new(Box::new([7; 32])), 1).unwrap(),
+        );
         let range = engine::Range::Core(engine::CoreRange::TaskTranscript { task: 7, from: (1, 1) });
         let mut after = None;
         let large = window_turn(if prefix { 2 } else { 1 }, if store_cut { 0 } else { bytes });
@@ -940,11 +945,24 @@ fn patch_sites_return_the_machine_with_the_missing_site_and_progress_is_not_a_ro
 
 #[test]
 fn job_pages_reach_their_owners_and_progress_is_not_a_root_event() {
+    let (root, core, mut limits) = fixtures::store_limits();
+    limits.core = core;
+    let application = temper_protocol_store::application(&root.forge, root.tasks.spec_bytes).unwrap();
+    let mut component = store::Store::over(
+        &limits,
+        application,
+        &[],
+        store::Stores {
+            store: skein_kv::Store::memory(&limits.store),
+            secrets: skein_kv::Store::memory(&limits.secrets),
+        },
+    );
     let mut routes = fixtures::routes();
     let mut out = Queue::with_capacity(4);
     for (of, words) in [(store::Owner::Jig, "no such jig job"), (store::Owner::Application, "no such temper job")] {
-        route::up(
+        route::site(
             &mut routes,
+            &mut component,
             store::Event::Job {
                 owner: fixtures::OWNER,
                 of,
@@ -1074,7 +1092,12 @@ fn startup_deep_byte_cut_fails_before_any_fitting_prefix_is_handed_off() {
     // A smaller per-record entrance exercises the cut without raising any budget.
     limits.loads.transcript_bytes = 1;
     let bounds = temper_protocol_store::bounds(&limits.forge, limits.tasks.spec_bytes).unwrap();
-    let mut routes = route::Routes::new(2, &limits, bounds);
+    let mut routes = route::Routes::new(
+        2,
+        &limits,
+        bounds,
+        skein_lib::CryptoRng::new(&skein_lib::Secret::new(Box::new([7; 32])), 1).unwrap(),
+    );
     let Some(store::Request::Restore { owner, .. }) =
         route::down(&mut routes, load(engine::Range::Forge, None, 4, 8192))
     else {

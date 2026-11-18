@@ -42,6 +42,7 @@ fn an_adoption_round_trips_through_the_family_record() {
             | w::Request::SetAway(_)
             | w::Request::Overturn(_)
             | w::Request::Looked(_)
+            | w::Request::Checkpoint
             | w::Request::EndPlayground => {
                 panic!("expected adoption")
             }
@@ -78,7 +79,17 @@ fn adopted(protection: w::Protection) -> w::Outcome {
                 home: true,
                 kinds: w::Kinds::new(
                     &limits,
-                    w::KindsParts { skein_bools: [true, false, true, false, true, false, true, false, true] },
+                    w::KindsParts {
+                        read: true,
+                        push: false,
+                        open: true,
+                        land: false,
+                        review: true,
+                        status: false,
+                        comment: true,
+                        issue: false,
+                        branch: true,
+                    },
                 )
                 .expect("kinds fit"),
                 protection,

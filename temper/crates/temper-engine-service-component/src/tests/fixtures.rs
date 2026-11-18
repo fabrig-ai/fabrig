@@ -25,10 +25,6 @@ pub const ENGINE: &[u8] = br#"{
 }]
 },
 "hosts": {
-"workers": [
-{"name": "worker-a", "digest": "secrets/worker-a.digest"},
-{"name": "worker-b", "digest": "secrets/worker-b.digest"}
-],
 "listener": [{"in_process": "workers"}]
 },
 "clients": {
@@ -100,6 +96,22 @@ fn small_limits() -> limits::Limits {
     own.root.journal.run_bytes = 32_768;
     own.root.transcript_memory = 1_152_921_504_606_846_976;
     own
+}
+
+pub fn opening_workers() -> Box<[jig_domain_core::settings::WorkerSetting]> {
+    let mut workers = skein_lib::List::with_capacity(2);
+    for (number, name) in [(1, b"worker-a".as_slice()), (2, b"worker-b".as_slice())] {
+        workers
+            .push(jig_domain_core::settings::WorkerSetting {
+                number,
+                name: name.into(),
+                places: 1,
+                digest: Some([7; 32]),
+                withdrawn: false,
+            })
+            .expect("two opening fixture workers");
+    }
+    workers.into_boxed()
 }
 
 pub fn small_model() -> jig_domain_core::settings::CatalogueModel {
@@ -409,6 +421,7 @@ pub fn completed_store() -> crate::store::Store {
                 root::Request::ToChild(released) => root::step(&mut domain, &env, root::Event::Released(released)),
                 root::Request::Store(request) => assert!(store.down(request)),
                 root::Request::ForgeKept(_)
+                | root::Request::Worker(root::WorkerRequest::Settings(_))
                 | root::Request::Party(root::PartyRequest::Catalogue { .. })
                 | root::Request::Account(jig_domain_accounts::Request::Signing(
                     jig_domain_accounts::Signing::Restored,
@@ -489,6 +502,7 @@ pub(crate) fn records_store_from(mut maps: jig_protocol_store::Stores) -> crate:
     );
     assert!(store.host.component.wires(&crate::store::WIRES));
     store.host.ask(jig_protocol_store::Request::Open {
+        purpose: jig_protocol_store::Purpose::Serve,
         owner: OWNER,
         root: jig_protocol_store::Root { token: OWNER, fd: skein_io::kernel::Fd::new(1) },
         installation: seeds().installation,
@@ -515,7 +529,7 @@ pub(super) fn memory_store_for(
     models: &[jig_domain_core::Model],
 ) -> crate::store::Store {
     let limits = crate::store::limits(root, &root.forge, profile).expect("checked store limits");
-    let mut store = crate::store::Store::new(root, &limits, models, seeds().installation);
+    let mut store = crate::store::Store::new(root, &limits, models, &seeds());
     store.host.component = jig_protocol_store::Store::over(
         &limits,
         temper_protocol_store::application(&root.forge, root.tasks.spec_bytes).expect("application sizes"),
@@ -527,6 +541,7 @@ pub(super) fn memory_store_for(
     );
     assert!(store.host.component.wires(&crate::store::WIRES));
     store.host.ask(jig_protocol_store::Request::Open {
+        purpose: jig_protocol_store::Purpose::Serve,
         owner: OWNER,
         root: jig_protocol_store::Root { token: OWNER, fd: skein_io::kernel::Fd::new(1) },
         installation: seeds().installation,
@@ -668,9 +683,6 @@ pub fn seeds() -> settings::Seeds {
 /// The worker digests the engine document names.
 pub fn fill_files(settings: &mut settings::Engine) {
     settings.files.entries = skein_lib::List::with_capacity(2);
-    for worker in &settings.jig.hosts.workers {
-        settings.files.entries.push((worker.digest.clone(), Secret::new(WORKER_DIGEST.into()))).unwrap();
-    }
 }
 pub fn started_with_two_forges() -> crate::Service {
     start_with_store_options(&[(1, 100)], None, true, false)
@@ -698,7 +710,7 @@ fn start_with_store_options(
     start_configured(engine(), projects, stored, two_forges, under_box)
 }
 // The durable first start and service fixtures use the same configuration.
-fn start_settings(mut settings: settings::Engine, projects: &[(u32, u64)]) -> settings::Engine {
+pub(super) fn start_settings(mut settings: settings::Engine, projects: &[(u32, u64)]) -> settings::Engine {
     settings.jig.limits.core.people.operations = 2;
     settings.jig.limits.core.tasks.tasks = 2;
     settings.jig.limits.core.tasks.exemptions = 2;
@@ -715,7 +727,7 @@ fn start_settings(mut settings: settings::Engine, projects: &[(u32, u64)]) -> se
     settings.jig.limits.core.fleet.workers = 2;
     settings.jig.limits.core.fleet.attempts = 2;
     settings.jig.limits.core.fleet.calls = 2;
-    settings.jig.limits.core.fleet.slots = 1;
+    settings.jig.limits.core.fleet.slots = 4;
     settings.limits.root.journal.deliveries = 128;
     settings.limits.root.journal.held = 384;
     settings.limits.root.journal.writes = 8192;
@@ -906,6 +918,7 @@ pub fn repository(repository: u32, owner: &[u8], name: &[u8]) -> temper_engine_d
         start: temper_engine_domain::ForgeStart::Base(b"main".as_slice().into()),
         push: Some(b"temper/task-7".as_slice().into()),
         landing: None,
+        delivered: None,
         identity: 1,
     }
 }
@@ -997,29 +1010,11 @@ pub fn answer(ending: jig_domain_host::Ending) -> jig_domain_host::LinkUp {
     }
 }
 
-pub const WORKER_DIGEST: &[u8] = b"0000000000000000000000000000000000000000000000000000000000000000";
-/// Inert digest contents for the workers named by these settings.
-pub fn worker_digests(settings: &settings::Engine) -> settings::Files {
-    let mut entries = skein_lib::List::with_capacity(u32::try_from(settings.jig.hosts.workers.len()).unwrap());
-    for worker in &settings.jig.hosts.workers {
-        entries.push((worker.digest.clone(), Secret::new(WORKER_DIGEST.into()))).unwrap();
-    }
-    settings::Files { entries }
-}
-
 pub fn workers() -> crate::workers::Workers {
     let settings = engine();
     let encoding = encoding(&settings);
     let limits = crate::workers::limits(&settings).unwrap();
-    crate::workers::Workers::new(
-        &settings.jig,
-        &worker_digests(&settings),
-        encoding,
-        forges(),
-        settings.limits.forge.forges,
-        &limits,
-    )
-    .unwrap()
+    crate::workers::Workers::new(&settings.jig, encoding, forges(), &settings.limits, &limits).unwrap()
 }
 
 pub fn settle_root(
@@ -1116,7 +1111,8 @@ fn restored_key() -> crate::Service {
     use jig_domain_accounts::{Holder, Kind, Stored};
     use jig_protocol_store::{SecretOwner, Secrets};
     use temper_engine_domain::{Record, Write};
-    let mut store = records_store();
+    // The completed store can accept the key directly, without a records-fixture reopen.
+    let mut store = completed_store();
     let mut writes = skein_lib::List::with_capacity(3);
     for row in [
         Stored::Account {
@@ -1157,6 +1153,7 @@ fn signed_worker_on(channel: Token) -> crate::Service {
     use temper_engine_domain as root;
     let mut service = restored_key();
     service.engine.as_mut().expect("engine").step(root::Event::Party(root::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: skein_lib::ReplyTo::new(Token::new(100)),
         identity: jig_domain_people::Identity {
@@ -1381,6 +1378,7 @@ pub fn reopened_store(mut store: crate::store::Store, root: &temper_engine_domai
     );
     assert!(store.host.component.wires(&crate::store::WIRES));
     store.host.ask(jig_protocol_store::Request::Open {
+        purpose: jig_protocol_store::Purpose::Serve,
         owner: OWNER,
         root: jig_protocol_store::Root { token: OWNER, fd: skein_io::kernel::Fd::new(1) },
         installation: seeds().installation,
@@ -1801,6 +1799,7 @@ fn exchange_secrets(store: &mut crate::store::Store, secrets: &mut skein_kv::Sto
 fn open_seeded(store: &mut crate::store::Store) {
     assert!(store.host.component.wires(&crate::store::WIRES));
     store.host.ask(jig_protocol_store::Request::Open {
+        purpose: jig_protocol_store::Purpose::Serve,
         owner: OWNER,
         root: jig_protocol_store::Root { token: OWNER, fd: skein_io::kernel::Fd::new(1) },
         installation: seeds().installation,
@@ -1874,7 +1873,7 @@ pub fn forge_connecting(
     request: temper_client_protocol_wire::v1::Request,
     bundle: Secret,
 ) {
-    use jig_client_protocol_wire::v28 as j;
+    use jig_client_protocol_wire as j;
     use skein_lib::Reader;
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let record = wire::requesting(&w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap());

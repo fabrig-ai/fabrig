@@ -60,6 +60,28 @@ impl Compaction {
         }
     }
 
+    pub(super) fn renaming(&self) -> bool {
+        match self {
+            Self::Rename { .. } => true,
+            Self::Idle
+            | Self::Due { .. }
+            | Self::Create { .. }
+            | Self::RemoveTemp { .. }
+            | Self::Header { .. }
+            | Self::Chunk { .. }
+            | Self::Trailer { .. }
+            | Self::Sync { .. }
+            | Self::Close { .. }
+            | Self::SyncDirectory { .. }
+            | Self::RemoveOld { .. }
+            | Self::CleanupSyncDirectory => false,
+        }
+    }
+
+    pub(super) fn runnable(&self, held: bool) -> bool {
+        !(self.is_idle() || held && self.renaming())
+    }
+
     pub(super) fn is_idle(&self) -> bool {
         match self {
             Self::Idle => true,
@@ -111,6 +133,9 @@ pub(super) fn fire_ready(
     if !store.queue.is_empty() {
         return store.start_batch(dir, log, &env.limits, below);
     }
+    if store.hold.placed() && dir.compaction.renaming() {
+        return dir.at(Phase::Ready { log });
+    }
     dir.compaction = match mem::replace(&mut dir.compaction, Compaction::Idle) {
         Compaction::Idle => return idle(store, dir, log, env, below),
         Compaction::Due { .. } => unreachable!("the starting segment is announced before Ready"),
@@ -134,7 +159,7 @@ pub(super) fn fire_ready(
 fn idle(store: &mut Store, mut dir: Dir, log: Log, env: &Env<Limits>, below: &mut Queue<file::Request>) -> State {
     if dir.close_owner.is_some() {
         super::close_ready(store, dir, log, env, below)
-    } else if dir.log_bytes >= env.limits.snapshot_bound(store.map.live()) {
+    } else if !store.hold.placed() && dir.log_bytes >= env.limits.snapshot_bound(store.map.live()) {
         dir.compaction = Compaction::Due { start: store.last.checked_add(1).expect("commit number did not overflow") };
         below.push(file::Request::Close { owner: IO_OWNER, file: log.file });
         dir.at(Phase::RolloverClosing)
@@ -284,7 +309,10 @@ pub(super) fn finished(store: &mut Store, mut dir: Dir, log: Log, step: &mut Ste
         Compaction::Trailer { written } => trailer_written(written),
         Compaction::Sync { start, file } => synced(start, file),
         Compaction::Close { start, .. } => closed(start),
-        Compaction::Rename { start } => renamed(start),
+        Compaction::Rename { start } => {
+            dir.snapshot_start = Some(start);
+            renamed(start)
+        }
         Compaction::SyncDirectory { start } => directory_synced(store, &mut dir, start, step),
         Compaction::RemoveOld { start } => old_removed(start),
         Compaction::CleanupSyncDirectory => cleanup_synced(),
@@ -350,6 +378,7 @@ fn cleanup_synced() -> Compaction {
 pub(super) fn failed(store: &mut Store, mut dir: Dir, log: Log, error: Error, step: &mut Step<'_>) -> State {
     let compaction = mem::replace(&mut dir.compaction, Compaction::Idle);
     if let Some(file) = compaction.file() {
+        store.end_hold(step.above);
         return failure_closing(dir, log, file, step.below);
     }
     match compaction {

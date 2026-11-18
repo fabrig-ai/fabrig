@@ -180,7 +180,11 @@ impl World {
 
     /// Advance the injected clock; schedule deliveries precede same-time timers.
     pub fn at(&mut self, seconds: u64) {
-        let now = Time::ZERO.saturating_add(Duration::from_secs(seconds));
+        self.at_time(Time::ZERO.saturating_add(Duration::from_secs(seconds)));
+    }
+
+    /// Advance to an exact injected instant, delivering records before same-time timers.
+    pub fn at_time(&mut self, now: Time) {
         assert!(now >= self.stage.env.now);
         self.stage.tick(now);
         while let Some(event) = self.schedule.next(now) {

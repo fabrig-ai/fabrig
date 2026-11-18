@@ -303,6 +303,12 @@ temper's workspace items beside it:
     comparison for existing work, separate from the checkout start and the
     push's expected head; and on a merge in progress it marks a producer's
     start, as a goal's later run's does (`checkouts.md`);
+  - the task's own delivery, for a writable repository: the head of this
+    task's last checked push to its push branch, as the engine recorded
+    it (`../forge/change/questions.md`, 1, *A checked head*), or none; a
+    new hold starting on it holds the task's delivered work, so a
+    delivery with nothing new pushes it again (`checkouts.md`, *A task's
+    own delivery outlives its hold*);
   - the identity for every git operation on it: one of temper's
     application credentials (jig's `domain/engine/README.md`, 6.1), granted
     with the assignment, which the protocol layer maps to a token and a
@@ -435,6 +441,14 @@ jig's types (jig's `domain/hosts/hub.md`, 3), with temper's detail:
 - **The run failed,** the **agent failed,** or the run was
   **cancelled,** as jig's say, each with bounded detail for operators
   that no LLM is shown.
+- **A program that started without smith's tools,** smith's
+  `ModelFault::Untooled` (smith's `protocol/programs.md`, 5.6), is
+  jig's `RunFailure::Untooled` with `model` none (jig's
+  `domain/hosts/hub.md`, 3), a fault of its place, the program source's
+  login on this worker: the engine keeps the task off that place
+  without spending a try (jig's `domain/engine/fleet.md`). Its detail
+  is a program fault's, naming the program and carrying smith's line.
+  Every other program fault stays jig's `RunFailure::Model`.
 
 When the hub accepts a run's failed or refused answer, serve writes one operator line
 on stderr, which the box keeps in `<data>/box/logs/serve.log`
@@ -453,6 +467,25 @@ until the sink drains. In-process and socket workers share this
 path. The evidence is volatile operator output, outside turns, facts,
 `TaskResult` and the review's reason sentence; no wire or stored field
 carries an extra copy.
+
+**An agent its host kit stops** (each of jig's agent failures: no
+progress, wall time, a broken rule, an exit, an agent never started) is
+logged by the worker as the kit reports the fault, before the run's
+tree is gone and its answer goes up. The line's time is when the kit
+stopped the agent; the engine's record of the failure is written once
+the attempt concludes, which may be much later.
+
+```
+<binary> worker: run <run> attempt <attempt> agent stopped <failure>
+```
+
+`<failure>` is jig's agent failure as serve's line writes it
+(`Agent(NoProgress)`). A stop for no progress ends `: no progress for
+<ms> ms`, the run's no-progress deadline as its host limits derive it
+(smith's `domain/host.md`, section 4). The line goes through the
+worker's notes (`worker_alone`'s `Note`), which its shell writes, as a
+failed preparation's does (`checkouts.md`, 1.3), once per attempt: a
+kept answer sent again after a relink logs none.
 
 **A configured model-call bound** is reported as jig's
 `RunFailure::Exceeded(Exceeded { bound, value })`. Smith's
@@ -543,10 +576,11 @@ process has exited and its tree is empty. temper's choices:
   ), smith's agent shell. temper builds no code into it.
 - **Pinned at the worker's start,** so an agent is always its worker's
   build and smith's channel never spans two (`../../draft/redeploys.md`,
-  4.4). As it starts, before its loop, the worker reads the agent's
-  configuration once, checks it and takes its bounds from it
-  (`../../protocol/configuration/README.md`, section 4), then writes
-  those same bytes, and a copy of the program its `agent` member names,
+  4.4). As it starts, before its loop, the worker writes the agent's
+  configuration from its engine's figures, checks it and takes its
+  bounds from it (`../../protocol/configuration/README.md`, section 4;
+  `../../protocol/configuration/figures.md`, section 6), then writes
+  those same bytes, and a copy of its derived agent program,
   into `agent/` under its root directory (`../../protocol/git.md`,
   section 2), afresh at each start, the previous copies removed first.
   The program's copy keeps its file name and is executable by the
@@ -730,6 +764,13 @@ among temper's tiers and keeps their fakes.
   lands but times out; a first hold pushing, releasing, and a new hold
   delivering the same existing diff without another edit; landing ancestry,
   missing landing branches, moved remote heads and unchanged save semantics.
+  Those stories run on the fakes, a domain world's, and are a binary of
+  their own, `fakes`, in the domain layer, their CPU budget moved down
+  with them (`tools/tiers/budgets.md`, 10). The stories that run real git
+  against an owned Forgejo (a design's and a change's delivery reaching
+  their landing branch, and a moved goal) stay the binary `suite`, in the
+  real loop's layer (skein/docs/foundation/testing-strategy.md, 2.8 and
+  8.1: a binary's tests are in one tier).
 - **The worker's world** (`tests/worker/domain`): jig's hub, smith's host
   domain and the checkout, against scripted engine and agent peers, the
   protocol layer's routing played with smith's codecs, and the fake

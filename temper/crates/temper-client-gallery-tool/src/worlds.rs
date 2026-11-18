@@ -721,6 +721,45 @@ fn world_in_layout(
     let mut settings_watch = None;
     let settings_chat = settings.filter(|name| name.starts_with("ask-chat-"));
     let mut playground_read = false;
+    let hello_me = {
+        let mut me = frame(w, connecting, asking);
+        if role_talk {
+            me.party.number = 3;
+        }
+        if let Some(name) = settings.filter(|name| ways::is_how(name)) {
+            ways::frame(&mut me, name);
+        }
+        if matches!(then, Then::Sheet(Confirmation::CloseWork | Confirmation::CloseFailed)) {
+            me.projects.get_mut(0).expect("project").templates.get_mut(0).expect("chat template").grace =
+                Some(Duration::from_secs(5));
+        }
+        if matches!(then, Then::Mode(_) | Then::DraftEmpty) {
+            let templates = me.projects.get(0).expect("draft project").templates.clone();
+            ask_frame(&mut me);
+            me.projects.get_mut(0).expect("draft project").templates = templates;
+        }
+        if settings_chat.is_some() {
+            settings_chat_frame(&mut me);
+        }
+        if settings == Some("ask-ways-member") {
+            me.projects.get_mut(0).expect("ways project").role = c::HeldRole::Member;
+            me.deployment_role = None;
+        }
+        if let Then::Hosts { role: false, .. } = then {
+            me.deployment_role = None;
+        }
+        if let Then::Models { one_account, state } = then {
+            models_frame(&mut me, one_account, state);
+        }
+        if let Some(name) = picker {
+            picker::frame(&mut me, name);
+        }
+        if goals == Some("no-project") {
+            me.projects.clear();
+        }
+        c::Delivery::Me(Box::new(me))
+    };
+    deliver(&mut root, Token::new(0), hello_me, &mut out);
     // Every response answers an open/read, including the playground family read.
     for _ in 0_u32..256 {
         let Some(request) = out.pop() else { break };
@@ -728,49 +767,6 @@ fn world_in_layout(
             match down {
                 jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(subject) } => {
                     let document = match subject {
-                        c::Subject::Me => {
-                            let mut me = frame(w, connecting, asking);
-                            if role_talk {
-                                me.party.number = 3;
-                            }
-                            if let Some(name) = settings.filter(|name| ways::is_how(name)) {
-                                ways::frame(&mut me, name);
-                            }
-                            if matches!(then, Then::Sheet(Confirmation::CloseWork | Confirmation::CloseFailed)) {
-                                me.projects
-                                    .get_mut(0)
-                                    .expect("project")
-                                    .templates
-                                    .get_mut(0)
-                                    .expect("chat template")
-                                    .grace = Some(Duration::from_secs(5));
-                            }
-                            if matches!(then, Then::Mode(_) | Then::DraftEmpty) {
-                                let templates = me.projects.get(0).expect("draft project").templates.clone();
-                                ask_frame(&mut me);
-                                me.projects.get_mut(0).expect("draft project").templates = templates;
-                            }
-                            if settings_chat.is_some() {
-                                settings_chat_frame(&mut me);
-                            }
-                            if settings == Some("ask-ways-member") {
-                                me.projects.get_mut(0).expect("ways project").role = c::HeldRole::Member;
-                                me.deployment_role = None;
-                            }
-                            if let Then::Hosts { role: false, .. } = then {
-                                me.deployment_role = None;
-                            }
-                            if let Then::Models { one_account, state } = then {
-                                models_frame(&mut me, one_account, state);
-                            }
-                            if let Some(name) = picker {
-                                picker::frame(&mut me, name);
-                            }
-                            if goals == Some("no-project") {
-                                me.projects.clear();
-                            }
-                            Some(c::Delivery::Me(Box::new(me)))
-                        }
                         c::Subject::Accounts => {
                             accounts_watch = Some(watch);
                             let mut doc = accounts(w, then);
@@ -808,7 +804,7 @@ fn world_in_layout(
                             } else if query.tracked == Some(true) {
                                 goal_window(w, window, goals)
                             } else {
-                                task_window(w, window)
+                                task_window(w, window, goals == Some("chats-drafts"))
                             };
                             if asking_chat {
                                 for row in tasks.rows.iter_mut() {
@@ -889,6 +885,7 @@ fn world_in_layout(
                             let mut doc = deployment(w);
                             if let Then::Hosts { connected: true, .. } = then {
                                 doc.hosts = builders();
+                                doc.worker_settings = worker_settings(now(w));
                             }
                             Some(c::Delivery::Deployment(Box::new(doc)))
                         }
@@ -931,7 +928,7 @@ fn world_in_layout(
                                 goals.filter(|name| name.starts_with("chat-work-")).map(chat_work::run)
                             }
                         }
-                        c::Subject::Terminal { .. } | c::Subject::Chips { .. } => None,
+                        c::Subject::Me | c::Subject::Terminal { .. } | c::Subject::Chips { .. } => None,
                     };
                     if let Some(document) = document {
                         deliver(&mut root, watch, document, &mut out);
@@ -1020,8 +1017,11 @@ fn world_in_layout(
                                     Some(settings_bytes(name, setting.kind()))
                                 }
                             });
-                            let value = v1::SettingAnswer::new(&v1::CEILINGS, v1::SettingAnswerParts { value: bytes })
-                                .expect("stock setting");
+                            let value = v1::SettingAnswer::new(
+                                &v1::CEILINGS,
+                                v1::SettingAnswerParts { revision: None, value: bytes },
+                            )
+                            .expect("stock setting");
                             step(
                                 &mut root,
                                 Event::Client {
@@ -1651,6 +1651,7 @@ fn change_panel(w: World, task: u64) -> Option<temper_client_protocol_wire::v1::
         w::ChangePanel::new(
             &l,
             w::ChangePanelParts {
+                wait: None,
                 source: None,
                 way: w::Way::Queue,
                 in_landing: None,
@@ -1831,6 +1832,7 @@ fn finish_document(mut t: c::Task) -> c::Task {
 }
 fn task_line(t: c::Task) -> c::TaskLine {
     c::TaskLine {
+        parts: List::with_capacity(0),
         ended_at: if t.chip.phase == c::Phase::Ended || t.chip.phase == c::Phase::Done {
             Some(t.last_activity)
         } else {
@@ -1853,7 +1855,7 @@ fn task_line(t: c::Task) -> c::TaskLine {
         conversation: None,
     }
 }
-fn chat_rows(w: World, ended: bool) -> List<c::TaskLine> {
+fn chat_rows(w: World, ended: bool, drafts: bool) -> List<c::TaskLine> {
     let numbers: &[u64] = match (w, ended) {
         (Reference | FirstRun { step: 2 | 3 }, false) | (Solo, true) => &[1],
         (Reference, true) => &[3, 2],
@@ -1863,7 +1865,18 @@ fn chat_rows(w: World, ended: bool) -> List<c::TaskLine> {
     };
     let mut rows = List::with_capacity(u32::try_from(numbers.len()).expect("small chats"));
     for number in numbers {
-        rows.push(task_line(document(w, *number))).expect("row");
+        let mut row = task_line(document(w, *number));
+        let document = if drafts {
+            match number {
+                1 => Some(b"Away mode".as_slice()),
+                3 => Some(b"Report format".as_slice()),
+                _ => None,
+            }
+        } else {
+            None
+        };
+        row.parts = List::from_boxed(Box::new([documents::chat_part(document)]));
+        rows.push(row).expect("row");
     }
     rows
 }
@@ -2030,6 +2043,7 @@ fn read_value(w: World, what: &c::Read, then: Then, goals: Option<&str>) -> Opti
                 }
             }
             Some(c::ReadValue::Tasks(Box::new(c::TaskPage {
+                ended_mark: 0,
                 live: rows,
                 live_after: None,
                 ended: c::EndedGroup::None,
@@ -2041,24 +2055,6 @@ fn read_value(w: World, what: &c::Read, then: Then, goals: Option<&str>) -> Opti
         c::Read::Notes { scope, .. } => Some(c::ReadValue::Notes(Box::new(
             if let Some(name) = goals.filter(|name| name.starts_with("remembered-")) {
                 remembered_notes(name, scope)
-            } else if goals == Some("chats-drafts") && *scope == (c::NoteScope::Tasks { project: PROJECT }) {
-                let mut rows = List::with_capacity(2);
-                for (task, title) in [(1, "Away mode"), (3, "Report format")] {
-                    rows.push(c::Note {
-                        number: 1,
-                        revision: c::Revision { value: 1 },
-                        scope: c::NoteScope::Task { project: PROJECT, task },
-                        description: doc(title),
-                        body: c::DocumentText { bytes: text(""), cut: true },
-                        writer: c::NoteAuthor::Task { task, attempt: 1 },
-                        tasks: List::with_capacity(0),
-                        changed: None,
-                        acts: List::with_capacity(0),
-                        cut: false,
-                    })
-                    .expect("chat document");
-                }
-                c::NotePage { rows, before: None, after: None, cut: false }
             } else if matches!(then, Then::Mode(_) | Then::Sheet(Confirmation::StartOver))
                 && *scope == (c::NoteScope::Task { project: PROJECT, task: 10 })
             {
@@ -2084,15 +2080,17 @@ fn read_value(w: World, what: &c::Read, then: Then, goals: Option<&str>) -> Opti
                 }
             }
             Some(c::ReadValue::Tasks(Box::new(c::TaskPage {
+                ended_mark: 0,
                 live: List::with_capacity(0),
                 live_after: None,
                 ended: c::EndedGroup::Rows { rows, after: None, cut: false },
             })))
         }
         c::Read::Tasks { .. } => Some(c::ReadValue::Tasks(Box::new(c::TaskPage {
+            ended_mark: 0,
             live: List::with_capacity(0),
             live_after: None,
-            ended: c::EndedGroup::Rows { rows: ended_rows(w), after: None, cut: false },
+            ended: c::EndedGroup::Rows { rows: ended_rows(w, goals == Some("chats-drafts")), after: None, cut: false },
         }))),
         c::Read::Task { task: number } => Some(c::ReadValue::Task(Box::new(shown_task(w, *number, then)))),
         c::Read::ActivityBeside { .. } => Some(c::ReadValue::Activity(Box::new(c::ActivityPage {
@@ -2386,6 +2384,10 @@ fn goal_line(w: World, f: &GoalFacts) -> c::TaskLine {
     task.last_activity = offset(w, f.at);
     task.changed = task.last_activity;
     let mut line = task_line(finish_document(task));
+    line.parts = List::from_boxed(Box::new([documents::goal_part(
+        f.headline.map(|headline| (headline.as_bytes(), offset(w, f.at))),
+        None,
+    )]));
     line.delegates_done = f.done;
     line.delegates_total = f.total;
     let (phase, details) = owner(&mut line.chip);
@@ -2465,7 +2467,7 @@ pub(super) fn goal_window(w: World, window: u32, name: Option<&str>) -> c::Tasks
             }
         }
     }
-    c::Tasks { rows, more }
+    c::Tasks { rows, more, ended_mark: 0 }
 }
 fn goal_page(w: World, name: Option<&str>) -> c::TaskPage {
     let mut rows = List::with_capacity(limits().client.domain.rows);
@@ -2481,6 +2483,7 @@ fn goal_page(w: World, name: Option<&str>) -> c::TaskPage {
         }
     }
     c::TaskPage {
+        ended_mark: 0,
         live: List::with_capacity(0),
         live_after: None,
         ended: c::EndedGroup::Rows {
@@ -2917,12 +2920,13 @@ impl GoalPage {
                 let rows = List::from_boxed(Box::new([line]));
                 let page = if goal_ended(&self.facts) {
                     c::TaskPage {
+                        ended_mark: 0,
                         live: List::with_capacity(0),
                         live_after: None,
                         ended: c::EndedGroup::Rows { rows, after: None, cut: false },
                     }
                 } else {
-                    c::TaskPage { live: rows, live_after: None, ended: c::EndedGroup::None }
+                    c::TaskPage { ended_mark: 0, live: rows, live_after: None, ended: c::EndedGroup::None }
                 };
                 Some(c::ReadValue::Tasks(Box::new(page)))
             }
@@ -2935,6 +2939,7 @@ impl GoalPage {
                     }
                 }
                 Some(c::ReadValue::Tasks(Box::new(c::TaskPage {
+                    ended_mark: 0,
                     live: List::with_capacity(0),
                     live_after: None,
                     ended: c::EndedGroup::Rows { rows, after: None, cut: false },
@@ -4441,18 +4446,18 @@ fn base_task(number: u64, title: &str) -> c::Task {
         run_wait: None,
     }
 }
-fn task_window(w: World, window: u32) -> c::Tasks {
-    let all = chat_rows(w, false);
+fn task_window(w: World, window: u32, drafts: bool) -> c::Tasks {
+    let all = chat_rows(w, false, drafts);
     let mut rows = List::with_capacity(window);
     for row in &all {
         if rows.len() < window {
             rows.push(row.clone()).expect("window");
         }
     }
-    c::Tasks { more: all.len() > rows.len(), rows }
+    c::Tasks { more: all.len() > rows.len(), rows, ended_mark: 0 }
 }
-fn ended_rows(w: World) -> List<c::TaskLine> {
-    let all = chat_rows(w, true);
+fn ended_rows(w: World, drafts: bool) -> List<c::TaskLine> {
+    let all = chat_rows(w, true, drafts);
     let mut rows = List::with_capacity(limits().client.domain.rows);
     for row in &all {
         if rows.len() < rows.capacity() {
@@ -4856,6 +4861,7 @@ fn plan_tree(w: World, task: u64, window: u32, then: Then) -> c::Delivery {
 
 fn deployment(w: World) -> c::Deployment {
     c::Deployment {
+        worker_settings: List::with_capacity(0),
         store: c::StoreFill { bytes: 0, mark: 0 },
         census: None,
         hosts: List::with_capacity(0),
@@ -5013,20 +5019,19 @@ pub(super) fn sample_now(world: World, name: &str) -> Wall {
 pub(super) fn changes_world(name: &str) -> Domain {
     use jig_client::{Down, Readable, Up, Watchable};
     use temper_client_protocol_wire::{self as wire, v1 as v};
-    let limits = limits();
     let (mut root, mut out) = started(Address::Changes { project: PROJECT });
     let panel = changes_panel(name);
+
+    let project = if name == "changes-landed-only" { "hello" } else { "fabrig" };
+    let mut me = base_frame("Owner", project);
+    me.needs_total = if name == "changes-landed-only" { 1 } else { 3 };
+    me.needs = c::Needs { questions: me.needs_total, proposals: 0, escalations: 0, person_tasks: 0 };
+    deliver(&mut root, skein_lib::Token::new(0), c::Delivery::Me(Box::new(me)), &mut out);
+
     for _ in 0..256 {
         let Some(request) = out.pop() else { break };
         let Some(down) = crate::driver::down(request) else { continue };
         match down {
-            Down::Open { watch, subject: Watchable::Jig(c::Subject::Me) } => {
-                let project = if name == "changes-landed-only" { "hello" } else { "fabrig" };
-                let mut me = base_frame("Owner", project);
-                me.needs_total = if name == "changes-landed-only" { 1 } else { 3 };
-                me.needs = c::Needs { questions: me.needs_total, proposals: 0, escalations: 0, person_tasks: 0 };
-                deliver(&mut root, watch, c::Delivery::Me(Box::new(me)), &mut out);
-            }
             Down::Open { watch, subject: Watchable::Jig(c::Subject::Accounts) } => {
                 deliver(&mut root, watch, c::Delivery::Accounts(Box::new(accounts(Reference, Then::Shown))), &mut out);
             }
@@ -5076,26 +5081,6 @@ pub(super) fn changes_world(name: &str) -> Domain {
                     }
                 }
             }
-            Down::Read { read, what: Readable::Jig(c::Read::Task { task }) } => {
-                let mut document = base_task(task, "Change");
-                document.project = PROJECT;
-                document.lineage_chips = List::with_capacity(1);
-                let (goal, title) = match task {
-                    100 | 103 | 104 | 105 => (Some(80), "first-run-projects"),
-                    101 => (Some(81), "forge-cards"),
-                    106 => (Some(82), "pane-chat-line"),
-                    102 => (None, "chat T6"),
-                    107 => (None, "chat T2"),
-                    _ => unreachable!("listed sample task"),
-                };
-                document.goal = goal;
-                let mut chip = document.chip.clone();
-                chip.task = goal.unwrap_or(if task == 107 { 2 } else { 6 });
-                chip.title = doc(title);
-                chip.executor = c::ChipExecutor::Agent { charter: 1 };
-                document.lineage_chips.push(chip).expect("one lineage chip");
-                answer(&mut root, read, c::ReadValue::Task(Box::new(document)), &mut out);
-            }
             Down::Read { .. }
             | Down::Open { .. }
             | Down::Continue { .. }
@@ -5106,7 +5091,6 @@ pub(super) fn changes_world(name: &str) -> Domain {
         }
     }
     assert!(out.is_empty(), "changes sample settled");
-    assert!(limits.client.domain.reads >= 7, "the sample's shown rows fit");
     root
 }
 pub(super) fn project_ways(
@@ -5122,8 +5106,9 @@ pub(super) fn project_ways(
         .expect("gallery project ways");
     let mut writer = skein_lib::Writer::new(usize::try_from(ways.measure()).expect("ways fit"));
     ways.encode(&mut writer).expect("measured ways");
-    let value = v::SettingAnswer::new(&v::CEILINGS, v::SettingAnswerParts { value: Some(writer.finish()) })
-        .expect("gallery setting answer");
+    let value =
+        v::SettingAnswer::new(&v::CEILINGS, v::SettingAnswerParts { revision: None, value: Some(writer.finish()) })
+            .expect("gallery setting answer");
     step(
         root,
         Event::Client {
@@ -5140,8 +5125,8 @@ pub(super) fn project_ways(
 
 pub(super) fn project_classes(root: &mut Domain, read: Token, out: &mut Queue<Request>) {
     use temper_client_protocol_wire::{self as wire, v1 as v};
-    let value =
-        v::SettingAnswer::new(&v::CEILINGS, v::SettingAnswerParts { value: None }).expect("stock project classes");
+    let value = v::SettingAnswer::new(&v::CEILINGS, v::SettingAnswerParts { revision: None, value: None })
+        .expect("stock project classes");
     step(
         root,
         Event::Client {
@@ -5156,6 +5141,24 @@ pub(super) fn project_classes(root: &mut Domain, read: Token, out: &mut Queue<Re
     );
 }
 
+fn changes_origin(
+    task: u64,
+) -> (Option<temper_client_protocol_wire::v1::ChangeFrom>, Option<temper_client_protocol_wire::v1::ChangeFrom>) {
+    use temper_client_protocol_wire::v1 as v;
+    let (goal, task, title) = match task {
+        100 | 103 | 104 | 105 => (true, 80, "first-run-projects"),
+        101 => (true, 81, "forge-cards"),
+        106 => (true, 82, "pane-chat-line"),
+        102 => (false, 6, "chat"),
+        107 => (false, 2, "chat"),
+        _ => unreachable!("listed sample task"),
+    };
+    let from = v::ChangeFrom::new(&v::CEILINGS, v::ChangeFromParts { task, title: title.as_bytes().into() })
+        .expect("sample origin");
+    if goal { (Some(from), None) } else { (None, Some(from)) }
+}
+
+#[expect(clippy::too_many_lines, reason = "one gallery scene assembles the changes panel's bounded wire rows")]
 fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
     use temper_client_protocol_wire::v1 as v;
     let mut queues = List::with_capacity(1);
@@ -5172,6 +5175,9 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
                     v::ChangesQueued::new(
                         &v::CEILINGS,
                         v::ChangesQueuedParts {
+                            goal: changes_origin(task).0,
+                            chat: changes_origin(task).1,
+                            milestone: None,
                             task,
                             title: title.as_bytes().into(),
                             ready_since: offset(Reference, -179).as_nanos(),
@@ -5212,6 +5218,9 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
                     v::ChangesLanded::new(
                         &v::CEILINGS,
                         v::ChangesLandedParts {
+                            goal: changes_origin(task).0,
+                            chat: changes_origin(task).1,
+                            milestone: None,
                             signed: skein_lib::List::with_capacity(8),
                             commit: [0xab; 32],
                             default_branch: true,
@@ -5230,6 +5239,9 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
                 v::ChangesLanded::new(
                     &v::CEILINGS,
                     v::ChangesLandedParts {
+                        goal: None,
+                        chat: changes_origin(107).1,
+                        milestone: None,
                         signed: skein_lib::List::with_capacity(8),
                         commit: [0xab; 32],
                         default_branch: true,
@@ -5611,6 +5623,26 @@ fn builders() -> List<c::Host> {
             cut: false,
         })
         .expect("three builders");
+    }
+    rows
+}
+
+/// Settings corresponding to the connected, draining and lost gallery hosts.
+fn worker_settings(since: Wall) -> List<c::WorkerState> {
+    let mut rows = List::with_capacity(3);
+    for (number, name, linked, digest) in
+        [(1, "Workshop", true, None), (2, "Finishing", true, Some([0xab; 32])), (3, "Away", false, Some([0xcd; 32]))]
+    {
+        rows.push(c::WorkerState {
+            number,
+            name: name.as_bytes().into(),
+            places: 2,
+            digest,
+            withdrawn: false,
+            linked,
+            since: Some(since),
+        })
+        .expect("three worker settings");
     }
     rows
 }

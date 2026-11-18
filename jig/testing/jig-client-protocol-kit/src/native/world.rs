@@ -114,6 +114,8 @@ impl Referee<Process> for Judge {
     }
 }
 struct Machine(skein_fake_machine::Machine);
+#[path = "batch.rs"]
+pub mod batch;
 impl skein_world::Machine for Machine {
     fn step(&mut self, call: skein_sim::Call, answers: &mut Queue<skein_sim::Answer>) {
         skein_fake_machine::step(&mut self.0, call, answers);

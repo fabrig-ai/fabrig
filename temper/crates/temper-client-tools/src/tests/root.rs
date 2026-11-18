@@ -35,7 +35,7 @@ fn an_ended_tree_delivery_waits_for_the_tasks_read() {
         assert_eq!(answer.status, 0);
         assert!(answer.stderr.is_empty());
         assert!(fixtures::has(&answer, if json { b"\"tree\":" } else { b"tree:\n" }));
-        assert_eq!(root.watches.len(), fixtures::SHARED_WATCHES);
+        assert_eq!(root.watches.len(), fixtures::NO_APPLICATION_WATCHES);
     }
 }
 
@@ -99,7 +99,6 @@ fn an_unanswered_adoption_is_named_after_its_me_watch_drops() {
     let mut root = fixtures::started(records.clone());
     root.deliver(c::Delivery::Me(Box::new(fixtures::me(fixtures::PARTY))));
     let watch = root.watch_token(&client::Watchable::Jig(c::Subject::Me));
-    root.watches.remove(&watch).expect("stream's me watch");
     root.client(client::Event::Up { up: client::Up::WatchEnded { watch, end: c::WatchEnd::Dropped } });
     let me = root.root.client().document(client::Handle { asker: super::RUNNER.asker(), number: 0 }).expect("me");
     assert_eq!(me.state, client::State::Behind);

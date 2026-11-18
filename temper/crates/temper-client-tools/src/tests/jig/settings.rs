@@ -218,7 +218,7 @@ fn settings_show_charter_renders_its_documents() {
                 c::Setting::Template(_) => vec!["settings", "show", "template", "4"],
                 c::Setting::Policy(_)
                 | c::Setting::Rules
-                | c::Setting::Limits
+                | c::Setting::Worker(_)
                 | c::Setting::Model(_)
                 | c::Setting::Application { .. }
                 | c::Setting::ProjectPolicy { .. } => panic!("charter or template"),
@@ -1013,7 +1013,7 @@ fn settings_reads_request_the_exact_contract_and_do_not_watch_settings() {
     ] {
         let (root, call) = fixtures::read_call(&argv);
         assert_eq!(root.reads.get(&call).expect("one read").1, expected);
-        assert_eq!(root.watches.len(), 1, "only shared me watch");
+        assert_eq!(root.watches.len(), 0, "no application watch remains");
     }
 }
 
@@ -1035,7 +1035,7 @@ fn an_unqualified_setting_reads_the_inventoried_revision_before_its_value() {
         );
         root.serve(call, c::ReadResult::None(c::ReadNone::Unknown));
         assert_eq!(root.answer(call).expect("value refusal").status, 2);
-        assert_eq!(root.watches.len(), 1, "only the shared me watch");
+        assert_eq!(root.watches.len(), 0, "no application watch remains");
     }
 }
 
@@ -1067,6 +1067,7 @@ fn setting_text_and_revisions_include_whole_set_values_and_last_page_facts() {
             c::Setting::Policy(_) => vec!["settings", "show", "policy", "5"],
             c::Setting::Application { .. } | c::Setting::ProjectPolicy { .. } | c::Setting::Limits => continue,
             c::Setting::Model(_) => vec!["settings", "show", "model", "9"],
+            c::Setting::Worker(_) => vec!["settings", "show", "worker", "9"],
             c::Setting::Rules => vec!["settings", "show", "rules"],
         };
         let answer = read(
@@ -1533,7 +1534,7 @@ fn proposal_reads_use_one_exact_read_and_keep_not_served_and_role_statuses() {
         root.reads.get(&call).expect("exact read").1,
         c::Read::Proposal { proposal: c::ProposalKey { proposer: c::Proposer::Party(73), number: 7 } }
     );
-    assert_eq!(root.watches.len(), 1);
+    assert_eq!(root.watches.len(), 0);
     for (page, status) in [
         (jig_client::Readout::NotServed { family: None, served: None }, 1),
         (jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)), 2),
@@ -2159,7 +2160,11 @@ fn unknown_settings_decisions_explain_that_the_proposal_is_not_waiting() {
 }
 
 fn forge_value(kind: u32) -> Box<[u8]> {
-    let json = if kind == 8 {
+    let json = if kind == 4 {
+        br#"{"items":[{"setting":{"kind":"project-landing","project":1},"set":{"by":"turn","batch":4}}]}"#.as_slice()
+    } else if kind == 5 {
+        br#"{"items":[{"setting":{"kind":"project-gates","project":1},"set":{"repositories":[{"forge":1,"repository":7,"gates":[{"name":"gate","workflow":"gate.yml","blocking":true,"report":{"artifact":"report","format":"lines","fuzzy":"fuzzy_"}}],"tiers":[{"name":"slow","workflow":"slow.yml","artifact":"report","format":"junit","branch":"goal"}]}]}}]}"#.as_slice()
+    } else if kind == 8 {
         br#"{"items":[{"setting":{"kind":"project-classes","project":7},"set":{"items":[{"kind":"wording","class":"decide"},{"kind":"implementation","words":"keep the format","class":"ask"},{"set":2,"class":"ask-away"}],"sets":[{"number":2,"name":"protocol","patterns":["src/protocol.*","docs/protocol/**"]}]}}]}"#.as_slice()
     } else if kind == 7 {
         br#"{"items":[{"setting":{"kind":"project-ways","project":7},"set":{"drafts":true,"goals":false,"changes":false,"way":0}}]}"#.as_slice()
@@ -2171,6 +2176,8 @@ fn forge_value(kind: u32) -> Box<[u8]> {
         br#"{"items":[{"setting":{"kind":"project-words","project":7},"set":{"headline":"Our way","lede":"We review every change."}}]}"#.as_slice()
     } else if kind == 14 {
         br#"{"items":[{"setting":{"kind":"project-areas","project":7},"set":{"areas":[{"name":"tests","words":"C tests","owner":{"task":42}}]}}]}"#.as_slice()
+    } else if kind == 21 {
+        br#"{"items":[{"setting":{"kind":"agents"},"set":{"profile":{"policy.max_turns":900},"endpoints":{"openai":{"window":1048576,"output":8192,"reasoning_item":65536,"head_ms":60000,"idle_ms":300000,"oversized":"fail"}},"fallback":{"window":1048576,"output":8192,"reasoning_item":65536,"head_ms":60000,"idle_ms":300000,"oversized":"drop"}}}]}"#.as_slice()
     } else if kind == 15 {
         br#"{"items":[{"setting":{"kind":"project-triager","project":7},"set":{"owner":{"charter":14}}}]}"#.as_slice()
     } else if kind == 3 {
@@ -2198,7 +2205,7 @@ fn forge_setting_page(value: Option<Box<[u8]>>) -> jig_client::Readout {
     jig_client::Readout::Family {
         family: wire::FORGE,
         record: Some(wire::setting_answer(
-            &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value }).unwrap(),
+            &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { revision: None, value }).unwrap(),
         )),
     }
 }
@@ -2248,10 +2255,16 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
             false,
         ),
         (vec!["settings", "show", "forge-charter", "1"], 3, 0, "forge-charter 1", false),
+        (vec!["settings", "show", "project-landing", "1"], 4, 1, "project-landing 1", false),
+        (vec!["settings", "show", "project-gates", "1"], 5, 1, "project-gates 1", false),
+        (vec!["settings", "show", "project-landing", "shop"], 4, fixtures::PROJECT, "project-landing", false),
+        (vec!["settings", "show", "project-gates", "shop"], 5, fixtures::PROJECT, "project-gates", false),
         (vec!["settings", "show", "charter-words", "1"], 9, 0, "charter-words 1", false),
         (vec!["settings", "show", "charter-words", "1"], 9, 0, "charter-words 1", true),
         (vec!["settings", "show", "project-areas", "7"], 14, 7, "project-areas 7", false),
         (vec!["settings", "show", "project-triager", "7"], 15, 7, "project-triager 7", false),
+        (vec!["settings", "show", "agents"], 21, 0, "agents", false),
+        (vec!["settings", "show", "agents"], 21, 0, "agents", true),
         (vec!["settings", "show", "project-words", "7"], 10, 7, "project-words 7", false),
         (vec!["settings", "show", "project-words", "shop"], 10, fixtures::PROJECT, "project-words", false),
         (vec!["settings", "show", "template-goal", "1"], 11, 0, "template-goal 1", false),
@@ -2305,6 +2318,8 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
             if json {
                 let expected = match kind {
                     3 => "\"value\":6",
+                    4 => "\"value\":{\"by\":\"turn\",\"batch\":4",
+                    5 => "\"value\":{\"repositories\":[{\"forge\":1,\"repository\":7",
                     6 => "\"value\":\"up\"",
                     7 => "\"drafts\":true",
                     8 => "\"class\":\"ask-away\"",
@@ -2314,6 +2329,7 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
                     12 => "\"workflow\":\"tests.yml\"",
                     14 => "\"owner\":{\"task\":42}",
                     15 => "\"owner\":{\"charter\":14}",
+                    21 => "\"profile\":{\"policy.max_turns\":900}",
                     _ => "\"ci\":false",
                 };
                 assert!(text.contains(expected), "{text}");
@@ -2367,7 +2383,7 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
                 );
                 assert_eq!(text.contains("the stock"), stock, "{text}");
             }
-            assert_eq!(root.watches.len(), 1);
+            assert_eq!(root.watches.len(), 0);
             if historical {
                 continue;
             }
@@ -2384,6 +2400,8 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
             assert!(text.contains(if json { "\"revision\":5" } else { ", revision 5" }), "{text}");
             let expected = match kind {
                 3 => "6",
+                4 => "\"by\":\"turn\",\"batch\":4",
+                5 => "\"repositories\":[{\"forge\":1,\"repository\":7",
                 6 => "\"up\"",
                 7 => "\"drafts\":true",
                 8 => {
@@ -2399,6 +2417,7 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
                 12 => "\"workflow\":\"tests.yml\"",
                 14 => "\"owner\":{\"task\":42}",
                 15 => "\"owner\":{\"charter\":14}",
+                21 => "\"policy.max_turns\":900",
                 _ => "\"ci\":false",
             };
             assert!(text.contains(expected), "{text}");
@@ -2416,6 +2435,8 @@ fn forge_setting_commands_print_removed_and_unset_values_and_preserve_refusals()
                 (8, 2, 1, vec!["settings", "show", "project-classes", "2"]),
                 (9, 0, 1, vec!["settings", "show", "charter-words", "1"]),
                 (10, 7, 1, vec!["settings", "show", "project-words", "7"]),
+                (4, 1, 1, vec!["settings", "show", "project-landing", "1"]),
+                (5, 1, 1, vec!["settings", "show", "project-gates", "1"]),
             ] {
                 let mut root = fixtures::signed_in(fixtures::PARTY);
                 let call = root.submit_prepared(fixtures::call(&argv), json, None);
@@ -2424,7 +2445,17 @@ fn forge_setting_commands_print_removed_and_unset_values_and_preserve_refusals()
                 let answer = root.answer(call).unwrap();
                 assert_eq!(answer.status, 0);
                 let text = core::str::from_utf8(&answer.stdout).unwrap();
-                if kind == 3 || kind == 9 || kind == 10 || kind == 11 {
+                if !json && (kind == 4 || kind == 5) {
+                    assert!(
+                        text.starts_with(if kind == 4 {
+                            "project-landing 1, revision 5\nnone\n"
+                        } else {
+                            "project-gates 1, revision 5\nnone\n"
+                        }),
+                        "{text}"
+                    );
+                }
+                if kind == 3 || kind == 4 || kind == 5 || kind == 9 || kind == 10 || kind == 11 {
                     assert!(
                         text.contains(if json {
                             "\"value\":null"
@@ -2489,6 +2520,8 @@ fn forge_settings_inventory_names_the_kinds_with_defaults_changes_and_removals()
         (1, 0, 1, c::ApplicationFollows::Default),
         (2, 7, 2, c::ApplicationFollows::Changed { revision: 5 }),
         (3, 0, 1, c::ApplicationFollows::Removed { revision: 5 }),
+        (4, 7, 1, c::ApplicationFollows::Changed { revision: 5 }),
+        (5, 7, 1, c::ApplicationFollows::Default),
         (9, 0, 2, c::ApplicationFollows::Default),
         (10, 7, 1, c::ApplicationFollows::Changed { revision: 5 }),
         (11, 0, 4, c::ApplicationFollows::Default),
@@ -2515,6 +2548,8 @@ fn forge_settings_inventory_names_the_kinds_with_defaults_changes_and_removals()
         "landing-rule 1: default",
         "landing-rule 2 --project 7: changed in revision 5",
         "forge-charter 1: changed in revision 5, removed",
+        "project-landing 7: changed in revision 5",
+        "project-gates 7: default",
         "charter-words 2: default",
         "project-words 7: changed in revision 5",
         "template-goal 4: default",
@@ -3323,7 +3358,7 @@ fn revision_show_reads_temper_set_values_at_the_recorded_revision() {
     for json in [false, true] {
         let (mut root, call) =
             fixtures::read_call(if json { &["revision", "show", "5", "--json"] } else { &["revision", "show", "5"] });
-        let items = [(2, 1), (3, 0), (9, 0), (10, 7)].map(|(kind, scope)| c::RevisionItem {
+        let items = [(2, 1), (3, 0), (4, 7), (5, 7), (9, 0), (10, 7)].map(|(kind, scope)| c::RevisionItem {
             setting: c::Setting::Application { kind, scope, number: 1 },
             edit: c::RevisionEdit::Application(c::SizedEdit::Set {
                 size: u32::try_from(forge_value(kind).len()).unwrap(),
@@ -3337,7 +3372,7 @@ fn revision_show_reads_temper_set_values_at_the_recorded_revision() {
                 items: list(items),
             })))),
         );
-        for (kind, scope) in [(2, 1), (3, 0), (9, 0), (10, 7)] {
+        for (kind, scope) in [(2, 1), (3, 0), (4, 7), (5, 7), (9, 0), (10, 7)] {
             assert!(root.answer(call).is_none(), "revision must read historical forge values before printing");
             let temper_client_protocol_wire::v1::Read::RevisionSetting(query) = forge_query(&root, call) else {
                 panic!("revision-qualified read")
@@ -3351,12 +3386,20 @@ fn revision_show_reads_temper_set_values_at_the_recorded_revision() {
         for needle in [
             "\"ci\":false",
             "charter-words",
+            "project-landing",
+            "project-gates",
+            "\"by\":\"turn\",\"batch\":4",
+            "\"repositories\":[{\"forge\":1,\"repository\":7",
             "project-words",
             "reviews every change",
             "Our way",
             "We review every change.",
         ] {
             assert!(text.contains(needle), "{text}");
+        }
+        if !json {
+            assert!(text.contains("project-landing 7"), "{text}");
+            assert!(text.contains("project-gates 7"), "{text}");
         }
         assert!(text.contains(if json { "\"set\":6" } else { "\n6\n" }), "{text}");
         assert!(text.contains(if json { "\"replaced\":\"default\"" } else { "was: default" }), "{text}");
@@ -3805,3 +3848,51 @@ fn ctl_reads_lists_and_writes_a_model_as_a_settings_file() {
 
 #[path = "settings_overlays.rs"]
 mod overlays;
+
+#[test]
+fn ctl_applies_proposes_and_shows_a_worker_setting() {
+    let setting = c::Setting::Worker(c::SettingNumber { number: 2 });
+    let value = c::SettingValue::Worker(Box::new(c::WorkerSetting {
+        number: 2,
+        name: b"w1".as_slice().into(),
+        places: 4,
+        digest: Some([0xab; 32]),
+        withdrawn: false,
+    }));
+    let file = file_from_setting(&setting_json(setting, value.clone()));
+    let decoded = settings_file::decode(&file, &crate::limits::tools()).unwrap();
+    assert_eq!(
+        decoded.as_slice(),
+        &[c::SettingItem { setting, edit: c::SettingEdit::Set(c::SettingSet { value: value.clone() }) }]
+    );
+    let (root, call) = changed(&file, false);
+    let (_, _, jig_client::Ask::Jig(ask)) = root.sends.get(&call).unwrap() else { panic!("jig change") };
+    let c::Ask::ChangeSettings(change) = ask.as_ref() else { panic!("settings change") };
+    assert_eq!(change.items, decoded);
+    let (root, call) = proposed(&file, false);
+    let (_, _, jig_client::Ask::Jig(ask)) = root.sends.get(&call).unwrap() else { panic!("jig proposal") };
+    let c::Ask::Propose { action: c::ProposeAction::Settings(proposal), .. } = ask.as_ref() else {
+        panic!("settings proposal")
+    };
+    assert_eq!(proposal.items, decoded);
+    let (mut root, call) = fixtures::read_call(&["settings", "show", "worker", "2", "--revision", "5"]);
+    assert_eq!(
+        root.reads.get(&call).unwrap().1,
+        c::Read::Setting(c::ReadSetting { setting, revision: 5, proposal: None })
+    );
+    root.serve(
+        call,
+        c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+            overlay: None,
+            setting,
+            revision: 5,
+            value: Some(value),
+            application: None,
+            proposed: None,
+        }))),
+    );
+    let answer = root.answer(call).unwrap();
+    let text = core::str::from_utf8(&answer.stdout).unwrap();
+    assert!(text.starts_with("worker 2, revision 5\n"), "{text}");
+    assert!(text.contains("abababababababababababababababababababababababababababababababab"), "{text}");
+}

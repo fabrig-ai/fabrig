@@ -402,6 +402,7 @@ impl Domain {
             Some(settings::SizedValue {
                 value:
                     Value::Limits(_)
+                    Value::AgentFigures(_)
                     | Value::Rule(_)
                     | Value::Charter(_)
                     | Value::Questions(_)
@@ -439,6 +440,7 @@ impl Domain {
                     | Value::CharterWords(_)
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)
+                    | Value::AgentFigures(_)
                     | Value::Landing(_)
                     | Value::Gates(_)
                     | Value::Limits(_)
@@ -468,6 +470,7 @@ impl Domain {
                     | Value::Goal(_)
                     | Value::CharterWords(_)
                     | Value::ProjectAreas(_)
+                    | Value::AgentFigures(_)
                     | Value::Landing(_)
                     | Value::Gates(_)
                     | Value::Limits(_)
@@ -497,6 +500,7 @@ impl Domain {
                     | Value::Ways(_)
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)
+                    | Value::AgentFigures(_)
                     | Value::Landing(_)
                     | Value::Gates(_)
                     | Value::Limits(_)
@@ -526,6 +530,7 @@ impl Domain {
                     | Value::CharterWords(_)
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)
+                    | Value::AgentFigures(_)
                     | Value::Landing(_)
                     | Value::Gates(_)
                     | Value::Limits(_)
@@ -554,6 +559,7 @@ impl Domain {
                     | Value::CharterWords(_)
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)
+                    | Value::AgentFigures(_)
                     | Value::Landing(_)
                     | Value::Gates(_)
                     | Value::Limits(_)
@@ -636,9 +642,19 @@ impl Domain {
         let key = SettingKey { kind, scope, number, slot: SettingSlot::Change };
         match self.setting_rows.get(&key) {
             Some(Edit::Set(value)) => Some(value),
+            Some(Edit::Remove | Edit::Reset) if kind == 20 || kind == 21 => self.setting_default(kind, scope, number),
             Some(Edit::Remove | Edit::Reset) => self.every_project_default(kind, scope, number),
             None => self.setting_default(kind, scope, number),
         }
+    }
+
+    /// The current agents figures, or the stock installed at startup
+    /// (temper/docs/design/protocol/configuration/figures.md, 5).
+    #[must_use]
+    pub fn agent_figures(&self) -> &settings::AgentFigures {
+        let value = self.setting(21, 0, 1).expect("agents default installed at startup");
+        let Value::AgentFigures(value) = &value.value else { unreachable!("agents setting judged") };
+        value
     }
 
     /// Read a set item's value before its next overwrite (temper/docs/design/client/forge/served.md).
@@ -789,6 +805,7 @@ impl Domain {
                     | Value::CharterWords(_)
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)
+                    | Value::AgentFigures(_)
                     | Value::Landing(_)
                     | Value::Gates(_)
                     | Value::Limits(_)
@@ -850,6 +867,7 @@ fn value_state(value: Option<&settings::SizedValue>) -> (u32, Option<u32>) {
                 | Value::CharterWords(_)
                 | Value::Classes(_)
                 | Value::ProjectAreas(_)
+                | Value::AgentFigures(_)
                 | Value::Landing(_)
                 | Value::Gates(_)
                 | Value::Limits(_)

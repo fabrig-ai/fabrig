@@ -5,7 +5,7 @@ use std::{
     io::Write,
     os::unix::{
         ffi::OsStrExt,
-        fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt},
+        fs::{DirBuilderExt, MetadataExt, OpenOptionsExt, PermissionsExt},
     },
     path::Path,
 };
@@ -19,33 +19,55 @@ pub fn alone(
     owned: &mut Vec<skein_io::kernel::Fd>,
     environment: &[EnvironmentEntry],
 ) -> Result<service::worker_alone::Service, String> {
-    let git = temper_shell::lookup::find(environment, b"git");
-    let part = service::startup::worker_part(
+    let mut part = service::startup::worker_part(
         bytes,
         &jig_directories(directories),
-        git.as_ref().map(|path| path.as_os_str().as_bytes()),
+        temper_shell::lookup::find(environment, b"git").as_ref().map(|path| path.as_os_str().as_bytes()),
+        environment,
     )
     .map_err(|why| String::from_utf8_lossy(&temper_service_core::startup::problems::lines(&why)).into_owned())?;
-    alone_part(directories, part, owned, environment)
+    inputs(&mut part, directories, &std::env::current_exe().map_err(|why| why.to_string())?)?;
+    let files = temper_service_shell::read_files(core::mem::take(&mut part.files), skein_shell::effective_user())?;
+    let seed = skein_shell::seed().map_err(|errno| format!("random seed: errno {errno}"))?;
+    let fetch = service::fetch::Fetch::new(&part.worker, &files, seed).map_err(|why| {
+        String::from_utf8_lossy(&service::startup::lines(&service::startup::Problems::jig(
+            why,
+            &jig_protocol_config::Path::root(),
+        )))
+        .into_owned()
+    })?;
+    let figures = crate::fetch::take(fetch, directories, environment)?;
+    eprint!("{}", figures_line(&part.worker.jig.engine, &figures));
+    from_figures(part, figures, &files, directories, owned, environment)
 }
-/// Prepare a world's typed worker after its document's constants have been checked.
-pub fn alone_part(
-    directories: &Directories,
+/// Construct from figures fetched on the shell's or a world's ring.
+pub fn from_figures(
     mut part: service::startup::WorkerPart,
+    figures: jig_protocol_worker_wire::Figures,
+    files: &service::settings::Files,
+    directories: &Directories,
     owned: &mut Vec<skein_io::kernel::Fd>,
     environment: &[EnvironmentEntry],
 ) -> Result<service::worker_alone::Service, String> {
-    let agent::Prepared { agent, bytes, environment: command_environment } = agent::prepare_worker(&part.named)?;
-    let user = skein_shell::effective_user();
-    let files = temper_service_shell::read_files(
-        agent::without_configuration(core::mem::take(&mut part.files), &part.named.agent),
-        user,
+    let unknown = service::figures::apply(&mut part, figures)
+        .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
+    for name in &unknown {
+        eprintln!("the engine's figures: unknown limit {}; skipped", String::from_utf8_lossy(name));
+    }
+    let claude = part.claude.as_deref().map(path).map(Path::to_path_buf).or_else(|| find_claude(environment));
+    let bytes = agent::figures::configuration(
+        part.figures.as_ref().expect("applied figures"),
+        claude.as_deref(),
+        path(&directories.data),
+        &part.environment,
     )?;
-    let files = agent::with_configuration(files, &part.named.agent, &bytes);
+    let agent::Prepared { agent, bytes, environment: command_environment } =
+        agent::prepare_bytes(bytes).map_err(|why| format!("the engine's figures: {why}"))?;
+    let user = skein_shell::effective_user();
     let runtime = root(&part.named, &bytes, user, owned)?;
     let seed = skein_shell::seed().map_err(|errno| format!("random seed: errno {errno}"))?;
     let agent_program = part.named.program.clone();
-    let mut service = service::startup::worker_alone(part, &files, &agent, runtime, seed)
+    let mut service = service::startup::worker_alone(part, files, &agent, runtime, seed)
         .map_err(|why| String::from_utf8_lossy(&temper_service_core::startup::problems::lines(&why)).into_owned())?;
     let sources =
         sources(&agent, command_environment, path(&agent_program), path(&directories.cache), user, environment)?;
@@ -155,6 +177,28 @@ pub fn sources(
     user: u32,
     environment: &[EnvironmentEntry],
 ) -> Result<Sources, String> {
+    source_inputs(agent, command_environment, agent_program, cache, user, environment, true)
+}
+/// Compute source resources without opening the borrowed parent used only while running.
+pub fn sources_without_parent(
+    agent: &service::settings::Agent,
+    command_environment: Box<[Box<[u8]>]>,
+    agent_program: &std::path::Path,
+    cache: &std::path::Path,
+    user: u32,
+    environment: &[EnvironmentEntry],
+) -> Result<Sources, String> {
+    source_inputs(agent, command_environment, agent_program, cache, user, environment, false)
+}
+fn source_inputs(
+    agent: &service::settings::Agent,
+    command_environment: Box<[Box<[u8]>]>,
+    agent_program: &std::path::Path,
+    cache: &std::path::Path,
+    user: u32,
+    environment: &[EnvironmentEntry],
+    open_parent: bool,
+) -> Result<Sources, String> {
     let reuse = crate::workspace_reuse(environment);
     let dump = crate::dump_llm(environment).map(|directory| directory.as_os_str().as_bytes().into());
     let resources = if let Some(program) = agent.programs.first() {
@@ -164,8 +208,11 @@ pub fn sources(
         }
         // Source commands use the agent's explicit command environment.
         let environment = command_environment;
-        let parent =
-            skein_shell::open_root(path(&program.directory).parent().unwrap_or(std::path::Path::new("/"))).ok();
+        let parent = if open_parent {
+            skein_shell::open_root(path(&program.directory).parent().unwrap_or(std::path::Path::new("/"))).ok()
+        } else {
+            None
+        };
         let resources = service::program_sources::configured(program, environment, user, parent)
             .ok_or("workers[0].agent.configuration: program source resources exceed their bounds")?;
         Some(resources)
@@ -173,4 +220,60 @@ pub fn sources(
         None
     };
     Ok(Sources { resources, reuse, dump })
+}
+
+/// Machine-only checks before the opening. No agent document is read.
+pub fn inputs(
+    part: &mut service::startup::WorkerPart,
+    directories: &Directories,
+    executable: &Path,
+) -> Result<(), String> {
+    match fs::symlink_metadata(path(&directories.config).join("agent.json")) {
+        Ok(_) => {
+            return Err(
+                "agent.json: moved: temper writes the agent's configuration under the worker's root; remove it".into(),
+            );
+        }
+        Err(why) if why.kind() == std::io::ErrorKind::NotFound => {}
+        Err(why) => return Err(format!("agent.json: {why}")),
+    }
+    if let Some(claude) = &part.claude {
+        executable_file(path(claude), "application.workers[0].claude")?;
+    }
+    let program = executable.parent().ok_or("worker executable has no directory")?.join("temper-agent");
+    executable_file(&program, "the derived agent program")?;
+    part.named.program = program.as_os_str().as_bytes().into();
+    part.named.arguments = Box::new([part.named.agent.clone()]);
+    Ok(())
+}
+pub(crate) fn executable_file(program: &Path, name: &str) -> Result<(), String> {
+    if !program.is_absolute()
+        || !fs::metadata(program).is_ok_and(|metadata| metadata.is_file() && metadata.mode() & 0o111 != 0)
+    {
+        return Err(format!("{name}: {}: must be an absolute path to an executable file", program.display()));
+    }
+    Ok(())
+}
+#[must_use]
+pub fn find_claude(environment: &[EnvironmentEntry]) -> Option<std::path::PathBuf> {
+    let value = temper_shell::environment::PATH.value(environment)?;
+    value
+        .split(|byte| *byte == b':')
+        .filter(|entry| entry.starts_with(b"/"))
+        .map(|entry| path(entry).join("claude"))
+        .find(|candidate| executable_file(candidate, "claude").is_ok())
+}
+#[must_use]
+pub fn figures_line(engine: &jig_protocol_config::Address, figures: &jig_protocol_worker_wire::Figures) -> String {
+    let engine = match engine {
+        jig_protocol_config::Address::Addr(skein_io::Addr::Ip(address)) => address.to_string(),
+        jig_protocol_config::Address::Addr(skein_io::Addr::InProcess(name)) => format!("{name:?}"),
+        jig_protocol_config::Address::Host { name, port } => format!("{}:{port}", String::from_utf8_lossy(name)),
+    };
+    format!(
+        "figures taken from {engine}: {} places, {} limits, {} endpoints\n",
+        figures.places(),
+        figures.limits().len(),
+        figures.agents().endpoints().len()
+    )
 }

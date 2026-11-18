@@ -108,12 +108,12 @@ pub(crate) struct Prepared {
     pub(crate) drops: Box<[u64]>,
     pub(crate) bytes: u64,
 }
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct End {
     at: u64,
     number: u64,
 }
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct Logs {
     pub(crate) rule: Option<LogRule>,
     record: u32,
@@ -312,16 +312,26 @@ pub(crate) struct Read {
     pub(crate) at: u64,
     pub(crate) direction: Direction,
     pub(crate) max: u32,
+    rows: u32,
     pub(crate) extent: u64,
     pub(crate) records: Vec<LogRecord>,
     stopped: bool,
 }
 impl Read {
-    pub(crate) fn new(owner: skein_lib::Token, log: u64, at: u64, direction: Direction, max: u32, extent: u64) -> Self {
-        Self { owner, log, at, direction, max, extent, records: Vec::new(), stopped: false }
+    pub(crate) fn new(
+        owner: skein_lib::Token,
+        log: u64,
+        at: u64,
+        direction: Direction,
+        max: u32,
+        rows: u32,
+        extent: u64,
+    ) -> Self {
+        Self { owner, log, at, direction, max, rows, extent, records: Vec::new(), stopped: false }
     }
     pub(crate) fn finished(&self) -> bool {
         self.stopped
+            || self.rows == 0
             || self.extent == 0
             || match self.direction {
                 Direction::Forward => self.at >= self.extent,
@@ -386,6 +396,7 @@ impl Read {
         };
         self.max = self.max.saturating_sub(length);
         self.records.push(LogRecord { at, end, length, record });
+        self.rows = self.rows.checked_sub(1).expect("unfinished read has record room");
         self.at = match self.direction {
             Direction::Forward => end,
             Direction::Backward => at,
@@ -426,13 +437,17 @@ pub(crate) fn name(number: u64) -> Box<[u8]> {
     }
     Box::from(bytes)
 }
-pub(crate) fn directory(log: u64) -> Box<[u8]> {
+/// A payload log's shard, `logs/<log >> 12>` (skein/docs/design/data/kv.md, 6.1).
+#[must_use]
+pub fn directory(log: u64) -> Box<[u8]> {
     let mut out = Writer::new(21);
     out.put(b"logs/").expect("sized directory");
     out.put(&name(log >> 12)).expect("sized directory");
     out.finish()
 }
-pub(crate) fn path(log: u64) -> Box<[u8]> {
+/// A payload log's path, `logs/<log >> 12>/<log>` (skein/docs/design/data/kv.md, 6.1).
+#[must_use]
+pub fn path(log: u64) -> Box<[u8]> {
     let mut out = Writer::new(38);
     out.put(&directory(log)).expect("sized path");
     out.put(b"/").expect("sized path");

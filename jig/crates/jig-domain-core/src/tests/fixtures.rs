@@ -274,6 +274,7 @@ impl CurrentFixtures for crate::settings::Current {
             | Value::Policy(_)
             | Value::Rules(_)
             | Value::Limits(_)
+            | Value::Worker(_)
             | Value::Model(_)
             | Value::Application(_) => {
                 panic!("fixture charter value")
@@ -288,6 +289,7 @@ impl CurrentFixtures for crate::settings::Current {
                 Setting::Template(_) => old.push(setting).expect("fixture defaults"),
                 Setting::Charter(_)
                 | Setting::Policy(_)
+                | Setting::Worker(_)
                 | Setting::Model(_)
                 | Setting::Rules
                 | Setting::Limits

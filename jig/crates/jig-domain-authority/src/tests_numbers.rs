@@ -2,7 +2,8 @@
 
 use skein_lib::List;
 
-use crate::{Numbers, carve, charge, left, settle};
+use crate::tests_fixtures::{authority, rules};
+use crate::{Numbers, carve, charge, left, run_spend, settle};
 
 fn add(a: u64, b: u64) -> u64 {
     a.checked_add(b).unwrap()
@@ -18,6 +19,91 @@ fn remainder(a: u64, b: u64) -> u64 {
 
 fn fresh(budget: u64) -> Numbers {
     Numbers { budget, spent: 0, spent_below: 0, reserved: 0 }
+}
+
+#[test]
+fn a_run_keeps_half_for_delegates_after_spend_and_reservations_and_before_the_cap() {
+    let authority = authority();
+    let rules = rules(authority.clone());
+    for (numbers, expected) in [
+        (fresh(100), 50),
+        (fresh(301), 80),
+        (fresh(7), 3),
+        (Numbers { spent: 10, spent_below: 20, reserved: 30, ..fresh(101) }, 20),
+        (Numbers { spent: 101, ..fresh(100) }, 0),
+    ] {
+        assert_eq!(run_spend(&rules, &authority, numbers), expected, "{numbers:?}");
+    }
+}
+
+#[test]
+fn a_delegating_run_takes_the_whole_when_half_is_at_or_below_the_minimum() {
+    let authority = authority();
+    let mut rules = rules(authority.clone());
+    rules.minimum_run_spend = 40;
+    for (available, expected) in [(80, 80), (50, 50), (81, 80), (82, 41), (300, 80)] {
+        assert_eq!(run_spend(&rules, &authority, fresh(available)), expected, "{available} left");
+    }
+}
+
+#[test]
+fn a_run_with_no_delegation_keeps_all_available_funds_up_to_the_cap() {
+    let given = authority();
+    let mut rules = rules(given.clone());
+    let mut no_kinds = given.clone();
+    no_kinds.delegation.kinds = Box::new([]);
+    let mut no_tasks = given.clone();
+    no_tasks.delegation.tasks = 0;
+    let mut no_depth = given;
+    no_depth.delegation.depth = 0;
+    for minimum in [1, 40] {
+        rules.minimum_run_spend = minimum;
+        for authority in [&no_kinds, &no_tasks, &no_depth] {
+            for (available, expected) in [(100, 80), (50, 50), (81, 80), (82, 80)] {
+                assert_eq!(
+                    run_spend(&rules, authority, fresh(available)),
+                    expected,
+                    "minimum {minimum}, {available} left"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn generated_run_shares_fit_available_funding_and_follow_the_minimum_and_cap() {
+    for seed in 0..64_u64 {
+        let mut rng = skein_lib::Rng::new(seed);
+        let given = authority();
+        let mut rules = rules(given.clone());
+        rules.maximum_run_spend = add(1, rng.below(100));
+        rules.minimum_run_spend = rng.below(rules.maximum_run_spend);
+        for budget in [rng.below(1001), u64::MAX] {
+            let spent = rng.below(budget.saturating_add(1));
+            let spent_below = rng.below(budget.saturating_sub(spent).saturating_add(1));
+            let reserved = rng.below(budget.saturating_sub(spent).saturating_sub(spent_below).saturating_add(1));
+            let numbers = Numbers { budget, spent, spent_below, reserved };
+            let available = left(numbers);
+            for delegates in [true, false] {
+                let mut authority = given.clone();
+                if !delegates {
+                    authority.delegation.tasks = 0;
+                }
+                let share = run_spend(&rules, &authority, numbers);
+                assert!(share <= available, "seed {seed}: {numbers:?}");
+                assert!(share <= rules.maximum_run_spend, "seed {seed}: {numbers:?}");
+                let half = available / 2;
+                let expected = if delegates && half > rules.minimum_run_spend { half } else { available };
+                assert_eq!(
+                    share,
+                    expected.min(rules.maximum_run_spend),
+                    "seed {seed}: {numbers:?}, delegates {delegates}"
+                );
+                let charged = charge(numbers, share).expect("the run's full share fits its task's budget");
+                assert!(add(add(charged.spent, charged.spent_below), charged.reserved) <= budget, "seed {seed}");
+            }
+        }
+    }
 }
 
 #[test]

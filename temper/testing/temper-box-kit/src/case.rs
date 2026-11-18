@@ -573,7 +573,7 @@ impl Judge {
         (self.fixture.configure)(&mut value, &mut agent, forge);
         self.settings = process_settings(&mut value);
         value["application"]["webhooks"] = json!({"listener":{"socket":"127.0.0.1:0"}});
-        super::configuration::turn_bounds::apply(&mut value, super::configuration::turn_bounds::turn_body(&agent));
+        super::configuration::use_derived(&mut value);
         value["engine"]["hosts"]["listener"] = json!([{"socket":self.hosts.to_string()}]);
         for key in ["fleet.workers", "fleet.attempts"] {
             // tests/real-loop/src/cluster.rs: one admitted position/attempt per worker.
@@ -582,23 +582,23 @@ impl Judge {
         // accounts' program hosts hold documents.lines rows (jig documents/programs.rs `hosts`);
         // six lines also carry all stock charters in the creation offer.
         value.jig_over("documents.lines", 7);
-        value["engine"]["hosts"]["workers"][0]["name"] = "ws".into();
-        value["engine"]["hosts"]["workers"].as_array_mut().ok_or("hosts")?.truncate(self.cast.len());
+        let described = super::cluster::worker_settings(&engine_dir.join("settings.json"));
         let secret = b"s2-case-fixture-secret";
-        if self.cast.len() > 1 {
-            value["engine"]["hosts"]["workers"][1]["name"] = "s1".into();
-            value["engine"]["hosts"]["workers"]
-                .as_array_mut()
-                .ok_or("hosts")?
-                .push(json!({"name":"s2","digest":"secrets/s2.digest"}));
-            let mut hash = skein_lib::sha256::Sha256::new();
-            hash.update(secret);
-            let mut digest = String::new();
-            for byte in hash.finish() {
-                use std::fmt::Write as _;
-                write!(digest, "{byte:02x}").map_err(|why| format!("hex: {why:?}"))?;
-            }
-            super::write_private(&engine_dir.join("data/secrets/s2.digest"), digest.as_bytes());
+        for (index, name) in self.cast.iter().enumerate() {
+            let digest = if let Some(item) = described.get(index) {
+                item["set"]["digest"].clone()
+            } else {
+                let mut digest = String::new();
+                for byte in skein_lib::sha256::digest(secret) {
+                    use std::fmt::Write as _;
+                    write!(digest, "{byte:02x}").map_err(|why| format!("hex: {why:?}"))?;
+                }
+                digest.into()
+            };
+            self.settings.as_array_mut().ok_or("case setting items")?.push(json!({
+                "setting":{"kind":"worker","number":index + 1},
+                "set":{"name":name,"places":value["workers"][0]["slots"],"digest":digest}
+            }));
         }
         for &name in &self.cast {
             let dir = if name == "ws" { ws_dir.clone() } else { self.members.prepare(name) };
@@ -692,12 +692,6 @@ impl Judge {
                             .and_then(Value::as_str)
                             .ok_or("before")?
                             .into()
-                    }
-                    calls::Arg::InboxAfter(n) => {
-                        let v = call_json(&self.calls[*n])?;
-                        let cursor =
-                            v.pointer("/needs/after/value").and_then(Value::as_str).ok_or("next needs page")?;
-                        format!("00{cursor}")
                     }
                 })
             })
@@ -1156,7 +1150,7 @@ fn describe(step: &calls::Step) -> String {
         Step::TrialEnded => "TrialEnded".into(),
         Step::Return => "Return".into(),
         Step::Terminal(_) => "Terminal".into(),
-        Step::ReleaseHold { name } => format!("ReleaseHold {}", String::from_utf8_lossy(name)),
+        Step::ReleaseHold { name, .. } => format!("ReleaseHold {}", String::from_utf8_lossy(name)),
         Step::Advance => "Advance".into(),
         Step::Push { path, .. } => format!("Push {}", String::from_utf8_lossy(path)),
         Step::AddWorker { name } => format!("AddWorker {name}"),
@@ -1197,7 +1191,6 @@ fn describe_argv(argv: &calls::Argv) -> String {
             calls::Arg::Delegate(call) => format!("delegate(call {call})"),
             calls::Arg::Digest(call) => format!("digest(call {call})"),
             calls::Arg::ActivityBefore(call) => format!("activity-before(call {call})"),
-            calls::Arg::InboxAfter(call) => format!("inbox-after(call {call})"),
         })
         .collect::<Vec<_>>()
         .join(" ")

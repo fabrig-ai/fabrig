@@ -1,18 +1,23 @@
 //! Process wiring for a terminal lent to the found box (client/tui/box.md, Lending's tests).
 use super::{Binary, Command, Delegate, Expectation, Host, Mode, Referee, Streams, Terminal, real, support};
-use jig_client_protocol_wire::v28 as w;
+use jig_client_protocol_wire as w;
 use skein_io::{
     self as io,
     kernel::{Complete, Exit, Fd, Size, Submit},
 };
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall, Writer, stream};
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, VecDeque},
     ffi::OsString,
     fs,
     os::unix::{ffi::OsStrExt, fs::PermissionsExt},
     path::PathBuf,
 };
+
+enum Body {
+    Watch,
+    Batch,
+}
 
 // The fake engine shares the binary observer's and the person's one ring.
 struct Peer {
@@ -21,8 +26,8 @@ struct Peer {
     io: io::Io,
     env: Env<io::Limits>,
     entities: BTreeSet<Token>,
-    bodies: BTreeSet<Token>,
-    responses: BTreeMap<Token, Box<[u8]>>,
+    bodies: BTreeMap<Token, Body>,
+    responses: BTreeMap<Token, VecDeque<Box<[u8]>>>,
     stream: Option<Token>,
     closing: bool,
     complete: Queue<Complete>,
@@ -42,7 +47,7 @@ impl Peer {
             io,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             entities: BTreeSet::new(),
-            bodies: BTreeSet::new(),
+            bodies: BTreeMap::new(),
             responses: BTreeMap::new(),
             stream: None,
             closing: false,
@@ -70,27 +75,30 @@ impl Peer {
     }
     fn respond(&mut self, owner: Token, response: Vec<u8>) {
         let room = u32::try_from(response.len()).expect("response bound");
-        self.responses.insert(owner, response.into());
+        let queued = self.responses.entry(owner).or_default();
+        queued.push_back(response.into());
+        if queued.len() > 1 {
+            return;
+        }
         self.down(io::Request::Stream {
             stream: owner,
             down: stream::Down::Demand { read: stream::Read::Nothing, room },
         });
     }
     fn receive(&mut self, owner: Token, bytes: &[u8]) {
-        if self.bodies.remove(&owner) {
-            let open = w::Open::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("watch request");
-            if open.subject().owner() == &w::Owner::Jig {
-                let subject = w::Subject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(open.subject().record()))
-                    .expect("subject");
-                if matches!(subject, w::Subject::Terminal(_)) {
-                    self.respond(self.stream.expect("event stream"), terminal(open.watch()));
+        if let Some(body) = self.bodies.remove(&owner) {
+            match body {
+                Body::Watch => {
+                    let open =
+                        w::Open::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("watch request");
+                    let answer = self.opened(&open);
+                    self.respond(owner, response(&answer));
                 }
+                Body::Batch => self.batch(owner, bytes),
             }
-            let answer = w::OpenAnswer::Admitted;
-            let mut writer = Writer::new(usize::try_from(answer.measure()).expect("answer size"));
-            answer.encode(&mut writer).expect("admitted");
-            self.respond(owner, response(&writer.finish()));
-        } else if bytes.starts_with(b"GET /jig/v1/stream ") {
+        } else if bytes.starts_with(format!("GET /jig/v1/stream?version={} ", w::VERSION).as_bytes())
+            || bytes.starts_with(format!("GET /jig/v1/stream?version={}&replaces=", w::VERSION).as_bytes())
+        {
             self.stream = Some(owner);
             self.respond(
                 owner,
@@ -98,7 +106,7 @@ impl Peer {
             );
         } else if bytes.starts_with(b"POST /jig/v1/sign-in/link ") {
             self.respond(owner, signed_in());
-        } else if bytes.starts_with(b"POST /jig/v1/watch ") {
+        } else if bytes.starts_with(b"POST /jig/v1/watch ") || bytes.starts_with(b"POST /jig/v1/batch ") {
             let header = std::str::from_utf8(bytes).expect("HTTP header");
             let length = header
                 .lines()
@@ -108,7 +116,8 @@ impl Peer {
                         .map(|(_, value)| value.trim().parse::<u32>().expect("length"))
                 })
                 .expect("body length");
-            self.bodies.insert(owner);
+            let body = if bytes.starts_with(b"POST /jig/v1/batch ") { Body::Batch } else { Body::Watch };
+            self.bodies.insert(owner, body);
             self.down(io::Request::Stream {
                 stream: owner,
                 down: stream::Down::Demand { read: stream::Read::Fill(length), room: 0 },
@@ -117,6 +126,40 @@ impl Peer {
             // The end's account request needs no answer for this wiring story.
             self.respond(owner, response(b""));
         }
+    }
+    fn opened(&mut self, open: &w::Open) -> Box<[u8]> {
+        if open.subject().owner() == &w::Owner::Jig {
+            let subject = w::Subject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(open.subject().record()))
+                .expect("subject");
+            if matches!(subject, w::Subject::Terminal(_)) {
+                self.respond(self.stream.expect("event stream"), terminal(open.watch()));
+            }
+        }
+        let answer = w::OpenAnswer::Admitted;
+        let mut writer = Writer::new(usize::try_from(answer.measure()).expect("answer size"));
+        answer.encode(&mut writer).expect("admitted");
+        writer.finish()
+    }
+    fn batch(&mut self, owner: Token, bytes: &[u8]) {
+        let batch = w::Batch::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("batch request");
+        let mut frames = Vec::new();
+        for (place, member) in batch.into_parts().members.into_boxed().into_iter().enumerate() {
+            let reply = match member {
+                w::Member::Open(open) => self.opened(&open),
+                w::Member::Read(_) | w::Member::Close(_) => Box::new([]),
+            };
+            let part = w::BatchReply::new(
+                &w::CEILINGS,
+                w::BatchReplyParts { member: u16::try_from(place).expect("at most 64 members"), reply: Some(reply) },
+            )
+            .expect("member reply");
+            let mut writer = Writer::new(usize::try_from(part.measure()).expect("part size"));
+            part.encode(&mut writer).expect("part bytes");
+            let bytes = writer.finish();
+            frames.extend_from_slice(&u32::try_from(bytes.len()).expect("frame size").to_be_bytes());
+            frames.extend_from_slice(&bytes);
+        }
+        self.respond(owner, response(&frames));
     }
 }
 impl Host for Peer {
@@ -142,9 +185,19 @@ impl Host for Peer {
                 }
                 io::Event::Stream { owner, up: stream::Up::Bytes(bytes) } => self.receive(owner, &bytes),
                 io::Event::Stream { owner, up: stream::Up::Room } => {
-                    let bytes = self.responses.remove(&owner).expect("response room");
+                    let queued = self.responses.get_mut(&owner).expect("response room");
+                    let bytes = queued.pop_front().expect("queued response");
+                    let next = queued.front().map(|bytes| u32::try_from(bytes.len()).expect("response bound"));
+                    if next.is_none() {
+                        self.responses.remove(&owner);
+                    }
                     self.down(io::Request::Stream { stream: owner, down: stream::Down::Send(bytes) });
-                    if self.stream != Some(owner) {
+                    if let Some(room) = next {
+                        self.down(io::Request::Stream {
+                            stream: owner,
+                            down: stream::Down::Demand { read: stream::Read::Nothing, room },
+                        });
+                    } else if self.stream != Some(owner) {
                         self.down(io::Request::Stream { stream: owner, down: stream::Down::Finish });
                         self.down(io::Request::Close { entity: owner });
                     }
@@ -228,10 +281,49 @@ fn hello() -> Vec<u8> {
             .expect("served version"),
         )
         .expect("one version");
-    sse(&w::StreamEvent::Hello(
+    let hello =
         w::Hello::new(&w::CEILINGS, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
-            .expect("hello"),
+            .expect("hello");
+    sse(&w::StreamEvent::Opened(
+        w::Opened::new(&w::CEILINGS, w::OpenedParts { hello, me: me() }).expect("opened stream"),
     ))
+}
+fn me() -> w::Owned {
+    let text =
+        || w::DocumentText::new(&w::CEILINGS, w::DocumentTextParts { bytes: Box::new([]), cut: false }).expect("text");
+    let me = w::Me::new(
+        &w::CEILINGS,
+        w::MeParts {
+            party: w::MeParty::new(
+                &w::CEILINGS,
+                w::MePartyParts { number: 17, kind: w::PartyKind::Person, login: text(), name: text() },
+            )
+            .expect("party"),
+            projects: Box::new([]),
+            needs: w::Needs::new(
+                &w::CEILINGS,
+                w::NeedsParts { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 },
+            )
+            .expect("needs"),
+            needs_total: 0,
+            updates: w::Count::new(&w::CEILINGS, w::CountParts { value: 0, limited: false }).expect("count"),
+            results_seen: 0,
+            cut: false,
+            retention: Duration::from_secs(1000),
+            deployment_role: None,
+            providers: Box::new([]),
+            providers_cut: false,
+            key_bytes: 256,
+            redirect_bytes: 256,
+            words_bytes: 8192,
+        },
+    )
+    .expect("me without projects");
+    let value = w::DeliveryValue::Me(me);
+    let mut writer = Writer::new(usize::try_from(value.measure()).expect("size"));
+    value.encode(&mut writer).expect("me document");
+    w::Owned::new(&w::CEILINGS, w::OwnedParts { owner: w::Owner::Jig, version: w::VERSION, record: writer.finish() })
+        .expect("envelope")
 }
 fn terminal(watch: u64) -> Vec<u8> {
     let login = w::TerminalLogin::new(

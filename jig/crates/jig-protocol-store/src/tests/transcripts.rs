@@ -486,7 +486,12 @@ fn reopen(store: Store) -> Store {
     let mut store = fixtures::over(store.into_stores());
     fixtures::run(
         &mut store,
-        crate::Request::Open { owner: Token::new(800), root: fixtures::ROOT, installation: fixtures::INSTALLATION },
+        crate::Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: Token::new(800),
+            root: fixtures::ROOT,
+            installation: fixtures::INSTALLATION,
+        },
     );
     store
 }
@@ -698,7 +703,12 @@ fn framed_readable(raw: &[u8]) -> Store {
     store.owner_sets(super::frame_patches::SETS);
     fixtures::run(
         &mut store,
-        crate::Request::Open { owner: Token::new(800), root: fixtures::ROOT, installation: fixtures::INSTALLATION },
+        crate::Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: Token::new(800),
+            root: fixtures::ROOT,
+            installation: fixtures::INSTALLATION,
+        },
     );
     fixtures::plant(
         &mut store.stores,
@@ -1118,10 +1128,9 @@ fn a_read_waiting_on_a_writer_keeps_its_durable_places() {
 }
 fn cut_open(length: Option<u64>, claimed: bool) -> (Store, Box<[Event]>, Below) {
     let mut store = fixtures::over(fixtures::stores());
-    // Three creation rows, the header, a run proof and a transcript place.
-    let mut ops = skein_lib::List::with_capacity(6);
+    // Format, installation, header, a run proof and a transcript place; plant adds the floor.
+    let mut ops = skein_lib::List::with_capacity(5);
     ops.push(fixtures::format_put(fixtures::DEPLOYMENT)).expect("format");
-    ops.push(fixtures::layouts_put()).expect("layouts");
     ops.push(fixtures::header_put(fixtures::DEPLOYMENT, 1)).expect("header");
     ops.push(fixtures::installation_put(fixtures::INSTALLATION)).expect("installation");
     if claimed {
@@ -1146,7 +1155,12 @@ fn cut_open(length: Option<u64>, claimed: bool) -> (Store, Box<[Event]>, Below) 
     crate::down(
         &mut store,
         &fixtures::env(),
-        crate::Request::Open { owner: Token::new(801), root: fixtures::ROOT, installation: fixtures::INSTALLATION },
+        crate::Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: Token::new(801),
+            root: fixtures::ROOT,
+            installation: fixtures::INSTALLATION,
+        },
         &mut above,
         &mut below,
     );
@@ -1303,10 +1317,10 @@ fn open_queues_attempts_whose_transcript_place_is_gone() {
 #[test]
 fn orphan_erases_are_included_in_the_commits_operation_bound() {
     let mut limits = fixtures::store_limits();
-    limits.store.ops = 17;
+    limits.store.ops = 16;
     let sizes = crate::sizes::check_commits(&limits.core, &fixtures::APPLICATION, &limits.commits, &limits.store, 1)
         .expect("fits");
-    assert_eq!(sizes.ops, 17);
+    assert_eq!(sizes.ops, 16);
 }
 #[test]
 fn dropping_a_transcript_fails_without_submitting_the_commit() {

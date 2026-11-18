@@ -96,7 +96,8 @@ fn valid(kind: u32, bytes: &[u8]) -> bool {
         10 => w::ProjectWords::decode(&w::CEILINGS, &mut reader).is_ok(),
         14 => w::ProjectAreas::decode(&w::CEILINGS, &mut reader).is_ok(),
         15 => w::ProjectTriager::decode(&w::CEILINGS, &mut reader).is_ok(),
-        21 => w::TemperLimits::decode(&w::CEILINGS, &mut reader).is_ok(),
+        21 => w::AgentFigures::decode(&w::CEILINGS, &mut reader).is_ok(),
+        22 => w::TemperLimits::decode(&w::CEILINGS, &mut reader).is_ok(),
         20 => w::Welcome::decode(&w::CEILINGS, &mut reader).is_ok(),
         _ => false,
     };
@@ -187,14 +188,14 @@ pub(crate) fn decode(query: Query, page: &Readout) -> Option<Answer> {
     }
 }
 pub(crate) fn selector(call: &Call) -> Option<c::Setting> {
-    if call.form == 10 {
+    if call.form == 11 {
         return Some(c::Setting::Limits);
     }
-    if call.form == 11 {
-        return Some(c::Setting::Application { kind: 21, scope: 0, number: 1 });
+    if call.form == 12 {
+        return Some(c::Setting::Application { kind: 22, scope: 0, number: 1 });
     }
-    if call.form == 9 {
-        return Some(c::Setting::Application { kind: 20, scope: 0, number: 1 });
+    if call.form == 9 || call.form == 10 {
+        return Some(c::Setting::Application { kind: if call.form == 9 { 21 } else { 20 }, scope: 0, number: 1 });
     }
     if call.form == 4 {
         let Some(Value::Project(Project::Number(project))) = value(call, 1) else { unreachable!("resolved project") };
@@ -207,6 +208,8 @@ pub(crate) fn selector(call: &Call) -> Option<c::Setting> {
                 3 => 10,
                 4 => 14,
                 5 => 15,
+                6 => 4,
+                7 => 5,
                 _ => unreachable!("project setting kind"),
             },
             scope: *project,
@@ -296,10 +299,10 @@ pub const SETTING: Tool = Tool {
         &[
             positional(
                 b"kind",
-                b"project-ways|project-questions|project-classes|project-words|project-areas|project-triager",
-                Kind::Word { set: &[b"project-ways", b"project-questions", b"project-classes", b"project-words", b"project-areas", b"project-triager"] },
+                b"project-ways|project-questions|project-classes|project-words|project-areas|project-triager|project-landing|project-gates",
+                Kind::Word { set: &[b"project-ways", b"project-questions", b"project-classes", b"project-words", b"project-areas", b"project-triager", b"project-landing", b"project-gates"] },
                 Required,
-                b"A project's ways, questions, classes or words",
+                b"A project's ways, questions, classes, words, areas, triager, landing or gates",
             ),
             positional(
                 b"project",
@@ -357,6 +360,10 @@ pub const SETTING: Tool = Tool {
             revision_flag(),
         ],
         &[
+            positional(b"kind", b"agents", Kind::Word { set: &[b"agents"] }, Required, b"The agents' figures"),
+            revision_flag(),
+        ],
+        &[
             positional(b"kind", b"welcome", Kind::Word { set: &[b"welcome"] }, Required, b"The deployment's welcome"),
             revision_flag(),
         ],
@@ -371,16 +378,18 @@ pub(crate) fn name(setting: c::Setting, out: &mut Text) -> bool {
     if !wire::settings_kind(kind) {
         return false;
     }
-    if kind == 21 {
+    if kind == 22 {
         out.put(b"temper-limits");
         return true;
     }
-    if kind == 20 {
-        out.put(b"welcome");
+    if kind == 20 || kind == 21 {
+        out.put(if kind == 21 { b"agents" } else { b"welcome" });
         return true;
     }
     out.put(match kind {
         3 => b"forge-charter ",
+        4 => b"project-landing ",
+        5 => b"project-gates ",
         11 => b"template-goal ",
         12 => b"follow ",
         13 => b"dependency ",
@@ -393,11 +402,13 @@ pub(crate) fn name(setting: c::Setting, out: &mut Text) -> bool {
         15 => b"project-triager ",
         _ => b"landing-rule ",
     });
-    out.number(u64::from(if kind == 6 || kind == 7 || kind == 8 || kind == 10 || kind == 14 || kind == 15 {
-        scope
-    } else {
-        number
-    }));
+    out.number(u64::from(
+        if kind == 4 || kind == 5 || kind == 6 || kind == 7 || kind == 8 || kind == 10 || kind == 14 || kind == 15 {
+            scope
+        } else {
+            number
+        },
+    ));
     if kind == 2 || kind == 12 || kind == 13 {
         out.put(b" --project ");
         out.number(u64::from(scope));
@@ -409,7 +420,7 @@ mod value;
 pub(crate) fn render(kind: u32, bytes: &[u8], out: &mut skein_json::writer::Encoder) -> bool {
     let mut reader = Reader::new(bytes);
     match kind {
-        12 | 13 | 20 | 21 => return settings_form::render::application_value(kind, bytes, out),
+        4 | 5 | 12 | 13 | 20 | 21 | 22 => return settings_form::render::application_value(kind, bytes, out),
         9 => {
             let Ok(value) = w::CharterWords::decode(&w::CEILINGS, &mut reader) else { return false };
             if !reader.is_empty() {
@@ -455,7 +466,7 @@ pub(crate) fn inventory_next(reading: &crate::jig::runner::reads::Reading) -> Op
     let mut temper_limits = false;
     for line in &document.settings {
         jig_limits |= line.setting == c::Setting::Limits;
-        temper_limits |= line.setting == (c::Setting::Application { kind: 21, scope: 0, number: 1 });
+        temper_limits |= line.setting == (c::Setting::Application { kind: 22, scope: 0, number: 1 });
     }
     if jig_limits && !reading.pages.contains_key(&2) {
         return Some((
@@ -468,7 +479,7 @@ pub(crate) fn inventory_next(reading: &crate::jig::runner::reads::Reading) -> Op
         ));
     }
     if temper_limits && !reading.pages.contains_key(&3) {
-        return Some((3, read(Query::Setting(c::Setting::Application { kind: 21, scope: 0, number: 1 }))));
+        return Some((3, read(Query::Setting(c::Setting::Application { kind: 22, scope: 0, number: 1 }))));
     }
     None
 }

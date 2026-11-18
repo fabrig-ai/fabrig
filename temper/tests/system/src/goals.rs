@@ -119,6 +119,7 @@ fn configured() -> Driver {
 /// come from the replies: a first start seeds the configured owners.
 fn sign_in(driver: &mut Driver, user: u64, reply: u64) -> (u64, u64) {
     driver.send(engine::Event::Party(engine::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(reply)),
         identity: people::Identity {

@@ -1,4 +1,4 @@
-//! Joined recording streams (client/web/journeys.md, 3.2 and 3.6).
+//! Joined recording streams (client/web/journeys.md, 3.2 and client/web/journey-redaction.md).
 use super::Line;
 use jig_client_shell_web::adapter::Heard;
 use skein_lib::base64::{self, Alphabet};
@@ -9,7 +9,7 @@ pub struct Event {
     pub line: u32,
     pub record: Box<[u8]>,
 }
-/// Stream text outside data payloads and bare framing (client/web/journeys.md, 3.6).
+/// Stream text outside data payloads and bare framing (client/web/journey-redaction.md).
 pub struct Plain {
     pub line: u32,
     pub bytes: Box<[u8]>,
@@ -79,6 +79,25 @@ impl Streams {
     }
     pub fn plain_mut(&mut self) -> &mut [Plain] {
         &mut self.plain
+    }
+    /// Decoded records and plain runs in their joined byte order.
+    pub(super) fn fields(&self) -> Vec<(u32, &[u8])> {
+        let mut fields = Vec::new();
+        for joined in &self.joined {
+            for run in &joined.runs {
+                match run.source {
+                    Source::Event { index, .. } => {
+                        let event = &self.events[index];
+                        fields.push((event.line, event.record.as_ref()));
+                    }
+                    Source::Plain { index } => {
+                        let plain = &self.plain[index];
+                        fields.push((plain.line, plain.bytes.as_ref()));
+                    }
+                }
+            }
+        }
+        fields
     }
     /// Encode records back and cut bytes at the original piece boundaries.
     ///

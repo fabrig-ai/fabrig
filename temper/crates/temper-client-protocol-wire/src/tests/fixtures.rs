@@ -89,7 +89,21 @@ pub fn adopt() -> v1::Adopt {
 
 pub fn adopted() -> v1::Adopted {
     let limits = limits();
-    let kinds = v1::Kinds::new(&limits, v1::KindsParts { skein_bools: [true; 9] }).expect("observed capabilities");
+    let kinds = v1::Kinds::new(
+        &limits,
+        v1::KindsParts {
+            read: true,
+            push: true,
+            open: true,
+            land: true,
+            review: true,
+            status: true,
+            comment: true,
+            issue: true,
+            branch: true,
+        },
+    )
+    .expect("observed capabilities");
     v1::Adopted::new(
         &limits,
         v1::AdoptedParts {
@@ -189,6 +203,7 @@ pub fn gates(count: u32) -> List<v1::Gate> {
 pub fn panel_parts() -> v1::ChangePanelParts {
     let limits = limits();
     v1::ChangePanelParts {
+        wait: None,
         source: None,
         way: v1::Way::Queue,
         in_landing: None,

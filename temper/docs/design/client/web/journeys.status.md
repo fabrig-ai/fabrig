@@ -42,7 +42,7 @@ through the ChatGPT sign-in's new tab; `welcome-playground`'s link is
 redacted. The rendered comparison remains section 10's after-landing
 work; the real-box and `welcome-set-up` redaction gaps below remain.
 
-Section 3.6 has no known gap in the TUI's three kinds of original,
+`journey-redaction.md` has no known gap in the TUI's three kinds of original,
 `Kind::Approval`, `Kind::Credential` and `Kind::Bearer`, or the shared
 `Originals::new`, `redact_field` and separate original and shape scans.
 The TUI uses these with its own records; the browser's redaction and
@@ -92,12 +92,12 @@ template, where a box now starts a design session
 (`../pages/README.md`, *A new chat*), which the same renewal records.
 
 - **Not yet:**
+  - 3.2 and 8.1: no `fixed` fact, and `walk` judges every key mark by its clocks [in flight: change 7721].
+  - 8.1: `again` gives the box and the page no fixed start [in flight: change 7722].
   - 3.5, 9: no recording from a real box has been through `add`, and no journey is `real`: the `real-journeys` request of 2026-11-05 leaves that to the user's own recording, so the guard has met fake secrets alone, through the shipped host natively.
-  - 3.6: `welcome-set-up` was added before the redaction and keeps its fake box's link secret (3.5), until it is next added, because that request left the journey's files to its owner.
   - 8: nothing refuses `again` on a real journey. No recording says it is real, so `again NAME` would walk it on a fake box and, where its acts held, add that walk over it. Seen by reading.
   - 8.1: a typed secret's act holds its `x`s once added, so `again` types those. No committed journey types a secret, so no run has shown it.
 - **Departs:**
-  - 3.6: the API-key field carries a pasted trailing newline rather than trimming it. Redaction preserves that newline and replaces both the whole-value and trimmed-value digests, matching what the host carries so the replay holds.
   - 5.1: a `--redact` TEXT that is empty or starts `--` is a table refusal with usage, exit 2, so such a text can't be named, because a TEXT left out must not take the next flag for one.
   - 6: the refusal's process tests (`temper/bin/temper-client-journeys/tests/suite/refusals.rs`) compare the listings of the journeys' root and of `crates/temper-client-journeys-tool`, a level each, and the print's test compares a whole root, where the section has nothing written on any path. No test traces a process's every write, so that `add`'s writes all stand after its last scan is seen by reading `add`.
   - 5.2, 6: `project-landing`, `welcome-playground` and `welcome-set-up` are stale. Their recordings predate the client wire that limits as settings moved and its `limits` and `limit-holds` reads (`../../protocol/configuration/limit-settings.md`, 7), so the print's test fails on them. The change landed without waiting for them to be recorded again, because `again` couldn't fetch the owned Forgejo's pinned download (8.1): codeberg.org didn't resolve anywhere on 2026-11-18. Free decided this on 2026-11-18, through temper/dev. temper/tiers records them again after landing, with the TUI's four (`../tui/journeys.status.md`), and deletes this entry.

@@ -743,3 +743,7 @@ The reasons behind `config.md`, from the user, 2026-11-16.
 ## 23. Pages in few round trips
 
 The reasons behind `page-round-trips.md`, 2026-11-17, whose head holds the user's words. Its readings, not theirs: a budget in waves and requests, held by a test, since a plan measures no latency; batches and parts as jig's mechanisms, so that the engine knows no page; `me` in the hello, two waves for three; sections top down, so nothing read moves; Home later, its cards being other rows.
+
+## 24. Settings numbers
+
+The reasons behind `settings-numbers.md`, 2026-11-18, whose head holds the user's words. Its readings, not theirs: ranges rather than finding stock items by what they are, since numbers are identity across policies, tasks and clients and jig never renumbers; models' existing habit made a rule; the rule checked at a start too, so the upgrade check finds what's left before a redeploy; no collision code, since none can happen once dev's four items have moved.

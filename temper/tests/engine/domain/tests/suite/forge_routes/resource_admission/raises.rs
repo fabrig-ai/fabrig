@@ -9,7 +9,7 @@ fn raise(world: &mut World, member: &[u8], figure: u32) {
         value: u64::from(figure),
         reason: b"room for held work".as_slice().into(),
     }]);
-    let item = temper_engine_domain_world::kinds::item(21, 0, 1, &forge_top::settings::Value::Limits(values.clone()));
+    let item = temper_engine_domain_world::kinds::item(22, 0, 1, &forge_top::settings::Value::Limits(values.clone()));
     world.send(temper_engine_domain_world::kinds::change(
         world.signed_in.expect("signed-in owner"),
         revision,

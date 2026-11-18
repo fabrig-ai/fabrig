@@ -28,6 +28,7 @@ pub trait App: Sized {
     fn went(address: Self::Address) -> Self::Event;
     fn step(root: &mut Self::Root, env: &Env<Self::Limits>, event: Self::Event, out: &mut Queue<Self::Request>);
     fn fire(root: &mut Self::Root, env: &Env<Self::Limits>, out: &mut Queue<Self::Request>);
+    fn settle(root: &mut Self::Root, env: &Env<Self::Limits>, out: &mut Queue<Self::Request>);
     fn take(root: &mut Self::Root, env: &Env<Self::Limits>, out: &mut Queue<Self::Request>);
     fn next_deadline(root: &Self::Root) -> Option<Time>;
     fn build(view: &mut Self::View, root: &Self::Root, patches: &mut Queue<Patch>);

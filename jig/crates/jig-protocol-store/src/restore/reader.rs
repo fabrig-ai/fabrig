@@ -217,6 +217,8 @@ pub(crate) fn joined(event: Option<skein_kv::Event>) -> Result<Option<Box<[u8]>>
             | skein_kv::Event::LogRead { .. }
             | skein_kv::Event::LogUnread { .. }
             | skein_kv::Event::Loaded { .. }
+            | skein_kv::Event::Held { .. }
+            | skein_kv::Event::Released { .. }
             | skein_kv::Event::Closed { .. }
             | skein_kv::Event::Recovered { .. },
         ) => Err(JoinFailure::UnexpectedTerminal),

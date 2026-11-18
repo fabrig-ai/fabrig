@@ -121,6 +121,7 @@ pub fn task_line_record() -> w::TaskLine {
     w::TaskLine::new(
         &l,
         w::TaskLineParts {
+            parts: List::with_capacity(0),
             chip: live_chip_record(),
             project: 7,
             tracked: Some(19),
@@ -156,8 +157,11 @@ pub fn task_line_record() -> w::TaskLine {
 pub fn tasks_rows_record() -> w::Tasks {
     let l = limits();
     let row = task_line_record();
-    w::Tasks::new(&l, w::TasksParts { rows: pieces([encoded(row.measure(), |w| row.encode(w))]), more: true })
-        .expect("literal")
+    w::Tasks::new(
+        &l,
+        w::TasksParts { ended_mark: 0, rows: pieces([encoded(row.measure(), |w| row.encode(w))]), more: true },
+    )
+    .expect("literal")
 }
 #[must_use]
 pub fn stored_link_record() -> w::TaskLink {
@@ -362,7 +366,10 @@ pub fn deployment_rows_record() -> w::Deployment {
         &l,
         w::HostParts {
             rule: w::HostRule::Open,
-            skein_bools: [false, true, false, true],
+            awaiting_logins: false,
+            draining: true,
+            connected: false,
+            cut: true,
             name: None,
             programs: Box::new([]),
             channel: 17,
@@ -394,7 +401,11 @@ pub fn deployment_rows_record() -> w::Deployment {
             state: w::AccountState::Later(
                 w::AccountStateLater::new(&l, w::AccountStateLaterParts { until: Some(47) }).expect("literal"),
             ),
-            skein_bools: [false, false, true, false, true],
+            plan: false,
+            usable: false,
+            expiring: true,
+            attention: false,
+            cut: true,
             spent_until: Some(53),
             runs: pieces([encoded(chip.measure(), |w| chip.encode(w))]),
             waiting: pieces([encoded(chip.measure(), |w| chip.encode(w))]),
@@ -404,7 +415,11 @@ pub fn deployment_rows_record() -> w::Deployment {
     w::Deployment::new(
         &l,
         w::DeploymentParts {
-            skein_bools: [false, true, false, false],
+            worker_settings: List::with_capacity(0),
+            cut: false,
+            connectors_cut: true,
+            providers_cut: false,
+            readiness_cut: false,
             providers: Box::new([]),
             key_bytes: 256,
             readiness: Box::new([]),
@@ -539,6 +554,9 @@ fn task_refusal_record() -> w::TaskCapacityRefusal {
 /// A page fixture with defaults for every field, before a test selects its facts.
 #[must_use]
 pub fn task_page_record() -> w::TaskPage {
-    w::TaskPage::new(&limits(), w::TaskPageParts { live: Box::new([]), live_after: None, ended: w::EndedGroup::None })
-        .expect("empty page fits")
+    w::TaskPage::new(
+        &limits(),
+        w::TaskPageParts { ended_mark: 0, live: Box::new([]), live_after: None, ended: w::EndedGroup::None },
+    )
+    .expect("empty page fits")
 }

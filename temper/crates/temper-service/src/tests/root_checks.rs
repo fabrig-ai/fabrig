@@ -13,7 +13,6 @@ use crate::startup::{Problems, checks, lines};
 // The stock catalogue holds twelve charters and seven templates.
 // Authority and task executor places hold its eighteen delegation kinds.
 const ENGINE_OVERRIDES: &str = r#""tasks.charters":13,"core.templates":7,"authority.executors":22,"tasks.executor_kinds":22,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1"#;
-const WORKER_OVERRIDES: &str = r#""hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.result_bytes":512,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048"#;
 
 fn started(document: &(impl fixtures::Input + ?Sized)) -> Box<[u8]> {
     let found = match fixtures::start(
@@ -45,7 +44,7 @@ fn root(limits: &temper_engine_domain::Limits) -> Box<[u8]> {
     let engine = fixtures::guard_engine();
     let mut found = Problems::empty();
     let seeds = fixtures::seeds();
-    let core = jig_protocol_config::core(&engine.jig, seeds.deployment, seeds.seed);
+    let core = temper_engine_service::startup::core(&engine.jig, seeds.deployment, seeds.seed);
     checks::root(core, &engine, &seeds, &[], limits, &mut found);
     lines(&found)
 }
@@ -126,7 +125,7 @@ fn watched_names_do_not_change_checkout_channel_capacity() {
 #[test]
 fn the_hubs_accounts_past_the_agents_name_both_limits() {
     let document =
-        overridden(&fixtures::document(), b"workers[0].limits.overrides", WORKER_OVERRIDES, r#""hub.accounts":4096"#);
+        overridden(&fixtures::document(), b"engine.limits.overrides", ENGINE_OVERRIDES, r#""hub.accounts":4096"#);
     assert_eq!(
         &*started(&document),
         b"workers[0].limits.overrides.hub.accounts: must agree with the agent's accounts\n"
@@ -136,11 +135,7 @@ fn the_hubs_accounts_past_the_agents_name_both_limits() {
 #[test]
 fn a_resume_limit_past_a_rows_bytes_refuses_the_start() {
     assert_eq!(
-        &*started(&fixtures::with(
-            &engine_with(r#""core.resume_bytes":65541,"hub.transcript_bytes":262161"#),
-            b"workers[0].limits.overrides",
-            format!("{{{WORKER_OVERRIDES},\"hub.transcript_bytes\":262161}}").as_bytes(),
-        )),
+        &*started(&engine_with(r#""core.resume_bytes":65541,"hub.transcript_bytes":262161"#)),
         b"application.limits.overrides.root.journal.transcript_bytes: 65540 bytes, short of core.resume_bytes, 65541 bytes\n"
     );
 }
@@ -164,7 +159,7 @@ fn an_owners_project_without_an_escalation_role_refuses_the_start() {
     let mut engine = fixtures::guard_engine();
     engine.jig.projects[0].policy.escalation_role = None;
     let seeds = fixtures::seeds();
-    let core = jig_protocol_config::core(&engine.jig, seeds.deployment, seeds.seed);
+    let core = temper_engine_service::startup::core(&engine.jig, seeds.deployment, seeds.seed);
     let limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
     let mut found = Problems::empty();
     checks::root(core, &engine, &seeds, &[], &limits, &mut found);
@@ -213,14 +208,14 @@ fn a_deployment_provider_0_refuses_the_start() {
 #[test]
 fn configured_worker_count_past_membership_refuses_startup() {
     let mut limits = root_limits();
-    limits.fleet.configured_workers = 1;
-    assert_eq!(&*root(&limits), b"engine.hosts.workers: past its bound\n");
+    limits.fleet.configured_workers = 0;
+    assert_eq!(&*root(&limits), b"engine.limits.overrides.fleet.configured_workers: past its bound\n");
 }
 #[test]
 fn configured_worker_name_past_membership_names_its_startup_path() {
     let mut limits = root_limits();
-    limits.fleet.worker_name_bytes = 1;
-    assert_eq!(&*root(&limits), b"engine.hosts.workers[0].name: past its bound\n");
+    limits.fleet.worker_name_bytes = 4;
+    assert_eq!(&*root(&limits), b"engine.limits.overrides.fleet.worker_name_bytes: past its bound\n");
 }
 
 #[test]
@@ -264,7 +259,7 @@ fn landing_rules_do_not_enlarge_the_seed_policy() {
     )
     .unwrap();
     let seeds = fixtures::seeds();
-    let core = jig_protocol_config::core(&engine.jig, seeds.deployment, seeds.seed);
+    let core = temper_engine_service::startup::core(&engine.jig, seeds.deployment, seeds.seed);
     let mut limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
     limits.policy_bytes = 512;
     checks::root(core, &engine, &seeds, &[], &limits, &mut found);
@@ -473,16 +468,9 @@ fn the_reference_room_starts_and_holds_its_relations() {
     ] {
         assert_eq!(engine[name].as_u64(), Some(value), "engine {name}");
     }
-    let stored: serde_json::Value = serde_json::from_slice(&document).unwrap();
-    for worker in stored["workers"].as_array().unwrap() {
-        for (name, value) in [
-            ("hub.event_bytes", payload - 2),
-            ("hub.transcript_bytes", transcript),
-            ("hub.turn_bytes", turn),
-            ("hub.turn_queue_bytes", 8 * turn),
-        ] {
-            assert_eq!(worker["limits"]["overrides"][name].as_u64(), Some(value), "worker {name}");
-        }
+    assert_eq!(engine["hub.event_bytes"].as_u64(), Some(payload - 2));
+    for worker in document["workers"].as_array().unwrap() {
+        assert!(worker.get("limits").is_none());
     }
     for (name, value) in [
         ("checkout.message_bytes", payload),
@@ -585,7 +573,7 @@ fn box_start_refuses_twice_the_stock_turn_without_panicking() {
     )
     .err()
     .unwrap();
-    assert_eq!(lines(&found).as_ref(), b"engine.limits.overrides.io.output: cannot derive from the agent's largest turn (T) within the worker wire's ceilings\nworkers[0].limits.overrides.io.output: cannot derive from the agent's largest turn (T) within the worker wire's ceilings\n");
+    assert_eq!(lines(&found).as_ref(), b"engine.limits.overrides.io.output: cannot derive from the agent's largest turn (T) within the worker wire's ceilings\n");
 }
 
 #[test]

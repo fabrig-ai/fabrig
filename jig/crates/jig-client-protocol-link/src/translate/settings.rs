@@ -2,7 +2,7 @@
 use crate::Limits;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
-use jig_client_protocol_wire::v28 as w;
+use jig_client_protocol_wire as w;
 use skein_lib::{List, Reader, Wall, Writer, bytes, length::len_u64};
 pub fn wire_setting_number(value: &c::SettingNumber, limits: &w::Limits) -> Result<w::SettingNumber, w::Problem> {
     w::SettingNumber::new(limits, w::SettingNumberParts { number: value.number })
@@ -16,6 +16,7 @@ pub fn wire_setting(value: &c::Setting, limits: &w::Limits) -> Result<w::Setting
         c::Setting::Template(item) => w::Setting::Template(wire_setting_number(item, limits)?),
         c::Setting::Policy(item) => w::Setting::Policy(wire_setting_number(item, limits)?),
         c::Setting::Model(item) => w::Setting::Model(wire_setting_number(item, limits)?),
+        c::Setting::Worker(item) => w::Setting::Worker(wire_setting_number(item, limits)?),
         c::Setting::Rules => w::Setting::Rules,
         c::Setting::Limits => w::Setting::Limits,
         c::Setting::ProjectPolicy { project } => w::Setting::ProjectPolicy(w::ProjectPolicySetting::new(
@@ -34,6 +35,7 @@ pub fn restore_setting(value: &w::Setting) -> Result<c::Setting, w::Problem> {
         w::Setting::Template(item) => c::Setting::Template(restore_setting_number(item)?),
         w::Setting::Policy(item) => c::Setting::Policy(restore_setting_number(item)?),
         w::Setting::Model(item) => c::Setting::Model(restore_setting_number(item)?),
+        w::Setting::Worker(item) => c::Setting::Worker(restore_setting_number(item)?),
         w::Setting::Rules => c::Setting::Rules,
         w::Setting::Limits => c::Setting::Limits,
         w::Setting::ProjectPolicy(v) => c::Setting::ProjectPolicy { project: v.project() },
@@ -152,7 +154,12 @@ pub fn wire_charter(value: &c::Charter, limits: &w::Limits) -> Result<w::Charter
         w::CharterParts {
             parts,
             documents,
-            skein_bools: [value.rest, value.resume, value.inspect, value.modify, value.shell, value.agents],
+            rest: value.rest,
+            resume: value.resume,
+            inspect: value.inspect,
+            modify: value.modify,
+            shell: value.shell,
+            agents: value.agents,
             number: value.number,
             instructions: bytes::copy_of(value.instructions.bytes()),
             waiting: value.waiting,
@@ -343,6 +350,7 @@ pub fn wire_setting_value(value: &c::SettingValue, limits: &w::Limits) -> Result
     Ok(match value {
         c::SettingValue::Overlay(item) => w::SettingValue::Overlay(Box::new(wire_overlay(item, limits)?)),
         c::SettingValue::Model(v) => w::SettingValue::Model(Box::new(wire_catalogue(v, limits)?)),
+        c::SettingValue::Worker(v) => w::SettingValue::Worker(Box::new(wire_worker(v, limits)?)),
         c::SettingValue::Application(v) => w::SettingValue::Application(w::ApplicationValue::new(
             limits,
             w::ApplicationValueParts { bytes: v.clone() },
@@ -358,6 +366,13 @@ pub fn restore_setting_value(value: &w::SettingValue, limits: &Limits) -> Result
     Ok(match value {
         w::SettingValue::Overlay(item) => c::SettingValue::Overlay(Box::new(restore_overlay(item)?)),
         w::SettingValue::Model(v) => c::SettingValue::Model(Box::new(restore_catalogue(v)?)),
+        w::SettingValue::Worker(v) => c::SettingValue::Worker(Box::new(c::WorkerSetting {
+            number: v.number(),
+            name: bytes::copy_of(v.name()),
+            places: v.places(),
+            digest: *v.digest(),
+            withdrawn: v.withdrawn(),
+        })),
         w::SettingValue::Application(v) => c::SettingValue::Application(bytes::copy_of(v.bytes())),
         w::SettingValue::Charter(item) => c::SettingValue::Charter(Box::new(restore_charter(item)?)),
         w::SettingValue::Template(item) => {
@@ -454,6 +469,7 @@ pub fn restore_setting_fault(value: &w::SettingFault) -> Result<c::SettingFault,
         w::SettingFault::Grace => c::SettingFault::Grace,
         w::SettingFault::Owner => c::SettingFault::Owner,
         w::SettingFault::Judged => c::SettingFault::Judged,
+        w::SettingFault::Linked => c::SettingFault::Linked,
     })
 }
 pub fn restore_malformed_settings(value: &w::MalformedSettings) -> Result<c::MalformedSettings, w::Problem> {
@@ -1213,4 +1229,17 @@ fn restore_limits(value: &w::LimitsValue) -> Box<[c::Override]> {
             .expect("override count");
     }
     overrides.into_boxed()
+}
+
+fn wire_worker(value: &c::WorkerSetting, limits: &w::Limits) -> Result<w::WorkerSetting, w::Problem> {
+    w::WorkerSetting::new(
+        limits,
+        w::WorkerSettingParts {
+            number: value.number,
+            name: value.name.clone(),
+            places: value.places,
+            digest: value.digest,
+            withdrawn: value.withdrawn,
+        },
+    )
 }

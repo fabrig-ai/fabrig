@@ -3,7 +3,7 @@
     "llm": {
       "providers": [
         {
-          "name": "fake-provider",
+          "name": "openai",
           "number": 1,
           "endpoint": "fake",
           "sources": {
@@ -16,7 +16,7 @@
           "name": "fake",
           "number": 0,
           "dialect": 3,
-          "provider": "fake-provider",
+          "provider": "openai",
           "address": {
             "socket": "{place.model}"
           },
@@ -31,12 +31,6 @@
       "listener": [
         {
           "socket": "{place.workers}"
-        }
-      ],
-      "workers": [
-        {
-          "name": "worker",
-          "digest": "{place.data}/engine/secrets/worker.digest"
         }
       ]
     },

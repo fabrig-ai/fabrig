@@ -287,6 +287,25 @@ impl Machine {
             return;
         }
         let path = head.split_whitespace().nth(1).expect("HTTP route");
+        let (path, query) = path.split_once('?').unwrap_or((path, ""));
+        let mut replaces = None;
+        let mut version = None;
+        for field in query.split('&') {
+            if let Some(hex) = field.strip_prefix("replaces=") {
+                let name: Vec<u8> = hex
+                    .as_bytes()
+                    .as_chunks::<2>()
+                    .0
+                    .iter()
+                    .map(|pair| u8::from_str_radix(std::str::from_utf8(pair).expect("hex"), 16).expect("hex name"))
+                    .collect();
+                replaces = Some(<[u8; 16]>::try_from(name.as_slice()).expect("stream name"));
+            } else if let Some(value) = field.strip_prefix("version=") {
+                version = Some(value.parse::<u32>().expect("wire version"));
+            } else {
+                assert!(field.is_empty(), "query outside service-party story");
+            }
+        }
         let credential = head.lines().find_map(|line| {
             line.strip_prefix("Authorization: Bearer ")
                 .map(|value| Secret::new(base64::decode(Alphabet::Url, value.as_bytes(), 40).expect("bearer")))
@@ -299,12 +318,21 @@ impl Machine {
             "/jig/v1/request" => Message::Request(body),
             "/jig/v1/watch" => Message::Watch(body),
             "/jig/v1/read" => Message::Read(body),
+            "/jig/v1/batch" => {
+                socket.reply.extend(b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n");
+                Message::Batch(body)
+            }
             "/jig/v1/unwatch" => Message::Unwatch(body),
             "/jig/v1/stream-gone" => Message::StreamGone(body),
             "/jig/v1/stream" => {
+                assert_eq!(version, Some(jig_client_protocol_wire::VERSION));
                 self.stream = Some(fd);
                 socket.reply.extend(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n\r\n");
-                self.front.carry(who, self.now, Request::OpenStream { credential });
+                self.front.carry(
+                    who,
+                    self.now,
+                    Request::OpenStream { credential, replaces, version: jig_client_protocol_wire::VERSION },
+                );
                 self.hear(who);
                 return;
             }
@@ -324,6 +352,20 @@ impl Machine {
                     let reply = &mut self.sockets.get_mut(&fd).expect("reply socket").reply;
                     reply.extend(format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n", message.len()).bytes());
                     reply.extend(message.iter().copied());
+                }
+                Event::Part { exchange, message } => {
+                    let fd = self.exchanges[&exchange];
+                    let reply = &mut self.sockets.get_mut(&fd).expect("batch socket").reply;
+                    let frame =
+                        [u32::try_from(message.len()).expect("part size").to_be_bytes().as_slice(), message.as_ref()]
+                            .concat();
+                    reply.extend(format!("{:x}\r\n", frame.len()).bytes());
+                    reply.extend(frame);
+                    reply.extend(b"\r\n");
+                }
+                Event::Done { exchange } => {
+                    let fd = self.exchanges.remove(&exchange).expect("batch socket");
+                    self.sockets.get_mut(&fd).expect("batch socket").reply.extend(b"0\r\n\r\n");
                 }
                 Event::Streamed { message: Streamed::Record(bytes) } => {
                     let length =

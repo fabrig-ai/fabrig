@@ -12,7 +12,7 @@ use super::{LimitKind, LimitSettings, resolve_limits};
 fn kind(setting: s::Setting) -> Option<LimitKind> {
     if setting == s::Setting::Limits {
         Some(LimitKind::Jig)
-    } else if let s::Setting::Application { kind: 21, .. } = setting {
+    } else if let s::Setting::Application { kind: 22, .. } = setting {
         Some(LimitKind::Temper)
     } else {
         None

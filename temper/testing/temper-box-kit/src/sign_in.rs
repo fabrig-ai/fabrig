@@ -82,12 +82,11 @@ pub fn patch_configuration(directory: &Path) -> oauth::Peer {
     value["engine"]["llm"]["endpoints"][0]["server_name"] = "skein.test".into();
     value["engine"]["llm"]["endpoints"][0]["trust"] = serde_json::json!(directory.join("root.der"));
     super::write_private(&path, &serde_json::to_vec(&value).expect("configuration JSON"));
-    let agent_path = directory.join("agent.json");
-    let mut agent: serde_json::Value = serde_json::from_slice(&fs::read(&agent_path).expect("agent")).expect("JSON");
+    let mut agent = temper_agent_fixtures::read(directory);
     agent["endpoints"][0]["address"] = "127.0.0.1:0".into();
     agent["endpoints"][0]["server_name"] = "skein.test".into();
     agent["endpoints"][0]["trust_der"] = serde_json::json!(directory.join("root.der"));
-    super::write_private(&agent_path, &serde_json::to_vec(&agent).expect("agent JSON"));
+    temper_agent_fixtures::install(directory, &agent);
     super::write_private(&directory.join("root.der"), skein_tls_kit::pki::ROOT);
     issuer(listener, &registration, redirect.as_bytes())
 }
@@ -568,8 +567,7 @@ const FIRST_REPLY_CALLS: usize = 9;
 const CONVERSATION_CALL: usize = FIRST_REPLY_CALLS + 3;
 
 fn reasoning_allowance(directory: &Path) -> u64 {
-    let agent: serde_json::Value =
-        serde_json::from_slice(&fs::read(directory.join("agent.json")).expect("initialized agent")).expect("JSON");
+    let agent = temper_agent_fixtures::read(directory);
     agent["endpoints"]
         .as_array()
         .expect("endpoints")

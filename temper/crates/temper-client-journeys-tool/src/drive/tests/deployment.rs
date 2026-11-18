@@ -62,11 +62,29 @@ fn at_engine() -> Machine {
     assert_start(&process_line(&mut machine, Process::Model, Output::Stdout, "listening model\n"), Process::Engine);
     machine
 }
+pub(super) fn admit_worker(machine: &mut Machine) {
+    assert!(matches!(
+        step(machine, exited(Process::SignIn, 0)).as_slice(),
+        [Action::RemoveLink, Action::ReadDeploymentWorker]
+    ));
+    let worker = crate::drive::deployment::Worker::read(br#"{"workers":[{"name":"worker","slots":2}]}"#, &[b'a'; 64])
+        .expect("worker");
+    assert_start(&step(machine, Event::DeploymentWorker(Ok(worker))), Process::Ctl);
+    assert_start(
+        &step(
+            machine,
+            Event::Exited { process: Process::Ctl, code: 0, stdout: b"[]".as_slice().into(), stderr: Box::new([]) },
+        ),
+        Process::Ctl,
+    );
+    assert_start(&step(machine, exited(Process::Ctl, 0)), Process::Worker);
+}
 fn deployment_ready() -> Machine {
     let mut machine = at_engine();
-    assert_start(&engine_ready(&mut machine), Process::Worker);
-    process_line(&mut machine, Process::Worker, Output::Stderr, "linked worker\n");
-    assert!(matches!(step(&mut machine, exited(Process::SignIn, 0)).as_slice(), [Action::RemoveLink, Action::Ready]));
+    engine_ready(&mut machine);
+    admit_worker(&mut machine);
+    let actions = process_line(&mut machine, Process::Worker, Output::Stderr, "linked worker\n");
+    assert!(actions.iter().any(|action| matches!(action, Action::Ready)));
     machine
 }
 fn stop(actions: &[Action], expected: Process, force: bool) {
@@ -101,16 +119,12 @@ fn start_waits_for_each_stream_and_uses_private_sign_in_file() {
         process_line(&mut machine, Process::Engine, Output::Stdout, "http://127.0.0.1:4101/link?secret=first\n");
     assert!(actions.is_empty(), "engine must wait for both listeners without logging stdout");
     assert!(!machine.ready());
-    assert_start(
-        &process_line(&mut machine, Process::Engine, Output::Stderr, "listening workers yes\n"),
-        Process::Worker,
-    );
-    assert_eq!(machine.next_deadline(), Some(Time::ZERO.saturating_add(Duration::from_secs(120))));
+    let actions = process_line(&mut machine, Process::Engine, Output::Stderr, "listening workers yes\n");
+    assert_eq!(machine.next_deadline(), Some(Time::ZERO.saturating_add(STEP)));
     assert!(
         process_line(&mut machine, Process::Engine, Output::Stdout, "http://127.0.0.1:4101/link?secret=later\n")
             .is_empty()
     );
-    let actions = process_line(&mut machine, Process::Worker, Output::Stderr, "linked worker\n");
     let [Action::DeploymentLog { .. }, Action::SignInFile { link, program }] = actions.as_slice() else {
         panic!("{actions:?}")
     };
@@ -118,7 +132,10 @@ fn start_waits_for_each_stream_and_uses_private_sign_in_file() {
     assert_eq!(program.args, ["ctl", "/scratch/session/ctl", "sign-in", "/scratch/session/link"]);
     assert_eq!(program.input, Input::Null);
     assert!(!format!("{program:?}").contains("secret="));
-    assert!(matches!(step(&mut machine, exited(Process::SignIn, 0)).as_slice(), [Action::RemoveLink, Action::Ready]));
+    admit_worker(&mut machine);
+    assert_eq!(machine.next_deadline(), Some(Time::ZERO.saturating_add(Duration::from_secs(120))));
+    let actions = process_line(&mut machine, Process::Worker, Output::Stderr, "linked worker\n");
+    assert!(matches!(actions.as_slice(), [Action::DeploymentLog { .. }, Action::Ready]));
     assert!(
         process_line(&mut machine, Process::Engine, Output::Stdout, "http://127.0.0.1:4101/link?secret=late\n")
             .is_empty()
@@ -243,8 +260,8 @@ fn failed_starts_and_patch_restart_failures_end_as_deployment_failures() {
             if matches!(stage, Process::Worker | Process::SignIn) {
                 engine_ready(&mut machine);
             }
-            if stage == Process::SignIn {
-                process_line(&mut machine, Process::Worker, Output::Stderr, "linked worker\n");
+            if stage == Process::Worker {
+                admit_worker(&mut machine);
             }
             let actions = if deadline {
                 let at = machine.next_deadline().expect("start deadline");
@@ -373,7 +390,6 @@ fn preparation_and_patch_files_are_private_held_and_atomic() {
     for (name, bytes) in [
         ("engine.json", r#"{"keep":7,"application":{"landing":{"projects":[1]}}}"#),
         ("worker.json", "{}"),
-        ("agent.json", "{}"),
         ("forgejo.json", r#"{"admin_token":"{place.data}/forgejo/admin"}"#),
         ("model.json", r#"{"key":"{place.data}/model/key"}"#),
     ] {
@@ -403,7 +419,6 @@ fn preparation_and_patch_files_are_private_held_and_atomic() {
     for relative in [
         "config/engine/temper.json",
         "config/worker/temper.json",
-        "config/worker/agent.json",
         "config/forgejo.json",
         "config/model.json",
         "data/worker/secrets/worker.secret",
@@ -500,5 +515,7 @@ fn script_files_use_the_shared_joiner_and_name_a_bad_source() {
     assert!(!output.exists());
 }
 
+#[path = "deployment_worker.rs"]
+mod admission;
 #[path = "deployment_browser.rs"]
 mod browser;

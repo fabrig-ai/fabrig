@@ -74,6 +74,7 @@ pub enum Output {
 #[derive(Debug)]
 pub enum Action {
     PrepareDeployment,
+    ReadDeploymentWorker,
     ReadSettingsFiles {
         directory: Option<PathBuf>,
         args: Vec<Box<[u8]>>,
@@ -153,6 +154,7 @@ pub enum Action {
 #[derive(Debug)]
 pub enum Event {
     DeploymentPrepared(Result<deployment::Values, String>),
+    DeploymentWorker(Result<deployment::Worker, String>),
     SettingsFiles(Result<Vec<Box<[u8]>>, String>),
     DeploymentPatch(Result<deployment::RenderedFile, String>),
     DeploymentWritten(Result<(), String>),
@@ -188,6 +190,7 @@ enum Phase {
     Spent,
     FreshLink,
     Fresh,
+    Signing,
     Root,
     Main,
     Ready,
@@ -349,6 +352,7 @@ impl Machine {
             }
             Event::SettingsFiles(_)
             | Event::DeploymentPrepared(_)
+            | Event::DeploymentWorker(_)
             | Event::DeploymentPatch(_)
             | Event::DeploymentWritten(_)
             | Event::BoxLine { .. }
@@ -504,12 +508,10 @@ impl Machine {
                         format!("ctl sign-in exited {code}")
                     };
                     self.fail_place(why, now, out);
-                } else if self.plan.options.ctl {
-                    self.first = None;
-                    self.session_ready(out);
+                } else if self.place.signed_in(now, out) {
+                    self.wait_for_place();
                 } else {
-                    self.wait(Phase::Spent, now, Duration::from_secs(30));
-                    out.push(Action::Open(self.first.take().expect("first link")));
+                    self.after_sign_in(now, out);
                 }
             }
             Process::Ctl if self.phase == Phase::Ctl => {
@@ -526,6 +528,15 @@ impl Machine {
             | Process::Ctl => {}
         }
     }
+    fn after_sign_in(&mut self, now: Time, out: &mut Vec<Action>) {
+        if self.plan.options.ctl {
+            self.first = None;
+            self.session_ready(out);
+        } else {
+            self.wait(Phase::Spent, now, Duration::from_secs(30));
+            out.push(Action::Open(self.first.take().expect("first link")));
+        }
+    }
     fn found(&mut self, node: Option<NodeId>, now: Time, out: &mut Vec<Action>) {
         if self.phase == Phase::TuiApprove {
             if let Some(node) = node {
@@ -537,7 +548,7 @@ impl Machine {
             }
             return;
         }
-        if !matches!(self.phase, Phase::Main | Phase::MainLine | Phase::Seeing | Phase::Finding) {
+        if !matches!(self.phase, Phase::Signing | Phase::Main | Phase::MainLine | Phase::Seeing | Phase::Finding) {
             return;
         }
         if node.is_none() {
@@ -545,6 +556,11 @@ impl Machine {
             return;
         }
         match self.phase {
+            Phase::Signing => {
+                self.phase = Phase::Root;
+                self.poll = None;
+                out.push(Action::Open([self.origin.as_ref(), b"/"].concat().into()));
+            }
             Phase::MainLine if self.patch_line() => self.patched(out),
             Phase::Main => self.session_ready(out),
             Phase::MainLine | Phase::Seeing => self.answer(None, out),
@@ -564,8 +580,10 @@ impl Machine {
         if self.patch_line() {
             return;
         }
-        if matches!(self.phase, Phase::Spent | Phase::FreshLink | Phase::Fresh | Phase::Root | Phase::Main)
-            && trouble == Trouble::Log
+        if matches!(
+            self.phase,
+            Phase::Spent | Phase::FreshLink | Phase::Fresh | Phase::Signing | Phase::Root | Phase::Main
+        ) && trouble == Trouble::Log
             && text.windows(b"status of 401".len()).any(|part| part == b"status of 401")
             && resource(url).strip_prefix(self.origin.as_ref()) == Some(b"/jig/v1/sign-in/link".as_slice())
         {
@@ -598,8 +616,8 @@ impl Machine {
                 }
             }
             Phase::Fresh => {
-                self.phase = Phase::Root;
-                out.push(Action::Open([self.origin.as_ref(), b"/"].concat().into()));
+                self.phase = Phase::Signing;
+                out.push(Action::Find(Find::named(Role::Main, b"")));
             }
             Phase::Root => {
                 self.phase = Phase::Main;
@@ -666,7 +684,7 @@ impl Machine {
         if self.poll.is_some_and(|poll| now >= poll) {
             self.poll = None;
             let find = match self.phase {
-                Phase::Main | Phase::MainLine => Some(Find::named(Role::Main, b"")),
+                Phase::Signing | Phase::Main | Phase::MainLine => Some(Find::named(Role::Main, b"")),
                 Phase::Finding => match self.current.as_ref().map(Line::record) {
                     Some(Record::Web(Web::Act { role, name, order, .. })) => {
                         Some(Find::exactly_named(*role, name).nth(*order))
@@ -745,6 +763,7 @@ impl Machine {
         match progress {
             Progress::None => {}
             Progress::Waiting => self.wait_for_place(),
+            Progress::Started => self.after_sign_in(now, out),
             Progress::First(first) => {
                 self.first = Some(first.link.strip_suffix(b"\n").unwrap_or(&first.link).into());
                 self.origin = first.origin;

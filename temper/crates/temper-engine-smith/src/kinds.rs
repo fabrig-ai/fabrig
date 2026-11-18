@@ -80,11 +80,12 @@ pub fn decode(kind: u32, bytes: &[u8], bounds: &Bounds) -> Option<settings::Size
             let record = v1::ProjectAreas::decode(&v1::CEILINGS, &mut reader).ok()?;
             settings::Value::ProjectAreas(areas_from(record))
         }
+        21 => settings::Value::AgentFigures(v1::AgentFigures::decode(&v1::CEILINGS, &mut reader).ok()?),
         15 => {
             let record = v1::ProjectTriager::decode(&v1::CEILINGS, &mut reader).ok()?;
             settings::Value::ProjectTriager(settings::ProjectTriager { owner: owner_from(record.into_parts().owner) })
         }
-        21 => {
+        22 => {
             settings::Value::Limits(settings::limits_from(v1::TemperLimits::decode(&v1::CEILINGS, &mut reader).ok()?))
         }
         20 => {
@@ -103,6 +104,11 @@ pub fn decode(kind: u32, bytes: &[u8], bounds: &Bounds) -> Option<settings::Size
 #[must_use]
 pub fn encode(value: &settings::Value) -> Box<[u8]> {
     match value {
+        settings::Value::AgentFigures(record) => {
+            let mut writer = Writer::new(skein_lib::usize_of(record.measure()));
+            record.encode(&mut writer).expect("measured room");
+            writer.finish()
+        }
         settings::Value::Gates(value) => {
             let record = settings::gates_record(value);
             let mut writer = Writer::new(skein_lib::usize_of(record.measure()));
@@ -206,6 +212,7 @@ pub fn encode(value: &settings::Value) -> Box<[u8]> {
 #[must_use]
 pub fn size(value: &settings::Value) -> u32 {
     match value {
+        settings::Value::AgentFigures(record) => record.measure(),
         settings::Value::Gates(v) => settings::gates_record(v).measure(),
         settings::Value::Landing(v) => settings::landing_record(v).measure(),
         settings::Value::Rule(rule) => wire_rule(rule).measure(),

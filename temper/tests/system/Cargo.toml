@@ -10,7 +10,7 @@ publish.workspace = true
 [dependencies]
 temper-limits-fixtures.workspace = true
 jig-protocol-config-fixtures.workspace = true
-temper-fixtures.workspace = true
+temper-agent-fixtures.workspace = true
 smith-transcript.workspace = true
 smith-agent-service.workspace = true
 smith-agent-shell.workspace = true

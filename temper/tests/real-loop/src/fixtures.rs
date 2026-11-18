@@ -5,7 +5,7 @@ pub use kept::{forgejo_record, seed_forgejo, seed_record, seed_settings_file};
 use std::{
     io::Write,
     net::SocketAddr,
-    os::unix::fs::{OpenOptionsExt, PermissionsExt},
+    os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt},
     path::Path,
 };
 pub use temper_playground::documents::turn_bounds;
@@ -64,11 +64,13 @@ pub fn documents(
         worker.remove("programs");
     }
     value["workers"][0]["engine"] = serde_json::json!({"in_process":"workers"});
-    value["workers"][0]["agent"]["program"] = serde_json::json!(program);
-    value["workers"][0]["agent"]["configuration"] = directory.join("agent.json").to_str().expect("agent path").into();
-    value["workers"][0]["agent"]["arguments"] = serde_json::json!(["internal", "agent", directory.join("agent.json")]);
-    value["workers"][0]["limits"]["overrides"]["hub.accounts"] = 4.into();
-    value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = 2046.into();
+    value["workers"][0].as_object_mut().expect("worker").remove("agent");
+    value["workers"][0].as_object_mut().expect("worker").remove("limits");
+    value["engine"]["limits"]["overrides"]["hub.accounts"] = 4.into();
+    value["engine"]["limits"]["overrides"]["hub.event_bytes"] = 2046.into();
+    value["engine"]["limits"]["overrides"]["hub.run_calls"] = 1.into();
+    value["workers"][0]["name"] = "local".into();
+    value["engine"]["limits"]["overrides"]["fleet.slots"] = 4.into();
     value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);
     value["engine"]["llm"]["endpoints"][0]["dialect"] = 3.into();
     value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":llm.to_string()});
@@ -127,7 +129,7 @@ pub fn write(
         std::fs::set_permissions(directory.join(name), std::fs::Permissions::from_mode(0o700))?;
     }
     for (name, bytes) in jig_channel_kit::fixtures::files(false).entries.into_boxed() {
-        if !name.starts_with(b"charters/") {
+        if !name.starts_with(b"charters/") && name.as_ref() != b"agent.json" {
             private(&directory.join(std::str::from_utf8(&name).expect("fixture path")), bytes.expose())?;
         }
     }
@@ -137,11 +139,27 @@ pub fn write(
     private(&directory.join("second.key"), SECOND_KEY)?;
     let (mut agent, mut config) = documents(directory, llm, forge);
     if crate::claude::configured(directory) {
+        std::fs::DirBuilder::new().mode(0o700).recursive(true).create(directory.join("bin"))?;
+        std::os::unix::fs::symlink(
+            std::ffi::OsStr::new(std::str::from_utf8(crate::claude::PROGRAM).expect("fake program path")),
+            directory.join("bin/claude"),
+        )?;
         program_documents(directory, &mut agent, &mut config);
     }
-    private(&directory.join("agent.json"), &serde_json::to_vec(&agent)?)?;
+    private(&directory.join("world-agent.json"), &serde_json::to_vec(&agent)?)?;
+    temper_agent_fixtures::apply(&mut config, directory, &agent);
     private(&directory.join("temper.json"), &serde_json::to_vec(&config)?)?;
     Ok(config)
+}
+pub(crate) type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
+/// Machine programs are found through PATH, as in the shipped worker.
+pub(crate) fn environment(directory: &Path) -> Vec<EnvironmentEntry> {
+    let path = if directory.join("bin").is_dir() {
+        format!("{}:/usr/bin:/bin", directory.join("bin").display())
+    } else {
+        "/usr/bin:/bin".into()
+    };
+    vec![(b"PATH".as_slice().into(), path.into_bytes().into())]
 }
 /// Program stories retain the direct provider and add Claude Code on its own source.
 fn program_documents(
@@ -150,7 +168,7 @@ fn program_documents(
     config: &mut temper_playground::documents::Configuration,
 ) {
     agent["programs"] = serde_json::json!({"claude_code": {
-        "path": std::str::from_utf8(crate::claude::PROGRAM).expect("fake program path"),
+        "path": directory.join("bin/claude"),
         "directory": directory.join("programs")
     }});
     let mut endpoint = agent["endpoints"][0].clone();
@@ -186,11 +204,12 @@ pub(crate) fn bind(
     forge: SocketAddr,
     config: &mut temper_playground::documents::Configuration,
 ) -> std::io::Result<()> {
-    let mut agent: serde_json::Value = serde_json::from_slice(&std::fs::read(directory.join("agent.json"))?)?;
+    let mut agent: serde_json::Value = serde_json::from_slice(&std::fs::read(directory.join("world-agent.json"))?)?;
     config.document = serde_json::from_slice(&std::fs::read(directory.join("temper.json"))?)?;
     config["world_settings"] = serde_json::from_slice(&std::fs::read(directory.join("world-settings.json"))?)?;
     bind_documents(&mut agent, config, llm, forge);
-    private(&directory.join("agent.json"), &serde_json::to_vec(&agent)?)?;
+    private(&directory.join("world-agent.json"), &serde_json::to_vec(&agent)?)?;
+    temper_agent_fixtures::apply(&mut config, directory, &agent);
     finish_configuration(directory, config)
 }
 
@@ -347,7 +366,7 @@ pub(crate) fn key_documents(
     directory: &Path,
     config: &mut temper_playground::documents::Configuration,
 ) -> std::io::Result<()> {
-    let path = directory.join("agent.json");
+    let path = directory.join("world-agent.json");
     let mut agent: serde_json::Value = serde_json::from_slice(&std::fs::read(&path)?)?;
     agent["endpoints"][0]["provider"] = "openai".into();
     agent["endpoints"][0]["dialect"] = 3.into();
@@ -380,6 +399,21 @@ pub fn change_settings(at: crate::calls::Dir, key: &'static str, items: serde_js
         at,
         crate::argv!["settings", "apply", crate::calls::file("settings.json"), "--against", "1", "--key", key],
     )]
+}
+/// Put cluster membership in the story's first settings transaction when it has one.
+pub(crate) fn extend_settings(key: &'static str, workers: &serde_json::Value) -> bool {
+    PENDING_SETTINGS.with(|slot| {
+        let mut slot = slot.borrow_mut();
+        let Some(files) = slot.as_mut() else { return false };
+        let Some(bytes) = files.get_mut(&key) else { return false };
+        let mut file: serde_json::Value = serde_json::from_slice(bytes).expect("fixture settings JSON");
+        file["items"]
+            .as_array_mut()
+            .expect("setting items")
+            .extend(workers["items"].as_array().expect("worker items").iter().cloned());
+        *bytes = serde_json::to_vec(&file).expect("fixture settings JSON").into_boxed_slice();
+        true
+    })
 }
 // A step factory runs immediately before Caller construction, under its heap meter.
 // Move its bounded FILE table into that Caller; no global file state is retained.
@@ -526,6 +560,22 @@ pub fn given_and_projects(
     values["world_settings"] = flags;
     let engine = crate::settings::configuration(&values);
     let mut given = defaults_for(&values, &engine);
+    if let Ok(bytes) = std::fs::read(directory.join("agents.setting")) {
+        use temper_client_protocol_wire::v1 as w;
+        use temper_engine_domain_forge::settings::{SizedValue, Stock, Value};
+        let agents =
+            w::AgentFigures::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("fixture agents copy");
+        let temper_service::stock::Given::Own { forge, .. } = &mut given else { panic!("world defaults") };
+        let mut values = std::mem::take(forge).into_vec();
+        values.retain(|value| value.kind != 21);
+        values.push(Stock {
+            kind: 21,
+            scope: 0,
+            number: 1,
+            value: SizedValue { size: agents.measure(), value: Value::AgentFigures(agents) },
+        });
+        *forge = values.into_boxed_slice();
+    }
     if crate::claude::configured(directory) {
         let temper_service::stock::Given::Own { jig: defaults, .. } = &mut given else {
             panic!("the real loop supplies its own defaults")

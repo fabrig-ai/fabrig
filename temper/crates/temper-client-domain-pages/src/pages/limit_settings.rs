@@ -227,7 +227,7 @@ pub(super) fn configure(
     {
         let pending = handle(&mut pages.next);
         let query =
-            w::SettingRead::new(&bounds, w::SettingReadParts { kind: 21, scope: 0, number: 1 }).expect("limit kind");
+            w::SettingRead::new(&bounds, w::SettingReadParts { kind: 22, scope: 0, number: 1 }).expect("limit kind");
         read(pending, w::Read::Setting(query), &bounds, out);
         state.value_pending = Some((pending, newest));
     }
@@ -439,7 +439,7 @@ fn raised_item(value: &w::TemperLimits, held: &w::LimitHold, bounds: &w::Limits)
     let mut writer = Writer::new(usize::try_from(value.measure()).ok()?);
     value.encode(&mut writer).ok()?;
     Some(c::SettingItem {
-        setting: c::Setting::Application { kind: 21, scope: 0, number: 1 },
+        setting: c::Setting::Application { kind: 22, scope: 0, number: 1 },
         edit: c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Application(writer.finish()) }),
     })
 }

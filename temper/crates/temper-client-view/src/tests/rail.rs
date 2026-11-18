@@ -705,6 +705,7 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                     jig_client::Up::Watched {
                         watch,
                         event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                            ended_mark: 0,
                             rows: List::with_capacity(0),
                             more: false,
                         }))),
@@ -715,6 +716,7 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                         read,
                         result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(
                             c::TaskPage {
+                                ended_mark: 0,
                                 live: List::with_capacity(0),
                                 live_after: None,
                                 ended: c::EndedGroup::Rows { rows: List::with_capacity(0), after: None, cut: false },
@@ -929,15 +931,6 @@ fn the_playground_setup_link_leads_the_foot_and_leaves() {
 
 #[test]
 fn the_terminal_numbers_the_rail_and_keeps_the_first_line() {
-    let (mut root, watch) = f::root_with_watch(None);
-    f::root_event(
-        &mut root,
-        Event::Client {
-            event: jig_client::Event::Up {
-                up: jig_client::Up::WatchEnded { watch, end: jig_client::contract::WatchEnd::Dropped },
-            },
-        },
-    );
     for (people, first_line, lines) in [
         (
             None,
@@ -976,6 +969,7 @@ fn the_terminal_numbers_the_rail_and_keeps_the_first_line() {
             ][..],
         ),
     ] {
+        let (mut root, watch) = f::root_with_watch(None);
         if let Some(people) = people {
             f::root_event(
                 &mut root,
@@ -983,6 +977,14 @@ fn the_terminal_numbers_the_rail_and_keeps_the_first_line() {
             );
             with_people(&mut root, people);
         }
+        f::root_event(
+            &mut root,
+            Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::WatchEnded { watch, end: jig_client::contract::WatchEnd::Dropped },
+                },
+            },
+        );
         let view = f::page_view(&root);
         let mut print = skein_ui_text::Print::new(&view.limits().tree).unwrap();
         skein_ui_text::render(view.tree(), b"temper", Some(crate::frame::link_region()), &mut print);

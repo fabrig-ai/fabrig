@@ -1,6 +1,11 @@
 //! Reference settings as a run reads them (temper/docs/design/protocol/configuration/reference.md).
 
 pub fn items() -> Box<[jig_domain_core::settings::Item]> {
+    static ITEMS: std::sync::OnceLock<Box<[jig_domain_core::settings::Item]>> = std::sync::OnceLock::new();
+    ITEMS.get_or_init(decode_items).clone()
+}
+
+fn decode_items() -> Box<[jig_domain_core::settings::Item]> {
     use jig_client::contract as c;
     let limits = temper_client_tools::limits::tools();
     let items = temper_client_tools::jig::settings_file::decode(

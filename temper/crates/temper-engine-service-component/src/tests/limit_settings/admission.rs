@@ -9,7 +9,7 @@ use temper_engine_domain as root;
 use temper_engine_domain_forge::settings as f;
 
 const REPLY: Token = Token::new(301);
-const TEMPER: s::Setting = s::Setting::Application { kind: 21, scope: 0, number: 1 };
+const TEMPER: s::Setting = s::Setting::Application { kind: 22, scope: 0, number: 1 };
 
 fn state() -> LimitSettings {
     let inputs = inputs();

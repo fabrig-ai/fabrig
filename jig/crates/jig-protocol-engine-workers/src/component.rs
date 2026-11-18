@@ -38,9 +38,12 @@ struct Sending {
 pub struct Component {
     pub(crate) limits: Limits,
     pub(crate) workers: Box<[Worker]>,
+    workers_ready: bool,
+    names: Map<u32, Box<[u8]>>,
     pub(crate) wires: List<wire::Spoken>,
-    pub(crate) codec: wire::v15::Limits,
+    pub(crate) codec: wire::v17::Limits,
     pub(crate) connections: Map<Token, Connection>,
+    pub(crate) figures: Option<wire::Figures>,
     schema: skein_channel::Schema,
     full_schema: skein_channel::Schema,
     next_channel: u64,
@@ -92,6 +95,15 @@ impl Component {
                 }
             }
         }
+        let mut names = Map::with_capacity(limits.names);
+        for worker in &workers {
+            if worker.number == 0 || worker.number > limits.names {
+                return Err(Unusable::Workers);
+            }
+            names
+                .insert(worker.number.checked_sub(1).expect("positive number"), worker.name.clone())
+                .or(Err(Unusable::Workers))?;
+        }
         let mut wires = List::uncapped();
         for wire in &jig {
             wires.push(wire.clone()).expect("uncapped wire list");
@@ -101,9 +113,14 @@ impl Component {
         }
         let translation = Box::new(wire::translation::Translation::new(application).or(Err(Unusable::Application))?);
         let connections = Map::with_capacity(limits.workers.checked_add(limits.opening).expect("checked limits"));
+        // The restore publishes even an empty initial table through Event::Workers.
+        let workers_ready = !workers.is_empty();
         Ok(Self {
             limits: *limits,
             workers,
+            figures: None,
+            workers_ready,
+            names,
             wires,
             codec,
             connections,
@@ -117,6 +134,16 @@ impl Component {
             translation,
         })
     }
+    #[must_use]
+    pub fn workers(&self) -> &[Worker] {
+        &self.workers
+    }
+    /// Stable names survive withdrawal while an opening's diagnostics finish.
+    #[must_use]
+    pub fn worker_name(&self, position: u32) -> Option<&[u8]> {
+        Some(self.names.get(&position)?)
+    }
+
     /// The full opening table used by validation and upgrade judgements.
     #[must_use]
     pub fn full_schema(&self) -> &skein_channel::Schema {
@@ -125,7 +152,28 @@ impl Component {
 
     pub fn down(&mut self, now: Time, event: Event, out: &mut Queue<Request>) {
         match event {
-            Event::Accepted { connection } => self.accepted(now, connection, out),
+            Event::Figures { figures } => self.give_figures(now, figures, out),
+            Event::Workers(workers) => {
+                for worker in &workers {
+                    self.names
+                        .insert(worker.number.checked_sub(1).expect("checked worker number"), worker.name.clone())
+                        .expect("checked worker table");
+                }
+                self.workers = workers;
+                self.workers_ready = true;
+                let mut waiting = List::uncapped();
+                for (connection, state) in &self.connections {
+                    if state.pending_opening.is_some() {
+                        waiting.push(*connection).expect("uncapped waiting openings");
+                    }
+                }
+                for connection in waiting.into_boxed() {
+                    let mut state = self.connections.remove(&connection).expect("waiting opening exists");
+                    self.progress(now, connection, &mut state, out);
+                    self.keep(connection, state);
+                }
+            }
+            Event::Accepted { connection, in_process } => self.accepted(now, connection, in_process, out),
             Event::Lower { connection, event } => self.lower(now, connection, event, out),
             Event::Gone { connection } => {
                 if let Some(mut state) = self.connections.remove(&connection) {
@@ -402,7 +450,71 @@ impl Component {
         }
         self.keep(connection, state);
     }
-    fn accepted(&mut self, now: Time, connection: Token, out: &mut Queue<Request>) {
+    /// Whole owner input and each post-Agreed channel (protocol/channel/figures.md, 3).
+    fn give_figures(&mut self, now: Time, figures: wire::Figures, out: &mut Queue<Request>) {
+        self.figures = Some(figures);
+        let mut channels = List::uncapped();
+        for (token, state) in &self.connections {
+            if state.phase == Phase::Hello || state.phase == Phase::Open {
+                channels.push(*token).expect("uncapped channels");
+            }
+        }
+        for connection in &channels {
+            let mut state = self.connections.remove(connection).expect("post-Agreed channel");
+            self.send_figures(now, *connection, &mut state, out);
+            self.progress(now, *connection, &mut state, out);
+            self.keep(*connection, state);
+        }
+    }
+    fn send_figures(&mut self, now: Time, connection: Token, state: &mut Connection, out: &mut Queue<Request>) -> bool {
+        let Some(figures) = &self.figures else { return true };
+        let mut parts = figures.clone().into_parts();
+        let mut admitted = None;
+        for worker in &self.workers {
+            if worker.number.checked_sub(1) == state.worker {
+                admitted = Some(worker);
+                break;
+            }
+        }
+        let Some(worker) = admitted else {
+            self.refuse(now, connection, state, Reason::NotAdmitted.code(), Box::new([]), out);
+            return false;
+        };
+        parts.places = worker.places;
+        let figures = wire::Figures::new(&wire::CEILINGS, parts).expect("only places changed");
+        let mut body = skein_lib::Writer::new(skein_lib::usize_of(figures.measure()));
+        figures.encode(&mut body).expect("measured figures");
+        let mut frame =
+            skein_channel::frame_writer(wire::Kind::Figures.number(), figures.measure()).expect("bounded figures");
+        frame.put(&body.finish()).expect("measured figures");
+        let frame = frame.finish().expect("measured figures");
+        if frame.wire_len() > self.limits.room {
+            let sending = Sending { kind: wire::Kind::Figures, bytes: frame.wire_len(), reply: Reply::Drop };
+            self.unsent(now, state, sending, Bound::Room(self.limits.room), out);
+            self.loss(now, connection, state, Loss::Full, out);
+            return false;
+        }
+        self.send_opening(now, connection, state, wire::Kind::Figures, frame, out);
+        state.phase != Phase::Closing
+    }
+    fn send_opening(
+        &mut self,
+        now: Time,
+        connection: Token,
+        state: &mut Connection,
+        kind: wire::Kind,
+        frame: skein_channel::Frame,
+        out: &mut Queue<Request>,
+    ) {
+        self.sending = Some(Sending { kind, bytes: frame.wire_len(), reply: Reply::Drop });
+        state.down(ChannelRequest::Send { token: state.channel, frame }, connection, out);
+        for _ in 0..skein_channel::MAX_UP {
+            let Some(event) = state.above.pop() else { break };
+            self.heard(now, connection, state, event, out);
+        }
+        assert!(self.sending.is_none(), "send answered within its entrance");
+    }
+    fn accepted(&mut self, now: Time, connection: Token, in_process: bool, out: &mut Queue<Request>) {
         if self.life == Life::Closed
             || self.connections.len() == self.connections.capacity()
             || self.connections.contains_key(&connection)
@@ -414,7 +526,7 @@ impl Component {
             out.push(Request::TurnAway { connection });
             return;
         }
-        let mut state = Connection::new(self.schema.clone(), &self.limits, now);
+        let mut state = Connection::new(self.schema.clone(), &self.limits, now, in_process);
         out.push(Request::Take { connection });
         self.progress(now, connection, &mut state, out);
         self.keep(connection, state);
@@ -424,6 +536,15 @@ impl Component {
         assert!(replaced.is_none(), "one state per connection");
     }
     fn progress(&mut self, now: Time, connection: Token, state: &mut Connection, out: &mut Queue<Request>) {
+        // The settings restore resumes an opening, never extending its handshake deadline
+        // (domain/engine/workers.md, 4).
+        if self.workers_ready
+            && state.phase == Phase::Opening
+            && !expired(state.deadline, now)
+            && let Some(opening) = state.pending_opening.take()
+        {
+            self.heard(now, connection, state, opening, out);
+        }
         // Up produces one owner event; a decision and poll can produce Ready or Closed.
         for _ in 0_u32..3 {
             for _ in 0..skein_channel::MAX_UP {
@@ -467,12 +588,16 @@ impl Component {
         out: &mut Queue<Request>,
     ) {
         match event {
-            ChannelEvent::Opening { credential, highest, .. } => {
-                let verdict = self.judge(&credential);
+            ChannelEvent::Opening { credential, lowest, highest } => {
                 if self.life != Life::Running {
                     self.refuse(now, connection, state, Reason::Stopping.code(), Box::new([]), out);
                     return;
                 }
+                if !self.workers_ready {
+                    state.pending_opening = Some(ChannelEvent::Opening { credential, lowest, highest });
+                    return;
+                }
+                let verdict = self.judge(&credential, state.in_process);
                 let worker = match verdict {
                     Verdict::Refuse { worker, reason, text } => {
                         state.worker = worker;
@@ -521,7 +646,9 @@ impl Component {
                     }
                 };
                 if let Ok(credential) = wire::Credential::decode(&self.codec, &mut Reader::new(&credential)) {
-                    state.stated = credential.into_parts().wires;
+                    let credential = credential.into_parts();
+                    state.opening = credential.opening;
+                    state.stated = credential.wires;
                 }
                 state.worker = Some(worker);
                 state.channel = Token::new(self.next_channel);
@@ -533,7 +660,12 @@ impl Component {
             }
             ChannelEvent::Ready { version, terms } => {
                 state.version = version;
-                if let Err(text) = crate::statement::terms(&self.schema, version, &terms) {
+                let checked = if state.opening == wire::Opening::Figures {
+                    figures_terms(&self.schema, version, &terms)
+                } else {
+                    crate::statement::terms(&self.schema, version, &terms)
+                };
+                if let Err(text) = checked {
                     self.refuse(now, connection, state, 2, text, out);
                 } else {
                     if self.schema.version(version).expect("agreed version").kind(wire::Kind::Wires.number()).is_some()
@@ -550,7 +682,7 @@ impl Component {
                             .expect("agreed wire fits credential limits");
                             wires.push(record).expect("agreed wires fit credential limits");
                         }
-                        let record = wire::v15::Agreed::new(&self.codec, wire::v15::AgreedParts { wires })
+                        let record = wire::v17::Agreed::new(&self.codec, wire::v17::AgreedParts { wires })
                             .expect("agreed wires fit credential limits");
                         let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));
                         record.encode(&mut body).expect("measured statement");
@@ -561,9 +693,18 @@ impl Component {
                         let frame =
                             crate::translate::send(&mut self.translation, frame, version, &state.wires, &self.codec)
                                 .expect("a statement is sent only where its kind is held");
-                        self.sending =
-                            Some(Sending { kind: wire::Kind::Wires, bytes: frame.wire_len(), reply: Reply::Drop });
-                        state.down(ChannelRequest::Send { token: state.channel, frame }, connection, out);
+                        self.send_opening(now, connection, state, wire::Kind::Wires, frame, out);
+                    }
+                    if !self.send_figures(now, connection, state, out) {
+                        return;
+                    }
+                    if state.opening == wire::Opening::Figures {
+                        out.push(Request::FiguresTaken { worker: state.worker.expect("authenticated worker") });
+                        state.phase = Phase::Closing;
+                        state.ending = Ending::Graceful;
+                        state.deadline = Some(now.saturating_add(self.limits.stall));
+                        state.down(ChannelRequest::Finish, connection, out);
+                        return;
                     }
                     let mut statement = state.statement.take().expect("authenticated statement");
                     statement.terms = terms;
@@ -766,6 +907,25 @@ impl Component {
     }
 }
 
+fn figures_terms(
+    schema: &skein_channel::Schema,
+    version: u16,
+    terms: &List<skein_channel::Term>,
+) -> Result<(), Box<[u8]>> {
+    let table = schema.version(version).expect("agreed version");
+    for kind in [wire::Kind::Wires, wire::Kind::Figures] {
+        let rule = table.kind(kind.number()).expect("figures opening kinds");
+        let mut takes = false;
+        for term in terms {
+            takes |= term.kind == rule.kind && term.largest >= rule.largest;
+        }
+        if !takes {
+            return Err(bytes::copy_of(Decimal::of(u64::from(rule.kind)).as_bytes()));
+        }
+    }
+    Ok(())
+}
+
 fn closed(
     connection: Token,
     state: &mut Connection,
@@ -962,7 +1122,7 @@ mod bridge_tests {
     #[test]
     fn a_halted_running_message_is_discarded_with_its_channel_diagnostic() {
         let mut component = crate::tests::fixtures::component();
-        let mut state = Connection::new(component.schema.clone(), &component.limits, Time::ZERO);
+        let mut state = Connection::new(component.schema.clone(), &component.limits, Time::ZERO, false);
         state.worker = Some(0);
         state.channel = Token::new(17);
         state.version = 11;

@@ -1,5 +1,5 @@
 //! Lent-terminal forms keep their wire tags and optional fields (domain/terminal-login.md, 5).
-use jig_client_protocol_wire::v28 as w;
+use jig_client_protocol_wire as w;
 use skein_lib::{Reader, Writer};
 fn goldens<T>(
     rows: &[&[u8]],
@@ -24,8 +24,8 @@ fn goldens<T>(
 fn lent_terminal_forms_keep_their_goldens() {
     goldens(
         &[
-            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/enum_subject_terminal_smallest.bin"),
-            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/enum_subject_terminal_full.bin"),
+            super::client_values::value("enum_subject_terminal_smallest.bin"),
+            super::client_values::value("enum_subject_terminal_full.bin"),
         ],
         w::Subject::decode,
         w::Subject::measure,
@@ -33,10 +33,8 @@ fn lent_terminal_forms_keep_their_goldens() {
     );
     goldens(
         &[
-            include_bytes!(
-                "../../../../crates/jig-client-protocol-wire/golden/enum_delivery_value_terminal_smallest.bin"
-            ),
-            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/enum_delivery_value_terminal_full.bin"),
+            super::client_values::value("enum_delivery_value_terminal_smallest.bin"),
+            super::client_values::value("enum_delivery_value_terminal_full.bin"),
         ],
         w::DeliveryValue::decode,
         w::DeliveryValue::measure,
@@ -44,8 +42,8 @@ fn lent_terminal_forms_keep_their_goldens() {
     );
     goldens(
         &[
-            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/record_accounts_smallest.bin"),
-            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/record_accounts_full.bin"),
+            super::client_values::value("record_accounts_smallest.bin"),
+            super::client_values::value("record_accounts_full.bin"),
         ],
         w::Accounts::decode,
         w::Accounts::measure,
@@ -53,8 +51,8 @@ fn lent_terminal_forms_keep_their_goldens() {
     );
     goldens(
         &[
-            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/record_terminal_smallest.bin"),
-            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/record_terminal_full.bin"),
+            super::client_values::value("record_terminal_smallest.bin"),
+            super::client_values::value("record_terminal_full.bin"),
         ],
         w::Terminal::decode,
         w::Terminal::measure,
@@ -62,8 +60,8 @@ fn lent_terminal_forms_keep_their_goldens() {
     );
     goldens(
         &[
-            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/record_terminal_login_smallest.bin"),
-            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/record_terminal_login_full.bin"),
+            super::client_values::value("record_terminal_login_smallest.bin"),
+            super::client_values::value("record_terminal_login_full.bin"),
         ],
         w::TerminalLogin::decode,
         w::TerminalLogin::measure,
@@ -71,8 +69,8 @@ fn lent_terminal_forms_keep_their_goldens() {
     );
     goldens(
         &[
-            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/record_account_lent_end_smallest.bin"),
-            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/record_account_lent_end_full.bin"),
+            super::client_values::value("record_account_lent_end_smallest.bin"),
+            super::client_values::value("record_account_lent_end_full.bin"),
         ],
         w::AccountLentEnd::decode,
         w::AccountLentEnd::measure,
@@ -80,16 +78,14 @@ fn lent_terminal_forms_keep_their_goldens() {
     );
     goldens(
         &[
-            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/enum_login_end_signed_in_smallest.bin"),
-            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/enum_login_end_signed_in_full.bin"),
-            include_bytes!(
-                "../../../../crates/jig-client-protocol-wire/golden/enum_login_end_not_finished_smallest.bin"
-            ),
-            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/enum_login_end_not_finished_full.bin"),
-            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/enum_login_end_cancelled_smallest.bin"),
-            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/enum_login_end_cancelled_full.bin"),
-            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/enum_login_end_refused_smallest.bin"),
-            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/enum_login_end_refused_full.bin"),
+            super::client_values::value("enum_login_end_signed_in_smallest.bin"),
+            super::client_values::value("enum_login_end_signed_in_full.bin"),
+            super::client_values::value("enum_login_end_not_finished_smallest.bin"),
+            super::client_values::value("enum_login_end_not_finished_full.bin"),
+            super::client_values::value("enum_login_end_cancelled_smallest.bin"),
+            super::client_values::value("enum_login_end_cancelled_full.bin"),
+            super::client_values::value("enum_login_end_refused_smallest.bin"),
+            super::client_values::value("enum_login_end_refused_full.bin"),
         ],
         w::LoginEnd::decode,
         w::LoginEnd::measure,
@@ -97,14 +93,12 @@ fn lent_terminal_forms_keep_their_goldens() {
     );
     goldens(
         &[
-            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/enum_login_exit_exited_smallest.bin"),
-            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/enum_login_exit_exited_full.bin"),
-            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/enum_login_exit_killed_smallest.bin"),
-            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/enum_login_exit_killed_full.bin"),
-            include_bytes!(
-                "../../../../crates/jig-client-protocol-wire/golden/enum_login_exit_not_started_smallest.bin"
-            ),
-            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/enum_login_exit_not_started_full.bin"),
+            super::client_values::value("enum_login_exit_exited_smallest.bin"),
+            super::client_values::value("enum_login_exit_exited_full.bin"),
+            super::client_values::value("enum_login_exit_killed_smallest.bin"),
+            super::client_values::value("enum_login_exit_killed_full.bin"),
+            super::client_values::value("enum_login_exit_not_started_smallest.bin"),
+            super::client_values::value("enum_login_exit_not_started_full.bin"),
         ],
         w::LoginExit::decode,
         w::LoginExit::measure,
@@ -112,24 +106,12 @@ fn lent_terminal_forms_keep_their_goldens() {
     );
     goldens(
         &[
-            include_bytes!(
-                "../../../../crates/jig-client-protocol-wire/golden/enum_account_change_login_program_smallest.bin"
-            ),
-            include_bytes!(
-                "../../../../crates/jig-client-protocol-wire/golden/enum_account_change_login_program_full.bin"
-            ),
-            include_bytes!(
-                "../../../../crates/jig-client-protocol-wire/golden/enum_account_change_cancel_login_smallest.bin"
-            ),
-            include_bytes!(
-                "../../../../crates/jig-client-protocol-wire/golden/enum_account_change_cancel_login_full.bin"
-            ),
-            include_bytes!(
-                "../../../../crates/jig-client-protocol-wire/golden/enum_account_change_login_ended_smallest.bin"
-            ),
-            include_bytes!(
-                "../../../../crates/jig-client-protocol-wire/golden/enum_account_change_login_ended_full.bin"
-            ),
+            super::client_values::value("enum_account_change_login_program_smallest.bin"),
+            super::client_values::value("enum_account_change_login_program_full.bin"),
+            super::client_values::value("enum_account_change_cancel_login_smallest.bin"),
+            super::client_values::value("enum_account_change_cancel_login_full.bin"),
+            super::client_values::value("enum_account_change_login_ended_smallest.bin"),
+            super::client_values::value("enum_account_change_login_ended_full.bin"),
         ],
         w::AccountChange::decode,
         w::AccountChange::measure,
@@ -137,12 +119,8 @@ fn lent_terminal_forms_keep_their_goldens() {
     );
     goldens(
         &[
-            include_bytes!(
-                "../../../../crates/jig-client-protocol-wire/golden/enum_document_outcome_account_login_asked_smallest.bin"
-            ),
-            include_bytes!(
-                "../../../../crates/jig-client-protocol-wire/golden/enum_document_outcome_account_login_asked_full.bin"
-            ),
+            super::client_values::value("enum_document_outcome_account_login_asked_smallest.bin"),
+            super::client_values::value("enum_document_outcome_account_login_asked_full.bin"),
         ],
         w::DocumentOutcome::decode,
         w::DocumentOutcome::measure,
@@ -150,14 +128,12 @@ fn lent_terminal_forms_keep_their_goldens() {
     );
     goldens(
         &[
-            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/enum_refusal_no_terminal_smallest.bin"),
-            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/enum_refusal_no_terminal_full.bin"),
-            include_bytes!(
-                "../../../../crates/jig-client-protocol-wire/golden/enum_refusal_login_under_way_smallest.bin"
-            ),
-            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/enum_refusal_login_under_way_full.bin"),
-            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/enum_refusal_not_lending_smallest.bin"),
-            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/enum_refusal_not_lending_full.bin"),
+            super::client_values::value("enum_refusal_no_terminal_smallest.bin"),
+            super::client_values::value("enum_refusal_no_terminal_full.bin"),
+            super::client_values::value("enum_refusal_login_under_way_smallest.bin"),
+            super::client_values::value("enum_refusal_login_under_way_full.bin"),
+            super::client_values::value("enum_refusal_not_lending_smallest.bin"),
+            super::client_values::value("enum_refusal_not_lending_full.bin"),
         ],
         w::Refusal::decode,
         w::Refusal::measure,

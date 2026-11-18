@@ -8,6 +8,7 @@ pub(super) fn list(call: &crate::jig::call::Call, me: &c::Me) -> Option<c::Read>
     let after = crate::jig::call::cursor(call, 2);
     Some(c::Read::Tasks {
         query: c::TaskQuery {
+            parts: skein_lib::List::with_capacity(0),
             project: Some(project),
             requester: None,
             root: None,

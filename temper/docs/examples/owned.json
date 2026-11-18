@@ -6,8 +6,18 @@
           "name": "openai",
           "number": 1,
           "endpoint": "openai",
-          "keep": ["gpt-*"],
-          "drop": ["*audio*", "*image*", "*realtime*", "*search*", "*transcribe*", "*tts*", "*-20??-??-??"],
+          "keep": [
+            "gpt-*"
+          ],
+          "drop": [
+            "*audio*",
+            "*image*",
+            "*realtime*",
+            "*search*",
+            "*transcribe*",
+            "*tts*",
+            "*-20??-??-??"
+          ],
           "signed_in_plan": true,
           "manage_usage": "https://chatgpt.com/settings/usage",
           "sources": {
@@ -22,8 +32,17 @@
               "keys": "https://auth.openai.com/.well-known/jwks.json",
               "transport": "tls",
               "server_name": "auth.openai.com",
-              "scopes": ["openid", "profile", "email", "offline_access", "resource.invoke", "chatgpt.tokens.use.direct"],
-              "must_grant": ["chatgpt.tokens.use.direct"],
+              "scopes": [
+                "openid",
+                "profile",
+                "email",
+                "offline_access",
+                "resource.invoke",
+                "chatgpt.tokens.use.direct"
+              ],
+              "must_grant": [
+                "chatgpt.tokens.use.direct"
+              ],
               "resource": "https://api.openai.com/v1",
               "redirect_path": "auth/callback",
               "redirect_port": 1455
@@ -50,20 +69,13 @@
       ]
     },
     "hosts": {
-      "workers": [
-        {
-          "name": "worker",
-          "digest": "secrets/worker.digest"
-        }
-      ],
       "listener": [
         {
           "in_process": "workers"
         }
       ]
     },
-    "clients": {
-    },
+    "clients": {},
     "owners": [
       {
         "provider": 1,
@@ -76,25 +88,9 @@
       "engine": {
         "in_process": "workers"
       },
-      "name": "worker",
+      "name": "local",
       "secret": "secrets/worker.secret",
-      "slots": 4,
-      "agent": {
-        "program": "/usr/local/bin/temper",
-        "configuration": "/home/me/temper/owned/agent.json",
-        "arguments": [
-          "internal",
-          "agent",
-          "/home/me/temper/owned/agent.json"
-        ]
-      },
-      "limits": {
-        "profile": "standard",
-        "overrides": {
-          "hub.accounts": 4,
-          "hub.run_calls": 48
-        }
-      }
+      "slots": 4
     }
   ],
   "application": {

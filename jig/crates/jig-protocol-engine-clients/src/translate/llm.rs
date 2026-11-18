@@ -600,7 +600,7 @@ fn settings_items(bytes: &[u8], models: &[Model], limits: &w::Limits) -> Result<
                     }
                     found
                 }
-                w::SettingValue::Limits(_) | w::SettingValue::Model(_) | w::SettingValue::Application(_) => None,
+                w::SettingValue::Model(_) | w::SettingValue::Worker(_) | w::SettingValue::Application(_) | w::SettingValue::Limits(_) => None,
                 w::SettingValue::Rules(value) => settings_selector(value.ceiling().models().as_ref(), models),
             },
         };

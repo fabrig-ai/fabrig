@@ -18,12 +18,26 @@ pub use temper_protocol_store_codec::v25;
 mod tests;
 
 /// One version for every durable family (protocol/store.md, section 4).
-pub const STORE_VERSION: u32 = 25;
+pub const STORE_VERSION: u32 = {
+    let [high, low] = v25::VERSION.to_be_bytes();
+    u32::from_be_bytes([0, 0, high, low])
+};
 
-/// The least ceiling on pending, run and blamed landings (protocol/store.md, section 4).
+/// The least of the five tier landings ceilings (protocol/store.md, section 4).
 #[must_use]
 pub fn tier_landings_ceiling() -> u32 {
-    v25::CEILINGS.tier_row_pending.min(v25::CEILINGS.tier_run_landings).min(v25::CEILINGS.tier_finding_blamed)
+    v25::CEILINGS
+        .tier_row_pending
+        .min(v25::CEILINGS.tier_run_landings)
+        .min(v25::CEILINGS.tier_finding_blamed)
+        .min(v25::CEILINGS.tier_probe_waiting)
+        .min(v25::CEILINGS.tier_posting_landings)
+}
+
+/// The least failing-test and flake id ceiling (protocol/store.md, section 4).
+#[must_use]
+pub fn test_id_ceiling() -> u32 {
+    v25::CEILINGS.failing_test_test_id.min(v25::CEILINGS.tier_flake_test)
 }
 
 /// The most `forge.changes` the tier rows hold at two landings per change plus one.

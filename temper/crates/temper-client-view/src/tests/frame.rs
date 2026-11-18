@@ -291,6 +291,7 @@ fn assert_link_main(answer: jig_client_protocol_wire::SignInAnswer, expected: &[
         },
         &mut out,
     );
+    temper_client_domain::settle(&mut root, &env, &mut out);
     let mut exchange = None;
     while let Some(request) = out.pop() {
         if let Request::Client {
@@ -1732,7 +1733,7 @@ fn assert_rail(view: &crate::View, project: &[u8]) {
 fn goals_opens_in_its_projects_frame() {
     use temper_client_domain::{Address, Event, GoalsFilter, Place, Request};
     // Work's drafts, changes and notes, the rail's people and standing roles and the project's ways and classes open without a goal template.
-    const PROJECT_READS: u32 = 7;
+    const PROJECT_READS: u32 = 6;
     for filter in [GoalsFilter::All, GoalsFilter::Needs, GoalsFilter::Live, GoalsFilter::Ended] {
         for words in [fixtures::words(), fixtures::browser_words()] {
             let address = Address::Goals { project: fixtures::SECOND_PROJECT, filter };
@@ -1741,6 +1742,7 @@ fn goals_opens_in_its_projects_frame() {
             assert_eq!(root.pages().project(), Some(fixtures::SECOND_PROJECT));
             assert_eq!(root.pages().address(), &address);
             let project_name = b"Shop";
+            let browser = words.shell == crate::words::Shell::Browser;
             let mut view = fixtures::view_of(words);
             fixtures::build(&mut view, &root);
             assert_rail(&view, b"Second");
@@ -1750,7 +1752,14 @@ fn goals_opens_in_its_projects_frame() {
                 skein_lib::bytes::find(&fixtures::main_text(view.tree()), b"A goal turns a draft into landed work.")
                     .is_some()
             );
-            assert!(fixtures::styles(view.tree(), Role::Heading { level: 1 }).is_empty());
+            assert_eq!(fixtures::styles(view.tree(), Role::Heading { level: 1 }).len(), usize::from(browser));
+            for node in view.tree().nodes() {
+                if node.role == (Role::Heading { level: 1 }) {
+                    assert!(node.name.is_none());
+                    assert!(node.text.is_empty());
+                    assert!(node.styles.as_slice().contains(&crate::look::WORK_HEADLINE));
+                }
+            }
             assert!(fixtures::find(view.tree(), Role::Link, b"Work").is_some(), "goals page keeps Work in the rail");
             assert_eq!(skein_ui::outline::check(view.tree()), None);
             for node in view.tree().nodes() {
@@ -1785,24 +1794,7 @@ fn goals_opens_in_its_projects_frame() {
             assert_eq!(
                 out.len(),
                 PROJECT_READS,
-                "drafts, changes, people, standing roles, notes and the new project's ways and classes: {out:?}"
-            );
-            let Some(Request::Unlinked {
-                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { subject, .. } },
-            }) = out.pop()
-            else {
-                panic!("drafts watch")
-            };
-            assert_eq!(Some(subject), temper_client_domain::forge::drafts::watch(fixtures::PROJECT, &env.limits.forge));
-            let Some(Request::Unlinked {
-                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { subject, .. } },
-            }) = out.pop()
-            else {
-                panic!("changes watch")
-            };
-            assert_eq!(
-                Some(subject),
-                temper_client_domain::forge::changes::watch(fixtures::PROJECT, &env.limits.forge)
+                "drafts, changes, people, standing roles and the new project's ways and classes: {out:?}"
             );
             let Some(Request::Unlinked {
                 request:
@@ -1834,25 +1826,22 @@ fn goals_opens_in_its_projects_frame() {
             };
             assert_eq!((query.project, query.label), (Some(fixtures::PROJECT), Some(3)));
             let Some(Request::Unlinked {
-                request:
-                    jig_client::UnlinkedRequest::Down {
-                        down:
-                            jig_client::Down::Read {
-                                what:
-                                    jig_client::Readable::Jig(jig_client::contract::Read::Notes {
-                                        scope,
-                                        description,
-                                        after,
-                                    }),
-                                ..
-                            },
-                    },
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { subject, .. } },
             }) = out.pop()
             else {
-                panic!("chat notes")
+                panic!("changes watch")
             };
-            assert_eq!(scope, jig_client::contract::NoteScope::Tasks { project: fixtures::PROJECT });
-            assert_eq!((description, after), (None, None));
+            assert_eq!(
+                Some(subject),
+                temper_client_domain::forge::changes::watch(fixtures::PROJECT, &env.limits.forge)
+            );
+            let Some(Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { subject, .. } },
+            }) = out.pop()
+            else {
+                panic!("drafts watch")
+            };
+            assert_eq!(Some(subject), temper_client_domain::forge::drafts::watch(fixtures::PROJECT, &env.limits.forge));
             let mut kinds = skein_lib::List::with_capacity(2);
             while let Some(request) = out.pop() {
                 let Request::Unlinked {

@@ -278,8 +278,10 @@ fn stock_config() -> engine::Config {
 
         providers: Box::new([]),
     };
+    let workers = config.core.defaults.workers.clone();
     config.core.defaults =
         temper_engine_service_stock::stock::with_models(llm.models.clone(), stock_limits().tasks.result_bytes);
+    config.core.defaults.workers = workers;
     config.core.connectors = Box::new([1]);
     config.core.seed_projects = Box::new([]);
     config.core.owners[0].project = people::DEPLOYMENT;
@@ -466,7 +468,7 @@ fn read_rules(driver: &mut Driver, revision: u32) -> core::reads::SettingDocumen
     driver.send(Event::Party(PartyInput::Read {
         reply_to: ReplyTo::new(Token::new(990)),
         sign_in: driver.session(),
-        read: core::reads::Read::Setting { setting: s::Setting::Rules, revision, proposal: None },
+        read: Box::new(core::reads::Read::Setting { setting: s::Setting::Rules, revision, proposal: None }),
     }));
     driver.settle();
     driver
@@ -498,6 +500,7 @@ fn a_nonowner_cannot_change_the_deployments_settings() {
     let mut driver = started(HISTORY);
     driver.delivered.clear();
     driver.send(Event::Party(PartyInput::SignedIn {
+        until: None,
         reply_to: ReplyTo::new(Token::new(991)),
         held: None,
         identity: people::Identity {
@@ -730,7 +733,7 @@ fn owner_reviews_run_proposal(driver: &mut Driver, task: u64, proposal: u64) {
     driver.send(Event::Party(PartyInput::Read {
         reply_to: ReplyTo::new(Token::new(995)),
         sign_in: driver.session(),
-        read: core::reads::Read::Proposal { proposer: people::Proposer::Task(task), proposal },
+        read: Box::new(core::reads::Read::Proposal { proposer: people::Proposer::Task(task), proposal }),
     }));
     driver.settle();
     let mut reviewed = false;

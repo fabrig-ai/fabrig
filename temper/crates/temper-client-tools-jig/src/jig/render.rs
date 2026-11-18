@@ -535,7 +535,7 @@ fn check_selected(call: &crate::jig::call::Call, local: u32, value: &ReadValue) 
         | (crate::jig::rows::ROLE_LIST_AT, 8.., ReadValue::Notes(_))
         | (crate::jig::rows::TASK_TEXT_AT, 1, ReadValue::TaskText(_))
         | (crate::jig::rows::TASK_NOTES_AT, 1, ReadValue::Notes(_))
-        | (crate::jig::rows::DEPLOYMENT_CENSUS_AT, 1, ReadValue::Deployment(_))
+        | (crate::jig::rows::DEPLOYMENT_CENSUS_AT | crate::jig::rows::WORKER_LIST_AT, 1, ReadValue::Deployment(_))
         | (1, _, ReadValue::Inbox(_))
         | (crate::jig::rows::PROPOSAL_AT, 1, ReadValue::Proposal(_))
         | (crate::jig::rows::PROJECT_SHOW_AT | crate::jig::rows::PROJECT_FUND_AT, 1, ReadValue::Project(_))
@@ -641,4 +641,15 @@ fn plain_task(reading: &crate::jig::runner::reads::Reading) -> bool {
         && reading.pages.len() == 1
         && reading.documents.is_empty()
         && reading.specification.is_none()
+}
+
+/// Print ctl's amount: a hundred spend units, with two decimals.
+pub fn amount(value: u64, out: &mut Text) {
+    let fraction = value.checked_rem(100).expect("nonzero divisor");
+    out.number(value.checked_div(100).expect("nonzero divisor"));
+    out.put(b".");
+    if fraction < 10 {
+        out.put(b"0");
+    }
+    out.number(fraction);
 }

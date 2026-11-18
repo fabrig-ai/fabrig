@@ -69,7 +69,7 @@ pub fn forge_read_llm(config: &Path) -> CtlLlm {
         Box::new([Script {
             cue: b"@first-forge-read".as_slice().into(),
             turns: Box::new([
-                call(b"read_branch", &json!({"repository":"playground/widget","branch":"main"})),
+                call(b"read_forge", &json!({"what":"branch","repository":"playground/widget","branch":"main"})),
                 Turn {
                     lines: Box::new([Line::Text { text: b"Read widget's main branch.".as_slice().into() }]),
                     finish: Finish::Stop,
@@ -89,13 +89,12 @@ pub(super) fn model(config: &Path, scripts: Box<[Script]>) -> CtlLlm {
         on_link: Box::new(move || {
             // The box starts on empty directories. Only its generated agent's
             // endpoint moves, before any run: the template and demo stay shipped.
-            let path = config.join("agent.json");
-            let mut agent: Value = serde_json::from_slice(&fs::read(&path).expect("initialized agent")).expect("JSON");
+            let mut agent = temper_agent_fixtures::read(&config);
             agent["endpoints"][0]["address"] = address.to_string().into();
             agent["endpoints"][0]["server_name"] = "skein.test".into();
             agent["endpoints"][0]["trust_der"] = json!(config.join("root.der"));
             write_private(&config.join("root.der"), skein_tls_kit::pki::ROOT);
-            write_private(&path, &serde_json::to_vec(&agent).expect("agent JSON"));
+            temper_agent_fixtures::install(&config, &agent);
         }),
     }
 }

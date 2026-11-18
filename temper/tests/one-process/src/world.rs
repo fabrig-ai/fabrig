@@ -1287,7 +1287,7 @@ pub(crate) fn run_phase(
         world.run()
     });
     if matches!(scenario, Story::Adopt) {
-        observed_forge.borrow().require_hooks(stories::ADOPT_HOOKS);
+        assert!(referee::forge::Forge::hooks_complete(&outcome.procs), "the required push-hook prefix was delivered");
     }
     let signed_in = outcome
         .procs

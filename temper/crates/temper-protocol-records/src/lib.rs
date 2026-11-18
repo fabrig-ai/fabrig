@@ -8,7 +8,7 @@ pub mod patches;
 
 
 #[rustfmt::skip]
-#[path = "generated/v1.rs"]
+#[path = "generated/secrets.rs"]
 pub mod v1;
 mod codec;
 pub use codec::{

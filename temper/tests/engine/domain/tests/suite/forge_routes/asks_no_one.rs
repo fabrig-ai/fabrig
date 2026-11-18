@@ -185,9 +185,7 @@ fn a_retried_step_answers_once() {
     }
     assert!(cut, "cut the step that consumes the words and saves its reply");
     world.restart(true, true);
-    for _ in 0..MAX_TICKS {
-        world.tick();
-    }
+    world.advance_ticks(MAX_TICKS);
     assert_passed(&world, chat.task, producer.task, change);
     assert_eq!(world.assigned.len(), 2);
     assert_eq!(world.merges, 0);
@@ -302,9 +300,7 @@ fn a_hold_notice_keeps_its_place_before_replies() {
     // The completed producer and reviews are no longer hosted at the restart.
     world.assigned.retain(|run| run.task == chat.task);
     world.restart(false, true);
-    for _ in 0..MAX_TICKS {
-        world.tick();
-    }
+    world.advance_ticks(MAX_TICKS);
     assert!(matches!(live_task(&world, change).phase, tasks::Phase::Held { why: tasks::Hold::EffectFailed, .. }));
     let notices = replies(&world, chat.task, change);
     assert_eq!(notices.len(), 1, "the hold notice uses the sole message slot");

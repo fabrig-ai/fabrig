@@ -63,7 +63,7 @@ use temper_worker_domain_tooling as tooling;
 #[derive(PartialEq, Eq, Debug)]
 #[expect(clippy::large_enum_variant, reason = "an assignment crosses whole, as jig's reference root takes it")]
 pub enum Event {
-    /// Encoded check ask, fenced by its generation.
+    /// Encoded application ask, fenced by its cookie.
     RedsAsk { owner: Token, check: u64, bytes: Box<[u8]> },
     /// A whole answer decoded below the root.
     RedsAnswer { owner: Token, check: u64, answer: Option<wire::Answer> },
@@ -124,13 +124,15 @@ pub enum Event {
 /// domain -> protocol
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    /// The first agent fault of an attempt, before its answer (domain/worker/README.md, 4.3).
+    AgentStopped { run: Token, attempt: Token, failure: host::AgentFailure },
     /// One failed preparation's operator note, on the first answer only (domain/worker/checkouts.md, 1.3).
     Unprepared { run: Token, attempt: Token, failure: host::Preparation, detail: Box<[u8]> },
     /// A results file was absent or malformed; content-free diagnostic.
     ResultsIgnored { owner: Token, tag: u64, reason: Box<[u8]> },
-    /// Encode temper’s check read before asking the hub.
+    /// Encode temper's application ask before asking the hub.
     RedsAsk { owner: Token, check: u64, ask: wire::Ask },
-    /// Decode the hub’s answer before the check uses it.
+    /// Decode the hub's answer before its asker uses it.
     RedsAnswer { owner: Token, check: u64, bytes: Box<[u8]> },
     /// Read an endpoint without taking a run slot or workspace (jig's domain/hosts/README.md, 5.1).
     ReadList { read: u64, endpoint: u32, grant: jig_domain_link::Grant },

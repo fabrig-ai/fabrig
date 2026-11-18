@@ -19,10 +19,13 @@ pub struct Redacted {
 
 /// Every byte field, in record order, with the framing that counts its bytes.
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "one exhaustive match visits the journey's byte fields")]
 pub fn fields_mut(line: &mut Line) -> Vec<(&mut Box<[u8]>, Framing)> {
     use Framing::{Framed, Text};
     match line {
-        Line::Reply { bytes, .. } | Line::Credential(bytes) | Line::Erase(bytes) => vec![(bytes, Framed)],
+        Line::Reply { bytes, .. } | Line::Part { bytes, .. } | Line::Credential(bytes) | Line::Erase(bytes) => {
+            vec![(bytes, Framed)]
+        }
         Line::Stored { key, bytes } | Line::Save { key, bytes } => vec![(key, Framed), (bytes, Framed)],
         Line::Streamed(streamed) => match streamed {
             Streamed::Record(bytes) => vec![(bytes, Framed)],
@@ -37,6 +40,7 @@ pub fn fields_mut(line: &mut Line) -> Vec<(&mut Box<[u8]>, Framing)> {
                 | Sent::SignInApproval(bytes)
                 | Sent::Request(bytes)
                 | Sent::Read(bytes)
+                | Sent::Batch(bytes)
                 | Sent::Watch(bytes)
                 | Sent::Unwatch(bytes)
                 | Sent::StreamGone(bytes)
@@ -48,6 +52,11 @@ pub fn fields_mut(line: &mut Line) -> Vec<(&mut Box<[u8]>, Framing)> {
         }
         Line::Stream(credential) | Line::Keep(credential) => {
             credential.iter_mut().map(|bytes| (bytes, Framed)).collect()
+        }
+        Line::Replacing { credential, stream } => {
+            let mut fields: Vec<_> = credential.iter_mut().map(|bytes| (bytes, Framed)).collect();
+            fields.push((stream, Framed));
+            fields
         }
         Line::Key { key, event } => {
             let mut fields = match key {
@@ -101,6 +110,7 @@ pub fn fields_mut(line: &mut Line) -> Vec<(&mut Box<[u8]>, Framing)> {
         | Line::Due
         | Line::Resize(_)
         | Line::Unanswered(_)
+        | Line::Done(_)
         | Line::Gone
         | Line::Saved
         | Line::Unsaved
@@ -141,6 +151,7 @@ pub fn originals(lines: &[Line], given: &[Box<[u8]>]) -> Originals {
                     | Sent::ApprovalDecide(_)
                     | Sent::Request(_)
                     | Sent::Read(_)
+                    | Sent::Batch(_)
                     | Sent::Watch(_)
                     | Sent::Unwatch(_)
                     | Sent::StreamGone(_)
@@ -151,7 +162,9 @@ pub fn originals(lines: &[Line], given: &[Box<[u8]>]) -> Originals {
                     candidates.push((Kind::Bearer, bytes.clone()));
                 }
             }
-            Line::Stream(Some(bytes)) => candidates.push((Kind::Bearer, bytes.clone())),
+            Line::Stream(Some(bytes)) | Line::Replacing { credential: Some(bytes), .. } => {
+                candidates.push((Kind::Bearer, bytes.clone()));
+            }
             Line::Found(Some(bytes)) => {
                 candidates.extend(link_original(bytes));
             }
@@ -185,7 +198,9 @@ pub fn originals(lines: &[Line], given: &[Box<[u8]>]) -> Originals {
             | Line::Key { .. }
             | Line::Resize(_)
             | Line::Reply { .. }
+            | Line::Part { .. }
             | Line::Unanswered(_)
+            | Line::Done(_)
             | Line::Streamed(_)
             | Line::Gone
             | Line::Saved
@@ -193,6 +208,7 @@ pub fn originals(lines: &[Line], given: &[Box<[u8]>]) -> Originals {
             | Line::Kept { .. }
             | Line::Opened { .. }
             | Line::Stream(None)
+            | Line::Replacing { credential: None, .. }
             | Line::Unstream
             | Line::Save { .. }
             | Line::Erase(_)

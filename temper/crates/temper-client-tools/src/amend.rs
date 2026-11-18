@@ -9,7 +9,32 @@ use jig_client::contract as c;
 use skein_lib::{List, Writer};
 
 pub(crate) fn prepare(call: &Call, task: &c::Task, me: &c::Me, limits: &Limits) -> Prepared {
+    let address = if let Some(party) = number(call, 14) {
+        Some(c::PersonAddress::Party(party))
+    } else {
+        match number(call, 15) {
+            Some(role) => Some(c::PersonAddress::Role(u32::try_from(role).expect("checked role"))),
+            None => None,
+        }
+    };
+    let addressed = match address {
+        Some(address) => match temper_client_domain_forge::amend::address(task, address) {
+            Some(change) => Some(change),
+            None => {
+                return Err(amend_error(
+                    task,
+                    b" is not a person task: only a person task takes --to-party or --to-role",
+                    None,
+                    b"",
+                ));
+            }
+        },
+        None => None,
+    };
     let mut draft = temper_client_domain_forge::amend::Draft::of(task);
+    if let Some(change) = addressed {
+        draft.address(change);
+    }
     let shown = match number(call, 1) {
         Some(value) => Some(c::Revision { value }),
         None => None,
@@ -26,11 +51,12 @@ pub(crate) fn prepare(call: &Call, task: &c::Task, me: &c::Me, limits: &Limits) 
         ));
     }
     controls(&mut draft, call, task, me, limits)?;
-    let drafted = if call.key.is_some() { Some(named_draft(call, task, me, limits)?) } else { draft.amendment() };
+    let drafted =
+        if call.key.is_some() { Some(named_draft(call, task, me, limits, addressed)?) } else { draft.amendment() };
     let Some(drafted) = drafted else {
         return Err(amend_error(task, b"", None, b"amend changes nothing on task "));
     };
-    if drafted.revision.is_some() && shown.is_none() {
+    if drafted.revision.is_some() && shown.is_none() && addressed.is_none() {
         return Err(Failed::Fixed(b"task amend needs --rev REV"));
     }
     let revision = shown.or(drafted.revision);
@@ -108,9 +134,10 @@ fn named_draft(
     task: &c::Task,
     me: &c::Me,
     limits: &Limits,
+    addressed: Option<c::AddressChange>,
 ) -> Result<temper_client_domain_forge::amend::Drafted, Failed> {
     let mut change = c::Amendment {
-        addressed: None,
+        addressed,
         spec: None,
         wake: None,
         dependencies: None,
@@ -146,7 +173,8 @@ fn named_draft(
     if value(call, 10).is_some() {
         change.llm = Some(choice::llm(call, 10, 11, me, task.project, task.llm.as_ref())?.expect("model supplied"));
     }
-    let other = change.spec.is_some()
+    let other = change.addressed.is_some()
+        || change.spec.is_some()
         || change.authority.is_some()
         || change.instructions.is_some()
         || change.dependencies.is_some()
@@ -162,7 +190,8 @@ fn named_draft(
 }
 
 fn named_authority(call: &Call, task: &c::Task) -> Result<Option<c::Authority>, Failed> {
-    if value(call, 4).is_none() && value(call, 5).is_none() && number(call, 13).is_none() {
+    if value(call, 4).is_none() && value(call, 5).is_none() && number(call, 13).is_none() && number(call, 16).is_none()
+    {
         return Ok(None);
     }
     let Some(mut authority) = task.authority.whole() else {
@@ -176,6 +205,9 @@ fn named_authority(call: &Call, task: &c::Task) -> Result<Option<c::Authority>, 
     }
     if let Some(tasks) = number(call, 13) {
         authority.delegation.tasks = u32::try_from(tasks).expect("checked task allowance");
+    }
+    if let Some(spend) = number(call, 16) {
+        authority.spend = spend;
     }
     Ok(Some(authority))
 }
@@ -237,6 +269,9 @@ fn controls(
     if let Some(tasks) = number(call, 13) {
         whole(draft.tasks(u32::try_from(tasks).expect("checked task allowance")), task)?;
     }
+    if let Some(spend) = number(call, 16) {
+        whole(draft.spend(spend), task)?;
+    }
     if value(call, 6).is_some() {
         draft.instructions(words(call, 6, limits)?);
     }
@@ -263,7 +298,8 @@ fn whole(result: Result<(), temper_client_domain_forge::amend::Cut>, task: &c::T
     let suffix = match result {
         Ok(()) => return Ok(()),
         Err(Cut::Authority) => {
-            b"'s authority is cut in this read; amend its deadline or tasks from a client with wider bounds".as_slice()
+            b"'s authority is cut in this read; amend its deadline, budget or tasks from a client with wider bounds"
+                .as_slice()
         }
         Err(Cut::Spec) => b"'s spec is cut in this read; amend its words from a client with wider bounds".as_slice(),
     };

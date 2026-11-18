@@ -138,9 +138,7 @@ pub(super) fn configure_batch(root: &Path, repository: u64, batch: u16) -> tempe
     config.jig_over("tasks.result_bytes", prepare.result);
     config["workers"][0]["limits"]["overrides"]["tasks.result_bytes"] = prepare.result.into();
     config.temper_over("forge.client.op_bytes", prepare.result);
-    let agent_path = root.join("agent.json");
-    let mut agent: Value =
-        serde_json::from_slice(&fs::read(&agent_path).expect("agent configuration")).expect("agent JSON");
+    let mut agent = temper_agent_fixtures::read(root);
     // A JSON string's quotes share the tool payload with its message.
     let tool_payload = prepare.result + 2;
     agent["profile"]["declared"]["tool_payload"] = tool_payload.into();
@@ -154,7 +152,7 @@ pub(super) fn configure_batch(root: &Path, repository: u64, batch: u16) -> tempe
         .expect("worker overrides")
         .remove("core.call_answer_bytes");
     super::configuration::turn_bounds::apply(&mut config, super::configuration::turn_bounds::turn_body(&agent));
-    write_private(&agent_path, &serde_json::to_vec(&agent).expect("agent JSON"));
+    temper_agent_fixtures::apply(&mut config, root, &agent);
     write_private(&path, &serde_json::to_vec(&config).expect("configuration JSON"));
     super::limit_settings::remember(root, &config);
     let path = root.join("native-landing-settings.json");
@@ -167,12 +165,14 @@ pub(super) fn configure_batch(root: &Path, repository: u64, batch: u16) -> tempe
 
 /// Leave landing tasks a share of the seeded project's open period (domain/landing.md, 4.2).
 pub(super) fn setup(root: &Path) -> Vec<ctl::Step> {
-    let mut steps = native_settings_setup(root);
+    let agents = super::agents_value(&fs::read(root.join("agents.setting")).expect("agents setting copy"));
+    let mut steps = native_settings_setup(root, Some(agents));
     steps.push(ctl::Step::Run(ctl::Call::new(&["project", "show", "1", "--json"]).in_directory("private")));
     steps.push(ctl::Step::Then(Box::new(|calls| {
         let project = ctl::json(calls.last().expect("project read"));
         let period = project["policy"]["period_spend"].as_u64().expect("project period");
-        let amount = (period / 48 * landing_by_turn::ROLE_PERIOD_IN_K).to_string();
+        let spend = period / 48 * landing_by_turn::ROLE_PERIOD_IN_K;
+        let amount = format!("{}.{:02}", spend / 100, spend % 100);
         ctl::Call::new(&["project", "fund", "1", &amount, "--role", "0", "--key", "turn-role-funds"])
             .in_directory("private")
     })));
@@ -208,11 +208,7 @@ pub mod tests {
             temper_service::limits::prepare_jobs(&engine.limits).contains(&prepare),
             "the turn declares the prepare job"
         );
-        assert!(
-            config["workers"][0]["limits"]["overrides"]["tasks.result_bytes"].as_u64().expect("worker result carrier")
-                >= u64::from(prepare.result),
-            "the worker carries the prepare result"
-        );
+        assert!(engine.limits.core.tasks.result_bytes >= prepare.result, "the worker carries the prepare result");
         scratch.remove();
     }
 }

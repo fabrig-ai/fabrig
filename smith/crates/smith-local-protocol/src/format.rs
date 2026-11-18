@@ -1,14 +1,12 @@
 //! Per-chat layout marker (domain/host.md, section 8; protocol/host.md, 5.3).
-//! No state or runtime schema parser is retained. `layouts`, `file` and `check`
-//! return the committed layouts, their generated record and its refusal.
+//! No state or schema parser is retained. `layouts`, `file` and `check`
+//! compute fingerprints from embedded texts, write their marker and check it.
 use crate::{File, local_store_v1 as wire};
 use skein_lib::{Reader, Writer};
 use smith_local_domain::{Older, StoreFamily};
 
-#[rustfmt::skip]
-// The schema compiler writes this module to generated/layouts.rs.
-#[path = "generated/layouts.rs"]
-mod committed;
+#[expect(clippy::disallowed_macros, reason = "the marker embeds the local store's schema text")]
+const TEXT: &str = include_str!("../schema/local-store-v1.schema");
 
 /// The generated family's complete fixed-size Layouts encoding bound.
 #[must_use]
@@ -17,14 +15,15 @@ pub fn max_bytes() -> u32 {
         .expect("layout encoding fits u32")
 }
 
-/// The committed current store and transcript layouts, sent by the drift generator.
+/// The current store and transcript fingerprints, computed from their embedded texts.
 #[must_use]
 pub fn layouts() -> wire::Layouts {
-    wire::Layouts::new(
-        &wire::CEILINGS,
-        wire::LayoutsParts { store: committed::STORE, transcript: committed::TRANSCRIPT },
-    )
-    .expect("fixed layouts fit")
+    let store = {
+        let schema = skein_codec::schema::parse(TEXT.as_bytes()).expect("the embedded local store schema is valid");
+        schema.fingerprints().family().digest()
+    };
+    let transcript = smith_transcript::wire::layout();
+    wire::Layouts::new(&wire::CEILINGS, wire::LayoutsParts { store, transcript }).expect("fixed layouts fit")
 }
 
 /// The no-replace marker written only in an admitted empty directory.
@@ -49,4 +48,22 @@ pub fn check(bytes: &[u8]) -> Result<(), Older> {
         return Err(Older::Layout(StoreFamily::Transcript));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[expect(clippy::disallowed_macros, reason = "the test independently embeds the marker's schema inputs")]
+    fn the_marker_fingerprints_its_embedded_texts_and_checks_its_file() {
+        let store = include_str!("../schema/local-store-v1.schema");
+        let transcript = include_str!("../../smith-transcript/schema/transcript-v7.schema");
+        let parts = layouts().into_parts();
+        for (text, found) in [(store, parts.store), (transcript, parts.transcript)] {
+            let schema = skein_codec::schema::parse(text.as_bytes()).expect("marker schema");
+            assert_eq!(found, schema.fingerprints().family().digest());
+        }
+        assert_eq!(check(&file().bytes), Ok(()));
+    }
 }

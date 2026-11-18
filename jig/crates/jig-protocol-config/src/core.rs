@@ -58,15 +58,9 @@ pub fn core(engine: &Engine, deployment: [u8; 16], seed: u64) -> domain::Config 
         }
     }
     domain::Config {
+        parts: Box::new([]),
         jobs: Box::new([]),
         kept_starts: Box::new([]),
-        worker_names: {
-            let mut names = List::with_capacity(engine.limits.link.names);
-            for worker in &engine.hosts.workers {
-                names.push(worker.name.clone()).expect("checked worker count");
-            }
-            names.into_boxed()
-        },
         deployment,
         seed: engine.deployment.seed.unwrap_or(seed),
         workers_in_process,
@@ -76,6 +70,7 @@ pub fn core(engine: &Engine, deployment: [u8; 16], seed: u64) -> domain::Config 
         kinds: Box::default(),
         defaults: domain::settings::Defaults {
             limits: Box::default(),
+            workers: Box::new([]),
             models: engine.llm.models.clone(),
             charters: engine.charters.clone(),
             templates: engine.templates.clone(),

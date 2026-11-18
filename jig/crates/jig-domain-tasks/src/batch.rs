@@ -552,24 +552,27 @@ pub fn valid_contract(limits: &Limits, contract: &Contract) -> bool {
                 }
             }
         }
-        Contract::Report { words } | Contract::Change { words, .. } => *words <= limits.result_bytes,
-        Contract::Verdict { choices } => {
-            if choices.is_empty() || choices.len() > skein_lib::length::usize_of(limits.contract_choices) {
+        Contract::Report { words } => *words <= limits.result_bytes,
+        Contract::Change { words, choices, .. } => *words <= limits.result_bytes && valid_choices(limits, choices),
+        Contract::Verdict { choices } => !choices.is_empty() && valid_choices(limits, choices),
+    }
+}
+
+fn valid_choices(limits: &Limits, choices: &[crate::Verdict]) -> bool {
+    if choices.len() > skein_lib::length::usize_of(limits.contract_choices) {
+        return false;
+    }
+    for (at, choice) in choices.iter().enumerate() {
+        if !crate::verdict::rules_valid(choice, limits.result_bytes) || choice.followups > limits.batch {
+            return false;
+        }
+        for earlier in choices.iter().take(at) {
+            if earlier.code == choice.code {
                 return false;
             }
-            for (at, choice) in choices.iter().enumerate() {
-                if !crate::verdict::rules_valid(choice, limits.result_bytes) || choice.followups > limits.batch {
-                    return false;
-                }
-                for earlier in choices.iter().take(at) {
-                    if earlier.code == choice.code {
-                        return false;
-                    }
-                }
-            }
-            true
         }
     }
+    true
 }
 
 /// Pure bounded permission-value shape check before retaining a call body.

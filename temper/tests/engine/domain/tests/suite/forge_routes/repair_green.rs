@@ -140,9 +140,7 @@ fn a_retrying_repair_ends_on_a_green_head() {
 fn a_run_in_progress_finishes_at_a_green_head() {
     let (mut world, repair, change, head) = repair();
     status(&mut world, head, raw::Check::Passed);
-    for _ in 0..STEPS {
-        world.tick();
-    }
+    world.advance_ticks(STEPS);
     assert!(matches!(live_task(&world, repair.task).phase, tasks::Phase::Active(tasks::Active::Running { .. })));
     assert_eq!(
         row(&world, change).delegate,
@@ -236,9 +234,7 @@ fn a_cancelled_repair_released_at_a_green_head_makes_no_fresh_one() {
         key: [96; 16],
         ask: people::Ask::Release { project: 1, task: change, revision, again: None },
     }));
-    for _ in 0..STEPS {
-        world.tick();
-    }
+    world.advance_ticks(STEPS);
     assert_eq!(task(&world, change).made, MADE);
     assert!(row(&world, change).delegate.is_none());
     assert_eq!(row(&world, change).change.repairs, 0);
@@ -258,9 +254,7 @@ fn a_failed_repair_at_a_green_head_holds_nothing() {
             cancel_delegates: false,
         },
     );
-    for _ in 0..STEPS {
-        world.tick();
-    }
+    world.advance_ticks(STEPS);
     assert!(
         !matches!(row(&world, change).change.state, State::Repairing { .. } | State::Held { .. }),
         "{:?}",
@@ -578,16 +572,12 @@ fn a_stopped_change_stays_held_at_a_green_head() {
         }
     }
     status(&mut world, head, raw::Check::Passed);
-    for _ in 0..STEPS {
-        world.tick();
-    }
+    world.advance_ticks(STEPS);
     assert!(matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }));
     assert!(live_task(&world, change).placed.is_some());
     assert!(matches!(row(&world, change).change.state, State::Held { .. }));
     release(&mut world, change);
-    for _ in 0..STEPS {
-        world.tick();
-    }
+    world.advance_ticks(STEPS);
     assert_eq!(task(&world, change).made, MADE);
     assert!(!matches!(row(&world, change).change.state, State::Held { .. } | State::Repairing { .. }));
     world.close();
@@ -613,9 +603,7 @@ fn a_drifted_change_stays_held_at_a_green_head() {
         }
     }
     status(&mut world, head, raw::Check::Passed);
-    for _ in 0..STEPS {
-        world.tick();
-    }
+    world.advance_ticks(STEPS);
     assert!(matches!(task(&world, change).phase, tasks::Phase::Held { .. }));
     assert!(matches!(
         row(&world, change).change.state,
@@ -713,9 +701,7 @@ fn a_stop_during_the_green_read_leaves_the_next_release_safe() {
         key: [97; 16],
         ask: people::Ask::Stop { project: 1, task: change },
     }));
-    for _ in 0..STEPS {
-        world.tick();
-    }
+    world.advance_ticks(STEPS);
     assert!(live_task(&world, change).placed.is_some());
     assert!(matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }));
     assert!(!matches!(row(&world, change).change.state, State::Held { .. }));
@@ -727,9 +713,7 @@ fn a_stop_during_the_green_read_leaves_the_next_release_safe() {
         "the placed hold refused deployment release"
     );
     release(&mut world, change);
-    for _ in 0..STEPS {
-        world.tick();
-    }
+    world.advance_ticks(STEPS);
     assert_eq!(task(&world, change).made, MADE);
     assert_eq!(row(&world, change).change.repairs, 1);
     assert!(!matches!(row(&world, change).change.state, State::Held { .. } | State::Repairing { .. }));

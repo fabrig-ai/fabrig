@@ -118,6 +118,7 @@ fn generated_with_test(test: Option<&[u8]>) -> (engine::Config, engine::Limits) 
 
 fn sign_in_owner(driver: &mut Driver) {
     driver.send(Event::Party(PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(900)),
         identity: people::Identity {
@@ -142,7 +143,7 @@ fn a_fresh_init_names_the_standard_profiles() {
     assert!(document["engine"].get("limits").is_none());
     assert!(document["engine"].get("memory_bytes").is_none());
     assert!(document["application"].get("limits").is_none());
-    assert_eq!(document["workers"][0]["limits"]["profile"], "standard");
+    assert!(document["workers"][0].get("limits").is_none());
     let (_, limits) = generated();
     assert_eq!(limits.tasks.inbox_messages, 82);
     assert_eq!(limits.tasks.message_bytes, 63_738);
@@ -162,7 +163,7 @@ fn a_fresh_box_me_lists_the_stock_charters_at_fabrig_scale() {
     driver.send(Event::Party(PartyInput::Read {
         reply_to: ReplyTo::new(EMPTY),
         sign_in: driver.session(),
-        read: core::reads::Read::Frame,
+        read: Box::new(core::reads::Read::Frame),
     }));
     driver.settle();
     let document = driver
@@ -182,7 +183,7 @@ fn a_fresh_box_me_lists_the_stock_charters_at_fabrig_scale() {
     driver.send(Event::Party(PartyInput::Read {
         reply_to: ReplyTo::new(READ),
         sign_in: driver.session(),
-        read: core::reads::Read::Frame,
+        read: Box::new(core::reads::Read::Frame),
     }));
     driver.settle();
     let document = driver
@@ -223,11 +224,11 @@ fn a_fresh_box_me_lists_the_stock_charters_at_fabrig_scale() {
         driver.send(Event::Party(PartyInput::Read {
             reply_to: ReplyTo::new(token),
             sign_in: driver.session(),
-            read: core::reads::Read::Setting {
+            read: Box::new(core::reads::Read::Setting {
                 setting: core::settings::Setting::Charter(number),
                 revision: 1,
                 proposal: None,
-            },
+            }),
         }));
         driver.settle();
         let charter = driver
@@ -248,7 +249,8 @@ fn a_fresh_box_me_lists_the_stock_charters_at_fabrig_scale() {
         assert_eq!(charter.policy.turns, turns, "charter {number}");
         assert_eq!(charter.policy.time, skein_lib::Duration::from_secs(seconds), "charter {number}");
         assert_eq!(charter.policy.reserve_turns, 1, "charter {number}");
-        assert_eq!(charter.policy.reserve_time, skein_lib::Duration::from_secs(60), "charter {number}");
+        let reserve = skein_lib::Duration::from_secs(if number == 9 { 60 } else { 300 });
+        assert_eq!(charter.policy.reserve_time, reserve, "charter {number}");
     }
 }
 

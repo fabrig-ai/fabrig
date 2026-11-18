@@ -2,7 +2,7 @@
 use super::Component;
 use crate::{Limits, ProviderAnswer, Reply, Request, exchange::Exchange, routes, sign_in::Waiting};
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v28 as w;
+use jig_client_protocol_wire as w;
 use jig_domain_people as people;
 use skein_lib::{Decimal, Duration, Env, Map, Queue, Reader, ReplyTo, Secret, Time, Token, Writer, bytes, sha256};
 use skein_oauth_issuer::{Authorization, Email, Person, Refusal, TokenError};
@@ -113,6 +113,8 @@ impl Component {
                                 break;
                             }
                             Waiting::Authorize { .. }
+                            | Waiting::LinkAskWhose { .. }
+                            | Waiting::AskedWhose { .. }
                             | Waiting::ApprovalWhose { .. }
                             | Waiting::ApprovalCore { .. }
                             | Waiting::Core { .. }

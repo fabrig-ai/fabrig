@@ -103,8 +103,13 @@
 - **Client pressure overrides.** `clients.queued_bytes` is a u32 byte
   ceiling for one stream, including its in-flight record, at least 128;
   `clients.exchanges_per_client` is a positive u32 count of exchanges in
-  flight per sign-in, shared by its clients. The reader checks both
-  through the component's validity predicate after applying overrides.
+  flight per sign-in, shared by its clients, a batch one whatever its
+  members; `clients.reads_per_client` and `clients.openings_per_client`
+  are positive u32 counts of reads and of watches' openings in flight per
+  sign-in, each a read's or an opening's whether alone or a batch's
+  member, 32 and 31 in both profiles (`client/README.md`, section 10). The
+  reader checks them through the component's validity predicate after
+  applying overrides.
 - **Stream overrides carry their calls.** `clients.streams`,
   `clients.exchanges`, `clients_http.streams` and `clients_http.calls`
   are positive scalar overrides. When any is overridden, both carriers
@@ -256,6 +261,11 @@
   every profile: an ended task's turns, its full record and its summary
   (`store/retention.md`, 2). The start refuses a horizon of 0 and three
   out of order.
+- **Checkpoints kept,** `store.checkpoints.keep`, the store's
+  `Limits`'s `checkpoints.keep`: how many of the newest checkpoints the
+  store keeps (`store/checkpoints.md`, 4.7), the same in every profile,
+  2 as temper's `draft/checkpoints.md`, 3.4 has it. An override is a
+  number from 1 to 64; any other refuses the start, naming it.
 - **A template's grace** is within the tasks child's limit on a grace's
   span, or the start is refused, naming the template (`configuration.md`, 3.1).
 - **The deployment's message bound** holds every kind of message a

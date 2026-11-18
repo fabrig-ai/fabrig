@@ -12,7 +12,6 @@ use temper_playground::documents::turn_bounds;
 pub(crate) const UNREACHED: &str = "127.0.0.1:9";
 /// The paths the deployment names, each relative to its directory.
 const RELATIVE: &[&str] = &[
-    "secrets/worker-a.digest",
     "app.secret",
     "worker.secret",
     "secrets/forge-1.user",
@@ -90,11 +89,10 @@ pub(crate) fn typed_documents(
         worker.remove("programs");
     }
     value["workers"][0]["engine"] = serde_json::json!({"in_process":"workers"});
-    value["workers"][0]["agent"]["program"] = program.to_str().expect("program path").into();
-    value["workers"][0]["agent"]["configuration"] = directory.join("agent.json").to_str().expect("agent path").into();
-    value["workers"][0]["agent"]["arguments"] = serde_json::json!(["internal", "agent", directory.join("agent.json")]);
-    value["workers"][0]["limits"]["overrides"]["hub.accounts"] = 4.into();
-    value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = 2046.into();
+    value["workers"][0].as_object_mut().expect("worker").remove("agent");
+    value["workers"][0].as_object_mut().expect("worker").remove("limits");
+    value["engine"]["limits"]["overrides"]["hub.accounts"] = 4.into();
+    value["engine"]["limits"]["overrides"]["hub.event_bytes"] = 2046.into();
     value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);
     value["engine"]["llm"]["endpoints"][0]["dialect"] = 3.into();
     value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":UNREACHED});
@@ -150,8 +148,8 @@ pub(crate) fn private(path: &Path, bytes: &[u8]) {
     fs::set_permissions(path, fs::Permissions::from_mode(0o600)).expect("private fixture");
 }
 
-/// The deployment's files and its two documents, `agent.json` and `temper.json`, in `directory`.
-pub(crate) fn write(directory: &Path, program: &Path, bundle: &Path) {
+/// The deployment and its prospective agents setting, applied by ctl before the ordinary stories.
+pub(crate) fn write(directory: &Path, bundle: &Path) {
     assert!(Path::new("/usr/bin/git").is_file(), "/usr/bin/git is required");
     for name in ["", "accounts", "secrets", "state"] {
         fs::create_dir_all(directory.join(name)).expect("deployment directory");
@@ -168,9 +166,41 @@ pub(crate) fn write(directory: &Path, program: &Path, bundle: &Path) {
     private(&directory.join("secrets/forge-1.api-token"), b"forge-1-api-token-value");
     private(&directory.join("secrets/forge-1.git-token"), b"forge-1-git-token-value");
     private(&directory.join("root.der"), skein_tls_kit::pki::ROOT);
-    let (agent, value) = documents(directory, program, bundle);
-    private(&directory.join("agent.json"), &agent);
-    private(&directory.join("temper.json"), &value);
+    let (agent, value) = documents(directory, bundle);
+    let mut value = serde_json::from_slice(&value).expect("deployment JSON");
+    let agent = serde_json::from_slice(&agent).expect("agent JSON");
+    temper_agent_fixtures::apply(&mut value, directory, &agent);
+    private(
+        &directory.join("browser-agents.json"),
+        &serde_json::to_vec(&agent_settings(&agent)).expect("agents setting JSON"),
+    );
+    private(&directory.join("temper.json"), &serde_json::to_vec(&value).expect("deployment JSON"));
+}
+
+/// Persist the prospective startup figures through the owner's settings decision as well
+/// (temper/docs/design/draft/config.md, 6.3; protocol/configuration/settings.md, 2, kind 21).
+fn agent_settings(agent: &serde_json::Value) -> serde_json::Value {
+    let mut profile = serde_json::Map::new();
+    for group in ["declared", "policy"] {
+        for (name, value) in agent["profile"][group].as_object().expect("agent profile group") {
+            profile.insert(format!("{group}.{name}"), value.clone());
+        }
+    }
+    let mut endpoints = serde_json::Map::new();
+    for endpoint in agent["endpoints"].as_array().expect("agent endpoints") {
+        let mut limits = endpoint["limits"].clone();
+        let object = limits.as_object_mut().expect("agent endpoint limits");
+        for (from, to) in [("head", "head_ms"), ("idle", "idle_ms")] {
+            let value = object.remove(from).expect("agent endpoint time");
+            object.insert(to.into(), value);
+        }
+        object.insert("oversized".into(), "fail".into());
+        endpoints.insert(endpoint["name"].as_str().expect("endpoint name").into(), limits);
+    }
+    let fallback = endpoints.values().next().expect("one endpoint").clone();
+    serde_json::json!({"items":[{"setting":{"kind":"agents"},"set":{
+        "profile":profile,"endpoints":endpoints,"fallback":fallback
+    }}]})
 }
 
 /// The three directories share the scratch root, as the process tier's flags do.
@@ -197,11 +227,10 @@ pub(crate) fn demo(directory: &Path, program: &Path, bundle: &Path) {
     own_demo_listeners(&mut value, &mut agent);
     value["application"]["clients"]["bundle"] = serde_json::json!(bundle);
     private(&path, &serde_json::to_vec(&value).expect("demo JSON"));
-    private(&agent_path, &serde_json::to_vec(&agent).expect("demo agent JSON"));
 }
 
-/// Reserve every init listener and move its references in both documents together.
-fn own_demo_listeners(value: &mut serde_json::Value, agent: &mut serde_json::Value) {
+/// Reserve all five init listeners and move their references in the engine's document together.
+fn own_demo_listeners(value: &mut serde_json::Value) {
     let sockets = [
         "/application/clients/listener/socket",
         "/application/demo/llm/listen/socket",
@@ -214,7 +243,6 @@ fn own_demo_listeners(value: &mut serde_json::Value, agent: &mut serde_json::Val
     let replacements: Vec<_> =
         sockets.into_iter().zip(addresses).map(|(before, after)| (before.to_string(), after.to_string())).collect();
     replace_sockets(value, &replacements);
-    replace_sockets(agent, &replacements);
 }
 
 /// Replace the turns of exactly one request offered by the demo.
@@ -345,18 +373,15 @@ mod tests {
         };
         let directories = temper_init::Directories { config: b"/test/config", data: b"/test/state" };
         let answer = temper_init::files(&facts, &directories, &[0; 32], &[1; 32]).expect("demo init");
-        let [mut value, mut agent] = [b"temper.json".as_slice(), b"agent.json".as_slice()].map(|name| {
-            let file = answer.files.iter().find(|file| file.name == name).expect("init file");
-            let temper_init::Content::Bytes { bytes, .. } = &file.content else { panic!("document bytes") };
-            serde_json::from_slice(bytes).expect("init JSON")
-        });
-        super::own_demo_listeners(&mut value, &mut agent);
-        for document in [&value, &agent] {
-            let text = serde_json::to_string(document).expect("document JSON");
-            for port in 8367..=8371 {
-                let old = format!("127.0.0.1:{port}");
-                assert!(!text.contains(&old), "init socket remains: {old}");
-            }
+        assert!(!answer.files.iter().any(|file| file.name == b"agent.json"));
+        let file = answer.files.iter().find(|file| file.name == b"temper.json").expect("init file");
+        let temper_init::Content::Bytes { bytes, .. } = &file.content else { panic!("document bytes") };
+        let mut value = serde_json::from_slice(bytes).expect("init JSON");
+        super::own_demo_listeners(&mut value);
+        let text = serde_json::to_string(&value).expect("document JSON");
+        for port in 8367..=8371 {
+            let old = format!("127.0.0.1:{port}");
+            assert!(!text.contains(&old), "init socket remains: {old}");
         }
         let mut seen = std::collections::BTreeSet::new();
         for pointer in [

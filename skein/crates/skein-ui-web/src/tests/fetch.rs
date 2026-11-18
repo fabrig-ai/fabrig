@@ -77,6 +77,116 @@ fn an_old_streams_refusal_cannot_end_its_replacement() {
     assert_eq!(fetch.stream_ticket(), Some(new));
 }
 
+#[test]
+fn an_exchange_reads_one_bounded_piece_per_read_on() {
+    let mut fetch = Fetch::new(1);
+    let ticket = fetch.begin(7, 64, &["Age", "missing", "CACHE-Control"]).expect("room");
+    assert_eq!(
+        fetch.open_exchange(
+            ticket,
+            16,
+            200,
+            &[("cache-control".into(), "max".into()), ("aGe".into(), "123".into()), ("ignored".into(), "value".into())]
+        ),
+        Some(Report::Opened {
+            exchange: 7,
+            status: 200,
+            headers: vec![("age".into(), "123".into()), ("cache-control".into(), "max".into())]
+        })
+    );
+    assert_eq!(
+        fetch.exchange_piece(ticket, Box::from(*b"0123456789abcdefABCDEFGHIJKLMNOPabcdefgh")),
+        Some(Report::Piece { exchange: 7, bytes: Box::from(*b"0123456789abcdef") })
+    );
+    assert_eq!(fetch.remaining(ticket), Some(24));
+    assert_eq!(
+        fetch.read_on_exchange(ticket),
+        Some(Report::Piece { exchange: 7, bytes: Box::from(*b"ABCDEFGHIJKLMNOP") })
+    );
+    assert_eq!(fetch.read_on_exchange(ticket), Some(Report::Piece { exchange: 7, bytes: Box::from(*b"abcdefgh") }));
+    assert_eq!(fetch.read_on_exchange(ticket), None);
+    assert_eq!(fetch.end_exchange(ticket), Some(Report::Ended { exchange: 7 }));
+    assert_eq!(fetch.read_on_exchange(ticket), None);
+}
+
+#[test]
+fn a_pieced_answer_past_its_whole_bound_fails_once() {
+    let mut fetch = Fetch::new(1);
+    let ticket = fetch.begin(7, 32, &[]).expect("room");
+    assert_eq!(
+        fetch.open_exchange(ticket, 16, 200, &[]),
+        Some(Report::Opened { exchange: 7, status: 200, headers: vec![] })
+    );
+    assert_eq!(
+        fetch.exchange_piece(ticket, vec![1; 20].into()),
+        Some(Report::Piece { exchange: 7, bytes: vec![1; 16].into() })
+    );
+    assert_eq!(fetch.read_on_exchange(ticket), Some(Report::Piece { exchange: 7, bytes: vec![1; 4].into() }));
+    assert_eq!(fetch.exchange_piece(ticket, vec![2; 20].into()), Some(Report::Failed { exchange: 7 }));
+    assert_eq!(fetch.read_on_exchange(ticket), None);
+    assert_eq!(fetch.exchange_piece(ticket, Box::from(*b"late")), None);
+    assert_eq!(fetch.end_exchange(ticket), None);
+    assert_eq!(fetch.fail(ticket), None);
+    assert!(fetch.begin(8, 32, &[]).is_some());
+}
+
+#[test]
+fn a_connection_failure_discards_an_open_exchanges_held_read() {
+    let mut fetch = Fetch::new(1);
+    let ticket = fetch.begin(7, 64, &[]).expect("room");
+    fetch.open_exchange(ticket, 16, 200, &[]);
+    fetch.exchange_piece(ticket, vec![1; 40].into());
+    assert_eq!(fetch.fail(ticket), Some(Report::Failed { exchange: 7 }));
+    let replacement = fetch.begin(7, 64, &[]).expect("failure frees room");
+    assert_ne!(ticket, replacement);
+    assert_eq!(fetch.read_on_exchange(ticket), None);
+    assert_eq!(fetch.open_exchange(ticket, 16, 200, &[]), None);
+    assert_eq!(fetch.exchange_piece(ticket, Box::from(*b"late")), None);
+    assert_eq!(fetch.end_exchange(ticket), None);
+    assert_eq!(fetch.fail(ticket), None);
+    assert_eq!(fetch.exchange_ticket(7), Some(replacement));
+}
+
+#[test]
+fn a_pieced_exchange_holds_its_place_until_ended() {
+    let mut fetch = Fetch::new(1);
+    let ticket = fetch.begin(7, 64, &[]).expect("room");
+    fetch.open_exchange(ticket, 16, 200, &[]);
+    assert_eq!(fetch.begin(8, 64, &[]), None);
+    fetch.exchange_piece(ticket, Box::from(*b"one"));
+    assert_eq!(fetch.begin(8, 64, &[]), None);
+    assert_eq!(fetch.end_exchange(ticket), Some(Report::Ended { exchange: 7 }));
+    assert!(fetch.begin(8, 64, &[]).is_some());
+}
+
+#[test]
+fn abandoning_a_pieced_exchange_discards_its_read_and_frees_its_place() {
+    let mut fetch = Fetch::new(1);
+    let ticket = fetch.begin(7, 64, &[]).expect("room");
+    fetch.open_exchange(ticket, 16, 200, &[]);
+    fetch.exchange_piece(ticket, vec![1; 40].into());
+    assert_eq!(fetch.abandon(7), Some(ticket));
+    let replacement = fetch.begin(7, 64, &[]).expect("abandoning frees room");
+    assert_ne!(ticket, replacement);
+    assert_eq!(fetch.read_on_exchange(ticket), None);
+    assert_eq!(fetch.end_exchange(ticket), None);
+    assert_eq!(fetch.fail(ticket), None);
+    assert_eq!(fetch.exchange_ticket(7), Some(replacement));
+}
+
+#[test]
+fn a_pieced_exchanges_kept_header_past_its_bound_fails_before_opening() {
+    let mut fetch = Fetch::new(1);
+    let ticket = fetch.begin(7, 3, &["age"]).expect("room");
+    assert_eq!(
+        fetch.open_exchange(ticket, 2, 200, &[("aGe".into(), "1234".into())]),
+        Some(Report::Failed { exchange: 7 })
+    );
+    assert_eq!(fetch.exchange_piece(ticket, Box::from(*b"one")), None);
+    assert_eq!(fetch.end_exchange(ticket), None);
+    assert!(fetch.begin(8, 3, &[]).is_some());
+}
+
 fn answer_headers(keep: &[&str], headers: &[(&str, &str)]) -> Option<Report> {
     // The bound is the length of the longest accepted literal, "one".
     const BOUND: u32 = 3;

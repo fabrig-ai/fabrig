@@ -60,7 +60,22 @@ fn stale_worker_listings_cancel_only_after_either_start_opens() {
         let mut limits = jig_test_profile::limits().core;
         limits.fleet.workers = 2;
         let mut configured = jig_test_profile::config(301).core;
-        configured.worker_names = Box::new([Box::from(b"alpha".as_slice()), Box::from(b"beta".as_slice())]);
+        configured.defaults.workers = Box::new([
+            jig_domain_core::settings::WorkerSetting {
+                number: 1,
+                name: Box::from(b"alpha".as_slice()),
+                places: 1,
+                digest: Some([7; 32]),
+                withdrawn: false,
+            },
+            jig_domain_core::settings::WorkerSetting {
+                number: 2,
+                name: Box::from(b"beta".as_slice()),
+                places: 1,
+                digest: Some([7; 32]),
+                withdrawn: false,
+            },
+        ]);
         let mut core = core::Core::new(configured, &limits).expect("configured core");
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
         {

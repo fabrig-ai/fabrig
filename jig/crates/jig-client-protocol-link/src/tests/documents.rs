@@ -290,7 +290,11 @@ fn catalogue_frame(address: &[u8]) -> w::Me {
                 w::DocumentTextParts { bytes: b"Arbitrary".as_slice().into(), cut: false },
             )
             .unwrap(),
-            skein_bools: [true, true, false, false, true],
+            sign_in: true,
+            key: true,
+            programs_cut: false,
+            none: false,
+            signed_in_plan: true,
             programs: skein_lib::List::with_capacity(0),
             manage_usage: Some(address.into()),
         },
@@ -469,7 +473,7 @@ fn receiving_inventory_bounds_keep_their_schema_ceilings() {
     assert_eq!(limits.wire().policy_edit_templates_overrides, 16);
     assert_eq!(limits.wire().setting_model_efforts, 16);
     assert_eq!(limits.wire().setting_policy_templates, 16);
-    assert_eq!(limits.receiving().settings_document_settings, 256);
+    assert_eq!(limits.receiving().settings_document_settings, 512);
     assert_eq!(limits.wire().model_set_names_names_item, 4096);
     assert_eq!(limits.wire().setting_model_name, 4096);
     assert_eq!(limits.wire().setting_model_program_some, 32);

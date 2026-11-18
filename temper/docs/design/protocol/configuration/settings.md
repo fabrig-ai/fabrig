@@ -77,7 +77,8 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
 | 8, a project's classes | each project | 1 | what agents decide for a person and what reaches them, a `ProjectClasses` (below; `../../domain/forge/attention.md`, 6) | that project's owners |
 | 9, a charter's words | the deployment | a charter's, 1 to `tasks.charters` | what the charter does, in a line, a `CharterWords` (below) | the deployment's owners |
 | 10, a project's words | each project | 1 | How work runs' headline and lede for the project's own way, a `ProjectWords` (below) | that project's owners |
-| 21, temper's limits, `temper-limits` | the deployment | 1 | a list of overrides of temper's limits, each a name, a value and a reason (`limit-settings.md`, 2.3) | the deployment's owners |
+| 21, the agents' figures | the deployment | 1 | the agents' profile figures and each endpoint's limits, an `AgentFigures` (`figures.md`, section 5), taken at each worker's next start | the deployment's owners |
+| 22, temper's limits, `temper-limits` | the deployment | 1 | a list of overrides of temper's limits, each a name, a value and a reason (`limit-settings.md`, 2.3) | the deployment's owners |
 
 - **A project's ways' value** is a `ProjectWays` record in temper's
   codec, read by the client alone (`../../client/pages/settings.md`, 2):
@@ -246,7 +247,13 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
   with a role in the deployment, for any kind; or a project's, by a party
   with a role in that project, for a kind of each project's scope (2, 6,
   7, 8, 10, 12 and 13) in that scope alone. How work runs reads a project's words in
-  its `ways` read (8), which any party of the project reads.
+  its `ways` read (8), which any party of the project reads. A
+  `Setting` read's answer, `SettingAnswer { value, revision }`, names
+  the revision its value was set or removed at, read from the same
+  state as the value, as jig's `settings` document names it in that
+  setting's line (`last`), and none where it stands at its default; so
+  a client reads it again only for a newer one
+  (`../../client/pages/settings.md`, 1, *What the client holds*).
 - **Never pinned.** Every merge is judged by the landing rules the
   forge holds then, the deployment's and its project's, whatever
   revision its change was made in: what work may do is always current,
@@ -485,6 +492,12 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
   settings live in the store; read them with `temper ctl settings show`".
   `engine.md`'s `landing` and `charter`, and `Config`'s `landing` and
   `forge_charter` fields, go with them, in 5's second step.
+- **The workers are settings too** (jig's `domain/engine/workers.md`;
+  `../../draft/config.md`, 6.7): `engine.hosts.workers` is refused by
+  name, "workers are settings in the store", and no digest file is
+  read. An engine alone's owner adds each worker with `temper ctl worker
+  add` (`../../client/ctl/workers.md`); the box passes its own, `local`
+  (`../cluster.md`, 1).
 - **A seeded project names its policy by number.** jig's
   `engine.projects` stays, but temper refuses a project whose policy is
   inline, naming its path: "`engine.projects[0].policy`: name a policy,
@@ -597,7 +610,7 @@ next run.
   section of its own (`../../domain/root.md`, 6.2): the file at the
   branch's head as the forge resolves it when it gathers the section,
   one commit named in the section and kept for its whole life, read as
-  `read_file` reads one (`../../domain/forge/README.md`, section 2). With a
+  `read_forge what=file` reads one (`../../domain/forge/README.md`, section 2). With a
   heading, the part from the first Markdown heading line whose text,
   after its `#`s and one space, equals the heading byte for byte, to
   the line before the next heading of its level or above. Cut to the
@@ -643,9 +656,10 @@ repository and branch form above (2026-11-04).
 ## 7. A model with a larger output
 
 `temper-box init`'s limits hold the stock's models, each a window of 1,048,576
-tokens and an output of 8,192 (`stock.md`), as its agent's endpoints declare them. A
-deployment whose model takes a larger output (gpt-6.1-sol at effort high, output
-32,000, for one) raises its agent's endpoint and overrides its profile's turn limits, each derived
+tokens and an output of 8,192 (`stock.md`), within its agent endpoints' 48,000-token
+ceiling. A model requesting 32,000 tokens, such as gpt-6.1-sol at effort high,
+fits that ceiling. A deployment whose model takes more than the endpoint's ceiling
+raises its agent's endpoint and overrides its profile's turn limits, each derived
 from the agent's largest turn, T, which the start checks name "the
 agent's largest turn" (`temper-service`'s `startup/checks.rs`).
 
@@ -653,9 +667,9 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
   turn (`smith-agent-service`'s `profile.rs`). That measurement uses the
   smallest shared room over every endpoint, so one set of bounds
   holds whichever model a charter names (smith's `protocol/limits.md`, 3.9).
-  `temper-box init`'s agent takes 48 calls per response, 26
+  `temper-box init`'s agent takes 48 calls per response, 32
   conversations (`stock.md`'s table) and 64 models a charter, its endpoints an
-  output of 8,192 and a `reasoning_item` of at most 65,536, and efforts
+  output of 48,000 and a `reasoning_item` of at most 65,536, and efforts
   move no figure of T, smith charging an effort's name at the charter
   codec's fixed bound; T is what smith measures for it,
   within smith's own ceiling of 33,554,432 bytes (smith's

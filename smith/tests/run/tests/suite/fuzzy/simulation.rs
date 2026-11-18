@@ -433,6 +433,7 @@ fn answer_kind(answer: &Answer) -> &'static str {
                 | Fault::Provider
                 | Fault::Unauthorized { .. }
                 | Fault::Program { .. }
+                | Fault::Untooled { .. }
                 | Fault::Limited { .. }
                 | Fault::Refused { .. },
             ) => "fault",

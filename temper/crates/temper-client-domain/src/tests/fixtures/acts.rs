@@ -155,8 +155,8 @@ pub fn sent(out: &mut Queue<pages::Request>) -> Box<[Ask]> {
 const HEARTBEAT: Duration = Duration::from_millis(100);
 const RETENTION: Duration = Duration::from_secs(60);
 pub fn live_client() -> jig_client::Client {
-    use jig_client_protocol_wire::v28 as w;
-    use skein_lib::{Reader, Secret, Writer};
+    use jig_client_protocol_wire as w;
+    use skein_lib::{Secret, Writer};
     let mut client = jig_client::Client::new(&limits().client, SEED).expect("client");
     let mut out = Queue::uncapped();
     client.step(
@@ -165,6 +165,7 @@ pub fn live_client() -> jig_client::Client {
         jig_client::Event::SignIn { with: jig_client::With::Held(Secret::new(Box::new(AUTH))) },
         &mut out,
     );
+    client.settle(Time::ZERO, Wall::EPOCH, &mut out);
     let served = w::Served::new(
         &w::CEILINGS,
         w::ServedParts {
@@ -176,9 +177,10 @@ pub fn live_client() -> jig_client::Client {
     .expect("served");
     let mut rows = List::with_capacity(ONE_OFFER);
     rows.push(served).expect("one version");
-    let hello = w::StreamEvent::Hello(
+    let hello = jig_client_test_records::opened(
         w::Hello::new(&w::CEILINGS, w::HelloParts { stream: STREAM, served: rows, heartbeat: HEARTBEAT })
             .expect("hello"),
+        jig_client_test_records::frame_record(),
     );
     let mut bytes = Writer::new(usize::try_from(hello.measure()).expect("hello fits"));
     hello.encode(&mut bytes).expect("encoded hello");
@@ -188,12 +190,6 @@ pub fn live_client() -> jig_client::Client {
         jig_client::Event::Streamed { message: jig_client::Streamed::Record(bytes.finish()) },
         &mut out,
     );
-    let mut watch = None;
-    while let Some(request) = out.pop() {
-        if let jig_client::Request::Exchange { message: jig_client::Message::Watch(bytes), .. } = request {
-            watch = Some(w::Open::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("watch").watch());
-        }
-    }
     let empty = w::DocumentText::new(&w::CEILINGS, w::DocumentTextParts { bytes: Box::from([]), cut: false })
         .expect("empty words");
     let party = w::MeParty::new(
@@ -239,8 +235,7 @@ pub fn live_client() -> jig_client::Client {
     )
     .expect("owned");
     let delivery = w::StreamEvent::Delivery(
-        w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch: watch.expect("me watch"), document })
-            .expect("delivery"),
+        w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch: 0, document }).expect("delivery"),
     );
     let mut bytes = Writer::new(usize::try_from(delivery.measure()).expect("delivery fits"));
     delivery.encode(&mut bytes).expect("encoded delivery");
@@ -250,6 +245,7 @@ pub fn live_client() -> jig_client::Client {
         jig_client::Event::Streamed { message: jig_client::Streamed::Record(bytes.finish()) },
         &mut out,
     );
+    client.settle(Time::ZERO, Wall::EPOCH, &mut out);
     assert_eq!(client.link().state, jig_client::Link::Live);
     client
 }

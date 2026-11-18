@@ -9,7 +9,7 @@ use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_core::Core;
 use jig_domain_fleet as fleet;
-use jig_domain_link::{Membership, Problem};
+use jig_domain_link::Problem;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, Id, List, Map, Queue, ReplyTo, Slab, Time, Token, Wall};
@@ -66,6 +66,9 @@ pub struct Domain {
     pub(crate) core: Core,
     pub(crate) calendar: calendar::Calendar,
     pub(crate) trials: temper_engine_domain_trials::Trials,
+    pub(crate) trial_waits: Map<u64, Option<jig_domain_core::documents::TaskRunWait>>,
+    pub(crate) parts: crate::route::parts::Memory,
+    pub(crate) changes_from: crate::changes_from::Memory,
     pub(crate) journal: Journal,
     pub(crate) journal_stop: Option<crate::JournalStop>,
     /// Store credit: sent and cumulatively answered commit numbers.
@@ -114,6 +117,7 @@ pub struct Domain {
     pub(crate) playground_provider: Option<u32>,
     pub(crate) playground_policy: Option<u32>,
     pub(crate) next_application_owner: u64,
+    pub(crate) checkpoints: crate::route::checkpoints::State,
     pub(crate) try_answers: Map<Token, (crate::TryAnswer, Time, Wall)>,
     pub(crate) adoption_restore: Map<Token, (Token, Option<forge::Repository>)>,
     pub(crate) making_replies: Map<Token, forge::MakingKey>,
@@ -277,6 +281,23 @@ impl Domain {
             tasks.push(*task).expect("one task per assignment");
         }
         tasks
+    }
+
+    /// Last store commit confirmed durable, restored with the deployment.
+    #[must_use]
+    pub const fn commit_position(&self) -> u64 {
+        self.durable_commit
+    }
+
+    /// Retained live conversation source, without copying provisional text or calls.
+    /// A new attempt and every retained source change have distinct positions.
+    #[must_use]
+    pub fn live_text_revision(&self, task: u64) -> Option<(u64, u64)> {
+        let token = Token::new(task);
+        Some((
+            jig_domain_views::retained_attempt(&self.core.views, token)?,
+            jig_domain_views::revision(&self.core.views, token)?,
+        ))
     }
 
     /// Conservative mutation revision, including refused inputs, empty probes,
@@ -607,8 +628,12 @@ impl Domain {
             playground_provider,
             playground_policy,
             next_application_owner: 1,
+            checkpoints: crate::route::checkpoints::State::new(limits.people.requests),
             try_answers: Map::with_capacity(limits.people.requests),
             trials: temper_engine_domain_trials::Trials::new(&crate::limits::trial_limits(limits)),
+            trial_waits: Map::with_capacity(crate::limits::trial_limits(limits).rows),
+            parts: crate::route::parts::Memory::new(),
+            changes_from: crate::changes_from::Memory::new(),
             adoption_restore: Map::with_capacity(limits.forge.adoptions),
             making_replies: Map::with_capacity(limits.forge.makings),
             forge_subscribing: Map::with_capacity(limits.fleet.calls),
@@ -1040,10 +1065,12 @@ pub(crate) fn stage_now(domain: &mut Domain, out: &mut Queue<Request>) {
             | Request::Bound { .. }
             | Request::Forge { .. }
             | Request::Store(
-                crate::StoreRequest::Catalogue { .. }
+                crate::StoreRequest::Checkpoint { .. }
+                | crate::StoreRequest::Catalogue { .. }
                 | crate::StoreRequest::Switch
                 | crate::StoreRequest::Load { .. }
-                | crate::StoreRequest::Read { .. },
+                | crate::StoreRequest::Read { .. }
+                | crate::StoreRequest::PartRead { .. },
             )
             | Request::ToChild(_)
             | Request::Busy(_)
@@ -1383,6 +1410,7 @@ fn released_into(
         }
         Delivery::ReadEscalationDecision { waiter } => load_escalation_decision(domain, waiter, out),
         delivery @ (Delivery::Push(_)
+        | Delivery::WorkerFigures { .. }
         | Delivery::PlaygroundNote { .. }
         | Delivery::Host(_)
         | Delivery::AssignedJob { .. }
@@ -1403,6 +1431,7 @@ fn released_into(
         | Delivery::CarriedUnused { .. }
         | Delivery::ForgeRead { .. }
         | Delivery::Read { .. }
+        | Delivery::PartLoad { .. }
         | Delivery::ReadLoad { .. }
         | Delivery::Document { .. }
         | Delivery::WatchEnded { .. }
@@ -1456,6 +1485,7 @@ fn load_escalation_decision(domain: &mut Domain, waiter: Token, out: &mut Queue<
         | Read::Transcript { .. }
         | Read::GoalWords(_)
         | Read::InputCheck(_)
+        | Read::Parts(_)
         | Read::Document(_)
         | Read::Remember(_)
         | Read::SettingsNote { .. }
@@ -1480,9 +1510,7 @@ pub fn refused(mut config: Config, limits: &Limits) -> Box<[Refused]> {
         .saturating_add(u32::try_from(config.core.seed_projects.len()).expect("bounded projects").saturating_mul(2))
         .saturating_add(7);
     let mut refused = List::with_capacity(room);
-    if let Err(problem) =
-        Membership::check(&config.core.worker_names, limits.fleet.configured_workers, limits.fleet.worker_name_bytes)
-    {
+    if let Err(problem) = jig_domain_core::worker_membership(&config.core.defaults.workers, &core_limits(limits)) {
         refused.push(Refused::Workers(problem)).expect("counted refusals");
     }
     for (charter, configured) in config.core.defaults.charters.iter().enumerate() {

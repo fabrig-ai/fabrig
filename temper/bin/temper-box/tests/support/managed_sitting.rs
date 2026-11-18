@@ -156,11 +156,6 @@ fn configure(root: &Path, api: SocketAddr, git: SocketAddr, upstream: SocketAddr
         "api":{"socket":api.to_string()},"transport":"plaintext",
         "remote":format!("http://{git}"),"web":format!("http://{upstream}")
     });
-    private_directory(&root.join("data/secrets"));
-    super::write_private(
-        &root.join("data/secrets/w1.digest"),
-        &fs::read(fixtures.join("w1.digest")).expect("worker digest fixture"),
-    );
     private_directory(&root.join("config/charters"));
     super::write_private(&root.join("config/charters/chat.txt"), b"No model calls in this sitting.\n");
     super::write_private(&root.join("config/temper.json"), &serde_json::to_vec(&value).expect("engine JSON"));

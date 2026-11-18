@@ -20,7 +20,7 @@ pub mod second;
 pub mod store;
 pub use address::{Address, Place};
 pub use boundary::{Action, Answered, Ask, Event, Fact, Request};
-pub use domain::{Domain, configure_arrangement, fire, new, next_deadline, shown, step, take, unlinked};
+pub use domain::{Domain, configure_arrangement, fire, new, next_deadline, settle, shown, step, take, unlinked};
 pub use limits::{Limits, valid};
 pub use owner::{Connector, FIRST, SECOND};
 /// The numbered dialect every fixture turn of the test application names:

@@ -184,20 +184,34 @@ fn act(root: &mut crate::Domain, act: Act) -> Queue<crate::Request> {
 }
 fn opened(cue: &[u8]) -> (crate::Domain, skein_lib::Token) {
     let mut root = crate::unlinked(&f::limits(), f::SEED);
-    let (me, account) = f::start_accounts(&mut root, List::with_capacity(0));
-    for (watch, delivery) in [
-        (me, c::Delivery::Me(Box::new(f::chats::me()))),
-        (account, c::Delivery::Accounts(Box::new(accounts(Some(PROVIDER), true, false)))),
-    ] {
-        event(
-            &mut root,
-            crate::Event::Client {
-                event: jig_client::Event::Up {
-                    up: jig_client::Up::Watched { watch, event: c::WatchEvent::Delivered(delivery) },
+    let me = f::start(&mut root, List::with_capacity(0));
+    let out = event(
+        &mut root,
+        crate::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: me,
+                    event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(f::chats::me()))),
                 },
             },
-        );
-    }
+        },
+    );
+    let account = f::accounts_watch(&out);
+    event(
+        &mut root,
+        crate::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: account,
+                    event: c::WatchEvent::Delivered(c::Delivery::Accounts(Box::new(accounts(
+                        Some(PROVIDER),
+                        true,
+                        false,
+                    )))),
+                },
+            },
+        },
+    );
     deliver_playground_read(&mut root, Readout::Family { family: wire::FORGE, record: Some(answer(cue)) });
     event(&mut root, crate::Event::Went { place: crate::Place::Address(crate::Address::NewChat { draft: false }) });
     act(&mut root, Act::ChatWords { words: DRAFT.into() });
@@ -420,7 +434,7 @@ pub(super) fn removed(out: &mut Queue<crate::Request>) -> List<skein_lib::Token>
 
 fn confirmed() -> forge::Side {
     let mut root = crate::unlinked(&f::limits(), f::SEED);
-    let (me, _) = f::start_accounts(&mut root, List::with_capacity(0));
+    let me = f::start(&mut root, List::with_capacity(0));
     event(
         &mut root,
         crate::Event::Client {
@@ -578,7 +592,7 @@ fn not_offered_ends_leaving_and_rereads_without_navigation() {
 #[test]
 fn no_account_removal_is_ever_sent_by_the_client() {
     let mut root = crate::unlinked(&f::limits(), f::SEED);
-    let (me, _) = f::start_accounts(&mut root, List::with_capacity(0));
+    let me = f::start(&mut root, List::with_capacity(0));
     let mut frame = f::chats::me();
     frame.deployment_role = Some(c::HeldRole::Owner);
     event(
@@ -592,8 +606,12 @@ fn no_account_removal_is_ever_sent_by_the_client() {
             },
         },
     );
+    event(
+        &mut root,
+        crate::Event::Went { place: crate::Place::Address(crate::Address::Welcome { step: crate::Step::Ready }) },
+    );
     let mut out = deliver_playground_read(&mut root, page());
-    let watch = deployment_watch(&mut out).expect("owner deployment watch");
+    let watch = deployment_watch(&mut out).expect("owner deployment watch on Ready");
     for document in [deployment(&[PLAYGROUND_ACCOUNT, OTHER_ACCOUNT]), deployment(&[OTHER_ACCOUNT]), deployment(&[])] {
         let mut out = deliver_deployment(&mut root, watch, document);
         assert!(removed(&mut out).is_empty());
@@ -650,7 +668,8 @@ fn a_failed_start_can_retry_with_a_new_key_before_resetting() {
 #[test]
 fn a_fake_row_gained_or_lost_reads_the_playground_again() {
     for (row, before, after, expected) in [
-        ("first fake", None, Some(w::Mode::Fake), 0),
+        ("first fake", None, Some(w::Mode::Fake), 1),
+        ("first real", None, Some(w::Mode::Connected), 0),
         ("gained fake", Some(None), Some(w::Mode::Fake), 1),
         ("lost fake", Some(Some(w::Mode::Fake)), None, 1),
         ("kept fake", Some(Some(w::Mode::Fake)), Some(w::Mode::Fake), 0),
@@ -664,7 +683,8 @@ fn a_fake_row_gained_or_lost_reads_the_playground_again() {
         if let Some(before) = before {
             super::forges::deliver_forges(&mut root, watch, super::forges::forges_document(before.as_slice(), false));
             assert!(forge::forges::told(&mut side, root.client(), &changed, f::limits().forge, &mut out));
-            assert!(out.is_empty(), "{row}: first delivery");
+            assert_eq!(out.len(), u32::from(before == Some(w::Mode::Fake)), "{row}: first delivery");
+            out.clear();
         }
         super::forges::deliver_forges(&mut root, watch, super::forges::forges_document(after.as_slice(), false));
         assert!(forge::forges::told(&mut side, root.client(), &changed, f::limits().forge, &mut out));

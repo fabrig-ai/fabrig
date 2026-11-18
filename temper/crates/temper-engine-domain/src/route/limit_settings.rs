@@ -20,7 +20,7 @@ pub(super) fn saved(domain: &Domain, env: &Env<Limits>, decision: &mut Decision,
         named |= item.setting == s::Setting::Limits;
     }
     for item in &revision.applications {
-        named |= item.kind == 21;
+        named |= item.kind == 22;
     }
     if !named {
         return;
@@ -30,7 +30,7 @@ pub(super) fn saved(domain: &Domain, env: &Env<Limits>, decision: &mut Decision,
         None => Box::new([]),
     };
     let temper = if let Some(settings::SizedValue { value: settings::Value::Limits(values), .. }) =
-        domain.forge.setting(21, 0, 1)
+        domain.forge.setting(22, 0, 1)
     {
         values.clone()
     } else {

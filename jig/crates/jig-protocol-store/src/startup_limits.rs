@@ -101,7 +101,10 @@ pub(crate) fn observe(store: &mut Store, request: &Request) {
         return;
     }
     let runtime = match request {
-        Request::Open { .. }
+        Request::Checkpoint { .. }
+        | Request::HoldCheckpoint { .. }
+        | Request::RemoveCheckpoint { .. }
+        | Request::Open { .. }
         | Request::Rehearse { .. }
         | Request::Back { .. }
         | Request::Site { .. }

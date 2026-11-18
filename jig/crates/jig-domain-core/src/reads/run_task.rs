@@ -213,6 +213,7 @@ fn load(core: &mut Core, env: &Env<Limits>, to: ReplyTo, key: CallKey, read: Rea
         party: 0,
         range: range.clone(),
         tasks: None,
+        parts: None,
     };
     let load = core.reads.insert(pending).expect("read room checked").token();
     let mut out = Queue::uncapped();
@@ -879,7 +880,7 @@ mod tests {
     const CHUNK_BYTES: u32 = 6; // The producer/review character at byte 41 crosses a window boundary.
 
     fn change_contract(limits: &Limits) -> tasks::Contract {
-        tasks::Contract::Change { connector: 1, kind: 1, words: limits.tasks.result_bytes }
+        tasks::Contract::Change { connector: 1, kind: 1, words: limits.tasks.result_bytes, choices: Box::new([]) }
     }
 
     fn verdict_contract(limits: &Limits) -> tasks::Contract {

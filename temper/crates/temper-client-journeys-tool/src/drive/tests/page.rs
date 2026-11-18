@@ -42,15 +42,21 @@ fn spent_refusal_is_ignored_in_every_start_wait() {
         (1, true, Phase::Spent),
         (1, false, Phase::FreshLink),
         (2, false, Phase::Fresh),
-        (3, false, Phase::Root),
-        (4, false, Phase::Main),
+        (3, false, Phase::Signing),
+        (4, false, Phase::Root),
+        (5, false, Phase::Main),
     ] {
         let mut m = opening();
         let mut events = vec![Event::FaceDone(Ok(())), link("fresh")];
         if fresh_early {
             events.swap(0, 1);
         }
-        events.extend([Event::FaceDone(Ok(())), Event::FaceDone(Ok(())), Event::Found(Some(NodeId(1)))]);
+        events.extend([
+            Event::FaceDone(Ok(())),
+            Event::Found(Some(NodeId(1))),
+            Event::FaceDone(Ok(())),
+            Event::Found(Some(NodeId(1))),
+        ]);
         for (at, event) in events.into_iter().enumerate() {
             if at == wait {
                 assert_eq!(m.phase, phase);
@@ -63,11 +69,51 @@ fn spent_refusal_is_ignored_in_every_start_wait() {
                 !actions.iter().any(|a| matches!(a, Action::CancelFace | Action::Finished(_) | Action::Answer(_))),
                 "{actions:?}"
             );
-            if at == 4 {
+            if at == 5 {
                 assert!(matches!(actions.as_slice(), [Action::Ready]));
             }
         }
         assert!(m.ready());
+    }
+}
+
+#[test]
+fn fresh_page_signs_in_before_root_and_stream_refusal_fails_the_start() {
+    for phase in [Phase::Root, Phase::Main] {
+        let mut m = opening();
+        step(&mut m, Event::FaceDone(Ok(())));
+        step(&mut m, link("fresh"));
+        let until = m.next_deadline();
+        assert!(
+            matches!(step(&mut m, Event::FaceDone(Ok(()))).as_slice(), [Action::Find(find)] if *find == Find::named(Role::Main, b""))
+        );
+        assert_eq!(m.phase, Phase::Signing);
+        assert!(step(&mut m, trouble(Trouble::Log, REFUSED, ROUTE)).is_empty());
+        assert!(step(&mut m, Event::Found(None)).is_empty());
+        let poll = Time::ZERO.saturating_add(POLL);
+        assert_eq!(m.next_deadline(), Some(poll));
+        assert!(
+            matches!(m.step(Event::Deadline, poll).as_slice(), [Action::Find(find)] if *find == Find::named(Role::Main, b""))
+        );
+        assert_eq!(m.next_deadline(), until);
+        assert!(
+            matches!(step(&mut m, Event::Found(Some(NodeId(1)))).as_slice(), [Action::Open(url)] if url.as_ref() == b"http://127.0.0.1:8367/")
+        );
+        assert_eq!(m.next_deadline(), until);
+        if phase == Phase::Main {
+            assert!(
+                matches!(step(&mut m, Event::FaceDone(Ok(()))).as_slice(), [Action::Find(find)] if *find == Find::named(Role::Main, b""))
+            );
+        }
+        assert_eq!(m.phase, phase);
+        let stream = "http://127.0.0.1:8367/jig/v1/stream";
+        let actions = step(&mut m, trouble(Trouble::Log, REFUSED, stream));
+        assert!(matches!(actions.as_slice(), [Action::CancelFace, Action::StopCtl, Action::CloseBrowser]));
+        let actions = classified(&mut m);
+        let exit = finish(&actions);
+        assert_eq!(exit.status, 4);
+        assert_eq!(exit.shown, [format!("box failed: Log: {REFUSED} ({stream})")]);
+        assert_eq!(exit.error, None);
     }
 }
 

@@ -527,8 +527,9 @@ The default, for a project with no prepare command:
   that a landing whose keys equal main's (a documentation landing) has a
   receipt to land on.
 - **A failed receipt** makes a key that fails at once, with its run's
-  output, until the tree changes. A failure whose tests all match open
-  flake findings is rerun once first (`findings.md`, section 5).
+  output, until the tree changes or a change's regate supersedes it
+  (`landing-regate.md`, 3). A failure whose tests all match open flake
+  findings is rerun once first (`landing-regate.md`, 2).
 
 ## 7. Proof
 
@@ -795,6 +796,9 @@ Three kinds join `forge/README.md`'s section 4, each a row of its own:
   its own held branches). The prepare job's pushes are the worker's, under the landing's
   holds; the branches are released as the landing closes, by the release a
   change's branch takes (`forge/branches.md`).
+- **A full outbox is a wait:** a landing's write that finds no room
+  waits in the outbox's line, at the step its decision started from,
+  and decides again when asked (`forge/room.md`, 3), never a hold.
 - **The landing rules govern kind 19 as they govern kind 4,** the merge
   (`forge/change/gates.md`, 2): each requirement judged at the candidate, CI being
   the test gates by receipt.
@@ -1002,7 +1006,13 @@ across a restart, a worker's loss and a release
 saved delivery across its worker's loss beside a proving landing; going
 live by `turn` with running work's settings kept (13); a copied policy's
 ceilings on the shipped capacities; a goal's delivery leaving its
-landing mid-proof, or sharing its run.
+landing mid-proof, or sharing its run; two goals' changes, each
+approved by its review and waiting on one person task, released
+together by the person's answer, forming one landing of two by `turn`
+at a `batch` of two, proved by one green run at the top and landed by
+one fast-forward, each member's pull request merged at its prefix and
+each change landed there, as the turn-landing setup's scripts carry
+them (`../testing/qa/setups.md`, 6).
 
 ## 17. Open questions
 

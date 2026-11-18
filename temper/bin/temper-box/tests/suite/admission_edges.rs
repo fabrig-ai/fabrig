@@ -7,7 +7,6 @@ use std::{fs, mem::size_of};
 #[derive(Clone, Copy)]
 enum Part {
     Engine,
-    Worker,
     Application,
 }
 
@@ -15,7 +14,6 @@ impl Part {
     fn limits(self) -> &'static str {
         match self {
             Self::Engine => "/engine/limits/overrides",
-            Self::Worker => "/workers/0/limits/overrides",
             Self::Application => "/application/limits/overrides",
         }
     }
@@ -23,7 +21,6 @@ impl Part {
     fn refusal(self, name: &str) -> String {
         match self {
             Self::Engine | Self::Application => format!("{name} (the stock)"),
-            Self::Worker => format!("workers[0].limits.overrides.{name}"),
         }
     }
 }
@@ -32,7 +29,6 @@ fn number(document: &temper_playground::documents::Configuration, part: Part, na
     match part {
         Part::Engine => document.jig_value(name),
         Part::Application => document.temper_value(name),
-        Part::Worker => document.pointer(part.limits()).expect("limits")[name].as_u64().expect("byte bound"),
     }
 }
 
@@ -114,7 +110,8 @@ fn transcript_padding_covers_all_resume_window_remainders() {
         let transcript = window + (box_bytes - LENGTH_BYTES) * (window / LENGTH_BYTES);
         set(&mut document, Part::Engine, "core.resume_bytes", window);
         set(&mut document, Part::Application, "root.journal.transcript_bytes", window);
-        for part in [Part::Engine, Part::Worker] {
+        {
+            let part = Part::Engine;
             set(&mut document, part, "hub.transcript_bytes", transcript);
         }
         let admit = |document: &temper_playground::documents::Configuration| {
@@ -130,7 +127,8 @@ fn transcript_padding_covers_all_resume_window_remainders() {
             )
         };
         admit(&document).expect("both hubs hold the padded configured window");
-        for part in [Part::Engine, Part::Worker] {
+        {
+            let part = Part::Engine;
             set(&mut document, part, "hub.transcript_bytes", transcript - 1);
             let refusal = admit(&document).expect_err("one padding byte short");
             let path = part.refusal("hub.transcript_bytes");
@@ -147,14 +145,12 @@ fn transcript_padding_covers_all_resume_window_remainders() {
 fn turn_and_resume_bounds_admit_the_edge_and_refuse_one_byte_short() {
     for (part, name) in [
         (Part::Engine, "hub.turn_bytes"),
-        (Part::Worker, "hub.turn_bytes"),
         (Part::Engine, "core.resume_bytes"),
         (Part::Application, "root.journal.transcript_bytes"),
         (Part::Application, "root.loads.transcript_bytes"),
         (Part::Application, "root.loads.bytes"),
         (Part::Application, "root.loads.read_bytes"),
         (Part::Engine, "hub.transcript_bytes"),
-        (Part::Worker, "hub.transcript_bytes"),
     ] {
         edge(part, name);
     }

@@ -109,6 +109,7 @@ fn query(read: Read) -> Query {
         Read::Escalation(query) => query,
         Read::Proposal(_)
         | Read::TaskProposal { .. }
+        | Read::Parts(_)
         | Read::Ended(_)
         | Read::Transcript { .. }
         | Read::GoalWords(_)

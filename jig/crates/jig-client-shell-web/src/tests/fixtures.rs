@@ -1,8 +1,5 @@
 use crate::{adapter::Asked, sign_in::Route};
-use jig_client_protocol_http::Call;
 use jig_client_protocol_http::{Mapping, exchange as mapped};
-use skein_http::Method;
-use skein_lib::List;
 
 pub const ID: u32 = 1;
 pub const BOUND: u32 = 16;
@@ -11,18 +8,10 @@ pub fn exchange(id: u32, body: &[u8]) -> Asked {
     // Use the mapping's actual call so the header check covers both components.
     let mapping = Mapping::new(b"/jig").expect("mapping");
     let call = mapped(&mapping, None, jig_client_protocol_link::Message::Read(body.into()));
-    Asked::Exchange { id, call, bound: BOUND, cache: skein_ui_web::fetch::Cache::Browser, keep: &[] }
+    Asked::Exchange { id, call, bound: BOUND, pieces: None, cache: skein_ui_web::fetch::Cache::Browser, keep: &[] }
 }
 pub fn stream(piece: u32) -> Asked {
-    Asked::OpenStream {
-        call: Call {
-            method: Method::Get,
-            path: b"/jig/v1/stream".as_slice().into(),
-            headers: List::with_capacity(0),
-            body: Box::new([]),
-        },
-        piece,
-    }
+    Asked::OpenStream { call: jig_client_protocol_http::stream(&Mapping::new(b"/jig").unwrap(), None, 28, None), piece }
 }
 pub fn save(key: &[u8], value: &[u8]) -> Asked {
     Asked::Save { key: key.into(), value: value.into() }

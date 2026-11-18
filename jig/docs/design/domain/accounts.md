@@ -189,7 +189,9 @@ in a record of its own (3.7).
 - **The holder orders an account's sources.** A run takes the first
   that is usable on the host it is placed on, and passes to the next
   only when the earlier one is unusable there alone: a program's login
-  needing sign-in on that host, or kept on another. A source unusable on
+  needing sign-in on that host, or kept on another, or, for one task,
+  a login its program started there without its tools
+  (engine/fleet.md). A source unusable on
   every host (limited, refused, needs sign-in, misconfigured, unloaded:
   3.5) holds the account's runs until its holder acts on it, resumes it
   or reorders the sources, since the order decides who pays

@@ -82,6 +82,15 @@ pub(crate) fn landings(
                     .expect("one receipt per directory");
                 None
             }
+            checkout::Landing::CaughtUp { .. } => Some(refused(directory, None,
+                b"a dependency you started from landed; its landing branch is merged into your checkout: deliver again")),
+            checkout::Landing::CaughtUpConflict { files } => Some(refused(directory, first_path(files),
+                b"a dependency you started from landed; settle the files in conflict with its landing branch and deliver again")),
+            checkout::Landing::CaughtUpSaved { commit, tip } => {
+                receipts.push(receipt(directory, &commit.raw(), branches, true, Some(&tip.raw())))
+                    .expect("room for changed directories");
+                None
+            }
             checkout::Landing::DesignMerged { commit, tip } => {
                 receipts
                     .push(receipt(directory, &commit.raw(), branches, unchecked, Some(&tip.raw())))
@@ -189,9 +198,10 @@ fn receipt_text(commit: &[u8; 32], branch: &[u8], unchecked: bool, merged: Optio
     } else {
         b"; your checkout stays detached, as expected"
     };
+    let merge_prefix: &[u8] = if unchecked { b", merging the landing tip " } else { b", merging its tip " };
     let width = head_width(commit);
     let merged_size = match merged {
-        Some(tip) => b", merging its tip "
+        Some(tip) => merge_prefix
             .len()
             .checked_add(head_width(tip).checked_mul(2).expect("fixed digits"))
             .expect("fixed merge prefix")
@@ -230,7 +240,7 @@ fn receipt_text(commit: &[u8; 32], branch: &[u8], unchecked: bool, merged: Optio
         text.put(branch).expect("measured branch");
     }
     if let Some(tip) = merged {
-        text.put(b", merging its tip ").expect("measured merge prefix");
+        text.put(merge_prefix).expect("measured merge prefix");
         put_head(&mut text, tip);
         text.put(b" first").expect("measured merge suffix");
     }

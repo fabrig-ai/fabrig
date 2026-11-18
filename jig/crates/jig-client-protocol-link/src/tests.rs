@@ -2,9 +2,11 @@ use crate::*;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use jig_client_domain::{Answered, Ask, Family, Readable, Readout, Watchable};
-use jig_client_protocol_wire::v28 as w;
+use jig_client_protocol_wire as w;
 use skein_lib::{Queue, Reader, RequestEnvelope, Time, Token};
+mod asked_link;
 mod attempts;
+mod batch;
 mod carried;
 mod documents;
 mod fixtures;
@@ -18,7 +20,10 @@ mod stream;
 
 #[test]
 fn the_link_serves_the_wire_s_version_alone() {
-    assert!(serves(c::VersionRange { first: 28, last: 28 }));
+    assert!(serves(c::VersionRange {
+        first: jig_client_protocol_wire::VERSION,
+        last: jig_client_protocol_wire::VERSION
+    }));
     assert!(!serves(c::VersionRange { first: 22, last: 22 }));
 }
 
@@ -118,3 +123,9 @@ mod answers;
 mod encoders;
 
 mod approval;
+
+#[path = "../../../tests/client-values.rs"]
+#[expect(clippy::disallowed_macros, reason = "test values embed the client family's schema text")]
+#[expect(clippy::disallowed_types, reason = "fixed-rule test values use ordinary Rust under jig/tests/clippy.toml")]
+#[expect(clippy::disallowed_methods, reason = "fixed-rule test values use ordinary Rust under jig/tests/clippy.toml")]
+mod client_values;

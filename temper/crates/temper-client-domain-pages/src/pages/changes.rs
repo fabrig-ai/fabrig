@@ -1,9 +1,9 @@
-//! The changes watch and one task read per shown row (temper/docs/design/client/pages/README.md, temper/docs/design/client/forge/records.md).
+//! The changes watch and each row’s provenance (temper/docs/design/client/pages/README.md, temper/docs/design/client/forge/records.md).
 use super::Request;
 use crate::{forge, owner::Owner};
 use alloc::boxed::Box;
-use jig_client::{Client, Handle, Latest, Readable, Readout, Told, contract as c};
-use skein_lib::{List, Queue};
+use jig_client::{Client, Handle, Latest, Told};
+use skein_lib::Queue;
 use temper_client_protocol_wire::v1 as w;
 
 #[derive(Debug)]
@@ -18,14 +18,6 @@ pub struct Changes {
     pub project: u32,
     handle: Option<Handle>,
     state: State,
-    reads: List<Row>,
-    next: u64,
-}
-#[derive(Debug)]
-struct Row {
-    task: u64,
-    handle: Handle,
-    document: Option<Box<c::Task>>,
 }
 #[derive(Debug, PartialEq, Eq)]
 pub enum From<'a> {
@@ -33,29 +25,29 @@ pub enum From<'a> {
     Chat(u64),
 }
 impl Changes {
-    pub(super) fn new(project: u32, serial: &mut u64, limits: forge::Limits, out: &mut Queue<Request>) -> Self {
-        let handle = Handle { asker: Owner::Pages.asker(), number: *serial };
-        *serial = serial.checked_add(1).expect("page handles fit");
-        let mut page = Self { project, handle: None, state: State::Ended, reads: List::uncapped(), next: *serial };
-        if let Some(subject) = forge::changes::watch(project, &limits) {
-            page.handle = Some(handle);
-            page.state = State::Loading;
-            out.push(Request::Client(jig_client::Event::Watch { handle, subject }));
+    pub(super) const fn new(project: u32) -> Self {
+        Self { project, handle: None, state: State::Loading }
+    }
+    pub(super) fn configure(&mut self, serial: &mut u64, limits: forge::Limits, out: &mut Queue<Request>) {
+        if self.handle.is_some() {
+            return;
         }
-        page
-    }
-    pub(super) const fn next(&self) -> u64 {
-        self.next
-    }
-    pub(super) fn reserve(&mut self, next: u64) {
-        self.next = self.next.max(next);
+        match self.state {
+            State::Shown(_) | State::Ended => return,
+            State::Loading => {}
+        }
+        if let Some(subject) = forge::changes::watch(self.project, &limits) {
+            let handle = Handle { asker: Owner::Pages.asker(), number: *serial };
+            *serial = serial.checked_add(1).expect("page handles fit");
+            self.handle = Some(handle);
+            out.push(Request::Client(jig_client::Event::Watch { handle, subject }));
+        } else {
+            self.state = State::Ended;
+        }
     }
     pub(super) fn leave(&self, out: &mut Queue<Request>) {
         if let Some(handle) = self.handle {
             unwatch(handle, out);
-        }
-        for row in &self.reads {
-            unwatch(row.handle, out);
         }
     }
     pub(super) fn told(
@@ -78,7 +70,6 @@ impl Changes {
                 };
                 match panel {
                     Some(panel) if panel.project() == self.project => {
-                        self.rows(&panel, out);
                         self.state = State::Shown(Box::new(panel));
                     }
                     Some(_) | None => self.end(out),
@@ -89,37 +80,8 @@ impl Changes {
                 self.end(out);
                 true
             }
-            Told::Page { handle, page } => {
-                for row in self.reads.iter_mut() {
-                    if row.handle == *handle {
-                        row.document = match page {
-                            Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(task)))
-                                if task.chip.task == row.task =>
-                            {
-                                Some(task.clone())
-                            }
-                            Readout::Jig(c::ReadResult::Value(c::ReadValue::Ended(value)))
-                                if value.matches(c::ObjectKey::Task(row.task)) =>
-                            {
-                                match &value.value {
-                                    c::EndedValue::Task { document, .. } => Some(document.clone()),
-                                    c::EndedValue::Proposal(_)
-                                    | c::EndedValue::PersonProposal { .. }
-                                    | c::EndedValue::Escalation { .. }
-                                    | c::EndedValue::Question { .. }
-                                    | c::EndedValue::PersonTask { .. } => None,
-                                }
-                            }
-                            Readout::Jig(_) | Readout::Family { .. } | Readout::Limit | Readout::NotServed { .. } => {
-                                None
-                            }
-                        };
-                        return true;
-                    }
-                }
-                false
-            }
-            Told::Link { .. }
+            Told::Page { .. }
+            | Told::Link { .. }
             | Told::Changed { .. }
             | Told::Ended { .. }
             | Told::Text { .. }
@@ -132,110 +94,49 @@ impl Changes {
     fn end(&mut self, out: &mut Queue<Request>) {
         self.leave(out);
         self.handle = None;
-        self.reads.clear();
         self.state = State::Ended;
-    }
-    fn rows(&mut self, panel: &w::ChangesPanel, out: &mut Queue<Request>) {
-        let mut tasks = List::uncapped();
-        for queue in panel.queues() {
-            if let Some(flight) = queue.in_flight()
-                && !tasks.as_slice().contains(&flight.member())
-            {
-                tasks.push(flight.member()).expect("wire bounds rows");
-            }
-            for row in queue.changes() {
-                if !tasks.as_slice().contains(&row.task()) {
-                    tasks.push(row.task()).expect("wire bounds rows");
-                }
-            }
-        }
-        for row in panel.landed() {
-            if !tasks.as_slice().contains(&row.task()) {
-                tasks.push(row.task()).expect("wire bounds rows");
-            }
-        }
-        for row in panel.landed_default() {
-            if !tasks.as_slice().contains(&row.task()) {
-                tasks.push(row.task()).expect("wire bounds rows");
-            }
-        }
-        let mut kept = List::uncapped();
-        for row in core::mem::replace(&mut self.reads, List::uncapped()).into_boxed() {
-            if tasks.as_slice().contains(&row.task) {
-                kept.push(row).expect("wire bounds rows");
-            } else {
-                unwatch(row.handle, out);
-            }
-        }
-        for task in tasks.into_boxed() {
-            let mut found = false;
-            for row in &kept {
-                if row.task == task {
-                    found = true;
-                }
-            }
-            if !found {
-                let handle = Handle { asker: Owner::Pages.asker(), number: self.next };
-                self.next = self.next.checked_add(1).expect("page handles fit");
-                out.push(Request::Client(jig_client::Event::Read {
-                    handle,
-                    read: Readable::Jig(c::Read::Task { task }),
-                }));
-                kept.push(Row { task, handle, document: None }).expect("wire bounds rows");
-            }
-        }
-        self.reads = kept;
     }
     #[must_use]
     pub const fn state(&self) -> &State {
         &self.state
     }
-    /// The goal named by a listed task, once its read has arrived (client/pages/README.md).
+    /// The goal named by a listed change's row.
     #[must_use]
     pub fn goal(&self, task: u64) -> Option<u64> {
-        for row in &self.reads {
-            if row.task == task {
-                return row.document.as_ref()?.goal;
-            }
-        }
-        None
+        Some(self.origins(task).0?.task())
     }
-    /// The task document already read for a listed change.
+    /// Where a listed change's row says it came from.
     #[must_use]
-    pub fn document(&self, task: u64) -> Option<&c::Task> {
-        for row in &self.reads {
-            if row.task == task {
-                return row.document.as_deref();
-            }
+    pub fn from(&self, task: u64) -> Option<From<'_>> {
+        let (goal, chat) = self.origins(task);
+        if let Some(goal) = goal {
+            return Some(From::Goal(goal.title()));
         }
-        None
+        Some(From::Chat(chat?.task()))
     }
-    /// Where a listed task came from, once its read has arrived.
-    #[must_use]
-    pub fn from<'a>(&'a self, client: &Client, task: u64) -> Option<From<'a>> {
-        for row in &self.reads {
-            if row.task == task {
-                let task = row.document.as_deref()?;
-                if let Some(goal) = task.goal {
-                    for chip in &task.lineage_chips {
-                        if chip.task == goal {
-                            return Some(From::Goal(chip.title.bytes()));
-                        }
-                    }
-                    return None;
+    fn origins(&self, task: u64) -> (Option<&w::ChangeFrom>, Option<&w::ChangeFrom>) {
+        let panel = match &self.state {
+            State::Shown(panel) => panel,
+            State::Loading | State::Ended => return (None, None),
+        };
+        for queue in panel.queues() {
+            if let Some(flight) = queue.in_flight()
+                && flight.member() == task
+            {
+                return (flight.goal().as_ref(), flight.chat().as_ref());
+            }
+            for row in queue.changes() {
+                if row.task() == task {
+                    return (row.goal().as_ref(), row.chat().as_ref());
                 }
-                let root = task.lineage_chips.get(0)?;
-                let me = super::accounts::current_me(client)?;
-                let template = jig_client::shapes::template(me, self.project, jig_client::shapes::CHAT)?;
-                return match template.executor {
-                    c::TemplateExecutor::Charter(charter) if root.executor == (c::ChipExecutor::Agent { charter }) => {
-                        Some(From::Chat(root.task))
-                    }
-                    c::TemplateExecutor::Charter(_) | c::TemplateExecutor::Chosen => None,
-                };
             }
         }
-        None
+        for row in panel.landed().iter().chain(panel.landed_default().iter()) {
+            if row.task() == task {
+                return (row.goal().as_ref(), row.chat().as_ref());
+            }
+        }
+        (None, None)
     }
 }
 fn unwatch(handle: Handle, out: &mut Queue<Request>) {

@@ -24,7 +24,8 @@ Shape: `application`. Paths: `application`. The application’s machine parts, r
 - `machine`: refused: moved: a forge's place is chosen when it's set up, and kept with the forge
 - `demo`: demo or null, engine shapes only; required; init writes object. The playground’s scripted model, or null for none.
 - `welcome`: refused: moved: the welcome is a setting; change it with temper ctl settings
-- `limits`: refused: moved: temper's limits are the setting temper-limits; ask temper, or use temper ctl settings apply
+- `limits`: application-limits; required; init writes object. The application limits profile and named overrides.
+- `environment`: list of environment-entry, standalone and worker alone only; absent or empty inherits HOME then PATH; entries keep their order, adding HOME then PATH where omitted; optional; init leaves it out. The agents’ variables; only missing HOME and PATH come from the worker’s process.
 - `workers`: refused: moved: a worker's workspaces are the data directory's; its git is found on PATH
 - `clients`: application-clients, engine shapes only; required; init writes object. The clients’ listener, browser bundle and public origin.
 - `sign_in`: sign-in or null, engine shapes only; required; init writes null. The people’s sign-in registration, or null for none.
@@ -33,6 +34,13 @@ Shape: `application`. Paths: `application`. The application’s machine parts, r
 - `webhooks`: webhooks or null, engine shapes only; required; init writes object. The Forgejo webhook listener, or null for none.
 - `charter`: refused: the forge's charters live in the store; read them with temper ctl settings show forge-charter 1
 
+## application.limits
+
+Shape: `application-limits`. Paths: `application.limits`. The application’s limits profile and named overrides.
+
+- `profile`: text, standard; optional; init writes "standard". May be absent or standard; either reads the stock before overrides.
+- `overrides`: named limits, see temper help limits; required; init writes {"checkout.message_bytes":63740,"checkout.workspaces":4,"forge.client.op_bytes":63738,"forge.client.repositories":3,"forge.judge_projects":8,"forge.output":82,"forge.repositories":3,"forge_component.body_bytes":127497,"git_component.operations":4,"root.journal.transcript_bytes":18431846,"root.loads.bytes":18432090,"root.loads.read_bytes":36863684,"root.loads.reply_bytes":18432090,"root.loads.transcript_bytes":18431842}. The dotted limit names whose values replace the stock’s.
+
 ## application.clients
 
 Shape: `application-clients`. Paths: `application.clients`. The clients’ listener and browser presentation.
@@ -40,6 +48,13 @@ Shape: `application-clients`. Paths: `application.clients`. The clients’ liste
 - `listener`: address, socket address; loopback when printed links or approvals are enabled; required; init writes {"socket":"127.0.0.1:8367"}. The clients’ listener and the address of printed sign-in links.
 - `bundle`: text or null, absolute directory; at most 1,048,576 bytes; required; init writes null. The browser bundle directory, or null for the binary’s bundle.
 - `public`: text or null, origin; at most 267 bytes; required; init writes null. The public browser origin, or null for the listener’s address.
+
+## application.environment[]
+
+Shape: `environment-entry`. Paths: `application.environment[]`. One variable given to the agents’ programs.
+
+- `name`: text, at most 1,048,576 bytes; unique names; smith also refuses empty names, = and NUL; required; init leaves it out. The variable’s name.
+- `value`: text, at most 1,048,576 bytes; smith also refuses NUL; required; init leaves it out. The variable’s value.
 
 ## application.push
 
@@ -162,8 +177,8 @@ Shape: `demo-line`. Paths: `application.demo.llm.asked[].turns[].lines[]` `appli
 
 ## More slots
 
-`workers[0].slots` bounds the runs a worker hosts at once, an agent process each. The host's agents follow it, and nothing in `agent.json` raises them. Each of these must be at least the slots, and a start names the one that's short:
+`workers[0].slots` bounds the runs a worker hosts at once, an agent process each. The host's agents follow it; the `agents` setting does not raise them. Each of these must be at least the slots, and a start names the one that's short:
 
-- `hub.slots`, in `workers[0].limits.overrides`.
-- `fleet.slots`, in the setting `limits`. An engine alone can't see a worker's slots: it uses them up to this, and turns away a hello listing more runs.
-- The worker's `checkout.workspaces` and `git_component.operations` follow its slots at start.
+- `hub.slots`, in `engine.limits.overrides`. Workers take their limits from the engine.
+- `fleet.slots`, in `engine.limits.overrides`. An engine alone can't see a worker's slots: it uses them up to this, and turns away a hello listing more runs.
+- `checkout.workspaces`, in `application.limits.overrides`, and `git_component.operations` there, at least the workspaces.

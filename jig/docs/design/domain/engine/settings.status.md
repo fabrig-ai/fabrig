@@ -2,6 +2,7 @@
 
 2026-11-17. Where the tree's code lags or departs from [settings.md](settings.md).
 
+
 - **Not yet:** 12: a read changing only the displayed omitted count
   does not mark `me`. `routing/lists.rs`, `answered`, compares good-read
   presence and `names`, but not `left_out`; `documents/small.rs`, `frame`,

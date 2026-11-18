@@ -5,7 +5,7 @@ use skein_json::writer::{Encoder, Limits as JsonLimits};
 use skein_lib::List;
 
 // T1 names every decoder shape, including the alternative-only objects.
-const SHAPES: [Shape; 87] = [
+const SHAPES: [Shape; 92] = [
     Shape::File,
     Shape::Item,
     Shape::Setting,
@@ -15,6 +15,7 @@ const SHAPES: [Shape; 87] = [
     Shape::Document,
     Shape::Model,
     Shape::Catalogue,
+    Shape::Worker,
     Shape::Wake,
     Shape::WakeRule,
     Shape::WakeBatch,
@@ -90,6 +91,10 @@ const SHAPES: [Shape; 87] = [
     Shape::ProjectTriager,
     Shape::Area,
     Shape::AreaOwner,
+    Shape::Agents,
+    Shape::AgentProfile,
+    Shape::AgentEndpoints,
+    Shape::AgentLimits,
     Shape::Limits,
     Shape::TemperLimits,
     Shape::LimitOverride,
@@ -360,6 +365,7 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                         && field.name == b"number"
                         && [
                             b"rules".as_slice(),
+                            b"agents",
                             b"welcome",
                             b"limits",
                             b"temper-limits",
@@ -418,7 +424,9 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                     out.array_start();
                     stack.push(Action::EndArray).expect("schema stack bound");
                 }
-                if field.shape == Shape::Document && field.name == b"repository" {
+                if field.shape == Shape::Worker && field.name == b"digest" {
+                    out.string(b"0000000000000000000000000000000000000000000000000000000000000000");
+                } else if field.shape == Shape::Document && field.name == b"repository" {
                     out.string(b"owner/name");
                 } else {
                     stack.push(Action::Value(&field.value)).expect("schema stack bound");
@@ -478,6 +486,10 @@ fn matches_base(edit: Edit) -> bool {
     }
 }
 
+fn optional_worker(field: &Field) -> bool {
+    field.shape == Shape::Worker && [b"number".as_slice(), b"digest", b"withdrawn"].contains(&field.name)
+}
+
 fn optional_landing(field: &Field) -> bool {
     field.shape == Shape::ProjectLanding
         || field.shape == Shape::LandingCombineSettings
@@ -514,6 +526,7 @@ fn every_generated_file_decodes() {
             || (field.shape == Shape::Llm && field.name == b"later")
             || (field.shape == Shape::LlmLater && field.name == b"subagents")
             || (field.shape == Shape::ClassItem && field.name == b"words")
+            || optional_worker(field)
             || optional_follow(field)
             || optional_landing(field)
         {
@@ -546,6 +559,7 @@ fn a_member_left_out_is_refused_naming_it() {
             || (field.shape == Shape::Model && field.name == b"provider")
             || (field.shape == Shape::Document && field.name == b"heading")
             || (field.shape == Shape::ClassItem && [b"set".as_slice(), b"words"].contains(&field.name))
+            || optional_worker(field)
             || optional_follow(field)
             || optional_landing(field)
         {
@@ -703,16 +717,16 @@ fn the_page_writes_each_type_as_the_table_says() {
         b"- `turns`: u32.",
         b"- `spend`: u64. LINE",
         b"- `waiting`: nanoseconds.",
-        b"- `deadline`: nanoseconds since 1970 UTC, or null.",
+        b"- `deadline`: nanoseconds since 1970 UTC|null.",
         b"- `cut`: bool.",
-        b"- `instructions`: text[32,768].",
-        b"- `state`: hex[1,000,000].",
-        br#"- `kind`: `"a"`, `"b"` or `"c"`. LINE `"a"`: LINE `"c"`: LINE"#,
-        br#"- `edit`: `"removed"` or `"reset"`."#,
-        br#"- `hosts`: `"workers"`."#,
-        b"- `alternatives`: list[32] `model`.",
-        br#"- `"chosen"`: LINE"#,
-        b"- `set`: list[32] the value for `setting.kind`, or null.",
+        b"- `instructions`: text[32768].",
+        b"- `state`: hex[1000000].",
+        b"- `kind`: `a`, `b` or `c`. LINE `a`: LINE `c`: LINE",
+        b"- `edit`: `removed` or `reset`.",
+        b"- `hosts`: `workers`.",
+        b"- `alternatives`: [32] model.",
+        b"- `chosen`: LINE",
+        b"- `set`: [32] the value for `setting.kind`|null.",
     ] {
         assert!(skein_lib::bytes::find(&page, expected).is_some(), "missing {expected:?}");
     }
@@ -823,7 +837,7 @@ fn template_resource_fields_use_the_wire_bound_and_describe_the_goal_branch() {
     assert_eq!(super::most(resources.list.expect("list"), &limits), 2);
     let page = super::page(&limits);
     for needle in [
-        b"`resources`: list[2] `symbol`".as_slice(),
+        b"`resources`: [2] symbol".as_slice(),
         b"Optional, default []",
         b"Forge connector 1, symbol 1: its own goal branch",
     ] {

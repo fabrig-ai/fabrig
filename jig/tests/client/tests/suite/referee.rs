@@ -59,6 +59,7 @@ impl<const BAD: u8> App for Broken<BAD> {
         root.shown += 1;
     }
     fn fire(_: &mut Root, _: &Env<()>, _: &mut Queue<Wire>) {}
+    fn settle(_: &mut Root, _: &Env<()>, _: &mut Queue<Wire>) {}
     fn take(_: &mut Root, _: &Env<()>, _: &mut Queue<Wire>) {}
     fn next_deadline(_: &Root) -> Option<Time> {
         None

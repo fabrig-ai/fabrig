@@ -5,10 +5,24 @@ use jig_domain_core_vocabulary::settings::Override;
 use skein_json::{Document, document::Kind};
 use skein_lib::{Duration, List, bytes};
 
+/// Every overridable limit by its dotted name (protocol/channel/figures.md, 2).
+#[must_use]
+pub fn list(limits: &Limits) -> List<(&'static str, u64)> {
+    let mut values = List::uncapped();
+    for name in &crate::names::NAMES {
+        values.push((name.name, (name.value)(limits))).expect("uncapped named limits");
+    }
+    values
+}
+
 /// Replace one whole scalar limit. The composed reader checks the resulting profile.
 pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), What> {
     if crate::names::find(name).is_none() {
         return Err(What::Override);
+    }
+    if name == b"store.checkpoints.keep" {
+        limits.store.checkpoints.keep = count(value)?;
+        return Ok(());
     }
     let Limits { core, hub, link, token, driver, .. } = limits;
     if name == b"accounts.token" {
@@ -68,6 +82,8 @@ pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), What> {
                 b"exchanges" => limits.clients.exchanges = count,
                 b"queued_bytes" => limits.clients.queued_bytes = count,
                 b"exchanges_per_client" => limits.clients.exchanges_per_client = count,
+                b"reads_per_client" => limits.clients.reads_per_client = count,
+                b"openings_per_client" => limits.clients.openings_per_client = count,
                 b"provider_codes" => limits.clients.provider_codes = count,
                 b"provider_tokens" => limits.clients.provider_tokens = count,
                 _ => return Err(What::Override),
@@ -994,6 +1010,9 @@ struct Fits {
 }
 
 fn valid(limits: &Limits, name: &[u8], fits: &mut Fits) -> bool {
+    if name == b"store.checkpoints.keep" {
+        return (1..=64).contains(&limits.store.checkpoints.keep);
+    }
     if (name == b"accounts.sign_ins" || name == b"accounts.sign_in_deadline_ms") && !driver_fits(&limits.driver) {
         return false;
     }

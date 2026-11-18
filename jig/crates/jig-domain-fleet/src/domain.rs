@@ -28,6 +28,7 @@ pub struct Domain {
     pub(crate) program_sources: Box<[crate::SourceName]>,
     pub(crate) cleanup_programs: Box<[crate::SourceName]>,
     pub(crate) worker_names: crate::Membership,
+    pub(crate) worker_links: Map<u32, (bool, skein_lib::Wall)>,
     /// The workers in contact, and their channels' names.
     pub(crate) channels: Slab<Channel>,
     pub(crate) needs: crate::Needs,
@@ -48,6 +49,7 @@ pub struct Domain {
     /// count that orders them.
     pub(crate) waiting: Map<u64, Id<Attempt>>,
     pub(crate) serial: u64,
+    pub(crate) untooled_order: u64,
     /// An alarm per attempt, as its state says.
     pub(crate) alarms: Deadlines<Id<Attempt>>,
     /// Relayed calls the parent has yet to answer.
@@ -95,18 +97,17 @@ impl Domain {
         Some(host.program_endpoints.contains(&endpoint))
     }
 
-    /// Supply the checked fixed membership once, before admitting channels.
+    /// Replace the membership with the current worker settings.
     /// Its minter uses the fleet's configured-worker and name-byte limits.
     pub fn configure_workers(&mut self, names: crate::Membership) {
-        assert!(self.workers() == 0 && self.worker_names.is_empty(), "membership supplied once before channels");
         self.worker_names = names;
     }
-    /// Admit a position only from this fleet's fixed configured membership.
+    /// Admit a position only from this fleet's current membership.
     #[must_use]
     pub fn configured_worker(&self, position: u32) -> Option<crate::Worker> {
         self.worker_names.worker(position)
     }
-    /// The name of a position this fleet admitted; membership never changes.
+    /// The stable name of a position this fleet admitted.
     #[must_use]
     pub fn configured_name(&self, worker: crate::Worker) -> &[u8] {
         self.worker_names.name(worker)
@@ -116,6 +117,23 @@ impl Domain {
         self.worker_names.get(worker)
     }
 
+    /// Link observations survive channel retirement, not an engine restart (workers.md, 6).
+    #[must_use]
+    pub fn worker_link(&self, name: &[u8]) -> (bool, Option<skein_lib::Wall>) {
+        for position in 0..self.worker_names.len() {
+            if self.worker_names.get(position) == Some(name) {
+                return self.worker_link_at(position);
+            }
+        }
+        (false, None)
+    }
+    #[must_use]
+    pub fn worker_link_at(&self, position: u32) -> (bool, Option<skein_lib::Wall>) {
+        match self.worker_links.get(&position) {
+            Some((linked, since)) => (*linked, Some(*since)),
+            None => (false, None),
+        }
+    }
     #[must_use]
     pub fn program_logins(&self, channel: Token) -> Option<&[crate::Login]> {
         Some(self.channels.get(*self.tokens.get(&channel)?)?.sources.logins())
@@ -151,6 +169,7 @@ impl Domain {
                 shutting_down: false,
                 mismatched: false,
                 untranslated: List::uncapped(),
+                untooled: Map::uncapped(),
                 hosts: skein_lib::Set::with_capacity(limits.engine_slots),
                 workstreams: Map::with_capacity(0),
                 uses: 0,
@@ -163,6 +182,7 @@ impl Domain {
             reads: crate::reads::Reads::new(limits.reads),
             program_sources: Box::new([]),
             worker_names: crate::Membership::empty(),
+            worker_links: Map::with_capacity(limits.configured_workers),
             cleanup_programs: Box::new([]),
             needs,
             needs_restored: false,
@@ -177,6 +197,7 @@ impl Domain {
             runs: Map::with_capacity(tracked),
             waiting: Map::with_capacity(tracked),
             serial: 0,
+            untooled_order: 0,
             alarms: Deadlines::with_capacity(tracked),
             calls: Slab::with_capacity(limits.calls),
             turns: Map::with_capacity(limits.turns),
@@ -535,6 +556,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             }
         }
         Event::Draining { channel } => channel::draining(domain, channel),
+        Event::Untooled { run, channel, source } => crate::untooled::record(domain, run, channel, source),
         Event::Needs(needs) => {
             crate::needs::replace(domain, &env.limits, needs);
             channel::needs_restored(domain, env, out);

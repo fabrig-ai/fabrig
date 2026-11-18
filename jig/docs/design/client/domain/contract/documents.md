@@ -82,7 +82,10 @@
     optional account preference,
     the separate account kept by the last successful claim, and its next-run
     account/source wait with the source's typed state and optional wall reset
-    (unknown stays unknown), or a credential or host wait. `Task.run_wait`
+    (unknown stays unknown), or, `Untooled { worker }`, for a source whose
+    program started without its tools on that worker, the worker's setting
+    number, every other place for it taken or none
+    (`../../../domain/engine/fleet.md`), or a credential or host wait. `Task.run_wait`
     also carries `Refused(TaskWaitRefused)`: `Hello { kind, at, why,
     figures }`, the fleet's latest observed allowed-kind refusal,
     suppressed by any admitted connected non-draining allowed-kind host;
@@ -104,7 +107,10 @@
     `HelloRefusal` vocabulary; the canonical deployment translation keeps
     the shortfall context limits. These are derived document facts, never
     a new hold or stored state. A task line carries no run wait. Its hold
-    and its escalation if held; its dependencies, each a task's number
+    and its escalation if held, one left held naming who left it so by
+    number alone, a task's or a person's (whether it shows the kind is
+    `../../../domain/tasks/proposals.md`'s open question); its
+    dependencies, each a task's number
     and phase, pending or done, with when and by whom each was added
     after the task was made, and whether they keep it
     (`../../../domain/tasks/lifecycle.md`, 8); for a gathering, who
@@ -187,6 +193,9 @@
     period, with the current period and when it began
     (`../../../domain/authority.md`, section 7);
   - *the deployment:* hosts, each with its program sources' logins;
+    the workers' settings, withdrawn ones included, each linked or not
+    and since when (`worker_settings`,
+    `../../../domain/engine/workers.md`, 6);
     the deployment's LLM accounts, as the party's own are (below), with
     the runs using each and the tasks waiting on each; capacity; the
     store's fill against its mark, and its census (`census`), the last

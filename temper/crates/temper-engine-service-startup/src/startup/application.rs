@@ -23,6 +23,8 @@ pub struct Members {
     pub limits: limits::Limits,
     pub overrides: Box<[(Box<[u8]>, u64)]>,
     pub workers: Box<[Worker]>,
+    /// Position kept for the worker's reader; an engine alone refuses the member.
+    pub environment: Option<u32>,
 }
 /// The optional webhook listener (protocol/configuration/engine.md).
 #[derive(Debug)]
@@ -194,6 +196,13 @@ pub fn parse_with_limits(
             }),
         );
     }
+    let bound = temper_protocol_store::test_id_ceiling();
+    if bounds.forge.tiers.test_id_bytes > bound {
+        problems.push(
+            super::checks::own(b"forge.tiers.test_id_bytes"),
+            What::Half(crate::startup::EngineWhat::TestIdBytes { bytes: bounds.forge.tiers.test_id_bytes, bound }),
+        );
+    }
     let path = Path::root().member(b"application");
     let mut object = read::object(document, at, "application", &path, problems)?;
     let overrides = List::with_capacity(0);
@@ -228,6 +237,8 @@ pub fn parse_with_limits(
     }
     let at = read::required(&mut object, document, b"webhooks", &path, problems);
     let webhooks = webhooks(document, at, &path, problems);
+    let workers = workers(document, directories, problems);
+    let environment = if workers.is_empty() { None } else { object.member(document, b"environment") };
     read::finish(object, document, &path, problems);
     let mut found = config::Problems::empty();
     let test_github = temper_forge_setup::machine::read_test(document, test_at, directories, &mut found);
@@ -236,7 +247,6 @@ pub fn parse_with_limits(
         sign_in::check_forges(&sign_in.forges, jig, problems);
     }
     let demo = demo::parse(document, demo_at, directories, problems);
-    let workers = workers(document, directories, problems);
     if !problems.is_empty() {
         return None;
     }
@@ -248,6 +258,7 @@ pub fn parse_with_limits(
         test_github,
         demo,
         workers: workers.into_boxed(),
+        environment,
         limits: *bounds,
         overrides: overrides.into_boxed(),
     })

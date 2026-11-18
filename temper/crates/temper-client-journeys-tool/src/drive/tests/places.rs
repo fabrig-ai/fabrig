@@ -53,20 +53,6 @@ impl Kind {
             }
         }
         let actions = step(&mut machine, self.link(FIRST));
-        let actions = match self {
-            Self::Box => actions,
-            Self::Deployment => {
-                assert!(actions.iter().all(|a| !matches!(a, Action::SignInFile { .. })));
-                step(
-                    &mut machine,
-                    Event::ProcessLine {
-                        process: Process::Worker,
-                        output: Output::Stderr,
-                        line: b"linked worker\n".as_slice().into(),
-                    },
-                )
-            }
-        };
         let client_actions = actions.iter().filter(|a| !matches!(a, Action::DeploymentLog { .. })).collect::<Vec<_>>();
         let [Action::SignInFile { link, program }] = client_actions.as_slice() else { panic!("{actions:?}") };
         assert_eq!(link.strip_suffix(b"\n").unwrap_or(link), FIRST);
@@ -74,6 +60,29 @@ impl Kind {
         assert_eq!(program.input, Input::Null);
         assert!(!machine.ready());
         machine
+    }
+    fn started(self, machine: &mut Machine) -> Vec<Action> {
+        match self {
+            Self::Box => {
+                let mut actions = step(machine, exited(Process::SignIn, 0));
+                assert!(matches!(actions.remove(0), Action::RemoveLink));
+                actions
+            }
+            Self::Deployment => {
+                super::deployment::admit_worker(machine);
+                step(
+                    machine,
+                    Event::ProcessLine {
+                        process: Process::Worker,
+                        output: Output::Stderr,
+                        line: b"linked worker\n".as_slice().into(),
+                    },
+                )
+                .into_iter()
+                .filter(|action| !matches!(action, Action::DeploymentLog { .. }))
+                .collect()
+            }
+        }
     }
     fn stopping(self) -> &'static [Process] {
         match self {
@@ -116,15 +125,16 @@ fn opened(actions: &[Action], address: &[u8]) {
 }
 fn opening(kind: Kind) -> Machine {
     let mut machine = kind.signing(false);
-    let actions = step(&mut machine, exited(Process::SignIn, 0));
-    let [Action::RemoveLink, rest @ ..] = actions.as_slice() else { panic!("{actions:?}") };
-    opened(rest, FIRST);
+    opened(&kind.started(&mut machine), FIRST);
     machine
 }
 fn page_ready(kind: Kind, machine: &mut Machine) {
     assert!(step(machine, Event::FaceDone(Ok(()))).is_empty());
     opened(&step(machine, kind.link(FRESH)), FRESH);
-    opened(&step(machine, Event::FaceDone(Ok(()))), &[ORIGIN, b"/"].concat());
+    assert!(
+        matches!(step(machine, Event::FaceDone(Ok(()))).as_slice(), [Action::Find(find)] if *find == Find::named(Role::Main, b""))
+    );
+    opened(&step(machine, Event::Found(Some(NodeId(1)))), &[ORIGIN, b"/"].concat());
     assert!(
         matches!(step(machine, Event::FaceDone(Ok(()))).as_slice(), [Action::Find(find)] if *find == Find::named(Role::Main, b""))
     );
@@ -140,12 +150,11 @@ fn both_places_use_the_same_session_steps() {
     for kind in KINDS {
         for ctl in [false, true] {
             let mut machine = kind.signing(ctl);
-            let actions = step(&mut machine, exited(Process::SignIn, 0));
+            let actions = kind.started(&mut machine);
             if ctl {
-                assert!(matches!(actions.as_slice(), [Action::RemoveLink, Action::Ready]), "{kind:?}: {actions:?}");
+                assert!(matches!(actions.as_slice(), [Action::Ready]), "{kind:?}: {actions:?}");
             } else {
-                let [Action::RemoveLink, rest @ ..] = actions.as_slice() else { panic!("{actions:?}") };
-                opened(rest, FIRST);
+                opened(&actions, FIRST);
                 page_ready(kind, &mut machine);
                 let actions = line(&mut machine, "tui key enter");
                 assert!(
@@ -244,7 +253,7 @@ fn each_places_start_trouble_keeps_its_failure_word_and_status() {
 fn each_places_named_store_refusal_is_status_three() {
     for kind in KINDS {
         let mut machine = kind.signing(true);
-        step(&mut machine, exited(Process::SignIn, 0));
+        kind.started(&mut machine);
         let failed = match kind {
             Kind::Box => Process::Box,
             Kind::Deployment => Process::Engine,

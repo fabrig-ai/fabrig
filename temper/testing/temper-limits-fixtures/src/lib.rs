@@ -246,9 +246,15 @@ const ROOT: Root = Root {
         writes: 12288,
         // Outputs at the journal's door, counted in the default admission watermark.
         deliveries: 512,
+        // A changes document: 576 document + 64 landing bytes;
+        // 8 queues * (208 queue + 2,048 repository + 64 branch + 120 queued row
+        // + 256 title + 3 * 256 provenance) = 27,712 bytes;
+        // two 8-row histories * (160 row + 256 title + 3 * 256 provenance
+        // + 8 * (64 sign-off + 256 name)) = 59,904 bytes; total 88,256.
+        // Small's changes-document floor (82,112 without chats).
         // The 65,536-byte forge answer dominates small's deep task row,
         // including its four AuthorityExecutor values and 56-byte Option<OpenAttempt> (engine::row_bound).
-        transcript_bytes: 65_536,
+        transcript_bytes: 88_256,
         // At least brief.brief_bytes and jig small people.words: the root's worst case.
         result_bytes: 14_592,
         // Holds the stock goal agent's charter and room for an overlay.

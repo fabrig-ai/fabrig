@@ -346,7 +346,7 @@ pub fn fixture_4_4() -> forge::Fixture {
             // resumed script then cannot collide with the model-change recap.
             agent["profile"]["declared"]["calls_per_response"] = 2.into();
             small_two_call_window(value, agent);
-            value["workers"][0]["limits"]["overrides"]["hub.run_calls"] = 2.into();
+            value["engine"]["limits"]["overrides"]["hub.run_calls"] = 2.into();
         },
         ..fixture()
     }
@@ -380,10 +380,10 @@ pub fn fixture_check() -> forge::Fixture {
             agent["profile"]["declared"]["calls_per_response"] = 2.into();
             small_two_call_window(value, agent);
             agent["profile"]["policy"]["parallel_tools"] = 1.into();
-            value["workers"][0]["limits"]["overrides"]["hub.run_calls"] = 2.into();
+            value["engine"]["limits"]["overrides"]["hub.run_calls"] = 2.into();
             // The opener's checkout needs an LLM grant and an application git
             // grant. One refuses its coder; two fit the three-worker ring.
-            value["workers"][0]["limits"]["overrides"]["hub.accounts"] = 2.into();
+            value["engine"]["limits"]["overrides"]["hub.accounts"] = 2.into();
             landing::admit(value);
         },
         ..fixture_placed()
@@ -573,12 +573,12 @@ pub fn fixture_5_2() -> forge::Fixture {
             for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {
                 project["policy"]["ceiling"]["delegation"]["kinds"] = kinds.clone();
                 project["policy"]["roles"][0]["authority"]["delegation"]["kinds"] = kinds.clone();
-                // The chat's run, A, the helper and B reserve 10 + 5 + 5 + 25.
-                project["policy"]["roles"][0]["authority"]["budget"]["spend"] = 50.into();
+                // The chat's run, A, the helper and B reserve 10 + 5 + 5 + 40.
+                project["policy"]["roles"][0]["authority"]["budget"]["spend"] = 65.into();
             }
             // The coder's checkout needs both its LLM and application git grants,
             // as in fixture_check. The cluster supplies one slot per worker.
-            value["workers"][0]["limits"]["overrides"]["hub.accounts"] = 2.into();
+            value["engine"]["limits"]["overrides"]["hub.accounts"] = 2.into();
             landing::admit(value);
         },
         ..forge::fixture()
@@ -705,7 +705,7 @@ pub fn fixture_5_4() -> forge::Fixture {
             // Delegate/amend/cancel and their wait share one LLM completion.
             agent["profile"]["declared"]["calls_per_response"] = 2.into();
             small_two_call_window(value, agent);
-            value["workers"][0]["limits"]["overrides"]["hub.run_calls"] = 2.into();
+            value["engine"]["limits"]["overrides"]["hub.run_calls"] = 2.into();
             // Read all three spec parameters, including the planned path (name 6).
             value.jig_over("documents.lines", 3);
             // The director's two-owner batch was refused: "batch limit".
@@ -731,7 +731,7 @@ pub fn fixture_5_4() -> forge::Fixture {
             for name in ["poll_ms", "poll_max_ms"] {
                 value.temper_over(format!("forge.client.{name}"), story_ms + 1);
             }
-            value["workers"][0]["limits"]["overrides"]["hub.accounts"] = 2.into();
+            value["engine"]["limits"]["overrides"]["hub.accounts"] = 2.into();
             landing::admit(value);
         },
         ..forge::fixture()

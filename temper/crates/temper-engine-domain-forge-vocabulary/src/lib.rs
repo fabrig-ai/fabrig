@@ -7,12 +7,16 @@
 extern crate alloc;
 use alloc::boxed::Box;
 
+/// A landing repair found only flakes (domain/forge/change/repairs.md).
+pub const REPAIR_FLAKE: u32 = 1;
+
 pub mod address;
 pub mod approvals;
 pub mod away;
 pub mod boundary;
 pub mod brief;
 pub mod brief_words;
+pub mod change_words;
 pub mod closer;
 pub mod commit;
 pub mod devices;
@@ -37,6 +41,7 @@ pub mod milestones;
 pub use milestones::{MilestoneEnd, MilestoneLanding, MilestoneOutcome, MilestoneRow, MilestoneTotals};
 pub mod making;
 pub mod panel;
+pub mod parts;
 pub mod preparation;
 pub mod public;
 pub mod purpose;
@@ -108,7 +113,7 @@ pub use limits::{
 };
 pub use panel::{
     MARKED, PANEL_AHEAD, PANEL_GATES, PANEL_NAME_BYTES, Panel, PanelApproval, PanelGate, PanelQuestion, PanelQuestions,
-    PanelSource, PanelStands, PanelStep, PanelUsed, ReviewFacts, ReviewRead, UnmappedReview,
+    PanelSource, PanelStands, PanelStep, PanelUsed, PanelWait, ReviewFacts, ReviewRead, UnmappedReview,
 };
 pub use reconcile::{MissingLink, Need, RecordKind};
 pub use red::{JobLog, RedNews, RedOn, red_news_words};
@@ -123,10 +128,11 @@ pub use temper_engine_domain_forge_landing::{
 };
 pub use verification::LandingRed;
 pub use views::{
-    APPROVALS_SUBJECT, ChangesLanded, ChangesQueue, ChangesQueued, ChangesView, DependencyView, Document,
-    FollowLagEntry, FollowView, FollowsView, GateProof, LandingGate, LandingLine, LandingMember, LandingRound,
-    LandingSearch, LandingSearchTests, LandingStep, LandingTrain, LandingView, LandingsView, PrefixJudgement,
-    SearchPass, SearchSelection, TrainLanding, changes_subject, follows_subject, landings_subject,
+    APPROVALS_SUBJECT, ChangeFrom, ChangesLanded, ChangesQueue, ChangesQueued, ChangesSigned, ChangesView,
+    DependencyView, Document, FollowLagEntry, FollowView, FollowsView, GateProof, LandingGate, LandingLine,
+    LandingMember, LandingRound, LandingSearch, LandingSearchTests, LandingStep, LandingTrain, LandingView,
+    LandingsView, PrefixJudgement, SearchPass, SearchSelection, TrainLanding, changes_subject, follows_subject,
+    landings_subject,
 };
 
 /// The prepare job (temper/docs/design/domain/worker/jobs.md).
@@ -556,6 +562,21 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                     for pattern in &set.patterns {
                         held = held.checked_add(bytes(pattern))?;
                     }
+                }
+                Some(held)
+            }
+            settings::Edit::Set(settings::SizedValue { value: settings::Value::AgentFigures(value), .. }) => {
+                let mut held = u64::from(value.profile().len())
+                    .checked_mul(u64::try_from(size_of::<settings::AgentFigure>()).ok()?)?
+                    .checked_add(
+                        u64::from(value.endpoints().len())
+                            .checked_mul(u64::try_from(size_of::<settings::AgentEndpointLimits>()).ok()?)?,
+                    )?;
+                for figure in value.profile() {
+                    held = held.checked_add(bytes(figure.name()))?;
+                }
+                for endpoint in value.endpoints() {
+                    held = held.checked_add(bytes(endpoint.endpoint()))?;
                 }
                 Some(held)
             }

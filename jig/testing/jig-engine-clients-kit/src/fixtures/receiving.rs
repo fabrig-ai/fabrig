@@ -71,9 +71,10 @@ fn configuration(limits: &core::Limits) -> core::Config {
         requirements: Box::new([]),
     };
     core::Config {
+        parts: Box::new([]),
         jobs: Box::new([]),
         kept_starts: Box::new([]),
-        worker_names: Box::new([]),
+
         deployment: [31; 16],
         seed: 31,
         workers_in_process: false,
@@ -112,6 +113,7 @@ fn configuration(limits: &core::Limits) -> core::Config {
         kinds: Box::default(),
         defaults: core::settings::Defaults {
             limits: Box::default(),
+            workers: Box::new([]),
             models: Box::default(),
             charters: Box::new([core::Charter {
                 parts: Box::new([]),
@@ -167,7 +169,12 @@ pub fn signed_small_core() -> (core::Core, Env<core::Limits>, u64) {
     let mut out = core::step(
         &mut core,
         &env,
-        core::Event::SignIn { held: None, reply_to: ReplyTo::new(Token::new(90)), identity: super::first_owner() },
+        core::Event::SignIn {
+            until: None,
+            held: None,
+            reply_to: ReplyTo::new(Token::new(90)),
+            identity: super::first_owner(),
+        },
     );
     let mut sign_in = None;
     while let Some(request) = out.pop() {

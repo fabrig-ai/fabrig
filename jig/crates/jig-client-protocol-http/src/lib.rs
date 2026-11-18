@@ -1,15 +1,17 @@
-//! HTTP calls and printed links (protocol/client/default-http.md, 1, 3 and 4).
+//! HTTP calls and printed links (protocol/client/default-http.md, 1 to 4 and 6).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
 mod call;
+mod frames;
+pub use frames::Frames;
 mod printed;
 mod public;
 pub use public::{Freshness, PUBLIC_KEEP, PublicHeard, PublicPath, freshness, public, public_answered, public_target};
 mod stream;
 use alloc::boxed::Box;
 pub use call::{Call, answered, exchange, stream};
-pub use printed::{Printed, Unlinked, printed};
+pub use printed::{Printed, Unlinked, link_url, printed};
 use skein_lib::bytes;
 pub use stream::{Stream, valid};
 #[derive(Debug, PartialEq, Eq)]

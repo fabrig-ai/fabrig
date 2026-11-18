@@ -44,7 +44,7 @@ landed. A directory goes with the file of its name.
 | Piece | Files |
 |---|---|
 | `jig-protocol-store-records` | `codec.rs`, `codec/` |
-| `jig-protocol-store` | every other file: `lib.rs` and its modules, `generated/layouts.rs` among them |
+| `jig-protocol-store` | every other file: `lib.rs` and its modules |
 
 Their sizes, counted as raw lines of today's files, are each under the bound of `crate-graph.md`,
 7.3: about 24,000 for the records' translation, 17,700 of code and 6,300 of tests; about 43,000 for
@@ -214,18 +214,18 @@ each stage a `#[cfg(test)]` module of the crate's root, in one change beside sec
 
 ### 4.4 Data and paths
 
-- **The records' owner stays** `jig-protocol-store`: its `schema/` and `golden/`, the patch set that
-  embeds the schemas, `jig/tests/codec-families.rs`' entries and the store codecs world's reads of
-  them are unchanged (`tools/crates/design.md`, 3.2).
+- **The records' owner stays** `jig-protocol-store`: its `schema/`, the patch set that embeds the
+  schemas, `jig/tests/codec-families.rs`' entries and the store codecs world's reads of them stay
+  with the owner (`tools/crates/design.md`, 3.2). Codec tests build fixed-rule values from embedded
+  schema texts or use constructors; the store and test connector keep no family golden directories
+  (skein's `data/codec/README.md`, 6).
 - **The component's test fixtures by path,** `src/tests/fixtures/*.schema` and
-  `src/tests/golden/`, stay with the tests that read them, the component's.
+  `src/tests/golden/history-record.bin`, stay with the tests that read them, the component's.
+  The latter pins hand-written history-log format-1 framing, not a generated family's codec.
 - **No file is read by path** in the translation or its tests: no `include_str!`,
   `include_bytes!`, `#[path]` or manifest directory.
 - **`.config/fixture-readers.toml`** names the kit's fixtures and each piece's, with their readers:
   the kit's are read by both pieces' tests.
-- **The layouts' glue,** `src/generated/layouts.rs`, stays with the component, which reads it, and
-  names `crate::codec::component::Layouts` through the component's re-export, as the store codecs
-  world's drift test writes it.
 
 ## 5. Landing the split
 

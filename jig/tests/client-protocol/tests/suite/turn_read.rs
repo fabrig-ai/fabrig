@@ -232,7 +232,7 @@ fn a_message_past_text_reads_back_whole_through_the_engine() {
     assert!(words.len() > usize::try_from(client.text).expect("text fits"));
     assert!(words.len() <= usize::try_from(client.long_text).expect("long_text fits"));
     assert!(words.len() <= usize::try_from(core.core.people.words).expect("people.words fits"));
-    let mut story = Story::reading_chat_with(fixtures::SEED, Box::from(fixtures::TURN_BYTES), client, core);
+    let mut story = Story::reading_chat_with(fixtures::SEED, fixtures::turn_bytes(), client, core);
     let task = story.running_task();
     story.send(
         WORDS,
@@ -284,7 +284,7 @@ fn private_turn() -> jig_domain_core::TurnRecord {
 }
 
 fn private_turn_over_wire(record: jig_domain_core::TurnRecord, person: u64, withheld: bool) -> c::ArchivedTurn {
-    use jig_client_protocol_wire::v28 as w;
+    use jig_client_protocol_wire as w;
     use jig_domain_core::{self as core, reads};
     use jig_engine_clients_kit::fixtures as engine;
     use skein_lib::{List, Reader, Writer};

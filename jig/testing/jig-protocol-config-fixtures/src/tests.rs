@@ -6,7 +6,7 @@ fn small_limits_pass_the_engine_reader_checks() {
         br#"{
         "limits":{},
         "llm":{"endpoints":[],"providers":[]},
-        "hosts":{"workers":[],"listener":[]},
+        "hosts":{"listener":[]},
         "clients":{"heartbeat_ms":10000,"link":false},
         "deployment":{"directory":"state"},
         "providers":[{"number":1,"kind":"deployment"}],
@@ -39,5 +39,6 @@ fn small_holds_composed_settings() {
     assert_eq!(tasks.batch, 2);
     assert_eq!(tasks.spec_bytes, 4_096);
     assert_eq!(tasks.result_bytes, 512);
+    assert_eq!(limits.core.settings.alternatives, 63);
     assert_eq!(limits.store.store.value, 4_580_852);
 }

@@ -13,7 +13,7 @@ fn jig() -> s::Item {
     s::Item { setting: s::Setting::Limits, edit: s::Edit::Set(s::Value::Limits(overrides(b"tasks.tasks", 1024))) }
 }
 fn temper() -> s::Item {
-    k::item(21, 0, 1, &f::Value::Limits(overrides(b"forge.entries", 16)))
+    k::item(22, 0, 1, &f::Value::Limits(overrides(b"forge.entries", 16)))
 }
 fn word(driver: &mut Driver, revision: u32, jig: &[s::Override], temper: &[s::Override]) {
     let words: Vec<_> = driver
@@ -106,7 +106,7 @@ fn a_revision_resetting_both_kinds_sends_one_empty_word_and_unrelated_revisions_
         72,
         Box::new([
             s::Item { setting: s::Setting::Limits, edit: s::Edit::Reset },
-            s::Item { setting: s::Setting::Application { kind: 21, scope: 0, number: 1 }, edit: s::Edit::Reset },
+            s::Item { setting: s::Setting::Application { kind: 22, scope: 0, number: 1 }, edit: s::Edit::Reset },
         ]),
     ));
     driver.settle();

@@ -360,6 +360,7 @@ fn tier_limits(forge: &d::Limits) -> Option<w::Limits> {
         landing_member_branch: forge.name_bytes,
         landing_row_asks: forge.landing_members,
         landing_row_entries: forge.entries,
+        landing_row_flake_reruns: forge.entries,
         receipt_name_name: 32,
         receipt_run_url: 2048,
         receipt_test_key: forge.tiers.test_id_bytes.min(4096),

@@ -181,9 +181,7 @@ fn an_ended_landing_drops_the_late_answer_with_one_notice() {
         world.tick();
     }
     assert!(closer_row(&world, closer).expect("closer record").relay.open.is_none());
-    for _ in 0..20 {
-        world.tick();
-    }
+    world.advance_ticks(20);
     let notices: Vec<_> = live_task(&world, goal.task)
         .inbox
         .iter()

@@ -58,9 +58,12 @@
     of the form d × 10ⁿ, 2ⁿ or 3 × 2ⁿ (34 → 40, 768 → 768, 758 → 768).
     Elsewhere it stays at `standard`'s. A count a wire caps below that
     is the cap, never below dev's: `forge.landing_members` is 5, the
-    worker wire's, not twice dev's 4. A count a stored format caps is
-    likewise the cap: `forge.changes` is 379, the store's tier rows'
-    (below), not twice dev's 379.
+    worker wire's, not twice dev's 4. `forge.changes` is 768, twice
+    dev's 379 rounded, its store raised for it: the tier rows hold 1,537
+    landings, since a failing test's id is within 1,024 bytes (below).
+  - **A failing test's id:** `forge.tiers.test_id_bytes` is 512, twice
+    the longest id today (about 221 bytes, a fuzzy case's), within the
+    store's 1,024 (below).
   - **Times:** a time is dev's where that is above `standard`'s: the
     brief's gathering 300 s and the checkout's local timeout 60 s, for
     example.
@@ -209,13 +212,13 @@
   oldest first, as new ones need room, those of live goals kept
   (`../../domain/forge/change/README.md`, 7). So it bounds the changes
   live at once, never every change made. Each tier row of the store
-  holds up to `2 * forge.changes + 1` landings (its pending ones, a run's
-  and a finding's blamed ones), within the store schema's ceiling for
-  them, 759 (`../store.md`, 4), so `forge.changes` is at most 379,
-  which the start checks (below), and the stock's is 379. Raising the
-  cap is the store's: a finding's blame recorded by test index, not by
-  copying each failing test's id, and the tier rows' ceilings raised
-  with it. The forge's landed commits, the
+  holds up to `2 * forge.changes + 1` landings (its pending ones, a run's,
+  a finding's blamed ones, a probe's waiting groups and a posting's),
+  within the store schema's ceiling for them, 1,537 (`../store.md`, 4),
+  so `forge.changes` is at most 768, which the start checks (below), and
+  the stock's is 768. The store holds that many because a failing test's
+  id is within 1,024 bytes, `forge.tiers.test_id_bytes` at most that
+  (below). The forge's landed commits, the
   merges temper made, number `max(forge.landings, forge.changes)` at
   most; a merge finding them full erases one, those of no kept change
   first, and never waits on it to move its branch's head
@@ -382,15 +385,21 @@
   - the facts': `forge.judge_projects` at most 1024, an eighth of the bound on
     a party's facts on the client's wire
     (`../../client/forge/records.md`);
+  - the store's failing tests' ids: `forge.tiers.test_id_bytes` at most
+    the least of the store schema's ceilings on a failing test's id and
+    a flake's (`../store.md`, 4), 1,024, checked before the store's
+    sizing, which would otherwise refuse it naming a schema field:
+    `application.limits.overrides.forge.tiers.test_id_bytes: 1025, past
+    its bound of 1024, the most the store holds of a failing test's id`;
   - the store's tier rows': `forge.changes` at most the most they hold,
     `(c - 1) / 2` for `c` the least of the store schema's ceilings on a
-    tier row's pending landings, a run's landings and a finding's blamed
-    ones (`../store.md`, 4), 379 at their 759, checked before the store's
+    tier row's five lists of landings (`../store.md`, 4), 768 at their
+    1,537, checked before the store's
     sizing, which would otherwise refuse it as past its codec's bounds,
     naming no limit:
-    `application.limits.overrides.forge.changes: 380, past its bound of
-    379, the most the store's tier rows hold (2 * forge.changes + 1
-    within 759)`. Within it, a store bound the larger rows outgrow
+    `application.limits.overrides.forge.changes: 769, past its bound of
+    768, the most the store's tier rows hold (2 * forge.changes + 1
+    within 1537)`. Within it, a store bound the larger rows outgrow
     refuses the start as the store's sizing names it (`engine.limits.store:
     the store's map value, N bytes, past its bound of M bytes`), the
     store limit to raise with it;

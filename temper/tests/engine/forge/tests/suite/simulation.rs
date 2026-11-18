@@ -263,6 +263,7 @@ fn uncommitted_queue_step(
         entry,
         heard: change::Heard {
             delegate_running: false,
+            flake: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,
@@ -895,6 +896,7 @@ fn a_broken_landing_branch_pauses_the_queue_for_one_repair() {
         entry: 2,
         heard: change::Heard {
             delegate_running: false,
+            flake: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,
@@ -1018,6 +1020,7 @@ fn a_kept_change_leaves_the_queue_and_comes_back_at_its_place() {
         entry: 1,
         heard: change::Heard {
             delegate_running: false,
+            flake: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,
@@ -1221,6 +1224,7 @@ fn runner_faults_run_again_before_repair_and_keep_their_gates() {
                 failed: false,
                 cancelled: false,
                 no_change: false,
+                flake: false,
                 words: Box::new([]),
             });
         }
@@ -1279,6 +1283,7 @@ fn failed_ci_repair_world() -> World {
         failed: true,
         cancelled: false,
         no_change: false,
+        flake: false,
         words: b"repair failed permanently".as_slice().into(),
     });
     assert_eq!(
@@ -1316,6 +1321,7 @@ fn a_released_failed_ci_repair_replaces_its_persisted_result_across_restart() {
         failed: true,
         cancelled: false,
         no_change: false,
+        flake: false,
         words: Box::new([]),
     });
     assert!(matches!(change_step(&mut world, 4, change::Status::Pending, Box::new([])), change::Decision::Wait { .. }));
@@ -1335,6 +1341,7 @@ fn a_released_failed_ci_repair_replaces_its_persisted_result_across_restart() {
         failed: false,
         cancelled: false,
         no_change: false,
+        flake: false,
         words: b"repaired".as_slice().into(),
     });
     world.run_for(1);
@@ -1355,6 +1362,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
         entry: 2,
         heard: change::Heard {
             delegate_running: false,
+            flake: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,
@@ -1383,6 +1391,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
         entry: 3,
         heard: change::Heard {
             delegate_running: false,
+            flake: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,
@@ -1421,6 +1430,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
             entry,
             heard: change::Heard {
                 delegate_running: false,
+                flake: false,
                 delegate_live: false,
                 review_request: None,
                 start_conflict: None,
@@ -2248,6 +2258,7 @@ fn a_change_rides_a_long_forge_outage_and_reads_ci_posted_without_a_delivery() {
             spend: None,
             delegate: change::Status::Passed,
             delegate_running: false,
+            flake: false,
             delegate_live: false,
             effect: change::EffectResult::None,
             released: false,
@@ -2675,6 +2686,7 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
         entry: 10,
         heard: change::Heard {
             delegate_running: false,
+            flake: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,
@@ -2703,6 +2715,7 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
         entry: 11,
         heard: change::Heard {
             delegate_running: false,
+            flake: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,
@@ -3367,6 +3380,7 @@ fn a_failed_producer_keeps_its_words_through_restart_and_holds_at_producing() {
         child: PRODUCER,
         status: change::Status::Failed,
         no_change: false,
+        flake: false,
         failed: true,
         cancelled: false,
         words: REASON.into(),

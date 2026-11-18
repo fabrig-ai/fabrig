@@ -759,6 +759,93 @@ fn a_long_span_stretches_the_watchdog() {
     faulted(&mut world, Fault::NoProgress);
 }
 
+fn derived_host_limits() -> (smith_host_domain::Limits, smith_agent_profile::Limits) {
+    let agent = smith_agent_process_world::configuration();
+    let host =
+        smith_agent_profile::host_limits(&smith_agent_process_world::profile(), &agent.limits, &agent.domain.limits)
+            .expect("world profile derives its watchdog");
+    (host, agent.limits)
+}
+
+#[test]
+fn an_unannounced_tool_call_outlasts_the_old_bound_under_derived_limits() {
+    use smith_domain::session::{llm, record};
+    let (bounds, agent) = derived_host_limits();
+    let mut world = World::new(370, bounds);
+    world.live();
+    let tool_turn = smith_domain_session_fixtures::turn(
+        b"scripted".as_slice().into(),
+        record::Kind::Ordinary,
+        Box::new([llm::Message {
+            role: llm::Role::Assistant,
+            content: Box::new([llm::Block::ToolCall(llm::ToolCall {
+                id: b"command".as_slice().into(),
+                name: b"shell".as_slice().into(),
+                input: br#"{"command":"silent work"}"#.as_slice().into(),
+                call: llm::Decoded::Builtin { effect: smith_domain::tools::Effect::Write },
+                replay: None,
+            })]),
+        }]),
+    );
+    world.up(Up::Turn {
+        turn: smith_host_world::turn(
+            1,
+            smith_host_domain::TurnValue::new(tool_turn, bounds.turn_bytes).expect("tool turn"),
+        ),
+    });
+    // This is the scripted agent's own tool, not an owed host Call or a Long.
+    world.event(Input::Parent(parent::Event::Acknowledge { agent: world.agent(), turn: 1 }));
+    world.sent();
+    let old_bound = bounds.silence.checked_add(agent.io.close_timeout).expect("old watchdog");
+    world.at_time(Time::ZERO.saturating_add(old_bound).saturating_add(Duration::from_secs(1)));
+    assert_eq!(world.seen.fault, None, "silent tool outlasts silence plus close");
+    world.at_time(Time::ZERO.saturating_add(Duration::from_nanos(
+        agent.domain.session.tools.tool_deadline.as_nanos() - Duration::from_secs(1).as_nanos(),
+    )));
+    assert_eq!(world.seen.fault, None, "tool remains within its own deadline");
+    let result_turn = smith_domain_session_fixtures::turn(
+        b"scripted".as_slice().into(),
+        record::Kind::Ordinary,
+        Box::new([llm::Message {
+            role: llm::Role::User,
+            content: Box::new([llm::Block::ToolResult {
+                id: b"command".as_slice().into(),
+                result: llm::Returned::Text { error: false, text: b"done".as_slice().into(), replay: None },
+            }]),
+        }]),
+    );
+    world.up(Up::Turn {
+        turn: smith_host_world::turn(
+            2,
+            smith_host_domain::TurnValue::new(result_turn, bounds.turn_bytes).expect("result turn"),
+        ),
+    });
+    world.event(Input::Parent(parent::Event::Acknowledge { agent: world.agent(), turn: 2 }));
+    world.sent();
+    last(&mut world, RunResult::Accepted { outcome: smith_host_world::declared_value(0) }, 2, 0);
+    assert_eq!(
+        world.seen.answer.as_ref().expect("answer reaches parent").result,
+        RunResult::Accepted { outcome: smith_host_world::declared_value(0) }
+    );
+    assert_eq!(world.seen.fault, None);
+    world.clean_end();
+}
+
+#[test]
+fn an_agent_silent_after_admission_faults_at_the_exact_derived_deadline() {
+    let (bounds, _) = derived_host_limits();
+    let mut world = World::new(371, bounds);
+    world.at(7);
+    world.live();
+    let deadline = world.stage.env.now.saturating_add(bounds.no_progress);
+    world.at_time(Time::ZERO.saturating_add(Duration::from_nanos(
+        deadline.saturating_since(Time::ZERO).as_nanos() - Duration::from_millis(1).as_nanos(),
+    )));
+    assert_eq!(world.seen.fault, None, "one millisecond of the derived allowance remains");
+    world.at_time(deadline);
+    faulted(&mut world, Fault::NoProgress);
+}
+
 #[test]
 fn the_last_long_done_ends_the_extension() {
     let mut world = World::new(38, limits());

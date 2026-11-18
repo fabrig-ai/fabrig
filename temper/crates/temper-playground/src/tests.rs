@@ -8,10 +8,7 @@ fn the_deployment_document_is_one_temper_serve_starts() {
     let bytes = documents::document();
     let value = documents::world_document();
     assert!(value.jig.core.resume_bytes >= 4_194_304);
-    assert_eq!(
-        u64::from(value.jig.io.output),
-        value["workers"][0]["limits"]["overrides"]["io.output"].as_u64().unwrap()
-    );
+    assert!(value["workers"][0].get("limits").is_none());
     let files = documents::files();
     let agent = documents::agent();
     let seeds = documents::seeds(7).service();
@@ -63,10 +60,7 @@ fn resumes_have_a_floor_without_raising_turn_carriers() {
         assert_eq!(document.jig.hub.transcript_bytes, window);
         assert_eq!(document.jig.hub.turn_bytes, turn);
         assert_eq!(document.jig.hub.turn_queue_bytes, 8 * turn);
-        let worker = &document["workers"][0]["limits"]["overrides"];
-        assert_eq!(worker["hub.transcript_bytes"], window);
-        assert_eq!(worker["hub.turn_bytes"], turn);
-        assert_eq!(worker["hub.turn_queue_bytes"], 8 * turn);
+        assert!(document["workers"][0].get("limits").is_none());
         assert_eq!(u64::from(document.limits.root.journal.transcript_bytes), resume);
         assert_eq!(u64::from(document.limits.root.loads.transcript_bytes), turn);
         let loaded = turn + u64::try_from(size_of::<temper_engine_domain::Record>()).unwrap();

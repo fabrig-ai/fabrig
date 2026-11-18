@@ -247,8 +247,11 @@ impl Joined {
             stall: limits.stall,
         });
         let workers = Box::new([engine::Worker {
+            number: 1,
+            places: 4,
+            withdrawn: false,
             name: fixtures::WORKER_A.into(),
-            digest: skein_io::digest::digest(fixtures::SECRET_A),
+            digest: Some(skein_lib::sha256::digest(fixtures::SECRET_A)),
         }]);
         let (engine_wires, worker_wires) = wires.unwrap_or_else(|| (fixtures::spoken(), fixtures::spoken()));
         Self {
@@ -321,6 +324,9 @@ impl Joined {
     fn engine_event(&mut self, event: engine::Event) {
         self.engine.down(self.now, event, &mut self.engine_out);
     }
+    pub fn figures(&mut self, figures: jig_protocol_worker_wire::Figures) {
+        self.engine_event(engine::Event::Figures { figures });
+    }
     pub fn worker_up(&mut self, up: host::LinkUp, parts: Box<[Part]>) {
         if let host::LinkUp::Turn { run, attempt, turn } = &up {
             assert_eq!((*run, *attempt), (fixtures::RUN_SEVEN, fixtures::ATTEMPT_TWO));
@@ -355,7 +361,7 @@ impl Joined {
                     self.pipe.as_mut().expect("new pipe").cap(0, room);
                     self.pipe.as_mut().expect("new pipe").cap(1, room);
                 }
-                self.engine_event(engine::Event::Accepted { connection: self.connection });
+                self.engine_event(engine::Event::Accepted { connection: self.connection, in_process: false });
                 self.worker_event(Event::Dialled { connection: self.connection });
             }
             Request::Lower { connection, lower } => self.lower(0, connection, lower),
@@ -385,7 +391,8 @@ impl Joined {
                 self.worker_order.push("value");
                 self.values.push(request);
             }
-            Request::RelayCancelled { .. }
+            Request::Figures { .. }
+            | Request::RelayCancelled { .. }
             | Request::Lost
             | Request::Restarting { .. }
             | Request::GracePassed
@@ -444,7 +451,9 @@ impl Joined {
                 }
             }
             engine::Request::Ended { .. } => self.engine_ended.push(request),
-            engine::Request::Opened { .. } | engine::Request::Refused { .. } => self.engine_openings.push(request),
+            engine::Request::FiguresTaken { .. } | engine::Request::Opened { .. } | engine::Request::Refused { .. } => {
+                self.engine_openings.push(request);
+            }
             engine::Request::Told { .. }
             | engine::Request::Unsent { .. }
             | engine::Request::Lost { .. }
@@ -534,6 +543,7 @@ impl Joined {
                 | engine::Request::Close { .. }
                 | engine::Request::Abort { .. }
                 | engine::Request::Up { .. }
+                | engine::Request::FiguresTaken { .. }
                 | engine::Request::Told { .. }
                 | engine::Request::Opened { .. }
                 | engine::Request::Refused { .. }

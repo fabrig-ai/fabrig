@@ -96,7 +96,7 @@ fn the_stream_s_pieces_are_cut_to_the_client_s_piece() {
     assert_eq!(
         requests.stream,
         Some(transport::StreamDuty::Open {
-            path: b"/jig/v1/stream".as_slice().into(),
+            path: b"/jig/v1/stream?version=28".as_slice().into(),
             headers: vec![(b"Jig-Client".as_slice().into(), b"browser".as_slice().into())],
             bound: PIECE
         })
@@ -179,6 +179,8 @@ fn an_answer_carries_its_kept_headers() {
         Heard::Answered { exchange: ID, status: 200, body: b"ok".as_slice().into(), headers }
     );
 }
+
+mod batches;
 
 #[test]
 fn debug_of_a_taken_link_shows_the_secrets_length_never_its_bytes() {

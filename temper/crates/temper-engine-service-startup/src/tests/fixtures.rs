@@ -17,10 +17,6 @@ pub const ENGINE: &[u8] = br#"{
 }]
 },
 "hosts": {
-"workers": [
-{"name": "worker-a", "digest": "secrets/worker-a.digest"},
-{"name": "worker-b", "digest": "secrets/worker-b.digest"}
-],
 "listener": [{"in_process": "workers"}]
 },
 "clients": {
@@ -216,14 +212,17 @@ pub fn chat(project: u32, words: &[u8]) -> jig_domain_people::Ask {
 }
 
 #[expect(
-    clippy::disallowed_macros,
     clippy::disallowed_types,
     reason = "ordinary fixture code embeds the shipped profile and returns the shell's text diagnostic"
 )]
 pub fn stock_configuration(payload: u32, output: u32) -> Result<smith_agent_shell::config::Configuration, String> {
-    let bytes = include_str!("../../../temper-init/template/agent.json")
-        .replace("\"tool_payload\": 63740", &format!("\"tool_payload\": {payload}"))
-        .replace("\"output\": 48000", &format!("\"output\": {output}"))
+    let mut agent = temper_agent_fixtures::stock(true);
+    agent["profile"]["declared"]["tool_payload"] = payload.into();
+    for endpoint in agent["endpoints"].as_array_mut().expect("stock endpoints") {
+        endpoint["limits"]["output"] = output.into();
+    }
+    let bytes = serde_json::to_string_pretty(&agent)
+        .expect("stock agent JSON")
         .replace("$llm", "127.0.0.1:8370")
         .replace("\"$programs\"", r#"{"claude_code":{"path":"/fixture/claude","directory":"/fixture/programs"}}"#)
         .replace("api.anthropic.com:443", "127.0.0.1:8373")

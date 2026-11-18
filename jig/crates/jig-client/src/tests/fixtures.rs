@@ -1,7 +1,7 @@
 pub mod thread;
 use crate::*;
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v28 as w;
+use jig_client_protocol_wire as w;
 use skein_lib::{Duration, List, Queue, Secret, Time, Token, Wall, Writer};
 pub const PARTY: u64 = 7;
 pub const SUBJECT_TASK: u64 = 9;
@@ -67,12 +67,21 @@ pub fn hello(version: u32) -> Box<[u8]> {
         w::Served::new(&w::CEILINGS, w::ServedParts { owner: w::Owner::Jig, first: version, last: version }).unwrap();
     let mut rows = List::with_capacity(1);
     rows.push(served).unwrap();
-    event(&w::StreamEvent::Hello(
-        w::Hello::new(
-            &w::CEILINGS,
-            w::HelloParts { stream: [7; 16], served: rows, heartbeat: Duration::from_millis(100) },
-        )
-        .unwrap(),
+    let hello = w::Hello::new(
+        &w::CEILINGS,
+        w::HelloParts { stream: [7; 16], served: rows, heartbeat: Duration::from_millis(100) },
+    )
+    .unwrap();
+    if version != jig_client_protocol_wire::VERSION {
+        return event(&w::StreamEvent::Hello(hello));
+    }
+    let w::StreamEvent::Delivery(delivery) =
+        w::StreamEvent::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&frame(0))).unwrap()
+    else {
+        unreachable!("me fixture");
+    };
+    event(&w::StreamEvent::Opened(
+        w::Opened::new(&w::CEILINGS, w::OpenedParts { hello, me: delivery.into_parts().document }).unwrap(),
     ))
 }
 pub fn event(value: &w::StreamEvent) -> Box<[u8]> {
@@ -143,8 +152,6 @@ impl Client {
     pub fn sign_in(&mut self) {
         self.step(Event::SignIn { with: With::Held(Secret::new(Box::new([7; 40]))) });
         self.stream(hello(jig_client_protocol_wire::VERSION));
-        let watch = self.opened_watch();
-        self.stream(frame(watch));
         self.step(Event::Stored);
         self.requests.clear();
     }
@@ -154,6 +161,7 @@ impl Client {
     pub fn step_at(&mut self, now: Time, event: Event) {
         self.requests.clear();
         self.machine.step(now, Wall::EPOCH, event, &mut self.out);
+        self.machine.settle(now, Wall::EPOCH, &mut self.out);
         self.requests = List::with_capacity(self.out.len());
         while let Some(request) = self.out.pop() {
             self.requests.push(request).unwrap();
@@ -162,6 +170,7 @@ impl Client {
     pub fn fire(&mut self, now: Time) {
         self.requests.clear();
         self.machine.fire(now, Wall::EPOCH, &mut self.out);
+        self.machine.settle(now, Wall::EPOCH, &mut self.out);
         self.requests = List::with_capacity(self.out.len());
         while let Some(request) = self.out.pop() {
             self.requests.push(request).unwrap();

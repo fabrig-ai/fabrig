@@ -66,7 +66,7 @@ document says what temper adds. What is open is listed in `README.md`, section 9
 - **No secret in the document,** and no forge credential in a file the
   document names. Each forge's credentials are records in jig's secrets'
   store under temper's tag (../credentials.md, 2.1). The private files the
-  document names are jig's, a worker's secret and its digest, read at
+  document names are jig's, a worker's secret, read at
   start, and the scripted model's key, read at the playground's start;
   an owned or fake forge's handover is in its directory (section 5).
 - **LLM providers, never accounts.** jig's `engine.llm` names the LLM
@@ -93,8 +93,17 @@ document says what temper adds. What is open is listed in `README.md`, section 9
   (`../cluster.md`): an engine alone, with no worker and a workers'
   listener on loopback in plaintext, and a worker alone, with no engine,
   dialling it. A document of none of the three is refused (`README.md`, section 2).
-- **The agent's configuration is smith's** (section 4), and `temper-box open`
-  takes no file at all (section 7).
+- **The agent's configuration is smith's,** and temper writes it from
+  the figures the engine sends each worker at its opening (section 4;
+  `figures.md`). A worker's document holds no limit and no `agent`.
+  `temper-box open` takes no file at all (section 7).
+- **Settings leave the document** (`settings.md`):
+  jig's charters, templates, policies and rules, and temper's landing
+  rules and forge's charter, become settings in the store, changed by a
+  decision an owner accepts, with the binary's stock values as their
+  defaults. The document keeps what a start needs before it reads its
+  store, and what belongs to the machine.
+
 - **Members that moved** (`moved.md`): what nobody changes is temper's
   constant, jig's deployment, providers, connectors, acts, seeded
   projects, clients' heartbeat, link and approval and a worker's graces
@@ -168,35 +177,37 @@ document says what temper adds. What is open is listed in `README.md`, section 9
   ), and the owned example is a whole document (../setup/init.md, 1).
 - **What standalone requires of jig's parts,** each checked at start, a
   failure naming its path:
-  - `workers` has exactly one entry, whose `engine` is `{"in_process":
-    "workers"}`;
+  - `workers` has exactly one entry, named `local`, whose `engine` is
+    `{"in_process": "workers"}`: the box's worker, the setting `local`
+    the box passes as its default (`../cluster.md`, 1);
   - `engine.hosts.listener` is `[{"in_process": "workers"}]`, and
-    `engine.hosts.workers` names that one worker;
-  - the worker's `agent` paths are absolute (section 4).
+    `engine.hosts.workers` is refused by name: workers are settings
+    (jig's `domain/engine/workers.md`);
+  - the worker part names no `agent` and no `limits` (`figures.md`,
+    section 7).
 
   `engine.connectors` is temper's constant `[1]` (`moved.md`, section
   2): the forge connector, temper's one connector, whose number both
   ends of the client's wire fix as `temper-client-protocol-wire`'s
   `FORGE` (`../../client/forge/records.md`).
 
-  The worker's `agent` names temper's own binary (section 4), which no
-  check can tell from another program.
+  The worker's agent is temper's own binary, derived (`figures.md`,
+  section 6).
 - **The shape is read from the members,** before any other check, and
   each shape's checks are its own (`../cluster.md`, 1):
 
   | Shape | `engine` | `workers` | `application` |
   |---|---|---|---|
-  | standalone | present, `hosts.listener` `[{"in_process": "workers"}]` | one, its `engine` `{"in_process": "workers"}` | every member, `workers` one entry |
-  | engine alone | present, `hosts.listener` one socket address on loopback (in `127.0.0.0/8`, or `::1`), plaintext, its port fixed or 0; `hosts.workers` one or more | `[]` | every member, `workers` `[]` |
-  | worker alone | absent | one, its `engine` a socket address on loopback, plaintext | `workers`, one entry, and `limits`; no other member |
+  | standalone | present, `hosts.listener` `[{"in_process": "workers"}]` | one, its `engine` `{"in_process": "workers"}` | every member, `environment` among them |
+  | engine alone | present, `hosts.listener` one socket address on loopback (in `127.0.0.0/8`, or `::1`), plaintext, its port fixed or 0; its workers settings an owner adds (`../cluster.md`, 2) | `[]` | every member but `environment` |
+  | worker alone | absent | one, its `engine` a socket address on loopback, plaintext | `environment` or none; no other member |
 
-  - an engine alone is checked as standalone is, but for its listener
-    and its workers, by the table, each worker's `digest` a data path
-    of its own;
-  - a worker alone is checked for its worker part, its entry of
-    `application.workers` (section 3), its agent's configuration
-    (section 4) and the limits its side takes (`limits.md`), and for
-    nothing of an engine's;
+  - an engine alone is checked as standalone is, but for its listener,
+    by the table, and its workers, which it has none of by default;
+  - a worker alone is checked for its worker part and its
+    `application.environment` (section 3), then for the figures its engine
+    sends and the agent configuration written from them (`figures.md`,
+    section 3), and for nothing of an engine's;
   - any other document is refused, naming the member that departs from
     the nearest shape: an in-process listener beside a socket, an
     engine with both a worker and a socket listener, a worker alone
@@ -282,12 +293,34 @@ is as the members' were:
 | `root` | a directory, a data path | made private (0o700) if absent; an existing one must be the process's user's, private, and not reached through a link | the worker's workspace directory: every checkout's workspace is made under it (../git.md, section 2; `../../domain/worker/checkouts.md`) |
 | `git` | string, or `null` | an absolute path to an executable file, checked at start, whose `git version` is at least the one ../git.md, section 3 names; `null` for none, as `temper-box init` writes it on a machine with no git (../setup/init.md, 2) | the program the git component runs for each invocation in a repository whose record names none (../channel.md, section 4), in the environment ../git.md, section 5 gives it; with `null`, each such invocation fails, naming its forge's host, and the row of each connected forge but a fake one warns (../git.md, section 3; `../../client/forge/deployment.md`). A forge whose record names a git program runs that instead: the playground's fake forge the machine's fake `git` (`engine.md`; ../setup/init.md, 2) |
 
-- **The worker's root takes the rest from jig's and smith's:** the hub's
-  limits from jig's worker part; smith's host limits and the bounds its
-  hello states from the agent's configuration (section 4), as jig's
+**The agents' environment** is `application.environment`, in the
+standalone and worker-alone shapes; an engine alone, which runs no
+agent, refuses it as an unknown member. It's the worker's own: the
+variables its agents' programs get, by the rule of `figures.md`,
+section 6, which gives the worker process's own `HOME` and `PATH`
+where the list is absent or omits them. Its entries have the form and
+bounds a worker entry's `environment` had before the entries went:
+
+| Member | Type | Bounds | Feeds |
+|---|---|---|---|
+| `environment` | a list of `{"name", "value"}`, or absent | each entry an object of exactly `name` and `value`, both required, each a string of at most 1,048,576 bytes; names unique, a repeated one refused at its entry's `name`; each refusal names the entry, `application.environment[i]` and its member | the agent configuration's `environment`, which temper writes at each start (`figures.md`, section 6) |
+
+- **smith's own checks hold too:** smith's decoder reads the written
+  configuration back before the start goes on (`figures.md`, section 6),
+  so a name that is empty or holds `=` or a NUL, or a value holding a
+  NUL, refuses the start as smith's configuration refuses it.
+- **Claude Code's program is no member:** it's the `claude` found on the
+  worker's `PATH` at start, or `"fetched"` with none (`figures.md`,
+  section 6).
+
+- **The worker's root takes the rest from its engine's figures**
+  (`figures.md`, section 3): the hub's limits, the checkout's and the
+  git component's; smith's host limits and the bounds its hello states
+  from the agent's configuration written from them (section 4), as jig's
   reference binary derives them, but for the agents the host holds, which
-  are its slots (`../../domain/worker/README.md`, section 5); its stop bound from
-  jig's graces; the checkout's limits from temper's profile (`limits.md`).
+  are its slots, the smaller of its `slots` and the figures' places
+  (`../../domain/worker/README.md`, section 5); its stop bound from jig's
+  graces.
 - **Workers are alike** (jig's `protocol/configuration.md`, section 4):
   no credential but the worker's secret, and no forge configuration.
   Remotes, git identities and a forge's git program come with each
@@ -361,32 +394,24 @@ stop timeout are unchanged.
 ## 4. The agent's configuration
 
 - **smith's agent configuration** (smith's `protocol/agent.md`, section
-  4), a file of smith's, named by jig's worker part's `agent` member:
-  `configuration` the absolute path of smith's agent configuration, and
-  `program` and `arguments` in one of two forms:
-  - **the box's:** `program` the absolute path of temper's binary and
-    `arguments` `["internal", "agent", <that same path>]`, so each agent
-    process is `temper-box internal agent AGENT.json` (../binaries.md
-    ); `temper-box init` writes them so, with smith's agent configuration
-    as `agent.json` in the configuration directory (../setup/init.md, 2);
-  - **a deployment's:** `program` the absolute path of `temper-agent`
-    (../binaries.md, 3) and `arguments` `[<that same path>]`, so each agent
-    process is `temper-agent AGENT.json`; a worker alone's document,
-    written by hand until a cluster's `init` is designed
-    (`../../draft/deployment-binaries.md`, section 3), names it so.
-
-  Any other `program`, each of its `arguments` absolute, runs as
-  written, with no model list (../README.md, section 5). They are absolute
-  because the worker spawns the agent with its arguments as written
-  (jig's `protocol/configuration.md`, section 9).
-- **Read once, pinned:** by the worker's start, `temper-box serve` or
-  `temper-worker serve`, for smith's host limits, the channel's limits
-  and the agent's bounds, as jig's reference binary reads it; the start
-  then pins those same bytes, with the program, in its root
-  (`../../domain/worker/README.md`, section 5), and each agent process
-  reads the pinned copy as it starts. Editing the file, or replacing the
-  program, changes what the worker's next start pins, never a running
-  worker's agents.
+  4), a file of smith's that temper writes at each worker's start, from
+  the figures its engine sent and what the machine found (`figures.md`,
+  section 6). No person writes it, and a worker's document names no
+  `agent`. The agent program is derived, in one of two forms:
+  - **the box's:** its own executable, with `["internal", "agent",
+    <the configuration's path>]`, so each agent process is `temper-box
+    internal agent AGENT.json` (../binaries.md);
+  - **a worker alone's:** `temper-agent` in its own executable's
+    directory (../binaries.md, 3), with `[<the configuration's path>]`,
+    so each agent process is `temper-agent AGENT.json`.
+- **Written once, pinned:** by the worker's start, `temper-box serve` or
+  `temper-worker serve`, which reads it back for smith's host limits,
+  the channel's limits and the agent's bounds, as jig's reference binary
+  reads it; the start pins those same bytes, with the program, in its
+  root (`../../domain/worker/README.md`, section 5), and each agent
+  process reads the pinned copy as it starts. Figures that change, or a
+  replaced program, change what the worker's next start pins, never a
+  running worker's agents.
 - **It holds no credential:** an agent's grants come over smith's
   channel (../credentials.md, section 3).
 - **A model's reasoning allowance,** its `reasoning_item` (smith's
@@ -415,15 +440,10 @@ stop timeout are unchanged.
   through a link at its name, or the start is refused, naming it
   (skein's `runtime/io/files.md`, 3). A linked parent is accepted. temper reads
   nothing inside it and creates no missing programs directory at serve.
-- **The same names as the engine's** (jig's `protocol/configuration.md`,
-  section 4), checked at start: every endpoint of `engine.llm`'s
-  providers must be in the agent's configuration under the same name,
-  every model a charter allows must be declared there, and every
-  program an LLM provider offers must be among the agent's `programs`,
-  or the start is refused, naming it. One process reads both, so a
-  mismatch that would fail every run's charter is caught before the
-  loop.
-- **The worker must fit the configured charters.** After those name checks,
+- **The same names as the engine's** hold by construction: the agent's
+  endpoints are `engine.llm`'s, under the same names (`figures.md`,
+  section 2), so no start compares them.
+- **The worker must fit the configured charters.** After the figures checks,
   startup builds jig's core configuration once, expands its instruction files,
   and projects its fleet needs with jig's `fleet_needs::configured`. The
   worker's bounds are its agent configuration's `bounds`, which its
@@ -439,7 +459,7 @@ stop timeout are unchanged.
 | File | Named by | Holds | Read by |
 |---|---|---|---|
 | an owned or fake forge's handover: its admin's token | `admin_token` in the forge's directory under data, named by its number, `forge-N` for an owned forge (../setup/README.md, section 3); named by no member | the token's bytes | the engine's setup host, once, at start or the box's `started` (../setup/owned.md, 5); a fake forge, before binding (../setup/playground.md) |
-| a worker's secret, its digest | jig's parts, data paths: `worker.secret` and `worker.digest` in the data directory as `temper-box init` writes them (../setup/init.md, 2) | jig's formats (jig's `protocol/configuration.md`, sections 6 and 9) | jig's components |
+| a worker's secret | jig's worker part, a data path: `worker.secret` in the data directory as `temper-box init` writes it (../setup/init.md, 2); its digest is the worker's setting's, no file (jig's `domain/engine/workers.md`, 1) | jig's formats (jig's `protocol/configuration.md`, sections 6 and 9) | jig's components |
 | Google's client secret | `application.sign_in.google.secret`, a data path | the secret's bytes | `temper-box serve`, once, at start, within `sign_in.secret_bytes` |
 | the OpenID provider's signing key, and each of its confidential clients' secrets | jig's `engine.clients.provider` (jig's `protocol/configuration.md`, section 3) | jig's formats: the key PKCS#8 PEM, made by `temper-box forge sign-in` (../setup/owned.md, 8) or a box's first run (`../openid-provider.md`, 9) | `temper-box serve`, once, at start, for jig's helper that builds the issuer (`../openid-provider.md`, 2) |
 | the scripted model's key | `application.demo.llm.key`, a data path: `demo/llm.key` as `temper-box init` writes it (../setup/init.md, 2) | the key's bytes | the fake LLM, at its start; `temper-box serve`, at the playground's start, which makes the scripted account with it (../setup/playground.md) |
@@ -719,7 +739,6 @@ not itself valid JSON):
     "charters": [{"number": 1, ...}, {"number": 2, ...}],
     "templates": [{"number": 1, ...}, {"number": 2, ...}],
     "hosts": {
-      "workers": [{"name": "worker", "digest": "worker.digest"}],
       "listener": [{"in_process": "workers"}]
     },
     "llm": ...,
@@ -730,24 +749,19 @@ not itself valid JSON):
   },
   "workers": [{
     "engine": {"in_process": "workers"},
-    "name": "worker",
+    "name": "local",
     "secret": "worker.secret",
     "slots": ..., "graces": ...,
     "programs": {"check_interval_ms": ...},
-    "agent": {
-      "program": "/usr/local/bin/temper",
-      "configuration": "/home/me/.config/temper/agent.json",
-      "arguments": ["internal", "agent", "/home/me/.config/temper/agent.json"]
-    },
-    "limits": {"profile": "small", "overrides": {"hub.event_bytes": ..., ...}},
     "memory_bytes": ...
   }],
   "application": { ... as above ... }
 }
 ```
 
-Its `engine.limits` names the overrides `limits.md` asks, and its worker's
-`limits` those the worker's check against the agent asks (`limits.md`).
+Its `engine.limits` names the overrides `limits.md` asks. The worker
+takes its limits and agent configuration from the engine's figures
+(`figures.md`), so its part names neither `limits` nor `agent`.
 The owned example, `docs/examples/owned.json`, is a whole document for
 one owned Forgejo's place, with its own values (../setup/init.md, 1).
 

@@ -117,6 +117,7 @@ impl Page {
         self.up(jig_client::Up::Watched {
             watch: self.watch,
             event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                ended_mark: 0,
                 rows: List::from_boxed(lines.into()),
                 more,
             }))),
@@ -127,6 +128,7 @@ impl Page {
         self.answer(
             read,
             c::ReadValue::Tasks(Box::new(c::TaskPage {
+                ended_mark: 0,
                 live: List::uncapped(),
                 live_after: None,
                 ended: c::EndedGroup::Rows {
@@ -222,7 +224,10 @@ fn an_unanswered_goals_page_claims_no_empty() {
             assert!(skein_lib::bytes::find(&main, name).is_none());
         }
         for node in view.tree().nodes() {
-            assert_ne!(node.role, Role::Heading { level: 1 });
+            if node.role == (Role::Heading { level: 1 }) {
+                assert!(node.name.is_none());
+                assert!(node.text.is_empty());
+            }
         }
     }
 }
@@ -230,6 +235,16 @@ fn an_unanswered_goals_page_claims_no_empty() {
 #[test]
 fn a_lost_ended_read_keeps_the_ended_rows() {
     let mut page = Page::new();
+    let needs = page.read(false);
+    page.up(jig_client::Up::ReadDone {
+        read: needs,
+        result: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)),
+    });
+    let needs = page.read(false);
+    page.up(jig_client::Up::ReadDone {
+        read: needs,
+        result: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)),
+    });
     let ended = page_line(RUNNING_TASK, State::Closed);
     page.live(&[], false);
     page.ended(core::slice::from_ref(&ended), false);

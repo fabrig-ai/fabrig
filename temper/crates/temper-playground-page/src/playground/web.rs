@@ -58,6 +58,9 @@ impl platform::Platform for World {
 
 impl ShellPlatform for World {
     type Timer = ();
+    fn read_on_exchange(&mut self, _exchange: u32) {
+        // The worker bridge reports pieced exchanges as failed (skein/docs/design/ui/web/README.md, 15).
+    }
     fn clocks(&self) -> (Time, Wall) {
         self.0.clocks()
     }

@@ -211,6 +211,7 @@ pub(super) fn after(holding: &mut Holding, repository: u32, step: Step, done: Do
             | Done::Rejected
             | Done::Results { .. }
             | Done::Paths { .. }
+            | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
@@ -269,11 +270,13 @@ pub(super) fn after(holding: &mut Holding, repository: u32, step: Step, done: Do
                         head: from,
                         pushed: None,
                         delivered: false,
+                        redeliver: false,
                         unchecked: false,
                         merging: None,
                         expected: None,
                         landing: None,
                         design_merged: None,
+                        caught_up: None,
                     })
                     .expect("one candidate repository");
                 next(repository, Step::Merge)
@@ -366,6 +369,7 @@ pub(super) fn after(holding: &mut Holding, repository: u32, step: Step, done: Do
         }
         Done::Results { .. }
         | Done::Paths { .. }
+        | Done::ParentUnreachable { .. }
         | Done::Looked { .. }
         | Done::IsAncestor { .. }
         | Done::Unchanged
@@ -505,6 +509,7 @@ pub(super) fn pushed(
             | Done::Rejected
             | Done::Results { .. }
             | Done::Paths { .. }
+            | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
@@ -554,6 +559,7 @@ pub(super) fn pushed(
             | Done::Unchanged
             | Done::Results { .. }
             | Done::Paths { .. }
+            | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
@@ -571,6 +577,9 @@ pub(super) fn pushed(
         | crate::Landing::DesignUnchecked
         | crate::Landing::Conflicted { .. }
         | crate::Landing::Explained { .. }
+        | crate::Landing::CaughtUp { .. }
+        | crate::Landing::CaughtUpConflict { .. }
+        | crate::Landing::CaughtUpSaved { .. }
         | crate::Landing::Moved
         | crate::Landing::Failed
         | crate::Landing::Refused

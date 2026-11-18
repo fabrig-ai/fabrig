@@ -39,6 +39,7 @@ mod finding;
 mod finish;
 mod follow;
 mod forge;
+mod forge_reads;
 mod json;
 pub mod kinds;
 mod nested;
@@ -53,8 +54,8 @@ mod start;
 pub mod wire;
 
 pub use answers::{
-    ForgeReadBounds, answer, answer_bounded, answer_for_decided, answer_for_job, answer_for_page, answer_for_task,
-    answer_for_tool, unasked_kind,
+    ForgeReadBounds, answer, answer_bounded, answer_for_decided, answer_for_job, answer_for_page, answer_for_read,
+    answer_for_task, answer_for_tool, unasked_kind,
 };
 pub use calls::{call, call_configured, call_in, tools};
 pub use contract::call_for_contract;

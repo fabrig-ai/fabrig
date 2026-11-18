@@ -2177,10 +2177,10 @@ static HOLDS: [Holds; samples::N] = [
             Part::Text { text: "Workshop" },
             Part::Text { text: "Finishing" },
             Part::Text { text: "Away" },
-            Part::Text { text: "2 slots · 1 in use" },
-            Part::Text { text: "Connected" },
+            Part::Text { text: "2 places · 1 run · in the box" },
+            Part::Named { role: Role::Text, name: "Up since" },
             Part::Text { text: "Draining" },
-            Part::Text { text: "Not connected" },
+            Part::Named { role: Role::Text, name: "Down since" },
         ],
     },
     Holds {
@@ -2188,7 +2188,7 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Where agents work.",
         parts: &[
             Part::Named { role: Role::Heading { level: 2 }, name: "Workers · 0" },
-            Part::Text { text: "No worker is connected." },
+            Part::Text { text: "No worker is added yet." },
         ],
     },
     Holds {
@@ -2538,7 +2538,10 @@ static HOLDS: [Holds; samples::N] = [
         name: "needs-held",
         heading: "Three things need you.",
         parts: &[
-            Part::Named { role: Role::Heading { level: 1 }, name: "first-run-projects" },
+            Part::Named {
+                role: Role::Heading { level: 1 },
+                name: "Without release the goal stops after they land, with the Ready page undone.",
+            },
             Part::Named { role: Role::Button, name: "Release" },
             Part::Named { role: Role::Disclosure, name: "Leave held" },
             Part::Named { role: Role::TextArea, name: "Reason" },

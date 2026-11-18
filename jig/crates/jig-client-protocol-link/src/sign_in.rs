@@ -3,7 +3,7 @@ use crate::{
     Link, Message, Request, Signing, With,
     component::{Attempt, ExchangeKind},
 };
-use jig_client_protocol_wire::v28 as w;
+use jig_client_protocol_wire as w;
 use skein_lib::{Queue, Reader, Secret, Token, Wall, Writer};
 impl Link {
     #[must_use]
@@ -97,6 +97,7 @@ impl Link {
             .insert(
                 exchange,
                 Attempt {
+                    parts: skein_lib::List::with_capacity(0),
                     held,
                     token: exchange,
                     owner: w::Owner::Jig,
@@ -105,7 +106,7 @@ impl Link {
                 },
             )
             .expect("checked exchange capacity");
-        self.emit_exchange(exchange, credential, message, out);
+        self.emit_exchange(exchange, credential, message);
     }
     pub(super) fn signing_answer(
         &mut self,
@@ -119,6 +120,7 @@ impl Link {
             ExchangeKind::SignOut { .. }
             | ExchangeKind::SignIn
             | ExchangeKind::SignInApproval
+            | ExchangeKind::LinkAsk
             | ExchangeKind::Approval(_)
             | ExchangeKind::Authorize
             | ExchangeKind::Attempt { .. }
@@ -166,7 +168,8 @@ impl Link {
                     Ok(_) | Err(_) => Signing::Lost,
                 },
                 ExchangeKind::SignInApproval => self.approval_signing_answer(&mut reader, out),
-                ExchangeKind::Approval(_)
+                ExchangeKind::LinkAsk
+                | ExchangeKind::Approval(_)
                 | ExchangeKind::Authorize
                 | ExchangeKind::Attempt { .. }
                 | ExchangeKind::Read { .. }
@@ -183,7 +186,8 @@ impl Link {
                 ExchangeKind::SignInApproval => {
                     tokens.push(*token).expect("bounded attempts");
                 }
-                ExchangeKind::Approval(_)
+                ExchangeKind::LinkAsk
+                | ExchangeKind::Approval(_)
                 | ExchangeKind::Authorize
                 | ExchangeKind::SignIn
                 | ExchangeKind::SignOut { .. }

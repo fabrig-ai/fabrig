@@ -177,7 +177,10 @@ fn project_domain(second: Option<c::PartyKind>) -> Domain {
             ways.encode(&mut writer).expect("ways bytes");
             let answer = w::SettingAnswer::new(
                 &w::CEILINGS,
-                w::SettingAnswerParts { value: if setting.kind() == 7 { Some(writer.finish()) } else { None } },
+                w::SettingAnswerParts {
+                    revision: None,
+                    value: if setting.kind() == 7 { Some(writer.finish()) } else { None },
+                },
             )
             .expect("answer");
             up(
@@ -353,13 +356,17 @@ fn a_live_standing_role_alone_puts_team_in_the_rail() {
     deliver(
         &mut root,
         watch,
-        c::Delivery::Tasks(Box::new(c::Tasks { rows: List::from_boxed(Box::new([role])), more: false })),
+        c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows: List::from_boxed(Box::new([role])), more: false })),
     );
     let facts = rail::facts(&root, OTHER, f::env(&f::limits()).wall);
     assert_eq!(facts.members, Some(1));
     assert_eq!(facts.standing_roles, Some(1));
     assert!(rail::parts(&facts).team, "one person and a live role show Team");
-    deliver(&mut root, watch, c::Delivery::Tasks(Box::new(c::Tasks { rows: List::with_capacity(0), more: false })));
+    deliver(
+        &mut root,
+        watch,
+        c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows: List::with_capacity(0), more: false })),
+    );
     assert!(!rail::parts(&rail::facts(&root, OTHER, f::env(&f::limits()).wall)).team);
     up(&mut root, Up::WatchEnded { watch, end: c::WatchEnd::Closed });
     assert_eq!(rail::facts(&root, OTHER, f::env(&f::limits()).wall).standing_roles, None);

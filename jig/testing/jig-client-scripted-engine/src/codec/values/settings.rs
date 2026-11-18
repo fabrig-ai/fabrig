@@ -49,6 +49,9 @@ pub(in crate::codec) fn wire_setting(value: &c::Setting, limits: &w::Limits) -> 
         c::Setting::Model(item) => {
             w::Setting::Model(w::SettingNumber::new(limits, w::SettingNumberParts { number: item.number })?)
         }
+        c::Setting::Worker(item) => {
+            w::Setting::Worker(w::SettingNumber::new(limits, w::SettingNumberParts { number: item.number })?)
+        }
         c::Setting::Rules => w::Setting::Rules,
         c::Setting::Limits => w::Setting::Limits,
         c::Setting::ProjectPolicy { project } => w::Setting::ProjectPolicy(w::ProjectPolicySetting::new(
@@ -154,6 +157,7 @@ pub(in crate::codec) fn wire_setting_value(
 ) -> Result<w::SettingValue, w::Problem> {
     Ok::<_, w::Problem>(match value {
         c::SettingValue::Model(value) => w::SettingValue::Model(Box::new(wire_catalogue(value, limits)?)),
+        c::SettingValue::Worker(value) => w::SettingValue::Worker(Box::new(wire_worker(value, limits)?)),
         c::SettingValue::Overlay(value) => w::SettingValue::Overlay(Box::new(wire_overlay(value, limits)?)),
         c::SettingValue::Charter(value) => w::SettingValue::Charter(Box::new(wire_charter(value, limits)?)),
         c::SettingValue::Template(value) => w::SettingValue::Template(Box::new(wire_template(value, limits)?)),
@@ -188,7 +192,12 @@ pub(in crate::codec) fn wire_charter(value: &c::Charter, limits: &w::Limits) -> 
                     },
                 )
             }))?,
-            skein_bools: [value.rest, value.resume, value.inspect, value.modify, value.shell, value.agents],
+            rest: value.rest,
+            resume: value.resume,
+            inspect: value.inspect,
+            modify: value.modify,
+            shell: value.shell,
+            agents: value.agents,
             number: value.number,
             instructions: bytes::copy_of(value.instructions.bytes()),
             waiting: value.waiting,
@@ -453,6 +462,7 @@ pub(in crate::codec) fn wire_setting_fault(
         c::SettingFault::Budget => w::SettingFault::Budget,
         c::SettingFault::Grace => w::SettingFault::Grace,
         c::SettingFault::Judged => w::SettingFault::Judged,
+        c::SettingFault::Linked => w::SettingFault::Linked,
         c::SettingFault::Owner => w::SettingFault::Owner,
     })
 }
@@ -725,4 +735,17 @@ fn wire_limits(values: &[c::Override], limits: &w::Limits) -> Result<w::LimitsVa
             .expect("override count");
     }
     w::LimitsValue::new(limits, w::LimitsValueParts { overrides })
+}
+
+fn wire_worker(value: &c::WorkerSetting, limits: &w::Limits) -> Result<w::WorkerSetting, w::Problem> {
+    w::WorkerSetting::new(
+        limits,
+        w::WorkerSettingParts {
+            number: value.number,
+            name: value.name.clone(),
+            places: value.places,
+            digest: value.digest,
+            withdrawn: value.withdrawn,
+        },
+    )
 }

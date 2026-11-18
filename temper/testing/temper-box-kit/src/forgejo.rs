@@ -405,8 +405,7 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>, value: &mut temper_pla
     }
     value["application"] = owned::application(&owned);
     value.temper_over("root.brief.gather_ms", BRIEF_GATHER_MS);
-    let path = directory.join("agent.json");
-    let mut agent: Value = serde_json::from_slice(&fs::read(&path).expect("agent configuration")).expect("agent JSON");
+    let mut agent = serde_json::from_slice(&super::configuration::documents(directory, "/fixture/temper").0).expect("agent JSON");
     temper_real_loop_world::settings::stage_policies(value);
     landing::configure(value, &mut agent, *api);
     value.as_object_mut().expect("deployment").remove("world_settings");
@@ -419,7 +418,7 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>, value: &mut temper_pla
     // The creation offer carries nine stock charters and four procedures.
     value.jig_over("documents.lines", 12);
     super::configuration::turn_bounds::apply(value, super::configuration::turn_bounds::turn_body(&agent));
-    write_private(&path, &serde_json::to_vec(&agent).expect("agent JSON"));
+    temper_agent_fixtures::apply(value, directory, &agent);
 }
 
 #[must_use]

@@ -1,8 +1,10 @@
 //! Version, bounds and total outcome round trips (client/forge/records.md).
+mod checkpoints;
 mod drafts;
 mod findings;
 mod fixtures;
 mod opened;
+mod parts;
 mod source;
 mod tiers;
 mod versions;
@@ -1045,24 +1047,16 @@ fn first_label_accepts_64_bytes_and_refuses_one_more() {
 }
 
 #[test]
-#[expect(clippy::disallowed_macros, reason = "committed wire goldens are test inputs")]
 fn landing_panels_round_trip_smallest_and_full_goldens() {
-    for bytes in [
-        include_bytes!("../golden/record_landing_panel_smallest.bin").as_slice(),
-        include_bytes!("../golden/record_landing_panel_full.bin").as_slice(),
-    ] {
+    for bytes in [golden("record_landing_panel_smallest.bin"), golden("record_landing_panel_full.bin")] {
         let panel = crate::decode_landing_panel(bytes, &v1::CEILINGS).expect("landing golden");
         assert_eq!(crate::landing_panel(&panel).as_ref(), bytes);
         assert_eq!(crate::decode_landing_panel(&fixtures::trailing(bytes), &v1::CEILINGS), None);
     }
 }
 #[test]
-#[expect(clippy::disallowed_macros, reason = "committed wire goldens are test inputs")]
 fn landings_panels_round_trip_smallest_and_full_goldens() {
-    for bytes in [
-        include_bytes!("../golden/record_landings_panel_smallest.bin").as_slice(),
-        include_bytes!("../golden/record_landings_panel_full.bin").as_slice(),
-    ] {
+    for bytes in [golden("record_landings_panel_smallest.bin"), golden("record_landings_panel_full.bin")] {
         let panel = crate::decode_landings_panel(bytes, &v1::CEILINGS).expect("landings golden");
         assert_eq!(crate::landings_panel(&panel).as_ref(), bytes);
         assert_eq!(crate::decode_landings_panel(&fixtures::trailing(bytes), &v1::CEILINGS), None);
@@ -1085,12 +1079,8 @@ fn landing_watches_round_trip_without_trailing_bytes() {
 }
 
 #[test]
-#[expect(clippy::disallowed_macros, reason = "committed wire goldens are test inputs")]
 fn changes_panel_round_trips() {
-    for bytes in [
-        include_bytes!("../golden/record_changes_panel_smallest.bin").as_slice(),
-        include_bytes!("../golden/record_changes_panel_full.bin").as_slice(),
-    ] {
+    for bytes in [golden("record_changes_panel_smallest.bin"), golden("record_changes_panel_full.bin")] {
         let panel = crate::decode_changes_panel(bytes, &v1::CEILINGS).expect("changes golden");
         assert_eq!(crate::changes_panel(&panel).as_ref(), bytes);
         assert_eq!(crate::decode_changes_panel(&fixtures::trailing(bytes), &v1::CEILINGS), None);
@@ -1098,7 +1088,6 @@ fn changes_panel_round_trips() {
 }
 
 #[test]
-#[expect(clippy::disallowed_macros, reason = "committed wire goldens are test inputs")]
 fn ways_panel_round_trips() {
     let limits = fixtures::limits();
     let subject = v1::WaysSubject::new(&limits, v1::WaysSubjectParts { project: 1 }).expect("project");
@@ -1119,15 +1108,15 @@ fn ways_panel_round_trips() {
         let mut reader = Reader::new(&bytes);
         assert_eq!(v1::ProjectWords::decode(&limits, &mut reader), Ok(words.clone()));
         assert!(reader.is_empty());
-        let panel = crate::decode_ways_panel(include_bytes!("../golden/record_ways_panel_smallest.bin"), &limits)
-            .expect("smallest ways panel");
+        let panel =
+            crate::decode_ways_panel(golden("record_ways_panel_smallest.bin"), &limits).expect("smallest ways panel");
         let panel = v1::WaysPanel::new(&limits, v1::WaysPanelParts { words: Some(words), ..panel.into_parts() })
             .expect("ways panel with project words");
         let bytes = crate::ways_panel(&panel);
         assert_eq!(crate::decode_ways_panel(&bytes, &limits), Some(panel));
         assert_eq!(crate::decode_ways_panel(&fixtures::trailing(&bytes), &limits), None);
     }
-    let panel = crate::decode_ways_panel(include_bytes!("../golden/record_ways_panel_full.bin"), &limits).unwrap();
+    let panel = crate::decode_ways_panel(golden("record_ways_panel_full.bin"), &limits).unwrap();
     let mut parts = panel.into_parts();
     let mut way = parts.ways.get(0).unwrap().clone().into_parts();
     let item = way.items.get(0).unwrap().clone();
@@ -1160,10 +1149,7 @@ fn ways_panel_round_trips() {
     receiving = limits;
     receiving.way_role_words = 479;
     assert_eq!(crate::decode_ways_panel(&bytes, &receiving), None);
-    for bytes in [
-        include_bytes!("../golden/record_ways_panel_smallest.bin").as_slice(),
-        include_bytes!("../golden/record_ways_panel_full.bin").as_slice(),
-    ] {
+    for bytes in [golden("record_ways_panel_smallest.bin"), golden("record_ways_panel_full.bin")] {
         let record = crate::decode_ways_panel(bytes, &v1::CEILINGS).expect("ways_panel golden");
         assert_eq!(crate::ways_panel(&record).as_ref(), bytes);
         assert_eq!(crate::decode_ways_panel(&fixtures::trailing(bytes), &v1::CEILINGS), None);
@@ -1171,11 +1157,9 @@ fn ways_panel_round_trips() {
 }
 
 #[test]
-#[expect(clippy::disallowed_macros, reason = "committed wire golden supplies the panel without rules")]
 fn ways_path_rules_accept_every_bound_and_refuse_one_past() {
     let limits = fixtures::limits();
-    let base = crate::decode_ways_panel(include_bytes!("../golden/record_ways_panel_smallest.bin"), &limits)
-        .expect("smallest panel");
+    let base = crate::decode_ways_panel(golden("record_ways_panel_smallest.bin"), &limits).expect("smallest panel");
     // At every bound together, then one past each bound independently.
     for (rows, paths, review, sign_off, lands, note, refused) in [
         (9, 256, 64, 64, 64, 160, None),
@@ -1215,7 +1199,6 @@ fn ways_path_rules_accept_every_bound_and_refuse_one_past() {
 }
 
 #[test]
-#[expect(clippy::disallowed_macros, reason = "committed wire goldens are test inputs")]
 fn view_answer_round_trips() {
     let limits = fixtures::limits();
     let view = v1::ViewRead::new(&limits, v1::ViewReadParts { project: 1, address: b"way Quick".as_slice().into() })
@@ -1224,10 +1207,7 @@ fn view_answer_round_trips() {
     let bytes = crate::reading(&read);
     assert_eq!(crate::decode_reading(&bytes, &limits), Some(read));
     assert_eq!(crate::decode_reading(&fixtures::trailing(&bytes), &limits), None);
-    for bytes in [
-        include_bytes!("../golden/record_view_answer_smallest.bin").as_slice(),
-        include_bytes!("../golden/record_view_answer_full.bin").as_slice(),
-    ] {
+    for bytes in [golden("record_view_answer_smallest.bin"), golden("record_view_answer_full.bin")] {
         let record = crate::decode_view_answer(bytes, &v1::CEILINGS).expect("view_answer golden");
         assert_eq!(crate::view_answer(&record).as_ref(), bytes);
         assert_eq!(crate::decode_view_answer(&fixtures::trailing(bytes), &v1::CEILINGS), None);
@@ -1235,12 +1215,8 @@ fn view_answer_round_trips() {
 }
 
 #[test]
-#[expect(clippy::disallowed_macros, reason = "committed wire goldens are test inputs")]
 fn project_status_round_trips_and_refuses_trailing_bytes() {
-    for bytes in [
-        include_bytes!("../golden/record_project_status_smallest.bin").as_slice(),
-        include_bytes!("../golden/record_project_status_full.bin").as_slice(),
-    ] {
+    for bytes in [golden("record_project_status_smallest.bin"), golden("record_project_status_full.bin")] {
         let status = crate::decode_project_status(bytes, &v1::CEILINGS).expect("project status golden");
         assert_eq!(crate::project_status(&status).as_ref(), bytes);
         assert_eq!(crate::decode_project_status(&fixtures::trailing(bytes), &v1::CEILINGS), None);
@@ -1578,8 +1554,11 @@ fn settings_reads_and_answers_require_one_complete_bounded_record() {
         assert_eq!(wire::decode_reading(&bytes, &w::CEILINGS), Some(record));
         assert!(wire::decode_reading(&bytes[..bytes.len() - 1], &w::CEILINGS).is_none());
     }
-    let record =
-        w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(Box::new([6, 0, 0, 0])) }).unwrap();
+    let record = w::SettingAnswer::new(
+        &w::CEILINGS,
+        w::SettingAnswerParts { revision: None, value: Some(Box::new([6, 0, 0, 0])) },
+    )
+    .unwrap();
     let bytes = wire::setting_answer(&record);
     assert_eq!(wire::decode_setting_answer(&bytes, &w::CEILINGS), Some(record));
     let mut limits = w::CEILINGS;
@@ -1819,12 +1798,8 @@ fn setup_first_choices_round_trip_in_requests_and_rows() {
 }
 
 #[test]
-#[expect(clippy::disallowed_macros, reason = "committed wire goldens are test inputs")]
 fn aways_round_trip_and_refuse_trailing_bytes() {
-    for bytes in [
-        include_bytes!("../golden/record_aways_smallest.bin").as_slice(),
-        include_bytes!("../golden/record_aways_full.bin").as_slice(),
-    ] {
+    for bytes in [golden("record_aways_smallest.bin"), golden("record_aways_full.bin")] {
         let record = crate::decode_aways(bytes, &v1::CEILINGS).expect("aways golden");
         assert_eq!(crate::aways(&record).as_ref(), bytes);
         assert_eq!(crate::decode_aways(&fixtures::trailing(bytes), &v1::CEILINGS), None);
@@ -1832,12 +1807,8 @@ fn aways_round_trip_and_refuse_trailing_bytes() {
 }
 
 #[test]
-#[expect(clippy::disallowed_macros, reason = "committed wire goldens are test inputs")]
 fn decisions_round_trip_and_refuse_trailing_bytes() {
-    for bytes in [
-        include_bytes!("../golden/record_decisions_smallest.bin").as_slice(),
-        include_bytes!("../golden/record_decisions_full.bin").as_slice(),
-    ] {
+    for bytes in [golden("record_decisions_smallest.bin"), golden("record_decisions_full.bin")] {
         let record = crate::decode_decisions(bytes, &v1::CEILINGS).expect("decisions golden");
         assert_eq!(crate::decisions(&record).as_ref(), bytes);
         assert_eq!(crate::decode_decisions(&fixtures::trailing(bytes), &v1::CEILINGS), None);
@@ -2069,7 +2040,14 @@ fn trial_rows_round_trip_each_step_state_and_failure() {
             for (task, took) in [(None, None), (Some(u64::MAX), Some(u32::MAX))] {
                 let row = v1::TrialRow::new(
                     &limits,
-                    v1::TrialRowParts { account: u32::MAX, task, took, step: step.clone(), state: state.clone() },
+                    v1::TrialRowParts {
+                        run_wait: None,
+                        account: u32::MAX,
+                        task,
+                        took,
+                        step: step.clone(),
+                        state: state.clone(),
+                    },
                 )
                 .unwrap();
                 let mut rows = List::with_capacity(1);
@@ -2297,4 +2275,21 @@ fn device_records_append_without_renumbering_and_refuse_trailing_bytes() {
             None::<u8>
         );
     }
+}
+
+#[expect(clippy::disallowed_macros, reason = "fixed-rule test values are built from the embedded family text")]
+fn golden(name: &str) -> &'static [u8] {
+    static VALUES: std::sync::OnceLock<Box<[skein_codegen::Golden]>> = std::sync::OnceLock::new();
+    let values = VALUES.get_or_init(|| {
+        skein_codegen::goldens(
+            &skein_codegen::parse(include_str!("../schema/client-wire-v1.schema")).expect("client schema"),
+        )
+        .into_boxed_slice()
+    });
+    for value in values.as_ref() {
+        if value.name == name {
+            return &value.bytes;
+        }
+    }
+    panic!("missing fixed-rule value: {name}")
 }

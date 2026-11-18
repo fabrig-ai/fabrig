@@ -53,9 +53,7 @@ pub(crate) fn text(
             None => out.put(b"none"),
         }
         out.put(b"\n");
-        if call.tool != crate::jig::rows::SETTING_AT
-            || crate::jig::call::number(call, if call.form == 2 || call.form == 7 { 3 } else { 2 }).is_none()
-        {
+        if call.tool != crate::jig::rows::SETTING_AT || crate::jig::settings_file::revision(call).is_none() {
             settings_form::render::stock_text(&a::form_read_value(value), out);
         }
         if let c::Setting::Application { kind: 9, .. } = document.setting

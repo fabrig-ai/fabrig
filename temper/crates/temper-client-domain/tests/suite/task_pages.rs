@@ -110,7 +110,7 @@ mod tests {
     fn document() -> c::Task {
         let mut parts = jig_client_test_records::task_record().into_parts();
         parts.chip = jig_client_test_records::owner_waiting_chip_record();
-        let record = jig_client_protocol_wire::v28::Task::new(&jig_client_protocol_wire::v28::CEILINGS, parts)
+        let record = jig_client_protocol_wire::Task::new(&jig_client_protocol_wire::CEILINGS, parts)
             .expect("checked task record");
         let limits = domain_limits();
         let link =
@@ -174,11 +174,10 @@ mod tests {
         }
         let mut task_watch = None;
         let mut tree_watch = None;
-        let mut me_watch = None;
+        let me_watch = Token::new(0);
         for request in &requests {
             if let jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(subject) } = request {
                 match subject {
-                    c::Subject::Me => me_watch = Some(*watch),
                     c::Subject::Task { task: TASK } => task_watch = Some(*watch),
                     c::Subject::Tree { .. } => tree_watch = Some(*watch),
                     _ => (),
@@ -186,7 +185,7 @@ mod tests {
             }
         }
         let mut after = requests.split_off(before_sign_in);
-        after.extend(deliver(&mut root, me_watch.expect("Me watch"), c::Delivery::Me(Box::new(fixture_me(b"Shop")))));
+        after.extend(deliver(&mut root, me_watch, c::Delivery::Me(Box::new(fixture_me(b"Shop")))));
         let task_watch = task_watch.expect("task watch");
         after.extend(deliver(&mut root, task_watch, c::Delivery::Task(Box::new(document.clone()))));
         let tree_watch = tree_watch.expect("tree watch");

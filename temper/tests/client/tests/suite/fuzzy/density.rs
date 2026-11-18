@@ -66,6 +66,7 @@ impl World {
                         self.pending.push(Up::Watched {
                             watch: *watch,
                             event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                                ended_mark: 0,
                                 rows: List::with_capacity(0),
                                 more: false,
                             }))),
@@ -126,6 +127,9 @@ impl World {
     }
 
     fn watch(&self, subject: &Watchable) -> Option<Token> {
+        if *subject == Watchable::Jig(c::Subject::Me) {
+            return Some(Token::new(0));
+        }
         self.watches.iter().rev().find_map(|(watch, held)| (held == subject).then_some(*watch))
     }
 
@@ -376,6 +380,7 @@ impl World {
             }
             c::Read::Task { task } => c::ReadValue::Task(Box::new(task_document(*task, 1))),
             c::Read::Tasks { .. } => c::ReadValue::Tasks(Box::new(c::TaskPage {
+                ended_mark: 0,
                 live: List::with_capacity(0),
                 live_after: None,
                 ended: c::EndedGroup::None,
@@ -406,8 +411,11 @@ impl World {
             return Some(Readout::Family {
                 family: wire::FORGE,
                 record: Some(wire::setting_answer(
-                    &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(writer.finish()) })
-                        .expect("bounded density fixture"),
+                    &w::SettingAnswer::new(
+                        &w::CEILINGS,
+                        w::SettingAnswerParts { revision: None, value: Some(writer.finish()) },
+                    )
+                    .expect("bounded density fixture"),
                 )),
             });
         }

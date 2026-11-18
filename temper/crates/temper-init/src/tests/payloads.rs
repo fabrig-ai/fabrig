@@ -57,7 +57,10 @@ fn stock_and_reference_profiles_accept_a_4487_byte_design_edit() {
     // The reference overlays engine settings and limits, retaining the stock agent.
     // Check the owned profile too: init adds its scripted model to this profile.
     let replacement = "d".repeat(EDIT_BYTES);
-    for document in [parse(content(&generated, b"agent.json")), parse(fixtures::AGENT)] {
+    for document in [
+        temper_agent_fixtures::configuration(&parse(content(&generated, b"temper.json"))),
+        temper_agent_fixtures::configuration(&parse(fixtures::OWNED)),
+    ] {
         let mut world = edit_world(document, &replacement);
         world.run(10_000);
         for prompt in world.prompts() {

@@ -521,6 +521,11 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             stopping::empty()
         }
         Event::Stopping => stopping::start(core, env),
+        Event::Parts { connector, token, parts } => crate::reads::parts::answered(core, env, connector, token, parts),
+        Event::PartsMarked { connector, tasks } => {
+            view::part_marks::records(core, connector, &tasks);
+            stopping::empty()
+        }
         Event::Marked { connector, subjects } => view::routes::marked(core, connector, subjects),
         Event::Act { reply_to, connector, key, act, carried } => {
             party::deployment_acts::start(core, env, work, reply_to, people::ActKey { connector, key }, act, carried)
@@ -563,7 +568,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             })));
             out
         }
-        Event::SignIn { reply_to, identity, held } => sign_in(core, env, work, reply_to, identity, held),
+        Event::SignIn { until, reply_to, identity, held } => sign_in(core, env, work, reply_to, identity, held, until),
         Event::ReadLoaded { load, result } => crate::reads::loaded(core, env, work, load, result),
         Event::PublicRead { reply, read } => crate::public::reads::start(core, reply, read),
         Event::PublicAnswered { reply, answer } => crate::public::reads::answered(core, reply, answer),
@@ -650,6 +655,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             saved,
             invalid_saved,
             unusable_history,
+            untooled,
             read,
             refused,
         } => route_answer_payload(
@@ -658,7 +664,17 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             work,
             run,
             attempt,
-            run::payloads::Answer { payload, cumulative, end, saved, invalid_saved, unusable_history, read, refused },
+            run::payloads::Answer {
+                payload,
+                cumulative,
+                end,
+                saved,
+                invalid_saved,
+                unusable_history,
+                untooled,
+                read,
+                refused,
+            },
         ),
         Event::AcceptedTurn { task, attempt, turn, accepted, cumulative, read, transcript, opens_window } => {
             let record = crate::TurnRecord {

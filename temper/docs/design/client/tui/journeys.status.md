@@ -6,6 +6,8 @@
   change 3431].
 - **Not yet:** 3.2: no start facts `set-up` and `box-log` [in flight:
   change 3434].
+- **Not yet:** 8.2: `again` gives the box, the page and the TUI no fixed
+  start [in flight: change 7722].
 
 - **Departs:** 7, 8: `design-session`, `launchpad-chat`, `launchpad-drawn`
   and `sign-in-approved` are stale. Their recordings predate the client
@@ -33,6 +35,8 @@
   `tui-box-front` deferral: the journey is recorded once `again` can start
   the box in the pseudo-terminal. `box-claude-sign-in` waits with it, for
   the same reason.
+
+
 
 - **Not yet:** 9's `role-talk`: recorded once T3 has landed, its fake model scripting a standing role's replies and its rule question, owned by temper/tui (`../../draft/whole-story.execution.md`, T3).
 

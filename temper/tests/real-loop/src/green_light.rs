@@ -369,7 +369,7 @@ fn check_review(ran: &Ran) {
         assert!(brief[pull_at..].contains(&words), "review includes {words}: {brief}");
     }
     let calls = tool_calls(reviewed);
-    assert_eq!(calls[0].0, "read_pull");
+    assert_eq!(calls[0].0, "read_issues");
     assert_eq!(calls[0].1["number"], number);
     assert!(
         heard_tool(reviewed, &format!("Pull {number} head {} commit {head}", String::from_utf8_lossy(&branches.head))),

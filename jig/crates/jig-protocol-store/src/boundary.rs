@@ -6,15 +6,29 @@ use skein_io::file;
 use skein_io::kernel::Fd;
 use skein_lib::{Queue, Secret, Token};
 
+/// How far a scratch start runs (protocol/store/opening.md, 5).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Reach {
+    Whole,
+    Openings,
+}
+
 /// What the engine's protocol layer asks of the component. Each request but
 /// `Commit` names its asker's token; each has one terminal event.
 #[derive(Debug)]
 pub enum Request {
+    /// Take a serving checkpoint at its ordered cut (protocol/store/checkpoints.md, 3).
+    Checkpoint { owner: Token, draw: [u8; 16] },
+    /// Hold a checkpoint's directory lock until Close (checkpoints.md, 6).
+    HoldCheckpoint { owner: Token, root: Root, name: crate::CheckpointName },
+    /// Remove a checkpoint under its lock, without opening the deployment.
+    RemoveCheckpoint { owner: Token, root: Root, name: crate::CheckpointName },
     /// Rehearse a stopped deployment over a caller-owned scratch root (opening.md 5).
-    Rehearse { owner: Token, directory: Root, scratch: Root, installation: [u8; 16] },
+    Rehearse { owner: Token, directory: Root, scratch: Root, installation: [u8; 16], reach: Reach },
     /// Name the previous generation again, before the active one's first own commit.
     Back { owner: Token, root: Root },
-    /// End a rehearsal in any state and empty its scratch root.
+    /// End a rehearsal and empty its scratch root, close a checkpoint-only open,
+    /// or release this owner's checkpoint reader lock.
     Close { owner: Token },
     /// Open both stores in the deployment's directory (protocol/store/opening.md); the
     /// component's own rows and the core's header are checked before
@@ -22,7 +36,7 @@ pub enum Request {
     /// `installation` is the identifier the shell drew for this start
     /// (configuration.md 7): an empty store keeps it in its first commit; a
     /// store that holds one answers its own instead.
-    Open { owner: Token, root: Root, installation: [u8; 16] },
+    Open { owner: Token, root: Root, installation: [u8; 16], purpose: Purpose },
     /// Activate the copy opened pending, once every earlier commit is durable
     /// (protocol/store/opening.md 2, step 7). Once, after `Opened`; terminal `Switched` or `OpenRefused`.
     Switch { owner: Token },
@@ -46,6 +60,20 @@ pub enum Request {
     Secrets { owner: Token, request: Secrets },
     /// A written site's answer (protocol/store/opening.md 3), with its machine handed back.
     Site { owner: Token, patcher: Box<skein_codec::patch::Patcher>, result: Result<(), skein_codec::patch::Halt> },
+}
+
+/// Whether open may upgrade or make a deployment (protocol/store/checkpoints.md, 5).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Purpose {
+    Serve,
+    Checkpoint,
+}
+
+/// Why a stopped deployment cannot be checkpointed by this build (checkpoints.md, 5).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Unready {
+    Empty,
+    Upgrade,
 }
 
 /// One write of a commit (protocol/store/README.md 5).
@@ -304,6 +332,8 @@ impl Check {
 /// Why a store refuses to open, saying which (protocol/store/records.md, 3, protocol/store/README.md, 5, protocol/store/opening.md).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum OpenRefusal {
+    /// This open would make or upgrade a deployment (checkpoints.md, 5).
+    Unready { why: Unready },
     /// A held layout cannot be read by this binary (protocol/store/layouts.md, 5.3).
     Layout { family: Box<str>, value_type: u16, id: u16, values: Option<u64>, why: Unplanned },
     /// The format row names another version of `family`.
@@ -428,6 +458,14 @@ impl OpenRefusal {
     #[expect(clippy::too_many_lines, reason = "one match keeps every open refusal's operator instructions together")]
     pub fn words(&self) -> &'static [&'static str] {
         match self {
+            Self::Unready { why: Unready::Empty } => &[
+                "",
+                " holds no deployment to take a checkpoint of: no `active` names a generation, and nothing in it has changed.",
+            ],
+            Self::Unready { why: Unready::Upgrade } => &[
+                "The store in ",
+                " needs an upgrade before it serves, so this build takes no checkpoint of it, and nothing in it has changed. Take it with the build that served it, or start this build, which upgrades it, and take one while it serves.",
+            ],
             Self::Format { family, .. } => family.version_words(),
             Self::Deployment => &[
                 "The store in ",
@@ -533,6 +571,21 @@ impl OpenRefusal {
                 " holds generations that no `active` names, and this start has changed nothing in it. Name one again from a backup of ",
                 ", or write `active` to name the generation under `generations/` to open, and start again.",
             ],
+            Self::Generations { why: Generations::Unmatched } => &[
+                "",
+                " holds an unfinished restore whose files no longer match its intent, `restore`, and this start has changed nothing in it. Something outside the engine changed them: restore ",
+                " from a backup, or copy one of its checkpoints into place, and start again.",
+            ],
+            Self::Generations { why: Generations::Unfinished } => &[
+                "",
+                " holds a restore that has not finished, and this rehearsal has changed nothing in it. Start the deployment, or take a checkpoint of it, which finishes the restore, then rehearse again.",
+            ],
+            Self::Generations { why: Generations::Checkpoints } => &[
+                "",
+                " holds checkpoints but no `active` names a generation, and this start has changed nothing in it. Restore ",
+                " from a backup or from one of its checkpoints, or, to start afresh, move `checkpoints/` out of ",
+                ", and start again.",
+            ],
         }
     }
 }
@@ -561,6 +614,12 @@ pub enum Generations {
     Unreadable,
     /// Generations stand that no active names, beyond a cut first start.
     Unnamed,
+    /// Checkpoints stand but no active names a generation.
+    Checkpoints,
+    /// An outstanding restore no longer matches its files.
+    Unmatched,
+    /// A rehearsal cannot finish an outstanding restore.
+    Unfinished,
     /// The active generation's maps do not both stand as directories.
     Missing { generation: u64 },
 }
@@ -617,6 +676,28 @@ pub enum CommitCheck {
 /// What the component answers.
 #[derive(Debug)]
 pub enum Event {
+    Restored {
+        owner: Token,
+        restored: Restored,
+    },
+    RestoreRefused {
+        owner: Token,
+        why: RestoreRefusal,
+    },
+    Checkpointed {
+        owner: Token,
+        checkpoint: Checkpointed,
+    },
+    CheckpointHeld {
+        owner: Token,
+    },
+    CheckpointRemoved {
+        owner: Token,
+    },
+    CheckpointRefused {
+        owner: Token,
+        why: CheckpointRefusal,
+    },
     Rehearsing {
         owner: Token,
         wires: Option<Box<[KeptWire]>>,
@@ -842,12 +923,119 @@ pub struct Root {
     pub fd: Fd,
 }
 
+/// The result of taking a checkpoint (protocol/store/checkpoints.md, 3).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Checkpointed {
+    pub name: crate::CheckpointName,
+    pub secrets: u64,
+    pub linked: u32,
+    pub copied: u32,
+    pub bytes: u64,
+    pub paused: u64,
+    pub took: u64,
+    pub held: u64,
+    pub removed: u32,
+    pub skipped: u32,
+}
+
+/// Checkpoint refusals do not stop the serving store (protocol/store/checkpoints.md, 3).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum CheckpointRefusal {
+    InProgress,
+    Unavailable,
+    Files,
+    Unrecognized { path: Box<str> },
+    Vanished { path: Box<str> },
+    Failed { path: Box<str>, error: skein_io::kernel::Error },
+    InUse,
+    Missing,
+}
+impl CheckpointRefusal {
+    #[must_use]
+    pub fn words(&self) -> Box<str> {
+        match self {
+            Self::InProgress => Box::from("checkpoint in progress"),
+            Self::Unavailable => Box::from("the store is not serving"),
+            Self::Files => Box::from("more than 65536 files to take"),
+            Self::Unrecognized { path } => {
+                alloc::fmt::format(format_args!("an unrecognized file, {path}")).into_boxed_str()
+            }
+            Self::Vanished { path } => {
+                alloc::fmt::format(format_args!("a selected file vanished, {path}")).into_boxed_str()
+            }
+            Self::Failed { path, error } => {
+                alloc::fmt::format(format_args!("a file failed, {path}: {error:?}")).into_boxed_str()
+            }
+            Self::InUse => Box::from("in use: its lock is held"),
+            Self::Missing => Box::from("no such checkpoint"),
+        }
+    }
+}
+
+/// A stopped deployment restored from a checkpoint (protocol/store/restoring.md, 3).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Restored {
+    pub name: crate::CheckpointName,
+    pub safety: crate::CheckpointName,
+    pub generation: u64,
+    pub linked: u32,
+    pub copied: u32,
+    pub bytes: u64,
+    pub took: u64,
+}
+
+/// A restore's terminal refusal (protocol/store/restoring.md, 3).
+#[derive(Debug)]
+pub enum RestoreRefusal {
+    Busy,
+    Source { why: CheckpointRefusal },
+    Unreadable { path: Box<str> },
+    Deployment,
+    Open { why: OpenRefusal },
+    Safety { why: CheckpointRefusal },
+    Staging { safety: crate::CheckpointName, path: Box<str>, error: Option<skein_io::kernel::Error> },
+    Interrupted { safety: crate::CheckpointName, path: Box<str>, error: skein_io::kernel::Error },
+}
+impl RestoreRefusal {
+    #[must_use]
+    pub fn words(&self) -> Box<str> {
+        match self {
+            Self::Busy => Box::from("the deployment is in use by another process"),
+            Self::Source { why } => why.words(),
+            Self::Unreadable { path } => {
+                alloc::fmt::format(format_args!("the checkpoint's record can't be read, {path}")).into_boxed_str()
+            }
+            Self::Deployment => Box::from("the checkpoint is another deployment's"),
+            Self::Open { .. } => Box::from("the deployment does not open"),
+            Self::Safety { why } => {
+                alloc::fmt::format(format_args!("the safety checkpoint was refused: {}", why.words())).into_boxed_str()
+            }
+            Self::Staging { safety, path, error } => {
+                let failure = match error {
+                    Some(error) => alloc::fmt::format(format_args!("{path}: {error:?}")),
+                    None => alloc::fmt::format(format_args!("{path} is shorter than its record says")),
+                };
+                let safety = crate::checkpoints::files::text(&safety.bytes());
+                alloc::fmt::format(format_args!(
+                    "staging failed, {failure}, and nothing live changed; the safety checkpoint is {safety}"
+                ))
+                .into_boxed_str()
+            }
+            Self::Interrupted { safety, path, error } => {
+                let safety = crate::checkpoints::files::text(&safety.bytes());
+                alloc::fmt::format(format_args!("interrupted after its intent, {path}: {error:?}; the next start finishes the restore; the safety checkpoint is {safety}")).into_boxed_str()
+            }
+        }
+    }
+}
+
 /// Independent file drivers (protocol/store/README.md, section 8).
 #[derive(Debug)]
 pub struct Below {
     pub store: Queue<file::Request>,
     pub secrets: Queue<file::Request>,
     pub transcripts: Queue<file::Request>,
+    pub checkpoints: Queue<file::Request>,
 }
 
 /// A file terminal and its descriptor, read by the service alone.
@@ -862,4 +1050,5 @@ pub enum Io {
     Store(Arrived),
     Secrets(Arrived),
     Transcripts(Arrived),
+    Checkpoints(Arrived),
 }

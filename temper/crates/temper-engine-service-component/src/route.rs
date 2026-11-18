@@ -145,6 +145,10 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
                     }
                     None
                 }
+                root::PartyRequest::Deliver(root::Delivery::WorkerFigures { agents, revision }) => {
+                    engine.workers.figures(engine.env.now, &agents, revision, &mut engine.events);
+                    None
+                }
                 root::PartyRequest::Deliver(root::Delivery::PlaygroundNote { line }) => {
                     engine.notes.push(crate::Note::Playground { line });
                     None
@@ -308,6 +312,13 @@ fn store(engine: &mut Engine, request: root::StoreRequest) {
 
 fn worker(engine: &mut Engine, request: root::WorkerRequest) {
     match request {
+        root::WorkerRequest::Settings(workers) => {
+            engine.workers.down(
+                engine.env.now,
+                jig_protocol_engine_workers::Event::Workers(workers),
+                &mut engine.events,
+            );
+        }
         root::WorkerRequest::Host(request) => host_request(engine, *request),
         root::WorkerRequest::ReadResult { payload, outcome } => {
             let change = match engine.domain.change_resource(payload) {
@@ -318,90 +329,96 @@ fn worker(engine: &mut Engine, request: root::WorkerRequest) {
             };
             engine.events.push(crate::tools::result(payload, &outcome, change));
         }
-        root::WorkerRequest::Deliver(delivery) => match delivery {
-            root::Delivery::AssignedJob { channel, job, workspace } => {
-                let (run, attempt) = (job.run, job.attempt);
-                match job_assignment(engine, channel, job, workspace.as_ref()) {
-                    Some(event) => engine.workers.down(engine.env.now, event, &mut engine.events),
-                    None => engine.events.push(root::Event::Worker(root::WorkerInput::Link {
-                        channel,
-                        link: root::Link::Up {
-                            up: jig_domain_host::LinkUp::JobAnswer {
-                                run,
-                                attempt,
-                                answer: jig_domain_host::JobEnding::Refused(jig_domain_host::JobRefusal::Invalid(
-                                    jig_domain_host::JobInvalid::Start {
-                                        why: b"assignment cannot encode".as_slice().into(),
-                                    },
-                                )),
-                            },
-                            parts: root::Parts::none(),
-                        },
-                    })),
-                }
-            }
-            root::Delivery::Assigned { channel, assignment } => {
-                // Take the restored deployment id, as the forge binds it at restore (domain/root.md, 8.1).
-                engine.workers.encoding.deployment = engine.domain.deployment().id;
-                engine.workers.assignment(engine.env.now, channel, assignment, &engine.values, &mut engine.events);
-            }
-            root::Delivery::Link { channel, down } => {
-                // Includes addressed retryable capacity refusals, without a retained call flight.
-                engine.workers.send(engine.env.now, channel, down, &engine.values, &mut engine.events);
-            }
-            root::Delivery::TurnBusy { channel, task, attempt, turn } => engine.workers.down(
-                engine.env.now,
-                jig_protocol_engine_workers::Event::TurnBusy {
+        root::WorkerRequest::Deliver(delivery) => worker_delivery(engine, delivery),
+    }
+}
+
+fn worker_delivery(engine: &mut Engine, delivery: root::Delivery) {
+    match delivery {
+        root::Delivery::AssignedJob { channel, job, workspace } => {
+            let (run, attempt) = (job.run, job.attempt);
+            match job_assignment(engine, channel, job, workspace.as_ref()) {
+                Some(event) => engine.workers.down(engine.env.now, event, &mut engine.events),
+                None => engine.events.push(root::Event::Worker(root::WorkerInput::Link {
                     channel,
-                    run: skein_lib::Token::new(task),
-                    attempt: skein_lib::Token::new(attempt),
-                    turn,
-                },
-                &mut engine.events,
-            ),
-            root::Delivery::Refuse { channel, hello } => {
-                let event = refuse(engine, channel, hello);
-                engine.workers.down(engine.env.now, event, &mut engine.events);
+                    link: root::Link::Up {
+                        up: jig_domain_host::LinkUp::JobAnswer {
+                            run,
+                            attempt,
+                            answer: jig_domain_host::JobEnding::Refused(jig_domain_host::JobRefusal::Invalid(
+                                jig_domain_host::JobInvalid::Start {
+                                    why: b"assignment cannot encode".as_slice().into(),
+                                },
+                            )),
+                        },
+                        parts: root::Parts::none(),
+                    },
+                })),
             }
-            root::Delivery::Host(delivery) => host_delivery(engine, *delivery),
-            root::Delivery::Push(_)
-            | root::Delivery::PlaygroundNote { .. }
-            | root::Delivery::Procedure { .. }
-            | root::Delivery::Application { .. }
-            | root::Delivery::Forges { .. }
-            | root::Delivery::ForgeDocument { .. }
-            | root::Delivery::Trials { .. }
-            | root::Delivery::Ways { .. }
-            | root::Delivery::Approvals { .. }
-            | root::Delivery::Panel { .. }
-            | root::Delivery::Public { .. }
-            | root::Delivery::WebReply { .. }
-            | root::Delivery::CarriedUnused { .. }
-            | root::Delivery::ForgeRead { .. }
-            | root::Delivery::Read { .. }
-            | root::Delivery::Document { .. }
-            | root::Delivery::WatchEnded { .. }
-            | root::Delivery::SourceSignedOut { .. }
-            | root::Delivery::Result { .. }
-            | root::Delivery::ProjectMade { .. }
-            | root::Delivery::ProjectReleased { .. }
-            | root::Delivery::MoveStanding { .. }
-            | root::Delivery::FindingsOwned { .. }
-            | root::Delivery::ForgeCommitted { .. }
-            | root::Delivery::ForgeCall { .. }
-            | root::Delivery::Bound { .. }
-            | root::Delivery::Relay { .. }
-            | root::Delivery::ReadEscalationDecision { .. }
-            | root::Delivery::Fleet(_)
-            | root::Delivery::ReadLoad { .. }
-            | root::Delivery::PublicWait { .. }
-            | root::Delivery::NotesLoad { .. }
-            | root::Delivery::Start(_)
-            | root::Delivery::Load { .. }
-            | root::Delivery::Restarting { .. }
-            | root::Delivery::LimitSettingsCommitted { .. }
-            | root::Delivery::Drained => stop::unavailable(engine, b"workers"),
-        },
+        }
+        root::Delivery::Assigned { channel, assignment } => {
+            // Take the restored deployment id, as the forge binds it at restore (domain/root.md, 8.1).
+            engine.workers.encoding.deployment = engine.domain.deployment().id;
+            engine.workers.assignment(engine.env.now, channel, assignment, &engine.values, &mut engine.events);
+        }
+        root::Delivery::Link { channel, down } => {
+            // Includes addressed retryable capacity refusals, without a retained call flight.
+            engine.workers.send(engine.env.now, channel, down, &engine.values, &mut engine.events);
+        }
+        root::Delivery::TurnBusy { channel, task, attempt, turn } => engine.workers.down(
+            engine.env.now,
+            jig_protocol_engine_workers::Event::TurnBusy {
+                channel,
+                run: skein_lib::Token::new(task),
+                attempt: skein_lib::Token::new(attempt),
+                turn,
+            },
+            &mut engine.events,
+        ),
+        root::Delivery::Refuse { channel, hello } => {
+            let event = refuse(engine, channel, hello);
+            engine.workers.down(engine.env.now, event, &mut engine.events);
+        }
+        root::Delivery::Host(delivery) => host_delivery(engine, *delivery),
+        root::Delivery::Push(_)
+        | root::Delivery::WorkerFigures { .. }
+        | root::Delivery::LimitSettingsCommitted { .. }
+        | root::Delivery::PlaygroundNote { .. }
+        | root::Delivery::Procedure { .. }
+        | root::Delivery::Application { .. }
+        | root::Delivery::Forges { .. }
+        | root::Delivery::ForgeDocument { .. }
+        | root::Delivery::Trials { .. }
+        | root::Delivery::Ways { .. }
+        | root::Delivery::Approvals { .. }
+        | root::Delivery::Panel { .. }
+        | root::Delivery::Public { .. }
+        | root::Delivery::WebReply { .. }
+        | root::Delivery::CarriedUnused { .. }
+        | root::Delivery::ForgeRead { .. }
+        | root::Delivery::Read { .. }
+        | root::Delivery::Document { .. }
+        | root::Delivery::WatchEnded { .. }
+        | root::Delivery::SourceSignedOut { .. }
+        | root::Delivery::Result { .. }
+        | root::Delivery::ProjectMade { .. }
+        | root::Delivery::ProjectReleased { .. }
+        | root::Delivery::MoveStanding { .. }
+        | root::Delivery::FindingsOwned { .. }
+        | root::Delivery::ForgeCommitted { .. }
+        | root::Delivery::ForgeCall { .. }
+        | root::Delivery::Bound { .. }
+        | root::Delivery::Relay { .. }
+        | root::Delivery::ReadEscalationDecision { .. }
+        | root::Delivery::Fleet(_)
+        | root::Delivery::PartLoad { .. }
+        | root::Delivery::ReadLoad { .. }
+        | root::Delivery::PublicWait { .. }
+        | root::Delivery::NotesLoad { .. }
+        | root::Delivery::Start(_)
+        | root::Delivery::Load { .. }
+        | root::Delivery::Restarting { .. }
+        | root::Delivery::Drained => stop::unavailable(engine, b"workers"),
     }
 }
 
@@ -412,8 +429,8 @@ fn host_request(engine: &mut Engine, request: root::HostRequest) {
             let answer = match crate::translate::ask(&bytes, limits) {
                 Some(ask) => {
                     let answer = match ask {
-                        root::wire::Ask::Reds => {
-                            root::wire::answer(&engine.domain, run.raw(), attempt.raw(), root::wire::Ask::Reds)
+                        ask @ (root::wire::Ask::Reds | root::wire::Ask::Landed { .. }) => {
+                            root::wire::answer(&engine.domain, run.raw(), attempt.raw(), ask)
                         }
                         root::wire::Ask::Results(results) => {
                             engine.events.push(root::Event::Worker(root::WorkerInput::CheckResults {
@@ -517,8 +534,8 @@ fn host_delivery(engine: &mut Engine, delivery: root::HostDelivery) {
                 answer: jig_domain_core::SettledAnswer::Host { error, body },
             }));
         }
-        root::HostDelivery::Render { to, answer, tool, key, job, page, ask, .. } => {
-            render_host(engine, to, &answer, &tool, key, job, page, ask);
+        root::HostDelivery::Render { to, answer, tool, key, read, job, page, ask, .. } => {
+            render_host(engine, to, &answer, &tool, key, read.as_deref(), job, page, ask);
         }
         root::HostDelivery::Answer { channel, task, attempt, name, call } => engine.workers.send(
             engine.env.now,
@@ -542,27 +559,24 @@ fn render_host(
     answer: &root::CallAnswer,
     tool: &[u8],
     key: jig_domain_core::CallKey,
+    read: Option<&skein_forge::api::Read>,
     job: Option<skein_forge::api::JobAttempt>,
     page: Option<(u32, u32)>,
     ask: root::AskHow,
 ) {
     let bytes =
         engine.env.limits.call_answer_bytes.saturating_sub(u32::try_from(tool.len()).expect("bounded tool name"));
-    engine.events.push(crate::tools::render_for_task_page(
-        to,
-        answer,
-        tool,
-        bytes,
-        key.task,
-        engine.domain.reply_bound(key).unwrap_or(u32::MAX),
-        temper_engine_smith::ForgeReadBounds {
-            rows: engine.env.limits.forge.client.rows,
-            answer_bytes: engine.env.limits.forge.client.answer_bytes,
-        },
-        job,
-        page,
-        ask,
-    ));
+    let forge = temper_engine_smith::ForgeReadBounds {
+        rows: engine.env.limits.forge.client.rows,
+        answer_bytes: engine.env.limits.forge.client.answer_bytes,
+    };
+    let receiving = engine.domain.reply_bound(key).unwrap_or(u32::MAX);
+    let event = if let Some(read) = read {
+        crate::tools::render_read(to, answer, read, bytes.min(receiving), forge)
+    } else {
+        crate::tools::render_for_task_page(to, answer, tool, bytes, key.task, receiving, forge, job, page, ask)
+    };
+    engine.events.push(event);
     if let Some(reason) = temper_engine_smith::unasked_kind(answer) {
         engine.notes.push(crate::Note::ReadRefused {
             task: key.task,

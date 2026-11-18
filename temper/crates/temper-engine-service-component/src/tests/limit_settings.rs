@@ -111,7 +111,7 @@ fn changed(jig: Box<[s::Override]>, temper: Box<[s::Override]>) -> Box<[jig_prot
     let value = f::Value::Limits(temper);
     let size = temper_engine_smith::kinds::size(&value);
     let row = forge::Stored::Setting(f::SettingRow {
-        key: f::SettingKey { kind: 21, scope: 0, number: 1, slot: f::SettingSlot::Change },
+        key: f::SettingKey { kind: 22, scope: 0, number: 1, slot: f::SettingSlot::Change },
         edit: f::Edit::Set(f::SizedValue { value, size }),
     });
     Box::new([

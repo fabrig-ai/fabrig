@@ -41,6 +41,49 @@ impl Tier {
         task.len() == 8 && lowercase_hex(task) && commit.len() == 7 && lowercase_hex(commit)
     }
 
+    /// Read every task row's phase, separator and time in the layout story's text.
+    #[must_use]
+    pub fn public_task_lines_read(shown: &[&str]) -> bool {
+        let mut rows = 0;
+        let mut words = shown.iter().copied().peekable();
+        while let Some(name) = words.next() {
+            let Some(id) = name.strip_prefix("Goal ").or_else(|| name.strip_prefix("task ")) else { continue };
+            // A row's identity is followed by its title, unlike the heading,
+            // lineage links and queue members (client/web/public.md, 3).
+            if id.len() != 8 || !lowercase_hex(id) || words.peek() != Some(&" ") {
+                continue;
+            }
+            words.next();
+            if words.next().is_none() {
+                return false;
+            }
+            if words.peek() == Some(&"…") {
+                words.next();
+            }
+            let Some(mut phase) = words.next() else { return false };
+            if ["an agent", "a procedure", "a person", "a job"].contains(&phase) {
+                if words.next() != Some(" · ") {
+                    return false;
+                }
+                let Some(word) = words.next() else { return false };
+                phase = word;
+            }
+            let ended = ENDED_PHASES.contains(&phase);
+            if !ended && !LIVE_PHASES.contains(&phase) {
+                return false;
+            }
+            if words.next() != Some(" · ") {
+                return false;
+            }
+            let Some(time) = words.next() else { return false };
+            if !(if ended { ago_form(time) } else { time.starts_with("for ") }) {
+                return false;
+            }
+            rows += 1;
+        }
+        rows > 0
+    }
+
     /// The public demo's scripted goal with a supplied title for responsive layout stories.
     #[must_use]
     pub fn public_demo_title(name: &str, title: &str) -> Self {
@@ -62,7 +105,7 @@ impl Tier {
     pub fn public_demo(name: &str) -> Self {
         let scratch = skein_scratch::Scratch::new(name);
         configuration::public_demo(scratch.path(), &temper(), &bundle());
-        Self { scratch, forged: forgery::request(), command: "" }
+        Self { scratch, forged: forgery::request() }
     }
 }
 
@@ -70,9 +113,123 @@ fn lowercase_hex(digits: &str) -> bool {
     digits.bytes().all(|digit| digit.is_ascii_digit() || (b'a'..=b'f').contains(&digit))
 }
 
+// Public rows use full units, then calendar words for older endings (client/web/public.md, 3).
+// These are the reader's literals, independent of the view's time formatter.
+const AGO_FORMS: &[&str] = &[
+    "just now",
+    "a minute ago",
+    "N minutes ago",
+    "an hour ago",
+    "N hours ago",
+    "an hour a minute ago",
+    "an hour N minutes ago",
+    "N hours a minute ago",
+    "N hours N minutes ago",
+    "at HH:MM",
+    "yesterday",
+    "Sun",
+    "Mon",
+    "Tue",
+    "Wed",
+    "Thu",
+    "Fri",
+    "Sat",
+    "N MONTH",
+    "N MONTH N",
+];
+const ENDED_PHASES: &[&str] = &["landed", "done", "failed", "ended"];
+const LIVE_PHASES: &[&str] = &[
+    "waiting",
+    "running",
+    "active",
+    "preparing",
+    "held",
+    "waiting for news",
+    "due to run",
+    "preparing a host",
+    "claimed by a host",
+    "executor active",
+    "retrying",
+    "closing",
+];
+
+fn ago_form(time: &str) -> bool {
+    AGO_FORMS.iter().any(|form| {
+        let mut words = time.split(' ');
+        let fits = form.split(' ').all(|part| {
+            let Some(word) = words.next() else { return false };
+            match part {
+                "N" => !word.is_empty() && word.bytes().all(|byte| byte.is_ascii_digit()),
+                "HH:MM" => word.split_once(':').is_some_and(|(hour, minute)| {
+                    hour.len() == 2
+                        && minute.len() == 2
+                        && hour.bytes().chain(minute.bytes()).all(|byte| byte.is_ascii_digit())
+                        && hour.parse::<u8>().is_ok_and(|hour| hour < 24)
+                        && minute.parse::<u8>().is_ok_and(|minute| minute < 60)
+                }),
+                "MONTH" => [
+                    "January",
+                    "February",
+                    "March",
+                    "April",
+                    "May",
+                    "June",
+                    "July",
+                    "August",
+                    "September",
+                    "October",
+                    "November",
+                    "December",
+                ]
+                .contains(&word),
+                literal => word == literal,
+            }
+        });
+        fits && words.next().is_none()
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use crate::Tier;
+
+    #[test]
+    fn a_task_phase_is_read_in_its_row_not_the_changes_step() {
+        let mut shown = vec![
+            "Goal e78b5cff",
+            "Goal e78b5cff",
+            " ",
+            "Export widget's table as CSV…",
+            "a procedure",
+            " · ",
+            "landed",
+            " · ",
+            "just now",
+            " · ",
+            "20 spent",
+            "task 9e5605aa",
+            " ",
+            "Write the CSV export",
+            "done",
+            " · ",
+            "just now",
+            "landed",
+            "CI at its head",
+            " · ",
+            "Passed",
+        ];
+        assert!(Tier::public_task_lines_read(&shown), "the change's landed step is not a task phase");
+        for (at, invalid) in [(7, ""), (8, "for a minute"), (14, "unknown"), (15, ""), (16, "")] {
+            let original = std::mem::replace(&mut shown[at], invalid);
+            assert!(!Tier::public_task_lines_read(&shown), "task fact {at} must still be checked");
+            shown[at] = original;
+        }
+        shown[6] = "running";
+        shown[8] = "for a minute";
+        assert!(Tier::public_task_lines_read(&shown));
+        shown[8] = "just now";
+        assert!(!Tier::public_task_lines_read(&shown), "a live row needs its duration, not an ending time");
+    }
 
     const LANDINGS_PAGES: &[(&str, bool)] = &[
         ("temperLandingsNo landings to show yet.", false),

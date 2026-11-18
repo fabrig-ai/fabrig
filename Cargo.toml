@@ -318,9 +318,12 @@ members = [
     "temper/crates/temper-fake-git",
     "temper/crates/temper-fake-git-hosted",
     "temper/testing/temper-github-app",
+    "temper/testing/temper-process-guard",
     "temper/testing/temper-box-kit",
     "temper/testing/temper-fixtures",
     "temper/testing/temper-limits-fixtures",
+    "temper/testing/temper-agent-fixtures",
+    "temper/testing/temper-landing-fixtures",
     "temper/testing/temper-test-env",
     "temper/crates/temper-box-shell",
     "temper/bin/temper-box",
@@ -391,6 +394,7 @@ members = [
     "temper/crates/temper-charter-set",
     "temper/crates/temper-engine-domain",
     "temper/crates/temper-engine-domain-calendar",
+    "temper/crates/temper-engine-domain-room",
     "temper/crates/temper-engine-domain-trials",
     "temper/crates/temper-engine-smith",
     "temper/bin/temper-engine",
@@ -704,9 +708,12 @@ temper-docs = { path = "temper/crates/temper-docs" }
 temper-github-app = { path = "temper/testing/temper-github-app" }
 temper-test-env = { path = "temper/testing/temper-test-env" }
 temper-box-kit = { path = "temper/testing/temper-box-kit" }
+temper-process-guard = { path = "temper/testing/temper-process-guard" }
 temper-limits-fixtures = { path = "temper/testing/temper-limits-fixtures" }
 jig-protocol-config-fixtures = { path = "jig/testing/jig-protocol-config-fixtures" }
 temper-fixtures = { path = "temper/testing/temper-fixtures" }
+temper-agent-fixtures = { path = "temper/testing/temper-agent-fixtures" }
+temper-landing-fixtures = { path = "temper/testing/temper-landing-fixtures" }
 temper-fake = { path = "temper/crates/temper-fake" }
 temper-playground = { path = "temper/crates/temper-playground" }
 temper-playground-serve-tool = { path = "temper/crates/temper-playground-serve-tool" }
@@ -775,6 +782,7 @@ temper-protocol-brief = { path = "temper/crates/temper-protocol-brief" }
 temper-charter-set = { path = "temper/crates/temper-charter-set" }
 temper-engine-domain = { path = "temper/crates/temper-engine-domain" }
 temper-engine-domain-calendar = { path = "temper/crates/temper-engine-domain-calendar" }
+temper-engine-domain-room = { path = "temper/crates/temper-engine-domain-room" }
 temper-engine-domain-trials = { path = "temper/crates/temper-engine-domain-trials" }
 temper-engine-shell = { path = "temper/crates/temper-engine-shell" }
 temper-worker-shell = { path = "temper/crates/temper-worker-shell" }

@@ -2,7 +2,7 @@
 
 2026-11-12. Where the design lags or departs from [record-anywhere.md](record-anywhere.md).
 
-- **Design lags:** none: sections 2 to 5 are designed in `../client/web/README.md`, 2.1 and 2.2; `../client/web/journeys.md`, 3.1, 3.5, 3.6 and 3.8; `../protocol/sign-in.md`, 7; and `../protocol/binaries.md`, the forms and `temper-box serve`'s `--record`.
+- **Design lags:** none: sections 2 to 5 are designed in `../client/web/README.md`, 2.1 and 2.2; `../client/web/journeys.md`, 3.1 and 3.5 and `../client/web/journey-redaction.md` and `../client/web/journeys.md`, 3.8; `../protocol/sign-in.md`, 7; and `../protocol/binaries.md`, the forms and `temper-box serve`'s `--record`.
 - **Design departs:**
   - 3: "every page the deployment serves" records but the public pages (`../client/web/public.md`): they start no client host, whose seam the recorder keeps (`../client/web/journeys.md`, 3.1), as they record nothing by the address's setting today. The goal's designer's reading, 2026-11-12.
   - 3: `--record` is also taken by `temper-box`'s internal forms, the fake backends' and `--front`, so that `temper box --record` passes it, and by `temper-box internal serve --box`, which the box gives it to; a worker alone, serving no page, takes it and changes nothing (`../protocol/binaries.md`). The goal's designer's reading, 2026-11-12.

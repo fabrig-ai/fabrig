@@ -602,6 +602,10 @@ pub fn result_event(domain: &Link, payload: Token, end: tasks::End) -> Option<co
             Ending::Link(ending) => payload::unusable_history(ending),
             Ending::Scripted(_) | Ending::Job(_) => false,
         },
+        untooled: match retained {
+            Ending::Link(host::Ending::Failed { failure: host::Failure::Run(host::RunFailure::Untooled), .. }) => true,
+            Ending::Link(_) | Ending::Scripted(_) | Ending::Job(_) => false,
+        },
         read: *read,
         refused: refused.clone(),
     })

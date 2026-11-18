@@ -28,9 +28,8 @@ fn roles_fixture() -> (Host, Duties) {
     let (mut host, _, mut duties) = signed_host(true);
     let mut watched = None;
     for _ in 0..host.env.limits.client.domain.watches {
-        for request in &duties.asked {
-            if let Request::Exchange { message: Message::Watch(bytes), .. } = request {
-                let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).unwrap();
+        for open in all_openings(&duties) {
+            {
                 if open.subject().owner() != &w::Owner::Jig {
                     continue;
                 }
@@ -59,7 +58,9 @@ fn roles_fixture() -> (Host, Duties) {
     let line = w::TaskLine::new(&w::CEILINGS, line).unwrap();
     let mut writer = Writer::new(usize::try_from(line.measure()).unwrap());
     line.encode(&mut writer).unwrap();
-    let tasks = w::Tasks::new(&w::CEILINGS, w::TasksParts { rows: pieces(&[writer.finish()]), more: false }).unwrap();
+    let tasks =
+        w::Tasks::new(&w::CEILINGS, w::TasksParts { ended_mark: 0, rows: pieces(&[writer.finish()]), more: false })
+            .unwrap();
     let arrived = delivery(&mut host, watched.expect("roles watch"), &w::DeliveryValue::Tasks(tasks));
     duties.asked.extend(admit(&mut host, arrived).asked);
     (host, duties)
@@ -152,7 +153,7 @@ fn talk_setup(open: bool, cost: bool, choices: bool, proposed: bool) -> (Host, D
     };
     if choices {
         use smith_transcript as s;
-        let mut turn = s::decode_archived(&s::CEILINGS, records::FULL_TURN).unwrap().into_parts();
+        let mut turn = s::decode_archived(&s::CEILINGS, &records::full_turn()).unwrap().into_parts();
         let text = s::Block::Text(s::Text::new(&s::CEILINGS, s::TextParts { text: "Add it to my rules?\n\n1. Yes, add it — it applies from my next run\n2. Just for this port\n3. Tell it something else".as_bytes().into(), replay: None }).unwrap());
         turn.messages = List::from_boxed(Box::new([s::Message::new(
             &s::CEILINGS,
@@ -195,7 +196,7 @@ fn talk_setup(open: bool, cost: bool, choices: bool, proposed: bool) -> (Host, D
         read_reply(&mut host, read, &w::ReadValue::Activity(w::ActivityPage::new(&w::CEILINGS, page).unwrap())).asked,
     );
     duties.asked.retain(
-        |request| matches!(request, Request::Exchange { exchange, message: Message::Read(_), .. } if *exchange != read),
+        |request| matches!(request, Request::Exchange { exchange, message: Message::Read(_), .. } if *exchange != read.exchange),
     );
     history.asked.extend(admit(&mut host, duties).asked);
     host.clocks(host.env.now, Wall::from_nanos(9 * MINUTE));
@@ -328,12 +329,9 @@ fn a_roles_choices_send_talk_words_and_accept_confirms_the_proposal_in_place() {
 fn telling_on_a_roles_talk_files_in_its_area() {
     use temper_client_protocol_wire::{self as wire, v1 as f};
     let (mut host, duties) = talk_setup(true, false, false, false);
-    let watched = duties
-        .asked
-        .iter()
-        .find_map(|request| {
-            let Request::Exchange { message: Message::Watch(bytes), .. } = request else { return None };
-            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).unwrap();
+    let watched = all_openings(&duties)
+        .into_iter()
+        .find_map(|open| {
             if open.subject().owner() == &w::Owner::Jig {
                 return None;
             }

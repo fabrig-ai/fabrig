@@ -24,9 +24,6 @@ const ENGINE: &[u8] = br#"{
 }]
 },
 "hosts": {
-"workers": [
-{"name": "worker-a", "digest": "secrets/worker-a.digest"}
-],
 "listener": [{"socket": "127.0.0.1:7200"}]
 },
 "charters": [{

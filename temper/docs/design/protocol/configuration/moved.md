@@ -71,7 +71,10 @@ worker's two itself:
   whose git is a fake finds it first on its `PATH`.
 - **`application.workers` goes whole:** with `root` and `git` constant,
   an entry has no member left, so the list is refused as a moved member
-  is.
+  is. An entry's `environment` is `application.environment`, the
+  agents' environment, its entries unchanged (`README.md`, section 3);
+  its `claude` is the one found on the worker's `PATH`, or fetched
+  (`figures.md`, section 6).
 
 ## 3. The table
 

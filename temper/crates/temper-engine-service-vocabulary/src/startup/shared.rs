@@ -1,7 +1,7 @@
 //! Shared startup diagnostics (protocol/services.md, 4.2).
 use alloc::boxed::Box;
 use jig_domain_link::Problem;
-use jig_protocol_config::{self as config, Path, Segment};
+use jig_protocol_config::{self as config, Path};
 use skein_lib::{Decimal, Writer};
 use temper_service_core::startup::problems::put;
 
@@ -78,11 +78,9 @@ pub fn admission(
 /// Translate the kit's configured membership refusal into its startup path.
 #[must_use]
 pub fn membership(problem: Problem) -> (Path, config::What) {
-    let hosts = Path::root().member(b"engine").member(b"hosts").member(b"workers");
+    let limits = Path::root().member(b"engine").member(b"limits").member(b"overrides");
     match problem {
-        Problem::Workers { .. } => (hosts, config::What::Bound),
-        Problem::WorkerName { worker, .. } => {
-            (hosts.child(Segment::Index(worker)).member(b"name"), config::What::Bound)
-        }
+        Problem::Workers { .. } => (limits.member(b"fleet.configured_workers"), config::What::Bound),
+        Problem::WorkerName { .. } => (limits.member(b"fleet.worker_name_bytes"), config::What::Bound),
     }
 }

@@ -11,6 +11,7 @@ mod overrides;
 pub use overrides::{OVERRIDE_NAME_BYTES, OVERRIDE_REASON_BYTES, OVERRIDES, Override, OverrideFault, check_overrides};
 pub mod revisions;
 pub mod templates;
+pub mod workers;
 use crate::{Charter, ConfiguredPolicy, Template};
 use alloc::boxed::Box;
 pub use application::{Kind, KindScope};
@@ -23,6 +24,7 @@ pub use models::{model_bit, moves, remap};
 pub use overlays::{Overlay, overlaid};
 pub use revisions::history_copy;
 use skein_lib::{List, Map, Wall};
+pub use workers::WorkerSetting;
 
 pub use people::{Running, Setting, SettingFault as Fault};
 /// A party's setting value (jig/docs/design/domain/engine/settings.md, 1, 5).
@@ -35,6 +37,7 @@ pub enum Value {
     Rules(Box<authority::Rules>),
     Limits(Box<[Override]>),
     Model(Box<CatalogueModel>),
+    Worker(Box<WorkerSetting>),
     Application(Box<[u8]>),
 }
 impl Value {
@@ -42,7 +45,16 @@ impl Value {
     pub fn as_limits(&self) -> Option<&[Override]> {
         match self {
             Self::Limits(value) => Some(value),
-            Self::Charter(_)
+            Self::Charter(_) | Self::Overlay(_) | Self::Template(_) | Self::Policy(_) | Self::Rules(_)
+            | Self::Model(_) | Self::Worker(_) | Self::Application(_) => None,
+        }
+    }
+    #[must_use]
+    pub fn as_worker(&self) -> Option<&WorkerSetting> {
+        match self {
+            Self::Worker(value) => Some(value),
+            Self::Limits(_)
+            | Self::Charter(_)
             | Self::Overlay(_)
             | Self::Template(_)
             | Self::Policy(_)
@@ -61,6 +73,7 @@ impl Value {
             | Self::Policy(_)
             | Self::Rules(_)
             | Self::Limits(_)
+            | Self::Worker(_)
             | Self::Application(_) => None,
         }
     }
@@ -74,6 +87,7 @@ impl Value {
             | Self::Rules(_)
             | Self::Limits(_)
             | Self::Model(_)
+            | Self::Worker(_)
             | Self::Application(_) => None,
         }
     }
@@ -87,6 +101,7 @@ impl Value {
             | Self::Rules(_)
             | Self::Limits(_)
             | Self::Model(_)
+            | Self::Worker(_)
             | Self::Application(_) => None,
         }
     }
@@ -100,6 +115,7 @@ impl Value {
             | Self::Rules(_)
             | Self::Limits(_)
             | Self::Model(_)
+            | Self::Worker(_)
             | Self::Application(_) => None,
         }
     }
@@ -113,6 +129,7 @@ impl Value {
             | Self::Policy(_)
             | Self::Model(_)
             | Self::Limits(_)
+            | Self::Worker(_)
             | Self::Application(_) => None,
         }
     }
@@ -125,6 +142,7 @@ pub struct Defaults {
     pub rules: authority::Rules,
     pub limits: Box<[Override]>,
     pub models: Box<[CatalogueModel]>,
+    pub workers: Box<[WorkerSetting]>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Default {
@@ -176,6 +194,7 @@ fn proposal_projects(items: &[Item], applications: &[application::Recorded]) -> 
             | Setting::Charter(_)
             | Setting::Template(_)
             | Setting::Policy(_)
+            | Setting::Worker(_)
             | Setting::Model(_)
             | Setting::Rules
             | Setting::Limits => continue,
@@ -319,6 +338,12 @@ impl Current {
     #[must_use]
     pub fn new(mut defaults: Defaults, limits: &crate::Limits, kinds: &[Kind]) -> Self {
         let mut values = Map::with_capacity(capacity(limits).expect("settings count"));
+        for worker in defaults.workers {
+            let previous = values
+                .insert(Setting::Worker(worker.number), Default { value: Value::Worker(Box::new(worker)), revision: 1 })
+                .expect("default worker bound");
+            assert!(previous.is_none(), "unique default worker");
+        }
         for model in defaults.models {
             let previous = values
                 .insert(Setting::Model(model.number), Default { value: Value::Model(Box::new(model)), revision: 1 })
@@ -428,6 +453,7 @@ impl Current {
             | Value::Policy(_)
             | Value::Rules(_)
             | Value::Limits(_)
+            | Value::Worker(_)
             | Value::Model(_)
             | Value::Application(_) => None,
         }
@@ -442,6 +468,7 @@ impl Current {
                 | Value::Policy(_)
                 | Value::Rules(_)
                 | Value::Limits(_)
+                | Value::Worker(_)
                 | Value::Model(_)
                 | Value::Application(_),
             )
@@ -472,6 +499,7 @@ impl Current {
                 | Value::Overlay(_)
                 | Value::Template(_)
                 | Value::Policy(_)
+                | Value::Worker(_)
                 | Value::Model(_)
                 | Value::Limits(_)
                 | Value::Application(_),
@@ -511,6 +539,7 @@ impl Current {
                 Setting::Charter(number) => numbers.push(number).expect("offered charter count"),
                 Setting::Template(_)
                 | Setting::Policy(_)
+                | Setting::Worker(_)
                 | Setting::Model(_)
                 | Setting::Rules
                 | Setting::Limits
@@ -529,6 +558,7 @@ impl Current {
                 Setting::Template(number) => numbers.push(number).expect("offered template count"),
                 Setting::Charter(_)
                 | Setting::Policy(_)
+                | Setting::Worker(_)
                 | Setting::Model(_)
                 | Setting::Rules
                 | Setting::Limits
@@ -547,7 +577,8 @@ pub fn capacity(limits: &crate::Limits) -> Option<u32> {
         .checked_add(limits.templates)?
         .checked_add(limits.authority.projects)?
         .checked_add(2)?
-        .checked_add(jig_domain_tasks::MODELS)
+        .checked_add(jig_domain_tasks::MODELS)?
+        .checked_add(limits.fleet.configured_workers)
 }
 fn offered(defaults: &Map<Setting, Default>, changes: &Map<Setting, Changed>) -> List<Setting> {
     let mut names =
@@ -638,7 +669,10 @@ pub fn set_bound(limits: &crate::Limits) -> Option<u64> {
         )?
         .checked_add(authority::rules_bound(&limits.authority)?)?
         .checked_add(u64::try_from(size_of::<authority::Rules>()).ok()?)?
-        .checked_add(u64::from(jig_domain_tasks::MODELS).checked_mul(catalogue::bound()?)?)
+        .checked_add(u64::from(jig_domain_tasks::MODELS).checked_mul(catalogue::bound()?)?)?
+        .checked_add(u64::from(limits.fleet.configured_workers).checked_mul(
+            u64::try_from(size_of::<WorkerSetting>()).ok()?.checked_add(u64::from(limits.fleet.worker_name_bytes))?,
+        )?)
 }
 /// Current settings own two set overlays and one resolved charter set (domain/engine/settings.md, 8).
 #[must_use]
@@ -711,6 +745,7 @@ pub fn proposal_heads(items: &[Item]) -> Box<[jig_domain_tasks::SettingHead]> {
                     Setting::Rules => jig_domain_tasks::Setting::Rules,
                     Setting::Limits => jig_domain_tasks::Setting::Limits,
                     Setting::Model(n) => jig_domain_tasks::Setting::Model(n),
+                    Setting::Worker(n) => jig_domain_tasks::Setting::Worker(n),
                     Setting::Application { .. } | Setting::ProjectPolicy { .. } => continue,
                 },
                 edit: match item.edit {
@@ -744,6 +779,7 @@ pub fn is_project_policy(setting: Setting) -> bool {
         Setting::Charter(_)
         | Setting::Template(_)
         | Setting::Policy(_)
+        | Setting::Worker(_)
         | Setting::Model(_)
         | Setting::Rules
         | Setting::Limits

@@ -26,9 +26,18 @@ Generated from temper-engine's table (`skein/docs/design/runtime/shell.md`, 14.3
 - **Set:** public
 - **Forms:** `[DIRECTORIES] DIRECTORY`
 - Rehearses an upgrade over a copy; switches nothing.
-- **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.; `DIRECTORY`: A stopped deployment's data directory or a copy of one; never written.
+- **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.; `DIRECTORY`: A stopped deployment's data directory, a checkpoint of a serving deployment, or a copy of one; never written.
 - **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`
 - **Notes:** Uses the configuration serve would read and a scratch copy under the cache directory. Reports the jobs it ran, restores, elapsed time and whether workers may stay. What follows the switch is not rehearsed. Exit 0 when its jobs and restores pass, 1 when a start would be refused.
+
+### `temper-engine upgrade --workers`
+
+- **Set:** public
+- **Forms:** `[DIRECTORIES] DIRECTORY`
+- Judges the workers alone over a copy; switches nothing.
+- **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.; `DIRECTORY`: A stopped deployment's data directory, a checkpoint of a serving deployment, or a copy of one; never written.
+- **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`
+- **Notes:** Uses the configuration serve would read and a scratch copy under the cache directory. Recovers the maps without task logs and prints only the workers' verdict, with no record decoded, level checked, plan, job or restore run. Exit 0 for yes, no or unknown; 1 on an opening refusal. Takes only DIRECTORY's lock, never the serving deployment's when reading a checkpoint; writes nothing under --data before the rehearsal.
 
 ### `temper-engine upgrade --back`
 
@@ -38,6 +47,24 @@ Generated from temper-engine's table (`skein/docs/design/runtime/shell.md`, 14.3
 - **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 - **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`
 - **Notes:** Stop the deployment first, then start the old binary after going back. Past the patched generation's first commit, going back is restoring a backup.
+
+### `temper-engine checkpoint`
+
+- **Set:** public
+- **Forms:** `[DIRECTORIES]`, `--hold NAME [DIRECTORIES] -- COMMAND [ARGUMENT...]`, `--remove NAME [DIRECTORIES]`
+- takes a checkpoint of the stopped deployment; --hold runs a command under one's lock, --remove removes one
+- **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.; `NAME`: A checkpoint name: 20 decimal digits, a hyphen and 16 hexadecimal digits.; `COMMAND [ARGUMENT...]`: The child command and its arguments, only with --hold and after --.
+- **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`
+- **Notes:** --hold and --remove exclude each other. Uses the configuration serve reads. Taking one requires a stopped deployment; holding or removing one also works while it serves. --hold inherits the working directory and environment, sets TEMPER_CHECKPOINT to the checkpoint's absolute directory, and holds its lock until the child is closed. Exit 0 on success, 1 on refusal, 2 for invalid arguments; --hold exits as its child did, 128 plus its terminating signal, or 127 when the command cannot run.
+
+### `temper-engine restore`
+
+- **Set:** public
+- **Forms:** `NAME [DIRECTORIES]`
+- restores a checkpoint over the stopped deployment, after a safety checkpoint of it
+- **Arguments:** `NAME`: A checkpoint name: 20 decimal digits, a hyphen and 16 hexadecimal digits.; `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
+- **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`
+- **Notes:** Uses the configuration serve reads. Stop the deployment first. The state before restoring is kept as a safety checkpoint; restore that checkpoint to bring it back. Exit 0 on success, 1 on refusal, 2 for invalid arguments.
 
 ### `temper-engine help`
 

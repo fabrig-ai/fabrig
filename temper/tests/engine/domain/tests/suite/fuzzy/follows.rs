@@ -75,7 +75,7 @@ impl Driver {
     }
     fn act(&mut self, act: FollowAct) {
         self.key = self.key.checked_add(1).expect("bounded script keys");
-        proof::session(&mut self.world);
+        proof::owner_session(&mut self.world);
         proof::owner(&mut self.world, self.key, act);
     }
     fn entry(&self, at: u64) -> Option<forge::FollowEntry> {
@@ -155,8 +155,8 @@ impl Driver {
                     return;
                 }
                 self.key += 1;
-                proof::session(&mut self.world);
                 role::idle(&mut self.world, self.role);
+                proof::owner_session(&mut self.world);
                 let owner = if task_owner {
                     forge::settings::FollowOwner::Task(self.role)
                 } else {

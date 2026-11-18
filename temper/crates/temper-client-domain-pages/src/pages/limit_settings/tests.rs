@@ -87,7 +87,7 @@ fn a_raise_sets_one_override_and_keeps_the_rest_of_the_list() {
         overrides.push(item(b"transcript_memory", 2_000_000_000)).unwrap();
         let value = w::TemperLimits::new(&w::CEILINGS, w::TemperLimitsParts { overrides }).unwrap();
         let changed = raised_item(&value, &held, &w::CEILINGS).unwrap();
-        assert_eq!(changed.setting, c::Setting::Application { kind: 21, scope: 0, number: 1 });
+        assert_eq!(changed.setting, c::Setting::Application { kind: 22, scope: 0, number: 1 });
         let c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Application(encoded) }) = changed.edit else {
             panic!("one setting set")
         };

@@ -130,34 +130,34 @@ pub fn task_digest(value: &Value) -> Result<&str, String> {
 pub fn deployment(paths: &[PathBuf; 3]) -> temper_playground::documents::Configuration {
     super::live_deployment(paths, super::LiveModel::ChatGpt { account: None });
     let config = paths[0].join("temper.json");
-    let agent = paths[0].join("agent.json");
     let mut value = crate::limit_settings::configuration(&paths[0]);
-    let mut worker = read_json(&agent);
+    let mut worker = temper_agent_fixtures::read(&paths[0]);
     for table in ["providers", "endpoints"] {
         value["engine"]["llm"][table].as_array_mut().expect("LLM table").retain(|row| row["name"] != "anthropic");
     }
     worker["endpoints"].as_array_mut().expect("endpoints").retain(|endpoint| endpoint["name"] != "anthropic");
-    worker["endpoints"][0]["limits"]["output"] = 32_000.into();
-    worker["profile"]["declared"]["tool_payload"] = 10662.into();
-    value.limits.tool_payload = 10662;
-    value.jig_over("tasks.message_bytes", 10660);
-    value.jig_over("tasks.result_bytes", 10660);
-    value.jig_over("tasks.inbox_bytes", 874_120);
+    // Keep the stock endpoint ceiling: its response holds the escaped stock tool payload.
+    // B0's model setting requests 32,000 tokens within that ceiling.
     worker["endpoints"][0]["limits"]["reasoning_item"] = 32_768.into();
-    // B0's carriers follow its one-call recipe.
+    // B0 uses one call per response.
     worker["profile"]["declared"]["calls_per_response"] = 1.into();
-    let turn = turn_bounds::turn_body(&worker);
+    // The stock carriers also hold the stock's 82-message inbox; keep their
+    // floor when the one-call recipe makes the agent's turn smaller.
+    let stock_turn = value["engine"]["limits"]["overrides"]["hub.turn_bytes"].as_u64().expect("stock turn");
+    let turn = turn_bounds::turn_body(&worker).max(u32::try_from(stock_turn).expect("stock turn fits"));
     turn_limits(&mut value, turn);
     // Walk 1's admitted declarations, not a phase-bound increase.
     value.limits.root.transcript_memory = 817_372_775_016_049_u64;
     assert_eq!(value.jig.core.people.requests, 256);
     assert_eq!(value.jig.hub.turn_bytes, u64::from(turn));
     assert_eq!(value.limits.root.loads.loads, 32);
-    assert_eq!(worker["endpoints"][0]["limits"]["output"], 32_000);
+    assert_eq!(worker["endpoints"][0]["limits"]["output"], 48_000);
     assert_eq!(worker["endpoints"][0]["limits"]["reasoning_item"], 32_768);
     write_json(&config, &value);
     crate::limit_settings::remember(&paths[0], &value);
-    write_json(&agent, &worker);
+    temper_agent_fixtures::apply(&mut value, &paths[1], &worker);
+    value.jig_over("hub.run_calls", 1);
+    write_json(&config, &value);
     let mut directories = super::super::configuration::directories(paths[0].parent().expect("deployment root"));
     directories.config = paths[0].as_os_str().as_bytes().into();
     directories.data = paths[1].as_os_str().as_bytes().into();
@@ -714,9 +714,9 @@ fn twin_document() -> Value {
             for line in value["lines"].as_array().expect("lines") {
                 if let Some(call) = line["call"].as_str() {
                     let args = line["arguments"].as_object().expect("call arguments");
-                    let identity = args.contains_key("head")
+                    let identity = (args.contains_key("head") || args.contains_key("commit"))
                         || args.contains_key("merge")
-                        || (call.starts_with("read_pull") && args.contains_key("number"));
+                        || (call == "read_issues" && args.contains_key("number"));
                     assert!(!identity, "unbound recorded identity: task {task}, turn {turn}, call {call}");
                 }
             }
@@ -927,8 +927,23 @@ fn fund_project(driver: &mut Driver, project: &str) -> Result<(), String> {
     let owner = owner_role(&current)?["period_spend"].as_u64().ok_or("owner period spend")?.max(928_512);
     // Funding raises run project first, then pool (client/ctl/tools.md, 3).
     // Keep the current policy when it already funds the rung's work.
-    driver.ctl(&["project", "fund", project, &period.to_string(), "--key", "rung-project-funds"], None)?;
-    driver.ctl(&["project", "fund", project, &owner.to_string(), "--role", "0", "--key", "rung-role-funds"], None)?;
+    driver.ctl(
+        &["project", "fund", project, &format!("{}.{:02}", period / 100, period % 100), "--key", "rung-project-funds"],
+        None,
+    )?;
+    driver.ctl(
+        &[
+            "project",
+            "fund",
+            project,
+            &format!("{}.{:02}", owner / 100, owner % 100),
+            "--role",
+            "0",
+            "--key",
+            "rung-role-funds",
+        ],
+        None,
+    )?;
     Ok(())
 }
 

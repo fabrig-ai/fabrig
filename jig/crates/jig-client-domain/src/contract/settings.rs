@@ -17,6 +17,7 @@ pub enum Setting {
     Rules,
     Limits,
     Model(SettingNumber),
+    Worker(SettingNumber),
     Application {
         kind: u32,
         scope: u32,
@@ -169,6 +170,7 @@ pub enum SettingValue {
     Rules(Box<Rules>),
     Limits(Box<[Override]>),
     Model(Box<CatalogueEntry>),
+    Worker(Box<WorkerSetting>),
     Application(Box<[u8]>),
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -221,6 +223,7 @@ pub enum SettingFault {
     Grace,
     Owner,
     Judged,
+    Linked,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct MalformedSettings {
@@ -534,4 +537,70 @@ pub enum ModelAct {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ChangeModel {
     pub act: ModelAct,
+}
+
+/// Worker value (jig/docs/design/domain/engine/workers.md, 1).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct WorkerSetting {
+    pub number: u32,
+    pub name: Box<[u8]>,
+    pub places: u32,
+    pub digest: Option<[u8; 32]>,
+    pub withdrawn: bool,
+}
+/// A stable name's number, or the lowest unused number (workers.md, 2).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum WorkerNumber {
+    Live(u32),
+    Withdrawn(u32),
+    Free(u32),
+}
+#[must_use]
+pub fn worker_number(workers: &[super::WorkerState], name: &[u8]) -> WorkerNumber {
+    for worker in workers {
+        if worker.name.as_ref() == name {
+            return if worker.withdrawn {
+                WorkerNumber::Withdrawn(worker.number)
+            } else {
+                WorkerNumber::Live(worker.number)
+            };
+        }
+    }
+    let mut number = 1_u32;
+    // At most one more than the number of rows can be the first hole.
+    for _ in 0..=workers.len() {
+        let mut held = false;
+        for worker in workers {
+            held |= worker.number == number;
+        }
+        if !held {
+            return WorkerNumber::Free(number);
+        }
+        number = number.checked_add(1).expect("worker count leaves a free number");
+    }
+    unreachable!("one more candidate than held numbers")
+}
+
+#[cfg(test)]
+mod worker_tests {
+    use super::*;
+    fn row(number: u32, name: &[u8], withdrawn: bool) -> super::super::WorkerState {
+        super::super::WorkerState {
+            number,
+            name: name.into(),
+            places: 1,
+            digest: None,
+            withdrawn,
+            linked: false,
+            since: None,
+        }
+    }
+    #[test]
+    fn worker_number_keeps_withdrawn_names_and_takes_the_lowest_hole() {
+        let rows = [row(1, b"local", false), row(2, b"w1", true)];
+        assert_eq!(worker_number(&rows, b"local"), WorkerNumber::Live(1));
+        assert_eq!(worker_number(&rows, b"w1"), WorkerNumber::Withdrawn(2));
+        assert_eq!(worker_number(&rows, b"w2"), WorkerNumber::Free(3));
+        assert_eq!(worker_number(&[row(2, b"w1", false)], b"w9"), WorkerNumber::Free(1));
+    }
 }

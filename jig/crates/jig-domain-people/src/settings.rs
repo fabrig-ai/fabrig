@@ -18,6 +18,7 @@ pub enum Setting {
     },
     Model(u32),
     Limits,
+    Worker(u32),
 }
 /// A check fault, including a connector's judgment (jig/docs/design/domain/engine/settings.md, 1, 5).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -30,6 +31,7 @@ pub enum SettingFault {
     Grace,
     Owner,
     Judged,
+    Linked,
 }
 
 /// Whether an accepted settings revision moves running work (domain/engine/settings.md, 2).

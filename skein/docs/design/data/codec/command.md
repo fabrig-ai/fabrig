@@ -43,8 +43,6 @@
 | `patches/context.rs` | the `Context`, written once, empty, deriving `Default` | the author's |
 | `patches/mod.rs` | generated from the kept texts and the patches alone (3) | the command's |
 | `patches/golden/NNNN/<family>/` | each old golden through the patch (3) | the command's or the golden test's, reviewed |
-| `tests/generated/<file>.rs` | the generated tests of the records' file `src/generated/<file>.rs`, in the crate holding it (`README.md`, section 6) | the drift test's |
-| `tests/generated/main.rs` | their test target's root, a module for each (`README.md`, section 6) | the drift test's |
 
 - **The owner's crate** includes `patches/mod.rs` as a module of its
   library (`#[path = "../patches/mod.rs"] pub mod patches;`), and
@@ -52,9 +50,9 @@
 - **A codec crate apart from its owner** (`README.md`, section 2) holds
   the family's generated record code alone. The command keeps the
   owner's files of the table above, and never reads or writes generated
-  code or its tests, wherever they sit. The owner's drift test
-  (`README.md`, section 6), which names each family's codec crate,
-  writes the code and its tests there when asked.
+  code, wherever it sits. The owner's drift test (`README.md`, section
+  6), which names each family's codec crate, writes the code there when
+  asked.
 - **A family's baseline is its owner's** (`README.md`, section 5). A crate with no
   kept text, landed or its own, is before its baseline, and a run there
   is refused unless given `--baseline`, which its owner passes once, at
@@ -68,7 +66,9 @@
   generated record code is its current version's alone (`README.md`,
   section 5). An older version is its kept text, and a reader of an
   older record, a patch or a test, reads it as a generic value of that
-  text (`README.md`, section 8) or takes it from a patch's goldens. A
+  text (`README.md`, section 8) or takes it from a patch's goldens; a
+  test builds that version's fixed-rule values from its kept text
+  (`README.md`, section 6). A
   version move renames the current text to its new version (5), and the
   new version's generated file, which the drift test writes, replaces
   the old one. The boundary suite's one-version check holds both
@@ -390,8 +390,9 @@ pub enum Error {
   ls-tree` and `git show <base>:<path>`, the base `git merge-base HEAD
   origin/main` unless `--base` names another, prints the report, its proposals as the
   `--rename` that confirms each, and exits 1 while a finding is left.
-  `--check` runs the check alone. `skein-codegen <schema> <out-dir>`
-  is as before; a schema is never named `patch`.
+  `--check` runs the check alone. `skein-codegen <schema>... <out-dir>`
+  writes a family's records' module (`README.md`, 4); a schema is never
+  named `patch`.
 - `Report`, `Outcome`, `Finding` and `Error` derive `Clone`, `Debug` and
   equality, and display as the command prints them.
 

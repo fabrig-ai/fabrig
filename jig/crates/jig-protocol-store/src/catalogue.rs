@@ -36,6 +36,7 @@ pub(crate) fn catalogue(store: &mut crate::Store) -> Result<(), crate::restore::
                     | Value::Policy(_)
                     | Value::Rules(_)
                     | Value::Limits(_)
+                    | Value::Worker(_)
                     | Value::Application(_),
                 )
                 | None => return Err(Failure::at(Cause::Decode(DecodeFailure::KeyValueDisagree), site)),

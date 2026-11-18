@@ -16,7 +16,7 @@ fn scripted(story: &Story, agents: bool) -> Run {
         let mut tools = parts.tools.clone().into_parts();
         tools.families = smith_charter::Families::new(
             &smith_charter::CEILINGS,
-            smith_charter::FamiliesParts { skein_bools: [false, false, false, agents] },
+            smith_charter::FamiliesParts { inspect: false, modify: false, shell: false, agents },
         )
         .expect("bounded event fixture");
         parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("bounded event fixture");

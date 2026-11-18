@@ -1,9 +1,7 @@
 //! Startup for temper's standalone binary (protocol/configuration/README.md, section 2).
 // tests::configuration includes the shared integration fixture, which names temper_box_shell::directories.
 extern crate self as temper_box_shell;
-use skein_io::kernel::Exit;
-#[cfg(test)]
-use skein_io::kernel::Fd;
+use skein_io::kernel::{Exit, Fd};
 use skein_shell::Clock;
 use std::{
     ffi::OsString,
@@ -58,6 +56,14 @@ pub enum Command {
         directories: Directories,
         request: temper_engine_shell::upgrade::Request,
     },
+    Checkpoint {
+        directories: Directories,
+        request: temper_engine_shell::checkpoint::Request,
+    },
+    Restore {
+        directories: Directories,
+        name: jig_protocol_store::CheckpointName,
+    },
     Usage(&'static skein_shell::Command),
     Claude {
         program: OsString,
@@ -73,6 +79,7 @@ pub enum Command {
         directories: Directories,
         boxed: bool,
         record: bool,
+        fixed_start: Option<skein_shell::FixedStart>,
     },
     Box {
         directories: Directories,
@@ -85,6 +92,7 @@ pub enum Command {
         bundle: Option<PathBuf>,
         scripts: Vec<PathBuf>,
         strict: bool,
+        fixed_start: Option<Box<[u8]>>,
         echo: temper_box_machine::host::Echo,
         front: bool,
         record: bool,
@@ -203,7 +211,7 @@ fn configure_box(arguments: &[Box<[u8]>], environment: &[EnvironmentEntry], work
     }
     let mut words = rest.iter();
     while let Some(word) = words.next() {
-        if word.as_ref() == b"--bundle" || word.as_ref() == b"--scripts" {
+        if [b"--bundle".as_slice(), b"--scripts", b"--fixed-start"].contains(&word.as_ref()) {
             words.next();
         } else if !word.starts_with(b"-") {
             return Err(TABLE.unknown(arguments));
@@ -212,9 +220,9 @@ fn configure_box(arguments: &[Box<[u8]>], environment: &[EnvironmentEntry], work
         }
     }
     let rest: Vec<_> = rest.iter().map(|arg| std::ffi::OsStr::from_bytes(arg).to_owned()).collect();
-    let fake_backends::Options { bundle, scripts, strict } =
+    let fake_backends::Options { bundle, scripts, strict, fixed_start } =
         fake_backends::configure(&rest, working).map_err(|why| refused(&why))?;
-    Ok(Command::BoxFakeBackends { directories, bundle, scripts, strict, echo, front, record })
+    Ok(Command::BoxFakeBackends { directories, bundle, scripts, strict, fixed_start, echo, front, record })
 }
 
 fn configure_row(
@@ -236,9 +244,17 @@ fn configure_row(
     };
     match words {
         ["versions"] => return if arguments.is_empty() { Ok(Command::Versions) } else { Err(invalid()) },
-        ["upgrade", mode @ ("--check" | "--back")] => {
-            return temper_engine_shell::upgrade::configure(*mode == "--check", arguments, environment, working)
+        ["upgrade", mode @ ("--check" | "--workers" | "--back")] => {
+            return temper_engine_shell::upgrade::configure(mode, arguments, environment, working)
                 .map(|(directories, request)| Command::Upgrade { directories, request });
+        }
+        ["checkpoint"] => {
+            return temper_engine_shell::checkpoint::configure(arguments, environment, working)
+                .map(|(directories, request)| Command::Checkpoint { directories, request });
+        }
+        ["restore"] => {
+            return temper_engine_shell::restore::configure(arguments, environment, working)
+                .map(|(directories, name)| Command::Restore { directories, name });
         }
         ["--mcp-relay"] => return Ok(Command::Relay),
         ["--program-child"] => return Ok(Command::ProgramChild),
@@ -296,13 +312,23 @@ fn configure_row(
     match words {
         ["init"] if rest.is_empty() => Ok(Command::Init { directories, boxed: false }),
         ["init"] if rest == ["--box"] => Ok(Command::Init { directories, boxed: true }),
-        ["serve"] if rest.is_empty() => Ok(Command::Serve { directories, boxed: false, record }),
-        ["internal", "serve"] if rest == ["--box"] => Ok(Command::Serve { directories, boxed: true, record }),
+        ["serve"] if rest.is_empty() => Ok(Command::Serve { directories, boxed: false, record, fixed_start: None }),
+        ["internal", "serve"] => {
+            let fixed_start = match rest.as_slice() {
+                [boxed] if boxed == "--box" => None,
+                [boxed, flag, value] if boxed == "--box" && flag == "--fixed-start" => {
+                    Some(fixed_start(value.as_bytes())?)
+                }
+                _ => return Err(invalid()),
+            };
+            Ok(Command::Serve { directories, boxed: true, record, fixed_start })
+        }
         ["program-login"] if rest.len() == 1 => Ok(Command::ProgramLogin { directories, name: rest[0].clone() }),
         _ => Err(invalid()),
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "the command dispatcher forwards each command's typed startup inputs")]
 pub fn run(
     command: Command,
     environment: &[EnvironmentEntry],
@@ -314,6 +340,26 @@ pub fn run(
     let exit = match command {
         Command::Upgrade { directories, request } => {
             return upgrade::run(&directories, &request);
+        }
+        Command::Checkpoint { directories, request } => {
+            let (mut service, deployment) =
+                upgrade::prepare(&directories).map_err(|why| prefixed("temper-box checkpoint", &why))?;
+            service.engine_component().build_name(commit);
+            return temper_engine_shell::checkpoint::run_prepared(
+                "temper-box",
+                &directories,
+                &request,
+                environment,
+                working,
+                service,
+                &deployment,
+            );
+        }
+        Command::Restore { directories, name } => {
+            let (mut service, deployment) =
+                upgrade::prepare(&directories).map_err(|why| prefixed(&format!("{} restore", TABLE.binary), &why))?;
+            service.engine_component().build_name(commit);
+            return temper_engine_shell::restore::run_prepared(TABLE.binary, &directories, name, service, &deployment);
         }
         Command::Overview => {
             print!("{}", TABLE.help());
@@ -336,18 +382,20 @@ pub fn run(
         Command::Init { directories, boxed } => {
             return init::run(&directories, boxed, environment).map_err(|why| prefixed("temper init", &why));
         }
-        Command::Serve { directories, boxed, record } => {
-            serve::run("temper", environment, working, &directories, boxed, record)?
+        Command::Serve { directories, boxed, record, fixed_start } => {
+            serve::run("temper", environment, working, &directories, boxed, record, fixed_start.as_ref())?
         }
-        Command::BoxFakeBackends { directories, bundle, scripts, strict, echo, front, record } => fake_backends::run(
-            &directories,
-            &fake_backends::Options { bundle, scripts, strict },
-            echo,
-            front,
-            record,
-            environment,
-        )
-        .map_err(|why| prefixed("temper-box", &why))?,
+        Command::BoxFakeBackends { directories, bundle, scripts, strict, fixed_start, echo, front, record } => {
+            fake_backends::run(
+                &directories,
+                &fake_backends::Options { bundle, scripts, strict, fixed_start },
+                echo,
+                front,
+                record,
+                environment,
+            )
+            .map_err(|why| prefixed("temper-box", &why))?
+        }
         Command::Box { directories, echo, front, record } => {
             box_command::run(&directories, echo, front, record, environment)
                 .map_err(|why| prefixed("temper-box", &why))?
@@ -364,13 +412,8 @@ pub fn run(
             return temper_agent_shell::list("temper internal agent-list", &configuration);
         }
         Command::ProgramLogin { directories, name } => {
-            return temper_worker_shell::program_login::run(
-                &directories,
-                &name,
-                environment,
-                Some(program_login::deployment),
-            )
-            .map_err(|why| prefixed("temper-box program-login", &why.lines().collect::<Vec<_>>().join("; ")));
+            return program_login::run(&directories, &name, environment)
+                .map_err(|why| prefixed("temper-box program-login", &why.lines().collect::<Vec<_>>().join("; ")));
         }
         Command::Fake { arguments } => return fake::run(&arguments),
         Command::FakeCheck { directories, check } => return Ok(fake::check::run(&directories, &check)),
@@ -396,13 +439,27 @@ pub fn run(
         Exit::Signal(_) => 1,
     })
 }
+fn fixed_start(text: &[u8]) -> Result<skein_shell::FixedStart, String> {
+    skein_shell::FixedStart::read(text)
+        .ok_or_else(|| "--fixed-start: expected SECONDS,SEED in canonical decimal".into())
+}
 fn path(bytes: &[u8]) -> &Path {
     Path::new(std::ffi::OsStr::from_bytes(bytes))
 }
 pub use temper_engine_shell::serve::{bundle, github_logs, printed};
 pub type Host = temper_service_shell::Host<Service>;
 pub(crate) use temper_service_shell::{close, file_path, held_refusal, listeners_refusal};
-#[cfg(test)]
+/// Prepare the standalone service from its document, returning descriptor ownership
+/// to the caller so a checked start can be discarded without retaining roots.
+pub fn prepare(
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    directories: &Directories,
+    bytes: &[u8],
+    owned: &mut Vec<Fd>,
+) -> Result<Service, String> {
+    prepare_with_store(environment, working, directories, bytes, owned).map(|(service, _)| service)
+}
 fn prepare_with_store(
     environment: &[EnvironmentEntry],
     working: &[u8],
@@ -410,7 +467,7 @@ fn prepare_with_store(
     bytes: &[u8],
     owned: &mut Vec<Fd>,
 ) -> Result<(Service, Box<[u8]>), String> {
-    serve::prepare_with_store("temper", environment, working, directories, bytes, owned)
+    serve::prepare_with_store("temper", environment, working, directories, bytes, owned, true)
 }
 /// The kernel operations a standalone start keeps in flight at most (its ring's size),
 /// derived without retaining its descriptors.
@@ -457,6 +514,16 @@ pub fn prepare_in_with(
 ) -> Result<Service, String> {
     serve::prepare_in_with("temper", environment, working, directories, given)
 }
+/// A world supplies its fake agent through typed startup facts, never a document.
+pub fn prepare_in_with_program(
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    directories: &Directories,
+    given: &service::stock::Given,
+    program: Option<&std::path::Path>,
+) -> Result<Service, String> {
+    serve::prepare_in_with_program("temper", environment, working, directories, given, program)
+}
 /// The same for an in-process world's service, with the supplied defaults.
 pub fn operations_in_with(
     environment: &[EnvironmentEntry],
@@ -502,6 +569,42 @@ mod box_tests {
     }
 
     #[test]
+    fn fixed_start_is_read_only_by_internal_boxed_serve() {
+        for record in [false, true] {
+            let mut words = vec!["internal", "serve", "--box"];
+            if record {
+                words.push("--record");
+            }
+            words.extend(["--fixed-start", "1767690000,7", "--config", "/c", "--data", "/d", "--cache", "/k"]);
+            let args = words.iter().map(|word| Box::from(word.as_bytes())).collect::<Vec<_>>();
+            let super::Command::Serve { boxed, record: found_record, fixed_start, .. } =
+                super::configure_with(&args, &[], b"/").expect("internal boxed fixed serve")
+            else {
+                panic!("serve command");
+            };
+            assert!(boxed);
+            assert_eq!(found_record, record);
+            assert_eq!(fixed_start, skein_shell::FixedStart::read(b"1767690000,7"));
+        }
+        for words in [
+            vec!["serve", "--fixed-start", "1767690000,7"],
+            vec!["serve", "--box", "--fixed-start", "1767690000,7"],
+            vec!["internal", "serve", "--fixed-start", "1767690000,7"],
+            vec!["internal", "serve", "--box", "--fixed-start", "01,7"],
+            vec!["internal", "serve", "--box", "--fixed-start"],
+            vec!["internal", "serve", "--box", "--fixed-start", "1767690000,7", "--fixed-start", "1767690000,7"],
+        ] {
+            let args = words
+                .iter()
+                .copied()
+                .chain(["--config", "/c", "--data", "/d", "--cache", "/k"])
+                .map(|word| Box::from(word.as_bytes()))
+                .collect::<Vec<_>>();
+            assert!(super::configure_with(&args, &[], b"/").is_err(), "{words:?}");
+        }
+    }
+
+    #[test]
     fn serve_refuses_unknown_or_repeated_flags() {
         for flags in [&["--other"][..], &["--box", "--box"][..], &["--record", "--record"][..]] {
             let args = core::iter::once("serve")
@@ -528,3 +631,15 @@ pub fn service_ending(
 
 #[cfg(test)]
 mod worker_lines_tests;
+
+/// Prepare a world's agent program and typed project seeds together.
+pub fn prepare_in_with_program_and_projects(
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    directories: &Directories,
+    given: &temper_service::stock::Given,
+    program: Option<&std::path::Path>,
+    projects: &[jig_protocol_config::Project],
+) -> Result<Service, String> {
+    serve::prepare_in_with_inputs("temper", environment, working, directories, given, program, projects)
+}

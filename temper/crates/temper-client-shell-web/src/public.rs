@@ -122,6 +122,7 @@ impl PublicHost {
                     &http::PublicPath { owner: read.owner, version: read.version, kind: read.kind, ids },
                 ),
                 bound: limits::BODY_BYTES,
+                pieces: None,
                 cache: Cache::NoStore,
                 keep: http::PUBLIC_KEEP,
             });
@@ -144,7 +145,10 @@ impl PublicHost {
                 (exchange, answer)
             }
             Heard::Failed { exchange } => (exchange, Answer::Failed),
-            Heard::StreamOpened
+            Heard::Begun { .. }
+            | Heard::Part { .. }
+            | Heard::Done { .. }
+            | Heard::StreamOpened
             | Heard::StreamRefused { .. }
             | Heard::Piece { .. }
             | Heard::StreamEnded

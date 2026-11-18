@@ -53,8 +53,11 @@ fn supported(core: &Core, task: &tasks::TaskRecord) -> bool {
                     tasks::EscalationHolder::Task(_) | tasks::EscalationHolder::Person(_) => false,
                 }
         }
-        tasks::Escalation::Rejected { by, .. } => {
-            *by <= core.counters.deployment().people.max(core.counters.deployment().tasks)
+        tasks::Escalation::Rejected { by: tasks::EscalationDecider::Person(person), .. } => {
+            *person <= core.counters.deployment().people
+        }
+        tasks::Escalation::Rejected { by: tasks::EscalationDecider::Task(task), .. } => {
+            *task <= core.counters.deployment().tasks
         }
         tasks::Escalation::Waiting { entry, .. } => *entry <= core.counters.deployment().messages,
         tasks::Escalation::Unheld { .. } | tasks::Escalation::Routing { .. } => true,

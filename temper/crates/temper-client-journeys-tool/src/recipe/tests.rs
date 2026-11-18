@@ -260,7 +260,7 @@ fn committed_qa_recipes_read_chain_and_end_on_their_own_checks() {
     assert_eq!(turn.kind(), Kind::Deployment);
     assert_eq!(turn.names().collect::<Vec<_>>(), ["turn-landing"]);
     let recipe = turn.recipes.first().expect("deployment root");
-    assert_eq!(recipe.config.len(), 5);
+    assert_eq!(recipe.config.len(), 4);
     assert_eq!(
         recipe.check.iter().map(|line| line.line.print()).collect::<Vec<_>>(),
         [b"ctl project show Hello".as_slice(), b"ctl forge list --until connected:1", b"ctl forge repositories 1"]
@@ -852,7 +852,7 @@ fn walk_success_and_session_failures_keep_their_statuses() {
     }
 }
 fn config(files: &mut Files, name: &str) {
-    for document in ["engine.json", "worker.json", "agent.json", "forgejo.json", "model.json"] {
+    for document in ["engine.json", "worker.json", "forgejo.json", "model.json"] {
         put(files, name, &format!("config/{document}"), b"opaque, not parsed here");
     }
 }
@@ -863,14 +863,14 @@ fn deployment_chain() -> Files {
 }
 
 #[test]
-fn deployment_config_requires_exactly_five_bounded_documents_without_parsing() {
+fn deployment_config_requires_exactly_four_bounded_documents_without_parsing() {
     let mut files = deployment_chain();
     put(&mut files, "root", "config/engine.json", &vec![b'x'; 262_144]);
     let chain = read(&files, "child").expect("256 KiB inclusive, opaque documents");
     assert_eq!(chain.kind(), Kind::Deployment);
     assert_eq!(chain.names().collect::<Vec<_>>(), ["root", "child"]);
     assert_eq!(chain.config_dir(Path::new("/recipes")), Some("/recipes/root/config".into()));
-    for document in ["engine.json", "worker.json", "agent.json", "forgejo.json", "model.json"] {
+    for document in ["engine.json", "worker.json", "forgejo.json", "model.json"] {
         let mut missing = files.clone();
         let path = format!("config/{document}");
         missing.get_mut("root").expect("root").remove(OsStr::new(&path));
@@ -964,7 +964,7 @@ fn deployment_hash_frames_config_after_files_in_name_byte_order() {
     let files = deployment_chain();
     let mut chain = read(&files, "child").expect("deployment");
     let hash = chain.hash();
-    assert_eq!(hex(hash), "46a30834bbe460c47946128d8329ed1e1dc8bf638501dc7fd23adfb24d2f0253");
+    assert_eq!(hex(hash), "b3252aab163faf658eb37cfb6e0bce5997a544a160467e63273fdd90cf3019bd");
     let mut changed = files.clone();
     put(&mut changed, "root", "config/engine.json", b"Opaque, not parsed here");
     assert_ne!(read(&changed, "child").expect("one changed byte").hash(), hash);

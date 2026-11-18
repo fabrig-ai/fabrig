@@ -55,7 +55,7 @@ pub fn main(
         && let Some(inbox) = inbox
         && let Some(need) = session.shown_all(inbox, root.forge().approvals())
     {
-        if need.ready(root) {
+        if need.ready(root) || matches_row(need) {
             flow(b, root, w, bindings, times, need, &lines, rows, sign_in);
         }
     } else if parts.done {
@@ -141,17 +141,26 @@ fn flow(
     let inbox = root.pages().inbox().expect("flow inbox");
     let session = root.pages().needs();
     let open = session.all(inbox, root.forge().approvals());
-    let total = lines.len().checked_add(open.len()).expect("bounded session and inbox");
-    let at = lines.len().checked_add(1).expect("bounded session");
+    let counted = session.counted(inbox, root.forge().approvals());
+    let (count, cut) = super::home::needs_count(counted);
+    let open_count = match counted {
+        temper_client_domain::pages::home::Needs::Count { count, .. } => count,
+        temper_client_domain::pages::home::Needs::Unknown => 0,
+    };
+    let total = lines
+        .len()
+        .checked_add(usize::try_from(open_count).expect("bounded needs"))
+        .expect("bounded session and inbox");
+    let mut position = 0_usize;
+    for other in &open {
+        if other.same(need) {
+            break;
+        }
+        position = position.checked_add(1).expect("bounded open needs");
+    }
+    let at = lines.len().checked_add(position).expect("bounded session").checked_add(1).expect("bounded session");
     let head = w.say(
-        if *inbox.cut.first().expect("needs cut")
-            || root.forge().approvals().more() != 0
-            || root.pages().needs().findings().cut_for(inbox.filter)
-        {
-            Word::NeedsProgressCut
-        } else {
-            Word::NeedsProgress
-        },
+        if cut { Word::NeedsProgressCut } else { Word::NeedsProgress },
         &[
             Hole::Number(u64::try_from(at).expect("bounded count")),
             Hole::Number(u64::try_from(total).expect("bounded count")),
@@ -164,21 +173,15 @@ fn flow(
     }
     ask::text(b, Role::Text, &head, look::NEEDS_BAR_AT);
     b.close();
-    intro(b, root, w, &open, times.now);
+    intro(b, root, w, counted, times.now);
     b.open(Role::Slot);
     b.style(look::NEEDS_HEAD);
-    let cut = *inbox.cut.first().expect("needs cut")
-        || root.forge().approvals().more() != 0
-        || root.pages().needs().findings().cut_for(inbox.filter);
-    let heading = w.say(
-        if cut { Word::NeedsHeadCut } else { Word::HomeNeedsCount },
-        &[Hole::Number(u64::try_from(open.len()).expect("bounded needs"))],
-    );
+    let heading = w.say(if cut { Word::NeedsHeadCut } else { Word::HomeNeedsCount }, &[Hole::Number(u64::from(count))]);
     b.open(Role::Heading { level: 2 });
     b.style(look::HOME_HEAD);
     b.name(&heading);
     b.text(Run::Plain, &skein_lib::bytes::concat(&[&w.say(Word::NeedsYou, &[]), &w.say(Word::ToolSeparator, &[])]));
-    b.text(Run::Strong, skein_lib::Decimal::of(u64::try_from(open.len()).expect("bounded needs")).as_bytes());
+    b.text(Run::Strong, skein_lib::Decimal::of(u64::from(count)).as_bytes());
     if cut {
         b.text(Run::Strong, b"+");
     }
@@ -186,7 +189,7 @@ fn flow(
     ask::text(b, Role::Text, &w.say(Word::NeedsOldest, &[]), look::HOME_KICKER);
     b.close();
     for other in &open {
-        if other.same(need) {
+        if other.same(need) && other.ready(root) {
             match other {
                 temper_client_domain::pages::findings::Need::Existing(needs::Need::Card(card)) => {
                     card_main(b, root, w, bindings, times, card, rows);
@@ -197,23 +200,34 @@ fn flow(
                 temper_client_domain::pages::findings::Need::Finding(card) => {
                     super::findings::main(b, root, card, w, bindings, times);
                 }
+                temper_client_domain::pages::findings::Need::Row(_) => {}
             }
         } else {
             b.open(Role::Button);
             b.style(look::NEED_ROW);
             b.bind(bindings.insert(other.open()));
             from_all(b, root, *other, w, bindings, times);
-            ask::text(
-                b,
-                Role::Text,
-                &match other {
-                    temper_client_domain::pages::findings::Need::Existing(need) => {
-                        crate::shared::need_line(need, w).words
+            let question = match other {
+                temper_client_domain::pages::findings::Need::Existing(needs::Need::Card(card)) => {
+                    let asked = ask::read(card, w);
+                    match asked.kind {
+                        ask::Kind::Held => Some(crate::shared::hold_sentence(card.document(), w)),
+                        ask::Kind::PersonTask => None,
+                        ask::Kind::Question if ask::title_in_from(card) => None,
+                        ask::Kind::Question | ask::Kind::Funds { .. } | ask::Kind::Proposal => {
+                            Some(crate::shared::need_line(&needs::Need::Card(card), w).words)
+                        }
                     }
-                    temper_client_domain::pages::findings::Need::Finding(card) => card.row.title().into(),
-                },
-                look::ASK_QUESTION,
-            );
+                }
+                temper_client_domain::pages::findings::Need::Existing(need) => {
+                    Some(crate::shared::need_line(need, w).words)
+                }
+                temper_client_domain::pages::findings::Need::Finding(card) => Some(card.row.title().into()),
+                temper_client_domain::pages::findings::Need::Row(_) => None,
+            };
+            if let Some(question) = question {
+                ask::text(b, Role::Text, &question, look::ASK_QUESTION);
+            }
             b.close();
         }
     }
@@ -223,6 +237,33 @@ fn flow(
         ask::text(b, Role::Heading { level: 2 }, &w.say(Word::NeedsAnswered, &[]), look::HOME_HEAD);
         ask::answered_lines(b, root, lines, w, bindings);
         b.close();
+    }
+}
+
+fn row_from(b: &mut Builder, root: &Domain, row: &jig_client::contract::InboxEntry, w: &Words, times: &mut Times) {
+    let title = super::inbox::row_title(row, w);
+    let when = super::inbox::row_when(row, w, times);
+    let later =
+        if root.pages().needs().later(row.card_key()) { w.say(Word::NeedsLaterMeta, &[]) } else { Box::default() };
+    let suffix = skein_lib::bytes::concat(&[&w.say(Word::ToolSeparator, &[]), &when, &later]);
+    b.open(Role::Text);
+    b.style(look::ASK_META);
+    if root.pages().inbox().expect("row inbox").filter.project.is_none()
+        && let Some(project) = row.project
+        && let Some(name) = super::project_name(root.pages().me(root.client()), project)
+    {
+        ask::text(b, Role::Text, &name, look::CHIP);
+    }
+    b.run(Run::Plain, &title);
+    b.run(Run::Plain, &suffix);
+    b.close();
+}
+
+fn matches_row(need: temper_client_domain::pages::findings::Need<'_>) -> bool {
+    match need {
+        temper_client_domain::pages::findings::Need::Row(_) => true,
+        temper_client_domain::pages::findings::Need::Existing(_)
+        | temper_client_domain::pages::findings::Need::Finding(_) => false,
     }
 }
 
@@ -243,15 +284,9 @@ fn card_main(
     b.open(Role::Slot);
     b.style(look::ASK);
     from(b, root, needs::Need::Card(card), w, bindings, times, true);
-    let question = match asked.kind {
-        ask::Kind::Funds { spent, limit } => w.say(Word::NeedsFundsUsed, &[Hole::Number(spent), Hole::Number(limit)]),
-        ask::Kind::Question => match &asked.parsed {
-            Some(parsed) => parsed.question.clone(),
-            None => asked.short.clone(),
-        },
-        ask::Kind::Proposal | ask::Kind::Held | ask::Kind::PersonTask => asked.short.clone(),
-    };
-    ask::text(b, Role::Heading { level: 1 }, &question, look::FLOW_Q);
+    if let Some(question) = ask::question(&asked, w) {
+        ask::text(b, Role::Heading { level: 1 }, &question, look::FLOW_Q);
+    }
     if let Some(group) = &group {
         super::findings::group_rows(b, group, w, bindings, times);
     }
@@ -509,7 +544,7 @@ fn intro(
     b: &mut Builder,
     root: &Domain,
     w: &Words,
-    open: &[temper_client_domain::pages::findings::Need<'_>],
+    counted: temper_client_domain::pages::home::Needs,
     now: skein_lib::Wall,
 ) {
     let inbox = root.pages().inbox().expect("intro inbox");
@@ -523,18 +558,7 @@ fn intro(
         }
         None => w.say(Word::NeedsAcross, &[]),
     };
-    let cut = *inbox.cut.first().expect("needs cut")
-        || root.forge().approvals().more() != 0
-        || root.pages().needs().findings().cut_for(inbox.filter);
-    let sentence = super::home::needs_sentence(
-        w,
-        temper_client_domain::pages::home::Needs::Count {
-            count: u32::try_from(open.len()).expect("bounded inbox"),
-            cut,
-            findings: temper_client_domain::pages::findings::counted(root.pages().needs().findings(), open),
-        },
-        b"",
-    );
+    let sentence = super::home::needs_sentence(w, counted, b"");
     let showing = parts::needs_facts(root, now).showing;
     let sentence = if showing > 0 {
         let decided = if showing == 1 {
@@ -593,19 +617,30 @@ fn context(b: &mut Builder, root: &Domain, asked: &ask::Asked<'_>, w: &Words, ro
     b.open(Role::Slot);
     b.style(look::ASK_CONTEXT);
     if let jig_client::contract::ReadValue::Escalation(held) = page {
-        crate::cards::specification_after_title(b, &held.task.spec, w);
+        crate::cards::specification_words(b, &held.task.spec, w, ask::title_in_from(asked.card));
+        match asked.kind {
+            ask::Kind::Funds { .. } => {
+                crate::cards::hold(b, held.task.chip.task, &jig_client::contract::HoldCategory::Budget, w);
+            }
+            ask::Kind::Question | ask::Kind::Proposal | ask::Kind::Held | ask::Kind::PersonTask => {}
+        }
     }
     if let jig_client::contract::ReadValue::PersonTask(task) = page {
-        crate::cards::specification_after_title(b, &task.spec, w);
+        if ask::title_in_from(asked.card) {
+            skein_ui::markdown::read(crate::shared::after_title(&task.spec.specification.words), 3, b);
+            crate::cards::specification_facts(b, &task.spec, w);
+        } else {
+            crate::cards::specification_after_title(b, &task.spec, w);
+        }
     }
     match asked.kind {
-        ask::Kind::Proposal | ask::Kind::Held | ask::Kind::Funds { .. } => {
+        ask::Kind::Proposal => {
             crate::confirm::facts_at(b, page, w, rows, crate::cards::Place::Inbox);
             if let jig_client::contract::ObjectKey::Proposal(key) = asked.card.object {
                 crate::cards::proposal::owned_approval(b, root, key.number, w);
             }
         }
-        ask::Kind::Question | ask::Kind::PersonTask => {}
+        ask::Kind::Question | ask::Kind::PersonTask | ask::Kind::Held | ask::Kind::Funds { .. } => {}
     }
     b.close();
 }
@@ -789,5 +824,6 @@ fn from_all(
     match need {
         temper_client_domain::pages::findings::Need::Existing(need) => from(b, root, need, w, bindings, times, false),
         temper_client_domain::pages::findings::Need::Finding(card) => super::findings::from(b, root, card, w, times),
+        temper_client_domain::pages::findings::Need::Row(row) => row_from(b, root, row, w, times),
     }
 }

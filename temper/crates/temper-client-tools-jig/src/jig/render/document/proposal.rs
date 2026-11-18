@@ -94,6 +94,7 @@ fn review_items_text(review: &c::SettingsReview, reading: &Reading, limits: &Lim
             c::Setting::Charter(_)
             | c::Setting::Template(_)
             | c::Setting::Policy(_)
+            | c::Setting::Worker(_)
             | c::Setting::Model(_)
             | c::Setting::Rules
             | c::Setting::Limits
@@ -450,6 +451,7 @@ fn encode_value_result(
                 c::SettingValue::Overlay(_) => b"overlay",
                 c::SettingValue::Charter(_) => b"charter",
                 c::SettingValue::Model(_) => b"model",
+                c::SettingValue::Worker(_) => b"worker",
                 c::SettingValue::Template(_) => b"template",
                 c::SettingValue::Policy(_) => b"policy",
                 c::SettingValue::Application(_) => b"application",
@@ -720,6 +722,7 @@ fn in_group(item: &c::ReviewItem, index: usize, reading: &Reading, follows: bool
         c::Setting::Charter(_) => {}
         c::Setting::Template(_)
         | c::Setting::Policy(_)
+        | c::Setting::Worker(_)
         | c::Setting::Model(_)
         | c::Setting::Rules
         | c::Setting::Limits
@@ -748,6 +751,7 @@ fn group_fields(setting: c::Setting, follows: bool) -> &'static [u8] {
             c::Setting::Charter(_) => b"execution settings",
             c::Setting::Template(_)
             | c::Setting::Policy(_)
+            | c::Setting::Worker(_)
             | c::Setting::Model(_)
             | c::Setting::Rules
             | c::Setting::Limits

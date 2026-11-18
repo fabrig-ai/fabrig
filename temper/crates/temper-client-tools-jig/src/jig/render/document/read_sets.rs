@@ -40,7 +40,11 @@ pub(super) fn text(
                 super::projects::text(project, call, me, limits, vocabulary, out);
             }
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Deployment(deployment))) => {
-                super::census::text(deployment.census.as_deref(), out);
+                if call.tool == crate::jig::rows::WORKER_LIST_AT {
+                    super::workers::text(deployment, out);
+                } else {
+                    super::census::text(deployment.census.as_deref(), out);
+                }
             }
             Readout::Jig(c::ReadResult::Value(
                 value @ (c::ReadValue::Settings(_)
@@ -168,7 +172,11 @@ pub(super) fn encode(reading: &Reading, me: Option<&c::Me>, limits: &Limits, out
                 super::projects::encode(project, call, me, limits, out, budget);
             }
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Deployment(deployment))) => {
-                super::census::encode(deployment.census.as_deref(), out);
+                if call.tool == crate::jig::rows::WORKER_LIST_AT {
+                    super::workers::encode(deployment, out);
+                } else {
+                    super::census::encode(deployment.census.as_deref(), out);
+                }
             }
             Readout::Jig(c::ReadResult::Value(
                 value @ (c::ReadValue::Settings(_)

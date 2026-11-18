@@ -1,6 +1,9 @@
 //! Work places each item by its own facts (temper/docs/design/client/pages/work.md, 1).
 
-use crate::pages::Root;
+use crate::pages::{Budget, Root};
+
+/// Stream, then one batch, whatever the project's size (client/pages/work.md, 1, Its budget).
+pub const BUDGET: Budget = Budget { waves: 2, requests: 2 };
 use alloc::boxed::Box;
 use core::cmp::Reverse;
 use jig_client::contract as c;
@@ -10,12 +13,46 @@ use temper_client_protocol_wire::v1 as w;
 /// The lists and drawn milestones read for Work.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Facts {
+    pub known: Known,
+    pub drafts_only: bool,
     pub milestones: List<Milestone>,
     pub goals: List<Goal>,
     pub changes: List<Change>,
     pub chats: List<Chat>,
     pub landed: List<LandedDraft>,
     pub landed_default: List<Landing>,
+}
+
+/// Which lists have answered, including refused and failed answers (client/pages/work.md, 1).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[expect(clippy::struct_excessive_bools, reason = "each list answers independently")]
+pub struct Known {
+    pub goals: bool,
+    pub needs: bool,
+    pub milestones: bool,
+    pub chats: bool,
+    pub changes: bool,
+    pub drafts: bool,
+}
+impl Known {
+    #[must_use]
+    pub const fn in_flight(self) -> bool {
+        self.goals && self.needs && self.milestones && self.chats && self.changes
+    }
+    #[must_use]
+    pub const fn drafts(self) -> bool {
+        self.chats && self.drafts
+    }
+    #[must_use]
+    pub const fn all(self) -> bool {
+        self.in_flight() && self.drafts
+    }
+}
+#[expect(clippy::derivable_impls, reason = "the strict subset forbids deriving Default")]
+impl Default for Known {
+    fn default() -> Self {
+        Self { goals: false, needs: false, milestones: false, chats: false, changes: false, drafts: false }
+    }
 }
 
 /// A landed draft's identity, card and listing facts (client/pages/work.md, 1).
@@ -159,6 +196,8 @@ pub struct Landed {
 /// Work's In flight, Drafts and Landed this week sections and its filters' counts.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Work {
+    pub known: bool,
+    pub drafts_known: bool,
     pub in_flight: List<Card>,
     pub drafts: List<Card>,
     pub landed: List<Landed>,
@@ -178,6 +217,8 @@ pub struct Filters {
 impl Default for Facts {
     fn default() -> Self {
         Self {
+            known: Known::default(),
+            drafts_only: false,
             milestones: List::uncapped(),
             goals: List::uncapped(),
             changes: List::uncapped(),
@@ -191,6 +232,8 @@ impl Default for Facts {
 impl Default for Work {
     fn default() -> Self {
         Self {
+            known: false,
+            drafts_known: false,
             in_flight: List::uncapped(),
             drafts: List::uncapped(),
             landed: List::uncapped(),
@@ -218,6 +261,7 @@ struct ActiveCard {
 
 /// Place each item by its own facts, never by the project's settings or its way.
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "one pure placement over Work's facts and answered lists")]
 pub fn place(facts: &Facts, wall: Wall) -> Work {
     let changes = ordered_changes(&facts.changes);
     let mut work = Work::default();
@@ -306,6 +350,19 @@ pub fn place(facts: &Facts, wall: Wall) -> Work {
     }
     for active in drafts.into_boxed() {
         work.drafts.push(active.card).expect("one card per draft");
+    }
+    work.known = facts.known.all();
+    work.drafts_known = facts.known.drafts() && (facts.drafts_only || facts.known.in_flight());
+    if !facts.known.in_flight() {
+        work.in_flight.clear();
+    }
+    if !work.drafts_known {
+        work.drafts.clear();
+    }
+    if !work.known {
+        work.landed.clear();
+        work.goal_branches = 0;
+        work.filters = Filters::default();
     }
     work
 }
@@ -552,29 +609,24 @@ pub fn overrides(root: &dyn Root, project: u32) -> Overrides {
     }
 }
 
-/// Name a landing's signers, reader first, leaving words out until people are read.
+/// Name a landing's signers, reader first, from the names on its row.
 #[must_use]
-pub fn signed(reader: u64, parties: &[u64], people: Option<&c::Project>) -> Option<Box<[u8]>> {
+pub fn signed(reader: u64, signers: &[w::ChangesSigned]) -> Option<Box<[u8]>> {
     use super::signing::{count, join};
-    let people = people?;
     let mut names: List<Box<[u8]>> = List::uncapped();
-    if parties.contains(&reader) {
-        names.push(b"you".as_slice().into()).expect("one name per signer");
+    for signer in signers {
+        if signer.party() == reader {
+            names.push(b"you".as_slice().into()).expect("one name for the reader");
+            break;
+        }
     }
     let mut others = 0_u32;
-    for party in parties {
-        if *party == reader {
+    for signer in signers {
+        if signer.party() == reader {
             continue;
         }
-        let mut name = None;
-        for member in &people.members {
-            if member.party == *party {
-                name = Some(if member.name.bytes().is_empty() { member.login.bytes() } else { member.name.bytes() });
-                break;
-            }
-        }
-        match name {
-            Some(name) => names.push(name.into()).expect("one name per signer"),
+        match signer.name() {
+            Some(name) => names.push(name.clone()).expect("one name per signer"),
             None => others = others.saturating_add(1),
         }
     }
@@ -600,14 +652,6 @@ pub fn signed(reader: u64, parties: &[u64], people: Option<&c::Project>) -> Opti
     Some(words)
 }
 
-fn row_signed(reader: u64, row: &w::ChangesLanded, people: Option<&c::Project>) -> Option<Box<[u8]>> {
-    let mut parties = List::with_capacity(row.signed().len());
-    for signer in row.signed() {
-        parties.push(signer.party()).expect("one party per sign-off");
-    }
-    signed(reader, parties.as_slice(), people)
-}
-
 /// Gather the four lists only once each has answered (client/pages/README.md, Work).
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "Work joins its four lists and each landing's signers in one facts read")]
@@ -618,34 +662,44 @@ pub fn facts(root: &dyn Root, project: u32) -> Option<Facts> {
     let changes = root.pages().changes()?;
     let chats = root.pages().chats()?;
     let drafts = root.pages().drafts()?;
-    if root.pages().project() != Some(project)
-        || changes.project != project
-        || !milestones.known(root.client())
-        || !goals.known(root.client())
-        || !chats.known(root.client())
-        || !chats.documents_known()
-    {
+    if root.pages().project() != Some(project) || changes.project != project {
         return None;
     }
     let panel = match changes.state() {
-        State::Loading => return None,
         State::Shown(panel) => Some(panel),
-        State::Ended => None,
+        State::Loading | State::Ended => None,
     };
-    let mut facts = Facts::default();
-    let people = root.pages().team.document(project);
+    let mut facts = Facts {
+        known: Known {
+            goals: goals.known(root.client()),
+            needs: goals.needs_known(),
+            milestones: milestones.known(root.client()),
+            chats: chats.known(root.client()),
+            changes: match changes.state() {
+                State::Loading => false,
+                State::Shown(_) | State::Ended => true,
+            },
+            drafts: match drafts.state() {
+                super::drafts::State::Loading => false,
+                super::drafts::State::Shown(_) | super::drafts::State::Ended => true,
+            },
+        },
+        drafts_only: root.pages().address() == &(crate::Address::Work { project, filter: crate::WorkFilter::Drafts }),
+        ..Facts::default()
+    };
     let reader = root.pages().me(root.client())?.party.number;
     match drafts.state() {
-        super::drafts::State::Loading => return None,
         super::drafts::State::Shown(panel) => {
             for row in panel.drafts() {
                 facts.landed.push(LandedDraft::row(row)).expect("one fact per landed draft");
             }
         }
-        super::drafts::State::Ended => {}
+        super::drafts::State::Loading | super::drafts::State::Ended => {}
     }
-    for line in &goals.live(root.client())?.rows {
-        gather_goal(&mut facts, milestones, line, !super::chats::ended(&line.chip));
+    if let Some(live) = goals.live(root.client()) {
+        for line in &live.rows {
+            gather_goal(&mut facts, milestones, line, !super::chats::ended(&line.chip));
+        }
     }
     for line in goals.ended() {
         gather_goal(&mut facts, milestones, line, false);
@@ -664,7 +718,7 @@ pub fn facts(root: &dyn Root, project: u32) -> Option<Facts> {
             }
         }
         for line in &milestone.goals {
-            gather_goal(&mut facts, milestones, line, !super::chats::ended(&line.chip));
+            gather_goal_in(&mut facts, line, !super::chats::ended(&line.chip), Some(milestone.task));
         }
     }
     if let Some(panel) = panel {
@@ -707,7 +761,7 @@ pub fn facts(root: &dyn Root, project: u32) -> Option<Facts> {
                     task: row.task(),
                     at: Where::Landed { at: Wall::from_nanos(row.at()), default_branch: row.default_branch() },
                     belongs: belongs(root, row.task()),
-                    signed: row_signed(reader, row, people),
+                    signed: signed(reader, row.signed().as_slice()),
                 })
                 .expect("one fact per change row");
         }
@@ -719,14 +773,16 @@ pub fn facts(root: &dyn Root, project: u32) -> Option<Facts> {
                     commit: *row.commit(),
                     at: Wall::from_nanos(row.at()),
                     belongs: belongs(root, row.task()),
-                    signed: row_signed(reader, row, people),
-                    milestone: landed_milestone(root, row.task()),
+                    signed: signed(reader, row.signed().as_slice()),
+                    milestone: landed_milestone(root, row),
                 })
                 .expect("one fact per default-branch landing");
         }
     }
-    for line in &chats.live(root.client())?.rows {
-        gather_chat(&mut facts, chats, line);
+    if let Some(live) = chats.live(root.client()) {
+        for line in &live.rows {
+            gather_chat(&mut facts, chats, line);
+        }
     }
     if let Some(page) = &chats.page {
         for line in &page.live {
@@ -745,31 +801,29 @@ pub fn facts(root: &dyn Root, project: u32) -> Option<Facts> {
 }
 
 fn gather_goal(facts: &mut Facts, milestones: &super::milestones::Milestones, row: &c::TaskLine, live: bool) {
+    gather_goal_in(facts, row, live, milestones.of(row));
+}
+
+fn gather_goal_in(facts: &mut Facts, row: &c::TaskLine, live: bool, milestone: Option<u64>) {
     for goal in facts.goals.iter_mut() {
         if goal.task == row.chip.task {
             if !goal.live && live {
-                *goal = Goal {
-                    task: row.chip.task,
-                    live: true,
-                    activity: row.last_activity,
-                    milestone: milestones.of(row),
-                };
+                *goal = Goal { task: row.chip.task, live: true, activity: row.last_activity, milestone };
             }
             return;
         }
     }
     facts
         .goals
-        .push(Goal { task: row.chip.task, live, activity: row.last_activity, milestone: milestones.of(row) })
+        .push(Goal { task: row.chip.task, live, activity: row.last_activity, milestone })
         .expect("one fact per goal");
 }
 
-fn landed_milestone(root: &dyn Root, task: u64) -> Option<LandedMilestone> {
-    let document = root.pages().changes()?.document(task)?;
-    document.goal?;
-    let lineage = temper_client_domain_forge::milestones::lineage(document)?;
+fn landed_milestone(root: &dyn Root, row: &w::ChangesLanded) -> Option<LandedMilestone> {
+    row.goal().as_ref()?;
+    let from = row.milestone().as_ref()?;
     let mut completed = None;
-    if let Some(milestone) = root.pages().milestones()?.milestone(lineage.milestone.task)
+    if let Some(milestone) = root.pages().milestones()?.milestone(from.task())
         && let Some(totals) = &milestone.totals
         && let Some(ended) = totals.ended()
         && let Some(landing) = totals.last_landing()
@@ -777,12 +831,12 @@ fn landed_milestone(root: &dyn Root, task: u64) -> Option<LandedMilestone> {
     {
         let complete = super::milestones::state(line, milestone.goals.as_slice(), Some(totals), false)
             == super::milestones::State::Complete
-            && landing.change() == task;
+            && landing.change() == row.task();
         if complete {
             completed = Some(Wall::from_nanos(*ended));
         }
     }
-    Some(LandedMilestone { name: lineage.milestone.title.bytes().into(), completed })
+    Some(LandedMilestone { name: from.title().into(), completed })
 }
 
 #[expect(clippy::manual_find, reason = "step code uses no closures")]
@@ -817,7 +871,7 @@ fn belongs(root: &dyn Root, task: u64) -> Belongs {
     if let Some(goal) = page.goal(task) {
         return Belongs::Goal(goal);
     }
-    match page.from(root.client(), task) {
+    match page.from(task) {
         Some(From::Chat(task)) => Belongs::Chat(task),
         Some(From::Goal(_)) | None => Belongs::Nothing,
     }

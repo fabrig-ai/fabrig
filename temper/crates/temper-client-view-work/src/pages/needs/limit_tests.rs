@@ -21,7 +21,7 @@ fn a_limit_card_offers_only_the_owner_a_raise_and_keeps_refusal_words() {
         at: None,
         refusal: c::Refusal::Judged {
             at: 0,
-            setting: c::Setting::Application { kind: 21, scope: 0, number: 1 },
+            setting: c::Setting::Application { kind: 22, scope: 0, number: 1 },
             why: c::Text::new(b"forge.entries (setting temper-limits): refused by the start".as_slice().into(), 256)
                 .unwrap(),
         },

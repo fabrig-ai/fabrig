@@ -96,9 +96,15 @@ pub fn language() -> Language {
             JigPhrase::SettingFaultGrace => {
                 Box::new([Segment::Text(copy_of(b"Setting template grace is past the allowed span"))])
             }
+            JigPhrase::SettingFaultLinked => Box::new([Segment::Text(copy_of(b" is linked: stop it first"))]),
             JigPhrase::SettingFaultOwner => {
                 Box::new([Segment::Text(copy_of(b"Setting policy owner role cannot be a root requester"))])
             }
+            JigPhrase::WaitUntooled => Box::new([
+                Segment::Text(copy_of(b"The program started without its tools on worker ")),
+                Segment::Hole { index: 0, kind: HoleKind::Number },
+                Segment::Text(copy_of(b".")),
+            ]),
             JigPhrase::BoundsWorker => Box::new([Segment::Text(copy_of(b"No worker can take this run."))]),
             JigPhrase::BoundsEngine => {
                 Box::new([Segment::Text(copy_of(b"The engine's own host can't take this run."))])

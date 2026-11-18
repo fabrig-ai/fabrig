@@ -13,7 +13,7 @@ fn the_application_speaks_from_the_floor_with_its_bridge() {
     assert_eq!(description.patches, crate::patches::PATCHES);
     assert_eq!(description.floor, kept::FLOOR);
     assert_eq!(description.names, v1::LIMIT_NAMES);
-    assert_eq!(description.values.as_slice(), fixtures::limits().values());
+    assert_eq!(description.values.as_slice(), fixtures::limits().values().as_slice());
     assert_eq!(application.spoken.get(0), Some(&crate::spoken()));
     assert_eq!(crate::spoken(), Spoken::of(wire::FAMILY, kept::TEXTS, wire::FLOOR).expect("parsed kept range"));
     assert_eq!(wire::FLOOR, kept::FLOOR);
@@ -116,6 +116,37 @@ fn left_carries_checked_deliveries_across_six_and_seven() {
     let unchecked = v1::Left::new(&limits, v1::LeftParts { landed }).unwrap();
     let Err(skein_codec::patch::Halt::Unheld(_)) = bridge.translate(7, 6, b"Left", crate::left(&unchecked)) else {
         panic!("unchecked delivery cannot be read as checked")
+    };
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the bridge test reads the patch's generated version-10 golden")]
+fn items_bridge_own_delivery_between_ten_and_eleven_without_losing_it() {
+    let limits = fixtures::limits();
+    let application = crate::application(&limits).unwrap();
+    let mut bridge = application.kept.get(0).unwrap().bridge().unwrap();
+    let old = include_bytes!("../../patches/golden/0005/temper-worker-wire/record_items_full.bin");
+    assert_eq!(skein_codec::version_of(old), Ok(10));
+    let up = bridge.translate(10, 11, b"Items", old.as_slice().into()).unwrap();
+    let items = v1::Items::decode(&limits, &mut skein_lib::Reader::new(&up)).unwrap();
+    let repository = items.repositories().get(0).unwrap();
+    let v1::Access::Writable(writable) = repository.access() else { panic!("writable golden") };
+    assert_eq!(*writable.delivered(), None);
+    let down = bridge.translate(11, 10, b"Items", crate::items(&items)).unwrap();
+    assert_eq!(down.as_ref(), old.as_slice());
+    assert_eq!(bridge.translate(10, 11, b"Items", down).unwrap(), up);
+
+    let v1::Access::Writable(writable) = repository.clone().into_parts().access else { panic!("writable golden") };
+    let access = v1::Access::Writable(
+        v1::Writable::new(&limits, v1::WritableParts { delivered: Some([7; 32]), ..writable.into_parts() }).unwrap(),
+    );
+    let mut repositories = List::with_capacity(1);
+    repositories
+        .push(v1::Repository::new(&limits, v1::RepositoryParts { access, ..repository.clone().into_parts() }).unwrap())
+        .unwrap();
+    let delivered = v1::Items::new(&limits, v1::ItemsParts { repositories }).unwrap();
+    let Err(skein_codec::patch::Halt::Unheld(_)) = bridge.translate(11, 10, b"Items", crate::items(&delivered)) else {
+        panic!("a task's own delivery cannot be discarded for a version-10 worker")
     };
 }
 

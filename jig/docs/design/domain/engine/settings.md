@@ -22,6 +22,7 @@ section 17; the records are `../../protocol/store/README.md`, 4.4.
   | rules | none: one setting | the deployment's rules, whole (../authority.md, section 6) | at every decision: the newest |
   | limits | none: one setting | overrides of jig's limits, at most 256, each a limit's dotted name, a value and a reason of at most 120 bytes, ascending by name; none is the application's stock (`../../protocol/limits.md`, limits as settings) | by the application, at its start, never by the core |
   | model | the model's, 1 to 64, never given to another name (11) | a model whole: its name, shown name, LLM provider, endpoint, window, output, efforts and default effort, prices, description, whether a picker shows it, whether it is withdrawn, where it came from (the binary, a provider's list or a person), whether its prices are estimated and when a list first gave it | at each decision and when `me` is served: the newest; a run reads it from its charter (11) |
+  | worker | the worker's, 1 to the fleet's configured workers, never given to another name (`workers.md`, 2) | a worker whole: its name, its places, its secret's digest, whether it is withdrawn (`workers.md`, 1) | at each opening and each hello, and when a deployment document is built: the newest (`workers.md`, 4) |
   | an application's kind | the application's | bytes jig never reads, kept by the connector that owns the kind (5) | by the application, from that connector: the newest |
 
 - **The defaults are the binary's.** The application passes them as
@@ -72,7 +73,7 @@ section 17; the records are `../../protocol/store/README.md`, 4.4.
   their count; fault *shape*), keeps it, shows it, and the application
   reads it at its next start (`../../protocol/limits.md`, limits as
   settings).
-- **What is not a setting:** the hosts, the LLM providers and their endpoints, the connectors, the
+- **What is not a setting:** the hosts but the workers (`workers.md`), the LLM providers and their endpoints, the connectors, the
   clients and the first owners, the document's; and each project's own
   policy, which its owners change (../people/acts.md, 2).
 

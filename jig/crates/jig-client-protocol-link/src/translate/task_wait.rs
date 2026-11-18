@@ -1,8 +1,9 @@
 //! Preserve the task's next-run wait and its unknown deadlines.
 use jig_client_domain::contract as c;
-use jig_client_protocol_wire::v28 as w;
+use jig_client_protocol_wire as w;
 
-pub(super) fn waiting(value: Option<&w::TaskRunWait>) -> Option<c::TaskRunWait> {
+#[must_use]
+pub fn waiting(value: Option<&w::TaskRunWait>) -> Option<c::TaskRunWait> {
     Some(match value? {
         w::TaskRunWait::Credential => c::TaskRunWait::Credential,
         w::TaskRunWait::Host => c::TaskRunWait::Host,
@@ -26,6 +27,7 @@ pub(super) fn waiting(value: Option<&w::TaskRunWait>) -> Option<c::TaskRunWait> 
             account: *row.account(),
             source: *row.source(),
             why: match row.why() {
+                w::TaskWaitWhy::Untooled(row) => c::TaskWaitWhy::Untooled { worker: row.worker() },
                 w::TaskWaitWhy::Refreshing => c::TaskWaitWhy::Refreshing,
                 w::TaskWaitWhy::Host => c::TaskWaitWhy::Host,
                 w::TaskWaitWhy::Empty => c::TaskWaitWhy::Empty,

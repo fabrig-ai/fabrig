@@ -21,7 +21,7 @@
     | Forges | Where your code lives. | Each forge temper is connected to, or setting up. Add one to bring its repositories to temper. |
     | Accounts | What agents run on. | The LLM accounts temper’s agents run on for you. A task keeps its account: while the account is limited, the task waits for it. |
     | Models | What the picker offers. | The models your accounts can run, by what pays for them. Each model can be left off the picker; a task keeps the model it has. |
-    | Workers | Where agents work. | The machines temper’s agents run on, each with its slots and how many are in use. |
+    | Workers | Where agents work. | The machines temper’s agents run on, each with its places and whether it’s up. An owner adds one by its secret’s digest. |
     | Members | Who may do what. | Each project’s people and services, and the role each holds there. Who owns an area of a project is its Team’s. |
     | Limits | What this deployment holds. | The capacities temper’s engine runs within, as it reports them. Its owner sets them in its configuration. |
 
@@ -152,21 +152,9 @@
       temper.", its last two words a link to `Ask { project }`.
     - *In the terminal,* the same sections as lines, a row's word and name on one line,
       and the switch and the form as the terminal has them on How work runs (2).
-  - *Workers,* `Builders { project }`, reads jig's `deployment` document, watched while the tab is open
-    by a person with a role in the deployment, as `Accounts` watches it for an
-    owner. It draws `Deployment.hosts`, as far as the document's configured rows
-    hold them. A section, "Workers · N", N its rows; then a line per host, as
-    Repositories' are, no link and no act: the host's name, or "Worker
-    CHANNEL" with none; in `small`, "2 slots · 1 in use" ("1 slot" for one); in
-    the line's `.when`, "Not connected" while it is not connected, else
-    "Draining" while it drains, else "Connected". Under them, `.facts`: "Each
-    agent’s role names which workers it runs on. Ask temper to change it."
-    With no host connected, `.empty`, "No worker is connected.",
-    above any lines left. A cut document says so, as `Accounts` does. With no
-    role in the deployment, one line, "Workers are seen by the deployment’s
-    owners.", and no section. Until the document is read, the title "Workers"
-    alone, claiming nothing. There is no capacity graph. The word on the page
-    is "worker"; the code's stays host, and the page's `Builders`.
+  - *Workers,* `Builders { project }`, is the workers' settings, each with
+    its places and whether it is up, and an owner's acts on them
+    (`workers.md`). There is no capacity graph.
   - *Members* (jig's `domain/people/README.md`, section 4, and `jig/docs/design/domain/people/acts.md`, section 2) reads jig's
     `Read::Project` for each project `me` lists, in `me`'s order, one read at a
     time, while the tab is open, and again when `me`'s projects change. A
@@ -541,8 +529,11 @@ Ask temper is reached from the rail and tab bar (`../view.md`, 3), and from this
   kinds 7 and 8 of the open project as the project opens, kind 8 also of the
   card *Needs you* shows where that card's project is another, and kind 6 on
   the tab, through the forge's reads in that project's scope (`../forge/served.md`
-  ), and again whenever the document's line for that setting says it
-  changed and when the link comes back. Kind 8 decodes to the kit's table
+  ). Each read answers with the revision it read, none at the default
+  (`../../protocol/configuration/settings.md`, 2, *Read from the
+  forge*), and the setting is read again only when the document's line
+  names a newer one (`last`), or none where the read named one, whichever
+  of the two came first; and when the link comes back from offline. Kind 8 decodes to the kit's table
   (`temper-protocol-reaches`, `classes_from`); one `Classes::check` refuses
   reads as a lasting refusal. A transient read failure (busy, unreachable, local
   read capacity, or sign-in still settling) retries after one second, doubling

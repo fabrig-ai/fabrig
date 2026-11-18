@@ -145,6 +145,7 @@ impl Words {
                 use jig_client::contract::SettingFault;
                 self.setting(b, &value.setting);
                 let phrase = match value.fault {
+                    SettingFault::Linked => JigPhrase::SettingFaultLinked,
                     SettingFault::Shape => JigPhrase::SettingFaultShape,
                     SettingFault::Count => JigPhrase::SettingFaultCount,
                     SettingFault::Reference => JigPhrase::SettingFaultReference,
@@ -283,6 +284,11 @@ impl Words {
                 b.text(skein_ui::Run::Plain, &text.finish());
             }
             Setting::Limits => self.text(b, JigPhrase::SettingLimits, &[]),
+            Setting::Worker(n) => {
+                let number = skein_lib::Decimal::of(u64::from(n.number));
+                let text = skein_lib::bytes::concat(&[b"Worker ", number.as_bytes()]);
+                b.text(skein_ui::Run::Plain, &text);
+            }
             Setting::Rules => self.text(b, JigPhrase::SettingRules, &[]),
         }
     }

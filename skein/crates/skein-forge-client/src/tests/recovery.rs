@@ -123,21 +123,34 @@ fn an_update_made_again_is_found_by_a_later_look() {
 }
 
 #[test]
-fn an_update_checked_again_fails_stale_when_its_head_or_base_moved() {
+fn an_updates_check_names_a_moved_head_apart_from_a_moved_base() {
     for style in [api::UpdateStyle::Merge, api::UpdateStyle::Rebase] {
-        for moved_head in [true, false] {
-            let mut h = updating(style);
-            lose_update(&mut h, style);
-            miss_update(&mut h);
-            let mut pull = writing::pull(if moved_head { [3; 32] } else { [1; 32] });
-            if !moved_head {
-                pull.base_commit = Some([4; 32]);
+        for lost in [false, true] {
+            for (head, base, error) in [
+                ([1; 32], Some([4; 32]), Error::BaseMoved { base: Some([4; 32]) }),
+                ([3; 32], Some([2; 32]), Error::Stale),
+                ([3; 32], Some([4; 32]), Error::Stale),
+                ([1; 32], None, Error::BaseMoved { base: None }),
+            ] {
+                let mut h = if lost {
+                    let mut h = updating(style);
+                    lose_update(&mut h, style);
+                    miss_update(&mut h);
+                    h
+                } else {
+                    let mut h = writing::Harness::new();
+                    h.make(1, Write::Update { number: 9, style }, Condition::Update { head: [1; 32], base: [2; 32] });
+                    h.clock();
+                    h
+                };
+                let mut pull = writing::pull(head);
+                pull.base_commit = base;
+                check_update(&mut h, pull);
+                assert_eq!(h.outcomes.as_slice().last(), Some(&(1, Outcome::Failed(error))), "{style:?}, lost={lost}");
+                assert_eq!(h.writes, u32::from(lost));
+                assert!(h.store.is_empty());
+                assert!(h.send().is_none());
             }
-            check_update(&mut h, pull);
-            assert_eq!(h.outcomes.as_slice().last(), Some(&(1, Outcome::Failed(Error::Stale))));
-            assert_eq!(h.writes, 1);
-            assert!(h.store.is_empty());
-            assert!(h.send().is_none());
         }
     }
 }

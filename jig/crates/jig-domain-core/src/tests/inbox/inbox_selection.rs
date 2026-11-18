@@ -901,7 +901,7 @@ fn original_stored_ancestry_fits_at_depth_and_one_under_refuses_the_whole_page()
     assert_eq!(core.tasks.task(1).unwrap().requester, tasks::Party::Person(1));
 }
 
-fn settings_document_bytes() -> u64 {
+fn settings_document_bytes(limits: &Limits) -> u64 {
     // A settings inventory document is priced beside every document (domain/engine/settings.md 7).
     // Four pending inventory heads add 96 bytes; the two value sets and
     // bounded review/item-head carriers add 115,248 bytes at this fixture.
@@ -924,7 +924,7 @@ fn settings_document_bytes() -> u64 {
     // The closer adds 2 * 8 * (16 + 8) bytes to the Template and New carriers.
     // Each also holds 64 catalogue rows: a 192-byte carrier, two names, a description,
     // a program, efforts and the default effort. The inventory shares one model range.
-    120_528
+    const OTHER: u64 = 120_528
         + 4 * 72
         + 16 * 8
         + 2 * 8 * 16
@@ -945,7 +945,20 @@ fn settings_document_bytes() -> u64 {
         + 64 * 88
         + 2 * (16 + 8 * (24 + 24))
         + 2 * 8 * (16 + 8)
-        + 2 * (256 * (40 + 64 + 120) + 88)
+        + 2 * (256 * (40 + 64 + 120) + 88);
+    let worker = u64::try_from(size_of::<SettingLine>())
+        .unwrap()
+        .checked_add(u64::try_from(size_of::<crate::settings::WorkerSetting>()).unwrap())
+        .unwrap()
+        .checked_add(u64::from(limits.fleet.worker_name_bytes))
+        .unwrap();
+    u64::from(limits.fleet.configured_workers)
+        .checked_mul(2)
+        .unwrap()
+        .checked_mul(worker)
+        .unwrap()
+        .checked_add(OTHER)
+        .unwrap()
 }
 
 #[test]
@@ -990,7 +1003,9 @@ fn inbox_context_memory_prices_every_reserved_container_and_complete_document_en
                 + bound
                 + TEMPLATE_ENVELOPES
                 + u64::from(limits.documents.lines) * (offer + previews)
-                + settings_document_bytes()
+                + settings_document_bytes(&limits)
+                + List::<WorkerState>::price(limits.fleet.configured_workers).unwrap()
+                + u64::from(limits.fleet.configured_workers) * u64::from(limits.fleet.worker_name_bytes)
                 + u64::from(limits.people.words)
         )
     );

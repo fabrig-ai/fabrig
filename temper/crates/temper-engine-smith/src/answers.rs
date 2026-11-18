@@ -138,6 +138,7 @@ pub fn answer_for_page(
     page: u32,
     skip: u32,
 ) -> HostAnswer {
+    let tool = crate::forge_reads::named_label(tool);
     if let CallAnswer::ForgeRead(read) = answer
         && let Ok(
             value @ (api::Answer::Reviews { cut: true, .. }
@@ -186,6 +187,39 @@ pub fn answer_for_job(
     bounded(answer, tool, max_bytes, None, forge, Some(attempt))
 }
 
+/// Render by the decoded read, including its page and pinned job attempt.
+#[must_use]
+pub fn answer_for_read(answer: &CallAnswer, read: &api::Read, max_bytes: u32, forge: ForgeReadBounds) -> HostAnswer {
+    let label = crate::forge_reads::label(read);
+    match read {
+        api::Read::Reviews { page, skip, .. }
+        | api::Read::Remarks { page, skip, .. }
+        | api::Read::PullFiles { page, skip, .. } => answer_for_page(answer, label, max_bytes, forge, *page, *skip),
+        api::Read::Job { attempt, .. } => bounded(answer, label, max_bytes, None, forge, Some(*attempt)),
+        api::Read::Locate { .. }
+        | api::Read::Items { .. }
+        | api::Read::Item { .. }
+        | api::Read::Pull { .. }
+        | api::Read::PullFor { .. }
+        | api::Read::Statuses { .. }
+        | api::Read::Branch { .. }
+        | api::Read::Branches { .. }
+        | api::Read::Compare { .. }
+        | api::Read::Checks { .. }
+        | api::Read::JobState { .. }
+        | api::Read::Runs { .. }
+        | api::Read::Run { .. }
+        | api::Read::File { .. }
+        | api::Read::Tree { .. }
+        | api::Read::Artifact { .. }
+        | api::Read::Commits { .. }
+        | api::Read::Protection { .. }
+        | api::Read::Settings
+        | api::Read::Collaborators { .. }
+        | api::Read::Permission { .. } => bounded(answer, label, max_bytes, None, forge, None),
+    }
+}
+
 fn job_missing(attempt: api::JobAttempt, max_bytes: u32) -> HostAnswer {
     let mut text = Text::new();
     missing_attempt(&mut text, attempt).expect("fixed job refusal and bounded attempt");
@@ -201,7 +235,7 @@ fn missing_attempt(text: &mut Text, attempt: api::JobAttempt) -> Result<(), Prob
     text.number(attempt.job)?;
     text.add(b", attempt ")?;
     text.number(u64::from(attempt.attempt))?;
-    text.add(b", as asked. read_checks at this head names each Actions job's run, job and attempt as read_job takes them; a link's run number and its index of the job are not those ids.")
+    text.add(b", as asked. read_ci what=checks at this head names each Actions job's run, job and attempt as read_ci what=job takes them; a link's run number and its index of the job are not those ids.")
 }
 
 /// The kind of a forge read's answer no agent read asks for, as the log's
@@ -267,6 +301,7 @@ fn bounded(
     forge: ForgeReadBounds,
     job: Option<api::JobAttempt>,
 ) -> HostAnswer {
+    let tool = crate::forge_reads::named_label(tool);
     let cap = skein_lib::usize_of(max_bytes).min(HostAnswer::CAPACITY);
     if let Some(reason) = unasked_kind(answer) {
         return unasked_refusal(tool, reason, cap);
@@ -291,7 +326,7 @@ fn bounded(
         {
             return file_read_bounded(value, cap, forge);
         }
-        if tool == b"read_compare" {
+        if tool == b"read_forge what=compare" {
             return compare_bounded(read, cap, forge);
         }
         if read.is_err() {
@@ -327,10 +362,10 @@ fn compare_bounded(read: &Result<api::Answer, api::Error>, cap: usize, forge: Fo
         return clipped_refusal(text, cap);
     }
     let mut count = Text::counter();
-    let error = forge_read(&mut count, read, b"read_compare", forge).expect("counting compare");
+    let error = forge_read(&mut count, read, b"read_forge what=compare", forge).expect("counting compare");
     if count.len <= cap {
         let mut text = Text::new();
-        if forge_read(&mut text, read, b"read_compare", forge).is_ok()
+        if forge_read(&mut text, read, b"read_forge what=compare", forge).is_ok()
             && let Ok(answer) = text.finish(error)
         {
             return answer;
@@ -338,7 +373,7 @@ fn compare_bounded(read: &Result<api::Answer, api::Error>, cap: usize, forge: Fo
     }
     let measured = count.len;
     let mut text = Text::new();
-    read_size(&mut text, b"read_compare", measured, cap, forge).expect("compare size");
+    read_size(&mut text, b"read_forge what=compare", measured, cap, forge).expect("compare size");
     compare_recovery(&mut text, forge).expect("compare recovery");
     answer_configuration(&mut text).expect("configuration recovery");
     clipped_refusal(text, cap)
@@ -386,7 +421,7 @@ fn file_read_bounded(value: &api::Answer, cap: usize, forge: ForgeReadBounds) ->
             return text.finish(false).expect("file prefix fits");
         }
         let mut text = Text::new();
-        read_size(&mut text, b"read_file", count.len, cap, forge).expect("file size");
+        read_size(&mut text, b"read_forge what=file", count.len, cap, forge).expect("file size");
         text.add(b"File metadata leaves no room for content at the host answer limit. Use a shorter path; lowering max_bytes cannot fit metadata.\n").expect("fixed feedback");
         answer_configuration(&mut text).expect("configuration recovery");
         return clipped_refusal(text, cap);
@@ -394,7 +429,7 @@ fn file_read_bounded(value: &api::Answer, cap: usize, forge: ForgeReadBounds) ->
     if let api::Answer::PullFiles { head, files, more, .. } = value {
         return pull_inventory(head, files, *more, count.len, cap, forge);
     }
-    file_read_refusal(b"read_file", count.len, cap, forge)
+    file_read_refusal(b"read_forge what=file", count.len, cap, forge)
 }
 
 fn file_heading(text: &mut Text, head: &api::Commit, path: &[u8]) -> Result<(), Problem> {
@@ -415,7 +450,7 @@ fn file_prefix(
 ) -> Result<(), Problem> {
     let mut footer = Text::new();
     footer.add(b"\n")?;
-    read_size(&mut footer, b"read_file", measured, cap, forge)?;
+    read_size(&mut footer, b"read_forge what=file", measured, cap, forge)?;
     file_recovery(&mut footer)?;
     answer_configuration(&mut footer)?;
     footer.add(b"\n[file truncated]")?;
@@ -463,11 +498,11 @@ fn read_size(
 }
 
 fn file_recovery(text: &mut Text) -> Result<(), Problem> {
-    text.add(b"Retry read_file with smaller max_bytes, leaving room for path/commit metadata and byte escaping overhead (up to 4 bytes per input byte). A truncated prefix is not the whole file; max_bytes is a prefix limit, not an offset. A directory lists paths for selected reads.\n")
+    text.add(b"Retry read_forge what=file with smaller max_bytes, leaving room for path/commit metadata and byte escaping overhead (up to 4 bytes per input byte). A truncated prefix is not the whole file; max_bytes is a prefix limit, not an offset. A directory lists paths for selected reads.\n")
 }
 
 fn pull_recovery(text: &mut Text) -> Result<(), Problem> {
-    text.add(b"Contents [omitted]. Use read_file for selected paths at the head commit (after) and the comparison's base commit (before; resolve separately), with max_bytes leaving room for metadata and escaping overhead. If paths are omitted, list directories there with read_file. Advancing page alone cannot recover this oversized page; later pages only list other files.\n")
+    text.add(b"Contents [omitted]. Use read_forge what=file for selected paths at the head commit (after) and the comparison's base commit (before; resolve separately), with max_bytes leaving room for metadata and escaping overhead. If paths are omitted, list directories there with read_forge what=file. Advancing page alone cannot recover this oversized page; later pages only list other files.\n")
 }
 
 fn clipped_refusal(text: Text, cap: usize) -> HostAnswer {
@@ -480,9 +515,9 @@ fn clipped_refusal(text: Text, cap: usize) -> HostAnswer {
 fn file_read_refusal(tool: &[u8], measured: usize, cap: usize, forge: ForgeReadBounds) -> HostAnswer {
     let mut text = Text::new();
     read_size(&mut text, tool, measured, cap, forge).expect("fixed size guidance");
-    if tool == b"read_pull_files" {
+    if tool == b"read_issues what=pull_files" {
         pull_recovery(&mut text).expect("fixed pull recovery");
-        text.add(b"No changed-path inventory available; use read_file directories at both endpoints.\n")
+        text.add(b"No changed-path inventory available; use read_forge what=file directories at both endpoints.\n")
             .expect("fixed inventory guidance");
     } else {
         file_recovery(&mut text).expect("fixed file recovery");
@@ -512,7 +547,7 @@ fn pull_inventory(
     // Six row parts and three for the omitted-path count.
     const ROW_AND_CUT_PARTS: u32 = 9;
     let mut text = Text::new();
-    read_size(&mut text, b"read_pull_files", size, cap, forge).expect("fixed size guidance");
+    read_size(&mut text, b"read_issues what=pull_files", size, cap, forge).expect("fixed size guidance");
     pull_recovery(&mut text).expect("fixed pull recovery");
     answer_configuration(&mut text).expect("configuration recovery");
     text.add(b"Head commit ").expect("fixed head label");
@@ -1516,10 +1551,10 @@ fn forge_read(
             if let api::Error::TooLarge(_) = refusal {
                 text.add(b". ")?;
                 read_on(text, tool)?;
-            } else if tool == b"read_branches" && *refusal == api::Error::Empty {
+            } else if tool == b"read_forge what=branches" && *refusal == api::Error::Empty {
                 text.add(b". ")?;
                 branches_empty_recovery(text)?;
-            } else if tool == b"read_branch" && *refusal == api::Error::Missing {
+            } else if tool == b"read_forge what=branch" && *refusal == api::Error::Missing {
                 text.add(b". ")?;
                 branch_missing_recovery(text)?;
             }
@@ -1529,12 +1564,12 @@ fn forge_read(
 }
 
 fn branches_empty_recovery(text: &mut Text) -> Result<(), Problem> {
-    const WORDS: &[u8] = b"read_branches needs a nonempty prefix, as temper/ for temper's branches. read_settings names the default branch, and read_branch reads one branch by its name.";
+    const WORDS: &[u8] = b"read_forge what=branches needs a nonempty prefix, as temper/ for temper's branches. read_forge what=settings names the default branch, and read_forge what=branch reads one branch by its name.";
     text.add(WORDS)
 }
 
 fn branch_missing_recovery(text: &mut Text) -> Result<(), Problem> {
-    const WORDS: &[u8] = b"The forge has no branch of that name in this repository. read_settings names its default branch, and read_branches lists the names under a prefix, as temper/. A goal's own branch is there only where its goal holds one, and a run branch from its first push.";
+    const WORDS: &[u8] = b"The forge has no branch of that name in this repository. read_forge what=settings names its default branch, and read_forge what=branches lists the names under a prefix, as temper/. A goal's own branch is there only where its goal holds one, and a run branch from its first push.";
     text.add(WORDS)
 }
 
@@ -1544,7 +1579,9 @@ fn compare_recovery(text: &mut Text, forge: ForgeReadBounds) -> Result<(), Probl
 }
 
 fn compare_contents(text: &mut Text, forge: ForgeReadBounds) -> Result<(), Problem> {
-    text.add(b"read_compare returns a whole comparison, with no pages. Its files and commits each must fit ")?;
+    text.add(
+        b"read_forge what=compare returns a whole comparison, with no pages. Its files and commits each must fit ",
+    )?;
     forge_rows(text, forge)?;
     text.add(b"; both whole sides of every changed file must fit ")?;
     forge_answer_bytes(text, forge)?;
@@ -1564,11 +1601,11 @@ fn forge_answer_bytes(text: &mut Text, forge: ForgeReadBounds) -> Result<(), Pro
 }
 
 fn compare_paged_recovery(text: &mut Text) -> Result<(), Problem> {
-    text.add(b"For an existing pull, use read_pull to get its head, then read_pull_files with that head and page=1; advance page while more follows. Pull-file sides must fit whole too. Otherwise, or if a pull-file page is too large, use read_file to list directories at both endpoints, then read selected files at each endpoint within max_bytes.")
+    text.add(b"For an existing pull, use read_issues what=pull to get its head, then read_issues what=pull_files with that head and page=1; advance page while more follows. Pull-file sides must fit whole too. Otherwise, or if a pull-file page is too large, use read_forge what=file to list directories at both endpoints, then read selected files at each endpoint within max_bytes.")
 }
 
 fn answer_configuration(text: &mut Text) -> Result<(), Problem> {
-    text.add(b"To read the whole content, increase the limiting core.call_answer_bytes (including tool name) or agent.json profile.declared.tool_payload (agent.limits.bodies.host_reply_text). Raising core.call_answer_bytes alone cannot overcome a smaller agent allowance.\n")
+    text.add(b"To read the whole content, increase the limiting core.call_answer_bytes (including tool name) or agents setting declared.tool_payload (agent.limits.bodies.host_reply_text). Raising core.call_answer_bytes alone cannot overcome a smaller agent allowance.\n")
 }
 
 fn forge_error(text: &mut Text, error: api::Error) -> Result<(), Problem> {
@@ -1589,6 +1626,7 @@ fn forge_error(text: &mut Text, error: api::Error) -> Result<(), Problem> {
         api::Error::NothingToMerge => text.add(b"nothing to merge"),
         api::Error::Closed => text.add(b"closed"),
         api::Error::Stale => text.add(b"stale head"),
+        api::Error::BaseMoved { .. } => text.add(b"base moved"),
         api::Error::Conflict => text.add(b"conflict"),
         api::Error::Protected => text.add(b"protected"),
         api::Error::Refused => text.add(b"refused"),
@@ -1738,7 +1776,7 @@ fn forge_answer_at(text: &mut Text, answer: &api::Answer, at: (u32, u32)) -> Res
                 text.add(b"[")?;
                 text.number(left)?;
                 text.add(
-                    b" not listed: read_pull_files lists a pull's files; read_file reads a path at each commit]\n",
+                    b" not listed: read_issues what=pull_files lists a pull's files; read_forge what=file reads a path at each commit]\n",
                 )?;
             }
         }
@@ -1849,7 +1887,7 @@ fn status_text(text: &mut Text, status: &api::Status) -> Result<(), Problem> {
     text.add(&status.url)?;
     match status.job {
         Some(attempt) => {
-            text.add(b"\nread_job head ")?;
+            text.add(b"\nread_ci what=job commit ")?;
             text.commit(&attempt.head)?;
             text.add(b" run ")?;
             text.number(attempt.run)?;
@@ -2189,24 +2227,24 @@ fn forge_refused_size(text: &mut Text, excess: api::Excess) -> Result<(), Proble
 
 fn read_on(text: &mut Text, tool: &[u8]) -> Result<(), Problem> {
     match tool {
-        b"read_file" => file_recovery(text),
-        b"read_pull_files" => pull_recovery(text),
-        b"read_compare" => compare_paged_recovery(text),
-        b"read_branches" => text.add(b"Use a longer prefix, or read_branch for one name."),
-        b"read_item" => text.add(b"Advance after to read later comments; read_items lists item summaries."),
-        b"read_items" | b"read_reviews" | b"read_statuses" | b"read_remarks" | b"read_collaborators" => {
+        b"read_forge what=file" => file_recovery(text),
+        b"read_issues what=pull_files" => pull_recovery(text),
+        b"read_forge what=compare" => compare_paged_recovery(text),
+        b"read_forge what=branches" => text.add(b"The names under this prefix pass forge.client.answer_bytes, the one bound a branch list has: name a longer prefix, as temper/goal/ in place of temper/, or read one branch by its name with read_forge what=branch."),
+        b"read_issues what=item" => text.add(b"Advance comment to read later comments; read_issues what=items lists item summaries."),
+        b"read_issues what=items" | b"read_issues what=reviews" | b"read_ci what=statuses" | b"read_issues what=remarks" | b"read_forge what=collaborators" => {
             text.add(b"Advance page to list the rest; a later page skips this oversized page.")
         }
-        b"read_checks" => text.add(b"Use read_statuses by page, then read_job for a failed job."),
-        b"read_job" => text.add(b"Read the same attempt with smaller max_bytes."),
-        b"read_pull" | b"read_pull_for" => text.add(
-            b"Use read_items for a summary and read_pull_files by page or read_file by path at the head or the base.",
+        b"read_ci what=checks" => text.add(b"Use read_ci what=statuses by page, then read_ci what=job for a failed job."),
+        b"read_ci what=job" => text.add(b"Read the same attempt with smaller max_bytes."),
+        b"read_issues what=pull" | b"read_issues what=pull_for" => text.add(
+            b"Use read_issues what=items for a summary and read_issues what=pull_files by page or read_forge what=file by path at the head or the base.",
         ),
-        b"read_branch" => text.add(b"Use read_branches with a longer prefix."),
-        b"read_protection" | b"read_settings" | b"read_permission" => {
-            text.add(b"This object has no pages; read_items or read_branch for narrower context.")
+        b"read_forge what=branch" => text.add(b"Use read_forge what=branches with a longer prefix."),
+        b"read_forge what=protection" | b"read_forge what=settings" | b"read_forge what=permission" => {
+            text.add(b"This object has no pages; read_issues what=items or read_forge what=branch for narrower context.")
         }
-        _ => text.add(b"Read a narrower object by page or path with read_file."),
+        _ => text.add(b"Read a narrower object by page or path with read_forge what=file."),
     }
 }
 

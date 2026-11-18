@@ -93,7 +93,32 @@ fn every_settings_read_form_and_offset_decodes() {
 fn settings_bad_fields_are_refused_by_name() {
     for spec in &crate::calls::SPECS {
         if [b"settings".as_slice(), b"propose_settings"].contains(&spec.name) {
-            assert!(skein_lib::bytes::find(spec.schema, br#""description":"Setting number (template-goal: template). Omit for rules, welcome, limit kinds and unnumbered project settings.""#).is_some());
+            assert!(skein_lib::bytes::find(spec.whole(), br#""description":"Setting number; template-goal: its template's. Omit for rules, welcome, agents, limit kinds and unnumbered project settings.""#).is_some());
+            let schema = crate::json::parse(spec.whole()).unwrap();
+            let properties = schema.required(b"properties").unwrap();
+            let setting = if spec.name == b"settings" {
+                properties.required(b"setting").unwrap()
+            } else {
+                properties
+                    .required(b"items")
+                    .unwrap()
+                    .required(b"items")
+                    .unwrap()
+                    .required(b"properties")
+                    .unwrap()
+                    .required(b"setting")
+                    .unwrap()
+            };
+            let kinds = setting
+                .required(b"properties")
+                .unwrap()
+                .required(b"kind")
+                .unwrap()
+                .required(b"enum")
+                .unwrap()
+                .array(b"enum")
+                .unwrap();
+            assert!(kinds.contains(&crate::json::Value::String(b"model".as_slice().into())));
         }
     }
     for (input, why) in [
@@ -709,6 +734,7 @@ fn the_settings_tool_restores_the_stocks_policy_and_rules() {
                     rules.ceiling
                 }
                 form::SettingValue::Overlay(_)
+                | form::SettingValue::Worker(_)
                 | form::SettingValue::Model(_)
                 | form::SettingValue::Application(_)
                 | form::SettingValue::Charter(_)
@@ -1190,7 +1216,7 @@ fn ask_reads_and_proposes_both_limit_kinds() {
         reason: b"dev's outbox".as_slice().into(),
     }]));
     for (kind, setting) in
-        [("limits", s::Setting::Limits), ("temper-limits", s::Setting::Application { kind: 21, scope: 0, number: 1 })]
+        [("limits", s::Setting::Limits), ("temper-limits", s::Setting::Application { kind: 22, scope: 0, number: 1 })]
     {
         let input = format!(r#"{{"setting":{{"kind":"{kind}"}}}}"#);
         let call = decided(b"settings", input.as_bytes()).unwrap();
@@ -1203,7 +1229,7 @@ fn ask_reads_and_proposes_both_limit_kinds() {
         &[
             s::Item { setting: s::Setting::Limits, edit: s::Edit::Set(list) },
             s::Item {
-                setting: s::Setting::Application { kind: 21, scope: 0, number: 1 },
+                setting: s::Setting::Application { kind: 22, scope: 0, number: 1 },
                 edit: s::Edit::Set(s::Value::Application(crate::kinds::encode(&temper))),
             }
         ]
@@ -1211,10 +1237,48 @@ fn ask_reads_and_proposes_both_limit_kinds() {
     assert_eq!(
         kinds.as_ref(),
         &[engine::KindValue {
-            kind: 21,
+            kind: 22,
             scope: 0,
             number: 1,
             value: f::SizedValue { size: crate::kinds::size(&temper), value: temper }
         }]
     );
+}
+
+#[test]
+fn ask_temper_proposes_reads_and_words_worker_settings() {
+    let body = decided(b"propose_settings", br#"{"against":1,"reason":"Add worker","items":[{"setting":{"kind":"worker","number":2},"set":{"name":"w1","places":4}}]}"#).unwrap();
+    let value = s::Value::Worker(Box::new(s::WorkerSetting {
+        number: 2,
+        name: b"w1".as_slice().into(),
+        places: 4,
+        digest: None,
+        withdrawn: false,
+    }));
+    let engine::Tool::ProposeSettings { items, .. } = body.tool else { panic!("settings proposal") };
+    assert_eq!(items.as_ref(), &[s::Item { setting: s::Setting::Worker(2), edit: s::Edit::Set(value.clone()) }]);
+    assert_eq!(
+        decided(b"settings", br#"{"setting":{"kind":"worker","number":2}}"#).unwrap().tool,
+        engine::Tool::Settings { read: SettingsRead::Setting { setting: s::Setting::Worker(2), revision: 0 }, from: 0 }
+    );
+    let document = jig_domain_core::reads::SettingDocument {
+        overlay: None,
+        setting: s::Setting::Worker(2),
+        revision: 1,
+        value: Some(value),
+        application: None,
+        proposed: None,
+    };
+    let text = settings_text(&SettingsAnswer::Setting(document), None, &[]).unwrap();
+    assert!(skein_lib::bytes::find(&text, b"worker 2").is_some());
+    assert!(skein_lib::bytes::find(&text, br#""name":"w1""#).is_some());
+    let refusal = crate::settings::refusal(&jig_domain_people::Refusal::NotWellFormed {
+        at: 1,
+        why: jig_domain_people::Malformed::Settings {
+            setting: s::Setting::Worker(2),
+            fault: s::Fault::Linked,
+            detail: None,
+        },
+    });
+    assert!(skein_lib::bytes::find(&refusal, b"linked: stop it first").is_some());
 }
