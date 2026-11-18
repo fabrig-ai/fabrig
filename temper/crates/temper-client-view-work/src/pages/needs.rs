@@ -1,4 +1,6 @@
 //! Open needs in order, with one card shown in the browser (temper/docs/design/client/pages/README.md).
+#[cfg(test)]
+mod limit_tests;
 use super::ask;
 use crate::{
     bindings::Bindings,
@@ -256,6 +258,7 @@ fn card_main(
     context(b, root, &asked, w, rows);
     ask::whole_parts(b, &asked, w, bindings);
     why_line(b, root, w, bindings, needs::Need::Card(card), WhyForm::Rule);
+    limit_hold(b, root, w, bindings, card);
     if let Some(outcome) = session.refused(card.object) {
         crate::confirm::outcome_words(b, w, outcome);
     }
@@ -288,6 +291,67 @@ fn card_main(
         }
     }
     b.close();
+}
+
+pub(super) fn limit_hold(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    card: &temper_client_domain::pages::inbox::Card,
+) {
+    use temper_client_domain::pages::limit_settings;
+    let state = root.pages().limit_settings();
+    let Some(held) = state.hold(card) else { return };
+    limit_details(
+        b,
+        w,
+        bindings,
+        held,
+        limit_settings::owner(root.pages().me(root.client())),
+        state.ready() && card.key.is_none(),
+        state.refused(held.task()),
+    );
+}
+fn limit_details(
+    b: &mut Builder,
+    w: &Words,
+    bindings: &mut Bindings,
+    held: &temper_client_protocol_wire::v1::LimitHold,
+    owner: bool,
+    ready: bool,
+    refused: Option<&jig_client::Outcome>,
+) {
+    use temper_client_domain::pages::limit_settings;
+    ask::text(
+        b,
+        Role::Paragraph,
+        &w.say(
+            Word::NeedsLimit,
+            &[Hole::Name(held.limit().into()), Hole::Number(held.configured()), Hole::Number(held.needed())],
+        ),
+        look::SETTINGS_DETAIL,
+    );
+    if owner {
+        if let Some(figure) = limit_settings::raise_figure(held.configured(), held.needed()) {
+            let label = w.say(Word::NeedsLimitRaise, &[Hole::Name(held.limit().into()), Hole::Number(figure)]);
+            b.open(Role::Button);
+            b.name(&label);
+            b.bind(bindings.insert(Act::LimitSettings(limit_settings::Act::Raise {
+                task: held.task(),
+                revision: held.revision(),
+            })));
+            if !ready {
+                b.state(State::Disabled);
+            }
+            b.close();
+        }
+    } else {
+        ask::text(b, Role::Paragraph, &w.say(Word::NeedsLimitOwner, &[]), look::SETTINGS_DETAIL);
+    }
+    if let Some(outcome) = refused {
+        crate::confirm::outcome_words(b, w, outcome);
+    }
 }
 
 fn tell(b: &mut Builder, root: &Domain, asked: &ask::Asked<'_>, w: &Words, bindings: &mut Bindings) {

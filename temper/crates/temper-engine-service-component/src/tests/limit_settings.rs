@@ -6,6 +6,7 @@
     reason = "ordinary focused tests edit startup documents and restart a memory store"
 )]
 mod admission;
+mod reading;
 use super::fixtures;
 use crate::{
     limit_settings::{LimitInputs, LimitSettings},

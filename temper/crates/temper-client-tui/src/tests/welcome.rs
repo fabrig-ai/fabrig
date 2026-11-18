@@ -1028,7 +1028,9 @@ fn welcome_read(rows: &[w::ForgeRow], linked: bool, model: Option<c::Accounts>, 
                         )),
                         None => None,
                     },
-                    w::Read::Setting(_)
+                    w::Read::Limits(_)
+                    | w::Read::LimitHolds(_)
+                    | w::Read::Setting(_)
                     | w::Read::Finding(_)
                     | w::Read::History(_)
                     | w::Read::Milestone(_)

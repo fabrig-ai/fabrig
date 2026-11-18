@@ -1,5 +1,6 @@
 //! Limit settings at startup and admission (configuration/limit-settings.md, 3–4).
 pub(crate) mod admission;
+pub(crate) mod reading;
 use crate::store::Store;
 use alloc::boxed::Box;
 use jig_domain_core::{self as core, settings::Override};

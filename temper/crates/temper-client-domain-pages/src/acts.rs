@@ -195,6 +195,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Queue<Requ
         | Act::Models(_)
         | Act::HandArea(_)
         | Act::StopAsking(_)
+        | Act::LimitSettings(_)
         | Act::Needs(_)
         | Act::Finding(_)
         | Act::TellWords { .. }

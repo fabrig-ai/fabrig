@@ -822,6 +822,13 @@ pub const TRIALS_SUBJECT: u64 = temper_engine_domain_trials::TRIALS_SUBJECT;
 /// Forge reads through party authorization (temper/docs/design/client/forge/records.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeRead {
+    /// The service supplies rows after the root authorizes the read and counts held bytes.
+    Limits {
+        after: Option<Box<[u8]>>,
+    },
+    LimitHolds {
+        after: Option<u64>,
+    },
     Milestone {
         project: u32,
         task: u64,
@@ -857,6 +864,14 @@ pub enum ForgeRead {
 /// Typed forge read answers, encoded at the clients' boundary.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeReadAnswer {
+    Limits {
+        after: Option<Box<[u8]>>,
+        held: u64,
+    },
+    LimitHolds {
+        rows: Box<[forge::LimitHold]>,
+        next: Option<u64>,
+    },
     Milestone(Option<forge::MilestoneTotals>),
     History(forge::history::Reply),
     Finding(Option<forge::FindingAnswer>),

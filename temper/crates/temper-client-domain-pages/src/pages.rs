@@ -61,6 +61,7 @@ pub mod home;
 pub mod how;
 pub mod inbox;
 pub mod launchpad;
+pub mod limit_settings;
 pub mod milestone;
 pub mod milestones;
 pub mod models;
@@ -101,6 +102,7 @@ pub struct Pages {
     notes: skein_lib::List<terminal::Note>,
     needs: needs::Session,
     stop_asking: Option<stop_asking::Open>,
+    limit_settings: Box<limit_settings::State>,
     hand_area: Option<team::hand::Open>,
     keep_asking: skein_lib::List<stop_asking::Keeping>,
     decided: decided::Store,
@@ -251,6 +253,7 @@ pub enum Act {
         about: Option<tell::About>,
     },
     StopAsking(stop_asking::Act),
+    LimitSettings(limit_settings::Act),
     HandArea(team::hand::Act),
     Away(away::Act),
     Models(models::Act),
@@ -426,6 +429,7 @@ impl Pages {
             notes: skein_lib::List::with_capacity(8),
             needs: needs::Session::default(),
             stop_asking: None,
+            limit_settings: Box::new(limit_settings::State::new()),
             hand_area: None,
             keep_asking: skein_lib::List::uncapped(),
             away: None,
@@ -941,6 +945,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         Event::Act { act: Act::Finding(act) } => findings::act(pages, env, act, out),
         Event::Act { act: Act::TellWords { words } } => pages.tell_words = words,
         Event::Act { act: Act::Tell { project, words, about } } => tell::act(pages, env, project, &words, about, out),
+        Event::Act { act: Act::LimitSettings(act) } => limit_settings::act(pages, client, &env.limits, act, out),
         Event::Act { act: Act::Needs(act) } => {
             needs::act(pages, env, client, &crate::forge::approvals::Approvals::default(), act, out);
         }
@@ -1298,6 +1303,11 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             link_changed(pages, &env.limits, link, out);
         }
         Event::Told { told: event } => {
+            if let Told::Changed { handle } | Told::Ended { handle, .. } = &event
+                && *handle == crate::forge::ways::handle()
+            {
+                limit_settings::configure(pages, client, env.now, &env.limits, out);
+            }
             if !told(pages, env, client, event, out) {
                 return;
             }
@@ -1368,6 +1378,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     if let Some(chats) = &pages.chats {
         pages.next = pages.next.max(chats.goals.number.checked_add(1).expect("chat handles fit"));
     }
+    limit_settings::configure(pages, client, env.now, &env.limits, out);
     if pages.team_open && client.link().state != Link::SignedOut && client.link().state != Link::OutOfDate {
         let you = match pages.me(client) {
             Some(me) => me.party.number,
@@ -1516,6 +1527,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     reason = "routes project deletion and launchpad replies beside their page watches without changing their order"
 )]
 fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
+    if limit_settings::told(pages, &told, env.now, &env.limits) {
+        return true;
+    }
     if delete_project::told(pages, &told, out) {
         pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
         return false;
@@ -1680,7 +1694,12 @@ fn started(pages: &mut Pages, out: &mut Queue<Request>) {
         }));
     }
 }
-pub fn fire(pages: &mut Pages, env: &Env<Limits>, _client: &Client, out: &mut Queue<Request>) {
+pub fn fire(pages: &mut Pages, env: &Env<Limits>, client: &Client, out: &mut Queue<Request>) {
+    if let Some(at) = pages.limit_settings.next_deadline()
+        && at <= env.now
+    {
+        limit_settings::configure(pages, client, env.now, &env.limits, out);
+    }
     pages.team.fire(env.now, out);
     if needs::fire(pages, env, out) {
         pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
@@ -1719,7 +1738,10 @@ pub fn next_deadline(pages: &Pages) -> Option<Time> {
         None => None,
     };
     activity::earliest(
-        activity::earliest(remembered, pages.team.next_deadline()),
+        activity::earliest(
+            activity::earliest(remembered, pages.team.next_deadline()),
+            pages.limit_settings.next_deadline(),
+        ),
         activity::earliest(activity::earliest(task, chat), activity::earliest(chats, pages.needs.next_deadline())),
     )
 }
@@ -2628,6 +2650,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::Models(_)
         | Act::HandArea(_)
         | Act::StopAsking(_)
+        | Act::LimitSettings(_)
         | Act::Needs(_)
         | Act::Finding(_)
         | Act::Tell { .. }

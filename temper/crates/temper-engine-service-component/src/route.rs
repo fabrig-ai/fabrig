@@ -234,11 +234,26 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
                     }
                 }
                 root::PartyRequest::Deliver(root::Delivery::ForgeRead { reply, answer }) => {
-                    match crate::family::forge_read(
-                        answer,
-                        &engine.clients.program_environment,
-                        &temper_client_protocol_wire::v1::CEILINGS,
-                    ) {
+                    let bounds = &temper_client_protocol_wire::v1::CEILINGS;
+                    let record = match answer {
+                        root::ForgeReadAnswer::Limits { after, held } => match engine.limits_in_force() {
+                            Some(state) => {
+                                crate::limit_settings::reading::answer(state, after.as_deref(), held, bounds)
+                            }
+                            None => None,
+                        },
+                        other @ (root::ForgeReadAnswer::LimitHolds { .. }
+                        | root::ForgeReadAnswer::Milestone(_)
+                        | root::ForgeReadAnswer::History(_)
+                        | root::ForgeReadAnswer::Finding(_)
+                        | root::ForgeReadAnswer::View(_)
+                        | root::ForgeReadAnswer::ProgramEnvironment
+                        | root::ForgeReadAnswer::Setting(_)
+                        | root::ForgeReadAnswer::ProposalItems { .. }) => {
+                            crate::family::forge_read(other, &engine.clients.program_environment, bounds)
+                        }
+                    };
+                    match record {
                         Some(record) => Some(jig_protocol_engine_clients::Event::Application(
                             jig_protocol_engine_clients::FromApplication::Read {
                                 reply,

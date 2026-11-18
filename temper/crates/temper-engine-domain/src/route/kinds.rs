@@ -487,7 +487,9 @@ pub(super) fn read(
                 super::ways::view::read(domain, env, decision, reply, sign_in, project, address);
                 return;
             }
-            crate::ForgeRead::Setting { .. }
+            crate::ForgeRead::Limits { .. }
+            | crate::ForgeRead::LimitHolds { .. }
+            | crate::ForgeRead::Setting { .. }
             | crate::ForgeRead::RevisionSetting { .. }
             | crate::ForgeRead::ProposalItems { .. }
             | crate::ForgeRead::Finding { .. }
@@ -507,6 +509,10 @@ pub(super) fn read(
                 crate::ForgeRead::Finding { project, number } => {
                     crate::ForgeReadAnswer::Finding(super::findings::read(domain, project, number))
                 }
+                crate::ForgeRead::Limits { after } => {
+                    crate::ForgeReadAnswer::Limits { after, held: domain.held_bytes() }
+                }
+                crate::ForgeRead::LimitHolds { after } => limit_holds(domain, env, sign_in, scope, after),
                 crate::ForgeRead::ProgramEnvironment => crate::ForgeReadAnswer::ProgramEnvironment,
                 crate::ForgeRead::Setting { kind, scope, number } => {
                     crate::ForgeReadAnswer::Setting(domain.forge.setting(kind, scope, number).cloned())
@@ -548,9 +554,11 @@ fn read_refusal(
                     crate::ForgeRead::ProgramEnvironment => {
                         domain.core.people.role(party, DEPLOYMENT) == Some(jig_domain_people::Role::Owner)
                     }
-                    crate::ForgeRead::Setting { kind: 20, scope: 0, number: 1 }
+                    crate::ForgeRead::LimitHolds { .. }
+                    | crate::ForgeRead::Setting { kind: 20, scope: 0, number: 1 }
                     | crate::ForgeRead::RevisionSetting { kind: 20, scope: 0, number: 1, .. } => true,
-                    crate::ForgeRead::Setting { .. }
+                    crate::ForgeRead::Limits { .. }
+                    | crate::ForgeRead::Setting { .. }
                     | crate::ForgeRead::RevisionSetting { .. }
                     | crate::ForgeRead::ProposalItems { .. } => domain.core.people.role(party, DEPLOYMENT).is_some(),
                 },
@@ -573,7 +581,10 @@ fn read_refusal(
                                 || *kind == 15)
                                 && *scope == project
                         }
-                        crate::ForgeRead::ProposalItems { .. } | crate::ForgeRead::ProgramEnvironment => false,
+                        crate::ForgeRead::LimitHolds { .. } => true,
+                        crate::ForgeRead::Limits { .. }
+                        | crate::ForgeRead::ProposalItems { .. }
+                        | crate::ForgeRead::ProgramEnvironment => false,
                     };
                     project != DEPLOYMENT && own_kind && domain.core.people.role(party, project).is_some()
                 }
@@ -582,6 +593,46 @@ fn read_refusal(
             if permitted { None } else { Some(Why::Unknown) }
         }
     }
+}
+
+// A deployment-wide inbox can include several projects, but never another party's tasks.
+fn limit_holds(
+    domain: &Domain,
+    env: &Env<Limits>,
+    sign_in: u64,
+    scope: jig_domain_people::ApplicationScope,
+    after: Option<u64>,
+) -> crate::ForgeReadAnswer {
+    use jig_domain_people::{ApplicationScope, DEPLOYMENT};
+    let party = domain.core.people.person(sign_in, env.now, env.wall).expect("authorized hold read");
+    let deployment = domain.core.people.role(party, DEPLOYMENT).is_some();
+    let mut ordered = skein_lib::Map::with_capacity(domain.forge_limit_holds.len());
+    for row in domain.forge_limit_holds() {
+        if row.task <= after.unwrap_or(0) {
+            continue;
+        }
+        let Some(task) = domain.core.tasks.task(row.task) else { continue };
+        let visible = match scope {
+            ApplicationScope::Deployment => deployment || domain.core.people.role(party, task.project).is_some(),
+            ApplicationScope::Project(project) => task.project == project,
+            ApplicationScope::Own => false,
+        };
+        if visible {
+            ordered.insert(row.task, row).expect("one hold per task");
+        }
+    }
+    let mut rows = List::with_capacity(32);
+    let mut last = None;
+    let mut next = None;
+    for (&task, row) in &ordered {
+        if rows.len() == rows.capacity() {
+            next = last;
+            break;
+        }
+        last = Some(task);
+        rows.push(row.clone()).expect("page bound");
+    }
+    crate::ForgeReadAnswer::LimitHolds { rows: rows.into_boxed(), next }
 }
 
 fn revision_begin(

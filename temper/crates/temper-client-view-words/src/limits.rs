@@ -165,6 +165,12 @@ impl Limits {
             .checked_add(receiving.rows.checked_mul(2)?)?
             .checked_add(64)?;
         let structural = cards
+            // Limits' bounded page: heading, definition, figures, unit, timing and held bytes per row.
+            .checked_add(
+                temper_client_protocol_wire::v1::CEILINGS.limits_answer_rows.checked_mul(26)?.checked_add(14)?,
+            )?
+            // One held task's limit facts, raise and refusal.
+            .checked_add(12)?
             // Tell temper: head, field, About, Goes to, refusal, bound and acts (client/pages/needs-you.md, 1).
             .checked_add(28)?
             .checked_add(findings)?

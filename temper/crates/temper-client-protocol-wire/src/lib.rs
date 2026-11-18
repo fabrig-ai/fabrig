@@ -88,7 +88,34 @@ pub const fn owner(number: u16) -> Option<Owner> {
     }
 }
 /// Every record's version, served by both ends (client/forge/records.md).
-pub const CLIENT_VERSION: u32 = 32;
+pub const CLIENT_VERSION: u32 = 33;
+
+/// One page of limit rows (configuration/limit-settings.md, 7).
+#[must_use]
+pub fn limits_answer(record: &v1::LimitsAnswer) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("bounded limits page"));
+    record.encode(&mut writer).expect("measured limits page");
+    writer.finish()
+}
+#[must_use]
+pub fn decode_limits_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1::LimitsAnswer> {
+    let mut reader = Reader::new(bytes);
+    let record = v1::LimitsAnswer::decode(limits, &mut reader).ok()?;
+    if reader.is_empty() { Some(record) } else { None }
+}
+/// One page of kept limit holds (configuration/limit-settings.md, 7).
+#[must_use]
+pub fn limit_holds_answer(record: &v1::LimitHoldsAnswer) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("bounded holds page"));
+    record.encode(&mut writer).expect("measured holds page");
+    writer.finish()
+}
+#[must_use]
+pub fn decode_limit_holds_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1::LimitHoldsAnswer> {
+    let mut reader = Reader::new(bytes);
+    let record = v1::LimitHoldsAnswer::decode(limits, &mut reader).ok()?;
+    if reader.is_empty() { Some(record) } else { None }
+}
 
 /// The deployment's maximum number of forges (client/forge/records.md).
 pub const FORGES: u32 = 16;

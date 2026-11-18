@@ -194,7 +194,7 @@ fn every_tab_draws_its_head_and_tabs_in_order() {
         (
             Address::Limits,
             "What this deployment holds.",
-            "The capacities temper’s engine runs within, as it reports them. Its owner sets them in its configuration.",
+            "Every limit, its stock and setting, and the figure in force. An owner can change settings; each row says when a raise applies.",
             5,
         ),
     ] {
