@@ -678,6 +678,7 @@ pub const AMEND: Tool = Tool {
         flag(b"tasks", b"N", Kind::Number, Optional, b"The tasks its subtree may make over its life; the rest of its authority kept"),
         flag(b"to-party", b"PARTY", Kind::Number, Optional, b"Address the person task to this party"),
         flag(b"to-role", b"ROLE", Kind::NumberRange { min: 0, max: 4_294_967_295 }, Optional, b"Address the person task to this role of its project"),
+        flag(b"budget", b"AMOUNT", Kind::Amount, Optional, b"Its budget, as task show prints it; the rest of its authority kept"),
     ]],
     keyed: Keyed::Optional,
     area: 2,

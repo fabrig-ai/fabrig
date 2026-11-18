@@ -31,6 +31,8 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
   `task release TASK --hold REV`, or cancel it. `N` replaces the lifetime
   allowance; release keeps tasks already made. Widening
   stays within the giver's authority and funding.
+  A budget is raised the same way: `task amend TASK --rev REV --budget AMOUNT REASON`,
+  then `task release TASK --hold REV`.
   A change runs nothing itself: `task release --again` is refused;
   release its hold for a fresh decision.
 - **Its parts:** tree (live delegates), activity (events, newest last),
