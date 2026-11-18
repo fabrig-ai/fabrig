@@ -402,9 +402,14 @@ pub(super) fn committed_chat() -> NativeClient {
                 let batch = w::Batch::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("batch");
                 for (index, member) in batch.members().into_iter().enumerate() {
                     if let w::Member::Open(_) = member {
-                        let part = w::BatchReply::new(&w::CEILINGS, w::BatchReplyParts {
-                            member: u16::try_from(index).expect("batch index"), reply: Some(body.clone()),
-                        }).expect("opening part");
+                        let part = w::BatchReply::new(
+                            &w::CEILINGS,
+                            w::BatchReplyParts {
+                                member: u16::try_from(index).expect("batch index"),
+                                reply: Some(body.clone()),
+                            },
+                        )
+                        .expect("opening part");
                         let mut bytes = skein_lib::Writer::new(usize::try_from(part.measure()).expect("part size"));
                         part.encode(&mut bytes).expect("opening part fits");
                         host.transport(jig_client::Event::Part { exchange: *exchange, message: bytes.finish() });

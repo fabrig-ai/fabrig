@@ -327,7 +327,10 @@ fn a_peer_version_refusal_ends_queued_reads_instead_of_admitting_them() {
 
 /// O2: the old link's consequences leave before the new domain's requests.
 #[test]
-#[expect(clippy::too_many_lines, reason = "one credential boundary retains read terminals, watch terminals and held HTTP credit")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one credential boundary retains read terminals, watch terminals and held HTTP credit"
+)]
 fn link_consequences_precede_the_next_domain_request() {
     let mut limits = fixtures::limits();
     limits.exchanges = 3;

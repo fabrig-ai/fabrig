@@ -292,9 +292,13 @@ impl Machine {
         let mut version = None;
         for field in query.split('&') {
             if let Some(hex) = field.strip_prefix("replaces=") {
-                let name: Vec<u8> = hex.as_bytes().as_chunks::<2>().0.iter().map(|pair| {
-                    u8::from_str_radix(std::str::from_utf8(pair).expect("hex"), 16).expect("hex name")
-                }).collect();
+                let name: Vec<u8> = hex
+                    .as_bytes()
+                    .as_chunks::<2>()
+                    .0
+                    .iter()
+                    .map(|pair| u8::from_str_radix(std::str::from_utf8(pair).expect("hex"), 16).expect("hex name"))
+                    .collect();
                 replaces = Some(<[u8; 16]>::try_from(name.as_slice()).expect("stream name"));
             } else if let Some(value) = field.strip_prefix("version=") {
                 version = Some(value.parse::<u32>().expect("wire version"));
