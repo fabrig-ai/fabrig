@@ -7,6 +7,7 @@ use temper_real_loop_world::{
 
 const PROBE: &str = "temper-worker-path-probe";
 const MARKER: &[u8] = b"worker-path-reached-agent";
+const PROBE_CHAT: usize = 3;
 fn path_probe_scripts(_forge: std::net::SocketAddr) -> Box<[skein_fake_llm_domain::api::Script]> {
     use skein_fake_llm_domain::api::{Finish, Line, Turn};
     let mut scripts = scripts::chat_scripts(1);
@@ -30,7 +31,6 @@ fn path_probe_scripts(_forge: std::net::SocketAddr) -> Box<[skein_fake_llm_domai
 }
 fn path_probe_steps(engine: &std::path::Path) -> Vec<temper_real_loop_world::calls::Step> {
     use temper_real_loop_world::calls::call;
-    const CHAT: usize = 3;
     let mut steps = fixtures::signed_chat("path-probe");
     let chat = steps.pop().expect("chat opener");
     let mut items = fixtures::setup_items(engine).expect("chat settings");
@@ -63,9 +63,9 @@ fn path_probe_steps(engine: &std::path::Path) -> Vec<temper_real_loop_world::cal
             ],
         ),
         chat,
-        call(D1, argv!["task", "show", task(CHAT), "--until", "replied"]),
-        call(D1, argv!["chat", "close", task(CHAT), "--key", "close-path-probe"]),
-        call(D1, argv!["task", "show", task(CHAT), "--until", "ended"]),
+        call(D1, argv!["task", "show", task(PROBE_CHAT), "--until", "replied"]),
+        call(D1, argv!["chat", "close", task(PROBE_CHAT), "--key", "close-path-probe"]),
+        call(D1, argv!["task", "show", task(PROBE_CHAT), "--until", "ended"]),
     ]);
     steps
 }
@@ -78,7 +78,11 @@ fn an_agents_shell_finds_a_program_only_on_its_workers_path() {
         &["w1"],
         &[],
         temper_real_loop_world::forge::Fixture {
-            configure: temper_real_loop_world::landing::configure,
+            configure: |deployment, agent, forge| {
+                temper_real_loop_world::landing::configure(deployment, agent, forge);
+                // The probe's chat parks at wait; its person ends it after reading.
+                fixtures::requester(deployment);
+            },
             ..temper_real_loop_world::forge::fixture()
         },
         path_probe_scripts,
@@ -96,6 +100,9 @@ fn an_agents_shell_finds_a_program_only_on_its_workers_path() {
     for called in cluster.calls() {
         assert_eq!(called.exit, Some(Exit::Code(0)), "{}", String::from_utf8_lossy(&called.stderr));
     }
+    let chat = cluster.number(PROBE_CHAT);
+    assert_eq!(cluster.worker("w1").ran(), &[chat], "the probe runs once, without a retried wait");
+    assert_eq!(cluster.tries(chat).run, 0, "waiting is a chat's successful park");
     let mut found = false;
     let mut outputs = Vec::new();
     for observed in cluster.llm() {

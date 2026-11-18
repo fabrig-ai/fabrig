@@ -1,5 +1,6 @@
 //! Each binary's normal dependency closure (temper/docs/design/protocol/binaries.md, 4).
 
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::process::{Command, Stdio};
 
@@ -225,13 +226,18 @@ fn findings<'a>(row: &'a Row, closure: &'a [(String, Option<String>)]) -> Vec<Fi
     findings
 }
 
-fn cargo_tree(root: &Path, package: &str, inverse: Option<&str>) -> Result<String, String> {
+fn cargo_tree(root: &Path, packages: &[&str], inverse: Option<&str>) -> Result<String, String> {
     let mut command = Command::new("cargo");
-    command.args(["tree", "--locked", "--offline", "-p", package, "-e", "normal"]);
+    command.args(["tree", "--locked", "--offline", "-e", "normal"]);
+    for package in packages {
+        command.args(["-p", package]);
+    }
     if let Some(name) = inverse {
         command.args(["-i", name]);
-    } else {
+    } else if packages.len() == 1 {
         command.args(["--prefix", "none", "--format", "{p}"]);
+    } else {
+        command.args(["--prefix", "depth", "--format", "{p}|{f}"]);
     }
     command.current_dir(root).stdin(Stdio::null());
     let output = command.output().map_err(|why| format!("{command:?}: {why}"))?;
@@ -265,26 +271,90 @@ fn closure(root: &Path, output: &str) -> Vec<(String, Option<String>)> {
     packages
 }
 
+// Workspace feature unification gives each selected root the same resolution as
+// selecting it alone. Cargo deduplicates across roots: retain edges by package
+// and feature set, then follow them from each root. If Cargo expands distinct
+// nodes with the same printed identity, read the roots separately instead of
+// merging those contexts. Leaves carry no outgoing edges to confuse.
+type Closure = Vec<(String, Option<String>)>;
+
+fn closures<'a>(root: &Path, output: &'a str) -> Result<BTreeMap<&'a str, Closure>, String> {
+    let mut nodes: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
+    let mut roots = BTreeMap::new();
+    let mut parents: Vec<(&str, bool)> = Vec::new();
+    let mut expanded = BTreeSet::new();
+    for line in output.lines().filter(|line| !line.is_empty()) {
+        let end = line.find(|ch: char| !ch.is_ascii_digit()).ok_or_else(|| format!("tree: no package in {line:?}"))?;
+        let depth: usize = line[..end].parse().map_err(|why| format!("tree: invalid depth in {line:?}: {why}"))?;
+        if depth > parents.len() {
+            return Err(format!("tree: depth skips a parent in {line:?}"));
+        }
+        let printed = &line[end..];
+        let repeated = printed.strip_suffix(" (*)");
+        let key = repeated.unwrap_or(printed);
+        let ambiguous = repeated.is_none() && !expanded.insert(key);
+        if ambiguous && nodes.get(key).is_some_and(|children| !children.is_empty()) {
+            return Err(format!("tree: distinct expansions of {key}"));
+        }
+        let (package, _) = key.rsplit_once('|').ok_or_else(|| format!("tree: no features in {line:?}"))?;
+        let (name, _) = package.split_once(" v").ok_or_else(|| format!("tree: invalid package in {line:?}"))?;
+        parents.truncate(depth);
+        nodes.entry(key).or_default();
+        if let Some(&(parent, ambiguous)) = parents.last() {
+            if ambiguous {
+                return Err(format!("tree: distinct expansions of {parent}"));
+            }
+            nodes.entry(parent).or_default().insert(key);
+        } else if roots.insert(name, key).is_some() {
+            return Err(format!("tree: repeated root {name}"));
+        }
+        parents.push((key, ambiguous));
+    }
+    if roots.is_empty() {
+        return Err("tree: no roots".to_owned());
+    }
+    let mut result = BTreeMap::new();
+    for (name, key) in roots {
+        let mut pending = vec![key];
+        let mut seen = BTreeSet::new();
+        while let Some(key) = pending.pop() {
+            if seen.insert(key) {
+                pending.extend(nodes.get(key).expect("every occurrence has a node"));
+            }
+        }
+        let packages = seen
+            .iter()
+            .map(|key| key.rsplit_once('|').expect("package and features were read").0)
+            .collect::<Vec<_>>()
+            .join("\n");
+        result.insert(name, closure(root, &packages));
+    }
+    Ok(result)
+}
+
 #[test]
 fn deployment_binaries_hold_their_closures() {
     let root = skein_scratch::paths::workspace();
+    let packages: Vec<_> = ROWS.iter().map(|row| row.package).collect();
+    let output = cargo_tree(&root, &packages, None).expect("deployment dependency trees read");
+    let closures = closures(&root, &output);
     let mut failures = Vec::new();
     for row in ROWS {
-        let output = match cargo_tree(&root, row.package, None) {
-            Ok(output) => output,
-            Err(why) => {
-                failures.push(why);
-                continue;
-            }
+        let separate;
+        let closure = if let Ok(closures) = &closures {
+            closures.get(row.package).expect("cargo tree holds each selected root")
+        } else {
+            let output = cargo_tree(&root, &[row.package], None).expect("standalone dependency tree reads");
+            separate = self::closure(&root, &output);
+            &separate
         };
-        let closure = closure(&root, &output);
         println!("{}: {} crates, {} exceptions", row.package, closure.len(), row.exceptions.len());
-        for finding in findings(row, &closure) {
+        for finding in findings(row, closure) {
             let detail = match finding {
                 Finding::Empty => "empty closure".to_owned(),
                 Finding::LacksPackage => "closure lacks its own package".to_owned(),
                 Finding::Excluded(name) => {
-                    let path = cargo_tree(&root, row.package, Some(name)).unwrap_or_else(|why| why);
+                    let path = cargo_tree(&root, &[row.package], Some(name)).unwrap_or_else(|why| why);
                     format!("excluded crate {name}\n{path}")
                 }
                 Finding::MissingException(name) => format!("{name}: an exception the closure no longer holds: drop it"),
@@ -298,6 +368,43 @@ fn deployment_binaries_hold_their_closures() {
         "Deployment binaries' dependency boundaries (temper/docs/design/protocol/binaries.md, 4):\n{}",
         failures.join("\n"),
     );
+}
+
+#[test]
+fn shared_subtrees_keep_each_roots_feature_context() {
+    let trees = "0one v0.0.0 (/workspace/temper/one)|default\n1shared v1.0.0|host (*)\n\n0two v0.0.0 (/workspace/temper/two)|\n1shared v1.0.0|target\n2target-only v1.0.0|\n1shared v1.0.0|host\n2host-only v1.0.0|\n";
+    let closures = closures(Path::new("/workspace"), trees).expect("fixture trees");
+    assert_eq!(
+        closures["one"],
+        [("host-only".to_owned(), None), ("one".to_owned(), Some("temper".to_owned())), ("shared".to_owned(), None)]
+    );
+    assert_eq!(
+        closures["two"],
+        [
+            ("host-only".to_owned(), None),
+            ("shared".to_owned(), None),
+            ("target-only".to_owned(), None),
+            ("two".to_owned(), Some("temper".to_owned()))
+        ]
+    );
+}
+
+#[test]
+fn unreadable_trees_cannot_hide_a_dependency_closure() {
+    for tree in [
+        "",
+        "0",
+        "package v1.0.0|",
+        "1package v1.0.0|",
+        "0package v1.0.0",
+        "0package|",
+        "0package v1.0.0|\n2dependency v1.0.0|",
+        "0package v1.0.0|\n0package v1.0.0|",
+        "0one v0.0.0|\n1shared v1.0.0|\n2target-only v1.0.0|\n0two v0.0.0|\n1shared v1.0.0|",
+        "0one v0.0.0|\n1shared v1.0.0|\n0two v0.0.0|\n1shared v1.0.0|\n2host-only v1.0.0|",
+    ] {
+        assert!(closures(Path::new("/workspace"), tree).is_err(), "{tree:?}");
+    }
 }
 
 #[test]
