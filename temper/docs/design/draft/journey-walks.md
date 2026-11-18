@@ -26,6 +26,8 @@ It is the journeys' part of what `codec-shape.md` does for generated code, which
 
 **What it costs:** a walk names controls by their words, so a goal that renames one changes the walks that hold it, where a recording held (3.2). And most of 4.1 is new work: the pieces exist, apart, inside test crates (survey, 2.1).
 
+**On the way there** (8.3): look requests are drawn and landed all the while. The one writer comes first, walking boxes as today, and each journey moves to the world under it.
+
 ## 2. Today
 
 From the survey, section 1:
@@ -178,6 +180,7 @@ What the binary needs sits today where it cannot be reached, so the first goal t
 - **It rules by writing, not by guarding.** Whatever lands in a page, the next run replaces it with the tip's print. So no check has to know who wrote a page.
 - **Goals are kept off all the same,** against the habit: the delivery check (`tools/pre-pr/design.md`) refuses an agent's delivery whose branch changes a page, or a generated file beside one, together with any other file, naming `temper-client-walk print`. `AGENTS.md` says so.
 - **By code alone:** no model, no judgement. Its runner is the after-landing check's owner, by a script, at each landing (section 12).
+- **Its engine** is `temper-client-walk pages` for a journey that prints in a world, and `again` with the reprint for one that has not moved yet (8.3).
 - **A page holds no stamp:** no commit, no date. A landing that changes no page changes no file.
 - **How far behind.** Between a landing and the writer's change, main's pages are an earlier tip's, and the last `Printed:` on main says which. Nothing reads them in between but a person.
 - **A walk that stops** leaves its pages as they were, and the run fails, naming the journey and the line, on that tip and on every later one until a goal repairs the walk or the client: one after-landing red, its owner the after-landing check's. A new journey whose walk stops has no page until then.
@@ -190,6 +193,7 @@ What the binary needs sits today where it cannot be reached, so the first goal t
 - **`look-refresh.sh` goes by the print.** It says which commit main's pages were printed at, and how many landings follow it. It drops a request only once its pages are on main: when the commit carrying its trailer is the last `Printed:` commit, or an ancestor of it. Until then the request stays on its branch, on the pages main still holds, and a later request stays drawn on it.
 - **Whoever lands it prints into scratch,** `temper-client-walk print --out DIR`, on its own tree, and compares DIR's pages with the request's, read from the request's commit. They are equal where their facts agree. It needs no box, and nothing it compares can be stale.
 - **It commits no page.** After its landing the writer writes them.
+- **For a journey not yet moved,** the print into scratch is the reprint in the goal's own tree (8.3).
 - **The render check follows the writer's change:** the request's pages under their overlay against main's under the landed stylesheets, in a browser (`../client/web/look-requests.md`, 4).
 - **A state no journey reaches** is the gallery's (`../client/web/gallery.md`), a hand-made page's, or a page printed from a person's own recording (4.3).
 
@@ -215,11 +219,15 @@ What the binary needs sits today where it cannot be reached, so the first goal t
 
 ### 8.3 Until the last journey has moved
 
-- **First the gate lets go.** The test that holds main's journeys goes before anything is built. From then no goal records a journey, and a stale recording is no red.
-- **A journey moves alone:** in the change that gives it a `walk` of version 2 that prints in a world, its `recording` and `setup` go, and from that landing its pages are the writer's.
-- **One not yet moved** keeps its recording and pages as they are, with nothing holding them current. `again` and the reprint stay as tools until the last has moved. The after-landing check's owner may walk one again and land it as documentation. A look landing reprints those that still replay, as today, and leaves the rest to the render check.
-- **The writer and the delivery check know a moved journey** by its `walk` of version 2. The writer leaves every other directory as it is, and the check lets a goal change an unmoved journey's pages.
-- **A new journey** is written as a walk of version 2, once its client walks in a world; before that, none is added.
+Look requests, the browser's and the TUI's, are drawn and landed all the while (the user, 2026-11-18). So the writer comes first, by the means there are, and the journeys move under it one at a time.
+
+- **First, one writer, with `again` as its engine.** The gate's test goes, and with it every goal's part in a journey's files. From that landing the writer of section 6 runs on main's tip: it walks again, on a fake box, each journey whose recording no longer replays, reprints them all, and offers what differs, recordings and pages, as its change. Sections 6 and 7 hold from then: one run at a time, `Printed:`, the refresh going by the print, and the delivery check keeping goals off every journey file.
+- **A request is drawn on main's pages, as today,** and the writer keeps them current after each landing.
+- **Whoever lands a request** reprints in its own tree and compares with the request's pages. A change to the look leaves a recording replaying (`../client/web/journeys.md`, 8), so the reprint holds wherever main's recording does. Where the writer is still behind a change to the wire, that journey's comparison is the render check's. It commits no journey file.
+- **A journey moves alone:** in the change that gives it a `walk` of version 2 that prints in a world, its `recording` and `setup` go. From that landing the writer prints it in the world, and whoever lands a request prints it into scratch (section 7).
+- **The writer knows a moved journey** by its `walk` of version 2, and takes the other engine for every other directory.
+- **What a box cannot walk today** stays as it is until its journey moves, or is repaired sooner on its own: the TUI's `design-session`, `launchpad-chat` and `launchpad-drawn`, and `chat-draft`, have no pages on main. A request for a state they would show is drawn on a hand-made page or the gallery's, as the look requests allow (`../client/web/look-requests.md`, 2).
+- **A new journey** is written as a walk of version 2 once its client walks in a world. Before that it is walked and added as today, by the writer's runner alone.
 
 ## 9. Upgrades
 
@@ -252,6 +260,6 @@ Focused, and native: no box, browser or terminal.
 - **The writer inside the landing.** It could run on the candidate a landing gates, so that main's pages are never behind. Default: after landing, as the user asked for the check, since a walk that stops must not hold a landing.
 - **Who runs the writer.** Default: the after-landing check's owner, by a script that holds section 6's rule of one run at a time. temper running it is section 11's.
 - **A test that walks every journey to its end,** in the simulated layer. It would tell a goal that renamed a control before it lands, where section 6 tells it after. Default: none, as the user asked; its cost is known once a journey's walk is measured (5.3).
-- **The fixed start, landed on 11-18.** Default: it goes with `again` (8.1). Kept, it would give the box's walks of 4.2 the same times on every run.
+- **The fixed start, landed on 11-18.** Default: it goes with `again` (8.1), once the last journey has moved; until then it keeps the writer's walks of a box the same from run to run (8.3). Kept past that, it would do the same for the box's walks of 4.2.
 - **A person's recording on main.** Default: never; its pages are drawn on from wherever they were printed (4.3).
 - **The binary's name.** Default: `temper-client-walk`, beside `temper-client-gallery` and `temper-client-journeys`.
