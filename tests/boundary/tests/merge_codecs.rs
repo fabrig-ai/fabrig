@@ -1,5 +1,5 @@
 //! The merge job's codec list names every generated family and its texts in order
-//! (temper/docs/design/protocol/tooling.md, 4.1; skein/docs/design/data/codec/contracts.md, 1–2).
+//! (temper/docs/design/protocol/tooling.md, 4.1; skein/docs/design/data/codec/README.md, 4).
 
 use std::collections::BTreeSet;
 use std::fs;
