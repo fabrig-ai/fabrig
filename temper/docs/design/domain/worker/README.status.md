@@ -1,6 +1,8 @@
 # worker: status
 
-2026-11-17. Where temper's code lags or departs from [README.md](README.md).
+2026-11-18. Where temper's code lags or departs from [README.md](README.md).
+
+- **Not yet:** 4.3, *A program that started without smith's tools*: smith's untooled fault reaches jig as `RunFailure::Model`, not `RunFailure::Untooled` [in flight: change 7669].
 
 
 

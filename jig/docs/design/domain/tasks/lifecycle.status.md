@@ -1,6 +1,8 @@
 # lifecycle: status
 
-2026-11-16. Where the tree's code lags or departs from [lifecycle.md](lifecycle.md).
+2026-11-18. Where the tree's code lags or departs from [lifecycle.md](lifecycle.md).
+
+- **Not yet:** 6: a run whose program started without its tools ends once, refused with words naming the program, the source and the worker, spending no try, its task kept off that place [in flight: change 7668].
 
 
 

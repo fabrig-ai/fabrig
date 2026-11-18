@@ -1,6 +1,8 @@
 # channel: status
 
-2026-11-13. Where smith's code lags or departs from [channel.md](channel.md).
+2026-11-18. Where smith's code lags or departs from [channel.md](channel.md).
+
+- **Not yet:** 2 and 4: version 11 and its `ModelFault::Untooled` [in flight: change 7661].
 
 
 - **Not yet:** the workspace's files left in conflict: the schema allows 64 in a directory (`channel-v8.schema`), and the run limits' `conflicts` is fixed at 64 (`smith-domain-run/src/limits.rs`, `derive`).
