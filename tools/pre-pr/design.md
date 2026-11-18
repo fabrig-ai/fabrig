@@ -814,8 +814,9 @@ tree that passed here.
   file once, a few seconds on this repository and no cargo.
 - **What main's ledgers cost** a delivery whose builder keeps them: each
   run's new and flagged tests run alone after its suite, each in a
-  process of its own beside its binary's empty one
-  (`tools/tiers/references.md`, 3 and 4), within the profile's
+  process of its own beside its binary's empty one, and twice more each
+  where the first passes its limit (`tools/tiers/references.md`, 3 and
+  4), within the profile's
   `global-timeout`; a `cpu-summary` read of a run over budget; and a pass
   reused only under the ledgers it was judged by, which the runner
   replaces after each landing on main (section 7).

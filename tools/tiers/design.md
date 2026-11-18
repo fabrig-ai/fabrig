@@ -779,8 +779,8 @@ change to the build command a caller wraps changes none of them.
 - `tools/tiers/one-process [--out DIR] [--budgets PATH] [--walls PATH] [--ledger PATH] [--gate] PROFILE [NEXTEST_ARGS...]`
   (11.9), with `execute_one_process`'s exit statuses.
 - `tools/tiers/one-process --alone HEAD_DIR [--out DIR] [NEXTEST_ARGS...]`:
-  a head run's flagged tests run alone at this checkout, the base's
-  (`tools/tiers/references.md`, 5).
+  a head run's flagged tests run alone three times each at this checkout,
+  the base's (`tools/tiers/references.md`, 5).
 - `python3 -I -B tools/tiers/figures.py --base BASE [--head HEAD]`: refuses,
   exit 1, a change from BASE to HEAD that raises a figure of
   `tools/tiers/budgets.toml` or adds a reason's line, naming each, unless it
@@ -884,7 +884,7 @@ Relative paths are the caller's working directory's, the checkout root.
 | `processes` | for each process of a one-process run: `binary_id`, `tests` (its tests' names, in the order they ran), `cpu_s`, `user_s`, `system_s`, `wall_s`, `exit_code` or `signal`, `kind`, `leaked`, `tree`, `layer`; empty for a nextest run and for tools |
 | `layers` | for each tree and layer with a process in a one-process run, or with a ledger a figure at the head or at main: `tree`, `layer`, `cpu_s`, `measured_s`, `main_s`, `ceiling_s`, `budget_s`, `main_budget_s`, `lowest_s`, `ideal_s`, `reference_s`, `over`, `main_over`, `grew` (`tools/tiers/budgets.md`, 4 and 8); empty for a nextest run and for tools |
 | `trees` | for each tree with a row in `layers`: `tree`, `cpu_s`, `main_s`, `ceiling_s`, `budget_s`, `ideal_s` (`tools/tiers/budgets.md`, 4 and 8); empty for a nextest run and for tools |
-| `references` | for each test a one-process run ran alone for its reference: `binary_id`, `test_name`, `tree`, `layer`, `why`, `wall_s`, `main_wall_s`, `cpu_s`, `main_cpu_s`, `main_from`, `reference_s`, `line_s`, `limit_s`, `over` (`tools/tiers/references.md`, 6); empty for a nextest run, for tools and for a run that ran none alone |
+| `references` | for each test a one-process run ran alone for its reference: `binary_id`, `test_name`, `tree`, `layer`, `why`, `wall_s`, `main_wall_s`, `cpu_s`, `main_cpu_s`, `main_from`, `reference_s`, `line_s`, `limit_s`, `over`, `alone`, `main_alone`, `swinging` (`tools/tiers/references.md`, 6); empty for a nextest run, for tools and for a run that ran none alone |
 
 `suite`'s `cpu_by` is `"test"` for a nextest run and for tools, where each
 attempt or suite has its CPU, and `"process"` for a one-process run, where
@@ -1368,8 +1368,9 @@ above: taken with `TIERS_HOLD` set, none under `.temper/pre-pr`. It runs
 nothing alone for a reference.
 
 **At the base.** `tools/tiers/one-process --alone HEAD_DIR [--out DIR]
-[NEXTEST_ARGS...]`, from a checkout of a gate candidate's base, runs alone
-the tests the head's run in `HEAD_DIR` flagged, and writes their figures
+[NEXTEST_ARGS...]`, from a checkout of a gate candidate's base, runs alone,
+three times each, the tests the head's run in `HEAD_DIR` flagged, and
+writes their figures, each test's the highest of its three,
 for `cpu-summary --base` (`tools/tiers/references.md`, 5, which gives its
 listing, files and exit statuses). It lists and builds as a run does, the
 flagged binaries' own targets alone, a listing for each of their packages,
