@@ -448,6 +448,10 @@ fn settings_neutral_reads_preserve_ctls_bounds() {
 #[test]
 fn settings_refusals_keep_ctls_words_without_a_client_dependency() {
     use jig_domain_people::{Lack, LimitKind, Malformed, Refusal as R};
+    assert_eq!(settings_form::view::NUMBERS, jig_domain_people::NUMBERS);
+    assert_eq!(settings_form::view::STOCK_NUMBERS, jig_domain_people::STOCK_NUMBERS);
+    assert_eq!(c::NUMBERS, jig_domain_people::NUMBERS);
+    assert_eq!(c::STOCK_NUMBERS, jig_domain_people::STOCK_NUMBERS);
     for (core, client) in [
         (R::Stale { newest: 3 }, c::Refusal::Stale(c::RefusalStale { newest: 3 })),
         (
@@ -476,6 +480,7 @@ fn settings_refusals_keep_ctls_words_without_a_client_dependency() {
         (jig_domain_people::SettingFault::Budget, c::SettingFault::Budget),
         (jig_domain_people::SettingFault::Grace, c::SettingFault::Grace),
         (jig_domain_people::SettingFault::Owner, c::SettingFault::Owner),
+        (jig_domain_people::SettingFault::Range, c::SettingFault::Range),
     ] {
         for (setting, client_setting) in [
             (s::Setting::Charter(1), c::Setting::Charter(c::SettingNumber { number: 1 })),
@@ -495,6 +500,37 @@ fn settings_refusals_keep_ctls_words_without_a_client_dependency() {
                 temper_client_tools::jig::render::settings_refusal(&client, temper_client_tools::limits::TEXT)
             );
         }
+    }
+    for (setting, client_setting, expected) in [
+        (
+            s::Setting::Template(9),
+            c::Setting::Template(c::SettingNumber { number: 9 }),
+            "out of shape; item 0; template 9: is among the stock's numbers, 1 to 32; your own templates take 33 to 64",
+        ),
+        (
+            s::Setting::Charter(70),
+            c::Setting::Charter(c::SettingNumber { number: 70 }),
+            "out of shape; item 0; charter 70: is past the charters' numbers: the stock's take 1 to 32, your own 33 to 64",
+        ),
+    ] {
+        let core = R::NotWellFormed {
+            at: 0,
+            why: Malformed::Settings { setting, fault: jig_domain_people::SettingFault::Range, detail: None },
+        };
+        let client = c::Refusal::Malformed {
+            at: 0,
+            why: c::Malformed::Settings(c::MalformedSettings {
+                setting: client_setting,
+                fault: c::SettingFault::Range,
+                detail: None,
+            }),
+        };
+        let words = crate::settings::refusal(&core);
+        assert_eq!(words.as_ref(), expected.as_bytes());
+        assert_eq!(
+            words,
+            temper_client_tools::jig::render::settings_refusal(&client, temper_client_tools::limits::TEXT)
+        );
     }
 }
 

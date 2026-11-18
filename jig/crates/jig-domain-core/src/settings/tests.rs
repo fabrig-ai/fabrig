@@ -243,6 +243,7 @@ fn fault_case(fault: Fault) {
                 .unwrap();
             Setting::Policy(1)
         }
+        Fault::Range => panic!("the range check's switch makes its case"),
         Fault::Linked | Fault::Judged => unreachable!("an application's setting: apps-core"),
     };
     let detail = if fault == Fault::Shape {

@@ -375,6 +375,16 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
+        let bytes = super::client_values::value("enum_setting_fault_range_smallest.bin");
+        let mut input = Reader::new(bytes);
+        let value = w::SettingFault::decode(&w::CEILINGS, &mut input).unwrap();
+        assert!(input.is_empty());
+        assert_eq!(value, w::SettingFault::Range);
+        let mut out = Writer::new(usize::try_from(value.measure()).unwrap());
+        value.encode(&mut out).unwrap();
+        assert_eq!(out.finish().as_ref(), bytes);
+    }
+    {
         let bytes = super::client_values::value("record_malformed_settings_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::MalformedSettings::decode(&w::CEILINGS, &mut input).unwrap();

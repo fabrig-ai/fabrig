@@ -466,6 +466,7 @@ fn encode_setting_fault(value: p::SettingFault) -> w::SettingFault {
         p::SettingFault::Owner => w::SettingFault::Owner,
         p::SettingFault::Judged => w::SettingFault::Judged,
         p::SettingFault::Linked => w::SettingFault::Linked,
+        p::SettingFault::Range => w::SettingFault::Range,
     }
 }
 

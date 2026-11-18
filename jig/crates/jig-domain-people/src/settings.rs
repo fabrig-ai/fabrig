@@ -39,6 +39,8 @@ pub enum SettingFault {
     Owner,
     Judged,
     Linked,
+    /// A charter, template, policy or model numbered out of its range.
+    Range,
 }
 
 /// Whether an accepted settings revision moves running work (domain/engine/settings.md, 2).

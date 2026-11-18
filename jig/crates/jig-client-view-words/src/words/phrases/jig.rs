@@ -32,6 +32,16 @@ pub enum JigPhrase {
     SettingFaultGrace,
     SettingFaultOwner,
     SettingFaultLinked,
+    SettingRangeStock,
+    SettingRangePast,
+    SettingRangeCharterStock,
+    SettingRangeCharterPast,
+    SettingRangeTemplateStock,
+    SettingRangeTemplatePast,
+    SettingRangePolicyStock,
+    SettingRangePolicyPast,
+    SettingRangeModelStock,
+    SettingRangeModelPast,
 
     ActRename,
     ActRemoveProject,
@@ -1107,6 +1117,17 @@ impl JigPhrase {
             Self::SettingFaultGrace => 7915,
             Self::SettingFaultOwner => 7916,
             Self::SettingFaultLinked => 7930,
+            Self::SettingRangeStock => 7932,
+            Self::SettingRangePast => 7933,
+            Self::SettingRangeCharterStock => 7934,
+            Self::SettingRangeCharterPast => 7935,
+            Self::SettingRangeTemplateStock => 7936,
+            Self::SettingRangeTemplatePast => 7937,
+            Self::SettingRangePolicyStock => 7938,
+            Self::SettingRangePolicyPast => 7939,
+            Self::SettingRangeModelStock => 7940,
+            Self::SettingRangeModelPast => 7941,
+
             Self::ActRename => 7837,
             Self::ActRemoveProject => 7839,
             Self::NameTaken => 7830,
@@ -1755,7 +1776,17 @@ impl JigPhrase {
                 HoleShape { kind: HoleKind::Number, bytes: 0 },
                 HoleShape { kind: HoleKind::Number, bytes: 0 },
             ]),
-            Self::PolicyJudge
+            Self::SettingRangeStock
+            | Self::SettingRangePast
+            | Self::SettingRangeCharterStock
+            | Self::SettingRangeCharterPast
+            | Self::SettingRangeTemplateStock
+            | Self::SettingRangeTemplatePast
+            | Self::SettingRangePolicyStock
+            | Self::SettingRangePolicyPast
+            | Self::SettingRangeModelStock
+            | Self::SettingRangeModelPast
+            | Self::PolicyJudge
             | Self::PolicyPermission
             | Self::SpecificationResource
             | Self::MovedToNewest
@@ -2439,7 +2470,7 @@ impl JigPhrase {
     }
 }
 /// Every jig phrase; loading checks this whole contract.
-pub const ALL: [JigPhrase; 655] = [
+pub const ALL: [JigPhrase; 665] = [
     JigPhrase::TooLinked,
     JigPhrase::SettingsChanged,
     JigPhrase::SettingProjectPolicy,
@@ -2466,6 +2497,16 @@ pub const ALL: [JigPhrase; 655] = [
     JigPhrase::SettingFaultGrace,
     JigPhrase::SettingFaultOwner,
     JigPhrase::SettingFaultLinked,
+    JigPhrase::SettingRangeStock,
+    JigPhrase::SettingRangePast,
+    JigPhrase::SettingRangeCharterStock,
+    JigPhrase::SettingRangeCharterPast,
+    JigPhrase::SettingRangeTemplateStock,
+    JigPhrase::SettingRangeTemplatePast,
+    JigPhrase::SettingRangePolicyStock,
+    JigPhrase::SettingRangePolicyPast,
+    JigPhrase::SettingRangeModelStock,
+    JigPhrase::SettingRangeModelPast,
     JigPhrase::ActRename,
     JigPhrase::ActRemoveProject,
     JigPhrase::NameTaken,
