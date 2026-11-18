@@ -222,7 +222,7 @@ impl World {
                     },
                 });
             }
-            Request::Unprepared { .. } => {}
+            Request::AgentStopped { .. } | Request::Unprepared { .. } => {}
             Request::JobAnswer { .. } | Request::Job { .. } | Request::CancelRelay { .. } => {
                 panic!("unscripted request")
             }

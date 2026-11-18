@@ -594,6 +594,61 @@ impl needs::Session {
         }
         rows.into_boxed()
     }
+    /// Every open needs row, plus the approvals and findings merged by `all`.
+    /// Unread rows concern no known findings (client/pages/home.md, 1, Counted).
+    #[must_use]
+    pub fn counted(&self, inbox: &Inbox, approvals: &forge::approvals::Approvals) -> super::home::Needs {
+        if !inbox.answered(c::InboxReadGroup::Needs) {
+            return super::home::Needs::Unknown;
+        }
+        let open = self.all(inbox, approvals);
+        let mut count = 0_u32;
+        let mut read = List::with_capacity(u32::try_from(open.len()).expect("open needs fit"));
+        for need in &open {
+            if let Need::Existing(needs::Need::Card(card)) = need {
+                let mut present = false;
+                for row in &inbox.rows {
+                    present |= row.card_key() == card.object;
+                }
+                if !present {
+                    continue;
+                }
+            } else {
+                count = count.checked_add(1).expect("open needs fit");
+            }
+            read.push(*need).expect("read needs fit");
+        }
+        let mut findings = counted(&self.findings, read.as_slice());
+        for row in &inbox.rows {
+            if self.answered_here(row.card_key())
+                || match inbox.filter.kind {
+                    Some(kind) => super::inbox::kind(kind) != Some(row.group()),
+                    None => false,
+                }
+                || match inbox.filter.project {
+                    Some(project) => !row.shows_in(project),
+                    None => false,
+                }
+            {
+                continue;
+            }
+            count = count.checked_add(1).expect("open needs fit");
+            let mut drawn = false;
+            for need in &read {
+                if let Need::Existing(needs::Need::Card(card)) = need {
+                    drawn |= card.object == row.card_key();
+                }
+            }
+            if !drawn {
+                findings.only = false;
+            }
+        }
+        super::home::Needs::Count {
+            count,
+            cut: inbox.cut[0] || approvals.more() > 0 || self.findings.cut_for(inbox.filter),
+            findings,
+        }
+    }
     #[must_use]
     pub fn shown_all<'a>(&'a self, inbox: &'a Inbox, approvals: &'a forge::approvals::Approvals) -> Option<Need<'a>> {
         let rows = self.all(inbox, approvals);

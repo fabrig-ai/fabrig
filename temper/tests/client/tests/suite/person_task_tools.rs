@@ -273,7 +273,7 @@ pub(super) const ROLE_NOW: &str = "Tests are green.\nWaiting for a change, then 
 fn start_standing_role() -> (Ctl, u64) {
     let mut ctl = standing_ctl();
     let started = ctl.call(
-        &[b"role", b"start", b"--project", b"1", b"--budget", b"50", b"Owns the tests", b"--key", b"tests-role"],
+        &[b"role", b"start", b"--project", b"1", b"--budget", b"0.50", b"Owns the tests", b"--key", b"tests-role"],
         None,
     );
     assert_eq!(started.status, 0, "{started:?}");
@@ -888,7 +888,7 @@ fn standing_ctl() -> Ctl {
 fn a_started_standing_role_has_its_budget_on_how_work_runs() {
     let mut ctl = standing_ctl();
     let started = ctl.call(
-        &[b"role", b"start", b"--project", b"1", b"--budget", b"50", b"Owns the tests", b"--key", b"tests-role"],
+        &[b"role", b"start", b"--project", b"1", b"--budget", b"0.50", b"Owns the tests", b"--key", b"tests-role"],
         None,
     );
     assert_eq!(started.status, 0, "{started:?}");

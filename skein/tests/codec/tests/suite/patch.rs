@@ -333,7 +333,7 @@ mod tests {
     fn patch_runs_every_v1_golden_into_v2_generated_code() {
         let (mut patcher, plan) = planned();
         let schema = schema::parse(V1.as_bytes()).expect("v1 schema");
-        let goldens = skein_codegen::generate(&skein_codegen::parse(V1).expect("codegen v1")).goldens;
+        let goldens = skein_codegen::goldens(&skein_codegen::parse(V1).expect("codegen v1"));
         let write = std::env::var_os("SKEIN_PATCH_WRITE").is_some_and(|value| value == "1");
         let directory = Path::new(GOLDEN_DIRECTORY);
         if write {

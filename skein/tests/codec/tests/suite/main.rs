@@ -13,6 +13,7 @@ mod bounds;
 mod diff;
 mod drawn;
 mod drift;
+mod every;
 mod fingerprint;
 mod generic;
 mod memory;

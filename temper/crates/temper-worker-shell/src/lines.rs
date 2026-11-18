@@ -38,6 +38,14 @@ pub fn note_line(binary: &str, note: service::Note) -> String {
         service::Note::StopBoundPassed { abandoned } => {
             format!("{binary} worker: stop bound passed; abandoned {abandoned} turns and answers\n")
         }
+        service::Note::AgentStopped { run, attempt, failure, no_progress_ms } => {
+            let failure = jig_domain_host::Failure::Agent(failure);
+            let prefix = format!("{binary} worker: run {run} attempt {attempt} agent stopped {failure:?}");
+            match no_progress_ms {
+                Some(ms) => format!("{prefix}: no progress for {ms} ms\n"),
+                None => format!("{prefix}\n"),
+            }
+        }
         service::Note::Unprepared { run, attempt, failure, detail } => {
             run_detail_line(format!("{binary} worker: run {run} attempt {attempt} failed {failure:?}: "), &detail)
         }

@@ -263,13 +263,25 @@ pub(crate) fn end(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut
             crate::closer::take_available(domain, env, parent_number, out);
             publish(domain, env, parent_number, out);
         }
-        // Post once against the original source in the task-end commit.
-        Funder::Pool { .. } | Funder::Period { .. } | Funder::Recurring { .. } => {
-            let ledger = domain.funding.get_mut(&funder).expect("source preserved");
-            ledger.numbers.reserved = ledger.numbers.reserved.checked_sub(budget).expect("allotment reserved");
-            ledger.numbers.spent_below =
-                ledger.numbers.spent_below.checked_add(spent).expect("priced aggregate fits unit");
-            save_funding(domain, funder, out);
+        Funder::Pool { project, .. } | Funder::Period { project, .. } | Funder::Recurring { project, .. } => {
+            if let Some(ledger) = domain.funding.get_mut(&funder) {
+                ledger.numbers.reserved = ledger.numbers.reserved.checked_sub(budget).expect("allotment reserved");
+                ledger.numbers.spent_below =
+                    ledger.numbers.spent_below.checked_add(spent).expect("priced aggregate fits unit");
+                save_funding(domain, funder, out);
+            } else {
+                // Zero-budget tasks can outlive their ledger; only a live period receives their spend.
+                assert_eq!(budget, 0, "only zero-budget tasks outlive their ledger");
+                if spent > 0
+                    && let Some(period) = newest_period(domain, project)
+                {
+                    let current = Funder::Period { project, period };
+                    let ledger = domain.funding.get_mut(&current).expect("newest live period");
+                    ledger.numbers.spent_below =
+                        ledger.numbers.spent_below.checked_add(spent).expect("priced aggregate fits unit");
+                    save_funding(domain, current, out);
+                }
+            }
             retire(domain, out);
         }
     }
@@ -287,11 +299,15 @@ pub(crate) fn link(domain: &Domain) -> Result<(), crate::RestoreFailure> {
         }
     }
     for (number, _) in &domain.names {
-        let funder = record(domain, *number).expect("live name").funder;
+        let task = record(domain, *number).expect("live name");
+        let funder = task.funder;
         let found = match funder {
             Funder::Task(target) => record(domain, target).is_some(),
-            Funder::Pool { .. } | Funder::Period { .. } | Funder::Recurring { .. } => {
+            Funder::Pool { project, period, .. }
+            | Funder::Period { project, period }
+            | Funder::Recurring { project, period, .. } => {
                 domain.funding.contains_key(&funder)
+                    || (task.numbers.budget == 0 && newer_period(domain, project, period))
             }
         };
         if !found {
@@ -609,6 +625,19 @@ pub(crate) fn restore_funding(domain: &mut Domain, ledger: FundingRecord) -> Res
     crate::stored::fit::numbers(ledger.numbers)?;
     assert!(domain.funding.insert(ledger.funder, ledger) == Ok(None), "restored ledger admitted");
     Ok(())
+}
+
+pub(crate) fn newest_period(domain: &Domain, project: u32) -> Option<u64> {
+    let mut newest: Option<u64> = None;
+    for (funder, _) in &domain.funding {
+        match *funder {
+            Funder::Period { project: other, period } if other == project => {
+                newest = Some(newest.unwrap_or(period).max(period));
+            }
+            Funder::Task(_) | Funder::Pool { .. } | Funder::Recurring { .. } | Funder::Period { .. } => {}
+        }
+    }
+    newest
 }
 
 pub(crate) fn newer_period(domain: &Domain, project: u32, period: u64) -> bool {

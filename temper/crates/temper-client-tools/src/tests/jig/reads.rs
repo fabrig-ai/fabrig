@@ -1357,7 +1357,7 @@ fn task_waits_explain_the_next_act_after_the_code_line() {
                 why: Some(c::AgentShortfall::Spend),
                 figures: Some(c::Figures { required: 5000, offered: 2000 }),
             }),
-            "  no worker can take this: a run here may spend 5000, and the largest worker takes 2000",
+            "  no worker can take this: a run here may spend 50.00, and the largest worker takes 20.00",
             &[],
         ),
         (

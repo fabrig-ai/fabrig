@@ -478,3 +478,31 @@ fn bound_is_what_the_parser_accepts() {
         assert_eq!(bound(&positional(b"other", b"VALUE", kind, Occurs::Required, b""), &limits), Bound::None);
     }
 }
+
+#[test]
+fn start_budget_usage_names_the_amount_grammar() {
+    for (group, verb, expected) in [
+        (
+            "goal",
+            "start",
+            "goal start: --budget AMOUNT takes an amount with at most two decimals, as 130 or 1.25; temper ctl help goal start",
+        ),
+        (
+            "milestone",
+            "new",
+            "milestone new: --budget AMOUNT takes an amount with at most two decimals, as 130 or 1.25; temper ctl help milestone new",
+        ),
+    ] {
+        for amount in ["1.005", "1.", ".5", "-1", "1,5", "184467440737095516.16", "184467440737095517"] {
+            let words = [group, verb, "--project", "1", "--budget", amount, "Work", "--key", "amount"];
+            let error = fixtures::parse(&words).expect_err("invalid amount is local usage");
+            let mut bytes = List::with_capacity(16);
+            for word in words {
+                bytes.push(word.as_bytes()).unwrap();
+            }
+            let mut out = skein_lib::Writer::new(expected.len());
+            crate::table::refusal(error, bytes.as_slice(), &mut out).unwrap();
+            assert_eq!(out.finish().as_ref(), expected.as_bytes());
+        }
+    }
+}

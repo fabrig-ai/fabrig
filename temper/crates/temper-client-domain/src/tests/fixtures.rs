@@ -286,14 +286,16 @@ pub fn adopted_bytes() -> jig_client::Family {
 }
 
 pub fn inbox_home(filter: crate::address::Filter) -> (crate::Domain, Token) {
-    let limits = limits();
-    let mut root = crate::unlinked(&limits, SEED);
+    inbox_home_with_limits(filter, &limits())
+}
+pub fn inbox_home_with_limits(filter: crate::address::Filter, limits: &Limits) -> (crate::Domain, Token) {
+    let mut root = crate::unlinked(limits, SEED);
     let frame = start(&mut root, List::with_capacity(0));
     let mut out = Queue::uncapped();
     confirm(&mut root, frame, PARTY, &mut out);
     crate::step(
         &mut root,
-        &env(&limits),
+        &env(limits),
         Event::Went { place: crate::Place::Address(Address::Inbox { filter }) },
         &mut out,
     );
