@@ -12,4 +12,4 @@
   - 7: `temper/docs/design/client/web/look-requests.md`, 2 and 3, have a stale journey recorded again before a request is drawn and a landing reprint its pages; its 4 and 5 compare and drop a request at the landing that carries its trailer, where the draft waits for the print.
   - 8.1: `temper/docs/design/client/journey-placeholders.md` and `temper/docs/design/client/journey-clock.md` stand whole, with the drafts they were written from; `temper/docs/design/client/web/journeys.md`, 8 and 9, and `temper/docs/design/client/tui/journeys.md`, 8 and 9, keep `again`, stale and the journeys' recordings; `temper/docs/design/draft/real-journeys.md`, 5, names a real journey on main.
 - **Design departs:** none.
-- **Open:** 12: the writer inside the landing or after it; who runs it; a test that walks every journey; whether the fixed start goes; a person's recording on main; the binary's name. Each has its default there.
+- **Open:** none.

@@ -142,7 +142,7 @@ tui mark
 
 - **The recorder stays** in both clients, switched on as today (`../client/web/journeys.md`, 3.1; `../client/tui/journeys.md`, 2). A person records on a deployment or on a box of their own, and saves a file.
 - **`temper-client-journeys print FILE OUT`** takes that file: it redacts it, proves the replay against the saved pages, scans it and prints its pages into OUT, as `add` does today (`../client/web/journey-redaction.md`; `../client/web/journeys.md`, 3.7 and 4.3). OUT is laid out as 5.2 has it, and is never under the repository's journeys.
-- **The file is the person's,** never committed. Its pages may be drawn on as a hand-made page's are (`../client/web/look-requests.md`, 2).
+- **The file is the person's,** never committed, and main holds no journey made from one. Its pages may be drawn on as a hand-made page's are (`../client/web/look-requests.md`, 2), from wherever they were printed.
 - **Printed by the build that recorded it.** A recording holds one build's wire, so the tool that prints it is built at the deployment's commit. `print` says so, by the layout's name, when it meets another.
 
 ## 5. The print
@@ -179,7 +179,7 @@ What the binary needs sits today where it cannot be reached, so the first goal t
 - **Nothing else writes its files, so its change meets no conflict.** Were one to arise all the same, from a branch made by hand, fabrig's merge job settles it with no model, taking the landing branch's copy (`tools/merge/README.md`), and the next run writes the pages again.
 - **It rules by writing, not by guarding.** Whatever lands in a page, the next run replaces it with the tip's print. So no check has to know who wrote a page.
 - **Goals are kept off all the same,** against the habit: the delivery check (`tools/pre-pr/design.md`) refuses an agent's delivery whose branch changes a page, or a generated file beside one, together with any other file, naming `temper-client-walk print`. `AGENTS.md` says so.
-- **By code alone:** no model, no judgement. Its runner is the after-landing check's owner, by a script, at each landing (section 12).
+- **By code alone, after the landing:** no model, no judgement. Its runner is the after-landing check's owner, by a script, at each landing. It never runs inside one, on the candidate a landing gates: a walk that stops must not hold a landing (the user, 2026-11-18). temper running it is section 11's.
 - **Its engine** is `temper-client-walk pages` for a journey that prints in a world, and `again` with the reprint for one that has not moved yet (8.3).
 - **A page holds no stamp:** no commit, no date. A landing that changes no page changes no file.
 - **How far behind.** Between a landing and the writer's change, main's pages are an earlier tip's, and the last `Printed:` on main says which. Nothing reads them in between but a person.
@@ -204,7 +204,7 @@ What the binary needs sits today where it cannot be reached, so the first goal t
 - **Every committed `recording` and `setup`,** and `add` as the way a journey reaches main.
 - **`again`,** the browser's and the TUI's, with its walk's check against the old one, its prepared inputs and its scratch (`../client/web/journeys.md`, 8; `../client/tui/journeys.md`, 8).
 - **Placeholders and `normalise`** (`../client/journey-placeholders.md`): nothing varies in a world, and nothing recorded is compared.
-- **The fixed start** in the box, the page and the TUI (`../client/journey-clock.md`): `again` was its only user.
+- **The fixed start** in the box, the page and the TUI (`../client/journey-clock.md`): `again` is its only user, and it goes with it once the last journey has moved. Until then it keeps the writer's walks of a box the same from run to run (8.3).
 - **The test that reprints main's journeys** and holds each recording to its normalisation, with the gate's entries that name a committed recording.
 - **Stale,** as a state of main: no committed file depends on the wire.
 - **A real journey on main** (`real-journeys.md`, 5): a person's recording prints where they choose (4.3).
@@ -244,7 +244,7 @@ Focused, and native: no box, browser or terminal.
 - **The delivery check:** a delivery changing a page and another file refused, with and without a base to compare; a nonempty overlay refused.
 - **The refresh:** a request whose trailer is on main and not yet printed kept, and dropped once a `Printed:` commit covers it.
 - **The recorded file's tests keep their own data:** redaction, the scan and the proof build their recordings in the host's world.
-- **No test's verdict depends on a page or a recording of main's:** none replays, reprints or compares one. The box's walks are written and compiled, never run in a plan.
+- **No test's verdict depends on a page or a recording of main's:** none replays, reprints or compares one, and none walks main's journeys to their end (the user, 2026-11-18). A goal that renames a control hears of it after its landing, from the writer (section 6). The box's walks are written and compiled, never run in a plan.
 
 ## 11. Later
 
@@ -257,9 +257,11 @@ Focused, and native: no box, browser or terminal.
 
 ## 12. Open questions
 
-- **The writer inside the landing.** It could run on the candidate a landing gates, so that main's pages are never behind. Default: after landing, as the user asked for the check, since a walk that stops must not hold a landing.
-- **Who runs the writer.** Default: the after-landing check's owner, by a script that holds section 6's rule of one run at a time. temper running it is section 11's.
-- **A test that walks every journey to its end,** in the simulated layer. It would tell a goal that renamed a control before it lands, where section 6 tells it after. Default: none, as the user asked; its cost is known once a journey's walk is measured (5.3).
-- **The fixed start, landed on 11-18.** Default: it goes with `again` (8.1), once the last journey has moved; until then it keeps the writer's walks of a box the same from run to run (8.3). Kept past that, it would do the same for the box's walks of 4.2.
-- **A person's recording on main.** Default: never; its pages are drawn on from wherever they were printed (4.3).
-- **The binary's name.** Default: `temper-client-walk`, beside `temper-client-gallery` and `temper-client-journeys`.
+None now; [journey-walks.status.md](journey-walks.status.md) keeps what is open. The user settled these on 2026-11-18, each as the text has it:
+
+- **The writer runs after a landing,** never inside one (section 6).
+- **Its runner** is the after-landing check's owner, by a script, until temper runs it (sections 6 and 11).
+- **No test walks main's journeys to their end** (section 10).
+- **The fixed start goes with `again`,** once the last journey has moved (8.1).
+- **A person's recording never lands on main** (4.3).
+- **The binary is `temper-client-walk`** (5.2).

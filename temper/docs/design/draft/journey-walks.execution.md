@@ -13,7 +13,7 @@
 | W5, the TUI on the service: its host's requests, stream, kept records, deadlines and browse carried to the simulated service; `tui` lines, `tui approve` and frames. `sign-in-approved` moves | 3.2, 4.1, 5.1 | W2 | none | not started |
 | W6, the TUI's longer walks: `launchpad-chat`, `launchpad-drawn` and `design-session` return, with their scripts | 3.3, 4.1 | W4, W5 | none | not started |
 | W7, the old way removed: `again`, `normalise`, the placeholders, the `setup` and version 1 readers, the writer's first engine; `temper-client-journeys print FILE OUT` in place of `add`; the drive session taking a journey's lines, its box walks written and compiled | 4.2, 4.3, 8.1 | W6 | none: compiled | not started |
-| W8, the fixed start removed from the box, the page and the TUI, with `../client/journey-clock.md`, if `journey-walks.md`, 12, keeps its default | 8.1 | W7 | none | not started |
+| W8, the fixed start removed from the box, the page and the TUI, with `../client/journey-clock.md` | 8.1 | W7 | none | not started |
 | W9, the words that are left: `../client/web/journeys.md` and `../client/tui/journeys.md` read whole around the walk; the drafts `journey-clock.md`, `journey-placeholders.md`, `real-journeys.md` and `record-anywhere.md` folded or deleted | all | W1 to W8 | none: docs | not started |
 
 ## 2. Order
