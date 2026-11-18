@@ -20,6 +20,7 @@ pub struct Limits {
     pub adopted_checks: u32,
     pub adopted_workflows: u32,
     pub adopted_workflows_item: u32,
+    pub adopted_landing: u32,
     pub retargeted_before: u32,
     pub retargeted_after: u32,
     pub hold_design_writers: u32,
@@ -355,6 +356,7 @@ pub const CEILINGS: Limits = Limits {
     adopted_checks: 1_024,
     adopted_workflows: 16,
     adopted_workflows_item: 255,
+    adopted_landing: 4_096,
     retargeted_before: 4_096,
     retargeted_after: 4_096,
     hold_design_writers: 65_536,
@@ -675,7 +677,7 @@ pub const CEILINGS: Limits = Limits {
 };
 
 /// The limits' field names, in field order.
-pub const LIMIT_NAMES: [&str; 331] = [
+pub const LIMIT_NAMES: [&str; 332] = [
     "segment_name",
     "answer_name_name",
     "segments_segments",
@@ -690,6 +692,7 @@ pub const LIMIT_NAMES: [&str; 331] = [
     "adopted_checks",
     "adopted_workflows",
     "adopted_workflows_item",
+    "adopted_landing",
     "retargeted_before",
     "retargeted_after",
     "hold_design_writers",
@@ -1012,50 +1015,50 @@ pub const LIMIT_NAMES: [&str; 331] = [
 impl Limits {
     /// The limits' values, in `LIMIT_NAMES` order.
     #[must_use]
-    pub fn values(&self) -> [u32; 331] {
+    pub fn values(&self) -> [u32; 332] {
         [
             self.segment_name, self.answer_name_name, self.segments_segments, self.protection_branch, self.protection_contexts, self.settings_default_branch, self.adopted_contexts, self.adopted_host,
-            self.adopted_owner, self.adopted_name, self.adopted_prefix, self.adopted_checks, self.adopted_workflows, self.adopted_workflows_item, self.retargeted_before, self.retargeted_after,
-            self.hold_design_writers, self.names_resources, self.landings_topic_branch, self.release_row_comment_some, self.create_issue_key, self.create_issue_title, self.create_issue_body, self.open_pull_title,
-            self.open_pull_body, self.open_pull_head, self.open_pull_base, self.post_key, self.post_body, self.post_review_key, self.post_review_body, self.edit_title_some,
-            self.edit_body_some, self.set_reviewers_reviewers, self.dispatch_input_name, self.dispatch_input_value, self.dispatch_write_workflow, self.dispatch_write_branch, self.dispatch_write_inputs, self.set_status_context,
-            self.set_status_description, self.set_status_link, self.create_branch_branch, self.delete_branch_branch, self.merge_condition_base, self.pull_reviewers, self.pull_head, self.pull_base,
-            self.step_name, self.job_answer_log, self.file_answer_path, self.file_answer_bytes, self.directory_entry_name, self.directory_answer_path, self.directory_answer_entries, self.branches_answer_branches,
-            self.permission_value_login, self.summary_labels, self.summary_key_some, self.summary_title, self.summary_body, self.comment_key_some, self.comment_body, self.review_key_some,
-            self.review_body, self.items_answer_items, self.item_answer_comments, self.reviews_answer_reviews, self.status_context, self.status_description, self.status_url, self.remark_path,
-            self.remark_body, self.file_path, self.file_before_some, self.file_after_some, self.statuses_answer_statuses, self.remarks_answer_remarks, self.pull_files_answer_files, self.compare_answer_files,
-            self.compare_answer_files_item, self.checks_answer_statuses, self.collaborators_answer_collaborators, self.call_decided_took_some, self.live_branch_branch, self.live_record_comments, self.live_record_reviews, self.live_record_echoes,
-            self.landing_below_changes, self.gating_asked, self.no_change_words, self.judgement_branch, self.judgement_base, self.judging_asked, self.change_state_holds, self.gate_remark_words,
-            self.early_heads_heads, self.change_gates, self.change_clean, self.change_gate_failures, self.effect_account_words, self.result_text_bytes, self.llm_choice_subagents, self.held_answer,
-            self.open_line, self.open_words, self.waiting_words, self.answered_line, self.answered_answer, self.questions_open, self.questions_waiting, self.questions_answered,
-            self.change_failure_line, self.change_follows_commits, self.plan_item_text, self.milestone_text, self.goal_view_title, self.goal_view_goal_text, self.goal_view_plan, self.goal_view_milestones,
-            self.goal_view_finished_some, self.projected_milestones, self.application_adopted_owner, self.application_adopted_name, self.core_refused_refusal, self.making_key_org, self.making_key_name, self.copy_from_address,
-            self.make_into_host, self.making_failed_words, self.making_made_branch, self.follow_reason_act_reason, self.follow_merge_act_afters, self.follow_outcome_refusal_some, self.open_repository_owner, self.open_repository_name,
-            self.several_repositories_repositories, self.under_prefix_owner, self.under_prefix_name, self.under_prefix_prefix, self.binding_address, self.binding_subject, self.landing_member_gates, self.landing_member_branch,
-            self.failing_test_test_id, self.landing_selection_tests, self.landing_by_test_gates, self.landing_by_test_probed, self.landing_searched_changes, self.landing_round_branch, self.landing_round_failure, self.landing_state_members,
-            self.landing_state_branch, self.history_job_record_members, self.receipt_name_name, self.landing_flake_rerun_findings, self.landing_flake_rerun_pending, self.landing_row_asks, self.landing_row_entries, self.landing_row_flake_reruns,
-            self.receipt_run_url, self.failed_tests_tests, self.tier_verification_tier, self.verification_changes, self.verification_tiers, self.tier_flake_test, self.tier_tests_tests, self.tier_finding_flakes,
-            self.tier_finding_blamed, self.tier_group_tests, self.tier_probe_waiting, self.tier_run_landings, self.tier_record_flakes, self.tier_flight_pending, self.receipt_job_name, self.receipt_test_key,
-            self.receipt_tests_tests, self.receipt_jobs, self.receipt_logs, self.tier_goal_branch, self.tier_hold_reason, self.tier_posted_tests_tests, self.tier_posting_link, self.tier_posting_description,
-            self.tier_posting_landings, self.tier_posting_comments, self.tier_row_observations, self.tier_row_tier, self.tier_row_pending, self.tier_row_goals, self.address_host, self.address_tls_some,
-            self.place_git, self.place_web_some, self.bot_login, self.bot_name, self.bot_email, self.empty_intent_org, self.empty_intent_repository, self.empty_intent_label,
-            self.copy_intent_addresses, self.copy_intent_addresses_item, self.forge_git_program_some, self.rule_pattern_segments, self.landing_rule_gates, self.landing_rule_approvals, self.landing_rule_sets, self.project_landing_merge_job_some,
-            self.project_landing_close_job_some, self.settings_gate_report_artifact, self.settings_gate_report_fuzzy_some, self.settings_gate_name, self.settings_gate_workflow, self.settings_gate_ignored, self.settings_gate_ignored_item, self.settings_branch_name,
-            self.settings_tier_name, self.settings_tier_workflow, self.settings_tier_ignored, self.settings_tier_ignored_item, self.settings_tier_artifact, self.settings_tier_description, self.repository_gates_gates, self.repository_gates_tiers,
-            self.project_gates_repositories, self.class_item_words, self.path_set_name, self.path_set_patterns, self.path_set_patterns_item, self.project_classes_items, self.project_classes_sets, self.charter_words_line,
-            self.project_words_headline, self.project_words_lede, self.follow_source_branch, self.follow_source_paths, self.follow_source_paths_item, self.follow_target_branch, self.follow_check_workflow, self.follow_check_artifact,
-            self.follow_producer_some, self.logged_change_signed, self.logged_change_title, self.logged_landing_branch, self.logged_landing_changes, self.milestone_row_name, self.landing_log_landings, self.status_brief_sentence,
-            self.status_brief_lede, self.decided_question, self.decided_options, self.decided_options_item, self.decided_why, self.closing_tasks_tasks, self.closing_jobs_attempts, self.closing_line_line_some,
-            self.closing_asked_answer_some, self.closing_question_words, self.closing_message_words, self.closing_relay_replies, self.closer_close_changes, self.closer_landing_changes, self.closer_selections, self.landed_draft_path,
-            self.landed_draft_branch, self.landed_draft_title, self.follow_commit_message, self.follow_reason_reason, self.follow_files_files, self.follow_entry_commits, self.follow_skip_reason, self.follow_parity_run,
-            self.follow_question_words, self.follow_question_answer_some, self.follow_row_branch, self.follow_row_stopped_some, self.follow_row_queue, self.follow_row_skips, self.follow_row_questions, self.follow_check_progress_definition,
-            self.follow_check_progress_held_some, self.history_project_marks, self.history_formed_members, self.history_proved_proofs, self.history_hold_reason, self.change_source_branch, self.change_cold_branch, self.change_cold_base,
-            self.change_cold_title, self.change_cold_body, self.change_cold_report, self.change_cold_close_some, self.change_hot_signed, self.change_hot_repair_tasks, self.change_hot_resolution_tasks, self.change_hot_verdicts,
-            self.change_hot_gate_remarks, self.change_hot_producer_failure_some, self.change_hot_merge_result_some, self.subscriber_goal_tasks_some, self.subscriber_paths, self.subscriber_paths_item, self.finding_areas_names, self.finding_areas_names_item,
-            self.finding_words_words, self.finding_reply_area_some, self.call_follow_refusal_some, self.red_key, self.red_head, self.red_why, self.red_pass_key, self.red_recorded_head,
-            self.red_reply_key, self.area_name, self.area_words, self.project_areas_areas, self.agent_figure_name, self.agent_endpoint_limits_endpoint, self.agent_figures_profile, self.agent_figures_endpoints,
-            self.finding_signature_source, self.finding_signature_ids, self.finding_signature_ids_item, self.finding_signature_first, self.finding_area_some, self.finding_title, self.finding_body, self.finding_why_some,
-            self.finding_reason_some, self.device_endpoint, self.device_label,
+            self.adopted_owner, self.adopted_name, self.adopted_prefix, self.adopted_checks, self.adopted_workflows, self.adopted_workflows_item, self.adopted_landing, self.retargeted_before,
+            self.retargeted_after, self.hold_design_writers, self.names_resources, self.landings_topic_branch, self.release_row_comment_some, self.create_issue_key, self.create_issue_title, self.create_issue_body,
+            self.open_pull_title, self.open_pull_body, self.open_pull_head, self.open_pull_base, self.post_key, self.post_body, self.post_review_key, self.post_review_body,
+            self.edit_title_some, self.edit_body_some, self.set_reviewers_reviewers, self.dispatch_input_name, self.dispatch_input_value, self.dispatch_write_workflow, self.dispatch_write_branch, self.dispatch_write_inputs,
+            self.set_status_context, self.set_status_description, self.set_status_link, self.create_branch_branch, self.delete_branch_branch, self.merge_condition_base, self.pull_reviewers, self.pull_head,
+            self.pull_base, self.step_name, self.job_answer_log, self.file_answer_path, self.file_answer_bytes, self.directory_entry_name, self.directory_answer_path, self.directory_answer_entries,
+            self.branches_answer_branches, self.permission_value_login, self.summary_labels, self.summary_key_some, self.summary_title, self.summary_body, self.comment_key_some, self.comment_body,
+            self.review_key_some, self.review_body, self.items_answer_items, self.item_answer_comments, self.reviews_answer_reviews, self.status_context, self.status_description, self.status_url,
+            self.remark_path, self.remark_body, self.file_path, self.file_before_some, self.file_after_some, self.statuses_answer_statuses, self.remarks_answer_remarks, self.pull_files_answer_files,
+            self.compare_answer_files, self.compare_answer_files_item, self.checks_answer_statuses, self.collaborators_answer_collaborators, self.call_decided_took_some, self.live_branch_branch, self.live_record_comments, self.live_record_reviews,
+            self.live_record_echoes, self.landing_below_changes, self.gating_asked, self.no_change_words, self.judgement_branch, self.judgement_base, self.judging_asked, self.change_state_holds,
+            self.gate_remark_words, self.early_heads_heads, self.change_gates, self.change_clean, self.change_gate_failures, self.effect_account_words, self.result_text_bytes, self.llm_choice_subagents,
+            self.held_answer, self.open_line, self.open_words, self.waiting_words, self.answered_line, self.answered_answer, self.questions_open, self.questions_waiting,
+            self.questions_answered, self.change_failure_line, self.change_follows_commits, self.plan_item_text, self.milestone_text, self.goal_view_title, self.goal_view_goal_text, self.goal_view_plan,
+            self.goal_view_milestones, self.goal_view_finished_some, self.projected_milestones, self.application_adopted_owner, self.application_adopted_name, self.core_refused_refusal, self.making_key_org, self.making_key_name,
+            self.copy_from_address, self.make_into_host, self.making_failed_words, self.making_made_branch, self.follow_reason_act_reason, self.follow_merge_act_afters, self.follow_outcome_refusal_some, self.open_repository_owner,
+            self.open_repository_name, self.several_repositories_repositories, self.under_prefix_owner, self.under_prefix_name, self.under_prefix_prefix, self.binding_address, self.binding_subject, self.landing_member_gates,
+            self.landing_member_branch, self.failing_test_test_id, self.landing_selection_tests, self.landing_by_test_gates, self.landing_by_test_probed, self.landing_searched_changes, self.landing_round_branch, self.landing_round_failure,
+            self.landing_state_members, self.landing_state_branch, self.history_job_record_members, self.receipt_name_name, self.landing_flake_rerun_findings, self.landing_flake_rerun_pending, self.landing_row_asks, self.landing_row_entries,
+            self.landing_row_flake_reruns, self.receipt_run_url, self.failed_tests_tests, self.tier_verification_tier, self.verification_changes, self.verification_tiers, self.tier_flake_test, self.tier_tests_tests,
+            self.tier_finding_flakes, self.tier_finding_blamed, self.tier_group_tests, self.tier_probe_waiting, self.tier_run_landings, self.tier_record_flakes, self.tier_flight_pending, self.receipt_job_name,
+            self.receipt_test_key, self.receipt_tests_tests, self.receipt_jobs, self.receipt_logs, self.tier_goal_branch, self.tier_hold_reason, self.tier_posted_tests_tests, self.tier_posting_link,
+            self.tier_posting_description, self.tier_posting_landings, self.tier_posting_comments, self.tier_row_observations, self.tier_row_tier, self.tier_row_pending, self.tier_row_goals, self.address_host,
+            self.address_tls_some, self.place_git, self.place_web_some, self.bot_login, self.bot_name, self.bot_email, self.empty_intent_org, self.empty_intent_repository,
+            self.empty_intent_label, self.copy_intent_addresses, self.copy_intent_addresses_item, self.forge_git_program_some, self.rule_pattern_segments, self.landing_rule_gates, self.landing_rule_approvals, self.landing_rule_sets,
+            self.project_landing_merge_job_some, self.project_landing_close_job_some, self.settings_gate_report_artifact, self.settings_gate_report_fuzzy_some, self.settings_gate_name, self.settings_gate_workflow, self.settings_gate_ignored, self.settings_gate_ignored_item,
+            self.settings_branch_name, self.settings_tier_name, self.settings_tier_workflow, self.settings_tier_ignored, self.settings_tier_ignored_item, self.settings_tier_artifact, self.settings_tier_description, self.repository_gates_gates,
+            self.repository_gates_tiers, self.project_gates_repositories, self.class_item_words, self.path_set_name, self.path_set_patterns, self.path_set_patterns_item, self.project_classes_items, self.project_classes_sets,
+            self.charter_words_line, self.project_words_headline, self.project_words_lede, self.follow_source_branch, self.follow_source_paths, self.follow_source_paths_item, self.follow_target_branch, self.follow_check_workflow,
+            self.follow_check_artifact, self.follow_producer_some, self.logged_change_signed, self.logged_change_title, self.logged_landing_branch, self.logged_landing_changes, self.milestone_row_name, self.landing_log_landings,
+            self.status_brief_sentence, self.status_brief_lede, self.decided_question, self.decided_options, self.decided_options_item, self.decided_why, self.closing_tasks_tasks, self.closing_jobs_attempts,
+            self.closing_line_line_some, self.closing_asked_answer_some, self.closing_question_words, self.closing_message_words, self.closing_relay_replies, self.closer_close_changes, self.closer_landing_changes, self.closer_selections,
+            self.landed_draft_path, self.landed_draft_branch, self.landed_draft_title, self.follow_commit_message, self.follow_reason_reason, self.follow_files_files, self.follow_entry_commits, self.follow_skip_reason,
+            self.follow_parity_run, self.follow_question_words, self.follow_question_answer_some, self.follow_row_branch, self.follow_row_stopped_some, self.follow_row_queue, self.follow_row_skips, self.follow_row_questions,
+            self.follow_check_progress_definition, self.follow_check_progress_held_some, self.history_project_marks, self.history_formed_members, self.history_proved_proofs, self.history_hold_reason, self.change_source_branch, self.change_cold_branch,
+            self.change_cold_base, self.change_cold_title, self.change_cold_body, self.change_cold_report, self.change_cold_close_some, self.change_hot_signed, self.change_hot_repair_tasks, self.change_hot_resolution_tasks,
+            self.change_hot_verdicts, self.change_hot_gate_remarks, self.change_hot_producer_failure_some, self.change_hot_merge_result_some, self.subscriber_goal_tasks_some, self.subscriber_paths, self.subscriber_paths_item, self.finding_areas_names,
+            self.finding_areas_names_item, self.finding_words_words, self.finding_reply_area_some, self.call_follow_refusal_some, self.red_key, self.red_head, self.red_why, self.red_pass_key,
+            self.red_recorded_head, self.red_reply_key, self.area_name, self.area_words, self.project_areas_areas, self.agent_figure_name, self.agent_endpoint_limits_endpoint, self.agent_figures_profile,
+            self.agent_figures_endpoints, self.finding_signature_source, self.finding_signature_ids, self.finding_signature_ids_item, self.finding_signature_first, self.finding_area_some, self.finding_title, self.finding_body,
+            self.finding_why_some, self.finding_reason_some, self.device_endpoint, self.device_label,
         ]
     }
 }
@@ -1189,6 +1192,8 @@ pub enum Path {
     AdoptedSettings,
     /// The `workflows` field of `Adopted`.
     AdoptedWorkflows,
+    /// The `landing` field of `Adopted`.
+    AdoptedLanding,
     /// Bytes after `Adopted`.
     AdoptedTail,
     /// The `task` field of `RunWriter`.
@@ -4904,6 +4909,7 @@ impl Path {
             Self::AdoptedProtection => "Adopted.protection",
             Self::AdoptedSettings => "Adopted.settings",
             Self::AdoptedWorkflows => "Adopted.workflows",
+            Self::AdoptedLanding => "Adopted.landing",
             Self::AdoptedTail => "Adopted (tail)",
             Self::RunWriterTask => "RunWriter.task",
             Self::RunWriterAttempt => "RunWriter.attempt",
@@ -6761,6 +6767,7 @@ fn check_limits_0(limits: &Limits) -> Result<(), Problem> {
     if limits.adopted_checks > CEILINGS.adopted_checks { return Err(Problem { path: Path::AdoptedChecks, reason: skein_codec::Reason::Bound }); }
     if limits.adopted_workflows > CEILINGS.adopted_workflows { return Err(Problem { path: Path::AdoptedWorkflows, reason: skein_codec::Reason::Bound }); }
     if limits.adopted_workflows_item > CEILINGS.adopted_workflows_item { return Err(Problem { path: Path::AdoptedWorkflows, reason: skein_codec::Reason::Bound }); }
+    if limits.adopted_landing > CEILINGS.adopted_landing { return Err(Problem { path: Path::AdoptedLanding, reason: skein_codec::Reason::Bound }); }
     if limits.retargeted_before > CEILINGS.retargeted_before { return Err(Problem { path: Path::RetargetedBefore, reason: skein_codec::Reason::Bound }); }
     if limits.retargeted_after > CEILINGS.retargeted_after { return Err(Problem { path: Path::RetargetedAfter, reason: skein_codec::Reason::Bound }); }
     if limits.hold_design_writers > CEILINGS.hold_design_writers { return Err(Problem { path: Path::HoldDesignWriters, reason: skein_codec::Reason::Bound }); }
@@ -6836,11 +6843,11 @@ fn check_limits_0(limits: &Limits) -> Result<(), Problem> {
     if limits.live_record_reviews > CEILINGS.live_record_reviews { return Err(Problem { path: Path::LiveRecordReviews, reason: skein_codec::Reason::Bound }); }
     if limits.live_record_echoes > CEILINGS.live_record_echoes { return Err(Problem { path: Path::LiveRecordEchoes, reason: skein_codec::Reason::Bound }); }
     if limits.landing_below_changes > CEILINGS.landing_below_changes { return Err(Problem { path: Path::LandingBelowChanges, reason: skein_codec::Reason::Bound }); }
-    if limits.gating_asked > CEILINGS.gating_asked { return Err(Problem { path: Path::GatingAsked, reason: skein_codec::Reason::Bound }); }
     Ok(())
 }
 
 fn check_limits_1(limits: &Limits) -> Result<(), Problem> {
+    if limits.gating_asked > CEILINGS.gating_asked { return Err(Problem { path: Path::GatingAsked, reason: skein_codec::Reason::Bound }); }
     if limits.no_change_words > CEILINGS.no_change_words { return Err(Problem { path: Path::NoChangeWords, reason: skein_codec::Reason::Bound }); }
     if limits.judgement_branch > CEILINGS.judgement_branch { return Err(Problem { path: Path::JudgementBranch, reason: skein_codec::Reason::Bound }); }
     if limits.judgement_base > CEILINGS.judgement_base { return Err(Problem { path: Path::JudgementBase, reason: skein_codec::Reason::Bound }); }
@@ -6930,11 +6937,11 @@ fn check_limits_1(limits: &Limits) -> Result<(), Problem> {
     if limits.receipt_tests_tests > CEILINGS.receipt_tests_tests { return Err(Problem { path: Path::ReceiptTestsTests, reason: skein_codec::Reason::Bound }); }
     if limits.receipt_jobs > CEILINGS.receipt_jobs { return Err(Problem { path: Path::ReceiptJobs, reason: skein_codec::Reason::Bound }); }
     if limits.receipt_logs > CEILINGS.receipt_logs { return Err(Problem { path: Path::ReceiptLogs, reason: skein_codec::Reason::Bound }); }
-    if limits.tier_goal_branch > CEILINGS.tier_goal_branch { return Err(Problem { path: Path::TierGoalBranch, reason: skein_codec::Reason::Bound }); }
     Ok(())
 }
 
 fn check_limits_2(limits: &Limits) -> Result<(), Problem> {
+    if limits.tier_goal_branch > CEILINGS.tier_goal_branch { return Err(Problem { path: Path::TierGoalBranch, reason: skein_codec::Reason::Bound }); }
     if limits.tier_hold_reason > CEILINGS.tier_hold_reason { return Err(Problem { path: Path::TierHoldReason, reason: skein_codec::Reason::Bound }); }
     if limits.tier_posted_tests_tests > CEILINGS.tier_posted_tests_tests { return Err(Problem { path: Path::TierPostedTestsTests, reason: skein_codec::Reason::Bound }); }
     if limits.tier_posting_link > CEILINGS.tier_posting_link { return Err(Problem { path: Path::TierPostingLink, reason: skein_codec::Reason::Bound }); }
@@ -7024,11 +7031,11 @@ fn check_limits_2(limits: &Limits) -> Result<(), Problem> {
     if limits.follow_commit_message > CEILINGS.follow_commit_message { return Err(Problem { path: Path::FollowCommitMessage, reason: skein_codec::Reason::Bound }); }
     if limits.follow_reason_reason > CEILINGS.follow_reason_reason { return Err(Problem { path: Path::FollowReasonReason, reason: skein_codec::Reason::Bound }); }
     if limits.follow_files_files > CEILINGS.follow_files_files { return Err(Problem { path: Path::FollowFilesFiles, reason: skein_codec::Reason::Bound }); }
-    if limits.follow_entry_commits > CEILINGS.follow_entry_commits { return Err(Problem { path: Path::FollowEntryCommits, reason: skein_codec::Reason::Bound }); }
     Ok(())
 }
 
 fn check_limits_3(limits: &Limits) -> Result<(), Problem> {
+    if limits.follow_entry_commits > CEILINGS.follow_entry_commits { return Err(Problem { path: Path::FollowEntryCommits, reason: skein_codec::Reason::Bound }); }
     if limits.follow_skip_reason > CEILINGS.follow_skip_reason { return Err(Problem { path: Path::FollowSkipReason, reason: skein_codec::Reason::Bound }); }
     if limits.follow_parity_run > CEILINGS.follow_parity_run { return Err(Problem { path: Path::FollowParityRun, reason: skein_codec::Reason::Bound }); }
     if limits.follow_question_words > CEILINGS.follow_question_words { return Err(Problem { path: Path::FollowQuestionWords, reason: skein_codec::Reason::Bound }); }
@@ -7719,6 +7726,8 @@ pub struct AdoptedParts {
     pub settings: Settings,
     /// The `workflows` field.
     pub workflows: List<Box<[u8]>>,
+    /// The `landing` field.
+    pub landing: Box<[u8]>,
 }
 
 /// `Adopted` in this codec family.
@@ -7739,13 +7748,14 @@ pub struct Adopted {
     protection: RepositoryProtection,
     settings: Settings,
     workflows: List<Box<[u8]>>,
+    landing: Box<[u8]>,
 }
 
 impl Adopted {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: AdoptedParts) -> Result<Self, Problem> {
-        let AdoptedParts { project, contexts, home, provider, host, owner, name, prefix, role, ci, checks, kinds, protection, settings, workflows } = parts;
-        let value = Self { project, contexts, home, provider, host, owner, name, prefix, role, ci, checks, kinds, protection, settings, workflows };
+        let AdoptedParts { project, contexts, home, provider, host, owner, name, prefix, role, ci, checks, kinds, protection, settings, workflows, landing } = parts;
+        let value = Self { project, contexts, home, provider, host, owner, name, prefix, role, ci, checks, kinds, protection, settings, workflows, landing };
         value.check(limits)?;
         Ok(value)
     }
@@ -7810,9 +7820,13 @@ impl Adopted {
     #[must_use]
     pub fn workflows(&self) -> &List<Box<[u8]>> { &self.workflows }
 
+    /// Reads the `landing` field.
+    #[must_use]
+    pub fn landing(&self) -> &[u8] { &self.landing }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> AdoptedParts { AdoptedParts { project: self.project, contexts: self.contexts, home: self.home, provider: self.provider, host: self.host, owner: self.owner, name: self.name, prefix: self.prefix, role: self.role, ci: self.ci, checks: self.checks, kinds: self.kinds, protection: self.protection, settings: self.settings, workflows: self.workflows } }
+    pub fn into_parts(self) -> AdoptedParts { AdoptedParts { project: self.project, contexts: self.contexts, home: self.home, provider: self.provider, host: self.host, owner: self.owner, name: self.name, prefix: self.prefix, role: self.role, ci: self.ci, checks: self.checks, kinds: self.kinds, protection: self.protection, settings: self.settings, workflows: self.workflows, landing: self.landing } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         if self.contexts.capacity() > limits.adopted_contexts.min(CEILINGS.adopted_contexts) { return Err(Problem { path: Path::AdoptedContexts, reason: skein_codec::Reason::Bound }); }
@@ -7827,6 +7841,7 @@ impl Adopted {
         for item_0 in self.workflows.as_slice() {
         if item_0.len() > usize::try_from(limits.adopted_workflows_item.min(CEILINGS.adopted_workflows_item)).expect("u32 fits usize") { return Err(Problem { path: Path::AdoptedWorkflows, reason: skein_codec::Reason::Bound }); }
         }
+        if self.landing.len() > usize::try_from(limits.adopted_landing.min(CEILINGS.adopted_landing)).expect("u32 fits usize") { return Err(Problem { path: Path::AdoptedLanding, reason: skein_codec::Reason::Bound }); }
         Ok(())
     }
 }
@@ -32047,6 +32062,9 @@ impl Adopted {
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(u32::try_from(item_0.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
         }
+        let field_landing = &self.landing;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_landing.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
         size
     }
 
@@ -32096,6 +32114,9 @@ impl Adopted {
         writer.put(&u32::try_from(item_0.len()).expect("field ceiling fits u32").to_be_bytes())?;
         writer.put(item_0.as_ref())?;
         }
+        let field_landing = &self.landing;
+        writer.put(&u32::try_from(field_landing.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_landing.as_ref())?;
         Ok(())
     }
 
@@ -32122,7 +32143,8 @@ impl Adopted {
         let decoded_protection = RepositoryProtection::decode_from(limits, reader)?;
         let decoded_settings = Settings::decode_from(limits, reader)?;
         let decoded_workflows = { let count = match skein_codec::read_count(reader, limits.adopted_workflows.min(CEILINGS.adopted_workflows)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::AdoptedWorkflows, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::AdoptedWorkflows, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = { let length = match skein_codec::read_len(reader, limits.adopted_workflows_item.min(CEILINGS.adopted_workflows_item)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::AdoptedWorkflows, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::AdoptedWorkflows, reason: skein_codec::Reason::Short })?) }; items_0.push(item).expect("count within capacity"); } items_0 };
-        Ok(Self { project: decoded_project, contexts: decoded_contexts, home: decoded_home, provider: decoded_provider, host: decoded_host, owner: decoded_owner, name: decoded_name, prefix: decoded_prefix, role: decoded_role, ci: decoded_ci, checks: decoded_checks, kinds: decoded_kinds, protection: decoded_protection, settings: decoded_settings, workflows: decoded_workflows })
+        let decoded_landing = { let length = match skein_codec::read_len(reader, limits.adopted_landing.min(CEILINGS.adopted_landing)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::AdoptedLanding, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::AdoptedLanding, reason: skein_codec::Reason::Short })?) };
+        Ok(Self { project: decoded_project, contexts: decoded_contexts, home: decoded_home, provider: decoded_provider, host: decoded_host, owner: decoded_owner, name: decoded_name, prefix: decoded_prefix, role: decoded_role, ci: decoded_ci, checks: decoded_checks, kinds: decoded_kinds, protection: decoded_protection, settings: decoded_settings, workflows: decoded_workflows, landing: decoded_landing })
     }
 }
 
@@ -57127,7 +57149,7 @@ impl Adopted {
         size = size.checked_add(Role::encoded_bound_within(limits)?)?.checked_add(1_u64)?;
         size = size.checked_add(4_u64.checked_add(u64::from(limits.adopted_checks).checked_mul(4_u64)?)?)?.checked_add(Kinds::encoded_bound_within(limits)?)?;
         size = size.checked_add(RepositoryProtection::encoded_bound_within(limits)?)?.checked_add(Settings::encoded_bound_within(limits)?)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.adopted_workflows).checked_mul(4_u64.checked_add(u64::from(limits.adopted_workflows_item))?)?)?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.adopted_workflows).checked_mul(4_u64.checked_add(u64::from(limits.adopted_workflows_item))?)?)?)?.checked_add(4_u64.checked_add(u64::from(limits.adopted_landing))?)?;
         size.checked_add(0)
     }
 
@@ -57147,7 +57169,7 @@ impl Adopted {
         heap = heap.checked_add(Role::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
         heap = heap.checked_add(List::<u32>::price(limits.adopted_checks)?.checked_add(u64::from(limits.adopted_checks).checked_mul(0_u64)?)?)?.checked_add(Kinds::decoded_bound_within(limits)?)?;
         heap = heap.checked_add(RepositoryProtection::decoded_bound_within(limits)?)?.checked_add(Settings::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(List::<Box<[u8]>>::price(limits.adopted_workflows)?.checked_add(u64::from(limits.adopted_workflows).checked_mul(u64::from(limits.adopted_workflows_item))?)?)?;
+        heap = heap.checked_add(List::<Box<[u8]>>::price(limits.adopted_workflows)?.checked_add(u64::from(limits.adopted_workflows).checked_mul(u64::from(limits.adopted_workflows_item))?)?)?.checked_add(u64::from(limits.adopted_landing))?;
         heap.checked_add(0)
     }
 }

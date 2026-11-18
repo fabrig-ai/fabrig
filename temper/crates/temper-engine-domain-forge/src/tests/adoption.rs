@@ -406,6 +406,43 @@ fn an_adoption_accepts_a_prefix_whose_branches_fit_authority_segments() {
 }
 
 #[test]
+fn an_adoption_keeps_its_landing_apart_from_the_default_branch() {
+    use skein_forge::api;
+    let mut d = domain();
+    let mut adoption = fixtures::adoption();
+    adoption.landing = b"staging".as_slice().into();
+    fixtures::begin_adoption(&mut d, Token::new(4), adoption);
+    for answer in [
+        api::Answer::Permission(api::UserPermission {
+            user: 1,
+            login: Box::new([]),
+            permission: api::Permission::Write,
+        }),
+        api::Answer::Branches(Box::new([])),
+        api::Answer::Settings(adopted().settings),
+    ] {
+        fixtures::answer_next(&mut d, Ok(answer));
+    }
+    let (call, op) = fixtures::next_call(&mut d);
+    assert_eq!(op, api::Op::Read(api::Read::Protection { branch: b"staging".as_slice().into() }));
+    fixtures::answer(&mut d, call, Ok(api::Answer::Protection(None)));
+    let requests =
+        fixtures::answer_next(&mut d, Ok(api::Answer::Collaborators { collaborators: Box::new([]), more: false }));
+    let [.., Request::Adopted { result: Ok(value), .. }] = requests.as_ref() else { panic!("adoption accepted") };
+    assert_eq!(value.repository.landing.as_ref(), b"staging");
+    assert_eq!(value.repository.settings.default_branch.as_ref(), b"main");
+    let mut saved = None;
+    for request in &requests {
+        if let Request::Save { record: Stored::Repository(row), .. } = request {
+            saved = Some(row);
+        }
+    }
+    let saved = saved.expect("adopted repository saved");
+    assert_eq!(saved.landing.as_ref(), b"staging");
+    assert_eq!(saved.settings.default_branch.as_ref(), b"main");
+}
+
+#[test]
 fn an_adoption_locates_its_repository_before_any_other_read() {
     let mut d = domain();
     d.configured.get_mut(&1).unwrap().mode = Mode::Connected;

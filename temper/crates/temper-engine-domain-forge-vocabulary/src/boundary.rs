@@ -130,6 +130,8 @@ pub struct Repository {
     pub kinds: Kinds,
     pub protection: Protection,
     pub settings: skein_forge::api::Settings,
+    /// The landing branch the adoption names, never empty (temper/docs/design/domain/forge/adoption.md, 8).
+    pub landing: Box<[u8]>,
     /// CI workflow file names (temper/docs/design/domain/forge/adoption.md, 7).
     pub workflows: Box<[Box<[u8]>]>,
 }

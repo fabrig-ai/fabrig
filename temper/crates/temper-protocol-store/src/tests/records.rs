@@ -50,6 +50,30 @@ fn each_family_of_names_holds_and_topics_round_trips_unchanged() {
     }
 }
 #[test]
+fn a_landing_other_than_the_default_branch_round_trips() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    let forge::Stored::Repository(mut row) = fixtures::adopted(forge::Protection::Absent) else {
+        panic!("adopted repository")
+    };
+    row.landing = b"staging".as_slice().into();
+    assert_eq!(row.settings.default_branch.as_ref(), b"main");
+    let stored = forge::Stored::Repository(row);
+    assert_eq!(records::decode(&records::encode(&stored), &bounds), Ok(stored));
+}
+
+#[test]
+fn a_landing_past_name_bytes_fails_to_decode() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    let forge::Stored::Repository(mut row) = fixtures::adopted(forge::Protection::Absent) else {
+        panic!("adopted repository")
+    };
+    let length = usize::try_from(fixtures::LIMITS.name_bytes).unwrap().checked_add(1).unwrap();
+    row.landing = skein_lib::bytes::zeroed(length);
+    let bytes = records::encode(&forge::Stored::Repository(row));
+    assert_eq!(records::decode(&bytes, &bounds), Err(crate::Undecodable::Malformed));
+}
+
+#[test]
 fn a_holds_design_writers_and_their_fresh_read_progress_round_trip() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
     for rereading in [false, true] {

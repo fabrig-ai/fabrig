@@ -634,6 +634,7 @@ fn finish_adoption(
         kinds,
         protection: pending.protection,
         settings,
+        landing: request.landing,
         workflows: match d.repositories.get(&pending.repository) {
             Some(row) => row.workflows.clone(),
             None => Box::default(),

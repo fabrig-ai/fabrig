@@ -97,6 +97,43 @@ fn a_change_layout_without_regate_defaults_it_to_none() {
     assert!(row.regate().is_none());
 }
 
+#[test]
+fn a_repository_layout_without_landing_defaults_it_to_its_default_branch() {
+    use super::fixtures;
+    use crate::records;
+    use skein_codec::{
+        layout::{Plan, Workspace},
+        schema,
+    };
+    use temper_engine_domain_forge_vocabulary::{Protection, Stored};
+
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
+    let before = family.current.replacen(" landing: bytes 4096 = 0x", "", 1);
+    assert_ne!(before, family.current, "the old layout omits landing");
+    let old = schema::parse(before.as_bytes()).unwrap();
+    let new = schema::parse(family.current.as_bytes()).unwrap();
+    let old_root = old.root(b"Row", Some(b"repository")).unwrap();
+    let new_root = new.root(b"Row", Some(b"repository")).unwrap();
+    let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+    let mut work = Workspace::new();
+    assert!(work.fit(&write_old));
+    let stored = fixtures::adopted(Protection::Absent);
+    let mut earlier = skein_lib::Buffer::with_capacity(4096);
+    write_old.convert(&records::encode(&stored), &mut earlier, &mut work).unwrap();
+
+    let read_old = Plan::derive(&old, old_root, &[], &new, new_root, &[])
+        .expect("an added landing has a default for stored repositories");
+    assert!(work.fit(&read_old));
+    let mut current = skein_lib::Buffer::with_capacity(4096);
+    read_old.convert(earlier.as_slice(), &mut current, &mut work).unwrap();
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let decoded = records::decode(current.as_slice(), &bounds).unwrap();
+    let Stored::Repository(row) = &decoded else { panic!("repository") };
+    assert_eq!(row.settings.default_branch.as_ref(), b"main");
+    assert_eq!(row.landing.as_ref(), b"main");
+    assert_eq!(decoded, stored);
+}
+
 fn golden(text: &str, name: &str) -> Box<[u8]> {
     skein_codegen::goldens(&skein_codegen::parse(text).expect("current store schema"))
         .into_iter()

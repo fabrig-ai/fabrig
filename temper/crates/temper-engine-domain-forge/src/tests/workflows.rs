@@ -10,6 +10,46 @@ use skein_forge::api::{self, Answer, Entry, EntryKind, Error, Op, Read};
 
 const TIP: api::Commit = [4; 32];
 
+#[test]
+fn a_refusals_refresh_keeps_the_adopted_landing() {
+    let mut d = restored(Kind::GitHub);
+    d.repositories.get_mut(&REPO).unwrap().landing = b"staging".as_slice().into();
+    assert_eq!(d.repository(REPO).unwrap().settings.default_branch.as_ref(), b"main");
+    outputs(&mut d, Event::Enqueue { entry: status(19, 8) });
+    outputs(&mut d, Event::Committed { entry: 19 });
+    let (poll, op) = fixtures::next_call(&mut d);
+    let Op::Read(Read::Items { .. }) = op else { panic!("repository poll: {op:?}") };
+    fixtures::answer(&mut d, poll, Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now }));
+    let (call, op) = fixtures::next_call(&mut d);
+    let Op::Write(_) = op else { panic!("status write: {op:?}") };
+    fixtures::answer(&mut d, call, Err(Error::Forbidden));
+    let call = expect_read(&mut d, Read::Permission { user: 7 });
+    fixtures::answer(
+        &mut d,
+        call,
+        Ok(Answer::Permission(api::UserPermission {
+            user: 7,
+            login: Box::new([]),
+            permission: api::Permission::Write,
+        })),
+    );
+    let call = expect_read(&mut d, Read::Settings);
+    let mut settings = adopted().settings;
+    settings.default_branch = b"trunk".as_slice().into();
+    fixtures::answer(&mut d, call, Ok(Answer::Settings(settings)));
+    let call = expect_read(&mut d, Read::Protection { branch: b"staging".as_slice().into() });
+    let requests = fixtures::answer(&mut d, call, Ok(Answer::Protection(None)));
+    let mut saved = None;
+    for request in &requests {
+        if let Request::Save { record: Stored::Repository(row), .. } = request {
+            saved = Some(row);
+        }
+    }
+    let saved = saved.expect("refreshed repository saved");
+    assert_eq!(saved.landing.as_ref(), b"staging");
+    assert_eq!(saved.settings.default_branch.as_ref(), b"trunk");
+}
+
 fn restored(kind: Kind) -> Domain {
     let mut d = domain();
     d.configured.get_mut(&1).unwrap().kind = kind;
