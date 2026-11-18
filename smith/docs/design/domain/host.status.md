@@ -10,11 +10,6 @@ closing location and message within the existing bound; the keeper
 remains a tail.
 
 - **Not yet:**
-  - 4 and 10: the no-progress deadline derived from the run's own bounds.
-    `host_limits` (`smith-agent-profile/src/host.rs`) sets it to the
-    silence bound plus one `close`, 35 s at the standard profile, with no
-    term for `tool_deadline` or an endpoint's `head` plus `idle`, and no
-    story runs the watchdog under derived limits [in flight: change 7573].
   - 2, 9.1: live content in one process. The inline agent's LLM deltas
     never reach its owner: `smith-protocol-llm` hands deltas over only
     for a channel's ask, and `smith-local-service`'s `pop_live()` reads
