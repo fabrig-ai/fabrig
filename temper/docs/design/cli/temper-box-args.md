@@ -227,10 +227,10 @@ Refused, changing nothing, when the configuration directory already holds temper
 ### `temper-box internal serve`
 
 - **Set:** internal
-- **Forms:** `[DIRECTORIES] --box [--record]`
+- **Forms:** `[DIRECTORIES] --box [--record] [--fixed-start SECONDS,SEED]`
 - Run temper-box serve as the box's step, on the listeners and the pipe the box gives it.
 - **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
-- **Flags:** `--box`
+- **Flags:** `--fixed-start SECONDS,SEED`, `--box`
 
 ### `temper-box internal forge-child`
 
@@ -245,7 +245,7 @@ Refused, changing nothing, when the configuration directory already holds temper
 - **Forms:** `[DIRECTORIES] [--ready PREFIX] [--seed N] [--observations FILE] [--strict]`, `--document FILE [--ready PREFIX] [--seed N] [--observations FILE] [--scripts SCRIPTS] [--strict]`
 - Serve a fake LLM provider: the demo's, from the configuration, or one from a JSON document.
 - **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
-- **Flags:** `--document FILE`, `--ready PREFIX`, `--seed N`, `--observations FILE`, `--scripts SCRIPTS`, `--strict`
+- **Flags:** `--document FILE`, `--ready PREFIX`, `--seed N`, `--observations FILE`, `--scripts SCRIPTS`, `--fixed-start SECONDS,SEED`, `--strict`
 
 ### `temper-box fake forge`
 
@@ -253,7 +253,7 @@ Refused, changing nothing, when the configuration directory already holds temper
 - **Forms:** `[DIRECTORIES] FORGE [--ready PREFIX] [--seed N] [--observations FILE] [--state STATE]`, `--document FILE [--ready PREFIX] [--seed N] [--observations FILE] [--state STATE]`
 - Serve a fake forge: forge FORGE of the configuration, or one from a JSON document.
 - **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.; `FORGE`: A forge's number in the configuration.
-- **Flags:** `--document FILE`, `--ready PREFIX`, `--seed N`, `--observations FILE`, `--state STATE`
+- **Flags:** `--document FILE`, `--ready PREFIX`, `--seed N`, `--observations FILE`, `--state STATE`, `--fixed-start SECONDS,SEED`
 
 ### `temper-box fake forge check`
 
@@ -267,7 +267,7 @@ Refused, changing nothing, when the configuration directory already holds temper
 - **Set:** internal
 - **Forms:** `--document FILE [--ready PREFIX] [--seed N]`
 - Serve a fake OAuth issuer from a JSON document.
-- **Flags:** `--document FILE`, `--ready PREFIX`, `--seed N`
+- **Flags:** `--document FILE`, `--ready PREFIX`, `--seed N`, `--fixed-start SECONDS,SEED`
 
 ### `temper-box fake git`
 
@@ -318,6 +318,12 @@ Refused, changing nothing, when the configuration directory already holds temper
 - **Set:** internal
 - A JSON script file; repeat to join in order, relative to the working directory.
 - **Notes:** Requires --fake-backends; replaces generated model scripts for this start.
+
+### `--fixed-start SECONDS,SEED`
+
+- **Set:** internal
+- Start the fake box's engine and peers from this fixed instant and seed: SECONDS,SEED.
+- **Notes:** Requires --fake-backends on the box, or --box on internal serve.
 
 ### `--fake-backends`
 

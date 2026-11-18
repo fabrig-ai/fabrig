@@ -39,6 +39,7 @@ fn collect(lines: &[Line], given: &[Box<[u8]>], include_typed: bool) -> Original
             Line::Journey { .. }
             | Line::Seed(_)
             | Line::Clocks { .. }
+            | Line::Fixed
             | Line::Primary(_)
             | Line::Zone(_)
             | Line::Ways { .. }
@@ -83,6 +84,7 @@ pub fn typed(line: &Line) -> bool {
         Line::Journey { .. }
         | Line::Seed(_)
         | Line::Clocks { .. }
+        | Line::Fixed
         | Line::Primary(_)
         | Line::Zone(_)
         | Line::Ways { .. }

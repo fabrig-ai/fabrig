@@ -38,6 +38,7 @@ fn a_refused_start_is_its_binarys_serve_line() {
             &directories,
             &[],
             super::host::adapter_tests::SERVED,
+            &skein_shell::Clock::new(),
             |_| Ok(()),
             |_, _, ()| Err::<super::Prepared<_, ()>, _>("refused".into()),
             |_, _, ()| Ok(())

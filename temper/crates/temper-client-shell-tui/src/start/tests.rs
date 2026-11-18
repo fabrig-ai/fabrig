@@ -52,6 +52,39 @@ fn recording_requires_a_nonempty_captured_variable() {
 }
 
 #[test]
+fn fixed_start_is_a_nonempty_captured_variable_on_loopback_only() {
+    let start = skein_shell::FixedStart { wall: skein_lib::Wall::from_nanos(1_767_690_000_000_000_000), seed: 7 };
+    for (host, value, expected) in [
+        ("127.0.0.1:8367", Some("1767690000,7"), Ok(Some(start))),
+        ("[::1]:9000", Some("1767690000,7"), Ok(Some(start))),
+        ("10.0.0.1:8367", Some("1767690000,7"), Ok(None)),
+        ("127.0.0.2:8367", Some("1767690000,7"), Ok(None)),
+        ("10.0.0.1:8367", Some("bad"), Ok(None)),
+        ("127.0.0.1:8367", None, Ok(None)),
+        ("127.0.0.1:8367", Some(""), Ok(None)),
+        ("127.0.0.1:8367", Some("bad"), Err(Refused::FixedStart)),
+        ("127.0.0.1:8367", Some("01767690000,7"), Err(Refused::FixedStart)),
+        ("127.0.0.1:8367", Some("18446744073709551615,7"), Err(Refused::FixedStart)),
+    ] {
+        let entries = value.map(|value| ("TEMPER_INTERNAL_FIXED_START", value)).into_iter().collect::<Vec<_>>();
+        assert_eq!(
+            tui::fixed_start(&environment(&entries), host.parse().expect("engine")),
+            expected,
+            "{host}: {value:?}"
+        );
+    }
+    assert_eq!(Refused::FixedStart.line("temper"), "temper: TEMPER_INTERNAL_FIXED_START: expected SECONDS,SEED\n");
+}
+
+#[test]
+fn a_fixed_runs_seed_and_first_reading_are_the_starts() {
+    let start = skein_shell::FixedStart::read(b"1767690000,7").expect("fixed start");
+    let (seed, clock) = super::fixed_run(&start);
+    assert_eq!(seed, 7, "the seed given to local_run");
+    assert_eq!(clock.now(), skein_shell::Now { now: skein_shell::FixedStart::NOW, wall: start.wall });
+}
+
+#[test]
 fn the_directory_is_the_state_directorys() {
     for (entries, expected) in [
         (vec![("XDG_STATE_HOME", "/s"), ("HOME", "/h")], Some("/s/temper/tui")),

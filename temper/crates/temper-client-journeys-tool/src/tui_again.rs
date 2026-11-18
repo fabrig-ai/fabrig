@@ -7,7 +7,7 @@ use crate::{
 use skein_fake_person::{Doing, Face, Find, Found, Next};
 use skein_fake_person_browser::{
     BrowserFace,
-    harness::{Harness, Names, Outcome, Output, Play, Printed, Sent, Setup},
+    harness::{Harness, Outcome, Play},
 };
 use skein_lib::{Duration, Time};
 use skein_ui::{Act, Role};
@@ -144,34 +144,9 @@ fn record(
     let fail = |report: String| Refusal::TuiAgain { name: name.to_owned(), step: 1, report };
     let environment = crate::isolation::environment(given, &paths.scratch).map_err(fail)?;
     let launcher = crate::isolation::program("env", given).ok_or_else(|| fail("cannot find env on PATH".into()))?;
-    let mut args = crate::isolation::server_arguments(&environment, &paths.scratch);
-    args.extend([
-        paths.temper.clone().into_os_string(),
-        "--fake-backends".into(),
-        "--bundle".into(),
-        paths.bundle.clone().into_os_string(),
-    ]);
-    for (flag, directory) in [("--config", "config"), ("--data", "data"), ("--cache", "cache")] {
-        args.push(flag.into());
-        let path = if directory == "cache" {
-            paths.cache.clone().unwrap_or_else(|| paths.scratch.join(directory))
-        } else {
-            paths.scratch.join(directory)
-        };
-        args.push(path.into_os_string());
-    }
-    let mut harness = Harness::new(Setup {
-        server: launcher,
-        restart: args.clone(),
-        args,
-        printed: Printed { sent: Sent::Page, prefix: b"http://127.0.0.1:", on: Output::Stdout, names: Names::Url },
-        chromium: paths.chromium.clone(),
-        downloads: None,
-        expected: vec![],
-        origins: vec![],
-    })
-    .page_query(b"internal-loopback-navigation=1")
-    .horizon(HORIZON);
+    let mut harness = Harness::new(crate::again::box_setup(paths, launcher, &environment, None))
+        .page_query(&crate::again::page_query(false))
+        .horizon(HORIZON);
     let mut walker = Walker::new(name, paths, environment, starting);
     let outcome = harness.run(&mut [&mut walker]);
     // Stop and reap the TUI even when the browser or box failed before next().
@@ -342,10 +317,7 @@ impl<'a> Walker<'a> {
                 self.since = None;
                 self.phase = Phase::Opening;
                 return Ok(Next::Do(Doing::Go {
-                    address: skein_fake_person_browser::harness::with_query(
-                        &address,
-                        b"internal-loopback-navigation=1",
-                    ),
+                    address: skein_fake_person_browser::harness::with_query(&address, &crate::again::page_query(false)),
                 }));
             }
             Phase::Opening => {

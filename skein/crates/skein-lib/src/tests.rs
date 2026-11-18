@@ -9,6 +9,7 @@ mod containers;
 mod crypto_rng;
 mod digest;
 mod env;
+mod fixed;
 mod handles;
 mod held;
 mod journal;

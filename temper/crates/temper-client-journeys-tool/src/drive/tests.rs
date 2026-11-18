@@ -596,6 +596,7 @@ fn preflight_validates_before_reset_and_preserves_box_directories() {
     );
     let tui = plan.tui(b"http://127.0.0.1:9").expect("TUI plan");
     assert!(tui.environment.iter().any(|(name, value)| name == "DISPLAY" && value == ":7"));
+    assert!(!tui.environment.iter().any(|(name, _)| name == "TEMPER_INTERNAL_FIXED_START"));
     for opener in ["xdg-open", "open"] {
         assert_eq!(
             fs::read_link(root.join("session/bin").join(opener)).expect("opener link"),

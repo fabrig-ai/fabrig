@@ -56,7 +56,7 @@ pub fn run(
 ) -> Result<Exit, String> {
     let (bytes, held, first_run) = configuration(directories, environment)?;
     let opening = Opening { log_lines: first_run.into_iter().collect(), after_block: Box::new([]) };
-    run_configuration(directories, &bytes, held, Box::new([]), echo, fronted, record, opening, environment)
+    run_configuration(directories, &bytes, held, Box::new([]), echo, fronted, record, None, opening, environment)
 }
 
 /// Lines opening the box log and following its sign-in block (protocol/setup/box.md, 2).
@@ -78,6 +78,7 @@ pub(crate) fn run_configuration(
     echo: Echo,
     fronted: bool,
     record: bool,
+    fixed_start: Option<&[u8]>,
     opening: Opening,
     environment: &[super::EnvironmentEntry],
 ) -> Result<Exit, String> {
@@ -97,7 +98,7 @@ pub(crate) fn run_configuration(
                 entry.into_boxed_slice()
             })
             .collect();
-        let (steps, limits) = configuration_steps_recording(directories, bytes, first, record)?;
+        let (steps, limits) = configuration_steps_recording(directories, bytes, first, record, fixed_start)?;
         let named = super::setup::check(bytes, &jig_directories(directories))?.named;
         let listeners = open_listeners(directories, &steps, held, &inherited, &mut owned)?;
         let mut first_link = first_link(&named, &steps)?;
@@ -307,13 +308,14 @@ pub fn configuration_steps(
     bytes: &[u8],
     first: Box<[temper_forge_setup::Step]>,
 ) -> Result<(temper_forge_setup::Steps, temper_box_machine::limits::Limits), String> {
-    configuration_steps_recording(directories, bytes, first, false)
+    configuration_steps_recording(directories, bytes, first, false, None)
 }
 pub(crate) fn configuration_steps_recording(
     directories: &super::Directories,
     bytes: &[u8],
     first: Box<[temper_forge_setup::Step]>,
     record: bool,
+    fixed_start: Option<&[u8]>,
 ) -> Result<(temper_forge_setup::Steps, temper_box_machine::limits::Limits), String> {
     let super::setup::Deployment { named, demo, limits, .. } =
         super::setup::check(bytes, &jig_directories(directories))?;
@@ -339,6 +341,7 @@ pub(crate) fn configuration_steps_recording(
             serve.into_boxed_slice(),
             cfg!(target_os = "linux"),
             record,
+            fixed_start,
         );
         if let Some(demo) = &demo {
             let mut asked = steps.asked.into_vec();

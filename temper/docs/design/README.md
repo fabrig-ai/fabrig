@@ -200,6 +200,8 @@ forge, temper adds:
   `client/web/journeys.md` its pages recorded and printed,
   `client/journey-placeholders.md` the placeholders both clients'
   journeys hold for what varies between walks,
+  `client/journey-clock.md` the fixed start and clock `again` walks
+  them on,
   `client/web/look-requests.md` the look requests' round trip,
   `client/box-binary.md` how `temper box` finds or downloads
   `temper-box`, `client/view-crates.md` the view's crates and how it

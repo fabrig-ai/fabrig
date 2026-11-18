@@ -18,6 +18,23 @@ fn written(lines: &[Line]) -> Box<[u8]> {
 }
 
 #[test]
+fn fixed_survives_saving_redaction_normalisation_and_scan() {
+    let facts = crate::journey::Facts { fixed: true, ..crate::journey::tests::facts() };
+    let (_, page) = facts.start();
+    let file = crate::journey::Recorder::new(&facts).save(&page);
+    let saved = crate::journey::saved(&file);
+    assert_eq!(saved, file);
+    let redacted = redact(&saved, &[b"fixed".as_slice().into()]).expect("redaction");
+    assert_eq!(redacted.recording, file, "fixed is a fact, not a redactable field");
+    let normalised = normalise(&redacted.recording).expect("normalisation");
+    assert_eq!(normalised.recording, file);
+    let records = lines(&normalised.recording).expect("preserved records");
+    assert_eq!(records.get(3), Some(&Line::Fixed));
+    assert_eq!(crate::journey::scan::lines(&records, &redacted.originals), Ok(None));
+    assert_eq!(written(&records), file, "scan preserves the fixed fact");
+}
+
+#[test]
 fn every_line_field_and_both_prints_are_normalised() {
     let source = concat!(
         "ways \"@\" \"@\"\nforge \"@\"\npath \"@\"\nsecret \"@\"\nstored \"@\" \"@\"\n",
