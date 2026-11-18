@@ -69,7 +69,7 @@
     - "Drafts · N", "a goal starts from each": a card for each draft being
       written and for each landed draft listed;
     - "Landed this week · N", with "All", to `Changes { project }`, at its
-      right: the work that reached a default branch in the seven days
+      right: the work that reached a landing branch in the seven days
       before now, by the changes' `landed_default` rows
       (`../forge/records.md`, *A project's changes*), newest first: a row
       for each goal with a change landed into its repository's default
@@ -416,9 +416,9 @@
   landing log (`../../domain/after-landing.md`, section 10), a ring of
   `landings_kept` landings per repository, through `landed_default`'s
   `forge.changes_landed` rows, so a busy week's landings into goal branches
-  can push its older default-branch landings out of the ring, and more than
+  can push its older landing-branch landings out of the ring, and more than
   `forge.changes_landed` of them show as that many. Default: so, nothing
-  stored added (the person, 2026-11-11); or the log keeps default-branch
+  stored added (the person, 2026-11-11); or the log keeps landing-branch
   landings apart, a stored field.
 - **A goal row's count of landings** (1, *Goals*; `goal.md`, 2): `TaskLine` counts a goal's
   delegates ended done whatever they did, so a row and the goal's headline say "N of

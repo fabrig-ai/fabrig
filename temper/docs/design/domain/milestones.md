@@ -242,8 +242,8 @@ What the forge keeps of a milestone, since jig keeps no landing:
   `MilestoneLanding { at: Wall, goal: u64, change: u64 }`, and `ended`,
   an option of its end: when, its outcome (section 6), its counts done,
   failed and closed, and its `spent`, as section 7 sums them at the end.
-- **Its last landing:** each landing into a repository's default branch
-  of a change whose goal is in a milestone sets the row's
+- **Its last landing:** each landing into a repository's landing branch
+  (`forge/adoption.md`, 8) of a change whose goal is in a milestone sets the row's
   `last_landing` to that landing's time, the goal and the change, where
   it is newer than the row's. A change knows its milestone from its
   registration: the root names its goal, its nearest tracked ancestor

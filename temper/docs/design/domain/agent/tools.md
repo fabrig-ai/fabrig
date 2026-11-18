@@ -514,7 +514,9 @@ any `delegate` (jig's authority, named and decided once):
 - **the delegate:** the change procedure (../forge/change/README.md, 1) with the words,
   the repository's resource and its landing branch: the one the call
   names (below), or with none the applicable held goal branch, otherwise
-  the repository's default branch; a
+  the repository's landing branch, the one its adoption names
+  (`../forge/adoption.md`, 8), which is its default branch only where
+  the adoption named that; a
   change's contract, its words bounded by the deployment's
   `tasks.result_bytes`;
 - **its authority, the run's own narrowed:** the run's grants of the
@@ -566,11 +568,11 @@ delegate from what it knows:
 - **`landing`:** `"goal"`, the nearest goal branch held by the requester
   or one of its ancestors in the change's repository (../forge/branches.md, 1);
   or a branch's name in the repository. Left out, that held goal branch,
-  otherwise the repository's default branch. Ordinary child changes,
+  otherwise the repository's landing branch. Ordinary child changes,
   including calls from the goal's subtree, cannot name a destination
   outside that held branch: the whole call is refused before any delegate
   is made. `"branch": "mine"` deliberately lands the requester's held goal
-  branch whole, defaulting to the repository's default branch. `"goal"`
+  branch whole, defaulting to the repository's landing branch. `"goal"`
   with no applicable held goal branch is refused, saying so; a
   name that is not a branch's (an empty segment) is refused, naming it;
   a branch the repository lacks holds the change at its opening, the
