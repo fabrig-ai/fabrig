@@ -444,10 +444,16 @@ entry naming the task or proposal it is and its project:
   query: proposals, escalations and questions are entries, not tasks.
 - **What is addressed to a role** is in the inbox of every party holding
   it, until one of them acts, when it leaves every one.
-- **Bounded:** the people child domain holds each party's entries up to a
-  limit; a client pages through the rest, loaded from the store. What
-  needs the party is counted exactly, since it is derived from live
-  tasks; updates unread are counted up to a limit.
+- **Bounded:** what needs the party is derived from live tasks, and the
+  child's census holds every live need, whatever its requester's root (a
+  goal, a chat, a standing task), so it is counted exactly and paged from
+  live state alone: a page of needs is the oldest after its cursor, taken
+  from the whole census, at most the read's window, and a continuation
+  stands while a need waits after its last, none after the last page.
+  The store holds no needs, and no page of them is read there. Updates
+  are held up to a limit, `people.inbox_entries`; a client pages through
+  the rest, loaded from the store, and updates unread are counted up to
+  that limit.
 
 ## 6. Chats
 
