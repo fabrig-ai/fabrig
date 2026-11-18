@@ -6,7 +6,11 @@ use jig_domain_tasks as tasks;
 use skein_lib::{ReplyTo, Token};
 use temper_engine_domain::{self as engine, Application, ApplicationAnswer, Delivery, Key, Record, Write};
 use temper_engine_domain_forge::{self as forge, settings as s};
-use temper_engine_domain_world::{direct::Driver, kinds, walking};
+use temper_engine_domain_world::{
+    direct::Driver,
+    fixtures::{report_delegate, tool_call},
+    kinds, walking,
+};
 
 pub(super) fn limits() -> engine::Limits {
     let mut limits = kinds::limits();
@@ -44,6 +48,8 @@ fn configured_driver(
     previous_task: u64,
     charter: u32,
 ) -> (Driver, engine::Assignment) {
+    let person_delegates =
+        config.core.defaults.rules.ceiling.delegation.kinds.contains(&jig_domain_authority::Executor::Role(0));
     let restart = temper_engine_domain_world::oracle::config::copy(&config);
     let mut driver = Driver::cold(temper_engine_domain_world::store::Store::with_limits(limits), config, limits);
     driver.settle();
@@ -64,7 +70,15 @@ fn configured_driver(
     let people::Ask::Create { batch, .. } = &mut ask else { panic!("chat ask") };
     batch[0].label = 3;
     batch[0].executor = people::TaskExecutor::Agent { charter };
-    batch[0].authority.delegation.kinds = Box::new([people::Executor::Charter(charter)]);
+    if person_delegates {
+        batch[0].flags.ended_by = people::EndedBy::Standing;
+        batch[0].flags.conversation = false;
+    }
+    batch[0].authority.delegation.kinds = if person_delegates {
+        Box::new([people::Executor::Charter(charter), people::Executor::Role(0)])
+    } else {
+        Box::new([people::Executor::Charter(charter)])
+    };
     batch[0].budget = people::Budget::Named;
     batch[0].authority.spend = 100;
     driver.send(engine::Event::Party(engine::PartyInput::Ask {
@@ -213,6 +227,145 @@ fn documents(driver: &Driver) -> Vec<&forge::Findings> {
             }
         })
         .collect()
+}
+
+fn holder_waiting_on_four_people() -> (Driver, engine::Assignment) {
+    let mut limits = limits();
+    limits.tasks.subscriptions = 4;
+    limits.call_records = 5;
+    limits.tasks.tasks = 5;
+    limits.tasks.project_tasks = 5;
+    limits.tasks.tree_tasks = 5;
+    limits.tasks.depth = 2;
+    limits.tasks.delegates = 4;
+    limits.tasks.references = 4;
+    limits.tasks.batch = 4;
+    // Each person delegate keeps a result and a stall slot, besides the five interests.
+    limits.tasks.inbox_messages = 13;
+    limits.tasks.executor_kinds = 2;
+    limits.authority.executors = 2;
+    limits.authority.batch = 4;
+    limits.documents.executors = 2;
+    limits.people.inbox_tasks = 10;
+    limits.people.inbox_entries = 4;
+    let mut config = configuration();
+    let kinds: Box<[_]> =
+        Box::new([jig_domain_authority::Executor::Charter(1), jig_domain_authority::Executor::Role(0)]);
+    config.core.defaults.rules.ceiling.delegation.kinds.clone_from(&kinds);
+    config.core.defaults.rules.ceiling.delegation.tasks = 5;
+    config.core.defaults.rules.ceiling.delegation.depth = 2;
+    config.core.defaults.rules.maximum_run_spend = 50;
+    let policy = &mut config.core.seed_projects[0].policy.policy;
+    policy.ceiling.delegation.kinds.clone_from(&kinds);
+    policy.ceiling.delegation.tasks = 5;
+    policy.ceiling.delegation.depth = 2;
+    for role in &mut policy.roles {
+        role.authority.delegation.kinds.clone_from(&kinds);
+        role.authority.delegation.tasks = 5;
+        role.authority.delegation.depth = 2;
+    }
+    let (mut driver, run) = configured_driver(&limits, config, 0, 1);
+    let batch = (0..4)
+        .map(|_| {
+            let mut question = report_delegate(b"Should we keep this rule?", Box::default());
+            question.executor = tasks::Executor::Person(tasks::PersonAddress::Role(0));
+            question
+        })
+        .collect();
+    tool_call(&mut driver, &run, 201, engine::Tool::Delegate { batch });
+    let Some(engine::CallAnswer::Delegated(made)) = driver.answered(201).cloned() else {
+        panic!("four person delegates: {:?}", driver.answered(201))
+    };
+    assert_eq!(made.len(), 4);
+    for (index, made) in made.iter().enumerate() {
+        let person = driver.root.tasks().task(made.task).expect("waiting person task");
+        assert!(matches!(person.executor, tasks::Executor::Person(_)));
+        assert_eq!(person.phase, tasks::Phase::Active(tasks::Active::Due));
+        assert!(person.person_wait.is_some());
+        assert_eq!(person.person_answer, None);
+        assert_eq!(person.requester, tasks::Party::Task(run.task));
+        let kind = tasks::SubscriptionKind::Task { target: made.task, held: true, result: true };
+        let call = 202 + u64::try_from(index).expect("four subscription calls");
+        tool_call(&mut driver, &run, call, engine::Tool::Subscribe { kind });
+        assert!(
+            matches!(driver.answered(call), Some(engine::CallAnswer::Subscribed { .. })),
+            "subscription {call}: {:?}",
+            driver.answered(call)
+        );
+    }
+    let holder = driver.root.tasks().task(run.task).expect("standing holder");
+    assert_eq!(holder.flags.ended_by, tasks::EndedBy::Standing);
+    assert_eq!(holder.subscriptions.len(), 4);
+    assert!(holder.subscriptions.iter().all(|s| matches!(s.kind, tasks::SubscriptionKind::Task { .. })));
+    (driver, run)
+}
+fn assert_finding_subscription(driver: &Driver, task: u64) {
+    let subscriber = driver
+        .store
+        .rows
+        .values()
+        .find_map(|record| {
+            if let Record::Forge { row } = record
+                && let forge::Stored::Subscription(row) = row.as_ref()
+                && row.task == task
+                && row.topic == (forge::Topic::Findings { project: 1 })
+            {
+                Some(row)
+            } else {
+                None
+            }
+        })
+        .expect("forge findings subscriber");
+    let subscriptions = &driver.root.tasks().task(task).expect("finding holder").subscriptions;
+    assert_eq!(subscriptions.len(), 5);
+    assert!(subscriptions.iter().any(|s| s.number == subscriber.number));
+    assert_eq!(subscriptions.iter().filter(|s| matches!(s.kind, tasks::SubscriptionKind::Task { .. })).count(), 4);
+    assert!(news(driver, task).iter().any(|word| matches!(word.kind, tasks::MessageKind::News { subscription, class: tasks::NewsClass::Wakes } if subscription == subscriber.number)));
+}
+#[test]
+fn a_triager_waiting_on_four_people_takes_a_filing_and_its_news() {
+    let (mut driver, run) = holder_waiting_on_four_people();
+    settings(&mut driver, None, Some(s::AreaOwner::Task(run.task)));
+    assert_eq!(
+        application(&mut driver, Application::FileFinding(file(None))),
+        ApplicationAnswer::FileFinding(forge::FileFindingAnswer::Filed { number: 1 })
+    );
+    assert_eq!(row(&driver, 1).state, forge::FindingState::New);
+    assert_eq!(engine::finding_holder(&driver.root, 1, None), forge::Holder::Task(run.task));
+    assert_finding_subscription(&driver, run.task);
+    assert!(news(&driver, run.task).iter().any(|word| word.words.starts_with(b"Finding 1/1 is yours: Broken test\n")));
+}
+#[test]
+fn an_area_owner_waiting_on_four_people_takes_a_hand_and_its_news() {
+    let (mut driver, run) = holder_waiting_on_four_people();
+    settings(&mut driver, Some(area(s::AreaOwner::Task(run.task))), Some(s::AreaOwner::Party(1)));
+    assert_eq!(
+        application(&mut driver, Application::FileFinding(file(None))),
+        ApplicationAnswer::FileFinding(forge::FileFindingAnswer::Filed { number: 1 })
+    );
+    assert_eq!(news(&driver, run.task).len(), 0);
+    assert_eq!(
+        application(
+            &mut driver,
+            Application::HandFinding(forge::HandFinding {
+                project: 1,
+                number: 1,
+                area: b"tests".as_slice().into(),
+                why: b"your suite".as_slice().into(),
+            })
+        ),
+        ApplicationAnswer::HandFinding(forge::HandFindingAnswer::Handed)
+    );
+    assert_eq!(row(&driver, 1).state, forge::FindingState::New);
+    assert_eq!(engine::finding_holder(&driver.root, 1, Some(b"tests")), forge::Holder::Task(run.task));
+    assert_finding_subscription(&driver, run.task);
+    assert!(news(&driver, run.task).iter().any(|word| {
+        word.words.starts_with(b"Finding 1/1 is yours: Broken test\n")
+            && word
+                .words
+                .windows(b"Handed on by party 1: your suite\n".len())
+                .any(|w| w == b"Handed on by party 1: your suite\n")
+    }));
 }
 
 #[test]
