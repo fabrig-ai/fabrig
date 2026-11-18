@@ -109,7 +109,7 @@ pub fn run() -> Ran {
                         "--charter",
                         "1",
                         "--budget",
-                        "500",
+                        "5.00",
                         "--deadline",
                         "2030-01-01T00:00Z",
                         "--key",
