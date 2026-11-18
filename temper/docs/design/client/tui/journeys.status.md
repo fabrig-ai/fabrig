@@ -1,6 +1,6 @@
 # journeys: status
 
-2026-11-17. Where temper's code lags or departs from [journeys.md](journeys.md).
+2026-11-18. Where temper's code lags or departs from [journeys.md](journeys.md).
 
 - **Not yet:** 3.2: no start facts `plain` and `version` [in flight:
   change 3431].
@@ -8,13 +8,10 @@
   change 3434].
 - **Not yet:** 8.2: `again` gives the box, the page and the TUI no fixed
   start [in flight: change 7722].
-
-- **Departs:** 3.2: the committed recordings' `screen` says `dark`, the
-  run's fallback when they were recorded, where `again`, in a
-  pseudo-terminal with no `COLORFGBG` and no answer to OSC 11, writes
-  `none` (`theme.md`, *The scheme*): Auto draws dark for both
-  and no journey opens `/theme`'s list, so their frames are the same.
-  They say `none` once a journey's change records them again.
+- **Not yet:** 8.4 and 9's `design-session`, `launchpad-chat` and
+  `launchpad-drawn`: no recording or frames on R4's pages, since `again`
+  stalls at each walk's first `see` after its message is sent [in
+  flight: change 8219].
 
 - **Not yet:** 8.3 and 9's `box-welcome`: `again` drives `temper` in its
   pseudo-terminal and starts the box apart on pipes, reading the printed
