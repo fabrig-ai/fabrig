@@ -68,7 +68,10 @@ deployment: every name here is an example, temper at
 `temper-box serve`, standalone, its clients' listener on loopback at a fixed
 port; a TLS proxy terminates TLS for temper's name and passes it on, the
 `Host` as the browser sent it; plain HTTP is answered with a redirect to
-HTTPS. The proxy denies the printed link's route,
+HTTPS. The proxy sets `X-Forwarded-For` to the client's address as it
+saw it, overwriting what the client sent (Caddy's default, with no
+`trusted_proxies`), which jig reads as a terminal's approval's source
+(jig's `protocol/client/default-http.md`, 3). The proxy denies the printed link's route,
 `/jig/v1/sign-in/link`, from outside (2.3). jig's stream, `GET
 /jig/v1/stream`, is passed unbuffered, with a read timeout longer than
 its heartbeat (jig's `protocol/client/default-http.md`, 2).
@@ -96,7 +99,12 @@ browsers use (`configuration/engine.md`). With one:
 ### 2.3 The printed link
 
 - **It stays, for recovery:** the owner's way in when Google or the
-  configuration is wrong, and the terminal's only way.
+  configuration is wrong. A terminal elsewhere signs in by the
+  browser's approval instead, asked by the public name and approved on
+  the deployment's own page, by one press where its loopback return
+  hands the sign-in back to the browser's own machine, or by its code
+  typed (jig's `protocol/client/sign-in.md`, *A sign-in approved by a
+  browser*; `../client/pages/README.md`, 2, *The approval page*).
 - **On the host alone:** jig enables it only on a loopback listener; the
   proxy denies its route from outside; the owner reaches it through an
   SSH tunnel to the listener.

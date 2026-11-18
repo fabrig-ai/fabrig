@@ -304,10 +304,10 @@ the engine's messages to the client as they come.
 | closing a watch | the stream's name and the watch's | closed, once the engine has ended it |
 | a batch | `Batch { members }`: at most 64, each `read: Owned`, `open: Open` or `close: WatchClose`, the record of that message alone | one `BatchReply { member, reply }` per member, in the order released: `member` its place, from 0; `reply` the record its own exchange would answer, or none where that exchange would be answered no record (section 2; `default-http.md`, section 6) |
 | a stream gone | the stream's name | nothing more: the engine ends the stream and its watches, when it is the sign-in's and still open (section 2) |
-| signing in | a link's secret, the printed link's, the local link's or an asked one's; or, as a service, nothing more than the service's credential, as the message's credential; or an approval's secret | a sign-in's credential, refused, not ready, or why a printed link's secret or an approval's can't sign in (`sign-in.md`) |
-| asking an approval | nothing | the approval's secret, its code and its expiry; refused, not ready or busy (`sign-in.md`) |
+| signing in | a link's secret, the printed link's, the local link's or an asked one's; or, as a service, nothing more than the service's credential, as the message's credential; or an approval's secret, with the grant its loopback return brought or none | a sign-in's credential, refused, not ready, or why a printed link's secret or an approval's can't sign in, a grant that doesn't match among them (`sign-in.md`) |
+| asking an approval | its loopback return's port, or none | the approval's secret, its code and its expiry; refused, not ready or busy (`sign-in.md`) |
 | asking a link | nothing more than the asking sign-in's credential | the link's secret and its expiry; refused, signed out, not ready or busy (`sign-in.md`, the asked link) |
-| reading an approval, deciding one | its code; and approve or refuse, to decide | what the approval is, or the decision's answer; not a browser, signed out, not ready or busy (`sign-in.md`) |
+| reading an approval, deciding one | its code; and approve or refuse, to decide | what the approval is, waiting with its kind, its source and the reader's; or the decision's answer, an approval with a loopback return approved with its port and grant; not a browser, signed out, not ready or busy (`sign-in.md`) |
 | signing out | nothing more than the credential of the sign-in it ends | signed out, or not ready |
 
 On the stream, in its owner's version: the hello, with `me` or alone
@@ -333,7 +333,7 @@ as alone, and a closing none, as alone.
 
 ```
 in, from the transport:
-  Exchange { exchange, credential, browser, message }   one of jig's messages (4.1), an application's record inside it where its owner is the application; the credential as opaque bytes, or none; browser, whether the transport carried that credential itself, as a browser's cookie (17.3)
+  Exchange { exchange, credential, browser, via, source, message }   one of jig's messages (4.1), an application's record inside it where its owner is the application; the credential as opaque bytes, or none; browser, whether the transport carried that credential itself, as a browser's cookie (17.3); via, whether the exchange came by the public name or by the listener's own address, and source, its address or none for unknown (`default-http.md`, 3)
   StreamOpen { stream, credential, version, replaces }  a client opened its stream, naming jig's wire version or none, and the 16-byte name it replaces or none (section 2)
   StreamTaken { stream }                       the transport took the last message streamed
   StreamGone { stream }                        the stream's connection ended
@@ -353,6 +353,13 @@ out, to the application's startup:
   LinkSignedIn                                 the printed link signed a person in, each time (section 8)
 ```
 
+- **An exchange's way and source** are `via: Via`, `Public` or
+  `Listener`, the component's type, which the engine end decides and
+  names, and `source: Option<IpAddr>`, core's address, canonical
+  (`default-http.md`, 3). The component reads them for an approval's
+  kind and source alone (`sign-in.md`, *A sign-in approved by a
+  browser*); a public read and a stream carry neither, and a batch's
+  members are the batch's exchange's.
 - **`Minted` carries the sign-in's expiry,** its wall time, beside the
   credential, so the server gives the credential the sign-in's life, as
   the default mapping's cookie's `Max-Age` (`default-http.md`, 3).

@@ -19,8 +19,11 @@ ended, its report counting their endings; a party's batch may name an
 ended dependency, one done adding no wait (`domain/tasks/gatherings.status.md`). Browser-approved sign-in is built through the wire,
 clients' component, HTTP mapping, configuration and linked and unlinked
 clients. Only the secret's take makes the approving browser's party's
-sign-in; bearers cannot read or decide approvals. The approval-expiry reservation remains `protocol/client/sign-in.status.md` (Departs, the whole document).
-Approval between hosts and listing sign-ins remain deferred
+sign-in; bearers cannot read or decide approvals. Asked by a public
+name, an approval keeps its kind and source, at most two waiting per
+source, and one with a loopback return is taken only with the grant
+its decision answered. The approval-expiry reservation remains `protocol/client/sign-in.status.md` (Departs, the whole document).
+Listing sign-ins remains deferred
 (`protocol/client/README.md`, section 12). Both profiles hold returning
 redirects of 16,384 bytes and a browser's request head of 24,593;
 configuration refuses a driver that holds less than its parts. An

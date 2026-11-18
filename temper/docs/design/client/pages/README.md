@@ -200,7 +200,8 @@ keeps (`../../protocol/configuration/README.md`, section 2).
     Home, opens How work runs with that section's heading
     focused, so a browser brings it into view: `Address` holds no anchor, and
     the page takes the request from `Pages` once.
-- **The approval page** (`../../draft/tui.md`, 4.2; jig's
+- **The approval page** (`../../draft/tui.md`, 4.2;
+  `../../draft/tui-remote.md`, 5.3; jig's
   `protocol/client/sign-in.md`, *A sign-in approved by a browser*):
   where a person signed in to the browser approves a terminal's sign-in,
   in the browser alone. Its terminal's side is 7.1.
@@ -217,6 +218,19 @@ keeps (`../../protocol/configuration/README.md`, section 2).
     approval, `jig-client`'s `ReadApproval { code }`, once the link is
     live and an exchange is free, as the `Authorize` place sends its
     own; until then, and while it is read, it says "Reading CODE…".
+  - *The ask's kind decides the press,* as the read answers it (jig's
+    `protocol/client/sign-in.md`, *Its kind*), never the page's origin:
+    a `returned` ask, with a loopback return, is approved by one press,
+    its code read from the address; a `typed` ask, made by the public
+    name with none, only by its code typed into the field, on every
+    origin, the listener's own address through a tunnel among them; a
+    `listener` ask, made by the listener's own address, as on one
+    machine, its code read from the address. The page keeps whether its
+    code came from the address or was typed: a code from the address
+    whose read answers `typed` is dropped, the address replaced with
+    `/terminal` as a code that doesn't read is (`../web/README.md`,
+    2.3), and the field shown, empty, with no alert; a typed code whose
+    read answers `typed` is the ask, waiting.
   - *With no code,* or one the address carried that doesn't read
     (`../web/README.md`, 2.3), it asks for one: a field named "Code" and
     "Check". The field keeps what is typed up to jig's bound on a typed
@@ -240,8 +254,11 @@ keeps (`../../protocol/configuration/README.md`, section 2).
     | asking for a code | "Sign in a terminal?" | "Type the code your terminal shows.", the field | "Check" |
     | a typed code that doesn't read | "Sign in a terminal?" | the same, the field as typed, and the alert "That isn't a terminal's code. Type the eight letters your terminal shows." | "Check" |
     | reading | "Sign in a terminal?" | "Reading CODE…" | none |
-    | the ask, the approval waiting | "Sign in a terminal?" | CODE, large; "Asked AGO" (`../view.md`, 6's *ago*, from the read's wall time); "Approve only a code your own terminal shows." | "Approve", "Refuse" |
+    | the ask, waiting, by the listener's address (`listener`) | "Sign in a terminal?" | CODE, large; "Asked AGO from ADDRESS" (below); "Approve only a code your own terminal shows." | "Approve", "Refuse" |
+    | the ask, waiting, with a loopback return (`returned`) | "Sign in a terminal on this computer?" | CODE, large; "Asked AGO from ADDRESS" | "Approve", "Refuse" |
+    | the ask, waiting, its code typed (`typed`) | "Sign in a terminal?" | CODE, large; "Asked AGO from ADDRESS"; "Approve only a code your own terminal shows."; and, where the ask's source and the reading browser's are both known and differ, "It was asked from another network than this browser's." | "Approve", "Refuse" |
     | deciding | "Sign in a terminal?" | the ask's, "Approving…" or "Refusing…" in its buttons' place | none |
+    | approved, handing the sign-in to the terminal (a loopback return's grant answered) | "Approved" | CODE; "Handing the sign-in to your terminal…" | none |
     | approved, waiting for the terminal's take | "Approved" | CODE; "Waiting for your terminal to sign in…" | none |
     | signed in, taken | "Terminal signed in" | "Signed in. You can close this tab." | none |
     | refused | "Sign-in refused" | "This terminal's sign-in was refused. Nothing was signed in." | none |
@@ -252,11 +269,35 @@ keeps (`../../protocol/configuration/README.md`, section 2).
     | signed out, Google's way given (the view's `Ways`, `google` and an origin) | "Sign in first" | "This browser isn't signed in to temper. Sign in, and this page comes back with your terminal's code." | "Continue with Google", to `ORIGIN/sign-in/google?then=PATH`, PATH the approval's printed address with its code, `/terminal?code=CODE` (`/terminal` with none), percent-encoded as the sign-in page's (`../../protocol/sign-in.md`, section 7) |
     | busy, not ready or lost | "temper couldn't answer just now" | "It is starting or stopping, busy, or out of reach. Try again in a moment." | "Try again" |
 
+  - *Where the ask came from:* AGO is `../view.md`, 6's *ago*, from the
+    read's wall time; ADDRESS the ask's source, an IPv4 address in
+    dotted decimal and an IPv6 one in RFC 5952's text, as core's
+    `IpAddr` prints them, "Asked 12 seconds ago from 203.0.113.7"; with
+    none, "from an unknown address". The read's own source, the reading
+    browser's, is said nowhere but in the `typed` row's comparison.
   - *Deciding:* "Approve" and "Refuse" each send `DecideApproval {
     code, approve }` once, when the link is live and an exchange is
     free, and the page is deciding until it is answered: approved,
     refused, used, expired or unknown as the table says. Nothing sends
     a decision by itself, and none is sent again.
+  - *The hand-off,* for an approval answered `Approved { loopback }`
+    with a loopback return (jig's `protocol/client/sign-in.md`,
+    *Approved with a loopback return*): the page is handing, and
+    replaces its address with
+    `http://127.0.0.1:PORT/approved?grant=GRANT`, the root's `Request::Leave {
+    to, replace: true }`, which the browser's shell carries out, so that no history entry holds it: PORT the
+    port of that answer, never one from the page's address, the host
+    always `127.0.0.1`, never one the ask or the address named, the
+    path always `/approved`, GRANT the grant's 32 bytes in base64url
+    with no padding (RFC 4648, 5), 43 characters. The grant is held
+    for that address alone: never shown, kept, logged or put in the
+    small store. The terminal's listener there takes the sign-in and
+    sends the browser back to `/terminal?code=CODE`, which reads it
+    taken: "Terminal signed in" (`../../draft/tui-remote.md`, 5.1). Until
+    the page is left it reads again each second, as approved. A
+    browser that never reaches the terminal leaves the approval
+    approved and untaken, and it ends expired, signing nobody in. An
+    answer approved with no loopback return is approved, as before.
   - *Approved:* the page reads the approval again each second
     (`approve::AGAIN`) while it stays approved, from the answer's
     turn, to learn the terminal's take: taken is signed in, and the
@@ -278,7 +319,10 @@ keeps (`../../protocol/configuration/README.md`, section 2).
     back by the address their terminal shows; a Google deployment prints
     no link, and its "Continue with Google" returns to the approval with
     its code, so a person signing a terminal in there is never stuck
-    (the look request `outside-pages`). The page's codes, acts and
+    (the look request `outside-pages`). Its `then` keeps the address's
+    code whatever the ask: signed out, the page can't read the ask's
+    kind, and a `typed` ask's code is dropped by the read after the
+    sign-in, as above. The page's codes, acts and
     `then` are the TUI's too (`../README.md`, 4.1): only its states' look and words are
     the browser's.
   - *Busy:* a read or a decision answered busy, not ready or lost.

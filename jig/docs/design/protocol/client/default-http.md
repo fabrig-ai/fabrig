@@ -154,6 +154,25 @@ prefix; jig's test application mounts it at `/jig`.
   valid bearer is read first. That is what reading and deciding an
   approval admit (`sign-in.md`); a take's `signed_in` is answered to a
   browser as a link's is, the cookie set and no credential in the body.
+- **The exchange's way and source, told to the component** (`wire.md`,
+  2.2), beside its carrier, for an approval's kind and source
+  (`sign-in.md`, *A sign-in approved by a browser*):
+  - *its way,* `Via`, public or listener, the `Host` decision above,
+    which the cookie's `Secure` takes too;
+  - *its source,* an IP address or unknown. One that came by the public
+    name has the client's address as the TLS proxy saw it: the last
+    element of the last `X-Forwarded-For` field, which the proxy sets,
+    overwriting what the client sent, its spaces and tabs trimmed, read
+    as an IPv4 address in dotted decimal or an IPv6 address in RFC 4291's
+    text, and nothing else; the header missing, or that element
+    unreadable (a port, brackets, `unknown`, an obfuscated name, empty),
+    is an unknown source. One that came by the listener's own address
+    has its connection's peer, the socket's address without its port,
+    and an in-process connection none. Every source is canonical, an
+    IPv4-mapped IPv6 address read as its IPv4 address
+    (`IpAddr::to_canonical`), so that one client is one source either
+    way. `X-Forwarded-For` is read for nothing else, and a source is
+    never a check.
 
 ## 4. Its two ends
 
@@ -176,7 +195,11 @@ prefix; jig's test application mounts it at `/jig`.
   its record; a batch's `Part`s written as they come, each framed, and
   its body ended at `Done` (6); the stream written as events, `StreamTaken` said as their
   bytes are written. The application's server mounts it at a prefix of
-  its listener and hands it the calls under that prefix.
+  its listener and hands it the calls under that prefix, each call's
+  head with its connection's peer address (3, *The exchange's way and
+  source*), which the server keeps from the connection's accept (skein's
+  io, `Accepted { peer }`): jig's connection-owning `server` keeps it
+  for the application and routes each call with it.
 - **The engine end's room** is its calls in flight, streams and batches among them
   (`README.md`, section 10), and it owns that bound alone. A batch is one call, held
   until its body has ended. It holds a call from its
