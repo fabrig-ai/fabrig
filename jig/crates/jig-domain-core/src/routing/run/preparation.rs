@@ -159,7 +159,9 @@ pub(crate) fn workspace_prepared(
         );
     }
     // A task's earlier tries do not close this window (jig/docs/design/domain/engine/executors.md, 2).
-    let mut resume = !transcript.closed
+    let moved = transcript.moved || window_moved(core, task, &allowance.choice.accounts, &allowance.choice.policy.model);
+    let mut resume = !moved
+        && !transcript.closed
         && !transcript.cut
         && core.charter_of(task).policy.resume
         && transcript.bytes <= u64::from(core.settings.resume_bytes);
@@ -212,10 +214,6 @@ pub(crate) fn workspace_prepared(
         None
     };
     proof.credentials = core.workspace_credentials.remove(&task).expect("prepared credentials");
-    let previous = core.proofs.insert(task, proof).expect("claim proof reserved before child mutation");
-    if let Some(previous) = previous {
-        assert!(core.replaced.insert(task, previous) == Ok(None), "one pending replacement per task");
-    }
     let turns = if resume { core.resumed_turns(transcript) } else { Box::new([]) };
     let answered = answered_calls(core, task, attempt, env.limits.call_records);
     let mut policy = allowance.choice.policy;
@@ -241,6 +239,11 @@ pub(crate) fn workspace_prepared(
             }
         }
         sources.push(grant).expect("one grant per retained model");
+    }
+    proof.endpoint = Some(policy.model.endpoint);
+    let previous = core.proofs.insert(task, proof).expect("claim proof reserved before child mutation");
+    if let Some(previous) = previous {
+        assert!(core.replaced.insert(task, previous) == Ok(None), "one pending replacement per task");
     }
     policy.instructions = instructions;
     policy.resume = resume;
@@ -574,6 +577,36 @@ pub(crate) fn plan_brief(
     out
 }
 
+/// A saved window resumes only on its main model's endpoint (jig/docs/design/domain/engine/executors.md, 2).
+fn window_moved(core: &Core, task: u64, accounts: &[authority::AccountBinding], main: &crate::Model) -> bool {
+    let Some(proof) = core.proofs.get(&task) else { return false };
+    if proof.window.is_none() {
+        return false;
+    }
+    let mut kind = None;
+    for binding in accounts {
+        if binding.provider == main.provider {
+            kind = Some(core.accounts.source(binding.source).expect("selected main source").kind);
+        }
+    }
+    let kind = kind.expect("selected main binding");
+    match proof.endpoint {
+        Some(endpoint) => endpoint != core.settings.model_endpoint(main, kind).expect("checked main model way"),
+        None => {
+            for binding in &proof.accounts {
+                if binding.provider == main.provider {
+                    return match core.accounts.source(binding.source) {
+                        Some(source) => (source.kind == jig_domain_accounts::Kind::Program)
+                            != (kind == jig_domain_accounts::Kind::Program),
+                        None => true,
+                    };
+                }
+            }
+            true
+        }
+    }
+}
+
 fn tail_wanted(core: &Core, task: u64, transient: bool) -> bool {
     let context = core.contexts.get(&task).expect("brief owns a preparation context");
     let standing = context.ended_by == tasks::EndedBy::Standing;
@@ -581,7 +614,7 @@ fn tail_wanted(core: &Core, task: u64, transient: bool) -> bool {
         return false;
     }
     let transcript = core.transcripts.get(&task).expect("brief owns a loaded transcript");
-    if transcript.closed {
+    if transcript.closed || transcript.moved {
         return transcript.last.is_some();
     }
     standing || core.transcript_oversized(task) || transient || !core.charter_of(task).policy.resume
@@ -625,6 +658,7 @@ fn prepare_agent(
     work: &mut Queue<Work>,
     context: Box<tasks::RunContext>,
     from: Option<(u64, u32)>,
+    moved: bool,
 ) -> Queue<Request> {
     let mut out = Queue::uncapped();
     let number = context.task;
@@ -635,6 +669,7 @@ fn prepare_agent(
     super::results::clear(core, number);
     assert!(core.contexts.insert(number, context).is_ok(), "bounded activation context");
     core.begin_transcript(number, previous_attempt, from);
+    core.transcripts.get_mut(&number).expect("begun transcript").moved = moved;
     work.push(Work::Event(Event::Tasks(tasks::Event::Prepare {
         reply_to: ReplyTo::new(core.internal(crate::routing::flight::Internal::Acknowledge)),
         task: number,
@@ -689,12 +724,13 @@ pub(crate) fn route_activate(
                 }
             }
             tasks::Executor::Agent { .. } => match core.run_admission(&context, env.wall, Box::new([])) {
-                crate::RunAdmission::Allow(_) => {
+                crate::RunAdmission::Allow(allowance) => {
+                    let moved = window_moved(core, number, &allowance.choice.accounts, &allowance.choice.policy.model);
                     let from = transcript_from(core, &context);
                     if busy && from.is_some() {
                         remember_due(core, context);
                     } else {
-                        return prepare_agent(core, work, context, from);
+                        return prepare_agent(core, work, context, from, moved);
                     }
                 }
                 crate::RunAdmission::Wait(_) => remember_due(core, context),
