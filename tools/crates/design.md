@@ -34,9 +34,9 @@ milestone K14 of its execution file.
 - **The features check** reads three fixed contexts with `cargo metadata` and `cargo tree`: each
   root entry a member names there asks for every feature its crate resolves to, a platform's own
   entry is named on its platform alone, and Cargo's unification is set (section 3.3).
-- **The generated-tests check** finds generated record code that holds its own tests, a codec crate
-  without its `tests/generated` target, and a codec crate's library that builds a test target, so
-  that a test build compiles generated code once (section 3.4).
+- **The generated-tests check** finds generated record code that holds its own tests, and a codec
+  crate's library that builds a test target, so that a test build compiles generated code once
+  (section 3.4).
 - **The figure** is a tool, `tools/crates/crates.py`. It times the two shapes landings build, the
   libraries and the workspace with its tests, each from scratch. Then it scores the last seven days'
   landings against that build. It prints the longest chains, each landing's recompile and chain, and
@@ -321,12 +321,12 @@ section 4). The other eight are G3's, one codec crate each, its owner's `-codec`
   and `skein-codec` alone. It is step code on the `step` lint profile, as G2's are, and builds
   wherever its owner builds, `wasm32-unknown-unknown` among them for a client's.
 - **The owner keeps the rest** (skein's `data/codec/README.md`, section 2): its schemas, kept
-  texts and patches, its glue (`smith-local-protocol`'s `src/generated/layouts.rs`), its golden
-  bytes, its drift test and its translation. It depends on its codec crate and names the module
+  texts and patches, its glue (`smith-local-protocol`'s `src/generated/layouts.rs`), its drift
+  test and its translation. It depends on its codec crate and names the module
   where it named it before: a public one is re-exported at the same path (`skein_oauth::v3`), so
   callers keep their paths.
-- **The drift test** reads the schema and golden bytes in the owner and the code in the codec
-  crate, and writes each where it reads it (skein's `data/codec/README.md`, section 6).
+- **The drift test** reads the schema in the owner and the code in the codec crate, and writes the
+  code where it reads it (skein's `data/codec/README.md`, section 6).
 
 The check reads section 2.2's classification of files as the size check does, so the two agree on
 what generated record code is.
@@ -452,25 +452,21 @@ can't call a build script's code.
 ### 3.4 Generated tests
 
 `tests/boundary/tests/generated_tests.rs`, from `temper/docs/design/draft/gate-compile.md`, 3.2 and
-7, milestone C1 of its execution file. A codec crate's generated tests are a test target of their
-own, `tests/generated/`, so that a test build compiles its generated code once, and its library
-builds no test target when it holds no other tests (skein's `data/codec/README.md`, section 6). The
-check reads `cargo metadata` and the sources, as the other checks do, and builds nothing. For each
+7, milestone C1 of its execution file, and `temper/docs/design/draft/codec-shape.md`, 5.3. Generated
+record code holds no tests, the generator writing none, and a codec crate's library builds no test
+target when it holds no other tests, so that a test build compiles its generated code once (skein's
+`data/codec/README.md`, section 6). The check reads `cargo metadata` and the sources, as the other checks do, and builds nothing. For each
 package holding generated record code (section 2.2), its findings:
 
 - **A test module in generated record code:** a generated record file whose text holds `cfg(test)`
   or `#[test]` outside comments and literals, read by section 2.1's scan. The finding names the
   package and the file.
-- **Generated tests missing:** the package has no test target named `generated` whose `src_path` is
-  its `tests/generated/main.rs`, or a generated record file `src/generated/<file>.rs` has no
-  `tests/generated/<file>.rs` beside that root. The finding names the package and the missing target
-  or file.
 - **A library test target:** the package's library target has `test` true in `cargo metadata`
   (section 2.4), as Cargo gives it unless the manifest's `[lib]` sets `test = false`. The finding
   names the package. Its fix is `test = false`, once the library holds no other tests: a test that
-  uses public items alone moves to the `generated` target.
-- **A source the check can't read,** the metadata, a `src/generated/` or `tests/generated/`
-  directory or a generated file, fails the check and is never skipped.
+  uses public items alone moves to an integration test target, its owner's world among them.
+- **A source the check can't read,** the metadata, a `src/generated/` directory or a generated file,
+  fails the check and is never skipped.
 
 An exception names a package and either a file, which excuses that file's findings, or the library
 test target, which excuses that finding. Each says what removes it, and one that covers no finding

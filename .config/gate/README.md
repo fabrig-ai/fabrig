@@ -90,8 +90,8 @@ nothing slower than the fuzzy suite (`skein/docs/design/testing/README.md`, 6;
 15. **The generated-tests check:** `tools/tiers/one-process default -p fabrig-boundary`,
     part of item 4's focused suite. Rule: `tools/crates/design.md`, 3.4, and
     `tests/boundary/tests/generated_tests.rs`'s module doc: generated records hold
-    no test code, their tests have a separate target and file per record file,
-    and their libraries build no test target, with shrinking exceptions.
+    no test code, and their libraries build no test target, with shrinking
+    exceptions.
 16. **The layers check:** `tools/tiers/one-process default -p fabrig-boundary`,
     part of item 4's focused suite. Rule: `tools/tiers/layers.md`, 7, and
     `tests/boundary/tests/layers.rs`: every test binary of a tree has its layer

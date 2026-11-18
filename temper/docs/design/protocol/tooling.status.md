@@ -9,7 +9,9 @@
   though the job capability that would run them is built
   (`temper-worker-domain-tooling`). 2: the project's `prepare_timeout`
   bounds no command: a command's time is its job's deadline. 6:
-  `conflict_files` is no limit, on `files`, `settled` or `left`.
+  `conflict_files` is no limit, on `files`, `settled` or `left`. 4.1:
+  the reference makes no generated codec module again
+  [in flight: change 7922].
 - **Departs:** 2: every command's `PATH` is `/usr/local/bin:/usr/bin:/bin`, and 6:
   `tooling_file_bytes` and `tooling_log_bytes` are 1 MiB and 64 KiB, the
   small profile's constants with no override
