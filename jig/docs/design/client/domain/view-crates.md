@@ -203,8 +203,9 @@ stays.
 
 - **The rendered goldens** under `golden/rendered/` are read by `kit::Goldens` from its package's
   directory (`skein_scratch::paths::package()`), which doesn't move.
-- **The records' owner stays** `jig-client-view`: its `schema/records-v1.schema` and `golden/*.bin`,
-  and `jig/tests/codec-families.rs`' entry for them, are unchanged (`tools/crates/design.md`, 3.2).
+- **The records' owner stays** `jig-client-view`, with `schema/records-v1.schema`.
+  `jig/tests/codec-families.rs` compares the generated records and refuses unpinned constructs;
+  it keeps no records' golden bytes or generated tests (skein's `data/codec/README.md`, section 6).
 - **`.config/fixture-readers.toml`** keeps `jig-client-view`'s entry. The words have no
   `src/tests/fixtures/` directory, so no entry of their own.
 - **No file is read by path** in the words' library: no `include_str!`, `include_bytes!`, `#[path]`
