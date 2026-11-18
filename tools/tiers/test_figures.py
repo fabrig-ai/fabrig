@@ -112,6 +112,74 @@ class Figures(unittest.TestCase):
         self.assertEqual((result.returncode, result.stdout, result.stderr),
                          (0, f"figures: {BUDGETS} alone changed since {self.base}: the user's figures\n", ''))
 
+    def merge_head(self, content, resolution=None):
+        self.git('checkout', '-q', '--detach', self.base)
+        self.write(BUDGETS, content)
+        merged = self.commit('main figures alone')
+        self.git('checkout', '-q', '--detach', self.base)
+        self.write('other', 'branch change\n')
+        self.commit('branch')
+        self.git('merge', '--no-ff', '--no-commit', merged)
+        if resolution is not None:
+            self.write(BUDGETS, resolution)
+        return merged, self.commit('merge')
+
+    def test_merge_passes_landed_reason_but_without_merged_still_refuses(self):
+        merged, head = self.merge_head(BASE + REASON)
+        result = self.run_check('--base', self.base, '--merged', merged, '--head', head)
+        self.assertEqual((result.returncode, result.stdout.splitlines(), result.stderr),
+                         (0, [f'figures: {BUDGETS} unchanged since {merged}',
+                              f'figures: 0 raised or added since {self.base} and {merged}'], ''))
+        self.check([f'figure added: {REASON_PLACE}: 3'], head=head)
+
+    def test_merge_resolution_raise_is_named_once_by_place(self):
+        merged, head = self.merge_head(BASE.replace('cpu_s = 136', 'cpu_s = 138') + REASON,
+                                       BASE.replace('cpu_s = 136', 'cpu_s = 140') + REASON)
+        result = self.run_check('--base', self.base, '--merged', merged, '--head', head)
+        self.assertEqual((result.returncode, result.stdout.splitlines(), result.stderr),
+                         (1, ['figure raised: default temper domain ceiling: 136 to 140',
+                              f'figures: 1 raised or added since {self.base} and {merged}', REPAIR_LINE], ''))
+
+    def test_merge_keeps_figures_equal_to_either_side(self):
+        for merged_cpu, head_cpu in ((138, 138), (134, 136)):
+            with self.subTest(merged_cpu=merged_cpu):
+                self.setUp()
+                merged, head = self.merge_head(BASE.replace('cpu_s = 136', f'cpu_s = {merged_cpu}'),
+                                               BASE.replace('cpu_s = 136', f'cpu_s = {head_cpu}')
+                                               .replace('ideal_s = 25', 'ideal_s = 24'))
+                result = self.run_check('--base', self.base, '--merged', merged, '--head', head)
+                self.assertEqual((result.returncode, result.stdout.splitlines(), result.stderr),
+                                 (0, [f'figures: 0 raised or added since {self.base} and {merged}'], ''))
+
+    def test_every_merged_tip_must_name_the_place_in_base_order(self):
+        self.write(BUDGETS, BASE.replace('cpu_s = 136', 'cpu_s = 139') + REASON)
+        second = self.commit('second figures')
+        merged, head = self.merge_head(BASE.replace('cpu_s = 136', 'cpu_s = 138'),
+                                       BASE.replace('cpu_s = 136', 'cpu_s = 140')
+                                       .replace('reference_s = 2', 'reference_s = 3') + REASON)
+        result = self.run_check('--base', self.base, '--head', head,
+                                '--merged', merged, '--merged', second)
+        self.assertEqual((result.returncode, result.stdout.splitlines(), result.stderr),
+                         (1, ['figure raised: default temper domain ceiling: 136 to 140',
+                              'figure raised: default temper simulated reference: 2 to 3',
+                              f'figures: 2 raised or added since {self.base} and {merged} and {second}',
+                              REPAIR_LINE], ''))
+
+    def test_merged_budgets_alone_short_cut_names_no_places(self):
+        merged = self.head(BASE)
+        head = self.head(BASE.replace('cpu_s = 136', 'cpu_s = 140'), other=False)
+        result = self.run_check('--base', self.base, '--head', head, '--merged', merged)
+        self.assertEqual((result.returncode, result.stdout.splitlines(), result.stderr),
+                         (0, [f"figures: {BUDGETS} alone changed since {merged}: the user's figures",
+                              f'figures: 0 raised or added since {self.base} and {merged}'], ''))
+
+    def test_invalid_merged_revision_is_a_git_error(self):
+        self.head(BASE.replace('cpu_s = 136', 'cpu_s = 140'))
+        result = self.run_check('--base', self.base, '--merged', 'missing-merged-revision')
+        self.assertEqual(result.returncode, 2)
+        self.assertIn('missing-merged-revision', result.stderr)
+        self.assertEqual(result.stdout, '')
+
     def test_ceiling_with_existing_move(self):
         self.set_base(BASE + MOVE)
         self.head(BASE.replace('cpu_s = 136', 'cpu_s = 140') + MOVE)

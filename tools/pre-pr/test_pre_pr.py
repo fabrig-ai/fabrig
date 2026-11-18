@@ -1847,11 +1847,14 @@ sys.exit(int(count > 0))
 
     def fake_figures(self, code, output):
         """Fake check 7 at its process boundary (tools/pre-pr/design.md, 4)."""
-        self.write('tools/tiers/figures.py', f'''import os
+        self.write('tools/tiers/figures.py', f'''import json
+import os
 from pathlib import Path
 import sys
 assert 'GIT_INDEX_FILE' not in os.environ
 assert Path('tools/tiers/budgets.toml').is_file()
+Path('target').mkdir(exist_ok=True)
+Path('target/figures-argv.json').write_text(json.dumps(sys.argv[1:]))
 print({output!r})
 raise SystemExit({code})
 ''')
@@ -1889,6 +1892,66 @@ raise SystemExit({code})
                 if row != 'budgets alone':
                     for name in ('clippy', 'tests', 'fuzzy tests', 'citations'):
                         self.assertLess(log.index(f'pre-pr: {name}:'), log.index('pre-pr: figures …'))
+
+    def test_figures_passes_pending_merge_tip(self):
+        self.fake_figures(0, 'figures: merged snapshot')
+        base = self.command('git', 'rev-parse', 'HEAD').strip()
+        self.write('tools/tiers/budgets.toml', '# main figures\n')
+        self.command('git', 'commit', '-qam', 'main figures alone')
+        merged = self.command('git', 'rev-parse', 'HEAD').strip()
+        self.command('git', 'checkout', '-q', '--detach', base)
+        self.write('guide.md', '# Branch\n')
+        self.command('git', 'commit', '-qam', 'branch')
+        self.command('git', 'merge', '--no-ff', '--no-commit', merged)
+        result, log, calls, _ = self.deliver()
+        self.assertEqual(result, 0, log)
+        record = json.loads((self.root / 'target/temper/pre-pr-failures.json').read_text())
+        argv = ['--base', base, '--head', record['tree'], '--merged', merged]
+        self.assertEqual(json.loads((self.root / 'target/figures-argv.json').read_text()), argv)
+        self.assertEqual(calls[-1], (['python3', '-I', '-B', 'tools/tiers/figures.py', *argv], self.root))
+
+    def test_figures_passes_merge_tip_before_head_after_stepped_save_base(self):
+        self.fake_figures(0, 'figures: saved merge snapshot')
+        start = self.command('git', 'rev-parse', 'HEAD').strip()
+        self.write('tools/tiers/budgets.toml', '# main figures\n')
+        self.command('git', 'commit', '-qam', 'main figures alone')
+        merged = self.command('git', 'rev-parse', 'HEAD').strip()
+        self.command('git', 'checkout', '-q', '--detach', start)
+        self.write('guide.md', '# Branch\n')
+        self.command('git', 'commit', '-qam', 'branch')
+        base = self.command('git', 'rev-parse', 'HEAD').strip()
+        self.command('git', 'merge', '--no-ff', '-qm', 'Unchecked: work in progress, saved before a question', merged)
+        self.command('git', 'update-ref', 'refs/temper/landing', 'HEAD')
+        self.command('git', 'commit', '--allow-empty', '-qm', 'after saved merge')
+        result, log, calls, _ = self.deliver()
+        self.assertEqual(result, 0, log)
+        record = json.loads((self.root / 'target/temper/pre-pr-failures.json').read_text())
+        self.assertEqual(record['base'], base)
+        argv = ['--base', base, '--head', record['tree'], '--merged', merged]
+        self.assertEqual(json.loads((self.root / 'target/figures-argv.json').read_text()), argv)
+        self.assertEqual(calls[-1], (['python3', '-I', '-B', 'tools/tiers/figures.py', *argv], self.root))
+
+    def test_figures_merged_tips_are_pending_then_first_parent_order_deduplicated(self):
+        self.fake_figures(0, 'figures: several merged tips')
+        base = self.command('git', 'rev-parse', 'HEAD').strip()
+        tree = self.command('git', 'rev-parse', 'HEAD^{tree}').strip()
+        left = self.command('git', 'commit-tree', tree, '-p', base, '-m', 'left').strip()
+        right = self.command('git', 'commit-tree', tree, '-p', base, '-m', 'right').strip()
+        inner = self.command('git', 'commit-tree', tree, '-p', base, '-m', 'inner').strip()
+        nested = self.command('git', 'commit-tree', tree, '-p', left, '-p', inner, '-m', 'nested').strip()
+        first = self.command('git', 'commit-tree', tree, '-p', base, '-p', nested, '-m', 'first').strip()
+        # Both non-first parents count, but nested's own parents do not.
+        head = self.command('git', 'commit-tree', tree, '-p', first, '-p', right, '-p', nested,
+                            '-m', 'several parents').strip()
+        self.command('git', 'checkout', '-q', '--detach', head)
+        self.write('.git/MERGE_HEAD', nested + '\n')
+        self.write('tools/tiers/budgets.toml', '# delivered figures\n')
+        result, log, calls, _ = self.deliver()
+        self.assertEqual(result, 0, log)
+        record = json.loads((self.root / 'target/temper/pre-pr-failures.json').read_text())
+        argv = ['--base', base, '--head', record['tree'], '--merged', nested, '--merged', right]
+        self.assertEqual(json.loads((self.root / 'target/figures-argv.json').read_text()), argv)
+        self.assertEqual(calls[-1], (['python3', '-I', '-B', 'tools/tiers/figures.py', *argv], self.root))
 
     def test_figures_refusal_is_not_inherited(self):
         """A figure refusal is the delivery's (tools/pre-pr/design.md, 4)."""

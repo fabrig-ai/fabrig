@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Refuse raised figures (tools/tiers/budgets.md, 10.1).
 
-Usage: python3 -I -B tools/tiers/figures.py --base BASE [--head HEAD]
+Usage: python3 -I -B tools/tiers/figures.py --base BASE [--head HEAD] [--merged REV]…
 Reads committed trees from the current repository; exits 0 passing, 1 refusing,
 2 on invalid input. The budgets file's form belongs to cpu.py's budgets().
 """
@@ -101,7 +101,7 @@ def compare(base, head, layers, base_name, head_name):
     def raised(place, old, new, *, ceiling=False):
         before, after = (old or 0, new or 0) if ceiling else (old, new)
         if before is not None and (after is None or round(after, 3) > round(before, 3)):
-            findings.append(f'figure raised: {place}: {text(old)} to {text(new)}')
+            findings.append((place, f'figure raised: {place}: {text(old)} to {text(new)}'))
 
     before, after = base.get('gate', {}), head.get('gate', {})
     for profile in sorted(before.keys() | after.keys()):
@@ -136,7 +136,7 @@ def compare(base, head, layers, base_name, head_name):
             place = f'{profile} reason {binary} {test}'
             previous = old['reasons'].get((binary, test))
             if previous is None:
-                findings.append(f'figure added: {place}: {seconds}')
+                findings.append((place, f'figure added: {place}: {seconds}'))
             else:
                 raised(place, previous, seconds)
     for pair in sorted((base.keys() | head.keys()) - {'gate', 'tools'}):
@@ -151,29 +151,40 @@ def compare(base, head, layers, base_name, head_name):
     return findings
 
 
+def compare_revision(revision, head):
+    """A short-cut comparison names no figure places."""
+    paths = git('diff', '--no-renames', '--name-only', revision, head).splitlines()
+    if BUDGETS not in paths:
+        print(f'figures: {BUDGETS} unchanged since {revision}')
+        return None
+    if paths == [BUDGETS]:
+        print(f"figures: {BUDGETS} alone changed since {revision}: the user's figures")
+        return None
+    return compare(read_table(revision, BUDGETS), read_table(head, BUDGETS),
+                   read_table(head, 'tools/tiers/layers.toml')['layers'], revision, head)
+
+
 def main(argv):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--base', required=True)
     parser.add_argument('--head', default='HEAD')
+    parser.add_argument('--merged', action='append')
     args = parser.parse_args(argv)
     try:
-        paths = git('diff', '--no-renames', '--name-only', args.base, args.head).splitlines()
-        if BUDGETS not in paths:
-            print(f'figures: {BUDGETS} unchanged since {args.base}')
+        findings = compare_revision(args.base, args.head)
+        if findings is None and not args.merged:
             return 0
-        if paths == [BUDGETS]:
-            print(f"figures: {BUDGETS} alone changed since {args.base}: the user's figures")
-            return 0
-        base = read_table(args.base, BUDGETS)
-        head = read_table(args.head, BUDGETS)
-        layers = read_table(args.head, 'tools/tiers/layers.toml')['layers']
-        findings = compare(base, head, layers, args.base, args.head)
+        findings = findings or []
+        for revision in args.merged or []:
+            places = {place for place, _ in compare_revision(revision, args.head) or []}
+            findings = [(place, line) for place, line in findings if place in places]
     except (subprocess.CalledProcessError, OSError, ValueError, KeyError, TypeError, AttributeError) as error:
         print(f'figures: {getattr(error, "stderr", None) or error}', file=sys.stderr)
         return 2
-    for line in findings:
+    for _, line in findings:
         print(line)
-    print(f'figures: {len(findings)} raised or added since {args.base}')
+    since = ' and '.join([args.base, *(args.merged or [])])
+    print(f'figures: {len(findings)} raised or added since {since}')
     if findings:
         print(REPAIR_LINE)
     return 1 if findings else 0

@@ -467,17 +467,23 @@ delivery hears every failure; the verdict is section 6's.
      log the scan's output.
 7. **The figures,** where section 3's changed paths include
    `tools/tiers/budgets.toml`, whatever else they hold: `python3 -I -B
-   tools/tiers/figures.py --base <base> --head <tree>` from the tree's
+   tools/tiers/figures.py --base <base> --head <tree> [--merged <rev>]…` from the tree's
    root, against section 3's private snapshot, as check 5 runs citations
-   (`tools/tiers/budgets.md`, 10.1). It runs last, after every other
+   (`tools/tiers/budgets.md`, 10.1). The merged tips are the commit named by
+   `git rev-parse --verify --quiet MERGE_HEAD`, where it names one, then
+   every parent after the first of each commit in
+   `git rev-list --first-parent --merges --parents <base>..HEAD`, deduplicated
+   in that order. Each is passed as `--merged <rev>` after `--head <tree>`;
+   without a merge the argv has no addition. It runs last, after every other
    selected check, announced `pre-pr: figures …` and ended `pre-pr:
    figures: passed|failed, <seconds> s`; it reads git alone, so it takes no
    hold and builds nothing, and it selects nothing else. Its exit decides:
    - **0:** passed, a delivery that changes that file alone included;
    - **1:** a figure raised or a reason's line added: one failure,
      `figures`, its log the check's output, which names each and ends
-     with the repair line. It compares the delivery with its base, so it
-     is the delivery's own, never inherited (section 5);
+     with the repair line. It keeps only figures raised or added against
+     its base and every merged tip, so it is the delivery's own, never
+     inherited (section 5);
    - **any other:** a failure of the check itself, `check figures`, its
      log the check's output.
 

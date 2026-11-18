@@ -275,10 +275,27 @@ def citations(base_id, tree_id, root, env):
     return code, errors
 
 
-def figures(base_id, tree_id, root, env):
+def merged_tips(base_id, root, env):
+    """Check 7's pending merge first, then first-parent history's other parents."""
+    merged = []
+    pending = git(['rev-parse', '--verify', '--quiet', 'MERGE_HEAD'], root, env)
+    if not pending.returncode:
+        merged.append(pending.stdout.decode().strip())
+    history = git(['rev-list', '--first-parent', '--merges', '--parents', base_id + '..HEAD'], root, env)
+    if history.returncode:
+        raise RuntimeError(history.stderr.decode(errors='replace'))
+    for line in history.stdout.decode().splitlines():
+        merged.extend(line.split()[2:])
+    return list(dict.fromkeys(merged))
+
+
+def figures(base_id, tree_id, root, env, merged):
     """Run check 7 (tools/pre-pr/design.md, 4; tools/tiers/budgets.md, 10.1)."""
-    code, log = run(['python3', '-I', '-B', 'tools/tiers/figures.py',
-                     '--base', base_id, '--head', tree_id], root, env, stdout=True)
+    arguments = ['python3', '-I', '-B', 'tools/tiers/figures.py',
+                 '--base', base_id, '--head', tree_id]
+    for revision in merged:
+        arguments += ['--merged', revision]
+    code, log = run(arguments, root, env, stdout=True)
     if code == 1:
         errors = [failure('figures', log)]
     else:
@@ -1023,7 +1040,14 @@ def main():
                 _, found = timed('outward', lambda: outward(root, private), pending)
                 errors += found
             if base_id and 'tools/tiers/budgets.toml' in paths:
-                _, found = timed('figures', lambda: figures(base_id, tree_id, root, env), pending)
+                def figures_check():
+                    try:
+                        merged = merged_tips(base_id, root, env)
+                        return figures(base_id, tree_id, root, env, merged)
+                    except (OSError, RuntimeError) as error:
+                        return 2, [failure('check figures', str(error))]
+
+                _, found = timed('figures', figures_check, pending)
                 errors += found
             inherited(reds, errors)
             count_errors = [e for e in errors if e['name'].startswith('old-forms ') and e['key']]
