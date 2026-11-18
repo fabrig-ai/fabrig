@@ -6,6 +6,7 @@ mod placed;
 mod profiles;
 mod questions;
 mod secrets;
+mod task_bounds;
 mod values;
 
 mod fuzzy {
