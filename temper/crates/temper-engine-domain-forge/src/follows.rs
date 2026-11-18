@@ -1,4 +1,5 @@
 //! Hearing source landings (temper/docs/design/domain/forge/follows.md, 3, 7 and 9).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
 use crate::{Domain, Key, Limits, Name, Request, Stored};
 use alloc::boxed::Box;
 use skein_forge::api::{self, Commit, Repository};
@@ -199,7 +200,7 @@ pub(crate) fn keep(
     d.tier_ops.dirty = true;
 }
 pub(crate) fn branch<'a>(d: &'a Domain, row: &'a FollowRow) -> Option<&'a [u8]> {
-    if row.branch.is_empty() { Some(&d.repository(row.source)?.settings.default_branch) } else { Some(&row.branch) }
+    if row.branch.is_empty() { Some(&d.repository(row.source)?.landing) } else { Some(&row.branch) }
 }
 pub(crate) fn watches(d: &Domain, names: &mut List<Name>) {
     for (_, row) in &d.follow_rows {

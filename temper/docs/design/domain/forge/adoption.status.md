@@ -1,6 +1,6 @@
 # adoption: status
 
-2026-11-15. Where the tree's code lags or departs from [adoption.md](adoption.md).
+2026-11-18. Where the tree's code lags or departs from [adoption.md](adoption.md).
 
 
 - **Not yet:** the opening's first bullet: a context adoption of a

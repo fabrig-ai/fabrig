@@ -114,8 +114,8 @@ connector as `Dismissed` is (1), and a document computed at its read.
     repository's landing branch, as that document's `red` for that
     branch: a live repair of the branch (`queues.md`), or a landing a tier
     still holds red (`../after-landing.md`, 5.3). False with no home;
-  - `branch`, the home repository's landing branch, its default branch
-    (`Repository.settings`); empty with no home.
+  - `branch`, the home repository's landing branch, its record's
+    `landing` (`adoption.md`, 8); empty with no home.
 
   It is marked wherever the subject `changes` is (a queue, a branch's
   red, a merge), and at a look and a brief. A look makes the document

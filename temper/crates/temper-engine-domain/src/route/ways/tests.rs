@@ -118,6 +118,7 @@ fn start_skips_requester_ended_templates_even_when_lowest_or_configured() {
 fn repository(home: bool, number: u32, name: &[u8]) -> forge::Repository {
     forge::Repository {
         contexts: Box::new([]),
+        landing: b"trunk".as_slice().into(),
         workflows: [b"checks.yml".as_slice(), b"ci.yml", b"fuzzy.yml"].map(Box::from).into(),
         project: PROJECT,
         home,

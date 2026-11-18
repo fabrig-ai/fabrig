@@ -474,6 +474,8 @@ fn repository_rows(
         out.put(&repository.owner);
         out.put(b"/");
         out.put(&repository.name);
+        out.put(b" landing ");
+        out.put(&repository.landing);
         out.put(b"\n");
     }
     if !people.is_empty() {

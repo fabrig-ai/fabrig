@@ -317,6 +317,36 @@ fn a_change_names_its_landing_branch() {
 }
 
 #[test]
+fn a_change_without_a_landing_uses_the_adopted_landing() {
+    let mut world = World::configured(true, true);
+    world.adopt_landing(b"staging");
+    world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
+    let ask = adoption_chat(&world);
+    let chat = assigned_chat(&mut world, 92, ask);
+    let engine::CallAnswer::Delegated(made) = change(&mut world, &chat, 93, None, b"Small fix") else {
+        panic!("change admitted")
+    };
+    let task = made[0].task;
+    assert!(
+        live(&world, task)
+            .spec
+            .parameters
+            .contains(&tasks::Parameter::Bytes { name: 2, value: b"staging".as_slice().into() })
+    );
+    world.until(Until::SecondAssignment);
+    let branch = stored_change(&world, task).branch.clone();
+    let producer = world.assigned[1].clone();
+    land_change(&mut world, &producer, &branch);
+    let number = stored_change(&world, task).pull.expect("change pull");
+    let raw::Answer::Pull(pull) = world.external(1, raw::Op::Read(raw::Read::Pull { number })) else {
+        panic!("opened pull")
+    };
+    assert_eq!(pull.base.as_ref(), b"staging");
+    assert_eq!(world.merges, 1);
+    world.close();
+}
+
+#[test]
 fn landing_goal_without_a_held_goal_branch_is_refused() {
     let (mut world, chat) = plan_world(true);
     let rows = world.store.rows.clone();

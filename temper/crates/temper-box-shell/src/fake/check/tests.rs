@@ -245,6 +245,7 @@ const REPO: Repository = Repository { forge: 1, repository: 2 };
 fn repository() -> d::Stored {
     d::Stored::Repository(d::Repository {
         contexts: Box::new([]),
+        landing: b"main".as_slice().into(),
         workflows: Box::default(),
         project: 1,
         home: true,
