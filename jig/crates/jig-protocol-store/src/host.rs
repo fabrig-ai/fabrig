@@ -48,7 +48,7 @@ impl core::fmt::Debug for Hosted {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Adoption {
     Open,
-    Rehearse { scratch: Fd },
+    Rehearse { scratch: Fd, reach: crate::Reach },
     Back,
     Restore { name: crate::CheckpointName, draw: [u8; 16] },
     Checkpoint { draw: [u8; 16] },
@@ -401,7 +401,7 @@ impl Drivers {
             if index == 0 {
                 let file = driver.io.adopt_root(fd).expect("deployment root slot");
                 driver.handles.insert(file, ()).expect("owned deployment root");
-                if let Adoption::Rehearse { scratch } = mode {
+                if let Adoption::Rehearse { scratch, .. } = mode {
                     let token = driver.io.adopt_root(scratch).expect("scratch root slot");
                     driver.handles.insert(token, ()).expect("owned scratch root");
                     self.scratch = Some(crate::Root { token, fd: scratch });
@@ -418,7 +418,7 @@ impl Drivers {
             name: b".".as_slice().into(),
             no_follow: true,
         });
-        if let Adoption::Rehearse { scratch } = mode {
+        if let Adoption::Rehearse { scratch, .. } = mode {
             self.below.secrets.push(file::Request::OpenDirectory {
                 owner: ADOPT,
                 root: scratch,
@@ -673,7 +673,8 @@ impl Drivers {
                 installation: self.installation,
                 purpose: crate::Purpose::Checkpoint,
             },
-            Adoption::Rehearse { .. } => crate::Request::Rehearse {
+            Adoption::Rehearse { reach, .. } => crate::Request::Rehearse {
+                reach,
                 owner: self.owner,
                 directory: root,
                 scratch: self.scratch.expect("adopted scratch"),

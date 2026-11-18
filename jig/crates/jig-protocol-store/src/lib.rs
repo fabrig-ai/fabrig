@@ -511,8 +511,8 @@ fn down_inner(store: &mut Store, env: &Env<Limits>, request: Request, above: &mu
         Request::Checkpoint { .. } | Request::HoldCheckpoint { .. } | Request::RemoveCheckpoint { .. } => {
             unreachable!("checkpoint routed before stopped guard")
         }
-        Request::Rehearse { owner, directory, scratch, installation } => {
-            rehearsal::begin(store, owner, directory, scratch, installation, above, below);
+        Request::Rehearse { owner, directory, scratch, installation, reach } => {
+            rehearsal::begin(store, owner, directory, scratch, installation, reach, above, below);
         }
         Request::Back { owner, root } => back::begin(store, owner, root, above, below),
         Request::Close { .. } => unreachable!("close routed before stopped guard"),
@@ -637,8 +637,8 @@ mod openings;
 pub use boundary::{
     Arrived, BackRefusal, Below, CARRIED, CarriedKind, Check, CheckpointRefusal, Checkpointed, CommitCheck,
     CommitFailure, Cursor, Event, Family, Generations, Get, HELD, Io, KeptWire, Load, Older, OpenRefusal, OpenedTerm,
-    OpenedWire, Purpose, Request, Restore, RestoreRefusal, Restored, Root, Row, SecretOwner, SecretRow, SecretValue,
-    Secrets, TranscriptRead, Undecoded, Unplanned, Unready, WorkerOpening, Write,
+    OpenedWire, Purpose, Reach, Request, Restore, RestoreRefusal, Restored, Root, Row, SecretOwner, SecretRow,
+    SecretValue, Secrets, TranscriptRead, Undecoded, Unplanned, Unready, WorkerOpening, Write,
 };
 
 #[cfg(test)]
