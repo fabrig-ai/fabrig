@@ -23,6 +23,7 @@ pub struct Limits {
     pub adopted_checks: u32,
     pub adopted_workflows: u32,
     pub adopted_workflows_item: u32,
+    pub adopted_landing: u32,
     pub retargeted_before: u32,
     pub retargeted_after: u32,
     pub hold_design_writers: u32,
@@ -133,6 +134,7 @@ pub struct Limits {
     pub projected_milestones: u32,
     pub application_adopted_owner: u32,
     pub application_adopted_name: u32,
+    pub application_adopted_landing: u32,
     pub core_refused_refusal: u32,
     pub making_key_org: u32,
     pub making_key_name: u32,
@@ -358,6 +360,7 @@ pub const CEILINGS: Limits = Limits {
     adopted_checks: 1_024,
     adopted_workflows: 16,
     adopted_workflows_item: 255,
+    adopted_landing: 4_096,
     retargeted_before: 4_096,
     retargeted_after: 4_096,
     hold_design_writers: 65_536,
@@ -468,6 +471,7 @@ pub const CEILINGS: Limits = Limits {
     projected_milestones: 1_024,
     application_adopted_owner: 4_096,
     application_adopted_name: 4_096,
+    application_adopted_landing: 4_096,
     core_refused_refusal: 517,
     making_key_org: 1_024,
     making_key_name: 1_024,
@@ -693,6 +697,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "adopted_checks",
     "adopted_workflows",
     "adopted_workflows_item",
+    "adopted_landing",
     "retargeted_before",
     "retargeted_after",
     "hold_design_writers",
@@ -803,6 +808,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "projected_milestones",
     "application_adopted_owner",
     "application_adopted_name",
+    "application_adopted_landing",
     "core_refused_refusal",
     "making_key_org",
     "making_key_name",
@@ -1151,6 +1157,8 @@ pub enum Path {
     AdoptedSettings,
     /// The `workflows` field of `Adopted`.
     AdoptedWorkflows,
+    /// The `landing` field of `Adopted`.
+    AdoptedLanding,
     /// Bytes after `Adopted`.
     AdoptedTail,
     /// The `task` field of `RunWriter`.
@@ -2445,6 +2453,8 @@ pub enum Path {
     ApplicationAdoptedKinds,
     /// The `protection` field of `ApplicationAdopted`.
     ApplicationAdoptedProtection,
+    /// The `landing` field of `ApplicationAdopted`.
+    ApplicationAdoptedLanding,
     /// Bytes after `ApplicationAdopted`.
     ApplicationAdoptedTail,
     /// The `refusal` field of `CoreRefused`.
@@ -4866,6 +4876,7 @@ impl Path {
             Self::AdoptedProtection => "Adopted.protection",
             Self::AdoptedSettings => "Adopted.settings",
             Self::AdoptedWorkflows => "Adopted.workflows",
+            Self::AdoptedLanding => "Adopted.landing",
             Self::AdoptedTail => "Adopted (tail)",
             Self::RunWriterTask => "RunWriter.task",
             Self::RunWriterAttempt => "RunWriter.attempt",
@@ -5513,6 +5524,7 @@ impl Path {
             Self::ApplicationAdoptedHome => "ApplicationAdopted.home",
             Self::ApplicationAdoptedKinds => "ApplicationAdopted.kinds",
             Self::ApplicationAdoptedProtection => "ApplicationAdopted.protection",
+            Self::ApplicationAdoptedLanding => "ApplicationAdopted.landing",
             Self::ApplicationAdoptedTail => "ApplicationAdopted (tail)",
             Self::CoreRefusedRefusal => "CoreRefused.refusal",
             Self::CoreRefusedTail => "CoreRefused (tail)",
@@ -8700,6 +8712,8 @@ pub struct AdoptedParts {
     pub settings: Settings,
     /// The `workflows` field.
     pub workflows: List<Box<[u8]>>,
+    /// The `landing` field.
+    pub landing: Box<[u8]>,
 }
 
 /// `Adopted` in this codec family.
@@ -8720,13 +8734,14 @@ pub struct Adopted {
     protection: RepositoryProtection,
     settings: Settings,
     workflows: List<Box<[u8]>>,
+    landing: Box<[u8]>,
 }
 
 impl Adopted {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: AdoptedParts) -> Result<Self, Problem> {
-        let AdoptedParts { project, contexts, home, provider, host, owner, name, prefix, role, ci, checks, kinds, protection, settings, workflows } = parts;
-        let value = Self { project, contexts, home, provider, host, owner, name, prefix, role, ci, checks, kinds, protection, settings, workflows };
+        let AdoptedParts { project, contexts, home, provider, host, owner, name, prefix, role, ci, checks, kinds, protection, settings, workflows, landing } = parts;
+        let value = Self { project, contexts, home, provider, host, owner, name, prefix, role, ci, checks, kinds, protection, settings, workflows, landing };
         value.check(limits)?;
         Ok(value)
     }
@@ -8791,9 +8806,13 @@ impl Adopted {
     #[must_use]
     pub fn workflows(&self) -> &List<Box<[u8]>> { &self.workflows }
 
+    /// Reads the `landing` field.
+    #[must_use]
+    pub fn landing(&self) -> &[u8] { &self.landing }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> AdoptedParts { AdoptedParts { project: self.project, contexts: self.contexts, home: self.home, provider: self.provider, host: self.host, owner: self.owner, name: self.name, prefix: self.prefix, role: self.role, ci: self.ci, checks: self.checks, kinds: self.kinds, protection: self.protection, settings: self.settings, workflows: self.workflows } }
+    pub fn into_parts(self) -> AdoptedParts { AdoptedParts { project: self.project, contexts: self.contexts, home: self.home, provider: self.provider, host: self.host, owner: self.owner, name: self.name, prefix: self.prefix, role: self.role, ci: self.ci, checks: self.checks, kinds: self.kinds, protection: self.protection, settings: self.settings, workflows: self.workflows, landing: self.landing } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         if self.contexts.capacity() > limits.adopted_contexts.min(CEILINGS.adopted_contexts) { return Err(Problem { path: Path::AdoptedContexts, reason: skein_codec::Reason::Bound }); }
@@ -8808,6 +8827,7 @@ impl Adopted {
         for item_0 in self.workflows.as_slice() {
         if item_0.len() > usize::try_from(limits.adopted_workflows_item.min(CEILINGS.adopted_workflows_item)).expect("u32 fits usize") { return Err(Problem { path: Path::AdoptedWorkflows, reason: skein_codec::Reason::Bound }); }
         }
+        if self.landing.len() > usize::try_from(limits.adopted_landing.min(CEILINGS.adopted_landing)).expect("u32 fits usize") { return Err(Problem { path: Path::AdoptedLanding, reason: skein_codec::Reason::Bound }); }
         Ok(())
     }
 }
@@ -8851,6 +8871,9 @@ impl Adopted {
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(u32::try_from(item_0.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
         }
+        let field_landing = &self.landing;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_landing.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
         size
     }
 
@@ -8900,6 +8923,9 @@ impl Adopted {
         writer.put(&u32::try_from(item_0.len()).expect("field ceiling fits u32").to_be_bytes())?;
         writer.put(item_0.as_ref())?;
         }
+        let field_landing = &self.landing;
+        writer.put(&u32::try_from(field_landing.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_landing.as_ref())?;
         Ok(())
     }
 
@@ -8926,7 +8952,8 @@ impl Adopted {
         let decoded_protection = RepositoryProtection::decode_from(limits, reader)?;
         let decoded_settings = Settings::decode_from(limits, reader)?;
         let decoded_workflows = { let count = match skein_codec::read_count(reader, limits.adopted_workflows.min(CEILINGS.adopted_workflows)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::AdoptedWorkflows, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::AdoptedWorkflows, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = { let length = match skein_codec::read_len(reader, limits.adopted_workflows_item.min(CEILINGS.adopted_workflows_item)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::AdoptedWorkflows, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::AdoptedWorkflows, reason: skein_codec::Reason::Short })?) }; items_0.push(item).expect("count within capacity"); } items_0 };
-        Ok(Self { project: decoded_project, contexts: decoded_contexts, home: decoded_home, provider: decoded_provider, host: decoded_host, owner: decoded_owner, name: decoded_name, prefix: decoded_prefix, role: decoded_role, ci: decoded_ci, checks: decoded_checks, kinds: decoded_kinds, protection: decoded_protection, settings: decoded_settings, workflows: decoded_workflows })
+        let decoded_landing = { let length = match skein_codec::read_len(reader, limits.adopted_landing.min(CEILINGS.adopted_landing)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::AdoptedLanding, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::AdoptedLanding, reason: skein_codec::Reason::Short })?) };
+        Ok(Self { project: decoded_project, contexts: decoded_contexts, home: decoded_home, provider: decoded_provider, host: decoded_host, owner: decoded_owner, name: decoded_name, prefix: decoded_prefix, role: decoded_role, ci: decoded_ci, checks: decoded_checks, kinds: decoded_kinds, protection: decoded_protection, settings: decoded_settings, workflows: decoded_workflows, landing: decoded_landing })
     }
 }
 
@@ -8947,7 +8974,7 @@ impl Adopted {
         size = size.checked_add(Role::encoded_bound_within(limits)?)?.checked_add(1_u64)?;
         size = size.checked_add(4_u64.checked_add(u64::from(limits.adopted_checks).checked_mul(4_u64)?)?)?.checked_add(Kinds::encoded_bound_within(limits)?)?;
         size = size.checked_add(RepositoryProtection::encoded_bound_within(limits)?)?.checked_add(Settings::encoded_bound_within(limits)?)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.adopted_workflows).checked_mul(4_u64.checked_add(u64::from(limits.adopted_workflows_item))?)?)?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.adopted_workflows).checked_mul(4_u64.checked_add(u64::from(limits.adopted_workflows_item))?)?)?)?.checked_add(4_u64.checked_add(u64::from(limits.adopted_landing))?)?;
         size.checked_add(0)
     }
 
@@ -8967,7 +8994,7 @@ impl Adopted {
         heap = heap.checked_add(Role::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
         heap = heap.checked_add(List::<u32>::price(limits.adopted_checks)?.checked_add(u64::from(limits.adopted_checks).checked_mul(0_u64)?)?)?.checked_add(Kinds::decoded_bound_within(limits)?)?;
         heap = heap.checked_add(RepositoryProtection::decoded_bound_within(limits)?)?.checked_add(Settings::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(List::<Box<[u8]>>::price(limits.adopted_workflows)?.checked_add(u64::from(limits.adopted_workflows).checked_mul(u64::from(limits.adopted_workflows_item))?)?)?;
+        heap = heap.checked_add(List::<Box<[u8]>>::price(limits.adopted_workflows)?.checked_add(u64::from(limits.adopted_workflows).checked_mul(u64::from(limits.adopted_workflows_item))?)?)?.checked_add(u64::from(limits.adopted_landing))?;
         heap.checked_add(0)
     }
 }
@@ -8991,6 +9018,7 @@ fn check_adopted_record_limits(limits: &Limits) -> Result<(), Problem> {
     if limits.adopted_checks > CEILINGS.adopted_checks { return Err(Problem { path: Path::AdoptedChecks, reason: skein_codec::Reason::Bound }); }
     if limits.adopted_workflows > CEILINGS.adopted_workflows { return Err(Problem { path: Path::AdoptedWorkflows, reason: skein_codec::Reason::Bound }); }
     if limits.adopted_workflows_item > CEILINGS.adopted_workflows_item { return Err(Problem { path: Path::AdoptedWorkflows, reason: skein_codec::Reason::Bound }); }
+    if limits.adopted_landing > CEILINGS.adopted_landing { return Err(Problem { path: Path::AdoptedLanding, reason: skein_codec::Reason::Bound }); }
     check_retargeted_record_limits(limits)
 }
 
@@ -9004,6 +9032,7 @@ impl Limits {
         values.push(self.adopted_checks).expect("room for every named limit");
         values.push(self.adopted_workflows).expect("room for every named limit");
         values.push(self.adopted_workflows_item).expect("room for every named limit");
+        values.push(self.adopted_landing).expect("room for every named limit");
         self.values_for_retargeted_record(values);
     }
 }
@@ -33869,6 +33898,8 @@ pub struct ApplicationAdoptedParts {
     pub kinds: Kinds,
     /// The `protection` field.
     pub protection: RepositoryProtection,
+    /// The `landing` field.
+    pub landing: Box<[u8]>,
 }
 
 /// `ApplicationAdopted` in this codec family.
@@ -33881,13 +33912,14 @@ pub struct ApplicationAdopted {
     home: bool,
     kinds: Kinds,
     protection: RepositoryProtection,
+    landing: Box<[u8]>,
 }
 
 impl ApplicationAdopted {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: ApplicationAdoptedParts) -> Result<Self, Problem> {
-        let ApplicationAdoptedParts { repository, owner, name, role, home, kinds, protection } = parts;
-        let value = Self { repository, owner, name, role, home, kinds, protection };
+        let ApplicationAdoptedParts { repository, owner, name, role, home, kinds, protection, landing } = parts;
+        let value = Self { repository, owner, name, role, home, kinds, protection, landing };
         value.check(limits)?;
         Ok(value)
     }
@@ -33920,14 +33952,19 @@ impl ApplicationAdopted {
     #[must_use]
     pub fn protection(&self) -> &RepositoryProtection { &self.protection }
 
+    /// Reads the `landing` field.
+    #[must_use]
+    pub fn landing(&self) -> &[u8] { &self.landing }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> ApplicationAdoptedParts { ApplicationAdoptedParts { repository: self.repository, owner: self.owner, name: self.name, role: self.role, home: self.home, kinds: self.kinds, protection: self.protection } }
+    pub fn into_parts(self) -> ApplicationAdoptedParts { ApplicationAdoptedParts { repository: self.repository, owner: self.owner, name: self.name, role: self.role, home: self.home, kinds: self.kinds, protection: self.protection, landing: self.landing } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         if self.owner.len() > usize::try_from(limits.application_adopted_owner.min(CEILINGS.application_adopted_owner)).expect("u32 fits usize") { return Err(Problem { path: Path::ApplicationAdoptedOwner, reason: skein_codec::Reason::Bound }); }
         if self.name.len() > usize::try_from(limits.application_adopted_name.min(CEILINGS.application_adopted_name)).expect("u32 fits usize") { return Err(Problem { path: Path::ApplicationAdoptedName, reason: skein_codec::Reason::Bound }); }
         self.protection.check(limits)?;
+        if self.landing.len() > usize::try_from(limits.application_adopted_landing.min(CEILINGS.application_adopted_landing)).expect("u32 fits usize") { return Err(Problem { path: Path::ApplicationAdoptedLanding, reason: skein_codec::Reason::Bound }); }
         Ok(())
     }
 }
@@ -33949,6 +33986,9 @@ impl ApplicationAdopted {
         size = size.checked_add(9).expect("schema ceilings fit u32");
         let field_protection = &self.protection;
         size = size.checked_add(field_protection.measure()).expect("schema ceilings fit u32");
+        let field_landing = &self.landing;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_landing.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
         size
     }
 
@@ -33970,6 +34010,9 @@ impl ApplicationAdopted {
         field_kinds.encode(writer)?;
         let field_protection = &self.protection;
         field_protection.encode(writer)?;
+        let field_landing = &self.landing;
+        writer.put(&u32::try_from(field_landing.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_landing.as_ref())?;
         Ok(())
     }
 
@@ -33988,7 +34031,8 @@ impl ApplicationAdopted {
         let decoded_home = match reader.u8().ok_or(Problem { path: Path::ApplicationAdoptedHome, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::ApplicationAdoptedHome, reason: skein_codec::Reason::Bool }) };
         let decoded_kinds = Kinds::decode_from(limits, reader)?;
         let decoded_protection = RepositoryProtection::decode_from(limits, reader)?;
-        Ok(Self { repository: decoded_repository, owner: decoded_owner, name: decoded_name, role: decoded_role, home: decoded_home, kinds: decoded_kinds, protection: decoded_protection })
+        let decoded_landing = { let length = match skein_codec::read_len(reader, limits.application_adopted_landing.min(CEILINGS.application_adopted_landing)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ApplicationAdoptedLanding, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ApplicationAdoptedLanding, reason: skein_codec::Reason::Short })?) };
+        Ok(Self { repository: decoded_repository, owner: decoded_owner, name: decoded_name, role: decoded_role, home: decoded_home, kinds: decoded_kinds, protection: decoded_protection, landing: decoded_landing })
     }
 }
 
@@ -34005,7 +34049,7 @@ impl ApplicationAdopted {
         size = size.checked_add(Repository::encoded_bound_within(limits)?)?.checked_add(4_u64.checked_add(u64::from(limits.application_adopted_owner))?)?;
         size = size.checked_add(4_u64.checked_add(u64::from(limits.application_adopted_name))?)?.checked_add(Role::encoded_bound_within(limits)?)?;
         size = size.checked_add(1_u64)?.checked_add(Kinds::encoded_bound_within(limits)?)?;
-        size = size.checked_add(RepositoryProtection::encoded_bound_within(limits)?)?;
+        size = size.checked_add(RepositoryProtection::encoded_bound_within(limits)?)?.checked_add(4_u64.checked_add(u64::from(limits.application_adopted_landing))?)?;
         size.checked_add(0)
     }
 
@@ -34021,7 +34065,7 @@ impl ApplicationAdopted {
         heap = heap.checked_add(Repository::decoded_bound_within(limits)?)?.checked_add(u64::from(limits.application_adopted_owner))?;
         heap = heap.checked_add(u64::from(limits.application_adopted_name))?.checked_add(Role::decoded_bound_within(limits)?)?;
         heap = heap.checked_add(0_u64)?.checked_add(Kinds::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(RepositoryProtection::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(RepositoryProtection::decoded_bound_within(limits)?)?.checked_add(u64::from(limits.application_adopted_landing))?;
         heap.checked_add(0)
     }
 }
@@ -34039,6 +34083,7 @@ fn application_adopted_decoded_bound_family(limits: &Limits, biggest: u64) -> Op
 fn check_application_adopted_record_limits(limits: &Limits) -> Result<(), Problem> {
     if limits.application_adopted_owner > CEILINGS.application_adopted_owner { return Err(Problem { path: Path::ApplicationAdoptedOwner, reason: skein_codec::Reason::Bound }); }
     if limits.application_adopted_name > CEILINGS.application_adopted_name { return Err(Problem { path: Path::ApplicationAdoptedName, reason: skein_codec::Reason::Bound }); }
+    if limits.application_adopted_landing > CEILINGS.application_adopted_landing { return Err(Problem { path: Path::ApplicationAdoptedLanding, reason: skein_codec::Reason::Bound }); }
     check_core_refused_record_limits(limits)
 }
 
@@ -34046,6 +34091,7 @@ impl Limits {
     fn values_for_application_adopted_record(&self, values: &mut List<u32>) {
         values.push(self.application_adopted_owner).expect("room for every named limit");
         values.push(self.application_adopted_name).expect("room for every named limit");
+        values.push(self.application_adopted_landing).expect("room for every named limit");
         self.values_for_core_refused_record(values);
     }
 }

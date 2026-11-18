@@ -112,12 +112,6 @@ cpu_s = 0.11
 why = "Same-work backlog (the user, 11-18): its CPU alone swings 1.5 times on the same code (main's figures 0.044, 0.049, 0.067 s), so a gate can flag it on noise. The line is half again its largest figure; the repair that makes its work the same at every run drops it (skein/docs/foundation/testing-strategy.md, 10)."
 
 [[gate.default.reasons]]
-binary = "jig-protocol-config"
-test = "tests::provider::provider_files_are_private_and_rsa_key_policy_is_checked"
-cpu_s = 0.93
-why = "Same-work backlog (the user, 11-18): its CPU alone swings 1.3 times on the same code (main's figures 0.375, 0.291 s), so a gate can flag it on noise. The line is half again its largest figure; the repair that makes its work the same at every run drops it (skein/docs/foundation/testing-strategy.md, 10)."
-
-[[gate.default.reasons]]
 binary = "temper-box-shell"
 test = "fake::check::tests::observations"
 cpu_s = 0.16

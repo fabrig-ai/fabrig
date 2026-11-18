@@ -98,6 +98,7 @@ pub fn answer(record: &jig_client::Family, limits: &w::Limits, link: &link::Limi
                 repository: a.repository,
                 owner: a.owner,
                 name: a.name,
+                landing: a.landing,
                 role: role_from(&a.role),
                 home: a.home,
                 kinds: forge::Kinds {

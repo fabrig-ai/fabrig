@@ -107,6 +107,7 @@ pub fn adopted() -> v1::Adopted {
     v1::Adopted::new(
         &limits,
         v1::AdoptedParts {
+            landing: b"main".as_slice().into(),
             forge: crate::FORGE,
             repository: 7,
             owner: Box::from(&b"acme"[..]),

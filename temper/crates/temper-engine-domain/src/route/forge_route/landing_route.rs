@@ -1,4 +1,5 @@
 //! Deployment-funded landing tasks and their authorized steps (domain/landing.md, 4.2, 11).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
 use super::{
     Box, Domain, EffectDescription, EffectForm, Env, Family, LANDING_CODE, Limits, List, ProcedureStep, Recovery,
     StepEnd, Work, append, authority, effect_access, forge, forge_change, landing, resource_name, tasks,
@@ -106,7 +107,7 @@ fn member(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<landing::Memb
     let project = domain.forge.repository(row.repository)?.project;
     let mut gates = List::with_capacity(env.limits.forge.gates);
     if let Some(repository) = domain.forge.repository_gates(project, row.repository)
-        && domain.forge.repository(row.repository)?.settings.default_branch == row.base
+        && domain.forge.repository(row.repository)?.landing == row.base
     {
         for _ in &repository.gates {
             gates
@@ -664,7 +665,7 @@ fn prepare_request(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<supe
         }
     }
     let base = base?;
-    let main = row.landing.branch == repository.settings.default_branch;
+    let main = row.landing.branch == repository.landing;
     let mut from = base;
     let mut members = List::with_capacity(env.limits.forge.landing_members);
     for (index, member) in row.landing.members.iter().enumerate() {

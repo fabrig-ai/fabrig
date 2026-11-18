@@ -811,7 +811,7 @@ whole.
 
 ## 11. Open questions
 
-- A workflow that runs on no pull request: `adoption.md`, section 8.
+- A workflow that runs on no pull request: `adoption.md`, section 9.
 
 - A closer's stops on a goal's path: `change/branch-path.md`, section 1.
 
@@ -849,7 +849,7 @@ whole.
   past a settled update would spare it, for a time nothing bounds.
   Default: it holds, and is measured after landing.
 - What lands on a goal's branch and then on main: `attention.md`, section 7.
-- What a refused copy leaves: `adoption.md`, section 8.
+- What a refused copy leaves: `adoption.md`, section 9.
 - A queue's throughput: `queues.md`, section 2.
 - **Conflicts found before either side lands:** temper sees every open
   change, and could try them against each other and warn both goals.
@@ -884,15 +884,15 @@ whole.
   merge is conditional on its head alone (section 4).
 - **Intake:** issues others open as a source of goals.
 - A resource refused as forbidden: `keeping-up.md`, section 6.
-- A merge style per repository,: `adoption.md`, section 8.
-- A change whose forge is not connected,: `adoption.md`, section 8.
-- `Forbidden` and `Missing` taken as access lacking: `adoption.md`, section 8.
+- A merge style per repository,: `adoption.md`, section 9.
+- A change whose forge is not connected,: `adoption.md`, section 9.
+- `Forbidden` and `Missing` taken as access lacking: `adoption.md`, section 9.
 - Several changes in a forge's merge queue: `queues.md`, section 2.
 - The update before entering a forge's merge queue: `queues.md`, section 2.
 - What failed on a queue's group: `change/repairs.md`, section 1.
 - Taking a change out of a forge's merge queue: `queues.md`, section 2.
-- Signed commits required: `adoption.md`, section 8.
-- Connecting a forge as another user: `adoption.md`, section 8.
+- Signed commits required: `adoption.md`, section 9.
+- Connecting a forge as another user: `adoption.md`, section 9.
 - Which checks are CI on GitHub, without required checks: `keeping-up.md`, section 6.
 - What ends the Away switch: `attention.md`, section 7.
 - The classes per person: `attention.md`, section 7.

@@ -631,6 +631,7 @@ fn repository() -> temper_engine_domain_forge::Repository {
     use temper_engine_domain_forge as forge;
     forge::Repository {
         contexts: Box::new([]),
+        landing: b"main".as_slice().into(),
         workflows: Box::default(),
         project: 1,
         home: false,

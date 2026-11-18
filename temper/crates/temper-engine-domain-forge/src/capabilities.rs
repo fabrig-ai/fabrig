@@ -66,7 +66,8 @@ pub(crate) fn answered(
         }
         Stage::Settings => {
             let Ok(api::Answer::Settings(settings)) = result else { return };
-            let branch = settings.default_branch.clone();
+            let Some(row) = d.repositories.get(&repository) else { return };
+            let branch = row.landing.clone();
             pending.settings = Some(settings);
             pending.stage = Stage::Protection;
             api::Read::Protection { branch }

@@ -7,6 +7,7 @@ use temper_engine_domain_forge_issues as issues;
 fn adopted(repository: skein_forge::api::Repository) -> forge::Repository {
     forge::Repository {
         contexts: Box::new([]),
+        landing: b"main".as_slice().into(),
         workflows: Box::default(),
         project: 1,
         home: true,
