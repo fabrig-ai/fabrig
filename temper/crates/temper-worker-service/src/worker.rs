@@ -1579,7 +1579,7 @@ mod prepared_tests {
                     assert_eq!((lowest, highest), (16, 16));
                     opening = Some(
                         jig_protocol_worker_wire::Credential::decode(
-                            &jig_protocol_worker_wire::v16::CEILINGS,
+                            &jig_protocol_worker_wire::v17::CEILINGS,
                             &mut Reader::new(&credential),
                         )
                         .expect("worker credential"),

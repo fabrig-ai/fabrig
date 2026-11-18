@@ -128,6 +128,7 @@ impl Finish {
                 let model = match translated {
                     host::RunFailure::Model => model_failure(failure, models),
                     host::RunFailure::Exceeded(_)
+                    | host::RunFailure::Untooled
                     | host::RunFailure::Transcript
                     | host::RunFailure::Budget
                     | host::RunFailure::Policy
