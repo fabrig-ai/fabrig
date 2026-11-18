@@ -26,8 +26,8 @@ fn both_jig_profiles_have_usable_store_edges() {
     // eight templates with 24-byte later choices in both Template and New.
     // Model cache lifetimes occupy eight aligned bytes in every model carrier.
     for (label, name, value, commit, ops) in [
-        ("small", crate::limits::small(&jig_protocol_config_fixtures::small()), 2_414_052, 398_743_386, 62_408),
-        ("standard", crate::limits::stock(&jig_protocol_config::stock()), 100_881_496, 2_023_831_962, 455_024),
+        ("small", crate::limits::small(&jig_protocol_config_fixtures::small()), 2_414_052, 398_741_298, 62_407),
+        ("standard", crate::limits::stock(&jig_protocol_config::stock()), 100_881_496, 2_023_829_874, 455_023),
     ] {
         let limits = name;
         let sizes = jig_protocol_store::sizes::check_commits(

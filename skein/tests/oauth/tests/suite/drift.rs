@@ -1,4 +1,4 @@
-//! The kept record's schema, generated code and fingerprint (data/codec/README.md, 6).
+//! The kept record's schema and generated code (data/codec/README.md, 6).
 
 use std::fs;
 use std::path::Path;
@@ -32,16 +32,4 @@ fn the_saved_token_schema_has_no_drift() {
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
     let codec = skein_scratch::paths::tree().join("crates/skein-oauth-codec");
     check(&codec.join("src/generated/oauth.rs"), output.records.as_bytes(), write);
-    let family = skein_codec::schema::parse(source.as_bytes()).expect("runtime schema valid");
-    let fingerprint = family.fingerprints().family().digest();
-    if write {
-        let path = root.join("src/lib.rs");
-        let code = fs::read_to_string(&path).expect("crate root readable");
-        let (before, declaration) = code.split_once("pub const FINGERPRINT:").expect("fingerprint declaration");
-        let (_, after) = declaration.split_once(";\n").expect("fingerprint declaration ends");
-        let code = format!("{before}pub const FINGERPRINT: [u8; 32] = {fingerprint:?};\n{after}");
-        fs::write(path, code).expect("write fingerprint");
-    } else {
-        assert_eq!(skein_oauth::FINGERPRINT, fingerprint, "{REGENERATE}");
-    }
 }

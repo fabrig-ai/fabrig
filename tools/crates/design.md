@@ -321,7 +321,7 @@ section 4). The other eight are G3's, one codec crate each, its owner's `-codec`
   and `skein-codec` alone. It is step code on the `step` lint profile, as G2's are, and builds
   wherever its owner builds, `wasm32-unknown-unknown` among them for a client's.
 - **The owner keeps the rest** (skein's `data/codec/README.md`, section 2): its schemas, kept
-  texts and patches, its glue (`smith-local-protocol`'s `src/generated/layouts.rs`), its drift
+  texts and patches, its glue, its drift
   test and its translation. It depends on its codec crate and names the module
   where it named it before: a public one is re-exported at the same path (`skein_oauth::v3`), so
   callers keep their paths.

@@ -88,10 +88,6 @@ fn inventory_reads_component_installation_domain_and_application_without_secrets
             writer.finish()
         }),
         (
-            keys::encode_own(&keys::Own::Layouts, root::limits().store.key).expect("layout key"),
-            jig_protocol_store::format::layouts().encode(),
-        ),
-        (
             keys::installation(root::limits().store.key).expect("installation key"),
             codec::accounts::Installation { id: world.installation }.encode(),
         ),

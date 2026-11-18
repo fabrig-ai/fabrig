@@ -82,7 +82,6 @@ pub fn golden_ranges(directory: &Path) {
     let maps = maps::Maps::read(&mut disk);
     let reserved = [
         (keys::encode_own(&keys::Own::Format, 64).expect("format key"), "format"),
-        (keys::encode_own(&keys::Own::Layouts, 64).expect("layouts key"), "layouts"),
         (keys::encode_own(&keys::Own::Wires, 64).expect("wires key"), "wires"),
         (keys::encode_own(&keys::Own::Floor, 64).expect("floor key"), "floor"),
         (keys::installation(64).expect("installation key"), "installation"),
@@ -114,7 +113,9 @@ pub fn golden_ranges(directory: &Path) {
                 .then(|| reserved.iter().find(|(reserved, _)| reserved.as_ref() == key.as_slice()))
                 .flatten();
             let component = (map == KeptMap::Store).then(|| keys::decode_own(key)).flatten();
-            if map == KeptMap::Store && key.starts_with(&[0, 9]) {
+            if map == KeptMap::Store && key.as_slice() == [0, 3] {
+                assert!(families.is_empty(), "reserved unread key {key:02x?} in {families:?}");
+            } else if map == KeptMap::Store && key.starts_with(&[0, 9]) {
                 assert!(families.is_empty(), "reserved log extent {key:02x?} in {families:?}");
                 assert_eq!(key.len(), 10, "extent's log number");
                 let _: [u8; 8] = value.as_slice().try_into().expect("extent's length");
@@ -135,9 +136,6 @@ pub fn golden_ranges(directory: &Path) {
                 match *name {
                     "format" => {
                         codec::component::Format::decode(value).expect("format at its own key");
-                    }
-                    "layouts" => {
-                        codec::component::Layouts::decode(value).expect("layouts at their own key");
                     }
                     "floor" => {
                         let floor = jig_protocol_store::component_v3::Floor::decode(

@@ -22,7 +22,6 @@ pub const KEYSPACES: &[(&[u8], &str)] = &[
     (&[0, 0], "component.format"),
     (&[0, 1], "component.transcripts"),
     (&[0, 2], "component.attempts"),
-    (&[0, 3], "component.layouts"),
     (&[0, 4], "component.wires"),
     (&[0, 5], "component.openings"),
     (&[0, 6], "component.registry-layouts"),

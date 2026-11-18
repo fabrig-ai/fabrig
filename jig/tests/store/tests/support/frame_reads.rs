@@ -43,7 +43,6 @@ pub(crate) fn closed(sets: OwnerSets, limits: &store::Limits) -> (store::Store, 
     let ops = Box::new([
         skein_kv::Op::Put { key: own(keys::Own::Format), value: fmt.encode().expect("format") },
         skein_kv::Op::Put { key: own(keys::Own::Floor), value: floor() },
-        skein_kv::Op::Put { key: own(keys::Own::Layouts), value: format::layouts().encode() },
         skein_kv::Op::Put {
             key: keys::encode(&root::header(1).key(), limits.store.key).expect("header key"),
             value: codec::encode(&root::header(1), &codec, &[]).expect("header"),

@@ -6,7 +6,6 @@ pub enum Own {
     Format,
     Transcript { task: u64 },
     Attempt { task: u64, attempt: u64 },
-    Layouts,
     Wires,
     Opening(Box<str>),
     Job { owner: crate::Owner, name: Box<str> },
@@ -65,9 +64,6 @@ pub(super) fn write(writer: &mut KeyWriter, key: &Own) {
         Own::Wires => {
             writer.tag(4);
         }
-        Own::Layouts => {
-            writer.tag(3);
-        }
         Own::Floor => {
             writer.tag(13);
         }
@@ -93,7 +89,7 @@ pub(super) fn read(reader: &mut KeyReader<'_>) -> Option<Own> {
         12 => Own::LogAttempt { task: reader.u64()?, attempt: reader.u64()? },
         0 => Own::Format,
         13 => Own::Floor,
-        3 => Own::Layouts,
+        // Tag 3 is reserved for an older build's unread layouts row.
         4 => Own::Wires,
         5 => Own::Opening(Box::from(core::str::from_utf8(&reader.bytes()?).ok()?)),
         6 => Own::Layout {

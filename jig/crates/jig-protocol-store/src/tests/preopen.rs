@@ -19,11 +19,7 @@ fn cold() -> Store {
 fn installation(bytes: Option<Box<[u8]>>) -> Store {
     let mut stores = fixtures::stores();
     let mut rows = List::with_capacity(4);
-    for row in [
-        fixtures::format_put(fixtures::DEPLOYMENT),
-        fixtures::layouts_put(),
-        fixtures::header_put(fixtures::DEPLOYMENT, 1),
-    ] {
+    for row in [fixtures::format_put(fixtures::DEPLOYMENT), fixtures::header_put(fixtures::DEPLOYMENT, 1)] {
         rows.push(row).expect("component rows");
     }
     if let Some(value) = bytes {
@@ -84,11 +80,7 @@ fn ordinary_refusals_and_coarse_failures_remain_truthful_and_sticky() {
     let mut stores = fixtures::stores();
     fixtures::plant(
         &mut stores,
-        &[
-            fixtures::format_put(fixtures::DEPLOYMENT),
-            fixtures::layouts_put(),
-            fixtures::header_put(fixtures::DEPLOYMENT, 2),
-        ],
+        &[fixtures::format_put(fixtures::DEPLOYMENT), fixtures::header_put(fixtures::DEPLOYMENT, 2)],
     );
     let mut store = fixtures::over(stores);
     let events = fixtures::run(

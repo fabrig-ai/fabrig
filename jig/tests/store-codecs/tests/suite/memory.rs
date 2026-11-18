@@ -52,14 +52,6 @@ fn a_full_people_row_decodes_within_its_decoded_bound() {
 fn each_full_component_row_decodes_within_its_decoded_bound() {
     check(
         values::COMPONENT,
-        "layouts",
-        component_v3::Layouts::decoded_bound(&component_v3::CEILINGS).expect("layouts bound"),
-        |golden| {
-            component_v3::Layouts::decode(&component_v3::CEILINGS, &mut Reader::new(golden)).expect("full layouts")
-        },
-    );
-    check(
-        values::COMPONENT,
         "format",
         component_v3::Format::decoded_bound(&component_v3::CEILINGS).expect("format bound"),
         |golden| component_v3::Format::decode(&component_v3::CEILINGS, &mut Reader::new(golden)).expect("full format"),
