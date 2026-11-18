@@ -2,6 +2,41 @@ use super::super::*;
 use super::fixtures as f;
 use jig_domain_core_vocabulary::reads;
 #[test]
+fn pending_amendments_answer_their_value_over_the_exchange() {
+    use jig_domain_core_vocabulary::documents as d;
+    let limits = f::wire_limits();
+    for proposer in [d::Proposer::Party(11), d::Proposer::Task(17)] {
+        let mut proposal = f::pending_amendment();
+        proposal.proposer = proposer;
+        let key = w::ProposalKey::new(
+            &limits,
+            w::ProposalKeyParts {
+                proposer: match proposer {
+                    d::Proposer::Party(value) => {
+                        w::Proposer::Party(w::ProposerParty::new(&limits, w::ProposerPartyParts { value }).unwrap())
+                    }
+                    d::Proposer::Task(value) => {
+                        w::Proposer::Task(w::ProposerTask::new(&limits, w::ProposerTaskParts { value }).unwrap())
+                    }
+                },
+                number: 13,
+            },
+        )
+        .unwrap();
+        let read = w::Read::Proposal(w::ReadProposal::new(&limits, w::ReadProposalParts { proposal: key }).unwrap());
+        let mut exchange = f::read_exchange();
+        let (owner, reply, requested) = exchange.read(&read);
+        assert_eq!(requested, reads::Read::Proposal { proposer, proposal: 13 });
+        exchange
+            .release_read(reply, reads::Answer::Document(Box::new(d::Document::Proposal(Box::new(proposal.clone())))));
+        let answer = exchange.read_answer(owner);
+        let w::ReadAnswer::Value(_) = &answer else { panic!("amendment read must carry its value, got {answer:?}") };
+        let expected = w::ReadValue::Proposal(crate::translate::objects::proposal(&[], &proposal, &limits).unwrap());
+        assert_eq!(answer, f::value_answer(&expected));
+    }
+}
+
+#[test]
 fn a_read_is_answered_only_once_held_is_released() {
     let cases = f::held_reads();
     for (label, value, expected_read, answer, expected_answer) in cases {
