@@ -1,7 +1,0 @@
-name: check
-on: [push, pull_request]
-jobs:
-  check:
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo 'The fake judges the configured CI cue; this workflow is not run.'

@@ -66,6 +66,8 @@ mod terminal;
 #[cfg(all(test, unix))]
 mod tests;
 
+pub use skein_lib::FixedStart;
+
 #[cfg(unix)]
 pub use clock::{Clock, Now};
 #[cfg(all(unix, target_os = "macos"))]

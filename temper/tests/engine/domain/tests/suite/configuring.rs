@@ -24,6 +24,7 @@ const ADOPTED_PERSON: u64 = 7;
 
 fn sign_in_person(world: &mut World, user: u64, login: &[u8], key: u8) {
     world.driver.send(Event::Party(PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(u64::from(key))),
         identity: people::Identity {
@@ -990,11 +991,11 @@ fn a_members_proposal_waits_for_an_owner() {
     world.driver.send(Event::Party(PartyInput::Read {
         reply_to: ReplyTo::new(Token::new(91)),
         sign_in: world.owner,
-        read: core::reads::Read::Inbox {
+        read: Box::new(core::reads::Read::Inbox {
             group: core::reads::Group::Proposals,
             filter: core::reads::Filter { project: None, goal: None },
             from: None,
-        },
+        }),
     }));
     world.driver.settle();
     let inbox = world
@@ -1629,12 +1630,12 @@ fn configuring_documents(world: &mut World, run: &engine::Assignment) {
     use serde_json::json;
     let paths = ["docs/direction.md", "docs/conventions.md"];
     let contents = ["rules\n".repeat(5334), "words\n".repeat(2167)];
-    let (branch, error) = host_tool(&mut world.driver, run, 30, b"read_branch", br#"{"branch":"main"}"#);
+    let (branch, error) = host_tool(&mut world.driver, run, 30, b"read_forge", br#"{"what":"branch","branch":"main"}"#);
     assert!(!error, "{}", String::from_utf8_lossy(&branch));
     let head = std::str::from_utf8(&branch).expect("head").trim();
     for (index, path) in paths.iter().enumerate() {
         for (offset, max_bytes) in [(0, None), (1, Some(64))] {
-            let mut input = json!({"head":head,"path":path});
+            let mut input = json!({"what":"file","commit":head,"path":path});
             if let Some(max_bytes) = max_bytes {
                 input["max_bytes"] = json!(max_bytes);
             }
@@ -1642,17 +1643,18 @@ fn configuring_documents(world: &mut World, run: &engine::Assignment) {
                 &mut world.driver,
                 run,
                 31 + u32::try_from(index).expect("document index") * 2 + offset,
-                b"read_file",
+                b"read_forge",
                 input.to_string().as_bytes(),
             );
             assert!(!error, "{}", String::from_utf8_lossy(&body));
-            assert!(body.len() <= 2048 - b"read_file".len());
+            assert!(body.len() <= 2048 - b"read_forge".len());
             let text = std::str::from_utf8(&body).expect("file answer");
             assert!(text.contains(path));
             assert!(text.ends_with("[file truncated]"));
             let (_, prefix) = text.split_once(":\n").expect("file metadata");
             let prefix = prefix.strip_suffix("\n[file truncated]").expect("visible cut");
-            let prefix = prefix.split_once("\nread_file rendered size ").map_or(prefix, |(content, _)| content);
+            let prefix =
+                prefix.split_once("\nread_forge what=file rendered size ").map_or(prefix, |(content, _)| content);
             assert!(contents[index].starts_with(prefix) && !prefix.is_empty());
             if max_bytes.is_some() {
                 assert_eq!(prefix.len(), 64);
@@ -1980,7 +1982,7 @@ fn a_chats_fresh_proposal_replaces_its_own_that_waits() {
     world.driver.send(Event::Party(PartyInput::Read {
         reply_to: ReplyTo::new(Token::new(90)),
         sign_in: world.owner,
-        read: core::reads::Read::Proposal { proposer: people::Proposer::Task(run.task), proposal: first },
+        read: Box::new(core::reads::Read::Proposal { proposer: people::Proposer::Task(run.task), proposal: first }),
     }));
     world.driver.settle();
     assert!(
@@ -2130,15 +2132,6 @@ fn a_member_reads_and_proposes_a_whole_model_inline_or_from_a_note() {
         let mut world = World::with_limits(configuration, &bounds);
         let member = world.member();
         let run = world.chat(if from_note { SETTINGS_TEMPLATE } else { ASK_TEMPLATE }, member, 20);
-        let charter = temper_engine_smith::charter(&run);
-        let tool = charter.grants.host_tools.iter().find(|tool| tool.name.as_ref() == b"propose_settings").unwrap();
-        let schema: serde_json::Value = serde_json::from_slice(&tool.schema).unwrap();
-        assert!(
-            schema["properties"]["items"]["items"]["properties"]["setting"]["properties"]["kind"]["enum"]
-                .as_array()
-                .unwrap()
-                .contains(&json!("model"))
-        );
         let selector = json!({"kind":"model","number":4});
         let (text, _) = model_read(&mut world, &run, 1, None);
         assert!(text.starts_with("model 4, revision 1\n"), "{text}");
@@ -2752,4 +2745,30 @@ fn a_dependency_on_itself_or_a_missing_project_refuses_the_whole_proposal() {
         assert_eq!(world.head().number, 1);
         assert!(world.driver.store.rows.values().all(|record| !matches!(record, engine::Record::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::Setting(row) if row.key.kind == 13 && row.key.slot == temper_engine_domain_forge::settings::SettingSlot::Change))), "no part of a refused proposal becomes current");
     }
+}
+
+#[test]
+fn agents_setting_is_owned_accepted_read_and_restored() {
+    use serde_json::json;
+    let mut world = World::stock();
+    let run = world.chat(ASK_TEMPLATE, world.owner, 20);
+    let (stock, _) = see_whole(&mut world.driver, &run, 1, "settings agents");
+    assert!(stock.contains("the stock"), "{stock}");
+    assert!(stock.contains("2147483648"), "{stock}");
+    let limits = json!({"window":1_048_576,"output":8192,"reasoning_item":65_536,"head_ms":60_000,"idle_ms":300_000,"oversized":"fail"});
+    let value = json!({"profile":{"policy.max_turns":900},"endpoints":{"openai":limits},"fallback":limits});
+    let items = json!([{"setting":{"kind":"agents"},"set":value}]);
+    let proposal = propose(&mut world.driver, &run, 2, 1, &items);
+    world.decide(&run, proposal, 21, people::ProposalDecision::Accept, people::Running::Stays);
+    assert_eq!(world.head().number, 2);
+    let (text, _) = see_whole(&mut world.driver, &run, 3, "settings agents");
+    assert_eq!(serde_json::from_str::<serde_json::Value>(text.lines().nth(1).expect("agents JSON")).unwrap(), value);
+    let next = world.next(&run);
+    assert_heard(&next, b"accepted: revision 2 made");
+    restart_stock_world(&mut world, &next);
+    let (text, _) = see_whole(&mut world.driver, &next, 10, "settings agents");
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(text.lines().nth(1).expect("restored agents JSON")).unwrap(),
+        value
+    );
 }

@@ -1,6 +1,6 @@
 {
   "limits": {
-    "profile": "small"
+    "profile": "standard"
   },
   "llm": {
     "providers": [
@@ -46,16 +46,6 @@
     ]
   },
   "hosts": {
-    "workers": [
-      {
-        "name": "worker-a",
-        "digest": "secrets/worker-a.digest"
-      },
-      {
-        "name": "worker-b",
-        "digest": "secrets/worker-b.digest"
-      }
-    ],
     "listener": [
       {
         "in_process": "workers"

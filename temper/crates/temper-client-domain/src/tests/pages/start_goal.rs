@@ -659,7 +659,9 @@ fn the_landed_recommendation_chooses_kind_sevens_way_before_sending() {
             .unwrap();
     let mut writer = skein_lib::Writer::new(usize::try_from(ways.measure()).unwrap());
     ways.encode(&mut writer).unwrap();
-    let answer = w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(writer.finish()) }).unwrap();
+    let answer =
+        w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { revision: None, value: Some(writer.finish()) })
+            .unwrap();
     root_event(
         &mut root,
         &limits,

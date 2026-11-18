@@ -31,6 +31,7 @@ pub enum JigPhrase {
     SettingFaultBudget,
     SettingFaultGrace,
     SettingFaultOwner,
+    SettingFaultLinked,
 
     ActRename,
     ActRemoveProject,
@@ -43,6 +44,7 @@ pub enum JigPhrase {
     EngineLimitProjects,
 
     BoundsWorker,
+    WaitUntooled,
     BoundsEngine,
     RefusedWorkerAt,
     RefusedEngineAt,
@@ -1104,6 +1106,7 @@ impl JigPhrase {
             Self::SettingFaultBudget => 7914,
             Self::SettingFaultGrace => 7915,
             Self::SettingFaultOwner => 7916,
+            Self::SettingFaultLinked => 7930,
             Self::ActRename => 7837,
             Self::ActRemoveProject => 7839,
             Self::NameTaken => 7830,
@@ -1114,6 +1117,7 @@ impl JigPhrase {
             Self::NameDigits => 7835,
             Self::EngineLimitProjects => 7836,
             Self::BoundsWorker => 7840,
+            Self::WaitUntooled => 7931,
             Self::BoundsEngine => 7841,
             Self::RefusedWorkerAt => 7821,
             Self::RefusedEngineAt => 7822,
@@ -1772,6 +1776,7 @@ impl JigPhrase {
             | Self::SettingFaultBudget
             | Self::SettingFaultGrace
             | Self::SettingFaultOwner
+            | Self::SettingFaultLinked
             | Self::SettingFaultJudged
             | Self::DependencyParked
             | Self::CircleHold
@@ -2326,7 +2331,8 @@ impl JigPhrase {
             | Self::DependencyPending
             | Self::DependencyDone
             | Self::CircleWaitsFor
-            | Self::ResultsThrough => Box::new([HoleShape { kind: HoleKind::Number, bytes: 0 }]),
+            | Self::ResultsThrough
+            | Self::WaitUntooled => Box::new([HoleShape { kind: HoleKind::Number, bytes: 0 }]),
             Self::SettingsRestored
             | Self::PolicyEffect
             | Self::RunRetryFailed
@@ -2433,7 +2439,7 @@ impl JigPhrase {
     }
 }
 /// Every jig phrase; loading checks this whole contract.
-pub const ALL: [JigPhrase; 653] = [
+pub const ALL: [JigPhrase; 655] = [
     JigPhrase::TooLinked,
     JigPhrase::SettingsChanged,
     JigPhrase::SettingProjectPolicy,
@@ -2459,6 +2465,7 @@ pub const ALL: [JigPhrase; 653] = [
     JigPhrase::SettingFaultBudget,
     JigPhrase::SettingFaultGrace,
     JigPhrase::SettingFaultOwner,
+    JigPhrase::SettingFaultLinked,
     JigPhrase::ActRename,
     JigPhrase::ActRemoveProject,
     JigPhrase::NameTaken,
@@ -2469,6 +2476,7 @@ pub const ALL: [JigPhrase; 653] = [
     JigPhrase::NameDigits,
     JigPhrase::EngineLimitProjects,
     JigPhrase::BoundsWorker,
+    JigPhrase::WaitUntooled,
     JigPhrase::BoundsEngine,
     JigPhrase::RefusedWorkerAt,
     JigPhrase::RefusedEngineAt,

@@ -90,28 +90,14 @@ const STAGING_LIFETIME: skein_lib::Duration = skein_lib::Duration::from_secs(300
 pub fn staging_limits(value: &mut Value) {
     value["engine"]["limits"]["profile"] = "standard".into();
     value["application"]["limits"]["profile"] = "standard".into();
-    value["application"]["limits"]["overrides"]["checkout.message_bytes"] = 63_740.into();
     value["application"]["limits"]["overrides"]["forge.client.lifetime_ms"] = STAGING_LIFETIME.as_millis().into();
-    value["application"]["limits"]["overrides"]["forge.client.op_bytes"] = 63_738.into();
-    value["application"]["limits"]["overrides"]["forge_component.body_bytes"] = 127_497.into();
     value["application"]["limits"]["overrides"]["forge.client.answer_bytes"] = 1_048_576.into();
     value["application"]["limits"]["overrides"].as_object_mut().expect("limits").remove("forge.key_entries");
     for limits in ["authority.executors", "tasks.executor_kinds"] {
         value["engine"]["limits"]["overrides"][limits] = 24.into();
     }
-    value["engine"]["limits"]["overrides"]["tasks.result_bytes"] = 63_738.into();
-    value["engine"]["limits"]["overrides"]["tasks.message_bytes"] = 63_738.into();
-    value["engine"]["limits"]["overrides"]["tasks.inbox_bytes"] = (82 * 63_738).into();
     value["engine"]["limits"]["overrides"]["core.policy_bytes"] = 8192.into();
-    value["engine"]["limits"]["overrides"]["core.call_answer_bytes"] = 63_740.into();
-    value["workers"][0]["limits"]["overrides"]["core.call_answer_bytes"] = 63_740.into();
-    value["workers"][0]["limits"]["profile"] = "standard".into();
-    value["workers"][0]["limits"]["overrides"]["tasks.result_bytes"] = 63_738.into();
-    value["workers"][0]["limits"]["overrides"]["tasks.message_bytes"] = 63_738.into();
-    value["engine"]["limits"]["overrides"]["hub.outcome_bytes"] = 63_740.into();
-    value["workers"][0]["limits"]["overrides"]["hub.outcome_bytes"] = 63_740.into();
-    value["engine"]["limits"]["overrides"]["hub.event_bytes"] = 63_738.into();
-    value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = 63_738.into();
+    super::configuration::use_derived(value);
 }
 
 /// Share the owned turn setup while selecting the story's batch bound.
@@ -136,28 +122,12 @@ pub(super) fn configure_batch(root: &Path, repository: u64, batch: u16) {
     // (temper/docs/design/domain/worker/jobs.md, kind 1).
     let prepare = temper_service::limits::prepare_bound();
     config["engine"]["limits"]["overrides"]["tasks.spec_bytes"] = prepare.spec.into();
-    config["engine"]["limits"]["overrides"]["tasks.message_bytes"] = prepare.result.into();
-    config["engine"]["limits"]["overrides"]["tasks.result_bytes"] = prepare.result.into();
-    config["workers"][0]["limits"]["overrides"]["tasks.result_bytes"] = prepare.result.into();
-    config["application"]["limits"]["overrides"]["forge.client.op_bytes"] = prepare.result.into();
-    let agent_path = root.join("agent.json");
-    let mut agent: Value =
-        serde_json::from_slice(&fs::read(&agent_path).expect("agent configuration")).expect("agent JSON");
+    let mut agent = temper_fixtures::agent::read(root);
     // A JSON string's quotes share the tool payload with its message.
     let tool_payload = prepare.result + 2;
     agent["profile"]["declared"]["tool_payload"] = tool_payload.into();
-    config["engine"]["limits"]["overrides"]["hub.outcome_bytes"] = tool_payload.into();
-    config["workers"][0]["limits"]["overrides"]["hub.outcome_bytes"] = tool_payload.into();
-    config["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = prepare.result.into();
-    config["application"]["limits"]["overrides"]["checkout.message_bytes"] = tool_payload.into();
-    // Let the call carriers follow the agent's declared payload.
-    config["engine"]["limits"]["overrides"].as_object_mut().expect("engine overrides").remove("core.call_answer_bytes");
-    config["workers"][0]["limits"]["overrides"]
-        .as_object_mut()
-        .expect("worker overrides")
-        .remove("core.call_answer_bytes");
-    super::configuration::turn_bounds::apply(&mut config, super::configuration::turn_bounds::turn_body(&agent));
-    write_private(&agent_path, &serde_json::to_vec(&agent).expect("agent JSON"));
+    super::configuration::use_derived(&mut config);
+    temper_fixtures::agent::apply(&mut config, root, &agent);
     write_private(&path, &serde_json::to_vec(&config).expect("configuration JSON"));
     let path = root.join("native-landing-settings.json");
     let mut settings: Value =
@@ -168,12 +138,14 @@ pub(super) fn configure_batch(root: &Path, repository: u64, batch: u16) {
 
 /// Leave landing tasks a share of the seeded project's open period (domain/landing.md, 4.2).
 pub(super) fn setup(root: &Path) -> Vec<ctl::Step> {
-    let mut steps = native_settings_setup(root);
+    let agents = super::agents_value(&fs::read(root.join("agents.setting")).expect("agents setting copy"));
+    let mut steps = native_settings_setup(root, Some(agents));
     steps.push(ctl::Step::Run(ctl::Call::new(&["project", "show", "1", "--json"]).in_directory("private")));
     steps.push(ctl::Step::Then(Box::new(|calls| {
         let project = ctl::json(calls.last().expect("project read"));
         let period = project["policy"]["period_spend"].as_u64().expect("project period");
-        let amount = (period / 48 * landing_by_turn::ROLE_PERIOD_IN_K).to_string();
+        let spend = period / 48 * landing_by_turn::ROLE_PERIOD_IN_K;
+        let amount = format!("{}.{:02}", spend / 100, spend % 100);
         ctl::Call::new(&["project", "fund", "1", &amount, "--role", "0", "--key", "turn-role-funds"])
             .in_directory("private")
     })));
@@ -208,11 +180,7 @@ pub mod tests {
             temper_service::limits::prepare_jobs(&engine.limits).contains(&prepare),
             "the turn declares the prepare job"
         );
-        assert!(
-            config["workers"][0]["limits"]["overrides"]["tasks.result_bytes"].as_u64().expect("worker result carrier")
-                >= u64::from(prepare.result),
-            "the worker carries the prepare result"
-        );
+        assert!(engine.limits.core.tasks.result_bytes >= prepare.result, "the worker carries the prepare result");
         scratch.remove();
     }
 }

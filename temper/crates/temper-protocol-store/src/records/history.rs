@@ -597,12 +597,19 @@ fn encode_what(value: &d::What) -> w::HistoryWhat {
             .expect(FITS),
         ),
         d::What::Selected => w::HistoryWhat::Selected,
-        d::What::Update { style } => w::HistoryWhat::Update(
-            w::HistoryUpdate::new(&w::CEILINGS, w::HistoryUpdateParts { style: encode_style(*style) }).expect(FITS),
+        d::What::Update { style, forge_base } => w::HistoryWhat::Update(
+            w::HistoryUpdate::new(
+                &w::CEILINGS,
+                w::HistoryUpdateParts { style: encode_style(*style), forge_base: *forge_base },
+            )
+            .expect(FITS),
         ),
-        d::What::Updated { outcome } => w::HistoryWhat::Updated(
-            w::HistoryUpdated::new(&w::CEILINGS, w::HistoryUpdatedParts { outcome: encode_update_outcome(*outcome) })
-                .expect(FITS),
+        d::What::Updated { outcome, forge_base } => w::HistoryWhat::Updated(
+            w::HistoryUpdated::new(
+                &w::CEILINGS,
+                w::HistoryUpdatedParts { outcome: encode_update_outcome(*outcome), forge_base: *forge_base },
+            )
+            .expect(FITS),
         ),
         d::What::Job { job, task } => w::HistoryWhat::Job(
             w::HistoryJobStarted::new(&w::CEILINGS, w::HistoryJobStartedParts { job: encode_job(*job), task: *task })
@@ -754,12 +761,12 @@ fn decode_what(value: w::HistoryWhat) -> d::What {
         }
         w::HistoryWhat::Selected => d::What::Selected,
         w::HistoryWhat::Update(value) => {
-            let w::HistoryUpdateParts { style } = value.into_parts();
-            d::What::Update { style: decode_style(style) }
+            let w::HistoryUpdateParts { style, forge_base } = value.into_parts();
+            d::What::Update { style: decode_style(style), forge_base }
         }
         w::HistoryWhat::Updated(value) => {
-            let w::HistoryUpdatedParts { outcome } = value.into_parts();
-            d::What::Updated { outcome: decode_update_outcome(outcome) }
+            let w::HistoryUpdatedParts { outcome, forge_base } = value.into_parts();
+            d::What::Updated { outcome: decode_update_outcome(outcome), forge_base }
         }
         w::HistoryWhat::Job(value) => {
             let w::HistoryJobStartedParts { job, task } = value.into_parts();

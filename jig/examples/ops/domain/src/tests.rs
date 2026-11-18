@@ -454,6 +454,7 @@ fn started_chat_with_contract(contract: u16) -> (Domain, Env<Limits>, Token) {
         &mut domain,
         &env,
         Event::Core(core::Event::SignIn {
+            until: None,
             held: None,
             reply_to: skein_lib::ReplyTo::new(Token::new(101)),
             identity: people::Identity {

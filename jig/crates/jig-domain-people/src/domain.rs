@@ -575,12 +575,12 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             out.push(Request::RolesApplied { reply_to, request, result });
         }
         Event::Restore { record } => start::load(domain, env, record, out),
-        Event::SignedIn { reply_to, person, sign_in, identity, kind, held } => {
+        Event::SignedIn { until, reply_to, person, sign_in, identity, kind, held } => {
             signin(
                 domain,
                 env,
                 reply_to,
-                parties::SigningIn { candidate: person, number: sign_in, identity, kind, held },
+                parties::SigningIn { candidate: person, number: sign_in, identity, kind, held, until },
                 out,
             );
         }

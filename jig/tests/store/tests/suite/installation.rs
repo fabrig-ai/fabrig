@@ -69,7 +69,7 @@ fn every_first_commit_crash_keeps_the_three_creation_rows_or_none() {
                 Box::from([0, 0]),
                 format::current(root::APPLICATION.version, root::DEPLOYMENT).encode().expect("format fits"),
             ),
-            (Box::from([0, 3]), format::layouts().encode()),
+            (Box::from([0, 13]), crate::frame_reads::floor()),
             (Box::from([1, 4, 3]), codec::accounts::Installation { id: FIRST }.encode()),
         ];
         for (key, value) in expected {

@@ -285,6 +285,12 @@ fn untagged(mut event: store::Event) -> store::Event {
         | store::Event::SecretsLoaded { owner, .. } => *owner = Token::new(owner.untagged()),
         // The map census belongs to the root, not secrets (protocol/store/README.md, 6.3).
         store::Event::Census { .. }
+        | store::Event::Checkpointed { .. }
+        | store::Event::CheckpointRefused { .. }
+        | store::Event::Restored { .. }
+        | store::Event::RestoreRefused { .. }
+        | store::Event::CheckpointHeld { .. }
+        | store::Event::CheckpointRemoved { .. }
         | store::Event::Opened { .. }
         | store::Event::Switched { .. }
         | store::Event::OpenRefused { .. }

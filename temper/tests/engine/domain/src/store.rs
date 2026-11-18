@@ -59,10 +59,10 @@ pub struct Store {
     routes: route::Routes,
     limits: engine::Limits,
     component_limits: Limits,
+    application: protocol::sizes::Application,
     models: Box<[engine::Model]>,
     catalogue: Option<Box<[jig_domain_core::settings::ModelName]>>,
     inflight: BTreeMap<u64, Box<[Write]>>,
-    durable: Vec<(u64, Box<[Write]>)>,
     replies: Vec<engine::StoreInput>,
     missing: Vec<(jig_domain_core::Key, jig_domain_core::Key)>,
     delayed: VecDeque<Delayed>,
@@ -156,27 +156,35 @@ impl Store {
     }
     #[must_use]
     pub fn with_limits(limits: &engine::Limits) -> Store {
-        let component_limits = component_limits(limits);
+        Self::prepared(
+            limits,
+            &component_limits(limits),
+            temper_protocol_store::application(&limits.forge, limits.tasks.spec_bytes).expect("checked family sizes"),
+        )
+    }
+    // A fork has the source's immutable configuration and its checked sizes.
+    fn prepared(
+        limits: &engine::Limits,
+        component_limits: &Limits,
+        application: protocol::sizes::Application,
+    ) -> Store {
         let stores = Stores {
             store: skein_kv::Store::memory(&component_limits.store),
             secrets: skein_kv::Store::memory(&component_limits.secrets),
         };
         // The worlds' configured models, in their order (jig's store over a configuration's).
         let models = crate::walking::models();
-        let mut component = protocol::Store::over(
-            &component_limits,
-            temper_protocol_store::application(&limits.forge, limits.tasks.spec_bytes).expect("checked family sizes"),
-            &models,
-            stores,
-        );
-        assert!(component.wires(&temper_engine_service_vocabulary::store::WIRES));
-        let mut store = Self::empty(limits, &component_limits, models);
-        store.component = Some(component);
-        store.open();
+        let mut store = Self::empty(limits, component_limits, application, models);
+        store.reopen(stores);
         store
     }
 
-    fn empty(limits: &engine::Limits, component_limits: &Limits, models: Box<[engine::Model]>) -> Store {
+    fn empty(
+        limits: &engine::Limits,
+        component_limits: &Limits,
+        application: protocol::sizes::Application,
+        models: Box<[engine::Model]>,
+    ) -> Store {
         Store {
             applied: 0,
             pending_generation: false,
@@ -189,10 +197,10 @@ impl Store {
             routes: routes(limits),
             limits: *limits,
             component_limits: *component_limits,
+            application,
             models,
             catalogue: None,
             inflight: BTreeMap::new(),
-            durable: Vec::new(),
             replies: Vec::new(),
             missing: Vec::new(),
             delayed: VecDeque::new(),
@@ -206,7 +214,7 @@ impl Store {
 
     /// Transfer the store, leaving an empty shell that is never driven.
     pub(crate) fn take_for_drop(&mut self) -> Store {
-        let empty = Self::empty(&self.limits, &self.component_limits, Box::new([]));
+        let empty = Self::empty(&self.limits, &self.component_limits, self.application, Box::new([]));
         std::mem::replace(self, empty)
     }
 
@@ -269,19 +277,6 @@ impl Store {
     pub fn crash(&mut self, seed: u64) {
         let stores = self.component.take().expect("component exists").into_stores();
         self.files.crash(seed);
-        self.component = Some(protocol::Store::over(
-            &self.component_limits,
-            temper_protocol_store::application(&self.limits.forge, self.limits.tasks.spec_bytes)
-                .expect("checked family sizes"),
-            &self.models,
-            stores,
-        ));
-        assert!(
-            self.component.as_mut().expect("live component").wires(&temper_engine_service_vocabulary::store::WIRES)
-        );
-        if let Some(names) = &self.catalogue {
-            self.component.as_mut().expect("live component").catalogue(names.clone());
-        }
         self.routes = routes(&self.limits);
         self.pending.clear();
         self.delays.clear();
@@ -294,18 +289,16 @@ impl Store {
         self.failed = false;
         self.hold_next = 0;
         self.fail_at = None;
-        self.open();
+        self.reopen(stores);
     }
+    /// Open independent memory maps and payload logs, not the history of their writes.
     #[must_use]
     pub fn fork(&self) -> Store {
-        let mut fresh = Store::with_limits(&self.limits);
-        if let Some(names) = &self.catalogue {
-            fresh.catalogue(names.clone());
-        }
-        for (number, writes) in &self.durable {
-            fresh.submit(*number, writes.clone(), 0);
-            assert_eq!(fresh.tick(false), Ok(Some(*number)));
-        }
+        let stores = self.component.as_ref().expect("live component").fork_memory().expect("world memory stores");
+        let mut fresh = Self::empty(&self.limits, &self.component_limits, self.application, self.models.clone());
+        fresh.catalogue.clone_from(&self.catalogue);
+        fresh.rows.clone_from(&self.rows);
+        fresh.reopen(stores);
         fresh.page_delay = self.page_delay;
         fresh
     }
@@ -419,7 +412,11 @@ impl Store {
                     }
                     // These read helpers do not consume the census (jig protocol/store/README.md, 6.3).
                     engine::StoreInput::Census(..) | engine::StoreInput::Committed { .. } => continue,
-                    reply @ (engine::StoreInput::Switched | engine::StoreInput::ReadLoaded { .. }) => {
+                    reply @ (engine::StoreInput::Checkpointed { .. }
+                    | engine::StoreInput::CheckpointRefused { .. }
+                    | engine::StoreInput::Switched
+                    | engine::StoreInput::ReadLoaded { .. }
+                    | engine::StoreInput::PartLoaded { .. }) => {
                         panic!("load {range:?} after {after:?} did not return its page: {reply:?}");
                     }
                 }
@@ -454,9 +451,12 @@ impl Store {
             if let Some(reply) = self.replies.pop() {
                 match reply {
                     engine::StoreInput::ReadLoaded { result, .. } => return result,
+                    engine::StoreInput::PartLoaded { .. } => panic!("core read received a part terminal"),
                     // These read helpers do not consume the census (jig protocol/store/README.md, 6.3).
                     engine::StoreInput::Census(..) | engine::StoreInput::Committed { .. } => continue,
-                    engine::StoreInput::MissingLink { .. }
+                    engine::StoreInput::Checkpointed { .. }
+                    | engine::StoreInput::CheckpointRefused { .. }
+                    | engine::StoreInput::MissingLink { .. }
                     | engine::StoreInput::Switched
                     | engine::StoreInput::Uncommitted { .. }
                     | engine::StoreInput::Unloaded { .. }
@@ -492,6 +492,12 @@ impl Store {
         self.catalogue = Some(names.clone());
         self.component.as_mut().expect("live component").catalogue(names);
     }
+    /// Take the act over this world's memory store (temper/docs/design/protocol/checkpoints.md, 5).
+    pub fn checkpoint(&mut self, token: Token) -> engine::StoreInput {
+        self.request(engine::StoreRequest::Checkpoint { token });
+        self.replies.pop().expect("checkpoint terminal")
+    }
+    #[must_use]
     pub fn switch(&mut self) -> engine::StoreInput {
         self.request(engine::StoreRequest::Switch);
         let answer = self.replies.pop().expect("switch terminal");
@@ -506,10 +512,25 @@ impl Store {
         let request = route::down(&mut self.routes, request).expect("root store request admitted");
         self.drive(VecDeque::from([request]), Queue::uncapped());
     }
+    fn reopen(&mut self, stores: Stores) {
+        let mut component = protocol::Store::over(&self.component_limits, self.application, &self.models, stores);
+        assert!(component.wires(&temper_engine_service_vocabulary::store::WIRES));
+        if let Some(names) = &self.catalogue {
+            component.catalogue(names.clone());
+        }
+        self.component = Some(component);
+        self.open();
+    }
+
     fn open(&mut self) {
         let root = self.files.root();
         self.drive(
-            VecDeque::from([Request::Open { owner: Token::new(0), root, installation: INSTALLATION }]),
+            VecDeque::from([Request::Open {
+                purpose: jig_protocol_store::Purpose::Serve,
+                owner: Token::new(0),
+                root,
+                installation: INSTALLATION,
+            }]),
             Queue::uncapped(),
         );
         assert!(!self.failed, "durable stores reopen");
@@ -518,7 +539,12 @@ impl Store {
         Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.component_limits }
     }
     fn drive(&mut self, mut requests: VecDeque<Request>, mut above: Queue<Event>) {
-        let mut below = Below { store: Queue::uncapped(), secrets: Queue::uncapped(), transcripts: Queue::uncapped() };
+        let mut below = Below {
+            store: Queue::uncapped(),
+            secrets: Queue::uncapped(),
+            transcripts: Queue::uncapped(),
+            checkpoints: Queue::uncapped(),
+        };
         loop {
             if let Some(event) = above.pop() {
                 self.event(event, &mut requests);
@@ -548,6 +574,7 @@ impl Store {
             protocol::up(self.component.as_mut().expect("component exists"), &env, io, &mut above, &mut below);
         }
     }
+    #[expect(clippy::too_many_lines, reason = "the fixture forwards every checkpoint terminal without interpreting it")]
     fn event(&mut self, event: Event, requests: &mut VecDeque<Request>) {
         match event {
             Event::Opened { last, pending, .. } => {
@@ -609,7 +636,6 @@ impl Store {
                     }
                 }
                 self.applied = number;
-                self.durable.push((number, writes));
                 if self.holding {
                     self.held.push_back(number);
                 }
@@ -618,7 +644,16 @@ impl Store {
             | Event::FrameTooLarge { .. }
             | Event::OpenRefused { .. }
             | Event::SecretsNotReady { .. } => self.failed = true,
-            event @ (Event::Page { .. } | Event::Loaded { .. } | Event::Turns { .. } | Event::Got { .. })
+            event @ (Event::Checkpointed { .. }
+            | Event::CheckpointRefused { .. }
+            | Event::Restored { .. }
+            | Event::RestoreRefused { .. }
+            | Event::CheckpointHeld { .. }
+            | Event::CheckpointRemoved { .. }
+            | Event::Page { .. }
+            | Event::Loaded { .. }
+            | Event::Turns { .. }
+            | Event::Got { .. })
                 if self.page_delay != 0 =>
             {
                 self.delayed.push_back(Delayed { event, delay: self.page_delay });
@@ -627,7 +662,13 @@ impl Store {
                 self.failed = true;
                 self.route(event, requests);
             }
-            event @ (Event::Page { .. }
+            event @ (Event::Checkpointed { .. }
+            | Event::CheckpointRefused { .. }
+            | Event::Restored { .. }
+            | Event::RestoreRefused { .. }
+            | Event::CheckpointHeld { .. }
+            | Event::CheckpointRemoved { .. }
+            | Event::Page { .. }
             | Event::PageRefused { .. }
             | Event::Switched { .. }
             | Event::Job { .. }
@@ -685,6 +726,7 @@ fn routes(limits: &engine::Limits) -> route::Routes {
         limits.loads.loads,
         limits,
         temper_protocol_store::bounds(&limits.forge, limits.tasks.spec_bytes).expect("family bounds"),
+        skein_lib::CryptoRng::new(&skein_lib::Secret::new(Box::new([7; 32])), 1).expect("world cryptographic seed"),
     )
 }
 /// The largest journal, task and brief bounds used by the engine stories.
@@ -752,18 +794,23 @@ pub fn widest() -> engine::Limits {
     limits
 }
 fn component_limits(limits: &engine::Limits) -> Limits {
-    let profile = jig_protocol_config::profile(jig_protocol_config::Profile::Standard);
-    let mut profile = profile.store;
-    profile.store.budget = 4 * 1024 * 1024;
-    profile.store.key = u32::MAX;
-    profile.store.value = u32::MAX;
-    profile.store.ops = u32::MAX;
-    profile.store.commit = u32::MAX;
-    profile.store.queued_bytes = u64::MAX;
-    profile.store.page.bytes = u32::MAX;
-    profile.store.page.rows = 8;
-    temper_engine_service_vocabulary::store::limits(limits, &limits.forge, &profile)
-        .expect("world sizes fit real store")
+    // These worlds keep the stock's store joins, including the box-allowance
+    // stories. Derive that immutable profile once, not its client wire sizes
+    // for every new store as well.
+    static PROFILE: std::sync::OnceLock<Limits> = std::sync::OnceLock::new();
+    let profile = PROFILE.get_or_init(|| {
+        let mut profile = jig_protocol_config::stock().store;
+        profile.store.budget = 4 * 1024 * 1024;
+        profile.store.key = u32::MAX;
+        profile.store.value = u32::MAX;
+        profile.store.ops = u32::MAX;
+        profile.store.commit = u32::MAX;
+        profile.store.queued_bytes = u64::MAX;
+        profile.store.page.bytes = u32::MAX;
+        profile.store.page.rows = 8;
+        profile
+    });
+    temper_engine_service_vocabulary::store::limits(limits, &limits.forge, profile).expect("world sizes fit real store")
 }
 
 /// The only mirrored row changed by a write-free restart's required start mark.

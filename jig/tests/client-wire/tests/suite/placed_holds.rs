@@ -1,13 +1,9 @@
-//! Explicit present-at-smallest placement goldens, alongside generated optional records.
-use jig_client_protocol_wire::v27 as w;
+//! Present placement fields round trip at their smallest and full constructor values.
+use jig_client_protocol_wire as w;
 use skein_lib::{Reader, Writer};
-use std::fs;
 
 #[test]
-#[expect(clippy::disallowed_methods, reason = "jig's round: reads SKEIN_CODEGEN_WRITE to refresh placed hold goldens")]
-fn task_holds_with_a_placed_line_match_their_smallest_and_full_goldens() {
-    let root = skein_scratch::paths::tree().join("crates/jig-client-protocol-wire/golden");
-    let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
+fn task_holds_with_a_placed_line_round_trip_their_smallest_and_full_fields() {
     for full in [false, true] {
         let number = if full { u64::MAX } else { 0 };
         let owner = if full {
@@ -81,13 +77,12 @@ fn task_holds_with_a_placed_line_match_their_smallest_and_full_goldens() {
         let mut out = Writer::new(value.measure() as usize);
         value.encode(&mut out).expect("task hold bytes");
         let bytes = out.finish();
-        let path = root.join(if full { "task_hold_placed_full.bin" } else { "task_hold_placed_smallest.bin" });
-        if write {
-            fs::write(&path, &bytes).expect("write golden");
-        }
-        let golden = fs::read(&path)
-            .expect("run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p jig-client-wire-world --test placed_holds");
-        assert_eq!(bytes.as_ref(), golden);
-        assert_eq!(w::ChipHold::decode(&w::CEILINGS, &mut Reader::new(&golden)), Ok(value));
+        let mut input = Reader::new(&bytes);
+        let decoded = w::ChipHold::decode(&w::CEILINGS, &mut input).expect("placed hold");
+        assert!(input.is_empty());
+        assert_eq!(decoded, value);
+        let mut out = Writer::new(skein_lib::length::usize_of(decoded.measure()));
+        decoded.encode(&mut out).expect("measured placed hold");
+        assert_eq!(out.finish(), bytes);
     }
 }

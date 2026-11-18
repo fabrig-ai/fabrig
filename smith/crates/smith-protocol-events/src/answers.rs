@@ -206,6 +206,12 @@ pub fn failure_record(why: run::RunFailure, now: skein_lib::Time) -> AnswerFailu
             run::Fault::Declined => failure(AnswerClass::Model, Some(b"refused")),
             run::Fault::Truncated => failure(AnswerClass::Model, Some(b"truncated")),
             run::Fault::Unauthorized { .. } => failure(AnswerClass::Model, Some(b"unauthorized")),
+            run::Fault::Untooled { name, detail } => {
+                let mut result = failure(AnswerClass::Model, None);
+                result.program = Some(name);
+                result.detail = Some(detail);
+                result
+            }
             run::Fault::Program { name, exit, detail } => {
                 let mut result = failure(AnswerClass::Model, None);
                 result.program = Some(name);

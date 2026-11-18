@@ -31,6 +31,28 @@ versioned record Manifest {
     secrets: option u64
     written: u64
 }
+record CheckpointFile {
+    part: u8
+    number: u64
+    length: u64
+    way: u8
+}
+versioned record Checkpoint {
+    store: u64
+    secrets: u64
+    made: u64
+    build: text 128
+    deployment: fixed 16
+    levels: Levels
+    files: list 65536 CheckpointFile
+}
+versioned record RestoreIntent {
+    generation: u64
+    active: fixed 32
+    source: text 37
+    safety: text 37
+    made: u64
+}
 versioned record Transcript { length: u64 window: u64 }
 versioned record Attempt { first: u64 }
 versioned record HistoryLog { record: option u64 }
@@ -39,15 +61,3 @@ versioned record LogAttempt { first: u64 }
 
 # 00 0d: the store floor (protocol/store/records.md, 3).
 versioned record Floor { number: u32 build: text 64 }
-versioned record Layouts {
-    component: fixed 32
-    core: fixed 32
-    tasks: fixed 32
-    people: fixed 32
-    notes: fixed 32
-    accounts: fixed 32
-    settings: fixed 32
-    secrets: fixed 32
-    skein_oauth: fixed 32
-    smith_transcript: fixed 32
-}

@@ -8,6 +8,11 @@ use temper_redeploy_tool::{
 };
 
 pub(super) const SECOND: u64 = 1_000_000_000;
+const CHECKPOINT: &str = "00000000000000000001-0123456789abcdef";
+const BACKUP: &str = "00000000000000000002-0123456789abcdef";
+const SECOND_BACKUP: &str = "00000000000000000003-0123456789abcdef";
+const CHECKPOINT_CALL: &str = "ctl engine 'deployment' 'checkpoint' '--json' </dev/null";
+const BACKUP_CALL: &str = "checkpoint '/bin/temper-engine'";
 #[derive(Clone, Default)]
 struct Printed(Rc<RefCell<Vec<u8>>>);
 impl Write for Printed {
@@ -139,7 +144,7 @@ fn settled_stop_keeps_who_was_told_and_waits_the_largest_wait_given() {
     assert!(record.openings.iter().all(|opening| opening.at == 901 * SECOND));
     let stop = position(&hosts, "stop engine");
     assert_eq!(hosts.lines[stop + 1].line, "log engine '0'");
-    assert!(hosts.lines[stop + 2].line.starts_with("check "));
+    assert_eq!(hosts.lines[stop + 2].line, BACKUP_CALL);
 }
 
 struct SlowStop(Deployment);
@@ -169,7 +174,7 @@ fn only_the_windows_stop_reads_told_since_before_the_stop_began() {
     hosts.log.push((8 * SECOND, "temper-engine serve: worker w2 told the engine restarts: wait 99999 ms".into()));
     hosts.stop_logs.push_back(vec!["temper-engine serve: worker w1 told the engine restarts: wait 1200000 ms".into()]);
     hosts.stop_logs.push_back(vec!["temper-engine serve: worker w2 told the engine restarts: wait 77777 ms".into()]);
-    hosts.check_answer(0, "workers may stay: no");
+    hosts.verdict_answer(0, "workers may stay: no");
     let d = hosts.description.clone();
     let mut hosts = SlowStop(hosts);
     let (outcome, record) = run(&d, &mut hosts, Mode::Engine);
@@ -184,7 +189,7 @@ fn only_the_windows_stop_reads_told_since_before_the_stop_began() {
 }
 
 #[test]
-fn unreadable_stop_log_refuses_and_restores_before_any_check_or_swap() {
+fn unreadable_stop_log_refuses_and_restores_before_any_checkpoint_or_swap() {
     let mut hosts = staged(2);
     hosts.fail_line(Part::Engine, "log engine '0'", 1);
     let d = hosts.description.clone();
@@ -193,7 +198,8 @@ fn unreadable_stop_log_refuses_and_restores_before_any_check_or_swap() {
     assert_eq!(outcome, Outcome::Refused);
     all_old(&hosts.0);
     assert_eq!(record.told, None);
-    assert!(hosts.0.lines.iter().all(|call| !call.line.starts_with("check ")));
+    assert!(record.check.is_some());
+    assert!(hosts.0.lines.iter().all(|call| !call.line.starts_with("checkpoint ")));
     assert!(last(&record).contains("refused: who was told: engine log"));
     assert_eq!(record.openings.len(), 2);
 }
@@ -215,23 +221,26 @@ fn openings_stop_at_the_longer_of_told_wait_and_grace() {
 }
 
 #[test]
-fn a_refusing_check_restarts_the_old_engine_and_waits_without_a_swap() {
-    let mut hosts = staged(2);
-    hosts.check_answer(1, "temper-engine upgrade: cannot start\n");
-    hosts.opening(0, Opening::After { nanoseconds: 2 * SECOND, wires: WIRES.into() });
-    let (outcome, record) = execute(&mut hosts, Mode::Engine);
-    assert_eq!(outcome, Outcome::Refused);
-    all_old(&hosts);
-    assert!(position(&hosts, "start engine") > position(&hosts, &format!("check '/builds/{NEW}/temper-engine'")));
-    assert_eq!(record.window.as_ref().unwrap().worker, "w2");
-    assert_eq!(record.openings.len(), 2);
-    assert_eq!(hosts.at, 3 * SECOND);
-    assert_eq!(record.check.as_ref().unwrap().code, Some(1));
-    assert!(last(&record).starts_with("temper-redeploy run: refused: check:"));
+fn a_refusing_check_stops_nothing_in_any_mode() {
+    for mode in [Mode::Engine, Mode::Workers, Mode::Together] {
+        let mut hosts = staged(2);
+        hosts.check_answer(1, "temper-engine upgrade: cannot start\n");
+        let (outcome, record) = execute(&mut hosts, mode);
+        assert_eq!(outcome, Outcome::Refused);
+        all_old(&hosts);
+        assert!(hosts.lines.iter().all(|call| !call.line.starts_with("stop ") && !call.line.starts_with("start ")));
+        assert_eq!(record.window, None);
+        assert_eq!(record.backup, None);
+        assert_eq!(record.verdict, None);
+        assert_eq!(record.openings.len(), 0);
+        assert_eq!(record.checkpoint.as_deref(), Some(CHECKPOINT));
+        assert_eq!(record.check.as_ref().unwrap().code, Some(1));
+        assert!(last(&record).starts_with("temper-redeploy run: refused: check:"));
+    }
 }
 
 #[test]
-fn no_unknown_and_absent_last_verdict_restore_then_drain_all_without_rechecking() {
+fn no_unknown_and_absent_check_verdict_drain_all_without_an_old_engine_restart() {
     for verdict in [
         "workers may stay: no",
         "workers may stay: unknown; the copy keeps no wires",
@@ -244,17 +253,18 @@ fn no_unknown_and_absent_last_verdict_restore_then_drain_all_without_rechecking(
         let (outcome, record) = execute(&mut hosts, Mode::Engine);
         assert_eq!(outcome, Outcome::Done, "{verdict}");
         assert_eq!(hosts.lines.iter().filter(|call| call.line.starts_with("check ")).count(), 1);
-        assert_eq!(hosts.lines.iter().filter(|call| call.line == "stop engine").count(), 2);
+        assert_eq!(hosts.lines.iter().filter(|call| call.line == "stop engine").count(), 1);
         assert_eq!(hosts.batches, [vec![(Part::Worker(0), "stop w1".into()), (Part::Worker(1), "stop w2".into())]]);
-        let old_start = position(&hosts, "start engine");
-        let second_stop = hosts.lines.iter().rposition(|call| call.line == "stop engine").unwrap();
-        assert!(old_start < position(&hosts, "stop w1"));
-        assert!(position(&hosts, "stop w2") < second_stop);
-        assert_eq!(hosts.lines[position(&hosts, "stop w1")].at, 2 * SECOND, "wait for old openings before draining");
-        assert_eq!(record.window.as_ref().unwrap().from, SECOND);
+        assert!(position(&hosts, "stop w2") < position(&hosts, "stop engine"));
+        assert!(position(&hosts, "stop engine") < position(&hosts, "start engine"));
+        assert_eq!(hosts.lines.iter().filter(|call| call.line == "start engine").count(), 1);
+        assert_eq!(hosts.lines[position(&hosts, "stop w1")].at, SECOND);
+        assert_eq!(record.window, None);
+        assert_eq!(record.verdict, None);
+        assert_eq!(record.backup.as_deref(), Some(BACKUP));
         assert_eq!(record.outages.len(), 1);
         assert_eq!(record.outages[0].what, "every part");
-        assert_eq!((record.outages[0].from, record.outages[0].to), (2 * SECOND, 3 * SECOND));
+        assert_eq!((record.outages[0].from, record.outages[0].to), (SECOND, 2 * SECOND));
         for machine in std::iter::once(&hosts.engine).chain(&hosts.workers) {
             assert!(machine.running && machine.installed.values().all(|build| build == NEW));
         }
@@ -316,14 +326,18 @@ fn workers_in_turn_wait_for_each_opening_and_its_own_connected_logins() {
 #[test]
 fn together_drains_in_one_batch_before_the_engine_and_starts_engine_first() {
     let mut hosts = staged(2);
-    hosts.check_answer(0, "workers may stay: no");
+    hosts.check_answer(0, "workers may stay: yes");
     hosts.opening(1, Opening::After { nanoseconds: 2 * SECOND, wires: WIRES.into() });
     let (outcome, record) = execute(&mut hosts, Mode::Together);
     assert_eq!(outcome, Outcome::Done);
     assert_eq!(hosts.batches.len(), 1);
     assert_eq!(hosts.batches[0].len(), 2);
     assert!(position(&hosts, "stop w2") < position(&hosts, "stop engine"));
-    assert!(position(&hosts, "stop engine") < position(&hosts, &format!("check '/builds/{NEW}/temper-engine'")));
+    assert!(
+        position(&hosts, &format!("check '/builds/{NEW}/temper-engine' '{CHECKPOINT}'")) < position(&hosts, "stop w1")
+    );
+    assert_eq!(record.verdict, None);
+    assert_eq!(record.backup.as_deref(), Some(BACKUP));
     assert!(position(&hosts, "start engine") < position(&hosts, "start w1"));
     assert!(position(&hosts, "start w1") < position(&hosts, "start w2"));
     assert!(record.window.is_none());
@@ -334,42 +348,166 @@ fn together_drains_in_one_batch_before_the_engine_and_starts_engine_first() {
 }
 
 #[test]
-fn job_checks_back_up_at_the_seam_clock_before_any_swap() {
+fn check_and_verdict_read_their_own_checkpoints_with_the_right_binaries_and_order() {
     let mut hosts = staged(1);
-    hosts.at = 1_700_000_000 * SECOND;
-    hosts
-        .check_answer(0, "temper-engine upgrade: ran temper deleted-repository-forge-rows: 812 rows in 2 commits; time unavailable\ntemper-engine upgrade: workers may stay: yes\n");
+    let checkpoint = "00000000000000000042-0123456789abcdef";
+    hosts.ctl_answer("deployment checkpoint --json", output(0, &format!("{{\"name\":\"{checkpoint}\"}}")));
+    hosts.verdict_answer(0, "workers may stay: no\nworkers may stay: yes\n");
     let (outcome, record) = execute(&mut hosts, Mode::Engine);
     assert_eq!(outcome, Outcome::Done);
-    let backup = format!("{NEW}-20231114T221320Z");
-    assert_eq!(record.backup.as_deref(), Some(backup.as_str()));
-    let backup_at = position(&hosts, &format!("backup '{backup}'"));
-    let swap_at = hosts.lines.iter().position(|call| call.line.starts_with("swap ")).unwrap();
-    assert!(backup_at < swap_at);
-    assert!(hosts.lines.iter().filter(|call| call.line.starts_with("swap ")).all(|call| call.part == Part::Engine));
-    assert!(hosts.workers.iter().all(|worker| worker.running && worker.installed.values().all(|build| build == OLD)));
+    assert_eq!(record.checkpoint.as_deref(), Some(checkpoint));
+    // The scripted ctl answer took no generated name: the stopped checkpoint is the first.
+    assert_eq!(record.backup.as_deref(), Some(CHECKPOINT));
+    let check = format!("check '/builds/{NEW}/temper-engine' '{checkpoint}'");
+    let verdict = format!("verdict '/builds/{NEW}/temper-engine' '{CHECKPOINT}'");
+    let calls: Vec<_> = hosts
+        .lines
+        .iter()
+        .filter(|call| {
+            call.line == CHECKPOINT_CALL
+                || call.line.starts_with("check ")
+                || call.line.starts_with("stop ")
+                || call.line.starts_with("log ")
+                || call.line.starts_with("checkpoint ")
+                || call.line.starts_with("verdict ")
+                || call.line.starts_with("swap ")
+        })
+        .map(|call| call.line.as_str())
+        .collect();
+    assert_eq!(&calls[..6], [CHECKPOINT_CALL, &check, "stop engine", "log engine '0'", BACKUP_CALL, &verdict]);
+    assert!(calls[6].starts_with("swap "));
+    let verdict = record.verdict.as_ref().unwrap();
+    assert_eq!(verdict.code, Some(0));
+    assert_eq!(verdict.lines, ["workers may stay: no", "workers may stay: yes"]);
+    for line in [
+        format!("check checkpoint {checkpoint}"),
+        format!("stop checkpoint {CHECKPOINT}; backup"),
+        "check workers may stay: yes".into(),
+        "verdict workers may stay: yes".into(),
+    ] {
+        assert!(record.lines.iter().any(|kept| kept.line == format!("temper-redeploy run: {line}")), "{line}");
+    }
 }
 
 #[test]
-fn checks_without_jobs_take_no_backup() {
-    let mut hosts = staged(1);
-    hosts.check_answer(0, "temper-engine upgrade: workers may stay: yes\n");
-    let (outcome, record) = execute(&mut hosts, Mode::Engine);
-    assert_eq!(outcome, Outcome::Done);
-    assert_eq!(record.backup, None);
-    assert!(hosts.lines.iter().all(|call| !call.line.starts_with("backup ")));
+fn a_refused_or_malformed_serving_checkpoint_stops_nothing() {
+    let mut answers = vec![output(1, "refused"), output(0, "not JSON"), output(0, "{}"), output(0, "{\"name\":42}")];
+    for name in [
+        "42-0123456789abcdef",
+        "00000000000000000042-0123456789abcdeg",
+        "00000000000000000042_0123456789abcdef",
+        "00000000000000000042-0123456789abcde",
+        "0000000000000000004x-0123456789abcdef",
+        "00000000000000000042-0123456789abcdef/../bad",
+    ] {
+        answers.push(output(0, &serde_json::json!({"name": name}).to_string()));
+    }
+    answers.push(Output { code: None, stdout: String::new(), stderr: "could not spawn ctl".into() });
+    for answer in answers {
+        let mut hosts = staged(2);
+        hosts.ctl_answer("deployment checkpoint --json", answer);
+        let (outcome, record) = execute(&mut hosts, Mode::Together);
+        assert_eq!(outcome, Outcome::Refused);
+        all_old(&hosts);
+        assert_eq!(hosts.lines.last().unwrap().line, CHECKPOINT_CALL);
+        assert_eq!(record.checkpoint, None);
+        assert_eq!(record.check, None);
+        assert!(last(&record).contains("refused: check checkpoint:"));
+    }
 }
 
 #[test]
-fn job_checks_keep_the_journals_existing_backup() {
-    let mut hosts = staged(1);
-    hosts.check_answer(0, "temper-engine upgrade: ran temper deleted-repository-forge-rows: 812 rows in 2 commits; time unavailable\nworkers may stay: yes");
-    let mut journal = super::journal();
-    journal.record.backup = Some("existing-backup".into());
-    let outcome = redeploy(&hosts.description.clone(), NEW, Mode::Engine, &mut journal, &mut hosts);
-    assert_eq!(outcome, Outcome::Done);
-    assert_eq!(journal.record.backup.as_deref(), Some("existing-backup"));
-    assert!(hosts.lines.iter().all(|call| !call.line.starts_with("backup ")));
+fn a_changed_stop_verdict_restores_waits_and_drains_with_a_new_backup() {
+    for verdict in [
+        "workers may stay: no",
+        "workers may stay: unknown; no wires",
+        "",
+        "workers may stay: yes\nworkers may stay: no",
+    ] {
+        let mut hosts = staged(2);
+        hosts.verdict_answer(0, verdict);
+        hosts.opening(0, Opening::After { nanoseconds: 2 * SECOND, wires: WIRES.into() });
+        hosts
+            .stop_logs
+            .push_back(vec!["temper-engine serve: worker w1 told the engine restarts: wait 1200000 ms".into()]);
+        hosts
+            .stop_logs
+            .push_back(vec!["temper-engine serve: worker w2 told the engine restarts: wait 700000 ms".into()]);
+        let (outcome, record) = execute(&mut hosts, Mode::Engine);
+        assert_eq!(outcome, Outcome::Done, "{verdict}");
+        assert_eq!(hosts.lines.iter().filter(|call| call.line.starts_with("check ")).count(), 1);
+        assert_eq!(hosts.lines.iter().filter(|call| call.line.starts_with("verdict ")).count(), 1);
+        assert_eq!(hosts.lines.iter().filter(|call| call.line == BACKUP_CALL).count(), 2);
+        assert_eq!(record.backup.as_deref(), Some(SECOND_BACKUP));
+        assert_eq!(record.told_wait_ms("w1"), Some(1_200_000));
+        assert_eq!(record.told_wait_ms("w2"), None);
+        assert_eq!(record.window.as_ref().unwrap().from, SECOND);
+        assert_eq!(record.window.as_ref().unwrap().to, SECOND);
+        let first_stop = position(&hosts, "stop engine");
+        let old_start = position(&hosts, "start engine");
+        let drain = position(&hosts, "stop w1");
+        let second_stop = hosts.lines.iter().rposition(|call| call.line == "stop engine").unwrap();
+        assert!(first_stop < old_start && old_start < drain && drain < second_stop);
+        assert!(position(&hosts, "stop w2") < second_stop);
+        assert_eq!(hosts.lines[drain].at, 3 * SECOND, "old openings awaited before drain");
+        assert_eq!(hosts.lines[second_stop + 1].line, BACKUP_CALL, "who was told stays the first stop's");
+        assert_eq!(record.verdict.as_ref().unwrap().lines, verdict.lines().collect::<Vec<_>>());
+        for backup in [BACKUP, SECOND_BACKUP] {
+            assert!(
+                record
+                    .lines
+                    .iter()
+                    .any(|line| line.line == format!("temper-redeploy run: stop checkpoint {backup}; backup"))
+            );
+        }
+        assert!(
+            record
+                .lines
+                .iter()
+                .any(|line| line.line.ends_with("verdict workers may stay: no or unknown; every part together"))
+        );
+        assert_eq!((record.outages[0].from, record.outages[0].to), (3 * SECOND, 5 * SECOND));
+        for machine in std::iter::once(&hosts.engine).chain(&hosts.workers) {
+            assert!(machine.running && machine.installed.values().all(|build| build == NEW));
+        }
+    }
+}
+
+#[test]
+fn a_failed_stop_checkpoint_or_verdict_restores_the_old_engine_before_refusing() {
+    for (step, answer) in [
+        ("checkpoint", output(1, "temper-engine checkpoint: refused: files")),
+        ("checkpoint", output(0, "no checkpoint line")),
+        ("checkpoint", output(0, "temper-engine checkpoint: 42-not-a-name at commit 42")),
+        ("checkpoint", Output { code: None, stdout: String::new(), stderr: "could not spawn checkpoint".into() }),
+        ("verdict", output(1, "cannot read the checkpoint")),
+        ("verdict", Output { code: None, stdout: String::new(), stderr: "could not spawn verdict".into() }),
+    ] {
+        let mut hosts = staged(2);
+        hosts.opening(0, Opening::After { nanoseconds: 2 * SECOND, wires: WIRES.into() });
+        if step == "checkpoint" {
+            hosts.failures.insert((Part::Engine, BACKUP_CALL.into()), answer);
+        } else {
+            hosts.verdict = answer;
+        }
+        let (outcome, record) = execute(&mut hosts, Mode::Engine);
+        assert_eq!(outcome, Outcome::Refused, "{step}: {}", last(&record));
+        all_old(&hosts);
+        assert!(position(&hosts, "stop engine") < position(&hosts, "start engine"));
+        assert_eq!(record.openings.len(), 2);
+        assert_eq!(hosts.at, 3 * SECOND, "old openings awaited");
+        if step == "verdict" {
+            assert_eq!(record.backup.as_deref(), Some(BACKUP));
+            assert_ne!(record.verdict.as_ref().unwrap().code, Some(0));
+        } else {
+            assert_eq!(record.backup, None);
+            assert_eq!(record.verdict, None);
+        }
+        assert!(
+            last(&record)
+                .contains(&format!("refused: {}:", if step == "checkpoint" { "stop checkpoint" } else { step }))
+        );
+    }
 }
 
 #[test]
@@ -384,7 +522,7 @@ fn an_opening_refusal_is_kept_and_failed_with_recovery_information() {
         && opening.refused
         && opening.line.ends_with("wires: temper-worker-wire too old")));
     assert!(last(&record).starts_with("temper-redeploy run: failed at openings:"));
-    for word in ["w2", "swapped: engine", "backup: abcdef012345-19700101T000001Z", &format!("previous: engine={OLD}")] {
+    for word in ["w2", "swapped: engine", &format!("backup: {BACKUP}"), &format!("previous: engine={OLD}")] {
         assert!(last(&record).contains(word), "{} lacks {word}", last(&record));
     }
 }
@@ -404,13 +542,9 @@ fn an_unopened_worker_waits_for_the_constant_grace() {
 
 #[test]
 fn failures_before_a_swap_restart_all_stopped_parts_without_installing_anything() {
-    for failure in ["check", "drain", "engine stop", "backup"] {
+    for failure in ["drain", "engine stop", "checkpoint"] {
         let mut hosts = staged(2);
         let mode = match failure {
-            "check" => {
-                hosts.check = Output { code: None, stdout: String::new(), stderr: "could not spawn check".into() };
-                Mode::Engine
-            }
             "drain" => {
                 hosts.fail_line(Part::Worker(0), "stop w1", 1);
                 Mode::Together
@@ -419,9 +553,8 @@ fn failures_before_a_swap_restart_all_stopped_parts_without_installing_anything(
                 hosts.fail_line(Part::Engine, "stop engine", 1);
                 Mode::Together
             }
-            "backup" => {
-                hosts.check_answer(0, "temper-engine upgrade: ran temper deleted-repository-forge-rows: 812 rows in 2 commits; time unavailable\nworkers may stay: yes");
-                hosts.fail_line(Part::Engine, &format!("backup '{NEW}-19700101T000001Z'"), 1);
+            "checkpoint" => {
+                hosts.fail_line(Part::Engine, BACKUP_CALL, 1);
                 Mode::Engine
             }
             _ => unreachable!(),
@@ -488,7 +621,7 @@ fn a_failed_start_after_a_swap_stops_in_place_before_the_next_worker() {
         1,
         "no retry or recovery after a swap"
     );
-    for word in ["failed at w1 start", "swapped: engine, w1", "backup: none", &format!("w1={OLD}")] {
+    for word in ["failed at w1 start", "swapped: engine, w1", &format!("backup: {BACKUP}"), &format!("w1={OLD}")] {
         assert!(last(&record).contains(word), "{} lacks {word}", last(&record));
     }
 }
@@ -540,7 +673,6 @@ fn logins_share_the_opening_deadline_and_fail_before_the_next_worker() {
 #[test]
 fn recovery_starts_all_stopped_parts_even_when_its_log_cannot_be_read() {
     let mut hosts = staged(2);
-    hosts.check_answer(1, "check refused");
     hosts.fail_line(Part::Engine, "log engine '0'", 1);
     let (outcome, record) = execute(&mut hosts, Mode::Together);
     assert_eq!(outcome, Outcome::Failed);
@@ -596,7 +728,7 @@ fn openings_and_logins_cannot_succeed_at_a_poll_past_the_bound() {
             }
             Mode::Workers => {
                 assert_eq!(
-                    hosts.lines.iter().filter(|call| call.line.starts_with("ctl engine ")).count(),
+                    hosts.lines.iter().filter(|call| call.line.starts_with("ctl engine 'account'")).count(),
                     1,
                     "no poll beyond the bound"
                 );

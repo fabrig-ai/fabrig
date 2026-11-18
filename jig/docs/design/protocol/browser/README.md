@@ -393,10 +393,10 @@ the turn, which the inbox calls when a report waits and no turn runs:
     the tab hidden or shown: to the hidden tab part, no step
     the timer due: to the hidden tab part, then a step as any report
     fetch's or the small store's report: a host event, by the client's adapter
-    step ← the client host steps with the report, now and wall
+    step ← the client host steps with the report, now and wall, then settles its root once (`../../client/domain/root.md`, section 3)
     requests ← the client's adapter, from the step's requests as HTTP
     the transport carries the step's writes and requests, then any navigation (5.3)
-    fetch reads the stream on, after a piece of it
+    fetch reads the stream on, after a piece of it, and a batch's answer on, after a piece of it
     history shows the step's address, printed by its codec
     the step's effects, to their parts or the shell's own code
     sign-in shows a credential once, if the step asks

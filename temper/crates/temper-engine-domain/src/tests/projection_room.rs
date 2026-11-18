@@ -107,7 +107,7 @@ fn full_outbox() -> (crate::Domain, Env<crate::Limits>, u64, u64) {
     ] {
         forge::step(&mut domain.forge, &env.with(env.limits.forge), event, &mut out);
     }
-    assert!(!domain.forge.effect_room(&env.limits.forge, 0));
+    assert!(!domain.forge.effect_room(&env.limits.forge));
     assert!(!domain.forge.full_outbox_met(), "restoration leaves the step unmarked");
     assert!(domain.work.is_empty(), "fixture has no unrelated root work");
     let entry = crate::fresh(&mut domain.core.counters, crate::Family::ConnectorRow).unwrap();
@@ -124,6 +124,52 @@ fn after_interval(env: &Env<crate::Limits>) -> Wall {
 }
 
 #[test]
+fn a_projection_ending_without_an_entry_returns_its_reserved_room() {
+    use jig_domain_core::effects::connector::{Ask, EffectRefusal};
+    for translate in [true, false] {
+        let (mut domain, mut env, goal, first) = full_outbox();
+        let mut out = Queue::uncapped();
+        forge::step(&mut domain.forge, &env.with(env.limits.forge), forge::Event::Withdraw { entry: first }, &mut out);
+        out.clear();
+        let entry = crate::fresh(&mut domain.core.counters, crate::Family::ConnectorRow).unwrap();
+        forge::step(
+            &mut domain.forge,
+            &env.with(env.limits.forge),
+            forge::Event::ProjectDesired { entry, goal },
+            &mut out,
+        );
+        assert!(!domain.forge.effect_room(&env.limits.forge), "projection reserves the last room");
+        env.limits.authority.segments = if translate { 8 } else { 0 };
+        let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
+        crate::route::forge_route::outputs(&mut domain, &env, &mut decision, &mut out);
+        if translate {
+            let Some(crate::Work::Core(jig_domain_core::Event::EffectStart { owner, .. })) = domain.work.pop() else {
+                panic!("projection starts its core flight")
+            };
+            let connector = domain.config.forge_connector;
+            crate::route::forge_route::effect_ask(
+                &mut domain,
+                &env,
+                &mut decision,
+                connector,
+                Ask::Drop {
+                    owner,
+                    answer: jig_domain_authority::Answer::Refuse,
+                    findings: Box::new([]),
+                    why: EffectRefusal::Authority,
+                },
+            );
+        }
+        let Some(crate::Work::Forge(event @ forge::Event::DropProjection { .. })) = domain.work.pop() else {
+            panic!("projection returns its room, whether translation or core refused it")
+        };
+        forge::step(&mut domain.forge, &env.with(env.limits.forge), event, &mut out);
+        assert!(domain.forge.effect_room(&env.limits.forge));
+        assert!(domain.forge_effects.is_empty());
+    }
+}
+
+#[test]
 fn a_projection_meeting_a_full_outbox_ends_the_step() {
     let (domain, env, goal, _) = full_outbox();
     assert!(domain.work.is_empty());
@@ -131,7 +177,7 @@ fn a_projection_meeting_a_full_outbox_ends_the_step() {
     let issue = domain.forge.issue(goal).expect("live goal's issue");
     assert!(!issue.failed);
     assert!(issue.pending.is_none());
-    assert!(!domain.forge.effect_room(&env.limits.forge, 0));
+    assert!(!domain.forge.effect_room(&env.limits.forge));
     assert!(domain.forge.full_outbox_met());
 }
 
@@ -156,7 +202,7 @@ fn a_projection_asked_at_once_waits_in_the_step_that_met_the_full_outbox() {
                 forge::Event::Withdraw { entry: first },
                 &mut Queue::uncapped(),
             );
-            assert!(domain.forge.effect_room(&env.limits.forge, 0), "{name}: withdrawal frees room");
+            assert!(domain.forge.effect_room(&env.limits.forge), "{name}: withdrawal frees room");
         }
         if fire {
             crate::fire(&mut domain, &env);

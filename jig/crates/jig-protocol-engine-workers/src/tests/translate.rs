@@ -119,6 +119,29 @@ fn a_failed_answer_keeps_the_limited_or_refused_account_it_turned_on() {
 }
 
 #[test]
+fn an_untooled_answer_keeps_its_failure_detail_and_work_from_bytes() {
+    use jig_protocol_worker_wire as wire;
+    let record = fixtures::answer_failed_on(wire::RunFailure::Untooled);
+    let mut writer = skein_lib::Writer::new(skein_lib::usize_of(record.measure()));
+    record.encode(&mut writer).expect("answer bytes");
+    let bytes = writer.finish();
+    let record = wire::Answer::decode(&codec(), &mut skein_lib::Reader::new(&bytes)).expect("answer");
+    let (answer, parts) = answer(record);
+    assert_eq!(
+        answer.ending,
+        jig_domain_host::Ending::Failed {
+            failure: jig_domain_host::Failure::Run(jig_domain_host::RunFailure::Untooled),
+            detail: b"detail".as_slice().into(),
+            work: jig_domain_host::Work { left: Some(Token::new(4)), saved: Some(Token::new(5)) },
+            model: None,
+        }
+    );
+    let parts = parts.finish();
+    assert_eq!(parts[0].bytes.as_ref(), b"left");
+    assert_eq!(parts[1].bytes.as_ref(), b"saved");
+}
+
+#[test]
 fn an_answer_record_keeps_its_unread_fence() {
     let (answer, parts) = answer(fixtures::answer_record());
     drop(parts);
@@ -146,7 +169,7 @@ fn an_answer_hands_left_and_saved_work_up_as_parts() {
 fn a_call_record_keeps_its_name_bytes() {
     let mut parts = fixtures::call_record().into_parts();
     parts.contract = 3;
-    let record = jig_protocol_worker_wire::Call::new(&jig_protocol_worker_wire::v15::CEILINGS, parts).expect("call");
+    let record = jig_protocol_worker_wire::Call::new(&jig_protocol_worker_wire::v17::CEILINGS, parts).expect("call");
     let link = up(translate::Up::Call(record));
     let jig_domain_host::LinkUp::Call { run, attempt, contract, call, tool, writes, input, deadline } = link else {
         panic!("call");
@@ -199,7 +222,7 @@ fn down(record: jig_domain_host::LinkDown) -> translate::Down {
     };
     translated.expect("complete output")
 }
-fn codec() -> jig_protocol_worker_wire::v15::Limits {
+fn codec() -> jig_protocol_worker_wire::v17::Limits {
     jig_protocol_worker_wire::sizes::limits(&fixtures::SIZES).expect("small codec")
 }
 fn assignment_output() -> jig_domain_host::LinkDown {
@@ -257,7 +280,7 @@ fn a_transcript_past_its_bound_including_lengths_drops_the_assignment() {
             reason: None,
             figure: Some(13),
             bound: Some(12),
-            ceiling: Some(u64::from(jig_protocol_worker_wire::v15::CEILINGS.assignment_transcript)),
+            ceiling: Some(u64::from(jig_protocol_worker_wire::v17::CEILINGS.assignment_transcript)),
         }
     );
 }
@@ -273,7 +296,7 @@ fn a_charter_past_its_bound_names_its_bytes_limit_and_ceiling() {
             reason: None,
             figure: Some(7),
             bound: Some(6),
-            ceiling: Some(u64::from(jig_protocol_worker_wire::v15::CEILINGS.assignment_charter))
+            ceiling: Some(u64::from(jig_protocol_worker_wire::v17::CEILINGS.assignment_charter))
         }
     );
     limits.assignment_charter = 7;
@@ -292,7 +315,7 @@ fn a_constructor_refusal_keeps_its_codec_path_and_reason() {
         )
         .expect_err("not UTF-8"),
         Unencoded {
-            field: jig_protocol_worker_wire::v15::Path::MessageWords.name(),
+            field: jig_protocol_worker_wire::v17::Path::MessageWords.name(),
             reason: Some(skein_codec::Reason::Utf8),
             figure: None,
             bound: None,
@@ -312,7 +335,7 @@ fn a_full_list_names_its_count_limit_and_ceiling() {
             reason: None,
             figure: Some(1),
             bound: Some(0),
-            ceiling: Some(u64::from(jig_protocol_worker_wire::v15::CEILINGS.assignment_messages))
+            ceiling: Some(u64::from(jig_protocol_worker_wire::v17::CEILINGS.assignment_messages))
         }
     );
 }
@@ -794,6 +817,7 @@ mod list_tests {
                 crate::limits::schema(&fixtures::LIMITS).expect("schema"),
                 &fixtures::LIMITS,
                 Time::ZERO,
+                false,
             );
             state.channel = channel;
             state.phase = Phase::Open;

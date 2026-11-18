@@ -52,6 +52,25 @@ fn the_example_reads_and_invalid_members_name_their_paths() {
     }
 }
 #[test]
+fn checkpoint_templates_require_their_inputs_and_refuse_legacy_names() {
+    let original: Value = serde_json::from_str(include_str!("description.json")).unwrap();
+    for (member, template, why) in [
+        ("check", "check {binary}", "placeholder {checkpoint} is required"),
+        ("check", "check {checkpoint}", "placeholder {binary} is required"),
+        ("checkpoint", "checkpoint", "placeholder {binary} is required"),
+        ("verdict", "verdict {binary}", "placeholder {checkpoint} is required"),
+        ("verdict", "verdict {checkpoint}", "placeholder {binary} is required"),
+        ("backup", "backup {name}", "unknown member"),
+        ("check", "check {binary} {checkpoint} {name}", "placeholder {name} is not given"),
+        ("checkpoint", "checkpoint {binary} {name}", "placeholder {name} is not given"),
+        ("verdict", "verdict {binary} {checkpoint} {name}", "placeholder {name} is not given"),
+    ] {
+        let mut value = original.clone();
+        value["engine"][member] = json!(template);
+        assert_eq!(read(&value.to_string()).unwrap_err(), format!("engine.{member}: {why}"));
+    }
+}
+#[test]
 fn placeholders_are_posix_words_not_substitutions_in_inserted_values() {
     assert_eq!(
         fill("swap {from} {to}", &[("from", "/b/it's here"), ("to", "/usr/local/bin/temper-engine")]),

@@ -20,7 +20,11 @@ pub fn service_kept() -> Kept {
 impl Exchange {
     pub fn make_service(&mut self) -> (Token, ReplyTo) {
         let (ask, expected) = make_service_case(&wire());
-        let owner = self.send(crate::Message::Request(keyed(w::Owner::Jig, 27, encode_ask(&ask))));
+        let owner = self.send(crate::Message::Request(keyed(
+            w::Owner::Jig,
+            jig_client_protocol_wire::VERSION,
+            encode_ask(&ask),
+        )));
         self.authenticate();
         let Some(Request::Core(event)) = self.out.pop() else { panic!("core ask") };
         let core::Event::People(people::Event::Ask { reply_to, ask, .. }) = *event else { panic!("people ask") };
@@ -64,7 +68,7 @@ impl Exchange {
         assert_eq!(who, SecretOwner::Service(SERVICE));
         self.service_got(Some(service_kept()));
         let Some(Request::Core(event)) = self.out.pop() else { panic!("core sign-in") };
-        let core::Event::SignIn { held: None, reply_to, identity } = *event else { panic!("sign-in") };
+        let core::Event::SignIn { until: None, held: None, reply_to, identity } = *event else { panic!("sign-in") };
         assert_eq!(identity.key.provider, 2);
         assert_eq!(identity.key.subject.as_ref(), &SERVICE.to_be_bytes());
         assert!(identity.login.is_empty() && identity.name.is_empty());

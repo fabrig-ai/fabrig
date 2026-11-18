@@ -7,13 +7,13 @@ use crate::{
 use skein_fake_person::{Doing, Face, Find, Found, Next};
 use skein_fake_person_browser::{
     BrowserFace,
-    harness::{Harness, Names, Outcome, Output, Play, Printed, Sent, Setup},
+    harness::{Harness, Outcome, Play},
 };
 use skein_lib::{Duration, Time};
 use skein_ui::{Act, Role};
 use skein_ui_screen_terminal::Key;
 use std::{
-    ffi::{OsStr, OsString},
+    ffi::OsString,
     fs::{self, File},
     os::unix::{ffi::OsStrExt, fs::DirBuilderExt},
     path::{Path, PathBuf},
@@ -21,7 +21,7 @@ use std::{
 use temper_client_shell_tui::journey::{self, WalkStep};
 use temper_client_shell_web::journey::SetupStep;
 
-use crate::tui_driver::{environment, key_bytes, optional_file, replaced, terminal::Terminal};
+use crate::tui_driver::{key_bytes, optional_file, replaced, terminal::Terminal};
 #[cfg(test)]
 mod tests;
 
@@ -142,74 +142,11 @@ fn record(
     given: &[crate::EnvironmentEntry],
 ) -> Result<(), Refusal> {
     let fail = |report: String| Refusal::TuiAgain { name: name.to_owned(), step: 1, report };
-    let environment =
-        environment(given, &paths.scratch).map_err(|why| fail(format!("cannot build TUI environment: {why}")))?;
-    for directory in ["home", "state", "bin", "tmp", "config", "data", "cache", "runtime", "tui-runtime"] {
-        let path = paths.scratch.join(directory);
-        fs::DirBuilder::new().mode(0o700).create(&path).map_err(|_| crate::io_refusal(&path))?;
-    }
-    let true_program = program("true", given).ok_or_else(|| fail("cannot find true on PATH".into()))?;
-    for opener in ["xdg-open", "open"] {
-        let path = paths.scratch.join("bin").join(opener);
-        std::os::unix::fs::symlink(&true_program, &path).map_err(|_| crate::io_refusal(&path))?;
-    }
-    // Like browser again, env gives the harness's empty server environment
-    // a PATH. HOME and temporary files also stay within this fresh run.
-    let launcher = program("env", given).ok_or_else(|| fail("cannot find env on PATH".into()))?;
-    let mut args: Vec<OsString> = environment
-        .iter()
-        .filter(|(name, _)| {
-            [
-                "PATH",
-                "HOME",
-                "TMPDIR",
-                "XDG_STATE_HOME",
-                "XDG_CONFIG_HOME",
-                "XDG_DATA_HOME",
-                "XDG_CACHE_HOME",
-                "XDG_RUNTIME_DIR",
-            ]
-            .iter()
-            .any(|forward| name == forward)
-        })
-        .map(|(name, value)| {
-            let mut entry = name.clone();
-            entry.push("=");
-            if name == "XDG_RUNTIME_DIR" {
-                entry.push(paths.scratch.join("runtime"));
-            } else {
-                entry.push(value);
-            }
-            entry
-        })
-        .collect();
-    args.extend([
-        paths.temper.clone().into_os_string(),
-        "--fake-backends".into(),
-        "--bundle".into(),
-        paths.bundle.clone().into_os_string(),
-    ]);
-    for (flag, directory) in [("--config", "config"), ("--data", "data"), ("--cache", "cache")] {
-        args.push(flag.into());
-        let path = if directory == "cache" {
-            paths.cache.clone().unwrap_or_else(|| paths.scratch.join(directory))
-        } else {
-            paths.scratch.join(directory)
-        };
-        args.push(path.into_os_string());
-    }
-    let mut harness = Harness::new(Setup {
-        server: launcher,
-        restart: args.clone(),
-        args,
-        printed: Printed { sent: Sent::Page, prefix: b"http://127.0.0.1:", on: Output::Stdout, names: Names::Url },
-        chromium: paths.chromium.clone(),
-        downloads: None,
-        expected: vec![],
-        origins: vec![],
-    })
-    .page_query(b"internal-loopback-navigation=1")
-    .horizon(HORIZON);
+    let environment = crate::isolation::environment(given, &paths.scratch).map_err(fail)?;
+    let launcher = crate::isolation::program("env", given).ok_or_else(|| fail("cannot find env on PATH".into()))?;
+    let mut harness = Harness::new(crate::again::box_setup(paths, launcher, &environment, None))
+        .page_query(&crate::again::page_query(false))
+        .horizon(HORIZON);
     let mut walker = Walker::new(name, paths, environment, starting);
     let outcome = harness.run(&mut [&mut walker]);
     // Stop and reap the TUI even when the browser or box failed before next().
@@ -229,14 +166,6 @@ fn record(
     crate::add_to(journeys, tui_journeys, name, &recording, &crate::again::private_paths(paths)).map(|_| ())
 }
 
-fn program(name: &str, given: &[crate::EnvironmentEntry]) -> Option<std::path::PathBuf> {
-    let path = OsStr::from_bytes(crate::table::PATH.value(given).unwrap_or_default());
-    std::env::split_paths(path)
-        .filter(|path| path.is_absolute())
-        .map(|path| path.join(name))
-        .find(|path| path.is_file())
-}
-
 enum Phase {
     SetupStep { at: usize },
     SetupSee { at: usize },
@@ -248,6 +177,7 @@ enum Phase {
     Save { earlier: Option<File> },
     Approve,
     Pressed,
+    Diagnostic { page: crate::again::Diagnostic },
     Finished,
 }
 struct Walker<'a> {
@@ -279,6 +209,14 @@ impl<'a> Walker<'a> {
             recording: None,
         }
     }
+    fn refused(&mut self, face: &mut BrowserFace<'_>, why: Refusal) {
+        match why {
+            why @ Refusal::SetupTimeout { .. } => {
+                self.phase = Phase::Diagnostic { page: crate::again::Diagnostic::new(why, face) };
+            }
+            why => self.refusal = Some(why),
+        }
+    }
     fn step(&self) -> u32 {
         u32::try_from(self.at + 1).expect("walk length fits u32")
     }
@@ -306,6 +244,9 @@ impl<'a> Walker<'a> {
         Ok(())
     }
     fn deadline(&self, now: Time) -> Result<(), Refusal> {
+        if matches!(self.phase, Phase::Diagnostic { .. }) {
+            return Ok(());
+        }
         if let Phase::SetupStep { at } | Phase::SetupSee { at } = &self.phase {
             if self.since.is_some_and(|since| now >= since.saturating_add(Duration::from_secs(60))) {
                 let prepared = self.setup.expect("setup phase has a setup");
@@ -376,10 +317,7 @@ impl<'a> Walker<'a> {
                 self.since = None;
                 self.phase = Phase::Opening;
                 return Ok(Next::Do(Doing::Go {
-                    address: skein_fake_person_browser::harness::with_query(
-                        &address,
-                        b"internal-loopback-navigation=1",
-                    ),
+                    address: skein_fake_person_browser::harness::with_query(&address, &crate::again::page_query(false)),
                 }));
             }
             Phase::Opening => {
@@ -473,6 +411,13 @@ impl<'a> Walker<'a> {
                 }
             }
             Phase::Pressed => self.advance(),
+            Phase::Diagnostic { page } => match page.progress(face) {
+                Ok(why) => {
+                    self.refusal = Some(why);
+                    return Ok(Next::Done);
+                }
+                Err(page) => self.phase = Phase::Diagnostic { page },
+            },
             Phase::Finished => return Ok(Next::Done),
         }
         Ok(Next::Wait { until: Some(now.saturating_add(POLL)) })
@@ -482,11 +427,13 @@ impl Play for Walker<'_> {
     fn at(&self) -> u32 {
         u32::try_from(self.at).expect("walk length fits u32")
     }
-    fn check_deadline(&mut self, _face: &mut BrowserFace<'_>, now: Time) {
+    fn check_deadline(&mut self, face: &mut BrowserFace<'_>, now: Time) {
         // The harness calls this even while a page's navigation is pending.
         let progress = self.terminal.as_mut().map_or(Ok(()), Terminal::tick);
-        if self.refusal.is_none() {
-            self.refusal = progress.map_err(|why| self.fail(why)).and_then(|()| self.deadline(now)).err();
+        if self.refusal.is_none()
+            && let Err(why) = progress.map_err(|why| self.fail(why)).and_then(|()| self.deadline(now))
+        {
+            self.refused(face, why);
         }
     }
     fn next(&mut self, face: &mut BrowserFace<'_>, now: Time) -> Next<Box<[u8]>> {
@@ -496,8 +443,8 @@ impl Play for Walker<'_> {
         match self.progress(face, now) {
             Ok(next) => next,
             Err(why) => {
-                self.refusal = Some(why);
-                Next::Done
+                self.refused(face, why);
+                if self.refusal.is_some() { Next::Done } else { Next::Wait { until: Some(now.saturating_add(POLL)) } }
             }
         }
     }

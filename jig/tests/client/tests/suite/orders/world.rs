@@ -2,7 +2,7 @@
 //! completions. The loop observes only requests; no client state is inspected
 //! (jig/docs/design/client/domain/testing.md, 4).
 use jig_client::{self as client, Down, Event, Message, Told, Up, contract as c};
-use jig_client_protocol_wire::v27 as w;
+use jig_client_protocol_wire as w;
 use jig_client_test_domain::{self as root, first};
 pub use jig_client_world::PARTY;
 use jig_client_world::test;
@@ -13,8 +13,8 @@ use std::collections::{BTreeMap, VecDeque};
 const SEED: u64 = 8601;
 const STREAM: [u8; 16] = [7; 16];
 // The story holds three successive family pages, each with a read and watch,
-// alongside the me watch, one inbox watch and its two reads: 6 + 1 + 3.
-const ROOT_EXCHANGES: u32 = 10;
+// alongside one inbox watch and its two reads: 6 + 3.
+const ROOT_EXCHANGES: u32 = 9;
 // Retention belongs to the supplied peer document, not the world's deadline.
 const RETENTION: skein_lib::Duration = skein_lib::Duration::from_secs(60);
 pub const PAGE_A: first::Address = first::Address { project: 1, item: 10 };
@@ -62,9 +62,10 @@ pub enum Command {
     Client(Event),
     Go(first::Address),
     JigInbox,
-    AdmitMe,
     ReplyRead(u32),
     ReleaseReads,
+    ReleaseWatchExchanges,
+    HoldWatchExchanges,
     Stored(bool),
     AckAll,
     Fire(Time),
@@ -110,7 +111,6 @@ struct Exchange {
 }
 
 enum ExchangeKind {
-    Me(u64),
     Read(u32),
     OtherRead,
     Request([u8; 16]),
@@ -134,6 +134,8 @@ pub struct World {
     now: Time,
     trace: Vec<(&'static str, Edge)>,
     exchanges: Vec<Exchange>,
+    parts: BTreeMap<Token, (Token, u16)>,
+    next_member: u64,
     completed_reads: Vec<Token>,
     writes: VecDeque<Write>,
     durable: BTreeMap<Box<[u8]>, client::Record>,
@@ -144,6 +146,7 @@ pub struct World {
     child_pending: Vec<ChildWrite>,
     label: &'static str,
     unlinked: bool,
+    hold_watches: bool,
 }
 
 impl World {
@@ -180,6 +183,8 @@ impl World {
             now: Time::ZERO,
             trace: Vec::new(),
             exchanges: Vec::new(),
+            parts: BTreeMap::new(),
+            next_member: u64::MAX,
             completed_reads: Vec::new(),
             writes: VecDeque::new(),
             durable: BTreeMap::new(),
@@ -190,6 +195,7 @@ impl World {
             child_pending: Vec::new(),
             label: "start",
             unlinked,
+            hold_watches: false,
         };
         for record in &kept {
             world.recorded.insert(record.key, record.first_sent);
@@ -204,6 +210,10 @@ impl World {
             schedule.send(Time::ZERO, entrance);
         }
         while let Some((label, command)) = schedule.next(world.now) {
+            world.label = "peer";
+            if !world.hold_watches {
+                world.admit_watches();
+            }
             world.label = label;
             world.execute(command);
         }
@@ -235,23 +245,38 @@ impl World {
         } else {
             self.deliver(Event::Streamed { message: client::Streamed::Record(hello()) });
         }
-        self.label = "me";
-        let watch = self.me().1;
         if self.unlinked {
             let limits = test::limits().client.domain;
             let bounds = jig_client_protocol_link::Limits::new(limits, ROOT_EXCHANGES).expect("world bounds");
             let frame = jig_client_protocol_link::translate::documents::frame(frame(), &bounds).expect("peer frame");
             self.deliver(Event::Up {
                 up: Up::Watched {
-                    watch: Token::new(watch),
+                    watch: Token::new(0),
                     event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(frame))),
                 },
             });
-        } else {
-            self.deliver(Event::Streamed { message: client::Streamed::Record(delivery(watch)) });
         }
         self.label = "initial_store";
         self.ack_all();
+    }
+
+    fn admit_watches(&mut self) {
+        let pending: Vec<_> = self
+            .exchanges
+            .iter()
+            .filter_map(
+                |exchange| {
+                    if matches!(exchange.kind, ExchangeKind::Watch) { Some(exchange.token) } else { None }
+                },
+            )
+            .collect();
+        for exchange in pending {
+            self.exchanges.retain(|pending| pending.token != exchange);
+            let answer = w::OpenAnswer::Admitted;
+            let mut bytes = Writer::new(skein_lib::length::usize_of(answer.measure()));
+            answer.encode(&mut bytes).expect("opening answer");
+            self.deliver(Event::Reply { exchange, message: bytes.finish() });
+        }
     }
 
     fn execute(&mut self, command: Command) {
@@ -265,14 +290,21 @@ impl World {
                     project: None,
                 })),
             }),
-            Command::AdmitMe => {
-                let (exchange, _) = self.me();
-                self.deliver(Event::Reply { exchange, message: open_answer() });
-                self.remove(exchange);
-            }
             Command::ReplyRead(project) => {
                 let token = self.read_exchange(project);
                 self.complete_read(token);
+            }
+            Command::HoldWatchExchanges => self.hold_watches = true,
+            Command::ReleaseWatchExchanges => {
+                let tokens: Vec<_> = self
+                    .exchanges
+                    .iter()
+                    .filter_map(|exchange| matches!(exchange.kind, ExchangeKind::Watch).then_some(exchange.token))
+                    .collect();
+                for exchange in tokens {
+                    self.deliver(Event::Lost { exchange });
+                    self.remove(exchange);
+                }
             }
             Command::ReleaseReads => {
                 let mut tokens = self.completed_reads.clone();
@@ -297,12 +329,14 @@ impl World {
                             machine.fire_unlinked(now, Wall::EPOCH, &mut unlinked);
                         } else {
                             machine.fire(now, Wall::EPOCH, &mut out);
+                            machine.settle(now, Wall::EPOCH, &mut out);
                         }
                     }
                     Machine::Root(machine, limits) => {
                         let env = Env { now, wall: Wall::EPOCH, limits: **limits };
                         let mut root_out = Queue::uncapped();
                         root::fire(machine, &env, &mut root_out);
+                        root::settle(machine, &env, &mut root_out);
                         self.root_outputs(&mut root_out);
                     }
                 }
@@ -327,6 +361,21 @@ impl World {
     }
 
     fn deliver(&mut self, event: Event) {
+        let mut done = None;
+        let event = match event {
+            Event::Reply { exchange, message } if self.parts.contains_key(&exchange) => {
+                let (batch, member) = self.parts.remove(&exchange).expect("member");
+                if !self.parts.values().any(|(parent, _)| *parent == batch) {
+                    done = Some(batch);
+                }
+                let part = w::BatchReply::new(&w::CEILINGS, w::BatchReplyParts { member, reply: Some(message) })
+                    .expect("part");
+                let mut writer = Writer::new(skein_lib::length::usize_of(part.measure()));
+                part.encode(&mut writer).expect("part bytes");
+                Event::Part { exchange: batch, message: writer.finish() }
+            }
+            other => other,
+        };
         if let Event::Read { handle, .. } = &event {
             self.readers.take(*handle);
             self.readers.open(*handle, ());
@@ -343,6 +392,7 @@ impl World {
                     machine.step_unlinked(self.now, Wall::EPOCH, event, &mut unlinked);
                 } else {
                     machine.step(self.now, Wall::EPOCH, event, &mut out);
+                    machine.settle(self.now, Wall::EPOCH, &mut out);
                 }
                 self.outputs(&mut out);
                 self.unlinked_outputs(&mut unlinked);
@@ -351,6 +401,9 @@ impl World {
             }
             Machine::Root(..) => self.root_event(root::Event::Client { event }),
         }
+        if let Some(exchange) = done {
+            self.deliver(Event::Done { exchange });
+        }
     }
 
     fn root_event(&mut self, event: root::Event) {
@@ -358,6 +411,7 @@ impl World {
         let env = Env { now: self.now, wall: Wall::EPOCH, limits: **limits };
         let mut out = Queue::uncapped();
         root::step(machine, &env, event, &mut out);
+        root::settle(machine, &env, &mut out);
         root::take(machine, &env, &mut out);
         self.root_outputs(&mut out);
     }
@@ -430,6 +484,7 @@ impl World {
                 client::UnlinkedRequest::Down { down } => self.down(down),
                 other @ (client::UnlinkedRequest::SignOut
                 | client::UnlinkedRequest::ApprovalAct(_)
+                | client::UnlinkedRequest::AskedLink(_)
                 | client::UnlinkedRequest::Approval(_)
                 | client::UnlinkedRequest::Authorized(_)) => {
                     panic!("unexpected client duty: {other:?}")
@@ -461,7 +516,8 @@ impl World {
                     self.writes.push_back(Write { saves: Vec::new(), erases });
                 }
                 client::Request::Exchange { exchange, message, .. } => self.wire(exchange, message),
-                other @ (client::Request::Approval(_)
+                other @ (client::Request::AskedLink(_)
+                | client::Request::Approval(_)
                 | client::Request::Authorized(_)
                 | client::Request::ServiceCredential { .. }) => {
                     panic!("unexpected client duty: {other:?}")
@@ -471,6 +527,35 @@ impl World {
     }
 
     fn wire(&mut self, token: Token, message: Message) {
+        if let Message::Batch(bytes) = &message {
+            let batch = w::Batch::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("batch");
+            let mut members = Vec::new();
+            for (place, member) in batch.into_parts().members.into_boxed().into_iter().enumerate() {
+                let local = Token::new(self.next_member);
+                self.next_member -= 1;
+                self.parts.insert(local, (token, u16::try_from(place).expect("member")));
+                members.push((local, member));
+            }
+            for (local, member) in members {
+                let mut writer = Writer::new(skein_lib::length::usize_of(member.measure() - 1));
+                let message = match member {
+                    w::Member::Read(record) => {
+                        record.encode(&mut writer).expect("read");
+                        Message::Read(writer.finish())
+                    }
+                    w::Member::Open(record) => {
+                        record.encode(&mut writer).expect("open");
+                        Message::Watch(writer.finish())
+                    }
+                    w::Member::Close(record) => {
+                        record.encode(&mut writer).expect("close");
+                        Message::Unwatch(writer.finish())
+                    }
+                };
+                self.wire(local, message);
+            }
+            return;
+        }
         let kind = match message {
             Message::Watch(bytes) => {
                 let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("open record");
@@ -478,13 +563,13 @@ impl World {
                     w::Owner::Jig => {
                         let subject = w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record()))
                             .expect("jig subject");
-                        let me = matches!(subject, w::Subject::Me);
+                        assert_ne!(subject, w::Subject::Me, "me comes with the stream");
                         if matches!(subject, w::Subject::Inbox(_)) {
                             self.push(Edge::InboxWatch);
                         } else {
                             self.push(Edge::WatchJig(subject));
                         }
-                        if me { ExchangeKind::Me(open.watch()) } else { ExchangeKind::Watch }
+                        ExchangeKind::Watch
                     }
                     w::Owner::Family(_) => {
                         self.push(Edge::WatchFamily(family_item(open.subject().record(), false)));
@@ -523,10 +608,12 @@ impl World {
                 self.push(Edge::Unwatch);
                 return;
             }
-            other @ (Message::StreamGone(_)
+            other @ (Message::Batch(_)
+            | Message::StreamGone(_)
             | Message::SignInLink(_)
             | Message::SignInService
             | Message::SignOut
+            | Message::LinkAsk(_)
             | Message::ApprovalAsk(_)
             | Message::ApprovalRead(_)
             | Message::ApprovalDecide(_)
@@ -553,9 +640,6 @@ impl World {
                 assert!(matches!(self.recorded.get(&key), Some(Some(_))), "first-send record before its send");
                 self.push(Edge::Send(key));
                 self.exchanges.push(Exchange { token: attempt, kind: ExchangeKind::Request(key) });
-            }
-            Down::Open { watch, subject: client::Watchable::Jig(c::Subject::Me) } => {
-                self.exchanges.push(Exchange { token: watch, kind: ExchangeKind::Me(watch.raw()) });
             }
             other @ (Down::Open { .. } | Down::Continue { .. } | Down::Close { .. } | Down::Read { .. }) => {
                 panic!("unexpected unlinked duty: {other:?}")
@@ -607,15 +691,6 @@ impl World {
                 self.child_records.push(record);
             }
         }
-    }
-
-    fn me(&self) -> (Token, u64) {
-        for exchange in &self.exchanges {
-            if let ExchangeKind::Me(watch) = exchange.kind {
-                return (exchange.token, watch);
-            }
-        }
-        panic!("the peer received the own watch")
     }
 
     fn read_exchange(&self, project: u32) -> Token {
@@ -745,6 +820,7 @@ pub fn record(key: client::Key, name: [u8; 16], first_sent: Option<Wall>) -> Req
 pub fn page_outputs(address: first::Address) -> Vec<Edge> {
     vec![
         Edge::ChildSave(root::store::Record::First(first::Record::Place { version: 1, party: PARTY, address })),
+        Edge::Unwatch,
         Edge::ReadFamily(address.item),
         Edge::WatchFamily(address.item),
     ]
@@ -757,6 +833,7 @@ pub fn inbox_outputs() -> Vec<Edge> {
             party: PARTY,
             address: jig_client_view::address::Address::Inbox { project: None },
         })),
+        Edge::Unwatch,
         Edge::InboxWatch,
         Edge::InboxRead(w::InboxReadGroup::Needs),
         Edge::InboxRead(w::InboxReadGroup::Updates),
@@ -800,7 +877,7 @@ fn hello() -> Box<[u8]> {
                 .expect("served owner"),
         );
     }
-    let event = w::StreamEvent::Hello(
+    let event = jig_client_test_records::opened(
         w::Hello::new(
             &w::CEILINGS,
             w::HelloParts {
@@ -810,33 +887,10 @@ fn hello() -> Box<[u8]> {
             },
         )
         .expect("peer hello"),
+        frame(),
     );
     let mut writer = Writer::new(skein_lib::length::usize_of(event.measure()));
     event.encode(&mut writer).expect("hello bytes");
-    writer.finish()
-}
-
-fn delivery(watch: u64) -> Box<[u8]> {
-    let frame = w::DeliveryValue::Me(frame());
-    let mut writer = Writer::new(skein_lib::length::usize_of(frame.measure()));
-    frame.encode(&mut writer).expect("frame bytes");
-    let document = w::Owned::new(
-        &w::CEILINGS,
-        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: writer.finish() },
-    )
-    .expect("owned frame");
-    let event = w::StreamEvent::Delivery(
-        w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch, document }).expect("delivery"),
-    );
-    let mut writer = Writer::new(skein_lib::length::usize_of(event.measure()));
-    event.encode(&mut writer).expect("delivery bytes");
-    writer.finish()
-}
-
-fn open_answer() -> Box<[u8]> {
-    let answer = w::OpenAnswer::Admitted;
-    let mut writer = Writer::new(skein_lib::length::usize_of(answer.measure()));
-    answer.encode(&mut writer).expect("open bytes");
     writer.finish()
 }
 
@@ -890,4 +944,127 @@ fn child_key(record: &root::store::Record) -> root::store::Key {
 
 pub fn stop() -> client::Ask {
     client::Ask::Jig(Box::new(c::Ask::Stop { project: super::PROJECT, task: super::TASK }))
+}
+
+/// The list's object demands finish routing inside the report, before the shell settles.
+#[test]
+#[expect(clippy::too_many_lines, reason = "one report answers the list then settles its ordered follow-on batch")]
+fn a_roots_list_answer_and_its_demands_leave_at_one_settle() {
+    let mut world = World::run(Mode::root(), vec![]);
+    let Machine::Root(machine, limits) = &mut world.machine else { unreachable!("root fixture") };
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: **limits };
+    let mut out = Queue::uncapped();
+    root::step(
+        machine,
+        &env,
+        root::Event::Went {
+            place: root::Place::Address(root::Address::Jig(jig_client_view::address::Address::Inbox { project: None })),
+        },
+        &mut out,
+    );
+    root::settle(machine, &env, &mut out);
+    let mut needs = None;
+    while let Some(request) = out.pop() {
+        if let root::Request::Client { request: client::Request::Exchange { exchange, message, .. } } = request {
+            let reads: Vec<_> = match message {
+                Message::Read(bytes) => {
+                    vec![(None, w::Owned::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("read"))]
+                }
+                Message::Batch(bytes) => w::Batch::decode(&w::CEILINGS, &mut Reader::new(&bytes))
+                    .expect("batch")
+                    .into_parts()
+                    .members
+                    .into_boxed()
+                    .into_vec()
+                    .into_iter()
+                    .enumerate()
+                    .filter_map(|(i, m)| {
+                        if let w::Member::Read(read) = m {
+                            Some((Some(u16::try_from(i).expect("member")), read))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect(),
+                _ => vec![],
+            };
+            for (member, owned) in reads {
+                let read = w::Read::decode(&w::CEILINGS, &mut Reader::new(owned.record())).expect("read");
+                if matches!(read, w::Read::Inbox(read) if *read.group() == w::InboxReadGroup::Needs) {
+                    needs = Some((exchange, member));
+                }
+            }
+        }
+    }
+    let source = jig_client_test_records::inbox_both_groups_record().into_parts();
+    let page = w::InboxPage::new(
+        &w::CEILINGS,
+        w::InboxPageParts { selection: None, cut: false, rows: source.needs, before: None, after: None },
+    )
+    .expect("list answer");
+    let page = w::ReadValue::Inbox(page);
+    let mut bytes = Writer::new(skein_lib::length::usize_of(page.measure()));
+    page.encode(&mut bytes).expect("list bytes");
+    let owned = w::Owned::new(
+        &w::CEILINGS,
+        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: bytes.finish() },
+    )
+    .expect("owned list");
+    let answer = w::ReadAnswer::Value(owned);
+    let mut bytes = Writer::new(skein_lib::length::usize_of(answer.measure()));
+    answer.encode(&mut bytes).expect("answer bytes");
+    let (exchange, member) = needs.expect("needs list read");
+    let event = if let Some(member) = member {
+        let part =
+            w::BatchReply::new(&w::CEILINGS, w::BatchReplyParts { member, reply: Some(bytes.finish()) }).expect("part");
+        let mut writer = Writer::new(skein_lib::length::usize_of(part.measure()));
+        part.encode(&mut writer).expect("part bytes");
+        Event::Part { exchange, message: writer.finish() }
+    } else {
+        Event::Reply { exchange, message: bytes.finish() }
+    };
+    root::step(machine, &env, root::Event::Client { event }, &mut out);
+    // A second demand from the same platform report follows the list's own object demand.
+    root::step(
+        machine,
+        &env,
+        root::Event::Client {
+            event: Event::Read {
+                handle: client::Handle { asker: client::Asker::JIG, number: 100 },
+                read: client::Readable::Jig(c::Read::Project { project: 7 }),
+            },
+        },
+        &mut out,
+    );
+    root::fire(machine, &env, &mut out);
+    for request in &out {
+        assert!(
+            !matches!(
+                request,
+                root::Request::Client {
+                    request: client::Request::Exchange { .. }
+                        | client::Request::OpenStream { .. }
+                        | client::Request::CloseStream
+                }
+            ),
+            "the report only gathers transport work"
+        );
+    }
+    out.clear();
+    root::settle(machine, &env, &mut out);
+    let Some(root::Request::Client { request: client::Request::Exchange { message: Message::Batch(bytes), .. } }) =
+        out.pop()
+    else {
+        panic!("settled batch")
+    };
+    assert!(out.is_empty());
+    let batch = w::Batch::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("batch");
+    let mut reads = Vec::new();
+    for member in batch.members() {
+        let w::Member::Read(owned) = member else { panic!("read members") };
+        reads.push(w::Read::decode(&w::CEILINGS, &mut Reader::new(owned.record())).expect("read"));
+    }
+    assert_eq!(reads.len(), 2, "the list's object demand and the report's next demand leave together: {reads:?}");
+    assert!(matches!(reads.first(), Some(w::Read::PersonTask(_))));
+    assert!(matches!(reads.last(), Some(w::Read::Project(_))));
 }

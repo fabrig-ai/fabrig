@@ -187,13 +187,24 @@ fn configure(root: &Path, forge: &Forge<'_>) {
     // The first repository and both outside adoptions are retained across restart.
     value["application"]["limits"]["overrides"]["forge.repositories"] = 3.into();
     value["application"]["limits"]["overrides"]["forge.client.repositories"] = 3.into();
-    let digest = value["engine"]["hosts"]["workers"][0]["digest"].as_str().expect("worker digest");
-    write_private(&root.join("data/worker.digest"), &fs::read(config.join(digest)).expect("fixture digest"));
-    value["engine"]["hosts"]["workers"][0]["digest"] = "worker.digest".into();
     fs::rename(config.join("worker.secret"), root.join("data/worker.secret")).expect("data worker secret");
+    let copy = root.join("data/agents.setting");
+    let agents = fs::read(config.join("agents.setting")).expect("fixture agents setting");
+    fs::rename(config.join("agents.setting"), &copy).expect("data agents setting");
+    let mut settings = landing_settings(root);
+    settings["items"]
+        .as_array_mut()
+        .expect("settings items")
+        .push(json!({"setting":{"kind":"agents"},"set":super::agents_value(&agents)}));
+    write_private(
+        &config.join("native-landing-settings.json"),
+        &serde_json::to_vec(&settings).expect("landing and agents settings"),
+    );
     fs::remove_dir_all(config.join("secrets")).expect("remove obsolete file credentials");
     write_private(&path, &serde_json::to_vec(&value).expect("managed configuration"));
     super::forgejo::bootstrap(&config, &root.join("data"), &root.join("cache"));
+    // Bootstrap restores stock settings; the first life still needs the fixture's startup figures.
+    write_private(&copy, &agents);
     let mut record = temper_real_loop_world::fixtures::forgejo_record(*api);
     record.place.git = git.as_bytes().into();
     record.mode = temper_engine_domain_forge::Mode::Managed;
@@ -301,7 +312,7 @@ fn life(root: &Path, restarted: bool) {
             root.join("cache").into(),
         ],
         directory: root.into(),
-        environment: Vec::new(),
+        environment: vec![("PATH".into(), "/usr/bin:/bin".into())],
     };
     let mut engine = Binary::start(command, Mode::Pipes, 65_536).expect("elsewhere engine");
     let streams = engine.take_streams().expect("engine pipes");
@@ -673,7 +684,7 @@ fn no_token(bytes: &[u8], token: &[u8]) {
 }
 fn inspect(root: &Path, token: &[u8]) {
     // jig's initial generation keeps its secrets separately from its store.
-    let excluded = root.join("data/generations/1/secrets");
+    let excluded = root.join("data/state/generations/1/secrets");
     let mut pending = vec![root.join("config"), root.join("data"), root.join("cache")];
     while let Some(path) = pending.pop() {
         if path == excluded {
@@ -686,7 +697,7 @@ fn inspect(root: &Path, token: &[u8]) {
             no_token(&fs::read(path).expect("deployment file"), token);
         }
     }
-    let mut pending = vec![root.join("data/generations/1/store")];
+    let mut pending = vec![root.join("data/state/generations/1/store")];
     let mut files = 0;
     while let Some(path) = pending.pop() {
         let metadata = fs::symlink_metadata(&path).expect("store metadata");

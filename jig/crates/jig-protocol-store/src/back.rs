@@ -8,6 +8,7 @@ use skein_lib::{Env, Queue, Token, Writer};
 enum Stage {
     Locking,
     Active,
+    Resolving(crate::restoring::roll::Rolling),
     Manifest,
     Previous,
     PreviousClosed,
@@ -49,7 +50,7 @@ fn refuse(store: &mut Store, why: BackRefusal, above: &mut Queue<Event>) {
 }
 pub(crate) fn up(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue<Event>, below: &mut Below) {
     let arrived = match io {
-        Io::Store(a) | Io::Secrets(a) | Io::Transcripts(a) => a,
+        Io::Store(a) | Io::Secrets(a) | Io::Transcripts(a) | Io::Checkpoints(a) => a,
     };
     if arrived.event.owner() != directory::OWNER {
         let mut events = Queue::uncapped();
@@ -76,16 +77,31 @@ fn file_up(store: &mut Store, env: &Env<Limits>, arrived: Arrived, above: &mut Q
             let file::Event::Locked { .. } = arrived.event else {
                 return refuse(store, BackRefusal::Unreadable, above);
             };
-            let state = state(store);
-            below.store.push(file::Request::Load {
-                owner: directory::OWNER,
-                root: state.root.token,
-                path: Box::from(generations::ACTIVE),
-                max: generations::ACTIVE_BYTES,
-                no_follow: true,
-            });
-            state.stage = Stage::Active;
+            let root = state(store).root;
+            state(store).stage =
+                Stage::Resolving(crate::restoring::roll::Rolling::begin(root, directory::OWNER, &mut below.store));
         }
+        Stage::Resolving(mut rolling) => match rolling.arrived(arrived, &mut below.store) {
+            crate::restoring::roll::Progress::Pending => state(store).stage = Stage::Resolving(rolling),
+            crate::restoring::roll::Progress::Done => {
+                below.store.push(file::Request::Load {
+                    owner: directory::OWNER,
+                    root: state(store).root.token,
+                    path: Box::from(generations::ACTIVE),
+                    max: generations::ACTIVE_BYTES,
+                    no_follow: true,
+                });
+                state(store).stage = Stage::Active;
+            }
+            crate::restoring::roll::Progress::Unmatched => {
+                above.push(Event::OpenRefused {
+                    owner: state(store).owner,
+                    why: crate::OpenRefusal::Generations { why: crate::Generations::Unmatched },
+                });
+                store.phase = Phase::Stopped;
+            }
+            crate::restoring::roll::Progress::Failed => refuse(store, BackRefusal::Unreadable, above),
+        },
         Stage::Active => {
             let file::Event::Loaded { bytes, .. } = arrived.event else {
                 return refuse(store, BackRefusal::Unreadable, above);
@@ -203,6 +219,8 @@ fn recovered(store: &mut Store, events: &mut Queue<skein_kv::Event>, above: &mut
             | skein_kv::Event::Got { .. }
             | skein_kv::Event::Loaded { .. }
             | skein_kv::Event::Committed { .. }
+            | skein_kv::Event::Held { .. }
+            | skein_kv::Event::Released { .. }
             | skein_kv::Event::Closed { .. }
             | skein_kv::Event::Recovered { .. }
             | skein_kv::Event::RecoveryFailed { .. } => refuse(store, BackRefusal::Unreadable, above),

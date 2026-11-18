@@ -100,6 +100,15 @@ impl Shell {
         self.host.clocks(now, wall);
         let mut new_page = false;
         while let Some(report) = inbox.next() {
+            let read_exchange = match &report {
+                Report::Fetch(report) => adapter::read_on_exchange(report),
+                Report::Start
+                | Report::Due
+                | Report::Act(..)
+                | Report::Carried(..)
+                | Report::Place(_)
+                | Report::Returned(_) => None,
+            };
             let read_on =
                 matches!(&report, Report::Fetch(fetch::Report::StreamOpened | fetch::Report::StreamPiece { .. }));
             match report {
@@ -122,6 +131,9 @@ impl Shell {
             transport::carry(requests, &mut self.store, &mut self.platform, &mut carried);
             if stored || !carried.is_empty() {
                 inbox.raise(Report::Carried(carried, stored));
+            }
+            if let Some(exchange) = read_exchange {
+                self.platform.fetch.read_on_exchange(exchange);
             }
             if read_on {
                 self.platform.fetch.read_on();

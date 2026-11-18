@@ -1,4 +1,5 @@
 //! The bridge's messages between a page and its world's worker (playground.md, 5).
+//! The visitor reads no exchange in pieces (playground.md, 4); their reports encode as failures.
 use crate::{fetch, transport::StreamDuty};
 use skein_lib::{Duration, Time, Wall};
 
@@ -310,7 +311,10 @@ impl Writer {
                 self.bytes(body);
                 self.headers(headers.iter().map(|(name, value)| (name.as_bytes(), value.as_bytes())));
             }
-            fetch::Report::Failed { exchange } => {
+            fetch::Report::Failed { exchange }
+            | fetch::Report::Opened { exchange, .. }
+            | fetch::Report::Piece { exchange, .. }
+            | fetch::Report::Ended { exchange } => {
                 self.tag(1);
                 self.u32(*exchange);
             }

@@ -1,4 +1,5 @@
 //! Version 2's report and printed line texts (playground.md, 6.1).
+//! The visitor reads no exchange in pieces (playground.md, 4); their reports print as failures.
 use crate::{bridge, fetch};
 use skein_lib::{Writer, base64, usize_of};
 use std::fmt::Write;
@@ -21,7 +22,10 @@ pub(super) fn report(report: &fetch::Report) -> String {
             out.push('\n');
             out
         }
-        fetch::Report::Failed { exchange } => format!("failed id={exchange}\n"),
+        fetch::Report::Failed { exchange }
+        | fetch::Report::Opened { exchange, .. }
+        | fetch::Report::Piece { exchange, .. }
+        | fetch::Report::Ended { exchange } => format!("failed id={exchange}\n"),
         fetch::Report::StreamOpened => "opened\n".into(),
         fetch::Report::StreamRefused { status } => format!("refused status={status}\n"),
         fetch::Report::StreamPiece { bytes: piece } => format!("piece bytes={}\n", bytes(piece)),

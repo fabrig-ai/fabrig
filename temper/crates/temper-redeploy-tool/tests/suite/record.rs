@@ -14,7 +14,10 @@ fn the_record_round_trips_and_each_printed_line_replaces_the_whole_file() {
         "graces": [{"worker": "w1", "grace_ms": 30000}],
         "told": [{"worker": "w1", "wait_ms": 1_200_000}],
         "before": {"projects": [2], "cut": false, "tasks": [{"task": 3, "project": 2, "label": 2, "phase": "held", "held": "lost"}]},
-        "lines": [], "check": {"code": 0, "lines": ["workers may stay: yes"]}, "backup": "a-backup",
+        "lines": [], "checkpoint": "00000000000000000041-0123456789abcdef",
+        "check": {"code": 0, "lines": ["workers may stay: yes"]},
+        "verdict": {"code": 0, "lines": ["workers may stay: yes"]},
+        "backup": "00000000000000000042-0123456789abcdef",
         "window": {"from": 123, "to": 124, "worker": "w1"},
         "outages": [{"what": "w1", "from": 124, "to": 125}],
         "openings": [{"worker": "w1", "at": 124, "line": "worker w1 opened: a-wire 1", "refused": false}],
@@ -44,4 +47,18 @@ fn the_record_round_trips_and_each_printed_line_replaces_the_whole_file() {
         let record: Record = serde_json::from_value(value.clone()).unwrap();
         assert_eq!(serde_json::to_value(record).unwrap(), value);
     }
+}
+
+#[test]
+fn records_before_checkpoints_read_the_new_fields_as_null() {
+    let mut value =
+        serde_json::to_value(Record::new("abcdef012345", temper_redeploy_tool::redeploy::Mode::Engine)).unwrap();
+    value.as_object_mut().unwrap().remove("checkpoint").unwrap();
+    value.as_object_mut().unwrap().remove("verdict").unwrap();
+    let record: Record = serde_json::from_value(value).unwrap();
+    assert_eq!(record.checkpoint, None);
+    assert_eq!(record.verdict, None);
+    let value = serde_json::to_value(record).unwrap();
+    assert_eq!(value["checkpoint"], Value::Null);
+    assert_eq!(value["verdict"], Value::Null);
 }

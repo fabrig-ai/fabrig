@@ -54,7 +54,8 @@ pub(crate) fn pause(d: &mut Domain, task: u64) {
 
 pub(super) fn refresh(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep) {
     let Some(row) = d.changes.get(&pending.task) else { return };
-    let mut exempt = pending.heard.delegate_live
+    let mut exempt = row.room.is_some()
+        || pending.heard.delegate_live
         || waits_for_dependencies(row, pending)
         || connection_wait::waiting(d, row.task, row.repository.forge);
     if let Some(owner) = step_owner(d, row.task) {
@@ -84,7 +85,7 @@ pub(super) fn deadline(d: &Domain) -> Option<Wall> {
     let mut next: Option<Wall> = None;
     for (task, session) in &d.read_sessions {
         let Some(row) = d.changes.get(task) else { continue };
-        if !session.started || session.exempt || row.frozen() {
+        if !session.started || session.exempt || row.frozen() || row.room.is_some() {
             continue;
         }
         if let change::State::Held { .. } = row.change.state {
@@ -117,7 +118,7 @@ pub(super) fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
         if let change::State::Held { .. } = row.change.state {
             continue;
         }
-        if connection_wait::waiting(d, task, row.repository.forge) {
+        if row.room.is_some() || connection_wait::waiting(d, task, row.repository.forge) {
             pause(d, task);
             continue;
         }

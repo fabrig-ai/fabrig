@@ -169,7 +169,15 @@ baseline recounted, a generated file made again), with no model.
   both parents, and pushes it.
   The reference recounts counted baselines and regenerates story A's
   playground log with its focused walk test on the merged tree,
-  `SKEIN_CODEGEN_WRITE=1`. A generator that is unavailable, fails or
+  `SKEIN_CODEGEN_WRITE=1`. It makes again each generated codec module
+  its list names (`tools/merge/codecs.txt`: a module's path, then the
+  schema texts it is made from, in order) whose schema texts and
+  generator merged clean, the generator being `skein-codegen`'s and
+  `skein-codec`'s crates: it builds `skein-codegen`'s command alone and
+  runs it on those texts. It never runs the family's drift test, whose
+  world builds the very codec crates left in conflict. A module whose
+  schema text or generator conflicts too is left with them
+  (`../draft/codec-shape.md`, 6.2). A generator that is unavailable, fails or
   does not produce a fresh file free of conflict markers leaves the
   file unmerged. The reference's B0 and B1 recordings require captured data
   outside the checkout; without that input they stay unmerged. Any

@@ -14,23 +14,49 @@ pub mod turn_bounds {
         temper_playground::documents::turn_bounds::turn_body(&agent)
     }
 }
+/// Leave the agent's carriers to the product's stock, derivations, overrides order
+/// (temper/docs/design/protocol/configuration/derived.md, 4 and 5.1).
+pub fn use_derived(document: &mut serde_json::Value) {
+    let engine = document["engine"]["limits"]["overrides"].as_object_mut().expect("engine overrides");
+    for name in [
+        "hub.turn_bytes",
+        "core.resume_bytes",
+        "hub.transcript_bytes",
+        "hub.turn_queue_bytes",
+        "io.output",
+        "tasks.message_bytes",
+        "tasks.result_bytes",
+        "tasks.inbox_bytes",
+        "hub.event_bytes",
+        "hub.outcome_bytes",
+        "core.call_answer_bytes",
+    ] {
+        engine.remove(name);
+    }
+    let application = document["application"]["limits"]["overrides"].as_object_mut().expect("application overrides");
+    for name in [
+        "root.journal.transcript_bytes",
+        "root.loads.transcript_bytes",
+        "root.loads.bytes",
+        "root.loads.reply_bytes",
+        "root.loads.read_bytes",
+        "checkout.message_bytes",
+        "forge.client.op_bytes",
+        "forge.client.answer_bytes",
+        "forge_component.body_bytes",
+    ] {
+        application.remove(name);
+    }
+}
+
 // Eight native exchanges beside Small's two event streams (jig/docs/design/protocol/client/default-http.md, 5).
 const NATIVE_HTTP_CALLS: u32 = 10;
 #[must_use]
-pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
-    let agent = serde_json::json!({
-        "profile":{"name":"standard","declared":{"memory":2_147_483_648_u64,"tool_payload":2048,"read_window":256,
-            "conversations":1,"calls_per_response":1},
-            "policy":{"max_turns":800,"check_timeout":60000,"group_stop":10,"inbox":8,"unacknowledged":8}},
-        "endpoints":[{"name":"fake","number":1,"dialect":3,"provider":"openai",
-            "address":"127.0.0.1:0","transport":"tls","server_name":"skein.test","trust_der":directory.join("root.der"),
-            "connect":1000,"handshake":1000,
-            "limits": {"window":1_048_576,"output":8192,"reasoning_item":64,"head":60000,"idle":30000}}],
-        "environment":[]});
+pub fn documents(directory: &Path, _program: &str) -> (Vec<u8>, Vec<u8>) {
     let mut value: serde_json::Value =
         serde_json::from_slice(&jig_channel_kit::fixtures::engine_document()).expect("engine JSON");
     value.as_object_mut().expect("whole object").remove("service");
-    for name in ["views.watchers", "views.watchers_per_party"] {
+    for name in ["views.watchers", "views.watchers_per_party", "core.call_answer_bytes"] {
         value["engine"]["limits"]["overrides"].as_object_mut().expect("engine overrides").remove(name);
     }
     use_stock(&mut value);
@@ -39,20 +65,35 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
     let worker: serde_json::Value =
         serde_json::from_slice(jig_channel_kit::fixtures::WORKER_DOCUMENT).expect("worker JSON");
     value["workers"] = worker["workers"].clone();
+    value["engine"]["limits"]["overrides"]["tasks.run_inbox"] = 8.into();
+    value["workers"][0]["limits"]["overrides"]["tasks.run_inbox"] = 8.into();
+    value["workers"][0]["limits"]["overrides"]["hub.inbox"] = 8.into();
+    value["workers"][0]["limits"]["overrides"]["hub.held"] = 8.into();
+    value["engine"]["limits"].as_object_mut().expect("engine limits").remove("profile");
+    value["workers"][0]["limits"].as_object_mut().expect("worker limits").remove("profile");
+    value["workers"][0]["limits"]["overrides"]
+        .as_object_mut()
+        .expect("worker overrides")
+        .entry("tasks.result_bytes")
+        .or_insert(512.into());
     for worker in value["workers"].as_array_mut().expect("workers") {
         let worker = worker.as_object_mut().expect("worker");
         worker.remove("graces");
         worker.remove("programs");
     }
     value["workers"][0]["engine"] = serde_json::json!({"in_process":"workers"});
-    value["workers"][0]["agent"]["program"] = program.into();
-    value["workers"][0]["agent"]["configuration"] = directory.join("agent.json").to_str().expect("agent path").into();
-    value["workers"][0]["agent"]["arguments"] = serde_json::json!(["internal", "agent", directory.join("agent.json")]);
-    value["workers"][0]["limits"]["overrides"]["hub.accounts"] = 4.into();
-    value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = 2046.into();
+    value["workers"][0].as_object_mut().expect("worker").remove("agent");
+    value["workers"][0].as_object_mut().expect("worker").remove("limits");
+    value["engine"]["limits"]["overrides"]["hub.accounts"] = 4.into();
+    value["engine"]["limits"]["overrides"]["hub.held"] = 8.into();
+    value["workers"][0]["name"] = "local".into();
+    value["engine"]["limits"]["overrides"]["fleet.slots"] = 4.into();
     value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);
-    value["engine"]["llm"]["endpoints"][0]["dialect"] = 3.into();
-    value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":"127.0.0.1:0"});
+    value["engine"]["llm"]["endpoints"] = serde_json::json!([{
+        "name":"fake","number":1,"dialect":3,"provider":"openai",
+        "address":{"socket":"127.0.0.1:0"},"transport":"tls","server_name":"skein.test",
+        "trust":directory.join("root.der"),"connect_ms":1000,"handshake_ms":1000,"headers":[]
+    }]);
     // The stock carries twelve charters, fourteen grants and twenty-two executor kinds.
     value["engine"]["limits"]["overrides"]["tasks.charters"] = 16.into();
     value["engine"]["limits"]["overrides"]["core.templates"] = 7.into();
@@ -73,6 +114,12 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
     value["engine"]["limits"]["overrides"]["documents.lines"] = 12.into();
     value["engine"]["limits"]["overrides"]["documents.text_bytes"] = 128.into();
     value["engine"]["limits"]["overrides"]["people.sign_ins"] = 2.into();
+    for name in ["clients.streams", "clients_http.streams"] {
+        value["engine"]["limits"]["overrides"][name] = 2.into();
+    }
+    for name in ["clients.streams", "clients_http.streams"] {
+        value["engine"]["limits"]["overrides"][name] = 2.into();
+    }
     for name in ["clients.exchanges", "clients_http.calls"] {
         value["engine"]["limits"]["overrides"][name] = NATIVE_HTTP_CALLS.into();
     }
@@ -85,9 +132,17 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
         "webhooks":null,
 "clients":{"listener":{"socket":"127.0.0.1:0"},"public":null,"bundle":null},
         "demo":null,"sign_in":null,
-        "limits":{"profile":"small","overrides":{"root.journal.run_bytes":32_768,"checkout.name_bytes":256,"checkout.repositories":2,
-            "checkout.message_bytes":4096,"forge.name_bytes":64,"forge.judge_projects":3,"forge.landing_members":3,"forge.resources_per_task":4,"git_component.stdout_bytes":131_072}}});
-    turn_bounds::apply(&mut value, turn_bounds::turn_body(&agent));
+        "limits":{"overrides":{"forge.client.answer_bytes":65_536,"forge.client.op_bytes":512,"forge_component.body_bytes":16_384,"root.journal.run_bytes":32_768,"checkout.name_bytes":256,"checkout.repositories":2,
+            "forge.name_bytes":64,"forge.judge_projects":3,"forge.landing_members":3,"forge.resources_per_task":4,"git_component.stdout_bytes":131_072}}});
+    let mut agent = temper_fixtures::agent::configuration(&value);
+    // Keep the fixture's deadlines while taking the store's default agent figures.
+    agent["profile"]["policy"]["check_timeout"] = 60_000.into();
+    agent["endpoints"][0]["limits"]["idle"] = 30_000.into();
+    agent["programs"] = serde_json::json!({});
+    value["engine"]["limits"]["overrides"]["hub.run_calls"] =
+        agent["profile"]["declared"]["calls_per_response"].clone();
+    value["engine"]["limits"]["overrides"]["hub.inbox"] = agent["profile"]["policy"]["inbox"].clone();
+    use_derived(&mut value);
     (serde_json::to_vec(&agent).expect("agent JSON"), serde_json::to_vec(&value).expect("deployment JSON"))
 }
 

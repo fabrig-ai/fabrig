@@ -201,7 +201,7 @@ fn role_show_reads_the_whole_report_and_names_an_open_talk() {
 }
 
 pub(super) const START: &[&str] =
-    &["role", "start", "--project", "2", "--budget", "50", "Owns the tests", "--key", "k"];
+    &["role", "start", "--project", "2", "--budget", "0.50", "Owns the tests", "--key", "k"];
 pub(super) fn me() -> c::Me {
     let mut me = f::chat_me(100);
     let project = me.projects.get_mut(0).unwrap();
@@ -299,6 +299,7 @@ fn role_list_reads_label_three_and_each_now_headline() {
             root.reads.get(&call).unwrap().1,
             c::Read::Tasks {
                 query: c::TaskQuery {
+                    parts: List::with_capacity(0),
                     project: Some(f::PROJECT),
                     requester: None,
                     root: None,
@@ -320,6 +321,7 @@ fn role_list_reads_label_three_and_each_now_headline() {
         let mut second = row.clone();
         second.chip.task = 42;
         let tasks = c::TaskPage {
+            ended_mark: 0,
             live: List::from_boxed(Box::new([row, second])),
             live_after: Some(f::cursor()),
             ended: c::EndedGroup::None,
@@ -335,7 +337,7 @@ fn role_list_reads_label_three_and_each_now_headline() {
             f::unique_keys(&printed.stdout).unwrap();
             assert_eq!(printed.stdout.as_ref(), br#"{"roles":[{"task":41,"charter":13,"state":"idle","left":47,"now":"Waiting for CI"},{"task":42,"charter":13,"state":"idle","left":47,"now":null}],"after":"1122"}"#);
         } else {
-            assert_eq!(printed.stdout.as_ref(), b"41 \xc2\xb7 charter 13 \xc2\xb7 idle \xc2\xb7 left 47 \xc2\xb7 Waiting for CI\n42 \xc2\xb7 charter 13 \xc2\xb7 idle \xc2\xb7 left 47 \xc2\xb7 no Now yet\nread on with: role list --project shop --after 1122\n");
+            assert_eq!(printed.stdout.as_ref(), b"41 \xc2\xb7 charter 13 \xc2\xb7 idle \xc2\xb7 left 0.47 \xc2\xb7 Waiting for CI\n42 \xc2\xb7 charter 13 \xc2\xb7 idle \xc2\xb7 left 0.47 \xc2\xb7 no Now yet\nread on with: role list --project shop --after 1122\n");
         }
     }
 }

@@ -852,22 +852,6 @@ fn no_forge_is_a_quiet_band_and_an_unread_watch_claims_nothing() {
     ] {
         d::step(&mut unknown, &env, event, &mut out);
     }
-    let mut me_watch = None;
-    while let Some(request) = out.pop() {
-        if let d::Request::Unlinked {
-            request:
-                jig_client::UnlinkedRequest::Down {
-                    down:
-                        jig_client::Down::Open {
-                            watch,
-                            subject: jig_client::Watchable::Jig(jig_client::contract::Subject::Me),
-                        },
-                },
-        } = request
-        {
-            me_watch = Some(watch);
-        }
-    }
     let template = f::forge_root(Address::Forges, List::with_capacity(0));
     d::step(
         &mut unknown,
@@ -875,7 +859,7 @@ fn no_forge_is_a_quiet_band_and_an_unread_watch_claims_nothing() {
         d::Event::Client {
             event: jig_client::Event::Up {
                 up: jig_client::Up::Watched {
-                    watch: me_watch.unwrap(),
+                    watch: skein_lib::Token::new(0),
                     event: jig_client::contract::WatchEvent::Delivered(jig_client::contract::Delivery::Me(Box::new(
                         template.pages().me(template.client()).unwrap().clone(),
                     ))),

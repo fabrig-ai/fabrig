@@ -650,7 +650,8 @@ fn a_failed_start_can_retry_with_a_new_key_before_resetting() {
 #[test]
 fn a_fake_row_gained_or_lost_reads_the_playground_again() {
     for (row, before, after, expected) in [
-        ("first fake", None, Some(w::Mode::Fake), 0),
+        ("first fake", None, Some(w::Mode::Fake), 1),
+        ("first real", None, Some(w::Mode::Connected), 0),
         ("gained fake", Some(None), Some(w::Mode::Fake), 1),
         ("lost fake", Some(Some(w::Mode::Fake)), None, 1),
         ("kept fake", Some(Some(w::Mode::Fake)), Some(w::Mode::Fake), 0),
@@ -664,7 +665,8 @@ fn a_fake_row_gained_or_lost_reads_the_playground_again() {
         if let Some(before) = before {
             super::forges::deliver_forges(&mut root, watch, super::forges::forges_document(before.as_slice(), false));
             assert!(forge::forges::told(&mut side, root.client(), &changed, f::limits().forge, &mut out));
-            assert!(out.is_empty(), "{row}: first delivery");
+            assert_eq!(out.len(), u32::from(before == Some(w::Mode::Fake)), "{row}: first delivery");
+            out.clear();
         }
         super::forges::deliver_forges(&mut root, watch, super::forges::forges_document(after.as_slice(), false));
         assert!(forge::forges::told(&mut side, root.client(), &changed, f::limits().forge, &mut out));

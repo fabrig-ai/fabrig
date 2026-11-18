@@ -69,6 +69,7 @@ pub(super) fn done(
                 let bytes = match done {
                     git::Done::Results { bytes } => bytes,
                     git::Done::Paths { .. }
+                    | git::Done::ParentUnreachable { .. }
                     | git::Done::Looked { .. }
                     | git::Done::IsAncestor { .. }
                     | git::Done::Brings { .. }

@@ -2,24 +2,24 @@
 //! (temper/docs/design/protocol/setup/init.md, 3), with whole JSON string placeholders.
 //! The pinned jig and smith parsers require positive prices, so demo uses their
 //! minimum (one per million) until they admit protocol/setup/init.md 3's zero prices.
+//! The templates' carriers use fabrig's own development's 63,740-byte payload
+//! and 48,000-token output (protocol/configuration/derived.md, 3 and 5.1).
 //! Embedding these fixed templates is init's job (protocol/setup/init.md, 2); they are not runtime inputs.
 #![expect(
     clippy::disallowed_macros,
     reason = "init embeds its default documents, as protocol/setup/init.md 2 requires"
 )]
 
-use crate::{Bare, Directories, Facts, path};
+use crate::{Bare, Directories, Facts};
 use alloc::boxed::Box;
 use skein_json::writer::{Encoder, Limits};
 use skein_lib::{Decimal, List, Writer, bytes};
 
 pub(crate) const TEMPER: &[u8] = include_bytes!("../template/temper.json");
-pub(crate) const AGENT: &[u8] = include_bytes!("../template/agent.json");
 
 pub(crate) const BARE: &[u8] = include_bytes!("../template/bare.json");
-pub(crate) const BARE_AGENT: &[u8] = include_bytes!("../template/bare-agent.json");
 
-pub(crate) fn documents(facts: &Facts<'_>, directories: &Directories<'_>, login: &[u8]) -> (Box<[u8]>, Box<[u8]>) {
+pub(crate) fn documents(facts: &Facts<'_>, directories: &Directories<'_>, login: &[u8]) -> Box<[u8]> {
     let common = common_values(
         &Bare {
             binary: facts.binary,
@@ -43,26 +43,18 @@ pub(crate) fn documents(facts: &Facts<'_>, directories: &Directories<'_>, login:
         (b"email".as_slice(), json(Value::Text(Some(&email)))),
         (b"llm".as_slice(), json(Value::Text(Some(&llm)))),
     ];
-    (fill(TEMPER, &values, &common), fill(AGENT, &values, &common))
+    fill(TEMPER, &values, &common)
 }
 
-pub(crate) fn bare_documents(facts: &Bare<'_>, directories: &Directories<'_>) -> (Box<[u8]>, Box<[u8]>) {
+pub(crate) fn bare_documents(facts: &Bare<'_>, directories: &Directories<'_>) -> Box<[u8]> {
     let values = common_values(facts, directories);
-    (fill(BARE, &values, &[]), fill(BARE_AGENT, &values, &[]))
+    fill(BARE, &values, &[])
 }
 
-fn common_values(facts: &Bare<'_>, directories: &Directories<'_>) -> [(&'static [u8], Box<[u8]>); 5] {
-    let agent = path::join(directories.config, b"agent.json");
-    let programs = path::join(directories.data, b"programs");
+fn common_values(facts: &Bare<'_>, _directories: &Directories<'_>) -> [(&'static [u8], Box<[u8]>); 2] {
     let clients = listener(facts.clients);
     let webhooks = listener(facts.webhooks);
-    [
-        (b"binary", json(Value::Text(Some(facts.binary)))),
-        (b"agent", json(Value::Text(Some(&agent)))),
-        (b"listener", json(Value::Text(Some(&clients)))),
-        (b"webhooks", json(Value::Text(Some(&webhooks)))),
-        (b"programs", json(Value::Programs { claude: facts.claude, directory: &programs })),
-    ]
+    [(b"listener", json(Value::Text(Some(&clients)))), (b"webhooks", json(Value::Text(Some(&webhooks))))]
 }
 
 fn listener(port: core::num::NonZeroU16) -> Box<[u8]> {
@@ -77,7 +69,6 @@ fn listener(port: core::num::NonZeroU16) -> Box<[u8]> {
 enum Value<'a> {
     Text(Option<&'a [u8]>),
     Provider,
-    Programs { claude: Option<&'a [u8]>, directory: &'a [u8] },
 }
 
 fn encode(json: &mut Encoder, value: Value<'_>) {
@@ -95,17 +86,6 @@ fn encode(json: &mut Encoder, value: Value<'_>) {
             json.array_start();
             json.unsigned(1);
             json.array_end();
-            json.object_end();
-        }
-        Value::Programs { claude, directory } => {
-            json.object_start();
-            json.key(b"claude_code");
-            json.object_start();
-            json.key(b"path");
-            json.string(claude.unwrap_or(crate::FETCHED));
-            json.key(b"directory");
-            json.string(directory);
-            json.object_end();
             json.object_end();
         }
     }

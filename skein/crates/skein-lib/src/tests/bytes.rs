@@ -249,6 +249,25 @@ fn an_empty_reader_reads_nothing_but_nothing() {
 }
 
 #[test]
+fn a_measuring_writer_counts_without_allocating_the_bound() {
+    let mut measure = Writer::measure(usize::MAX);
+    assert_eq!(measure.put(b"hello"), Ok(()));
+    assert_eq!(measure.put(b""), Ok(()));
+    assert_eq!(measure.put(b" world"), Ok(()));
+    assert_eq!(measure.written(), 11);
+    let mut out = Writer::new(measure.written());
+    out.put(b"hello world").expect("measured length");
+    assert_eq!(&*out.finish(), b"hello world");
+
+    let mut short = Writer::measure(4);
+    assert_eq!(short.put(b"abc"), Ok(()));
+    assert_eq!(short.put(b"de"), Err(Overflow));
+    assert_eq!((short.written(), short.room()), (3, 1));
+    assert_eq!(short.put(b"d"), Ok(()));
+    assert_eq!((short.written(), short.room()), (4, 0));
+}
+
+#[test]
 fn a_writer_builds_its_box_from_slices() {
     let mut writer = Writer::new(11);
     assert_eq!(writer.put(b"hello"), Ok(()));

@@ -98,8 +98,9 @@ impl core::fmt::Debug for SourceSettings {
 fn agent(configuration: &Path) -> Result<AgentStart, String> {
     let configuration = smith_agent_shell::config::read(configuration)?;
     let limits = &configuration.service.limits;
-    let host_limits = smith_local_service::profile::host_limits(&configuration.profile, limits)
-        .map_err(|why| format!("agent host: {why:?}"))?;
+    let host_limits =
+        smith_local_service::profile::host_limits(&configuration.profile, limits, &configuration.service.domain.limits)
+            .map_err(|why| format!("agent host: {why:?}"))?;
     let channel = limits.channel;
     let mut protocol = smith_host_protocol::Limits {
         bodies: channel.bodies,
@@ -270,6 +271,7 @@ struct Configured {
     document: skein_json::Document,
     engine: Option<config::Engine>,
     workers: u32,
+    worker_defaults: Box<[jig_domain_core::settings::WorkerSetting]>,
     bounds: Vec<config::File>,
     agent: Option<AgentStart>,
 }
@@ -281,12 +283,13 @@ fn configured(bytes: &[u8]) -> Result<Configured, String> {
     let engine = whole
         .member(&document, b"engine")
         .map(|at| {
-            config::engine(
+            config::engine_over(
                 &document,
                 at,
                 &config::Directories::working(),
                 config::Defaults::Document,
                 &config::Fixed::NONE,
+                &jig_protocol_config_fixtures::small(),
             )
         })
         .transpose()
@@ -298,27 +301,54 @@ fn configured(bytes: &[u8]) -> Result<Configured, String> {
     let mut specs = Vec::new();
     let mut bounds = engine.as_ref().map(config::files).unwrap_or_default().into_vec();
     for at in &workers {
-        let worker =
-            config::worker(&document, *at, &config::Directories::working(), &jig_protocol_config::FixedWorker::NONE)
-                .map_err(|why| format!("worker: {why:?}"))?;
+        let worker = config::worker_over(
+            &document,
+            *at,
+            &config::Directories::working(),
+            &jig_protocol_config::FixedWorker::NONE,
+            &jig_protocol_config_fixtures::small(),
+        )
+        .map_err(|why| format!("worker: {why:?}"))?;
+        if worker.agent.is_none() || worker.limits.is_none() {
+            return Err("worker lacks agent or limits".into());
+        }
         bounds.extend(config::worker_files(&worker).into_vec());
         specs.push(worker);
     }
-    let agent = specs.first().map(|worker| agent(path(&worker.agent.configuration))).transpose()?;
-    if specs
-        .iter()
-        .any(|worker| worker.agent.configuration != specs.first().expect("nonempty workers").agent.configuration)
-    {
+    let agent = specs
+        .first()
+        .map(|worker| agent(path(&worker.agent.as_ref().expect("checked worker agent").configuration)))
+        .transpose()?;
+    if specs.iter().any(|worker| {
+        worker.agent.as_ref().expect("checked worker agent").configuration
+            != specs.first().expect("nonempty workers").agent.as_ref().expect("checked worker agent").configuration
+    }) {
         return Err("one-process workers must share their agent configuration".into());
     }
-    Ok(Configured { document, engine, workers: workers.len(), bounds, agent })
+    let worker_defaults = specs
+        .iter()
+        .enumerate()
+        .filter_map(|(index, worker)| {
+            if !matches!(worker.engine, config::Address::Addr(skein_io::Addr::InProcess(_))) {
+                return None;
+            }
+            Some(jig_domain_core::settings::WorkerSetting {
+                number: u32::try_from(index + 1).expect("bounded worker count"),
+                name: worker.name.clone(),
+                places: worker.slots,
+                digest: None,
+                withdrawn: false,
+            })
+        })
+        .collect();
+    Ok(Configured { document, engine, workers: workers.len(), worker_defaults, bounds, agent })
 }
 /// Read deployment and agent configuration, without startup files, roots, account resolution or store adoption.
 pub fn check(configuration: &Path) -> Result<(), String> {
     configured(&read_configuration(configuration)?).map(|_| ())
 }
 fn prepare(bytes: &[u8], owned: &mut Vec<Fd>) -> Result<service::Service, String> {
-    let Configured { document, engine, workers, bounds, agent } = configured(bytes)?;
+    let Configured { document, engine, workers, worker_defaults, bounds, agent } = configured(bytes)?;
     let mut whole = read::Object::new(&document, 0).map_err(|why| format!("configuration: {why:?}"))?;
     let user = skein_shell::effective_user();
     let files = read_files(bytes, &bounds, user)?;
@@ -355,13 +385,14 @@ fn prepare(bytes: &[u8], owned: &mut Vec<Fd>) -> Result<service::Service, String
     let drawn = skein_shell::crypto_seed().map_err(|errno| format!("installation id: errno {errno}"))?;
     installation.copy_from_slice(drawn.expose().get(..16).expect("32-byte seed"));
     let seeds = Seeds { deployment, installation, seed, crypto };
-    let mut service = service::startup(
+    let mut service = service::startup_with_workers(
         bytes,
         &files,
         agent.as_ref().map(|configured| &configured.agent),
         &seeds,
         runtime,
         Some(service::WorkerRuntime { roots }),
+        worker_defaults,
     )
     .map_err(|why| format!("startup: {why:?}"))?;
     if let Some(configured) = &agent {

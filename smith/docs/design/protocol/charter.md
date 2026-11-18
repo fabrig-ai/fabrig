@@ -259,7 +259,10 @@ and a refusal names what was too large.
 ## 8. The world
 
 - **The codec:**
-  - golden bytes for every record and variant;
+  - records-only drift and no unpinned constructs (skein's
+    `data/codec/README.md`, section 6); tests build values through
+    constructors or fixed-rule values from embedded current or kept
+    text, without stored golden bytes or generated test targets;
   - each decoder fuzzed.
 - **The domain's entrance,** from encoded charters:
   - each refusal of domain/run.md, section 4;

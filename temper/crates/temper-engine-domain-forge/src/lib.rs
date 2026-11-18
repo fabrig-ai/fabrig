@@ -29,6 +29,7 @@ mod landing_proofs;
 #[path = "milestones.rs"]
 mod milestone_rows;
 mod readiness;
+mod room;
 mod stall;
 pub use approvals::{ApprovalWait, ShortApproval};
 pub use temper_engine_domain_forge_vocabulary::boundary;
@@ -180,7 +181,7 @@ pub use limits::{
 };
 pub use panel::{
     MARKED, PANEL_AHEAD, PANEL_GATES, PANEL_NAME_BYTES, Panel, PanelApproval, PanelGate, PanelQuestion, PanelQuestions,
-    PanelSource, PanelStands, PanelStep, PanelUsed, ReviewFacts, ReviewRead, UnmappedReview,
+    PanelSource, PanelStands, PanelStep, PanelUsed, PanelWait, ReviewFacts, ReviewRead, UnmappedReview,
 };
 pub use temper_engine_domain_forge_landing::CHECK_NAME_BYTES;
 pub use temper_engine_domain_forge_landing::{

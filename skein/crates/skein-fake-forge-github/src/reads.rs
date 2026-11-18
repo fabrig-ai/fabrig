@@ -469,13 +469,7 @@ pub(crate) fn enqueue_finish(
             let Ok(capacity) = usize::try_from(limits.response) else {
                 return answers::failed();
             };
-            let mut out = skein_lib::Writer::new(capacity);
-            if out.put(crate::texts::ENQUEUE_APPROVAL_PREFIX).is_err()
-                || crate::texts::approval(&mut out, protection.approvals).is_none()
-            {
-                return answers::failed();
-            }
-            let Some(message) = answers::finish(out) else {
+            let Some(message) = answers::finish(capacity, &Body::ApprovalPrefix(protection.approvals)) else {
                 return answers::failed();
             };
             return answers::response(200, &Body::EnqueueRefusal(&message), limits);

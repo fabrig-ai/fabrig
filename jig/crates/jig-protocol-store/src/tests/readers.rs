@@ -26,7 +26,6 @@ fn raw_store(rows: &[skein_kv::Op]) -> Store {
     );
     for op in [
         fixtures::format_put(fixtures::DEPLOYMENT),
-        fixtures::layouts_put(),
         fixtures::header_put(fixtures::DEPLOYMENT, 1),
         fixtures::installation_put(fixtures::INSTALLATION),
     ] {
@@ -39,7 +38,12 @@ fn raw_store(rows: &[skein_kv::Op]) -> Store {
     let mut store = fixtures::over(stores);
     let events = fixtures::run(
         &mut store,
-        crate::Request::Open { owner: OWNER, root: fixtures::ROOT, installation: fixtures::INSTALLATION },
+        crate::Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: OWNER,
+            root: fixtures::ROOT,
+            installation: fixtures::INSTALLATION,
+        },
     );
     let [crate::Event::Opened { .. }, crate::Event::Census { .. }] = events.as_ref() else { panic!("fixture opens") };
     store
@@ -363,7 +367,6 @@ fn retained_inventory_matches_independent_committed_raw_inputs() {
     for op in [
         fixtures::format_put(fixtures::DEPLOYMENT),
         fixtures::floor_put(),
-        fixtures::layouts_put(),
         fixtures::header_put(fixtures::DEPLOYMENT, 1),
         fixtures::installation_put(fixtures::INSTALLATION),
     ]

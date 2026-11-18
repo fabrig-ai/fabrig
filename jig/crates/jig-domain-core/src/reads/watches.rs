@@ -25,6 +25,7 @@ pub(crate) fn start_watch(core: &mut Core, env: &Env<Limits>, watcher: Token) ->
         party: binding.party,
         range: range.clone(),
         tasks: None,
+        parts: None,
     };
     let Ok(load) = core.reads.insert(pending) else {
         return crate::routing::view::routes::retained_made(core, env, watcher, Err(views::End::Gone));

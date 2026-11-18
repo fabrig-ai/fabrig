@@ -31,6 +31,7 @@ temper-client-tools.workspace = true
 skein-forge.workspace = true
 jig-client-protocol-link.workspace = true
 temper-service.workspace = true
+temper-client-protocol-wire.workspace = true
 temper-box-machine.workspace = true
 temper-forge-setup.workspace = true
 temper-forge-setup-shell.workspace = true
@@ -59,6 +60,8 @@ skein-fake-forge-domain.workspace = true
 skein-kv.workspace = true
 
 [dev-dependencies]
+temper-limits-fixtures.workspace = true
+jig-protocol-config-fixtures.workspace = true
 temper-client-shell.workspace = true
 temper-engine-domain.workspace = true
 jig-domain-tasks.workspace = true

@@ -8,7 +8,7 @@ use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_protocol_engine_clients::{self as clients, Event, Request};
 use skein_lib::{Env, Queue, Secret, Time, Token, Wall};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use temper_engine_domain as root;
 
 pub struct Composition {
@@ -31,10 +31,12 @@ pub struct Composition {
     receiving: BTreeMap<ClientId, link::Limits>,
     exchanges: BTreeMap<Token, (ClientId, Token)>,
     streams: BTreeMap<ClientId, Token>,
+    stream_again: BTreeMap<ClientId, Time>,
     secrets: BTreeMap<clients::SecretOwner, clients::Kept>,
     next: u64,
     pending_reply: Option<Reply>,
     pending_watch: Option<(ClientId, Token, Watched)>,
+    pending_stream_me: VecDeque<ClientId>,
     minting: BTreeMap<Token, ClientId>,
     pub carried: BTreeMap<u64, Secret>,
     next_carried: u64,
@@ -100,8 +102,10 @@ impl Composition {
                 provider_tokens: 64,
                 exchanges: limits.requests.requests.max(64),
                 exchanges_per_client: limits.requests.requests.max(64),
+                reads_per_client: 32,
+                openings_per_client: 31,
                 message_bytes: u32::try_from(limits.document_bytes).expect("world message bound"),
-                wire: jig_client_protocol_wire::v27::CEILINGS,
+                wire: jig_client_protocol_wire::CEILINGS,
                 link_span: skein_lib::Duration::from_secs(300),
             },
         };
@@ -197,10 +201,12 @@ impl Composition {
             receiving: BTreeMap::new(),
             exchanges: BTreeMap::new(),
             streams: BTreeMap::new(),
+            stream_again: BTreeMap::new(),
             secrets: BTreeMap::new(),
             next: 1,
             pending_reply: None,
             pending_watch: None,
+            pending_stream_me: VecDeque::new(),
             minting: BTreeMap::new(),
             carried: BTreeMap::new(),
             next_carried: 1 << 63,
@@ -372,9 +378,30 @@ impl Composition {
         }
     }
 
+    /// A new unlinked root needs its own stream hello, even on a pre-seeded front.
+    pub fn refresh(&mut self, client: ClientId) -> bool {
+        if self.heard.contains_key(&client) || self.links.get(&client).and_then(link::Link::credential).is_none() {
+            return false;
+        }
+        self.detach(client);
+        self.open_stream(client);
+        true
+    }
+
+    pub fn open_stream(&mut self, client: ClientId) {
+        if self.links.get(&client).and_then(link::Link::credential).is_some() {
+            self.link(client, link::Event::OpenStream);
+        }
+    }
+
     pub fn clock(&mut self, now: Time, wall: Wall) {
         self.env.now = now;
         self.env.wall = wall;
+        let due: Vec<_> = self.stream_again.iter().filter_map(|(client, at)| (*at <= now).then_some(*client)).collect();
+        for client in due {
+            self.stream_again.remove(&client);
+            self.link(client, link::Event::OpenStream);
+        }
     }
 
     pub fn receiving(&mut self, client: ClientId, limits: jig_client::DomainLimits) {
@@ -397,6 +424,7 @@ impl Composition {
                 let name = self.token();
                 self.exchanges.insert(name, (client, exchange));
                 let message = match message {
+                    link::Message::LinkAsk(_) => unreachable!("this world does not ask links"),
                     link::Message::ApprovalAsk(bytes) => clients::Message::ApprovalAsk(bytes),
                     link::Message::ApprovalRead(bytes) => clients::Message::ApprovalRead(bytes),
                     link::Message::ApprovalDecide(bytes) => clients::Message::ApprovalDecide(bytes),
@@ -405,6 +433,7 @@ impl Composition {
                     link::Message::Request(bytes) => clients::Message::Request(bytes),
                     link::Message::Read(bytes) => clients::Message::Read(bytes),
                     link::Message::Watch(bytes) => clients::Message::Watch(bytes),
+                    link::Message::Batch(bytes) => clients::Message::Batch(bytes),
                     link::Message::Unwatch(bytes) => clients::Message::Unwatch(bytes),
                     link::Message::StreamGone(bytes) => clients::Message::Gone(bytes),
                     link::Message::SignInLink(bytes) => clients::Message::SignInLink(bytes),
@@ -418,10 +447,18 @@ impl Composition {
                     message,
                 }));
             }
-            jig_client::Request::OpenStream { credential } => {
+            jig_client::Request::OpenStream { credential, version, replaces } => {
                 let stream = self.token();
                 self.streams.insert(client, stream);
-                self.event(Event::Transport(clients::FromTransport::StreamOpen { stream, credential }));
+                if !self.heard.contains_key(&client) {
+                    self.pending_stream_me.push_back(client);
+                }
+                self.event(Event::Transport(clients::FromTransport::StreamOpen {
+                    stream,
+                    credential,
+                    version: Some(version),
+                    replaces,
+                }));
             }
             jig_client::Request::CloseStream => {
                 if let Some(stream) = self.streams.remove(&client) {
@@ -432,6 +469,7 @@ impl Composition {
                 self.heard.get_mut(&client).expect("linked client's store").push(jig_client::Event::Stored);
             }
             jig_client::Request::Told { .. }
+            | jig_client::Request::AskedLink(_)
             | jig_client::Request::Approval(_)
             | jig_client::Request::Authorized(_)
             | jig_client::Request::ServiceCredential { .. } => {}
@@ -442,14 +480,18 @@ impl Composition {
         if let Some(heard) = self.heard.get_mut(&client) {
             heard.push(match event {
                 link::Event::Reply { exchange, message } => jig_client::Event::Reply { exchange, message },
+                link::Event::Part { exchange, message } => jig_client::Event::Part { exchange, message },
+                link::Event::Done { exchange } => jig_client::Event::Done { exchange },
                 link::Event::Lost { exchange } => jig_client::Event::Lost { exchange },
                 link::Event::Streamed { message } => jig_client::Event::Streamed { message },
                 link::Event::StreamGone => jig_client::Event::StreamGone,
-                link::Event::AskApproval
+                link::Event::AskLink
+                | link::Event::AskApproval
                 | link::Event::ReadApproval { .. }
                 | link::Event::DecideApproval { .. }
                 | link::Event::SignIn { .. }
                 | link::Event::SignOut
+                | link::Event::OpenStream
                 | link::Event::Authorize { .. }
                 | link::Event::Start { .. }
                 | link::Event::Save { .. }
@@ -457,6 +499,7 @@ impl Composition {
                 | link::Event::Stored
                 | link::Event::NotStored
                 | link::Event::Send { .. }
+                | link::Event::ReadAgain { .. }
                 | link::Event::Read { .. }
                 | link::Event::Open { .. }
                 | link::Event::Continue { .. }
@@ -468,6 +511,7 @@ impl Composition {
         let link = self.links.entry(client).or_insert_with(|| link::Link::new(limits).expect("joint link"));
         let out = self.link_out.entry(client).or_insert_with(|| Queue::with_capacity(256));
         link.step(self.env.now, event, out);
+        link.settle(out);
     }
 
     pub fn event(&mut self, event: Event) {
@@ -578,6 +622,7 @@ impl Composition {
             self.link(client, link::Event::SignIn { with: link::With::Held(credential) });
         }
         self.link_out.remove(&client);
+        self.stream_again.remove(&client);
         self.heard.remove(&client);
         self.exchanges.retain(|_, (owner, _)| *owner != client);
     }
@@ -612,6 +657,23 @@ impl Composition {
         } else if let core::Event::Read { reply, .. } = &mut event {
             if let Some(route) = self.pending_reply.take() {
                 transport.route_reply(reply_token(reply), route);
+            }
+        } else if let core::Event::Watch { watcher, sign_in, subject: core::documents::Watched::Frame, .. } = &event {
+            let implicit = self.pending_stream_me.iter().position(|client| {
+                !transport.is_bound(*client) || transport.sign_in(*client).is_none_or(|value| value == *sign_in)
+            });
+            let route = implicit
+                .and_then(|index| self.pending_stream_me.remove(index))
+                .map(|client| (client, Token::new(0), Watched::Jig(c::Subject::Me)));
+            let route = route.or_else(|| {
+                if self.pending_watch.as_ref().is_some_and(|(_, _, subject)| *subject == Watched::Jig(c::Subject::Me)) {
+                    self.pending_watch.take()
+                } else {
+                    None
+                }
+            });
+            if let Some((client, native, subject)) = route {
+                transport.route_watch(*watcher, client, native, subject);
             }
         } else if let core::Event::Watch { watcher, .. } | core::Event::WatchRun { watcher, .. } = &event {
             if let Some((client, native, subject)) = self.pending_watch.take() {
@@ -771,6 +833,16 @@ impl Composition {
             Request::Transport(message) => match message {
                 clients::ToTransport::Public { .. } => unreachable!("signed-in client sends no public reads"),
                 clients::ToTransport::Reply { exchange, reply } => self.transport_reply(exchange, reply),
+                clients::ToTransport::Part { exchange, message } => {
+                    if let Some((client, local)) = self.exchanges.get(&exchange).copied() {
+                        self.link(client, link::Event::Part { exchange: local, message });
+                    }
+                }
+                clients::ToTransport::Done { exchange } => {
+                    if let Some((client, local)) = self.exchanges.remove(&exchange) {
+                        self.link(client, link::Event::Done { exchange: local });
+                    }
+                }
                 clients::ToTransport::Streamed { stream, message } => {
                     let client = self
                         .streams
@@ -826,6 +898,7 @@ impl Composition {
             Request::Minted { exchange, credential, expires } => {
                 let client = self.minting.remove(&exchange).expect("provider exchange");
                 self.link(client, link::Event::SignIn { with: link::With::Held(credential) });
+                self.link(client, link::Event::OpenStream);
                 self.callbacks.push(Incoming::Authenticated { client, person: transport.party(client), expires });
             }
             Request::MintRefused { exchange, why } => {
@@ -864,8 +937,8 @@ impl Composition {
                 self.carry(client, jig_client::Request::Exchange { exchange, credential, message });
                 return;
             }
-            link::Request::OpenStream { credential } => {
-                self.carry(client, jig_client::Request::OpenStream { credential });
+            link::Request::OpenStream { credential, version, replaces } => {
+                self.carry(client, jig_client::Request::OpenStream { credential, version, replaces });
                 return;
             }
             link::Request::CloseStream => {
@@ -873,6 +946,9 @@ impl Composition {
                 return;
             }
             link::Request::Signing { signing } => {
+                if let link::Signing::SignedIn { .. } = &signing {
+                    self.link(client, link::Event::OpenStream);
+                }
                 self.approval_signers.retain(|_, owner| *owner != client);
                 self.signing_identities.remove(&client);
                 if matches!(self.pending_reply, Some(Reply::SignIn { client: owner }) if owner == client) {
@@ -905,7 +981,9 @@ impl Composition {
                         self.callbacks.push(Incoming::SignInFailed { client, failure: SignInFailure::Capacity });
                     }
                     link::Signing::SignedOut => {
-                        if let Some(sign_in) = transport.sign_in(client) {
+                        if transport.is_bound(client)
+                            && let Some(sign_in) = transport.sign_in(client)
+                        {
                             transport.signed_out(client);
                             self.callbacks.push(Incoming::SignedOut { client, sign_in });
                         }
@@ -917,6 +995,10 @@ impl Composition {
                 jig_client::Up::Answer { attempt, envelope, answer, why }
             }
             link::Request::Read { read, result } => jig_client::Up::ReadDone { read, result },
+            link::Request::ReadAgain { read, what } => {
+                self.link(client, link::Event::ReadAgain { read, what });
+                return;
+            }
             link::Request::Watch { watch, event } => jig_client::Up::Watched { watch, event },
             link::Request::Ended { watch, end } => {
                 if let Some(watcher) =
@@ -937,7 +1019,13 @@ impl Composition {
                 self.link(client, link::Event::Stored);
                 return;
             }
-            link::Request::Fact { .. } | link::Request::ServiceCredential { .. } => return,
+            link::Request::Fact { fact: link::Fact::StreamDropped } => {
+                self.stream_again.insert(client, self.env.now.saturating_add(self.limits.client().backoff.first));
+                return;
+            }
+            link::Request::Fact { .. } | link::Request::ServiceCredential { .. } | link::Request::AskedLink(_) => {
+                return;
+            }
             link::Request::Approval(answer) => {
                 if let link::Approval::Asked { secret, code, expires } = &answer {
                     self.asked.insert(client, (secret.clone(), *code, *expires));
@@ -953,6 +1041,7 @@ impl Composition {
             link::Request::Authorized(_)
             | link::Request::Kept { .. }
             | link::Request::Dropped
+            | link::Request::NotWritten { .. }
             | link::Request::NotKept { .. } => panic!("joint link request outside transport"),
         };
         self.callbacks.push(Incoming::Callback {

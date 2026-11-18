@@ -42,8 +42,12 @@ fn prepared() -> (fixtures::WorkerStand, AgentPeer, LinkPeer) {
         panic!("decoded repository")
     };
     items.repositories[0].start = root::wire::Start::Base { branch: b"main".as_slice().into() };
-    items.repositories[0].access =
-        root::wire::Access::Writable { push: b"topic".as_slice().into(), expected: None, landing: None };
+    items.repositories[0].access = root::wire::Access::Writable {
+        push: b"topic".as_slice().into(),
+        expected: None,
+        landing: None,
+        delivered: None,
+    };
     stand.worker.events.push(root::Event::Assign { assignment, items: Ok(items) });
     for _ in 0_u32..2000 {
         stand.worker.iterate(fixtures::NOW, Wall::EPOCH);

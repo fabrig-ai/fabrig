@@ -3,17 +3,20 @@ use crate::reads::{self, Answer, EndedGroup, Loaded, Read, Why};
 use crate::tests::*;
 
 const TASK: u64 = 90;
-const QUERY: TaskQuery = TaskQuery {
-    project: Some(1),
-    requester: None,
-    root: None,
-    parent: None,
-    label: None,
-    phase: Some(PhaseClass::Ended),
-    executor: None,
-    tracked: None,
-    order: QueryOrder::Ended,
-};
+fn query() -> TaskQuery {
+    TaskQuery {
+        parts: List::with_capacity(0),
+        project: Some(1),
+        requester: None,
+        root: None,
+        parent: None,
+        label: None,
+        phase: Some(PhaseClass::Ended),
+        executor: None,
+        tracked: None,
+        order: QueryOrder::Ended,
+    }
+}
 
 fn summary() -> tasks::TaskSummary {
     let mut row = fixtures::ended_report(TASK, tasks::Party::Person(1));
@@ -94,14 +97,14 @@ fn a_query_read_returns_the_summary_line_and_filters_its_kept_keys() {
     let (mut core, limits) = watch_core();
     let summary = summary();
     for (query, count) in [
-        (QUERY, 1),
-        (TaskQuery { executor: Some(ExecutorKind::Agent), ..QUERY }, 0),
-        (TaskQuery { tracked: Some(false), ..QUERY }, 0),
-        (TaskQuery { root: Some(999), ..QUERY }, 0),
+        (query(), 1),
+        (TaskQuery { executor: Some(ExecutorKind::Agent), ..query() }, 0),
+        (TaskQuery { tracked: Some(false), ..query() }, 0),
+        (TaskQuery { root: Some(999), ..query() }, 0),
     ] {
         core.reclaim();
         let Held::ReadLoad { load, .. } =
-            read_start(&mut core, &limits, 10, Read::Tasks { query, live: None, ended: None })
+            read_start(&mut core, &limits, 10, Read::Tasks { query: query.clone(), live: None, ended: None })
         else {
             panic!("ended task query loads")
         };

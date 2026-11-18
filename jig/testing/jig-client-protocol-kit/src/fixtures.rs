@@ -70,7 +70,7 @@ pub fn settings(rows: u32) -> jig_protocol_engine_clients::Settings {
         heartbeat: Duration::from_millis(50),
         rows,
         served: jig_client_kit::test::list([
-            Served { family: None, first: 27, last: 27 },
+            Served { family: None, first: jig_client_protocol_wire::VERSION, last: jig_client_protocol_wire::VERSION },
             Served { family: Some(1), first: 2, last: 2 },
         ]),
         providers: jig_client_kit::test::list([0]),
@@ -118,7 +118,7 @@ pub fn models() -> Box<[jig_protocol_engine_clients::Model]> {
     }])
 }
 // Match this world's HTTP intake and the small profile's component bound.
-pub const MESSAGE_BYTES: u32 = 65536;
+pub const MESSAGE_BYTES: u32 = 131_328;
 #[must_use]
 pub fn engine_limits() -> Limits {
     Limits {
@@ -134,8 +134,10 @@ pub fn engine_limits() -> Limits {
         provider_tokens: 64,
         exchanges: 8,
         exchanges_per_client: 4,
+        reads_per_client: 32,
+        openings_per_client: 31,
         message_bytes: MESSAGE_BYTES,
-        wire: jig_client_protocol_wire::v27::CEILINGS,
+        wire: jig_client_protocol_wire::CEILINGS,
         link_span: Duration::from_secs(300),
     }
 }
@@ -143,7 +145,7 @@ pub fn engine_limits() -> Limits {
 pub fn connections_limits() -> jig_client_shell_native::Limits {
     jig_client_shell_native::Limits {
         exchanges: 8,
-        body_bytes: 65536,
+        body_bytes: MESSAGE_BYTES,
         deadline: Duration::from_secs(1),
         http: skein_http::client::Limits { head: 4096, headers: 16, request: 4096, read: 1024, send: 1024 },
     }
@@ -224,7 +226,7 @@ pub fn printed(secret: &skein_lib::Secret) -> Box<[u8]> {
 
 #[must_use]
 pub fn server_limits() -> jig_test_service::server::Limits {
-    let mut limits = jig_test_service::limits::profile_limits(jig_protocol_config::Profile::Small).server;
+    let mut limits = jig_test_service::limits::small(&jig_protocol_config_fixtures::small()).server;
     limits.connections = 16;
     limits.http = server_http();
     limits
@@ -265,14 +267,23 @@ pub fn mount() -> jig_protocol_engine_clients_http::Mount {
 }
 #[must_use]
 pub fn server_http() -> skein_http::server::Limits {
-    skein_http::server::Limits { head: 4096, headers: 32, body: 65536, read: 1024, response: 65536, send: 1024 }
+    skein_http::server::Limits {
+        head: 4096,
+        headers: 32,
+        body: u64::from(MESSAGE_BYTES),
+        read: 1024,
+        response: 65536,
+        send: 1024,
+    }
 }
 
-pub const TURN_BYTES: &[u8] =
-    include_bytes!("../../../../smith/crates/smith-transcript/golden/v6/record_turn_full.bin");
+#[must_use]
+pub fn turn_bytes() -> Box<[u8]> {
+    jig_client_test_records::full_turn()
+}
 // The short call ID leaves eight bytes for the task's asks carrier,
 // within the single-row read budget.
-// One source call in addition to the golden's text block.
+// One source call in addition to the fixture's text block.
 // Blocks are numbered from one; the call follows the text.
 pub const TURN_CALL_NUMBER: u64 = 2;
 pub const TURN_CALL_ID: &[u8] = b"src";
@@ -295,7 +306,7 @@ pub const TURN_TEXT: &[u8] = b"abc";
 // The question wake watermark occupies eight bytes in the task owner.
 // The task owner's open attempt and optional summary join occupy 64 inline bytes.
 // Its joined activity line remains past this exact single-row budget.
-pub const TURN_OVERLAP_BYTES: u64 = 2809;
+pub const TURN_OVERLAP_BYTES: u64 = 2817;
 #[must_use]
 pub fn turn_overlap_limits() -> jig_test_domain::Limits {
     let mut limits = owner_limits();
@@ -329,7 +340,7 @@ pub fn callable_turn() -> Box<[u8]> {
 }
 fn turn_with_blocks(blocks: List<smith_transcript::v7::Block>) -> Box<[u8]> {
     use smith_transcript::v7 as s;
-    let mut turn = smith_transcript::decode_archived(&s::CEILINGS, TURN_BYTES).expect("v7 fixture").into_parts();
+    let mut turn = smith_transcript::decode_archived(&s::CEILINGS, &turn_bytes()).expect("v7 fixture").into_parts();
     let mut message = turn.messages.get(0).expect("person message").clone().into_parts();
     message.blocks = blocks;
     turn.messages = List::with_capacity(1);
@@ -375,7 +386,7 @@ pub fn large_turn() -> Box<[u8]> {
 /// (jig/docs/design/protocol/client/public-reads.md).
 #[must_use]
 pub fn public_service_limits() -> jig_test_service::limits::Limits {
-    let mut limits = jig_test_service::limits::profile_limits(jig_protocol_config::Profile::Small);
+    let mut limits = jig_test_service::limits::small(&jig_protocol_config_fixtures::small());
     limits.root.core.public = jig_domain_core::PublicIndexLimits { goals: 1, ended: 1, lines: 1, depth: 1 };
     limits.clients.public = jig_protocol_engine_clients::PublicLimits {
         reads: 2,

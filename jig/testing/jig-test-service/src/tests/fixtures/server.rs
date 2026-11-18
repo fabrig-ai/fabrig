@@ -12,7 +12,7 @@ pub const REQUEST: &[u8] = b"POST /jig/v1/read HTTP/1.1\r\nHost: 127.0.0.1:7100\
 pub fn server() -> Server {
     Server::new(
         skein_io::Addr::Ip(core::net::SocketAddr::new(core::net::IpAddr::from([127, 0, 0, 1]), 7100)),
-        &crate::limits::profile_limits(jig_protocol_config::Profile::Small).server,
+        &crate::limits::small(&jig_protocol_config_fixtures::small()).server,
     )
 }
 pub fn listening() -> skein_io::Event {
@@ -111,7 +111,7 @@ pub fn retained_call(server: &mut Server, out: &mut Queue<Routed>, socket: Token
     let owner = owner.expect("accepted socket binding");
     let (read, room) = retained_demand(out, socket);
     assert_eq!(read, skein_lib::stream::Read::Nothing);
-    assert_eq!(room, crate::limits::profile_limits(jig_protocol_config::Profile::Small).server.http.response);
+    assert_eq!(room, crate::limits::small(&jig_protocol_config_fixtures::small()).server.http.response);
     server.up(skein_io::Event::Stream { owner, up: Up::Room }, out);
     server_drain(server, out);
     for line in MOUNT_REQUEST.split_inclusive(|byte| *byte == b'\n') {
@@ -167,7 +167,7 @@ fn retained_demand(out: &mut Queue<Routed>, socket: Token) -> (skein_lib::stream
 /// The clients child and listener, retaining typed output until the caller drains it.
 pub fn retained_clients() -> crate::clients::Clients {
     let (config, _) = crate::startup::fixture_connectors(&super::engine_document());
-    let limits = crate::limits::profile_limits(jig_protocol_config::Profile::Small);
+    let limits = crate::limits::small(&jig_protocol_config_fixtures::small());
     let mut clients = crate::clients::Clients::new(
         &config,
         skein_io::Addr::Ip(core::net::SocketAddr::new(core::net::IpAddr::from([127, 0, 0, 1]), 7100)),
@@ -185,7 +185,7 @@ pub fn retained_response(
     clients: &mut crate::clients::Clients,
     peers: &List<(Token, Token, Token)>,
 ) -> (List<u8>, u32) {
-    let response_room = crate::limits::profile_limits(jig_protocol_config::Profile::Small).server.http.response;
+    let response_room = crate::limits::small(&jig_protocol_config_fixtures::small()).server.http.response;
     let mut response = List::with_capacity(response_room);
     let mut closes = 0_u32;
     for _ in 0..SETTLE_STEPS {

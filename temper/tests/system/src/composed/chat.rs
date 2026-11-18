@@ -137,8 +137,11 @@ fn started_change() -> (World, String) {
     let hex = main_commit(&world);
     let words = format!("{} Read README.md at {hex}: The answer is 42.\\n", String::from_utf8_lossy(REQUEST));
     let turns = vec![
-        call(b"read_branch", br#"{"branch":"main"}"#),
-        call(b"read_file", format!(r#"{{"head":"{hex}","path":"README.md","max_bytes":4096}}"#).as_bytes()),
+        call(b"read_forge", br#"{"what":"branch","branch":"main"}"#),
+        call(
+            b"read_forge",
+            format!(r#"{{"what":"file","commit":"{hex}","path":"README.md","max_bytes":4096}}"#).as_bytes(),
+        ),
         call(b"change", format!(r#"{{"words":"{}"}}"#, words.replace('"', "\\\"")).as_bytes()),
         text_script(b"I started the change.").turns[0].clone(),
     ];
@@ -325,12 +328,16 @@ fn echo_change(mut world: World, request: &str, path: &str, content: &str) -> Wo
     let script = Script {
         cue: b"Help the person with their work.".as_slice().into(),
         turns: Box::new([
-            call(b"read_branch", br#"{"branch":"main"}"#),
+            call(b"read_forge", br#"{"what":"branch","branch":"main"}"#),
             call(
-                b"read_file",
-                format!(r#"{{"head":"{hex}","path":".forgejo/workflows/ci.yml","max_bytes":4096}}"#).as_bytes(),
+                b"read_forge",
+                format!(r#"{{"what":"file","commit":"{hex}","path":".forgejo/workflows/ci.yml","max_bytes":4096}}"#)
+                    .as_bytes(),
             ),
-            call(b"read_file", format!(r#"{{"head":"{hex}","path":"README.md","max_bytes":4096}}"#).as_bytes()),
+            call(
+                b"read_forge",
+                format!(r#"{{"what":"file","commit":"{hex}","path":"README.md","max_bytes":4096}}"#).as_bytes(),
+            ),
             call(
                 b"change",
                 format!(r#"{{"words":"{request}. README.md says The answer is 42. CI only echoes a message."}}"#)

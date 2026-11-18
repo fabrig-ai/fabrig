@@ -1,19 +1,20 @@
 //! Placed hold storage keeps the active family's tags and bounds.
+use super::values;
 use jig_domain_tasks as tasks;
 use jig_protocol_store::{codec, tasks_v13 as wire};
 use skein_lib::{Reader, Writer};
 
 #[test]
-fn placed_hold_smallest_and_full_goldens_round_trip() {
-    for bytes in [
-        include_bytes!("../../../../crates/jig-protocol-store/golden/tasks/record_placed_hold_smallest.bin").as_slice(),
-        include_bytes!("../../../../crates/jig-protocol-store/golden/tasks/record_placed_hold_full.bin").as_slice(),
-    ] {
+fn placed_hold_smallest_and_full_fixed_rule_values_round_trip() {
+    let schema = skein_codegen::parse(values::TASKS).expect("tasks schema");
+    let goldens = skein_codegen::goldens(&schema);
+    for name in ["record_placed_hold_smallest.bin", "record_placed_hold_full.bin"] {
+        let bytes = goldens.iter().find(|value| value.name == name).expect("placed hold value").bytes.as_slice();
         let mut reader = Reader::new(bytes);
-        let hold = wire::PlacedHold::decode(&wire::CEILINGS, &mut reader).expect("placed hold golden");
+        let hold = wire::PlacedHold::decode(&wire::CEILINGS, &mut reader).expect("placed hold value");
         assert!(reader.is_empty());
         let mut writer = Writer::new(hold.measure() as usize);
-        hold.encode(&mut writer).expect("measured golden");
+        hold.encode(&mut writer).expect("measured value");
         assert_eq!(writer.finish().as_ref(), bytes);
     }
 }
@@ -34,7 +35,7 @@ fn hold_placed_round_trips_with_its_number_at_the_existing_tag() {
 
 #[test]
 fn placed_hold_rows_round_trip_and_enforce_configured_reason_and_exemption_bounds() {
-    let profile = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    let profile = jig_protocol_config_fixtures::small();
     let limits = codec::tasks::limits(&profile.core.tasks).expect("small bounds");
     let value = tasks::PlacedHold {
         number: 71,

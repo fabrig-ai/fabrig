@@ -5,11 +5,49 @@ use temper_redeploy_tool::{
 };
 
 #[test]
+fn fake_checkpoints_require_a_stopped_engine_and_verdict_and_ctl_are_scriptable() {
+    let d = description(1);
+    let mut hosts = Deployment::new(d.clone());
+    let checkpoint = fill(&d.engine.checkpoint, &[("binary", "/bin/temper-engine")]);
+    assert_eq!(hosts.run(Part::Engine, &checkpoint).code, Some(1));
+    let serving = temper_redeploy_tool::hosts::ctl(&d, &["deployment", "checkpoint"], &mut hosts).unwrap();
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&serving).unwrap()["name"],
+        "00000000000000000001-0123456789abcdef"
+    );
+    hosts.run(Part::Engine, &d.engine.stop);
+    for number in [2, 3] {
+        let answer = hosts.run(Part::Engine, &checkpoint);
+        assert_eq!(answer.code, Some(0));
+        assert_eq!(
+            answer.stdout,
+            format!(
+                "temper-engine checkpoint: {number:020}-0123456789abcdef at commit 42, secrets at 7: 12 files linked, 3 copied (4096 bytes) in 15 ms; 4096 bytes held; 0 older removed, 0 skipped\n"
+            )
+        );
+    }
+    hosts.verdict_answer(7, "verdict refused");
+    assert_eq!(
+        hosts
+            .run(
+                Part::Engine,
+                &fill(&d.engine.verdict, &[("binary", "/staged/temper-engine"), ("checkpoint", "a-name")])
+            )
+            .code,
+        Some(7)
+    );
+    hosts.ctl_answer("deployment checkpoint --json", output(2, "checkpoint refused"));
+    assert!(temper_redeploy_tool::hosts::ctl(&d, &["deployment", "checkpoint"], &mut hosts).is_err());
+}
+#[test]
 fn fake_scripts_checks_openings_ctl_documents_and_failed_lines_on_its_own_clock() {
     let description = description(3);
     let mut hosts = Deployment::new(description.clone());
     hosts.check_answer(4, "workers may stay: no\n");
-    assert_eq!(hosts.run(Part::Engine, "check '/builds/new/temper-engine'").code, Some(4));
+    assert_eq!(
+        hosts.run(Part::Engine, "check '/builds/new/temper-engine' '00000000000000000001-0123456789abcdef'").code,
+        Some(4)
+    );
     hosts.opening(0, Opening::After { nanoseconds: 2_000_000_000, wires: "a-wire 7".into() });
     hosts.opening(1, Opening::Refused { nanoseconds: 1_000_000_000, text: "too old".into() });
     hosts.opening(2, Opening::Never);

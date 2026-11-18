@@ -10,6 +10,7 @@ publish.workspace = true
 [dependencies]
 temper-client-domain-forge.workspace = true
 jig-client.workspace = true
+jig-client-protocol-link.workspace = true
 jig-client-protocol-wire.workspace = true
 skein-json.workspace = true
 skein-lib.workspace = true
@@ -17,7 +18,6 @@ temper-client-protocol-wire.workspace = true
 temper-protocol-reaches.workspace = true
 
 [dev-dependencies]
-jig-client-protocol-link.workspace = true
 jig-client-test-records.workspace = true
 temper-fixtures.workspace = true
 

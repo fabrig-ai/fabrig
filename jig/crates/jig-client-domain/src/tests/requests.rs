@@ -344,7 +344,7 @@ fn seen_admitted_offline_is_not_saved_before_going_live() {
     assert!(c.downs().is_empty());
     assert_eq!(c.domain.pending(KEY).unwrap().progress, Progress::Parked);
     c.told();
-    c.at(next_deadline(&c.domain).unwrap());
+    assert_eq!(next_deadline(&c.domain), None);
     let watch = c.name(Watchable::Jig(contract::Subject::Me));
     c.downs();
     confirm(&mut c, watch, PARTY);

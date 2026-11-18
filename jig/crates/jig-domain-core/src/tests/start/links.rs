@@ -133,6 +133,57 @@ fn link_preserves_the_committed_waiting_holder_and_its_projection() {
     assert_eq!(core.start_failure(), None);
 }
 
+#[test]
+fn link_preserves_the_deciders_kind_and_its_hold_projection() {
+    for by in [tasks::EscalationDecider::Task(99), tasks::EscalationDecider::Person(1)] {
+        let (mut core, env) = loaded();
+        restore_task(&mut core, &env, period());
+        let mut ancestor = task();
+        ancestor.number = 99;
+        ancestor.root = 99;
+        ancestor.delegates = Box::new([1]);
+        restore_task(&mut core, &env, tasks::Stored::Live(Box::new(ancestor)));
+        let mut row = rejected(by);
+        row.requester = tasks::Party::Task(99);
+        row.root = 99;
+        row.depth = 1;
+        restore_task(&mut core, &env, tasks::Stored::Live(Box::new(row.clone())));
+        linked(link(&mut core, &env));
+        assert_eq!(core.tasks.task(1), Some(&row));
+        assert_eq!(core.start_failure(), None);
+        let hold = crate::documents::task_tree::hold(&env.limits, core.tasks.task(1).expect("held task"))
+            .expect("hold projection")
+            .expect("task held");
+        let Some(crate::documents::EscalationState::Rejected { by: shown, reason }) = hold.escalation else {
+            panic!("hold line retains the rejection");
+        };
+        assert_eq!(shown, by);
+        assert_eq!(reason.bytes.as_ref(), b"leave held");
+    }
+}
+
+fn rejected(by: tasks::EscalationDecider) -> tasks::TaskRecord {
+    let mut row = task();
+    row.executor = tasks::Executor::Person(tasks::PersonAddress::Person(1));
+    row.phase =
+        tasks::Phase::Held { was: tasks::Was::Active(tasks::Active::Due), why: tasks::Hold::Budget, source: None };
+    row.escalation = tasks::Escalation::Rejected { revision: 1, by, reason: Box::from(b"leave held".as_slice()) };
+    row
+}
+
+#[test]
+fn rejected_escalations_link_deciders_in_their_own_family() {
+    for (by, target) in [
+        (tasks::EscalationDecider::Task(98), Key::Tasks(tasks::Key::Live(98))),
+        (tasks::EscalationDecider::Person(98), Key::People(people::Key::Person(98))),
+    ] {
+        let (mut core, env) = loaded();
+        restore_task(&mut core, &env, period());
+        restore_task(&mut core, &env, tasks::Stored::Live(Box::new(rejected(by))));
+        unmade(&mut core, &env, Key::Tasks(tasks::Key::Live(1)), Linked::Record(target));
+    }
+}
+
 fn answer(outcome: people::Outcome) -> people::Stored {
     people::Stored::Answer {
         key: people::RequestKey { person: 1, key: [1; 16] },
@@ -286,7 +337,9 @@ fn missing_ended_read_owner_is_a_link_before_sweep() {
         Linked::Record(Key::Tasks(tasks::Key::Ended(7))),
     );
     assert_eq!(core.start_phase(), Some(Phase::Link));
-    assert!(out.is_empty());
+    while let Some(request) = out.pop() {
+        crate::tests::start::worker_table(&request);
+    }
 }
 
 fn period() -> tasks::Stored {

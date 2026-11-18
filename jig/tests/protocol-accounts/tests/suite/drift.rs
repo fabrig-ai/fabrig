@@ -1,43 +1,26 @@
-use skein_codegen::{generate, parse, tests_main};
+//! Records' drift and pinned constructs (skein's data/codec/README.md, 6).
+use skein_codegen::{generate, parse, unpinned};
 use std::fs;
 
 #[test]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "jig's round: reads SKEIN_CODEGEN_WRITE to refresh generated account codecs and goldens"
-)]
-fn moved_schema_matches_generated_code_and_goldens() {
+#[expect(clippy::disallowed_methods, reason = "jig's round: reads SKEIN_CODEGEN_WRITE to refresh generated records")]
+fn moved_schema_matches_generated_records_and_is_pinned() {
     let root = skein_scratch::paths::tree().join("crates/jig-protocol-accounts");
     let source = fs::read_to_string(root.join("schema/moved-v1.schema")).expect("schema");
-    let schema = parse(&source).expect("schema valid");
-    let output = generate(&schema);
-    let codec = skein_scratch::paths::tree().join("crates/jig-protocol-accounts-codec");
-    let goldens = root.join("golden");
-    let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
+    let unpinned = unpinned(&source).expect("schema valid");
+    assert!(unpinned.is_empty(), "moved: unpinned constructs: {unpinned:?}");
+    let output = generate(&parse(&source).expect("schema valid"));
+    let path = skein_scratch::paths::tree().join("crates/jig-protocol-accounts-codec/src/generated/moved.rs");
     let again =
         "run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p jig-protocol-accounts-world --test suite -E 'test(drift::)'";
-    for (file, text) in [
-        ("src/generated/v1.rs", output.records),
-        ("tests/generated/v1.rs", output.tests.text("jig_protocol_accounts_codec::v1")),
-        ("tests/generated/main.rs", tests_main(&["v1"])),
-    ] {
-        let path = codec.join(file);
-        if write {
-            fs::create_dir_all(path.parent().expect("generated parent")).expect("create generated directory");
-            fs::write(&path, text).expect("write generated text");
-        } else {
-            assert_eq!(fs::read_to_string(&path).expect("generated text"), text, "{file}: {again}");
-        }
-    }
-    if write {
-        fs::create_dir_all(&goldens).expect("create golden directory");
-    }
-    for golden in output.goldens {
-        let path = goldens.join(&golden.name);
-        if write {
-            fs::write(&path, golden.bytes).expect("write golden bytes");
-        } else {
-            assert_eq!(fs::read(&path).expect("golden bytes"), golden.bytes, "golden {} drifted: {again}", golden.name);
-        }
+    if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {
+        fs::write(&path, output.records).expect("write generated records");
+    } else {
+        assert_eq!(
+            fs::read_to_string(&path).expect("generated records"),
+            output.records,
+            "{}: {again}",
+            path.display()
+        );
     }
 }

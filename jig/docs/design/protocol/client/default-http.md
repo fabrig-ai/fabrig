@@ -12,11 +12,12 @@ prefix; jig's test application mounts it at `/jig`.
 
 | Route | Message |
 |---|---|
-| `GET <prefix>/v1/stream` | opening the stream, answered with server-sent events (2) |
+| `GET <prefix>/v1/stream?version=<version>` | opening the stream, naming jig's wire version in decimal, answered with server-sent events (2); `&replaces=` names the stream it replaces |
 | `POST <prefix>/v1/request` | a keyed request |
 | `POST <prefix>/v1/read` | a read |
 | `POST <prefix>/v1/watch` | opening a watch |
 | `POST <prefix>/v1/unwatch` | closing a watch |
+| `POST <prefix>/v1/batch` | a batch of reads, watches' openings and closings, answered a reply at a time (6) |
 | `POST <prefix>/v1/stream-gone` | a stream gone |
 | `POST <prefix>/v1/sign-in/link` | signing in with the printed link's secret |
 | `POST <prefix>/v1/sign-in/deployment` | signing in as a service, its credential as the bearer |
@@ -24,6 +25,7 @@ prefix; jig's test application mounts it at `/jig`.
 | `POST <prefix>/v1/approval/ask` | asking an approval |
 | `POST <prefix>/v1/approval/read` | reading an approval by its code |
 | `POST <prefix>/v1/approval/decide` | approving or refusing an approval by its code |
+| `POST <prefix>/v1/link/ask` | asking a link, with a person's credential (`sign-in.md`, the asked link) |
 | `POST <prefix>/v1/sign-out` | signing out |
 | `POST <prefix>/v1/authorize` | an OpenID authorization (`openid.md`) |
 | `GET <prefix>/v1/public/<owner>/<version>/<kind>[/<id>[/<id>]]` | a public read (5, `public-reads.md`) |
@@ -31,7 +33,8 @@ prefix; jig's test application mounts it at `/jig`.
 - **A POST's body** is its message's record, `application/octet-stream`.
   Its answer is `200` with the reply's record and `Cache-Control:
   no-store`, whatever jig's answer says: a refusal, signed out and a
-  version not served are records. A POST whose `Content-Type` is not
+  version not served are records; a batch's is its replies, each framed
+  (6). A POST whose `Content-Type` is not
   `application/octet-stream` is `415`, a body that is not a record of
   its route `400`, and one past the route's bound `413`, each with
   nothing done; any other method or path under the prefix is `404`, but
@@ -46,7 +49,10 @@ prefix; jig's test application mounts it at `/jig`.
   `Referrer-Policy: no-referrer`; the shell takes the secret out of the
   address and `POST`s it, with the browser header, which signs in
   (`../browser/README.md`, section 11). A native client sends the secret by the
-  same `POST`.
+  same `POST`. An asked link's URL (`sign-in.md`) is the same, with its
+  secret, on the address its client reaches the engine at: the mapping's
+  client end makes it, byte for byte as the engine end makes the printed
+  link's, and parses it as it parses the printed link's.
 - **No provider route.** The application's sign-in runs on its own
   routes; after a `Minted`, its server sets the credential's cookie on
   its own answer with the mapping's function for it (3). So do the
@@ -56,11 +62,28 @@ prefix; jig's test application mounts it at `/jig`.
 
 ## 2. The stream
 
+- **Its opening names the stream it replaces,** when the client knew
+  one (`wire.md`, section 2): `GET <prefix>/v1/stream?replaces=<name>`, the name
+  the stream's 16 bytes as 32 lowercase hexadecimal digits; with none,
+  no query. Any other query on the route, a second parameter, an empty
+  one, a name of other digits or another length among them, is `404`
+  with nothing done, as an unknown path is. The engine end hands the
+  name to the component with the stream's opening, `StreamOpen`'s
+  `replaces` (`wire.md`, 2.2).
 - **Server-sent events,** `text/event-stream`, `Cache-Control: no-store`:
   the hello first; each streamed message one event, whose data is its
   record's bytes in base64; a heartbeat a comment line. No event names
   and no ids: a record says what it is, and a client reopens by its own
   backoffs, never by the event stream's retry.
+- **Its version.** The `GET`'s `version` names the version of jig's
+  wire the client speaks, the component's `StreamOpen` `version`
+  (`wire.md`, 2.2). A `GET` of the path with no `version`, as an
+  earlier client sends it, names none, and is answered the hello alone
+  (`wire.md`, section 2); a `version` that is not a decimal `u32` is
+  `400`. Nothing is written before the hello, which waits for `me`, so
+  a stream the engine ends before it (signed out, or busy, for want of
+  room for its `me`) is answered by status, as now: `401` signed out,
+  and a `409` with no body, which the client takes as gone.
 - **Paced by its connection.** The engine end says `StreamTaken` once an
   event's bytes are in the connection's send buffer, bounded by the
   mapping's limits; a client that reads slowly fills it, and nothing
@@ -139,7 +162,9 @@ prefix; jig's test application mounts it at `/jig`.
   headers (its content type, and the bearer where the client holds a
   credential) and a body, with no browser header, which a browser's
   transport adds (3); a response's status and body back as a
-  `Reply`, or `Lost`; `OpenStream` as the stream's `GET`, its body cut
+  `Reply`, or `Lost`; a batch's body cut into its parts as its pieces
+  come, each a `Part`, then `Done` or `Lost` (6); `OpenStream` as the
+  stream's `GET`, naming the stream it replaces, its body cut
   into messages (2). The native shell and the reference's browser
   client host use it (`../browser/README.md`, 3.2); an application's own shell
   may.
@@ -148,11 +173,13 @@ prefix; jig's test application mounts it at `/jig`.
   component's messages, but a `GET` of the link's route, left to the
   application's page with the referrer policy (1); its credential
   read from the cookie or the bearer; each `Reply` written as `200` with
-  its record; the stream written as events, `StreamTaken` said as their
+  its record; a batch's `Part`s written as they come, each framed, and
+  its body ended at `Done` (6); the stream written as events, `StreamTaken` said as their
   bytes are written. The application's server mounts it at a prefix of
   its listener and hands it the calls under that prefix.
-- **The engine end's room** is its calls in flight, streams among them
-  (`README.md`, section 10), and it owns that bound alone. It holds a call from its
+- **The engine end's room** is its calls in flight, streams and batches among them
+  (`README.md`, section 10), and it owns that bound alone. A batch is one call, held
+  until its body has ended. It holds a call from its
   head until it has handled the call's end, even once the server has
   let the call's connection go: until then the call takes room, and
   nothing tells the server it has let the call go. The application asks
@@ -268,3 +295,50 @@ prefix; jig's test application mounts it at `/jig`.
   bearer and no body, and takes back the status, the body and the
   freshness left: the `Cache-Control`'s `max-age` less the `Age` a
   cache added. A `503` is busy, a `404` unknown.
+
+## 6. A batch
+
+Many of jig's messages in one exchange, each answered as it is ready
+(`wire.md`, section 2).
+
+- **Its body** is a `Batch` record (`wire.md`, 2.1): its members, at most
+  64, in the order the client asked for them, each a read, a watch's
+  opening or a watch's closing as the record its own route takes. Its
+  bytes are bounded as every POST's are, by the route's bound (1): past
+  it, `413`. A body that is no `Batch` record, one of more than 64
+  members among them, is the component's not a record, `400`. Either is
+  the whole batch's answer, with nothing done, which its client takes as
+  lost.
+- **Its answer** is `200`, `application/octet-stream`, `Cache-Control:
+  no-store`, a body of frames: each a length, four bytes big-endian,
+  then that many bytes, one `BatchReply` record (`wire.md`, 2.1), naming
+  its member by its place in the batch, from 0, and holding the record
+  that member's own route would answer, or none where its route would
+  answer `400` or `409`. One frame per member, in the order the
+  component hands their replies out (`wire.md`, 2.2), and the body ends
+  after the last.
+- **Written as they come.** The engine end opens the answer at the
+  first part and writes each frame as the connection takes it, as the
+  stream's events are (2): one slow member holds back no frame of
+  another's. It holds at most 64 frames unwritten, a batch's members,
+  since each member is answered once, and ends the body once the
+  component has said `Done` and every frame is written.
+- **One call, one exchange.** A batch is one call of the engine end's
+  room, held until its body has ended or its connection has, as any
+  call is (4), and one exchange of the component's (`README.md`, section 10).
+  A batch whose connection ends before the component's `Done` was
+  handled says `ExchangeGone`, as any exchange whose reply was owed (4).
+- **The client end** reads the body a piece at a time, as the stream's
+  (2), and cuts each frame out as its last byte comes, handing its record
+  at once as a `Part { exchange, message }`: so a member answered early
+  reaches its caller early. A body that ends on a frame's boundary is
+  `Done`. A status other than `200`, a frame longer than the client
+  end's bound on a record, a body that ends inside a frame, or a
+  failure, is `Lost`, after the parts that came whole. The client end
+  reads no record: which member a part answers is the link's
+  (`wire.md`, 2.3).
+- **The shells give the body in pieces:** the native shell hands each
+  piece of a batch's body to the client end as it arrives; the
+  browser's shell through skein's fetch reading the exchange's body in
+  pieces (skein's `ui/web/README.md`, section 8), each read on after the step, as the
+  stream is (`../browser/README.md`, 5.2).

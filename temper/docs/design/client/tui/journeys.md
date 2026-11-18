@@ -30,10 +30,13 @@ the look, 11 what is open.
 - **Replayed, it must ask what it asked,** each key giving the event it
   gave; otherwise the journey is stale and recorded again (sections 4
   and 8). The first replay proves itself against the live frames.
-- **Redacted and scanned by the browser's code** (`../web/journeys.md`, 3.6
-  and 3.7), which gains the TUI's originals: the approval's secret, the
+- **Redacted and scanned by the browser's code** (`../web/journey-redaction.md` and `../web/journeys.md`, 3.7
+  ), which gains the TUI's originals: the approval's secret, the
   credential the TUI takes and the bearer every exchange carries
   (section 5).
+- **Placeholders for what varies,** once proved: the build, the
+  loopback ports and the approval codes, as the browser's journeys take
+  them (`../journey-placeholders.md`; section 5).
 - **Printed by `temper-client-journeys`,** under
   `docs/design/client/tui/journeys/`: a text and a page per mark, a
   generated `theme.css` and `tui-journey.js`, and an empty `overlay.css`
@@ -42,7 +45,8 @@ the look, 11 what is open.
   also fails while the TUI's `overlay.css` holds anything (section 7).
 - **Recorded again by a command:** `again NAME` walks the journey's
   `walk` on a fresh fake box, the TUI in a pseudo-terminal and the
-  approval given in headless Chromium, and adds the result (section 8).
+  approval given in headless Chromium, all on one fixed start
+  (`../journey-clock.md`), and adds the result (section 8).
 - **The look is asked for on the frames:** a frame's text edited in
   place, the theme's overlay written, each request landing as the
   browser's do (section 10).
@@ -276,11 +280,14 @@ yields the host's frame.
 the replay's `Frame::print` is the recorded one, or the recording is
 refused, naming the mark and the first line of the print that differs,
 never its text. Once every mark matches, the live prints are dropped,
-and the print is the replay's from then on.
+the recording takes its placeholders and replays again, as the check
+has it (`../journey-placeholders.md`, 4.1), and the print is that
+replay's. The proof comes first since a frame lays its rows out by
+width, so a placeholder of another width moves what follows it.
 
 ## 5. Redaction and the last scan
 
-The browser's, with the same code (`../web/journeys.md`, 3.6 to 3.8), over
+The browser's, with the same code (`../web/journey-redaction.md` and `../web/journeys.md`, 3.7 to 3.8), over
 the TUI's lines.
 
 - **The shared code** gains three kinds of original, `Kind::Approval`,
@@ -317,7 +324,7 @@ the TUI's lines.
   a `send`'s and a `streamed record`'s bytes, a `stored`'s, `save`'s and
   `erase`'s key and bytes, and every credential's field are framed; a
   `key`'s bytes and event, `found`'s and `box-line`'s bytes, `address`, `signed`,
-  `browse`, `mark` and `end` are text (`../web/journeys.md`, 3.6, *A form's
+  `browse`, `mark` and `end` are text (`../web/journey-redaction.md`, *A form's
   size*). A TUI's
   stream records come whole from the native shell, so no pieces are
   joined.
@@ -330,7 +337,7 @@ the TUI's lines.
   elements in the `Typed` event's Debug print. Each becomes those
   encodings of the redacted secret, so the paste and its event, and the
   box's line, still replay. This is the TUI's addition; the browser's
-  code and encodings stay as `../web/journeys.md`, 3.6 describes.
+  code and encodings stay as `../web/journey-redaction.md` describes.
 - **The last scan** (`../web/journeys.md`, 3.7): every field of each line,
   every frame the replay drew at each turn's end as its text, and each
   printed text and page, for the originals and the shapes. An approval's
@@ -343,6 +350,14 @@ the TUI's lines.
 - **What is left to the person** is `../web/journeys.md`, 3.8's, and: a
   link typed key by key is never found whole, so its proof fails and
   nothing is written; paste it.
+- **Placeholders** (`../journey-placeholders.md`), after the proof, with
+  the shared code: the build from the `version` fact; each loopback port
+  in every field, `address`, `signed`, `browse`, a `found`'s and a
+  `box-line`'s bytes and the framed fields among them, and in a pasted
+  address's decimal byte elements in its `Typed` event; and each code a
+  `browse` address shows, its letters in the ask's `reply` too. A framed
+  field takes a placeholder of the original's width alone
+  (`../journey-placeholders.md`, 3.3).
 
 ## 6. The print
 
@@ -358,10 +373,12 @@ records again the TUI's journeys beside the browser's, through
   `docs/design/client/tui/journeys/NAME/`. A NAME is one journey's
   across both directories: `add` refuses a TUI recording under a name
   the browser's directory holds, and the reverse. It redacts (section
-  5), proves (4.3), scans and prints in memory, writing nothing until
-  the scan has passed, and prints its counts as the browser's does.
+  5), proves (4.3), normalises, scans and prints in memory, writing
+  nothing until the scan has passed, and prints its counts as the
+  browser's does (`../journey-placeholders.md`, 4.1).
 - The reprint, `cargo run -p temper-client-journeys`, prints both
-  directories' journeys.
+  directories' journeys, and `normalise` gives both directories'
+  recordings their placeholders (`../journey-placeholders.md`, 4.3).
 - `again NAME` records the TUI journey NAME when its directory holds a
   `walk` (section 8), the browser's otherwise.
 
@@ -446,7 +463,9 @@ reports given by the test) and `crates/temper-client-journeys-tool`'s own tests:
   any other value still refused; a redacted approval walk replaying as
   it stands.
 - **The print:** every committed TUI journey reprinted into a scratch
-  directory equals its directory and the files beside it, byte for byte;
+  directory equals its directory and the files beside it, byte for byte,
+  and its recording is its own normalisation (`../journey-placeholders.md`,
+  4.3);
   one that differs or is stale fails, naming the command that reprints;
   the tests fail while the TUI's `overlay.css` holds any byte, and for a
   journey whose `../../README.md` is missing or empty; a page's runs, palette
@@ -480,6 +499,9 @@ recording's (3.2).
 | `approve` | none | the browser opens the address of the latest save's last `browse` and presses its button "Approve", found by role and name as skein's fake person finds it |
 | `end` | none | last, once: the save key in its Shift form, Alt+Shift+S (3.1), whose save is the new recording |
 
+- **A `see` names no varying value:** it is found in the live frames,
+  which hold the box's ports and the build as they are
+  (`../journey-placeholders.md`, 4.2).
 - **Its bounds:** a `see` not shown within 30 seconds, or an `approve`
   whose page shows no "Approve" within 30 seconds, stops `again`,
   naming the step.
@@ -506,7 +528,9 @@ ordinary Rust over skein's harness:
   --fake-backends` from that copy serving that bundle, every directory
   in the scratch directory, and headless Chromium from
   `SKEIN_TEST_CHROMIUM`, as the browser tier drives it, its printed
-  sign-in link opened, so that the browser is signed in.
+  sign-in link opened, so that the browser is signed in. The box takes
+  `again`'s fixed start as `--fixed-start`, and the page as
+  `internal-fixed-start` (`../journey-clock.md`, 4.4).
 - **The TUI in a pseudo-terminal** of 80 columns by 24 rows (skein's
   harness starts a binary on one), `temper http://HOST:PORT` at the
   box's address, with `XDG_STATE_HOME` and `HOME` in the scratch
@@ -520,7 +544,9 @@ ordinary Rust over skein's harness:
   (`theme.md`, *The band*), `TERM` `xterm-256color`, no `SSH_` variables, `DISPLAY` as
   `again`'s or `:0`, and `PATH` led by a scratch directory whose
   `xdg-open` is a link to `true`, so that the TUI's opener runs, exits
-  0, and leaves the tab to `again`. Its output is read and dropped.
+  0, and leaves the tab to `again`; and `TEMPER_INTERNAL_FIXED_START`,
+  `again`'s fixed start, so that the TUI's seed and clock are the walk's
+  (`../journey-clock.md`, 4.3). Its output is read and dropped.
 - **A setup,** where the journey's directory holds one: its `setup`
   file, in the browser's format and with its rules (`../web/journeys.md`,
   8.2), its `after` naming a browser journey, read from the browser's

@@ -74,6 +74,8 @@ mod reads;
 #[cfg(test)]
 mod tests;
 mod turn;
+mod untooled;
+pub use untooled::Untooled;
 
 pub use boundary::{
     Answer, Assignment, AttemptState, AttemptView, Call, Event, GrantName, HostKind, HostView, Kinds, Message,

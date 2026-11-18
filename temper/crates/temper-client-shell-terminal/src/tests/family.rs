@@ -42,6 +42,7 @@ fn an_adoption_round_trips_through_the_family_record() {
             | w::Request::SetAway(_)
             | w::Request::Overturn(_)
             | w::Request::Looked(_)
+            | w::Request::Checkpoint
             | w::Request::EndPlayground => {
                 panic!("expected adoption")
             }

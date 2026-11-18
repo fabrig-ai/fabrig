@@ -1,25 +1,25 @@
 //! The clock (runtime/shell.md, 5; programming-model.md, section 9).
 
-use skein_lib::{Env, Time, Wall};
+use std::cell::Cell;
+
+use skein_lib::{Env, FixedClock, FixedStart, Time, Wall};
 
 use crate::system;
 
-/// Reads the two times a step sees in its `Env`, once per iteration.
+/// Reads the host's times or a fixed run's times for each iteration
+/// (skein/docs/design/runtime/shell.md, 5).
 #[derive(Debug)]
 pub struct Clock {
-    monotonic: libc::clockid_t,
-    wall: libc::clockid_t,
+    fixed: Option<Cell<FixedClock>>,
 }
 
 /// The times of one iteration, read together.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct Now {
-    /// `CLOCK_MONOTONIC`, for every deadline. The [`Wait::Until`] deadline the
-    /// kernel waits for is on this clock.
-    ///
-    /// [`Wait::Until`]: crate::Wait::Until
+    /// Monotonic time for step deadlines. [`Clock::until`] translates them
+    /// to the native clock for [`crate::Wait::Until`].
     pub now: Time,
-    /// `CLOCK_REALTIME`, for things about the world, never a deadline.
+    /// Wall time for things about the world, never a deadline.
     pub wall: Wall,
 }
 
@@ -34,17 +34,55 @@ impl Now {
 impl Clock {
     #[must_use]
     pub fn new() -> Clock {
-        Clock { monotonic: libc::CLOCK_MONOTONIC, wall: libc::CLOCK_REALTIME }
+        Clock { fixed: None }
+    }
+
+    /// Starts a clock that advances only to the run's requested deadlines.
+    #[must_use]
+    pub fn fixed(start: &FixedStart) -> Clock {
+        let native = monotonic();
+        Clock { fixed: Some(Cell::new(FixedClock::new(start, native))) }
     }
 
     #[must_use]
     pub fn now(&self) -> Now {
-        let now = system::clock_nanos(self.monotonic).expect("the monotonic clock is past its origin");
-        // A wall clock set before 1970 reads as the epoch: it is never a
-        // deadline, and nothing about the world happened before then.
-        let wall = system::clock_nanos(self.wall).unwrap_or(0);
-        Now { now: Time::from_nanos(now), wall: Wall::from_nanos(wall) }
+        let native = monotonic();
+        match &self.fixed {
+            None => {
+                // A wall clock set before 1970 reads as the epoch: it is never a
+                // deadline, and nothing about the world happened before then.
+                let wall = system::clock_nanos(libc::CLOCK_REALTIME).unwrap_or(0);
+                Now { now: native, wall: Wall::from_nanos(wall) }
+            }
+            Some(cell) => {
+                let mut fixed = cell.get();
+                let (now, wall) = fixed.read(native);
+                cell.set(fixed);
+                Now { now, wall }
+            }
+        }
     }
+
+    /// Asks for the step's deadline and returns its native monotonic instant.
+    /// The host's clock passes deadlines through unchanged.
+    #[must_use]
+    pub fn until(&self, deadline: Option<Time>) -> Option<Time> {
+        match &self.fixed {
+            None => deadline,
+            Some(cell) => {
+                let native = monotonic();
+                let mut fixed = cell.get();
+                let instant = fixed.until(deadline, native);
+                cell.set(fixed);
+                instant
+            }
+        }
+    }
+}
+
+fn monotonic() -> Time {
+    let nanos = system::clock_nanos(libc::CLOCK_MONOTONIC).expect("the monotonic clock is past its origin");
+    Time::from_nanos(nanos)
 }
 
 impl Default for Clock {

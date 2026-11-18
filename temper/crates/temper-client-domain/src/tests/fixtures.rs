@@ -229,7 +229,7 @@ pub fn start_accounts(
         },
         &mut out,
     );
-    let mut frame = None;
+    let frame = Token::new(0);
     let mut accounts = None;
     while let Some(request) = out.pop() {
         if let Request::Unlinked {
@@ -242,17 +242,8 @@ pub fn start_accounts(
         {
             accounts = Some(*watch);
         }
-        if let Request::Unlinked {
-            request:
-                jig_client::UnlinkedRequest::Down {
-                    down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(contract::Subject::Me) },
-                },
-        } = request
-        {
-            frame = Some(watch);
-        }
     }
-    (frame.expect("start opens a frame watch"), accounts.expect("start opens accounts"))
+    (frame, accounts.expect("start opens accounts"))
 }
 pub fn confirm(root: &mut crate::Domain, watch: Token, party: u64, out: &mut Queue<Request>) {
     let limits = limits();
@@ -295,14 +286,16 @@ pub fn adopted_bytes() -> jig_client::Family {
 }
 
 pub fn inbox_home(filter: crate::address::Filter) -> (crate::Domain, Token) {
-    let limits = limits();
-    let mut root = crate::unlinked(&limits, SEED);
+    inbox_home_with_limits(filter, &limits())
+}
+pub fn inbox_home_with_limits(filter: crate::address::Filter, limits: &Limits) -> (crate::Domain, Token) {
+    let mut root = crate::unlinked(limits, SEED);
     let frame = start(&mut root, List::with_capacity(0));
     let mut out = Queue::uncapped();
     confirm(&mut root, frame, PARTY, &mut out);
     crate::step(
         &mut root,
-        &env(&limits),
+        &env(limits),
         Event::Went { place: crate::Place::Address(Address::Inbox { filter }) },
         &mut out,
     );

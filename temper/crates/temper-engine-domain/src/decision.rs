@@ -48,6 +48,12 @@ pub struct Limits {
 /// resumed by the root and never passed to the protocol as child events.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Delivery {
+    /// The stored agents setting, released only after its decision commits
+    /// (temper/docs/design/protocol/configuration/figures.md, 2).
+    WorkerFigures {
+        agents: Box<temper_engine_domain_forge::settings::AgentFigures>,
+        revision: u32,
+    },
     /// A need's push, held behind its decision's commit (attention.md, 7.2).
     Push(crate::Push),
     /// The project's ways (temper/docs/design/domain/forge/change/branch-path.md).
@@ -102,7 +108,7 @@ pub enum Delivery {
     /// The person's trials, newest first (temper/docs/design/domain/trial.md, 6).
     Trials {
         watcher: Token,
-        rows: Box<[temper_engine_domain_trials::Row]>,
+        rows: Box<[crate::TrialRow]>,
     },
     /// The watcher's changes waiting on a person's approval (domain/forge/change/questions.md, 2).
     Approvals {
@@ -165,6 +171,11 @@ pub enum Delivery {
         attempt: u64,
         previous: Option<u64>,
         word: jig_domain_tasks::Word,
+    },
+    /// A milestone part uses the store's ended-query joins, after preceding commits.
+    PartLoad {
+        waiter: Token,
+        range: Box<jig_domain_core::reads::Range>,
     },
     /// Root internal historical read, released after preceding commit; consumed
     /// once by root and never exposed to the shell.
@@ -499,7 +510,7 @@ impl Decision {
             Delivery::Result { words, .. } => words.len() <= skein_lib::usize_of(limits.result_bytes),
             Delivery::FindingsOwned { words, .. } => words.len() <= skein_lib::usize_of(limits.transcript_bytes),
             Delivery::Trials { rows, .. } => {
-                rows.len().saturating_mul(size_of::<temper_engine_domain_trials::Row>())
+                rows.len().saturating_mul(size_of::<crate::TrialRow>())
                     <= skein_lib::usize_of(limits.result_bytes.max(limits.transcript_bytes))
             }
             Delivery::Approvals { document, .. } => {
@@ -562,7 +573,8 @@ impl Decision {
             }
             Delivery::Assigned { assignment, .. } => assignment_within(assignment, limits),
             Delivery::Host(host) => host_within(host, limits),
-            Delivery::SourceSignedOut { .. }
+            Delivery::WorkerFigures { .. }
+            | Delivery::SourceSignedOut { .. }
             | Delivery::Ways { .. }
             | Delivery::AssignedJob { .. }
             | Delivery::Link { .. }
@@ -579,6 +591,7 @@ impl Decision {
             | Delivery::CarriedUnused { .. }
             | Delivery::ForgeRead { .. }
             | Delivery::Read { .. }
+            | Delivery::PartLoad { .. }
             | Delivery::ReadLoad { .. }
             | Delivery::PublicWait { .. }
             | Delivery::Document { .. }
@@ -699,7 +712,9 @@ pub fn resume(journal: &mut Journal, out: &mut Queue<Output>) {
                 out.push(Output::Deliver(Delivery::ForgeCall { call, repository, op }));
             }
             request @ (crate::Output::Worker(
-                crate::WorkerRequest::Host(_) | crate::WorkerRequest::ReadResult { .. },
+                crate::WorkerRequest::Settings(_)
+                | crate::WorkerRequest::Host(_)
+                | crate::WorkerRequest::ReadResult { .. },
             )
             | crate::Output::Party(
                 crate::PartyRequest::Catalogue { .. }
@@ -776,6 +791,7 @@ fn fleet_delivery_within(event: &jig_domain_fleet::Event) -> bool {
         | Event::Sources { .. }
         | Event::Check { .. }
         | Event::SignOut { .. }
+        | Event::Untooled { .. }
         | Event::Mismatch { .. }
         | Event::Draining { .. }
         | Event::Logins { .. }

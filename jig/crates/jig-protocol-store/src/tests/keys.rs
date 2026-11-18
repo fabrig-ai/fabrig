@@ -101,6 +101,15 @@ fn every_generated_own_key_decodes_to_itself() {
     }
 }
 #[test]
+fn the_old_layouts_tag_is_reserved_and_has_no_census_name() {
+    assert_eq!(keys::decode_own(&[0, 3]), None);
+    assert_eq!(crate::census::name(&[0, 3], crate::Keyspaces::NONE), "");
+    for (prefix, _) in keys::KEYSPACES {
+        assert_ne!(*prefix, [0, 3]);
+    }
+}
+
+#[test]
 fn a_key_with_bytes_left_over_does_not_decode() {
     assert_eq!(keys::decode(&[1, 0, 0, 0]), None);
     assert_eq!(keys::decode_own(&[0, 0, 0]), None);

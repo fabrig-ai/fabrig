@@ -133,6 +133,37 @@ fn land(world: &mut World, goal: &engine::Assignment, call: u64, landing: &str) 
     task
 }
 #[test]
+fn the_changes_subject_enriches_landed_rows_after_the_forge_makes_them() {
+    let mut world = world();
+    let milestone = milestone(&mut world, b"Store shape");
+    let goal = goal(&mut world, milestone);
+    let change = land(&mut world, &goal, 101, "main");
+    let session = world.signed_in.expect("owner");
+    // The first read starts any ended-row load; a fresh watch sees its answer.
+    let _ = world.oracle_document(session, 1, forge_top::changes_subject(1));
+    let Some(forge_top::Document::Changes(view)) = world.oracle_document(session, 1, forge_top::changes_subject(1))
+    else {
+        panic!("changes subject")
+    };
+    for rows in [&view.landed, &view.landed_default] {
+        let row = rows.iter().find(|row| row.task == change).expect("landed change");
+        assert_eq!(row.goal.as_ref().map(|from| from.task), Some(goal.task));
+        assert_eq!(
+            row.goal.as_ref().unwrap().title.as_ref(),
+            live_task(&world, goal.task).spec.words.split(|byte| *byte == b'\n').next().unwrap()
+        );
+        assert_eq!(
+            row.milestone,
+            Some(forge_top::ChangeFrom { task: milestone, title: b"Store shape".as_slice().into() })
+        );
+        assert_eq!(row.chat, None);
+    }
+    ask(&mut world, 182, people::Ask::Conclude { project: 1, task: milestone });
+    finish_goal(&mut world, &goal);
+    world.close();
+}
+
+#[test]
 fn only_a_goals_default_branch_landings_replace_its_milestones_landing_across_restart() {
     let mut world = world();
     let milestone = milestone(&mut world, b"Store shape");

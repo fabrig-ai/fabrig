@@ -740,6 +740,7 @@ pub struct LiveDelegate {
 pub struct Tasks {
     pub rows: List<TaskLine>,
     pub more: bool,
+    pub ended_mark: u64,
 }
 
 fn byte_weight(bytes: &[u8]) -> u64 {

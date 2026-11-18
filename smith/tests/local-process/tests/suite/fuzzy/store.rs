@@ -304,8 +304,9 @@ fn configured_mode(seed: u64, fresh: bool, initial: Initial, config: skein_sim::
     files.close(root);
     // Peak across power-loss recovery, fresh resets, first marker creation, older-layout
     // refusals, generated whole-turn loading and the extra-seed 713 store sweep.
-    // Measured 19_710 B on 2026-10-29; a quarter of headroom, rounded up.
-    const STORE_SCENARIOS_CEILING: u64 = 25_000;
+    // Measured 49_973 B on 2026-11-18, with the marker's fingerprints parsed from the embedded
+    // schema texts; a quarter of headroom, rounded up.
+    const STORE_SCENARIOS_CEILING: u64 = 63_000;
     let mut world =
         World::new(seed, config, Judge::default(), Memory::Within(STORE_SCENARIOS_CEILING)).with_machine(Disk(files));
     world.spawn_restartable(

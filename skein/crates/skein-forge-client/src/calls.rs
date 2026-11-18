@@ -525,7 +525,7 @@ pub(crate) fn answered(
                 Ok(answer)
             }
         }
-        Err(Error::Busy) => Err(Error::InvalidAnswer),
+        Err(Error::Busy | Error::BaseMoved { .. }) => Err(Error::InvalidAnswer),
         Err(error) => Err(error),
     };
     if let Err(error) = result {
@@ -569,6 +569,7 @@ pub(crate) fn answered(
             | Error::NothingToMerge
             | Error::Closed
             | Error::Stale
+            | Error::BaseMoved { .. }
             | Error::Conflict
             | Error::Protected
             | Error::Refused

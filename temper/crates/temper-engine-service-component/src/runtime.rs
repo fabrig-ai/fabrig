@@ -91,7 +91,7 @@ impl engine::Engine {
             under_box: box_line_bytes.is_some(),
             playground: playground_config(settings.demo.as_ref(), settings.limits.setup.deadline),
         };
-        let store = store::Store::new(&limits, &store_limits, &config.core.settings.models, seeds.installation);
+        let store = store::Store::new(&limits, &store_limits, &config.core.settings.models, seeds);
         let demo = settings.demo;
         let own = settings.limits;
         let mut engine = engine::Engine::new(
@@ -107,6 +107,14 @@ impl engine::Engine {
             engine.box_link = box_link::Link::new(line_bytes, false);
         }
         Ok(engine)
+    }
+    /// Keep kind 21 in the box's data directory (protocol/configuration/figures.md, 4).
+    pub fn keep_agents(&mut self, path: Box<[u8]>, initial: Option<temper_client_protocol_wire::v1::AgentFigures>) {
+        self.workers.keep_agents(path, initial);
+    }
+    #[expect(clippy::type_complexity, reason = "a file act is its destination and whole value bytes")]
+    pub fn take_agents_write(&mut self) -> Option<(Box<[u8]>, Box<[u8]>)> {
+        self.workers.take_agents_write()
     }
     pub fn take_handover_read(&mut self) -> Option<crate::HandoverRead> {
         let engine = &mut *self;
@@ -157,7 +165,13 @@ impl engine::Engine {
         self.store.owner_sets(sets);
     }
     /// Rehearse the configured restart over a copy, without adopting a worker or listeners.
-    pub fn rehearse_store(&mut self, directory: Fd, scratch: Fd, user: u32) -> Result<(), Fd> {
+    pub fn rehearse_store(
+        &mut self,
+        directory: Fd,
+        scratch: Fd,
+        user: u32,
+        reach: jig_protocol_store::Reach,
+    ) -> Result<(), Fd> {
         let engine = self;
         engine.domain.rehearse();
         crate::upgrade::prepare(engine, true);
@@ -165,7 +179,7 @@ impl engine::Engine {
             directory,
             user,
             engine.store.installation,
-            jig_protocol_store::host::Adoption::Rehearse { scratch },
+            jig_protocol_store::host::Adoption::Rehearse { scratch, reach },
         )
     }
     /// Ask jig to make the previous generation active, with the deployment stopped.
@@ -177,6 +191,24 @@ impl engine::Engine {
             user,
             engine.store.installation,
             jig_protocol_store::host::Adoption::Back,
+        )
+    }
+    /// Restore a checkpoint over the stopped deployment (protocol/checkpoints.md, 2.5).
+    /// Retain its terminal through teardown as for going back.
+    pub fn restore_store(
+        &mut self,
+        directory: Fd,
+        user: u32,
+        name: jig_protocol_store::CheckpointName,
+        draw: [u8; 16],
+    ) -> Result<(), Fd> {
+        crate::upgrade::prepare(self, false);
+        self.upgrade.as_mut().expect("prepared restore").report.checkpoint = Some(name);
+        self.store.host.adopt_mode(
+            directory,
+            user,
+            self.store.installation,
+            jig_protocol_store::host::Adoption::Restore { name, draw },
         )
     }
     /// Retained through teardown for shells and worlds alike.
@@ -278,7 +310,15 @@ impl engine::Engine {
             }
             process.raw_submissions().push(engine.store.submitted.pop().expect("store submissions"));
         }
-        if engine.store.opened || engine.end.is_some() {
+        if let Some(state) = &mut engine.checkpoint {
+            for _ in 0..state.io.len() {
+                if process.room() < io::MAX_OUT_DOWN.submissions || !process.io().takes() {
+                    break;
+                }
+                process.down(state.io.pop().expect("checkpoint child requests"));
+            }
+        }
+        if engine.store.opened || engine.end.is_some() || engine.checkpoint.is_some() {
             for _ in 0..engine.setup.io.len() {
                 if process.room() < io::MAX_OUT_DOWN.submissions || !process.io().takes() {
                     break;
@@ -338,7 +378,9 @@ impl engine::Engine {
             io::Event::Resized | io::Event::Shutdown { .. } => None,
         };
         let error = if let io::Event::Failed { error, .. } = &event { Some(*error) } else { None };
-        if let Some(owner) = owner
+        if owner == Some(crate::checkpoint::CHILD) {
+            engine.checkpoint.as_mut().expect("checkpoint child").up(event);
+        } else if let Some(owner) = owner
             && crate::tokens::prefix(owner) == 11
         {
             engine.setup.up(event);
@@ -414,6 +456,10 @@ impl engine::Engine {
         &self.domain
     }
     pub fn shutdown(&mut self) {
+        if let Some(state) = &mut self.checkpoint {
+            state.shutdown(io::kernel::ServiceSignal::Terminate);
+            return;
+        }
         crate::stop::shutdown(self);
     }
     pub fn agents_ended(&mut self, ended: bool) {

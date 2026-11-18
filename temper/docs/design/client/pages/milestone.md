@@ -25,39 +25,33 @@ mockups' `../web/home-for-a-person/`.
   its lifetime: opened with it on Home, Work, Goals and Changes, kept
   across a move among them, closed on leaving them. Its query is
   `TaskQuery { project, label: TEMPLATE's label as me serves it,
-  tracked: Some(true), order: Priority }`, as `temper ctl milestone
-  list` reads (`../../domain/milestones.md`, section 7): its live group
-  watched with the client's rows window, and its ended group's first
-  page read by when each ended, read again when the live watch changes.
-  With no template 8 in `me`, it reads nothing and lists none.
+  tracked: Some(true), order: Priority, parts: [MILESTONE_PART] }`, as
+  `temper ctl milestone list` reads (`../../domain/milestones.md`, section
+  7), less the part: its live group watched with the client's rows
+  window, and its ended group's first page read by when each ended, read
+  again only as its mark grows (`../forge/parts.md`, 6). With no
+  template 8 in `me`, it reads nothing and lists none.
 - **Its drawn milestones:** each live milestone listed, and each ended
   one whose `ended_at` is within the seven days before the wall, at most
   16, `milestones::DRAWN`, the live first by last activity, then the
-  ended by newest end. For each, `pages::milestones::Milestone` holds:
-  - *its document,* `Read::Task { task }`, read again when its line's
-    `changed` moves, and `milestones::facts` of it: its name, words,
-    maker, whole and made;
-  - *its goals,* its delegates, `TaskQuery { project, parent: Some(M),
-    order: Number }`: the live group watched, the ended group read by
-    number, its pages followed to at most 4, read again when the live
-    watch changes and once after the milestone has ended; merged in task
-    number, the order they joined, a live row winning a number both
-    hold, as a goal's page merges its tasks (`goal.md`, 2); `more` where
-    a page was left unread;
-  - *its totals,* `MilestoneTotals`, the forge family's read `Milestone`
-    (`../../domain/milestones.md`, section 7), read on opening, again when
-    its line's `changed` moves, and once after it ends; `not_milestone`
-    or a failed read holding none.
+  ended by newest end. For each, `pages::milestones::Milestone` holds,
+  from its row alone, with no read of its own (`../forge/parts.md`, 3
+  and 5):
+  - *its facts,* what its card draws of them, from its line and its
+    part: its name, its chip's title; its maker, its requester; whole,
+    its part's `whole`. Its words and when it was made are its page's,
+    which reads its document (section 3);
+  - *its goals,* its part's `goals`, at most 16, each a goal's line and
+    its report's headline, in task number, the order they joined; `more`,
+    its part's;
+  - *its totals,* its part's `totals`; none while its part isn't made.
 
-  A milestone's page holds one `Milestone` of its own, by the same type
-  (section 3).
-- **A goal's milestone,** `Milestones::of(line) -> Option<u64>`, from
-  `milestones::of` (`../../domain/milestones.md`, section 7): a requester
-  listed is its milestone; a task requester not listed is read once by
-  number, `Read::Task`, and held, at most 16 held, the oldest dropped
-  first, and is its milestone where its chip is one (`is`); any other
-  requester, or one not yet read, gives none, so that a goal is drawn on
-  its own until its requester is known.
+  A milestone's page holds its own, which lists every goal and reads
+  them itself (section 3).
+- **A goal's milestone,** `Milestones::of(line) -> Option<u64>`: its goal
+  part's `milestone` (`../forge/parts.md`, 3); none while the part isn't
+  made, so that a goal is drawn on its own until its part comes. No
+  requester is read.
 - **A task's milestone from its lineage,** `milestones::lineage(task:
   &c::Task) -> Option<Lineage>`, pure: of a task document's
   `lineage_chips`, the chip that is a milestone (`is`) is its milestone,
@@ -73,7 +67,15 @@ mockups' `../web/home-for-a-person/`.
 - **`Domain::has_goals`** reads both: the project has a goal, or lists a
   milestone, live or ended. `HasGoals` watches the milestones' query as
   it watches the goals', with a window of 1, and reads its ended group's
-  first page.
+  first page, but where the page holds that query's list (Work's and
+  Goals', and the milestones' on the pages that list them): then it
+  takes the list's watch and its ended read, and opens neither of its
+  own. **No narrower twin:** a watch whose subject differs from one the
+  client holds only by a smaller window, or a read the page already
+  makes, is served by the one held. The pages ask their lists before
+  the rail's facts in each step, so a page that opens with its lists
+  opens no twin to close; a fact keeps the value it last read until its
+  own watch's first delivery, when the page that held its list is left.
 
 ## 2. Its words
 
@@ -160,8 +162,17 @@ borrows the goal page's header and two columns, their classes and look
 (`goal.md`, 2).
 
 - **What it reads,** beside the task's document and tree as any task
-  page reads them: its own `Milestone` (section 1), its goals' reports,
-  one at a time as `Goals` reads a row's, for their headlines; and its
+  page reads them: its own milestone, by the reads a drawn milestone made
+  before its part (`../forge/parts.md`): its document's
+  `milestones::facts`; its goals, `TaskQuery { project, parent: Some(M),
+  order: Number, parts: [GOAL_PART] }`, the live group watched and the
+  ended group read by number, its pages followed to at most 4, read again
+  only as its mark grows (`../forge/parts.md`, 6), merged in task number,
+  a live row winning a number both hold, as a goal's page merges its
+  tasks (`goal.md`, 2), each goal's headline its goal part's, with no
+  read per goal; its totals, the forge family's read `Milestone`, read
+  on opening, again when its line's `changed` moves, and once after it
+  ends; and its
   needs, the inbox's `Filter { project, goal: Some(task) }` as a goal's
   page opens it, which, the filter taking a root, holds every need under
   its goals, its read's `selection` saying which goal each is under.

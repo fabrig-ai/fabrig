@@ -215,6 +215,7 @@ fn contract(value: Node<'_>) -> Result<tasks::Contract, Problem> {
             connector: value.required(b"connector")?.narrow()?,
             kind: value.required(b"change_kind")?.narrow()?,
             words: value.required(b"words")?.small()?,
+            choices: Box::new([]),
         }),
         b"verdict" => {
             let mut choices = value.required(b"choices")?.array()?;

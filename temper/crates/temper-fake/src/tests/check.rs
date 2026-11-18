@@ -182,8 +182,10 @@ fn entry(repository: Repository, number: u64, head: [u8; 32], parked: bool) -> d
 }
 fn changed(task: u64, repository: Repository, pull: Option<u64>, head: Option<[u8; 32]>) -> d::Stored {
     d::Stored::Change(Box::new(d::ChangeRow {
+        room: None,
         source: None,
         kept: None,
+        regate: None,
         task_release: None,
         job: None,
         signed: Box::new([]),
@@ -210,11 +212,13 @@ fn changed(task: u64, repository: Repository, pull: Option<u64>, head: Option<[u
             repairs: 0,
             resolutions: 0,
             updates: 0,
+            stale: None,
             since: Wall::from_nanos(0),
             ready_since: None,
             owns_turn: false,
             last_head: head,
             last_checked: None,
+            last_checked_by: None,
             clock: None,
         },
         pull,
@@ -222,6 +226,8 @@ fn changed(task: u64, repository: Repository, pull: Option<u64>, head: Option<[u
         effect: change::EffectResult::Made,
         delegate: None,
         delegate_status: change::Status::Passed,
+        delegate_flake: false,
+        delegate_head: None,
         verdicts: Box::new([]),
         milestone: None,
         goal: None,

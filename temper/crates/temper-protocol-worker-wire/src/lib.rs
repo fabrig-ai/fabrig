@@ -5,6 +5,7 @@ extern crate alloc;
 
 #[rustfmt::skip]
 mod generated {
+    #[path = "worker_wire.rs"]
     pub mod v1;
 }
 
@@ -210,7 +211,7 @@ pub mod wire {
     pub const FAMILY: &str = "temper-worker-wire";
 
     /// The version named by the current schema's header.
-    pub const VERSION: u16 = 9;
+    pub const VERSION: u16 = 11;
 
     /// The oldest version this build speaks.
     pub const FLOOR: u16 = crate::patches::kept::temper_worker_wire::FLOOR;

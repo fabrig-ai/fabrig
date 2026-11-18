@@ -571,7 +571,12 @@ fn random_changes(rng: &mut Rng) -> Option<w::ChangesPanel> {
                 .push(
                     w::ChangesSigned::new(
                         &w::CEILINGS,
-                        w::ChangesSignedParts { party: rng.between(1, READER_PARTIES), head: [1; 32], at: 0 },
+                        w::ChangesSignedParts {
+                            name: None,
+                            party: rng.between(1, READER_PARTIES),
+                            head: [1; 32],
+                            at: 0,
+                        },
                     )
                     .expect("signer"),
                 )
@@ -582,6 +587,9 @@ fn random_changes(rng: &mut Rng) -> Option<w::ChangesPanel> {
             w::ChangesLanded::new(
                 &w::CEILINGS,
                 w::ChangesLandedParts {
+                    goal: None,
+                    chat: None,
+                    milestone: None,
                     task: rng.between(1, MEMBER_PARTIES),
                     title: b"Change".as_slice().into(),
                     at,

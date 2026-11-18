@@ -2,15 +2,28 @@
 use jig_domain_core as core;
 use temper_engine_domain as engine;
 
+/// Own the fixture's settings tables without rebuilding stock or sharing mutable state.
+#[must_use]
+pub fn copy_defaults(defaults: &core::settings::Defaults) -> core::settings::Defaults {
+    let mut policies = skein_lib::Map::with_capacity(defaults.policies.capacity());
+    for (key, value) in &defaults.policies {
+        policies.insert(*key, value.clone()).expect("copied policy");
+    }
+    core::settings::Defaults {
+        workers: defaults.workers.clone(),
+        models: defaults.models.clone(),
+        charters: defaults.charters.clone(),
+        templates: defaults.templates.clone(),
+        policies,
+        rules: defaults.rules.clone(),
+    }
+}
+
 /// Copy startup inputs before the domain consumes them; no state is read from the domain.
 #[must_use]
 pub fn copy(config: &engine::Config) -> engine::Config {
     let c = &config.core;
     let s = &c.settings;
-    let mut policies = skein_lib::Map::with_capacity(c.defaults.policies.capacity());
-    for (key, value) in &c.defaults.policies {
-        policies.insert(*key, value.clone()).expect("copied policy");
-    }
     engine::Config {
         host_part: config.host_part,
         kinds_stock: config
@@ -27,9 +40,9 @@ pub fn copy(config: &engine::Config) -> engine::Config {
         ways_stock: config.ways_stock.clone(),
         period_span: config.period_span,
         core: core::Config {
+            parts: config.core.parts.clone(),
             jobs: c.jobs.clone(),
             kept_starts: Box::new([]),
-            worker_names: c.worker_names.clone(),
             deployment: c.deployment,
             seed: c.seed,
             workers_in_process: c.workers_in_process,
@@ -37,13 +50,7 @@ pub fn copy(config: &engine::Config) -> engine::Config {
             owners: c.owners.clone(),
             grants: c.grants.clone(),
             kinds: c.kinds.clone(),
-            defaults: core::settings::Defaults {
-                models: c.defaults.models.clone(),
-                charters: c.defaults.charters.clone(),
-                templates: c.defaults.templates.clone(),
-                policies,
-                rules: c.defaults.rules.clone(),
-            },
+            defaults: copy_defaults(&c.defaults),
             settings: core::Settings {
                 private_tools: s.private_tools.clone(),
                 endpoints: s.endpoints.clone(),

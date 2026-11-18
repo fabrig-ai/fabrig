@@ -35,6 +35,8 @@ pub struct Peer {
     pub measures: Vec<smith_protocol_llm::Measure>,
     /// Plaintext request bytes independently received on the peer's sockets.
     pub request_bytes: u64,
+    /// Plaintext request bytes received across sockets, in send order.
+    pub sent: Vec<u8>,
     deltas: Option<bool>,
     input: bool,
 }
@@ -94,6 +96,7 @@ impl Peer {
             terminals: Vec::new(),
             measures: Vec::new(),
             request_bytes: 0,
+            sent: Vec::new(),
             deltas: None,
             input: false,
         }
@@ -164,17 +167,33 @@ impl Peer {
         prompt: llm::Prompt,
         observation: Option<smith_protocol_llm::Observation>,
     ) {
+        self.start_with_deadlines(
+            owner,
+            prompt,
+            smith_domain::session::Deadlines {
+                head: Duration::from_secs(head),
+                idle: Duration::from_secs(idle),
+                whole: Time::ZERO.saturating_add(Duration::from_secs(whole)),
+            },
+            observation,
+        );
+    }
+
+    /// Submit a prompt with the session's emitted deadlines, without rounding virtual time.
+    pub fn start_with_deadlines(
+        &mut self,
+        owner: u64,
+        prompt: llm::Prompt,
+        deadlines: smith_domain::session::Deadlines,
+        observation: Option<smith_protocol_llm::Observation>,
+    ) {
         self.component.from_domain(
             &self.env,
             FromDomain::Complete {
                 owner: Token::new(owner),
                 grant: Some(GrantName { account: 0, generation: 1 }),
                 prompt,
-                deadlines: smith_domain::session::Deadlines {
-                    head: Duration::from_secs(head),
-                    idle: Duration::from_secs(idle),
-                    whole: Time::ZERO.saturating_add(Duration::from_secs(whole)),
-                },
+                deadlines,
                 bounds: self.env.limits.receiving,
                 outcome: run::outcome::OutcomeSpec {
                     change: None,
@@ -202,6 +221,7 @@ impl Peer {
     }
 
     /// Drive bounded lower settlement until no immediate work remains.
+    #[expect(clippy::too_many_lines, reason = "one bounded routing pass observes byte sends and lower settlement")]
     pub fn pump(&mut self) {
         for _ in 0..10_000 {
             drain_measures(&mut self.component, &self.env, &mut self.measures, &mut self.above, &mut self.below);
@@ -240,6 +260,7 @@ impl Peer {
                                 }
                             }
                             Down::Send(bytes) => {
+                                self.sent.extend_from_slice(&bytes);
                                 self.request_bytes = self
                                     .request_bytes
                                     .checked_add(skein_lib::len_u64(bytes.len()))
@@ -307,7 +328,12 @@ impl Peer {
 
     /// Advance the deterministic clock, including every waiting whole deadline.
     pub fn advance(&mut self, seconds: u64) {
-        self.env.now = Time::ZERO.saturating_add(Duration::from_secs(seconds));
+        self.advance_to(Time::ZERO.saturating_add(Duration::from_secs(seconds)));
+    }
+
+    /// Advance to an exact injected instant, including subsecond retry alarms.
+    pub fn advance_to(&mut self, now: Time) {
+        self.env.now = now;
         self.pump();
     }
 

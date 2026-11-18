@@ -20,7 +20,9 @@ pub(super) fn valid(
         return if *value == Value::Switch { Ok(()) } else { Err(Usage::Kind { tool: 0, form: 0, argument }) };
     }
     let correct = match spec.kind {
-        Kind::Number | Kind::Count | Kind::NumberRange { .. } => return valid_number(spec, value, argument, limits),
+        Kind::Amount | Kind::Number | Kind::Count | Kind::Places | Kind::NumberRange { .. } => {
+            return valid_number(spec, value, argument, limits);
+        }
         Kind::NamedNumber { words, prefixes, .. } => {
             let Value::Text(bytes) = value else {
                 return Err(Usage::Kind { tool: 0, form: 0, argument });
@@ -35,6 +37,13 @@ pub(super) fn valid(
                 return Err(Usage::Kind { tool: 0, form: 0, argument });
             };
             set.get(usize::from(*index)).is_some()
+        }
+        Kind::Worker => {
+            let Value::Text(name) = value else { return Err(Usage::Kind { tool: 0, form: 0, argument }) };
+            if !worker_name(name) {
+                return Err(Usage::Kind { tool: 0, form: 0, argument });
+            }
+            return valid_text(spec, value, argument, limits);
         }
         Kind::Literal if *value == Value::Stdin => false,
         Kind::Literal | Kind::Text => return valid_text(spec, value, argument, limits),
@@ -81,6 +90,10 @@ pub(super) fn valid(
             };
             true
         }
+        Kind::Sha256 => {
+            let Value::Sha256(_) = value else { return Err(Usage::Kind { tool: 0, form: 0, argument }) };
+            true
+        }
         Kind::Condition => {
             let Value::Condition(_) = value else {
                 return Err(Usage::Kind { tool: 0, form: 0, argument });
@@ -101,7 +114,8 @@ pub(super) fn valid(
 pub fn decode(table: &[&Tool], kind: Kind, bounds: Bound, word: &[u8]) -> Option<Value> {
     Some(match kind {
         Kind::Number | Kind::Count => Value::Number(number(word)?),
-        Kind::NumberRange { .. } => {
+        Kind::Amount => Value::Number(amount(word)?),
+        Kind::NumberRange { .. } | Kind::Places => {
             let Bound::Numbers { least, most } = bounds else { return None };
             Value::Number(bounded_number(word, least, most)?)
         }
@@ -121,6 +135,12 @@ pub fn decode(table: &[&Tool], kind: Kind, bounds: Bound, word: &[u8]) -> Option
         }
         Kind::Text | Kind::File if word == b"-" => Value::Stdin,
         Kind::Text | Kind::Literal => Value::Text(Box::from(word)),
+        Kind::Worker => {
+            if !worker_name(word) {
+                return None;
+            }
+            Value::Text(Box::from(word))
+        }
         Kind::File => Value::File(Box::from(word)),
         Kind::Project { empty } => {
             if word.is_empty() {
@@ -186,6 +206,7 @@ pub fn decode(table: &[&Tool], kind: Kind, bounds: Bound, word: &[u8]) -> Option
             }
             Value::Digest(digest)
         }
+        Kind::Sha256 => Value::Sha256(sha256(word)?),
         Kind::Condition => Value::Condition(subject::parse(word)?),
         Kind::Tool => Value::Tool(super::tool_index(table, word)?),
     })
@@ -202,6 +223,42 @@ pub(super) fn number(word: &[u8]) -> Option<u64> {
         value = value.checked_mul(10)?.checked_add(u64::from(byte.checked_sub(b'0')?))?;
     }
     Some(value)
+}
+fn amount(word: &[u8]) -> Option<u64> {
+    for (at, byte) in word.iter().enumerate() {
+        if *byte == b'.' {
+            let whole = number(word.get(..at)?)?.checked_mul(100)?;
+            let digits = word.get(at.checked_add(1)?..)?;
+            let fraction = if digits.len() == 1 {
+                number(digits)?.checked_mul(10)?
+            } else if digits.len() == 2 {
+                number(digits)?
+            } else {
+                return None;
+            };
+            return whole.checked_add(fraction);
+        }
+    }
+    number(word)?.checked_mul(100)
+}
+fn worker_name(name: &[u8]) -> bool {
+    let Some(first) = name.first() else { return false };
+    if !first.is_ascii_alphanumeric() {
+        return false;
+    }
+    for byte in name {
+        if !(byte.is_ascii_alphanumeric() || *byte == b'-' || *byte == b'_' || *byte == b'.') {
+            return false;
+        }
+    }
+    true
+}
+fn sha256(word: &[u8]) -> Option<[u8; 32]> {
+    if word.len() != 64 {
+        return None;
+    }
+    let bytes = hex(word)?;
+    <[u8; 32]>::try_from(bytes.as_ref()).ok()
 }
 fn hex(word: &[u8]) -> Option<Box<[u8]>> {
     if word.is_empty() || word.len().checked_rem(2)? != 0 {
@@ -224,6 +281,13 @@ fn hex(word: &[u8]) -> Option<Box<[u8]>> {
 }
 pub(crate) fn encode(table: &[&Tool], kind: Kind, value: &Value) -> Result<Box<[u8]>, Unwritten> {
     Ok(match value {
+        Value::Number(n) if kind == Kind::Amount => {
+            let mut measured = crate::jig::render::Text::measure();
+            crate::jig::render::amount(*n, &mut measured);
+            let mut out = crate::jig::render::Text::writing_exact(measured);
+            crate::jig::render::amount(*n, &mut out);
+            out.finish()
+        }
         Value::Number(n) => Box::from(Decimal::of(*n).as_bytes()),
         Value::Word(index) => {
             let Kind::Word { set } = kind else {
@@ -284,6 +348,7 @@ pub(crate) fn encode(table: &[&Tool], kind: Kind, value: &Value) -> Result<Box<[
             out.finish()
         }
         Value::Digest(digest) => hexadecimal(digest)?,
+        Value::Sha256(digest) => hexadecimal(digest)?,
         Value::Condition(condition) => {
             let bytes: &[u8] = match condition {
                 Condition::Changed => b"changed",

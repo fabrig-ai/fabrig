@@ -43,7 +43,6 @@ pub(crate) fn closed(sets: OwnerSets, limits: &store::Limits) -> (store::Store, 
     let ops = Box::new([
         skein_kv::Op::Put { key: own(keys::Own::Format), value: fmt.encode().expect("format") },
         skein_kv::Op::Put { key: own(keys::Own::Floor), value: floor() },
-        skein_kv::Op::Put { key: own(keys::Own::Layouts), value: format::layouts().encode() },
         skein_kv::Op::Put {
             key: keys::encode(&root::header(1).key(), limits.store.key).expect("header key"),
             value: codec::encode(&root::header(1), &codec, &[]).expect("header"),
@@ -76,12 +75,17 @@ pub(crate) fn closed(sets: OwnerSets, limits: &store::Limits) -> (store::Store, 
 }
 pub(crate) fn open(component: &mut store::Store, env: &Env<store::Limits>) {
     let mut above = Queue::uncapped();
-    let mut below =
-        store::Below { store: Queue::uncapped(), secrets: Queue::uncapped(), transcripts: Queue::uncapped() };
+    let mut below = store::Below {
+        store: Queue::uncapped(),
+        secrets: Queue::uncapped(),
+        transcripts: Queue::uncapped(),
+        checkpoints: Queue::uncapped(),
+    };
     store::down(
         component,
         env,
         Request::Open {
+            purpose: jig_protocol_store::Purpose::Serve,
             owner: OWNER,
             root: Root { token: Token::new(1), fd: Fd::new(3) },
             installation: root::DEPLOYMENT,
@@ -97,6 +101,7 @@ pub(crate) use jig_store_world::patches::fixture_turn as turn;
 // Six file operations and two patch stops cover one small fixture frame.
 const STEPS: u32 = 8;
 
+#[expect(clippy::too_many_lines, reason = "the frame driver exhaustively rejects checkpoint terminals too")]
 pub(crate) fn decode(
     component: &mut store::Store,
     env: &Env<store::Limits>,
@@ -104,8 +109,12 @@ pub(crate) fn decode(
     no_site: bool,
 ) -> Option<Box<[u8]>> {
     let mut above = Queue::uncapped();
-    let mut below =
-        store::Below { store: Queue::uncapped(), secrets: Queue::uncapped(), transcripts: Queue::uncapped() };
+    let mut below = store::Below {
+        store: Queue::uncapped(),
+        secrets: Queue::uncapped(),
+        transcripts: Queue::uncapped(),
+        checkpoints: Queue::uncapped(),
+    };
     store::down(
         component,
         env,
@@ -140,7 +149,13 @@ pub(crate) fn decode(
                     store::down(component, env, Request::Site { owner, patcher, result }, &mut above, &mut below);
                     continue;
                 }
-                other @ (Event::Switched { .. }
+                other @ (Event::Checkpointed { .. }
+                | Event::CheckpointRefused { .. }
+                | Event::Restored { .. }
+                | Event::RestoreRefused { .. }
+                | Event::CheckpointHeld { .. }
+                | Event::CheckpointRemoved { .. }
+                | Event::Switched { .. }
                 | Event::Opened { .. }
                 | Event::OpenRefused { .. }
                 | Event::Committed { .. }

@@ -9,7 +9,7 @@ use temper_client_tools::{jig::call::Parsed, root};
 /// Keep the baseline's projection at 128 bytes without changing other tier stories.
 #[must_use]
 pub fn world() -> World {
-    let mut documents = jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.documents;
+    let mut documents = jig_protocol_config_fixtures::small().core.documents;
     documents.text_bytes = 128;
     let options = StoryLimits {
         tier: Some(crate::tier_runs::Tier::default()),
@@ -55,6 +55,20 @@ fn show_format(world: &mut World, task: u64, json_output: bool, change: bool) ->
     ] {
         root::step(&mut root, &env, root::Event::Client { event }, &mut out);
     }
+    let c::ReadValue::Me(me) = answer(world, reads::Read::Frame) else { panic!("me") };
+    root::step(
+        &mut root,
+        &env,
+        root::Event::Client {
+            event: client::Event::Up {
+                up: client::Up::Watched {
+                    watch: skein_lib::Token::new(0),
+                    event: c::WatchEvent::Delivered(c::Delivery::Me(me)),
+                },
+            },
+        },
+        &mut out,
+    );
     let number = task.to_string();
     let Parsed::Call { call, json } =
         temper_client_tools::table::parse(&[if change { b"change" } else { b"task" }, b"show", number.as_bytes()])
@@ -173,15 +187,6 @@ fn response(world: &mut World, request: root::Request) -> Option<client::Event> 
                     down: client::Down::Open { watch, subject: client::Watchable::Family { record, .. } },
                 },
         } => panel(world, watch, &record),
-        root::Request::Unlinked {
-            request: client::UnlinkedRequest::Down { down: client::Down::Open { watch, .. } },
-        } => {
-            let value = answer(world, reads::Read::Frame);
-            let c::ReadValue::Me(me) = value else { panic!("me") };
-            client::Event::Up {
-                up: client::Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Me(me)) },
-            }
-        }
         root::Request::Unlinked {
             request:
                 client::UnlinkedRequest::Down { down: client::Down::Read { read, what: client::Readable::Jig(what) } },

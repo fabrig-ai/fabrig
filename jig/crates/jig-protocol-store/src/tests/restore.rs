@@ -123,7 +123,12 @@ fn a_store_without_public_rows_reads_every_project_private() {
     let mut store = fixtures::over(store.into_stores());
     let events = fixtures::run(
         &mut store,
-        Request::Open { owner: OWNER, root: fixtures::ROOT, installation: fixtures::INSTALLATION },
+        Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: OWNER,
+            root: fixtures::ROOT,
+            installation: fixtures::INSTALLATION,
+        },
     );
     let [Event::Opened { last: 3, pending: false, .. }, Event::Census { .. }] = &*events else {
         panic!("private projects reopen")
@@ -339,7 +344,6 @@ fn corrupt_people_store() -> Store {
         &mut stores,
         &[
             fixtures::format_put(fixtures::DEPLOYMENT),
-            fixtures::layouts_put(),
             fixtures::header_put(fixtures::DEPLOYMENT, 1),
             fixtures::installation_put(fixtures::INSTALLATION),
             skein_kv::Op::Put {
@@ -351,7 +355,12 @@ fn corrupt_people_store() -> Store {
     let mut store = fixtures::over(stores);
     let events = fixtures::run(
         &mut store,
-        Request::Open { owner: OWNER, root: fixtures::ROOT, installation: fixtures::INSTALLATION },
+        Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: OWNER,
+            root: fixtures::ROOT,
+            installation: fixtures::INSTALLATION,
+        },
     );
     let [Event::Opened { .. }, Event::Census { .. }] = &*events else { panic!("fixture store opens: {events:?}") };
     store

@@ -4,5 +4,5 @@
 extern crate alloc;
 
 #[rustfmt::skip]
-#[path = "generated/v1.rs"]
+#[path = "generated/notes.rs"]
 pub mod records;

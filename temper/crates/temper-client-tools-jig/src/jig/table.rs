@@ -62,6 +62,8 @@ pub enum Keyed {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
     Number,
+    /// A text amount in hundreds of spend units; JSON keeps spend units.
+    Amount,
     Count,
     /// Inclusive numeric bounds, checked in argv and JSON.
     NumberRange {
@@ -87,6 +89,11 @@ pub enum Kind {
     /// A project name or number and a finding number, P/N.
     Finding,
     Digest,
+    /// A worker's stable name (client/ctl/workers.md, 2).
+    Worker,
+    Places,
+    /// A worker secret's SHA-256, not a watch digest.
+    Sha256,
     Condition,
     Project {
         empty: bool,
@@ -111,6 +118,8 @@ pub fn bound(argument: &Argument, limits: &Limits) -> Bound {
     match argument.kind {
         Kind::NumberRange { min, max } | Kind::NamedNumber { min, max, .. } => Bound::Numbers { least: min, most: max },
         Kind::Count => Bound::Numbers { least: 1, most: u64::from(limits.rows) },
+        Kind::Places => Bound::Numbers { least: 1, most: u64::from(u32::MAX) },
+        Kind::Worker => Bound::Bytes { most: u64::from(limits.settings.worker_setting_name) },
         Kind::Number if argument.name == b"forge" => Bound::Numbers { least: 0, most: 65_535 },
         Kind::Text | Kind::Literal => Bound::Bytes { most: limits.ask_bytes },
         Kind::File if argument.name == b"items" || argument.name == b"instructions" || argument.name == b"spec" => {
@@ -121,12 +130,14 @@ pub fn bound(argument: &Argument, limits: &Limits) -> Bound {
             Bound::Seconds { most: limits.wait_most.as_nanos().checked_div(1_000_000_000).expect("nonzero divisor") }
         }
         Kind::Number
+        | Kind::Amount
         | Kind::File
         | Kind::Duration
         | Kind::Word { .. }
         | Kind::Proposal
         | Kind::Finding
         | Kind::Digest
+        | Kind::Sha256
         | Kind::Condition
         | Kind::Project { .. }
         | Kind::Turn
@@ -218,6 +229,9 @@ pub const PLACEHOLDERS: &[&[u8]] = &[
     b"PAGE",
     b"TURN",
     b"DIGEST",
+    b"WORKER",
+    b"PLACES",
+    b"SHA256",
     b"CONDITION",
     b"DURATION",
     b"TIME",

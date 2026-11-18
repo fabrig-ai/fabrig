@@ -1,5 +1,5 @@
 //! Independent observations of records, authentication and stream isolation (client/domain/client/README.md, 11).
-use jig_client_protocol_wire::v27 as wire;
+use jig_client_protocol_wire as wire;
 use skein_lib::{Reader, Writer};
 
 macro_rules! same {
@@ -27,7 +27,7 @@ pub enum Broken {
 }
 #[derive(Default)]
 pub struct Rules {
-    secrets: Vec<Vec<u8>>,
+    secrets: Vec<String>,
     pub records: u64,
     pub domains: u64,
     pub cuts: u64,
@@ -35,8 +35,9 @@ pub struct Rules {
 }
 impl Rules {
     pub fn secret(&mut self, bytes: &[u8]) {
-        if !self.secrets.iter().any(|value| value == bytes) {
-            self.secrets.push(bytes.to_vec());
+        let rendered = format!("{bytes:?}");
+        if !self.secrets.contains(&rendered) {
+            self.secrets.push(rendered);
         }
     }
     /// Domain inputs are inspected as whole public values, never root state.
@@ -44,7 +45,7 @@ impl Rules {
     /// Reports an authentication secret carried in that input.
     pub fn domain(&mut self, event: &impl std::fmt::Debug) -> Result<(), Broken> {
         let observed = format!("{event:?}");
-        if self.secrets.iter().any(|bytes| observed.contains(&format!("{bytes:?}"))) {
+        if self.secrets.iter().any(|bytes| observed.contains(bytes)) {
             return Err(Broken::Secret);
         }
         self.domains += 1;
@@ -56,6 +57,18 @@ impl Rules {
         match (path, response) {
             (b"/jig/v1/request", false) => same!(Keyed, encoded, crossed),
             (b"/jig/v1/request", true) => same!(KeyedAnswer, encoded, crossed),
+            (b"/jig/v1/batch", false) => same!(Batch, encoded, crossed),
+            (b"/jig/v1/batch", true) => {
+                if encoded != crossed {
+                    return Err(Broken::Record);
+                }
+                let mut frames = Reader::new(crossed);
+                while !frames.is_empty() {
+                    let size = frames.u32().ok_or(Broken::Record)?;
+                    let record = frames.bytes(size).ok_or(Broken::Record)?;
+                    same!(BatchReply, record, record);
+                }
+            }
             (b"/jig/v1/read", false) => same!(Owned, encoded, crossed),
             (b"/jig/v1/read", true) => same!(ReadAnswer, encoded, crossed),
             _ => Self::watch_record(path, response, encoded, crossed)?,
@@ -74,9 +87,11 @@ impl Rules {
         Ok(())
     }
     fn stream_record(path: &[u8], response: bool, encoded: &[u8], crossed: &[u8]) -> Result<(), Broken> {
+        let path = path.split(|byte| *byte == b'?').next().expect("path prefix");
         match (path, response) {
             (b"/jig/v1/stream-gone", false) => same!(Gone, encoded, crossed),
             (b"/jig/v1/stream", true) => same!(StreamEvent, encoded, crossed),
+            (path, true) if path.starts_with(b"/jig/v1/stream?version=") => same!(StreamEvent, encoded, crossed),
             (b"/jig/v1/sign-out", false) | (b"/jig/v1/stream-gone", true)
                 if encoded.is_empty() && crossed.is_empty() => {}
             _ => Self::auth_record(path, response, encoded, crossed)?,

@@ -296,21 +296,17 @@ fn account_availability_returns_after_signing_in_with_fresh_deliveries() {
     event(&mut root, Event::SignedOut);
     let mut opened =
         event(&mut root, Event::Client { event: jig_client::Event::SignIn { with: jig_client::With::Transport } });
-    let mut me = None;
+    let me = Token::new(0);
     let mut accounts = None;
     while let Some(request) = opened.pop() {
-        if let Request::Unlinked {
-            request: jig_client::UnlinkedRequest::Down { down: Down::Open { watch, subject } },
-        } = request
+        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Open { watch, subject } } } =
+            request
+            && subject == jig_client::Watchable::Jig(c::Subject::Accounts)
         {
-            if subject == jig_client::Watchable::Jig(c::Subject::Me) {
-                me = Some(watch);
-            } else if subject == jig_client::Watchable::Jig(c::Subject::Accounts) {
-                accounts = Some(watch);
-            }
+            accounts = Some(watch);
         }
     }
-    deliver(&mut root, me.expect("me reopened"), frame(c::HeldRole::Member, fixtures::PARTY));
+    deliver(&mut root, me, frame(c::HeldRole::Member, fixtures::PARTY));
     deliver(&mut root, accounts.expect("accounts reopened"), document(false));
     assert_eq!(root.pages().availability(root.client()), Some(false));
 }

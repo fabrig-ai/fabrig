@@ -133,6 +133,7 @@ pub fn drawn(seed: u64) -> Outcome {
 
 #[derive(Clone, Copy, Debug)]
 pub enum Opening {
+    Figures,
     Secret,
     Family,
     Version,

@@ -9,9 +9,9 @@ fn config() -> jig_protocol_config::Engine {
     use jig_protocol_config as config;
     let document = config::document(
         br#"{
-        "limits":{"profile":"small"},
+        "limits":{"profile":"standard"},
         "llm":{"providers":[],"endpoints":[]},
-        "hosts":{"workers":[],"listener":[{"socket":"127.0.0.1:7100"}]},
+        "hosts":{"listener":[{"socket":"127.0.0.1:7100"}]},
         "clients":{"heartbeat_ms":10000,"link":true},
         "deployment":{"directory":"state","seed":7},
         "owners":[{"provider":1,"subject":"owner"}],
@@ -21,8 +21,15 @@ fn config() -> jig_protocol_config::Engine {
         &config::DocumentLimits { bytes: 1024, tokens: 256, depth: 8 },
     )
     .expect("configuration document");
-    config::engine(&document, 0, &config::Directories::working(), config::Defaults::Passed, &config::Fixed::NONE)
-        .expect("configuration")
+    config::engine_over(
+        &document,
+        0,
+        &config::Directories::working(),
+        config::Defaults::Passed,
+        &config::Fixed::NONE,
+        &jig_protocol_config_fixtures::small(),
+    )
+    .expect("configuration")
 }
 
 #[test]
@@ -34,7 +41,7 @@ fn config() -> jig_protocol_config::Engine {
 )]
 fn the_room_holds_control_and_every_non_start_frame() {
     let config = config();
-    let files = jig_protocol_config::Files { entries: List::with_capacity(0) };
+    let _files = jig_protocol_config::Files { entries: List::with_capacity(0) };
     let mut failures = Vec::new();
     for (name, sizes, bytes) in [
         ("wires", fixtures::SIZES, 620),
@@ -61,7 +68,6 @@ fn the_room_holds_control_and_every_non_start_frame() {
             .is_ok();
             let host = host::Workers::new(
                 &config,
-                &files,
                 host::Tokens { listeners: 1, connections: 2 },
                 jig_protocol_worker_wire::Application::opaque(fixtures::application()),
                 &limits,
@@ -110,7 +116,7 @@ fn a_resumed_start_is_fitted_to_the_engines_room() {
     .expect("engine limits");
     let connection = Token::new(100);
     let channel = Token::new(1);
-    component.down(Time::ZERO, Event::Accepted { connection }, &mut Queue::uncapped());
+    component.down(Time::ZERO, Event::Accepted { connection, in_process: false }, &mut Queue::uncapped());
     // Bypass the opening guard to isolate fitting from refusal of unequal rooms.
     // The unopened channel refuses the fitted frame, exposing its measured bytes.
     let state = component.connections.get_mut(&connection).expect("accepted");
@@ -160,7 +166,7 @@ fn an_unencodable_job_is_answered_with_bounded_words() {
         .expect("limits");
         let connection = Token::new(100);
         let channel = Token::new(1);
-        component.down(Time::ZERO, Event::Accepted { connection }, &mut Queue::uncapped());
+        component.down(Time::ZERO, Event::Accepted { connection, in_process: false }, &mut Queue::uncapped());
         let state = component.connections.get_mut(&connection).expect("accepted");
         state.phase = crate::connection::Phase::Open;
         state.heard = true;
@@ -200,7 +206,7 @@ fn a_channels_closed_entrance_answers_the_current_record_once() {
         .expect("limits");
         let connection = Token::new(100);
         let channel = Token::new(1);
-        component.down(Time::ZERO, Event::Accepted { connection }, &mut Queue::uncapped());
+        component.down(Time::ZERO, Event::Accepted { connection, in_process: false }, &mut Queue::uncapped());
         // A broken contract: the component believes an unopened channel is open.
         let state = component.connections.get_mut(&connection).expect("accepted");
         state.phase = crate::connection::Phase::Open;

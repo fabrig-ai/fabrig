@@ -380,7 +380,7 @@ impl Forges {
         self.json = json;
     }
     pub(crate) fn next_deadline(&self) -> Option<Time> {
-        let mut next = None;
+        let mut next = lifecycle::next_deadline(self);
         for watch in self.watches.values() {
             if let Some(deadline) = watch.deadline {
                 next = Some(match next {
@@ -394,7 +394,8 @@ impl Forges {
 }
 pub(crate) fn owns(call: &jig::call::Call) -> bool {
     let name = crate::table::TOOLS.get(usize::from(call.tool)).expect("parsed tool").name;
-    name == READ.name
+    crate::checkpoint::owns(call)
+        || name == READ.name
         || name == SET_UP.name
         || name == DEMO_START.name
         || name == REMOVE.name
@@ -642,6 +643,7 @@ fn restore(state: &mut Forges, env: &Env<Limits>, key: Key, request: &jig_client
         | temper_client_protocol_wire::v1::Request::HandFinding(_)
         | temper_client_protocol_wire::v1::Request::TriageFinding(_)
         | temper_client_protocol_wire::v1::Request::SetDraft(_)
+        | temper_client_protocol_wire::v1::Request::Checkpoint
         | temper_client_protocol_wire::v1::Request::TryAccount(_)
         | temper_client_protocol_wire::v1::Request::Dismiss(_)
         | temper_client_protocol_wire::v1::Request::DismissMaking(_)
@@ -772,6 +774,7 @@ fn complete(state: &mut Forges, handle: Handle, printed: jig::Printed, out: &mut
     finish(watch.called, printed, out);
 }
 pub(crate) fn fire(state: &mut Forges, client: &Client, env: &Env<Limits>, out: &mut Queue<Out>) {
+    lifecycle::fire(state, env, out);
     let mut next = None;
     for _ in 0..state.watches.len() {
         let entry = match next {

@@ -189,6 +189,7 @@ pub(crate) fn task_line(
 ) -> jig_client::contract::TaskLine {
     use jig_client::contract as c;
     c::TaskLine {
+        parts: skein_lib::List::with_capacity(0),
         chip,
         project,
         requester,

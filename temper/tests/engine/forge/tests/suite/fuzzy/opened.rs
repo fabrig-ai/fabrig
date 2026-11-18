@@ -42,6 +42,7 @@ fn ask(world: &mut World, task: u64, entry: u64) {
             spend: None,
             delegate: change::Status::Unknown,
             delegate_running: false,
+            flake: false,
             delegate_live: false,
             effect: change::EffectResult::None,
             released: false,

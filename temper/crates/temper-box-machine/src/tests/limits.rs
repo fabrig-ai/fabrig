@@ -3,7 +3,7 @@ use skein_lib::Duration;
 #[test]
 fn the_small_profile_has_the_values_of_the_plan() {
     assert_eq!(
-        limits::small(),
+        limits::stock(),
         limits::Limits {
             backoff: Duration::from_millis(500),
             backoff_max: Duration::from_secs(30),
@@ -16,30 +16,30 @@ fn the_small_profile_has_the_values_of_the_plan() {
             grace: Duration::from_secs(10)
         }
     );
-    assert_eq!(limits::check(&limits::small()), Ok(()));
+    assert_eq!(limits::check(&limits::stock()), Ok(()));
 }
 #[test]
 fn a_backoff_above_its_maximum_names_both_limits() {
-    let limits = limits::Limits { backoff: Duration::from_secs(31), ..limits::small() };
+    let limits = limits::Limits { backoff: Duration::from_secs(31), ..limits::stock() };
     assert_eq!(limits::check(&limits), Err(Unfit::Backoff));
     assert_eq!(Unfit::Backoff.names(), &[b"box.backoff_ms".as_slice(), b"box.backoff_max_ms"]);
 }
 #[test]
 fn a_maximum_not_below_the_window_names_both_limits() {
-    let limits = limits::Limits { window: Duration::from_secs(30), ..limits::small() };
+    let limits = limits::Limits { window: Duration::from_secs(30), ..limits::stock() };
     assert_eq!(limits::check(&limits), Err(Unfit::Window));
     assert_eq!(Unfit::Window.names(), &[b"box.backoff_max_ms".as_slice(), b"box.window_ms"]);
 }
 #[test]
 fn restarts_above_sixty_four_name_their_limit() {
-    let limits = limits::Limits { restarts: 65, ..limits::small() };
+    let limits = limits::Limits { restarts: 65, ..limits::stock() };
     assert_eq!(limits::check(&limits), Err(Unfit::Restarts));
     assert_eq!(Unfit::Restarts.names(), &[b"box.restarts".as_slice()]);
 }
 #[test]
 fn a_name_that_is_no_box_limit_is_unknown() {
     for name in [b"backoff_ms".as_slice(), b"box.nope", b"setup.restarts"] {
-        assert_eq!(limits::apply(&mut limits::small(), name, 1), Err(Refused::Unknown), "{name:?}");
+        assert_eq!(limits::apply(&mut limits::stock(), name, 1), Err(Refused::Unknown), "{name:?}");
     }
 }
 #[test]
@@ -55,20 +55,20 @@ fn a_value_past_u32_is_out_of_range() {
         b"box.tail_lines",
         b"box.groups",
     ] {
-        assert_eq!(limits::apply(&mut limits::small(), name, 4_294_967_296), Err(Refused::Range), "{name:?}");
-        assert_eq!(limits::apply(&mut limits::small(), name, 0), Ok(()), "zero fits {name:?}");
+        assert_eq!(limits::apply(&mut limits::stock(), name, 4_294_967_296), Err(Refused::Range), "{name:?}");
+        assert_eq!(limits::apply(&mut limits::stock(), name, 0), Ok(()), "zero fits {name:?}");
     }
 }
 
 #[test]
 fn pipe_lines_need_at_least_sixty_four_bytes_after_other_checks() {
     for (value, expected) in [(0, Err(Unfit::LineBytes)), (63, Err(Unfit::LineBytes)), (64, Ok(())), (256, Ok(()))] {
-        let mut limits = limits::small();
+        let mut limits = limits::stock();
         limits::apply(&mut limits, b"box.line_bytes", value).unwrap();
         assert_eq!(limits::check(&limits), expected);
     }
     assert_eq!(Unfit::LineBytes.names(), &[b"box.line_bytes".as_slice()]);
-    let limits = limits::Limits { line_bytes: 0, restarts: 65, ..limits::small() };
+    let limits = limits::Limits { line_bytes: 0, restarts: 65, ..limits::stock() };
     assert_eq!(limits::check(&limits), Err(Unfit::Restarts));
 }
 
@@ -77,7 +77,7 @@ fn logs_hold_a_whole_record_and_tails_hold_one_to_a_hundred_lines() {
     use limits::{MAX_TAIL_LINES, RECORD_BYTES};
     assert_eq!(RECORD_BYTES, 4118);
     for (value, expected) in [(RECORD_BYTES - 1, Err(Unfit::LogBytes)), (RECORD_BYTES, Ok(()))] {
-        let mut limits = limits::small();
+        let mut limits = limits::stock();
         limits::apply(&mut limits, b"box.log_bytes", u64::from(value)).unwrap();
         assert_eq!(limits::check(&limits), expected);
     }
@@ -85,7 +85,7 @@ fn logs_hold_a_whole_record_and_tails_hold_one_to_a_hundred_lines() {
     for (value, expected) in
         [(0, Err(Unfit::TailLines)), (1, Ok(())), (MAX_TAIL_LINES, Ok(())), (101, Err(Unfit::TailLines))]
     {
-        let mut limits = limits::small();
+        let mut limits = limits::stock();
         limits::apply(&mut limits, b"box.tail_lines", u64::from(value)).unwrap();
         assert_eq!(limits::check(&limits), expected);
     }
@@ -94,7 +94,7 @@ fn logs_hold_a_whole_record_and_tails_hold_one_to_a_hundred_lines() {
 
 #[test]
 fn group_files_have_a_configurable_count_bound() {
-    let mut limits = limits::small();
+    let mut limits = limits::stock();
     assert_eq!(limits.groups, 8);
     limits::apply(&mut limits, b"box.groups", 2).unwrap();
     assert_eq!(limits.groups, 2);
@@ -103,7 +103,7 @@ fn group_files_have_a_configurable_count_bound() {
 
 #[test]
 fn every_row_is_a_name_the_parser_takes() {
-    let small = limits::small();
+    let small = limits::stock();
     for (index, row) in limits::NAMES.iter().enumerate() {
         let mut changed = small;
         let value = (row.value)(&small);
@@ -123,7 +123,7 @@ fn every_row_is_a_name_the_parser_takes() {
 #[test]
 fn an_unknown_name_is_refused() {
     for name in [b"".as_slice(), b"box.absent", b"setup.runs", b"box.groups.extra"] {
-        let small = limits::small();
+        let small = limits::stock();
         let mut changed = small;
         assert_eq!(limits::apply(&mut changed, name, 1), Err(Refused::Unknown));
         assert_eq!(changed, small);

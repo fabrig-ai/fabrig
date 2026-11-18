@@ -11,6 +11,7 @@ pub(crate) struct Answer {
     pub saved: Option<Box<[tasks::SavedResource]>>,
     pub invalid_saved: bool,
     pub unusable_history: bool,
+    pub untooled: bool,
     pub read: Option<u64>,
     pub refused: Box<[u64]>,
 }
@@ -23,7 +24,7 @@ pub(crate) fn route_answer_payload(
     attempt: Token,
     answer: Answer,
 ) -> Queue<Request> {
-    let Answer { payload, cumulative, end, saved, invalid_saved, unusable_history, read, refused } = answer;
+    let Answer { payload, cumulative, end, saved, invalid_saved, unusable_history, untooled, read, refused } = answer;
     let refused = refused.as_ref();
     if !core.current_proof(run.raw(), attempt.raw()) {
         let mut out = Queue::uncapped();
@@ -57,6 +58,17 @@ pub(crate) fn route_answer_payload(
                     // Only this window's history closes it (jig/docs/design/domain/engine/executors.md, 2).
                     core.close_window(run.raw());
                 }
+                let end = if untooled {
+                    match untooled_place(core, run, attempt) {
+                        Some((reason, fault)) => {
+                            work.push(Work::Event(Event::Fleet(fault)));
+                            tasks::End::RefusedWithReason { reason }
+                        }
+                        None => tasks::End::Failed(tasks::Class::Run),
+                    }
+                } else {
+                    end
+                };
                 (cumulative, end, saved)
             }
         }
@@ -100,6 +112,89 @@ pub(crate) fn route_answer_payload(
         saved,
     })));
     Queue::uncapped()
+}
+
+/// The main model's program binding and the answering claim's current channel, including adoption.
+fn untooled_place(core: &Core, run: Token, attempt: Token) -> Option<(Box<[u8]>, jig_domain_fleet::Event)> {
+    use jig_domain_fleet as fleet;
+    let proof = core.proofs.get(&run.raw())?;
+    let policy = core.chosen_policy(run.raw());
+    let program = policy.model.program.as_ref()?;
+    let mut source = None;
+    for binding in &proof.accounts {
+        if binding.provider == policy.model.provider
+            && core.accounts.source(binding.source)?.kind == jig_domain_accounts::Kind::Program
+        {
+            let account = core.accounts.account(binding.account)?;
+            source = Some(
+                jig_domain_link::SourceName::new(jig_domain_accounts::programs::name(
+                    &core.accounts,
+                    binding.source,
+                    account.holder(),
+                )?)
+                .expect("issued program source name"),
+            );
+        }
+    }
+    let source = source?;
+    let mut channel = proof.placement;
+    for claim in &core.fleet.attempt_views() {
+        if claim.run == run && claim.attempt == attempt {
+            channel = match claim.placement {
+                fleet::Placement::Connected { channel, .. } => Some(channel),
+                fleet::Placement::Adrift { channel, .. } => channel,
+                fleet::Placement::None => None,
+            };
+        }
+    }
+    let channel = channel?;
+    let mut worker = None;
+    for host in &core.fleet.host_views() {
+        if host.channel == channel {
+            worker = host.worker;
+        }
+    }
+    let worker = worker?;
+    let number = skein_lib::Decimal::of(u64::from(worker).checked_add(1).expect("configured worker number"));
+    let fallback = [b"worker ".as_slice(), number.as_bytes()];
+    let mut unnamed = skein_lib::Writer::new(7_usize.checked_add(number.as_bytes().len()).expect("worker name length"));
+    for part in fallback {
+        unnamed.put(part).expect("worker number fits");
+    }
+    let unnamed = unnamed.finish();
+    let worker = core.fleet.worker_name(worker).unwrap_or(&unnamed);
+    let parts =
+        [program.as_ref(), b" started without smith's tools: account ", source.as_bytes(), b" on worker ", worker];
+    let mut length = 0_usize;
+    for part in parts {
+        length = length.checked_add(part.len()).expect("bounded place names");
+    }
+    let mut text = skein_lib::Writer::new(length);
+    for part in parts {
+        text.put(part).expect("measured place words");
+    }
+    let text = text.finish();
+    Some((place_reason(&text), fleet::Event::Untooled { run, channel, source }))
+}
+
+/// Diagnostic heads keep the same character boundary and marker as invalid starts (hosts/hub.md, 3).
+fn place_reason(words: &[u8]) -> Box<[u8]> {
+    let mut text = skein_lib::Writer::new(words.len());
+    let utf8 = skein_lib::bytes::is_utf8(words);
+    for byte in words {
+        text.put(&[if utf8 || byte.is_ascii() { *byte } else { b'?' }]).expect("one byte per word byte");
+    }
+    let text = text.finish();
+    let bound = skein_lib::usize_of(tasks::REASON_BYTES);
+    if text.len() <= bound {
+        return text;
+    }
+    let marker = b" [cut]";
+    let head = skein_lib::bytes::utf8_prefix(&text, bound.saturating_sub(marker.len()));
+    let mut reason = skein_lib::Writer::new(head.len().checked_add(marker.len()).expect("bounded reason"));
+    reason.put(head).expect("head leaves room for cut marker");
+    reason.put(marker).expect("marker fits");
+    reason.finish()
 }
 
 fn past_batch_bytes(limits: &tasks::Limits, end: &tasks::End) -> bool {

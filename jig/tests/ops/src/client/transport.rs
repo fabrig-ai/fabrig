@@ -29,6 +29,7 @@ pub struct Scripted {
     routes: BTreeMap<Token, Route>,
     parties: BTreeMap<ClientId, u64>,
     hellos: BTreeSet<ClientId>,
+    stream_again: BTreeMap<ClientId, Time>,
     shell: Vec<(ClientId, Event)>,
     ledger: Ledger<Token, ()>,
     serial: u64,
@@ -54,6 +55,7 @@ impl Scripted {
             routes: BTreeMap::new(),
             parties: BTreeMap::new(),
             hellos: BTreeSet::new(),
+            stream_again: BTreeMap::new(),
             shell: Vec::new(),
             ledger: Ledger::new("Ops shell operation"),
             serial: 0,
@@ -66,6 +68,46 @@ impl Scripted {
             sign_ins: vec![],
             pending_forget: vec![],
         }
+    }
+    fn open_me(&mut self, client: ClientId, now: Time) {
+        let party = self.parties[&client];
+        if !self.engine.versions().contains(jig_client_protocol_wire::VERSION) {
+            return;
+        }
+        if !self.engine.truth().sign_ins.contains_key(&party) {
+            self.shell.push((client, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::SignedOut } }));
+            return;
+        }
+        if self.token(client, Token::new(0), Channel::Jig).is_some() {
+            return;
+        }
+        let watch = self.open(client, Token::new(0), Channel::Jig);
+        self.engine.open(now, party, watch, jig_client_domain::contract::Subject::Me).expect("stream me");
+    }
+    fn hello_events(&mut self, now: Time) -> Vec<(ClientId, Event)> {
+        let mut delivered = Vec::new();
+        let mut opening = std::mem::take(&mut self.hellos);
+        for (&client, &at) in &self.stream_again {
+            if at <= now {
+                opening.insert(client);
+            }
+        }
+        for client in opening {
+            self.stream_again.remove(&client);
+            self.open_me(client, now);
+            delivered.push((
+                client,
+                Event::Client {
+                    event: jig_client::Event::Up {
+                        up: jig_client::Up::Served {
+                            served: self.engine.versions().contains(jig_client_protocol_wire::VERSION),
+                            versions: None,
+                        },
+                    },
+                },
+            ));
+        }
+        delivered
     }
     fn forget(&mut self, now: Time, wall: Wall, key: ObjectKey) {
         self.engine.act(now, wall, engine::Change::Forget { key }).expect("owner object disappearance");
@@ -100,6 +142,15 @@ impl Scripted {
             }
             for party in std::mem::take(&mut self.sign_ins) {
                 self.engine.act(now, wall, engine::Change::SignIn { sign_in: party, party }).expect("queued sign in");
+                for (&client, &owner) in &self.parties {
+                    if owner == party {
+                        self.hellos.insert(client);
+                        self.shell.push((
+                            client,
+                            Event::Client { event: jig_client::Event::Up { up: jig_client::Up::SignedIn } },
+                        ));
+                    }
+                }
             }
         }
     }
@@ -243,19 +294,7 @@ impl Front<Ops> for Scripted {
     }
     fn poll(&mut self, now: Time, wall: Wall) -> Vec<(ClientId, Event)> {
         self.recover(now, wall);
-        let mut delivered: Vec<_> = std::mem::take(&mut self.hellos)
-            .into_iter()
-            .map(|client| {
-                (
-                    client,
-                    Event::Client {
-                        event: jig_client::Event::Up {
-                            up: jig_client::Up::Served { served: self.engine.versions().contains(27), versions: None },
-                        },
-                    },
-                )
-            })
-            .collect();
+        let mut delivered = self.hello_events(now);
         delivered.append(&mut self.shell);
         for up in self.engine.poll(now) {
             let token = match &up {
@@ -282,6 +321,16 @@ impl Front<Ops> for Scripted {
                 self.routes.remove(&token);
             }
             let local = route.local;
+            if local == Token::new(0)
+                && let Up::Ended { why, .. } = &up
+            {
+                if *why == WatchEnd::SignedOut {
+                    delivered.push((route.client, Event::SignedOut));
+                } else if *why != WatchEnd::NotServed {
+                    self.stream_again
+                        .insert(route.client, now.saturating_add(super::limits().client.domain.backoff.first));
+                }
+            }
             let event = match up {
                 Up::Answer { envelope: env, answer, .. } => {
                     super::callbacks::answer(local, envelope(env), answer.map(domain::Answered::Jig))
@@ -338,10 +387,7 @@ impl Front<Ops> for Scripted {
         if !self.hellos.is_empty() || !self.shell.is_empty() {
             return Some(Time::ZERO);
         }
-        match (self.recovery, self.engine.next_due()) {
-            (Some(a), Some(b)) => Some(a.min(b)),
-            (a, None) | (None, a) => a,
-        }
+        self.recovery.into_iter().chain(self.engine.next_due()).chain(self.stream_again.values().copied()).min()
     }
     fn observed(&mut self) -> Vec<Observed> {
         let mut out = std::mem::take(&mut self.observed);
@@ -457,6 +503,8 @@ impl Front<Ops> for Scripted {
             }
         } else {
             self.engine.act(now, wall, engine::Change::SignIn { sign_in: party, party }).expect("sign in admitted");
+            self.hellos.insert(client);
+            self.shell.push((client, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::SignedIn } }));
         }
     }
 }

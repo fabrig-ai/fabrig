@@ -36,21 +36,18 @@ pub(super) fn begin(
         return refuse(store, above);
     };
     let mut size = u64::from(skein_kv::FRAME_BYTES);
-    let Some(layouts_key) = keys::encode_own(&keys::Own::Layouts, store.limits.store.key) else {
-        return refuse(store, above);
-    };
-    let capacity = 3;
+    let capacity = 2;
     if store.limits.store.ops < capacity {
         return refuse(store, above);
     }
     let mut ops = List::with_capacity(capacity);
-    for (key, value) in [(format_key, format), (header_key, header), (layouts_key, store.layouts.encode())] {
+    for (key, value) in [(format_key, format), (header_key, header)] {
         let Some(total) = put_size(&key, &value, size) else { return refuse(store, above) };
         size = total;
         if size > u64::from(store.limits.store.commit) {
             return refuse(store, above);
         }
-        ops.push(skein_kv::Op::Put { key, value }).expect("three sealing puts");
+        ops.push(skein_kv::Op::Put { key, value }).expect("two sealing puts");
     }
     state(store, Patching::Sealing { number, before, counts });
     commits::submit(store, env, number, ops.into_boxed(), above, below);

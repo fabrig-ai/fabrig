@@ -1,6 +1,6 @@
 //! The public linked client, native client wire, real core and applied store.
 use jig_client::{self as client, contract as c};
-use jig_client_protocol_wire::v27 as w;
+use jig_client_protocol_wire as w;
 use jig_core_kit::fixtures;
 use jig_core_kit::reads;
 use jig_core_kit::world::Setup;
@@ -10,7 +10,7 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_engine_clients_world::fixtures::{self as wire, Peer};
 use jig_test_domain as root;
-use skein_lib::{List, Queue, Reader, Secret, Time, Wall, Writer};
+use skein_lib::{List, Queue, Secret, Time, Wall, Writer};
 
 fn encoded(value: &w::StreamEvent) -> Box<[u8]> {
     let mut out = Writer::new(value.measure() as usize);
@@ -29,10 +29,12 @@ struct Party {
 impl Party {
     fn step(&mut self, event: client::Event) -> Vec<client::Request> {
         self.machine.step(Time::ZERO, Wall::EPOCH, event, &mut self.out);
+        self.machine.settle(Time::ZERO, Wall::EPOCH, &mut self.out);
         let mut requests = Vec::new();
         while let Some(request) = self.out.pop() {
             if matches!(request, client::Request::Save { .. } | client::Request::Erase { .. }) {
                 self.machine.step(Time::ZERO, Wall::EPOCH, client::Event::Stored, &mut self.out);
+                self.machine.settle(Time::ZERO, Wall::EPOCH, &mut self.out);
             } else {
                 requests.push(request);
             }
@@ -82,26 +84,17 @@ impl Party {
                 stream: [7; 16],
                 served: jig_client_kit::test::list([w::Served::new(
                     &w::CEILINGS,
-                    w::ServedParts { owner: w::Owner::Jig, first: 27, last: 27 },
+                    w::ServedParts {
+                        owner: w::Owner::Jig,
+                        first: jig_client_protocol_wire::VERSION,
+                        last: jig_client_protocol_wire::VERSION,
+                    },
                 )
                 .expect("served")]),
                 heartbeat: skein_lib::Duration::from_secs(5),
             },
         )
         .expect("hello");
-        let requests = party.step(client::Event::Streamed {
-            message: client::Streamed::Record(encoded(&w::StreamEvent::Hello(hello))),
-        });
-        let watch = requests
-            .iter()
-            .find_map(|request| {
-                if let client::Request::Exchange { message: client::Message::Watch(bytes), .. } = request {
-                    Some(w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("Me watch").watch())
-                } else {
-                    None
-                }
-            })
-            .expect("client opens Me");
         world.sign_in = Some(sign_in);
         reads::ask(world, 90, core::reads::Read::Frame);
         let core::reads::Answer::Document(document) = reads::latest(world) else { panic!("real Me") };
@@ -111,12 +104,14 @@ impl Party {
         let value = w::DeliveryValue::Me(me);
         let mut bytes = Writer::new(value.measure() as usize);
         value.encode(&mut bytes).expect("Me delivery");
-        let document =
-            w::Owned::new(&w::CEILINGS, w::OwnedParts { owner: w::Owner::Jig, version: 27, record: bytes.finish() })
-                .expect("owned");
-        let delivery = w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch, document }).expect("delivery");
+        let document = w::Owned::new(
+            &w::CEILINGS,
+            w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: bytes.finish() },
+        )
+        .expect("owned");
+        let opened = w::Opened::new(&w::CEILINGS, w::OpenedParts { hello, me: document }).expect("opened");
         party.step(client::Event::Streamed {
-            message: client::Streamed::Record(encoded(&w::StreamEvent::Delivery(delivery))),
+            message: client::Streamed::Record(encoded(&w::StreamEvent::Opened(opened))),
         });
         assert_eq!(party.machine.link().party, Some(person));
         party

@@ -106,7 +106,7 @@ fn home_cards_and_shared_need_lines_cut_titles_before_their_prefixes() {
         let links: Vec<_> = from.iter().filter(|n| n.role == Role::Link).collect();
         assert_eq!(links.len(), 3);
         assert!(links.iter().all(|n| n.name.as_deref() == Some(cut.as_bytes())));
-        assert_eq!(text(styled_nodes(&tree, look::ASK_QUESTION)), cut);
+        assert_eq!(text(styled_nodes(&tree, look::ASK_QUESTION)), "The Ready page waits for this decision.");
         assert_eq!(crate::shared::need_line(&need, &w).words.as_ref(), format!("{cut}: {cut}").as_bytes());
         let open = [d::pages::findings::Need::Existing(need); 4];
         let (tree, _) = draw_all(&root, &open, &w);
@@ -119,6 +119,54 @@ fn home_cards_and_shared_need_lines_cut_titles_before_their_prefixes() {
                 .iter()
                 .any(|n| n.role == Role::Link && n.name.as_deref() == Some(cut.as_bytes()))
         );
+    }
+}
+
+#[test]
+fn home_held_cards_say_why_and_person_cards_name_the_title_only_in_from() {
+    let mut held = f::needs::held(Some(c::HoldCategory::EffectFailed));
+    held.task.chip.title = f::needs::words("Release the runner");
+    held.task.hold.as_mut().unwrap().words = Some(f::needs::words(
+        "forge could not release this task's resources; task release 6978 --hold 1; or task cancel 6978 REASON",
+    ));
+    let person = f::needs::person();
+    let root = f::needs::kinds(&[
+        (
+            c::ObjectKey::Escalation(held.task.chip.task),
+            c::Read::Escalation { task: held.task.chip.task },
+            c::ReadValue::Escalation(Box::new(held)),
+        ),
+        (
+            c::ObjectKey::PersonTask(person.task.task),
+            c::Read::PersonTask { task: person.task.task },
+            c::ReadValue::PersonTask(Box::new(person)),
+        ),
+    ]);
+    let cards = root.pages().inbox().unwrap().cards.as_slice();
+    let needs = [Need::Card(&cards[0]), Need::Card(&cards[1])];
+    for w in [f::browser_words(), f::words()] {
+        let (tree, _) = draw(&root, &needs, false, &w);
+        let parts: Vec<_> = tree
+            .nodes()
+            .iter()
+            .enumerate()
+            .filter(|(_, n)| n.styles.as_slice().contains(&look::NEED_CARD))
+            .map(|(at, _)| super::inbox::subtree(&tree, at))
+            .collect();
+        assert_eq!(parts.len(), 2);
+        assert_eq!(text(styled_nodes(&tree, look::ASK_QUESTION)), "Forge could not release this task's resources.");
+        assert!(!parts[1].iter().any(|n| n.styles.as_slice().contains(&look::ASK_QUESTION)));
+        for (part, title) in parts.iter().zip(["Release the runner", "Review the plan"]) {
+            assert_eq!(text(part).matches(title).count(), 1);
+            for hidden in ["Hold revision", "task release", "task cancel", "Parameter"] {
+                assert!(!text(part).contains(hidden));
+            }
+        }
+        for (need, title) in needs.iter().zip(["Release the runner", "Review the plan"]) {
+            let (more, _) = draw_all(&root, &[d::pages::findings::Need::Existing(*need); 4], &w);
+            assert!(text(styled_nodes(&more, look::HOME_MORE)).contains(title));
+            assert!(core::str::from_utf8(&crate::shared::need_line(need, &w).words).unwrap().contains(title));
+        }
     }
 }
 

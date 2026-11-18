@@ -8,6 +8,100 @@ const CURRENT_PARTY: u64 = 9;
 const PRINTED: skein_lib::Duration = skein_lib::Duration::from_millis(30);
 const STILL_PRINTED: skein_lib::Duration = skein_lib::Duration::from_secs(1);
 #[test]
+fn the_applied_address_follows_go_and_a_roots_show() {
+    let mut host = fixtures::loaded_chat();
+    host.go(domain::Address::Accounts);
+    assert_eq!(host.address(), &domain::Address::Accounts);
+    host.event(domain::Event::Act {
+        action: domain::Action::Pages(domain::pages::Act::Go { address: domain::Address::Forges }),
+    });
+    assert_eq!(host.address(), &domain::Address::Accounts, "an asked Show is not applied yet");
+    host.outputs();
+    assert_eq!(host.address(), &domain::Address::Forges);
+    assert_eq!(host.root.pages().address(), host.address());
+}
+
+#[test]
+fn a_late_creation_answer_keeps_the_later_applied_page() {
+    use domain::pages::{Act, switcher};
+    for listed_first in [false, true] {
+        let (mut host, watch) = fixtures::started_kept();
+        host.event(domain::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch,
+                    event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(jig_client_kit::stories::frame(
+                        CURRENT_PARTY,
+                    )))),
+                },
+            },
+        });
+        host.go(domain::Address::NewChat { draft: false });
+        for act in [switcher::Act::NewWords { words: b"New".as_slice().into() }, switcher::Act::Create] {
+            host.event(domain::Event::Act { action: domain::Action::Pages(Act::Switcher(act)) });
+        }
+        let mut sent = None;
+        while let Some(request) = host.out.pop() {
+            if let domain::Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: jig_client::Down::Send { attempt, request: jig_client::Ask::Jig(ask), .. },
+                    },
+            } = request
+                && matches!(*ask, c::Ask::MakeProject { .. })
+            {
+                assert!(sent.replace(attempt).is_none(), "one creation");
+            }
+        }
+        let attempt = sent.expect("the switcher's creation was sent");
+        host.go(domain::Address::Accounts);
+        let mut me = jig_client_kit::stories::frame(CURRENT_PARTY);
+        let kept = me.projects.get(0).expect("kept project").clone();
+        let mut made = kept.clone();
+        made.project = 2;
+        me.projects = List::with_capacity(2);
+        me.projects.push(kept).expect("kept project");
+        me.projects.push(made).expect("made project");
+        let listed = domain::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) },
+            },
+        };
+        let answered = domain::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Answer {
+                    attempt,
+                    envelope: skein_lib::RequestEnvelope::Final,
+                    answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                        c::DocumentOutcome::ProjectMade { project: 2 },
+                    )))),
+                    why: None,
+                },
+            },
+        };
+        if listed_first {
+            host.event(listed);
+            host.event(answered);
+        } else {
+            host.event(answered);
+            host.event(listed);
+        }
+        // This fixture's unlinked root is driven through its own events, not the native transport.
+        while let Some(request) = host.out.pop() {
+            assert!(
+                !matches!(request, domain::Request::Show { address: domain::Address::Home { project: 2 }, .. }),
+                "a late answer must not ask the native client to replace the later page"
+            );
+        }
+        assert_eq!(host.address(), &domain::Address::Accounts);
+        assert_eq!(host.root.pages().address(), host.address());
+        assert_eq!(host.root.pages().switcher().pending(), None);
+        assert_eq!(host.root.pages().switcher().new_words(), b"");
+        assert!(host.root.pages().me(host.root.client()).expect("me").projects.iter().any(|row| row.project == 2));
+    }
+}
+
+#[test]
 fn held_startup_keeps_the_first_quiet_chat_activity_answer() {
     let mut host = fixtures::loaded_chat();
     let (exchange, credential) = fixtures::activity_read(&mut host);
@@ -98,6 +192,8 @@ fn busy_keeps_the_link_and_held_token_for_the_next_sign_in() {
     assert_eq!(host.credential, Some(fixtures::credential()));
     assert!(host.saving_signing.is_none());
     host.sign_in(fixtures::LINK).expect("same printed link");
+    fixtures::settle(&mut host);
+    host.outputs();
     let mut retry = None;
     for (exchange, out) in &host.authentication {
         assert!(!out, "retry signs in");
@@ -424,6 +520,7 @@ fn a_chat_keeps_its_activity_read_through_local_exchange_pressure() {
                 read: Readable::Jig(c::Read::Project { project: 1 }),
             },
         });
+        fixtures::settle(&mut host);
         let Some(domain::Request::Client { request: Request::Exchange { .. } }) = host.out.pop() else {
             panic!("fill one native exchange slot")
         };

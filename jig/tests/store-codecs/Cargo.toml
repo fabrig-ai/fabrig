@@ -12,6 +12,7 @@ test = false
 doctest = false
 
 [dev-dependencies]
+jig-protocol-config-fixtures.workspace = true
 jig-domain-tasks.workspace = true
 skein-oauth.workspace = true
 jig-client-protocol-wire.workspace = true

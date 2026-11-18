@@ -191,3 +191,25 @@ the engine holds the account, and kept otherwise: the same call
 with the same key and file gets the first answer. A record of a
 newer form than this binary reads asks for an upgrade.
 ```
+
+## account uses
+
+```
+account uses ACCOUNT [--party N]... [--project N]... [--key KEY]
+  ACCOUNT (account): a number; required. The account's number, as account list prints it
+  --party N: a number from 0 to 18446744073709551615; repeated, at most 16. A party whose work the account pays for
+  --project N: a number from 0 to 4294967295; repeated, at most 16. A project whose work the account pays for
+account uses ACCOUNT --default [--key KEY]
+  ACCOUNT (account): a number; required. The account's number, as account list prints it
+  --default: a switch. Restore jig's default uses
+Set exactly which parties and projects an account pays for, or restore its defaults
+Prints: `done: uses`
+--json: the record uses.
+Key: --key KEY, optional.
+Name at least one party or project, at most 16 uses together.
+Each flag repeats; the named uses replace the whole list.
+--default restores jig's defaults, with no --party or --project.
+A person's plan may pay for its holder's services, and projects
+whose other members are services. Another person, or a project
+with another person, is refused by the engine (exit 2).
+```

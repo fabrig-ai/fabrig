@@ -75,6 +75,8 @@ pub struct Scripted {
     pub session: Option<Token>,
     /// Pending provider completion identity; its single terminal consumes it.
     pub completing: Option<Token>,
+    /// Model progress and whole deadlines emitted with the latest provider request.
+    pub deadlines: Option<session::Deadlines>,
     /// Pending opener-served call identities, each requiring one terminal.
     pub delegated: Vec<Token>,
     /// Delegated transcript origins in emitted order, independent of live callbacks.
@@ -133,6 +135,7 @@ impl Scripted {
             out: Queue::uncapped(),
             session: None,
             completing: None,
+            deadlines: None,
             delegated: vec![],
             origins: vec![],
             operations: vec![],
@@ -253,8 +256,9 @@ impl Scripted {
                 assert_eq!(opener, Token::new(31));
                 assert!(self.session.replace(session).is_none());
             }
-            session::Request::Complete { owner, prompt, .. } => {
+            session::Request::Complete { owner, prompt, deadlines, .. } => {
                 assert!(self.completing.replace(owner).is_none());
+                self.deadlines = Some(deadlines);
                 self.prompts.push(prompt);
             }
             session::Request::Delegate { owner, origin, .. } => {

@@ -5,6 +5,23 @@ use skein_fake_peers::{Limits, Transport, llm::Peer};
 use skein_lib::{Duration, Time};
 use std::net::{Ipv4Addr, SocketAddr};
 
+/// Query receipt times on the world's monotonic clock, parallel to Query observations.
+#[derive(Default)]
+pub(crate) struct Queries {
+    seen: usize,
+    pub(crate) times: Vec<Time>,
+}
+impl Queries {
+    pub(crate) fn observe(&mut self, now: Time, observations: &[skein_fake_peers::llm::Observation]) {
+        for observation in &observations[self.seen..] {
+            if matches!(observation, skein_fake_peers::llm::Observation::Query { .. }) {
+                self.times.push(now);
+            }
+        }
+        self.seen = observations.len();
+    }
+}
+
 /// Every argument after the peer's address, in its own boundary types.
 pub struct Recipe {
     pub transport: Transport,

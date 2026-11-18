@@ -156,6 +156,10 @@ impl World {
         for forge in [FORGE, OTHER, AUTOMATIC] {
             world.connection(forge, forge::Connection::NotSetUp);
         }
+        world.client(client::Event::StartUnlinked { kept: List::with_capacity(0) });
+        world.client(client::Event::SignIn { with: client::With::Transport });
+        world.client(client::Event::Up { up: world.transport.hello() });
+        world.settle();
         world.component.sign_in(
             CLIENT,
             people::Identity {
@@ -164,10 +168,6 @@ impl World {
                 name: b"Person".as_slice().into(),
             },
         );
-        world.settle();
-        world.client(client::Event::StartUnlinked { kept: List::with_capacity(0) });
-        world.client(client::Event::SignIn { with: client::With::Transport });
-        world.client(client::Event::Up { up: world.transport.hello() });
         world.settle();
         world
     }

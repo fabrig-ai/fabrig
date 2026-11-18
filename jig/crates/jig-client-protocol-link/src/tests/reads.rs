@@ -186,18 +186,24 @@ fn a_read_signed_out_is_answered_signed_out() {
     assert_eq!(h.link.next_deadline(), None);
 }
 #[test]
-fn a_lost_read_stays_unreachable() {
+fn a_read_lost_twice_stays_unreachable() {
     let (mut h, exchange) = fixtures::Harness::reading();
     h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out);
+    h.link.settle(&mut h.out);
+    let retry = h.retry_lost_read();
+    h.link.step(Time::ZERO, Event::Lost { exchange: retry }, &mut h.out);
     h.read_unreachable();
     h.answer(exchange, &fixtures::read_none_answer(w::ReadNone::Unknown));
     assert_eq!(h.read_terminals(), 1);
     assert_eq!(h.link.next_deadline(), None);
 }
 #[test]
-fn a_lost_read_is_answered_once() {
+fn a_read_lost_twice_is_answered_once() {
     let (mut h, exchange) = fixtures::Harness::reading();
     h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out);
+    h.link.settle(&mut h.out);
+    let retry = h.retry_lost_read();
+    h.link.step(Time::ZERO, Event::Lost { exchange: retry }, &mut h.out);
     h.read_unreachable();
     h.answer(exchange, &fixtures::read_none_answer(w::ReadNone::Busy));
     assert_eq!(h.read_terminals(), 1);
@@ -260,11 +266,12 @@ fn a_malformed_read_body_is_malformed() {
     h.answer(exchange, &[255]);
     h.read_malformed();
     h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out);
+    h.link.settle(&mut h.out);
     assert!(h.has(&Request::Fact { fact: Fact::UndecodableDocument }));
     assert_eq!(h.read_terminals(), 1);
 }
 #[test]
-fn reads_and_attempts_share_the_exchange_admission_bound() {
+fn reads_and_attempts_share_transport_credit_not_logical_admission() {
     let limits = Limits::new(*fixtures::limits().client(), 1).unwrap();
     let mut h = fixtures::Harness::new(&limits);
     h.send(fixtures::ATTEMPT, fixtures::KEY, fixtures::message());
@@ -273,9 +280,13 @@ fn reads_and_attempts_share_the_exchange_admission_bound() {
         Event::Read { read: fixtures::READ, what: Readable::Jig(fixtures::history_read()) },
         &mut h.out,
     );
-    h.read_unreachable();
-    assert_eq!(h.read_terminals(), 1);
-    assert_eq!(h.out.len(), 2);
+    h.link.settle(&mut h.out);
+    assert_eq!(h.read_terminals(), 0, "the read waits behind the keyed exchange");
+    assert_eq!(h.out.len(), 1);
+    let Some(Request::Exchange { exchange, .. }) = h.out.pop() else { panic!("keyed exchange") };
+    h.answer(exchange, &fixtures::answer_busy());
+    assert_eq!(h.exchanges(), 1, "the waiting read leaves after a terminal");
+    assert_eq!(h.read_terminals(), 0);
 }
 
 #[test]
@@ -294,6 +305,7 @@ fn a_value_past_the_client_s_limits_is_malformed_and_reported() {
         h.answer(exchange, &fixtures::jig_read_value_answer(&value));
         h.read_malformed();
         h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out);
+        h.link.settle(&mut h.out);
         assert!(h.has(&Request::Fact { fact: Fact::UndecodableDocument }));
         assert_eq!(h.read_terminals(), 1);
     }
@@ -314,6 +326,7 @@ fn a_malformed_read_value_is_malformed_and_reported() {
         h.answer(exchange, &fixtures::jig_read_record_answer(value, jig_client_protocol_wire::VERSION));
         h.read_malformed();
         h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out);
+        h.link.settle(&mut h.out);
         assert!(h.has(&Request::Fact { fact: Fact::UndecodableDocument }));
         assert_eq!(h.read_terminals(), 1);
     }
@@ -325,6 +338,7 @@ fn a_read_value_of_another_wire_version_is_malformed_and_reported() {
     h.answer(exchange, &fixtures::jig_read_record_answer(value, 22));
     h.read_malformed();
     h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out);
+    h.link.settle(&mut h.out);
     assert!(h.has(&Request::Fact { fact: Fact::UndecodableDocument }));
     assert_eq!(h.read_terminals(), 1);
 }
@@ -422,7 +436,7 @@ fn an_undecodable_single_turn_is_malformed() {
 #[test]
 fn a_turn_answer_for_another_identity_is_rejected() {
     for (task, attempt, turn) in [(8, 44, 3), (7, 45, 3), (7, 44, 4)] {
-        let mut record = fixtures::single_turn_record(fixtures::FULL_TURN).into_parts();
+        let mut record = fixtures::single_turn_record(&fixtures::full_turn()).into_parts();
         record.task = task;
         record.name = w::TurnName::new(&w::CEILINGS, w::TurnNameParts { attempt, number: turn }).unwrap();
         let value = w::ReadValue::Turn(w::ArchivedTurn::new(&w::CEILINGS, record).unwrap());
@@ -453,7 +467,7 @@ fn the_single_turn_decoder_uses_the_archive_bound() {
     // The archive decoder applies its TurnCarriedBytes bound.
     let archive_limits = fixtures::limits();
     assert_eq!(
-        translate::turn::archive(fixtures::single_turn_record(fixtures::FULL_TURN), &archive_limits),
+        translate::turn::archive(fixtures::single_turn_record(&fixtures::full_turn()), &archive_limits),
         Ok(fixtures::expected_single_turn())
     );
 }

@@ -33,11 +33,28 @@ pub(crate) fn job_counts(counts: &[jig_protocol_store::JobCount]) -> String {
 /// Store progress, then the start's outcome and worker compatibility.
 #[must_use]
 pub fn lines(binary: &str, report: &Report, directories: &Directories, deployment: &[u8]) -> (String, u8) {
+    render(binary, report, directories, deployment, false)
+}
+
+/// Only the workers' verdict, or the same opening refusal as the whole check.
+#[must_use]
+pub fn workers_lines(binary: &str, report: &Report, directories: &Directories, deployment: &[u8]) -> (String, u8) {
+    render(binary, report, directories, deployment, true)
+}
+
+#[expect(clippy::too_many_lines, reason = "upgrade reporting exhaustively ignores checkpoint terminals")]
+fn render(
+    binary: &str,
+    report: &Report,
+    directories: &Directories,
+    deployment: &[u8],
+    only_workers: bool,
+) -> (String, u8) {
     let mut text = String::new();
     let mut kept = None;
     let mut openings = &[][..];
     let mut rehearsal = false;
-    let mut passed = report.restored;
+    let mut passed = report.restored || only_workers;
     for event in &report.events {
         match event {
             Event::Rehearsing { wires, openings: stated, .. } => {
@@ -45,7 +62,7 @@ pub fn lines(binary: &str, report: &Report, directories: &Directories, deploymen
                 kept = wires.as_deref();
                 openings = stated;
             }
-            Event::Decoded { records, .. } => {
+            Event::Decoded { records, .. } if !only_workers => {
                 writeln!(text, "{binary} upgrade: decoded {records} records").expect("string write");
             }
             Event::Undecodable { family, version, at, .. } => {
@@ -53,7 +70,7 @@ pub fn lines(binary: &str, report: &Report, directories: &Directories, deploymen
                 write!(text, "{binary} upgrade: record not decodable: {family} {version}, ").expect("string write");
                 place(&mut text, at);
             }
-            Event::Ran { of, job, rows, commits, counts, .. } => {
+            Event::Ran { of, job, rows, commits, counts, .. } if !only_workers => {
                 writeln!(
                     text,
                     "{binary} upgrade: ran {} {job}: {rows} rows in {commits} commits{}; time unavailable",
@@ -86,7 +103,15 @@ pub fn lines(binary: &str, report: &Report, directories: &Directories, deploymen
                     .expect("string write");
             }
             // Upgrade progress does not consume the census (jig protocol/store/README.md, 6.3).
-            Event::Census { .. }
+            Event::Decoded { .. }
+            | Event::Ran { .. }
+            | Event::Checkpointed { .. }
+            | Event::CheckpointRefused { .. }
+            | Event::Restored { .. }
+            | Event::RestoreRefused { .. }
+            | Event::CheckpointHeld { .. }
+            | Event::CheckpointRemoved { .. }
+            | Event::Census { .. }
             | Event::Closed { removed: true, .. }
             | Event::Opened { .. }
             | Event::OpenRefused { .. }
@@ -113,15 +138,23 @@ pub fn lines(binary: &str, report: &Report, directories: &Directories, deploymen
             | Event::SecretsLoaded { .. } => {}
         }
     }
-    writeln!(text, "{binary} upgrade: whole rehearsal/tool time: {} ns", report.elapsed.as_nanos())
-        .expect("string write");
+    if !only_workers {
+        writeln!(text, "{binary} upgrade: whole rehearsal/tool time: {} ns", report.elapsed.as_nanos())
+            .expect("string write");
+    }
     if let Some(failure) = &report.open_failure {
+        if only_workers {
+            passed = false;
+        }
         writeln!(text, "{binary} upgrade: store opening failed: {failure:?}").expect("string write");
     }
     if let Some(end) = &report.end {
+        if only_workers {
+            passed = false;
+        }
         let (refusal, _) = crate::lines::ending_with_binary(binary, Some(end), false, directories, deployment, &[]);
         text.push_str(&refusal);
-    } else if report.restored {
+    } else if report.restored && !only_workers {
         writeln!(
             text,
             "{binary} upgrade: registry commit, jobs and restores pass; what follows the switch is not rehearsed"
@@ -131,7 +164,7 @@ pub fn lines(binary: &str, report: &Report, directories: &Directories, deploymen
     if rehearsal || report.end.is_some() {
         workers(&mut text, binary, kept, openings, &report.workers);
     }
-    (text, u8::from(!passed || !report.done))
+    (text, u8::from(!passed || !report.done || only_workers && !rehearsal))
 }
 
 fn place(text: &mut String, at: &Undecoded) {
@@ -171,14 +204,8 @@ fn workers(
         return;
     };
     let (spoken, mut allowed) = engine_wires(text, binary, kept);
-    for name in &configured.names {
-        let name = String::from_utf8_lossy(name);
-        let Some(opening) = openings.iter().find(|opening| opening.worker.as_ref() == name) else {
-            allowed = false;
-            writeln!(text, "{binary} upgrade: worker {name} unknown: no opening kept since the engine's last start")
-                .expect("string write");
-            continue;
-        };
+    for opening in openings {
+        let name = &opening.worker;
         match judge(&spoken, configured.room, &configured.schema, &statement(opening)) {
             Ok(_) => writeln!(text, "{binary} upgrade: worker {name} may stay: opened {}", at(opening.at))
                 .expect("string write"),
@@ -279,7 +306,8 @@ mod tests {
         let mut events = Queue::uncapped();
         events.push(event);
         Report {
-            workers: decode_tests::configured(&[]),
+            checkpoint: None,
+            workers: decode_tests::configured(),
             events,
             elapsed: Duration::from_secs(1),
             end: None,

@@ -11,6 +11,7 @@ pub fn home_limits() -> d::Limits {
     limits.client.domain.handles = 24;
     limits.client.domain.watches = 22;
     limits.client.domain.reads = 16;
+    limits.client.domain.rows = 8;
     limits
 }
 
@@ -227,7 +228,9 @@ pub fn home_documents_with_status(
                 up: jig_client::Up::Watched {
                     watch: live.expect("Home chats"),
                     event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(
-                        chats.as_ref().map_or(c::Tasks { rows, more: false }, |chats| chats.live.clone()),
+                        chats
+                            .as_ref()
+                            .map_or(c::Tasks { ended_mark: 0, rows, more: false }, |chats| chats.live.clone()),
                     ))),
                 },
             },
@@ -477,6 +480,10 @@ pub fn settle_home(
                 if status.is_some_and(|fixture| fixture.goals) {
                     let mut goal = super::chats::line();
                     goal.tracked = Some(1);
+                    goal.parts = List::from_boxed(Box::new([temper_fixtures::client_documents::goal_part(
+                        Some((b"A goal report.", f::NOW)),
+                        None,
+                    )]));
                     rows.push(goal).unwrap();
                 }
                 drive(
@@ -486,6 +493,7 @@ pub fn settle_home(
                             up: jig_client::Up::Watched {
                                 watch,
                                 event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                                    ended_mark: 0,
                                     rows,
                                     more: false,
                                 }))),
@@ -517,8 +525,25 @@ pub fn settle_home(
                     },
                 )
             }
-            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Inbox { group, .. }) } => {
+            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Inbox { group, after, .. }) } => {
                 let Some(needs) = needs else { continue };
+                if after.is_some() {
+                    let mut replies = drive(
+                        root,
+                        d::Event::Client {
+                            event: jig_client::Event::Up {
+                                up: jig_client::Up::ReadDone {
+                                    read,
+                                    result: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Busy)),
+                                },
+                            },
+                        },
+                    );
+                    while let Some(reply) = replies.pop() {
+                        out.push(reply);
+                    }
+                    continue;
+                }
                 let mut rows = List::with_capacity(u32::try_from(needs.objects.len()).unwrap());
                 if group == c::InboxReadGroup::Needs {
                     for object in needs.objects {
@@ -533,7 +558,11 @@ pub fn settle_home(
                         rows,
                         cut: group == c::InboxReadGroup::Needs && needs.cut,
                         before: None,
-                        after: None,
+                        after: if group == c::InboxReadGroup::Needs && needs.cut {
+                            Some(c::Cursor::new(b"next".as_slice().into(), 4).unwrap())
+                        } else {
+                            None
+                        },
                         selection: status.filter(|fixture| fixture.goals).map(|_| {
                             List::from_boxed(Box::new([c::InboxSelection {
                                 cursor: c::InboxCursor::Number { number: 1 },
@@ -606,16 +635,17 @@ pub fn settle_home(
                     c::ReadValue::Tasks(Box::new(status.unwrap().goal_rows.as_ref().unwrap().ended.clone())),
                 )
             }
-            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Notes { scope, .. }) }
+            jig_client::Down::Read { what: jig_client::Readable::Jig(c::Read::Notes { .. }), .. }
                 if status.is_some_and(|fixture| fixture.goals) =>
             {
-                read_done(root, read, goal_notes(scope))
+                panic!("Home goal rows read no report notes")
             }
             jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { .. }) } => read_done(
                 root,
                 read,
                 c::ReadValue::Tasks(Box::new(chats.map_or(
                     c::TaskPage {
+                        ended_mark: 0,
                         live: List::with_capacity(0),
                         live_after: None,
                         ended: c::EndedGroup::Rows { rows: List::with_capacity(0), after: None, cut: false },
@@ -632,11 +662,10 @@ pub fn settle_home(
                         event: jig_client::Event::Up {
                             up: jig_client::Up::Watched {
                                 watch,
-                                event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(
-                                    chats.map_or(c::Tasks { rows: List::with_capacity(0), more: false }, |chats| {
-                                        chats.live.clone()
-                                    }),
-                                ))),
+                                event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(chats.map_or(
+                                    c::Tasks { ended_mark: 0, rows: List::with_capacity(0), more: false },
+                                    |chats| chats.live.clone(),
+                                )))),
                             },
                         },
                     },
@@ -706,27 +735,6 @@ pub fn status_parts() -> w::ProjectStatusParts {
 }
 
 pub const HOME_QUESTION: &[u8] = b"Which license?\n\nThe README needs a license.\n\nSaw: No license file.\nChoice: MIT (recommended)\nChoice: Apache";
-
-#[must_use]
-pub fn goal_notes(scope: c::NoteScope) -> c::ReadValue {
-    let mut rows = List::uncapped();
-    if scope == (c::NoteScope::Task { project: f::PROJECT, task: 9 }) {
-        rows.push(c::Note {
-            number: 1,
-            revision: c::Revision { value: 1 },
-            scope,
-            description: f::task::document_words(b"report: A goal report."),
-            body: f::task::document_words(b""),
-            writer: c::NoteAuthor::Task { task: 9, attempt: 1 },
-            tasks: List::with_capacity(0),
-            changed: Some(f::NOW),
-            acts: List::with_capacity(0),
-            cut: false,
-        })
-        .unwrap();
-    }
-    c::ReadValue::Notes(Box::new(c::NotePage { rows, before: None, after: None, cut: false }))
-}
 
 pub struct AwayFixture {
     pub lineage: List<c::Chip>,

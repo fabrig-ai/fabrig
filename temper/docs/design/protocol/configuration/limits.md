@@ -12,10 +12,15 @@
   setup host's, the clients' listener's forge routes' and the picker's;
   and the box's, which `temper-box serve` checks and takes none of but
   `box.line_bytes`, its pipe's (../setup/box.md).
-- **Two profiles, as jig's:** `small`, for one person's machine with
-  the mechanics' smallest work, and `standard`, a project of fabrig's
-  scale, its own development, with five times the
-  largest figure seen (`stock.md`); another name is refused. `temper-box init`'s
+- **One stock** (`../../draft/config.md`, 5.1): temper's figures are
+  one set, the stock, which is jig's stock with temper's figures over it,
+  and a document chooses no profile. A document's `limits.profile` may
+  be absent or `standard`, and either reads the stock. Any other name,
+  `small` among them, refuses the start, naming it. `small`'s figures
+  are a test's, in the fixtures crate `temper-limits-fixtures` (jig's
+  are in `jig-protocol-config-fixtures`), and never a document's. Where
+  this document gives `standard`'s figure, that is the stock's, and
+  `small`'s is the fixtures'. `temper-box init`'s
   document names `standard` for the engine's, the worker's and the
   application's limits alike (`../setup/init.md`, 3). Their numbers are
   constants in `temper-service`'s limits module, and the setup's and
@@ -43,7 +48,48 @@
   (`../../domain/agent/room.md`, 1); trimming is the fallback. Where a limit
   of temper's is a quantity jig's profile also sets, its constant cites
   jig's profile's.
-- **`small` starts as it stands** against an agent of its size:
+- **Sized from what** (`../../draft/config.md`, 5.2):
+  - **Counts:** a count (tasks, holds, inboxes, charters, executors,
+    changes, subscriptions, resources, repositories, projects, workers,
+    slots, client streams) is twice dev.fabrig.ai's figure of 2026-11-16
+    where that is above `standard`'s. It's rounded up to the least number
+    of the form d × 10ⁿ, 2ⁿ or 3 × 2ⁿ (34 → 40, 768 → 768, 758 → 768).
+    Elsewhere it stays at `standard`'s. A count a wire caps below that
+    is the cap, never below dev's: `forge.landing_members` is 5, the
+    worker wire's, not twice dev's 4. `forge.changes` is 768, twice
+    dev's 379 rounded, its store raised for it: the tier rows hold 1,537
+    landings, since a failing test's id is within 1,024 bytes (below).
+  - **A failing test's id:** `forge.tiers.test_id_bytes` is 512, twice
+    the longest id today (about 221 bytes, a fuzzy case's), within the
+    store's 1,024 (below).
+  - **Times:** a time is dev's where that is above `standard`'s: the
+    brief's gathering 300 s and the checkout's local timeout 60 s, for
+    example.
+  - **Other figures:** a figure with no source is dev's where that is
+    above `standard`'s. A figure with a source is derived
+    (`derived.md`).
+  - **The sign-in's lifetime stays a day.** dev's seven days serves its
+    automations, and dev keeps it as an override.
+  - **Each constant's comment says what it was sized from:** a figure
+    of dev's, a formula or a design's bound. A constant whose comment
+    cites a test world is sized again from what it bounds at the
+    stock's counts. What the start's checks tie to a figure moves with
+    it, by the least that passes.
+- **The stock covers fabrig's development** (`../../draft/config.md`,
+  5.2):
+  - **The deployment figures** are dev.fabrig.ai's documents' overrides
+    of 2026-11-16, named as fabrig's own development. They're recorded in
+    `temper-engine-service-vocabulary`'s limits module, each as its
+    document (the engine's or a worker's), its dotted name and its
+    value.
+  - **A focused test** resolves the stock as each document resolves it
+    with no override, the stock agent's derivations included
+    (`derived.md`, section 3). It holds every stock figure at or above
+    its recorded figure, but for the exceptions it names, each with its
+    reason: the sign-in's lifetime (above), and a worker's figures that
+    derive from its `slots` (`derived.md`, 5.2), which are held at dev's
+    `slots` instead.
+- **The fixtures' `small` starts as it stands** against an agent of its size:
   smith's, whose run bounds (its directories, their names,
   its accounts) are smith's own and no configuration changes (smith's
   `smith-domain-run`, `derive`; `smith-agent-service`), and whose largest
@@ -142,8 +188,8 @@
   watching more branches in a repository needs no more directories. Forge
   subscription admission and the connector both enforce the watched-name
   bound.
-- **`forge.landing_members` bounds a landing's changes,** 2 in both
-  profiles: at least the largest `batch` a project names, which the
+- **`forge.landing_members` bounds a landing's changes,** 5 in the
+  stock, its cap below: at least the largest `batch` a project names, which the
   start checks (`engine.md`, the batch), so a deployment whose project
   raises `batch` raises it with it. A landing holds a branch per member
   (`../../domain/landing.md`, 5.1), so `forge.resources_per_task` has
@@ -164,10 +210,13 @@
   oldest first, as new ones need room, those of live goals kept
   (`../../domain/forge/change/README.md`, 7). So it bounds the changes
   live at once, never every change made. Each tier row of the store
-  holds up to `2 * forge.changes + 1` landings (its pending ones, a run's
-  and a finding's blamed ones), within the store schema's ceiling for
-  them, 759 (`../store.md`, 4), so `forge.changes` is at most 379,
-  which the start checks (below). The forge's landed commits, the
+  holds up to `2 * forge.changes + 1` landings (its pending ones, a run's,
+  a finding's blamed ones, a probe's waiting groups and a posting's),
+  within the store schema's ceiling for them, 1,537 (`../store.md`, 4),
+  so `forge.changes` is at most 768, which the start checks (below), and
+  the stock's is 768. The store holds that many because a failing test's
+  id is within 1,024 bytes, `forge.tiers.test_id_bytes` at most that
+  (below). The forge's landed commits, the
   merges temper made, number `max(forge.landings, forge.changes)` at
   most; a merge finding them full erases one, those of no kept change
   first, and never waits on it to move its branch's head
@@ -334,15 +383,21 @@
   - the facts': `forge.judge_projects` at most 1024, an eighth of the bound on
     a party's facts on the client's wire
     (`../../client/forge/records.md`);
+  - the store's failing tests' ids: `forge.tiers.test_id_bytes` at most
+    the least of the store schema's ceilings on a failing test's id and
+    a flake's (`../store.md`, 4), 1,024, checked before the store's
+    sizing, which would otherwise refuse it naming a schema field:
+    `application.limits.overrides.forge.tiers.test_id_bytes: 1025, past
+    its bound of 1024, the most the store holds of a failing test's id`;
   - the store's tier rows': `forge.changes` at most the most they hold,
     `(c - 1) / 2` for `c` the least of the store schema's ceilings on a
-    tier row's pending landings, a run's landings and a finding's blamed
-    ones (`../store.md`, 4), 379 at their 759, checked before the store's
+    tier row's five lists of landings (`../store.md`, 4), 768 at their
+    1,537, checked before the store's
     sizing, which would otherwise refuse it as past its codec's bounds,
     naming no limit:
-    `application.limits.overrides.forge.changes: 380, past its bound of
-    379, the most the store's tier rows hold (2 * forge.changes + 1
-    within 759)`. Within it, a store bound the larger rows outgrow
+    `application.limits.overrides.forge.changes: 769, past its bound of
+    768, the most the store's tier rows hold (2 * forge.changes + 1
+    within 1537)`. Within it, a store bound the larger rows outgrow
     refuses the start as the store's sizing names it (`engine.limits.store:
     the store's map value, N bytes, past its bound of M bytes`), the
     store limit to raise with it;

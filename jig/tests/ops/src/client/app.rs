@@ -131,6 +131,9 @@ impl App for Ops {
     fn fire(root: &mut Self::Root, env: &Env<Self::Limits>, out: &mut Queue<Request>) {
         domain::fire(root, env, out);
     }
+    fn settle(root: &mut Self::Root, env: &Env<Self::Limits>, out: &mut Queue<Request>) {
+        domain::settle(root, env, out);
+    }
     fn take(root: &mut Self::Root, _env: &Env<Self::Limits>, _out: &mut Queue<Request>) {
         domain::take(root);
     }
@@ -182,7 +185,8 @@ impl App for Ops {
                 let event = match request {
                     jig_client::Request::Exchange { exchange, .. } => jig_client::Event::Lost { exchange },
                     jig_client::Request::OpenStream { .. } => jig_client::Event::StreamGone,
-                    jig_client::Request::Approval(_)
+                    jig_client::Request::AskedLink(_)
+                    | jig_client::Request::Approval(_)
                     | jig_client::Request::Authorized(_)
                     | jig_client::Request::ServiceCredential { .. }
                     | jig_client::Request::CloseStream
@@ -217,6 +221,7 @@ impl App for Ops {
                     }
                     jig_client::UnlinkedRequest::SignOut => jig_client::Event::SignOutLost,
                     jig_client::UnlinkedRequest::ApprovalAct(_)
+                    | jig_client::UnlinkedRequest::AskedLink(_)
                     | jig_client::UnlinkedRequest::Approval(_)
                     | jig_client::UnlinkedRequest::Authorized(_)
                     | jig_client::UnlinkedRequest::Told { .. }
@@ -269,7 +274,7 @@ impl App for Ops {
                 request @ jig_client::Request::Exchange { message: jig_client::Message::Request(bytes), exchange, .. },
         } = request
         {
-            use jig_client_protocol_wire::v27 as w;
+            use jig_client_protocol_wire as w;
             let keyed = w::Keyed::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("keyed Ops bytes");
             if *keyed.owner() == w::Owner::Jig {
                 return jig_client_protocol_kit::observe::client_sent(request);
@@ -401,7 +406,7 @@ fn infrastructure_sent(attempt: skein_lib::Token, key: [u8; 16], ask: &infra::As
 #[cfg(test)]
 mod tests {
     use super::*;
-    use jig_client_protocol_wire::v27 as w;
+    use jig_client_protocol_wire as w;
     use skein_lib::{Overflow, Token, Writer};
 
     const ATTEMPT: Token = Token::new(7);

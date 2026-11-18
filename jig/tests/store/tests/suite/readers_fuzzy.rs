@@ -178,6 +178,7 @@ fn summary_queries(seed: u64) {
     let (mut world, expected, summaries) = summary_owners(seed, &mut rng, &stand);
     for requester in [None, Some(tasks::Party::Person(1))] {
         let query = core::documents::TaskQuery {
+            parts: skein_lib::List::with_capacity(0),
             project: Some(1),
             requester,
             root: None,
@@ -194,7 +195,7 @@ fn summary_queries(seed: u64) {
             let answer = joined_answer(
                 &mut stand,
                 &mut world,
-                reads::Read::Tasks { query, live: None, ended: after.clone() },
+                reads::Read::Tasks { query: query.clone(), live: None, ended: after.clone() },
                 u32::try_from(1 + rng.below(4)).expect("page bound"),
             );
             let reads::Answer::Tasks(page) = answer else { panic!("task query seed {seed}") };

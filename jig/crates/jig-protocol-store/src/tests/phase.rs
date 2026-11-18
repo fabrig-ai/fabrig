@@ -25,9 +25,11 @@ use skein_lib::{Queue, Token};
 use skein_sim::{Answer, Ask, Config, Handle, Pid, Sim};
 
 mod checked;
+mod escalation_deciders;
 mod floor;
 mod history;
 mod jobs;
+mod layouts;
 mod registry;
 mod value_types;
 
@@ -260,7 +262,7 @@ struct Harness {
     sim: Sim,
     pid: Pid,
     root: Root,
-    io: [FileIo; 3],
+    io: [FileIo; 4],
     file_limits: FileLimits,
     seeded: crate::Seeded,
     trace: Vec<(Stage, Trace)>,
@@ -288,8 +290,8 @@ impl Harness {
             assert_eq!(io.adopt_root(fd), Some(Token::new(1)));
             io
         });
-        let [public, private, transcripts] = &mut io;
-        let seeded = crate::seed([public, private, transcripts], 1);
+        let [public, private, transcripts, checkpoints] = &mut io;
+        let seeded = crate::seed([public, private, transcripts, checkpoints], 1);
         Self {
             machine,
             handle,
@@ -333,7 +335,12 @@ impl Harness {
         crate::down(
             store,
             &env,
-            Request::Open { owner: Token::new(1), root: self.root, installation: fixtures::INSTALLATION },
+            Request::Open {
+                purpose: crate::Purpose::Serve,
+                owner: Token::new(1),
+                root: self.root,
+                installation: fixtures::INSTALLATION,
+            },
             &mut above,
             &mut below,
         );
@@ -393,6 +400,7 @@ impl Harness {
                 0 => Io::Store(arrived),
                 1 => Io::Secrets(arrived),
                 2 => Io::Transcripts(arrived),
+                3 => Io::Checkpoints(arrived),
                 _ => unreachable!(),
             };
             crate::up(store, &env, io, &mut above, &mut below);
@@ -766,8 +774,7 @@ fn assert_sealed(store: &mut Store, last: u64) {
     let mut expected = crate::format::current(store.application.version, fixtures::DEPLOYMENT);
     expected.levels = crate::upgrade::admission::binary(&store.owner_sets);
     assert_eq!(fixtures::get_kv(store, &key).expect("format"), expected.encode().expect("format bytes"));
-    let key = crate::keys::encode_own(&crate::keys::Own::Layouts, store.limits.store.key).expect("layouts key");
-    assert_eq!(fixtures::get_kv(store, &key), Some(store.layouts.encode()));
+    assert_eq!(fixtures::get_kv(store, &[0, 3]), None);
 }
 
 fn assert_refused(events: &[Event], store: &Store) {

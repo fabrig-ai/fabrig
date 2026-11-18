@@ -82,6 +82,7 @@ fn only_a_relevant_hint_restarts_an_unfinished_fresh_read_chain() {
             entry,
             heard: change::Heard {
                 delegate_running: false,
+                flake: false,
                 delegate_live: false,
                 review_request: None,
                 start_conflict: None,
@@ -120,6 +121,7 @@ fn both_fresh_base_facts_remain_dependencies_when_the_pull_and_branch_disagree()
         entry: 152,
         heard: change::Heard {
             delegate_running: false,
+            flake: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,
@@ -256,6 +258,7 @@ fn waiting_step(world: &mut World, entry: u64) {
         entry,
         heard: change::Heard {
             delegate_running: false,
+            flake: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,

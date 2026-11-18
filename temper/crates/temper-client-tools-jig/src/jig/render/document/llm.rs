@@ -72,6 +72,15 @@ fn model(value: &c::ModelEffort, out: &mut Encoder, cut: &mut Cut) {
 }
 fn wait(value: c::TaskWaitWhy, out: &mut Encoder) {
     match value {
+        c::TaskWaitWhy::Untooled { worker } => {
+            out.object_start();
+            out.key(b"untooled");
+            out.object_start();
+            out.key(b"worker");
+            out.unsigned(u64::from(worker));
+            out.object_end();
+            out.object_end();
+        }
         c::TaskWaitWhy::Refreshing => out.string(b"refreshing"),
         c::TaskWaitWhy::Host => out.string(b"host"),
         c::TaskWaitWhy::Empty => out.string(b"empty"),
@@ -163,6 +172,10 @@ pub(super) fn text_wait(task: &c::Task, limits: &crate::jig::Limits, out: &mut T
                 optional_number(source, out);
                 out.put(b": ");
                 match why {
+                    c::TaskWaitWhy::Untooled { worker } => {
+                        out.put(b"untooled on worker ");
+                        out.number(u64::from(worker));
+                    }
                     c::TaskWaitWhy::Refreshing => out.put(b"refreshing"),
                     c::TaskWaitWhy::Host => out.put(b"host"),
                     c::TaskWaitWhy::Empty => out.put(b"empty"),
@@ -185,6 +198,13 @@ fn wait_explanation(task: &c::Task, wait: c::TaskRunWait, limits: &crate::jig::L
             refused_explanation(why, out);
         }
         W::Account { account, why, .. } => match why {
+            R::Untooled { worker } => {
+                out.put(b"\n  its program started without its tools on worker ");
+                out.number(u64::from(worker));
+                out.put(b"; it runs on another worker that can take it, or there once it reconnects or the login is checked again: ");
+                account_command(b"verify", account, out);
+                out.put(b" --source program");
+            }
             R::Refreshing | R::Source(S::Asking | S::Granted) => {}
             R::Empty => empty_account_explanation(task, limits, out),
             R::Host => {
@@ -645,7 +665,7 @@ fn bound_clause(why: c::AgentShortfall, required: u64, at: Option<skein_lib::Wal
         }
         S::Spend => {
             out.put(b"a run here may spend ");
-            out.number(required);
+            super::super::amount(required, out);
         }
         S::Message => {
             out.put(b"a message here may be ");
@@ -674,7 +694,11 @@ fn bound_charter(charter: u32, at: Option<skein_lib::Wall>, out: &mut Text) {
     }
 }
 fn bound_amount(why: c::AgentShortfall, value: u64, out: &mut Text) {
-    out.number(value);
+    if why == c::AgentShortfall::Spend {
+        super::super::amount(value, out);
+    } else {
+        out.number(value);
+    }
     match why {
         c::AgentShortfall::Time { .. } | c::AgentShortfall::Waiting { .. } | c::AgentShortfall::Checks { .. } => {
             out.put(b" ms");

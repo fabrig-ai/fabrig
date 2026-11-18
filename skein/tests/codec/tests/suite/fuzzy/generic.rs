@@ -49,7 +49,7 @@ mod tests {
         for family in generated::families() {
             let schema = skein_codec::schema::parse(family.text.as_bytes()).expect("schema");
             let drawn_schema = skein_codegen::parse(family.text).expect("generator schema");
-            let goldens = skein_codegen::generate(&drawn_schema).goldens;
+            let goldens = skein_codegen::goldens(&drawn_schema);
             for root in family.roots {
                 let decl = schema.find(root.name.as_bytes()).expect("root");
                 let mut oracle = generic::Oracle { schema: &schema, decl, family: &family, root, value: &mut value };
@@ -102,7 +102,7 @@ mod tests {
                 }
             }
         }
-        // 28 roots * (6144 drawn/mutated + 784 arbitrary), plus 4 per golden.
-        assert_eq!(cases, 194_320);
+        // 50 roots * (6144 drawn/mutated + 784 arbitrary), plus 4 per golden.
+        assert_eq!(cases, 347_008);
     }
 }

@@ -178,7 +178,6 @@ class PlacementTests(RunnerFixture):
             ('a::suite', 'temper/crates/a/Cargo.toml', 'test', 'temper', 'domain'),
             ('a', 'temper/crates/a/Cargo.toml', 'lib', 'temper', 'step'),
             ('a::bin/a', 'temper/crates/a/Cargo.toml', 'bin', 'temper', 'step'),
-            ('a::generated', 'temper/crates/a/Cargo.toml', 'test', 'temper', 'step'),
             ('a::unplaced', 'temper/crates/a/Cargo.toml', 'test', 'temper', None),
             ('b::suite', 'skein/tests/b/Cargo.toml', 'test', 'skein', 'protocol'),
             ('c::suite', 'smith/tests/c/Cargo.toml', 'test', 'smith', 'world'),
@@ -187,14 +186,13 @@ class PlacementTests(RunnerFixture):
             ('x', 'tests/x/Cargo.toml', 'lib', 'repository', 'checks'),
             ('x::t', 'tests/x/Cargo.toml', 'test', 'repository', 'checks'),
             ('x::bin/x', 'tests/x/Cargo.toml', 'bin', 'repository', 'checks'),
-            ('x::generated', 'tests/x/Cargo.toml', 'test', 'repository', 'checks'),
         ]
         self.placement_binaries(rows)
         layers = self.root / 'tools/tiers/layers.toml'
         layers.parent.mkdir(parents=True)
         layers.write_text('layers = ["step", "domain", "protocol", "world", "machine"]\n'
                           '[temper]\n"a::suite" = "domain"\n'
-                          '"a" = "world"\n"a::bin/a" = "world"\n"a::generated" = "world"\n'
+                          '"a" = "world"\n"a::bin/a" = "world"\n'
                           '[skein]\n"b::suite" = "protocol"\n'
                           '[smith]\n"c::suite" = "world"\n'
                           '[jig]\n"d::suite" = "machine"\n'
@@ -207,7 +205,6 @@ class PlacementTests(RunnerFixture):
         rows = [
             ('a', 'temper/crates/a/Cargo.toml', 'lib', 'temper', 'step'),
             ('a::bin/a', 'temper/crates/a/Cargo.toml', 'bin', 'temper', 'step'),
-            ('a::generated', 'temper/crates/a/Cargo.toml', 'test', 'temper', 'step'),
             ('a::suite', 'temper/crates/a/Cargo.toml', 'test', 'temper', None),
             ('x', 'tests/x/Cargo.toml', 'lib', 'repository', 'checks'),
             ('x::t', 'tests/x/Cargo.toml', 'test', 'repository', 'checks'),

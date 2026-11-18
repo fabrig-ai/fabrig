@@ -154,9 +154,12 @@ pub fn world_document_with(edit: impl FnOnce(&mut serde_json::Value)) -> serde_j
     let worker: serde_json::Value = serde_json::from_slice(channel::WORKER_DOCUMENT).expect("worker JSON");
     value["workers"] = worker["workers"].clone();
     value["workers"][0]["engine"] = serde_json::json!({"in_process":"workers"});
-    value["workers"][0]["agent"] = serde_json::json!({"program":"/opt/temper/bin/temper","configuration":"/opt/temper/agent.json","arguments":["internal", "agent","/opt/temper/agent.json"]});
-    value["workers"][0]["limits"]["overrides"]["hub.accounts"] = 4.into();
-    value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = 1024.into();
+    value["workers"][0]["name"] = "local".into();
+    value["workers"][0].as_object_mut().expect("worker").remove("agent");
+    value["workers"][0].as_object_mut().expect("worker").remove("limits");
+    value["engine"]["limits"]["overrides"]["hub.accounts"] = 4.into();
+    value["engine"]["limits"]["overrides"]["hub.event_bytes"] = 1024.into();
+    value["engine"]["limits"]["overrides"]["hub.run_calls"] = 1.into();
     value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);
     for (name, count) in [
         ("core.load_slots", 8),
@@ -173,7 +176,7 @@ pub fn world_document_with(edit: impl FnOnce(&mut serde_json::Value)) -> serde_j
         "webhooks":{"listener":{"socket":"127.0.0.1:0"}},
 "clients":{"listener":{"socket":CLIENTS.to_string()},"public":null,"bundle":null},
         "demo":null,"sign_in":null,
-        "limits":{"profile":"small","overrides":{"checkout.name_bytes":256,"checkout.repositories":2,"checkout.message_bytes":4096,"forge.name_bytes":64,"forge.resources_per_task":3,"git_component.stdout_bytes":131_072}}});
+        "limits":{"overrides":{"forge.client.answer_bytes":65_536,"forge.client.op_bytes":512,"forge_component.body_bytes":16_384,"checkout.name_bytes":256,"checkout.repositories":2,"checkout.message_bytes":4096,"forge.name_bytes":64,"forge.landing_members":2,"forge.resources_per_task":3,"git_component.stdout_bytes":131_072}}});
     settings::stage_policies(&mut value);
     for member in ["charters", "templates", "policies", "rules"] {
         value["engine"].as_object_mut().expect("engine").remove(member);
@@ -264,7 +267,7 @@ pub fn agent_profile() -> smith_agent_service::profile::Profile {
     profile.policy.max_turns = 800;
     profile.policy.max_time = Duration::from_secs(28_800);
     profile.policy.check_timeout = Duration::from_secs(5);
-    let hub = jig_protocol_config::profile(jig_protocol_config::Profile::Small).hub;
+    let hub = jig_protocol_config::stock().hub;
     profile.policy.inbox = hub.held.max(hub.inbox);
     profile.policy.sections = 8;
     profile
@@ -348,8 +351,10 @@ pub fn agent() -> temper_service::settings::Agent {
 /// Service metadata derived from the profile used by the hosted agent.
 #[must_use]
 pub fn agent_for(profile: &smith_agent_service::profile::Profile) -> temper_service::settings::Agent {
-    let limits = agent_limits_for(profile);
-    let host_limits = smith_local_service::profile::host_limits(profile, &limits).expect("agent host limits");
+    let configuration = agent_configuration_for(profile);
+    let limits = configuration.limits;
+    let host_limits = smith_local_service::profile::host_limits(profile, &limits, &configuration.domain.limits)
+        .expect("agent host limits");
     let channel = limits.channel;
     let mut protocol = smith_host_protocol::Limits {
         bodies: channel.bodies,
@@ -388,7 +393,7 @@ pub fn agent_for(profile: &smith_agent_service::profile::Profile) -> temper_serv
 /// Apply the repository composition's policies and worker settings.
 pub fn configure(value: &mut serde_json::Value) {
     value["workers"][0]["slots"] = AGENTS.into();
-    value["workers"][0]["limits"]["overrides"]["hub.slots"] = AGENTS.into();
+    value["engine"]["limits"]["overrides"]["hub.slots"] = AGENTS.into();
     let grants: Vec<_> = GRANT_KINDS
         .into_iter()
         .map(|kind| {
@@ -499,11 +504,8 @@ pub fn given_with(document: &serde_json::Value, stock: bool, read_wait: bool) ->
     let forge = if document["application"]["demo"].is_null() {
         settings::forge(&document)
     } else {
-        let limits = temper_service::limits::engine(
-            &engine.limits,
-            &temper_service::limits::profile(temper_service::limits::Profile::Small),
-        )
-        .expect("playground engine limits");
+        let limits = temper_service::limits::engine(&engine.limits, &temper_service::limits::stock())
+            .expect("playground engine limits");
         temper_service::stock::forge(&limits)
     };
     temper_service::stock::Given::Own { jig: defaults, forge, ways: temper_service::stock::ways() }

@@ -48,6 +48,56 @@ fn a_raw_file_read_reuses_the_forgejo_fakes_bodyless_304() {
     assert!(world.closed);
 }
 #[test]
+fn closing_a_pull_merged_on_the_forgejo_fake_is_done_after_one_item_read() {
+    use skein_fake_forge_domain::api as raw;
+    use skein_forge::api::Write;
+    use skein_forge_machine_world::joint::{Joint, REPO};
+    let mut world = Joint::new(7);
+    world.run_for(SECOND);
+    let head = world.push(b"feature", b"change");
+    let raw::Answer::Created(number) = world
+        .direct(raw::Op::Write(raw::Write::OpenPull {
+            title: Box::from(b"pull".as_slice()),
+            body: Box::from(b"body".as_slice()),
+            head: Box::from(b"feature".as_slice()),
+            base: Box::from(b"main".as_slice()),
+            opens_empty: false,
+        }))
+        .expect("pull created by another hand")
+    else {
+        panic!("created pull")
+    };
+    world
+        .direct(raw::Op::Write(raw::Write::Merge { number, head, how: raw::MergeHow::Style }))
+        .expect("merged by another hand");
+    // Resolve the repository before the close, so its cost is just PATCH + GET.
+    world.call(1, REPO, Op::Read(Read::Pull { number, ci: false }));
+    world.run_for(SECOND);
+    let before = world.answered(1).expect("pull before close").result.clone();
+    let Ok(ResultAnswer::Pull(pull)) = &before else { panic!("merged pull") };
+    assert_eq!(pull.state, skein_forge::api::State::Closed);
+    assert!(pull.merged.is_some());
+    let requests_before = world.request_lines().len();
+    world.call(2, REPO, Op::Write(Write::Close { number }));
+    world.run_for(SECOND);
+    let answered = world.answered(2).expect("close answered");
+    assert_eq!((&answered.result, answered.cost), (&Ok(ResultAnswer::Done), 2));
+    assert_eq!(
+        world.request_lines().get(requests_before..).expect("close requests"),
+        &[
+            b"PATCH /api/v1/repos/org/repo/issues/1 HTTP/1.1\r\n".to_vec(),
+            b"GET /api/v1/repos/org/repo/issues/1 HTTP/1.1\r\n".to_vec(),
+        ]
+    );
+    world.call(3, REPO, Op::Read(Read::Pull { number, ci: false }));
+    world.run_for(SECOND);
+    assert_eq!(world.answered(3).expect("pull after close").result, before);
+    world.action(skein_forge_connection::Request::Close);
+    world.run_for(SECOND);
+    assert!(world.closed);
+}
+
+#[test]
 fn the_start_reaches_ready_from_the_recorded_answers() {
     let mut world = Machine::ready(7, vec![]);
     world.run_for(SECOND);

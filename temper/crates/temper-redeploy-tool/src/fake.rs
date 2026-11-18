@@ -48,6 +48,7 @@ pub struct Deployment {
     /// Lines logged by each settled engine stop, in stop order.
     pub stop_logs: VecDeque<Vec<String>>,
     pub check: Output,
+    pub verdict: Output,
     pub openings: Vec<Opening>,
     /// Optional per-start openings, consumed before falling back to `openings`.
     pub opening_rounds: BTreeMap<usize, VecDeque<Opening>>,
@@ -58,6 +59,7 @@ pub struct Deployment {
     /// Override a binary's version response, even after fetching it.
     pub versions: BTreeMap<(Part, String), Output>,
     pending: Vec<(usize, u64, String)>,
+    checkpoints: u64,
 }
 #[must_use]
 pub fn output(code: i32, stdout: &str) -> Output {
@@ -74,8 +76,9 @@ pub fn description(count: usize) -> Description {
             stop: "stop engine".into(),
             start: "start engine".into(),
             log: "log engine {since}".into(),
-            check: "check {binary}".into(),
-            backup: "backup {name}".into(),
+            check: "check {binary} {checkpoint}".into(),
+            checkpoint: "checkpoint {binary}".into(),
+            verdict: "verdict {binary} {checkpoint}".into(),
             swap: "swap {from} {to}".into(),
             ctl: "ctl engine".into(),
         },
@@ -130,14 +133,23 @@ impl Deployment {
             log: Vec::new(),
             stop_logs: VecDeque::new(),
             check: output(0, "temper-engine upgrade: workers may stay: yes\n"),
+            verdict: output(0, "temper-engine upgrade: workers may stay: yes\n"),
             ctl: BTreeMap::new(),
             failures: BTreeMap::new(),
             versions: BTreeMap::new(),
             pending: Vec::new(),
+            checkpoints: 0,
         }
     }
     pub fn check_answer(&mut self, code: i32, lines: &str) {
         self.check = output(code, lines);
+    }
+    pub fn verdict_answer(&mut self, code: i32, lines: &str) {
+        self.verdict = output(code, lines);
+    }
+    fn checkpoint_name(&mut self) -> String {
+        self.checkpoints += 1;
+        format!("{:020}-0123456789abcdef", self.checkpoints)
     }
     pub fn opening(&mut self, worker: usize, opening: Opening) {
         self.openings[worker] = opening;
@@ -264,14 +276,30 @@ impl Deployment {
         if captures(&self.description.engine.check, line).is_some() {
             return self.check.clone();
         }
-        if captures(&self.description.engine.backup, line).is_some() {
-            return output(0, "");
+        if captures(&self.description.engine.verdict, line).is_some() {
+            return self.verdict.clone();
+        }
+        if captures(&self.description.engine.checkpoint, line).is_some() {
+            if self.engine.running {
+                return output(1, "temper-engine checkpoint: deployment is in use by another process");
+            }
+            let name = self.checkpoint_name();
+            return output(
+                0,
+                &format!(
+                    "temper-engine checkpoint: {name} at commit 42, secrets at 7: 12 files linked, 3 copied (4096 bytes) in 15 ms; 4096 bytes held; 0 older removed, 0 skipped\n"
+                ),
+            );
         }
         if let Some(arguments) = line.strip_prefix(&format!("{} ", self.description.engine.ctl)) {
             let arguments = shell_words(arguments.strip_suffix(" </dev/null").unwrap_or(arguments)).join(" ");
             return match self.ctl.get_mut(&arguments) {
                 Some(answers) if answers.len() > 1 => answers.pop_front().expect("more than one answer"),
                 Some(answers) => answers.front().cloned().expect("ctl answer exists"),
+                None if arguments == "deployment checkpoint --json" => {
+                    let name = self.checkpoint_name();
+                    output(0, &serde_json::json!({"name": name}).to_string())
+                }
                 None => Output { code: Some(1), stdout: String::new(), stderr: format!("unscripted ctl: {arguments}") },
             };
         }

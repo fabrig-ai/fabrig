@@ -100,6 +100,18 @@ browsers use (`configuration/engine.md`). With one:
 - **On the host alone:** jig enables it only on a loopback listener; the
   proxy denies its route from outside; the owner reaches it through an
   SSH tunnel to the listener.
+- **A fresh one, asked:** once the printed links are spent, a client
+  signed in as a person asks the engine for a fresh one-time link for
+  its own party, `temper ctl DIRECTORY link --out FILE`
+  (`../client/ctl/README.md`, 6.1), so that the person's browser on the
+  host signs in with no restart of the engine (jig's
+  `protocol/client/sign-in.md`, the asked link). It signs in the asker's
+  party alone, never the first owner unless the asker is, and no longer
+  than the asking sign-in. Its URL is the printed link's, so the
+  proxy's denial of that route from outside (2.1) keeps it on the host
+  too; its ask, `/jig/v1/link/ask`, is a person's exchange as any other,
+  and needs no denial: it answers a secret to a person's credential
+  alone, and the link signs in on the host alone.
 - **Whom it signs in:** with `sign_in` configured, the first of jig's
   `owners` whose identity is Google's provider, with that member's login
   as login and name; there must be one, or the start is refused, naming
@@ -548,7 +560,8 @@ its sockets tagged as the server's are.
   alone (one diagnostic), and a kind past its schema's ceiling among
   them (the negative walk, 2.5).
 - **Step tests:** the configuration's members and their checks; the
-  `Binding` family's codec, goldens and fuzz seed; the forge connector's
+  `Binding` family's records drift, pinned constructs, built-value round trips
+  and fuzz seed; the forge connector's
   bind in its world (`tests/engine/forge`); the claims' reader; the
   fetcher against scripted io; the endings' pages' bytes.
 - **The view's tests:** the signed-out main with and without a way, and

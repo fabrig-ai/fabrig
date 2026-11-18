@@ -135,6 +135,12 @@ pub struct Call {
 /// parent -> fleet
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Event {
+    /// A task's program source started without its tools on this channel (domain/engine/fleet.md).
+    Untooled {
+        run: Token,
+        channel: Token,
+        source: crate::SourceName,
+    },
     /// The kept word supplied before the start adopts its claims (domain/engine/restart.md, 1).
     Restarting {
         wait: Duration,

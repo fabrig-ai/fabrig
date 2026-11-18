@@ -223,6 +223,7 @@ impl Fixture {
             | jig_client::Event::Start { .. }
             | jig_client::Event::StartUnlinked { .. }
             | jig_client::Event::SignIn { .. }
+            | jig_client::Event::AskLink
             | jig_client::Event::AskApproval
             | jig_client::Event::ReadApproval { .. }
             | jig_client::Event::DecideApproval { .. }
@@ -239,6 +240,8 @@ impl Fixture {
             | jig_client::Event::StreamGone
             | jig_client::Event::Stored
             | jig_client::Event::NotStored
+            | jig_client::Event::Part { .. }
+            | jig_client::Event::Done { .. }
             | jig_client::Event::Up { .. } => None,
         };
         let reading = match &event {
@@ -246,6 +249,7 @@ impl Fixture {
             jig_client::Event::Start { .. }
             | jig_client::Event::StartUnlinked { .. }
             | jig_client::Event::SignIn { .. }
+            | jig_client::Event::AskLink
             | jig_client::Event::AskApproval
             | jig_client::Event::ReadApproval { .. }
             | jig_client::Event::DecideApproval { .. }
@@ -263,6 +267,8 @@ impl Fixture {
             | jig_client::Event::StreamGone
             | jig_client::Event::Stored
             | jig_client::Event::NotStored
+            | jig_client::Event::Part { .. }
+            | jig_client::Event::Done { .. }
             | jig_client::Event::Up { .. } => None,
         };
         let mut out = Queue::uncapped();
@@ -309,6 +315,7 @@ impl Fixture {
                     );
                 }
                 jig_client::UnlinkedRequest::ApprovalAct(_)
+                | jig_client::UnlinkedRequest::AskedLink(_)
                 | jig_client::UnlinkedRequest::Approval(_)
                 | jig_client::UnlinkedRequest::Authorized(_)
                 | jig_client::UnlinkedRequest::SignOut
@@ -324,6 +331,9 @@ impl Fixture {
     }
     pub(crate) fn watch_token(&self, handle: Handle) -> Option<Token> {
         let subject = &self.ui.handles.watches.get(&handle)?.subject;
+        if *subject == contract::Subject::Me {
+            return Some(Token::new(0));
+        }
         for (held, token) in self.watches.as_slice().iter().rev() {
             if held == subject {
                 return Some(*token);
@@ -463,6 +473,7 @@ fn copy_client_event(event: &jig_client::Event) -> jig_client::Event {
         | jig_client::Event::Start { .. }
         | jig_client::Event::StartUnlinked { .. }
         | jig_client::Event::SignIn { .. }
+        | jig_client::Event::AskLink
         | jig_client::Event::AskApproval
         | jig_client::Event::ReadApproval { .. }
         | jig_client::Event::DecideApproval { .. }
@@ -475,6 +486,8 @@ fn copy_client_event(event: &jig_client::Event) -> jig_client::Event {
         | jig_client::Event::StreamGone
         | jig_client::Event::Stored
         | jig_client::Event::NotStored
+        | jig_client::Event::Part { .. }
+        | jig_client::Event::Done { .. }
         | jig_client::Event::Up { .. } => unreachable!("the UI emits only presentation requests"),
     }
 }

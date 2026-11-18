@@ -1,3 +1,4 @@
+mod awaiting;
 mod debug;
 pub(crate) mod fixtures;
 mod opening;

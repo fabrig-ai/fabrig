@@ -265,7 +265,7 @@ fn grouped(figure: u64) -> String {
     grouped
 }
 
-fn store_refusal(binary: &str, (lines, exit): (Box<[u8]>, u8)) -> (String, u8) {
+pub(crate) fn store_refusal(binary: &str, (lines, exit): (Box<[u8]>, u8)) -> (String, u8) {
     use std::fmt::Write as _;
     let lines = String::from_utf8(lines.into_vec()).expect("refusal is UTF-8");
     let mut named = String::new();
@@ -465,6 +465,14 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
             format!("listening {name} {addr}\n")
         }
 
+        temper_engine_service::Note::WorkerFigures { limits, endpoints, revision } => {
+            format!(
+                "{binary} serve: figures for workers: {limits} limits, {endpoints} endpoints, agents setting revision {revision}\n"
+            )
+        }
+        temper_engine_service::Note::WorkerFiguresTaken { worker } => {
+            format!("{binary} serve: worker {} took its figures\n", String::from_utf8_lossy(&worker))
+        }
         temper_engine_service::Note::WorkerTold { worker, version, wait } => {
             let worker = String::from_utf8_lossy(&worker);
             match wait {
@@ -536,6 +544,7 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
                 Kind::SignedOut => "signed-out",
                 Kind::Job => "job",
                 Kind::JobAnswer => "job-answer",
+                Kind::Figures => "figures",
                 Kind::Wires => "wires",
                 Kind::Ask => "ask",
                 Kind::Restarting => "restarting",
@@ -853,6 +862,7 @@ fn refusal(reason: temper_engine_service::Refusal) -> String {
             Some(Reason::Replaced) => "replaced".into(),
             Some(Reason::NotAdmitted) => "not-admitted".into(),
             Some(Reason::Stopping) => "stopping".into(),
+            Some(Reason::Starting) => "starting".into(),
             None => format!("code-{code}"),
         },
     }

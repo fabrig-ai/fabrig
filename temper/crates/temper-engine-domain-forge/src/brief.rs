@@ -540,9 +540,9 @@ fn files_omitted(fetch: &mut BriefFetch, prefix: &[u8], reason: &[u8], next_page
         append(&mut fetch.words, &decimal(files));
         append(&mut fetch.words, b" files; ");
     }
-    append(&mut fetch.words, b"read_pull_files from page ");
+    append(&mut fetch.words, b"read_issues what=pull_files from page ");
     append(&mut fetch.words, &decimal(u64::from(next_page)));
-    append(&mut fetch.words, b" lists the rest, and read_file reads a path at the head or the base]\n");
+    append(&mut fetch.words, b" lists the rest, and read_forge what=file reads a path at the head or the base]\n");
 }
 
 fn identity_stage(stage: BriefStage) -> bool {
@@ -570,14 +570,17 @@ fn past_cutoff(fetch: &BriefFetch, now: skein_lib::Time) -> bool {
     }
 }
 
-const JOB_CUT: &[u8] = b"[job log cut at the brief's deadline; read_checks names its job and read_job reads its log]\n";
+const JOB_CUT: &[u8] =
+    b"[job log cut at the brief's deadline; read_ci what=checks names its job and read_ci what=job reads its log]\n";
 
 fn comparison_cut(fetch: &mut BriefFetch) {
     if comparison(fetch).is_some() {
         append(&mut fetch.words, b"[comparison cut at the brief's deadline: not read; ");
         match fetch.mode {
             PullMode::Conflict(_) | PullMode::Semantic(_) => append(&mut fetch.words, b"read it in your checkout"),
-            PullMode::Review | PullMode::Other => append(&mut fetch.words, b"read_pull_files lists the pull's files"),
+            PullMode::Review | PullMode::Other => {
+                append(&mut fetch.words, b"read_issues what=pull_files lists the pull's files");
+            }
         }
         append(&mut fetch.words, b"]\n");
     }
@@ -598,9 +601,12 @@ fn finish_at_cutoff(domain: &mut Domain, owner: Token, mut fetch: BriefFetch, ou
                 append(&mut fetch.words, b" of ");
                 append(&mut fetch.words, &decimal(count));
             }
-            append(&mut fetch.words, b" files read; read_pull_files from page ");
+            append(&mut fetch.words, b" files read; read_issues what=pull_files from page ");
             append(&mut fetch.words, &decimal(u64::from(fetch.file_page)));
-            append(&mut fetch.words, b" lists the rest, and read_file reads a path at the head or the base]\n");
+            append(
+                &mut fetch.words,
+                b" lists the rest, and read_forge what=file reads a path at the head or the base]\n",
+            );
             comparison_cut(&mut fetch);
         }
         BriefStage::Compare => comparison_cut(&mut fetch),
@@ -609,7 +615,7 @@ fn finish_at_cutoff(domain: &mut Domain, owner: Token, mut fetch: BriefFetch, ou
             append(&mut fetch.words, &decimal(u64::from(fetch.next_review.saturating_sub(1))));
             append(&mut fetch.words, b" of ");
             append(&mut fetch.words, &decimal(skein_lib::len_u64(fetch.review_ids.len())));
-            append(&mut fetch.words, b" reviews' remarks read; read_remarks reads a review's remarks]\n");
+            append(&mut fetch.words, b" reviews' remarks read; read_issues what=remarks reads a review's remarks]\n");
         }
         BriefStage::Run | BriefStage::Job => {
             append(&mut fetch.words, JOB_CUT);
@@ -811,7 +817,7 @@ fn comparison_words(fetch: &mut BriefFetch, files: Box<[Box<[u8]>]>, ahead: u64,
         append(&mut fetch.words, &decimal(u64::from(rows)));
         append(
             &mut fetch.words,
-            if base { b"); read them in your checkout]\n" } else { b"); read_pull_files lists them]\n" },
+            if base { b"); read them in your checkout]\n" } else { b"); read_issues what=pull_files lists them]\n" },
         );
     }
 }

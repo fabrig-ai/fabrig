@@ -199,18 +199,22 @@ fn home_team(
         Event::Start { address, kept: List::with_capacity(0), with: Some(jig_client::With::Transport) },
     );
     append(&mut out, f::client(&mut root, jig_client::Event::Up { up: Up::Served { served: true, versions: None } }));
+    let me_opened = {
+        let mut me = me();
+        if across {
+            me.projects.get_mut(1).unwrap().name = c::DocumentText::complete(
+                c::Text::new(b"shop".as_slice().into(), f::limits().client.domain.text).unwrap(),
+            );
+        }
+        Up::Watched { watch: skein_lib::Token::new(0), event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) }
+    };
+    let mut me_output = f::client(&mut root, jig_client::Event::Up { up: me_opened });
+    while let Some(request) = me_output.pop() {
+        out.push(request);
+    }
     while let Some(request) = out.pop() {
         let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else { continue };
         let up = match down {
-            jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Me) } => {
-                let mut me = me();
-                if across {
-                    me.projects.get_mut(1).unwrap().name = c::DocumentText::complete(
-                        c::Text::new(b"shop".as_slice().into(), f::limits().client.domain.text).unwrap(),
-                    );
-                }
-                Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) }
-            }
             jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Tasks { query, .. }) }
                 if query.label == Some(3) =>
             {
@@ -253,7 +257,11 @@ fn home_team(
                 }
                 Up::Watched {
                     watch,
-                    event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false }))),
+                    event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                        ended_mark: 0,
+                        rows,
+                        more: false,
+                    }))),
                 }
             }
             jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Task { task }) } => {
@@ -349,14 +357,15 @@ fn home_team(
                     result: jig_client::Readout::Family { family: wire::FORGE, record: Some(f::draft_setting(true)) },
                 }
             }
-            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { .. }) } => {
-                Up::ReadDone {
-                    read,
-                    result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(
-                        c::TaskPage { live: List::with_capacity(0), live_after: None, ended: c::EndedGroup::None },
-                    )))),
-                }
-            }
+            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { .. }) } => Up::ReadDone {
+                read,
+                result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(c::TaskPage {
+                    ended_mark: 0,
+                    live: List::with_capacity(0),
+                    live_after: None,
+                    ended: c::EndedGroup::None,
+                })))),
+            },
             jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Inbox { group, .. }) } => {
                 if brief.is_none() {
                     continue;

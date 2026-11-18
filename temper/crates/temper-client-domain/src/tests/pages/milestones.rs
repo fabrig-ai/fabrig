@@ -11,7 +11,7 @@ use crate::{
     Address, GoalsFilter, WorkFilter,
     pages::{
         Request,
-        milestones::{self, Count, Headline, Mark, Milestone, Milestones, Segment, State},
+        milestones::{self, Count, Headline, Mark, MilestoneRead, Milestones, Segment, State},
     },
 };
 use jig_client::{Down, Readable, Readout, Told, Up, Watchable, contract as c};
@@ -44,6 +44,41 @@ fn limits() -> crate::Limits {
     limits.client.domain.requests.bytes = 16_777_216;
     limits.client.domain.requests.out = 512;
     limits
+}
+fn in_milestone(mut line: c::TaskLine, task: u64) -> c::TaskLine {
+    line.parts = List::from_boxed(Box::new([temper_fixtures::client_documents::goal_part(None, Some(task))]));
+    line
+}
+fn row_part(mut line: c::TaskLine, goals: &[c::TaskLine], more: u32) -> c::TaskLine {
+    let goals: Vec<_> = goals.iter().cloned().map(|line| (line, Some(b"Part report headline.".as_slice()))).collect();
+    line.parts =
+        List::from_boxed(Box::new([temper_fixtures::milestones::part(Some(WALL), totals(2, 0, 17), &goals, more)]));
+    line
+}
+fn no_drawn_reads(down: &[Down]) {
+    assert!(task_reads(down).is_empty(), "no task document or requester reads");
+    for request in down {
+        match request {
+            Down::Read { what: Readable::Family { record, .. }, .. } => {
+                if let Some(reading) = wire::decode_reading(&record.bytes, &w::CEILINGS)
+                    && let w::Read::Milestone(_) = reading.read()
+                {
+                    panic!("no milestone totals read");
+                }
+            }
+            Down::Open { subject: Watchable::Jig(c::Subject::Tasks { query, .. }), .. }
+            | Down::Read { what: Readable::Jig(c::Read::Tasks { query, .. }), .. } => {
+                assert!(query.parent.is_none(), "no drawn goal query");
+            }
+            Down::Save { .. }
+            | Down::Erase { .. }
+            | Down::Send { .. }
+            | Down::Open { .. }
+            | Down::Continue { .. }
+            | Down::Close { .. }
+            | Down::Read { .. } => {}
+        }
+    }
 }
 fn phase(line: &mut c::TaskLine, phase: c::ChipPhase) {
     line.chip.phase = phase.compact();
@@ -81,14 +116,12 @@ fn totals(done: u32, failed: u32, live: u32) -> w::MilestoneTotals {
     )
     .unwrap()
 }
-fn total_answer(totals: w::MilestoneTotals) -> Readout {
-    let answer =
-        w::MilestoneAnswer::new(&w::CEILINGS, w::MilestoneAnswerParts { result: w::MilestoneResult::Totals(totals) })
-            .unwrap();
-    Readout::Family { family: wire::FORGE, record: Some(wire::milestone_answer(&answer)) }
-}
 fn page(rows: &[c::TaskLine], more: bool) -> Readout {
+    page_at(rows, more, 0)
+}
+fn page_at(rows: &[c::TaskLine], more: bool, ended_mark: u64) -> Readout {
     Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(c::TaskPage {
+        ended_mark,
         live: List::with_capacity(0),
         live_after: None,
         ended: c::EndedGroup::Rows {
@@ -105,10 +138,16 @@ struct Harness {
 }
 impl Harness {
     fn new(me: c::Me) -> Self {
+        Self::at(me, None)
+    }
+    fn at(me: c::Me, address: Option<Address>) -> Self {
         let limits = limits();
         let mut root = crate::unlinked(&limits, f::SEED);
         let watch = f::start(&mut root, List::with_capacity(0));
         let mut h = Self { root, limits, out: Queue::uncapped() };
+        if let Some(address) = address {
+            h.went(address);
+        }
         h.event(crate::Event::Client {
             event: jig_client::Event::Up {
                 up: Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) },
@@ -134,11 +173,15 @@ impl Harness {
         down
     }
     fn live(&mut self, watch: Token, rows: &[c::TaskLine]) {
+        self.live_at(watch, rows, 0);
+    }
+    fn live_at(&mut self, watch: Token, rows: &[c::TaskLine], ended_mark: u64) {
         self.event(crate::Event::Client {
             event: jig_client::Event::Up {
                 up: Up::Watched {
                     watch,
                     event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                        ended_mark,
                         rows: List::from_boxed(rows.into()),
                         more: false,
                     }))),
@@ -194,18 +237,6 @@ fn task_reads(down: &[Down]) -> Vec<(Token, u64)> {
         })
         .collect()
 }
-fn totals_read(down: &[Down]) -> Token {
-    for request in down {
-        if let Down::Read { read, what: Readable::Family { record, .. } } = request
-            && let Some(reading) = wire::decode_reading(&record.bytes, &w::CEILINGS)
-            && let w::Read::Milestone(_) = reading.read()
-        {
-            return *read;
-        }
-    }
-    panic!("totals read")
-}
-
 #[test]
 fn home_rows_group_before_sorting_and_limiting_and_filters_keep_first_position() {
     use crate::pages::goals::{
@@ -217,13 +248,14 @@ fn home_rows_group_before_sorting_and_limiting_and_filters_keep_first_position()
     let opened = h.open();
     let listed = watch(&opened, Some(LABEL), None, WINDOW);
     h.live(listed, &[line(M, Wall::from_nanos(9))]);
-    let children = watch(&h.down(), None, Some(M), WINDOW);
+    no_drawn_reads(&h.down());
     let mut g3 = line(3, Wall::from_nanos(11));
     g3.requester = c::Requester::Task(M);
     let mut g4 = done(4);
     g4.last_activity = Wall::from_nanos(8);
     g4.requester = c::Requester::Task(M);
-    h.live(children, core::slice::from_ref(&g3));
+    let g3 = in_milestone(g3, M);
+    let g4 = in_milestone(g4, M);
     // The shared read can know a goal before the milestone's ended read answers.
     let g1 = line(1, Wall::from_nanos(10));
     let g2 = done(2);
@@ -248,7 +280,7 @@ fn home_rows_group_before_sorting_and_limiting_and_filters_keep_first_position()
         .map(|task| {
             let mut goal = line(task, Wall::from_nanos(task));
             goal.requester = c::Requester::Task(M);
-            goal
+            in_milestone(goal, M)
         })
         .collect();
     let mut live = children;
@@ -279,9 +311,9 @@ fn home_rows_hide_old_milestones_and_keep_unknown_and_undrawn_goals() {
     h.answer(ended_read, page(&[old, recent], false));
     let mut unknown = line(1, WALL);
     unknown.requester = c::Requester::Task(999);
-    let mut recent_goal = done(2);
+    let mut recent_goal = in_milestone(done(2), 100);
     recent_goal.requester = c::Requester::Task(100);
-    let mut old_goal = done(3);
+    let mut old_goal = in_milestone(done(3), 101);
     old_goal.requester = c::Requester::Task(101);
     assert_eq!(
         home_rows(&[unknown], &[recent_goal, old_goal], Some(h.reads()), WALL).as_slice(),
@@ -289,7 +321,7 @@ fn home_rows_hide_old_milestones_and_keep_unknown_and_undrawn_goals() {
     );
     let many: Vec<_> = (200..217).map(|task| line(task, WALL)).collect();
     h.live(listed, &many);
-    let mut undrawn = line(4, WALL);
+    let mut undrawn = in_milestone(line(4, WALL), 216);
     undrawn.requester = c::Requester::Task(216);
     assert!(h.reads().milestone(216).is_none());
     let rows = home_rows(&[undrawn], &[], Some(h.reads()), WALL);
@@ -303,10 +335,11 @@ fn milestones_read_the_query_and_keep_it_across_the_four_pages() {
     let mut next = 31;
     let mut reads = Milestones::new(&mut next);
     let mut out = Queue::uncapped();
-    reads.configure(Some(&goals_me()), PROJECT, root.client(), &limits(), WALL, &mut next, &mut out);
+    reads.configure(Some(&goals_me()), PROJECT, root.client(), &limits(), WALL, &mut out);
     assert!(out.is_empty(), "no template 8, no reads");
-    reads.configure(Some(&me()), PROJECT, root.client(), &limits(), WALL, &mut next, &mut out);
+    reads.configure(Some(&me()), PROJECT, root.client(), &limits(), WALL, &mut out);
     let query = c::TaskQuery {
+        parts: List::from_boxed(Box::new([temper_client_domain_forge::parts::asks(wire::MILESTONE_PART)])),
         project: Some(PROJECT),
         label: Some(LABEL),
         tracked: Some(true),
@@ -317,12 +350,12 @@ fn milestones_read_the_query_and_keep_it_across_the_four_pages() {
         phase: None,
         executor: None,
     };
-    assert_eq!(milestones::query(&me(), PROJECT), Some(query));
+    assert_eq!(milestones::query(&me(), PROJECT), Some(query.clone()));
     assert_eq!(
         out.pop(),
         Some(Request::Client(jig_client::Event::Watch {
             handle: reads.live,
-            subject: Watchable::Jig(c::Subject::Tasks { query, window: WINDOW })
+            subject: Watchable::Jig(c::Subject::Tasks { query: query.clone(), window: WINDOW })
         }))
     );
     assert_eq!(
@@ -330,14 +363,14 @@ fn milestones_read_the_query_and_keep_it_across_the_four_pages() {
         Some(Request::Client(jig_client::Event::Read {
             handle: reads.ended,
             read: Readable::Jig(c::Read::Tasks {
-                query: c::TaskQuery { phase: Some(c::PhaseClass::Ended), order: c::QueryOrder::Ended, ..query },
+                query: c::TaskQuery { phase: Some(c::PhaseClass::Ended), order: c::QueryOrder::Ended, ..query.clone() },
                 live: None,
                 ended: None
             })
         }))
     );
     assert!(out.is_empty());
-    reads.configure(Some(&me()), PROJECT, root.client(), &limits(), WALL, &mut next, &mut out);
+    reads.configure(Some(&me()), PROJECT, root.client(), &limits(), WALL, &mut out);
     assert!(out.is_empty());
     reads.leave(&mut out);
     for handle in [reads.live, reads.ended] {
@@ -347,10 +380,12 @@ fn milestones_read_the_query_and_keep_it_across_the_four_pages() {
     h.down();
     let opened = h.open();
     let live = watch(&opened, Some(LABEL), None, WINDOW);
-    h.live(live, &[line(M, WALL)]);
-    let drawn_watch = watch(&h.down(), None, Some(M), WINDOW);
-    h.live(drawn_watch, &[]);
+    h.answer(ended_read(&opened, Some(LABEL), None), page_at(&[], false, 5));
     h.down();
+    h.live_at(live, &[line(M, WALL)], 5);
+    let delivered = h.down();
+    assert!(marked_ended_reads(&delivered).is_empty(), "the first live delivery does not reread ended milestones");
+    no_drawn_reads(&delivered);
     let handles = (h.reads().live, h.reads().ended);
     for address in [
         Address::Home { project: PROJECT },
@@ -372,92 +407,149 @@ fn milestones_read_the_query_and_keep_it_across_the_four_pages() {
         }
     }
     assert!(closed.contains(&live));
-    assert!(closed.contains(&drawn_watch), "closed {closed:?}, drawn {drawn_watch:?}");
 }
 
 #[test]
-fn drawn_reads_refresh_documents_totals_and_four_pages_of_merged_goals() {
+fn drawn_milestones_take_their_facts_totals_and_sixteen_goals_only_from_the_row() {
     let mut h = Harness::new(me());
     h.down();
     let down = h.open();
     let listed = watch(&down, Some(LABEL), None, WINDOW);
-    let mut milestone = line(M, WALL);
-    h.live(listed, &[milestone.clone()]);
-    let down = h.down();
-    let tasks = task_reads(&down);
-    assert_eq!(tasks.len(), 1, "{down:?}; milestones {:?}", h.reads());
-    assert_eq!(tasks[0].1, M);
-    let goal_watch = watch(&down, None, Some(M), WINDOW);
-    let first = ended_read(&down, None, Some(M));
-    let total = totals_read(&down);
-    let mut document = f::chat::task();
-    document.chip.task = M;
-    h.answer(tasks[0].0, Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(Box::new(document)))));
-    h.answer(total, total_answer(totals(7, 0, 1)));
+    let own = line(M, WALL);
+    h.live(listed, core::slice::from_ref(&own));
+    no_drawn_reads(&h.down());
+    let drawn = h.reads().milestone(M).unwrap();
+    assert!(drawn.facts.is_none());
+    assert!(drawn.totals.is_none());
+    assert!(drawn.goals.is_empty());
+    let mut goals: Vec<_> = (1..=16).rev().map(|task| line(task, Wall::from_nanos(task))).collect();
+    goals[0] = done(16);
+    goals[1] = done(15);
+    let own = row_part(own, &goals, 3);
+    h.live(listed, core::slice::from_ref(&own));
+    no_drawn_reads(&h.down());
+    let drawn = h.reads().milestone(M).unwrap();
+    assert_eq!(drawn.facts.as_ref().unwrap().whole, Some(WALL));
+    assert_eq!(drawn.facts.as_ref().unwrap().maker, own.requester);
+    assert_eq!(drawn.facts.as_ref().unwrap().name.as_ref(), own.chip.title.bytes());
+    assert_eq!(drawn.totals.as_ref().unwrap().done(), 2);
+    assert_eq!(drawn.more, 3);
+    assert_eq!(drawn.goals.iter().map(|goal| goal.chip.task).collect::<Vec<_>>(), (1..=16).collect::<Vec<_>>());
+    assert_eq!(drawn.headline(16), Some(b"Part report headline.".as_slice()));
+    // A delivery can lose its part, and never reads a replacement.
+    let mut lost = own;
+    lost.parts = List::from_boxed(Box::new([c::RowPart::Failed(c::PartFailure::Busy)]));
+    h.live(listed, &[lost]);
+    no_drawn_reads(&h.down());
+    assert!(h.reads().milestone(M).unwrap().totals.is_none());
+}
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "one sequence holds four pages and marks coalesced in flight")]
+fn a_milestone_pages_ended_goals_follow_marks_and_keep_four_merged_pages() {
+    let mut h = Harness::new(me());
     h.down();
-    let read = h.reads().milestone(M).unwrap();
-    assert!(read.facts.is_some());
-    assert_eq!(read.totals.as_ref().unwrap().done(), 7);
-    let live = line(202, WALL);
-    h.live(goal_watch, core::slice::from_ref(&live));
-    h.down();
-    // A live update during an ended read queues one fresh first page.
-    h.answer(first, page(&[done(202)], true));
-    let mut next = ended_read(&h.down(), None, Some(M));
-    for index in 0..4 {
-        h.answer(next, page(&[done(201 + index), done(202)], true));
-        let down = h.down();
-        if index < 3 {
-            next = ended_read(&down, None, Some(M));
-        } else {
-            for request in &down {
-                if let Down::Read { what: Readable::Jig(c::Read::Tasks { query, .. }), .. } = request {
-                    assert_ne!(query.parent, Some(M));
-                }
-            }
-        }
-    }
-    let read = h.reads().milestone(M).unwrap();
-    assert!(read.more);
-    assert_eq!(read.goals.as_slice().iter().map(|g| g.chip.task).collect::<Vec<_>>(), [201, 202, 203, 204]);
-    assert_eq!(read.goals.get(1).unwrap(), &live, "live wins a duplicate number");
-    h.live(listed, &[milestone.clone()]);
-    assert!(task_reads(&h.down()).is_empty(), "same changed wall keeps document and totals");
-    milestone.changed = Wall::from_nanos(3);
-    h.live(listed, &[milestone.clone()]);
-    let down = h.down();
-    assert_eq!(task_reads(&down).len(), 1);
-    let total = totals_read(&down);
-    h.answer(total, Readout::Limit);
-    h.down();
-    assert!(h.reads().milestone(M).unwrap().totals.is_none(), "a failed totals read holds none");
-    // A standalone read makes the end transition even without a moved changed wall.
-    let root = crate::unlinked(&limits(), f::SEED);
-    let mut next = 70;
-    let mut read = Milestone::new(PROJECT, M, &mut next);
+    let mut next = 90;
+    let mut read = MilestoneRead::new(PROJECT, M, &mut next);
     let mut out = Queue::uncapped();
-    read.configure(&milestone, root.client(), &limits(), &mut out);
-    let mut handles = Vec::new();
+    read.configure_goals(h.root.client(), &h.limits, &mut out);
+    let mut live_handle = None;
+    let mut ended_handle = None;
     while let Some(request) = out.pop() {
-        if let Request::Client(jig_client::Event::Read { handle, .. }) = request {
-            handles.push(handle);
+        match request {
+            Request::Client(jig_client::Event::Watch { handle, subject }) => {
+                let Watchable::Jig(c::Subject::Tasks { query, .. }) = &subject else { panic!("goals watch") };
+                assert_eq!(query.parts.as_slice(), [temper_client_domain_forge::parts::asks(wire::GOAL_PART)]);
+                live_handle = Some(handle);
+                h.event(crate::Event::Client { event: jig_client::Event::Watch { handle, subject } });
+            }
+            Request::Client(jig_client::Event::Read { handle, read: Readable::Jig(c::Read::Tasks { query, .. }) }) => {
+                assert_eq!(query.parts.as_slice(), [temper_client_domain_forge::parts::asks(wire::GOAL_PART)]);
+                ended_handle = Some(handle);
+            }
+            Request::Push(_)
+            | Request::Screen { .. }
+            | Request::KeepLook { .. }
+            | Request::OpenTab { .. }
+            | Request::Client(_)
+            | Request::Show { .. }
+            | Request::Replace { .. } => panic!("only the goal groups open"),
         }
     }
-    for handle in handles {
-        assert!(read.told(&Told::Page { handle, page: Readout::Limit }, &limits(), &mut out));
-    }
-    let mut ended = done(M);
-    ended.changed = milestone.changed;
-    read.configure(&ended, root.client(), &limits(), &mut out);
-    let mut rereads = 0_u32;
-    while let Some(request) = out.pop() {
-        if let Request::Client(jig_client::Event::Read { .. }) = request {
-            rereads += 1;
+    let live_handle = live_handle.unwrap();
+    let ended_handle = ended_handle.unwrap();
+    let watch = watch(&h.down(), None, Some(M), WINDOW);
+    let mut live = line(202, WALL);
+    h.live_at(watch, core::slice::from_ref(&live), 5);
+    read.told(&Told::Changed { handle: live_handle }, h.root.client(), &h.limits, &mut out);
+    assert!(out.is_empty(), "opening read is in flight");
+    read.told(
+        &Told::Page { handle: ended_handle, page: page_at(&[done(201)], false, 5) },
+        h.root.client(),
+        &h.limits,
+        &mut out,
+    );
+    assert!(out.is_empty(), "first delivery keeps the opening answer");
+    live.changed = Wall::from_nanos(17);
+    h.live_at(watch, core::slice::from_ref(&live), 5);
+    read.told(&Told::Changed { handle: live_handle }, h.root.client(), &h.limits, &mut out);
+    assert!(out.is_empty(), "a changed live row is no ended change");
+    h.live_at(watch, core::slice::from_ref(&live), 6);
+    read.told(&Told::Changed { handle: live_handle }, h.root.client(), &h.limits, &mut out);
+    assert_eq!(out.len(), 1, "a greater mark rereads the first page");
+    out.clear();
+    for index in 0..4 {
+        read.told(
+            &Told::Page { handle: ended_handle, page: page_at(&[done(201 + index), done(202)], true, 6) },
+            h.root.client(),
+            &h.limits,
+            &mut out,
+        );
+        if index < 3 {
+            let Some(Request::Client(jig_client::Event::Read {
+                read: Readable::Jig(c::Read::Tasks { ended: Some(_), .. }),
+                ..
+            })) = out.pop()
+            else {
+                panic!("follow an older page")
+            };
         }
+        assert!(out.is_empty(), "no fifth page");
     }
-    assert_eq!(rereads, 3, "ending rereads document, totals and ended goals once");
-    read.configure(&ended, root.client(), &limits(), &mut out);
+    read.configure_goals(h.root.client(), &h.limits, &mut out);
+    assert!(read.more);
+    assert_eq!(read.goals.iter().map(|g| g.chip.task).collect::<Vec<_>>(), [201, 202, 203, 204]);
+    h.live_at(watch, core::slice::from_ref(&live), 7);
+    read.told(&Told::Changed { handle: live_handle }, h.root.client(), &h.limits, &mut out);
+    assert_eq!(out.len(), 1);
+    out.clear();
+    h.live_at(watch, core::slice::from_ref(&live), 8);
+    read.told(&Told::Changed { handle: live_handle }, h.root.client(), &h.limits, &mut out);
+    assert!(out.is_empty(), "marks coalesce during a read");
+    read.told(
+        &Told::Page { handle: ended_handle, page: page_at(&[done(201)], true, 7) },
+        h.root.client(),
+        &h.limits,
+        &mut out,
+    );
+    let Some(Request::Client(jig_client::Event::Read {
+        read: Readable::Jig(c::Read::Tasks { ended: None, .. }), ..
+    })) = out.pop()
+    else {
+        panic!("an uncovered mark refreshes the first page as soon as the read answers")
+    };
     assert!(out.is_empty());
+    read.told(
+        &Told::Page { handle: ended_handle, page: page_at(&[done(201), done(202)], false, 8) },
+        h.root.client(),
+        &h.limits,
+        &mut out,
+    );
+    assert!(out.is_empty());
+    read.configure_goals(h.root.client(), &h.limits, &mut out);
+    assert_eq!(read.goals.iter().map(|g| g.chip.task).collect::<Vec<_>>(), [201, 202]);
+    assert_eq!(read.goals.get(1).unwrap(), &live, "live wins the duplicate number");
+    assert!(!read.more);
 }
 
 #[test]
@@ -490,7 +582,8 @@ fn drawn_selection_is_recent_live_first_and_bounded() {
 }
 
 #[test]
-fn requesters_are_read_once_and_the_oldest_of_sixteen_is_dropped() {
+fn a_goals_part_names_its_milestone_without_reading_any_requester() {
+    use crate::pages::goals::{GroupRow, groups};
     let mut h = Harness::new(me());
     h.down();
     let down = h.open();
@@ -500,53 +593,110 @@ fn requesters_are_read_once_and_the_oldest_of_sixteen_is_dropped() {
     h.down();
     let mut goal = line(200, WALL);
     goal.requester = c::Requester::Task(M);
-    h.live(goals, &[goal.clone()]);
-    assert_eq!(task_reads(&h.down()), []);
-    assert_eq!(h.reads().of(&goal), Some(M));
-    goal.requester = c::Requester::Task(300);
-    h.live(goals, &[goal.clone()]);
-    let reads = task_reads(&h.down());
-    assert_eq!(reads.len(), 1);
-    assert_eq!(reads[0].1, 300);
+    h.live(goals, core::slice::from_ref(&goal));
+    no_drawn_reads(&h.down());
+    assert_eq!(h.reads().of(&goal), None, "a requester alone does not group");
+    assert_eq!(groups(core::slice::from_ref(&goal), Some(h.reads())).as_slice(), [GroupRow::Goal(200)]);
+    goal = in_milestone(goal, M);
+    goal.requester = c::Requester::Task(999);
+    h.live(goals, core::slice::from_ref(&goal));
+    no_drawn_reads(&h.down());
+    assert_eq!(h.reads().of(&goal), Some(M), "the part, not the requester, groups");
+    assert_eq!(groups(core::slice::from_ref(&goal), Some(h.reads())).as_slice(), [GroupRow::Milestone(M)]);
+    goal.parts = List::from_boxed(Box::new([c::RowPart::Unknown]));
+    h.live(goals, core::slice::from_ref(&goal));
+    no_drawn_reads(&h.down());
     assert_eq!(h.reads().of(&goal), None);
-    h.live(goals, &[goal.clone()]);
-    assert!(task_reads(&h.down()).is_empty(), "in flight is kept");
-    let mut task = f::chat::task();
-    task.chip.task = 300;
-    task.chip.details.details.executor =
-        c::Executor::Procedure { connector: jig_client::shapes::RECURRING, code: jig_client::shapes::GATHERING };
-    h.answer(reads[0].0, Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(Box::new(task)))));
-    h.down();
-    assert_eq!(h.reads().of(&goal), Some(300));
-    let mut rows: Vec<_> = (0..17)
-        .map(|i| {
-            let mut line = line(200 + i, WALL);
-            line.requester = c::Requester::Task(300 + i);
-            line
-        })
-        .collect();
-    h.live(goals, &rows);
-    let reads = task_reads(&h.down());
-    assert_eq!(reads.len(), 16);
-    assert_eq!(h.reads().of(&goal), None, "oldest requester was evicted");
-    h.live(goals, &rows);
-    assert!(task_reads(&h.down()).is_empty(), "unchanged rows do not loop on evicted requesters");
-    rows[0].changed = Wall::from_nanos(7);
-    h.live(goals, &rows);
-    assert_eq!(task_reads(&h.down())[0].1, 300);
-    goal.requester = c::Requester::Person(300);
-    assert_eq!(h.reads().of(&goal), None);
-    rows[0].requester = c::Requester::Task(400);
-    h.live(goals, &rows);
-    let reads = task_reads(&h.down());
-    assert_eq!(reads.len(), 1);
-    let mut chat = f::chat::task();
-    chat.chip.task = 400;
-    h.answer(reads[0].0, Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(Box::new(chat)))));
-    h.down();
-    assert_eq!(h.reads().of(&rows[0]), None, "a held chat is not a milestone");
-    h.live(goals, &rows);
-    assert!(task_reads(&h.down()).is_empty(), "a held chat is not read again");
+}
+
+fn marked_milestones(fact: bool) -> (Harness, Token, Token) {
+    let mut identity = me();
+    if fact {
+        let templates = &mut identity.projects.get_mut(0).unwrap().templates;
+        *templates = List::from_boxed(Box::new([templates.get(1).unwrap().clone()]));
+    }
+    let mut h = Harness::new(identity);
+    let down = if fact {
+        h.down()
+    } else {
+        h.down();
+        h.open()
+    };
+    let live = watch(&down, Some(LABEL), None, if fact { 1 } else { WINDOW });
+    let reads = marked_ended_reads(&down);
+    assert_eq!(reads.len(), 1, "one opening ended page");
+    (h, live, reads[0])
+}
+fn marked_ended_reads(down: &[Down]) -> Vec<Token> {
+    let mut reads = Vec::new();
+    for request in down {
+        if let Down::Read { read, what: Readable::Jig(c::Read::Tasks { query, live, ended }) } = request
+            && query.label == Some(LABEL)
+            && query.parent.is_none()
+        {
+            assert_eq!(
+                (query.phase, query.order, live, ended),
+                (Some(c::PhaseClass::Ended), c::QueryOrder::Ended, &None, &None)
+            );
+            reads.push(*read);
+        }
+    }
+    assert!(reads.len() <= 1, "one milestone ended read at a time");
+    reads
+}
+
+#[test]
+fn ended_milestones_and_their_fact_read_again_only_when_the_mark_grows() {
+    for fact in [false, true] {
+        let (mut h, live, first) = marked_milestones(fact);
+        h.answer(first, page_at(&[], false, 5));
+        assert!(marked_ended_reads(&h.down()).is_empty(), "the opening answer needs no follow-up");
+        h.live_at(live, &[line(M, WALL)], 5);
+        assert!(marked_ended_reads(&h.down()).is_empty(), "first delivery keeps the opening answer");
+        let changed = line(M, Wall::from_nanos(WALL.as_nanos() + 1));
+        h.live_at(live, core::slice::from_ref(&changed), 5);
+        assert!(marked_ended_reads(&h.down()).is_empty(), "a live row change is not an ended change");
+        h.live_at(live, &[changed], 6);
+        let reads = marked_ended_reads(&h.down());
+        assert_eq!(reads.len(), 1, "equal live rows can hide a task that started and ended");
+        h.answer(reads[0], page_at(&[done(M + 1)], false, 6));
+        assert!(marked_ended_reads(&h.down()).is_empty(), "one refresh suffices");
+        if fact {
+            h.live_at(live, &[], 6);
+            assert!(h.root.has_goals(PROJECT), "the ended milestone fact is held");
+        } else {
+            assert!(h.reads().lines().iter().any(|line| line.chip.task == M + 1), "the ended row is held");
+        }
+        assert!(marked_ended_reads(&h.down()).is_empty(), "the held ended row keeps its mark");
+    }
+}
+
+#[test]
+fn ended_milestones_and_their_fact_coalesce_marks_while_reading() {
+    for fact in [false, true] {
+        for answered_mark in [5, 6, 7] {
+            let (mut h, live, first) = marked_milestones(fact);
+            h.live_at(live, &[], 6);
+            assert!(marked_ended_reads(&h.down()).is_empty(), "the opening read is in flight");
+            h.live_at(live, &[], 5);
+            assert!(marked_ended_reads(&h.down()).is_empty(), "keep the greatest delivery mark");
+            h.answer(first, page_at(&[], false, answered_mark));
+            let reads = marked_ended_reads(&h.down());
+            if answered_mark < 6 {
+                assert_eq!(reads.len(), 1, "an older answer needs one follow-up");
+                h.live_at(live, &[], 7);
+                h.live_at(live, &[], 6);
+                assert!(marked_ended_reads(&h.down()).is_empty(), "the follow-up stays in flight");
+                h.answer(reads[0], page_at(&[], false, 6));
+                let next = marked_ended_reads(&h.down());
+                assert_eq!(next.len(), 1, "one follow-up for a mark grown during a refresh");
+                h.answer(next[0], page_at(&[], false, 7));
+                assert!(marked_ended_reads(&h.down()).is_empty(), "one follow-up per uncovered mark suffices");
+            } else {
+                assert!(reads.is_empty(), "the answer covers the greatest delivery mark");
+            }
+        }
+    }
 }
 
 #[test]
@@ -556,15 +706,90 @@ fn a_project_with_only_a_milestone_has_goals() {
     *templates = List::from_boxed(Box::new([templates.get(1).unwrap().clone()]));
     let mut h = Harness::new(me);
     assert!(!h.root.has_goals(PROJECT));
-    let fact = watch(&h.down(), Some(LABEL), None, 1);
-    h.live(fact, &[line(M, WALL)]);
-    assert!(h.root.has_goals(PROJECT));
+    let opened = h.down();
+    let fact = watch(&opened, Some(LABEL), None, 1);
+    let first = ended_read(&opened, Some(LABEL), None);
+    h.answer(first, page_at(&[], false, 5));
     h.down();
-    h.live(fact, &[]);
+    h.live_at(fact, &[line(M, WALL)], 5);
+    assert!(h.root.has_goals(PROJECT));
+    assert!(h.down().is_empty(), "the first delivery keeps the ended answer");
+    h.live_at(fact, &[], 6);
     assert!(!h.root.has_goals(PROJECT));
     let read = ended_read(&h.down(), Some(LABEL), None);
-    h.answer(read, page(&[done(M)], false));
+    h.answer(read, page_at(&[done(M)], false, 6));
     assert!(h.root.has_goals(PROJECT), "an ended milestone keeps the project fact");
+}
+
+#[test]
+fn milestone_facts_take_each_pages_list_and_keep_it_until_their_own_delivery() {
+    let mut identity = me();
+    let templates = &mut identity.projects.get_mut(0).unwrap().templates;
+    *templates = List::from_boxed(Box::new([templates.get(1).unwrap().clone()]));
+    for address in [
+        Address::Home { project: PROJECT },
+        Address::Work { project: PROJECT, filter: WorkFilter::All },
+        Address::Goals { project: PROJECT, filter: GoalsFilter::All },
+        Address::Changes { project: PROJECT },
+    ] {
+        let mut h = Harness::at(identity.clone(), Some(address));
+        let opened = h.down();
+        let listed = watch(&opened, Some(LABEL), None, WINDOW);
+        let read = ended_read(&opened, Some(LABEL), None);
+        assert_eq!(
+            opened
+                .iter()
+                .filter(|request| {
+                    if let Down::Open { subject: Watchable::Jig(c::Subject::Tasks { query, .. }), .. } = request {
+                        query.label == Some(LABEL)
+                    } else {
+                        false
+                    }
+                })
+                .count(),
+            1,
+            "no narrower milestone twin"
+        );
+        assert_eq!(
+            opened
+                .iter()
+                .filter(|request| {
+                    if let Down::Read { what: Readable::Jig(c::Read::Tasks { query, .. }), .. } = request {
+                        query.label == Some(LABEL)
+                    } else {
+                        false
+                    }
+                })
+                .count(),
+            1,
+            "the fact opens no ended read"
+        );
+        assert!(!h.root.has_goals(PROJECT));
+        h.answer(read, page(&[], false));
+        assert!(h.down().is_empty(), "no twin on the following step");
+        h.live(listed, &[line(M, WALL)]);
+        assert!(h.root.has_goals(PROJECT), "the list's live row supplies the fact");
+        h.down();
+        h.live_at(listed, &[], 1);
+        assert!(!h.root.has_goals(PROJECT));
+        let read = ended_read(&h.down(), Some(LABEL), None);
+        // An old ended milestone counts even when it is outside the drawn week.
+        let mut ended = done(M);
+        ended.ended_at = Some(Wall::EPOCH);
+        h.answer(read, page_at(&[ended], false, 1));
+        assert!(h.root.has_goals(PROJECT), "the list's ended page supplies the fact");
+        h.down();
+        h.went(Address::Settings { project: PROJECT });
+        assert!(h.root.has_goals(PROJECT), "leaving a list cannot blink the entry off");
+        let opened = h.down();
+        let own = watch(&opened, Some(LABEL), None, 1);
+        assert!(opened.contains(&Down::Close { watch: listed }));
+        let read = ended_read(&opened, Some(LABEL), None);
+        h.answer(read, page(&[], false));
+        assert!(h.root.has_goals(PROJECT), "kept until the first own delivery");
+        h.live(own, &[]);
+        assert!(!h.root.has_goals(PROJECT));
+    }
 }
 
 #[test]

@@ -1,7 +1,7 @@
 //! Prepared constants and per-reader copies (protocol/channel/README.md, 11).
 use jig_domain_link::{Form, Grant, Scheme};
 use jig_protocol_engine_workers::{Limits, Worker};
-use skein_io::digest::digest;
+use skein_lib::sha256::digest;
 use skein_lib::{Duration, Secret, Writer};
 pub const WORKER_A: &[u8] = b"worker-a";
 pub const WORKER_B: &[u8] = b"worker-b";
@@ -116,9 +116,9 @@ pub const LIMITS: Limits = Limits {
 #[must_use]
 pub fn workers() -> Box<[Worker]> {
     Box::new([
-        Worker { name: Box::from(WORKER_A), digest: digest(SECRET_A) },
-        Worker { name: Box::from(WORKER_B), digest: digest(SECRET_B) },
-        Worker { name: Box::from(WORKER_C), digest: digest(SECRET_C) },
+        Worker { number: 1, name: Box::from(WORKER_A), places: 4, digest: Some(digest(SECRET_A)), withdrawn: false },
+        Worker { number: 2, name: Box::from(WORKER_B), places: 4, digest: Some(digest(SECRET_B)), withdrawn: false },
+        Worker { number: 3, name: Box::from(WORKER_C), places: 4, digest: Some(digest(SECRET_C)), withdrawn: false },
     ])
 }
 
@@ -131,6 +131,7 @@ fn credential_with_output(name: &[u8], secret: &[u8], version: u32, output: u32)
     let value = jig_protocol_worker_wire::Credential::new(
         &limits,
         jig_protocol_worker_wire::CredentialParts {
+            opening: jig_protocol_worker_wire::Opening::Link,
             name: Box::from(name),
             secret: Secret::new(Box::from(secret)),
             wires: statement(version),
@@ -404,7 +405,7 @@ pub fn account_refused_record() -> jig_protocol_worker_wire::AccountRefused {
     .expect("account refused")
 }
 
-fn codec() -> jig_protocol_worker_wire::v15::Limits {
+fn codec() -> jig_protocol_worker_wire::v17::Limits {
     jig_protocol_worker_wire::sizes::limits(&SIZES).expect("small codec")
 }
 fn refused_messages() -> skein_lib::List<jig_protocol_worker_wire::Refused> {

@@ -7,7 +7,7 @@ use skein_lib::{List, ReplyTo, Secret, Time, Token, Wall};
 use skein_lib::{Queue, Writer};
 
 const ENGINE: &[u8] = br#"{
-"limits": {"profile": "small", "overrides": {"tasks.result_bytes":32,"people.amendment_bytes":64,"core.policy_bytes":512,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
+"limits": {"profile": "standard", "overrides": {"tasks.result_bytes":32,"people.amendment_bytes":64,"core.policy_bytes":512,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
 "llm": {
 "providers":[{"name":"fake-provider","number":1,"models":["small"],"sources":{"keys":true}}],
 "endpoints": [{
@@ -30,10 +30,6 @@ const ENGINE: &[u8] = br#"{
 }]
 },
 "hosts": {
-"workers": [
-{"name": "worker-a", "digest": "secrets/worker-a.digest"},
-{"name": "worker-b", "digest": "secrets/worker-b.digest"}
-],
 "listener": [{"in_process": "workers"}]
 },
 "charters": [{
@@ -120,17 +116,11 @@ pub fn decimal(mut value: u64) -> Box<[u8]> {
     writer.finish()
 }
 
-pub const NAMES: [&[u8]; 4] =
-    [b"charters/chat.txt", b"secrets/worker-a.digest", b"secrets/worker-b.digest", b"app.secret"];
+pub const NAMES: [&[u8]; 2] = [b"charters/chat.txt", b"app.secret"];
 pub fn files(_document: &[u8]) -> Files {
     let mut entries = List::with_capacity(6);
     for name in NAMES {
-        let contents = match name {
-            b"secrets/worker-a.digest" => DIGEST_A,
-            b"secrets/worker-b.digest" => DIGEST_B,
-            _ => b"fixture contents",
-        };
-        entries.push((name.into(), Secret::new(contents.into()))).expect("named files");
+        entries.push((name.into(), Secret::new(b"fixture contents".as_slice().into()))).expect("named files");
     }
     Files { entries }
 }
@@ -153,11 +143,9 @@ pub fn started(document: &[u8]) -> Service {
     Service::new(Some(engine), List::with_capacity(0), io, crate::kernel_queue(&io))
 }
 pub fn memory_store(engine: &mut crate::Engine) {
-    let limits = crate::store::limits(
-        &engine.env.limits,
-        &crate::limits::profile_limits(jig_protocol_config::Profile::Small).store,
-    )
-    .expect("final admitted fixture store");
+    let limits =
+        crate::store::limits(&engine.env.limits, &crate::limits::small(&jig_protocol_config_fixtures::small()).store)
+            .expect("final admitted fixture store");
     engine.store.host.component = jig_protocol_store::Store::over(
         &limits,
         jig_test_store::application(&engine.env.limits.connector),
@@ -168,6 +156,7 @@ pub fn memory_store(engine: &mut crate::Engine) {
         },
     );
     engine.store.host.ask(jig_protocol_store::Request::Open {
+        purpose: jig_protocol_store::Purpose::Serve,
         owner: OWNER,
         root: jig_protocol_store::Root { token: OWNER, fd: skein_io::kernel::Fd::new(1) },
         installation: seeds().installation,
@@ -217,6 +206,7 @@ impl Driven {
         driven.party(core::Event::Period { project: 1, period: 1, budget: 100, next: None });
         driven.commit_all();
         driven.party(core::Event::SignIn {
+            until: None,
             held: None,
             reply_to: ReplyTo::new(Token::new(10)),
             identity: people::Identity {
@@ -322,8 +312,6 @@ pub fn engine(service: &mut Service) -> &mut crate::Engine {
 }
 
 pub const TOKEN: &[u8] = b"test-token";
-pub const DIGEST_A: &[u8] = b"8766b9cb08e6040b704f1e3ee1e186efccf2635b1d2634d6525333007e6aeae1";
-pub const DIGEST_B: &[u8] = b"ff492ef788c89b555e6f738b33d2422f57dbb6656af2402155672c5f123a90af";
 
 pub fn accounts_document() -> Box<[u8]> {
     with(&engine_document(), br#""components":[]"#, br#""components":["accounts"]"#)
@@ -337,12 +325,13 @@ pub fn config() -> jig_protocol_config::Engine {
 fn config_document(input: &[u8]) -> jig_protocol_config::Engine {
     let bounds = jig_protocol_config::DocumentLimits { bytes: 8192, tokens: 4096, depth: 32 };
     let document = jig_protocol_config::document(input, &bounds).expect("fixture JSON");
-    let mut config = jig_protocol_config::engine(
+    let mut config = jig_protocol_config::engine_over(
         &document,
         0,
         &jig_protocol_config::Directories::working(),
         jig_protocol_config::Defaults::Document,
         &jig_protocol_config::Fixed::NONE,
+        &jig_protocol_config_fixtures::small(),
     )
     .expect("fixture config");
     for charter in &mut config.charters {
@@ -368,8 +357,8 @@ pub fn values() -> crate::values::Values {
     crate::values::Values { accounts, application }
 }
 pub fn workers(config: &jig_protocol_config::Engine) -> crate::workers::Workers {
-    let limits = crate::limits::for_profile(jig_protocol_config::Profile::Small, &config.limits).workers;
-    crate::workers::Workers::new(config, &files(&[]), seeds().deployment, &limits).expect("fixture workers")
+    let limits = crate::limits::small(&config.limits).workers;
+    crate::workers::Workers::new(config, seeds().deployment, &limits).expect("fixture workers")
 }
 pub fn assignment(config: &jig_protocol_config::Engine) -> jig_test_domain::Assignment {
     use jig_domain_brief::{Core, GatherPlaced};
@@ -447,7 +436,7 @@ pub const WORKER_DOCUMENT: &[u8] = br#"{
 "programs":{"check_interval_ms":60000},
 "graces":{"grace_ms":10000,"agent_stop_ms":5000,"delivery_ms":1000,"save_ms":1000},
 "agent":{"program":"agent-program","configuration":"agent.json","arguments":["agent"]},
-"limits":{"profile":"small","overrides":{"hub.slots":1,"hub.run_calls":1,"hub.turns":1}},
+"limits":{"profile":"standard","overrides":{"hub.slots":1,"hub.run_calls":1,"hub.turns":1}},
 "memory_bytes":1152921504606846976
 }],"application":{"workers":[{"root":"agent-root"}]}}
 "#;

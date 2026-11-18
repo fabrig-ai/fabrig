@@ -5,7 +5,7 @@ use temper_forge_setup::machine;
 pub(crate) use temper_forge_setup::machine::MemberObject as Object;
 
 /// Every application shape, including the test peer decoder’s rows.
-pub(super) static SHAPES: [Shape; 22] = [
+pub(super) static SHAPES: [Shape; 23] = [
     Shape { name: "document", paths: &[""], line: "The top-level members of the configuration document." },
     Shape {
         name: "application",
@@ -21,6 +21,11 @@ pub(super) static SHAPES: [Shape; 22] = [
         name: "application-clients",
         paths: &["application.clients"],
         line: "The clients’ listener and browser presentation.",
+    },
+    Shape {
+        name: "environment-entry",
+        paths: &["application.environment[]"],
+        line: "One variable given to the agents’ programs.",
     },
     Shape { name: "push", paths: &["application.push"], line: "The deployment’s push key and services." },
     Shape { name: "webhooks", paths: &["application.webhooks"], line: "The Forgejo deliveries listener." },
@@ -83,7 +88,7 @@ pub(super) static SHAPES: [Shape; 22] = [
 ];
 
 /// Every member the application decoders take, including refused settings members.
-pub(super) static MEMBERS: [Member; 67] = [
+pub(super) static MEMBERS: [Member; 70] = [
     Member {
         shape: "document",
         name: "engine",
@@ -154,6 +159,33 @@ pub(super) static MEMBERS: [Member; 67] = [
         bound: "",
         required: true,
         line: "The application limits profile and named overrides.",
+        gone: None,
+    },
+    Member {
+        shape: "application",
+        name: "environment",
+        kind: "list of environment-entry",
+        bound: "standalone and worker alone only; absent or empty inherits HOME then PATH; entries keep their order, adding HOME then PATH where omitted",
+        required: false,
+        line: "The agents’ variables; only missing HOME and PATH come from the worker’s process.",
+        gone: None,
+    },
+    Member {
+        shape: "environment-entry",
+        name: "name",
+        kind: "text",
+        bound: "at most 1,048,576 bytes; unique names; smith also refuses empty names, = and NUL",
+        required: true,
+        line: "The variable’s name.",
+        gone: None,
+    },
+    Member {
+        shape: "environment-entry",
+        name: "value",
+        kind: "text",
+        bound: "at most 1,048,576 bytes; smith also refuses NUL",
+        required: true,
+        line: "The variable’s value.",
         gone: None,
     },
     Member {
@@ -250,9 +282,9 @@ pub(super) static MEMBERS: [Member; 67] = [
         shape: "application-limits",
         name: "profile",
         kind: "text",
-        bound: "small or standard",
-        required: true,
-        line: "The limits profile used before applying overrides.",
+        bound: "standard",
+        required: false,
+        line: "May be absent or standard; either reads the stock before overrides.",
         gone: None,
     },
     Member {
@@ -261,7 +293,7 @@ pub(super) static MEMBERS: [Member; 67] = [
         kind: "named limits",
         bound: "see temper help limits",
         required: true,
-        line: "The dotted limit names whose values replace the profile’s.",
+        line: "The dotted limit names whose values replace the stock’s.",
         gone: None,
     },
     Member {

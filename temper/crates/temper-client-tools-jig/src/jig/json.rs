@@ -200,7 +200,9 @@ fn decode_value(table: &[&Tool], doc: &Document, at: u32, spec: &Argument, limit
     }
     let kind = doc.token(at).ok_or(Usage::Json)?.kind;
     match spec.kind {
-        Kind::Number | Kind::NumberRange { .. } | Kind::Count | Kind::Duration => require(doc, at, JsonKind::Number)?,
+        Kind::Amount | Kind::Number | Kind::NumberRange { .. } | Kind::Count | Kind::Places | Kind::Duration => {
+            require(doc, at, JsonKind::Number)?;
+        }
         Kind::Project { .. } if kind == JsonKind::Number => {}
         Kind::Word { .. }
         | Kind::Text
@@ -210,6 +212,8 @@ fn decode_value(table: &[&Tool], doc: &Document, at: u32, spec: &Argument, limit
         | Kind::Proposal
         | Kind::Finding
         | Kind::Digest
+        | Kind::Sha256
+        | Kind::Worker
         | Kind::Condition
         | Kind::Project { .. }
         | Kind::Turn
@@ -232,6 +236,9 @@ fn decode_value(table: &[&Tool], doc: &Document, at: u32, spec: &Argument, limit
                 return Err(Usage::Json);
             }
         }
+    }
+    if spec.kind == Kind::Amount {
+        return argv::value::decode(table, Kind::Number, Bound::None, bytes).ok_or(Usage::Json);
     }
     argv::value::decode(table, spec.kind, bound(spec, limits), bytes).ok_or(Usage::Json)
 }
@@ -298,6 +305,7 @@ fn encode_value(table: &[&Tool], spec: &Argument, value: &Value, out: &mut Encod
         | Value::File(_)
         | Value::Proposal(_)
         | Value::Digest(_)
+        | Value::Sha256(_)
         | Value::Condition(_)
         | Value::Project(_)
         | Value::Turn(_)
@@ -356,7 +364,8 @@ pub fn encode_tool(tool: &Tool, limits: &Limits, out: &mut Encoder) {
 fn kind_word(kind: Kind) -> &'static [u8] {
     match kind {
         Kind::Number | Kind::NumberRange { .. } => b"number",
-        Kind::Count => b"count",
+        Kind::Amount => b"amount",
+        Kind::Count | Kind::Places => b"count",
         Kind::Word { .. } => b"word",
         Kind::Text => b"text",
         Kind::Literal => b"literal",
@@ -365,6 +374,8 @@ fn kind_word(kind: Kind) -> &'static [u8] {
         Kind::Proposal => b"proposal",
         Kind::Finding => b"finding",
         Kind::Digest => b"digest",
+        Kind::Sha256 => b"sha256",
+        Kind::Worker => b"worker",
         Kind::NamedNumber { .. } => b"string",
         Kind::Condition => b"condition",
         Kind::Project { .. } => b"project",
@@ -466,7 +477,9 @@ fn encode_argument(spec: &Argument, limits: &Limits, out: &mut Encoder) {
             out.unsigned(max);
         }
         Kind::Number
+        | Kind::Amount
         | Kind::Count
+        | Kind::Places
         | Kind::Text
         | Kind::Literal
         | Kind::File
@@ -474,6 +487,8 @@ fn encode_argument(spec: &Argument, limits: &Limits, out: &mut Encoder) {
         | Kind::Proposal
         | Kind::Finding
         | Kind::Digest
+        | Kind::Sha256
+        | Kind::Worker
         | Kind::Condition
         | Kind::Project { .. }
         | Kind::Turn

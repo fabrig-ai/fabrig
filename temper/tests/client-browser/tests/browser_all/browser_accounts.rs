@@ -9,8 +9,9 @@ fn the_sign_in_opens_a_tab_and_lands_on_accounts() {
     use skein_fake_peers::oauth::Observation;
     use skein_fake_person_browser::harness::Lent;
     let (tier, mut issuer) = Tier::accounts_sign_in("accounts-round-trip");
-    let mut stories = Stories::of_person(0);
-    let mut steps = vec![];
+    let mut owner = tier.project_face();
+    let mut stories = Stories::of_person(1);
+    let mut steps = temper_client_browser_world::page_opens();
     stories.begin("welcome sign-in", &steps);
     steps.extend(welcome_steps());
     stories.begin("connect model sign-in", &steps);
@@ -20,8 +21,8 @@ fn the_sign_in_opens_a_tab_and_lands_on_accounts() {
     stories.begin("key return row and field history", &steps);
     steps.extend(key_history_steps());
     let mut script = Script::new(steps.into_boxed_slice());
-    let outcome = temper_client_browser_world::harness(tier.setup())
-        .run_lending(&mut [&mut script], &mut [Lent { name: b"issuer", peer: &mut issuer }]);
+    let outcome = temper_client_browser_world::harness(tier.held_setup())
+        .run_lending(&mut [&mut owner, &mut script], &mut [Lent { name: b"issuer", peer: &mut issuer }]);
     stories.assert_done(outcome);
     assert_eq!(
         issuer.observations().iter().filter(|event| matches!(event, Observation::Authorize { .. })).count(),

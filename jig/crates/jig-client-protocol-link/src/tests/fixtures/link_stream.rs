@@ -3,8 +3,8 @@ use skein_lib::List;
 pub const WATCH: Token = Token::new(41);
 pub const HEARTBEAT: Duration = Duration::from_nanos(100);
 pub const STREAM: [u8; 16] = [7; 16];
-pub fn frame_subject() -> Watchable {
-    Watchable::Jig(c::Subject::Me)
+pub fn application_subject() -> Watchable {
+    Watchable::Jig(c::Subject::Task { task: 7 })
 }
 pub fn family_subject() -> Watchable {
     Watchable::Family {
@@ -16,7 +16,19 @@ pub fn family_subject() -> Watchable {
 pub fn hello_event(heartbeat: Duration) -> Box<[u8]> {
     let lim = *limits().wire();
     let mut served = List::with_capacity(2);
-    served.push(w::Served::new(&lim, w::ServedParts { owner: w::Owner::Jig, first: 27, last: 27 }).unwrap()).unwrap();
+    served
+        .push(
+            w::Served::new(
+                &lim,
+                w::ServedParts {
+                    owner: w::Owner::Jig,
+                    first: jig_client_protocol_wire::VERSION,
+                    last: jig_client_protocol_wire::VERSION,
+                },
+            )
+            .unwrap(),
+        )
+        .unwrap();
     served
         .push(
             w::Served::new(
@@ -30,9 +42,16 @@ pub fn hello_event(heartbeat: Duration) -> Box<[u8]> {
             .unwrap(),
         )
         .unwrap();
-    event_bytes(&w::StreamEvent::Hello(
-        w::Hello::new(&lim, w::HelloParts { stream: STREAM, served, heartbeat }).unwrap(),
-    ))
+    let hello = w::Hello::new(&lim, w::HelloParts { stream: STREAM, served, heartbeat }).unwrap();
+    let value = w::DeliveryValue::Me(frame_record());
+    let mut record = Writer::new(usize::try_from(value.measure()).unwrap());
+    value.encode(&mut record).unwrap();
+    let me = w::Owned::new(
+        &lim,
+        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: record.finish() },
+    )
+    .unwrap();
+    event_bytes(&w::StreamEvent::Opened(w::Opened::new(&lim, w::OpenedParts { hello, me }).unwrap()))
 }
 pub fn event_bytes(value: &w::StreamEvent) -> Box<[u8]> {
     let mut binary = Writer::new(usize::try_from(value.measure()).unwrap());
@@ -70,7 +89,9 @@ impl Harness {
         self.out = Queue::uncapped();
     }
     pub fn open(&mut self, watch: Token, subject: Watchable) -> Token {
+        self.link.step(Time::ZERO, Event::OpenStream, &mut self.out);
         self.link.step(Time::ZERO, Event::Open { watch, subject }, &mut self.out);
+        self.link.settle(&mut self.out);
         watch
     }
     pub fn streaming(subject: Watchable) -> Self {
@@ -81,12 +102,14 @@ impl Harness {
     }
     pub fn stream_at(&mut self, now: Time, bytes: &[u8]) {
         self.link.step(now, Event::Streamed { message: Streamed::Record(Box::from(bytes)) }, &mut self.out);
+        self.link.settle(&mut self.out);
     }
     pub fn stream_record(&mut self, bytes: &[u8]) {
         self.stream_at(Time::ZERO, bytes);
     }
     pub fn advance(&mut self, now: Time) {
         self.link.fire(now, &mut self.out);
+        self.link.settle(&mut self.out);
     }
     pub fn opening(&self) -> (Token, u64) {
         for request in &self.out {
@@ -97,7 +120,9 @@ impl Harness {
                 }
                 Request::Exchange { .. }
                 | Request::Answer { .. }
+                | Request::NotWritten { .. }
                 | Request::NotKept { .. }
+                | Request::ReadAgain { .. }
                 | Request::Read { .. }
                 | Request::OpenStream { .. }
                 | Request::CloseStream
@@ -111,6 +136,7 @@ impl Harness {
                 | Request::Dropped
                 | Request::Signing { .. }
                 | Request::ServiceCredential { .. }
+                | Request::AskedLink(_)
                 | Request::Approval(_)
                 | Request::Authorized(_)
                 | Request::StreamsFull { .. }
@@ -125,7 +151,9 @@ impl Harness {
                 Request::Ended { watch: token, end } if *token == watch => return Some(*end),
                 Request::Exchange { .. }
                 | Request::Answer { .. }
+                | Request::NotWritten { .. }
                 | Request::NotKept { .. }
+                | Request::ReadAgain { .. }
                 | Request::Read { .. }
                 | Request::OpenStream { .. }
                 | Request::CloseStream
@@ -139,6 +167,7 @@ impl Harness {
                 | Request::Dropped
                 | Request::Signing { .. }
                 | Request::ServiceCredential { .. }
+                | Request::AskedLink(_)
                 | Request::Approval(_)
                 | Request::Authorized(_)
                 | Request::StreamsFull { .. }
@@ -151,10 +180,13 @@ impl Harness {
         let mut count = 0_u32;
         for request in &self.out {
             match request {
-                Request::Ended { .. } => count = count.checked_add(1).unwrap(),
-                Request::Exchange { .. }
+                Request::Ended { watch, .. } if *watch != Token::new(0) => count = count.checked_add(1).unwrap(),
+                Request::Ended { .. }
+                | Request::Exchange { .. }
                 | Request::Answer { .. }
+                | Request::NotWritten { .. }
                 | Request::NotKept { .. }
+                | Request::ReadAgain { .. }
                 | Request::Read { .. }
                 | Request::OpenStream { .. }
                 | Request::CloseStream
@@ -167,6 +199,7 @@ impl Harness {
                 | Request::Dropped
                 | Request::Signing { .. }
                 | Request::ServiceCredential { .. }
+                | Request::AskedLink(_)
                 | Request::Approval(_)
                 | Request::Authorized(_)
                 | Request::StreamsFull { .. }
@@ -177,11 +210,14 @@ impl Harness {
     }
     pub fn close(&mut self) -> Token {
         self.link.step(Time::ZERO, Event::Close { watch: WATCH }, &mut self.out);
+        self.link.settle(&mut self.out);
         match self.out.iter().last().unwrap() {
             Request::Exchange { exchange, message: Message::Unwatch(_), .. } => *exchange,
             other @ (Request::Exchange { .. }
             | Request::Answer { .. }
+            | Request::NotWritten { .. }
             | Request::NotKept { .. }
+            | Request::ReadAgain { .. }
             | Request::Read { .. }
             | Request::OpenStream { .. }
             | Request::CloseStream
@@ -195,6 +231,7 @@ impl Harness {
             | Request::Dropped
             | Request::Signing { .. }
             | Request::ServiceCredential { .. }
+            | Request::AskedLink(_)
             | Request::Approval(_)
             | Request::Authorized(_)
             | Request::StreamsFull { .. }
@@ -205,90 +242,27 @@ impl Harness {
         assert!(self.has(&Request::FamilyDelivery { watch: WATCH, record: family_read() }));
     }
 }
-impl Harness {
-    pub fn gone_name(&self) -> [u8; 16] {
-        for request in &self.out {
-            match request {
-                Request::Exchange { message: Message::StreamGone(body), .. } => {
-                    return *w::Gone::decode(limits().wire(), &mut Reader::new(body)).unwrap().stream();
-                }
-                Request::Exchange { .. }
-                | Request::Answer { .. }
-                | Request::NotKept { .. }
-                | Request::Read { .. }
-                | Request::OpenStream { .. }
-                | Request::CloseStream
-                | Request::Watch { .. }
-                | Request::FamilyDelivery { .. }
-                | Request::Ended { .. }
-                | Request::Hello { .. }
-                | Request::Save { .. }
-                | Request::Erase { .. }
-                | Request::Kept { .. }
-                | Request::Dropped
-                | Request::Signing { .. }
-                | Request::ServiceCredential { .. }
-                | Request::Approval(_)
-                | Request::Authorized(_)
-                | Request::StreamsFull { .. }
-                | Request::Fact { .. } => {}
-            }
-        }
-        panic!("no stream-gone exchange")
-    }
-    pub fn assert_run_subject(&self) {
-        for request in &self.out {
-            match request {
-                Request::Exchange { message: Message::Watch(body), .. } => {
-                    let lim = *limits().wire();
-                    let open = w::Open::decode(&lim, &mut Reader::new(body)).unwrap();
-                    let subject = w::Subject::decode(&lim, &mut Reader::new(open.subject().record())).unwrap();
-                    let turn = w::ProvisionalTurnName::new(
-                        &lim,
-                        w::ProvisionalTurnNameParts { attempt: 9, number: 2, retry: 3 },
-                    )
-                    .unwrap();
-                    assert_eq!(
-                        subject,
-                        w::Subject::Run(
-                            w::SubjectRun::new(&lim, w::SubjectRunParts { task: 7, turn: Some(turn), offset: 123 })
-                                .unwrap()
-                        )
-                    );
-                    return;
-                }
-                Request::Exchange { .. }
-                | Request::Answer { .. }
-                | Request::NotKept { .. }
-                | Request::Read { .. }
-                | Request::OpenStream { .. }
-                | Request::CloseStream
-                | Request::Watch { .. }
-                | Request::FamilyDelivery { .. }
-                | Request::Ended { .. }
-                | Request::Hello { .. }
-                | Request::Save { .. }
-                | Request::Erase { .. }
-                | Request::Kept { .. }
-                | Request::Dropped
-                | Request::Signing { .. }
-                | Request::ServiceCredential { .. }
-                | Request::Approval(_)
-                | Request::Authorized(_)
-                | Request::StreamsFull { .. }
-                | Request::Fact { .. } => {}
-            }
-        }
-        panic!("no run opening")
-    }
+pub fn assert_run_subject(open: &w::Open) {
+    let lim = *limits().wire();
+    let subject = w::Subject::decode(&lim, &mut Reader::new(open.subject().record())).unwrap();
+    let turn =
+        w::ProvisionalTurnName::new(&lim, w::ProvisionalTurnNameParts { attempt: 9, number: 2, retry: 3 }).unwrap();
+    assert_eq!(
+        subject,
+        w::Subject::Run(
+            w::SubjectRun::new(&lim, w::SubjectRunParts { task: 7, turn: Some(turn), offset: 123 }).unwrap()
+        )
+    );
 }
 
 pub const EXCHANGE_ROOM: u32 = 8;
 impl Harness {
     pub fn admitted_stream() -> Self {
-        let limits = Limits::new(*limits().client(), EXCHANGE_ROOM).unwrap();
+        let limits =
+            Limits::new(jig_client_domain::Limits { reads: EXCHANGE_ROOM, ..*limits().client() }, EXCHANGE_ROOM)
+                .unwrap();
         let mut harness = Self::new(&limits);
-        harness.open(WATCH, frame_subject());
+        harness.open(WATCH, application_subject());
         harness.stream_record(&hello_event(HEARTBEAT));
         let (exchange, _) = harness.opening();
         harness.answer(exchange, &open_answer(&w::OpenAnswer::Admitted));
@@ -303,6 +277,7 @@ impl Harness {
                 Event::Read { read: Token::new(100), what: Readable::Jig(history_read()) },
                 &mut self.out,
             );
+            self.link.settle(&mut self.out);
             let Some(Request::Exchange { exchange, message: Message::Read(_), .. }) = self.out.pop() else {
                 panic!("one read fills one exchange");
             };
@@ -335,6 +310,6 @@ pub fn not_served() -> w::NotServed {
     let lim = *limits().wire();
     let owner = w::Owner::Family(w::Family::new(&lim, w::FamilyParts { number: 19 }).unwrap());
     let mut served = List::with_capacity(1);
-    served.push(w::Served::new(&lim, w::ServedParts { owner: owner.clone(), first: 27, last: 27 }).unwrap()).unwrap();
+    served.push(w::Served::new(&lim, w::ServedParts { owner: owner.clone(), first: 28, last: 28 }).unwrap()).unwrap();
     w::NotServed::new(&lim, w::NotServedParts { owner, served }).unwrap()
 }

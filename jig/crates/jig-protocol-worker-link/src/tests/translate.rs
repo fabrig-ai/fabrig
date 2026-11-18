@@ -3,7 +3,7 @@ use jig_domain_host as host;
 use jig_domain_link::{CountKind, Form, Grant, Hello, PROGRAM_ENDPOINTS, Scheme, SourceName};
 use jig_protocol_worker_wire::{self as wire, Part};
 use skein_lib::{List, Queue, Reader, Time, Token};
-fn translated(kind: u16, bytes: &[u8], limits: &wire::v15::Limits) -> (host::LinkDown, Box<[Part]>, Queue<Request>) {
+fn translated(kind: u16, bytes: &[u8], limits: &wire::v17::Limits) -> (host::LinkDown, Box<[Part]>, Queue<Request>) {
     let mut parts = Queue::uncapped();
     let mut values = Queue::with_capacity(4);
     let down =
@@ -327,6 +327,29 @@ fn a_failed_answer_keeps_the_limited_or_refused_account_in_its_record() {
     }
 }
 
+#[test]
+fn an_untooled_answer_keeps_its_failure_detail_and_work_in_its_record() {
+    let host::LinkUp::Answer { run, attempt, mut answer } = fixtures::answer() else { panic!("answer") };
+    answer.ending = host::Ending::Failed {
+        failure: host::Failure::Run(host::RunFailure::Untooled),
+        detail: b"missing tools".as_slice().into(),
+        work: host::Work { left: Some(Token::new(10)), saved: Some(Token::new(11)) },
+        model: None,
+    };
+    let frame =
+        translate::up(host::LinkUp::Answer { run, attempt, answer }, &fixtures::work_parts(), &fixtures::codec())
+            .expect("untooled answer");
+    let record = wire::Answer::decode(&fixtures::codec(), &mut body(&frame)).expect("answer");
+    assert_eq!((record.task(), record.attempt()), (7, 2));
+    let wire::Ending::Failed(failed) = record.ending() else { panic!("failed") };
+    let wire::Failure::Run(failure) = failed.failure() else { panic!("run failure") };
+    assert_eq!(failure.value(), &wire::RunFailure::Untooled);
+    assert_eq!(failed.detail(), b"missing tools");
+    assert_eq!(failed.work().left(), &Some(b"left".as_slice().into()));
+    assert_eq!(failed.work().saved(), &Some(b"saved".as_slice().into()));
+    assert_eq!(failed.model(), &None);
+}
+
 fn program_granted(name: &[u8]) -> Box<[u8]> {
     let record = wire::Granted::new(
         &fixtures::codec(),
@@ -427,7 +450,7 @@ fn a_refused_later_program_grant_leaves_no_value_queued() {
 
 #[test]
 fn the_hosts_endpoint_cap_is_the_worker_wires_ceiling() {
-    assert_eq!(PROGRAM_ENDPOINTS, wire::v15::CEILINGS.bounds_program_endpoints);
+    assert_eq!(PROGRAM_ENDPOINTS, wire::v17::CEILINGS.bounds_program_endpoints);
 }
 
 fn hello_with_program_endpoints(count: u32) -> Hello {

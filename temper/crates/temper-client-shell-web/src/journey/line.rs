@@ -7,42 +7,87 @@ use skein_ui_web::{mapping::Primary, transport::Header};
 /// One line of a recording, its kind first (client/web/journeys.md, 3.2).
 #[derive(Debug, PartialEq, Eq)]
 pub enum Line {
-    Journey { version: u32 },
+    Journey {
+        version: u32,
+    },
     Seed(u64),
-    Clocks { now: Time, wall: Wall },
+    Clocks {
+        now: Time,
+        wall: Wall,
+    },
+    Fixed,
     Primary(Primary),
     Zone(i32),
-    Ways { content: Box<[u8]>, origin: Box<[u8]> },
+    Ways {
+        content: Box<[u8]>,
+        origin: Box<[u8]>,
+    },
     Forge(Box<[u8]>),
     Path(Box<[u8]>),
     Secret(Box<[u8]>),
-    Stored { key: Box<[u8]>, value: Box<[u8]> },
-    Turn { now: Time, wall: Wall },
+    Stored {
+        key: Box<[u8]>,
+        value: Box<[u8]>,
+    },
+    Turn {
+        now: Time,
+        wall: Wall,
+    },
     Start,
     Due,
     TabOpen(Box<[u8]>),
     TabPoint(Box<[u8]>),
     TabClose,
     TabRefused,
-    Copy { token: u32, words: Box<[u8]> },
-    Copied { token: u32, written: temper_client_domain::copy::Written },
+    Copy {
+        token: u32,
+        words: Box<[u8]>,
+    },
+    Copied {
+        token: u32,
+        written: temper_client_domain::copy::Written,
+    },
     Place(Box<[u8]>),
     Returned(Box<[u8]>),
     Heard(Heard),
-    Carried { writes: u32 },
+    Carried {
+        writes: u32,
+    },
     Written(Box<[u8]>),
     Unwritten(Box<[u8]>),
     Lost(u32),
-    Act { act: Act, event: Box<[u8]>, name: Box<[u8]> },
-    Exchange { id: u32, bound: u32, method: Box<[u8]>, path: Box<[u8]>, body: Box<[u8]>, headers: Vec<Header> },
-    Open { piece: u32, path: Box<[u8]>, headers: Vec<Header> },
+    Act {
+        act: Act,
+        event: Box<[u8]>,
+        name: Box<[u8]>,
+    },
+    Exchange {
+        id: u32,
+        bound: u32,
+        pieces: Option<u32>,
+        method: Box<[u8]>,
+        path: Box<[u8]>,
+        body: Box<[u8]>,
+        headers: Vec<Header>,
+    },
+    Open {
+        piece: u32,
+        path: Box<[u8]>,
+        headers: Vec<Header>,
+    },
     Close,
-    Save { key: Box<[u8]>, value: Box<[u8]> },
+    Save {
+        key: Box<[u8]>,
+        value: Box<[u8]>,
+    },
     Erase(Box<[u8]>),
     Writes(u32),
     Navigate(Box<[u8]>),
     Replace(Box<[u8]>),
-    Show { path: Box<[u8]>, replace: bool },
+    Show {
+        path: Box<[u8]>,
+        replace: bool,
+    },
     Deadline(Option<Time>),
     Mark(Option<Box<[u8]>>),
     End(Option<Box<[u8]>>),
@@ -123,7 +168,9 @@ impl Line {
                 w.bytes(key);
                 w.bytes(value);
             }
-            Self::Start | Self::Due | Self::Close | Self::TabClose | Self::TabRefused => w.word(self.kind().as_bytes()),
+            Self::Fixed | Self::Start | Self::Due | Self::Close | Self::TabClose | Self::TabRefused => {
+                w.word(self.kind().as_bytes());
+            }
             Self::Heard(heard) => {
                 w.word(b"heard");
                 w.heard(heard);
@@ -142,10 +189,13 @@ impl Line {
                 w.bytes(event);
                 w.bytes(name);
             }
-            Self::Exchange { id, bound, method, path, body, headers } => {
-                w.word(b"exchange");
+            Self::Exchange { id, bound, pieces, method, path, body, headers } => {
+                w.word(self.kind().as_bytes());
                 w.number(u64::from(*id));
                 w.number(u64::from(*bound));
+                if let Some(piece) = pieces {
+                    w.number(u64::from(*piece));
+                }
                 w.word(method);
                 w.bytes(path);
                 w.bytes(body);
@@ -185,6 +235,7 @@ impl Line {
             Self::Journey { .. } => "journey",
             Self::Seed(_) => "seed",
             Self::Clocks { .. } => "clocks",
+            Self::Fixed => "fixed",
             Self::Primary(_) => "primary",
             Self::Zone(_) => "zone",
             Self::Ways { .. } => "ways",
@@ -209,7 +260,8 @@ impl Line {
             Self::Unwritten(_) => "unwritten",
             Self::Lost(_) => "lost",
             Self::Act { .. } => "act",
-            Self::Exchange { .. } => "exchange",
+            Self::Exchange { pieces: None, .. } => "exchange",
+            Self::Exchange { pieces: Some(_), .. } => "pieces",
             Self::Open { .. } => "open",
             Self::Close => "close",
             Self::Save { .. } => "save",
@@ -267,6 +319,20 @@ impl Text<'_> {
                 self.number(u64::from(*exchange));
                 self.number(u64::from(*status));
                 self.bytes(body);
+            }
+            Heard::Begun { exchange, status } => {
+                self.word(b"begun");
+                self.number(u64::from(*exchange));
+                self.number(u64::from(*status));
+            }
+            Heard::Part { exchange, bytes } => {
+                self.word(b"part");
+                self.number(u64::from(*exchange));
+                self.bytes(bytes);
+            }
+            Heard::Done { exchange } => {
+                self.word(b"done");
+                self.number(u64::from(*exchange));
             }
             Heard::Failed { exchange } => {
                 self.word(b"failed");
@@ -478,7 +544,8 @@ fn hex(byte: u8) -> Result<u8, &'static str> {
 #[expect(clippy::too_many_lines, reason = "one ordered dispatch reads each journey record's strict fields")]
 fn read(line: &[u8]) -> Result<Line, &'static str> {
     let mut r = fields(line)?;
-    let line = match r.word()?.as_ref() {
+    let kind = r.word()?;
+    let line = match kind.as_ref() {
         b"journey" => Line::Journey { version: r.count()? },
         b"seed" => Line::Seed(r.number()?),
         b"zone" => {
@@ -491,6 +558,7 @@ fn read(line: &[u8]) -> Result<Line, &'static str> {
             Line::Zone(minutes)
         }
         b"clocks" => Line::Clocks { now: Time::from_nanos(r.number()?), wall: Wall::from_nanos(r.number()?) },
+        b"fixed" => Line::Fixed,
         b"turn" => Line::Turn { now: Time::from_nanos(r.number()?), wall: Wall::from_nanos(r.number()?) },
         b"primary" => Line::Primary(match r.word()?.as_ref() {
             b"control" => Primary::Control,
@@ -514,6 +582,9 @@ fn read(line: &[u8]) -> Result<Line, &'static str> {
             b"answered" => {
                 Heard::Answered { exchange: r.count()?, status: r.status()?, body: r.bytes()?, headers: Vec::new() }
             }
+            b"begun" => Heard::Begun { exchange: r.count()?, status: r.status()? },
+            b"part" => Heard::Part { exchange: r.count()?, bytes: r.bytes()? },
+            b"done" => Heard::Done { exchange: r.count()? },
             b"failed" => Heard::Failed { exchange: r.count()? },
             b"opened" => Heard::StreamOpened,
             b"refused" => Heard::StreamRefused { status: r.status()? },
@@ -543,14 +614,15 @@ fn read(line: &[u8]) -> Result<Line, &'static str> {
             };
             Line::Act { act, event: r.bytes()?, name: r.bytes()? }
         }
-        b"exchange" => {
+        b"exchange" | b"pieces" => {
             let id = r.count()?;
             let bound = r.count()?;
+            let pieces = if kind.as_ref() == b"pieces" { Some(r.count()?) } else { None };
             let method = r.word()?;
             if !matches!(method.as_ref(), b"GET" | b"HEAD" | b"POST" | b"PUT" | b"PATCH" | b"DELETE" | b"OPTIONS") {
                 return Err("unknown method");
             }
-            Line::Exchange { id, bound, method, path: r.bytes()?, body: r.bytes()?, headers: r.headers()? }
+            Line::Exchange { id, bound, pieces, method, path: r.bytes()?, body: r.bytes()?, headers: r.headers()? }
         }
         b"open" => Line::Open { piece: r.count()?, path: r.bytes()?, headers: r.headers()? },
         b"close" => Line::Close,
@@ -602,6 +674,7 @@ impl Clone for Line {
             Self::Journey { version } => Self::Journey { version: *version },
             Self::Seed(value) => Self::Seed(*value),
             Self::Clocks { now, wall } => Self::Clocks { now: *now, wall: *wall },
+            Self::Fixed => Self::Fixed,
             Self::Primary(value) => Self::Primary(*value),
             Self::Zone(value) => Self::Zone(*value),
             Self::Ways { content, origin } => Self::Ways { content: content.clone(), origin: origin.clone() },
@@ -628,9 +701,10 @@ impl Clone for Line {
             Self::Act { act, event, name } => {
                 Self::Act { act: clone_act(act), event: event.clone(), name: name.clone() }
             }
-            Self::Exchange { id, bound, method, path, body, headers } => Self::Exchange {
+            Self::Exchange { id, bound, pieces, method, path, body, headers } => Self::Exchange {
                 id: *id,
                 bound: *bound,
+                pieces: *pieces,
                 method: method.clone(),
                 path: path.clone(),
                 body: body.clone(),
@@ -667,6 +741,9 @@ pub(super) fn clone_heard(heard: &Heard) -> Heard {
         Heard::Answered { exchange, status, body, headers: _ } => {
             Heard::Answered { exchange: *exchange, status: *status, body: body.clone(), headers: Vec::new() }
         }
+        Heard::Begun { exchange, status } => Heard::Begun { exchange: *exchange, status: *status },
+        Heard::Part { exchange, bytes } => Heard::Part { exchange: *exchange, bytes: bytes.clone() },
+        Heard::Done { exchange } => Heard::Done { exchange: *exchange },
         Heard::Failed { exchange } => Heard::Failed { exchange: *exchange },
         Heard::StreamOpened => Heard::StreamOpened,
         Heard::StreamRefused { status } => Heard::StreamRefused { status: *status },

@@ -7,21 +7,16 @@ fn the_shipped_agent_fits_standards_page_with_derived_carriers() {
     landing::configure(&mut document, &mut agent, address);
     document["engine"]["limits"]["profile"] = "standard".into();
     document["engine"]["limits"]["overrides"]["tasks.inbox_bytes"] = (82 * 4094).into();
-    for worker in document["workers"].as_array_mut().expect("workers") {
-        worker["limits"]["profile"] = "standard".into();
-        worker["limits"]["overrides"]["tasks.message_bytes"] = 262_144.into();
-    }
+    document["engine"]["limits"]["overrides"]["tasks.message_bytes"] = 262_144.into();
     document["application"]["limits"]["profile"] = "standard".into();
-    let mut stock: serde_json::Value =
-        serde_json::from_slice(include_bytes!("../../../../crates/temper-init/template/agent.json"))
-            .expect("stock init agent");
+    let mut stock: serde_json::Value = temper_fixtures::agent::stock(true);
     // Only declarations determine the turn bound; use inert direct endpoints.
     stock["programs"] = serde_json::json!({});
     for endpoint in stock["endpoints"].as_array_mut().expect("stock endpoints") {
         endpoint.as_object_mut().expect("endpoint").remove("program");
     }
     let transcript = fixtures::turn_bounds::turn_body(&stock);
-    assert_eq!(transcript, 16_803_810);
+    assert_eq!(transcript, 18_431_842);
     fixtures::turn_bounds::apply(&mut document, transcript);
     let given = fixtures::own_defaults(&document, &document["world_settings"]);
     temper_playground::documents::settings::strip_models(&mut document);

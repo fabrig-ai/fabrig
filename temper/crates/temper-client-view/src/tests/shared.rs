@@ -451,6 +451,7 @@ fn lists(rows: &mut List<Row>, w: &Words) {
                 up: jig_client::Up::Watched {
                     watch: watch.unwrap(),
                     event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                        ended_mark: 0,
                         rows: chats,
                         more: false,
                     }))),

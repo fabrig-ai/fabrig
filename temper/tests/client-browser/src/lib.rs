@@ -1,4 +1,4 @@
-//! The browser tier (client/web/testing.md, 3): Chromium against `temper serve`, on a scratch deployment whose
+//! The browser tier (client/web/testing.md, 3): Chromium against `temper box`, on a scratch deployment whose
 //! forge and LLM endpoint are unreached, or the box's first-run demo with its own fakes, serving the
 //! bundle scripts/browser.sh builds. Its helpers are jig's
 //! `tests/client-browser/src/lib.rs`'s, for temper's binary and bundle.
@@ -22,7 +22,7 @@ mod issuer;
 mod public;
 pub mod reading;
 mod story;
-pub use history::reader_opens;
+pub use history::{page_opens, reader_opens};
 pub use story::Stories;
 
 /// How long a story waits for what a page shows.
@@ -200,18 +200,17 @@ pub fn connected() -> Step {
     }
 }
 
-/// A scratch deployment for one story's `temper serve` or `temper box`.
+/// A scratch deployment for one story's `temper box`.
 pub struct Tier {
     scratch: skein_scratch::Scratch,
     forged: Box<[u8]>,
-    command: &'static str,
 }
 impl Tier {
     #[must_use]
     pub fn new(name: &str) -> Self {
         let scratch = skein_scratch::Scratch::new(name);
-        configuration::write(scratch.path(), &temper(), &bundle());
-        Self { scratch, forged: forgery::request(), command: "serve" }
+        configuration::write(scratch.path(), &bundle());
+        Self { scratch, forged: forgery::request() }
     }
     /// Give the deployment a usable model without a credential or a reachable LLM peer.
     #[must_use]
@@ -234,7 +233,7 @@ impl Tier {
     pub fn demo(name: &str) -> Self {
         let scratch = skein_scratch::Scratch::new(name);
         configuration::demo(scratch.path(), &temper(), &bundle());
-        Self { scratch, forged: forgery::request(), command: "" }
+        Self { scratch, forged: forgery::request() }
     }
     /// The demo with reading's replies on a private bundle, whose stylesheet turns the browser's
     /// anchoring off at `reading::anchoring_off`'s height alone (temper/docs/design/client/web/testing.md, 3).
@@ -364,9 +363,10 @@ impl Tier {
             args.extend(words.iter().map(std::ffi::OsString::from));
             Step::Run(Command { program: temper(), args, env: vec![], stdin, opens, within: WITHIN })
         };
-        vec![
-            command(&["sign-in", "-"], Stdin::Printed, None),
-            Step::Exited { code: 0, within: WITHIN },
+        let mut steps =
+            vec![command(&["sign-in", "-"], Stdin::Printed, None), Step::Exited { code: 0, within: WITHIN }];
+        steps.extend(self.project_calls());
+        steps.extend([
             command(
                 &["forge", "connect", "github", "--key", "github-connect"],
                 Stdin::Closed,
@@ -377,7 +377,8 @@ impl Tier {
                 }),
             ),
             Step::Exited { code: 0, within: WITHIN },
-        ]
+        ]);
+        steps
     }
     /// A tier whose server listens at a loopback port reserved beforehand, so that a restart opens the same
     /// address and a page reconnects to it. Jig's tier has the same hook.
@@ -401,11 +402,9 @@ impl Tier {
     }
     #[must_use]
     pub fn setup(&self) -> Setup<'_> {
-        let mut args = Vec::new();
-        if !self.command.is_empty() {
-            args.push(self.command.into());
-        }
-        args.extend(configuration::flags(self.scratch.path()));
+        // The box supplies serve's pipe and --box at every start, including its welcome default
+        // (temper/docs/design/protocol/configuration/settings.md, 2, kind 20).
+        let args = configuration::flags(self.scratch.path());
         Setup {
             server: temper(),
             args: args.clone(),
@@ -526,8 +525,7 @@ mod tests {
     }
 
     fn tier_configuration() -> (serde_json::Value, serde_json::Value) {
-        let (agent, value) =
-            documents(Path::new("/private/test"), Path::new("/test/temper"), Path::new("/test/bundle"));
+        let (agent, value) = documents(Path::new("/private/test"), Path::new("/test/bundle"));
         (serde_json::from_slice(&agent).expect("agent JSON"), serde_json::from_slice(&value).expect("deployment JSON"))
     }
     fn stock_defaults(value: &serde_json::Value) -> jig_domain_core::settings::Defaults {
@@ -543,8 +541,7 @@ mod tests {
     }
     #[test]
     fn the_tier_passes_startup_validation_with_stock_defaults() {
-        let (_, deployment) =
-            documents(Path::new("/private/test"), Path::new("/test/temper"), Path::new("/test/bundle"));
+        let (_, deployment) = documents(Path::new("/private/test"), Path::new("/test/bundle"));
         let shape = temper_service::startup::shape(&deployment, &jig_protocol_config::Directories::working())
             .expect("browser deployment admits stock settings");
         assert_eq!(shape, temper_service_core::startup::Shape::Standalone);

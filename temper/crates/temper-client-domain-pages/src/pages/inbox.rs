@@ -15,6 +15,8 @@ use jig_client::{
 use skein_lib::{List, Queue, Set};
 pub use tasks::TaskRead;
 use whole::Whole;
+
+const ROWS: u32 = 64;
 #[derive(Clone, Debug)]
 pub struct Card {
     pub object: ObjectKey,
@@ -101,6 +103,9 @@ pub struct Inbox {
     pub filter: Filter,
     pub entries: Handle,
     pub cards: List<Card>,
+    /// Needs' rows through the last page, bounded independently of the cards.
+    pub rows: List<contract::InboxEntry>,
+    needs_page: Option<Box<contract::InboxPage>>,
     /// The needs read's supplied ancestry, retained for milestone bands.
     pub selection: Option<List<contract::InboxSelection>>,
     /// Incomplete source documents, for needs and updates respectively.
@@ -115,7 +120,7 @@ pub struct Inbox {
     pub next: u64,
     pub window: u32,
     pub goal: Option<TaskRead>,
-    pub milestone: Option<Box<super::milestones::Milestone>>,
+    pub milestone: Option<Box<super::milestones::MilestoneRead>>,
     long_text: u32,
 }
 fn client(out: &mut Queue<Request>, event: jig_client::Event) {
@@ -141,6 +146,8 @@ impl Inbox {
             next: first.checked_add(3).expect("inbox handles fit"),
             window: limits.client.domain.rows.min((cards / 2).max(1)),
             cards: List::with_capacity(cards),
+            rows: List::with_capacity(ROWS),
+            needs_page: None,
             selection: None,
             previous: List::with_capacity(cards),
             arrived: [None, None],
@@ -190,7 +197,7 @@ impl Inbox {
             && self.milestone.is_none()
         {
             self.milestone =
-                Some(Box::new(super::milestones::Milestone::new(task.project, task.chip.task, &mut self.next)));
+                Some(Box::new(super::milestones::MilestoneRead::new(task.project, task.chip.task, &mut self.next)));
         }
         if let Some(milestone) = &mut self.milestone {
             milestone.configure_goals(client, limits, out);
@@ -212,39 +219,27 @@ impl Inbox {
     }
     fn refresh(&mut self, source: &Client, out: &mut Queue<Request>) {
         self.arrived = [None, None];
+        self.needs_page = None;
         if self.filter.kind == Some(Kind::Finding) {
             self.replace(out);
             self.release_previous(out);
+            self.rows.clear();
             self.answered = [true, false];
             self.cut = [false; 2];
             return;
         }
         if self.filter.project.is_some() || self.filter.goal.is_some() {
-            for (handle, group) in self.queries.into_iter().zip([InboxReadGroup::Needs, InboxReadGroup::Updates]) {
+            for group in [InboxReadGroup::Needs, InboxReadGroup::Updates] {
                 if self.filter.kind.is_some() && group == InboxReadGroup::Updates {
                     continue;
                 }
-                self.pending.insert(handle).expect("inbox query reads fit");
-                client(
-                    out,
-                    jig_client::Event::Read {
-                        handle,
-                        read: Readable::Jig(Read::Inbox {
-                            group,
-                            project: self.filter.project,
-                            kind: match self.filter.kind {
-                                Some(value) => kind(value),
-                                None => None,
-                            },
-                            goal: self.filter.goal,
-                            after: None,
-                        }),
-                    },
-                );
+                self.read_section(group, None, out);
             }
             return;
         }
         self.replace(out);
+        let previous_cut = self.cut[0];
+        let mut read_needs = false;
         self.cut = [false; 2];
         let latest = match source.document(self.entries) {
             Some(document) => document.latest,
@@ -252,7 +247,19 @@ impl Inbox {
         };
         if let Some(Latest::Jig(Delivery::Inbox(inbox))) = latest {
             self.answered = [true, self.filter.kind.is_none()];
-            self.cut = [inbox.next.is_some(); 2];
+            read_needs = inbox.next.is_some();
+            self.cut = [if read_needs && self.known { previous_cut } else { read_needs }, read_needs];
+            if !read_needs || !self.known {
+                self.rows.clear();
+                for row in &inbox.needs {
+                    if self.rows.len() == self.rows.capacity() {
+                        self.cut[0] = true;
+                        read_needs = true;
+                        break;
+                    }
+                    self.rows.push(row.clone()).expect("needs rows bounded");
+                }
+            }
             for rows in [&inbox.needs, &inbox.updates] {
                 for row in rows {
                     self.add(row, out);
@@ -260,6 +267,80 @@ impl Inbox {
             }
         }
         self.release_previous(out);
+        if read_needs {
+            self.read_section(InboxReadGroup::Needs, None, out);
+        }
+    }
+    fn read_section(&mut self, group: InboxReadGroup, after: Option<contract::Cursor>, out: &mut Queue<Request>) {
+        let handle = match group {
+            InboxReadGroup::Needs => self.queries[0],
+            InboxReadGroup::Updates => self.queries[1],
+        };
+        self.pending.insert(handle).expect("inbox query reads fit");
+        client(
+            out,
+            jig_client::Event::Read {
+                handle,
+                read: Readable::Jig(Read::Inbox {
+                    group,
+                    project: self.filter.project,
+                    kind: match self.filter.kind {
+                        Some(value) => kind(value),
+                        None => None,
+                    },
+                    goal: self.filter.goal,
+                    after,
+                }),
+            },
+        );
+    }
+    /// Stage one needs chain; only its terminal answer replaces the visible rows.
+    fn needs_answer(&mut self, page: Readout, out: &mut Queue<Request>) -> bool {
+        if let Readout::Jig(ReadResult::Value(ReadValue::Inbox(page))) = page {
+            if self.needs_page.is_none() {
+                self.needs_page = Some(Box::new(contract::InboxPage {
+                    rows: List::with_capacity(ROWS),
+                    selection: None,
+                    before: None,
+                    after: None,
+                    cut: false,
+                }));
+            }
+            let staged = self.needs_page.as_mut().expect("needs chain started");
+            if staged.selection.is_none() {
+                staged.selection.clone_from(&page.selection);
+            } else if let (Some(held), Some(selection)) = (&mut staged.selection, &page.selection) {
+                let mut joined = List::with_capacity(ROWS);
+                for row in held.iter().chain(selection.iter()) {
+                    if joined.len() < joined.capacity() {
+                        joined.push(row.clone()).expect("selection bounded");
+                    }
+                }
+                *held = joined;
+            }
+            let mut overflow = false;
+            for row in &page.rows {
+                if staged.rows.len() == staged.rows.capacity() {
+                    overflow = true;
+                    break;
+                }
+                staged.rows.push(row.clone()).expect("needs rows bounded");
+            }
+            staged.cut = overflow || page.after.is_some();
+            if page.after.is_some() && staged.rows.len() < staged.rows.capacity() {
+                self.read_section(InboxReadGroup::Needs, page.after, out);
+                return false;
+            }
+        } else {
+            self.cut[0] = true;
+            if self.answered(InboxReadGroup::Needs) {
+                self.needs_page = None;
+            } else if let Some(staged) = &mut self.needs_page {
+                staged.cut = true;
+            }
+        }
+        self.arrived[0] = self.needs_page.take();
+        true
     }
     fn release_previous(&mut self, out: &mut Queue<Request>) {
         for card in &self.previous {
@@ -301,6 +382,7 @@ impl Inbox {
             if let Some(page) = self.arrived.get_mut(index).expect("inbox section").take() {
                 if index == 0 {
                     self.selection.clone_from(&page.selection);
+                    self.rows.clone_from(&page.rows);
                 }
                 *self.answered.get_mut(index).expect("inbox section") = true;
                 *self.cut.get_mut(index).expect("inbox section") = page.cut;
@@ -344,6 +426,16 @@ impl Inbox {
         out: &mut Queue<Request>,
     ) {
         if self.cards.len() == self.cards.capacity() {
+            return;
+        }
+        let section = InboxReadGroup::of(group);
+        let mut count = 0_u32;
+        for card in &self.cards {
+            if InboxReadGroup::of(card.group) == section {
+                count = count.checked_add(1).expect("bounded cards");
+            }
+        }
+        if section == InboxReadGroup::Needs && count >= self.window {
             return;
         }
         if let Some(filter) = self.filter.kind
@@ -403,6 +495,45 @@ impl Inbox {
         self.read_whole(index, out);
         self.read_task(index, out);
     }
+    /// Read a needs row on demand, reusing the last needs card's place.
+    pub(super) fn open(&mut self, object: ObjectKey, out: &mut Queue<Request>) {
+        for card in &self.cards {
+            if card.object == object {
+                return;
+            }
+        }
+        let mut requested = None;
+        let mut last = None;
+        for row in &self.rows {
+            if row.card_key() == object {
+                requested = Some(row.clone());
+            }
+            for (index, card) in self.cards.iter().enumerate() {
+                if card.object == row.card_key() {
+                    last = Some(index);
+                }
+            }
+        }
+        let Some(row) = requested else { return };
+        if let Some(last) = last {
+            let mut previous = List::with_capacity(self.cards.capacity());
+            core::mem::swap(&mut self.cards, &mut previous);
+            for (index, card) in previous.into_boxed().into_iter().enumerate() {
+                if index == last {
+                    client(out, jig_client::Event::Unwatch { handle: card.handle });
+                    self.pending.remove(&card.handle);
+                    if let Some(whole) = &card.whole {
+                        client(out, jig_client::Event::Unwatch { handle: whole.handle });
+                    }
+                    self.previous.push(card).expect("one replaced needs card");
+                } else {
+                    self.cards.push(card).expect("kept cards fit");
+                }
+            }
+        }
+        self.add(&row, out);
+        self.release_previous(out);
+    }
     fn read_task(&mut self, index: u32, out: &mut Queue<Request>) {
         let card = self.cards.get_mut(index).expect("bounded card index");
         let Some(source) = card.source() else { return };
@@ -447,7 +578,7 @@ impl Inbox {
     }
     pub(super) fn told(&mut self, source: &Client, told: Told, limits: &Limits, out: &mut Queue<Request>) -> bool {
         if let Some(milestone) = &mut self.milestone
-            && milestone.told(&told, limits, out)
+            && milestone.told(&told, source, limits, out)
         {
             return true;
         }
@@ -485,10 +616,21 @@ impl Inbox {
             }
         }
         let answered = self.pending.remove(&handle);
-        if self.queries.contains(&handle) && (self.filter.project.is_some() || self.filter.goal.is_some()) {
-            let index = usize::from(handle == self.queries[1]);
-            if let Readout::Jig(ReadResult::Value(ReadValue::Inbox(page))) = page {
-                *self.arrived.get_mut(index).expect("query names one section") = Some(page);
+        if self.queries.contains(&handle) {
+            if handle == self.queries[0] {
+                if !self.needs_answer(page, out) {
+                    return true;
+                }
+                if self.filter.project.is_none() && self.filter.goal.is_none() {
+                    if let Some(page) = self.arrived[0].take() {
+                        self.rows = page.rows;
+                        self.cut[0] = page.cut;
+                        self.selection = page.selection;
+                    }
+                    return true;
+                }
+            } else if let Readout::Jig(ReadResult::Value(ReadValue::Inbox(page))) = page {
+                self.arrived[1] = Some(page);
             }
             if !self.pending.contains(&self.queries[0]) && !self.pending.contains(&self.queries[1]) {
                 self.apply(out);

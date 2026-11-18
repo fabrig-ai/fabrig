@@ -222,7 +222,7 @@ fn ready_client(service: &mut crate::Service) -> &mut crate::Engine {
     engine
 }
 fn link_body(engine: &mut crate::Engine) -> Box<[u8]> {
-    use jig_client_protocol_wire::v27 as w;
+    use jig_client_protocol_wire as w;
     use skein_lib::{
         Writer,
         base64::{self, Alphabet},
@@ -399,7 +399,7 @@ fn prepared(clients: bool) -> crate::Service {
     core.documents.rows = 2;
     config.limits.journal = jig_protocol_config::JournalSizes { commits: 3, writes: 2000, door: 32, release: 32 };
     config.limits.routes = 16;
-    let mut limits = crate::limits::for_profile(jig_protocol_config::Profile::Small, &config.limits);
+    let mut limits = crate::limits::small(&config.limits);
     limits.root.journal = f::journal(&limits.root);
     limits.root.watermark = root::default_watermark(&limits.root.journal);
     config.limits.journal = jig_protocol_config::JournalSizes {
@@ -417,7 +417,7 @@ fn prepared(clients: bool) -> crate::Service {
                 &config,
                 address(),
                 &seeds,
-                &crate::limits::profile_limits(jig_protocol_config::Profile::Small).server,
+                &crate::limits::small(&jig_protocol_config_fixtures::small()).server,
             )
             .expect("clients fixture"),
         )
@@ -447,7 +447,7 @@ fn prepared(clients: bool) -> crate::Service {
 }
 
 fn before_restart_is_not_ready(engine: &mut crate::Engine) {
-    use jig_client_protocol_wire::v27 as w;
+    use jig_client_protocol_wire as w;
     engine.clients.as_mut().expect("clients").starting = Some(());
     let body = link_body(engine);
     let mut peer = Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
@@ -484,9 +484,9 @@ fn withhold_store(engine: &mut crate::Engine, held: &mut skein_lib::Queue<jig_pr
     }
 }
 
-fn sign_in_answer(engine: &crate::Engine, peer: &Peer) -> jig_client_protocol_wire::v27::SignInAnswer {
+fn sign_in_answer(engine: &crate::Engine, peer: &Peer) -> jig_client_protocol_wire::SignInAnswer {
     assert!(peer.wire.received.starts_with(b"HTTP/1.1 200 "), "HTTP answer: {:?}", peer.wire.received);
-    jig_client_protocol_wire::v27::SignInAnswer::decode(
+    jig_client_protocol_wire::SignInAnswer::decode(
         &engine.clients.as_ref().expect("clients").env.limits.wire,
         &mut skein_lib::Reader::new(response_body(peer)),
     )
@@ -495,7 +495,7 @@ fn sign_in_answer(engine: &crate::Engine, peer: &Peer) -> jig_client_protocol_wi
 
 #[test]
 fn sign_in_is_not_ready_until_restart_decisions_open() {
-    use jig_client_protocol_wire::v27 as w;
+    use jig_client_protocol_wire as w;
     let mut service = started(true);
     let engine = ready_client(&mut service);
     let body = link_body(engine);
@@ -532,13 +532,8 @@ fn waiting_workers(engine: &mut crate::Engine) {
     let config = f::config();
     assert!(engine.events.is_empty());
     engine.workers = Some(
-        crate::workers::Workers::new(
-            &config,
-            &f::files(&f::engine_document()),
-            f::seeds().deployment,
-            &crate::limits::for_profile(jig_protocol_config::Profile::Small, &config.limits).workers,
-        )
-        .expect("workers fixture"),
+        crate::workers::Workers::new(&config, f::seeds().deployment, &crate::limits::small(&config.limits).workers)
+            .expect("workers fixture"),
     );
 }
 
@@ -580,7 +575,7 @@ fn response_body(peer: &Peer) -> &[u8] {
     peer.wire.received.get(at..).expect("response body")
 }
 fn application_read(engine: &crate::Engine) -> Box<[u8]> {
-    use jig_client_protocol_wire::v27 as w;
+    use jig_client_protocol_wire as w;
     let limits = &engine.clients.as_ref().expect("clients").env.limits.wire;
     let owner = w::Owner::Family(w::Family::new(limits, w::FamilyParts { number: 1 }).expect("test family"));
     let window = w::Window::new(limits, w::WindowParts { rows: 2, after: None }).expect("window");
@@ -606,7 +601,7 @@ fn application_read(engine: &crate::Engine) -> Box<[u8]> {
 }
 #[test]
 fn a_core_refusal_finishes_an_application_read() {
-    use jig_client_protocol_wire::v27 as w;
+    use jig_client_protocol_wire as w;
     let mut service = started(true);
     let engine = ready_client(&mut service);
     let body = application_read(engine);
@@ -730,7 +725,7 @@ fn the_printed_url_carries_the_secret_the_component_gave() {
 fn a_call_past_the_mounts_room_is_answered_busy() {
     use skein_lib::Queue;
     let mut clients = f::server::retained_clients();
-    let capacity = crate::limits::profile_limits(jig_protocol_config::Profile::Small).clients_http.calls;
+    let capacity = crate::limits::small(&jig_protocol_config_fixtures::small()).clients_http.calls;
     let mut peers = skein_lib::List::with_capacity(capacity.checked_add(1).expect("first refused call"));
     // The existing Small server has eight connections for four mounted calls.
     // The first socket is the server fixture's existing socket.
@@ -762,7 +757,7 @@ fn a_call_past_the_mounts_room_is_answered_busy() {
     let env = skein_lib::Env {
         now: Time::ZERO,
         wall: Wall::EPOCH,
-        limits: crate::limits::profile_limits(jig_protocol_config::Profile::Small).clients_http,
+        limits: crate::limits::small(&jig_protocol_config_fixtures::small()).clients_http,
     };
     let mut out = Queue::with_capacity(capacity.checked_mul(2).expect("retirement output"));
     while clients.mount.up(&env, &mut out) {}
@@ -777,7 +772,7 @@ fn a_moved_record_bound_past_the_wire_value_bound_refuses_start() {
         &config,
         address(),
         &f::seeds(),
-        &crate::limits::profile_limits(jig_protocol_config::Profile::Small).server,
+        &crate::limits::small(&jig_protocol_config_fixtures::small()).server,
     ) else {
         panic!("moved file does not fit the wire")
     };
@@ -792,7 +787,7 @@ fn debug_of_the_clients_shows_the_links_count_never_a_link() {
         &config,
         address(),
         &f::seeds(),
-        &crate::limits::profile_limits(jig_protocol_config::Profile::Small).server,
+        &crate::limits::small(&jig_protocol_config_fixtures::small()).server,
     )
     .expect("clients fixture");
     clients.links.push(Box::from(CANARY.as_bytes()));

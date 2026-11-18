@@ -53,7 +53,7 @@ impl LinkPeer {
     ) -> Self {
         let prepared = worker_settings::prepare(settings, agent, own).unwrap();
         let limits = engine_link::Limits {
-            room: settings.jig.limits.io.largest_room(),
+            room: settings.jig.limits.as_ref().expect("checked worker limits").io.largest_room(),
             sizes: prepared.link.sizes,
             names: 1,
             workers: 1,
@@ -89,8 +89,13 @@ impl LinkPeer {
             component: engine_link::Component::new(
                 limits,
                 Box::new([engine_link::Worker {
+                    number: 1,
+                    places: 1,
+                    withdrawn: false,
                     name: settings.jig.name.clone(),
-                    digest: io::digest::digest(fixtures::worker_files().contents(b"worker-secret").unwrap()),
+                    digest: Some(skein_lib::sha256::digest(
+                        fixtures::worker_files().contents(b"worker-secret").unwrap(),
+                    )),
                 }]),
                 jig_protocol_worker_wire::spoken(),
                 {
@@ -118,7 +123,11 @@ impl LinkPeer {
         worker.iterate(self.now, Wall::EPOCH);
         worker.up(self.now, io::Event::Connecting { owner: self.owner, socket: Token::new(44) });
         worker.up(self.now, io::Event::Connected { owner: self.owner });
-        self.component.down(self.now, engine_link::Event::Accepted { connection: Token::new(1) }, &mut self.out);
+        self.component.down(
+            self.now,
+            engine_link::Event::Accepted { connection: Token::new(1), in_process: false },
+            &mut self.out,
+        );
         for _ in 0_u16..1000 {
             if let Some(engine_link::Request::Hello { .. }) = self.turn(worker) {
                 return;
@@ -226,6 +235,7 @@ impl LinkPeer {
                 }
                 other @ (engine_link::Request::TurnAway { .. }
                 | engine_link::Request::Lower { .. }
+                | engine_link::Request::FiguresTaken { .. }
                 | engine_link::Request::Told { .. }
                 | engine_link::Request::Closed) => panic!("engine request: {other:?}"),
             }

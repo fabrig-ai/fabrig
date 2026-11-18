@@ -520,8 +520,12 @@ git for-each-ref --count=1 --format='%(objectname)' --contains <second> refs/tem
 ```
 
 The fetch prunes obsolete references, so a cached remote tip cannot vouch
-for a commit the remote no longer reaches. An empty listing refuses with
-`delivery second parent is not reachable from the branch's remote`.
+for a commit the remote no longer reaches. An empty listing ends the
+operation `ParentUnreachable { head, merging, parent }` before anything is
+staged: HEAD and MERGE_HEAD as read, and the second parent no remote
+reference reaches. The domain refuses it with `delivery second parent is
+not reachable from the branch's remote`, or catches up with a landed
+dependency (`../domain/worker/checkouts.md`, *A landed dependency's catch-up*).
 The fetch alone carries that account's credential, under the operation's
 remote deadline. Local metadata and listings obey the usual stdout bounds;
 a malformed id is `Broken`. A MERGE_HEAD listing with more than one id

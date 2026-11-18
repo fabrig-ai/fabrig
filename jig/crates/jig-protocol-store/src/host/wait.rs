@@ -11,7 +11,7 @@ pub struct Wait {
     pub opening: &'static str,
     pub rehearsal: Option<&'static str>,
     pub maps_opened: u8,
-    pub lanes: [WaitLane; 3],
+    pub lanes: [WaitLane; 4],
     pub open_failure: Option<crate::restore::OpenFailure>,
 }
 
@@ -35,7 +35,7 @@ impl Hosted {
             opening: opening(&self.component.directory.opening),
             rehearsal: crate::rehearsal::waiting(&self.component),
             maps_opened: self.component.directory.opened,
-            lanes: [self.wait_lane(0), self.wait_lane(1), self.wait_lane(2)],
+            lanes: [self.wait_lane(0), self.wait_lane(1), self.wait_lane(2), self.wait_lane(3)],
             open_failure: self.component.start_open_failure().cloned(),
         }
     }
@@ -54,6 +54,7 @@ fn opening(step: &Opening) -> &'static str {
     match step {
         Opening::Idle => "idle",
         Opening::Locking => "lock deployment",
+        Opening::Resolving(_) => "finish restore intent",
         Opening::Reading => "read active",
         Opening::SurveyOpen(_) => "open survey directory",
         Opening::SurveyPage { .. } => "list survey directory",
@@ -76,8 +77,10 @@ fn opening(step: &Opening) -> &'static str {
         Opening::SweepPage(_) => "list sweep directory",
         Opening::SweepFile(_) => "remove stray file",
         Opening::SweepRemoving { .. } => "remove stray directory",
+        Opening::RestoreSweepSync { .. } => "sync restore strays",
         Opening::SweepSync { .. } => "sync sweep directory",
         Opening::SweepClose(_) => "close sweep directory",
+        Opening::CheckpointSweep(_) => "sweep checkpoint temporaries",
         Opening::TranscriptsMade => "make transcripts directory",
         Opening::TranscriptsOpen => "open transcripts directory",
         Opening::Patching(step) => match step.as_ref() {

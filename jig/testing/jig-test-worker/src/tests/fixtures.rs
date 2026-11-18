@@ -11,7 +11,7 @@ pub const AGENT: Token = Token::new(0);
 pub const CALL: Token = Token::new(19);
 
 pub fn limits() -> Limits {
-    let hub = jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Small).hub;
+    let hub = jig_protocol_config_fixtures::small().hub;
     let agent = smith::Limits {
         agents: 2,
         directories: 1,
@@ -68,14 +68,9 @@ pub fn limits() -> Limits {
     }
 }
 
-// Smith's smallest v4 golden, used by its agent-process world's charter fixture.
-#[expect(clippy::disallowed_macros, reason = "fixed wire fixtures belong to worker unit tests")]
-const SMALLEST: &[u8] =
-    include_bytes!("../../../../../smith/crates/smith-charter/golden/v5/record_charter_smallest.bin");
-
 pub fn charter_bytes() -> Box<[u8]> {
-    let source =
-        smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(SMALLEST)).expect("golden charter");
+    let source = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(&charter_fixture()))
+        .expect("golden charter");
     let mut parts = source.into_parts();
     parts.mode = smith_charter::Mode::Finite;
     parts.budget = smith_charter::Budget::new(
@@ -396,4 +391,17 @@ pub fn encoded_turn() -> host::Turn {
         refused: Box::new([]),
         body: Box::from(&b"encoded turn"[..]),
     }
+}
+
+#[expect(clippy::disallowed_macros, reason = "the fixture embeds the current charter schema")]
+fn charter_fixture() -> Box<[u8]> {
+    let schema =
+        skein_codegen::parse(include_str!("../../../../../smith/crates/smith-charter/schema/charter-v5.schema"))
+            .expect("charter schema");
+    for value in skein_codegen::goldens(&schema) {
+        if value.name == "record_charter_smallest.bin" {
+            return value.bytes.into_boxed_slice();
+        }
+    }
+    panic!("smallest charter")
 }

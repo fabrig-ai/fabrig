@@ -128,6 +128,7 @@ fn ended_change(repository: Repository) -> forge::Stored {
     forge::Stored::Change(Box::new(forge::ChangeRow {
         source: None,
         kept: None,
+        regate: None,
         task: CHANGE,
         repository,
         branch: b"temper/old".as_slice().into(),
@@ -149,13 +150,16 @@ fn ended_change(repository: Repository) -> forge::Stored {
             repairs: 0,
             resolutions: 0,
             updates: 0,
+            stale: None,
             since: Wall::EPOCH,
             ready_since: None,
             owns_turn: false,
             last_head: None,
             last_checked: None,
+            last_checked_by: None,
             clock: None,
         },
+        room: None,
         task_release: None,
         job: None,
         signed: Box::new([]),
@@ -172,6 +176,8 @@ fn ended_change(repository: Repository) -> forge::Stored {
         effect: change::EffectResult::Pending,
         delegate: None,
         delegate_status: change::Status::Passed,
+        delegate_flake: false,
+        delegate_head: None,
         verdicts: Box::new([]),
         gate_remarks: Box::new([]),
         drift: None,
@@ -411,6 +417,7 @@ fn setting_is(edit: &forge::settings::Edit, repository: Repository) -> bool {
             | Value::Dependency(_)
             | Value::Welcome(_)
             | Value::ProjectAreas(_)
+            | Value::AgentFigures(_)
             | Value::Landing(_)
             | Value::Gates(_)
             | Value::ProjectTriager(_) => false,

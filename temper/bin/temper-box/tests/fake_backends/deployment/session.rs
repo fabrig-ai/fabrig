@@ -15,11 +15,13 @@ use std::{cell::Cell, fs::File};
 const READ: Token = Token::new(1);
 const WRITE: Token = Token::new(2);
 const CLOSE: Token = Token::new(3);
-const READS: [&str; 4] = [
+const READS: [&str; 6] = [
     "ctl project show Hello --json",
     "ctl forge list --until connected:1 --json",
     "ctl forge repositories 1 --json",
     "ctl landing list --project Hello --ended --json",
+    "ctl settings show project-landing 1 --revision 3 --json",
+    "ctl settings show project-gates 1 --revision 3 --json",
 ];
 
 struct Lines {

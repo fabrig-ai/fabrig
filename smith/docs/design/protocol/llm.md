@@ -623,6 +623,15 @@ component and skein's client against scripted byte peers, in each dialect.
   - a grant refreshed between two calls;
   - each deadline passing, a steady stream outliving any fixed time, and
     the session's time running out once, without a retry;
+  - a hung request, on every attempt: one the peer takes and answers
+    with nothing, no head and no byte, cut at the model's `head`; one
+    whose response gives its head and a first output, then nothing, cut
+    at the model's `idle` counted from that output. Each is retried after
+    its backoff while the session has retries, and then fails once, as
+    *timed out* with its phase, its attempts the session's retries plus
+    one, a failure of its model (section 6; domain/session.md, section
+    4). The first request of a session opened on a restored history,
+    hung the same way, is cut at `head` and retried as any other;
   - a call waiting at a full pool, then served;
   - the affinity on the wire in each dialect, and the same affinity across
     a resume;

@@ -1,5 +1,6 @@
 //! The test's shell: linked sign-in played as platform reports, through bytes.
-use jig_client_protocol_wire::{VERSION, v27 as w};
+use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::VERSION;
 use jig_client_shell_web::adapter::{Asked, Heard};
 use skein_lib::{
     Duration, List, Overflow, Reader, Time, Wall, Writer,
@@ -26,6 +27,7 @@ struct Walk {
 impl Walk {
     fn new() -> Self {
         let facts = Facts {
+            fixed: false,
             seed: 11,
             now: Time::ZERO,
             wall: Wall::EPOCH,
@@ -63,24 +65,58 @@ impl Walk {
             }
             let Duties { asked, writes, .. } = duties;
             for ask in &asked {
-                if let Asked::Exchange { id, call, .. } = ask
-                    && call.path.as_ref() == b"/jig/v1/watch"
-                {
-                    let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(&call.body)).expect("watch envelope");
-                    if *open.subject().owner() == w::Owner::Jig {
-                        let subject = w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record()))
-                            .expect("subject");
-                        if subject == w::Subject::Accounts {
+                if let Asked::Exchange { id, call, .. } = ask {
+                    for open in opens(&call.path, &call.body) {
+                        if open.subject().owner() == &w::Owner::Jig
+                            && w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record()))
+                                .expect("subject")
+                                == w::Subject::Accounts
+                        {
                             self.accounts = Some(open.watch());
                         }
                     }
-                    let answer = w::OpenAnswer::Admitted;
-                    pending.push_back(Report::Heard(Heard::Answered {
-                        exchange: *id,
-                        status: 200,
-                        body: encoded(answer.measure(), |writer| answer.encode(writer)),
-                        headers: Vec::new(),
-                    }));
+                    if call.path.as_ref() == b"/jig/v1/watch" {
+                        let answer = w::OpenAnswer::Admitted;
+                        pending.push_back(Report::Heard(Heard::Answered {
+                            exchange: *id,
+                            status: 200,
+                            body: encoded(answer.measure(), |writer| answer.encode(writer)),
+                            headers: Vec::new(),
+                        }));
+                    } else if call.path.as_ref() == b"/jig/v1/batch" {
+                        pending.push_back(Report::Heard(Heard::Begun { exchange: *id, status: 200 }));
+                        let batch = w::Batch::decode(&w::CEILINGS, &mut Reader::new(&call.body)).expect("batch");
+                        let mut complete = true;
+                        for (place, member) in batch.into_parts().members.into_boxed().into_iter().enumerate() {
+                            let reply = match member {
+                                w::Member::Open(_) => encoded(w::OpenAnswer::Admitted.measure(), |writer| {
+                                    w::OpenAnswer::Admitted.encode(writer)
+                                }),
+                                w::Member::Close(_) => encoded(w::CloseAnswer::Closed.measure(), |writer| {
+                                    w::CloseAnswer::Closed.encode(writer)
+                                }),
+                                w::Member::Read(_) => {
+                                    complete = false;
+                                    continue; // The fixture leaves lone reads unanswered too.
+                                }
+                            };
+                            let part = w::BatchReply::new(
+                                &w::CEILINGS,
+                                w::BatchReplyParts {
+                                    member: u16::try_from(place).expect("member"),
+                                    reply: Some(reply),
+                                },
+                            )
+                            .expect("part");
+                            let bytes = encoded(part.measure(), |writer| part.encode(writer));
+                            let frame =
+                                [part.measure().to_be_bytes().as_slice(), bytes.as_ref()].concat().into_boxed_slice();
+                            pending.push_back(Report::Heard(Heard::Part { exchange: *id, bytes: frame }));
+                        }
+                        if complete {
+                            pending.push_back(Report::Heard(Heard::Done { exchange: *id }));
+                        }
+                    }
                 }
             }
             let carried: Vec<_> = asked
@@ -195,6 +231,34 @@ pub(super) struct Saves {
     pub first: Box<[u8]>,
     pub later: Box<[u8]>,
 }
+fn opens(path: &[u8], body: &[u8]) -> Vec<w::Open> {
+    if path == b"/jig/v1/watch" {
+        return vec![w::Open::decode(&w::CEILINGS, &mut Reader::new(body)).expect("opening")];
+    }
+    if path == b"/jig/v1/batch" {
+        return w::Batch::decode(&w::CEILINGS, &mut Reader::new(body))
+            .expect("batch")
+            .into_parts()
+            .members
+            .into_boxed()
+            .into_vec()
+            .into_iter()
+            .filter_map(|member| match member {
+                w::Member::Open(open) => Some(open),
+                w::Member::Read(_) | w::Member::Close(_) => None,
+            })
+            .collect();
+    }
+    vec![]
+}
+#[expect(dead_code, reason = "the implicit me watch uses name zero rather than an opening exchange")]
+fn opening(path: &[u8], body: &[u8]) -> Option<w::Open> {
+    opens(path, body).into_iter().find(|open| {
+        open.subject().owner() == &w::Owner::Jig
+            && w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).expect("subject")
+                == w::Subject::Me
+    })
+}
 fn linked() -> Walk {
     let mut walk = Walk::new();
     walk.turn(vec![Report::Start]);
@@ -216,24 +280,13 @@ fn linked() -> Walk {
             )
             .expect("two families");
     }
-    let asks = walk.streamed(&w::StreamEvent::Hello(
+    let asks = walk.streamed(&jig_client_test_records::opened(
         w::Hello::new(&w::CEILINGS, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
             .expect("hello"),
+        jig_client_test_records::frame_record(),
     ));
-    let watch = asks
-        .into_iter()
-        .find_map(|ask| {
-            let Asked::Exchange { call, .. } = ask else {
-                return None;
-            };
-            if call.path.as_ref() != b"/jig/v1/watch" {
-                return None;
-            }
-            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(&call.body)).expect("watch envelope");
-            let subject = w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).expect("subject");
-            matches!(subject, w::Subject::Me).then_some(open.watch())
-        })
-        .expect("me watch");
+    let _ = asks;
+    let watch = 0;
     let value = me_with_openai();
     walk.streamed(&w::StreamEvent::Delivery(
         w::Delivery::new(
@@ -393,24 +446,13 @@ fn key_ready() -> Walk {
             )
             .expect("two families");
     }
-    let asks = walk.streamed(&w::StreamEvent::Hello(
+    let asks = walk.streamed(&jig_client_test_records::opened(
         w::Hello::new(&w::CEILINGS, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
             .expect("hello"),
+        jig_client_test_records::frame_record(),
     ));
-    let watch = asks
-        .into_iter()
-        .find_map(|ask| {
-            let Asked::Exchange { call, .. } = ask else {
-                return None;
-            };
-            if call.path.as_ref() != b"/jig/v1/watch" {
-                return None;
-            }
-            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(&call.body)).expect("watch envelope");
-            let subject = w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).expect("subject");
-            matches!(subject, w::Subject::Me).then_some(open.watch())
-        })
-        .expect("me watch");
+    let _ = asks;
+    let watch = 0;
     let value = me_with_openai_key();
     walk.streamed(&w::StreamEvent::Delivery(
         w::Delivery::new(
@@ -445,6 +487,7 @@ pub(super) fn keyed(value: &[u8], byte_at_a_time: bool) -> Box<[u8]> {
 }
 pub(super) fn stored_stream(record: skein_ui_web::store::Record) -> Box<[u8]> {
     let facts = Facts {
+        fixed: false,
         seed: 11,
         now: Time::ZERO,
         wall: Wall::EPOCH,

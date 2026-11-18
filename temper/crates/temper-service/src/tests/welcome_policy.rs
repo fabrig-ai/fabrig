@@ -118,6 +118,7 @@ fn generated_with_test(test: Option<&[u8]>) -> (engine::Config, engine::Limits) 
 
 fn sign_in_owner(driver: &mut Driver) {
     driver.send(Event::Party(PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(900)),
         identity: people::Identity {
@@ -138,7 +139,7 @@ fn a_fresh_init_names_the_standard_profiles() {
             temper_init::Content::Bytes { .. } | temper_init::Content::Link { .. } => None,
         })
         .expect("generated temper.json");
-    for path in [b"engine.limits.profile".as_slice(), b"workers[0].limits.profile", b"application.limits.profile"] {
+    for path in [b"engine.limits.profile".as_slice(), b"engine.limits.profile", b"application.limits.profile"] {
         assert_eq!(fixtures::value(&init, path).as_ref(), br#""standard""#, "{}", str::from_utf8(path).unwrap());
     }
     let overrides = fixtures::value(&init, b"engine.limits.overrides");
@@ -163,8 +164,8 @@ fn a_fresh_init_names_the_standard_profiles() {
     );
     let (_, limits) = generated();
     assert_eq!(limits.tasks.inbox_messages, 82);
-    assert_eq!(limits.tasks.message_bytes, 10_660);
-    assert_eq!(limits.tasks.result_bytes, 10_660);
+    assert_eq!(limits.tasks.message_bytes, 63_738);
+    assert_eq!(limits.tasks.result_bytes, 63_738);
     assert_eq!(limits.tasks.inbox_bytes, limits.tasks.inbox_messages * limits.tasks.message_bytes);
 }
 
@@ -180,7 +181,7 @@ fn a_fresh_box_me_lists_the_stock_charters_at_fabrig_scale() {
     driver.send(Event::Party(PartyInput::Read {
         reply_to: ReplyTo::new(EMPTY),
         sign_in: driver.session(),
-        read: core::reads::Read::Frame,
+        read: Box::new(core::reads::Read::Frame),
     }));
     driver.settle();
     let document = driver
@@ -200,7 +201,7 @@ fn a_fresh_box_me_lists_the_stock_charters_at_fabrig_scale() {
     driver.send(Event::Party(PartyInput::Read {
         reply_to: ReplyTo::new(READ),
         sign_in: driver.session(),
-        read: core::reads::Read::Frame,
+        read: Box::new(core::reads::Read::Frame),
     }));
     driver.settle();
     let document = driver
@@ -241,11 +242,11 @@ fn a_fresh_box_me_lists_the_stock_charters_at_fabrig_scale() {
         driver.send(Event::Party(PartyInput::Read {
             reply_to: ReplyTo::new(token),
             sign_in: driver.session(),
-            read: core::reads::Read::Setting {
+            read: Box::new(core::reads::Read::Setting {
                 setting: core::settings::Setting::Charter(number),
                 revision: 1,
                 proposal: None,
-            },
+            }),
         }));
         driver.settle();
         let charter = driver
@@ -266,7 +267,8 @@ fn a_fresh_box_me_lists_the_stock_charters_at_fabrig_scale() {
         assert_eq!(charter.policy.turns, turns, "charter {number}");
         assert_eq!(charter.policy.time, skein_lib::Duration::from_secs(seconds), "charter {number}");
         assert_eq!(charter.policy.reserve_turns, 1, "charter {number}");
-        assert_eq!(charter.policy.reserve_time, skein_lib::Duration::from_secs(60), "charter {number}");
+        let reserve = skein_lib::Duration::from_secs(if number == 9 { 60 } else { 300 });
+        assert_eq!(charter.policy.reserve_time, reserve, "charter {number}");
     }
 }
 
@@ -323,7 +325,7 @@ fn real_init_policy_fits_with_two_long_github_repositories() {
     // Init runs the Standard profile; also prove the stricter product question.
     assert_eq!(limits.policy_bytes, 16_384);
     assert!(config.core.seed_projects.is_empty());
-    assert_eq!(config.kinds_stock.len(), 16);
+    assert_eq!(config.kinds_stock.len(), 17);
     let stock = config.core.defaults.policies.get(&1).expect("stock policy 1");
     let snapshot =
         core::policy_snapshot(&stock.policy, &stock.permissions, &stock.templates).expect("whole stock policy");

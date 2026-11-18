@@ -89,7 +89,7 @@ pub const HOW_TEMPER_BUILDS_TEMPER: Page = Page {
 
 /// `index`, then the concepts, walks, recipes, ways and reference pages, each by name.
 #[expect(clippy::disallowed_macros, reason = "pages compile their single Markdown source as static data")]
-pub static PAGES: [Page; 75] = [
+pub static PAGES: [Page; 77] = [
     Page {
         name: "index",
         kind: Kind::Index,
@@ -358,6 +358,13 @@ pub static PAGES: [Page; 75] = [
         text: include_str!("../../../docs/help/reference/ctl-sign-out.md"),
     },
     Page {
+        name: "ctl-link",
+        kind: Kind::Reference,
+        title: "temper ctl link",
+        summary: "Write a fresh one-time sign-in link to a private file.",
+        text: include_str!("../../../docs/help/reference/ctl-link.md"),
+    },
+    Page {
         name: "ctl-pending",
         kind: Kind::Reference,
         title: "temper ctl pending",
@@ -557,8 +564,15 @@ pub static PAGES: [Page; 75] = [
         name: "ctl-deployment",
         kind: Kind::Reference,
         title: "temper ctl deployment",
-        summary: "Read the store's census in the deployment's document.",
+        summary: "Read the deployment's store census or take a checkpoint.",
         text: include_str!("../../../docs/help/reference/ctl-deployment.md"),
+    },
+    Page {
+        name: "ctl-worker",
+        kind: Kind::Reference,
+        title: "temper ctl worker",
+        summary: "Workers: list, add, change places or remove.",
+        text: include_str!("../../../docs/help/reference/ctl-worker.md"),
     },
     Page {
         name: "configuration",
@@ -585,14 +599,14 @@ pub static PAGES: [Page; 75] = [
         name: "limits",
         kind: Kind::Reference,
         title: "Limits",
-        summary: "Every limit application.limits.overrides takes: its unit, the small profile's value and what it bounds.",
+        summary: "Every limit application.limits.overrides takes: its unit, the stock's value and what it bounds.",
         text: include_str!("../../../docs/help/reference/limits.md"),
     },
     Page {
         name: "limits-engine",
         kind: Kind::Reference,
         title: "Engine limits",
-        summary: "Every limit engine.limits.overrides and a worker's limits.overrides take: its unit, the small profile's value and what it bounds.",
+        summary: "Every limit engine.limits.overrides and a worker's limits.overrides take: its unit, the stock's value and what it bounds.",
         text: include_str!("../../../docs/help/reference/limits-engine.md"),
     },
     Page {

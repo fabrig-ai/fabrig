@@ -10,7 +10,7 @@ pub fn own(rng: &mut Rng) -> Own {
         5 => Own::TurnLog { task: number(rng) },
         6 => Own::LogAttempt { task: number(rng), attempt: number(rng) },
         0 => Own::Format,
-        3 => Own::Layouts,
+        3 => Own::Wires,
         1 => Own::Transcript { task: number(rng) },
         _ => Own::Attempt { task: number(rng), attempt: number(rng) },
     }

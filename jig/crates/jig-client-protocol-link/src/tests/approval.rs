@@ -95,6 +95,7 @@ fn lost(kind: u8) -> Approval {
 }
 fn exchange(h: &mut Harness, kind: u8) -> Token {
     h.link.step(Time::ZERO, event(kind), &mut h.out);
+    h.link.settle(&mut h.out);
     let Some(Request::Exchange { exchange, credential, message }) = h.out.pop() else { panic!("approval exchange") };
     assert!(credential.is_none());
     match message {
@@ -113,11 +114,13 @@ fn exchange(h: &mut Harness, kind: u8) -> Token {
             assert_eq!(record.code(), code().letters());
             assert!(record.approve());
         }
-        other @ (Message::Authorize(_)
+        other @ (Message::LinkAsk(_)
+        | Message::Authorize(_)
         | Message::SignInApproval(_)
         | Message::Request(_)
         | Message::Read(_)
         | Message::Watch(_)
+        | Message::Batch(_)
         | Message::Unwatch(_)
         | Message::StreamGone(_)
         | Message::SignInLink(_)
@@ -160,7 +163,10 @@ fn each_approval_message_is_encoded_and_its_answer_decoded() {
             let exchange = exchange(&mut h, kind);
             match body {
                 Some(body) => h.answer(exchange, body),
-                None => h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out),
+                None => {
+                    h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out);
+                    h.link.settle(&mut h.out);
+                }
             }
             assert_eq!(h.out.pop(), Some(Request::Approval(lost(kind))));
             assert!(h.out.is_empty());
@@ -187,6 +193,7 @@ fn approval_admission_is_one_ask_and_one_read_or_decision() {
         let mut h = Harness::new(&limits());
         exchange(&mut h, first);
         h.link.step(Time::ZERO, event(second), &mut h.out);
+        h.link.settle(&mut h.out);
         assert_eq!(h.out.pop(), Some(Request::Approval(expected)));
         assert!(h.out.is_empty());
     }

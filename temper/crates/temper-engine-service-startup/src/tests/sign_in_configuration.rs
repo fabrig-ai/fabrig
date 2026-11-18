@@ -88,7 +88,7 @@ fn sign_in_is_required_and_each_zero_limit_is_refused() {
     let (_, problems) = parse(&missing, &jig());
     assert!(core::str::from_utf8(&startup::lines(&problems)).unwrap().contains("application.sign_in: missing"));
     for name in ["members", "pending", "deadline_ms", "fetches", "body_bytes", "url_bytes", "secret_bytes"] {
-        let mut limits = crate::limits::profile(crate::limits::Profile::Small);
+        let mut limits = temper_limits_fixtures::small();
         crate::limits::apply(&mut limits, format!("sign_in.{name}").as_bytes(), 0).unwrap();
         let mut problems = Problems::empty();
         startup::checks::limits(&limits, &limits.git_component, &mut problems);

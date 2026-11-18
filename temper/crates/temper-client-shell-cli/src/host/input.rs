@@ -33,6 +33,15 @@ impl OneShot {
                 self.preparing = false;
                 self.finish(0, false);
             }
+            Parsed::Call { .. }
+                if self.class == Class::Link && self.link_file.as_ref().is_none_or(|link| !link.checked) =>
+            {
+                if let Some(link) = &self.link_file {
+                    self.directory.check_output(&link.path);
+                } else {
+                    self.fail(b"link --out needs a file, not stdin");
+                }
+            }
             Parsed::Call { call, .. }
                 if call.tool == jig::rows::PARTY_MAKE_AT
                     && self.service_file.as_ref().is_none_or(|service| !service.checked) =>
@@ -76,6 +85,18 @@ impl OneShot {
         }
         if self.file_input() {
             self.directory.progress(self.env.now);
+        }
+        if let Some(link) = &mut self.link_file
+            && !link.checked
+        {
+            if self.directory.checked_output.is_some() && self.directory.ready() {
+                link.checked = true;
+                self.prepare_start();
+                if !self.preparing {
+                    self.directory.start(self.class);
+                }
+            }
+            return;
         }
         if let Some(service) = &mut self.service_file
             && !service.checked
@@ -225,6 +246,7 @@ impl OneShot {
             Some(Parsed::Call { call, .. }) if super::settings_input::settings(call) => self.settings_file_input(call),
             Some(Parsed::Call { call, .. }) => {
                 call.tool == temper_client_tools::jig::rows::EXPORT_AT
+                    || self.class == Class::Link
                     || call.tool == jig::rows::PARTY_MAKE_AT
                     || arguments::key_file(call).is_some()
                     || text_file(call).is_some()

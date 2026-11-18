@@ -22,8 +22,10 @@ refuses before sending anything, leaving the link unspent.
 A link signs in once and expires. `the sign-in link was refused`
 (exit 1) distinguishes `it was already used`, `it has expired`,
 and `temper does not know it, as another deployment's link or
-one it no longer remembers`; each ends `temper-box serve prints
-a fresh one`. Other refusals keep the line without a reason.
+one it no longer remembers`. For a fresh link, temper-box serve
+prints one, or a signed-in client asks with
+`temper ctl DIRECTORY link --out FILE`. Other refusals keep the
+line without a reason.
 With every sign-in in use, it says when the earliest ends and
 until when this link stays usable. It leaves the link's file as
 it was. With --service FILE, sign in as the service at the address

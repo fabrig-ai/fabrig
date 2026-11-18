@@ -157,9 +157,7 @@ fn a_producing_change_watches_only_its_base_until_a_head_is_known() {
     assert_eq!(names(&world, task).as_ref(), &[base]);
     assert!(!kept_branch(&world, &branch), "neither the change nor its producer keeps an unpushed branch");
     let before = branch_reads(&world, &branch);
-    for _ in 0..STEPS {
-        world.tick();
-    }
+    world.advance_ticks(STEPS);
     assert_eq!(branch_reads(&world, &branch), before, "no polling while the producer runs");
     assert!(kept_branch(&world, b"main"));
     assert_eq!(verifying(&mut world, &producer), task);
@@ -211,9 +209,7 @@ fn pressure(world: &mut World, first: u64, second: u64, later: u64) {
         world.pending
     );
     world.send(engine::Event::Forge(Box::new(forge_top::Event::Names { task: first, resources: original })));
-    for _ in 0..SLOTS {
-        world.tick();
-    }
+    world.advance_ticks(SLOTS);
     // Leave one slot for the later change's first head. Its admission then fits
     // exactly, while the departing read still consumes one extra slot.
     let mut steady = names(world, second).to_vec();
@@ -466,8 +462,7 @@ fn stock_overlap_world() -> World {
             ..StoryLimits::default()
         },
     );
-    let stock =
-        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small);
+    let stock = temper_limits_fixtures::small();
     configured.env.limits.forge.resources_per_task = stock.forge.resources_per_task;
     configured.env.limits.forge.tasks = stock.forge.tasks;
     let client = skein_forge_client::Limits {
@@ -507,7 +502,7 @@ fn stock_resources_fit_three_chats_changes_and_a_pending_tier() {
 
 #[test]
 fn resource_hold_account_survives_short_documents_and_unchanged_release() {
-    let mut documents = jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.documents;
+    let mut documents = jig_protocol_config_fixtures::small().core.documents;
     documents.text_bytes = 128;
     let mut configured = World::configured_limits(
         true,

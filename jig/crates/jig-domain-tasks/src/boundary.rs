@@ -534,6 +534,8 @@ pub enum Contract {
         kind: u16,
         /** Maximum change-report bytes, no greater than `Limits::result_bytes`. */
         words: u32,
+        /// Successful no-resource verdicts; distinct codes bounded as a verdict contract's choices.
+        choices: Box<[Verdict]>,
     },
 }
 
@@ -1909,8 +1911,8 @@ pub enum Event {
         task: u64,
         /// Waiting revision, never a root transport receipt.
         revision: u64,
-        /// Positive authenticated deciding person.
-        by: u64,
+        /// Positive authenticated deciding task or person.
+        by: crate::EscalationDecider,
         /// Root-numbered next holder entry on pass only.
         entry: Option<u64>,
         /// Bounded authorized release/reject/pass choice.

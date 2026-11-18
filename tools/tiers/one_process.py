@@ -355,7 +355,7 @@ def place(binary_id, manifest_path, workspace_root, table):
     tree = relative.parts[0]
     if tree not in ('skein', 'smith', 'jig', 'temper', 'hearth'):
         return 'repository', 'checks'
-    if '::' not in binary_id or '::bin/' in binary_id or binary_id.endswith('::generated'):
+    if '::' not in binary_id or '::bin/' in binary_id:
         return tree, 'step'
     return tree, table.get(tree, {}).get(binary_id) if table is not None else None
 

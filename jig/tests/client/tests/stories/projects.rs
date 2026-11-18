@@ -259,11 +259,9 @@ fn a_deleted_projects_read_reaches_the_client_as_gone() {
         },
     );
     session.bind(ClientId(0), 1, identity, now, wall);
-    session.poll(now, wall).expect("owner signed in");
     assert_eq!(session.driver.world.domain.core().people.role(1, DELETED), Some(Role::Owner));
     let mut client = jig_client::Client::unlinked(&receiving.client, 8457).expect("public client");
     exchange(&mut session, &mut client, Event::StartUnlinked { kept: List::with_capacity(0) });
-    exchange(&mut session, &mut client, Event::Up { up: jig_client::Up::SignedIn });
     let key = Key { asker: Asker::JIG, number: 1 };
     let expected = c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::ProjectRemoved { project: DELETED }));
     {

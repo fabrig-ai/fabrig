@@ -59,6 +59,7 @@ pub(super) fn request(value: w::Request) -> Option<root::Application> {
         | w::Request::FollowAct(_)
         | w::Request::AddDevice(_)
         | w::Request::RemoveDevice(_)
+        | w::Request::Checkpoint
         | w::Request::TryAccount(_) => None,
     }
 }

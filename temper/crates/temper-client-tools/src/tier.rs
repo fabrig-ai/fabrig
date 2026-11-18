@@ -170,6 +170,7 @@ fn restored(request: &Ask) -> bool {
         | w::Request::FileFinding(_)
         | w::Request::HandFinding(_)
         | w::Request::TriageFinding(_)
+        | w::Request::Checkpoint
         | w::Request::TryAccount(_) => false,
     }
 }

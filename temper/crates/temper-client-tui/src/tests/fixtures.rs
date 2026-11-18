@@ -67,6 +67,7 @@ pub fn view() -> crate::View {
 pub fn event(root: &mut Domain, event: Event) -> Queue<Request> {
     let mut out = Queue::uncapped();
     temper_client_domain::step(root, &Env { now: Time::ZERO, wall: NOW, limits: limits() }, event, &mut out);
+    temper_client_domain::settle(root, &Env { now: Time::ZERO, wall: NOW, limits: limits() }, &mut out);
     out
 }
 pub fn client(root: &mut Domain, event: jig_client::Event) -> Queue<Request> {
@@ -79,7 +80,7 @@ pub fn signed_out() -> Domain {
 }
 pub fn starting() -> (Domain, Token) {
     let mut root = signed_out();
-    let mut out = event(
+    event(
         &mut root,
         Event::Start {
             address: temper_client_domain::Address::Inbox { filter: temper_client_domain::address::Filter::ALL },
@@ -87,19 +88,7 @@ pub fn starting() -> (Domain, Token) {
             with: Some(jig_client::With::Transport),
         },
     );
-    let mut watch = None;
-    for _ in 0..out.len() {
-        if let Some(Request::Unlinked {
-            request:
-                jig_client::UnlinkedRequest::Down {
-                    down: jig_client::Down::Open { watch: token, subject: jig_client::Watchable::Jig(c::Subject::Me) },
-                },
-        }) = out.pop()
-        {
-            watch = Some(token);
-        }
-    }
-    (root, watch.expect("me watch"))
+    (root, Token::new(0))
 }
 pub fn live(me: Option<c::Me>) -> (Domain, Token) {
     let (mut root, watch) = starting();
@@ -275,7 +264,8 @@ fn ways_setting(drafts: bool, way: u32) -> Box<[u8]> {
     let mut writer = Writer::new(usize::try_from(value.measure()).unwrap());
     value.encode(&mut writer).unwrap();
     wire::setting_answer(
-        &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(writer.finish()) }).unwrap(),
+        &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { revision: None, value: Some(writer.finish()) })
+            .unwrap(),
     )
 }
 
@@ -388,12 +378,16 @@ impl GoalCase {
             },
             beyond: c::Beyond::Refused(c::Refusal::NotOffered),
         });
+        let me_opened = {
+            Up::Watched { watch: Token::new(0), event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me.clone()))) }
+        };
+        let mut me_output = client(&mut root, jig_client::Event::Up { up: me_opened });
+        while let Some(request) = me_output.pop() {
+            out.push(request);
+        }
         while let Some(request) = out.pop() {
             let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else { continue };
             let up = match down {
-                Down::Open { watch, subject: Watchable::Jig(c::Subject::Me) } => {
-                    Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me.clone()))) }
-                }
                 Down::Open { watch, subject: Watchable::Jig(c::Subject::Task { task: 9 }) } => {
                     Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Task(Box::new(task.clone()))) }
                 }

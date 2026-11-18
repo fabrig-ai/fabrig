@@ -17,6 +17,32 @@ pub enum Unlinked {
     NoSecret,
     Address,
 }
+/// Makes an asked link's URL in the printed link's form (protocol/client/default-http.md, 1).
+#[must_use]
+pub fn link_url(mapping: &Mapping, host: &[u8], secret: &Secret) -> Box<[u8]> {
+    let encoded = base64::encoded_len(Alphabet::Url, u32::try_from(secret.len()).expect("bounded secret"))
+        .expect("bounded base64");
+    let route = b"/v1/sign-in/link?secret=";
+    let mut url = skein_lib::Writer::new(
+        b"http://"
+            .len()
+            .checked_add(host.len())
+            .expect("host")
+            .checked_add(mapping.prefix.len())
+            .expect("prefix")
+            .checked_add(route.len())
+            .expect("route")
+            .checked_add(skein_lib::length::usize_of(encoded))
+            .expect("secret"),
+    );
+    url.put(b"http://").expect("measured scheme");
+    url.put(host).expect("measured host");
+    url.put(&mapping.prefix).expect("measured prefix");
+    url.put(route).expect("measured route");
+    base64::encode(Alphabet::Url, secret.expose(), &mut url).expect("measured secret");
+    url.finish()
+}
+
 #[expect(clippy::disallowed_methods, reason = "the HTTP mapping parses its printed URL")]
 pub fn printed(mapping: &Mapping, url: &[u8]) -> Result<Printed, Unlinked> {
     let text = core::str::from_utf8(url).or(Err(Unlinked::Address))?;

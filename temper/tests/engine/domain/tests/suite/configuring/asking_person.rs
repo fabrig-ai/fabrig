@@ -478,7 +478,7 @@ fn an_asking_chat_reads_its_project_as_its_person() {
         (
             &person.owner,
             "inbox".to_owned(),
-            "waiting on you in project 1, Project 1: 1 or more, oldest first; each is answered on Needs you".to_owned(),
+            "waiting on you in project 1, Project 1: 1, oldest first; each is answered on Needs you".to_owned(),
             std::str::from_utf8(QUESTION).unwrap(),
             Some("task N · me"),
         ),

@@ -165,6 +165,33 @@ fn an_unknown_limit_reset_stays_unknown_in_the_task_wait() {
 }
 
 #[test]
+fn an_untooled_wait_round_trips_with_its_account_source_and_worker() {
+    let limits = fixtures::limits();
+    let why = w::TaskWaitWhy::Untooled(
+        w::TaskWaitUntooled::new(limits.wire(), w::TaskWaitUntooledParts { worker: 2 }).unwrap(),
+    );
+    let wire = w::TaskRunWait::Account(
+        w::TaskWaitAccount::new(limits.wire(), w::TaskWaitAccountParts { account: Some(4), source: Some(7), why })
+            .unwrap(),
+    );
+    let mut writer = skein_lib::Writer::new(usize::try_from(wire.measure()).unwrap());
+    wire.encode(&mut writer).unwrap();
+    let bytes = writer.finish();
+    let mut reader = Reader::new(&bytes);
+    let decoded = w::TaskRunWait::decode(limits.wire(), &mut reader).unwrap();
+    assert!(reader.is_empty());
+    assert_eq!(decoded, wire);
+    assert_eq!(
+        translate::run_wait(Some(&decoded)),
+        Some(c::TaskRunWait::Account {
+            account: Some(4),
+            source: Some(7),
+            why: c::TaskWaitWhy::Untooled { worker: 2 },
+        }),
+    );
+}
+
+#[test]
 fn malformed_offer_efforts_and_shown_names_are_refused() {
     let limits = fixtures::limits();
     for (efforts, effort, shown) in [

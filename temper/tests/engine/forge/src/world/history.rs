@@ -4,6 +4,25 @@ use skein_lib::{Duration, Wall};
 use top::history::{HistoryRange, InLanding, Operation, Query, Reply, Step, What};
 
 impl World {
+    pub(super) fn store_record(&mut self, record: top::Stored) {
+        if let top::Stored::HistoryChange(index) = &record {
+            self.history_by_change.entry(index.change).or_default().insert((index.number, index.project));
+        }
+        self.stored.insert(super::key(&record), record).expect("world store capacity");
+    }
+
+    pub(super) fn erase_record(&mut self, key: &top::Key) -> Option<top::Stored> {
+        let removed = self.stored.remove(key);
+        if let Some(top::Stored::HistoryChange(index)) = &removed {
+            let indexes = self.history_by_change.get_mut(&index.change).expect("stored change index");
+            assert!(indexes.remove(&(index.number, index.project)));
+            if indexes.is_empty() {
+                self.history_by_change.remove(&index.change);
+            }
+        }
+        removed
+    }
+
     /// Configure retention before writing fixture history; restart uses the same limits.
     pub fn history_limits(&mut self, days: u32, events: u64) {
         self.env.limits.history_days = days;
@@ -73,7 +92,7 @@ impl World {
         self.event(top::Event::Restore { record: top::Stored::Landing(row) });
     }
     pub fn erase_history_row(&mut self, key: &top::Key) {
-        self.stored.remove(key).expect("row to erase");
+        self.erase_record(key).expect("row to erase");
     }
     pub fn sweeping_history(&mut self, change: u64) {
         let Some(top::Stored::HistoryProject(mut row)) =

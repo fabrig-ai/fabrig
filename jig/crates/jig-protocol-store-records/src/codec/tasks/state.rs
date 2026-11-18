@@ -116,6 +116,7 @@ pub fn read_escalation_holder(source: wire::EscalationHolder) -> Result<domain::
 }
 
 /// Translate `Escalation` to its durable value.
+#[expect(clippy::match_same_arms, reason = "the stored number and kind are separate fields")]
 pub fn escalation(source: &domain::Escalation, limits: &wire::Limits) -> Result<wire::Escalation, wire::Problem> {
     Ok(match source {
         domain::Escalation::Unheld { revision } => wire::Escalation::Unheld(wire::UnheldEscalation::new(
@@ -140,7 +141,18 @@ pub fn escalation(source: &domain::Escalation, limits: &wire::Limits) -> Result<
         domain::Escalation::Rejected { revision, by, reason } => {
             wire::Escalation::Rejected(wire::RejectedEscalation::new(
                 limits,
-                wire::RejectedEscalationParts { revision: *revision, by: *by, reason: reason.clone() },
+                wire::RejectedEscalationParts {
+                    revision: *revision,
+                    by: match by {
+                        domain::EscalationDecider::Task(number) => *number,
+                        domain::EscalationDecider::Person(number) => *number,
+                    },
+                    reason: reason.clone(),
+                    by_kind: match by {
+                        domain::EscalationDecider::Task(_) => wire::DeciderKind::Task,
+                        domain::EscalationDecider::Person(_) => wire::DeciderKind::Person,
+                    },
+                },
             )?)
         }
     })
@@ -166,8 +178,15 @@ pub fn read_escalation(source: wire::Escalation) -> Result<domain::Escalation, w
             }
         }
         wire::Escalation::Rejected(source) => {
-            let wire::RejectedEscalationParts { revision, by, reason } = source.into_parts();
-            domain::Escalation::Rejected { revision, by, reason }
+            let wire::RejectedEscalationParts { revision, by, reason, by_kind } = source.into_parts();
+            domain::Escalation::Rejected {
+                revision,
+                by: match by_kind {
+                    wire::DeciderKind::Person => domain::EscalationDecider::Person(by),
+                    wire::DeciderKind::Task => domain::EscalationDecider::Task(by),
+                },
+                reason,
+            }
         }
     })
 }

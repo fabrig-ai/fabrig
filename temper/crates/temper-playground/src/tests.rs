@@ -8,10 +8,7 @@ fn the_deployment_document_is_one_temper_serve_starts() {
     let bytes = documents::document();
     let value = documents::world_document();
     assert!(value["engine"]["limits"]["overrides"]["core.resume_bytes"].as_u64().unwrap() >= 4_194_304);
-    assert_eq!(
-        value["engine"]["limits"]["overrides"]["io.output"],
-        value["workers"][0]["limits"]["overrides"]["io.output"]
-    );
+    assert!(value["workers"][0].get("limits").is_none());
     let result = temper_service::startup::with_setup_given(
         &bytes,
         &jig_protocol_config::Directories::working(),
@@ -47,11 +44,9 @@ fn resumes_have_a_floor_without_raising_turn_carriers() {
         let window = resume + (u64::try_from(size_of::<Box<[u8]>>()).unwrap() - 4) * (resume / 4);
         let engine = &document["engine"]["limits"]["overrides"];
         assert_eq!(engine["core.resume_bytes"], resume);
-        for hub in [engine, &document["workers"][0]["limits"]["overrides"]] {
-            assert_eq!(hub["hub.transcript_bytes"], window);
-            assert_eq!(hub["hub.turn_bytes"], turn);
-            assert_eq!(hub["hub.turn_queue_bytes"], 8 * turn);
-        }
+        assert_eq!(engine["hub.transcript_bytes"], window);
+        assert_eq!(engine["hub.turn_bytes"], turn);
+        assert_eq!(engine["hub.turn_queue_bytes"], 8 * turn);
         let root = &document["application"]["limits"]["overrides"];
         assert_eq!(root["root.journal.transcript_bytes"], resume);
         assert_eq!(root["root.loads.transcript_bytes"], turn);
@@ -102,33 +97,25 @@ fn the_fakes_limits_are_their_constructors() {
 fn the_owned_values_equal_the_test_kits_values() {
     use jig_channel_kit::fixtures as channel;
     assert_eq!(documents::KEY, channel::KEY);
-    let owned: serde_json::Value = serde_json::from_slice(&documents::engine_document()).expect("owned engine JSON");
+    let mut owned: serde_json::Value =
+        serde_json::from_slice(&documents::engine_document()).expect("owned engine JSON");
     let mut source: serde_json::Value =
         serde_json::from_slice(&channel::engine_document()).expect("channel engine JSON");
     // Temper sizes both watch rooms from clients.streams (temper/docs/design/protocol/configuration/limits.md).
     for name in ["views.watchers", "views.watchers_per_party"] {
         source["engine"]["limits"]["overrides"].as_object_mut().expect("engine overrides").remove(name);
     }
+    // Limit fixtures are explicit here; the kit's profile does not cross this boundary.
+    owned["engine"].as_object_mut().unwrap().remove("limits");
+    source["engine"].as_object_mut().unwrap().remove("limits");
     documents::settings::strip_fixed(&mut source);
     assert_eq!(owned, source);
     let worker: serde_json::Value = serde_json::from_slice(documents::WORKER_DOCUMENT).expect("worker JSON");
     let source: serde_json::Value = serde_json::from_slice(channel::WORKER_DOCUMENT).expect("kit worker JSON");
     assert_eq!(worker["workers"][0]["name"], source["workers"][0]["name"]);
 
-    let mut profile = smith_agent_process_world::profile();
-    profile.policy.host_tools =
-        u32::try_from(temper_engine_smith::tools(skein_lib::Duration::from_secs(10)).len()).expect("tools");
-    profile.declared.tool_payload = 2048;
-    profile.declared.read_window = 256;
-    profile.declared.conversations = 1;
-    profile.declared.calls_per_response = 1;
-    profile.policy.max_turns = 800;
-    profile.policy.max_time = skein_lib::Duration::from_secs(28_800);
-    profile.policy.check_timeout = skein_lib::Duration::from_secs(5);
-    let hub = jig_protocol_config::profile(jig_protocol_config::Profile::Small).hub;
-    profile.policy.inbox = hub.held.max(hub.inbox);
-    profile.policy.sections = 8;
-    assert_eq!(documents::agent_profile(), profile);
+    let hub = jig_protocol_config::stock().hub;
+    assert_eq!(documents::agent_profile().policy.inbox, hub.held.max(hub.inbox));
     let mut declarations = smith_agent_process_world::declarations(0);
     declarations.endpoints[0].limits.output = 2048;
     assert_eq!(documents::agent_declarations(), declarations);

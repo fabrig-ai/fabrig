@@ -681,7 +681,8 @@ blamed landing's full commit (2026-11-04).
 - **Limits,** the forge's: `landings_kept` per repository (16 in
   `small`); `trailers` per landing (8) and `trailer_bytes` per line
   (200); `tiers` per repository (2 in `small`),
-  `failing_tests` per run (16), `test_id_bytes` (256), and a tier's
+  `failing_tests` per run (16), `test_id_bytes` (512, at most the
+  store's 1,024, `../protocol/store.md`, 4), and a tier's
   name at most 32 bytes.
 
 A tier's record keeps at most `failing_tests` distinct flake IDs. Once full

@@ -11,6 +11,17 @@ pub(super) fn live_goal(tracked: Option<u32>) -> (crate::Domain, Env<crate::Limi
 
 pub(crate) fn live_task(tracked: Option<u32>, executor: tasks::Executor) -> (crate::Domain, Env<crate::Limits>, u64) {
     let (mut domain, env) = super::resume_fixture::root();
+    let goal = make_task(&mut domain, &env, tracked, executor, tasks::Party::Deployment { project: 1 });
+    (domain, env, goal)
+}
+
+pub(crate) fn make_task(
+    domain: &mut crate::Domain,
+    env: &Env<crate::Limits>,
+    tracked: Option<u32>,
+    executor: tasks::Executor,
+    creator: tasks::Party,
+) -> u64 {
     let goal = crate::fresh(&mut domain.core.counters, crate::Family::Task).unwrap();
     let task_env = env.with(env.limits.tasks);
     let mut out = Queue::uncapped();
@@ -21,7 +32,7 @@ pub(crate) fn live_task(tracked: Option<u32>, executor: tasks::Executor) -> (cra
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(3)),
-            creator: tasks::Party::Deployment { project: 1 },
+            creator,
             batch: Box::new([tasks::New {
                 number: goal,
                 project: 1,
@@ -53,7 +64,7 @@ pub(crate) fn live_task(tracked: Option<u32>, executor: tasks::Executor) -> (cra
         while out.pop().is_some() {}
     }
     assert_eq!(domain.core.tasks.task(goal).expect("live goal").tracked, tracked);
-    (domain, env, goal)
+    goal
 }
 
 fn terminal(domain: &mut crate::Domain, env: &Env<crate::Limits>, goal: u64) -> core::Event {

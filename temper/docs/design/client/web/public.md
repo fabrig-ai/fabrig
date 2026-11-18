@@ -99,8 +99,9 @@ never streaming (`../../draft/first-release.md`, 5.3).
   the head's until then.
 - **Public lines wrap at desktop and phone widths:** the identity link and
   title form one group; the row's executor, phase, duration and spend form
-  a second group with gaps between facts. Titles wrap without truncation
-  beyond the public record's cut. Public content is a block reading column
+  a second group with gaps between facts. A title wraps, cut only where
+  every row's title is, past 80 characters (`../pages/README.md`, 2), and
+  where the public record cut it. Public content is a block reading column
   with at least 16 CSS pixels of horizontal gutter, including navigation.
 - **The landings:** the turn, each queue in order, without places, and
   the recent landings, each landed commit a link to its public landing;

@@ -201,9 +201,11 @@ follow from the limits that bound each kind (4).
   and `question_woken`, a `u64`: the newest question number that has
   woken it once at a park while it held a timer or a task watch, 0 for
   none, never lowered (`../../domain/tasks/lifecycle.md`, 2).
-- **Golden bytes** in one set per family, for its current schema
-  (skein's `data/codec/README.md`, section 5); a fuzz target per
-  family's decoder; bounds at their limit and one past it.
+- **Fixed-rule values** built in memory from each family's current schema,
+  not stored codec bytes (skein's `data/codec/README.md`, section 6);
+  hand-written tests may use constructors. A fuzz target per family's
+  decoder uses the full fixed-rule values; bounds at their limit and one
+  past it.
 - **What jig's records hold, said** (skein's `data/codec/README.md`, section 3),
   each word part of its family's layout (3): the core's
   `TaskBytes`, `PhaseBytes`, `ChangeBytes` and `EndBytes` hold the tasks
@@ -309,8 +311,7 @@ settings (decided 2026-11-03).
       one no longer keeps (temper's `draft/store-floor.md`, 4.1), the
       first in `Owner`'s order;
     - equal, or both none: the versions must be the binary's, or
-      `Format` naming the first family that differs. The layouts' row
-      is written with the levels and read at no open: the levels and
+      `Format` naming the first family that differs. The levels and
       the versions name the families' texts, and the registry what a
       registered family's values are at.
 
@@ -323,9 +324,8 @@ settings (decided 2026-11-03).
   the component's): the layouts of the registered families' value
   types, the texts they were made with, and the jobs done
   (`layouts.md`, 3; `jobs.md`, 2). From the registration, the format
-  row's versions of the registered families stay as they are, and the
-  layouts' row compares nothing: what a store's values are at is the
-  registry's. A store that holds values and no registry is refused
+  row's versions of the registered families stay as they are: what a
+  store's values are at is the registry's. A store that holds values and no registry is refused
   (`layouts.md`, 5.1).
 - **The floor,** in a row of its own beside it (`Floor`, the
   component's, in `component-v3.schema` at `00 0d`): the oldest store this build's code still
@@ -410,19 +410,17 @@ versioned record Floor { number: u32 build: text 64 }
 
   The family is at version 1, outside the registry; the component's
   version and its other rows are independent of it.
-- **The layouts,** in a row of their own beside it (`Layouts`, the
-  component's): each of jig's families' fingerprint, and each family of
-  an upstream owner's that the store keeps (skein-oauth's `SavedToken`
-  in the secrets' sources, smith-transcript's `Turn` in frames), since a
-  holder's fingerprint names what it holds and not its layout: the digest of its
-  layout, computed from the schemas built in and committed beside their
-  generated codecs, which the drift test checks against them, so a
-  build holds them as constants. Written with the
-  levels, by the first commit and the upgrade's seal. No open reads
-  this row: the levels and versions name the binary's families, and the
-  registry names each registered value's layout.
-
-  **`Older::Layout(family)`** is a component row at the binary's version
+- **No layouts' row.** The store keeps no family's fingerprint: a
+  build computes one from the schema text it embeds where it needs it
+  (skein's `data/codec/README.md`, section 9), and the levels and
+  versions name the binary's families, the registry each registered
+  value's layout. Key `00 03` is never given to another row: a store
+  an older build wrote holds its layouts' row there, which no open,
+  rehearsal, upgrade or census name reads, and which stays as it is.
+  A build that wrote that row reads nothing at open that a store
+  without it lacks, so the component's version stays 3 both ways
+  (temper's `draft/codec-shape.md`, 6.1).
+- **`Older::Layout(family)`** is a component row at the binary's version
   that does not decode, refused before the root starts (`opening.md`,
   1.8). Its words can name each family; for the settings family
   (the others name theirs):

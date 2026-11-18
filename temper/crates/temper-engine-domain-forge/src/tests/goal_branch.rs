@@ -8,7 +8,7 @@ const CLOSING: u64 = 22;
 const GOAL_BRANCH: &[u8] = b"temper/7/g7";
 const TIP: skein_forge::api::Commit = [4; 32];
 
-fn name(branch: &[u8]) -> Name {
+pub(super) fn name(branch: &[u8]) -> Name {
     let mut parts = skein_lib::List::with_capacity(LIMITS.authority_segments);
     let mut start = 0;
     for index in 0..=branch.len() {
@@ -408,7 +408,10 @@ fn a_goal_branch_making_is_kept_and_sent_when_an_entry_frees() {
             at_step(&mut d, &environment, Event::Resolve { entry: 1, again: false })
         };
         assert!(freed.contains(&Request::Erase { key: Key::Entry(1) }), "{cause}: {freed:?}");
-        assert!(d.is_ready(), "{cause}: freed room wakes without polling");
+        assert!(
+            freed.contains(&Request::ContinueGoalBranch { task: GOAL }),
+            "{cause}: freed room asks without polling"
+        );
         let mut resumed = Queue::uncapped();
         resume(&mut d, &environment, &mut resumed);
         let mut saved = skein_lib::List::with_capacity(u32::try_from(freed.len()).unwrap() + resumed.len());
@@ -423,7 +426,7 @@ fn a_goal_branch_making_is_kept_and_sent_when_an_entry_frees() {
         for request in &saved {
             if let Request::ContinueGoalBranch { task } = request {
                 assert_eq!(*task, GOAL, "{cause}");
-                asks += 1;
+                asks = asks.checked_add(1).unwrap();
             }
         }
         assert_eq!(asks, 1, "{cause}: fresh number asked once: {saved:?}");
@@ -455,13 +458,24 @@ fn a_goal_branch_making_is_kept_and_sent_when_an_entry_frees() {
     }
 }
 
+fn assert_room_ask(requests: &[Request], expected: u64) {
+    let mut asks = 0_u32;
+    for request in requests {
+        if let Request::ContinueGoalBranch { task } = request {
+            assert_eq!(*task, expected, "room goes to the first place");
+            asks = asks.checked_add(1).unwrap();
+        }
+    }
+    assert_eq!(asks, 1, "one ask for the freed room");
+}
+
 #[test]
 #[expect(
     clippy::too_many_lines,
     reason = "one table checks FIFO re-waits and inverted fresh-tip answers through handoff"
 )]
 fn goal_branch_room_waiters_ask_in_wait_order_and_keep_their_place() {
-    for (case, entries) in [("full again", 1), ("inverted tip answers", 2)] {
+    for (case, entries) in [("reserved while rereading", 1), ("inverted tip answers", 2)] {
         let mut environment = env();
         environment.limits.entries = entries;
         let mut d = domain_with_limits(&environment.limits);
@@ -503,16 +517,17 @@ fn goal_branch_room_waiters_ask_in_wait_order_and_keep_their_place() {
                 result: Ok(Answer::Commit(TIP)),
             }),
         ));
-        at_step(&mut d, &environment, Event::Withdraw { entry: 1 });
-        let asked = ready(&mut d);
-        assert_eq!(asked.as_ref(), &[Request::ContinueGoalBranch { task: GOAL }]);
+        let asked = at_step(&mut d, &environment, Event::Withdraw { entry: 1 });
+        assert_room_ask(&asked, GOAL);
         assert!(!d.is_ready(), "one freed entry asks only one waiter, even before the answer");
-        assert!(ready(&mut d).is_empty());
+        let mut again = Queue::uncapped();
+        resume(&mut d, &environment, &mut again);
+        assert!(again.is_empty());
         at_step(&mut d, &environment, Event::ContinueGoalBranch { task: GOAL, entry: 30 });
         let (reread, _) = at_call(&mut d, &environment);
         if case == "inverted tip answers" {
-            at_step(&mut d, &environment, Event::Withdraw { entry: 2 });
-            assert_eq!(ready(&mut d).as_ref(), &[Request::ContinueGoalBranch { task: OTHER }]);
+            let asked = at_step(&mut d, &environment, Event::Withdraw { entry: 2 });
+            assert_room_ask(&asked, OTHER);
             d.repositories.get_mut(&REPO).unwrap().settings.default_branch = b"new-main".as_slice().into();
             at_step(&mut d, &environment, Event::ContinueGoalBranch { task: OTHER, entry: 31 });
             assert!(d.is_ready(), "before the younger reread");
@@ -590,9 +605,15 @@ fn goal_branch_room_waiters_ask_in_wait_order_and_keep_their_place() {
             }
             continue;
         }
-        // Another effect wins the room while the oldest making reads its fresh tip.
-        at_step(&mut d, &environment, Event::Enqueue { entry: status(31, 9) });
-        assert_no_making(&at_step(
+        // An asked making owns its room while it reads its fresh tip (forge/room.md, 2).
+        let refused = at_step(&mut d, &environment, Event::Enqueue { entry: status(31, 9) });
+        assert!(refused.contains(&Request::Outcome {
+            entry: 31,
+            task: 9,
+            account: None,
+            outcome: skein_forge_client::Outcome::Failed(Error::Busy),
+        }));
+        let kept = at_step(
             &mut d,
             &environment,
             Event::Client(skein_forge_client::Event::Answered {
@@ -602,13 +623,16 @@ fn goal_branch_room_waiters_ask_in_wait_order_and_keep_their_place() {
                 rate: None,
                 result: Ok(Answer::Commit(TIP)),
             }),
-        ));
-        at_step(&mut d, &environment, Event::Withdraw { entry: 31 });
-        assert_eq!(ready(&mut d).as_ref(), &[Request::ContinueGoalBranch { task: GOAL }], "oldest keeps its place");
-        at_step(&mut d, &environment, Event::ContinueGoalBranch { task: GOAL, entry: 32 });
-        at_answer(&mut d, &environment, Ok(Answer::Commit(TIP)));
-        at_step(&mut d, &environment, Event::Withdraw { entry: 32 });
-        assert_eq!(ready(&mut d).as_ref(), &[Request::ContinueGoalBranch { task: OTHER }]);
+        );
+        let mut expected = entry();
+        expected.number = 30;
+        assert!(kept.contains(&Request::Save {
+            record: Stored::Entry { entry: expected, held: false },
+            release: Some(30),
+            read_afresh: None,
+        }));
+        let asked = at_step(&mut d, &environment, Event::Withdraw { entry: 30 });
+        assert_room_ask(&asked, OTHER);
     }
 }
 

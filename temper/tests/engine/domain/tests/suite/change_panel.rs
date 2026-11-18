@@ -231,6 +231,10 @@ fn clean_update_carries_the_gate_verdict_to_the_current_head() {
 
 // domain/forge/change/README.md, 5: restart forgets CI until the change's next step reads it.
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the restart fixture specifies every delegate terminal field before reading CI again"
+)]
 fn restart_forgets_ci_until_the_next_step_reads_it() {
     use temper_engine_domain_forge_change as change;
     use temper_engine_domain_world::{forge_stand::ForgeStand, store::Store};
@@ -269,6 +273,7 @@ fn restart_forgets_ci_until_the_next_step_reads_it() {
         entry: 990,
         heard: change::Heard {
             delegate_running: false,
+            flake: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,
@@ -309,6 +314,7 @@ fn restart_forgets_ci_until_the_next_step_reads_it() {
         entry: 991,
         heard: change::Heard {
             delegate_running: false,
+            flake: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,

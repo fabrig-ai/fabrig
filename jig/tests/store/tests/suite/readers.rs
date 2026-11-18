@@ -88,10 +88,6 @@ fn inventory_reads_component_installation_domain_and_application_without_secrets
             writer.finish()
         }),
         (
-            keys::encode_own(&keys::Own::Layouts, root::limits().store.key).expect("layout key"),
-            jig_protocol_store::format::layouts().encode(),
-        ),
-        (
             keys::installation(root::limits().store.key).expect("installation key"),
             codec::accounts::Installation { id: world.installation }.encode(),
         ),
@@ -248,7 +244,7 @@ fn census_pairs_with_writer_sized_payloads_fit_exact_decoded_bytes() {
 
 #[test]
 fn selected_open_stays_within_the_small_profile_open_ceiling() {
-    let limits = jig_protocol_config::profile(jig_protocol_config::Profile::Small).store;
+    let limits = jig_protocol_config_fixtures::small().store;
     let meter = skein_heap::Meter::new();
     meter.start();
     let mut world = World::unopened_observed(SEED, limits, None);

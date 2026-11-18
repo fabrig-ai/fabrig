@@ -14,7 +14,7 @@ Shape: `engine`. Paths: `engine`. The engine's configuration, read before startu
 
 - `limits`: limits; required; init writes object. Selects a limits profile and its named overrides.
 - `llm`: llm; required; init writes object. Configures the LLM endpoints, models and providers.
-- `hosts`: hosts; required; init writes object. Names the workers and their listener addresses.
+- `hosts`: hosts; required; init writes object. Names the workers' listener addresses.
 - `clients`: clients; optional; init writes object. Configures the optional OpenID provider.
 - `deployment`: refused: moved: temper keeps the store in the data directory's state
 - `owners`: list of owner, people.initial_owners; required; init writes list (1 entry). Names the deployment's first owners.
@@ -30,10 +30,10 @@ Shape: `engine`. Paths: `engine`. The engine's configuration, read before startu
 
 ## engine.limits
 
-Shape: `limits`. Paths: `engine.limits` `workers[].limits`. A limits profile and named overrides, shared by engines and workers.
+Shape: `limits`. Paths: `engine.limits`. A limits profile and named overrides, shared by engines and workers.
 
-- `profile`: text, small or standard; required; init writes "standard". Selects the profile whose values the overrides amend.
-- `overrides`: object, known limit names; optional; init writes {"authority.executors":22,"clients.exchanges":12,"clients.streams":8,"clients_http.calls":12,"clients_http.streams":8,"core.resume_bytes":16803814,"documents.rows":2,"documents.text_bytes":512,"fleet.configured_workers":8,"fleet.workers":2,"hub.transcript_bytes":67215250,"hub.turn_bytes":16803810,"hub.turn_queue_bytes":134430480,"io.output":16804602,"tasks.charters":16,"tasks.executor_kinds":22,"tasks.inbox_bytes":874120,"tasks.message_bytes":10660,"tasks.result_bytes":10660} | {"hub.accounts":4,"hub.event_bytes":10660,"hub.run_calls":48,"hub.transcript_bytes":67215250,"hub.turn_bytes":16803810,"hub.turn_queue_bytes":134430480,"io.output":16804602}. Overrides the profile's limits by their dotted names.
+- `profile`: text, small or standard; optional; init writes "standard". Reads the base when absent or standard, or selects small's limits.
+- `overrides`: object, known limit names; optional; init writes {"authority.executors":22,"clients.exchanges":12,"clients.streams":8,"clients_http.calls":12,"clients_http.streams":8,"core.resume_bytes":18431846,"documents.rows":2,"documents.text_bytes":512,"fleet.configured_workers":8,"fleet.workers":2,"hub.accounts":4,"hub.event_bytes":63738,"hub.run_calls":48,"hub.transcript_bytes":73727378,"hub.turn_bytes":18431842,"hub.turn_queue_bytes":147454736,"io.output":18432866,"tasks.charters":16,"tasks.executor_kinds":22,"tasks.inbox_bytes":5226516,"tasks.message_bytes":63738,"tasks.result_bytes":63738}. Overrides the profile's limits by their dotted names.
 
 ## engine.owners[]
 
@@ -127,17 +127,10 @@ Shape: `registration`. Paths: `engine.llm.providers[].sources.sign_in`. A sign-i
 
 ## engine.hosts
 
-Shape: `hosts`. Paths: `engine.hosts`. Workers the engine accepts and their listener addresses.
+Shape: `hosts`. Paths: `engine.hosts`. The workers' listener addresses.
 
-- `workers`: list of worker-name, link.names and fleet.configured_workers; required; init writes list (1 entry). Names configured workers and their secret digests.
+- `workers`: refused: workers are settings in the store
 - `listener`: list of address, loopback or in-process; required; init writes list (1 entry). Gives the workers' plaintext listener addresses.
-
-## engine.hosts.workers[]
-
-Shape: `worker-name`. Paths: `engine.hosts.workers[]`. One worker accepted by the engine.
-
-- `name`: text, link.name and fleet.worker_name_bytes; at most 4096 bytes; required; init writes "worker". Gives the worker's unique name.
-- `digest`: text, 4096 bytes; data path; required; init writes "worker.digest". Names the file holding the worker secret's digest.
 
 ## engine.clients
 
@@ -169,19 +162,11 @@ Shape: `provider-client`. Paths: `engine.clients.provider.clients[]`. A client a
 Shape: `worker`. Paths: `workers[]`. A worker's connection, execution and stop bounds.
 
 - `engine`: address, loopback or in-process; required; init writes {"in_process":"workers"}. Gives the engine address the worker dials.
-- `name`: text, link.name; at most 4096 bytes; required; init writes "worker". Gives the worker's configured name.
+- `name`: text, link.name; at most 4096 bytes; required; init writes "local". Gives the worker's configured name.
 - `secret`: text, 4096 bytes; data path; required; init writes "worker.secret". Names the private file holding the worker's secret.
 - `slots`: integer, hub.slots; required; init writes 4. Bounds how many runs the worker hosts at once.
 - `graces`: refused: moved: temper fixes a worker's graces (temper help server)
 - `programs`: refused: moved: temper fixes the login checks' interval
-- `agent`: agent; required; init writes object. Names the agent program, its arguments and its configuration document.
-- `limits`: limits; required; init writes object. Selects the worker's limits profile and overrides.
+- `agent`: refused: moved: temper writes the agent's configuration from its engine's figures; remove it
+- `limits`: refused: moved: a worker takes its limits from its engine; remove it
 - `memory_bytes`: integer, 0 to 18446744073709551615 bytes; optional; init leaves it out. States the worker's available memory when configured.
-
-## workers[].agent
-
-Shape: `agent`. Paths: `workers[].agent`. The program a worker spawns for each run.
-
-- `program`: text, 4096 bytes; required; init writes "/opt/temper/bin/temper-box". Names the agent executable, passed as written.
-- `arguments`: list of text, 4096 bytes per argument; required; init writes ["internal","agent","/etc/temper/agent.json"]. Gives the agent's arguments, passed as written.
-- `configuration`: text, 4096 bytes; configuration path; required; init writes "/etc/temper/agent.json". Names smith's agent configuration document, which jig does not read.

@@ -281,7 +281,7 @@ TUI's host:
 - **Kept current by a test,** as the browser's are
   (`../client/web/journeys.md`, section 6).
 - **Redacted and scanned** as the browser's, with the same code
-  (`../client/web/journeys.md`, 3.6 and 3.7), which gains the TUI's
+  (`../client/web/journey-redaction.md` and `../client/web/journeys.md`, 3.7), which gains the TUI's
   originals: the approval's secret, the credential it takes, and the
   bearer every exchange carries.
 - **Recorded again** by a command, on a fresh fake box, the TUI in a

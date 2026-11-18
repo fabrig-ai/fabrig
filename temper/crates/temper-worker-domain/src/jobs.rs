@@ -412,17 +412,23 @@ fn delivery_why(outcome: &crate::checkout::Outcome) -> Option<Box<[u8]>> {
     };
     for landing in landings {
         let why = match landing {
-            Landing::Landed { .. } | Landing::Prefixes { .. } | Landing::DesignMerged { .. } | Landing::Unchanged => {
+            Landing::CaughtUpSaved { .. }
+            | Landing::Landed { .. }
+            | Landing::Prefixes { .. }
+            | Landing::DesignMerged { .. }
+            | Landing::Unchanged => {
                 continue;
             }
             Landing::Moved => Box::from(b"branch moved".as_slice()),
-            Landing::Conflicted { .. } | Landing::DesignConflict { .. } => {
+            Landing::CaughtUpConflict { .. } | Landing::Conflicted { .. } | Landing::DesignConflict { .. } => {
                 Box::from(b"unresolved conflict markers".as_slice())
             }
             Landing::Failed => Box::from(b"push failed".as_slice()),
-            Landing::DesignCode { .. } | Landing::DesignMoving | Landing::DesignUnchecked | Landing::Refused => {
-                Box::from(b"push refused".as_slice())
-            }
+            Landing::CaughtUp { .. }
+            | Landing::DesignCode { .. }
+            | Landing::DesignMoving
+            | Landing::DesignUnchecked
+            | Landing::Refused => Box::from(b"push refused".as_slice()),
             Landing::Aborted => Box::from(b"push aborted".as_slice()),
             Landing::Explained { fault, diagnostic } => {
                 let prefix = b"push: ".as_slice();

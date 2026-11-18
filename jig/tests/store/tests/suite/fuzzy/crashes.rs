@@ -6,31 +6,7 @@ use jig_store_world::{
 use skein_lib::Rng;
 
 fn history_world() -> World {
-    // This crash sweep holds log atomicity, not registry planning. Keep the
-    // binary's key ranges, without registering unrelated layouts.
-    const SETS: jig_protocol_store::OwnerSets = jig_protocol_store::OwnerSets {
-        sets: &[jig_protocol_store::OwnerSet {
-            level: None,
-            jobs: &[],
-            families: &[
-                jig_protocol_store::KeptFamily {
-                    retired: &[],
-                    types: &[],
-                    frames: None,
-                    ..jig_protocol_store::STORE_FAMILIES[3]
-                },
-                jig_protocol_store::KeptFamily { retired: &[], types: &[], ..jig_protocol_store::STORE_FAMILIES[4] },
-            ],
-            ..jig_protocol_store::JIG_STORE_SET
-        }],
-    };
-    let mut limits = root::limits();
-    limits.store.record = limits.store.page.bytes;
-    let mut world = World::unopened_observed(0, limits, None);
-    world.owner_sets(SETS);
-    assert_eq!(world.open(), Some(0));
-    assert_eq!(world.commit(root::first()), Some(1));
-    world
+    World::history_world()
 }
 #[test]
 fn history_commits_crashed_at_every_file_operation_recover_whole() {

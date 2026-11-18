@@ -14,7 +14,7 @@ use smith_domain_run as run;
 
 fn configured() -> smith_agent_shell::config::Configuration {
     let mut configuration =
-        fixtures::stock_configuration(10_662, 8192).expect("stock agent with local fake destinations");
+        fixtures::stock_configuration(63_740, 48_000).expect("stock agent with local fake destinations");
     // These profile measurements use inert direct endpoints, with no program process.
     configuration.service.program = None;
     configuration.service.domain.programs = Box::default();
@@ -78,7 +78,7 @@ fn assignment(number: u32, open: bool, body: usize) -> temper_engine_domain::Ass
                 .collect(),
         }
     } else {
-        jig_domain_tasks::Contract::Change { connector: 0, kind: 1, words: 1024 }
+        jig_domain_tasks::Contract::Change { connector: 0, kind: 1, words: 1024, choices: Box::new([]) }
     };
     assignment.sections = (0..64)
         .map(|index| temper_engine_domain::BriefSection {
@@ -115,7 +115,7 @@ fn red_is_offered_only_to_stock_delegators_with_room_for_their_briefs() {
         if number == 5 {
             let room = run::brief_room(&charter, Some(&workspace(true)), &limits).unwrap();
             eprintln!("red charter 5 with workspace: room={room}");
-            assert!(room >= 334_999 + 64 * (16 + 7) + 66, "charter 5's pinned whole-brief margin: {room}");
+            assert!(room >= 318_148 + 64 * (16 + 7) + 66, "charter 5's pinned whole-brief margin: {room}");
         }
         assert_eq!(
             charter.grants.host_tools.iter().any(|tool| tool.name.as_ref() == b"red"),
@@ -151,10 +151,10 @@ fn finding_is_offered_only_to_stock_delegators_with_room_for_their_briefs() {
 fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
     let configuration = configured();
     let limits = configuration.service.limits.domain.run;
-    assert_eq!(limits.host_part, 399_961);
-    assert_eq!(limits.room, 822_476);
-    assert_eq!(limits.offer_bytes, 199_981);
-    assert_eq!(configuration.service.limits.channel.bodies.turn_body, 16_803_810);
+    assert_eq!(limits.host_part, 360_150);
+    assert_eq!(limits.room, 742_860);
+    assert_eq!(limits.offer_bytes, 180_075);
+    assert_eq!(configuration.service.limits.channel.bodies.turn_body, 18_431_842);
 
     for (number, open) in [
         (1, false),
@@ -199,10 +199,10 @@ fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
         );
         temper_protocol_brief::fit_brief(&mut charter, workspace.as_ref(), &limits);
         if number == 5 {
-            assert_eq!(original.owned_bytes().unwrap(), 82_933);
+            assert_eq!(original.owned_bytes().unwrap(), 59_393);
 
-            assert_eq!(receiving, 65_463);
-            assert!(original.owned_bytes().unwrap() > receiving, "the goal's larger charter needs receiving fitting");
+            assert_eq!(receiving, 127_407);
+            assert!(original.owned_bytes().unwrap() <= receiving, "the goal's smaller offer keeps its maximal brief");
         }
         if original.owned_bytes().unwrap() > receiving {
             assert_ne!(charter.brief, original.brief, "charter {number} needs receiving fitting");
@@ -214,7 +214,7 @@ fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
         charter.brief.sections = sections;
         let fitted = run::brief_bytes(&charter.brief).unwrap();
         if number == 5 {
-            assert_eq!(fitted, 168, "the goal's brief fits the joint receiving bound");
+            assert_eq!(fitted, 16_064, "the goal's whole brief fits the joint receiving bound");
         }
         let mut domain = run::Domain::new(&limits, 7);
         let mut out = Queue::uncapped();
@@ -255,13 +255,13 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     const OTHER: u32 = 768;
     let configuration = configured();
     let limits = configuration.service.limits.domain.run;
-    let brief = crate::limits::profile(crate::limits::Profile::Standard).root.brief;
+    let brief = crate::limits::stock().root.brief;
     assert!(brief.parts >= TASK_PARTS);
     let largest = temper_engine_smith::charter(&assignment(5, false, 0));
     let room = run::brief_room(&largest, Some(&workspace(true)), &limits).unwrap();
-    assert_eq!(room, 337_237, "charter 5's maximal non-brief host part leaves this room");
+    assert_eq!(room, 319_686, "charter 5's maximal non-brief host part leaves this room");
 
-    assert_eq!(brief.brief_bytes, 334_999);
+    assert_eq!(brief.brief_bytes, 318_148);
     let full = brief.budgets.task + brief.budgets.pull + brief.budgets.reviews + OTHER;
     assert_eq!(full, 395_520);
     assert!(brief.brief_bytes <= full.min(room - FRAMING));
@@ -441,13 +441,19 @@ fn measure_worker() {
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
     )
     .unwrap();
-    let jig = jig_protocol_config::worker(
+    let mut jig = jig_protocol_config::worker(
         &document,
         0,
         &jig_protocol_config::Directories::working(),
         &temper_service_core::startup::fixed_worker(),
     )
     .unwrap();
+    jig.limits = Some(engine(&generated()).limits);
+    jig.agent = Some(jig_protocol_config::Agent {
+        program: Box::default(),
+        arguments: Box::default(),
+        configuration: b"agent.json".as_slice().into(),
+    });
     let worker =
         crate::settings::Worker { jig, root: b"/worker".as_slice().into(), git: Some(b"/bin/git".as_slice().into()) };
     let agent = worker_agent(configured());
@@ -457,7 +463,7 @@ fn measure_worker() {
         .push((worker.jig.secret.clone(), skein_lib::Secret::new(b"worker-secret-value".as_slice().into())))
         .unwrap();
     let overrides = fixtures::value(&generated(), b"application.limits.overrides");
-    let mut own = crate::limits::profile(crate::limits::Profile::Small);
+    let mut own = temper_limits_fixtures::small();
     let overrides = jig_protocol_config::document(
         &overrides,
         &jig_protocol_config::DocumentLimits { bytes: 16_384, tokens: 4096, depth: 4 },
@@ -474,13 +480,10 @@ fn measure_worker() {
     let transcript = resume.checked_add(12_u64.checked_mul(resume / 4).unwrap()).unwrap();
     let loaded = turn.checked_add(u64::try_from(size_of::<temper_engine_domain::Record>()).unwrap()).unwrap();
     assert_eq!(engine.limits.hub.turn_bytes, turn);
-    assert_eq!(worker.jig.limits.hub.turn_bytes, turn);
     assert_eq!(u64::from(engine.limits.core.resume_bytes), resume);
     assert_eq!(u64::from(own.root.journal.transcript_bytes), resume);
     assert_eq!(engine.limits.hub.transcript_bytes, transcript);
-    assert_eq!(worker.jig.limits.hub.transcript_bytes, transcript);
     assert_eq!(engine.limits.hub.turn_queue_bytes, 8 * turn);
-    assert_eq!(worker.jig.limits.hub.turn_queue_bytes, 8 * turn);
     assert_eq!(u64::from(own.root.loads.bytes), loaded);
     assert_eq!(u64::from(own.root.loads.reply_bytes), loaded);
     assert_eq!(own.root.loads.read_bytes, 2 * turn);
@@ -507,7 +510,7 @@ fn measure_worker() {
             wires: None,
             root: skein_io::kernel::Fd::new(9),
             path: b"/worker".as_slice().into(),
-            agent: fixtures::pinned_agent(&worker.jig.agent),
+            agent: fixtures::pinned_agent(worker.jig.agent.as_ref().expect("checked worker agent")),
         },
         7,
     )
@@ -519,7 +522,7 @@ fn measure_worker() {
 
 fn measure_turn(number: u32) {
     let config = configured();
-    let body = usize::try_from(crate::limits::profile(crate::limits::Profile::Small).root.brief.brief_bytes).unwrap();
+    let body = usize::try_from(temper_limits_fixtures::small().root.brief.brief_bytes).unwrap();
     let assignment = assignment(number, false, body);
     let limits = config.service.limits.domain;
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };

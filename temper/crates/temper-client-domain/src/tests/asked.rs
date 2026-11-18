@@ -1,7 +1,7 @@
 use super::fixtures;
 use crate::{Domain, Event, Request, asked::State};
 use jig_client::{Approval, ApprovalAct, ApprovalCode, Message, NotAsked};
-use jig_client_protocol_wire::v27 as w;
+use jig_client_protocol_wire as w;
 use skein_lib::{List, Queue, Reader, Secret, Token, Wall, Writer};
 fn code() -> ApprovalCode {
     ApprovalCode::parse(b"WDJBMJHT").unwrap()
@@ -9,6 +9,7 @@ fn code() -> ApprovalCode {
 fn step(root: &mut Domain, event: Event) -> Queue<Request> {
     let mut out = Queue::uncapped();
     crate::step(root, &fixtures::env(&fixtures::limits()), event, &mut out);
+    crate::settle(root, &fixtures::env(&fixtures::limits()), &mut out);
     out
 }
 fn signed_out(unlinked: bool) -> Domain {

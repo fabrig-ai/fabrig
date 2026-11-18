@@ -627,6 +627,7 @@ impl<A: App, F: Front<A>> World<A, F> {
             Some(event) => A::step(&mut c.root, &env, event, &mut c.out),
             None => A::fire(&mut c.root, &env, &mut c.out),
         }
+        A::settle(&mut c.root, &env, &mut c.out);
         A::take(&mut c.root, &env, &mut c.out);
         let mut wires = Vec::new();
         let mut shows = Vec::new();

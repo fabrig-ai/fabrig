@@ -392,7 +392,7 @@ fn tell_keeps_the_page_left_with_its_title_but_not_its_entry_pages() {
     super::welcome::deliver(
         &mut root,
         watch.unwrap(),
-        c::Delivery::Tasks(Box::new(c::Tasks { rows: List::from_boxed(Box::new([line])), more: false })),
+        c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows: List::from_boxed(Box::new([line])), more: false })),
     );
     let expected = About { address: team, title: Some(b"Prover".as_slice().into()) };
     for address in [

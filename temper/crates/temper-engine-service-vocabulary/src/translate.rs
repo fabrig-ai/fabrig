@@ -33,6 +33,7 @@ pub fn ask(bytes: &[u8], limits: &v1::Limits) -> Option<engine::wire::Ask> {
     }
     Some(match ask {
         v1::Ask::Reds => engine::wire::Ask::Reds,
+        v1::Ask::Landed(value) => engine::wire::Ask::Landed { head: *value.head() },
         v1::Ask::Results(value) => engine::wire::Ask::Results(results(value)?),
     })
 }
@@ -71,6 +72,8 @@ fn results(value: v1::CheckResults) -> Option<engine::wire::CheckResults> {
 pub fn answer(answer: engine::wire::Answer, limits: &v1::Limits) -> Result<Box<[u8]>, v1::Problem> {
     let value = match answer {
         engine::wire::Answer::Kept => v1::Answer::Kept,
+        engine::wire::Answer::Landed => v1::Answer::Landed,
+        engine::wire::Answer::Unlanded => v1::Answer::Unlanded,
         engine::wire::Answer::Reds { reds } => {
             let mut rows = List::with_capacity(limits.reds_reds);
             for red in reds {
@@ -136,7 +139,12 @@ fn repository_item(
         match &repository.push {
             Some(push) => v1::Access::Writable(v1::Writable::new(
                 limits,
-                v1::WritableParts { push: push.clone(), expected: None, landing: repository.landing.clone() },
+                v1::WritableParts {
+                    push: push.clone(),
+                    expected: None,
+                    landing: repository.landing.clone(),
+                    delivered: repository.delivered,
+                },
             )?),
             None => v1::Access::ReadOnly,
         }
@@ -318,6 +326,26 @@ pub fn github_identity(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn repository_items_encode_the_tasks_own_delivery_without_an_expected_head() {
+        use crate::tests::fixtures;
+        let limits = fixtures::wire_limits();
+        let forges = fixtures::forge_table(&fixtures::forges());
+        let tokens = crate::forge::tokens::Tokens::empty();
+        for delivered in [None, Some([7; 32])] {
+            let mut repository = fixtures::repository(7, b"acme", b"shop");
+            repository.delivered = delivered;
+            let item = repository_item(&repository, false, &forges, &tokens, &limits).expect("repository item");
+            let mut encoded = Writer::new(skein_lib::usize_of(item.measure()));
+            item.encode(&mut encoded).expect("measured repository");
+            let bytes = encoded.finish();
+            let decoded = v1::Repository::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("wire item");
+            let v1::Access::Writable(value) = decoded.access() else { panic!("writable repository") };
+            assert_eq!(*value.delivered(), delivered);
+            assert_eq!(*value.expected(), None);
+        }
+    }
 
     #[test]
     fn pushed_heads_keep_the_workers_check_status() {

@@ -12,6 +12,7 @@ pub struct Row {
     pub took: Option<u32>,
     pub step: Step,
     pub state: State,
+    pub run_wait: Option<c::TaskRunWait>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Step {
@@ -49,11 +50,6 @@ enum Watch {
     Ended,
 }
 #[derive(Debug)]
-struct Task {
-    number: u64,
-    open: bool,
-}
-#[derive(Debug)]
 struct Pending {
     request: Token,
     account: u32,
@@ -67,7 +63,6 @@ struct Pending {
 pub struct Trials {
     pub rows: Box<[Row]>,
     watch: Watch,
-    task: Option<Task>,
     pending: Option<Pending>,
     wait: Option<c::TaskRunWait>,
     last_wait: Option<c::TaskRunWait>,
@@ -75,15 +70,7 @@ pub struct Trials {
 }
 impl Trials {
     pub(crate) fn new() -> Self {
-        Self {
-            rows: Box::new([]),
-            watch: Watch::Unknown,
-            task: None,
-            pending: None,
-            wait: None,
-            last_wait: None,
-            seen: None,
-        }
+        Self { rows: Box::new([]), watch: Watch::Unknown, pending: None, wait: None, last_wait: None, seen: None }
     }
 }
 
@@ -98,7 +85,7 @@ impl Side {
     pub fn trial_asked(&self) -> Option<u32> {
         Some(self.trials.pending.as_ref()?.account)
     }
-    /// The running row's wait, or the last it had: the Task document's `run_wait`.
+    /// The running row's wait, or the last it had: its row's `run_wait`.
     #[must_use]
     pub const fn trial_wait(&self) -> Option<&c::TaskRunWait> {
         if let Some(row) = self.trials.rows.first()
@@ -132,9 +119,6 @@ pub fn ask(account: u32, again: bool, limits: &Limits) -> Option<Ask> {
 pub(crate) fn handle() -> Handle {
     Handle { asker: crate::owner::Owner::Forge.asker(), number: super::me::TRIALS }
 }
-pub(crate) fn task_handle() -> Handle {
-    Handle { asker: crate::owner::Owner::Forge.asker(), number: super::me::TRIAL_TASK }
-}
 pub fn configure(side: &mut Side, limits: Limits, out: &mut Queue<Request>) {
     if side.link == Link::SignedOut || side.link == Link::OutOfDate {
         end(side, out);
@@ -142,7 +126,7 @@ pub fn configure(side: &mut Side, limits: Limits, out: &mut Queue<Request>) {
         side.changed();
         return;
     }
-    if side.party.is_some() && side.trials.watch == Watch::Unknown {
+    if side.link == Link::Live && side.trials.watch == Watch::Unknown {
         if let Some(subject) = watch(&limits) {
             side.trials.watch = Watch::Open;
             out.push(Request::Client { asked: jig_client::Event::Watch { handle: handle(), subject } });
@@ -171,11 +155,9 @@ pub(crate) fn send(side: &mut Side, account: u32, again: bool, limits: Limits, o
 pub enum Event {
     Rows { rows: Box<[Row]> },
     RowsEnded,
-    Wait { task: u64, wait: Option<c::TaskRunWait> },
-    TaskEnded,
     Answered { key: jig_client::Key, tried: bool },
 }
-pub(crate) fn told(client: &jig_client::Client, told: &Told, limits: Limits) -> Option<Event> {
+pub(crate) fn told(client: &jig_client::Client, told: &Told, limits: &crate::Limits) -> Option<Event> {
     match told {
         Told::Changed { handle: changed } if *changed == handle() => {
             let document = client.document(*changed)?;
@@ -192,21 +174,7 @@ pub(crate) fn told(client: &jig_client::Client, told: &Told, limits: Limits) -> 
             }
         }
         Told::Ended { handle: ended, .. } if *ended == handle() => Some(Event::RowsEnded),
-        Told::Changed { handle: changed } if *changed == task_handle() => {
-            let document = client.document(*changed)?;
-            if document.state == jig_client::State::Ended {
-                return Some(Event::TaskEnded);
-            }
-            match document.latest {
-                Some(Latest::Jig(c::Delivery::Task(task))) => {
-                    Some(Event::Wait { task: task.chip.task, wait: task.run_wait })
-                }
-                Some(Latest::Jig(_) | Latest::Family(_)) => Some(Event::TaskEnded),
-                None => None,
-            }
-        }
-        Told::Ended { handle: ended, .. } if *ended == task_handle() => Some(Event::TaskEnded),
-        Told::Answered { key, outcome } => Some(Event::Answered { key: *key, tried: tried(outcome, limits) }),
+        Told::Answered { key, outcome } => Some(Event::Answered { key: *key, tried: tried(outcome, limits.forge) }),
         Told::Pending { key } => {
             let pending = client.pending(*key)?;
             if pending.progress == jig_client::Progress::Unknown {
@@ -239,27 +207,25 @@ pub(crate) fn receive(side: &mut Side, event: Event, out: &mut Queue<Request>) {
                     }
                 }
             }
-            side.trials.rows = rows;
-            follow(side, out);
-        }
-        Event::RowsEnded => end(side, out),
-        Event::Wait { task, wait } => {
-            if let Some(watched) = &side.trials.task
-                && watched.open
-                && watched.number == task
-            {
-                side.trials.wait = wait;
-                if wait.is_some() {
-                    side.trials.last_wait = wait;
+            let next = running(&rows);
+            if let Some(row) = next {
+                let old = match running(&side.trials.rows) {
+                    Some(old) => old.task,
+                    None => None,
+                };
+                if old != row.task {
+                    side.trials.last_wait = None;
+                }
+                side.trials.wait = row.run_wait;
+                if row.run_wait.is_some() {
+                    side.trials.last_wait = row.run_wait;
                 }
             } else {
-                return;
+                side.trials.wait = None;
             }
+            side.trials.rows = rows;
         }
-        Event::TaskEnded => {
-            close_task(side, out);
-            side.trials.wait = None;
-        }
+        Event::RowsEnded => end(side, out),
         Event::Answered { key, tried } => {
             let Some(pending) = &side.trials.pending else { return };
             if key.asker != handle().asker || key.number != pending.request.raw() {
@@ -272,62 +238,30 @@ pub(crate) fn receive(side: &mut Side, event: Event, out: &mut Queue<Request>) {
     }
     side.changed();
 }
-fn follow(side: &mut Side, out: &mut Queue<Request>) {
-    let mut next = None;
-    for row in &side.trials.rows {
-        match row.state {
-            State::Running => {
-                if row.task.is_some() {
-                    next = row.task;
-                    break;
-                }
-            }
-            State::Answered { .. } | State::Failed { .. } => {}
+#[expect(clippy::manual_find, reason = "step code selects a running row without closures")]
+fn running(rows: &[Row]) -> Option<&Row> {
+    for row in rows {
+        if row.state == State::Running && row.task.is_some() {
+            return Some(row);
         }
     }
-    if let Some(task) = &side.trials.task
-        && Some(task.number) == next
-    {
-        return;
-    }
-    close_task(side, out);
-    side.trials.task = None;
-    if let Some(number) = next {
-        side.trials.wait = None;
-        side.trials.last_wait = None;
-        side.trials.task = Some(Task { number, open: true });
-        out.push(Request::Client {
-            asked: jig_client::Event::Watch {
-                handle: task_handle(),
-                subject: Watchable::Jig(c::Subject::Task { task: number }),
-            },
-        });
-    }
-}
-fn close_task(side: &mut Side, out: &mut Queue<Request>) {
-    if let Some(task) = &mut side.trials.task
-        && task.open
-    {
-        task.open = false;
-        out.push(Request::Client { asked: jig_client::Event::Unwatch { handle: task_handle() } });
-    }
+    None
 }
 fn end(side: &mut Side, out: &mut Queue<Request>) {
-    close_task(side, out);
     if side.trials.watch == Watch::Open {
         out.push(Request::Client { asked: jig_client::Event::Unwatch { handle: handle() } });
     }
     side.trials.watch = Watch::Ended;
     side.trials.rows = Box::new([]);
-    side.trials.task = None;
     side.trials.wait = None;
     side.trials.last_wait = None;
 }
-fn rows(record: &Family, limits: Limits) -> Option<Box<[Row]>> {
+fn rows(record: &Family, limits: &crate::Limits) -> Option<Box<[Row]>> {
     if record.family != wire::FORGE || record.version != wire::CLIENT_VERSION {
         return None;
     }
-    let bounds = wire_limits(&limits)?;
+    let bounds = wire_limits(&limits.forge)?;
+    let link = jig_client_protocol_link::Limits::new(limits.client.domain, limits.client.exchanges).ok()?;
     let mut reader = Reader::new(&record.bytes);
     let document = w::Trials::decode(&bounds, &mut reader).ok()?;
     if !reader.is_empty() {
@@ -362,7 +296,11 @@ fn rows(record: &Family, limits: Limits) -> Option<Box<[Row]>> {
                 },
             },
         };
-        rows.push(Row { account: value.account, task: value.task, took: value.took, step, state })
+        let run_wait = match value.run_wait {
+            Some(bytes) if state == State::Running && value.task.is_some() => run_wait(&bytes, &link),
+            Some(_) | None => None,
+        };
+        rows.push(Row { account: value.account, task: value.task, took: value.took, step, state, run_wait })
             .expect("wire bounds trial rows");
     }
     Some(rows.into_boxed())
@@ -387,4 +325,14 @@ fn tried(outcome: &jig_client::Outcome, limits: Limits) -> bool {
     let mut reader = Reader::new(&record.bytes);
     let Ok(answer) = w::Answer::decode(&bounds, &mut reader) else { return false };
     reader.is_empty() && *answer.outcome() == w::Outcome::Tried
+}
+
+fn run_wait(bytes: &[u8], limits: &jig_client_protocol_link::Limits) -> Option<c::TaskRunWait> {
+    use jig_client_protocol_wire as j;
+    let mut reader = Reader::new(bytes);
+    let wait = j::TaskRunWait::decode(limits.wire(), &mut reader).ok()?;
+    if !reader.is_empty() {
+        return None;
+    }
+    jig_client_protocol_link::translate::run_wait(Some(&wait))
 }
