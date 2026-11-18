@@ -190,6 +190,7 @@ enum Phase {
     Spent,
     FreshLink,
     Fresh,
+    Signing,
     Root,
     Main,
     Ready,
@@ -547,7 +548,7 @@ impl Machine {
             }
             return;
         }
-        if !matches!(self.phase, Phase::Main | Phase::MainLine | Phase::Seeing | Phase::Finding) {
+        if !matches!(self.phase, Phase::Signing | Phase::Main | Phase::MainLine | Phase::Seeing | Phase::Finding) {
             return;
         }
         if node.is_none() {
@@ -555,6 +556,11 @@ impl Machine {
             return;
         }
         match self.phase {
+            Phase::Signing => {
+                self.phase = Phase::Root;
+                self.poll = None;
+                out.push(Action::Open([self.origin.as_ref(), b"/"].concat().into()));
+            }
             Phase::MainLine if self.patch_line() => self.patched(out),
             Phase::Main => self.session_ready(out),
             Phase::MainLine | Phase::Seeing => self.answer(None, out),
@@ -574,8 +580,10 @@ impl Machine {
         if self.patch_line() {
             return;
         }
-        if matches!(self.phase, Phase::Spent | Phase::FreshLink | Phase::Fresh | Phase::Root | Phase::Main)
-            && trouble == Trouble::Log
+        if matches!(
+            self.phase,
+            Phase::Spent | Phase::FreshLink | Phase::Fresh | Phase::Signing | Phase::Root | Phase::Main
+        ) && trouble == Trouble::Log
             && text.windows(b"status of 401".len()).any(|part| part == b"status of 401")
             && resource(url).strip_prefix(self.origin.as_ref()) == Some(b"/jig/v1/sign-in/link".as_slice())
         {
@@ -608,8 +616,8 @@ impl Machine {
                 }
             }
             Phase::Fresh => {
-                self.phase = Phase::Root;
-                out.push(Action::Open([self.origin.as_ref(), b"/"].concat().into()));
+                self.phase = Phase::Signing;
+                out.push(Action::Find(Find::named(Role::Main, b"")));
             }
             Phase::Root => {
                 self.phase = Phase::Main;
@@ -676,7 +684,7 @@ impl Machine {
         if self.poll.is_some_and(|poll| now >= poll) {
             self.poll = None;
             let find = match self.phase {
-                Phase::Main | Phase::MainLine => Some(Find::named(Role::Main, b"")),
+                Phase::Signing | Phase::Main | Phase::MainLine => Some(Find::named(Role::Main, b"")),
                 Phase::Finding => match self.current.as_ref().map(Line::record) {
                     Some(Record::Web(Web::Act { role, name, order, .. })) => {
                         Some(Find::exactly_named(*role, name).nth(*order))

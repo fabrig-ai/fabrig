@@ -1,6 +1,6 @@
 # Driving the clients a line at a time
 
-Provisional, 2026-11-12, revised 2026-11-17. QA's hands on ctl, the web
+Provisional, 2026-11-12, revised 2026-11-18. QA's hands on ctl, the web
 client and the TUI (`../draft/landed-qa.md`, 7 and 10):
 `temper-client-journeys drive`, a session that starts a fake box, or a
 deployment's processes (`../testing/qa/deployment.md`), from a given
@@ -145,8 +145,10 @@ In order, each within its bound; a failure is 2.5's.
    (`web/testing.md`; skein's `ui/web/testing.md`, 2), opens the first
    link, now spent, so that serve prints a fresh link on stdout
    (`../protocol/setup/box.md`, 2) within 30 seconds; it opens that one,
-   then loads `/` on the box's origin and waits until the page shows the
-   client's main region, within 60 seconds. So the browser holds the
+   waits until that page shows the client's main region so its sign-in
+   is answered, then loads `/` on the box's origin and waits for its main
+   region, all within 60 seconds: loading `/` sooner cancels the sign-in's
+   exchange and leaves `/` signed out. So the browser holds the
    session's sign-in, a copy holds none (`../draft/landed-qa.md`, 5),
    and every session's first line meets the box's root page.
 4. **The TUI** starts at the session's first `tui` line (3.3), not

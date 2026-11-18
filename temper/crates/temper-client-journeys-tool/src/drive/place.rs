@@ -75,7 +75,10 @@ pub(super) struct Activity {
 }
 impl Activity {
     fn starting(self) -> bool {
-        matches!(self.phase, Phase::SignIn | Phase::Spent | Phase::FreshLink | Phase::Fresh | Phase::Root | Phase::Main)
+        matches!(
+            self.phase,
+            Phase::SignIn | Phase::Spent | Phase::FreshLink | Phase::Fresh | Phase::Signing | Phase::Root | Phase::Main
+        )
     }
 }
 type ForgeHands = (Box<[u8]>, PathBuf);

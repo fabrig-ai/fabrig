@@ -131,7 +131,10 @@ fn opening(kind: Kind) -> Machine {
 fn page_ready(kind: Kind, machine: &mut Machine) {
     assert!(step(machine, Event::FaceDone(Ok(()))).is_empty());
     opened(&step(machine, kind.link(FRESH)), FRESH);
-    opened(&step(machine, Event::FaceDone(Ok(()))), &[ORIGIN, b"/"].concat());
+    assert!(
+        matches!(step(machine, Event::FaceDone(Ok(()))).as_slice(), [Action::Find(find)] if *find == Find::named(Role::Main, b""))
+    );
+    opened(&step(machine, Event::Found(Some(NodeId(1)))), &[ORIGIN, b"/"].concat());
     assert!(
         matches!(step(machine, Event::FaceDone(Ok(()))).as_slice(), [Action::Find(find)] if *find == Find::named(Role::Main, b""))
     );
