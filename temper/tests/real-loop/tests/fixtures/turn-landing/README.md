@@ -40,7 +40,7 @@ key for every write when keys are required. Goal budgets and deadlines are
 chosen within the deployment's offered bounds; the story uses 500 and
 `2030-01-01T00:00Z`. Substitute the fresh project's name or number for PROJECT.
 
-1. `goal start --project PROJECT --charter 1 --budget 500 --deadline 2030-01-01T00:00Z --key first '@turn-a First turn member\nPerson: P; Repository: R;'`
+1. `goal start --project PROJECT --charter 1 --budget 5 --deadline 2030-01-01T00:00Z --key first '@turn-a First turn member\nPerson: P; Repository: R;'`
    (Give an actual newline before `Person`, not a literal backslash-n.)
    For red, replace `@turn-a First turn member` with `@turn-red Failing turn member`.
 2. `task show A --until phase:idle --json`, with A from goal start.
@@ -50,7 +50,7 @@ chosen within the deployment's offered bounds; the story uses 500 and
 4. `task show L --json` supplies L's person-task revision LR.
 5. `task show C1 --json` supplies C1's spec revision S1.
    `task amend C1 --rev S1 --dependency L 'Wait for the batch latch' --key keep-a`
-6. `goal start --project PROJECT --charter 1 --budget 500 --deadline 2030-01-01T00:00Z --key second '@turn-b Second turn member\nPerson: P; Repository: R;'`
+6. `goal start --project PROJECT --charter 1 --budget 5 --deadline 2030-01-01T00:00Z --key second '@turn-b Second turn member\nPerson: P; Repository: R;'`
 7. `task show B --until phase:idle --json`; `task show B --tree --json`
    names change C2. `change show C2 --until pull --json` and
    `task show C2 --tree --json` name reviewer V2. Read C2's spec revision S2.

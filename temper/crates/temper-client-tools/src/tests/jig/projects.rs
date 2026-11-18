@@ -164,7 +164,7 @@ fn project_show_json_preserves_integer_ledgers_and_cut_flags() {
 fn project_fund_sends_project_spend_and_role_spend() {
     for role in [None, Some("0")] {
         let mut root = f::signed_in(f::PARTY);
-        let mut argv = vec!["project", "fund", "1", "200", "--key", "fund"];
+        let mut argv = vec!["project", "fund", "1", "2.00", "--key", "fund"];
         if let Some(role) = role {
             argv.extend(["--role", role]);
         }
@@ -183,7 +183,7 @@ fn project_fund_sends_project_spend_and_role_spend() {
 fn project_fund_prints_the_edit_then_the_period_and_roles_pools() {
     for role in [false, true] {
         let mut root = f::signed_in(f::PARTY);
-        let mut argv = vec!["project", "fund", "1", "200", "--key", "fund"];
+        let mut argv = vec!["project", "fund", "1", "2.00", "--key", "fund"];
         if role {
             argv.extend(["--role", "0"]);
         }
@@ -194,9 +194,9 @@ fn project_fund_prints_the_edit_then_the_period_and_roles_pools() {
         let printed = root.answer(call).unwrap();
         assert_eq!(printed.status, 0);
         let expected = if role {
-            "role 0: spend per period 200\nnow: period 3: budget 100, left 40\nnow: pool, party 1 alice: budget 100, left 40\n"
+            "role 0: spend per period 2.00\nnow: period 3: budget 1.00, left 0.40\nnow: pool, party 1 alice: budget 1.00, left 0.40\n"
         } else {
-            "project 1: spend per period 200\nnow: period 3: budget 100, left 40\n"
+            "project 1: spend per period 2.00\nnow: period 3: budget 1.00, left 0.40\n"
         };
         assert_eq!(printed.stdout.as_ref(), expected.as_bytes());
     }
@@ -204,7 +204,7 @@ fn project_fund_prints_the_edit_then_the_period_and_roles_pools() {
 #[test]
 fn project_fund_past_the_periods_room_exits_2_naming_what_is_left() {
     let mut root = f::signed_in(f::PARTY);
-    let call = root.submit(&["project", "fund", "1", "200", "--role", "0", "--key", "fund"]);
+    let call = root.submit(&["project", "fund", "1", "2.00", "--role", "0", "--key", "fund"]);
     root.answered(
         call,
         c::Answer::Refused {
@@ -216,25 +216,25 @@ fn project_fund_past_the_periods_room_exits_2_naming_what_is_left() {
     assert_eq!(printed.status, 2);
     assert_eq!(
         printed.stderr.as_ref(),
-        b"refused: the period has 60 left, the pools need 200; raise the project's first: project fund 1 AMOUNT\n"
+        b"refused: the period has 0.60 left, the pools need 2.00; raise the project's first: project fund 1 AMOUNT\n"
     );
     assert!(root.reads.is_empty());
 }
 #[test]
 fn project_fund_amount_and_role_bounds_are_usage() {
-    for amount in ["0", "18446744073709551615"] {
+    for amount in ["0.00", "184467440737095516.15"] {
         let call = f::call(&["project", "fund", "1", amount, "--key", "fund"]);
         assert_eq!(f::back(&call), f::owned(&["project", "fund", "1", amount, "--key", "fund"]));
     }
-    for amount in ["18446744073709551616", "-1", "no"] {
+    for amount in ["184467440737095516.16", "-1", "no"] {
         f::parse(&["project", "fund", "1", amount, "--key", "fund"]).expect_err("invalid amount is usage");
     }
     for role in ["0", "4294967295"] {
-        f::parse(&["project", "fund", "1", "200", "--role", role, "--key", "fund"]).expect("role bound parses");
+        f::parse(&["project", "fund", "1", "2.00", "--role", role, "--key", "fund"]).expect("role bound parses");
     }
-    f::parse(&["project", "fund", "1", "200", "--role", "4294967296", "--key", "fund"])
+    f::parse(&["project", "fund", "1", "2.00", "--role", "4294967296", "--key", "fund"])
         .expect_err("role past bound is usage");
-    f::parse(&["project", "fund", "1", "200"]).expect_err("funding requires a key");
+    f::parse(&["project", "fund", "1", "2.00"]).expect_err("funding requires a key");
 }
 
 #[test]
@@ -252,7 +252,7 @@ fn project_show_resolves_names_and_preserves_read_refusals() {
 #[test]
 fn project_fund_json_reads_the_committed_ledgers() {
     let mut root = f::signed_in(f::PARTY);
-    let call = root.submit(&["project", "fund", "shop", "200", "--role", "0", "--key", "fund", "--json"]);
+    let call = root.submit(&["project", "fund", "shop", "2.00", "--role", "0", "--key", "fund", "--json"]);
     let Ask::Jig(ask) = &root.sends[&call].2 else { unreachable!() };
     assert_eq!(
         ask.as_ref(),
@@ -285,7 +285,7 @@ fn a_spent_pool_refusal_names_the_project_role_and_remedy() {
         assert_eq!(printed.status, 2);
         assert_eq!(
             String::from_utf8_lossy(&printed.stderr),
-            "chat start: refused: your pool in project 1 had 0 left, 1 needed\nread it: project show 1\nraise it: project fund 1 AMOUNT --role 0, and first the project's if its period has no room: project fund 1 AMOUNT\n"
+            "chat start: refused: your pool in project 1 had 0.00 left, 0.01 needed\nread it: project show 1\nraise it: project fund 1 AMOUNT --role 0, and first the project's if its period has no room: project fund 1 AMOUNT\n"
         );
     }
 }
@@ -296,6 +296,7 @@ fn a_kept_spent_pool_refusal_with_room_now_names_the_new_key_remedy() {
         let mut me = f::chat_me(100);
         let mut pool = project().pools.get(0).unwrap().clone();
         pool.left = left;
+        let amount = format!("{}.{:02}", left / 100, left % 100);
         me.projects.get_mut(0).unwrap().pool = Some(pool);
         root.deliver(c::Delivery::Me(Box::new(me)));
         let call = root.submit(f::CREATE_CHAT_CALL);
@@ -305,7 +306,7 @@ fn a_kept_spent_pool_refusal_with_room_now_names_the_new_key_remedy() {
         assert_eq!(
             String::from_utf8_lossy(&printed.stderr),
             format!(
-                "chat start: refused: your pool in project 1 had 0 left, 1 needed\nnow: your pool has {left} left; budget 100; this key keeps its first answer: start new work with a new --key\n"
+                "chat start: refused: your pool in project 1 had 0.00 left, 0.01 needed\nnow: your pool has {amount} left; budget 1.00; this key keeps its first answer: start new work with a new --key\n"
             )
         );
     }
@@ -329,7 +330,7 @@ fn a_spent_pool_json_preserves_the_engine_refusal() {
 fn project_fund_replays_the_edit_with_todays_balances() {
     for (role, json) in [(false, false), (true, false), (false, true), (true, true)] {
         let mut root = f::signed_in(f::PARTY);
-        let mut argv = vec!["project", "fund", "1", "200", "--key", "first"];
+        let mut argv = vec!["project", "fund", "1", "2.00", "--key", "first"];
         if role {
             argv.extend(["--role", "0"]);
         }
@@ -372,9 +373,9 @@ fn project_fund_replays_the_edit_with_todays_balances() {
         } else {
             let first_line = skein_lib::bytes::find(&original, b"\n").expect("edit line");
             assert_eq!(&answer.stdout[..=first_line], &original[..=first_line]);
-            assert!(text.contains("now: period 3: budget 100, left 17\n"), "{text}");
+            assert!(text.contains("now: period 3: budget 1.00, left 0.17\n"), "{text}");
             if role {
-                assert!(text.contains("now: pool, party 1 alice: budget 100, left 9\n"), "{text}");
+                assert!(text.contains("now: pool, party 1 alice: budget 1.00, left 0.09\n"), "{text}");
             }
         }
     }
@@ -383,7 +384,7 @@ fn project_fund_replays_the_edit_with_todays_balances() {
 #[test]
 fn project_fund_marks_missing_period_and_cut_flags_as_current_reads() {
     let mut root = f::signed_in(f::PARTY);
-    let call = root.submit(&["project", "fund", "1", "0", "--key", "cut"]);
+    let call = root.submit(&["project", "fund", "1", "0.00", "--key", "cut"]);
     root.done(call, c::Outcome::Document(c::DocumentOutcome::PolicyChanged { project: 1 }));
     let mut current = project();
     current.current_period = None;
@@ -392,7 +393,7 @@ fn project_fund_marks_missing_period_and_cut_flags_as_current_reads() {
     root.serve(call, c::ReadResult::Value(c::ReadValue::Project(Box::new(current))));
     assert_eq!(
         root.answer(call).unwrap().stdout.as_ref(),
-        b"project 1: spend per period 0\nnow: period: none open\nnow: project: cut\nnow: configured pools: cut\n"
+        b"project 1: spend per period 0.00\nnow: period: none open\nnow: project: cut\nnow: configured pools: cut\n"
     );
 }
 
@@ -402,21 +403,21 @@ fn project_fund_ceiling_refusals_name_the_bound_and_remedy() {
         (
             c::CeilingHolder::Rules,
             None,
-            "project fund: past the rules' period spend, 1000; raise the rules first with temper ctl settings apply\n",
+            "project fund: past the rules' period spend, 10.00; raise the rules first with temper ctl settings apply\n",
         ),
         (
             c::CeilingHolder::Policy,
             Some("0"),
-            "project fund: past the project's period spend, 1000; fund the project first: temper ctl project fund 1 AMOUNT\n",
+            "project fund: past the project's period spend, 10.00; fund the project first: temper ctl project fund 1 AMOUNT\n",
         ),
         (
             c::CeilingHolder::Role(0),
             None,
-            "project fund: below role 0's period spend, 1000; lower the role first: temper ctl project fund 1 AMOUNT --role 0\n",
+            "project fund: below role 0's period spend, 10.00; lower the role first: temper ctl project fund 1 AMOUNT --role 0\n",
         ),
     ] {
         let mut root = f::signed_in(f::PARTY);
-        let mut argv = vec!["project", "fund", "1", "1001", "--key", "fund"];
+        let mut argv = vec!["project", "fund", "1", "10.01", "--key", "fund"];
         if let Some(role) = role {
             argv.extend(["--role", role]);
         }
@@ -435,7 +436,7 @@ fn project_fund_rechecks_the_rules_authority_ceiling() {
         (
             c::CeilingDimension::Spend,
             Some(500),
-            "project fund: the project's authority is past the rules' spend, 500; raise the rules with temper ctl settings apply, or narrow the project's policy\n",
+            "project fund: the project's authority is past the rules' spend, 5.00; raise the rules with temper ctl settings apply, or narrow the project's policy\n",
         ),
         (
             c::CeilingDimension::Tools,
@@ -444,7 +445,7 @@ fn project_fund_rechecks_the_rules_authority_ceiling() {
         ),
     ] {
         let mut root = f::signed_in(f::PARTY);
-        let call = root.submit(&["project", "fund", "1", "1000", "--key", "fund"]);
+        let call = root.submit(&["project", "fund", "1", "10.00", "--key", "fund"]);
         root.answered(call, ceiling_refusal(c::CeilingHolder::Rules, dimension, value, None));
         let printed = root.answer(call).unwrap();
         assert_eq!(printed.status, 2);
@@ -469,7 +470,7 @@ fn ceiling_refusal(
 #[test]
 fn project_fund_json_preserves_the_ceiling_facts() {
     let mut root = f::signed_in(f::PARTY);
-    let call = root.submit(&["project", "fund", "1", "1001", "--key", "fund", "--json"]);
+    let call = root.submit(&["project", "fund", "1", "10.01", "--key", "fund", "--json"]);
     root.answered(
         call,
         ceiling_refusal(c::CeilingHolder::Rules, c::CeilingDimension::PeriodSpend, Some(1000), Some(1001)),
@@ -578,5 +579,45 @@ fn adopt_second_repository(root: &mut f::Harness, json: bool) {
         assert!(String::from_utf8_lossy(&printed.stdout).contains(r#""adopted":true"#));
     } else {
         assert_eq!(printed.stdout.as_ref(), b"work/second is in 8.\n");
+    }
+}
+
+#[test]
+fn a_reserved_goal_pool_names_as_allowed_and_how_to_leave_room() {
+    for reserved in [Some(13000), Some(0), None] {
+        let mut me = super::goal_template::goal_me();
+        let held = me.projects.get_mut(0).unwrap();
+        held.role = c::HeldRole::Owner;
+        held.pool = if let Some(reserved) = reserved {
+            let mut pool = project().pools.get(0).unwrap().clone();
+            pool.numbers = c::Numbers { budget: 13000, reserved, spent: 0, spent_below: 0 };
+            pool.left = 0;
+            Some(pool)
+        } else {
+            None
+        };
+        let mut root = f::choice_root(me);
+        let call = root.submit(&[
+            "goal",
+            "start",
+            "--project",
+            "1",
+            "--charter",
+            "1",
+            "--as-allowed",
+            "--no-deadline",
+            "Work",
+            "--key",
+            "pool",
+        ]);
+        root.answered(call, spent_pool_refusal());
+        let answer = root.answer(call).unwrap();
+        assert_eq!(answer.status, 2);
+        let reservation = if reserved == Some(13000) {
+            "reserved: 130.00, for the live work your pool funds; a goal or milestone started with --as-allowed takes all your pool may give: start them with --budget AMOUNT to leave room\n"
+        } else {
+            ""
+        };
+        assert_eq!(answer.stderr.as_ref(), format!("goal start: refused: your pool in project 1 had 0.00 left, 0.01 needed\n{reservation}read it: project show 1\nraise it: project fund 1 AMOUNT --role 0, and first the project's if its period has no room: project fund 1 AMOUNT\n").as_bytes());
     }
 }

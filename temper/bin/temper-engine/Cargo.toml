@@ -24,6 +24,7 @@ skein-fail-stop.workspace = true
 [dev-dependencies]
 serde_json.workspace = true
 skein-scratch.workspace = true
+skein-shell.workspace = true
 temper-shell.workspace = true
 temper-protocol-store.workspace = true
 [lints.rust] # binary: tools/lints/design.md, 2.2

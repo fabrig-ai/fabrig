@@ -28,6 +28,8 @@ smith-agent-world.workspace = true
 
 [dev-dependencies]
 skein-codegen.workspace = true
+smith-agent-profile.workspace = true
+skein-fake-llm-domain.workspace = true
 smith-host-world.workspace = true
 smith-agent-process-world.workspace = true
 

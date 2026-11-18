@@ -34,7 +34,7 @@ pub(crate) fn host_limits(
             })?,
         );
     }
-    smith_local_service::profile::host_limits(&agent.profile, &child)
+    smith_local_service::profile::host_limits(&agent.profile, &child, &agent.service.domain.limits)
 }
 
 /// Bound the local host's IO separately from the spawned agent's native effects.

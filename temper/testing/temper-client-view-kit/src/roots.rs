@@ -743,8 +743,9 @@ pub fn inbox_facts_at(
 ) -> temper_client_domain::Domain {
     use jig_client::contract::{self, InboxGroup as Group, ObjectKey as Object};
     let mut limits = domain_limits();
-    // Six card reads beside the frame's own bounded reads.
+    // Four needs cards and two updates beside the frame's own bounded reads.
     limits.client.domain.reads = 8;
+    limits.client.domain.rows = 4;
     let (mut root, watch) = if let temper_client_domain::Address::Home { .. } = address {
         let (root, _, _, watch) =
             root_at_with_needs(temper_client_domain::Address::Settings { project: PROJECT }, &limits);

@@ -912,8 +912,23 @@ fn fund_project(driver: &mut Driver, project: &str) -> Result<(), String> {
     let owner = owner_role(&current)?["period_spend"].as_u64().ok_or("owner period spend")?.max(928_512);
     // Funding raises run project first, then pool (client/ctl/tools.md, 3).
     // Keep the current policy when it already funds the rung's work.
-    driver.ctl(&["project", "fund", project, &period.to_string(), "--key", "rung-project-funds"], None)?;
-    driver.ctl(&["project", "fund", project, &owner.to_string(), "--role", "0", "--key", "rung-role-funds"], None)?;
+    driver.ctl(
+        &["project", "fund", project, &format!("{}.{:02}", period / 100, period % 100), "--key", "rung-project-funds"],
+        None,
+    )?;
+    driver.ctl(
+        &[
+            "project",
+            "fund",
+            project,
+            &format!("{}.{:02}", owner / 100, owner % 100),
+            "--role",
+            "0",
+            "--key",
+            "rung-role-funds",
+        ],
+        None,
+    )?;
     Ok(())
 }
 

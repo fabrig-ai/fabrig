@@ -858,7 +858,7 @@ fn send(
         && called.call.tool != rows::PROPOSE_SETTINGS_AT
         && !(rows::WORKER_ADD_AT..=rows::WORKER_REMOVE_AT).contains(&called.call.tool)
     {
-        operation.retry = Some(render::outcome::retry(&called.call));
+        operation.retry = Some(render::outcome::retry(&called.call, called.json));
     }
     if called.call.tool == rows::ADD_KEY_AT
         || called.call.tool == rows::REPLACE_KEY_AT
