@@ -98,12 +98,14 @@ a group under the Goals filter, and a page of its own; Needs you's cards,
 Decided for you's rows and Landed this week name a goal's milestone, and a
 goal's page says "in Store shape". Its walk follows landing
 (`draft/milestones.status.md`; `client/pages/milestone.md`).
-Home holds still between its reads, goal 8538: a page redraws from whole
-answers alone, so a needs read ending busy leaves "Four things need you."
-as it was, "N+" stands only where the inbox's read says its list was cut,
-and the rail says the page's count; a row's part not made keeps the one
-last decoded, so a milestone's goals stay under its row with their
-headlines (`client/pages/README.md`; `client/forge/parts.md`, 5).
+Home and Work hold still between their reads, goal 8538: a page redraws
+from whole answers alone, so a needs read ending busy leaves "Four things
+need you." as it was, "N+" stands only where the inbox's read says its list
+was cut, and the rail says the page's count; a row's part not made keeps
+the one last decoded, so a milestone's goals stay under its row on Home and
+on its card in Work's In flight, with their headlines, and In flight's
+count stands (`client/pages/README.md`; `client/pages/work.md`, 1, *In
+flight*; `client/forge/parts.md`, 5).
 
 Landed drafts, whole story P8, goal 638: projects keep drafts landed in
 their repositories and marked ready by the writer with `temper ctl draft ready`,

@@ -140,7 +140,16 @@
     and its signers' names among them (`../forge/parts.md`, 5;
     `../forge/records.md`, *A project's changes*), so that no part fills
     in later and moves a row; a part not made leaves its row as
-    `../forge/parts.md`, 5 says, until its next delivery.
+    `../forge/parts.md`, 5 says, until its next delivery. **One stable
+    list:** a live goal of a drawn milestone is a line on that milestone's
+    card alone, never also a card of its own, whichever of its list's
+    deliveries made its part (`Milestones::of`, `milestone.md`, 1, *A
+    goal's milestone*), and a goal's headline and its "Written by the goal
+    at …" byline, a milestone's count, state, strip and goal lines are what
+    their parts last said. So In flight's N and the heading's numbers stand
+    through a delivery whose parts are not made, and reads answering again
+    in any order, with nothing changed in the store, draw the same text
+    (`README.md`'s opening).
     - "In flight · N", "newest activity first": a card for each live
       milestone drawn (`milestone.md`, 1) and for each live goal in none;
       for each change on its way to landing that no listed goal or chat holds;
