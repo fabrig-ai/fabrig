@@ -2,6 +2,9 @@
 
 2026-11-18. Where the tree's code lags or departs from [areas.md](areas.md).
 
+- **Not yet:** area 6: `change open` with no `--into` lands into the
+  forge's default branch rather than the repository's landing branch
+  [in flight: change 8087].
 
 - **Not yet:** area 2: `goal start`'s and `milestone new`'s `--budget` in ctl's amount, and `--as-allowed`'s help lines saying what it takes [in flight: change 7671].
 - **Not yet:** area 7: no `draft` group or tool [in flight: change 665].

@@ -52,6 +52,8 @@
 - **Its outcome,** `Answer`'s:
   - *adopted,* with the repository as the forge connector recorded it:
     its forge's number, its kind and its id; its owner and name; its role;
+    its landing branch, `landing`, at most 1,024 bytes, empty for an
+    outcome kept before it (`../../domain/forge/adoption.md`, 8);
     whether it is the project's home; what temper may do there (the
     forge's `Kinds`: read, push, open, land, review, status, comment,
     issue, branch); whether branch protection was read (unknown,

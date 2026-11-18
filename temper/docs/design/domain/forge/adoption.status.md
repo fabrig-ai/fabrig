@@ -1,7 +1,17 @@
 # adoption: status
 
-2026-11-15. Where the tree's code lags or departs from [adoption.md](adoption.md).
+2026-11-18. Where the tree's code lags or departs from [adoption.md](adoption.md).
 
+- **Not yet:** 8, *The record keeps it* and *Kept with the record*: the
+  `Repository` record keeps no `landing`, its stored `Adopted` row
+  carries none, and a refusal's refresh reads protection on the default
+  branch [in flight: change 8085].
+- **Not yet:** 7 and 8, *Everything that means the branch temper lands
+  into reads `landing`*: each reader reads `settings.default_branch`
+  instead [in flight: change 8087].
+- **Not yet:** 8, *Reads that show the record show it*: the outcome's
+  words, ctl's listing, `ApplicationAdopted` and the inventory name no
+  landing [in flight: change 8088].
 
 - **Not yet:** the opening's first bullet: a context adoption of a
   repository another project writes, kept for its project and read by its

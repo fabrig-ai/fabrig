@@ -1,7 +1,10 @@
 # landing: status
 
-2026-11-17. Where temper's code lags or departs from [landing.md](landing.md).
+2026-11-18. Where temper's code lags or departs from [landing.md](landing.md).
 
+- **Not yet:** 12: the landing queue, its gates and its upstream compare
+  with the forge's default branch rather than the repository's landing
+  branch [in flight: change 8087].
 
 
 `landing-settings.md`, section 1.1 has no known gap in what a branch's path reads: the
