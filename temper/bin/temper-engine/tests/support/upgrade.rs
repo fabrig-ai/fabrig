@@ -1,5 +1,6 @@
 //! The same empty-deployment boundary for the two upgrade binaries.
 pub fn empty_directory(binary: &str) {
+    use std::os::unix::fs::PermissionsExt;
     let scratch = skein_scratch::Scratch::new("upgrade-empty");
     let config = scratch.path().join("config");
     let data = scratch.path().join("data");
@@ -7,6 +8,9 @@ pub fn empty_directory(binary: &str) {
     std::fs::create_dir(&config).expect("configuration directory");
     std::fs::create_dir(&data).expect("data directory");
     std::fs::create_dir(data.join("state")).expect("empty stopped deployment directory");
+    for directory in [&config, &data, &data.join("state")] {
+        std::fs::set_permissions(directory, std::fs::Permissions::from_mode(0o700)).expect("private fixture directory");
+    }
     let mut document: serde_json::Value =
         serde_json::from_slice(include_bytes!("../../../../docs/examples/owned.json")).expect("example JSON");
     document["engine"]["llm"]["providers"][0]["sources"].as_object_mut().expect("sources").remove("sign_in");
