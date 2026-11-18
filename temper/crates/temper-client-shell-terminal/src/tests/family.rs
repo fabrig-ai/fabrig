@@ -71,6 +71,7 @@ fn adopted(protection: w::Protection) -> w::Outcome {
         w::Adopted::new(
             &limits,
             w::AdoptedParts {
+                landing: b"main".as_slice().into(),
                 forge: 1,
                 repository: 7,
                 owner: Box::from(*b"acme"),

@@ -28,6 +28,7 @@ impl Frame {
                 f::Adopted::new(
                     &f::CEILINGS,
                     f::AdoptedParts {
+                        landing: b"main".as_slice().into(),
                         forge: FORGE,
                         repository: 42,
                         owner: b"work".as_slice().into(),

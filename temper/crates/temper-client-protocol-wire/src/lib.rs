@@ -100,7 +100,7 @@ pub const fn owner(number: u16) -> Option<Owner> {
     }
 }
 /// Every record's version, served by both ends (client/forge/records.md).
-pub const CLIENT_VERSION: u32 = 35;
+pub const CLIENT_VERSION: u32 = 36;
 
 /// The deployment's maximum number of forges (client/forge/records.md).
 pub const FORGES: u32 = 16;
@@ -204,6 +204,7 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
         adopt_landing: bounds.field_bytes,
         adopted_owner: bounds.field_bytes,
         adopted_name: bounds.field_bytes,
+        adopted_landing: bounds.field_bytes,
         rule_branch: bounds.field_bytes,
         adopt_checks: bounds.checks,
         rule_contexts: bounds.contexts,

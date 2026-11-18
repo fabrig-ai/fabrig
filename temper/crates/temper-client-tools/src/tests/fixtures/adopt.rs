@@ -26,6 +26,7 @@ pub(crate) fn adopted_with_unknown_protection() -> w::Outcome {
         w::Adopted::new(
             &limits,
             w::AdoptedParts {
+                landing: b"staging".as_slice().into(),
                 forge: 1,
                 repository: REPOSITORY,
                 owner: Box::from(b"o".as_slice()),

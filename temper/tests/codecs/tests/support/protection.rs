@@ -45,6 +45,7 @@ pub fn rows(rule: api::Protection) -> [forge::Stored; 3] {
         settings: api::Settings { default_branch: b"main".as_slice().into(), merge: true, squash: true, rebase: true },
     };
     let adopted = forge::AdoptedRepository {
+        landing: b"main".as_slice().into(),
         repository: repository.provider,
         owner: repository.owner.clone(),
         name: repository.name.clone(),

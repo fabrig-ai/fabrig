@@ -748,6 +748,7 @@ pub struct AdoptedRepository {
     pub repository: skein_forge::api::Repository,
     pub owner: Box<[u8]>,
     pub name: Box<[u8]>,
+    pub landing: Box<[u8]>,
     pub role: Role,
     pub home: bool,
     pub kinds: Kinds,

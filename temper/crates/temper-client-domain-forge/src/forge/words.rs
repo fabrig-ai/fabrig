@@ -123,10 +123,11 @@ pub enum Word {
     PrefixOccupied,
     ReadOnly,
     AdminScope,
+    LandsInto,
 }
 use HoleKind::{Name, Number};
 pub type Row = (Word, &'static [&'static [u8]], &'static [HoleKind]);
-pub const ROWS: [Row; 118] = [
+pub const ROWS: [Row; 119] = [
     (Word::SheetTitle, &[b"Add repositories to ", b""], &[Name]),
     (Word::SheetProject, &[b"project ", b""], &[Number]),
     (Word::AddRepositories, &[b"Add repositories"], &[]),
@@ -253,9 +254,10 @@ pub const ROWS: [Row; 118] = [
     (Word::PrefixOccupied, &[b"Branches under ", b" are not this deployment's. Choose an unused branch prefix."], &[Name]),
     (Word::ReadOnly, &[b"temper's forge user can only read ", b" on forge ", b": work there fails until it has write."], &[Name, Name]),
     (Word::AdminScope, &[b"Forgejo collaborator reads can require repository admin even when temper's forge user already has write. A repository administrator must grant temper's forge user admin; then run repository adopt again with a new key, preserving its options, and verify the human's required project role with project show. If setup could not grant access on a managed or owned Forgejo, its site admin's token needs write:repository. Check the setup failure in the server's log."], &[]),
+    (Word::LandsInto, &[b"It lands into ", b"."], &[Name]),
 ];
 fn phrase_id(connector: u16, index: usize) -> PhraseId {
-    let sheet = ROWS.len().checked_sub(53).expect("adoption words");
+    let sheet = ROWS.len().checked_sub(54).expect("adoption words");
     let number = if index < sheet {
         u16::try_from(index).expect("sheet words").checked_add(6000).expect("sheet phrase id")
     } else {
@@ -305,6 +307,7 @@ pub fn name_bytes(word: Word, index: usize, text: u32) -> u32 {
                 0
             }
         }
+        Word::LandsInto => 3072,
         Word::May => 128,
         Word::ReadOnly | Word::NotFound | Word::NoAccess | Word::Refused => {
             if index == 0 {

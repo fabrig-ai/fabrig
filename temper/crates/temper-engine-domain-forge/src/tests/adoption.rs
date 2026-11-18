@@ -440,6 +440,17 @@ fn an_adoption_keeps_its_landing_apart_from_the_default_branch() {
     let saved = saved.expect("adopted repository saved");
     assert_eq!(saved.landing.as_ref(), b"staging");
     assert_eq!(saved.settings.default_branch.as_ref(), b"main");
+    outputs(
+        &mut d,
+        Event::ApplicationAnswered {
+            request: Token::new(4),
+            outcome: people::Outcome::Adopted { project: saved.project },
+        },
+    );
+    let Some(ApplicationOutcome::Adopted(outcome)) = d.application_outcome(Token::new(4)) else {
+        panic!("adopted outcome")
+    };
+    assert_eq!(outcome.landing.as_ref(), b"staging");
 }
 
 #[test]

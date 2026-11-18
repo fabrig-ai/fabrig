@@ -134,6 +134,52 @@ fn a_repository_layout_without_landing_defaults_it_to_its_default_branch() {
     assert_eq!(decoded, stored);
 }
 
+#[test]
+fn an_application_adopted_layout_without_landing_defaults_it_to_empty() {
+    use super::{fixtures, jobs};
+    use crate::records;
+    use skein_codec::{
+        layout::{Plan, Workspace},
+        schema,
+    };
+    use temper_engine_domain_forge_vocabulary::{ApplicationOutcome, Stored};
+
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
+    let before = family.current.replacen(
+        "protection: RepositoryProtection landing: bytes 4096 = 0x }",
+        "protection: RepositoryProtection }",
+        1,
+    );
+    assert_ne!(before, family.current, "the old outcome layout omits landing");
+    let old = schema::parse(before.as_bytes()).unwrap();
+    let new = schema::parse(family.current.as_bytes()).unwrap();
+    let old_root = old.root(b"Row", Some(b"application")).unwrap();
+    let new_root = new.root(b"Row", Some(b"application")).unwrap();
+    let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+    let mut work = Workspace::new();
+    assert!(work.fit(&write_old));
+    let mut stored = jobs::application(fixtures::REPO);
+    let Stored::Application { outcome: ApplicationOutcome::Adopted(outcome), .. } = &mut stored else {
+        panic!("adopted application")
+    };
+    outcome.landing = b"staging".as_slice().into();
+    let mut earlier = skein_lib::Buffer::with_capacity(4096);
+    write_old.convert(&records::encode(&stored), &mut earlier, &mut work).unwrap();
+
+    let read_old =
+        Plan::derive(&old, old_root, &[], &new, new_root, &[]).expect("an added outcome landing has an empty default");
+    assert!(work.fit(&read_old));
+    let mut current = skein_lib::Buffer::with_capacity(4096);
+    read_old.convert(earlier.as_slice(), &mut current, &mut work).unwrap();
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let decoded = records::decode(current.as_slice(), &bounds).unwrap();
+    let Stored::Application { outcome: ApplicationOutcome::Adopted(outcome), .. } = &mut stored else {
+        panic!("adopted application")
+    };
+    outcome.landing = Box::new([]);
+    assert_eq!(decoded, stored, "an old outcome keeps its facts but names no landing");
+}
+
 fn golden(text: &str, name: &str) -> Box<[u8]> {
     skein_codegen::goldens(&skein_codegen::parse(text).expect("current store schema"))
         .into_iter()

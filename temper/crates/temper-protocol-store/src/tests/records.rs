@@ -1080,6 +1080,7 @@ fn application_outcomes() -> Box<[forge::ApplicationOutcome]> {
         let forge::Stored::Repository(row) = fixtures::adopted(protection) else { panic!("repository fixture") };
         outcomes
             .push(forge::ApplicationOutcome::Adopted(forge::AdoptedRepository {
+                landing: b"staging".as_slice().into(),
                 repository: row.provider,
                 owner: row.owner,
                 name: row.name,
@@ -1169,6 +1170,7 @@ fn an_application_adopted_name_past_its_bound_fails_to_decode() {
         panic!("repository fixture")
     };
     let outcome = forge::ApplicationOutcome::Adopted(forge::AdoptedRepository {
+        landing: b"main".as_slice().into(),
         repository: row.provider,
         owner: Box::new([0; 129]),
         name: row.name,

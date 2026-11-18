@@ -604,6 +604,8 @@ fn an_asking_chat_discovers_the_forge_host_for_charter_documents() {
         .find_map(|line| line.strip_prefix("  forge "))
         .expect("settings inventory exposes the canonical forge host and repository");
     let (host, repository) = row.split_once(" repository ").expect("repository identity");
+    let (repository, landing) = repository.split_once(" landing ").expect("repository landing");
+    assert_eq!(landing, "main");
     assert_eq!(host, "forge.example:3847", "the canonical host keeps its port");
     assert_eq!(repository, "org/repo");
     assert!(!inventory.contains("org/other"), "another project's repository stays private");
@@ -1488,6 +1490,57 @@ fn propose_settings_refuses_a_stale_revision_and_an_item_out_of_shape() {
 }
 
 #[test]
+fn a_stock_chat_create_from_the_client_keeps_its_complete_offer() {
+    use super::root_routes::open_chat::{client_me_with_models, client_request_with_models};
+    use jig_client::{contract as c, shapes};
+    let bounds = temper_engine_domain_world::forge_routes::box_limits();
+    let mut configuration = config();
+    configuration.core.settings =
+        temper_engine_service_vocabulary::startup::core(super::stock::engine(), [31; 16], SEED).settings;
+    let workers = configuration.core.defaults.workers.clone();
+    configuration.core.defaults = super::stock::defaults(bounds.tasks.result_bytes);
+    configuration.core.defaults.workers = workers;
+    configuration.core.kinds = temper_engine_service_stock::stock::kinds(&bounds, 1);
+    configuration.kinds_stock = temper_engine_service_stock::stock::forge(&bounds);
+    configuration.core.seed_projects[0].policy =
+        configuration.core.defaults.policies.get(&1).expect("stock policy").clone();
+    let models = jig_protocol_engine_clients::translate::llm::catalogue(&configuration.core.defaults.models);
+    configuration.core.seed_projects = Box::new([]);
+    configuration.core.owners =
+        configuration.core.owners.into_iter().filter(|owner| owner.project == people::DEPLOYMENT).collect();
+    let mut world = World::with_limits(configuration, &bounds);
+    world.ask(world.owner, 30, people::Ask::MakeProject { name: "Hello".into(), policy: 1 });
+    assert!(
+        matches!(world.reply(30), people::Reply::Outcome(people::Outcome::ProjectMade { .. })),
+        "project made: {:?}",
+        world.reply(30)
+    );
+    configuring_repository_text(&mut world, &["rules\n".into(), "words\n".into()]);
+    adopt_repository_home(&mut world, PROJECT, b"repo", 31, temper_engine_domain_forge::Role::Owned, true);
+    let me = client_me_with_models(&mut world.driver, temper_client_tools::limits::client().client.domain, &models);
+    let ask = shapes::chat(
+        &me,
+        PROJECT,
+        c::Text::new(b"Add a CSV export to the report".as_slice().into(), me.words_bytes).expect("opening words"),
+    )
+    .expect("offered stock chat");
+    let (ask, models) = client_request_with_models(&ask, models);
+    world.driver.send(Event::Party(PartyInput::Ask {
+        models,
+        reply_to: ReplyTo::new(Token::new(20)),
+        sign_in: world.owner,
+        key: [20; 16],
+        ask,
+    }));
+    world.driver.pump();
+    assert!(
+        matches!(world.reply(20), people::Reply::Outcome(people::Outcome::Created { .. })),
+        "the first stock chat must be created, exact nested answer: {:?}",
+        world.reply(20)
+    );
+}
+
+#[test]
 fn a_chat_is_offered_no_settings_tools() {
     let config = config();
     let policy = &config.core.defaults.policies.get(&1).expect("stock policy 1").policy;
@@ -1668,6 +1721,17 @@ fn adopt_repository(world: &mut World, project: u32, name: &[u8], key: u8) {
 }
 
 fn adopt_repository_as(world: &mut World, project: u32, name: &[u8], key: u8, role: temper_engine_domain_forge::Role) {
+    adopt_repository_home(world, project, name, key, role, false);
+}
+
+fn adopt_repository_home(
+    world: &mut World,
+    project: u32,
+    name: &[u8],
+    key: u8,
+    role: temper_engine_domain_forge::Role,
+    home: bool,
+) {
     use temper_engine_domain_forge as forge;
     world.driver.send(Event::Party(PartyInput::Application {
         scope: people::ApplicationScope::Project(project),
@@ -1678,7 +1742,7 @@ fn adopt_repository_as(world: &mut World, project: u32, name: &[u8], key: u8, ro
         carried: None,
         request: engine::Application::Forge(forge::Ask::Adopt(forge::Adoption {
             project,
-            home: false,
+            home,
             forge: 1,
             host: b"forge.example:3847".as_slice().into(),
             owner: b"org".as_slice().into(),
