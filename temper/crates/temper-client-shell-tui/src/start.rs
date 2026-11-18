@@ -89,9 +89,11 @@ pub fn fixed_start(environment: &[EnvironmentEntry], engine: SocketAddr) -> Resu
     FixedStart::read(value).map(Some).ok_or(Refused::FixedStart)
 }
 
-// Keep a walk's seed and its loop clock together at startup.
-fn fixed_run(start: &FixedStart) -> (u64, Clock) {
-    (start.seed, Clock::fixed(start))
+// The browser keeps the start's seed; the TUI uses stream 4 (journey-clock.md, 4.3).
+pub(crate) fn fixed_run(start: &FixedStart) -> (u64, Clock) {
+    let mut seed = [0; 8];
+    start.draw(4, &mut seed);
+    (u64::from_le_bytes(seed), Clock::fixed(start))
 }
 
 #[must_use]

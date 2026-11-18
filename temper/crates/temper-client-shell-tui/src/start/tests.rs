@@ -77,10 +77,12 @@ fn fixed_start_is_a_nonempty_captured_variable_on_loopback_only() {
 }
 
 #[test]
-fn a_fixed_runs_seed_and_first_reading_are_the_starts() {
+fn a_fixed_runs_seed_is_stream_fours_and_its_first_reading_is_the_starts() {
     let start = skein_shell::FixedStart::read(b"1767690000,7").expect("fixed start");
     let (seed, clock) = super::fixed_run(&start);
-    assert_eq!(seed, 7, "the seed given to local_run");
+    let mut draw = [0; 8];
+    start.draw(4, &mut draw);
+    assert_eq!(seed, u64::from_le_bytes(draw), "the seed given to local_run");
     assert_eq!(clock.now(), skein_shell::Now { now: skein_shell::FixedStart::NOW, wall: start.wall });
 }
 
