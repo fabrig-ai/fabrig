@@ -315,7 +315,7 @@ pub fn directories_in(roots: [&Path; 3]) -> temper_box_shell::directories::Direc
 }
 
 /// Keep test-sized kind 21 after the engine's first durable initialization.
-pub(crate) fn seed_agents(data: &Path, agent: &serde_json::Value) {
+pub(crate) fn agent_writes(agent: &serde_json::Value) -> Vec<jig_protocol_store::Write> {
     use temper_client_protocol_wire::v1 as w;
     use temper_engine_domain_forge::{self as forge, settings as s};
     let mut profile = skein_lib::List::with_capacity(w::CEILINGS.agent_figures_profile);
@@ -372,11 +372,10 @@ pub(crate) fn seed_agents(data: &Path, agent: &serde_json::Value) {
         key,
         edit: s::Edit::Set(s::SizedValue { value: s::Value::AgentFigures(value), size }),
     });
-    let writes = vec![jig_protocol_store::Write::Put {
+    vec![jig_protocol_store::Write::Put {
         key: temper_protocol_store::keys::encode(&forge::Key::Setting(key), 256).expect("key"),
         value: temper_protocol_store::records::encode(&row),
-    }];
-    temper_github_app::seed_with(&data.join("state"), &[], writes).expect("durable agent figures");
+    }]
 }
 
 #[cfg(test)]

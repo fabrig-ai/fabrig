@@ -273,14 +273,15 @@ impl Seen {
         Ok(())
     }
 }
-pub(crate) struct State {
+pub struct State {
     pub(crate) handle: Rc<RefCell<Forge>>,
     pub(crate) moved: bool,
     pub(crate) repository: Box<[u8]>,
     pub(crate) hooked: bool,
 }
 impl State {
-    pub(crate) fn new(fixture: Fixture) -> (Self, Peer) {
+    #[must_use]
+    pub fn new(fixture: Fixture) -> (Self, Peer) {
         let setup = (fixture.setup)();
         assert_eq!(setup.id, ID, "the primary repository keeps the hosted fixture identity");
         let setups = std::iter::once(setup).chain((fixture.extra_setups)()).collect::<Vec<_>>();

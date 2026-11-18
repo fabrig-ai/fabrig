@@ -452,16 +452,20 @@ impl ServiceHost {
             )
         {
             self.service = None;
-            if self.fixture.is_some() || self.github.is_some() {
-                fixtures::seed(&self.path, self.forge_address.expect("forge peer address"), self.github);
-            }
-            if matches!(self.cluster, Some(crate::cluster::Shape::Engine { .. })) {
+            let agents = if matches!(self.cluster, Some(crate::cluster::Shape::Engine { .. })) {
                 let mut agent: serde_json::Value = serde_json::from_slice(
                     &std::fs::read(self.path.join("world-agent.json")).expect("world agent fixture"),
                 )
                 .expect("agent JSON");
                 agent["profile"]["policy"]["unacknowledged"] = 1.into();
-                crate::cluster::seed_agents(&self.path, &agent);
+                crate::cluster::agent_writes(&agent)
+            } else {
+                Vec::new()
+            };
+            if self.fixture.is_some() || self.github.is_some() {
+                fixtures::seed(&self.path, self.forge_address.expect("forge peer address"), self.github, agents);
+            } else if !agents.is_empty() {
+                temper_github_app::seed_with(&self.path.join("state"), &[], agents).expect("durable agent figures");
             }
             self.records_seeded = true;
         }

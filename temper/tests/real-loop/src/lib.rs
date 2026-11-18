@@ -26,7 +26,7 @@ mod cancel_kills;
 pub mod ending;
 mod patience;
 pub mod service;
-mod world;
+pub mod world;
 pub use skein_io::kernel::Exit;
 pub use skein_lib::Time;
 pub use skein_scratch::Scratch;
