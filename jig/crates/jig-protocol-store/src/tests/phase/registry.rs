@@ -6,6 +6,7 @@ use jig_test_layouts::layouts::{CURRENT, KEPT, WRITTEN};
 use skein_lib::{Buffer, Reader};
 mod edges;
 mod retired;
+mod unplanned;
 
 const FAMILY: KeptFamily = KeptFamily {
     retired: &[],
@@ -225,7 +226,7 @@ fn held_changes_move_only_the_broad_roots_reached_variant_and_jobs_get_held_text
         counts: &[],
         name: "held-written",
         keys: holder.types[0].keys,
-        converts: Some(crate::Converts { family: holder.name, value_type: 0, from }),
+        converts: Some(crate::Converts { family: holder.name, value_type: 0, from: crate::Layouts::One(from) }),
     };
     let set = OwnerSet {
         families: Box::leak(Box::new([holder, KeptFamily { current: CHILD_WRITTEN, ..child }])),
@@ -411,7 +412,10 @@ fn fresh(disk: &mut Disk, set: OwnerSet) -> Store {
     store
 }
 fn old_row(id: u16, family: &str, number: u16) -> skein_kv::Op {
-    let schema = skein_codec::schema::parse(KEPT.as_bytes()).unwrap();
+    layout_row(KEPT, id, family, number)
+}
+fn layout_row(text: &str, id: u16, family: &str, number: u16) -> skein_kv::Op {
+    let schema = skein_codec::schema::parse(text.as_bytes()).unwrap();
     let layout = schema.layout(schema.root(b"Growing", None).unwrap(), &[]).unwrap().digest();
     let value = crate::registry_v1::Layout::new(
         &crate::registry_v1::CEILINGS,
@@ -419,7 +423,7 @@ fn old_row(id: u16, family: &str, number: u16) -> skein_kv::Op {
             root: b"Growing".as_slice().into(),
             variant: None,
             layout,
-            text: hash(KEPT),
+            text: hash(text),
             held: skein_lib::List::with_capacity(0),
         },
     )
@@ -432,15 +436,18 @@ fn old_row(id: u16, family: &str, number: u16) -> skein_kv::Op {
     }
 }
 fn old_text() -> skein_kv::Op {
+    layout_text(KEPT)
+}
+fn layout_text(text: &str) -> skein_kv::Op {
     let value = crate::registry_v1::Text::new(
         &crate::registry_v1::CEILINGS,
-        crate::registry_v1::TextParts { text: KEPT.as_bytes().into() },
+        crate::registry_v1::TextParts { text: text.as_bytes().into() },
     )
     .unwrap();
     let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).unwrap());
     value.encode(&mut writer).unwrap();
     skein_kv::Op::Put {
-        key: crate::keys::encode_own(&crate::keys::Own::Text(hash(KEPT)), 1024).unwrap(),
+        key: crate::keys::encode_own(&crate::keys::Own::Text(hash(text)), 1024).unwrap(),
         value: writer.finish(),
     }
 }
@@ -720,7 +727,7 @@ fn written_jobs_filter_stored_heads_carry_the_layout_once_and_pass_pending_or_do
         counts: &[],
         name: "written",
         keys: FAMILY.types[0].keys,
-        converts: Some(crate::Converts { family: FAMILY.name, value_type: 0, from }),
+        converts: Some(crate::Converts { family: FAMILY.name, value_type: 0, from: crate::Layouts::One(from) }),
     };
     let set = OwnerSet { jobs: Box::leak(Box::new([job])), ..written_set() };
     let mut disk = Disk::new(&disk.items());

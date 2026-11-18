@@ -64,7 +64,7 @@ Every limit application.limits.overrides takes: its unit, the stock's value and 
 - `forge.subscriptions`: count, 128. Bounds subscriptions to forge topics.
 - `forge.entries`: count, 8. Bounds durable outbox entries in the forge connector.
 - `forge.named_calls`: count, 128. Bounds retained named calls and their connector payloads, independently of outbox entries.
-- `forge.changes`: count, 379. Bounds live changes retained by the forge connector.
+- `forge.changes`: count, 768. Bounds live changes retained by the forge connector.
 - `forge.issues`: count, 8. Bounds live issue projections retained by the forge connector.
 - `forge.landing_members`: count, 5. Bounds changes and held member branches in one landing; at least each project's batch.
 - `forge.resources_per_task`: count, 10. Bounds distinct forge names watched by one task, including held resources and subscribed branches.
@@ -104,7 +104,7 @@ Every limit application.limits.overrides takes: its unit, the stock's value and 
 - `forge.brief_bytes`: bytes, 131,584. Bounds bytes retained for one gathered forge brief section.
 - `forge.tiers.tiers`: count, 2. Bounds tiers retained per repository.
 - `forge.tiers.failing_tests`: count, 16. Bounds failing tests reported per tier run.
-- `forge.tiers.test_id_bytes`: bytes, 256. Bounds a failing test's identifier in a tier's report.
+- `forge.tiers.test_id_bytes`: bytes, 512. Bounds a failing test's identifier in a tier's report.
 - `forge.sitting_ms`: milliseconds, 1,800,000. Sets the gap between a person's sittings on Home.
 - `forge.queue_window_ms`: milliseconds, 30,000. Sets the time allowed to gather a landing queue.
 - `forge.client.pending`: count, 4. Bounds logical forge calls retained, queued and in flight.

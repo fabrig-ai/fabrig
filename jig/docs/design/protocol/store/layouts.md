@@ -255,8 +255,10 @@ plans each layout the registry holds to its value type's binary layout
 and its root and variant, to `current`'s. A layout planned is kept in
 memory for the read edge. A layout with no plan is refused, unless:
 
-- a written job of the binary converts from it (`jobs.md`, 4), pending
-  or done; or
+- a written job of the binary converts from it (`jobs.md`, 4): one
+  naming it by fingerprint (`One`), pending or done, or, where its plan
+  is `Underived`, one converting its value type's unplanned layouts
+  (`Unplanned`), pending; or
 - no value holds it: the census counts none at its id in each keyspace
   its value type's ranges reach, with no count past the census's heads
   there (`README.md`, 6.3), where it is retired (5.4). A value type a
@@ -306,16 +308,16 @@ such a binary writes).
 A change no plan derives (a field computed from others, a variant
 dropped, a type changed in meaning) is its owner's **written job**
 (`jobs.md`, 4): a job that names the value type and the layout it
-converts from, walks that value type's keys, and is handed each value at
-that layout as it is stored, with that layout's texts, to put it again
-at the binary's. Its owner's function reads the old value by skein's
+converts from, or each of its layouts no plan reaches, walks that value
+type's keys, and is handed each value at such a layout as it is stored,
+with that layout's texts, to put it again at the binary's. Its owner's function reads the old value by skein's
 generic values (skein's `data/codec/README.md`, section 8) and builds
-the new by its generated code. The check takes the layout as converted
-(5.3), and the next writing open retires it.
+the new by its generated code. The check takes its layouts as converted
+(5.3), and the next writing open retires them.
 
 A written job also takes a layout that a plan reaches when the values
 at that layout are not all the root it names. The read edge leaves
-values at a written job's `from` layout to the job, never to a plan
+values at a written job's layouts to the job, never to a plan
 (`jobs.md`, 4).
 
 ## 7. Bounds
