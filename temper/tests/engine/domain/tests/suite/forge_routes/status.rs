@@ -387,8 +387,8 @@ fn standing_role(world: &mut World, key: u8) -> u64 {
     role.tracked = None;
     role.flags.conversation = false;
     role.flags.ended_by = people::EndedBy::Standing;
-    // Ten parked roles fit beside the owner's 400-unit goal in its 500-unit pool.
-    role.budget = people::Budget::AsAllowed { cap: Some(8) };
+    // Sixteen funds the same eight-unit run after keeping half for delegates.
+    role.budget = people::Budget::AsAllowed { cap: Some(16) };
     let assignment = assigned_chat(world, key, people::Ask::Create { project, batch });
     park_chat(world, &assignment);
     assignment.task

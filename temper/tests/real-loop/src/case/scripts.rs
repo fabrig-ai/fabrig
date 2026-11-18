@@ -561,10 +561,11 @@ pub fn step_5_2(forge: SocketAddr) -> Box<[Script]> {
                 "delegation":{"kinds":kinds,"tasks":tasks,"depth":depth},"budget":{"spend":spend},"notes":0}
         })
     };
+    // B keeps a capped ten-unit run beside its fifteen units of live delegates after resuming.
     let mut b = agent(
         BOWNER_SPEC,
         1,
-        25,
+        40,
         3,
         4,
         3,

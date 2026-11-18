@@ -152,13 +152,15 @@ impl Core {
         }
         let writes = current.into_boxed();
         let numbers = translate::authority_numbers(self.tasks.claim_numbers(number).unwrap_or(task_numbers));
+        let authority = translate::tasks_authority(task_authority);
+        let budget = authority::run_spend(self.authority.rules(), &authority, numbers);
         authority::check_run(
             &self.authority,
             &authority::RunAsk {
                 project,
-                authority: translate::tasks_authority(task_authority),
+                authority,
                 numbers,
-                budget: authority::left(numbers).min(self.authority.rules().maximum_run_spend),
+                budget,
                 reserve: self.run_reserve(number),
                 wall,
                 main_provider: match choice {

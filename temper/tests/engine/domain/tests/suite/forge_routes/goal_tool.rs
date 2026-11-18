@@ -412,9 +412,13 @@ fn a_goal_with_one_level_left_is_refused_as_the_depth_limit() {
 
 #[test]
 fn a_goal_with_half_the_remainder_at_minimum_is_refused_as_funding() {
-    let (mut world, chat) = chat_world(62, 11, 3);
+    let (mut world, chat) = chat_world(12, 11, 3);
+    assert_eq!(chat.run.budget, 6, "the run holds its six-unit reserve floor");
+    delegated(goal(&mut world, &chat, 93, false));
+    let row = live(&world, chat.task);
+    assert_eq!((row.numbers.budget - row.numbers.reserved - row.numbers.spent - row.numbers.spent_below) / 2, 1);
     assert!(
-        matches!(goal(&mut world, &chat, 93, false), engine::CallAnswer::DelegationRefused(p) if p.why == tasks::Refusal::Funding)
+        matches!(goal(&mut world, &chat, 94, false), engine::CallAnswer::DelegationRefused(p) if p.why == tasks::Refusal::Funding)
     );
 }
 
