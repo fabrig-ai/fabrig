@@ -379,6 +379,7 @@ impl Play for Walk {
 
 const LONG_TITLE: &str =
     "Export widget's table as CSV with visible columns, localized headings and a readable filename for monthly reports";
+const CUT_TITLE: &str = "Export widget's table as CSV with visible columns, localized headings and a…";
 
 struct TextBoxes {
     boxes: Vec<(String, skein_browser::boundary::Rect)>,
@@ -406,7 +407,7 @@ impl TextBoxes {
     }
     fn check(&self, width: u32, task: bool) {
         let text = self.boxes.iter().map(|(name, _)| name.as_str()).collect::<Vec<_>>().join("\n");
-        assert!(text.contains(LONG_TITLE), "long title stays readable: {text}");
+        assert!(text.contains(CUT_TITLE), "cut title stays readable: {text}");
         for field in ["Goal ", "task ", "for ", " spent"] {
             assert!(text.contains(field), "populated public field {field}: {text}");
         }
@@ -464,12 +465,12 @@ impl Readable {
             2 => steps.extend([
                 go(self.walk.board.as_bytes()),
                 see(heading(PROJECT)),
-                see(Find::text(LONG_TITLE.as_bytes())),
+                see(Find::text(CUT_TITLE.as_bytes())),
                 see(Find::named(Role::Link, b"task ")),
             ]),
             4 => steps.extend([
                 press(Find::named(Role::Link, b"Goal ")),
-                see(Find::text(LONG_TITLE.as_bytes())),
+                see(Find::text(CUT_TITLE.as_bytes())),
                 see(Find::named(Role::Link, b"task ")),
             ]),
             3 | 5 => {}
