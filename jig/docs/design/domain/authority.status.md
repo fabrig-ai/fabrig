@@ -3,7 +3,6 @@
 2026-11-18. Where jig's code lags or departs from [authority.md](authority.md).
 
 - **Not yet:** 7: a standing agent task's budget renewed by period (`tasks/standing.md`, section 4).
-- **Not yet:** 7 and 8.3: a run's spend is its task's share for a run, half of what it has left where it may start a delegate, from `run_spend`; every run's spend is still what its task has left, capped. [in flight: change 7655]
 - **Not yet:** 8.3: a run short of its budget waits while something may still free one, such as a live delegate's unspent reservation; the core holds its task for its budget at once (`runs/state.rs`, `denied`), and holds it so the same where it may delegate.
 
 Section 3 has no known gap in the asking family, bit 2,048, or
