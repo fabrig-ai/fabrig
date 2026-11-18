@@ -64,7 +64,7 @@ pub fn decoded(items: &[s::Item]) -> Box<[engine::KindValue]> {
             let s::Edit::Set(s::Value::Application(bytes)) = &item.edit else { return None };
             // The party entrance decodes at the wire's schema ceilings;
             // the forge judges the deployment's smaller bounds afterwards.
-            // temper-client-protocol-wire/src/generated/v1.rs, CEILINGS.
+            // temper-client-protocol-wire/src/generated/client_wire.rs, CEILINGS.
             let bounds =
                 temper_engine_smith::kinds::Bounds { segments: 16, segment_bytes: 4096, gates: 64, approvals: 64 };
             Some(engine::KindValue {

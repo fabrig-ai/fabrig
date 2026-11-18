@@ -11,7 +11,9 @@ extern crate alloc;
 
 #[rustfmt::skip]
 mod generated {
-    pub mod v11;
+    pub mod v11 {
+        include!("generated/channel.rs");
+    }
 }
 
 pub use generated::v11;

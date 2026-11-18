@@ -5,7 +5,7 @@
 extern crate alloc;
 
 #[rustfmt::skip]
-#[path = "generated/v1.rs"]
+#[path = "generated/client_wire.rs"]
 #[expect(clippy::similar_names, reason = "the schema names the approval fields rule and role")]
 pub mod v1;
 
@@ -36,7 +36,7 @@ pub const fn settings_kind(kind: u32) -> bool {
 #[rustfmt::skip]
 pub mod public_v1 {
     pub use crate::{PUBLIC_CHANGE, PUBLIC_LANDING, PUBLIC_LANDINGS, PUBLIC_VERSION};
-    include!("generated/public_v1.rs");
+    include!("generated/public.rs");
 }
 
 pub mod source;

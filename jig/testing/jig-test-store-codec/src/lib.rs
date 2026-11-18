@@ -4,5 +4,5 @@
 extern crate alloc;
 
 #[rustfmt::skip]
-#[path = "generated/v2.rs"]
+#[path = "generated/test_connector.rs"]
 pub mod v2;

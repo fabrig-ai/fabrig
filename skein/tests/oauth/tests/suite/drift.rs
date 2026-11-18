@@ -31,7 +31,7 @@ fn the_saved_token_schema_has_no_drift() {
     let output = skein_codegen::generate(&schema);
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
     let codec = skein_scratch::paths::tree().join("crates/skein-oauth-codec");
-    check(&codec.join("src/generated/v3.rs"), output.records.as_bytes(), write);
+    check(&codec.join("src/generated/oauth.rs"), output.records.as_bytes(), write);
     let family = skein_codec::schema::parse(source.as_bytes()).expect("runtime schema valid");
     let fingerprint = family.fingerprints().family().digest();
     if write {

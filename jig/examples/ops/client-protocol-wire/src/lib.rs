@@ -4,7 +4,7 @@
 extern crate alloc;
 
 #[rustfmt::skip]
-#[path = "generated/v1.rs"]
+#[path = "generated/ops_client.rs"]
 pub mod v1;
 
 /// The single version spoken by both connector families.

@@ -25,7 +25,7 @@ fn channel_schema_matches_generated_code_and_pinned_constructs() {
 fn assert_family(family: &str, version: u16) {
     let root = skein_scratch::paths::tree().join(format!("crates/smith-{family}"));
     let source = fs::read_to_string(root.join(format!("schema/{family}-v{version}.schema"))).expect("schema source");
-    check_records(&root, &format!("v{version}"), family, &source);
+    check_records(&root, family, family, &source);
 }
 
 use crate::support::events;
@@ -70,7 +70,7 @@ fn local_store_schema_and_layout_fingerprints_match_committed_code_and_pinned_co
     let crates = skein_scratch::paths::tree().join("crates");
     let root = crates.join("smith-local-protocol");
     let source = fs::read_to_string(root.join("schema/local-store-v1.schema")).expect("local store schema");
-    check_records(&crates.join("smith-local-protocol-codec"), "local_store_v1", "local-store", &source);
+    check_records(&crates.join("smith-local-protocol-codec"), "local_store", "local-store", &source);
     let store = skein_codec::schema::parse(source.as_bytes())
         .expect("store fingerprint schema")
         .fingerprints()

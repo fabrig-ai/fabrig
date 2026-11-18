@@ -30,13 +30,13 @@ fn check_text(path: &Path, text: &str, write: bool) {
 
 #[test]
 fn worker_wire_schema_matches_generated_code_and_pinned_constructs() {
-    schema_matches("temper-protocol-worker-wire", "temper-protocol-worker-wire", "worker-wire", "v1", "v1");
+    schema_matches("temper-protocol-worker-wire", "temper-protocol-worker-wire", "worker-wire", "v1", "worker_wire");
 }
 
 #[test]
 fn client_wire_schema_matches_generated_code_and_pinned_constructs() {
     client_layout("client-wire-v1.schema", "temper-client-wire");
-    schema_matches("temper-client-protocol-wire", "temper-client-protocol-wire", "client-wire", "v1", "v1");
+    schema_matches("temper-client-protocol-wire", "temper-client-protocol-wire", "client-wire", "v1", "client_wire");
 }
 
 // Client layouts have no bridge; preserve every older line and append kept
@@ -97,16 +97,16 @@ fn client_layout(source: &str, family: &str) {
 
 #[test]
 fn store_schema_matches_generated_code_and_pinned_constructs() {
-    schema_matches("temper-protocol-store", "temper-protocol-store-codec", "store", "v25", "v25");
+    schema_matches("temper-protocol-store", "temper-protocol-store-codec", "store", "v25", "store");
 }
 
 #[test]
 fn secrets_schema_matches_generated_code_and_pinned_constructs() {
-    schema_matches("temper-protocol-records", "temper-protocol-records", "secrets", "v1", "v1");
+    schema_matches("temper-protocol-records", "temper-protocol-records", "secrets", "v1", "secrets");
 }
 
 #[test]
 fn public_wire_schema_matches_generated_code_and_pinned_constructs() {
     client_layout("public-v1.schema", "temper-public-wire");
-    schema_matches("temper-client-protocol-wire", "temper-client-protocol-wire", "public", "v1", "public_v1");
+    schema_matches("temper-client-protocol-wire", "temper-client-protocol-wire", "public", "v1", "public");
 }
