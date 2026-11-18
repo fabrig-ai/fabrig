@@ -55,7 +55,7 @@ impl Peer {
         );
         peer.browser.request(
             &peer.env,
-            Request::Page { person: PERSON, page: PAGE, url: Box::from(b"about:blank".as_slice()) },
+            Request::Page { person: PERSON, page: PAGE, url: Box::from(b"about:blank".as_slice()), requests: false },
         );
         peer.reply(
             b"Target.createTarget",
@@ -113,8 +113,10 @@ fn persons_set_their_download_policy_before_becoming_ready() {
         let mut peer = Peer::new(directory);
         peer.reply(b"Target.createBrowserContext", b"{}", br#"{"browserContextId":"ctx"}"#);
         assert!(!peer.browser.person(PERSON).unwrap().ready);
-        peer.browser
-            .request(&peer.env, Request::Page { person: PERSON, page: PAGE, url: b"about:blank".as_slice().into() });
+        peer.browser.request(
+            &peer.env,
+            Request::Page { person: PERSON, page: PAGE, url: b"about:blank".as_slice().into(), requests: false },
+        );
         let policy = peer.browser.outgoing.pop_front().expect("download policy");
         assert!(peer.browser.sendable().is_none(), "target waits for the policy reply");
         peer.browser.outgoing.push_front(policy);

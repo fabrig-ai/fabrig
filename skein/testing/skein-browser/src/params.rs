@@ -8,6 +8,7 @@ use skein_json::writer::{Encoder, Limits as JsonLimits};
 #[derive(Debug)]
 pub(crate) enum Params<'a> {
     Empty,
+    Network,
     Dialog {
         accept: bool,
     },
@@ -94,6 +95,14 @@ impl Params<'_> {
         json.object_start();
         match self {
             Params::Empty => {}
+            Params::Network => {
+                json.key(b"maxTotalBufferSize");
+                json.unsigned(0);
+                json.key(b"maxResourceBufferSize");
+                json.unsigned(0);
+                json.key(b"maxPostDataSize");
+                json.unsigned(0);
+            }
             Params::Dialog { accept } => {
                 json.key(b"accept");
                 json.boolean(*accept);
