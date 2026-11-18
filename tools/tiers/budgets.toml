@@ -166,12 +166,6 @@ cpu_s = 0.09
 why = "Same-work backlog (the user, 11-18): its CPU alone swings 1.6 times on the same code (main's figures 0.059, 0.038, 0.050 s), so a gate can flag it on noise. The line is half again its largest figure; the repair that makes its work the same at every run drops it (skein/docs/foundation/testing-strategy.md, 10)."
 
 [[gate.default.reasons]]
-binary = "temper-protocol-store"
-test = "tests::registered_layouts::a_change_layout_without_regate_defaults_it_to_none"
-cpu_s = 0.18
-why = "Same-work backlog (the user, 11-18): its CPU alone swings 4.7 times on the same code (main's figures 0.025, 0.107, 0.118 s), so a gate can flag it on noise. The line is half again its largest figure; the repair that makes its work the same at every run drops it (skein/docs/foundation/testing-strategy.md, 10)."
-
-[[gate.default.reasons]]
 binary = "temper-worker-service"
 test = "tests::worker::list_reads_launch_temper_without_credentials_or_a_run_slot"
 cpu_s = 0.15
