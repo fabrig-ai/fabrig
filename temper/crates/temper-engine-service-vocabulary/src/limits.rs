@@ -196,7 +196,8 @@ const FORGE: forge::Limits = forge::Limits {
     trees_in_flight: 2,
     tiers: temper_engine_domain_forge::TierLimits {
         tiers: 2,
-        failing_tests: 16,
+        // The most ids a finding’s signature holds (protocol/configuration/limits.md, “A tier’s failing tests”).
+        failing_tests: 64,
         // Twice the longest failing test’s id today, about 221 bytes, rounded up.
         test_id_bytes: 512,
     },
@@ -572,6 +573,13 @@ pub fn jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
 
 #[cfg(test)]
 mod making_tests {
+    #[test]
+    fn stock_tier_failures_fit_the_finding_signature() {
+        let tiers = stock().forge.tiers;
+        assert_eq!(tiers.failing_tests, 64);
+        assert_eq!(tiers.test_id_bytes, 512);
+    }
+
     #[test]
     fn retention_overrides_reach_the_effective_core_limits() {
         let mut jig = jig_protocol_config::stock();
