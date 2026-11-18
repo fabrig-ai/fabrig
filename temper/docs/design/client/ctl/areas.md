@@ -81,7 +81,22 @@ The table grows area by area, each with its stories (`testing.md`).
    newest revision; retained ended and withdrawn records keep their state.
    An automatically replaced task proposal is unknown (7). It
    uses the same read vocabulary independently of the first area's
-   settings proposal act.
+   settings proposal act. An amendment's, a task's or a party's, prints
+   its target task and the authority before and after, as the engine's
+   document gives them (jig's `client/domain/contract/documents.md`, 1).
+
+   **`proposal withdraw PROPOSAL --project PROJECT`,** keyed, withdraws
+   the party's own pending proposal: PROPOSAL is `pN/K`, as `propose`,
+   `task amend` and the inbox print it, and PROJECT the project they
+   name. It sends `Withdraw` at once, reading nothing first, so a
+   proposal no read can show is still withdrawn. A `tN/K` is usage,
+   exit 1, nothing sent: a task's proposal is its run's to withdraw; so
+   is a `pN/K` naming a party other than the signed-in one. It prints
+   `done: withdraw`, and as `proposal decide` does otherwise: asked again
+   under its key, its first answer; a retained decision, its withdrawal
+   included, `decided first:`, exit 0, changing nothing; an unknown
+   proposal, or one of another project, exit 2. A proposal's `acts:`
+   line copies it, the engine offering `Withdraw` to its maker alone.
 
    - **`task amend`'s changes,** one or more, each a control of the task,
      the rest kept as the task's document shows them (jig's
