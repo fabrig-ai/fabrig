@@ -215,9 +215,9 @@ recipient.
   is the engine's, opaque bytes the client gives back. Inside they are a
   record of the family `jig-engine-cursor`
   (`jig/crates/jig-protocol-engine-clients/schema/cursor-v2.schema`),
-  whose goldens the families' drift check holds, with a key inside one in
-  the store's codec. A cursor of another version does not decode, and
-  its read is answered unknown (`../README.md`, section 7).
+  whose fixed-rule values are built from its schema text in tests
+  (skein's `data/codec/README.md`, 6), with a key inside one in the store's
+  codec. A cursor of another version does not decode, and its read is answered unknown (`../README.md`, section 7).
 - **Credential boundaries, on the client,** visibly end pending reads
   in the domain's `Page` forms: jig's `ReadNone::SignedOut` or
   a family's `None`, once each, on sign-out and unconditionally on
@@ -341,7 +341,9 @@ recipient.
   serves. A keyed request, a read and a watch's opening are each
   answered so; nothing is done.
 - **Versions move with a wire's layout.** Each changed record moves its
-  wire's version and its schema, codec, translations and golden bytes.
+  wire's version and its schema, codec and translations. Tests build
+  fixed-rule values from that schema or constructors, keeping no golden files
+  (skein's `data/codec/README.md`, 6).
   The engine serves one version; a client of another version is refused
   before its record is read. Client bridges are deferred
   (`temper/docs/design/draft/redeploys.md`, 8).
@@ -610,7 +612,8 @@ Each within jig's suites' budgets.
   schemas, and jig's wire's decoders run over arbitrary and mutated
   bytes in the fuzzy suite (skein's `data/codec/README.md`, section 6).
 - **The template preview** in the client-protocol carriage tests and
-  wire goldens: both configured intent and `resolved_default`, including
+  wire tests built from schema text or constructors: both configured
+  intent and `resolved_default`, including
   `None`, cross whole. The shapes tests keep omission, and the
   reference view tests consume the supplied preview;
   core charters/templates stories own resolution order and invalidation

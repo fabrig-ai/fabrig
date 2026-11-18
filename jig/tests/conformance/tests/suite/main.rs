@@ -22,3 +22,6 @@ mod fuzzy {
     mod scenarios;
     mod snapshot;
 }
+
+#[path = "../../../client-values.rs"]
+mod client_values;

@@ -1021,6 +1021,7 @@ dependencies = [
  "jig-client-test-records",
  "jig-protocol-transcript",
  "skein-codec",
+ "skein-codegen",
  "skein-lib",
  "skein-rows",
  "skein-ui-web",
@@ -1340,6 +1341,7 @@ dependencies = [
  "jig-test-store-files",
  "jig-test-system",
  "sha2",
+ "skein-codegen",
  "skein-lib",
  "skein-world",
 ]
@@ -1586,6 +1588,7 @@ dependencies = [
  "jig-test-profile",
  "jig-test-service",
  "serde_json",
+ "skein-codegen",
  "skein-http",
  "skein-lib",
  "skein-oauth-issuer",

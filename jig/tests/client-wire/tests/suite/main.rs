@@ -20,3 +20,6 @@ mod fuzzy {
     mod client_wire;
     mod public_wire;
 }
+
+#[path = "../../../client-values.rs"]
+mod client_values;
