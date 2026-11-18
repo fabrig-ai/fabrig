@@ -164,7 +164,12 @@ this document says how settings lie over it.
 - **What the store holds past a lowered figure** refuses the restore,
   naming the setting, its figure and what is held, as a lowered
   document limit did (jig's `domain/engine/settings.md`, 7): a lowering
-  is the owner's to make when the work has drained.
+  is the owner's to make when the work has drained. What is held is
+  given in the setting's own units, so the owner can compare it with
+  the figure: the least figure of that limit that admits the record.
+  Where a codec bound is the limit itself, that is the field's length or
+  count; where a bound derives from it (`derived.md`, 4), it is the
+  figure the derivation needs, not the field's length.
 - **`limits-held`,** a file in the data directory, starts an engine
   that a setting would refuse, as `landing-held` holds landing
   (`../../domain/landing-settings.md`, 1.3). Each line is `NAME VALUE`,
