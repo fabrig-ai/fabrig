@@ -228,31 +228,27 @@ fn fill_subscriptions(domain: &mut Domain, env: &Env<Limits>, task: u64) {
     );
 }
 fn file_red(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision) -> forge::FileFindingAnswer {
-    file_finding(
-        domain,
-        env,
-        decision,
-        Filer::Party(1),
-        forge::FileFinding {
-            project: 1,
-            kind: forge::FindingKind::Red,
-            severity: forge::Severity::High,
-            area: None,
-            title: b"Red".as_slice().into(),
-            body: Box::default(),
-        },
-    )
+    let call = forge::FileFinding {
+        project: 1,
+        kind: forge::FindingKind::Red,
+        severity: forge::Severity::High,
+        area: None,
+        title: b"Red".as_slice().into(),
+        body: Box::default(),
+    };
+    file_finding(domain, env, decision, Filer::Party(1), call)
 }
 fn queued_news(domain: &Domain, task: u64) -> Box<[&tasks::Word]> {
-    domain.work.iter().filter_map(|work| {
-        if let Work::Tasks(tasks::Event::Notice { task: to, word }) = work
-            && *to == task
-        {
-            Some(word)
-        } else {
+    domain
+        .work
+        .iter()
+        .filter_map(|work| {
+            if let Work::Tasks(tasks::Event::Notice { task: to, word }) = work {
+                return (*to == task).then_some(word);
+            }
             None
-        }
-    }).collect()
+        })
+        .collect()
 }
 #[test]
 fn a_holder_at_its_subscription_bound_takes_the_filing_and_news() {
@@ -269,7 +265,10 @@ fn a_holder_at_its_subscription_bound_takes_the_filing_and_news() {
     let news = queued_news(&domain, task);
     assert_eq!(news.len(), 1);
     assert_eq!(news[0].words.as_ref(), b"Finding 1/1 is yours: Red\nred, high, no area\n");
-    assert_eq!(news[0].kind, tasks::MessageKind::News { subscription: subscription.number, class: tasks::NewsClass::Wakes });
+    assert_eq!(
+        news[0].kind,
+        tasks::MessageKind::News { subscription: subscription.number, class: tasks::NewsClass::Wakes }
+    );
 }
 #[test]
 fn a_forge_subscription_refusal_keeps_the_filing_and_retries_at_the_next() {
@@ -325,16 +324,24 @@ fn routing_to_a_goal_at_its_subscription_bound_writes_and_tells_it() {
     let goal = 40;
     add(&mut domain, &env, goal, 1, 2, &template);
     setting(
-        &mut domain, &env, 15,
+        &mut domain,
+        &env,
+        15,
         forge::settings::Value::ProjectTriager(forge::settings::ProjectTriager { owner: AreaOwner::Task(source) }),
     );
     fill_subscriptions(&mut domain, &env, goal);
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     assert_eq!(file_red(&mut domain, &env, &mut decision), forge::FileFindingAnswer::Filed { number: 1 });
-    assert_eq!(triage_finding(
-        &mut domain, &env, &mut decision, Filer::Task(source),
-        forge::TriageFinding { project: 1, number: 1, act: forge::Triage::Route(goal) },
-    ), forge::TriageFindingAnswer::Triaged);
+    assert_eq!(
+        triage_finding(
+            &mut domain,
+            &env,
+            &mut decision,
+            Filer::Task(source),
+            forge::TriageFinding { project: 1, number: 1, act: forge::Triage::Route(goal) },
+        ),
+        forge::TriageFindingAnswer::Triaged
+    );
     let row = domain.forge.finding(1, 1).unwrap();
     assert_eq!(row.state, forge::FindingState::Routed);
     assert_eq!(row.goal, Some(goal));

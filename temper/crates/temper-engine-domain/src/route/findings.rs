@@ -342,13 +342,7 @@ fn ownership_words(project: u32, numbers: &[u32], limit: u32) -> Box<[u8]> {
     words.into_boxed()
 }
 
-fn subscribe(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    decision: &mut Decision,
-    task: u64,
-    project: u32,
-) -> Option<u64> {
+fn subscribe(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, task: u64, project: u32) -> Option<u64> {
     let topic = forge::Topic::Findings { project };
     let existing = domain.forge.topic_subscriber(task, &topic);
     let number = if let Some(row) = existing {
