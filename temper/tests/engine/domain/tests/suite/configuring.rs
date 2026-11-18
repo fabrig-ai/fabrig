@@ -1397,7 +1397,12 @@ fn an_asking_chat_reads_each_address() {
         if address == "settings" {
             assert!(text.contains("charter-words 4: changed in revision 2"), "{text}");
             assert!(text.contains("settings landing-rule N · settings landing-rule N project"), "{text}");
-            assert!(text.ends_with("settings project-classes · revisions · help settings\n"), "{text}");
+            assert!(
+                text.ends_with(
+                    "settings project-classes · settings limits · settings temper-limits · revisions · help settings\n"
+                ),
+                "{text}"
+            );
             eprintln!("see settings first part: {} bytes", body.len());
         }
         completion += 1;

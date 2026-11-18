@@ -473,3 +473,34 @@ fn retired_setting_tags_refuse_with_the_setting_identity() {
         }
     }
 }
+
+#[test]
+fn temper_limits_rows_keep_overrides_and_refuse_bad_order() {
+    use jig_domain_core_vocabulary::settings::Override;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let overrides = Box::new([Override {
+        name: b"forge.entries".as_slice().into(),
+        value: u64::MAX,
+        reason: "développement".as_bytes().into(),
+    }]);
+    let row = forge::Stored::Setting(d::SettingRow {
+        key: d::SettingKey { kind: 21, scope: 0, number: 1, slot: d::SettingSlot::Change },
+        edit: d::Edit::Set(d::SizedValue { value: d::Value::Limits(overrides.clone()), size: 50 }),
+    });
+    let meter = skein_world::domain::heap::Meter::new();
+    meter.start();
+    let cloned = row.clone();
+    let held = meter.end().held();
+    assert_eq!(forge::stored_bytes(&cloned), Some(held));
+    drop(cloned);
+    let bytes = records::encode(&row);
+    assert_eq!(records::decode(&bytes, &bounds), Ok(row));
+    let twice = forge::Stored::Setting(d::SettingRow {
+        key: d::SettingKey { kind: 21, scope: 0, number: 1, slot: d::SettingSlot::Change },
+        edit: d::Edit::Set(d::SizedValue {
+            value: d::Value::Limits(Box::new([overrides[0].clone(), overrides[0].clone()])),
+            size: 100,
+        }),
+    });
+    assert_eq!(records::decode(&records::encode(&twice), &bounds), Err(Undecodable::Malformed));
+}

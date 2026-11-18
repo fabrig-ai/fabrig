@@ -3,7 +3,7 @@ use crate::{Limits, Text};
 use alloc::boxed::Box;
 use skein_lib::Decimal;
 
-pub const INTRO: &[u8] = b"JSON shapes; bullets give fields, types, bounds and effects. The settings file is `file`. Read `settings show KIND N`, edit and set it whole. Ctl sends these bounds; the deployment may refuse with a fault: `shape`, `count`, `reference`, `rules`, `budget`, `grace` or `owner`. Spend uses deployment model-price units. Hex is lowercase hexadecimal bytes: `666f726765` is `forge`. Unsigned integers u8/u16/u32/u64 range from 0 through 255/65,535/4,294,967,295/18,446,744,073,709,551,615. bool is true or false; text[N] and hex[N] hold at most N bytes; list[N] holds at most N entries. ? means optional; ! means required. A value follows its setting.kind's named shape; project-policy uses policy.";
+pub const INTRO: &[u8] = b"Settings-file JSON (`file`), read whole by `settings show KIND N`. Bullets give fields, types, bounds and effects. Ctl sends these bounds; deployment faults: `shape`, `count`, `reference`, `rules`, `budget`, `grace`, `owner`. Spend: deployment model-price units. Lowercase hex: 666f726765 encodes forge. u8/u16/u32/u64: unsigned 8/16/32/64-bit integers (0 to 2^bits-1). bool: true/false. text[N]/hex[N]: at most N bytes; list[N]: at most N entries. ? optional; ! required. Values follow setting.kind's shape; project-policy uses policy.";
 
 #[must_use]
 pub fn page(limits: &Limits) -> Box<[u8]> {
@@ -38,6 +38,13 @@ fn write(forms: &[Form], fields: &[Field], limits: &Limits, out: &mut Text) {
         }
         match form.choice {
             Choice::Every | Choice::Number | Choice::Text => {}
+            Choice::List { item, bound } => {
+                out.put(b"Whole value: list[");
+                number(most(bound, limits), out);
+                out.put(b"] ");
+                value(&Value::Shape(item), forms, limits, out);
+                out.put(b".\n");
+            }
             Choice::One { words } => {
                 for word in words {
                     out.put(b"- ");

@@ -96,6 +96,7 @@ fn valid(kind: u32, bytes: &[u8]) -> bool {
         10 => w::ProjectWords::decode(&w::CEILINGS, &mut reader).is_ok(),
         14 => w::ProjectAreas::decode(&w::CEILINGS, &mut reader).is_ok(),
         15 => w::ProjectTriager::decode(&w::CEILINGS, &mut reader).is_ok(),
+        21 => w::TemperLimits::decode(&w::CEILINGS, &mut reader).is_ok(),
         20 => w::Welcome::decode(&w::CEILINGS, &mut reader).is_ok(),
         _ => false,
     };
@@ -186,6 +187,12 @@ pub(crate) fn decode(query: Query, page: &Readout) -> Option<Answer> {
     }
 }
 pub(crate) fn selector(call: &Call) -> Option<c::Setting> {
+    if call.form == 10 {
+        return Some(c::Setting::Limits);
+    }
+    if call.form == 11 {
+        return Some(c::Setting::Application { kind: 21, scope: 0, number: 1 });
+    }
     if call.form == 9 {
         return Some(c::Setting::Application { kind: 20, scope: 0, number: 1 });
     }
@@ -353,6 +360,8 @@ pub const SETTING: Tool = Tool {
             positional(b"kind", b"welcome", Kind::Word { set: &[b"welcome"] }, Required, b"The deployment's welcome"),
             revision_flag(),
         ],
+        &[positional(b"kind", b"limits", Kind::Word { set: &[b"limits"] }, Required, b"Overrides of jig's limits")],
+        &[positional(b"kind", b"temper-limits", Kind::Word { set: &[b"temper-limits"] }, Required, b"Overrides of temper's limits"), revision_flag()],
     ],
     ..rows::SETTING
 };
@@ -361,6 +370,10 @@ pub(crate) fn name(setting: c::Setting, out: &mut Text) -> bool {
     let c::Setting::Application { kind, scope, number } = setting else { return false };
     if !wire::settings_kind(kind) {
         return false;
+    }
+    if kind == 21 {
+        out.put(b"temper-limits");
+        return true;
     }
     if kind == 20 {
         out.put(b"welcome");
@@ -396,7 +409,7 @@ mod value;
 pub(crate) fn render(kind: u32, bytes: &[u8], out: &mut skein_json::writer::Encoder) -> bool {
     let mut reader = Reader::new(bytes);
     match kind {
-        12 | 13 | 20 => return settings_form::render::application_value(kind, bytes, out),
+        12 | 13 | 20 | 21 => return settings_form::render::application_value(kind, bytes, out),
         9 => {
             let Ok(value) = w::CharterWords::decode(&w::CEILINGS, &mut reader) else { return false };
             if !reader.is_empty() {
@@ -429,4 +442,33 @@ const fn revision_flag() -> crate::jig::table::Argument {
         Optional,
         b"The value set by this retained revision; the current value when absent",
     )
+}
+
+pub(crate) fn inventory_next(reading: &crate::jig::runner::reads::Reading) -> Option<(u32, Readable)> {
+    if reading.called.call.tool != rows::SETTINGS_AT {
+        return None;
+    }
+    let Readout::Jig(c::ReadResult::Value(c::ReadValue::Settings(document))) = reading.pages.get(&1)? else {
+        return None;
+    };
+    let mut jig_limits = false;
+    let mut temper_limits = false;
+    for line in &document.settings {
+        jig_limits |= line.setting == c::Setting::Limits;
+        temper_limits |= line.setting == (c::Setting::Application { kind: 21, scope: 0, number: 1 });
+    }
+    if jig_limits && !reading.pages.contains_key(&2) {
+        return Some((
+            2,
+            Readable::Jig(c::Read::Setting(c::ReadSetting {
+                setting: c::Setting::Limits,
+                revision: document.newest,
+                proposal: None,
+            })),
+        ));
+    }
+    if temper_limits && !reading.pages.contains_key(&3) {
+        return Some((3, read(Query::Setting(c::Setting::Application { kind: 21, scope: 0, number: 1 }))));
+    }
+    None
 }

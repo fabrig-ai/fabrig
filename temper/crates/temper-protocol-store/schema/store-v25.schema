@@ -598,7 +598,9 @@ record ProjectAreas { areas: list 16 Area }
 record ProjectTriager { owner: AreaOwner }
 record Welcome { shown: bool }
 
-enum SettingValue { rule: LandingRule, charter: CharterValue, questions: ProjectQuestions, ways: ProjectWays, goal: TemplateGoal, line: CharterWords, words: ProjectWords, classes: ProjectClasses, follow: Follow, dependency: Dependency, areas: ProjectAreas, triager: ProjectTriager, welcome: Welcome, project_landing: ProjectLanding, project_gates: ProjectGates }
+record LimitOverride { name: bytes 64 value: u64 reason: text 120 }
+record TemperLimits { overrides: list 256 LimitOverride }
+enum SettingValue { rule: LandingRule, charter: CharterValue, questions: ProjectQuestions, ways: ProjectWays, goal: TemplateGoal, line: CharterWords, words: ProjectWords, classes: ProjectClasses, follow: Follow, dependency: Dependency, areas: ProjectAreas, triager: ProjectTriager, welcome: Welcome, project_landing: ProjectLanding, project_gates: ProjectGates, limits: TemperLimits }
 record SizedValue { value: SettingValue size: u32 }
 enum SettingEdit { set: SizedValue, remove, reset }
 record SettingRow { kind: u32 scope: u32 number: u32 slot: SettingSlot edit: SettingEdit }

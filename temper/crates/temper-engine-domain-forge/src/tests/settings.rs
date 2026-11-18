@@ -874,3 +874,59 @@ fn project_gates_fit_the_carrier_at_its_bound_and_refuse_one_more_byte() {
     assert!(skein_lib::bytes::find(&refusal.words(), b"repositories").is_some());
     assert!(skein_lib::bytes::find(&refusal.words(), skein_lib::Decimal::of(u64::from(CARRIER)).as_bytes()).is_some());
 }
+
+fn limit_override(name: &[u8], reason: &[u8]) -> jig_domain_core_vocabulary::settings::Override {
+    jig_domain_core_vocabulary::settings::Override { name: name.into(), value: 16, reason: reason.into() }
+}
+fn limits_item(values: Box<[jig_domain_core_vocabulary::settings::Override]>) -> Item {
+    Item { kind: 21, scope: 0, number: 1, value: Some(Value::Limits(values)) }
+}
+#[test]
+fn limits_refuse_count() {
+    let item = limits_item(vec![limit_override(b"forge.entries", b"dev"); 257].into_boxed_slice());
+    let why = judge(&item, &BOUNDS).unwrap_err();
+    assert_eq!(why.words().as_ref(), b"more than 256 overrides");
+}
+#[test]
+fn limits_refuse_name_at_its_position() {
+    for name in [b"".as_slice(), b"Forge.entries", &[b'a'; 65]] {
+        let item = limits_item(Box::new([limit_override(b"a", b"dev"), limit_override(name, b"dev")]));
+        assert_eq!(
+            judge(&item, &BOUNDS).unwrap_err().words().as_ref(),
+            b"override 2: name must be 1 to 64 bytes of a-z, 0-9, _ or ."
+        );
+    }
+}
+#[test]
+fn limits_refuse_order_at_its_position() {
+    for name in [b"a".as_slice(), b"b"] {
+        let item = limits_item(Box::new([limit_override(b"b", b"dev"), limit_override(name, b"dev")]));
+        assert_eq!(judge(&item, &BOUNDS).unwrap_err().words().as_ref(), b"override 2: names must ascend");
+    }
+}
+#[test]
+fn limits_refuse_reason_at_its_position() {
+    for reason in [b"".as_slice(), b"\xff", &[b'a'; 121]] {
+        let item = limits_item(Box::new([limit_override(b"a", b"dev"), limit_override(b"b", reason)]));
+        assert_eq!(
+            judge(&item, &BOUNDS).unwrap_err().words().as_ref(),
+            b"override 2: reason must be 1 to 120 UTF-8 bytes"
+        );
+    }
+}
+#[test]
+fn limits_have_one_deployment_value_and_judge_shape_not_names_or_figures() {
+    assert_eq!(Kind::of(21), Some(Kind::Limits));
+    assert_eq!(Kind::Limits.number(), 21);
+    let item = limits_item(Box::new([limit_override(b"not.a.known.limit", "développement".as_bytes())]));
+    assert_eq!(judge(&item, &BOUNDS), Ok(()));
+    assert_eq!(judge(&Item { scope: 1, ..item.clone() }, &BOUNDS), Err(Refusal::Scope));
+    assert_eq!(judge(&Item { number: 2, ..item.clone() }, &BOUNDS), Err(Refusal::Number));
+    assert_eq!(judge(&Item { value: Some(Value::Charter(1)), ..item.clone() }, &BOUNDS), Err(Refusal::Value));
+    assert_eq!(judge(&Item { value: None, ..item }, &BOUNDS), Ok(()));
+    let mut values = List::with_capacity(256);
+    for n in 0_u32..256 {
+        values.push(limit_override(format!("limit.{n:03}").as_bytes(), &[b'r'; 120])).unwrap();
+    }
+    assert_eq!(judge(&limits_item(values.into_boxed()), &BOUNDS), Ok(()));
+}

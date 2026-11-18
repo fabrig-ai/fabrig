@@ -580,7 +580,10 @@ mod tests;
 pub struct Parts;
 impl jig::render::Parts for Parts {
     fn extra_read(&self, reading: &runner::reads::Reading) -> Option<(u32, jig_client::Readable)> {
-        crate::milestone::next(reading)
+        match crate::settings::inventory_next(reading) {
+            Some(read) => Some(read),
+            None => crate::milestone::next(reading),
+        }
     }
     fn print_read(
         &self,

@@ -4,24 +4,24 @@ Kind: reference
 
 Settings value types, bounds and effects, for settings files and `settings show`.
 
-JSON shapes; bullets give fields, types, bounds and effects. The settings file is `file`. Read `settings show KIND N`, edit and set it whole. Ctl sends these bounds; the deployment may refuse with a fault: `shape`, `count`, `reference`, `rules`, `budget`, `grace` or `owner`. Spend uses deployment model-price units. Hex is lowercase hexadecimal bytes: `666f726765` is `forge`. Unsigned integers u8/u16/u32/u64 range from 0 through 255/65,535/4,294,967,295/18,446,744,073,709,551,615. bool is true or false; text[N] and hex[N] hold at most N bytes; list[N] holds at most N entries. ? means optional; ! means required. A value follows its setting.kind's named shape; project-policy uses policy.
+Settings-file JSON (`file`), read whole by `settings show KIND N`. Bullets give fields, types, bounds and effects. Ctl sends these bounds; deployment faults: `shape`, `count`, `reference`, `rules`, `budget`, `grace`, `owner`. Spend: deployment model-price units. Lowercase hex: 666f726765 encodes forge. u8/u16/u32/u64: unsigned 8/16/32/64-bit integers (0 to 2^bits-1). bool: true/false. text[N]/hex[N]: at most N bytes; list[N]: at most N entries. ? optional; ! required. Values follow setting.kind's shape; project-policy uses policy.
 
 ## file
-A settings file, as `settings apply` and `settings propose` read it.
+settings file, as `settings apply` and `settings propose` read it.
 - `items`: list[1,024] `item`. One item per changed setting, each setting once.
 
 ## item
-A `setting` and exactly one of `set`, `edit` and `overlay`.
-- `setting`: `setting`. The setting the item changes.
-- `overlay`: `overlay`. A charter overlay, instead of set or edit.
+`setting` and exactly one of `set`, `edit` and `overlay`.
+- `setting`: `setting`. setting the item changes.
+- `overlay`: `overlay`. charter overlay, instead of set or edit.
 - `set`: the value for `setting.kind`. Whole replacement value.
-- `edit`: `"removed"` or `"reset"`. An edit instead of a value. `"removed"`: No longer offered, its default included; the rules cannot be removed. `"reset"`: Erase its change; follow its default again.
+- `edit`: `"removed"` or `"reset"`. edit instead of a value. `"removed"`: No longer offered, its default included; the rules cannot be removed. `"reset"`: Erase its change; follow its default again.
 
 ## setting
 Which setting: its kind and number, or project for project settings.
-- `kind`: `"model"`, `"charter"`, `"template"`, `"policy"`, `"project-policy"`, `"rules"`, `"landing-rule"`, `"forge-charter"`, `"template-goal"`, `"follow"`, `"dependency"`, `"project-ways"`, `"project-questions"`, `"project-classes"`, `"charter-words"`, `"project-words"`, `"project-landing"`, `"project-gates"`, `"project-areas"`, `"project-triager"` or `"welcome"`. The setting's kind. `"project-policy"`: Project policy: `set` only, once per file alongside other settings. `"project-landing"`: At the next start. `"project-gates"`: At the next start.
-- `number`: u32. Setting number, from 1; omit for rules, welcome and unnumbered project settings.
-- `project`: u32. Required for project settings, follow and dependency; absent for charter-words and welcome. Landing rule: from 1, or deployment-wide if absent.
+- `kind`: `"model"`, `"charter"`, `"template"`, `"policy"`, `"project-policy"`, `"rules"`, `"landing-rule"`, `"forge-charter"`, `"template-goal"`, `"follow"`, `"dependency"`, `"project-ways"`, `"project-questions"`, `"project-classes"`, `"charter-words"`, `"project-words"`, `"project-landing"`, `"project-gates"`, `"project-areas"`, `"project-triager"`, `"welcome"`, `"limits"` or `"temper-limits"`. setting's kind. `"project-policy"`: Project policy: `set` only, once per file alongside other settings. `"project-landing"`: At the next start. `"project-gates"`: At the next start.
+- `number`: u32. Setting number, from 1; omit for rules, welcome and limit kinds, and unnumbered project settings.
+- `project`: u32. Required for project settings, follow and dependency; absent for charter-words, welcome and limit kinds. Landing rule: from 1, or deployment-wide if absent.
 
 ## charter
 Run policy from the task's creation revision.
@@ -41,8 +41,8 @@ Run policy from the task's creation revision.
 - `shell`: bool. May the agent run workspace commands?
 - `agents`: bool. May the agent open sub-agents with no more tools than its own?
 - `call_timeout`: nanoseconds. Longest call to temper's tools.
-- `tools`: u64. Host families need charter and task leave. Asking (2048): see and document; with settings (1024), propose_settings too. Without asking, 1024 grants settings tools. Default 1023 excludes both.
-- `hosts`: `"workers"`, `"engine"` or `"both"`. Which hosts may run it. `"workers"`: The deployment's workers alone. `"engine"`: The engine's own slots alone. `"both"`: Either.
+- `tools`: u64. Host families need charter/task leave. Asking 2048: see/document; add settings 1024 for propose_settings. Without asking, 1024 grants settings tools. Default 1023 excludes both.
+- `hosts`: `"workers"`, `"engine"` or `"both"`. Which hosts may run it. `"workers"`: deployment's workers alone. `"engine"`: engine's own slots alone. `"both"`: Either.
 - `spend`: u64. >= (`reserve_turns` + 1) costliest default-model completions, else `budget` refusal. Runs get remaining task funds, capped by `rules.maximum_run_spend`.
 - `wake`: `wake`, or null. Wake policy for tasks made under this charter whose batch names none. Null/absent: jig's default, all rules `"immediate"`, `results` `"last_or_failure"`, questions, answers and timers waking.
 - `documents`: list[8] `document`. Brief documents; at most `tasks.charter_documents`, else `shape` refusal.
@@ -63,37 +63,37 @@ Instructions after shared text, read when run reasons meet `on`.
 
 ## document
 Brief file at preparation branch head.
-- `forge`: text[32,768]. Copy the repository resource's `host`, including port, from `see settings` under `project repositories`, or `temper ctl DIR forge list`; neither forge number nor web address.
+- `forge`: text[32,768]. Repository resource's `host`, port included: copy from `see settings`' `project repositories` or `temper ctl DIR forge list`, not forge number or web address.
 - `repository`: text[65,537]. OWNER/NAME; if no project adopts it, the section says so.
 - `branch`: text[131,075]. Branch head to read; segments joined by `/`.
-- `path`: text[256]. The file's path in the repository, at most 256 bytes.
+- `path`: text[256]. file's path in the repository, at most 256 bytes.
 - `heading`: text[80], or null. Markdown heading: read through the next peer or ancestor heading; null reads the whole file.
 
 ## catalogue
 Numbered runtime model and its display facts.
 - `number`: u32. Permanent number, 1 to 64, matching setting.number.
-- `model`: `model`. The runtime model, whole.
+- `model`: `model`. runtime model, whole.
 - `shown`: text[4,096], or null. Its name for showing, or null.
 - `description`: text[512], or null. Its description, or null.
 - `picker`: bool. Whether a model picker shows it.
 - `withdrawn`: bool. Whether it is withdrawn; its number and name stay.
-- `source`: `"stock"`, `"list"` or `"person"`. Where the model came from. `"stock"`: The binary. `"list"`: A provider list. `"person"`: A person.
+- `source`: `"stock"`, `"list"` or `"person"`. Where the model came from. `"stock"`: binary. `"list"`: provider list. `"person"`: person.
 - `estimated`: bool. Whether its prices are provider defaults.
 
 ## model
-Runtime model. Except `effort`, charter members must match its configured row or refuse `reference`. Model settings supply it whole.
-- `provider`: u32. The configured LLM provider that serves it; 1 when absent.
+Runtime model, whole in model settings. Charter members except `effort` must match its configured row, else `reference`.
+- `provider`: u32. configured LLM provider that serves it; 1 when absent.
 - `dialect`: u32. Configured model protocol.
 - `endpoint`: u32. Configured serving endpoint's number.
 - `program`: text[32], or null. Configured program running it, or null for none.
 - `name`: text[4,096]. Provider's model name.
-- `window`: u32. The most tokens of input it reads.
+- `window`: u32. most tokens of input it reads.
 - `output`: u32. Most tokens per completion, thinking included.
 - `input_price`: u64. Fresh input cost: spend units per `price_unit` tokens.
 - `cached_price`: u64. Cached input cost: spend units per `price_unit` tokens.
 - `cache_write_price`: u64, or null. Cache write cost per `price_unit` tokens; null uses fresh-input price.
 - `output_price`: u64. Output cost: spend units per `price_unit` tokens.
-- `price_unit`: u32. The number of tokens each price is for.
+- `price_unit`: u32. number of tokens each price is for.
 - `efforts`: list[16] text[32]. Configured efforts, in order.
 - `effort`: text[32], or null. One of `efforts`; null: default effort.
 
@@ -102,7 +102,7 @@ Wake by message kind; proposals, escalations and cancels always wake.
 - `words`: `wake_rule`. Task and deployment words; a person's always wake it at once.
 - `notices`: `wake_rule`. Notices: referenced task done/held, proposal passing through, awaited hold.
 - `news`: `wake_rule`. News its connectors class as waking for it.
-- `results`: `"never"`, `"each"` or `"last_or_failure"`. Its delegates' results. `"never"`: None wakes it. `"each"`: Each delegate's result wakes it. `"last_or_failure"`: The last delegate's result, or any failure.
+- `results`: `"never"`, `"each"` or `"last_or_failure"`. Its delegates' results. `"never"`: None wakes it. `"each"`: Each delegate's result wakes it. `"last_or_failure"`: last delegate's result, or any failure.
 - `questions`: bool. Whether a delegate's question wakes it.
 - `answers`: bool. Whether an answer to its own question wakes it.
 - `timers`: bool. Whether its timers wake it.
@@ -125,7 +125,7 @@ Executor and defaults for new tasks.
 - `number`: u32. Template number matching `setting.number`; chat: 1, goal: 2.
 - `name`: `text`. Its name, as clients show it.
 - `executor`: `executor`. Who runs the task.
-- `contract`: `contract`. The result the task must give.
+- `contract`: `contract`. result the task must give.
 - `shallower`: u32. Delegation depth below creator role; 0 makes the template unusable.
 - `budget`: `budget`. What the task may spend.
 - `deadline`: `deadline`. By when the task must end.
@@ -133,87 +133,87 @@ Executor and defaults for new tasks.
 - `flags`: `flags`. How the task behaves and is kept.
 - `label`: u32. Number grouping ended tasks in lists; temper reads nothing else from it.
 - `grace`: nanoseconds, or null. Chat closing time or null; unfinished runs then cancel. Past deployment limit: `grace` refusal.
-- `llm`: `llm`, or null. The models the task asks for, or null for its charter's default.
+- `llm`: `llm`, or null. models the task asks for, or null for its charter's default.
 
 ## symbol
 Resource resolved at creation.
-- `connector`: u16. The connector that resolves the symbol; 1 is the forge.
-- `symbol`: u16. The connector's resource symbol; the forge's 1 is its own goal branch.
+- `connector`: u16. connector that resolves the symbol; 1 is the forge.
+- `symbol`: u16. connector's resource symbol; the forge's 1 is its own goal branch.
 
 ## text
-A text, whole.
-- `bytes`: text[65,536]. The text.
+text, whole.
+- `bytes`: text[65,536]. text.
 - `cut`: bool. Always false: a value is set whole.
 
 ## executor
 Task executor.
-- `"chosen"`: The creator chooses a charter or procedure their role permits.
+- `"chosen"`: creator chooses a charter or procedure their role permits.
 - `charter`: u32. Agent under this charter; must be offered, else `reference` refusal.
 
 ## contract
 One required task result.
 - `approval`: `approval`. Person's approval of exact state; agents can only fail.
-- `report`: `report`. A report.
+- `report`: `report`. report.
 - `verdict`: `verdict`. One of a set of verdicts.
-- `change`: `change`. A connector's result.
+- `change`: `change`. connector's result.
 
 ## approval
-An approval of an exact state.
+approval of an exact state.
 - `state`: hex[32,768]. Approved state; approval must return it byte for byte.
 - `part`: `part`. What a client shows the approval with.
 
 ## part
-A thing a connector owns, which a client shows.
-- `connector`: u16. The connector that owns it: 1 is the forge.
+thing a connector owns, which a client shows.
+- `connector`: u16. connector that owns it: 1 is the forge.
 - `kind`: `"resource"`, `"pool"`, `"result"`, `"procedure"`, `"effect"`, `"outbox"` or `"hold"`. What kind of thing it is.
 - `key`: `key`. Which one.
 
 ## key
 Which thing: a one-member object.
 - `path`: list[9] hex[32,768]. Hex resource segments: `forge`, host, owner, repository, `branch`, branch segments.
-- `number`: u64. A number the connector knows it by.
+- `number`: u64. number the connector knows it by.
 
 ## report
-A report in words.
-- `words`: u32. The most bytes the report may hold.
+report in words.
+- `words`: u32. most bytes the report may hold.
 
 ## verdict
-A verdict: one of its choices, with the fields that choice asks for.
-- `choices`: list[1,048,576] `choice`. The choices the task gives one of.
+verdict: one of its choices, with the fields that choice asks for.
+- `choices`: list[1,048,576] `choice`. choices the task gives one of.
 - `cut`: bool. Always false: a value is set whole.
 
 ## choice
-A verdict choice.
+verdict choice.
 - `code`: u32. Its number, unique among the choices.
-- `words`: u32. The most bytes of the verdict's explanation.
+- `words`: u32. most bytes of the verdict's explanation.
 - `followups`: u32. Max verdict follow-up delegates.
-- `fields`: list[32] `choice_field`. The fields the verdict must fill, each named once.
+- `fields`: list[32] `choice_field`. fields the verdict must fill, each named once.
 
 ## choice_field
-A field a verdict fills.
+field a verdict fills.
 - `name`: hex[32,768]. Its name as hex, not empty.
-- `max`: u32. The most bytes of its value.
+- `max`: u32. most bytes of its value.
 
 ## change
-A connector's result: for the forge, a change.
-- `connector`: u16. The connector that gives the result: 1 is the forge.
+connector's result: for the forge, a change.
+- `connector`: u16. connector that gives the result: 1 is the forge.
 - `kind`: u16. Result kind: forge 1 landed change, 2 change made but not landed.
 - `words`: u32. Most report bytes, per change title and body.
 
 ## budget
 Task spend.
-- `"given"`: The creator gives it, within their allotment.
+- `"given"`: creator gives it, within their allotment.
 - `amount`: u64. This much.
 - `as_allowed`: `as_allowed`. Creator's remaining funds at task creation.
 
 ## as_allowed
 As much as fits.
-- `cap`: u64, or null. The most it may be, or null for no cap.
+- `cap`: u64, or null. most it may be, or null for no cap.
 
 ## deadline
 Task end time.
 - `"none"`: No deadline.
-- `"given"`: The creator gives one, or none.
+- `"given"`: creator gives one, or none.
 - `span`: nanoseconds. This long after the task is made.
 
 ## flags
@@ -228,28 +228,28 @@ How a task ends.
 - `"result"`: Its run's result.
 - `"requester"`: Requester alone; needs `conversation` and charter `executor`, else `shape`.
 - `"standing"`: Only cancel; an agent with no conversation or tracking.
-- `closer`: `closer`. A named procedure ends it.
+- `closer`: `closer`. named procedure ends it.
 
 ## closer
 Closes the task once nothing remains to await.
-- `connector`: u16. The closing procedure's connector.
-- `code`: u32. The procedure's code.
+- `connector`: u16. closing procedure's connector.
+- `code`: u32. procedure's code.
 
 ## llm
-The models a task asks for.
+models a task asks for.
 - `account`: u32, or null. Paying account; null: any able to pay.
-- `main`: `model_effort`. The main model and its effort.
-- `subagents`: list[64] `model_effort`. The models its runs' sub-agents may use, each named once.
+- `main`: `model_effort`. main model and its effort.
+- `subagents`: list[64] `model_effort`. models its runs' sub-agents may use, each named once.
 - `later`: `llm-later`. Optional, left out none: the choice after the task's first activation.
 
 ## llm-later
 Model choice after the first activation.
-- `main`: `model_effort`. The later main model and its effort.
+- `main`: `model_effort`. later main model and its effort.
 - `subagents`: list[64] `model_effort`. Absent: []. Models for later runs' sub-agents, each named once.
 
 ## model_effort
-A model, by name, and its effort.
-- `model`: text[4,096]. A configured model's name, one the task's charter offers.
+model, by name, and its effort.
+- `model`: text[4,096]. configured model's name, one the task's charter offers.
 - `effort`: text[32], or null. Model's effort; null if it takes none.
 
 ## policy
@@ -258,13 +258,13 @@ Project policy copied at creation; changes affect later projects.
 - `ceiling`: `authority`. Project task ceiling; within rules, else `rules` refusal.
 - `projections`: list[32] `grant`. Goal projection writes to project homes; each grant within `ceiling`.
 - `period_spend`: u64. What the project may spend in a period; within `rules.period_spend`.
-- `roles`: list[32] `role`. The project's roles: what a party in each may do.
+- `roles`: list[32] `role`. project's roles: what a party in each may do.
 - `requirements`: list[32] `requirement`. Project effect needs, beside rules' requirements.
 - `permissions`: list[32] `permission`. Project role given by forge collaborator permission at adoption.
-- `templates`: list[16] `template_override`. The project's overrides of templates.
+- `templates`: list[16] `template_override`. project's overrides of templates.
 
 ## role
-A role in a project.
+role in a project.
 - `number`: u32. 0 owner, 1 maintainer, 2 member, 3 observer; others policy-defined. 0 must allow task creation, else `owner` refusal.
 - `authority`: `authority`. Max party task allotment, within policy `ceiling`.
 - `period_spend`: u64. Party allotment per period, within policy `period_spend`.
@@ -273,7 +273,7 @@ A role in a project.
 
 ## template_override
 Project template override; null keeps the template's member.
-- `template`: u32. The template's number; offered, and once in the policy.
+- `template`: u32. template's number; offered, and once in the policy.
 - `executor`: `executor`, or null. Its executor, or null.
 - `budget`: `budget`, or null. Its budget, or null.
 - `deadline`: `deadline`, or null. Its deadline, or null.
@@ -281,35 +281,35 @@ Project template override; null keeps the template's member.
 
 ## permission
 Forge collaborator permission and its project role at adoption.
-- `connector`: u16. The connector: 1 is the forge.
-- `permission`: u16. The permission: 0 none, 1 read, 2 write, 3 admin.
-- `role`: u32. The role it gives, one of the policy's `roles`.
+- `connector`: u16. connector: 1 is the forge.
+- `permission`: u16. permission: 0 none, 1 read, 2 write, 3 admin.
+- `role`: u32. role it gives, one of the policy's `roles`.
 
 ## rules
 Deployment ceilings, reread per decision. Narrowing affects existing tasks; widening never widens them.
-- `ceiling`: `authority`. The most any project may have.
-- `period_spend`: u64. The most a project's period spend may be.
-- `minimum_run_spend`: u64. A run starts only with more than this to spend.
+- `ceiling`: `authority`. most any project may have.
+- `period_spend`: u64. most a project's period spend may be.
+- `minimum_run_spend`: u64. run starts only with more than this to spend.
 - `maximum_run_spend`: u64. Maximum run funds; above `minimum_run_spend`, within `ceiling` spend.
 - `implies`: list[32] `implication`. Kinds of a connector's whose grant grants other kinds too.
 - `requirements`: list[32] `requirement`. What an effect needs, in every project.
 
 ## implication
 One kind whose grant grants another.
-- `connector`: u16. The connector: 1 is the forge.
-- `kind`: u16. The kind whose grant also grants `implies`.
-- `implies`: u16. The kind it grants.
+- `connector`: u16. connector: 1 is the forge.
+- `kind`: u16. kind whose grant also grants `implies`.
+- `implies`: u16. kind it grants.
 
 ## authority
 Authority: tools, models, grants, delegation, spend and deadline.
-- `models`: `models`. The models its runs may use.
+- `models`: `models`. models its runs may use.
 - `tools`: u64. Engine tool bits: 1 delegate, 2 message, 4 amend/cancel/release, 8 decide/withdraw, 16 propose, 32 subscribe, 64 effect, 128 note, 256 recall, 512 forge reads, 1024 settings, 2048 asking.
 - `grants`: list[1,048,576] `grant`. Permitted connector effects and reads on resources.
-- `delegation`: `delegation`. The delegates it may make.
-- `spend`: u64. The most its tree may spend.
-- `deadline`: nanoseconds since 1970 UTC, or null. The latest it may end, or null for no deadline.
+- `delegation`: `delegation`. delegates it may make.
+- `spend`: u64. most its tree may spend.
+- `deadline`: nanoseconds since 1970 UTC, or null. latest it may end, or null for no deadline.
 - `notes`: u8. Note scope bits: 1 its goal, 2 its project, 4 deployment.
-- `note_resources`: list[1,048,576] `resource`. The resources it may write notes on.
+- `note_resources`: list[1,048,576] `resource`. resources it may write notes on.
 
 ## models
 Available models.
@@ -318,52 +318,52 @@ Available models.
 
 ## grant
 Leave for a connector effect or read on resources.
-- `connector`: u16. The connector: 1 is the forge.
+- `connector`: u16. connector: 1 is the forge.
 - `kind`: u16. Forge kinds: 1 read, 2 push, 3 open PR, 4 merge, 5 review, 6 status, 7 comment, 8 open issue, 9 branch, 10 edit PR, 11 update PR from base, 12 close/reopen PR, 13 edit issue, 14 reviewers, 15 delete branch.
-- `pattern`: `pattern`. The resources it covers.
+- `pattern`: `pattern`. resources it covers.
 
 ## pattern
 Exact `segments`, then `last`. Repository: `forge`, host, owner, repository. Branch: append `branch`, branch segments.
-- `segments`: list[9] hex[32,768]. The first segments, each as hex, each matched exactly.
-- `last`: `last`. The segment after them.
+- `segments`: list[9] hex[32,768]. first segments, each as hex, each matched exactly.
+- `last`: `last`. segment after them.
 
 ## last
-The last segment: an object with one of these members.
+last segment: an object with one of these members.
 - `exact`: hex[32,768]. Exactly this segment, as hex, and nothing beneath it.
 - `open`: hex[32,768]. Hex segment prefix and descendants; empty covers every segment.
 
 ## delegation
-The delegates a task may make.
+delegates a task may make.
 - `kinds`: list[22] `delegate`. Who its delegates may be.
 - `tasks`: u32. Tree's lifetime task count, not concurrent.
 - `depth`: u32. How far below it its tree may go; 0 allows no delegate.
 
 ## delegate
-A kind of delegate: a one-member object.
-- `charter`: u32. An agent under this charter, which must be offered.
+kind of delegate: a one-member object.
+- `charter`: u32. agent under this charter, which must be offered.
 - `procedure`: u32. This procedure: 2 is the forge's change.
-- `role`: u32. A person in this role.
+- `role`: u32. person in this role.
 - `job`: u32. Jobs: 1 prepares a landing, 3 merges, 4 closes a goal.
 
 ## resource
 Resources it may write notes on.
-- `connector`: u16. The connector: 1 is the forge.
-- `pattern`: `pattern`. The resources.
+- `connector`: u16. connector: 1 is the forge.
+- `pattern`: `pattern`. resources.
 
 ## requirement
 Requirements for a connector effect on resources, independent of authority.
-- `connector`: u16. The connector whose effect it constrains: 1 is the forge.
-- `kind`: u16. The kind of effect; implications do not apply.
-- `pattern`: `pattern`. The resources it applies to.
+- `connector`: u16. connector whose effect it constrains: 1 is the forge.
+- `kind`: u16. kind of effect; implications do not apply.
+- `pattern`: `pattern`. resources it applies to.
 - `judge`: `judge`. Who judges it.
 - `guard`: `guard`. When it is judged.
 - `must_be_guarded`: bool. Require guarding as the effect acts; unguardable effects refuse.
 
 ## judge
-The connector that judges a requirement, and its criterion.
-- `connector`: u16. The judging connector: 1 is the forge.
+connector that judges a requirement, and its criterion.
+- `connector`: u16. judging connector: 1 is the forge.
 - `requirement`: u16. Forge criteria: 1 CI passed at head, 2 head up to date with base, 3 gate, 4 approvals.
-- `parameters`: u32. A number the judging connector reads the criterion's terms by.
+- `parameters`: u32. number the judging connector reads the criterion's terms by.
 
 ## guard
 When to judge.
@@ -371,40 +371,40 @@ When to judge.
 - `observed`: `observed`. Before acting, from recent facts.
 
 ## observed
-A requirement judged from facts read before the effect.
+requirement judged from facts read before the effect.
 - `freshness`: nanoseconds. How old those facts may be.
 
 ## landing-rule
 Criteria for every covered landing.
-- `pattern`: `landing-pattern`. `forge`, host, repository owner and name, then `branch` and its segments; project rules may use `branch` and its segments alone for that branch in every project repository.
+- `pattern`: `landing-pattern`. `forge`, host, owner, repository, `branch`, branch segments; project rules may use only `branch` and segments across all project repositories.
 - `enforce`: bool. True: every covered landing needs these criteria. False: only the change procedure checks.
 - `ci`: bool. CI must have passed at the change's head.
-- `up_to_date`: bool. The change's head must contain its base's tip.
-- `gates`: list[64] `landing-gate`. The gates every change it covers asks for.
+- `up_to_date`: bool. change's head must contain its base's tip.
+- `gates`: list[64] `landing-gate`. gates every change it covers asks for.
 - `approvals`: list[64] `landing-approval`. Distinct people per role required to approve by forge review.
 - `sets`: list[6] u8. Unique project path sets 1 to 6; default []. Omitted if empty; none for deployments.
 
 ## landing-gate
 Each change needs agent review, or a repository check without CI.
-- `number`: u32. The agent review's or repository check's gate number.
+- `number`: u32. agent review's or repository check's gate number.
 - `blocking`: bool. Whether this gate must pass before the change lands.
 - `freshness`: `"exact"` or `"clean"`. At which later heads a verdict still counts. `"exact"`: Verdict counts at its given head. `"clean"`: Verdict also counts at later heads from cleanly merged updates.
 
 ## landing-approval
 Distinct project role holders approve by forge reviews.
-- `role`: u32. A role in the project's policy whose people approve the change.
+- `role`: u32. role in the project's policy whose people approve the change.
 - `people`: u32. Distinct role holders required to approve the change.
 - `freshness`: `"exact"` or `"clean"`. At which later heads an approval still counts. `"exact"`: Verdict counts at its given head. `"clean"`: Verdict also counts at later heads from cleanly merged updates.
 
 ## landing-pattern
 Base segments and final segment/prefix. Project rules may start at `branch` across their repositories.
-- `segments`: list[9] hex[4,096]. The exact base segments of the resources the rule covers.
+- `segments`: list[9] hex[4,096]. exact base segments of the resources the rule covers.
 - `last`: `landing-last`. Final exact segment or open prefix, and descendants.
 
 ## landing-last
 Final resource segment, in hex.
 - `exact`: hex[4,096]. One last segment equal to these bytes.
-- `open`: hex[4,096]. A final segment beginning with these bytes, with all below it.
+- `open`: hex[4,096]. final segment beginning with these bytes, with all below it.
 
 ## forge-charter
 Charter number, 0 to 4,294,967,295. Setting 1: change; setting 2: reviews.
@@ -436,7 +436,7 @@ Owned, writable repository. Absent/empty branch: landing branch.
 - `branch`: text[4,096]. Absent/empty: landing branch.
 
 ## follow-owner
-A project person or live standing role.
+project person or live standing role.
 - `person`: u64. Project person's number.
 - `task`: u64. Standing role task number.
 
@@ -459,26 +459,26 @@ Project display and goal start. Absent: drafts true, others false, way 0.
 - `way`: u32. Goal's starting template: project-offered, tracked set; 0 for the first.
 
 ## project-questions
-The route a project's change takes when its maker names none.
+route a project's change takes when its maker names none.
 - `"none"`: No question route; the stock's value.
-- `"up"`: A change's questions go up to its parent.
+- `"up"`: change's questions go up to its parent.
 
 ## project-classes
 Classes by kind and path set; absent: Agents review's table.
-- `items`: list[20] `class-item`. The table's class items.
-- `sets`: list[6] `path-set`. The path sets its items may name.
+- `items`: list[20] `class-item`. table's class items.
+- `sets`: list[6] `path-set`. path sets its items may name.
 
 ## class-item
 Kind/set, optional words, class; one wordless item per subject. Money, irreversible, rules and other always wait, with no item.
 - `kind`: `"wording"`, `"retry"`, `"implementation"`, `"tests"`, `"dependency"`, `"departure"` or `"findings"`. Exactly one of kind or set.
-- `set`: u8. A set in this table, from 1 to 6; exactly one of kind or set.
+- `set`: u8. set in this table, from 1 to 6; exactly one of kind or set.
 - `words`: text[120]. Optional wording for this item, empty when absent.
 - `class`: `"decide"`, `"ask"` or `"ask-away"`. Wait is never a table class. `"decide"`: Agents decide and list it. `"ask"`: Ask the person; Away may decide. `"ask-away"`: Ask the person even when away.
 
 ## path-set
 Repository-relative path patterns, uniquely numbered 1 to 6.
 - `number`: u8. Distinct within the table, from 1 to 6.
-- `name`: text[40]. A nonempty name.
+- `name`: text[40]. nonempty name.
 - `patterns`: list[6] text[80]. Nonempty repository-relative patterns: * within segments, ** for a whole segment.
 
 ## charter-words
@@ -504,7 +504,7 @@ Landing at the next start.
 - `close_job`: text[4,096]. ? relative path, no NUL or .. segments.
 
 ## project-gates
-A project's repository gates and tiers; at the next start.
+project's repository gates and tiers; at the next start.
 - `repositories`: list[1,114,240] `repository-gates`. ! unique repositories of this project; whole encoding within the settings carrier; at the next start.
 
 ## landing-combine-settings
@@ -520,7 +520,7 @@ One repository's test gates and tiers.
 - `tiers`: list[1,114,240] `tier-check`. ? at most forge.tiers.tiers.
 
 ## gate-check
-A workflow gate proving a landing.
+workflow gate proving a landing.
 - `name`: text[32]. ! letters, digits, dash or underscore; unique in the repository.
 - `workflow`: text[255]. ! workflow filename without slash.
 - `ignored`: list[1,114,240] text[1,024]. ? at most forge.ignored_paths, each within forge.name_bytes; whole path segments.
@@ -529,13 +529,13 @@ A workflow gate proving a landing.
 - `report`: `gate-report`. ? artifact holding failed test ids.
 
 ## gate-report
-The failed tests uploaded by a gate.
+failed tests uploaded by a gate.
 - `artifact`: text[32]. ! artifact name without slash.
 - `format`: `"junit"` or `"lines"`. ! `"junit"`: JUnit report. `"lines"`: One test id per line.
 - `fuzzy`: text[64]. ? nonempty name prefix of fuzzy tests.
 
 ## tier-check
-A slow workflow and the branch it follows.
+slow workflow and the branch it follows.
 - `name`: text[32]. ! letters, digits, dash or underscore; unique in the repository.
 - `workflow`: text[255]. ! workflow filename without slash.
 - `ignored`: list[1,114,240] text[1,024]. ? at most forge.ignored_paths, each within forge.name_bytes; whole path segments.
@@ -546,26 +546,40 @@ A slow workflow and the branch it follows.
 - `description`: text[120]. ? nonempty UTF-8 without control characters.
 
 ## project-areas
-A project's areas, at most 16.
+project's areas, at most 16.
 - `areas`: list[16] `area`. ! order is kept; names are unique.
 
 ## welcome
-The deployment's welcome. Default: shown under the box, not shown otherwise.
+deployment's welcome. Default: shown under the box, not shown otherwise.
 - `shown`: bool. ! Shows the welcome and offers the playground.
 
 ## project-triager
-A project's triager.
+project's triager.
 - `owner`: `area-owner`. !
 
 ## area
-A named scope of project work and its owner.
+named scope of project work and its owner.
 - `name`: text[32]. ! 1 to 32 ASCII lowercase letters, digits or -, starting with a letter.
 - `words`: text[480]. ! 1 to 480 UTF-8 bytes with no control character.
 - `owner`: `area-owner`. !
 
 ## area-owner
 One owner: task, party, role or charter.
-- `task`: u64. A live task of the project.
-- `party`: u64. A party with a role in the project.
+- `task`: u64. live task of the project.
+- `party`: u64. party with a role in the project.
 - `role`: u32. Below authority.roles; 0 is the owners.
 - `charter`: u32. From 1 through tasks.charters.
+
+## limits
+Core limit overrides: ascending names; whole list, empty default; no number or project.
+Whole value: list[256] `limit-override`.
+
+## temper-limits
+As limits, for application limits (kind 21).
+Whole value: list[256] `limit-override`.
+
+## limit-override
+One override, with a required reason.
+- `name`: text[64]. ! 1-64 bytes: a-z, 0-9, _ or .; strictly ascending, no duplicates.
+- `value`: u64. ! limit's unit.
+- `reason`: text[120]. ! 1-120 UTF-8 bytes: why it departs from stock.

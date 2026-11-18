@@ -500,6 +500,14 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             Some(held)
         }
         Stored::Setting(row) => match &row.edit {
+            settings::Edit::Set(settings::SizedValue { value: settings::Value::Limits(values), .. }) => {
+                let mut held = skein_lib::len_u64(values.len())
+                    .checked_mul(u64::try_from(size_of::<jig_domain_core_vocabulary::settings::Override>()).ok()?)?;
+                for value in values {
+                    held = held.checked_add(bytes(&value.name))?.checked_add(bytes(&value.reason))?;
+                }
+                Some(held)
+            }
             settings::Edit::Set(settings::SizedValue { value: settings::Value::Landing(value), .. }) => {
                 let mut held = 0_u64;
                 for command in [&value.merge_job, &value.close_job].into_iter().flatten() {

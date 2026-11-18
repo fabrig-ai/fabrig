@@ -204,6 +204,27 @@ pub(super) fn encode(value: &d::SettingRow) -> w::SettingRow {
                     )
                     .expect(FITS),
                 ),
+                d::Value::Limits(values) => {
+                    let mut overrides = List::with_capacity(jig_domain_core_vocabulary::settings::OVERRIDES);
+                    for value in values {
+                        overrides
+                            .push(
+                                w::LimitOverride::new(
+                                    &w::CEILINGS,
+                                    w::LimitOverrideParts {
+                                        name: value.name.clone(),
+                                        value: value.value,
+                                        reason: value.reason.clone(),
+                                    },
+                                )
+                                .expect(FITS),
+                            )
+                            .expect(FITS);
+                    }
+                    w::SettingValue::Limits(
+                        w::TemperLimits::new(&w::CEILINGS, w::TemperLimitsParts { overrides }).expect(FITS),
+                    )
+                }
                 d::Value::CharterWords(line) => w::SettingValue::Line(
                     w::CharterWords::new(&w::CEILINGS, w::CharterWordsParts { line: line.clone() }).expect(FITS),
                 ),
@@ -314,6 +335,18 @@ pub(super) fn decode(value: w::SettingRow, bounds: &Bounds) -> Result<d::Setting
                     classes.check().or(Err(Undecodable::Malformed))?;
 
                     d::Value::Classes(classes)
+                }
+                w::SettingValue::Limits(record) => {
+                    let mut overrides = List::with_capacity(jig_domain_core_vocabulary::settings::OVERRIDES);
+                    for value in record.into_parts().overrides.into_boxed() {
+                        let w::LimitOverrideParts { name, value, reason } = value.into_parts();
+                        overrides
+                            .push(jig_domain_core_vocabulary::settings::Override { name, value, reason })
+                            .or(Err(Undecodable::Malformed))?;
+                    }
+                    jig_domain_core_vocabulary::settings::check_overrides(overrides.as_slice())
+                        .or(Err(Undecodable::Malformed))?;
+                    d::Value::Limits(overrides.into_boxed())
                 }
                 w::SettingValue::Line(value) => {
                     let line = value.into_parts().line;

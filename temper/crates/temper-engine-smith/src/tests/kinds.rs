@@ -147,6 +147,7 @@ fn each_kind_round_trips_its_value() {
             settings::Value::Gates(_) => 5,
             settings::Value::ProjectTriager(_) => 15,
             settings::Value::Welcome(_) => 20,
+            settings::Value::Limits(_) => 21,
         };
         let bytes = encode(&value);
         assert_eq!(decode(kind, &bytes, &BOUNDS).expect("shaped value").value, value);
@@ -268,4 +269,31 @@ fn project_gates_refuse_unfinished_pieces_at_both_levels() {
         record.encode(&mut out).expect("measured project gates");
         assert!(decode(5, &out.finish(), &BOUNDS).is_none(), "an unfinished repository or check piece is malformed");
     }
+}
+
+#[test]
+fn temper_limits_wire_keeps_the_largest_list() {
+    use jig_domain_core::settings::{OVERRIDE_NAME_BYTES, OVERRIDE_REASON_BYTES, OVERRIDES, Override};
+    let mut values = skein_lib::List::with_capacity(OVERRIDES);
+    for n in 0..OVERRIDES {
+        let prefix = format!("limit.{n:03}.");
+        let mut name = Writer::new(usize::try_from(OVERRIDE_NAME_BYTES).unwrap());
+        name.put(prefix.as_bytes()).unwrap();
+        for _ in prefix.len()..usize::try_from(OVERRIDE_NAME_BYTES).unwrap() {
+            name.put(b"x").unwrap();
+        }
+        values
+            .push(Override {
+                name: name.finish(),
+                value: u64::MAX,
+                reason: vec![b'r'; usize::try_from(OVERRIDE_REASON_BYTES).unwrap()].into_boxed_slice(),
+            })
+            .unwrap();
+    }
+    let value = settings::Value::Limits(values.into_boxed());
+    let bytes = encode(&value);
+    assert_eq!(bytes.len(), 51_204);
+    assert_eq!(size(&value), 51_204);
+    assert!(decode(21, &bytes, &BOUNDS).unwrap().value == value, "all 256 overrides survive the wire");
+    assert!(decode(21, &bytes[..bytes.len() - 1], &BOUNDS).is_none());
 }

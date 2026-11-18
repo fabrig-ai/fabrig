@@ -145,6 +145,7 @@ fn following(line: &[u8], answer: &SeeAnswer) -> &'static [u8] {
                     14 => "settings project-areas",
                     15 => "settings project-triager",
                     20 => "settings welcome",
+                    21 => "settings temper-limits",
                     11 => "settings template-goal N",
                     12 => "settings follow N",
                     13 => "settings dependency N",

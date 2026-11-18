@@ -276,6 +276,7 @@ fn setting(d: &Decoder<'_>, at: u32) -> Result<c::Setting, Error> {
         b"project-areas",
         b"project-triager",
         b"welcome",
+        b"temper-limits",
     ]
     .contains(&kind)
     {
@@ -293,6 +294,12 @@ fn setting(d: &Decoder<'_>, at: u32) -> Result<c::Setting, Error> {
     }
     if optional(&fields, b"project").is_some() {
         return Err(error(b"project", b"unknown member"));
+    }
+    if kind == b"limits" {
+        if fields.len() != 1 {
+            return Err(error(b"number", b"limits has no number"));
+        }
+        return Ok(c::Setting::Limits);
     }
     if kind == b"rules" {
         if fields.len() != 1 {
@@ -337,7 +344,7 @@ fn item(d: &Decoder<'_>, at: u32) -> Result<c::SettingItem, Error> {
                     c::SettingValue::Policy(Box::new(values::setting_policy(d, at)?))
                 }
                 c::Setting::Application { kind, .. } => c::SettingValue::Application(crate::kinds::value(d, at, kind)?),
-                c::Setting::Limits => return Err(error(b"kind", b"unknown setting kind")),
+                c::Setting::Limits => c::SettingValue::Limits(crate::kinds::limits::read(d, at)?.into_boxed()),
                 c::Setting::Rules => c::SettingValue::Rules(Box::new(values::rules(d, at)?)),
             };
             c::SettingEdit::Set(c::SettingSet { value })

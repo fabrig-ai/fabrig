@@ -1033,7 +1033,7 @@ fn neutral_limits_keep_the_wire_value_and_render_one_line_per_override() {
     crate::render::value_inline(&restored, &limits, &mut text);
     assert_eq!(
         text.finish().as_ref(),
-        "tasks.depth = 0 (a reason)\ntasks.tasks = 18446744073709551615 (理由)".as_bytes()
+        "tasks.depth = 0  a reason\ntasks.tasks = 18446744073709551615  理由".as_bytes()
     );
     let bounds = JsonLimits { depth: 8, length: 1024 };
     let mut measured = Encoder::measure(&bounds);
@@ -1042,6 +1042,43 @@ fn neutral_limits_keep_the_wire_value_and_render_one_line_per_override() {
     crate::render::encode_value(&restored, &mut out);
     assert_eq!(
         out.finish().as_ref(),
-        "[\"tasks.depth = 0 (a reason)\",\"tasks.tasks = 18446744073709551615 (理由)\"]".as_bytes()
+        "[{\"name\":\"tasks.depth\",\"value\":0,\"reason\":\"a reason\"},{\"name\":\"tasks.tasks\",\"value\":18446744073709551615,\"reason\":\"理由\"}]".as_bytes()
     );
+}
+
+#[test]
+fn both_limit_kinds_use_a_whole_list_of_named_values_and_reasons() {
+    let limits = Limits::standard();
+    let list = br#"[{"name":"forge.entries","value":16,"reason":"dev's outbox"}]"#;
+    for (kind, setting) in [
+        (br#"{"kind":"limits"}"#.as_slice(), c::Setting::Limits),
+        (br#"{"kind":"temper-limits"}"#, c::Setting::Application { kind: 21, scope: 0, number: 1 }),
+    ] {
+        let bytes = kind_file(kind, list);
+        let items = file::decode(&bytes, &limits).expect("whole override list");
+        let item = items.as_slice().first().unwrap();
+        assert_eq!(item.setting, setting);
+        let c::SettingEdit::Set(set) = &item.edit else { panic!("set list") };
+        assert_eq!(
+            crate::render::limit_values(setting, &set.value).unwrap().as_ref(),
+            &[c::Override {
+                name: b"forge.entries".as_slice().into(),
+                value: 16,
+                reason: b"dev's outbox".as_slice().into(),
+            }]
+        );
+        let shown = shown(&c::ReadValue::Setting(Box::new(c::SettingDocument {
+            setting,
+            revision: 1,
+            value: Some(set.value.clone()),
+            overlay: None,
+            application: None,
+            proposed: None,
+        })));
+        assert!(skein_lib::bytes::find(&shown, list).is_some(), "{shown:?}");
+        assert!(file::decode(&kind_file(kind, b"{}"), &limits).is_err(), "requires list");
+    }
+    for kind in [br#"{"kind":"limits","number":1}"#.as_slice(), br#"{"kind":"temper-limits","project":1}"#] {
+        assert!(file::decode(&kind_file(kind, list), &limits).is_err(), "unnumbered deployment kind");
+    }
 }

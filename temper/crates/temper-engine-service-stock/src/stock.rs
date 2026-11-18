@@ -909,12 +909,13 @@ pub fn forge(_limits: &temper_engine_domain::Limits) -> Box<[temper_engine_domai
             )),
         ),
         (9, 16, settings::Value::CharterWords(bytes::copy_of(b"Keeps its area's port in step with its source."))),
+        (21, 1, settings::Value::Limits(Box::new([]))),
     ];
-    let mut stock = List::with_capacity(17);
+    let mut stock = List::with_capacity(u32::try_from(values.len()).expect("stock default count"));
     for (kind, number, value) in values {
         stock
             .push(settings::Stock { kind, scope: 0, number, value: settings::SizedValue { size: size(&value), value } })
-            .expect("one landing rule, two forge charters, thirteen charter lines and one goal template's work");
+            .expect("one landing rule, two forge charters, thirteen charter lines, one goal template and limits");
     }
     stock.into_boxed()
 }

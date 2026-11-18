@@ -93,7 +93,7 @@ fn every_settings_read_form_and_offset_decodes() {
 fn settings_bad_fields_are_refused_by_name() {
     for spec in &crate::calls::SPECS {
         if [b"settings".as_slice(), b"propose_settings"].contains(&spec.name) {
-            assert!(skein_lib::bytes::find(spec.schema, br#""description":"Setting number; template-goal: its template's. Omit for rules, welcome and unnumbered project settings.""#).is_some());
+            assert!(skein_lib::bytes::find(spec.schema, br#""description":"Setting number (template-goal: template). Omit for rules, welcome, limit kinds and unnumbered project settings.""#).is_some());
         }
     }
     for (input, why) in [
@@ -1174,4 +1174,47 @@ fn a_runs_follow_selector_and_proposal_carry_project_number_and_defaults() {
     assert_eq!(value.start, FollowStart::Owner);
     assert!(value.producer.is_none());
     assert!(value.source.branch.is_empty() && value.target.branch.is_empty() && value.source.paths.is_empty());
+}
+
+#[test]
+fn ask_reads_and_proposes_both_limit_kinds() {
+    use temper_engine_domain_forge::settings as f;
+    let list = s::Value::Limits(Box::new([s::Override {
+        name: b"tasks.tasks".as_slice().into(),
+        value: 16,
+        reason: b"dev".as_slice().into(),
+    }]));
+    let temper = f::Value::Limits(Box::new([s::Override {
+        name: b"forge.entries".as_slice().into(),
+        value: 16,
+        reason: b"dev's outbox".as_slice().into(),
+    }]));
+    for (kind, setting) in
+        [("limits", s::Setting::Limits), ("temper-limits", s::Setting::Application { kind: 21, scope: 0, number: 1 })]
+    {
+        let input = format!(r#"{{"setting":{{"kind":"{kind}"}}}}"#);
+        let call = decided(b"settings", input.as_bytes()).unwrap();
+        assert_eq!(call.tool, engine::Tool::Settings { read: SettingsRead::Setting { setting, revision: 0 }, from: 0 });
+    }
+    let call = decided(b"propose_settings", br#"{"against":1,"reason":"dev","items":[{"setting":{"kind":"limits"},"set":[{"name":"tasks.tasks","value":16,"reason":"dev"}]},{"setting":{"kind":"temper-limits"},"set":[{"name":"forge.entries","value":16,"reason":"dev's outbox"}]}]}"#).unwrap();
+    let engine::Tool::ProposeSettings { items, kinds, .. } = call.tool else { panic!("proposal") };
+    assert_eq!(
+        items.as_ref(),
+        &[
+            s::Item { setting: s::Setting::Limits, edit: s::Edit::Set(list) },
+            s::Item {
+                setting: s::Setting::Application { kind: 21, scope: 0, number: 1 },
+                edit: s::Edit::Set(s::Value::Application(crate::kinds::encode(&temper))),
+            }
+        ]
+    );
+    assert_eq!(
+        kinds.as_ref(),
+        &[engine::KindValue {
+            kind: 21,
+            scope: 0,
+            number: 1,
+            value: f::SizedValue { size: crate::kinds::size(&temper), value: temper }
+        }]
+    );
 }

@@ -86,7 +86,7 @@ Next: settings rules · settings landing · settings project-ways · settings pr
 
 Newest revision; settings and their last revisions, held revisions, waiting proposals; project repositories, people, forge accounts and offer.
 
-Next: settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings rules · settings landing-rule N · settings landing-rule N project · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings project-classes · revisions · help settings
+Next: settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings rules · settings landing-rule N · settings landing-rule N project · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings project-classes · settings limits · settings temper-limits · revisions · help settings
 
 ## settings charter N
 
@@ -135,6 +135,18 @@ Next: settings · revisions · help settings-fields
 Template work: whether its coordinator designs first and makes a close-out; with none stored, stock planning and no close-out, marked so.
 
 Next: settings template N · ways · help settings-fields
+
+## settings limits
+
+Deployment overrides of core limits: name, value and reason, one line per override.
+
+Next: settings temper-limits · help settings-fields
+
+## settings temper-limits
+
+Deployment overrides of application limits: name, value and reason, one line per override.
+
+Next: settings limits · help settings-fields
 
 ## settings rules
 

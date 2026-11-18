@@ -420,6 +420,16 @@ pub(crate) fn reads(
             {
                 return failure(b"unknown revision", reading.called.json, 2);
             }
+            Readout::Family { .. } if reading.called.call.tool == crate::jig::rows::SETTINGS_AT && *local == 3 => {
+                let query = crate::jig::runner::application::Query::Setting(contract::Setting::Application {
+                    kind: 21,
+                    scope: 0,
+                    number: 1,
+                });
+                if vocabulary.application_answer(query, page).is_none() {
+                    return failure(b"malformed limits setting", reading.called.json, 1);
+                }
+            }
             Readout::Jig(ReadResult::Value(value)) => {
                 if let ReadValue::TaskText(page) = value
                     && !task_source::fits(page, limits)
@@ -534,6 +544,7 @@ fn check_selected(call: &crate::jig::call::Call, local: u32, value: &ReadValue) 
         | (4 | 5, 1, ReadValue::Activity(_))
         | (6, 1, ReadValue::Turn(_))
         | (crate::jig::rows::SETTINGS_AT, 1, ReadValue::Settings(_))
+        | (crate::jig::rows::SETTINGS_AT, 2, ReadValue::Setting(_))
         | (crate::jig::rows::SETTING_AT, 1, ReadValue::Setting(_))
         | (crate::jig::rows::REVISION_AT, 1, ReadValue::Revision(_))
         | (crate::jig::rows::REVISIONS_AT, 1, ReadValue::Revisions(_)) => Ok(()),

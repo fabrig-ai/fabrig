@@ -406,6 +406,7 @@ fn setting_is(edit: &forge::settings::Edit, repository: Repository) -> bool {
             | Value::Questions(_)
             | Value::Ways(_)
             | Value::Classes(_)
+            | Value::Limits(_)
             | Value::CharterWords(_)
             | Value::ProjectWords(_)
             | Value::Goal(_)

@@ -2,6 +2,9 @@
 //! (temper/docs/design/protocol/configuration/settings.md, 2 and 3;
 //! temper/docs/design/domain/forge/change/gates.md, 3).
 use alloc::boxed::Box;
+use jig_domain_core_vocabulary::settings::{Override, OverrideFault, check_overrides};
+mod limits;
+pub use limits::{limits_from, limits_record};
 
 use crate::{GateLast, GatePattern, JudgeFreshness, Limits, Repository, Requires, Touched, gates::covers};
 
@@ -28,6 +31,8 @@ pub enum Kind {
     ProjectAreas,
     ProjectTriager,
     Welcome,
+    /// Deployment overrides (protocol/configuration/limit-settings.md, 2.3).
+    Limits,
 }
 
 impl Kind {
@@ -50,6 +55,7 @@ impl Kind {
             Self::ProjectAreas => 14,
             Self::ProjectTriager => 15,
             Self::Welcome => 20,
+            Self::Limits => 21,
         }
     }
 
@@ -72,6 +78,7 @@ impl Kind {
             14 => Some(Self::ProjectAreas),
             15 => Some(Self::ProjectTriager),
             20 => Some(Self::Welcome),
+            21 => Some(Self::Limits),
             _ => None,
         }
     }
@@ -241,6 +248,7 @@ pub enum Value {
     Landing(ProjectLanding),
     Gates(ProjectGates),
     Welcome(Welcome),
+    Limits(Box<[Override]>),
     Rule(LandingRule),
     Charter(u32),
     Questions(temper_engine_domain_forge_change::Route),
@@ -422,6 +430,7 @@ pub enum Refusal {
     Classes(temper_protocol_reaches::Refusal),
     /// Invalid setting words (temper/docs/design/protocol/configuration/settings.md, 2).
     Words,
+    Overrides(OverrideFault),
     FollowPaths,
     FollowPath,
     FollowProducer,
@@ -488,6 +497,7 @@ impl Refusal {
             return words.into_boxed();
         }
         let words: &[u8] = match self {
+            Self::Overrides(fault) => return limits::fault_words(*fault),
             Self::Kind => b"not a kind of the forge's",
             Self::Scope => b"a scope this kind does not have",
             Self::Number => b"a number this kind does not have",
@@ -544,7 +554,12 @@ fn within(len: usize, bound: u32) -> bool {
 pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
     let kind = Kind::of(item.kind).ok_or(Refusal::Kind)?;
     match kind {
-        Kind::DeploymentRules | Kind::Charters | Kind::CharterWords | Kind::TemplateGoal | Kind::Welcome
+        Kind::DeploymentRules
+        | Kind::Charters
+        | Kind::CharterWords
+        | Kind::TemplateGoal
+        | Kind::Welcome
+        | Kind::Limits
             if item.scope != 0 =>
         {
             return Err(Refusal::Scope);
@@ -579,6 +594,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
         | Kind::ProjectTriager
         | Kind::Dependency
         | Kind::Follow
+        | Kind::Limits
         | Kind::Welcome => {}
     }
     let numbers = match kind {
@@ -593,6 +609,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
         | Kind::ProjectAreas
         | Kind::ProjectTriager
         | Kind::ProjectWords
+        | Kind::Limits
         | Kind::Welcome => 1,
         Kind::TemplateGoal => bounds.templates,
         Kind::Follow => bounds.follows,
@@ -602,6 +619,32 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
         return Err(Refusal::Number);
     }
     let rule = match kind {
+        Kind::Limits => {
+            return match &item.value {
+                Some(Value::Limits(value)) => match check_overrides(value) {
+                    Ok(()) => Ok(()),
+                    Err(fault) => Err(Refusal::Overrides(fault)),
+                },
+                None => Ok(()),
+                Some(
+                    Value::Landing(_)
+                    | Value::Gates(_)
+                    | Value::Welcome(_)
+                    | Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Questions(_)
+                    | Value::Ways(_)
+                    | Value::Classes(_)
+                    | Value::CharterWords(_)
+                    | Value::ProjectWords(_)
+                    | Value::Goal(_)
+                    | Value::Follow(_)
+                    | Value::Dependency(_)
+                    | Value::ProjectAreas(_)
+                    | Value::ProjectTriager(_),
+                ) => Err(Refusal::Value),
+            };
+        }
         Kind::ProjectLanding => {
             return match &item.value {
                 Some(Value::Landing(v)) => landing::judge_landing(v, bounds),
@@ -613,6 +656,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Questions(_)
                     | Value::Ways(_)
                     | Value::Classes(_)
+                    | Value::Limits(_)
                     | Value::CharterWords(_)
                     | Value::ProjectWords(_)
                     | Value::Goal(_)
@@ -635,6 +679,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Questions(_)
                     | Value::Ways(_)
                     | Value::Classes(_)
+                    | Value::Limits(_)
                     | Value::CharterWords(_)
                     | Value::ProjectWords(_)
                     | Value::Goal(_)
@@ -655,6 +700,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                 | Value::Goal(_)
                 | Value::Questions(_)
                 | Value::Ways(_)
+                | Value::Limits(_)
                 | Value::CharterWords(_)
                 | Value::Classes(_)
                 | Value::ProjectAreas(_)
@@ -677,6 +723,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Goal(_)
                     | Value::Questions(_)
                     | Value::Ways(_)
+                    | Value::Limits(_)
                     | Value::CharterWords(_)
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)
@@ -698,6 +745,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Charter(_)
                     | Value::Goal(_)
                     | Value::Ways(_)
+                    | Value::Limits(_)
                     | Value::CharterWords(_)
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)
@@ -724,6 +772,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Questions(_)
                     | Value::Ways(_)
                     | Value::Goal(_)
+                    | Value::Limits(_)
                     | Value::CharterWords(_)
                     | Value::ProjectAreas(_)
                     | Value::Landing(_)
@@ -744,6 +793,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Charter(_)
                     | Value::Goal(_)
                     | Value::Questions(_)
+                    | Value::Limits(_)
                     | Value::CharterWords(_)
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)
@@ -766,7 +816,8 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                 }
                 None => Ok(()),
                 Some(
-                    Value::Dependency(_)
+                    Value::Limits(_)
+                    | Value::Dependency(_)
                     | Value::Follow(_)
                     | Value::Rule(_)
                     | Value::Charter(_)
@@ -801,6 +852,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Goal(_)
                     | Value::Questions(_)
                     | Value::Ways(_)
+                    | Value::Limits(_)
                     | Value::CharterWords(_)
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)
@@ -824,6 +876,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Questions(_)
                     | Value::Ways(_)
                     | Value::Classes(_)
+                    | Value::Limits(_)
                     | Value::CharterWords(_)
                     | Value::ProjectWords(_)
                     | Value::Landing(_)
@@ -845,6 +898,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Questions(_)
                     | Value::Ways(_)
                     | Value::Classes(_)
+                    | Value::Limits(_)
                     | Value::CharterWords(_)
                     | Value::ProjectWords(_)
                     | Value::Landing(_)
@@ -871,6 +925,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Questions(_)
                     | Value::Ways(_)
                     | Value::Classes(_)
+                    | Value::Limits(_)
                     | Value::CharterWords(_)
                     | Value::ProjectWords(_)
                     | Value::Goal(_),
@@ -893,6 +948,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Questions(_)
                     | Value::Ways(_)
                     | Value::Classes(_)
+                    | Value::Limits(_)
                     | Value::CharterWords(_)
                     | Value::ProjectWords(_)
                     | Value::Goal(_),
@@ -908,6 +964,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Questions(_)
                     | Value::Ways(_)
                     | Value::Classes(_)
+                    | Value::Limits(_)
                     | Value::CharterWords(_)
                     | Value::ProjectWords(_)
                     | Value::Goal(_)
@@ -930,6 +987,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Charter(_)
                     | Value::Questions(_)
                     | Value::Ways(_)
+                    | Value::Limits(_)
                     | Value::CharterWords(_)
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)

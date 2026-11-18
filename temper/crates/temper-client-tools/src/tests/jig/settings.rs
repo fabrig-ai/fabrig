@@ -568,8 +568,11 @@ fn read(argv: &[&str], value: c::ReadValue) -> jig::Printed {
     }
     serve_review(&mut root, call, value);
     while let Some((_, c::Read::Setting(request))) = root.reads.get(&call).cloned() {
-        let (_, value) =
-            values().into_iter().find(|(setting, _)| *setting == request.setting).expect("fixture setting");
+        let value = if request.setting == c::Setting::Limits {
+            c::SettingValue::Limits(Box::new([]))
+        } else {
+            values().into_iter().find(|(setting, _)| *setting == request.setting).expect("fixture setting").1
+        };
         root.serve(
             call,
             c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
@@ -586,6 +589,11 @@ fn read(argv: &[&str], value: c::ReadValue) -> jig::Printed {
         root.serve(call, c::ReadResult::Value(c::ReadValue::Revision(Box::new(c::RevisionAnswer::Unknown))));
     }
     while root.family_reads.contains_key(&call) {
+        if let temper_client_protocol_wire::v1::Read::Setting(query) = forge_query(&root, call) {
+            assert_eq!(query.kind(), 21, "inventory limit read");
+            root.serve_readout(call, forge_setting_page(None));
+            continue;
+        }
         let temper_client_protocol_wire::v1::Read::RevisionSetting(query) = forge_query(&root, call) else {
             panic!("revision value")
         };

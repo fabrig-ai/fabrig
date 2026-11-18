@@ -205,6 +205,7 @@ fn way_refusal(domain: &Domain, owner: Option<skein_lib::Token>, asked: &setting
         | settings::Value::ProjectAreas(_)
         | settings::Value::Landing(_)
         | settings::Value::Gates(_)
+        | settings::Value::Limits(_)
         | settings::Value::Welcome(_)
         | settings::Value::ProjectTriager(_)
         | settings::Value::ProjectWords(_) => return None,
@@ -269,6 +270,7 @@ fn approval_for_projects(domain: &Domain, asked: &settings::Asked, projects: &[u
         | settings::Value::ProjectAreas(_)
         | settings::Value::Landing(_)
         | settings::Value::Gates(_)
+        | settings::Value::Limits(_)
         | settings::Value::Welcome(_)
         | settings::Value::ProjectTriager(_)
         | settings::Value::ProjectWords(_)
@@ -735,6 +737,7 @@ fn owner_refusal(domain: &Domain, bounds: &settings::Bounds, asked: &settings::A
         | settings::Value::CharterWords(_)
         | settings::Value::ProjectWords(_)
         | settings::Value::Dependency(_)
+        | settings::Value::Limits(_)
         | settings::Value::Welcome(_)
         | settings::Value::Follow(_) => None,
     }

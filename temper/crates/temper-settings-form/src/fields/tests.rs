@@ -5,7 +5,7 @@ use skein_json::writer::{Encoder, Limits as JsonLimits};
 use skein_lib::List;
 
 // T1 names every decoder shape, including the alternative-only objects.
-const SHAPES: [Shape; 84] = [
+const SHAPES: [Shape; 87] = [
     Shape::File,
     Shape::Item,
     Shape::Setting,
@@ -90,6 +90,9 @@ const SHAPES: [Shape; 84] = [
     Shape::ProjectTriager,
     Shape::Area,
     Shape::AreaOwner,
+    Shape::Limits,
+    Shape::TemperLimits,
+    Shape::LimitOverride,
 ];
 fn kinds() -> &'static [Word] {
     for field in members(Shape::Setting) {
@@ -139,6 +142,15 @@ fn routes(target: Shape) -> [bool; SHAPES.len()] {
         for field in &FIELDS {
             if !seen[index(field.shape)] && reaches(&field.value, &seen) {
                 seen[index(field.shape)] = true;
+                changed = true;
+            }
+        }
+        for form in &FORMS {
+            if let Choice::List { item, .. } = form.choice
+                && seen[index(item)]
+                && !seen[index(form.shape)]
+            {
+                seen[index(form.shape)] = true;
                 changed = true;
             }
         }
@@ -271,6 +283,12 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                 let fields = members(shape);
                 let selected = match form(shape).choice {
                     Choice::Every => None,
+                    Choice::List { item, .. } => {
+                        out.array_start();
+                        stack.push(Action::EndArray).expect("schema stack bound");
+                        stack.push(Action::Shape(item)).expect("schema stack bound");
+                        continue;
+                    }
                     Choice::Text => {
                         out.string(b"words");
                         continue;
@@ -343,6 +361,8 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                         && [
                             b"rules".as_slice(),
                             b"welcome",
+                            b"limits",
+                            b"temper-limits",
                             b"project-policy",
                             b"project-ways",
                             b"project-questions",

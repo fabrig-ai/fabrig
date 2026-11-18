@@ -177,6 +177,7 @@ fn the_turn_landing_settings_select_turn_two_and_its_blocking_gate() {
             | settings::Value::Questions(_)
             | settings::Value::Ways(_)
             | settings::Value::Classes(_)
+            | settings::Value::Limits(_)
             | settings::Value::CharterWords(_)
             | settings::Value::ProjectWords(_)
             | settings::Value::Goal(_)

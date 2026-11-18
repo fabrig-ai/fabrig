@@ -56,7 +56,7 @@ fn configured_world(configs: [engine::Config; 2]) -> ClientWorld {
 fn call(world: &mut ClientWorld, agent: ClientId, words: &[&[u8]]) -> String {
     let number = fixtures::give(world, agent, words);
     let printed = fixtures::answered(world, agent, number);
-    assert_eq!(printed.status, 0, "{printed:?}");
+    assert_eq!(printed.status, 0, "{words:?}: {printed:?}");
     String::from_utf8(printed.stdout.into_vec()).expect("ctl UTF-8")
 }
 
@@ -983,4 +983,31 @@ fn ctl_directory_overlay_exports_applies_back_and_takes_a_new_default_after_rest
     assert!(shown.contains("new default\\n\\ncommon\\n\\nour implementation rules"), "{shown}");
     let inventory = call(&mut world, agent, &[b"settings", b"show"]);
     assert!(inventory.contains("charter 2: overlay"), "{inventory}");
+}
+
+#[test]
+fn limit_files_apply_show_and_review_as_one_named_list() {
+    let mut world = revision_world();
+    let agent = fixtures::agent(&mut world);
+    let file = br#"{"items":[{"setting":{"kind":"limits"},"set":[{"name":"tasks.tasks","value":32,"reason":"more work"}]},{"setting":{"kind":"temper-limits"},"set":[{"name":"forge.entries","value":16,"reason":"dev's outbox"}]}]}"#;
+    let number = fixtures::give_with_file(
+        &mut world,
+        agent,
+        &[b"settings", b"apply", b"limits.json", b"--against", b"1", b"--key", b"limits"],
+        file,
+    );
+    let applied = fixtures::answered(&mut world, agent, number);
+    assert_eq!(applied.status, 0, "{applied:?}");
+    assert!(call(&mut world, agent, &[b"settings", b"show", b"limits"]).contains("tasks.tasks = 32  more work"));
+    assert!(
+        call(&mut world, agent, &[b"settings", b"show", b"temper-limits"]).contains("forge.entries = 16  dev's outbox")
+    );
+    for words in [vec![b"settings".as_slice(), b"show"], vec![b"revision", b"show", b"2"]] {
+        let text = call(&mut world, agent, &words);
+        let first = text.find("forge.entries = 16  dev's outbox [temper-limits]").expect(&text);
+        let second = text.find("tasks.tasks = 32  more work [limits]").expect(&text);
+        assert!(first < second, "one list by name: {text}");
+    }
+    let shown = call(&mut world, agent, &[b"settings", b"show", b"temper-limits", b"--json"]);
+    assert!(shown.contains(r#""value":[{"name":"forge.entries","value":16,"reason":"dev's outbox"}]"#), "{shown}");
 }

@@ -17,6 +17,19 @@ pub fn forge_items(stock: &[temper_engine_domain_forge::settings::Stock]) -> Vec
         }
         let value = match &stock.value.value {
             settings::Value::Charter(charter) => json!(charter),
+            settings::Value::Limits(overrides) => {
+                setting = json!({"kind":"temper-limits"});
+                json!(
+                    overrides
+                        .iter()
+                        .map(|value| json!({
+                            "name": std::str::from_utf8(&value.name).expect("admitted override name"),
+                            "value": value.value,
+                            "reason": std::str::from_utf8(&value.reason).expect("admitted override reason"),
+                        }))
+                        .collect::<Vec<_>>()
+                )
+            }
             settings::Value::Welcome(welcome) => {
                 setting = json!({"kind":"welcome"});
                 json!({"shown":welcome.shown})

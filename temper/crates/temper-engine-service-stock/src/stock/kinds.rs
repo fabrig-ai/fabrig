@@ -72,6 +72,17 @@ pub fn kinds(limits: &Limits, connector: u16) -> Box<[Kind]> {
             .push(settings::Area { name: word(32), words: word(480), owner: settings::AreaOwner::Task(u64::MAX) })
             .expect("bounded areas");
     }
+    let mut overrides = List::with_capacity(jig_domain_core::settings::OVERRIDES);
+    for _ in 0..jig_domain_core::settings::OVERRIDES {
+        overrides
+            .push(jig_domain_core::settings::Override {
+                name: word(jig_domain_core::settings::OVERRIDE_NAME_BYTES),
+                value: u64::MAX,
+                reason: word(jig_domain_core::settings::OVERRIDE_REASON_BYTES),
+            })
+            .expect("bounded override count");
+    }
+    let limits_bytes = size(&settings::Value::Limits(overrides.into_boxed()));
     Box::new([
         Kind {
             number: 1,
@@ -213,6 +224,14 @@ pub fn kinds(limits: &Limits, connector: u16) -> Box<[Kind]> {
             scope: KindScope::Deployment,
             connector,
             value_bytes: size(&settings::Value::Welcome(settings::Welcome { shown: true })),
+            per_scope: 1,
+            charters: 0,
+        },
+        Kind {
+            number: 21,
+            scope: KindScope::Deployment,
+            connector,
+            value_bytes: limits_bytes,
             per_scope: 1,
             charters: 0,
         },

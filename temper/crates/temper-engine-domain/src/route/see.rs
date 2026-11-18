@@ -225,6 +225,8 @@ pub(crate) fn address(line: &[u8], project: u32) -> Address {
     match words.as_slice() {
         [b"ways"] => Address::Ways,
         [b"settings"] => Address::Inventory,
+        [b"settings", b"limits"] => Address::Setting(Setting::Limits),
+        [b"settings", b"temper-limits"] => Address::Setting(Setting::Application { kind: 21, scope: 0, number: 1 }),
         [b"settings", b"rules"] => Address::Setting(Setting::Rules),
         [b"settings", b"welcome"] => Address::Setting(Setting::Application { kind: 20, scope: 0, number: 1 }),
         [b"settings", b"landing"] => Address::Landing,

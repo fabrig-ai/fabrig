@@ -1,4 +1,4 @@
-family temper-client-wire 31
+family temper-client-wire 32
 
 # The role, as temper-engine-domain-forge's Role, in its order.
 enum Role { owned, adopted, fork, context }
@@ -523,3 +523,7 @@ record Welcome { shown: bool }
 record AreaRow { name: text 32 words: text 480 owner: AreaOwner holder: option Holder }
 versioned record Findings { project: u32 rows: list 128 FindingRow areas: list 16 AreaRow triager: option AreaOwner holder: Holder cut: bool }
 
+
+# Limit overrides (protocol/configuration/limit-settings.md, 2.3).
+record LimitOverride { name: bytes 64 value: u64 reason: text 120 }
+record TemperLimits { overrides: list 256 LimitOverride }

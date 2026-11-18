@@ -401,7 +401,8 @@ impl Domain {
             None => false,
             Some(settings::SizedValue {
                 value:
-                    Value::Rule(_)
+                    Value::Limits(_)
+                    | Value::Rule(_)
                     | Value::Charter(_)
                     | Value::Questions(_)
                     | Value::Ways(_)
@@ -440,6 +441,7 @@ impl Domain {
                     | Value::ProjectAreas(_)
                     | Value::Landing(_)
                     | Value::Gates(_)
+                    | Value::Limits(_)
                     | Value::Welcome(_)
                     | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
@@ -468,6 +470,7 @@ impl Domain {
                     | Value::ProjectAreas(_)
                     | Value::Landing(_)
                     | Value::Gates(_)
+                    | Value::Limits(_)
                     | Value::Welcome(_)
                     | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
@@ -496,6 +499,7 @@ impl Domain {
                     | Value::ProjectAreas(_)
                     | Value::Landing(_)
                     | Value::Gates(_)
+                    | Value::Limits(_)
                     | Value::Welcome(_)
                     | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
@@ -524,6 +528,7 @@ impl Domain {
                     | Value::ProjectAreas(_)
                     | Value::Landing(_)
                     | Value::Gates(_)
+                    | Value::Limits(_)
                     | Value::Welcome(_)
                     | Value::ProjectTriager(_),
                 ..
@@ -551,6 +556,7 @@ impl Domain {
                     | Value::ProjectAreas(_)
                     | Value::Landing(_)
                     | Value::Gates(_)
+                    | Value::Limits(_)
                     | Value::Welcome(_)
                     | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
@@ -785,6 +791,7 @@ impl Domain {
                     | Value::ProjectAreas(_)
                     | Value::Landing(_)
                     | Value::Gates(_)
+                    | Value::Limits(_)
                     | Value::Welcome(_)
                     | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
@@ -845,6 +852,7 @@ fn value_state(value: Option<&settings::SizedValue>) -> (u32, Option<u32>) {
                 | Value::ProjectAreas(_)
                 | Value::Landing(_)
                 | Value::Gates(_)
+                | Value::Limits(_)
                 | Value::Welcome(_)
                 | Value::ProjectTriager(_)
                 | Value::ProjectWords(_),
