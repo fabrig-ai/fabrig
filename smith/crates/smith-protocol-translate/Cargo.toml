@@ -19,3 +19,6 @@ smith-domain-tools.workspace = true
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+skein-codegen.workspace = true

@@ -115,10 +115,8 @@ fn opened_rehearsal() -> World {
     world.host = Drivers::new(&limits, 2);
     world.store = Store::on_directory(&limits, fixtures::APPLICATION, &[], world.host.seeded());
     world.store.owner_sets(OwnerSets { sets: &[OwnerSet { jobs: &[JOB], ..BASE }] });
-    world
-        .host
-        .adopt_mode(world.fd, 0, Token::new(41), fixtures::INSTALLATION, super::super::Adoption::Rehearse { scratch })
-        .unwrap();
+    let mode = super::super::Adoption::Rehearse { scratch, reach: crate::Reach::Whole };
+    world.host.adopt_mode(world.fd, 0, Token::new(41), fixtures::INSTALLATION, mode).unwrap();
     let mut pages = 0_u64;
     let mut handed = 0_u64;
     let mut consumed = 0_u64;

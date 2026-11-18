@@ -22,6 +22,14 @@ jig's `protocol/store/checkpoints.md`, and how it restores one is jig's
   takes a safety checkpoint first, then makes NAME's state the
   deployment's, crash-safe (2.5).
 - **The setting:** `store.checkpoints.keep`, default 2 (4).
+- **The redeploy** (`../redeploy.md`, 4.1, 4.2 and 4.6) takes one
+  through the act while the old build serves, for the new build's
+  check; one at each settled stop with the installed build, as its
+  backup; and goes back after the new generation's first commit by the
+  new build's `restore` of the stop's checkpoint, then starts the
+  previous build. The new build restores, since the safety checkpoint's
+  open refuses a store ahead of the build that opens it (jig's
+  `protocol/store/restoring.md`, 4.3).
 
 ## 2. The commands
 
@@ -200,7 +208,7 @@ enum CheckpointWhy { NotOwner, InProgress, Unavailable, Files, Unrecognized { pa
   and `--remove` excluding each other, a NAME of another form refused;
   their lines from given answers, `restore`'s among them; `--hold`'s
   child spawned as 2.2 says and its exit mapped from given io events; the family's request and outcome with
-  golden bytes; the root admitting an owner's act, asking the store and
+  built-value round trips; the root admitting an owner's act, asking the store and
   answering only at its terminal, refusing a project owner and a task
   `NotOwner`; the tool's text and JSON, and its timeout; the setting's
   default, an override of 3, and 0 and 65 refused.
@@ -215,11 +223,5 @@ enum CheckpointWhy { NotOwner, InProgress, Unavailable, Files, Unrecognized { pa
 
 ## 6. Open questions
 
-- **The redeploy with checkpoints** is milestone C3
-  (`draft/checkpoints.execution.md`). A restore's safety checkpoint
-  needs a build that opens the deployment as it stands. So going back
-  after the first commit, over a store the new build has upgraded,
-  restores with the new build, not the previous one (jig's
-  `protocol/store/restoring.md`, 9).
 - **A list of checkpoints:** none of the commands lists them; `ls`
   of `checkpoints/` and each one's record serve until one does.

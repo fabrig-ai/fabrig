@@ -1,5 +1,5 @@
 use super::*;
-pub use jig_client_test_records::FULL_TURN;
+pub use jig_client_test_records::full_turn;
 use skein_lib::{List, Wall};
 pub fn decoded_turn(words: &[u8], cut: bool) -> c::TurnRead {
     let mut blocks = List::with_capacity(1);
@@ -156,7 +156,7 @@ pub fn single_turn_record(body: &[u8]) -> w::ArchivedTurn {
     .unwrap()
 }
 pub fn single_turn_value() -> w::ReadValue {
-    w::ReadValue::Turn(single_turn_record(FULL_TURN))
+    w::ReadValue::Turn(single_turn_record(&full_turn()))
 }
 pub fn expected_single_turn() -> c::ArchivedTurn {
     c::ArchivedTurn {

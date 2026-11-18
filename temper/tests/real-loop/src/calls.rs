@@ -71,6 +71,7 @@ pub enum Step {
     /// Release a fake LLM hold through its owner in the loop.
     ReleaseHold {
         name: &'static [u8],
+        after_queries: usize,
     },
     /// Drain the engine, retaining its store and directories while workers live.
     StopEngine,
@@ -323,7 +324,14 @@ pub fn start_worker(name: &'static str) -> Step {
 /// Release the named fake LLM hold before proceeding.
 #[must_use]
 pub fn release_hold(name: &'static [u8]) -> Step {
-    Step::ReleaseHold { name }
+    release_hold_after_queries(name, 0)
+}
+
+/// Release a scripted response only after the peer has received this many queries.
+/// A retry repeats its input, so it need not advance the script's turn.
+#[must_use]
+pub fn release_hold_after_queries(name: &'static [u8], after_queries: usize) -> Step {
+    Step::ReleaseHold { name, after_queries }
 }
 #[must_use]
 pub fn push(path: &'static [u8], words: &'static [u8]) -> Step {
@@ -668,9 +676,13 @@ impl Caller {
                 writeln!(out, "caller waits_for=held request {:?}", String::from_utf8_lossy(name))
                     .expect("string writer");
             }
-            Some(Step::ReleaseHold { name }) => {
-                writeln!(out, "caller waits_for=LLM hold release {:?}", String::from_utf8_lossy(name))
-                    .expect("string writer");
+            Some(Step::ReleaseHold { name, after_queries }) => {
+                writeln!(
+                    out,
+                    "caller waits_for=LLM hold release {:?} after {after_queries} queries",
+                    String::from_utf8_lossy(name)
+                )
+                .expect("string writer");
             }
             Some(Step::StopEngine | Step::StartEngine { .. }) => out.push_str("caller waits_for=engine transition\n"),
             Some(Step::WorkerCancelled { name }) => {
@@ -827,7 +839,13 @@ impl Caller {
         if let Some(Step::StartWorker { name }) = self.steps.get(self.next) { Some(*name) } else { None }
     }
     pub(crate) fn releasing_hold(&self) -> Option<&'static [u8]> {
-        if let Some(Step::ReleaseHold { name }) = self.steps.get(self.next) { Some(*name) } else { None }
+        if let Some(Step::ReleaseHold { name, after_queries }) = self.steps.get(self.next)
+            && self.llm_queries.get() >= *after_queries
+        {
+            Some(*name)
+        } else {
+            None
+        }
     }
     pub(crate) fn advancing(&self) -> bool {
         matches!(self.steps.get(self.next), Some(Step::Advance))

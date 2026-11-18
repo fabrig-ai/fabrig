@@ -573,7 +573,7 @@ impl Judge {
         (self.fixture.configure)(&mut value, &mut agent, forge);
         self.settings = process_settings(&mut value);
         value["application"]["webhooks"] = json!({"listener":{"socket":"127.0.0.1:0"}});
-        super::configuration::turn_bounds::apply_with_stock(&mut value, &agent);
+        super::configuration::use_derived(&mut value);
         value["engine"]["hosts"]["listener"] = json!([{"socket":self.hosts.to_string()}]);
         for key in ["fleet.workers", "fleet.attempts"] {
             // tests/real-loop/src/cluster.rs: one admitted position/attempt per worker.
@@ -1149,7 +1149,7 @@ fn describe(step: &calls::Step) -> String {
         Step::TrialEnded => "TrialEnded".into(),
         Step::Return => "Return".into(),
         Step::Terminal(_) => "Terminal".into(),
-        Step::ReleaseHold { name } => format!("ReleaseHold {}", String::from_utf8_lossy(name)),
+        Step::ReleaseHold { name, .. } => format!("ReleaseHold {}", String::from_utf8_lossy(name)),
         Step::Advance => "Advance".into(),
         Step::Push { path, .. } => format!("Push {}", String::from_utf8_lossy(path)),
         Step::AddWorker { name } => format!("AddWorker {name}"),

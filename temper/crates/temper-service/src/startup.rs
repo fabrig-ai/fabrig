@@ -124,7 +124,40 @@ pub fn box_worker(
     agents: &temper_client_protocol_wire::v1::AgentFigures,
     own: &[worker::application::EnvironmentEntry],
 ) -> Result<Option<WorkerPart>, Problems> {
-    let parsed = parse_with(document, directories, given)?;
+    box_worker_over(document, directories, given, agents, own, None)
+}
+
+/// Compose a box's carriers from the same agent declaration its engine starts with
+/// (protocol/configuration/derived.md, 2 and 4).
+pub fn box_worker_with_agent(
+    document: &[u8],
+    directories: &config::Directories,
+    given: &crate::stock::Given,
+    agents: &temper_client_protocol_wire::v1::AgentFigures,
+    own: &[worker::application::EnvironmentEntry],
+    agent: &Declaration,
+) -> Result<Option<WorkerPart>, Problems> {
+    box_worker_over(document, directories, given, agents, own, Some(agent))
+}
+
+fn box_worker_over(
+    document: &[u8],
+    directories: &config::Directories,
+    given: &crate::stock::Given,
+    agents: &temper_client_protocol_wire::v1::AgentFigures,
+    own: &[worker::application::EnvironmentEntry],
+    agent: Option<&Declaration>,
+) -> Result<Option<WorkerPart>, Problems> {
+    let sources = match agent {
+        Some(agent) => temper_service_core::derived::Sources::agent(agent),
+        None => temper_service_core::derived::STOCK,
+    };
+    let mut parsed = load_with_sources(document, directories, true, given, sources)?
+        .1
+        .ok_or(problem(Path::root().member(b"engine"), What::Standalone))?;
+    if let Some(agent) = agent {
+        parsed.compose(agent)?;
+    }
     let Some(jig) = parsed.workers.into_iter().next() else { return Ok(None) };
     let mut configured = parsed.application.workers.into_iter().next().expect("one application worker checked");
     configured.environment = worker::application::agents_environment(Some(&configured.environment), own);

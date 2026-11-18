@@ -45,6 +45,52 @@ fn the_box_keeps_entries_then_its_own_home_and_path() {
 }
 
 #[test]
+fn a_box_derives_its_composed_carriers_from_its_agent() {
+    use temper_client_protocol_wire::v1 as w;
+
+    let mut document: serde_json::Value = serde_json::from_slice(&fixtures::stock_document()).unwrap();
+    // Exercise derivation, not the init template's explicit stock carriers.
+    for name in ["hub.event_bytes", "hub.turn_bytes"] {
+        document["engine"]["limits"]["overrides"].as_object_mut().unwrap().remove(name);
+    }
+    let document = serde_json::to_vec(&document).unwrap();
+    let agent = fixtures::parsed_agent(fixtures::stock_configuration(8192, 48_000).unwrap());
+    let mut agents = crate::stock::agents().into_parts();
+    for figure in agents.profile.iter_mut() {
+        if figure.name() == b"declared.tool_payload" {
+            *figure = w::AgentFigure::new(
+                &w::CEILINGS,
+                w::AgentFigureParts { name: b"declared.tool_payload".as_slice().into(), value: 8192 },
+            )
+            .unwrap();
+        }
+    }
+    let agents = w::AgentFigures::new(&w::CEILINGS, agents).unwrap();
+    let part = startup::box_worker_with_agent(
+        &document,
+        &jig_protocol_config::Directories::working(),
+        &crate::stock::Given::Stock,
+        &agents,
+        &[],
+        &agent.declaration(),
+    )
+    .unwrap()
+    .unwrap();
+    let limits = crate::worker_settings::root_limits(&part.worker, &agent, &part.limits);
+    let mut problems = temper_worker_service::startup::Problems::empty();
+    temper_worker_service::startup::worker::worker(&limits, &mut problems);
+    assert!(problems.is_empty(), "{problems:?}");
+    let figures = part.figures.unwrap();
+    let mut turn = None;
+    for limit in figures.limits() {
+        if limit.name() == b"hub.turn_bytes" {
+            turn = Some(limit.value());
+        }
+    }
+    assert_eq!(turn, Some(u64::from(agent.declaration().turn_body)));
+}
+
+#[test]
 fn an_engine_alone_refuses_application_environment() {
     let mut document: serde_json::Value = serde_json::from_slice(&fixtures::engine_alone_document()).unwrap();
     document["application"]["environment"] = serde_json::json!([{"name":"A","value":"one"}]);

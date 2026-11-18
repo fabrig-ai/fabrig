@@ -98,7 +98,13 @@ fn adoption_modes_open_rehearse_and_go_back_without_an_implicit_open() {
     world.store = Store::on_directory(&fixtures::store_limits(), fixtures::APPLICATION, &[], world.host.seeded());
     world
         .host
-        .adopt_mode(world.fd, 0, Token::new(41), fixtures::INSTALLATION, super::Adoption::Rehearse { scratch })
+        .adopt_mode(
+            world.fd,
+            0,
+            Token::new(41),
+            fixtures::INSTALLATION,
+            super::Adoption::Rehearse { scratch, reach: crate::Reach::Whole },
+        )
         .unwrap();
     world.settle();
     let Some(Event::Rehearsing { .. }) = world.above.pop() else { panic!("no implicit Open before Rehearsing") };

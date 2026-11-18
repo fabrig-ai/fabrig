@@ -154,7 +154,7 @@ fn talk_setup(open: bool, cost: bool, choices: bool, proposed: bool) -> (Host, D
     };
     if choices {
         use smith_transcript as s;
-        let mut turn = s::decode_archived(&s::CEILINGS, records::FULL_TURN).unwrap().into_parts();
+        let mut turn = s::decode_archived(&s::CEILINGS, &records::full_turn()).unwrap().into_parts();
         let text = s::Block::Text(s::Text::new(&s::CEILINGS, s::TextParts { text: "Add it to my rules?\n\n1. Yes, add it — it applies from my next run\n2. Just for this port\n3. Tell it something else".as_bytes().into(), replay: None }).unwrap());
         turn.messages = List::from_boxed(Box::new([s::Message::new(
             &s::CEILINGS,

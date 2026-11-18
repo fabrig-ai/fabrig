@@ -419,9 +419,7 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>, value: &mut Value) {
     value["engine"]["limits"]["overrides"]["tasks.authority_grants"] = 16.into();
     // The creation offer carries nine stock charters and four procedures.
     value["engine"]["limits"]["overrides"]["documents.lines"] = 12.into();
-    // The caller installs the default agent again; its call input follows the stock payload.
-    value["engine"]["limits"]["overrides"].as_object_mut().expect("engine overrides").remove("core.call_answer_bytes");
-    super::configuration::turn_bounds::apply_with_stock(value, &agent);
+    super::configuration::use_derived(value);
     temper_fixtures::agent::apply(value, directory, &agent);
 }
 

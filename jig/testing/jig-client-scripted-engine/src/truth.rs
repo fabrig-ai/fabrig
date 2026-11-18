@@ -330,7 +330,7 @@ pub struct Script {
 impl Default for Script {
     fn default() -> Self {
         Self {
-            versions: jig_client_domain::contract::VersionRange { first: 32, last: 32 },
+            versions: jig_client_domain::contract::VersionRange { first: 33, last: 33 },
             truth: Truth::default(),
             bounds: Bounds::default(),
             rules: Vec::new(),

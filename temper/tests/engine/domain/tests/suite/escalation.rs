@@ -598,7 +598,7 @@ fn writer_store_oracle_rejects_held_entry_actor_high_water_and_fallback_mutation
         if let Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task))) = row
             && let tasks::Escalation::Rejected { by, .. } = &mut task.escalation
         {
-            *by = world.store.header().people.max(world.store.header().tasks) + 1;
+            *by = tasks::EscalationDecider::Person(world.store.header().people.max(world.store.header().tasks) + 1);
             changed += 1;
         }
     }
@@ -616,6 +616,40 @@ fn writer_store_oracle_rejects_held_entry_actor_high_water_and_fallback_mutation
     header.tasks = 0;
     assert!(store_rules(&altered).is_err());
     assert_eq!(incremental_rules(&world.store.rows, world.store.header(), &altered), store_rules(&altered));
+    world.close();
+}
+
+#[test]
+fn incremental_store_rules_recheck_each_typed_decider_bound() {
+    use temper_engine_domain_world::escalation_referee::store_rules;
+    let mut world = settled(Story::Reject);
+    for decider in [tasks::EscalationDecider::Person(1), tasks::EscalationDecider::Task(1)] {
+        let mut before = world.store.rows.clone();
+        let mut changed = 0;
+        for row in before.values_mut() {
+            if let Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task))) = row
+                && let tasks::Escalation::Rejected { by, .. } = &mut task.escalation
+            {
+                *by = decider;
+                changed += 1;
+            }
+        }
+        assert_eq!(changed, 1);
+        store_rules(&before).expect("decider is within its kind's bound");
+        let mut after = before.clone();
+        let key = Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment));
+        let Some(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(header)))) =
+            after.get_mut(&key)
+        else {
+            panic!("fixture header")
+        };
+        match decider {
+            tasks::EscalationDecider::Person(_) => header.people = 0,
+            tasks::EscalationDecider::Task(_) => header.tasks = 0,
+        }
+        assert_eq!(store_rules(&after), Err("rejection actor exceeds durable actor high-water mark"));
+        assert_eq!(incremental_rules(&before, world.store.header(), &after), store_rules(&after));
+    }
     world.close();
 }
 

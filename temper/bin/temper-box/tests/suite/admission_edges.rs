@@ -27,7 +27,21 @@ impl Part {
 }
 
 fn number(document: &Value, part: Part, name: &str) -> u64 {
-    document.pointer(part.limits()).expect("limits")[name].as_u64().expect("byte bound")
+    let worker = temper_service::startup::box_worker(
+        &serde_json::to_vec(document).expect("fixture JSON"),
+        &jig_protocol_config::Directories::working(),
+        &temper_service::stock::Given::Stock,
+        &temper_service::stock::agents(),
+        &[],
+    )
+    .expect("fixture composition")
+    .expect("box worker");
+    for limit in worker.figures.expect("composed figures").limits() {
+        if limit.name() == name.as_bytes() {
+            return limit.value();
+        }
+    }
+    panic!("{}.{name}: missing composed figure", part.path());
 }
 
 fn set(document: &mut Value, part: Part, name: &str, bytes: u64) {

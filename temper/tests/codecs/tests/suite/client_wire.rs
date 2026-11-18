@@ -1,4 +1,5 @@
 //! jig's core refusal remains opaque in the forge family (client/forge/records.md).
+use super::values;
 use jig_client_protocol_wire as jig;
 use skein_lib::{List, Reader, Writer};
 use temper_client_protocol_wire::v1;
@@ -23,23 +24,22 @@ fn a_core_refusal_carries_jigs_refusal_bytes_unchanged() {
 fn current_request_answer_and_forges_goldens_round_trip() {
     use temper_client_protocol_wire as wire;
     for bytes in [
-        include_bytes!("../../../../crates/temper-client-protocol-wire/golden/record_requesting_smallest.bin")
-            .as_slice(),
-        include_bytes!("../../../../crates/temper-client-protocol-wire/golden/record_requesting_full.bin").as_slice(),
+        values::named(values::client(), "record_requesting_smallest.bin"),
+        values::named(values::client(), "record_requesting_full.bin"),
     ] {
         let record = wire::decode_requesting(bytes, &v1::CEILINGS).expect("request golden");
         assert_eq!(wire::requesting(&record).as_ref(), bytes);
     }
     for bytes in [
-        include_bytes!("../../../../crates/temper-client-protocol-wire/golden/record_answer_smallest.bin").as_slice(),
-        include_bytes!("../../../../crates/temper-client-protocol-wire/golden/record_answer_full.bin").as_slice(),
+        values::named(values::client(), "record_answer_smallest.bin"),
+        values::named(values::client(), "record_answer_full.bin"),
     ] {
         let record = v1::Answer::decode(&v1::CEILINGS, &mut Reader::new(bytes)).expect("answer golden");
         assert_eq!(wire::answer(&record).as_ref(), bytes);
     }
     for bytes in [
-        include_bytes!("../../../../crates/temper-client-protocol-wire/golden/record_forges_smallest.bin").as_slice(),
-        include_bytes!("../../../../crates/temper-client-protocol-wire/golden/record_forges_full.bin").as_slice(),
+        values::named(values::client(), "record_forges_smallest.bin"),
+        values::named(values::client(), "record_forges_full.bin"),
     ] {
         let record = wire::decode_forges(bytes, &v1::CEILINGS).expect("forges golden");
         assert_eq!(wire::forges(&record).as_ref(), bytes);
@@ -282,10 +282,8 @@ fn playground_start_outcomes_round_trip_at_each_boundary() {
 fn reachable_and_page_goldens_round_trip_with_ids_privacy_and_more() {
     use temper_client_protocol_wire as wire;
     for bytes in [
-        include_bytes!("../../../../crates/temper-client-protocol-wire/golden/enum_request_reachable_smallest.bin")
-            .as_slice(),
-        include_bytes!("../../../../crates/temper-client-protocol-wire/golden/enum_request_reachable_full.bin")
-            .as_slice(),
+        values::named(values::client(), "enum_request_reachable_smallest.bin"),
+        values::named(values::client(), "enum_request_reachable_full.bin"),
     ] {
         let mut reader = Reader::new(bytes);
         let request = v1::Request::decode(&v1::CEILINGS, &mut reader).expect("reachable golden");
@@ -295,9 +293,8 @@ fn reachable_and_page_goldens_round_trip_with_ids_privacy_and_more() {
         assert_eq!(writer.finish().as_ref(), bytes);
     }
     for bytes in [
-        include_bytes!("../../../../crates/temper-client-protocol-wire/golden/enum_outcome_page_smallest.bin")
-            .as_slice(),
-        include_bytes!("../../../../crates/temper-client-protocol-wire/golden/enum_outcome_page_full.bin").as_slice(),
+        values::named(values::client(), "enum_outcome_page_smallest.bin"),
+        values::named(values::client(), "enum_outcome_page_full.bin"),
     ] {
         let mut reader = Reader::new(bytes);
         let outcome = v1::Outcome::decode(&v1::CEILINGS, &mut reader).expect("page golden");

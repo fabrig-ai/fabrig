@@ -264,6 +264,62 @@ pub(super) fn amendment() -> Amendment {
 }
 
 #[test]
+fn a_rejection_records_the_deciders_kind() {
+    for (holder, by) in [
+        (EscalationHolder::Task(2), crate::EscalationDecider::Task(2)),
+        (EscalationHolder::Person(9), crate::EscalationDecider::Person(9)),
+        (EscalationHolder::Role { project: 1, role: 7 }, crate::EscalationDecider::Person(9)),
+    ] {
+        let mut test = Harness::new();
+        test.make(vec![task(1, &[]), task(2, &[])]);
+        test.send(Event::Hold { task: 1, why: Hold::Stopped });
+        test.route(1, holder, 1);
+        let revision = test.revisions(1).hold;
+        let reason: Box<[u8]> = Box::from(b"leave held".as_slice());
+        test.send(Event::DecideEscalation {
+            reply_to: to(),
+            task: 1,
+            revision,
+            by,
+            entry: None,
+            decision: EscalationDecision::Reject { reason: reason.clone() },
+        });
+        let expected = crate::Escalation::Rejected { revision, by, reason };
+        assert_eq!(test.domain.task(1).expect("held task").escalation, expected);
+        test.restart();
+        assert_eq!(test.domain.task(1).expect("restored held task").escalation, expected);
+    }
+}
+
+#[test]
+fn a_decider_must_have_the_waiting_holders_kind() {
+    for (holder, by) in [
+        (EscalationHolder::Task(2), crate::EscalationDecider::Person(2)),
+        (EscalationHolder::Person(2), crate::EscalationDecider::Task(2)),
+        (EscalationHolder::Role { project: 1, role: 7 }, crate::EscalationDecider::Task(2)),
+    ] {
+        let mut test = Harness::new();
+        test.make(vec![task(1, &[]), task(2, &[])]);
+        test.send(Event::Hold { task: 1, why: Hold::Stopped });
+        test.route(1, holder, 1);
+        let before = test.domain.task(1).expect("held task").clone();
+        let out = test.send(Event::DecideEscalation {
+            reply_to: to(),
+            task: 1,
+            revision: before.revisions.hold,
+            by,
+            entry: None,
+            decision: EscalationDecision::Reject { reason: Box::from(b"leave held".as_slice()) },
+        });
+        assert!(out.iter().any(|request| match request {
+            Request::EscalationDecided { outcome: EscalationOutcome::Stale, .. } => true,
+            _ => false,
+        }));
+        assert_eq!(test.domain.task(1), Some(&before));
+    }
+}
+
+#[test]
 fn a_hold_changes_revision_for_a_new_hold_or_reason_but_not_a_pass() {
     let mut test = Harness::new();
     test.make(vec![task(1, &[])]);
@@ -275,7 +331,7 @@ fn a_hold_changes_revision_for_a_new_hold_or_reason_but_not_a_pass() {
         reply_to: to(),
         task: 1,
         revision: first.hold,
-        by: 9,
+        by: crate::EscalationDecider::Person(9),
         entry: Some(2),
         decision: EscalationDecision::Pass { holder: EscalationHolder::Role { project: 1, role: 7 } },
     });

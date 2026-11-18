@@ -175,7 +175,7 @@ fn an_escalation_release_reholds_a_circle_and_keeps_its_queue_place() {
         reply_to,
         task: WAITER,
         revision,
-        by: PERSON,
+        by: jig_domain_tasks::EscalationDecider::Person(PERSON),
         entry: None,
         decision: EscalationDecision::Release,
     });

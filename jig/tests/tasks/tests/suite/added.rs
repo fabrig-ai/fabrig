@@ -1041,7 +1041,7 @@ fn an_escalation_resolution_reholds_on_the_failed_dependency_with_a_fresh_escala
         reply_to,
         task: 1,
         revision,
-        by: PERSON,
+        by: tasks::EscalationDecider::Person(PERSON),
         entry: None,
         decision: tasks::EscalationDecision::Release,
     });

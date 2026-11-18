@@ -14,6 +14,8 @@ mod own;
 mod goal;
 #[path = "tests/lending.rs"]
 mod lending;
+#[path = "tests/playground.rs"]
+mod playground;
 pub(crate) use lending::terminal_document;
 
 use crate::{
@@ -1866,7 +1868,7 @@ fn reply_host_draft(draft: bool) -> Host {
         let page = pane_document();
         read_reply(&mut host, read, &w::ReadValue::Notes(page));
     }
-    let mut turn = s::decode_archived(&s::CEILINGS, records::FULL_TURN).unwrap().into_parts();
+    let mut turn = s::decode_archived(&s::CEILINGS, &records::full_turn()).unwrap().into_parts();
     let text = s::Block::Text(
         s::Text::new(
             &s::CEILINGS,

@@ -162,6 +162,12 @@ fn failed(why: host::RunFailure) -> AnswerFailure {
                 result
             }
             host::ModelFault::Provider => failure(AnswerClass::Model, Some(b"provider")),
+            host::ModelFault::Untooled { name, detail } => {
+                let mut result = failure(AnswerClass::Model, None);
+                result.program = Some(name);
+                result.detail = Some(detail);
+                result
+            }
             host::ModelFault::Program { name, exit, detail } => {
                 let mut result = failure(AnswerClass::Model, None);
                 result.program = Some(name);

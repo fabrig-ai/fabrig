@@ -335,10 +335,28 @@ fn a_later_init_fails_like_startup_when_tools_are_missing() {
     startup.admit_init(&env(0), &line, &mut startup_up, &mut startup_below);
     let (mut later, mut later_up, mut later_below) = second_turn();
     later.line(&env(0), &line, &mut later_up, &mut later_below);
-    let expected =
-        (llm::Failure::Program { exit: None }, b"smith: the program started without smith's tools".as_slice().into());
+    let expected = (llm::Failure::Untooled, b"smith: the program started without smith's tools".as_slice().into());
     assert_eq!(init_failure(startup_up), expected);
     assert_eq!(init_failure(later_up), expected);
+}
+
+#[test]
+fn a_summary_init_offering_tools_is_a_program_fault() {
+    let line = stream::tests::init_line(&["mcp__smith__finish"]);
+    for later in [false, true] {
+        let (mut backend, mut up, mut below) = second_turn();
+        let Some(Complete { prompt, .. }) = backend.current.request_mut() else { panic!("request") };
+        prompt.purpose = llm::Purpose::Compaction { room: 1000 };
+        if later {
+            backend.later_init(&env(0), &line, &mut up, &mut below);
+        } else {
+            backend.admit_init(&env(0), &line, &mut up, &mut below);
+        }
+        assert_eq!(
+            init_failure(up),
+            (llm::Failure::Program { exit: None }, b"smith: summary program offered tools".as_slice().into()),
+        );
+    }
 }
 
 #[test]

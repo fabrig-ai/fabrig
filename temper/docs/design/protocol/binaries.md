@@ -15,7 +15,7 @@ public         temper-box [--config DIR] [--data DIR] [--cache DIR] [--echo none
                temper-box program-login [DIRECTORIES] NAME
                temper-box help [NAME | pages | --search WORDS...]
                temper-box versions
-               temper-box upgrade --check DIRECTORY | --back
+               temper-box upgrade --check DIRECTORY | --workers DIRECTORY | --back
                temper-box checkpoint [DIRECTORIES] [--hold NAME -- COMMAND ARGS... | --remove NAME]
                temper-box restore NAME [DIRECTORIES]
 internal       temper-box [DIRECTORIES] --fake-backends [--bundle DIR] [--record]
@@ -202,8 +202,15 @@ default; the document is `temper.json` in the configuration directory
   `temper-engine versions`', the same constant run by the same code (2).
 - **`temper-box upgrade --check DIRECTORY`:** a rehearsal (jig's
   `protocol/store/opening.md`, 5) over DIRECTORY, a stopped deployment's
-  data directory or a copy of one such as last night's backup, which it
-  never writes: it works in a scratch copy under the cache directory,
+  data directory, a checkpoint of a deployment
+  (`DEPLOYMENT/checkpoints/NAME`, `checkpoints.md`), or a copy of one
+  such as last night's backup, which it never writes and whose lock it
+  holds while it reads, so that a checkpoint it reads is not removed
+  under it (jig's `protocol/store/checkpoints.md`, 6). Over a
+  checkpoint it runs while the engine serves the deployment, as a
+  redeploy runs it (`../redeploy.md`, 4.1): nothing before the
+  rehearsal takes the deployment's lock or writes under `--data`. It
+  works in a scratch copy under the cache directory,
   with the configuration `temper-box serve` would read; the open
   registers layouts, runs jobs and checks as a start would, restores,
   and stops before its switch step. After the floor check and before
@@ -224,6 +231,19 @@ default; the document is `temper.json` in the configuration directory
   the copy keeps no wires (`wires.md`, 10.2; `../draft/upgrades.md`,
   section 3.1; `../draft/redeploys.md`, 5.1). Exit 0 when the
   registry commit, jobs and restores pass, 1 when a start would be refused there.
+- **`temper-box upgrade --workers DIRECTORY`:** `--check`'s verdict on
+  the workers alone, for a redeploy's stop (`../redeploy.md`, 4.2): a
+  rehearsal over DIRECTORY, as `--check`'s, of jig's reach `Openings`
+  (jig's `protocol/store/opening.md`, 5), which copies the active
+  generation's maps without its task logs, recovers them and reads the
+  wires and the workers' openings they keep, and ends there: no record
+  decoded, no level checked, no plan, job or restore run. It prints
+  `--check`'s lines from its verdict's alone (`wires.md`, 10.2, steps 1
+  to 4), in their words and order, and exits 0 once they are printed,
+  whatever the verdict. A refusal before the rows are read (DIRECTORY
+  in use, an unfinished restore, an unreadable `active`, a copy or a
+  recovery failing) is printed as `--check` prints a refusal, exit 1.
+  It never writes DIRECTORY.
 - **`temper-box upgrade --back`:** makes the previous generation active
   again (jig's `protocol/store/opening.md`, 5), for a binary that upgraded and
   failed before its first commit of its own: the deployment stopped,
@@ -313,6 +333,7 @@ temper ctl DIRECTORY GROUP VERB ...    a process per call, reaching the engine o
 temper-box program-login NAME              run by hand on a host, replaced by the program's sign-in
 temper-box versions                        prints this binary's levels, versions and wires
 temper-box upgrade --check DIRECTORY       rehearses an upgrade over a copy; switches nothing
+temper-box upgrade --workers DIRECTORY     judges the workers alone over a copy; switches nothing
 temper-box upgrade --back                  makes the previous generation active again, before the upgraded one's first commit
 temper-box checkpoint                      takes a checkpoint of the stopped deployment; --hold runs a command under one's lock, --remove removes one
 temper-box restore NAME                    restores a checkpoint over the stopped deployment, after a safety checkpoint of it
@@ -379,7 +400,7 @@ client, with the owned forge's commands. Its table and sets are
 documentation  temper-engine help [NAME | pages | --search WORDS...]
 deployment     temper-engine serve [DIRECTORIES] [--record]
                temper-engine versions
-               temper-engine upgrade --check DIRECTORY | --back
+               temper-engine upgrade --check DIRECTORY | --workers DIRECTORY | --back
                temper-engine checkpoint [DIRECTORIES] [--hold NAME -- COMMAND ARGS... | --remove NAME]
                temper-engine restore NAME [DIRECTORIES]
                temper-engine forge fetch|prepare|sign-in|source|remove [DIRECTORIES] FORGE

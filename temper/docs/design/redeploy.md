@@ -1,7 +1,11 @@
 # The redeploy
 
 Provisional, 2026-11-13, revised 2026-11-16 for milestone R8 (who was
-told the engine restarts, 4.2; each worker judged by its wait, 6.2).
+told the engine restarts, 4.2; each worker judged by its wait, 6.2) and
+2026-11-18 for milestone C3 of `draft/checkpoints.execution.md` (the
+check over a checkpoint while the old build serves, 4.1; the stop's
+checkpoint as the backup and the verdict read again over it, 4.2; going
+back by restore, 4.6).
 How a deployment of temper takes a new build
 while its work goes on, and how each redeploy is refereed afterwards:
 `temper-redeploy`, an internal tool run by the deployments' operator
@@ -11,7 +15,8 @@ from a machine that reaches the deployment's hosts. It carries
 the engine's settled stop (`domain/root.md`, 8.2), a worker's drain
 (`domain/worker/README.md`, section 2; jig's `domain/hosts/hub.md`, 7),
 `upgrade --check` and its verdict on the workers (`protocol/binaries.md`,
-section 2; `protocol/wires.md`, 10.2), the workers' grace
+section 2; `protocol/wires.md`, 10.2), a deployment's checkpoints and
+their restore (`protocol/checkpoints.md`), the workers' grace
 (`protocol/configuration/README.md`) and an agent pinned at its worker's
 start (`domain/worker/README.md`, section 5). This document says what
 the tool runs, in what order, what it keeps and how it judges.
@@ -21,22 +26,30 @@ the tool runs, in what order, what it keeps and how it judges.
 - **A description of the deployment** (section 2), kept by its operator
   outside the repository: each part's host, reached by a command prefix
   such as `ssh`, and the command lines that stop, start, swap, check,
-  back up and read each part. The tool names no machine.
+  take a checkpoint and read each part. The tool names no machine.
 - **The build staged first** (section 3) on every host, beside what runs,
   each binary asked its `--version`.
-- **The engine alone, by default** (4.2, 4.3): its settled stop, the new
-  build's `upgrade --check` over the stopped deployment, and, when it
-  says the workers may stay, the swap and the start the workers ride.
+- **The check while the old build serves** (4.1): a checkpoint of the
+  serving deployment, taken through the engine's `ctl`, and the new
+  build's `upgrade --check` over it, with its verdict on the workers. A
+  check that refuses ends the redeploy with nothing stopped.
+- **The engine alone, by default** (4.2, 4.3), when the check says the
+  workers may stay: its settled stop, a checkpoint of the stopped
+  deployment as the backup, the verdict's inputs read again over it, and
+  the swap and the start the workers ride.
 - **Workers in turn, when asked** (4.4): one at a time, drained, swapped,
   started, and waited for until it opened and its logins came, before
   the next.
 - **Every part together** (4.5) when the check says a worker may not
-  stay, or when asked: the old engine started again first, so that every
-  worker drains to a live engine, then the engine's settled stop, every
-  binary swapped and all started.
+  stay, or when asked: every worker drained to the old engine, which
+  still serves, then the engine's settled stop and its checkpoint, every
+  binary swapped and all started. A verdict that no longer says yes at
+  the stop starts the old engine again first.
 - **Nothing half done before the swap** (4.6): a failure until the new
   engine is installed starts again what was stopped, on its old build;
-  after it, the tool stops where it stands and says how to go back.
+  after it, the tool stops where it stands and says how to go back: the
+  new build's `upgrade --back` before the new generation's first commit,
+  a restore of the stop's checkpoint after it.
 - **A record** of the redeploy (section 5), written as it goes, which the
   referee reads.
 - **The referee** (section 6): each worker's agreed versions; each
@@ -67,8 +80,9 @@ naming the member's path (`workers[1].swap`), exit 1.
     "stop": "sudo systemctl stop temper-engine",
     "start": "sudo systemctl start temper-engine",
     "log": "sudo journalctl -u temper-engine -o cat --since @{since}",
-    "check": "sudo -u temper {binary} upgrade --check --config /var/lib/temper/config --data /var/lib/temper/data --cache /var/lib/temper/cache /var/lib/temper/data/deployment",
-    "backup": "sudo -u temper cp -a /var/lib/temper/data/deployment /var/lib/temper/backups/{name}",
+    "check": "sudo -u temper {binary} upgrade --check --config /var/lib/temper/config --data /var/lib/temper/data --cache /var/lib/temper/cache /var/lib/temper/data/deployment/checkpoints/{checkpoint}",
+    "checkpoint": "sudo -u temper {binary} checkpoint --config /var/lib/temper/config --data /var/lib/temper/data --cache /var/lib/temper/cache",
+    "verdict": "sudo -u temper {binary} upgrade --workers --config /var/lib/temper/config --data /var/lib/temper/data --cache /var/lib/temper/cache /var/lib/temper/data/deployment/checkpoints/{checkpoint}",
     "swap": "sudo install -m 0755 {from} {to}",
     "ctl": "sudo -u temper temper ctl /var/lib/temper/ctl"
   },
@@ -109,16 +123,25 @@ naming the member's path (`workers[1].swap`), exit 1.
   `{since}`, oldest first, in any line format that keeps each line's
   text whole.
 - **`check`** (the engine's): runs `{binary} upgrade --check` over the
-  engine's stopped deployment directory, as the deployment's own user,
+  checkpoint `{checkpoint}` of the engine's deployment directory,
+  `DEPLOYMENT/checkpoints/{checkpoint}`, as the deployment's own user,
   with the directories the engine's `serve` is given
-  (`protocol/binaries.md`, section 2).
-- **`backup`** (the engine's): copies the stopped deployment's data to a
-  place named by `{name}` (`draft/upgrades.md`, 3.3).
+  (`protocol/binaries.md`, section 2). It runs while the engine serves,
+  holding the checkpoint's lock (jig's `protocol/store/checkpoints.md`,
+  6).
+- **`checkpoint`** (the engine's): runs `{binary} checkpoint` over the
+  engine's stopped deployment, as `check`'s user with `serve`'s
+  directories, which prints its one line (`protocol/checkpoints.md`,
+  2.1).
+- **`verdict`** (the engine's): runs `{binary} upgrade --workers` over the
+  checkpoint `{checkpoint}`, as `check` does (`protocol/binaries.md`,
+  section 2).
 - **`swap`:** installs `{from}` as `{to}`.
 - **`ctl`** (the engine's): `temper ctl DIR` for a ctl directory on the
   engine's host, its endpoint loopback (`client/ctl/README.md`), signed
-  in as a person holding a role in each project the referee is to read
-  (6.1).
+  in as a person who owns the deployment, whose act takes its
+  checkpoint while it serves (`protocol/checkpoints.md`, 3), and holds a
+  role in each project the referee is to read (6.1).
 - **`document`** (a worker's): prints the worker's configuration
   document, from which the tool reads its grace (4.1).
 - **`workers`:** in the order workers go in turn (4.4), at least one, each
@@ -128,11 +151,14 @@ naming the member's path (`workers[1].swap`), exit 1.
 ### 2.2 Commands on a host
 
 - **Placeholders** are `{since}` (the Unix time in whole seconds),
-  `{binary}`, `{name}`, `{from}` and `{to}`. `log` requires `{since}`,
-  `check` `{binary}`, `backup` `{name}`, `swap` both `{from}` and `{to}`;
-  `stop`, `start`, `ctl` and `document` take none. Each value goes in
-  quoted for a POSIX shell, `'` around it and `'\''` for each quote
-  within.
+  `{binary}`, `{checkpoint}` (a checkpoint's name, `<20 digits>-<16
+  hex>`, `protocol/checkpoints.md`, 2.4), `{from}` and `{to}`. `log`
+  requires `{since}`; `check` and `verdict` both `{binary}` and
+  `{checkpoint}`; `checkpoint` `{binary}`; `swap` both `{from}` and
+  `{to}`; `stop`, `start`, `ctl` and `document` take none. A description
+  of a build before checkpoints, with a `backup` member, is refused as
+  any member 2.1 doesn't name. Each value goes in quoted for a POSIX
+  shell, `'` around it and `'\''` for each quote within.
 - **Lines the tool composes** besides the templates (a binary's
   `--version`, `mkdir -p`, `cp`, the build's fetch) quote every word the
   same way.
@@ -181,10 +207,37 @@ exclude each other.
    (`protocol/configuration/README.md`).
 5. **The referee's snapshot** of the tasks (6.1).
 6. **`began`:** the time the record starts its span from.
+7. **The checkpoint,** while the old build serves: the engine's `ctl`
+   with `deployment checkpoint` (`protocol/checkpoints.md`, 3), its
+   answer's `name` printed and kept as the record's `checkpoint`. A
+   serving build before milestone C1 of
+   `draft/checkpoints.execution.md` has no such act, and its refusal
+   fails the step: such a deployment is redeployed onto a build that has
+   it by the tool of a build before this one.
+8. **The check,** run once per redeploy, before anything stops: the
+   engine's `check`, `{binary}` the staged
+   `BUILDS/COMMIT/temper-engine`, `{checkpoint}` that name. It is the new
+   build's full check of the state at the checkpoint's commit (jig's
+   `protocol/store/opening.md`, 5): every record decoded, the jobs, the
+   restores and the verdict on the workers. Each of its lines is printed
+   and kept. It never writes its input, so neither the checkpoint nor the
+   live store changes (`draft/checkpoints.md`, 5.2).
+9. **What it says** (`protocol/wires.md`, 10.2), by its exit and its last
+   line ending `workers may stay: `:
+   - exit other than 0: a start would be refused, and the redeploy ends
+     **refused**, exit 1, with nothing stopped;
+   - exit 0, `workers may stay: yes`: as the mode asks, the engine alone
+     (4.3), then with `--workers` the workers in turn (4.4), or with
+     `--together` every part together (4.5);
+   - exit 0, `workers may stay: no`, `workers may stay: unknown…`, or no
+     such line: every part together (4.5), each worker drained while the
+     old engine still serves.
 
-A failure here refuses the redeploy with nothing stopped, exit 1.
+A failure here refuses the redeploy with nothing stopped, exit 1. The
+check's checkpoint stays until the store's retention removes it
+(`protocol/checkpoints.md`, 4).
 
-### 4.2 The settled stop and the check
+### 4.2 The settled stop and its checkpoint
 
 - **The engine's `stop`** at the window's start (6.2). The workers keep
   their runs, their grace or the restart wait running from their links'
@@ -200,26 +253,40 @@ A failure here refuses the redeploy with nothing stopped, exit 1.
   that brings the word is stopped by one that cannot. Read at the first
   settled stop alone, the window's; each is printed and kept (section
   5). A log that cannot be read fails the step as any.
-- **The check:** the engine's `check`, `{binary}` the staged
-  `BUILDS/COMMIT/temper-engine`, run once per redeploy, at its first
-  settled stop. Each of its lines is printed and kept. It never writes
-  its input (`protocol/binaries.md`, section 2).
-- **What it says** (`protocol/wires.md`, 10.2), by its exit and its last
-  line ending `workers may stay: `:
-  - exit other than 0: a start would be refused. The engine started
-    again on its old build, its openings waited for (4.7), and the
-    redeploy ends **refused**, exit 1.
-  - exit 0, `workers may stay: yes`: the engine alone (4.3).
-  - exit 0, `workers may stay: no`, `workers may stay: unknown…`, or no
-    such line: the engine started again on its old build, its openings
-    waited for, then every part together (4.5).
-- **A backup** before the swap when the check's lines say it ran a job (a
-  line holding `upgrade: ran `): the engine's `backup`, `{name}`
-  `COMMIT-YYYYMMDDTHHMMSSZ`, the time the backup's, UTC.
+- **Its checkpoint,** at every settled stop, as the backup: the engine's
+  `checkpoint`, `{binary}` the installed `BINARIES/temper-engine`. The
+  installed build takes it, since the new build refuses a store it must
+  upgrade before serving (`Unready::Upgrade`, jig's
+  `protocol/store/checkpoints.md`, 5). A stopped deployment's checkpoint
+  links every segment and copies only the secrets and the live tasks'
+  transcripts and logs (`draft/checkpoints.md`, 4), so no deployment is
+  copied whole. Its line is printed and kept; NAME, its word after
+  `checkpoint: `, is kept as the record's `backup`, replacing an earlier
+  stop's: the state the swap starts from, which going back after the new
+  generation's first commit restores (4.6). A refusal fails the step.
+- **The verdict read again,** when the engine goes alone (4.3): the
+  engine's `verdict`, `{binary}` the staged
+  `BUILDS/COMMIT/temper-engine`, `{checkpoint}` the stop's checkpoint.
+  It reads the inputs the check's verdict used, the engine's kept wires,
+  the configured workers and their kept openings, and judges them by
+  the same rules, with no record walked and no job run
+  (`protocol/binaries.md`, section 2; `protocol/wires.md`, 10.2). Its
+  lines are printed and kept as the record's `verdict`:
+  - exit 0, `workers may stay: yes`: the swap (4.3);
+  - exit 0, any other verdict, or none: an input changed since the check,
+    such as a worker's opening or the configuration. The engine started
+    again on its old build, its openings waited for (4.7), then every
+    part together (4.5), each worker draining to a live engine;
+  - exit other than 0: the step fails (4.6).
+- **Retention:** the store keeps its newest `store.checkpoints.keep`
+  checkpoints, 2 by default, skipping one whose lock is held
+  (`protocol/checkpoints.md`, 4). A redeploy makes two, the check's and
+  the stop's, so the default keeps a redeploy's backup until the next
+  one's stop.
 
 ### 4.3 The engine alone
 
-1. The settled stop and the check (4.2), then the backup if any.
+1. The settled stop, its checkpoint and the verdict read again (4.2).
 2. **The swap:** for each of the engine's binaries, the installed one
    copied to `BUILDS/PREVIOUS/NAME` unless there, PREVIOUS its build
    (4.1), so that going back is a redeploy of PREVIOUS; then the
@@ -250,32 +317,49 @@ open, is refused or doesn't log in within the bound ends the redeploy
 
 ### 4.5 Every part together
 
-`draft/redeploys.md`, 7.3:
+`draft/redeploys.md`, 7.3; `draft/checkpoints.md`, 6:
 
 1. every worker's `stop` at once, the tool waiting for all: each drains
-   to a live engine;
-2. the engine's `stop`;
-3. the check, unless this redeploy ran it (4.2), its exit and backup as
-   there; a refusal starts the engine and then every worker again on
-   their old builds and ends **refused**;
-4. the engine's binaries swapped, then each worker's;
-5. the engine's `start`, then every worker's;
-6. every worker's opening waited for (4.7).
+   to the engine, which serves;
+2. the engine's settled stop and its checkpoint (4.2);
+3. the engine's binaries swapped, then each worker's;
+4. the engine's `start`, then every worker's;
+5. every worker's opening waited for (4.7).
 
-The outage runs from the first worker's `stop` to the last opening.
+The check ran before anything stopped (4.1). Reached from a verdict that
+changed at the stop (4.2), the old engine has been started again and its
+openings waited for before step 1; its second settled stop takes a
+second checkpoint, which becomes the backup, and who was told stays the
+first stop's. The outage runs from the first worker's `stop` to the last
+opening.
 
 ### 4.6 A step that fails
 
 - **A step fails** when its command line exits other than 0, cannot be
   spawned, or its wait passes its bound.
+- **Before anything stops** (4.1), a failure ends the redeploy
+  **refused**, exit 1, with nothing to start again.
 - **Until a binary is swapped,** a failure starts again every part the
   redeploy stopped, on its old build, waits for their openings, and
   ends **refused**, exit 1: nothing is half done.
 - **Once one is,** a failure ends the redeploy **failed** where it
   stands, exit 1: its line names the step, the parts swapped, the backup
-  and the previous build; going back is the operator's, by `run` with
-  that build, or after the patched generation's first commit a restore
-  of the backup (`draft/staged-upgrades.md`, 7, step 5).
+  (the last stop's checkpoint) and the previous build. Going back is the
+  operator's, over the stopped deployment (`protocol/binaries.md`,
+  section 2; `draft/checkpoints.md`, 6, step 6):
+  - **before the new generation's first commit:** the new build's
+    `upgrade --back`, then the previous build's binaries, kept as
+    `BUILDS/PREVIOUS/NAME` (4.3), swapped back and started;
+  - **after it:** the new build's `restore BACKUP`, which first takes a
+    safety checkpoint of the state it replaces (`protocol/checkpoints.md`,
+    2.5), then the previous build swapped back and started. The new
+    build restores, since the safety checkpoint's open refuses a store
+    ahead of the build that opens it (jig's
+    `protocol/store/restoring.md`, 4.3). The generation restored holds
+    the stop's state at the previous build's levels, which the previous
+    build opens as it left it;
+  - **where no level moved,** the previous build opening the store as it
+    stands, `run` with that build is a redeploy as any.
 - **The referee runs** after a refused or failed redeploy too, judging
   what it left.
 
@@ -311,8 +395,10 @@ renamed over it. Its members, which the referee reads and a later
 | `told` | each worker of the description, at the window's stop (4.2): `{"worker", "wait_ms"}`, `wait_ms` the wait the engine told it, or null when it was not told; null before that read, and absent from a record of a build before it, which a later `referee` reads as no worker told |
 | `before` | the referee's snapshot (6.1): `projects`, the project numbers read; `cut`, whether ctl cut the memberships; `tasks`, each `{"task", "project", "label", "phase", "held"}`, `held` the hold's failures class or null |
 | `lines` | every line the run printed, each `{"at", "line"}` |
+| `checkpoint` | the name of the checkpoint the check read (4.1), or null before it was taken; absent from a record of a build before it, which a later `referee` reads as null |
 | `check` | `{"code", "lines"}`, or null before it ran |
-| `backup` | its `{name}`, or null |
+| `verdict` | the verdict read again at the stop (4.2), `{"code", "lines"}`, or null when not read; absent as `checkpoint` is |
+| `backup` | the name of the last settled stop's checkpoint (4.2), or null before one |
 | `window` | `{"from", "to", "worker"}`: the engine's stop to the first opening after the start the workers rode, or null |
 | `outages` | each `{"what", "from", "to"}`: a worker's name in turn, or `"every part"` |
 | `openings` | each `{"worker", "at", "line", "refused"}`, from the last start waited for |
@@ -405,14 +491,16 @@ pass
 fail: N
 ```
 
-`run`'s lines name each step as it ends: the builds before, each stop
-with its time, each worker told or not at the window's stop (`worker
-NAME told: restart wait SECONDS s`, or `worker NAME keeps its grace: not
-told`), the check's lines as it printed them, what it decided,
-the backup, each swap with its builds, each start, each opening with
-its time and agreed versions, each worker's logins, and the outcome,
-`done`, `refused: WHY` or `failed at STEP: WHY`, the last naming what is
-swapped, the backup and the previous build.
+`run`'s lines name each step as it ends: the builds before, the
+check's checkpoint, the check's lines as it printed them and what it
+decided, each stop with its time, each worker told or not at the
+window's stop (`worker NAME told: restart wait SECONDS s`, or `worker
+NAME keeps its grace: not told`), each stop's checkpoint, the verdict's
+lines read again and what they decided, each swap with its builds, each
+start, each opening with its time and agreed versions, each worker's
+logins, and the outcome, `done`, `refused: WHY` or `failed at STEP:
+WHY`, the last naming what is swapped, the backup and the previous
+build.
 
 ### 6.4 Exits
 
@@ -500,28 +588,44 @@ host: no `ssh`, no service manager, no network.
   whether they run, their installed and staged builds and the engine's
   log; that answers the description's templates and the lines the tool
   composes; whose engine's start logs each worker's opening, or its
-  refusal, as a test scripts it; whose `check` and `ctl` answer what a
-  test scripts; and whose clock moves only by `sleep`. A test's
-  description uses templates the fake reads.
-- **Focused,** a case each: the description's refusals and quoting; a
+  refusal, as a test scripts it; whose `check`, `verdict` and `ctl`
+  answer what a test scripts, `ctl`'s `deployment checkpoint` among
+  them; whose engine's `checkpoint` answers a new name in
+  `protocol/checkpoints.md`, 2.1's line, refused while the engine runs;
+  and whose clock moves only by `sleep`. A test's description uses
+  templates the fake reads.
+- **Focused,** a case each: the description's refusals and quoting, a
+  `backup` member and a `check` without `{checkpoint}` among them; a
   staged build left, a missing one fetched, a wrong answer refused; the
-  engine alone with workers that may stay; a check refusing, the old
-  engine started again and nothing swapped; a check saying no and
-  unknown, the old engine started again, then the workers drained before
-  the engine's stop; `--workers` one at a time, each waiting for its
-  logins; `--together`; a job-running check's backup before the swap (a
-  line holding `upgrade: ran `), no backup without such a line, and an
-  existing backup kept; a
-  refusal at the opening; a step failing before and after the swap; the
+  engine alone with workers that may stay: the checkpoint taken and the
+  check run over it before any stop, the stop's checkpoint by the
+  installed binary, the verdict read again over it, then the swap; the
+  checkpoint's act refused, and a check refusing, each ending refused
+  with nothing stopped or swapped; a check saying no and unknown, the
+  workers drained while the old engine serves, no engine started again,
+  then the engine's stop and its checkpoint; the verdict turning no at
+  the stop, the old engine started again and its openings waited for,
+  then every part together with a second checkpoint as the backup; the
+  verdict or the stop's checkpoint failing, the engine started again on
+  its old build and the redeploy refused; `--workers` one at a time,
+  each waiting for its logins; `--together` after a yes; the record's
+  `checkpoint`, `verdict` and `backup`, and a failed redeploy's line
+  naming the backup; a refusal at the opening; a step failing before and
+  after the swap; the
   stop's lines read (4.2): a worker told, one not told, one with no
   line, each kept and printed, and the openings' bound the largest wait
   given; and the referee: agreed versions, a worker back within and past
   its restart wait and within and past its grace, a record without
-  `told` judged by the graces, a lost try failing and a run's own not, a
+  `told` judged by the graces, a record without `checkpoint` and
+  `verdict` read, a lost try failing and a run's own not, a
   hold since failing and one from before passed over, the task list's
   pages followed, a ctl call failing.
 - **Fuzzy,** seeded, over deployments of one to four workers, each mode,
-  each verdict, refusals, and steps failing at random: no binary swapped
+  each verdict at the check and at the stop, refusals, and steps failing
+  at random: the check before any stop, over the checkpoint the act
+  named; no stop's `checkpoint` while the engine runs; no swap without a
+  checkpoint at the settled stop before it, the record's `backup` that
+  checkpoint; no binary swapped
   on a running part; no two workers stopped at once in turn; no engine
   stop while a worker runs in every part together; a refusal leaves
   every part running its previous build, nothing swapped; a done
@@ -536,11 +640,12 @@ host: no `ssh`, no service manager, no network.
 
 ## 9. Later and open questions
 
-- **Going back by the tool.** Default: the operator's, by `run` with the
-  previous build or a restore (4.6).
-- **Knowing the verdict before the stop,** sparing the old engine's
-  restart on a no: a worker would need to state its wires off its link.
-  Default: the check after the settled stop (4.2).
+- **Going back by the tool.** Default: the operator's, by `upgrade
+  --back` or a restore of the backup, then the previous build swapped
+  back and started (4.6).
+- **The switch adopting the check's rehearsed generation**
+  (`draft/checkpoints.md`, 8), so that a start with a long job does none
+  of it again. Default: the start runs its jobs over the stopped state.
 - **A worker before the engine** (`draft/redeploys.md`, 7.2). Default:
   the engine always goes first.
 - **Workers in turn because a coming build's floor would pass them**

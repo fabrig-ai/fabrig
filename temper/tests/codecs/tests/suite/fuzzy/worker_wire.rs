@@ -1,4 +1,5 @@
 //! Arbitrary and mutated channel parts (protocol/channel.md, section 9).
+use super::super::values;
 use skein_lib::{Reader, Rng, Writer};
 use temper_protocol_worker_wire::v1;
 
@@ -54,11 +55,10 @@ fn identity(bytes: &[u8]) {
 fn worker_wire_decoders_never_panic_and_reencode_the_same() {
     let decoders: [fn(&[u8]); 6] = [items, repository, left, saved, preparation, identity];
     let mut rng = Rng::new(0x7e3d_0301);
-    let goldens = temper_codecs_world::goldens("crates/temper-protocol-worker-wire/golden");
+    let goldens = values::worker();
     for golden in [
-        include_bytes!("../../../../../crates/temper-protocol-worker-wire/golden/enum_kind_forgejo_full.bin")
-            .as_slice(),
-        include_bytes!("../../../../../crates/temper-protocol-worker-wire/golden/enum_kind_github_full.bin").as_slice(),
+        values::named(values::worker(), "enum_kind_forgejo_full.bin"),
+        values::named(values::worker(), "enum_kind_github_full.bin"),
     ] {
         let kind = v1::Kind::decode(&v1::CEILINGS, &mut Reader::new(golden)).expect("kind golden");
         let value = v1::Identity::new(
@@ -83,7 +83,8 @@ fn worker_wire_decoders_never_panic_and_reencode_the_same() {
             decode(&bytes);
         }
     }
-    for golden in &goldens {
+    for golden in goldens {
+        let golden = &golden.bytes;
         for decode in decoders {
             decode(golden);
         }

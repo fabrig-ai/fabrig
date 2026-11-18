@@ -98,7 +98,7 @@ pub(crate) fn advance(engine: &mut Engine) -> bool {
         state.report.end = engine.end.take();
         state.report.elapsed = engine.env.now.saturating_since(began);
         state.closing = true;
-        if state.rehearsal && engine.store.host.started() {
+        if state.rehearsal && !state.closed && engine.store.host.started() {
             engine.store.host.ask(Request::Close { owner: Token::new(1) });
         } else {
             state.closed = true;

@@ -1,7 +1,6 @@
 # charter: status
 
-2026-11-17. Where the tree's code lags or departs from [charter.md](charter.md).
-
+2026-11-18. Where the tree's code lags or departs from [charter.md](charter.md).
 
 - **Not yet:** 4, *How long a check may take*: no run's charter names a
   checks' bound (`temper-engine-smith/src/start.rs`, `charter_with_history`).
