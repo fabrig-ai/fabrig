@@ -1,5 +1,7 @@
 //! The document's shape and its checked startup (protocol/configuration/README.md, 2).
 pub mod application;
+mod limit_settings;
+pub use limit_settings::{LeftOut, LimitInputs, LimitKind, Resolved, resolve_limits};
 pub use temper_service_core::startup::fixed_worker;
 pub mod members;
 mod reference;
@@ -413,7 +415,6 @@ fn load_with_limits(
         };
     load_document_over(&document, directories, check_start, given, limits)
 }
-#[expect(clippy::too_many_lines, reason = "one load pass accumulates all cross-part diagnostics")]
 fn load_document_over(
     document: &skein_json::Document,
     directories: &config::Directories,
@@ -421,12 +422,23 @@ fn load_document_over(
     given: &crate::stock::Given,
     limits: Option<(&config::Limits, &crate::limits::Limits)>,
 ) -> Result<(Shape, Option<Parsed>), Problems> {
+    load_document_limits(document, directories, check_start, given, limits, false)
+}
+#[expect(clippy::too_many_lines, reason = "one load pass accumulates all cross-part diagnostics")]
+fn load_document_limits(
+    document: &skein_json::Document,
+    directories: &config::Directories,
+    check_start: bool,
+    given: &crate::stock::Given,
+    limits: Option<(&config::Limits, &crate::limits::Limits)>,
+    is_box: bool,
+) -> Result<(Shape, Option<Parsed>), Problems> {
     let mut whole = match members::object(document, 0, "document") {
         Ok(object) => object,
         Err(what) => return Err(problem(Path::root(), What::Jig(what))),
     };
     let shape = nearest_document(document);
-    if let Some(found) = unserved(shape) {
+    if !is_box && let Some(found) = unserved(shape) {
         return Err(problem(found.path, found.what));
     }
     let mut problems = Problems::empty();
@@ -554,12 +566,14 @@ fn load_document_over(
     if shape == Shape::EngineAlone && !ats.is_empty() {
         problems.push(root.member(b"workers"), What::Half(EngineWhat::EngineAlone));
     }
-    checks::standalone(
-        engine.as_ref().expect("required engine checked"),
-        &application.clients,
-        &workers,
-        &mut problems,
-    );
+    if !is_box {
+        checks::standalone(
+            engine.as_ref().expect("required engine checked"),
+            &application.clients,
+            &workers,
+            &mut problems,
+        );
+    }
     checks::hub(engine.as_ref().expect("required engine checked"), &mut problems);
     checks::resumed_start(engine.as_ref().expect("required engine checked"), &mut problems);
     checks::provider(engine.as_ref().expect("required engine checked"), &mut problems);
@@ -747,7 +761,6 @@ pub fn checked_start_with_limits(
 }
 #[expect(
     clippy::too_many_arguments,
-    clippy::too_many_lines,
     reason = "one checked startup pass preserves diagnostic order beside resolved setup and runtime facts"
 )]
 fn checked_start_over(
@@ -761,7 +774,31 @@ fn checked_start_over(
     given: &crate::stock::Given,
     limits: Option<(&config::Limits, &crate::limits::Limits)>,
 ) -> Result<CheckedStart, Problems> {
-    let mut parsed = load_with_limits(document, directories, true, given, limits)?
+    checked_start_limits(document, directories, files, agent, seeds, forges, given, limits, false)
+}
+#[expect(
+    clippy::too_many_arguments,
+    clippy::too_many_lines,
+    reason = "the shared limit checker carries the immutable startup facts"
+)]
+fn checked_start_limits(
+    document: &[u8],
+    directories: &config::Directories,
+    files: &settings::Files,
+    agent: Option<&settings::Agent>,
+    seeds: &settings::Seeds,
+    forges: List<crate::ForgeRuntime>,
+    given: &crate::stock::Given,
+    limits: Option<(&config::Limits, &crate::limits::Limits)>,
+    is_box: bool,
+) -> Result<CheckedStart, Problems> {
+    let length = u32::try_from(document.len()).or(Err(problem(Path::root(), What::Jig(config::What::Bound))))?;
+    let document =
+        match config::document(document, &config::DocumentLimits { bytes: 1_048_576, tokens: length, depth: 32 }) {
+            Ok(document) => document,
+            Err(found) => return Err(problem(found.path, What::Jig(found.what))),
+        };
+    let mut parsed = load_document_limits(&document, directories, true, given, limits, is_box)?
         .1
         .ok_or(problem(Path::root().member(b"engine"), What::Standalone))?;
     let agent = match parsed.workers.first() {

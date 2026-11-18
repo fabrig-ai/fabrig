@@ -398,7 +398,7 @@ fn typed_prepare(
     directory: &Path,
     figures: &temper_playground::documents::Configuration,
 ) -> Result<temper_box_shell::Service, String> {
-    temper_box_shell::prepare_in_with_limits(
+    let mut service = temper_box_shell::prepare_in_with_limits(
         "temper",
         &[],
         b"/",
@@ -407,7 +407,12 @@ fn typed_prepare(
         &[],
         &figures.jig,
         &figures.limits,
-    )
+    )?;
+    // These tests inspect a prepared start without driving its root.
+    if let temper_box_shell::Service::Joined(service) = &mut service {
+        temper_engine_shell::serve::close_limits_store(service.engine_component().store())?;
+    }
+    Ok(service)
 }
 fn box_document(scratch: &support::Scratch) -> serde_json::Value {
     support::configuration(scratch.path(), &support::Forge::Unreached);

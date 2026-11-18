@@ -20,11 +20,10 @@ impl Part {
         }
     }
 
-    fn path(self) -> &'static str {
+    fn refusal(self, name: &str) -> String {
         match self {
-            Self::Engine => "engine.limits.overrides",
-            Self::Worker => "workers[0].limits.overrides",
-            Self::Application => "application.limits.overrides",
+            Self::Engine | Self::Application => format!("{name} (the stock)"),
+            Self::Worker => format!("workers[0].limits.overrides.{name}"),
         }
     }
 }
@@ -95,7 +94,7 @@ fn edge(part: Part, name: &str) {
     let short = required - 1;
     set(&mut document, part, name, short);
     let refusal = admit(&document).expect_err(&format!("one byte short must refuse startup for {name} at {short}"));
-    let path = format!("{}.{name}", part.path());
+    let path = part.refusal(name);
     assert!(refusal.contains(&path), "missing {path}: {refusal}");
     assert!(refusal.contains(&format!("{short} bytes")), "missing configured value: {refusal}");
     assert!(refusal.contains(&format!("{required} bytes")), "missing required figure: {refusal}");
@@ -134,7 +133,7 @@ fn transcript_padding_covers_all_resume_window_remainders() {
         for part in [Part::Engine, Part::Worker] {
             set(&mut document, part, "hub.transcript_bytes", transcript - 1);
             let refusal = admit(&document).expect_err("one padding byte short");
-            let path = format!("{}.hub.transcript_bytes", part.path());
+            let path = part.refusal("hub.transcript_bytes");
             assert!(refusal.contains(&path), "missing {path}: {refusal}");
             assert!(refusal.contains(&format!("{} bytes", transcript - 1)), "missing offered size: {refusal}");
             assert!(refusal.contains(&format!("{transcript} bytes")), "missing padded window: {refusal}");

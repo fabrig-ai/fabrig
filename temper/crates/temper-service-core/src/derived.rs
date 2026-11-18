@@ -239,18 +239,68 @@ fn figure(document: &skein_json::Document, application: u32, name: &[u8], stock:
 /// Same-set ties follow overrides before jig validates the resulting limits.
 pub fn follow_tasks(document: &skein_json::Document, at: u32, limits: &mut Limits) {
     let tasks = figure(document, at, b"tasks.tasks", limits.core.tasks.tasks);
-    if !overridden(document, at, b"tasks.delegates") {
-        limits.core.tasks.delegates = jig_protocol_config::stock().core.tasks.delegates.min(tasks.saturating_sub(1));
+    let delegates = if overridden(document, at, b"tasks.delegates") {
+        Some(figure(document, at, b"tasks.delegates", limits.core.tasks.delegates))
+    } else {
+        None
+    };
+    follow_counts(
+        limits,
+        tasks,
+        delegates,
+        figure(document, at, b"tasks.project_goals", limits.core.tasks.project_goals),
+        overridden(document, at, b"people.operations"),
+        overridden(document, at, b"people.inbox_tasks"),
+        overridden(document, at, b"tasks.exemptions"),
+    );
+}
+/// Settings lists and the worker document keep the same task-count ties.
+pub fn follow_task_overrides(limits: &mut Limits, overrides: &[jig_domain_core_vocabulary::settings::Override]) {
+    let tasks = limit_figure(overrides, b"tasks.tasks").unwrap_or(limits.core.tasks.tasks);
+    let delegates = limit_figure(overrides, b"tasks.delegates");
+    let goals = limit_figure(overrides, b"tasks.project_goals").unwrap_or(limits.core.tasks.project_goals);
+    follow_counts(
+        limits,
+        tasks,
+        delegates,
+        goals,
+        limit_figure(overrides, b"people.operations").is_some(),
+        limit_figure(overrides, b"people.inbox_tasks").is_some(),
+        limit_figure(overrides, b"tasks.exemptions").is_some(),
+    );
+}
+fn limit_figure(overrides: &[jig_domain_core_vocabulary::settings::Override], name: &[u8]) -> Option<u32> {
+    for item in overrides {
+        if item.name.as_ref() == name {
+            return u32::try_from(item.value).ok();
+        }
     }
-    if !overridden(document, at, b"people.operations") {
-        let delegates = figure(document, at, b"tasks.delegates", limits.core.tasks.delegates);
-        let goals = figure(document, at, b"tasks.project_goals", limits.core.tasks.project_goals);
+    None
+}
+fn follow_counts(
+    limits: &mut Limits,
+    tasks: u32,
+    delegates: Option<u32>,
+    goals: u32,
+    operations: bool,
+    inbox: bool,
+    exemptions: bool,
+) {
+    let delegates = match delegates {
+        Some(delegates) => delegates,
+        None => {
+            limits.core.tasks.delegates =
+                jig_protocol_config::stock().core.tasks.delegates.min(tasks.saturating_sub(1));
+            limits.core.tasks.delegates
+        }
+    };
+    if !operations {
         limits.core.people.operations = delegates.saturating_add(1).max(goals).min(tasks);
     }
-    if !overridden(document, at, b"people.inbox_tasks") {
+    if !inbox {
         limits.core.people.inbox_tasks = tasks.saturating_mul(2);
     }
-    if !overridden(document, at, b"tasks.exemptions") {
+    if !exemptions {
         limits.core.tasks.exemptions = limits.core.tasks.exemptions.min(tasks);
     }
 }

@@ -32,8 +32,10 @@ impl Host for Proc {
     fn iterate(&mut self, now: Time, wall: Wall) {
         self.diagnostics.complete(self.kind.completions(), now);
         if let Kind::Service(host) = &mut self.kind
-            && host.service.as_ref().is_some_and(|service| service.engine_domain().is_some())
+            && let Some(service) = &mut host.service
+            && service.engine_domain().is_some()
         {
+            self.diagnostics.terminals.opened_logs(service.log_descriptors());
             self.diagnostics.terminals.observe(host.completions());
         }
         self.kind.iterate(now, wall);

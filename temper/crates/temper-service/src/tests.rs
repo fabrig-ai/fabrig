@@ -4,6 +4,7 @@ mod checks;
 mod deployment;
 mod derived;
 pub(crate) mod fixtures;
+mod limit_settings;
 mod limits;
 mod link_room;
 mod live_limits;

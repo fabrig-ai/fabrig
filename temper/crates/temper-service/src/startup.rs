@@ -29,7 +29,7 @@ mod checkout {
 }
 pub(crate) mod checks;
 mod problems;
-pub use temper_engine_service::startup::{EngineWhat, Listener, RedirectPort};
+pub use temper_engine_service::startup::{EngineWhat, LimitInputs, Listener, RedirectPort, Resolved, resolve_limits};
 #[cfg(test)]
 #[path = "tests/push_configuration.rs"]
 mod push_configuration;
@@ -625,6 +625,7 @@ pub struct CheckedStart {
     not_set_up: List<u16>,
     pub(crate) engine: settings::Engine,
     pub(crate) worker: Option<(settings::Worker, crate::worker_settings::Prepared)>,
+    pub(crate) worker_limits: crate::worker_settings::Limits,
     io: skein_io::Limits,
     forges: skein_forge_connection::Settings,
 }
@@ -673,7 +674,7 @@ pub fn checked_start_with(
     given: &crate::stock::Given,
     git: Option<&[u8]>,
 ) -> Result<CheckedStart, Problems> {
-    checked_start_over(document, directories, files, agent, seeds, forges, setup, given, git, None)
+    checked_start_over(document, directories, files, agent, seeds, forges, setup, given, git, None, None)
 }
 /// Check a start with a world's typed jig and temper limits instead of the stock.
 #[expect(
@@ -693,7 +694,39 @@ pub fn checked_start_with_limits(
     jig: &config::Limits,
     own: &crate::limits::Limits,
 ) -> Result<CheckedStart, Problems> {
-    checked_start_over(document, directories, files, agent, seeds, forges, setup, given, git, Some((jig, own)))
+    checked_start_over(document, directories, files, agent, seeds, forges, setup, given, git, Some((jig, own)), None)
+}
+/// A settings-backed box checks its worker with the stock shared figures,
+/// independently of the resolved engine. Typed-world entries retain their seam.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "settings-backed startup carries its non-setting facts beside the resolution"
+)]
+pub fn checked_start_with_resolved(
+    document: &[u8],
+    directories: &config::Directories,
+    files: &settings::Files,
+    agent: Option<&settings::Agent>,
+    seeds: &settings::Seeds,
+    forges: List<crate::ForgeRuntime>,
+    setup: Option<&temper_forge_setup::check::Checked>,
+    given: &crate::stock::Given,
+    git: Option<&[u8]>,
+    resolved: &Resolved,
+) -> Result<CheckedStart, Problems> {
+    checked_start_over(
+        document,
+        directories,
+        files,
+        agent,
+        seeds,
+        forges,
+        setup,
+        given,
+        git,
+        Some((&resolved.jig, &resolved.temper)),
+        Some(&resolved.worker),
+    )
 }
 #[expect(
     clippy::too_many_arguments,
@@ -711,6 +744,7 @@ fn checked_start_over(
     given: &crate::stock::Given,
     git: Option<&[u8]>,
     limits: Option<(&config::Limits, &crate::limits::Limits)>,
+    worker_limits: Option<&crate::limits::Limits>,
 ) -> Result<CheckedStart, Problems> {
     let sources = match agent {
         Some(agent) => temper_service_core::derived::Sources::agent(&agent.declaration()),
@@ -746,7 +780,13 @@ fn checked_start_over(
     }
     let resolved = resolved.expect("resolved files checked");
     let own = &parsed.application.limits;
-    checkout::capacity(Some(&parsed.engine.limits), &parsed.workers, own, agent, &mut problems);
+    match worker_limits {
+        Some(worker) => {
+            checkout::capacity(Some(&parsed.engine.limits), &[], own, agent, &mut problems);
+            checkout::capacity(None, &parsed.workers, worker, agent, &mut problems);
+        }
+        None => checkout::capacity(Some(&parsed.engine.limits), &parsed.workers, own, agent, &mut problems),
+    }
     checks::turns(Some(&parsed.engine.limits), &parsed.workers, own, declaration.as_ref(), &mut problems);
     let remote = u32::try_from(
         checks::longest_remote(parsed.application.test_github.as_ref(), own.forge.name_bytes).unwrap_or(u64::MAX),
@@ -800,8 +840,9 @@ fn checked_start_over(
     }
     let not_set_up = List::with_capacity(0);
 
-    let worker =
-        checked_worker(parsed.workers, parsed.application.workers, &parsed.engine, &parsed.application.limits, agent)?;
+    let worker_own = worker_limits.unwrap_or(&parsed.application.limits);
+    let shared = crate::limits::worker(worker_own);
+    let worker = checked_worker(parsed.workers, parsed.application.workers, &parsed.engine, worker_own, agent)?;
 
     let mut engine = settings::Engine {
         landing_held: false,
@@ -857,7 +898,7 @@ fn checked_start_over(
     }
     .ok_or(problem(Path::root().member(b"engine").member(b"limits").member(b"io"), What::Jig(config::What::Bound)))?;
     let prepared_forges = prepare_forges(&engine, forges)?;
-    Ok(CheckedStart { warnings, not_set_up, engine, worker, io, forges: prepared_forges })
+    Ok(CheckedStart { warnings, not_set_up, engine, worker, worker_limits: shared, io, forges: prepared_forges })
 }
 fn checked_start(
     document: &[u8],
@@ -1013,11 +1054,10 @@ pub fn from_checked(
     program_login: Option<Box<[u8]>>,
     program_environment: Box<[u8]>,
 ) -> Result<Service, Problems> {
-    let CheckedStart { mut engine, worker, io, forges, not_set_up, warnings } = checked;
+    let CheckedStart { mut engine, worker, worker_limits, io, forges, not_set_up, warnings } = checked;
     engine.program_environment = program_environment;
 
-    let worker = match worker::build(worker, agent, &crate::limits::worker(&engine.limits), files, runtime, seeds.seed)
-    {
+    let worker = match worker::build(worker, agent, &worker_limits, files, runtime, seeds.seed) {
         Ok(worker) => worker,
         Err(found) => return Err(problems::from_worker(found)),
     };

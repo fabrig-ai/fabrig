@@ -20,6 +20,10 @@ impl Cue {
     pub(super) fn new(key: RequestKey) -> Self {
         Self { key, logs: BTreeMap::new(), held: false }
     }
+    pub(super) fn opened_log(&mut self, fd: skein_io::kernel::Fd) {
+        assert!(self.logs.contains_key(&fd.raw()) || self.logs.len() < LOGS, "bounded open service logs");
+        self.logs.entry(fd.raw()).or_default();
+    }
     pub(super) fn held(&self) -> bool {
         self.held
     }
@@ -34,8 +38,7 @@ impl Cue {
                     .strip_prefix(b"log-")
                     .is_some_and(|number| number.len() == 20 && number.iter().all(u8::is_ascii_digit))
                 {
-                    assert!(self.logs.len() < LOGS, "bounded open service logs");
-                    self.logs.insert(fd.raw(), Log::default());
+                    self.opened_log(*fd);
                 }
             }
             (Op::Write { fd, bytes, from, .. }, Ok(Done::Count(count))) => {

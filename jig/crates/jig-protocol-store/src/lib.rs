@@ -57,6 +57,9 @@ pub fn levels(sets: &OwnerSets) -> codec::component::Levels {
     upgrade::admission::binary(sets)
 }
 
+mod startup_limits;
+pub use startup_limits::{InstallRefusal, runtime_limits};
+
 /// The store component's bounds (protocol/store/README.md, section 8).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Limits {
@@ -102,6 +105,8 @@ pub enum Phase {
 #[derive(Debug)]
 pub struct Store {
     limits: Limits,
+    runtime_started: bool,
+    startup_setting: Option<Box<[u8]>>,
     application: sizes::Application,
     codec_limits: codec::View,
     layouts: codec::component::Layouts,
@@ -239,6 +244,8 @@ impl Store {
             census,
             view: Box::new(view::State::new()),
             limits: *limits,
+            runtime_started: false,
+            startup_setting: None,
             application,
             codec_limits,
             layouts: format::layouts(),
@@ -433,6 +440,7 @@ fn decoded_records_bound(limits: &Limits, codec: &codec::View) -> Option<u64> {
 
 /// The memory component's requests (protocol/store/opening.md).
 pub fn down(store: &mut Store, env: &Env<Limits>, request: Request, above: &mut Queue<Event>, below: &mut Below) {
+    startup_limits::observe(store, &request);
     store.census.now = env.now;
     let lengths = rehearsal::lengths(below);
     let mut events = Queue::uncapped();

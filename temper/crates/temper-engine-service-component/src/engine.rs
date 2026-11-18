@@ -14,6 +14,7 @@ const RELEASE_CYCLES: u32 = 22;
 )]
 #[expect(missing_debug_implementations, reason = "the engine owns account token records")]
 pub struct Engine {
+    pub(crate) limits_in_force: Option<crate::limit_settings::InForce>,
     // Keep the root's state out of service construction and movement frames.
     pub(crate) domain: Box<root::Domain>,
     pub(crate) upgrade: Option<crate::upgrade::State>,
@@ -148,6 +149,7 @@ impl Engine {
         };
         domain.connection_limits(own.forge.forges, own.forge_component.installations);
         let mut engine = Self {
+            limits_in_force: None,
             upgrade: None,
             credentials,
             domain,

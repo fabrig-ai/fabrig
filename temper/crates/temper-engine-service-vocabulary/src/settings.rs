@@ -74,7 +74,7 @@ pub struct Author {
 pub use temper_service_core::settings::{Adapter, Files, PROGRAM_PATH_BYTES, Program};
 
 /// The seeds the shell draws at start, as jig's reference takes them.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Seeds {
     pub deployment: [u8; 16],
     pub seed: u64,

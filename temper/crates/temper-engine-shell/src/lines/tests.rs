@@ -1,6 +1,21 @@
 use super::*;
 
 #[test]
+fn a_lowered_limit_names_its_setting_figure_and_held_work() {
+    let arguments =
+        [b"--config".as_slice(), b"/configuration", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from);
+    let (directories, _) = temper_shell::directories::resolve(&arguments, &[], b"/").expect("directories");
+    let end = End::Stopped(Stop::LimitRestore {
+        name: b"forge.repositories",
+        kind: temper_engine_service::startup::LimitKind::Temper,
+        configured: 1,
+        held: 2,
+    });
+    assert_eq!(ending_with_binary("temper-engine",Some(&end),false,&directories,b"/data/deployment",&[]),
+        ("temper-engine serve: forge.repositories (setting temper-limits): its figure is 1, but the store holds 2; put limits-held in the data directory to start at the stock\n".into(),1));
+}
+
+#[test]
 fn ran_lines_include_declared_counts_in_order_or_no_suffix() {
     use jig_protocol_store::{JobCount, Owner};
     for (binary, shown) in [("temper-box", "temper-box"), ("temper-engine", "temper-engine"), ("temper", "temper-box")]

@@ -6634,6 +6634,7 @@ dependencies = [
  "jig-protocol-store",
  "jig-protocol-worker-link",
  "jig-protocol-worker-wire",
+ "serde_json",
  "skein-channel",
  "skein-codec",
  "skein-fake-forge-domain",
@@ -7727,6 +7728,7 @@ dependencies = [
 name = "temper-service-core"
 version = "0.0.0"
 dependencies = [
+ "jig-domain-core-vocabulary",
  "jig-domain-link",
  "jig-protocol-config",
  "jig-protocol-config-fixtures",

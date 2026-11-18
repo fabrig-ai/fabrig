@@ -66,6 +66,11 @@ pub fn ending_with_binary(
                 binary,
                 &temper_engine_service::startup::Problems::jig(found.clone(), &jig_protocol_config::Path::root()),
             ),
+            Stop::LimitRestore { name, kind, configured, held } => format!(
+                "{binary} serve: {} (setting {}): its figure is {configured}, but the store holds {held}; put limits-held in the data directory to start at the stock\n",
+                String::from_utf8_lossy(name),
+                String::from_utf8_lossy(kind.name())
+            ),
             Stop::Room(short) => {
                 format!("{binary} serve: restart refused: {}\n", String::from_utf8_lossy(&short.words()))
             }

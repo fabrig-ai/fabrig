@@ -111,33 +111,54 @@ pub(crate) fn prepare_with_limits(
     let accounts = engine::accounts(&engine)?;
     let seeds = engine::seeds(link_secret, local_secret)?;
     let git = temper_shell::lookup::find(environment, b"git");
-    let start = match limits {
-        Some((jig, own)) => service::startup::checked_start_with_limits(
-            bytes,
-            &jig_directories(directories),
-            &files,
-            agent.as_ref().map(|prepared| &prepared.agent),
-            &seeds,
-            List::with_capacity(0),
-            Some(&checked),
-            given,
-            git.as_ref().map(|path| path.as_os_str().as_bytes()),
-            jig,
-            own,
-        ),
-        None => service::startup::checked_start_with(
-            bytes,
-            &jig_directories(directories),
-            &files,
-            agent.as_ref().map(|prepared| &prepared.agent),
-            &seeds,
-            List::with_capacity(0),
-            Some(&checked),
-            given,
-            git.as_ref().map(|path| path.as_os_str().as_bytes()),
-        ),
+    let landing = engine::landing_hold(path(&directories.data))?;
+    let sources = agent
+        .as_ref()
+        .map(|agent| {
+            let worker = named.worker.as_ref().expect("local agent checked");
+            worker::sources(
+                &agent.agent,
+                agent.environment.clone(),
+                path(&worker.program),
+                path(&directories.cache),
+                user,
+                environment,
+            )
+        })
+        .transpose()?;
+    let declaration = agent.as_ref().map(|prepared| prepared.agent.declaration());
+    let inputs = service::startup::LimitInputs::new(
+        bytes,
+        &jig_directories(directories),
+        &files,
+        declaration.as_ref(),
+        &seeds,
+        given,
+        named.worker.is_some(),
+        limits,
+    );
+    let models = jig_protocol_config::core(&engine, seeds.deployment, seeds.seed).settings.models;
+    let (mut store, state) =
+        engine::open_limits(inputs, &models, path(&directories.data), &named.deployment, user, "", owned)?;
+    let start = service::startup::checked_start_with_resolved(
+        bytes,
+        &jig_directories(directories),
+        &files,
+        agent.as_ref().map(|prepared| &prepared.agent),
+        &seeds,
+        List::with_capacity(0),
+        Some(&checked),
+        given,
+        git.as_ref().map(|path| path.as_os_str().as_bytes()),
+        &state.resolved,
+    );
+    let mut start = match start {
+        Ok(start) => start,
+        Err(why) => {
+            engine::close_limits_store(&mut store)?;
+            return Err(String::from_utf8_lossy(&service::startup::lines(&why)).into_owned());
+        }
     };
-    let mut start = start.map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     if !projects.is_empty() {
         let engine = start.engine_mut();
         engine.jig.owners = engine
@@ -153,7 +174,7 @@ pub(crate) fn prepare_with_limits(
             .collect();
         engine.jig.projects = projects.into();
     }
-    let mut service = service::startup::from_checked(
+    let service = service::startup::from_checked(
         start,
         &files,
         agent.as_ref().map(|prepared| &prepared.agent),
@@ -163,35 +184,38 @@ pub(crate) fn prepare_with_limits(
         if under_box { Some(box_limits.line_bytes) } else { None },
         program_login,
         engine::program_environment(directories, environment, working, &printed::running_word(environment)),
-    )
-    .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
-    if let Some(line) = engine::landing_hold(path(&directories.data))? {
+    );
+    let mut service = match service {
+        Ok(service) => service,
+        Err(why) => {
+            engine::close_limits_store(&mut store)?;
+            return Err(String::from_utf8_lossy(&service::startup::lines(&why)).into_owned());
+        }
+    };
+    service.engine_component().take_limit_store(store, state);
+    if let Some(line) = landing {
         eprintln!("{line}");
         service.engine_component().hold_landings(true);
     }
     service.configure_forge_runtime(github, roots);
     service.configure_google_endpoints(google);
-    if let Some(agent) = &agent {
-        let worker = named.worker.as_ref().expect("local agent checked");
-        let sources = worker::sources(
-            &agent.agent,
-            agent.environment.clone(),
-            path(&worker.program),
-            path(&directories.cache),
-            user,
-            environment,
-        )?;
+    if let Some(sources) = sources {
         if sources.reuse {
             service.reuse_workspaces();
         }
         if let Some(directory) = sources.dump {
             service.dump_llm(&directory);
         }
-        if let Some(resources) = sources.resources {
-            service.configure_program_sources(resources).map_err(|_| "worker refused program source resources")?;
+        if let Some(resources) = sources.resources
+            && service.configure_program_sources(resources).is_err()
+        {
+            engine::close_limits_store(service.engine_component().store())?;
+            return Err("worker refused program source resources".into());
         }
     }
-    engine::adopt(service.engine_component(), &named.deployment, bundle, user, owned)?;
+    if let Some(bundle) = bundle {
+        service.engine_component().adopt_bundle(bundle);
+    }
     Ok((Service::Joined(service), named.deployment, box_limits.line_bytes))
 }
 /// The kernel operations a standalone start keeps in flight at most (its ring's size),
@@ -240,7 +264,13 @@ fn operations_in_mode(
         &[],
         None,
     )
-    .map(|(service, _, _)| service.operations());
+    .and_then(|(mut service, _, _)| {
+        let operations = service.operations();
+        if let Service::Joined(service) = &mut service {
+            engine::close_limits_store(service.engine_component().store())?;
+        }
+        Ok(operations)
+    });
     close(owned);
     result.map_err(|why| prefixed(&format!("{binary} serve"), &why))
 }
@@ -374,7 +404,13 @@ fn operations_in_over(
         &[],
         limits,
     )
-    .map(|(service, _, _)| service.operations());
+    .and_then(|(mut service, _, _)| {
+        let operations = service.operations();
+        if let Service::Joined(service) = &mut service {
+            engine::close_limits_store(service.engine_component().store())?;
+        }
+        Ok(operations)
+    });
     close(owned);
     result.map_err(|why| prefixed(&format!("{binary} serve"), &why))
 }

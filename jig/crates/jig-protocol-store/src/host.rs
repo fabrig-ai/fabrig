@@ -1,6 +1,7 @@
 //! The store's three single-flight file drivers, adoption and close
 //! (jig/docs/design/protocol/store/README.md, 8; jig/docs/design/protocol/service.md, 11.5).
 use crate::Below;
+use alloc::boxed::Box;
 use skein_io::{
     file,
     file_layer::{FileIo, Limits as FileLimits, step},
@@ -76,6 +77,25 @@ impl Hosted {
     #[must_use]
     pub fn limits(&self) -> &crate::Limits {
         &self.env.limits
+    }
+    /// Read the application's and core's limit settings before runtime restore.
+    pub fn limit_settings(
+        &mut self,
+        application_key: Box<[u8]>,
+    ) -> Result<(Option<crate::Row>, Option<crate::Row>), crate::InstallRefusal> {
+        self.component.limit_settings(application_key)
+    }
+    /// Keep the host's runtime environment in step with its component; file
+    /// drivers retain the stock envelope used to open the deployment.
+    pub fn install_limits(
+        &mut self,
+        core: &jig_domain_core_vocabulary::Limits,
+        application: crate::sizes::Application,
+        transcript_bytes: u32,
+    ) -> Result<(), crate::InstallRefusal> {
+        self.component.install_limits(core, application, transcript_bytes)?;
+        self.env.limits = self.component.limits;
+        Ok(())
     }
     #[must_use]
     pub fn mark_durable(&self) -> bool {

@@ -34,26 +34,38 @@ pub enum Given {
     },
 }
 impl Given {
+    /// Retain the defaults beside the non-setting startup facts.
+    #[must_use]
+    pub fn copied(&self) -> Self {
+        match self {
+            Self::Stock => Self::Stock,
+            Self::Own { jig, forge, ways } => {
+                Self::Own { jig: copy_defaults(jig), forge: forge.clone(), ways: ways.clone() }
+            }
+        }
+    }
     /// Defaults passed by the binary or constructed from stock for startup.
     #[must_use]
     pub fn defaults(&self, llm: &jig_protocol_config::Llm, result_bytes: u32) -> Option<Defaults> {
         match self {
             Self::Stock => checked(llm, result_bytes),
-            Self::Own { jig: own, .. } => {
-                let mut policies = Map::with_capacity(own.policies.len());
-                for (number, policy) in &own.policies {
-                    policies.insert(*number, policy.clone()).expect("counted policies");
-                }
-                Some(Defaults {
-                    limits: own.limits.clone(),
-                    models: own.models.clone(),
-                    charters: own.charters.clone(),
-                    templates: own.templates.clone(),
-                    policies,
-                    rules: own.rules.clone(),
-                })
-            }
+            Self::Own { jig: own, .. } => Some(copy_defaults(own)),
         }
+    }
+}
+
+fn copy_defaults(own: &Defaults) -> Defaults {
+    let mut policies = Map::with_capacity(own.policies.len());
+    for (number, policy) in &own.policies {
+        policies.insert(*number, policy.clone()).expect("counted policies");
+    }
+    Defaults {
+        limits: own.limits.clone(),
+        models: own.models.clone(),
+        charters: own.charters.clone(),
+        templates: own.templates.clone(),
+        policies,
+        rules: own.rules.clone(),
     }
 }
 

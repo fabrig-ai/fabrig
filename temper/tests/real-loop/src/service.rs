@@ -538,7 +538,17 @@ impl ServiceHost {
             return Err("bounded held cues".into());
         }
         self.cues.push(Cue::new(key));
+        self.seed_log_cues();
         Ok(())
+    }
+    fn seed_log_cues(&mut self) {
+        if let Some(driven) = &mut self.service {
+            for fd in driven.log_descriptors() {
+                for cue in &mut self.cues {
+                    cue.opened_log(*fd);
+                }
+            }
+        }
     }
     #[must_use]
     pub fn held(&self) -> bool {
@@ -678,6 +688,7 @@ impl Host for ServiceHost {
                 self.started_at.get_or_insert(now);
             }
             self.service = Some(service);
+            self.seed_log_cues();
         }
         if let Some(service) = &mut self.service {
             self.local_completion = false;

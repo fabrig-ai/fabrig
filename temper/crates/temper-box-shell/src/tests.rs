@@ -165,7 +165,7 @@ fn the_standalone_operations_check_retains_no_descriptors() {
     .expect("standalone operations");
     assert_no_descriptors_in(&directory);
     let mut owned = Vec::new();
-    let (service, _, _) = super::serve::prepare_with_limits(
+    let (mut service, _, _) = super::serve::prepare_with_limits(
         "temper",
         &[],
         b"/",
@@ -182,6 +182,9 @@ fn the_standalone_operations_check_retains_no_descriptors() {
     )
     .expect("same standalone preparation");
     assert_eq!(operations, service.operations());
+    if let super::Service::Joined(service) = &mut service {
+        temper_engine_shell::serve::close_limits_store(service.engine_component().store()).expect("close opened store");
+    }
     drop(service);
     super::close(owned);
     assert_no_descriptors_in(&directory);

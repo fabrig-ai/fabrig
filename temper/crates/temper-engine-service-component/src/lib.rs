@@ -35,6 +35,7 @@ pub use core_wait::CoreWait;
 pub use temper_engine_domain::JournalStop;
 pub mod engine;
 pub use engine::Engine;
+pub mod limit_settings;
 mod opened;
 mod places;
 mod route;
@@ -76,6 +77,13 @@ pub enum Stop {
         why: CommitStop,
     },
     Start(Problems),
+    /// A lowered setting cannot hold the durable work restored at this start.
+    LimitRestore {
+        name: &'static [u8],
+        kind: limit_settings::LimitKind,
+        configured: u64,
+        held: u64,
+    },
     /// jig's start refused a fit at `phase` (jig jig/docs/design/domain/engine/restart.md).
     StartRefused {
         phase: Option<jig_domain_core::start::Phase>,
