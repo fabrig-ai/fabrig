@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-16. Where temper's code lags or departs from [README.md](README.md).
+2026-11-18. Where temper's code lags or departs from [README.md](README.md).
 
 `checks.md`, section 1 has no known gap in the one-process runner's shared-process
 memory-scenario requirement. No test is assigned to `process-of-its-own`.
@@ -180,5 +180,12 @@ that proof remains with the after-landing runs (11).
   2.5: story A, the golden stories, the incident stories and the goal
   across versions make what doesn't change more than once.
   [in flight: change 5571]
+
+- **Not yet:** 5: no `testing/temper-agent-fixtures` or
+  `testing/temper-landing-fixtures`: the agent and landing fixtures are
+  `temper-fixtures`' modules, on its eighteen dependencies.
+  [in flight: change 8037]
+- **Not yet:** 5: no `testing/temper-process-guard`: the process guard
+  and its `parent` test are `temper-box-kit`'s. [in flight: change 8038]
 
 
