@@ -5,7 +5,7 @@ recording as its lines (`journeys.md`, 3.2), and every byte field of each. It wr
 nothing and prints no original. A browser's saved file already holds
 the *link* and the *stored* replaced (`journeys.md`, 3.1): their values are `x`s
 alone, which are no original, so `add` counts none of either, and its
-redaction of the rest is unchanged.
+redaction of the rest is unchanged. After the proof, what varies takes a placeholder (`../journey-placeholders.md`).
 
 - **The originals:**
   - *link:* the `secret` record's value;

@@ -23,7 +23,7 @@ take them, 5 a print's ids, 6 the code, 7 its tests, 8 what is open.
   bytes whatever the original's length, numbered by first appearance
   where a recording holds several.
 - **Where:** in every field and every form, as redaction seeks its
-  originals (`web/journeys.md`, 3.6), so the recording and its prints
+  originals (`web/journey-redaction.md`), so the recording and its prints
   agree. A framed field takes a placeholder of the original's own width
   alone; an original that one can't take stands everywhere (3.3).
 - **When:** `add` redacts, proves, then normalises, and the normalised
@@ -114,10 +114,10 @@ take them, 5 a print's ids, 6 the code, 7 its tests, 8 what is open.
 ### 3.1 Every field, every form
 
 - **Every field** of every line, framed or text, a browser stream's
-  records joined and decoded first (`web/journeys.md`, 3.6, *A stream's
+  records joined and decoded first (`web/journey-redaction.md`, *A stream's
   pieces are joined first*), and a mark's and the end's html or print
   where they hold one.
-- **Every form** redaction seeks (`web/journeys.md`, 3.6, *Where*): the
+- **Every form** redaction seeks (`web/journey-redaction.md`, *Where*): the
   bytes, percent-encoded in either hex case, `dom::print`'s escapes and
   Rust's Debug escapes; and decimal byte elements (`[104, 116, ...]`),
   the Debug print of a byte field: the TUI's pasted address in a `Typed`
@@ -142,7 +142,7 @@ Forgejo's, as every walk of the journey makes them.
 
 ### 3.3 A framed field: its width, or the original stands
 
-A framed field (`web/journeys.md`, 3.6, *A form's size*;
+A framed field (`web/journey-redaction.md`, *A form's size*;
 `tui/journeys.md`, 5, *Where*) holds wire bytes whose lengths nest, a
 `text` inside held `bytes` inside a message
 (`skein/docs/design/data/codec/README.md`, 3), and the recording doesn't
@@ -188,7 +188,7 @@ bytes, and a committed recording is its own normalisation (4.3).
 In this order, everything in memory until the scan has passed
 (`web/journeys.md`, 5.1; `tui/journeys.md`, 6.1):
 
-1. **Redacts** (`web/journeys.md`, 3.6; `tui/journeys.md`, 5).
+1. **Redacts** (`web/journey-redaction.md`; `tui/journeys.md`, 5).
 2. **Proves the redacted recording** against its live prints
    (`web/journeys.md`, 4.3; `tui/journeys.md`, 4.3), which drops the
    marks' html or prints.
