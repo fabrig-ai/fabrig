@@ -2,7 +2,6 @@
 
 2026-11-18. Where the tree's code lags or departs from [settings.md](settings.md).
 
-- **Not yet:** 2: kinds 9 and 11, the forge's charter (kind 3) and an area's and the triager's charter owner judged 1 to 64, and kinds 9 and 11 read as "none kept" across 1 to 64, rather than 1 to a count [in flight: change 8171].
 
 
 - **Not yet:** 8: the forge's `ways` read gives no rules by path [in

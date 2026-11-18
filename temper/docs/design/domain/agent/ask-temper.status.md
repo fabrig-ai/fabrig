@@ -2,7 +2,6 @@
 
 2026-11-18. Where the tree's code lags or departs from [ask-temper.md](ask-temper.md).
 
-- **Not yet:** 2, *A new item's number*: `ask.txt`'s *Configuring* says nothing of the lowest free number from 33 [in flight: change 8171].
 
 - **Not yet:** *Its instructions*: `ask.txt`'s *Showing* opens with the
   former "Show a picture when it explains better than words", has no
