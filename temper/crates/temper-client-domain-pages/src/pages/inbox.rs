@@ -495,6 +495,45 @@ impl Inbox {
         self.read_whole(index, out);
         self.read_task(index, out);
     }
+    /// Read a needs row on demand, reusing the last needs card's place.
+    pub(super) fn open(&mut self, object: ObjectKey, out: &mut Queue<Request>) {
+        for card in &self.cards {
+            if card.object == object {
+                return;
+            }
+        }
+        let mut requested = None;
+        let mut last = None;
+        for row in &self.rows {
+            if row.card_key() == object {
+                requested = Some(row.clone());
+            }
+            for (index, card) in self.cards.iter().enumerate() {
+                if card.object == row.card_key() {
+                    last = Some(index);
+                }
+            }
+        }
+        let Some(row) = requested else { return };
+        if let Some(last) = last {
+            let mut previous = List::with_capacity(self.cards.capacity());
+            core::mem::swap(&mut self.cards, &mut previous);
+            for (index, card) in previous.into_boxed().into_iter().enumerate() {
+                if index == last {
+                    client(out, jig_client::Event::Unwatch { handle: card.handle });
+                    self.pending.remove(&card.handle);
+                    if let Some(whole) = &card.whole {
+                        client(out, jig_client::Event::Unwatch { handle: whole.handle });
+                    }
+                    self.previous.push(card).expect("one replaced needs card");
+                } else {
+                    self.cards.push(card).expect("kept cards fit");
+                }
+            }
+        }
+        self.add(&row, out);
+        self.release_previous(out);
+    }
     fn read_task(&mut self, index: u32, out: &mut Queue<Request>) {
         let card = self.cards.get_mut(index).expect("bounded card index");
         let Some(source) = card.source() else { return };

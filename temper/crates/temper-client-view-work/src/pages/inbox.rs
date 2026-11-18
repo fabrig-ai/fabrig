@@ -7,7 +7,7 @@ use crate::{
     words::{TimeForm, Times, Word, Words},
 };
 use alloc::boxed::Box;
-use jig_client::contract::{EndedValue, InboxGroup, ObjectKey, Proposer, ReadValue, ResultValue};
+use jig_client::contract::{EndedValue, InboxEntry, InboxGroup, ObjectKey, Proposer, ReadValue, ResultValue, TaskLink};
 use skein_lib::Decimal;
 use skein_ui::{Builder, Role, Run, State, phrases::Hole};
 use temper_client_domain::{
@@ -32,6 +32,10 @@ fn control(b: &mut Builder, bindings: &mut Bindings, role: Role, name: &[u8], ac
     }
     b.close();
 }
+#[expect(
+    clippy::too_many_lines,
+    reason = "the terminal's two sections join row-only needs with read cards and keep updates separate"
+)]
 pub fn main(
     b: &mut Builder,
     root: &Domain,
@@ -104,8 +108,45 @@ pub fn main(
         b.close();
         let mut opened = false;
         for group in groups.into_iter().flatten() {
+            if !updates {
+                for row in &inbox.rows {
+                    if row.group() != group
+                        || root.pages().needs().held(row.card_key())
+                        || match inbox.filter.kind {
+                            Some(kind) => temper_client_domain::pages::inbox::kind(kind) != Some(row.group()),
+                            None => false,
+                        }
+                        || match inbox.filter.project {
+                            Some(project) => !row.shows_in(project),
+                            None => false,
+                        }
+                    {
+                        continue;
+                    }
+                    if !opened {
+                        b.open(Role::List);
+                        b.name(&words.say(heading, &[]));
+                        b.style(look::CARDS);
+                        opened = true;
+                    }
+                    let mut read = None;
+                    for card in &inbox.cards {
+                        if card.object == row.card_key() {
+                            read = Some(card);
+                        }
+                    }
+                    match read {
+                        Some(card) if card.page.is_some() => entry(b, root, card, words, bindings, rows, times),
+                        Some(_) | None => row_entry(b, root, row, read, words, bindings, times),
+                    }
+                }
+            }
             for card in &inbox.cards {
-                if card.group == group {
+                let mut listed = false;
+                for row in &inbox.rows {
+                    listed |= card.object == row.card_key();
+                }
+                if card.group == group && (updates || !listed) {
                     if !opened {
                         b.open(Role::List);
                         b.name(&words.say(heading, &[]));
@@ -286,14 +327,7 @@ fn entry(
     b.open(Role::Item);
     b.key(card_key(card.object));
     b.style(look::CARD);
-    let (kind, style) = match card.group {
-        InboxGroup::Proposals => (Word::Proposal, look::KIND_PROPOSAL),
-        InboxGroup::Questions => (Word::Question, look::KIND_QUESTION),
-        InboxGroup::Escalations => (Word::Held, look::KIND_HELD),
-        InboxGroup::PersonTasks => (Word::PersonTask, look::KIND_PERSON_TASK),
-        InboxGroup::Results => (Word::InboxUpdates, look::KIND_RESULT),
-        InboxGroup::Replies => (Word::Reply, look::KIND_REPLY),
-    };
+    let (kind, style) = group_kind(card.group);
     b.name(&card_name(root, card.object, kind, words));
     b.style(style);
     let update = card.group == InboxGroup::Results || card.group == InboxGroup::Replies;
@@ -409,6 +443,109 @@ fn entry(
         control(b, bindings, Role::Link, &name, update_act(card, task));
         b.close();
     }
+    b.close();
+}
+fn group_kind(group: InboxGroup) -> (Word, skein_ui::Style) {
+    match group {
+        InboxGroup::Proposals => (Word::Proposal, look::KIND_PROPOSAL),
+        InboxGroup::Questions => (Word::Question, look::KIND_QUESTION),
+        InboxGroup::Escalations => (Word::Held, look::KIND_HELD),
+        InboxGroup::PersonTasks => (Word::PersonTask, look::KIND_PERSON_TASK),
+        InboxGroup::Results => (Word::InboxUpdates, look::KIND_RESULT),
+        InboxGroup::Replies => (Word::Reply, look::KIND_REPLY),
+    }
+}
+/// The owner's title alone in the browser, TN plus TITLE in the terminal.
+pub(crate) fn row_title(row: &InboxEntry, words: &Words) -> Box<[u8]> {
+    match row_task_title(row) {
+        Some(title) if words.shell == crate::words::Shell::Browser => crate::common::chat::row_title(title),
+        Some(title) => skein_lib::bytes::concat(&[
+            &words.say(Word::TaskWho, &[Hole::Number(row.task_number())]),
+            b" ",
+            &crate::common::chat::row_title(title),
+        ]),
+        None => words.say(Word::TaskWho, &[Hole::Number(row.task_number())]),
+    }
+}
+fn row_task_title(row: &InboxEntry) -> Option<&[u8]> {
+    match &row.task {
+        TaskLink::Live(chip) | TaskLink::Retained { chip, .. } => Some(chip.title.bytes()),
+        TaskLink::Stored { .. } => None,
+    }
+}
+pub(crate) fn row_when(row: &InboxEntry, words: &Words, times: &mut Times) -> Box<[u8]> {
+    let kind = words.say(super::ask::need_kind(row.group()), &[]);
+    match row.at {
+        Some(at) => skein_lib::bytes::concat(&[
+            &kind,
+            &words.say(Word::ToolSeparator, &[]),
+            &times.say(words, TimeForm::Span, at),
+        ]),
+        None => kind,
+    }
+}
+fn row_entry(
+    b: &mut Builder,
+    root: &Domain,
+    row: &InboxEntry,
+    card: Option<&Card>,
+    words: &Words,
+    bindings: &mut Bindings,
+    times: &mut Times,
+) {
+    let (kind, style) = group_kind(row.group());
+    b.open(Role::Item);
+    b.key(card_key(row.card_key()));
+    b.style(look::CARD);
+    b.style(style);
+    b.name(&card_name(root, row.card_key(), kind, words));
+    b.open(Role::Slot);
+    b.style(look::META);
+    b.open(Role::Paragraph);
+    b.style(look::INBOX_TAG);
+    let tag = words.say(kind, &[]);
+    b.name(&tag);
+    b.text(Run::Plain, &tag);
+    b.close();
+    b.open(Role::Text);
+    if let Some(project) = row.project {
+        let name = super::project_name(root.pages().me(root.client()), project)
+            .unwrap_or(words.say(Word::Project, &[Hole::Number(u64::from(project))]));
+        b.run(Run::Plain, &name);
+        b.run(Run::Plain, " › ".as_bytes());
+    }
+    b.close();
+    control(
+        b,
+        bindings,
+        Role::Link,
+        &words.say(Word::TaskWho, &[Hole::Number(row.task_number())]),
+        Act::Go { address: Address::Task { task: row.task_number() } },
+    );
+    if let Some(title) = row_task_title(row) {
+        text(b, Role::Text, &skein_lib::bytes::concat(&[b" ", &crate::common::chat::row_title(title)]));
+    }
+    if let Some(at) = row.at {
+        text(b, Role::Text, &times.say(words, TimeForm::Span, at));
+    }
+    b.close();
+    if let Some(card) = card {
+        super::needs::why_line(
+            b,
+            root,
+            words,
+            bindings,
+            temper_client_domain::pages::needs::Need::Card(card),
+            super::needs::WhyForm::Short,
+        );
+    }
+    control(
+        b,
+        bindings,
+        Role::Link,
+        &open_task_name(words, row.task_number()),
+        Act::Go { address: Address::Task { task: row.task_number() } },
+    );
     b.close();
 }
 fn update_act(card: &Card, task: u64) -> Act {

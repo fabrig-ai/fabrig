@@ -1506,6 +1506,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         inbox.configure(client, &env.limits, out);
         pages.next = pages.next.max(inbox.next);
     }
+    needs::read_at(pages, out);
     if let Some(task) = &mut pages.task {
         task.next = task.next.max(pages.next);
     }

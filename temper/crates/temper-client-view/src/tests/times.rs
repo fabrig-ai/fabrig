@@ -62,7 +62,8 @@ fn the_inbox_says_the_question_wait_and_result_arrival_from_their_objects() {
     let question = super::inbox::question_root();
     let view = at_twelve_minutes(&question);
     assert!(skein_lib::bytes::find(&fixtures::text(view.tree()), b"Waiting 12 min").is_some());
-    for (at, expected) in [(Some(Wall::EPOCH), Some(wall(13 * MINUTE))), (None, None)] {
+    // Unread needs' rows still draw their own waits, even with no result clock.
+    for at in [Some(Wall::EPOCH), None] {
         let result = c::Result {
             task: fixtures::task::document().chip,
             ending: c::Ending::Done,
@@ -77,7 +78,7 @@ fn the_inbox_says_the_question_wait_and_result_arrival_from_their_objects() {
         );
         let view = at_twelve_minutes(&root);
         assert_eq!(skein_lib::bytes::find(&fixtures::text(view.tree()), b"12 min ago").is_some(), at.is_some());
-        assert_eq!(view.next_change(), expected);
+        assert_eq!(view.next_change(), Some(wall(13 * MINUTE)));
     }
 }
 #[test]
