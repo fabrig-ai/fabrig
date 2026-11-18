@@ -23,6 +23,10 @@ document goes with the goal's last change.
   ```rust
   // skein_codegen; Form derives Clone, Copy, Debug, equality
   pub enum Form { Sealed, Lean }
+  // the form's own checks on a parsed schema (README.md, 7):
+  // Lean refuses a type named Path, Problem or Record; Sealed adds none
+  pub fn check_as(schema: &Schema, form: Form) -> Result<(), Error>;
+  // generate_as expects check_as(schema, form) to have passed
   pub fn generate_as(schema: &Schema, form: Form) -> Output;
   // generate(schema) is generate_as(schema, Form::Sealed)
   // Lean where schema_dir/lean lists family; an unreadable file is Err
@@ -31,7 +35,9 @@ document goes with the goal's last change.
   ```
 
 - **The command** (`README.md`, 4) writes the form `form_of` gives for
-  its first schema's directory and the parsed family, so the merge job
+  its first schema's directory and the parsed family, after `check_as`
+  for that form passes (a refusal is reported as `parse`'s are), so the
+  merge job
   (`temper/docs/design/protocol/tooling.md`, 4.1) and the drift test
   write the same module. Its arguments don't change.
 - **Each drift test** generates its families in the form their mark
