@@ -6,6 +6,9 @@ use crate::{
 use alloc::boxed::Box;
 use skein_lib::{List, Queue, Wall};
 
+mod words;
+pub use words::{cut_words, news_words, ownership_words};
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Holder {
     Task(u64),
