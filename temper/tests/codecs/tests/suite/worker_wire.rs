@@ -1,4 +1,5 @@
 //! Identity kinds and repository accounts (protocol/channel.md, sections 4 and 6).
+use super::values;
 use skein_lib::{List, Reader, Secret, Writer};
 use temper_protocol_worker_wire::{self as wire, v1};
 
@@ -74,8 +75,7 @@ fn each_identity_kind_round_trips() {
 
 #[test]
 fn an_unknown_identity_kind_is_refused() {
-    let mut bytes =
-        include_bytes!("../../../../crates/temper-protocol-worker-wire/golden/record_identity_full.bin").to_vec();
+    let mut bytes = wire::identity(&identities()[0]).expose().to_vec();
     bytes[0] = 2; // One past github's tag, in Identity.kind.
     let problem = v1::Identity::decode(&v1::CEILINGS, &mut Reader::new(&bytes)).expect_err("unknown kind tag");
     assert_eq!(problem.path, v1::Path::KindTag);
@@ -83,7 +83,7 @@ fn an_unknown_identity_kind_is_refused() {
 
 #[test]
 fn a_repositorys_account_round_trips() {
-    let golden = include_bytes!("../../../../crates/temper-protocol-worker-wire/golden/record_repository_full.bin");
+    let golden = values::named(values::worker(), "record_repository_full.bin");
     let original = v1::Repository::decode(&v1::CEILINGS, &mut Reader::new(golden)).expect("within ceilings");
     for account in [Some(0x1234_5678_9abc_def0), None, Some(1_u64 << 53), Some(u64::MAX)] {
         let parts = v1::RepositoryParts { account, ..original.clone().into_parts() };

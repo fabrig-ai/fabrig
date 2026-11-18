@@ -28,7 +28,6 @@ pub enum Arg {
     Delegate(usize),
     Digest(usize),
     ActivityBefore(usize),
-    InboxAfter(usize),
     Number(u64),
     GithubApp,
     File(&'static str),
@@ -433,11 +432,6 @@ pub fn digest(call: usize) -> Arg {
 pub fn activity_before(call: usize) -> Arg {
     Arg::ActivityBefore(call)
 }
-/// The needs continuation supplied by an earlier inbox page.
-#[must_use]
-pub fn inbox_after(call: usize) -> Arg {
-    Arg::InboxAfter(call)
-}
 fn delegate_number(stdout: &[u8]) -> u64 {
     let value: serde_json::Value = serde_json::from_slice(stdout).expect("task tree JSON");
     if let Some(children) = value.get("task").unwrap_or(&value).get("delegates").and_then(serde_json::Value::as_array) {
@@ -759,9 +753,6 @@ impl Caller {
                 Arg::ActivityBefore(index) => self
                     .diagnostic_pointer(*index, &["/activity/before/value", "/before/value"])
                     .unwrap_or_else(|| format!("<activity cursor from call {index}>")),
-                Arg::InboxAfter(index) => self
-                    .diagnostic_pointer(*index, &["/needs/after/value"])
-                    .map_or_else(|| format!("<inbox cursor from call {index}>"), |cursor| format!("00{cursor}")),
             })
             .collect()
     }
@@ -1048,15 +1039,6 @@ impl Caller {
                     })
                     .into_bytes()
                     .into(),
-                Arg::InboxAfter(call) => {
-                    let value: serde_json::Value =
-                        serde_json::from_slice(&self.calls[*call].stdout).expect("inbox JSON");
-                    let cursor = value
-                        .pointer("/needs/after/value")
-                        .and_then(serde_json::Value::as_str)
-                        .expect("next needs page");
-                    format!("00{cursor}").into_bytes().into()
-                }
                 Arg::GithubApp => self.github_app.expect("person made the App").to_string().into_bytes().into(),
                 Arg::Number(number) => number.to_string().into_bytes().into(),
                 Arg::File(name) => self.scratch.join(name).as_os_str().as_bytes().into(),

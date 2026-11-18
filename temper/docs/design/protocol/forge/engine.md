@@ -646,8 +646,8 @@ service's io.
   held when told set up failed (`../../domain/forge/adoption.md`, 1), including
   `BoxClosed` during setup. The producers keep their existing events;
   the FORGE row's `SetUpFailed` carries `why` and `at: option
-  FailedStep` (fetch, prepare, run or connect). The schema, generated
-  codec and goldens update in place at CLIENT_VERSION 11 before the
+  FailedStep` (fetch, prepare, run or connect). The schema and generated
+  records update in place at CLIENT_VERSION 11 before the
   first release; no store or record version changes.
 - **A removal** is the forge domain's too, at a forge's removal's
   decision and at each start while its record has not heard it done
