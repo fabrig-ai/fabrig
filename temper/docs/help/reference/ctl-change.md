@@ -43,7 +43,7 @@ change open --project PROJECT [--repository OWNER/NAME] --branch BRANCH [--at CO
   --into BRANCH: text, at most 1048576 bytes; optional. The landing branch, 1 to 1024 bytes; the repository's default when absent
   --title TEXT: text, at most 1048576 bytes, or - to read stdin; optional. Required: the pull request's title, 1 to 256 bytes
   --body TEXT: text, at most 1048576 bytes, or - to read stdin; optional. The pull request's body after the opening line, 1 to 16384 bytes
-  --budget AMOUNT: a number from 0 to 18446744073709551615; optional. What reviews, resolutions and repairs may spend; or --as-allowed
+  --budget AMOUNT: an amount with at most two decimals, as 130 or 1.25; optional. What reviews, resolutions and repairs may spend; or --as-allowed
   --as-allowed: a switch. Take what your role allows instead of a named budget
 Open a change from a branch you pushed
 Prints: `task N`, the change task made; a refusal names why nothing was made

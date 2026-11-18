@@ -791,6 +791,7 @@ fn fleet_delivery_within(event: &jig_domain_fleet::Event) -> bool {
         | Event::Sources { .. }
         | Event::Check { .. }
         | Event::SignOut { .. }
+        | Event::Untooled { .. }
         | Event::Mismatch { .. }
         | Event::Draining { .. }
         | Event::Logins { .. }
