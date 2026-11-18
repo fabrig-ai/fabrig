@@ -60,6 +60,34 @@ const OPEN_LINK: &[u8] =
 type OpenRow = (&'static str, &'static [u8], Result<(bool, &'static str), &'static str>);
 const OPEN_ARGUMENTS: &[OpenRow] = &[
     ("link", OPEN_LINK, Ok((true, "127.0.0.1:7000"))),
+    (
+        "page link",
+        b"http://127.0.0.1:7000/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        Ok((true, "127.0.0.1:7000")),
+    ),
+    (
+        "IPv6 page link",
+        b"http://[::1]:7000/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        Ok((true, "[::1]:7000")),
+    ),
+    (
+        "remote page link",
+        b"http://10.0.0.1:7000/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        Err("the engine's address must be on loopback"),
+    ),
+    (
+        "short page secret",
+        b"http://127.0.0.1:7000/sign-in?secret=AA",
+        Err("not a link or an address: http://127.0.0.1:7000/sign-in?secret=AA"),
+    ),
+    (
+        "page other query",
+        b"http://127.0.0.1:7000/sign-in?other=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        Err(
+            "not a link or an address: http://127.0.0.1:7000/sign-in?other=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        ),
+    ),
+    ("page no query", b"http://127.0.0.1:7000/sign-in", Err("not a link or an address: http://127.0.0.1:7000/sign-in")),
     ("address", b"http://127.0.0.1:7000".as_slice(), Ok((false, "127.0.0.1:7000"))),
     ("slash", b"http://127.0.0.1:7000/".as_slice(), Ok((false, "127.0.0.1:7000"))),
     ("IPv6", b"http://[::1]:7000/".as_slice(), Ok((false, "[::1]:7000"))),

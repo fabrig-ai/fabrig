@@ -51,6 +51,16 @@ impl Refused {
 }
 
 pub fn address(argument: &[u8]) -> Result<SocketAddr, Refused> {
+    // A link is never an argument, even when its secret is malformed (client/tui/README.md, 1).
+    if let Some(rest) = std::str::from_utf8(argument).ok().and_then(|text| text.strip_prefix("http://"))
+        && let Some((host, path)) = rest.split_once('/')
+        && host.parse::<SocketAddr>().is_ok()
+        && let Some((path, _)) = path.split_once("?secret=")
+        && (path == "jig/v1/sign-in/link"
+            || Some(path.as_bytes()) == temper_client_domain::sign_in::LINK_PAGE.strip_prefix(b"/"))
+    {
+        return Err(Refused::Link);
+    }
     match engine_address::target(argument) {
         Ok(engine_address::Target::Address { engine }) => Ok(engine),
         Ok(engine_address::Target::Link { .. }) => Err(Refused::Link),

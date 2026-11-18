@@ -195,7 +195,7 @@ impl Life {
         // As in the shipped starter, erase the secret before the host can send.
         let secret = sign_in::web::take_from_page(&sign_in::Route {
             path: b"/jig/v1/sign-in/link",
-            page: None,
+            page: Some(temper_client_domain_forge::sign_in::LINK_PAGE),
             home: b"/welcome",
         });
         let path = window.location().pathname().expect("path") + &window.location().search().expect("query");

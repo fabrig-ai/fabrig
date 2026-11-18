@@ -7448,6 +7448,7 @@ dependencies = [
  "js-sys",
  "skein-lib",
  "skein-ui-web",
+ "temper-client-domain-forge",
  "temper-client-shell-web",
  "temper-client-view",
  "wasm-bindgen",

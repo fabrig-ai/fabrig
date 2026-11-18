@@ -22,7 +22,8 @@ impl Memory {
                 limits,
                 sockets,
                 OWNER,
-                jig_client_protocol_http::Mapping::new(b"/jig").expect("default mapping"),
+                jig_client_protocol_http::Mapping::with_page(b"/jig", temper_client_domain_forge::sign_in::LINK_PAGE)
+                    .expect("temper mapping"),
             ),
             events: Queue::uncapped(),
             requests: Queue::uncapped(),

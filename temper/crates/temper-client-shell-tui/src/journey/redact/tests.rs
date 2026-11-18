@@ -386,13 +386,23 @@ fn redacted_approval_proves_and_replays_to_its_end() {
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one table checks found links in either form and the unsent welcome's redaction"
+)]
 fn found_links_are_redacted_even_when_never_sent() {
     let url = printed_link();
-    let mapping = jig_client_protocol_http::Mapping::new(b"/jig").expect("mapping prefix");
+    let mapping = jig_client_protocol_http::Mapping::with_page(b"/jig", temper_client_domain::sign_in::LINK_PAGE)
+        .expect("temper mapping");
     let mut failures = Vec::new();
     for (name, source, sent) in [
         ("found never sent", Line::Found(Some(url.clone())), false),
         ("found sent", Line::Found(Some(url.clone())), true),
+        (
+            "page found never sent",
+            Line::Found(Some(format!("http://127.0.0.1:8367/sign-in?secret={}", "A".repeat(43)).into_bytes().into())),
+            false,
+        ),
         ("box-line never sent", Line::BoxLine([b"link ".as_slice(), &url].concat().into()), false),
     ] {
         let mut records = vec![source];
