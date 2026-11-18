@@ -2,7 +2,6 @@
 
 2026-11-18. Where the tree's code lags or departs from [needs-you.md](needs-you.md).
 
-- **Not yet:** 1, **Needs you**: its unfiltered address is `/`, not `/needs` [in flight: change 8147].
 
 - **Not yet:** 1, **What the client keeps**, *The needs' rows* and the count after *Later*, with *Its intro*, *Its head* and the terminal's "Needs you N": the client holds the inbox's first window of needs, counts the open cards read, and takes a filtered read's cut from `page.cut` [in flight: change 7583].
 - **Not yet:** 1, **Needs you**: a need whose card is not read is neither listed nor opened, and the terminal's inbox draws no row for it [in flight: change 7587].

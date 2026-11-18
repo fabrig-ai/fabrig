@@ -2,7 +2,6 @@
 
 2026-11-18. Where the tree's code lags or departs from [README.md](README.md).
 
-- **Not yet:** `Inbox`'s row: the inbox is at `/`, not `/needs`, and the root opens it, not Home [in flight: change 8147].
 
 
 

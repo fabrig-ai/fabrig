@@ -4,8 +4,6 @@
 
 
 - **Not yet:** 2.1: no `internal-fixed-start` [in flight: change 7721].
-- **Not yet:** 2.3: `/` is the inbox and Needs you has no `/needs`; no `Place::Root` or `rail::root_home`; a path that is no page opens the inbox at `/` [in flight: change 8147].
-- **Not yet:** 2.7, *The service worker*: a press on a notification opens `/?project=N`, or `/` [in flight: change 8149].
 
 
 

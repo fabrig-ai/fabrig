@@ -5,7 +5,6 @@
 
 
 - **Not yet:** 6: the *dated* form, `TimeForm::Dated` [in flight: change 784].
-- **Not yet:** 1, *the top bar*, and 3, the rail's first entry and *All projects*: in the browser temper's mark goes to the inbox and the rail's temper's name to where "Home" goes, not where the root goes; the inbox's unfiltered address is `/` [in flight: change 8147].
 - **Departs:** 1: at 760 px and under, `temper.css` hides the accounts' and the
   playground's banners on every chat's page and `NewChat`
   (`#app:has(> .temper-session) > .temper-accounts`), where the section draws
