@@ -280,6 +280,7 @@ mod tests {
         let mut events = Queue::uncapped();
         events.push(event);
         Report {
+            checkpoint: None,
             workers: decode_tests::configured(),
             events,
             elapsed: Duration::from_secs(1),

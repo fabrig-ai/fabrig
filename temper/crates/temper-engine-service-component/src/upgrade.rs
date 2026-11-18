@@ -1,4 +1,4 @@
-//! A start ending before its switch, and going back (protocol/binaries.md; domain/root.md, 8.1).
+//! Stopped store tools: rehearsal, going back and restore (protocol/binaries.md; protocol/checkpoints.md, 2.5).
 use crate::{End, engine::Engine};
 use jig_protocol_store::{Event, Request};
 use skein_lib::{Duration, Queue, Time, Token};
@@ -10,10 +10,12 @@ pub struct Workers {
     pub schema: skein_channel::Schema,
 }
 
-/// The store's ordered progress and the same refusal a serving start would meet.
+/// The store's ordered progress and terminal, retained through stopped-tool teardown.
 #[derive(Debug)]
 pub struct Report {
     pub events: Queue<Event>,
+    /// The requested checkpoint, retained to name a restore's source refusal.
+    pub checkpoint: Option<jig_protocol_store::CheckpointName>,
     pub workers: Workers,
     pub elapsed: Duration,
     pub end: Option<End>,
@@ -24,7 +26,7 @@ pub struct Report {
 
 #[expect(
     clippy::struct_excessive_bools,
-    reason = "operation kind, close request, close terminal and back terminal are independent"
+    reason = "operation kind, close request, close terminal and stopped operation terminal are independent"
 )]
 pub(crate) struct State {
     pub(crate) report: Report,
@@ -32,7 +34,7 @@ pub(crate) struct State {
     began: Option<Time>,
     closing: bool,
     pub(crate) closed: bool,
-    pub(crate) back: bool,
+    pub(crate) terminal: bool,
     pub(crate) undecodable: bool,
 }
 impl State {
@@ -40,6 +42,7 @@ impl State {
         Self {
             report: Report {
                 events: Queue::uncapped(),
+                checkpoint: None,
                 workers,
                 elapsed: Duration::ZERO,
                 end: None,
@@ -51,7 +54,7 @@ impl State {
             began: None,
             closing: false,
             closed: false,
-            back: false,
+            terminal: false,
             undecodable: false,
         }
     }
@@ -90,7 +93,7 @@ pub(crate) fn advance(engine: &mut Engine) -> bool {
     if state.report.done {
         return false;
     }
-    if !state.closing && (engine.domain.rehearsed() || engine.end.is_some() || state.back || state.undecodable) {
+    if !state.closing && (engine.domain.rehearsed() || engine.end.is_some() || state.terminal || state.undecodable) {
         state.report.restored = engine.domain.rehearsed();
         state.report.end = engine.end.take();
         state.report.elapsed = engine.env.now.saturating_since(began);

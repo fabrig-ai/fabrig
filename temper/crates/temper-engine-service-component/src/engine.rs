@@ -790,6 +790,8 @@ pub(crate) fn answer(engine: &mut Engine) {
             | jig_protocol_store::Event::Rehearsing { .. }
             | jig_protocol_store::Event::Back { .. }
             | jig_protocol_store::Event::BackRefused { .. }
+            | jig_protocol_store::Event::Restored { .. }
+            | jig_protocol_store::Event::RestoreRefused { .. }
             | jig_protocol_store::Event::Closed { .. }) => {
                 let state = engine.upgrade.as_mut().expect("upgrade store event");
                 if let jig_protocol_store::Event::Undecodable { .. } = &event {
@@ -798,8 +800,12 @@ pub(crate) fn answer(engine: &mut Engine) {
                 if let jig_protocol_store::Event::Closed { .. } = &event {
                     state.closed = true;
                 }
-                if let jig_protocol_store::Event::Back { .. } | jig_protocol_store::Event::BackRefused { .. } = &event {
-                    state.back = true;
+                if let jig_protocol_store::Event::Back { .. }
+                | jig_protocol_store::Event::BackRefused { .. }
+                | jig_protocol_store::Event::Restored { .. }
+                | jig_protocol_store::Event::RestoreRefused { .. } = &event
+                {
+                    state.terminal = true;
                 }
                 state.report.events.push(event);
             }
@@ -867,8 +873,6 @@ pub(crate) fn answer(engine: &mut Engine) {
             }
             event @ (jig_protocol_store::Event::Checkpointed { .. }
             | jig_protocol_store::Event::CheckpointRefused { .. }
-            | jig_protocol_store::Event::Restored { .. }
-            | jig_protocol_store::Event::RestoreRefused { .. }
             | jig_protocol_store::Event::CheckpointHeld { .. }
             | jig_protocol_store::Event::CheckpointRemoved { .. }
             | jig_protocol_store::Event::Census { .. }

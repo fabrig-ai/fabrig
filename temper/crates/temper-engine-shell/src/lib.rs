@@ -17,6 +17,7 @@ pub use commands::ENGINE;
 pub mod checkpoint;
 pub mod forge;
 pub mod forge_sign_in;
+pub mod restore;
 pub mod serve;
 pub mod setup;
 pub mod stopped;

@@ -47,6 +47,7 @@ fn help(text: &str) -> bool {
                 "checkpoint",
                 "checkpoint",
                 "checkpoint",
+                "restore",
             ]
         && text.contains("temper-box [--config DIR]")
         && ["forge", "fake", "internal", "ctl", "open"].iter().all(|word| !names.contains(word))

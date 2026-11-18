@@ -187,6 +187,24 @@ impl engine::Engine {
             jig_protocol_store::host::Adoption::Back,
         )
     }
+    /// Restore a checkpoint over the stopped deployment (protocol/checkpoints.md, 2.5).
+    /// Retain its terminal through teardown as for going back.
+    pub fn restore_store(
+        &mut self,
+        directory: Fd,
+        user: u32,
+        name: jig_protocol_store::CheckpointName,
+        draw: [u8; 16],
+    ) -> Result<(), Fd> {
+        crate::upgrade::prepare(self, false);
+        self.upgrade.as_mut().expect("prepared restore").report.checkpoint = Some(name);
+        self.store.host.adopt_mode(
+            directory,
+            user,
+            self.store.installation,
+            jig_protocol_store::host::Adoption::Restore { name, draw },
+        )
+    }
     /// Retained through teardown for shells and worlds alike.
     #[must_use]
     pub fn upgrade_report(&self) -> Option<&crate::upgrade::Report> {

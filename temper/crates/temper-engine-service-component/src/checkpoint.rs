@@ -121,6 +121,8 @@ impl State {
             | Event::Undecodable { .. }
             | Event::Back { .. }
             | Event::BackRefused { .. }
+            | Event::Restored { .. }
+            | Event::RestoreRefused { .. }
             | Event::Committed { .. }
             | Event::FrameTooLarge { .. }
             | Event::Page { .. }
@@ -219,6 +221,7 @@ impl Engine {
             jig_protocol_store::host::Adoption::Checkpoint { .. } => None,
             jig_protocol_store::host::Adoption::Open
             | jig_protocol_store::host::Adoption::Back
+            | jig_protocol_store::host::Adoption::Restore { .. }
             | jig_protocol_store::host::Adoption::Rehearse { .. } => unreachable!("checkpoint adoption"),
         };
         self.checkpoint = Some(State::new(name, child));

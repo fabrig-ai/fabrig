@@ -19,7 +19,7 @@ pub const DIRECTORY: skein_shell::Variable = skein_shell::Variable {
 mod report;
 pub use report::lines;
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Request {

@@ -20,6 +20,7 @@ fn command_words(command: &Command) -> Vec<&str> {
         Command::Version => vec!["--version"],
         Command::Versions => vec!["versions"],
         Command::Checkpoint { .. } => vec!["checkpoint"],
+        Command::Restore { .. } => vec!["restore"],
         Command::Upgrade { request, .. } => match request {
             temper_engine_shell::upgrade::Request::Check(_) => vec!["upgrade", "--check"],
             temper_engine_shell::upgrade::Request::Back => vec!["upgrade", "--back"],
@@ -127,6 +128,24 @@ fn every_row_parses_from_an_example() {
 }
 
 #[test]
+fn restore_uses_the_shared_row_and_name_parser() {
+    let name = "00000000000000000012-00000000000000ff";
+    let Command::Restore { directories, name } = configured(&["restore", name, "--data", "/state"]).expect("restore")
+    else {
+        panic!("restore command")
+    };
+    assert_eq!(name, jig_protocol_store::CheckpointName { store: 12, suffix: 255 });
+    assert_eq!(directories.data.as_ref(), b"/state");
+    assert!(TABLE.commands.contains(&temper_engine_shell::commands::RESTORE));
+    for invalid in [vec!["restore"], vec!["restore", "12-ff"]] {
+        assert_eq!(
+            configured(&invalid),
+            Err("temper-box restore: invalid arguments\nusage: temper-box restore NAME [DIRECTORIES]\n".into())
+        );
+    }
+}
+
+#[test]
 fn front_parses_in_both_box_forms_and_refuses_echo_steps_and_the_removed_tui() {
     for words in [
         vec!["--front"],
@@ -187,7 +206,8 @@ fn temper_help_lists_only_public_commands() {
             "upgrade",
             "checkpoint",
             "checkpoint",
-            "checkpoint"
+            "checkpoint",
+            "restore"
         ]
     );
     assert!(text.contains("temper-box [--config DIR]"));

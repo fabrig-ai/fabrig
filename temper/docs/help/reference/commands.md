@@ -125,6 +125,17 @@ takes a checkpoint of the stopped deployment; --hold runs a command under one's 
 
 --hold and --remove exclude each other. Uses the configuration serve reads. Taking one requires a stopped deployment; holding or removing one also works while it serves. --hold inherits the working directory and environment, sets TEMPER_CHECKPOINT to the checkpoint's absolute directory, and holds its lock until the child is closed. Exit 0 on success, 1 on refusal, 2 for invalid arguments; --hold exits as its child did, 128 plus its terminating signal, or 127 when the command cannot run.
 
+### temper-engine restore
+
+`temper-engine restore NAME [DIRECTORIES]`
+
+restores a checkpoint over the stopped deployment, after a safety checkpoint of it
+
+- `NAME`: A checkpoint name: 20 decimal digits, a hyphen and 16 hexadecimal digits.
+- `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
+
+Uses the configuration serve reads. Stop the deployment first. The state before restoring is kept as a safety checkpoint; restore that checkpoint to bring it back. Exit 0 on success, 1 on refusal, 2 for invalid arguments.
+
 ### temper-engine help
 
 `temper-engine help [NAME | pages | --search WORDS...]`
@@ -371,6 +382,12 @@ As temper-engine upgrade --back, above.
 `temper-box checkpoint --remove NAME [DIRECTORIES]`
 
 As temper-engine checkpoint, above.
+
+### temper-box restore
+
+`temper-box restore NAME [DIRECTORIES]`
+
+As temper-engine restore, above.
 
 ### temper-box forge fetch
 

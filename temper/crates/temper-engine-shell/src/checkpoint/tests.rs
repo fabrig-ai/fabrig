@@ -167,7 +167,7 @@ fn path_resolution_requires_an_executable_and_spawn_uses_the_invocation() {
 }
 
 // Bring the copied floor to this build once, then stop it before testing the tool.
-fn upgrade_fixture(directories: &Directories) {
+pub(crate) fn upgrade_fixture(directories: &Directories) {
     use std::os::fd::IntoRawFd;
     let listeners = [0; 3].map(|_| std::net::TcpListener::bind("127.0.0.1:0").unwrap());
     let document_path = directories.document();
