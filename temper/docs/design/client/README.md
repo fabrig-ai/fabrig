@@ -392,9 +392,11 @@ credential.
   as their watches, are asked once the link is live, in the step that
   hears the hello, never at start before it: the rail's `Read::Project`
   of Team's (`pages/team.md`, 1, *Its reads*) among them. So a cold
-  open sends the stream alone first, and the kept keyed requests on
-  their own routes, and everything else in one batch after the hello
-  (`pages/work.md`, 1, *Its budget*).
+  open sends the stream alone first, and everything else after the
+  hello: one batch, and on a reload the kept keyed requests on their
+  own routes beside it, once the hello's `me` confirms their party
+  (jig's `client/domain/client/README.md`, section 8; `pages/work.md`,
+  1, *Its budget*).
 - **Another party's kept work** stays parked and is not shown (jig's
   `client/domain/client/README.md`, section 8); the terminal says so in a line
   of its own (`line.md`, 6).

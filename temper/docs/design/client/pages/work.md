@@ -50,8 +50,10 @@
       a `temper_client_domain::pages::Budget { waves: u32, requests: u32 }`,
       `Budget { waves: 2, requests: 2 }`, the record a later page's budget
       takes too (`../../draft/page-round-trips.md`, section 10).
-    - *What holds it.* Nothing leaves before the hello but the stream and
-      the kept keyed requests (`../README.md`, 3.4). Nothing waits for
+    - *What holds it.* Nothing leaves before the hello but the stream
+      (`../README.md`, 3.4); a reload's kept keyed requests leave once
+      the hello's `me` confirms their party (jig's
+      `client/domain/client/README.md`, 8), beside the batch. Nothing waits for
       another answer: no read per row (`../forge/parts.md`, 5); no ended
       group, needs or setting read again on opening (`../forge/parts.md`,
       6; *Goals*, below; `settings.md`, 1); and nothing the page doesn't
