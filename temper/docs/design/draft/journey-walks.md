@@ -218,6 +218,7 @@ What the binary needs sits today where it cannot be reached, so the first goal t
 - **First the gate lets go.** The test that holds main's journeys goes before anything is built. From then no goal records a journey, and a stale recording is no red.
 - **A journey moves alone:** in the change that gives it a `walk` of version 2 that prints in a world, its `recording` and `setup` go, and from that landing its pages are the writer's.
 - **One not yet moved** keeps its recording and pages as they are, with nothing holding them current. `again` and the reprint stay as tools until the last has moved. The after-landing check's owner may walk one again and land it as documentation. A look landing reprints those that still replay, as today, and leaves the rest to the render check.
+- **The writer and the delivery check know a moved journey** by its `walk` of version 2. The writer leaves every other directory as it is, and the check lets a goal change an unmoved journey's pages.
 - **A new journey** is written as a walk of version 2, once its client walks in a world; before that, none is added.
 
 ## 9. Upgrades
