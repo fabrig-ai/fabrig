@@ -157,6 +157,20 @@ fn start_installs_the_newest_reached_build_and_writes_an_ordered_brief() {
 }
 
 #[test]
+fn pass_brief_says_the_happy_path_and_reads_help() {
+    let world = World::new();
+    let run = ready(&world, Agent::Never);
+    let brief = fs::read_to_string(&run.processes.commands[1].stdin).expect("brief");
+    assert!(brief.contains(super::HAPPY_PATH));
+    assert!(brief.contains(
+        "Run a case's intended-use steps alone; an edge case met is a note (temper-qa pass note), never a finding."
+    ));
+    assert!(brief.contains("A security hole or lost data still counts wherever it is."));
+    assert!(brief.contains("Read a case's `temper help PAGE` with the place's own program, as `Help pages:` below names it. A help page needs no box; compare its words as a `see` is."));
+    assert!(brief.lines().any(|line| line.starts_with("Help pages: /") && line.ends_with("/bin/temper help PAGE")));
+}
+
+#[test]
 fn a_pass_starts_with_empty_files_and_keeps_them_on_resume() {
     let world = World::new();
     let mut run = ready(&world, Agent::Fail);
