@@ -1,6 +1,5 @@
-# Each test binary's layer (tools/tiers/layers.md). A library's own tests, a binary's own and a
-# crate's generated codec tests are step tests, and the repository's checks a group of their own,
-# by rule, with no line.
+# Each test binary's layer (tools/tiers/layers.md). A library's own tests and a binary's own
+# are step tests, and the repository's checks a group of their own, by rule, with no line.
 layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", "real-loop", "end-to-end"]
 
 [skein]

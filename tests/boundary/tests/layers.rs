@@ -19,7 +19,7 @@ fn binary_id(package: &str, target: &Target) -> Result<(String, bool), String> {
     }
     for (kind, prefix) in [("bin", "bin/"), ("test", ""), ("example", "example/"), ("bench", "bench/")] {
         if target.kinds.iter().any(|value| value == kind) {
-            let by_rule = kind == "bin" || (kind == "test" && target.name == "generated");
+            let by_rule = kind == "bin";
             return Ok((format!("{package}::{prefix}{}", target.name), by_rule));
         }
     }
@@ -139,7 +139,6 @@ fn rules_on_fixtures() {
     let world = fixture("skein/crates/demo", "world", &["test"], true);
     let library = fixture("skein/crates/demo", "demo", &["rlib", "cdylib"], true);
     let binary = fixture("skein/crates/demo", "x", &["bin"], true);
-    let generated = fixture("skein/crates/demo", "generated", &["test"], true);
     let repository = fixture("tests/demo", "world", &["test"], true);
     let example = fixture("skein/crates/demo", "x", &["example"], true);
     let bench = fixture("skein/crates/demo", "x", &["bench"], true);
@@ -170,12 +169,6 @@ fn rules_on_fixtures() {
         (&library, "[skein]\ndemo = 'step'", vec!["[skein] demo: placed by rule; remove the line"]),
         (&binary, "", vec![]),
         (&binary, "[skein]\n\"demo::bin/x\" = 'step'", vec!["[skein] demo::bin/x: placed by rule; remove the line"]),
-        (&generated, "", vec![]),
-        (
-            &generated,
-            "[skein]\n\"demo::generated\" = 'step'",
-            vec!["[skein] demo::generated: placed by rule; remove the line"],
-        ),
         (&repository, "", vec![]),
         (
             &repository,
@@ -190,11 +183,6 @@ fn rules_on_fixtures() {
         ),
         (&example, "[skein]\n\"demo::example/x\" = 'domain'", vec![]),
         (&example, "", vec!["demo::example/x: missing line under [skein]"]),
-        (
-            &fixture("skein/crates/demo", "generated", &["example"], true),
-            "",
-            vec!["demo::example/generated: missing line under [skein]"],
-        ),
         (&bench, "[skein]\n\"demo::bench/x\" = 'domain'", vec![]),
         (&fixture("skein/tests/demo", "world", &["test"], true), "", vec!["demo::world: missing line under [skein]"]),
         (&library, "[other]", vec!["[other]: not a tree table"]),
