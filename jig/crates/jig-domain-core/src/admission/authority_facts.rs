@@ -131,7 +131,7 @@ impl Core {
             authority::PersonRequest::Create(_) | authority::PersonRequest::Delegate { .. } => {
                 authority::ProposalKind::Batch
             }
-            authority::PersonRequest::Amend(_) => authority::ProposalKind::Amend,
+            authority::PersonRequest::Amend { .. } => authority::ProposalKind::Amend,
             authority::PersonRequest::Allot(_) | authority::PersonRequest::Move(_) => authority::ProposalKind::Widen,
             authority::PersonRequest::Accept(action) => match action {
                 authority::Action::Batch(_) => authority::ProposalKind::Batch,
@@ -166,7 +166,7 @@ impl Core {
                 authority::PersonRequest::Create(_)
                 | authority::PersonRequest::Allot(_)
                 | authority::PersonRequest::Accept(_)
-                | authority::PersonRequest::Amend(_)
+                | authority::PersonRequest::Amend { .. }
                 | authority::PersonRequest::Move(_)
                 | authority::PersonRequest::Cancel
                 | authority::PersonRequest::Release
@@ -193,7 +193,7 @@ fn request_spend(request: &authority::PersonRequest) -> u64 {
             batch_spend(batch)
         }
         authority::PersonRequest::Allot(value)
-        | authority::PersonRequest::Amend(value)
+        | authority::PersonRequest::Amend { authority: value, .. }
         | authority::PersonRequest::Move(value) => value.budget.spend,
         authority::PersonRequest::Accept(action) => match action {
             authority::Action::Batch(batch) => batch_spend(batch),
@@ -245,7 +245,7 @@ fn request_grant(request: &authority::PersonRequest, cap: &authority::Authority,
             batch_grant(batch, cap, implies)
         }
         authority::PersonRequest::Allot(value)
-        | authority::PersonRequest::Amend(value)
+        | authority::PersonRequest::Amend { authority: value, .. }
         | authority::PersonRequest::Move(value) => missing_grant(value, cap, implies),
         authority::PersonRequest::Accept(action) => match action {
             authority::Action::Batch(batch) => batch_grant(batch, cap, implies),
@@ -288,7 +288,9 @@ fn batch_grant(batch: &[authority::Delegate], cap: &authority::Authority, implie
 fn source_spend(ask: &authority::PersonAsk, source: authority::Source, cap: &authority::Authority) -> u64 {
     match source {
         authority::Source::Role if let authority::PersonRequest::Delegate { .. } = &ask.request => cap.budget.spend,
-        authority::Source::Task | authority::Source::Role => cap.budget.spend.min(available(ask.pool)),
+        authority::Source::Task | authority::Source::Role => {
+            cap.budget.spend.min(available(ask.pool).saturating_add(ask.request.funding_credit()))
+        }
         authority::Source::Project | authority::Source::Deployment => cap.budget.spend,
     }
 }
@@ -312,7 +314,7 @@ fn request_depth(request: &authority::PersonRequest, source: authority::Source, 
             | authority::Action::Escalate { .. } => false,
         },
         authority::PersonRequest::Allot(_)
-        | authority::PersonRequest::Amend(_)
+        | authority::PersonRequest::Amend { .. }
         | authority::PersonRequest::Move(_)
         | authority::PersonRequest::Cancel
         | authority::PersonRequest::Release
