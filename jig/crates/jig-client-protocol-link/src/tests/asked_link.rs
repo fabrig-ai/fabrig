@@ -12,6 +12,7 @@ fn asked() -> AskedLink {
 }
 fn exchange(h: &mut Harness) -> Token {
     h.link.step(Time::ZERO, Event::AskLink, &mut h.out);
+    h.link.settle(&mut h.out);
     let Some(Request::Exchange { exchange, credential, message: Message::LinkAsk(body) }) = h.out.pop() else {
         panic!("one link ask")
     };

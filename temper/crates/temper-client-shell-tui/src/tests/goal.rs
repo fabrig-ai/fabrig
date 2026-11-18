@@ -61,6 +61,7 @@ fn clone_message(message: &Message) -> Message {
         Message::Watch(bytes) => Message::Watch(bytes.clone()),
         Message::Unwatch(bytes) => Message::Unwatch(bytes.clone()),
         other @ (Message::Batch(_)
+        | Message::LinkAsk(_)
         | Message::Authorize(_)
         | Message::ApprovalAsk(_)
         | Message::ApprovalRead(_)

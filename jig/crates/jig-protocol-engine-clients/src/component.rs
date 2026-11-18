@@ -59,10 +59,6 @@ pub struct Component {
     public: public::State,
 }
 impl Component {
-    #[expect(
-        clippy::too_many_lines,
-        reason = "settings validation and volatile state initialization share one admission"
-    )]
     pub fn new(mut settings: Settings, env: &Env<Limits>, out: &mut Queue<Request>) -> Result<Self, Unusable> {
         let given = settings.link_secret.take();
         let local_given = settings.local_secret.take();

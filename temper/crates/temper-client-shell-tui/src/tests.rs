@@ -1252,7 +1252,8 @@ fn openings(message: &Message) -> Vec<w::Open> {
                 w::Member::Read(_) | w::Member::Close(_) => None,
             })
             .collect(),
-        Message::Authorize(_)
+        Message::LinkAsk(_)
+        | Message::Authorize(_)
         | Message::ApprovalAsk(_)
         | Message::ApprovalRead(_)
         | Message::ApprovalDecide(_)

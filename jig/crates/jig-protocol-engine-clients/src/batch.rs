@@ -188,6 +188,8 @@ impl Component {
                 Waiting::Read { .. }
                 | Waiting::ApplicationRead { .. }
                 | Waiting::Watch { .. }
+                | Waiting::LinkAskWhose { .. }
+                | Waiting::AskedWhose { .. }
                 | Waiting::ApprovalWhose { .. }
                 | Waiting::ApprovalCore { .. }
                 | Waiting::Core { .. }

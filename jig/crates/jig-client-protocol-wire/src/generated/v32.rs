@@ -13,6 +13,7 @@ pub struct Limits {
     pub link_sign_in_secret: u32,
     pub signed_in_token_some: u32,
     pub approval_asked_secret: u32,
+    pub link_asked_secret: u32,
     pub approval_sign_in_secret: u32,
     pub document_text_bytes: u32,
     pub chip_phase_waiting_dependencies: u32,
@@ -264,8 +265,6 @@ pub struct Limits {
     pub make_project_name: u32,
     pub authorize_query: u32,
     pub authorize_go_location: u32,
-    pub batch_members: u32,
-    pub batch_reply_reply_some: u32,
     pub hello_served: u32,
     pub account_change_declare_program_name: u32,
     pub account_change_set_uses_uses_some: u32,
@@ -363,6 +362,7 @@ pub const CEILINGS: Limits = Limits {
     link_sign_in_secret: 64,
     signed_in_token_some: 48,
     approval_asked_secret: 32,
+    link_asked_secret: 32,
     approval_sign_in_secret: 64,
     document_text_bytes: 65_536,
     chip_phase_waiting_dependencies: 32,
@@ -614,8 +614,6 @@ pub const CEILINGS: Limits = Limits {
     make_project_name: 64,
     authorize_query: 8_192,
     authorize_go_location: 16_384,
-    batch_members: 64,
-    batch_reply_reply_some: 16_777_228,
     hello_served: 16,
     account_change_declare_program_name: 32,
     account_change_set_uses_uses_some: 16,
@@ -705,7 +703,7 @@ pub const CEILINGS: Limits = Limits {
 };
 
 /// The limits' field names, in field order.
-pub const LIMIT_NAMES: [&str; 346] = [
+pub const LIMIT_NAMES: [&str; 345] = [
     "keyed_request",
     "keyed_value_some",
     "owned_record",
@@ -713,6 +711,7 @@ pub const LIMIT_NAMES: [&str; 346] = [
     "link_sign_in_secret",
     "signed_in_token_some",
     "approval_asked_secret",
+    "link_asked_secret",
     "approval_sign_in_secret",
     "document_text_bytes",
     "chip_phase_waiting_dependencies",
@@ -964,8 +963,6 @@ pub const LIMIT_NAMES: [&str; 346] = [
     "make_project_name",
     "authorize_query",
     "authorize_go_location",
-    "batch_members",
-    "batch_reply_reply_some",
     "hello_served",
     "account_change_declare_program_name",
     "account_change_set_uses_uses_some",
@@ -1057,52 +1054,52 @@ pub const LIMIT_NAMES: [&str; 346] = [
 impl Limits {
     /// The limits' values, in `LIMIT_NAMES` order.
     #[must_use]
-    pub fn values(&self) -> [u32; 346] {
+    pub fn values(&self) -> [u32; 345] {
         [
-            self.keyed_request, self.keyed_value_some, self.owned_record, self.not_served_served, self.link_sign_in_secret, self.signed_in_token_some, self.approval_asked_secret, self.approval_sign_in_secret,
-            self.document_text_bytes, self.chip_phase_waiting_dependencies, self.retry_notice_owner_failed_reason_some, self.retry_notice_failed_reason_some, self.retry_notice_refused_reason_some, self.call_identity_id, self.run_work_tool_tool, self.recipient_roles_roles,
-            self.taken_by_name_some, self.party_name, self.decision_rejected_reason, self.decision_left_held_reason, self.attempt_failure_reason, self.part_key_path_value, self.part_key_path_value_item, self.circle_tasks,
-            self.placed_line_reason, self.chip_work_tool_call, self.chip_work_tool_tool, self.result_field_name, self.result_field_value, self.closing_fields_connectors_some, self.ending_failed_fields_reason_some, self.ending_cancelled_fields_reason_some,
-            self.ending_withdrawn_fields_reason, self.hold_reason_tries_fields_failures, self.hold_reason_stalled_fields_waiting, self.chip_details_fields_resources, self.chip_details_fields_closing_connectors_some, self.chip_details_fields_dependencies, self.result_value_owner_verdict_fields_fields, self.result_value_verdict_fields_fields,
-            self.result_value_verdict_fields_tasks, self.result_value_approved_fields_state, self.chip_rows, self.chip_phase_facts_rows, self.closing_rows, self.ending_rows, self.held_runtime_rows, self.hold_reason_rows,
-            self.chip_details_rows, self.chip_ending_rows, self.result_value_rows, self.person_answer_choice_reason, self.person_answer_approved_state, self.person_answer_approved_words_some, self.person_answer_words_value, self.person_answer_cannot_reason,
-            self.parameter_bytes_value, self.specification_words, self.specification_parameters, self.specification_inputs, self.model_effort_model, self.model_effort_effort_some, self.llm_later_subagents, self.llm_choice_subagents,
-            self.pattern_end_exact_value, self.pattern_end_open_value, self.pattern_segments, self.pattern_segments_item, self.delegation_kinds, self.model_set_names_names, self.model_set_names_names_item, self.authority_grants,
-            self.authority_note_resources, self.amendment_dependencies_some, self.amendment_instructions_some, self.policy_edit_requirements_requirements, self.policy_edit_projections_grants, self.policy_edit_permissions_mappings, self.policy_edit_templates_overrides, self.message_words,
-            self.answer_question_words, self.amend_reason, self.cancel_reason, self.move_reason, self.edit_note_description, self.edit_note_body, self.edit_note_references, self.set_roles_holdings,
-            self.make_service_name, self.compound_operations, self.field_rule_name, self.verdict_choice_fields, self.contract_verdict_choices, self.new_task_dependencies, self.new_task_named, self.new_task_symbols,
-            self.create_tasks, self.delegate_tasks, self.propose_batch_tasks, self.propose_settings_items, self.propose_reason, self.outcome_account_sign_in_started_address, self.account_host_failure_name, self.outcome_account_program_declared_name,
-            self.outcome_account_signed_out_failed_hosts, self.outcome_account_removed_failed_hosts, self.made_tasks_tasks, self.made_service_credential, self.made_moving_out_record, self.refusal_llm_model, self.refusal_circle_tasks, self.refusal_live_tasks_tasks,
-            self.refusal_kept_pending, self.cursor_value, self.family_record_record, self.family_request_record, self.read_notes_description_some, self.task_query_parts, self.spend_page_rows, self.word_result_approved_state,
-            self.word_result_verdict_fields, self.word_words, self.activity_words_words, self.activity_kept_pending, self.activity_now_written_line, self.activity_stood_words, self.turn_carried_bytes, self.task_contract_document_approval_state,
-            self.task_contract_document_verdict_choices, self.result_details_delegates, self.result_details_followups_some, self.bounds_create_charters, self.bounds_create_procedures, self.bounds_amend_grants, self.bounds_amend_implications, self.result_document_acts,
-            self.activity_page_rows, self.hold_spend, self.document_specification_parameters, self.document_specification_inputs, self.proposed_task_dependencies, self.proposed_task_resources, self.retained_amendment_dependencies_some, self.retained_action_batch_value,
-            self.retained_action_settings_projects, self.retained_action_settings_items, self.amendment_state_dependencies, self.history_page_rows, self.runtime_running_tool_some, self.runtime_backing_off_reason, self.waits_on_dependencies_pending, self.task_line_parts,
-            self.note_tasks, self.note_acts, self.note_page_rows, self.object_page_rows, self.ended_page_rows, self.inbox_selection_goals, self.inbox_entry_projects, self.inbox_page_selection_some,
-            self.inbox_page_rows, self.template_resources, self.me_model_name, self.me_model_efforts, self.me_model_efforts_item, self.me_model_effort_some, self.me_model_description_some, self.me_model_shown_some,
-            self.me_model_accounts, self.provider_offer_programs, self.provider_offer_programs_item, self.provider_offer_manage_usage_some, self.me_projects, self.me_providers, self.task_context_parts, self.task_context_spend,
-            self.task_context_writer_slots, self.subscriptions_entries, self.task_lineage_chips, self.task_inputs, self.task_lineage, self.task_dependencies, self.task_references, self.task_resources,
-            self.task_proposals, self.task_acts, self.task_delegates, self.task_dependency_facts, self.tasks_rows, self.ended_rows_rows, self.task_page_live, self.call_tool,
-            self.call_input, self.call_outcome_some, self.call_objects, self.call_parts, self.current_call_tool, self.current_call_input, self.writing_call_id, self.writing_call_tool,
-            self.writing_call_input, self.run_text_text, self.proposal_action_batch_value, self.settings_review_items, self.proposal_action_settings_items, self.proposal_funding, self.proposal_acts, self.proposal_projects,
-            self.escalation_acts, self.question_acts, self.option_line_words, self.option_line_fields, self.person_contract_choice_options, self.person_task_results, self.person_task_acts, self.recurring_batch,
-            self.recurring_last_batch, self.project_policy_templates, self.project_policy_projections, self.project_policy_roles, self.project_policy_requirements, self.project_policy_permissions_some, self.project_acts, self.project_resources,
-            self.project_members, self.project_pools, self.project_configured_pools, self.project_spend, self.project_recurring, self.goal_holding_write_path, self.goal_holding_write_path_item, self.goal_holding_slot_path,
-            self.goal_holding_slot_path_item, self.person_proposal_goal_dependencies, self.person_proposal_goal_holdings, self.person_proposal_state_rejected_reason, self.escalation_decision_reject_reason, self.tree_row_proposals, self.tree_row_dependencies, self.tree_rows,
-            self.tree_folded, self.subject_chips_tasks, self.census_keyspace_prefix, self.census_keyspace_name, self.census_keyspace_heads, self.store_census_keyspaces, self.program_failed_detail, self.program_otherwise_method,
-            self.program_login_name, self.program_host_name, self.program_host_programs, self.host_name_some, self.host_programs, self.host_runs, self.rename_name, self.make_project_name,
-            self.authorize_query, self.authorize_go_location, self.batch_members, self.batch_reply_reply_some, self.hello_served, self.account_change_declare_program_name, self.account_change_set_uses_uses_some, self.account_change_login_program_name,
-            self.account_source_name_some, self.account_fact_text_text, self.account_fact_label, self.account_line_uses_some, self.account_line_sources, self.account_line_manage_usage_some, self.account_line_facts, self.terminal_login_name,
-            self.accounts_program_hosts, self.accounts_accounts, self.accounts_signing, self.accounts_readiness, self.account_uses_some, self.account_sources, self.account_runs, self.account_waiting,
-            self.account_manage_usage_some, self.account_facts, self.worker_setting_name, self.worker_state_name, self.deployment_worker_settings, self.deployment_hosts, self.deployment_attempts, self.deployment_accounts,
-            self.deployment_projects, self.deployment_hello_refusals, self.deployment_person_room_refusals, self.deployment_task_room_refusals, self.deployment_connectors, self.deployment_providers, self.deployment_readiness, self.kept_record,
-            self.table_entry_request, self.chips_rows, self.inbox_needs, self.inbox_updates, self.inbox_selection_some, self.setting_model_program_some, self.setting_model_name, self.setting_model_efforts,
-            self.setting_model_efforts_item, self.setting_model_effort_some, self.catalogue_entry_shown_some, self.catalogue_entry_description_some, self.charter_document_name, self.charter_document_name_item, self.charter_document_path, self.charter_document_heading_some,
-            self.charter_part_instructions, self.charter_instructions, self.charter_alternatives, self.charter_documents, self.charter_parts, self.overlay_alternatives_some, self.overlay_documents_some, self.overlay_instructions,
-            self.overlay_parts, self.setting_policy_projections, self.setting_policy_roles, self.setting_policy_requirements, self.setting_policy_permissions, self.setting_policy_templates, self.rules_implies, self.rules_requirements,
-            self.application_value_bytes, self.model_add_name, self.change_settings_items, self.refusal_full_tasks, self.application_state_charters, self.settings_document_settings, self.settings_document_held, self.settings_document_pending,
-            self.revision_document_items, self.revision_row_items, self.revisions_page_rows, self.outcome_restored_left_out, self.refusal_judged_why, self.task_text_words, self.me_project_templates, self.me_project_models,
-            self.me_project_defaults, self.restore_reason,
+            self.keyed_request, self.keyed_value_some, self.owned_record, self.not_served_served, self.link_sign_in_secret, self.signed_in_token_some, self.approval_asked_secret, self.link_asked_secret,
+            self.approval_sign_in_secret, self.document_text_bytes, self.chip_phase_waiting_dependencies, self.retry_notice_owner_failed_reason_some, self.retry_notice_failed_reason_some, self.retry_notice_refused_reason_some, self.call_identity_id, self.run_work_tool_tool,
+            self.recipient_roles_roles, self.taken_by_name_some, self.party_name, self.decision_rejected_reason, self.decision_left_held_reason, self.attempt_failure_reason, self.part_key_path_value, self.part_key_path_value_item,
+            self.circle_tasks, self.placed_line_reason, self.chip_work_tool_call, self.chip_work_tool_tool, self.result_field_name, self.result_field_value, self.closing_fields_connectors_some, self.ending_failed_fields_reason_some,
+            self.ending_cancelled_fields_reason_some, self.ending_withdrawn_fields_reason, self.hold_reason_tries_fields_failures, self.hold_reason_stalled_fields_waiting, self.chip_details_fields_resources, self.chip_details_fields_closing_connectors_some, self.chip_details_fields_dependencies, self.result_value_owner_verdict_fields_fields,
+            self.result_value_verdict_fields_fields, self.result_value_verdict_fields_tasks, self.result_value_approved_fields_state, self.chip_rows, self.chip_phase_facts_rows, self.closing_rows, self.ending_rows, self.held_runtime_rows,
+            self.hold_reason_rows, self.chip_details_rows, self.chip_ending_rows, self.result_value_rows, self.person_answer_choice_reason, self.person_answer_approved_state, self.person_answer_approved_words_some, self.person_answer_words_value,
+            self.person_answer_cannot_reason, self.parameter_bytes_value, self.specification_words, self.specification_parameters, self.specification_inputs, self.model_effort_model, self.model_effort_effort_some, self.llm_later_subagents,
+            self.llm_choice_subagents, self.pattern_end_exact_value, self.pattern_end_open_value, self.pattern_segments, self.pattern_segments_item, self.delegation_kinds, self.model_set_names_names, self.model_set_names_names_item,
+            self.authority_grants, self.authority_note_resources, self.amendment_dependencies_some, self.amendment_instructions_some, self.policy_edit_requirements_requirements, self.policy_edit_projections_grants, self.policy_edit_permissions_mappings, self.policy_edit_templates_overrides,
+            self.message_words, self.answer_question_words, self.amend_reason, self.cancel_reason, self.move_reason, self.edit_note_description, self.edit_note_body, self.edit_note_references,
+            self.set_roles_holdings, self.make_service_name, self.compound_operations, self.field_rule_name, self.verdict_choice_fields, self.contract_verdict_choices, self.new_task_dependencies, self.new_task_named,
+            self.new_task_symbols, self.create_tasks, self.delegate_tasks, self.propose_batch_tasks, self.propose_settings_items, self.propose_reason, self.outcome_account_sign_in_started_address, self.account_host_failure_name,
+            self.outcome_account_program_declared_name, self.outcome_account_signed_out_failed_hosts, self.outcome_account_removed_failed_hosts, self.made_tasks_tasks, self.made_service_credential, self.made_moving_out_record, self.refusal_llm_model, self.refusal_circle_tasks,
+            self.refusal_live_tasks_tasks, self.refusal_kept_pending, self.cursor_value, self.family_record_record, self.family_request_record, self.read_notes_description_some, self.task_query_parts, self.spend_page_rows,
+            self.word_result_approved_state, self.word_result_verdict_fields, self.word_words, self.activity_words_words, self.activity_kept_pending, self.activity_now_written_line, self.activity_stood_words, self.turn_carried_bytes,
+            self.task_contract_document_approval_state, self.task_contract_document_verdict_choices, self.result_details_delegates, self.result_details_followups_some, self.bounds_create_charters, self.bounds_create_procedures, self.bounds_amend_grants, self.bounds_amend_implications,
+            self.result_document_acts, self.activity_page_rows, self.hold_spend, self.document_specification_parameters, self.document_specification_inputs, self.proposed_task_dependencies, self.proposed_task_resources, self.retained_amendment_dependencies_some,
+            self.retained_action_batch_value, self.retained_action_settings_projects, self.retained_action_settings_items, self.amendment_state_dependencies, self.history_page_rows, self.runtime_running_tool_some, self.runtime_backing_off_reason, self.waits_on_dependencies_pending,
+            self.task_line_parts, self.note_tasks, self.note_acts, self.note_page_rows, self.object_page_rows, self.ended_page_rows, self.inbox_selection_goals, self.inbox_entry_projects,
+            self.inbox_page_selection_some, self.inbox_page_rows, self.template_resources, self.me_model_name, self.me_model_efforts, self.me_model_efforts_item, self.me_model_effort_some, self.me_model_description_some,
+            self.me_model_shown_some, self.me_model_accounts, self.provider_offer_programs, self.provider_offer_programs_item, self.provider_offer_manage_usage_some, self.me_projects, self.me_providers, self.task_context_parts,
+            self.task_context_spend, self.task_context_writer_slots, self.subscriptions_entries, self.task_lineage_chips, self.task_inputs, self.task_lineage, self.task_dependencies, self.task_references,
+            self.task_resources, self.task_proposals, self.task_acts, self.task_delegates, self.task_dependency_facts, self.tasks_rows, self.ended_rows_rows, self.task_page_live,
+            self.call_tool, self.call_input, self.call_outcome_some, self.call_objects, self.call_parts, self.current_call_tool, self.current_call_input, self.writing_call_id,
+            self.writing_call_tool, self.writing_call_input, self.run_text_text, self.proposal_action_batch_value, self.settings_review_items, self.proposal_action_settings_items, self.proposal_funding, self.proposal_acts,
+            self.proposal_projects, self.escalation_acts, self.question_acts, self.option_line_words, self.option_line_fields, self.person_contract_choice_options, self.person_task_results, self.person_task_acts,
+            self.recurring_batch, self.recurring_last_batch, self.project_policy_templates, self.project_policy_projections, self.project_policy_roles, self.project_policy_requirements, self.project_policy_permissions_some, self.project_acts,
+            self.project_resources, self.project_members, self.project_pools, self.project_configured_pools, self.project_spend, self.project_recurring, self.goal_holding_write_path, self.goal_holding_write_path_item,
+            self.goal_holding_slot_path, self.goal_holding_slot_path_item, self.person_proposal_goal_dependencies, self.person_proposal_goal_holdings, self.person_proposal_state_rejected_reason, self.escalation_decision_reject_reason, self.tree_row_proposals, self.tree_row_dependencies,
+            self.tree_rows, self.tree_folded, self.subject_chips_tasks, self.census_keyspace_prefix, self.census_keyspace_name, self.census_keyspace_heads, self.store_census_keyspaces, self.program_failed_detail,
+            self.program_otherwise_method, self.program_login_name, self.program_host_name, self.program_host_programs, self.host_name_some, self.host_programs, self.host_runs, self.rename_name,
+            self.make_project_name, self.authorize_query, self.authorize_go_location, self.hello_served, self.account_change_declare_program_name, self.account_change_set_uses_uses_some, self.account_change_login_program_name, self.account_source_name_some,
+            self.account_fact_text_text, self.account_fact_label, self.account_line_uses_some, self.account_line_sources, self.account_line_manage_usage_some, self.account_line_facts, self.terminal_login_name, self.accounts_program_hosts,
+            self.accounts_accounts, self.accounts_signing, self.accounts_readiness, self.account_uses_some, self.account_sources, self.account_runs, self.account_waiting, self.account_manage_usage_some,
+            self.account_facts, self.worker_setting_name, self.worker_state_name, self.deployment_worker_settings, self.deployment_hosts, self.deployment_attempts, self.deployment_accounts, self.deployment_projects,
+            self.deployment_hello_refusals, self.deployment_person_room_refusals, self.deployment_task_room_refusals, self.deployment_connectors, self.deployment_providers, self.deployment_readiness, self.kept_record, self.table_entry_request,
+            self.chips_rows, self.inbox_needs, self.inbox_updates, self.inbox_selection_some, self.setting_model_program_some, self.setting_model_name, self.setting_model_efforts, self.setting_model_efforts_item,
+            self.setting_model_effort_some, self.catalogue_entry_shown_some, self.catalogue_entry_description_some, self.charter_document_name, self.charter_document_name_item, self.charter_document_path, self.charter_document_heading_some, self.charter_part_instructions,
+            self.charter_instructions, self.charter_alternatives, self.charter_documents, self.charter_parts, self.overlay_alternatives_some, self.overlay_documents_some, self.overlay_instructions, self.overlay_parts,
+            self.setting_policy_projections, self.setting_policy_roles, self.setting_policy_requirements, self.setting_policy_permissions, self.setting_policy_templates, self.rules_implies, self.rules_requirements, self.application_value_bytes,
+            self.model_add_name, self.change_settings_items, self.refusal_full_tasks, self.application_state_charters, self.settings_document_settings, self.settings_document_held, self.settings_document_pending, self.revision_document_items,
+            self.revision_row_items, self.revisions_page_rows, self.outcome_restored_left_out, self.refusal_judged_why, self.task_text_words, self.me_project_templates, self.me_project_models, self.me_project_defaults,
+            self.restore_reason,
         ]
     }
 }
@@ -1196,6 +1193,16 @@ pub enum Path {
     ApprovalAskedTail,
     /// The tag of `ApprovalAskAnswer`.
     ApprovalAskAnswerTag,
+    /// Bytes after `LinkAsk`.
+    LinkAskTail,
+    /// The `secret` field of `LinkAsked`.
+    LinkAskedSecret,
+    /// The `expires` field of `LinkAsked`.
+    LinkAskedExpires,
+    /// Bytes after `LinkAsked`.
+    LinkAskedTail,
+    /// The tag of `LinkAskAnswer`.
+    LinkAskAnswerTag,
     /// The `code` field of `ApprovalRead`.
     ApprovalReadCode,
     /// Bytes after `ApprovalRead`.
@@ -6406,18 +6413,6 @@ pub enum Path {
     WatchCloseTail,
     /// The tag of `CloseAnswer`.
     CloseAnswerTag,
-    /// The tag of `Member`.
-    MemberTag,
-    /// The `members` field of `Batch`.
-    BatchMembers,
-    /// Bytes after `Batch`.
-    BatchTail,
-    /// The `member` field of `BatchReply`.
-    BatchReplyMember,
-    /// The `reply` field of `BatchReply`.
-    BatchReplyReply,
-    /// Bytes after `BatchReply`.
-    BatchReplyTail,
     /// The `stream` field of `Gone`.
     GoneStream,
     /// Bytes after `Gone`.
@@ -7737,6 +7732,11 @@ impl Path {
             Self::ApprovalAskedExpires => "ApprovalAsked.expires",
             Self::ApprovalAskedTail => "ApprovalAsked (tail)",
             Self::ApprovalAskAnswerTag => "ApprovalAskAnswer (tag)",
+            Self::LinkAskTail => "LinkAsk (tail)",
+            Self::LinkAskedSecret => "LinkAsked.secret",
+            Self::LinkAskedExpires => "LinkAsked.expires",
+            Self::LinkAskedTail => "LinkAsked (tail)",
+            Self::LinkAskAnswerTag => "LinkAskAnswer (tag)",
             Self::ApprovalReadCode => "ApprovalRead.code",
             Self::ApprovalReadTail => "ApprovalRead (tail)",
             Self::ApprovalWaitingAsked => "ApprovalWaiting.asked",
@@ -10342,12 +10342,6 @@ impl Path {
             Self::WatchCloseWatch => "WatchClose.watch",
             Self::WatchCloseTail => "WatchClose (tail)",
             Self::CloseAnswerTag => "CloseAnswer (tag)",
-            Self::MemberTag => "Member (tag)",
-            Self::BatchMembers => "Batch.members",
-            Self::BatchTail => "Batch (tail)",
-            Self::BatchReplyMember => "BatchReply.member",
-            Self::BatchReplyReply => "BatchReply.reply",
-            Self::BatchReplyTail => "BatchReply (tail)",
             Self::GoneStream => "Gone.stream",
             Self::GoneTail => "Gone (tail)",
             Self::HelloStream => "Hello.stream",
@@ -11010,6 +11004,7 @@ fn check_limits_0(limits: &Limits) -> Result<(), Problem> {
     if limits.link_sign_in_secret > CEILINGS.link_sign_in_secret { return Err(Problem { path: Path::LinkSignInSecret, reason: skein_codec::Reason::Bound }); }
     if limits.signed_in_token_some > CEILINGS.signed_in_token_some { return Err(Problem { path: Path::SignedInToken, reason: skein_codec::Reason::Bound }); }
     if limits.approval_asked_secret > CEILINGS.approval_asked_secret { return Err(Problem { path: Path::ApprovalAskedSecret, reason: skein_codec::Reason::Bound }); }
+    if limits.link_asked_secret > CEILINGS.link_asked_secret { return Err(Problem { path: Path::LinkAskedSecret, reason: skein_codec::Reason::Bound }); }
     if limits.approval_sign_in_secret > CEILINGS.approval_sign_in_secret { return Err(Problem { path: Path::ApprovalSignInSecret, reason: skein_codec::Reason::Bound }); }
     if limits.document_text_bytes > CEILINGS.document_text_bytes { return Err(Problem { path: Path::DocumentTextBytes, reason: skein_codec::Reason::Bound }); }
     if limits.chip_phase_waiting_dependencies > CEILINGS.chip_phase_waiting_dependencies { return Err(Problem { path: Path::ChipPhaseWaitingDependencies, reason: skein_codec::Reason::Bound }); }
@@ -11092,11 +11087,11 @@ fn check_limits_0(limits: &Limits) -> Result<(), Problem> {
     if limits.edit_note_references > CEILINGS.edit_note_references { return Err(Problem { path: Path::EditNoteReferences, reason: skein_codec::Reason::Bound }); }
     if limits.set_roles_holdings > CEILINGS.set_roles_holdings { return Err(Problem { path: Path::SetRolesHoldings, reason: skein_codec::Reason::Bound }); }
     if limits.make_service_name > CEILINGS.make_service_name { return Err(Problem { path: Path::MakeServiceName, reason: skein_codec::Reason::Bound }); }
-    if limits.compound_operations > CEILINGS.compound_operations { return Err(Problem { path: Path::CompoundOperations, reason: skein_codec::Reason::Bound }); }
     Ok(())
 }
 
 fn check_limits_1(limits: &Limits) -> Result<(), Problem> {
+    if limits.compound_operations > CEILINGS.compound_operations { return Err(Problem { path: Path::CompoundOperations, reason: skein_codec::Reason::Bound }); }
     if limits.field_rule_name > CEILINGS.field_rule_name { return Err(Problem { path: Path::FieldRuleName, reason: skein_codec::Reason::Bound }); }
     if limits.verdict_choice_fields > CEILINGS.verdict_choice_fields { return Err(Problem { path: Path::VerdictChoiceFields, reason: skein_codec::Reason::Bound }); }
     if limits.contract_verdict_choices > CEILINGS.contract_verdict_choices { return Err(Problem { path: Path::ContractVerdictChoices, reason: skein_codec::Reason::Bound }); }
@@ -11186,11 +11181,11 @@ fn check_limits_1(limits: &Limits) -> Result<(), Problem> {
     if limits.task_context_writer_slots > CEILINGS.task_context_writer_slots { return Err(Problem { path: Path::TaskContextWriterSlots, reason: skein_codec::Reason::Bound }); }
     if limits.subscriptions_entries > CEILINGS.subscriptions_entries { return Err(Problem { path: Path::SubscriptionsEntries, reason: skein_codec::Reason::Bound }); }
     if limits.task_lineage_chips > CEILINGS.task_lineage_chips { return Err(Problem { path: Path::TaskLineageChips, reason: skein_codec::Reason::Bound }); }
-    if limits.task_inputs > CEILINGS.task_inputs { return Err(Problem { path: Path::TaskInputs, reason: skein_codec::Reason::Bound }); }
     Ok(())
 }
 
 fn check_limits_2(limits: &Limits) -> Result<(), Problem> {
+    if limits.task_inputs > CEILINGS.task_inputs { return Err(Problem { path: Path::TaskInputs, reason: skein_codec::Reason::Bound }); }
     if limits.task_lineage > CEILINGS.task_lineage { return Err(Problem { path: Path::TaskLineage, reason: skein_codec::Reason::Bound }); }
     if limits.task_dependencies > CEILINGS.task_dependencies { return Err(Problem { path: Path::TaskDependencies, reason: skein_codec::Reason::Bound }); }
     if limits.task_references > CEILINGS.task_references { return Err(Problem { path: Path::TaskReferences, reason: skein_codec::Reason::Bound }); }
@@ -11269,8 +11264,6 @@ fn check_limits_2(limits: &Limits) -> Result<(), Problem> {
     if limits.make_project_name > CEILINGS.make_project_name { return Err(Problem { path: Path::MakeProjectName, reason: skein_codec::Reason::Bound }); }
     if limits.authorize_query > CEILINGS.authorize_query { return Err(Problem { path: Path::AuthorizeQuery, reason: skein_codec::Reason::Bound }); }
     if limits.authorize_go_location > CEILINGS.authorize_go_location { return Err(Problem { path: Path::AuthorizeGoLocation, reason: skein_codec::Reason::Bound }); }
-    if limits.batch_members > CEILINGS.batch_members { return Err(Problem { path: Path::BatchMembers, reason: skein_codec::Reason::Bound }); }
-    if limits.batch_reply_reply_some > CEILINGS.batch_reply_reply_some { return Err(Problem { path: Path::BatchReplyReply, reason: skein_codec::Reason::Bound }); }
     if limits.hello_served > CEILINGS.hello_served { return Err(Problem { path: Path::HelloServed, reason: skein_codec::Reason::Bound }); }
     if limits.account_change_declare_program_name > CEILINGS.account_change_declare_program_name { return Err(Problem { path: Path::AccountChangeDeclareProgramName, reason: skein_codec::Reason::Bound }); }
     if limits.account_change_set_uses_uses_some > CEILINGS.account_change_set_uses_uses_some { return Err(Problem { path: Path::AccountChangeSetUsesUses, reason: skein_codec::Reason::Bound }); }
@@ -11281,11 +11274,11 @@ fn check_limits_2(limits: &Limits) -> Result<(), Problem> {
     if limits.account_line_uses_some > CEILINGS.account_line_uses_some { return Err(Problem { path: Path::AccountLineUses, reason: skein_codec::Reason::Bound }); }
     if limits.account_line_sources > CEILINGS.account_line_sources { return Err(Problem { path: Path::AccountLineSources, reason: skein_codec::Reason::Bound }); }
     if limits.account_line_manage_usage_some > CEILINGS.account_line_manage_usage_some { return Err(Problem { path: Path::AccountLineManageUsage, reason: skein_codec::Reason::Bound }); }
+    if limits.account_line_facts > CEILINGS.account_line_facts { return Err(Problem { path: Path::AccountLineFacts, reason: skein_codec::Reason::Bound }); }
     Ok(())
 }
 
 fn check_limits_3(limits: &Limits) -> Result<(), Problem> {
-    if limits.account_line_facts > CEILINGS.account_line_facts { return Err(Problem { path: Path::AccountLineFacts, reason: skein_codec::Reason::Bound }); }
     if limits.terminal_login_name > CEILINGS.terminal_login_name { return Err(Problem { path: Path::TerminalLoginName, reason: skein_codec::Reason::Bound }); }
     if limits.accounts_program_hosts > CEILINGS.accounts_program_hosts { return Err(Problem { path: Path::AccountsProgramHosts, reason: skein_codec::Reason::Bound }); }
     if limits.accounts_accounts > CEILINGS.accounts_accounts { return Err(Problem { path: Path::AccountsAccounts, reason: skein_codec::Reason::Bound }); }
@@ -11994,6 +11987,104 @@ impl ApprovalAskAnswer {
         match self {
             Self::Asked(record) => ApprovalAsked::check(record, limits),
             Self::Refused | Self::NotReady | Self::Busy => Ok(()),
+        }?;
+        Ok(())
+    }
+}
+
+/// Movable fields of `LinkAsk`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LinkAskParts {
+}
+
+/// `LinkAsk` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LinkAsk {
+}
+
+impl LinkAsk {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: LinkAskParts) -> Result<Self, Problem> {
+        let LinkAskParts {  } = parts;
+        let value = Self {  };
+        Ok(value)
+    }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> LinkAskParts { LinkAskParts {  } }
+
+}
+
+/// Movable fields of `LinkAsked`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LinkAskedParts {
+    /// The `secret` field.
+    pub secret: skein_lib::Secret,
+    /// The `expires` field.
+    pub expires: u64,
+}
+
+/// `LinkAsked` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LinkAsked {
+    secret: skein_lib::Secret,
+    expires: u64,
+}
+
+impl LinkAsked {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: LinkAskedParts) -> Result<Self, Problem> {
+        let LinkAskedParts { secret, expires } = parts;
+        let value = Self { secret, expires };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `secret` field.
+    #[must_use]
+    pub fn secret(&self) -> &skein_lib::Secret { &self.secret }
+
+    /// Reads the `expires` field.
+    #[must_use]
+    pub fn expires(&self) -> u64 { self.expires }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> LinkAskedParts { LinkAskedParts { secret: self.secret, expires: self.expires } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.secret.len() > usize::try_from(limits.link_asked_secret.min(CEILINGS.link_asked_secret)).expect("u32 fits usize") { return Err(Problem { path: Path::LinkAskedSecret, reason: skein_codec::Reason::Bound }); }
+        Ok(())
+    }
+}
+
+/// `LinkAskAnswer` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum LinkAskAnswer {
+    /// `asked` carrying `LinkAsked`.
+    Asked(LinkAsked),
+    /// `refused` without a payload.
+    Refused,
+    /// `signed_out` without a payload.
+    SignedOut,
+    /// `not_ready` without a payload.
+    NotReady,
+    /// `busy` without a payload.
+    Busy,
+}
+
+impl LinkAskAnswer {
+    /// Checks the payload against the given limits.
+    pub fn new(limits: &Limits, value: Self) -> Result<Self, Problem> {
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        match self {
+            Self::Asked(record) => LinkAsked::check(record, limits),
+            Self::Refused | Self::SignedOut | Self::NotReady | Self::Busy => Ok(()),
         }?;
         Ok(())
     }
@@ -47208,116 +47299,6 @@ impl CloseAnswer {
 
 }
 
-/// `Member` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum Member {
-    /// `read` carrying `Owned`.
-    Read(Owned),
-    /// `open` carrying `Open`.
-    Open(Open),
-    /// `close` carrying `WatchClose`.
-    Close(WatchClose),
-}
-
-impl Member {
-    /// Checks the payload against the given limits.
-    pub fn new(limits: &Limits, value: Self) -> Result<Self, Problem> {
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        match self {
-            Self::Read(record) => Owned::check(record, limits),
-            Self::Open(record) => Open::check(record, limits),
-            Self::Close(_) => Ok(()),
-        }?;
-        Ok(())
-    }
-}
-
-/// Movable fields of `Batch`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct BatchParts {
-    /// The `members` field.
-    pub members: List<Member>,
-}
-
-/// `Batch` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Batch {
-    members: List<Member>,
-}
-
-impl Batch {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: BatchParts) -> Result<Self, Problem> {
-        let BatchParts { members } = parts;
-        let value = Self { members };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `members` field.
-    #[must_use]
-    pub fn members(&self) -> &List<Member> { &self.members }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> BatchParts { BatchParts { members: self.members } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        if self.members.capacity() > limits.batch_members.min(CEILINGS.batch_members) { return Err(Problem { path: Path::BatchMembers, reason: skein_codec::Reason::Bound }); }
-        for item_0 in self.members.as_slice() {
-        item_0.check(limits)?;
-        }
-        Ok(())
-    }
-}
-
-/// Movable fields of `BatchReply`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct BatchReplyParts {
-    /// The `member` field.
-    pub member: u16,
-    /// The `reply` field.
-    pub reply: Option<Box<[u8]>>,
-}
-
-/// `BatchReply` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct BatchReply {
-    member: u16,
-    reply: Option<Box<[u8]>>,
-}
-
-impl BatchReply {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: BatchReplyParts) -> Result<Self, Problem> {
-        let BatchReplyParts { member, reply } = parts;
-        let value = Self { member, reply };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `member` field.
-    #[must_use]
-    pub fn member(&self) -> u16 { self.member }
-
-    /// Reads the `reply` field.
-    #[must_use]
-    pub fn reply(&self) -> &Option<Box<[u8]>> { &self.reply }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> BatchReplyParts { BatchReplyParts { member: self.member, reply: self.reply } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        if let Some(some_0) = self.reply.as_ref() && some_0.len() > usize::try_from(limits.batch_reply_reply_some.min(CEILINGS.batch_reply_reply_some)).expect("u32 fits usize") { return Err(Problem { path: Path::BatchReplyReply, reason: skein_codec::Reason::Bound }); }
-        Ok(())
-    }
-}
-
 /// Movable fields of `Gone`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct GoneParts {
@@ -56382,6 +56363,107 @@ impl ApprovalAskAnswer {
             2 => Self::NotReady,
             3 => Self::Busy,
             _ => return Err(Problem { path: Path::ApprovalAskAnswerTag, reason: skein_codec::Reason::Tag }),
+        };
+        Ok(value)
+    }
+}
+
+impl LinkAsk {
+    /// Measures this empty record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 { 0_u32 }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        writer.put(&[])
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader);
+        if !reader.is_empty() { return Err(Problem { path: Path::LinkAskTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, _reader: &mut skein_lib::Reader<'_>) -> Self {
+        Self {}
+    }
+}
+
+impl LinkAsked {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_secret = &self.secret;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_secret.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_secret = &self.secret;
+        writer.put(&u32::try_from(field_secret.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_secret.expose())?;
+        let field_expires = &self.expires;
+        writer.put(&field_expires.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::LinkAskedTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_secret = skein_lib::Secret::new({ let length = match skein_codec::read_len(reader, limits.link_asked_secret.min(CEILINGS.link_asked_secret)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::LinkAskedSecret, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::LinkAskedSecret, reason: skein_codec::Reason::Short })?) });
+        let decoded_expires = reader.u64().ok_or(Problem { path: Path::LinkAskedExpires, reason: skein_codec::Reason::Short })?;
+        Ok(Self { secret: decoded_secret, expires: decoded_expires })
+    }
+}
+
+impl LinkAskAnswer {
+    /// Measures this variant's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        match self {
+            Self::Asked(record) => 1_u32.checked_add(LinkAsked::measure(record)).expect("schema ceilings fit u32"),
+            Self::Refused | Self::SignedOut | Self::NotReady | Self::Busy => 1,
+        }
+    }
+
+    /// Writes this variant's tag and payload.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        match self {
+            Self::Asked(record) => { writer.put(&[0_u8])?; record.encode(writer)?; }
+            Self::Refused => writer.put(&[1_u8])?,
+            Self::SignedOut => writer.put(&[2_u8])?,
+            Self::NotReady => writer.put(&[3_u8])?,
+            Self::Busy => writer.put(&[4_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole variant and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::LinkAskAnswerTag, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: Path::LinkAskAnswerTag, reason: skein_codec::Reason::Short })?;
+        let value = match tag {
+            0 => Self::Asked(LinkAsked::decode_from(limits, reader)?),
+            1 => Self::Refused,
+            2 => Self::SignedOut,
+            3 => Self::NotReady,
+            4 => Self::Busy,
+            _ => return Err(Problem { path: Path::LinkAskAnswerTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
     }
@@ -92248,127 +92330,6 @@ impl CloseAnswer {
     }
 }
 
-impl Member {
-    /// Measures this variant's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        match self {
-            Self::Read(record) => 1_u32.checked_add(Owned::measure(record)).expect("schema ceilings fit u32"),
-            Self::Open(record) => 1_u32.checked_add(Open::measure(record)).expect("schema ceilings fit u32"),
-            Self::Close(record) => 1_u32.checked_add(WatchClose::measure(record)).expect("schema ceilings fit u32"),
-        }
-    }
-
-    /// Writes this variant's tag and payload.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        match self {
-            Self::Read(record) => { writer.put(&[0_u8])?; record.encode(writer)?; }
-            Self::Open(record) => { writer.put(&[1_u8])?; record.encode(writer)?; }
-            Self::Close(record) => { writer.put(&[2_u8])?; record.encode(writer)?; }
-        }
-        Ok(())
-    }
-
-    /// Reads a whole variant and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::MemberTag, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let tag = reader.u8().ok_or(Problem { path: Path::MemberTag, reason: skein_codec::Reason::Short })?;
-        let value = match tag {
-            0 => Self::Read(Owned::decode_from(limits, reader)?),
-            1 => Self::Open(Open::decode_from(limits, reader)?),
-            2 => Self::Close(WatchClose::decode_from(limits, reader)?),
-            _ => return Err(Problem { path: Path::MemberTag, reason: skein_codec::Reason::Tag }),
-        };
-        Ok(value)
-    }
-}
-
-impl Batch {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        let field_members = &self.members;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        for item_0 in field_members.as_slice() {
-        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
-        }
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_members = &self.members;
-        writer.put(&field_members.len().to_be_bytes())?;
-        for item_0 in field_members.as_slice() {
-        item_0.encode(writer)?;
-        }
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::BatchTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_members = { let count = match skein_codec::read_count(reader, limits.batch_members.min(CEILINGS.batch_members)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::BatchMembers, reason }), }; if count > reader.remaining() / 10 { return Err(Problem { path: Path::BatchMembers, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Member::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
-        Ok(Self { members: decoded_members })
-    }
-}
-
-impl BatchReply {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(2).expect("schema ceilings fit u32");
-        let field_reply = &self.reply;
-        size = size.checked_add(1).expect("schema ceilings fit u32");
-        if let Some(some_0) = field_reply {
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(u32::try_from(some_0.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        }
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_member = &self.member;
-        writer.put(&field_member.to_be_bytes())?;
-        let field_reply = &self.reply;
-        match field_reply {
-            Some(some_0) => {
-                writer.put(&[1_u8])?;
-        writer.put(&u32::try_from(some_0.len()).expect("field ceiling fits u32").to_be_bytes())?;
-        writer.put(some_0.as_ref())?;
-            }
-            None => writer.put(&[0_u8])?,
-        }
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::BatchReplyTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_member = reader.u16().ok_or(Problem { path: Path::BatchReplyMember, reason: skein_codec::Reason::Short })?;
-        let decoded_reply = match reader.u8().ok_or(Problem { path: Path::BatchReplyReply, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let length = match skein_codec::read_len(reader, limits.batch_reply_reply_some.min(CEILINGS.batch_reply_reply_some)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::BatchReplyReply, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::BatchReplyReply, reason: skein_codec::Reason::Short })?) }), _ => return Err(Problem { path: Path::BatchReplyReply, reason: skein_codec::Reason::Tag }) };
-        Ok(Self { member: decoded_member, reply: decoded_reply })
-    }
-}
-
 impl Gone {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -101775,6 +101736,88 @@ impl ApprovalAskAnswer {
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut biggest = 0_u64;
         biggest = biggest.max(ApprovalAsked::decoded_bound_within(limits)?);
+        biggest.checked_add(0)
+    }
+}
+
+impl LinkAsk {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let size = 0_u64;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let heap = 0_u64;
+        heap.checked_add(0)
+    }
+}
+
+impl LinkAsked {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.link_asked_secret))?)?.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(u64::from(limits.link_asked_secret))?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+impl LinkAskAnswer {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(LinkAsked::encoded_bound_within(limits)?);
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(LinkAsked::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }
@@ -126515,92 +126558,6 @@ impl CloseAnswer {
     }
 }
 
-impl Member {
-    /// Maximum encoded bytes among variants.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut biggest = 0_u64;
-        biggest = biggest.max(Owned::encoded_bound_within(limits)?).max(Open::encoded_bound_within(limits)?);
-        biggest = biggest.max(WatchClose::encoded_bound_within(limits)?);
-        1_u64.checked_add(biggest)
-    }
-
-    /// Maximum heap held by any decoded variant.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut biggest = 0_u64;
-        biggest = biggest.max(Owned::decoded_bound_within(limits)?).max(Open::decoded_bound_within(limits)?);
-        biggest = biggest.max(WatchClose::decoded_bound_within(limits)?);
-        biggest.checked_add(0)
-    }
-}
-
-impl Batch {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.batch_members).checked_mul(Member::encoded_bound_within(limits)?)?)?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(List::<Member>::price(limits.batch_members)?.checked_add(u64::from(limits.batch_members).checked_mul(Member::decoded_bound_within(limits)?)?)?)?;
-        heap.checked_add(0)
-    }
-}
-
-impl BatchReply {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(2_u64)?.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.batch_reply_reply_some))?)?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.batch_reply_reply_some))?;
-        heap.checked_add(0)
-    }
-}
-
 impl Gone {
     /// Maximum encoded bytes under these limits.
     #[must_use]
@@ -132233,6 +132190,9 @@ fn encoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(ApprovalAsk::encoded_bound_within(limits)?);
     biggest = biggest.max(ApprovalAsked::encoded_bound_within(limits)?);
     biggest = biggest.max(ApprovalAskAnswer::encoded_bound_within(limits)?);
+    biggest = biggest.max(LinkAsk::encoded_bound_within(limits)?);
+    biggest = biggest.max(LinkAsked::encoded_bound_within(limits)?);
+    biggest = biggest.max(LinkAskAnswer::encoded_bound_within(limits)?);
     biggest = biggest.max(ApprovalRead::encoded_bound_within(limits)?);
     biggest = biggest.max(ApprovalWaiting::encoded_bound_within(limits)?);
     biggest = biggest.max(ApprovalState::encoded_bound_within(limits)?);
@@ -132303,13 +132263,13 @@ fn encoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(DecisionRejected::encoded_bound_within(limits)?);
     biggest = biggest.max(DecisionReleased::encoded_bound_within(limits)?);
     biggest = biggest.max(DecisionLeftHeld::encoded_bound_within(limits)?);
-    biggest = biggest.max(Decision::encoded_bound_within(limits)?);
-    biggest = biggest.max(AttemptFailure::encoded_bound_within(limits)?);
-    biggest = biggest.max(ExecutorAgent::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(Decision::encoded_bound_within(limits)?);
+    biggest = biggest.max(AttemptFailure::encoded_bound_within(limits)?);
+    biggest = biggest.max(ExecutorAgent::encoded_bound_within(limits)?);
     biggest = biggest.max(ExecutorProcedure::encoded_bound_within(limits)?);
     biggest = biggest.max(ExecutorPerson::encoded_bound_within(limits)?);
     biggest = biggest.max(ExecutorJob::encoded_bound_within(limits)?);
@@ -132397,13 +132357,13 @@ fn encoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(ChipDetailsRow::encoded_bound_within(limits)?);
     biggest = biggest.max(ChipEndingDoneFields::encoded_bound_within(limits)?);
     biggest = biggest.max(ChipEndingFailedFields::encoded_bound_within(limits)?);
-    biggest = biggest.max(ChipEndingCancelledFields::encoded_bound_within(limits)?);
-    biggest = biggest.max(ChipEndingFields::encoded_bound_within(limits)?);
-    biggest = biggest.max(ChipEndingRow::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(ChipEndingCancelledFields::encoded_bound_within(limits)?);
+    biggest = biggest.max(ChipEndingFields::encoded_bound_within(limits)?);
+    biggest = biggest.max(ChipEndingRow::encoded_bound_within(limits)?);
     biggest = biggest.max(ResultValueReportFields::encoded_bound_within(limits)?);
     biggest = biggest.max(ResultValueOwnerVerdictFields::encoded_bound_within(limits)?);
     biggest = biggest.max(ResultValueVerdictFields::encoded_bound_within(limits)?);
@@ -132491,13 +132451,13 @@ fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(HeldRole::encoded_bound_within(limits)?);
     biggest = biggest.max(Holding::encoded_bound_within(limits)?);
     biggest = biggest.max(Message::encoded_bound_within(limits)?);
-    biggest = biggest.max(AnswerQuestion::encoded_bound_within(limits)?);
-    biggest = biggest.max(AnswerPerson::encoded_bound_within(limits)?);
-    biggest = biggest.max(AnswerOn::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(AnswerQuestion::encoded_bound_within(limits)?);
+    biggest = biggest.max(AnswerPerson::encoded_bound_within(limits)?);
+    biggest = biggest.max(AnswerOn::encoded_bound_within(limits)?);
     biggest = biggest.max(Answer::encoded_bound_within(limits)?);
     biggest = biggest.max(Take::encoded_bound_within(limits)?);
     biggest = biggest.max(HandBack::encoded_bound_within(limits)?);
@@ -132585,13 +132545,13 @@ fn encoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(OutcomeAccountProgramDeclared::encoded_bound_within(limits)?);
     biggest = biggest.max(OutcomeAccountLoginAsked::encoded_bound_within(limits)?);
     biggest = biggest.max(OutcomeAccountSignedOut::encoded_bound_within(limits)?);
-    biggest = biggest.max(OutcomeAccountKeyKept::encoded_bound_within(limits)?);
-    biggest = biggest.max(OutcomeAccountRemoved::encoded_bound_within(limits)?);
-    biggest = biggest.max(OutcomeRenamed::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_4(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(OutcomeAccountKeyKept::encoded_bound_within(limits)?);
+    biggest = biggest.max(OutcomeAccountRemoved::encoded_bound_within(limits)?);
+    biggest = biggest.max(OutcomeRenamed::encoded_bound_within(limits)?);
     biggest = biggest.max(OutcomeProjectMade::encoded_bound_within(limits)?);
     biggest = biggest.max(OutcomeVisibilitySet::encoded_bound_within(limits)?);
     biggest = biggest.max(OutcomeProjectRemoved::encoded_bound_within(limits)?);
@@ -132679,13 +132639,13 @@ fn encoded_bound_4(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(ReadInbox::encoded_bound_within(limits)?);
     biggest = biggest.max(ReadSpend::encoded_bound_within(limits)?);
     biggest = biggest.max(ReadProject::encoded_bound_within(limits)?);
-    biggest = biggest.max(ReadNotes::encoded_bound_within(limits)?);
-    biggest = biggest.max(PhaseClass::encoded_bound_within(limits)?);
-    biggest = biggest.max(ExecutorKind::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_5(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(ReadNotes::encoded_bound_within(limits)?);
+    biggest = biggest.max(PhaseClass::encoded_bound_within(limits)?);
+    biggest = biggest.max(ExecutorKind::encoded_bound_within(limits)?);
     biggest = biggest.max(QueryOrder::encoded_bound_within(limits)?);
     biggest = biggest.max(PartAsk::encoded_bound_within(limits)?);
     biggest = biggest.max(TaskQuery::encoded_bound_within(limits)?);
@@ -132773,13 +132733,13 @@ fn encoded_bound_5(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(AdmissionProposed::encoded_bound_within(limits)?);
     biggest = biggest.max(ImpactCounts::encoded_bound_within(limits)?);
     biggest = biggest.max(Impact::encoded_bound_within(limits)?);
-    biggest = biggest.max(ReleaseEffect::encoded_bound_within(limits)?);
-    biggest = biggest.max(EffectRelease::encoded_bound_within(limits)?);
-    biggest = biggest.max(EffectMove::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_6(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(ReleaseEffect::encoded_bound_within(limits)?);
+    biggest = biggest.max(EffectRelease::encoded_bound_within(limits)?);
+    biggest = biggest.max(EffectMove::encoded_bound_within(limits)?);
     biggest = biggest.max(Effect::encoded_bound_within(limits)?);
     biggest = biggest.max(ResultDocument::encoded_bound_within(limits)?);
     biggest = biggest.max(ObjectKeyTask::encoded_bound_within(limits)?);
@@ -132867,13 +132827,13 @@ fn encoded_bound_6(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(ObjectPage::encoded_bound_within(limits)?);
     biggest = biggest.max(EndedDelegate::encoded_bound_within(limits)?);
     biggest = biggest.max(EndedPage::encoded_bound_within(limits)?);
-    biggest = biggest.max(InboxObjectQuestion::encoded_bound_within(limits)?);
-    biggest = biggest.max(InboxObjectProposal::encoded_bound_within(limits)?);
-    biggest = biggest.max(InboxObjectEscalation::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_7(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(InboxObjectQuestion::encoded_bound_within(limits)?);
+    biggest = biggest.max(InboxObjectProposal::encoded_bound_within(limits)?);
+    biggest = biggest.max(InboxObjectEscalation::encoded_bound_within(limits)?);
     biggest = biggest.max(InboxObjectTurn::encoded_bound_within(limits)?);
     biggest = biggest.max(InboxObjectResult::encoded_bound_within(limits)?);
     biggest = biggest.max(InboxObject::encoded_bound_within(limits)?);
@@ -132961,13 +132921,13 @@ fn encoded_bound_7(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(SettingsReview::encoded_bound_within(limits)?);
     biggest = biggest.max(ProposalActionSettings::encoded_bound_within(limits)?);
     biggest = biggest.max(ProposalAction::encoded_bound_within(limits)?);
-    biggest = biggest.max(ProposalWaiting::encoded_bound_within(limits)?);
-    biggest = biggest.max(FundingOffer::encoded_bound_within(limits)?);
-    biggest = biggest.max(Proposal::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_8(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(ProposalWaiting::encoded_bound_within(limits)?);
+    biggest = biggest.max(FundingOffer::encoded_bound_within(limits)?);
+    biggest = biggest.max(Proposal::encoded_bound_within(limits)?);
     biggest = biggest.max(Escalation::encoded_bound_within(limits)?);
     biggest = biggest.max(Question::encoded_bound_within(limits)?);
     biggest = biggest.max(OptionLine::encoded_bound_within(limits)?);
@@ -133055,13 +133015,13 @@ fn encoded_bound_8(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(PersonCapacityActionStop::encoded_bound_within(limits)?);
     biggest = biggest.max(PersonCapacityActionCancel::encoded_bound_within(limits)?);
     biggest = biggest.max(PersonCapacityActionConclude::encoded_bound_within(limits)?);
-    biggest = biggest.max(PersonCapacityActionRelease::encoded_bound_within(limits)?);
-    biggest = biggest.max(PersonCapacityActionMarkSeen::encoded_bound_within(limits)?);
-    biggest = biggest.max(PersonCapacityActionLift::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_9(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(PersonCapacityActionRelease::encoded_bound_within(limits)?);
+    biggest = biggest.max(PersonCapacityActionMarkSeen::encoded_bound_within(limits)?);
+    biggest = biggest.max(PersonCapacityActionLift::encoded_bound_within(limits)?);
     biggest = biggest.max(PersonCapacityAction::encoded_bound_within(limits)?);
     biggest = biggest.max(PersonCapacityCauseRequests::encoded_bound_within(limits)?);
     biggest = biggest.max(PersonCapacityCausePending::encoded_bound_within(limits)?);
@@ -133117,9 +133077,6 @@ fn encoded_bound_9(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(OpenAnswer::encoded_bound_within(limits)?);
     biggest = biggest.max(WatchClose::encoded_bound_within(limits)?);
     biggest = biggest.max(CloseAnswer::encoded_bound_within(limits)?);
-    biggest = biggest.max(Member::encoded_bound_within(limits)?);
-    biggest = biggest.max(Batch::encoded_bound_within(limits)?);
-    biggest = biggest.max(BatchReply::encoded_bound_within(limits)?);
     biggest = biggest.max(Gone::encoded_bound_within(limits)?);
     biggest = biggest.max(Hello::encoded_bound_within(limits)?);
     biggest = biggest.max(Delivery::encoded_bound_within(limits)?);
@@ -133355,6 +133312,9 @@ fn decoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(ApprovalAsk::decoded_bound_within(limits)?);
     biggest = biggest.max(ApprovalAsked::decoded_bound_within(limits)?);
     biggest = biggest.max(ApprovalAskAnswer::decoded_bound_within(limits)?);
+    biggest = biggest.max(LinkAsk::decoded_bound_within(limits)?);
+    biggest = biggest.max(LinkAsked::decoded_bound_within(limits)?);
+    biggest = biggest.max(LinkAskAnswer::decoded_bound_within(limits)?);
     biggest = biggest.max(ApprovalRead::decoded_bound_within(limits)?);
     biggest = biggest.max(ApprovalWaiting::decoded_bound_within(limits)?);
     biggest = biggest.max(ApprovalState::decoded_bound_within(limits)?);
@@ -133425,13 +133385,13 @@ fn decoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(DecisionRejected::decoded_bound_within(limits)?);
     biggest = biggest.max(DecisionReleased::decoded_bound_within(limits)?);
     biggest = biggest.max(DecisionLeftHeld::decoded_bound_within(limits)?);
-    biggest = biggest.max(Decision::decoded_bound_within(limits)?);
-    biggest = biggest.max(AttemptFailure::decoded_bound_within(limits)?);
-    biggest = biggest.max(ExecutorAgent::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(Decision::decoded_bound_within(limits)?);
+    biggest = biggest.max(AttemptFailure::decoded_bound_within(limits)?);
+    biggest = biggest.max(ExecutorAgent::decoded_bound_within(limits)?);
     biggest = biggest.max(ExecutorProcedure::decoded_bound_within(limits)?);
     biggest = biggest.max(ExecutorPerson::decoded_bound_within(limits)?);
     biggest = biggest.max(ExecutorJob::decoded_bound_within(limits)?);
@@ -133519,13 +133479,13 @@ fn decoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(ChipDetailsRow::decoded_bound_within(limits)?);
     biggest = biggest.max(ChipEndingDoneFields::decoded_bound_within(limits)?);
     biggest = biggest.max(ChipEndingFailedFields::decoded_bound_within(limits)?);
-    biggest = biggest.max(ChipEndingCancelledFields::decoded_bound_within(limits)?);
-    biggest = biggest.max(ChipEndingFields::decoded_bound_within(limits)?);
-    biggest = biggest.max(ChipEndingRow::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(ChipEndingCancelledFields::decoded_bound_within(limits)?);
+    biggest = biggest.max(ChipEndingFields::decoded_bound_within(limits)?);
+    biggest = biggest.max(ChipEndingRow::decoded_bound_within(limits)?);
     biggest = biggest.max(ResultValueReportFields::decoded_bound_within(limits)?);
     biggest = biggest.max(ResultValueOwnerVerdictFields::decoded_bound_within(limits)?);
     biggest = biggest.max(ResultValueVerdictFields::decoded_bound_within(limits)?);
@@ -133613,13 +133573,13 @@ fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(HeldRole::decoded_bound_within(limits)?);
     biggest = biggest.max(Holding::decoded_bound_within(limits)?);
     biggest = biggest.max(Message::decoded_bound_within(limits)?);
-    biggest = biggest.max(AnswerQuestion::decoded_bound_within(limits)?);
-    biggest = biggest.max(AnswerPerson::decoded_bound_within(limits)?);
-    biggest = biggest.max(AnswerOn::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(AnswerQuestion::decoded_bound_within(limits)?);
+    biggest = biggest.max(AnswerPerson::decoded_bound_within(limits)?);
+    biggest = biggest.max(AnswerOn::decoded_bound_within(limits)?);
     biggest = biggest.max(Answer::decoded_bound_within(limits)?);
     biggest = biggest.max(Take::decoded_bound_within(limits)?);
     biggest = biggest.max(HandBack::decoded_bound_within(limits)?);
@@ -133707,13 +133667,13 @@ fn decoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(OutcomeAccountProgramDeclared::decoded_bound_within(limits)?);
     biggest = biggest.max(OutcomeAccountLoginAsked::decoded_bound_within(limits)?);
     biggest = biggest.max(OutcomeAccountSignedOut::decoded_bound_within(limits)?);
-    biggest = biggest.max(OutcomeAccountKeyKept::decoded_bound_within(limits)?);
-    biggest = biggest.max(OutcomeAccountRemoved::decoded_bound_within(limits)?);
-    biggest = biggest.max(OutcomeRenamed::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_4(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(OutcomeAccountKeyKept::decoded_bound_within(limits)?);
+    biggest = biggest.max(OutcomeAccountRemoved::decoded_bound_within(limits)?);
+    biggest = biggest.max(OutcomeRenamed::decoded_bound_within(limits)?);
     biggest = biggest.max(OutcomeProjectMade::decoded_bound_within(limits)?);
     biggest = biggest.max(OutcomeVisibilitySet::decoded_bound_within(limits)?);
     biggest = biggest.max(OutcomeProjectRemoved::decoded_bound_within(limits)?);
@@ -133801,13 +133761,13 @@ fn decoded_bound_4(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(ReadInbox::decoded_bound_within(limits)?);
     biggest = biggest.max(ReadSpend::decoded_bound_within(limits)?);
     biggest = biggest.max(ReadProject::decoded_bound_within(limits)?);
-    biggest = biggest.max(ReadNotes::decoded_bound_within(limits)?);
-    biggest = biggest.max(PhaseClass::decoded_bound_within(limits)?);
-    biggest = biggest.max(ExecutorKind::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_5(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(ReadNotes::decoded_bound_within(limits)?);
+    biggest = biggest.max(PhaseClass::decoded_bound_within(limits)?);
+    biggest = biggest.max(ExecutorKind::decoded_bound_within(limits)?);
     biggest = biggest.max(QueryOrder::decoded_bound_within(limits)?);
     biggest = biggest.max(PartAsk::decoded_bound_within(limits)?);
     biggest = biggest.max(TaskQuery::decoded_bound_within(limits)?);
@@ -133895,13 +133855,13 @@ fn decoded_bound_5(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(AdmissionProposed::decoded_bound_within(limits)?);
     biggest = biggest.max(ImpactCounts::decoded_bound_within(limits)?);
     biggest = biggest.max(Impact::decoded_bound_within(limits)?);
-    biggest = biggest.max(ReleaseEffect::decoded_bound_within(limits)?);
-    biggest = biggest.max(EffectRelease::decoded_bound_within(limits)?);
-    biggest = biggest.max(EffectMove::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_6(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(ReleaseEffect::decoded_bound_within(limits)?);
+    biggest = biggest.max(EffectRelease::decoded_bound_within(limits)?);
+    biggest = biggest.max(EffectMove::decoded_bound_within(limits)?);
     biggest = biggest.max(Effect::decoded_bound_within(limits)?);
     biggest = biggest.max(ResultDocument::decoded_bound_within(limits)?);
     biggest = biggest.max(ObjectKeyTask::decoded_bound_within(limits)?);
@@ -133989,13 +133949,13 @@ fn decoded_bound_6(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(ObjectPage::decoded_bound_within(limits)?);
     biggest = biggest.max(EndedDelegate::decoded_bound_within(limits)?);
     biggest = biggest.max(EndedPage::decoded_bound_within(limits)?);
-    biggest = biggest.max(InboxObjectQuestion::decoded_bound_within(limits)?);
-    biggest = biggest.max(InboxObjectProposal::decoded_bound_within(limits)?);
-    biggest = biggest.max(InboxObjectEscalation::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_7(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(InboxObjectQuestion::decoded_bound_within(limits)?);
+    biggest = biggest.max(InboxObjectProposal::decoded_bound_within(limits)?);
+    biggest = biggest.max(InboxObjectEscalation::decoded_bound_within(limits)?);
     biggest = biggest.max(InboxObjectTurn::decoded_bound_within(limits)?);
     biggest = biggest.max(InboxObjectResult::decoded_bound_within(limits)?);
     biggest = biggest.max(InboxObject::decoded_bound_within(limits)?);
@@ -134083,13 +134043,13 @@ fn decoded_bound_7(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(SettingsReview::decoded_bound_within(limits)?);
     biggest = biggest.max(ProposalActionSettings::decoded_bound_within(limits)?);
     biggest = biggest.max(ProposalAction::decoded_bound_within(limits)?);
-    biggest = biggest.max(ProposalWaiting::decoded_bound_within(limits)?);
-    biggest = biggest.max(FundingOffer::decoded_bound_within(limits)?);
-    biggest = biggest.max(Proposal::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_8(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(ProposalWaiting::decoded_bound_within(limits)?);
+    biggest = biggest.max(FundingOffer::decoded_bound_within(limits)?);
+    biggest = biggest.max(Proposal::decoded_bound_within(limits)?);
     biggest = biggest.max(Escalation::decoded_bound_within(limits)?);
     biggest = biggest.max(Question::decoded_bound_within(limits)?);
     biggest = biggest.max(OptionLine::decoded_bound_within(limits)?);
@@ -134177,13 +134137,13 @@ fn decoded_bound_8(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(PersonCapacityActionStop::decoded_bound_within(limits)?);
     biggest = biggest.max(PersonCapacityActionCancel::decoded_bound_within(limits)?);
     biggest = biggest.max(PersonCapacityActionConclude::decoded_bound_within(limits)?);
-    biggest = biggest.max(PersonCapacityActionRelease::decoded_bound_within(limits)?);
-    biggest = biggest.max(PersonCapacityActionMarkSeen::decoded_bound_within(limits)?);
-    biggest = biggest.max(PersonCapacityActionLift::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_9(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(PersonCapacityActionRelease::decoded_bound_within(limits)?);
+    biggest = biggest.max(PersonCapacityActionMarkSeen::decoded_bound_within(limits)?);
+    biggest = biggest.max(PersonCapacityActionLift::decoded_bound_within(limits)?);
     biggest = biggest.max(PersonCapacityAction::decoded_bound_within(limits)?);
     biggest = biggest.max(PersonCapacityCauseRequests::decoded_bound_within(limits)?);
     biggest = biggest.max(PersonCapacityCausePending::decoded_bound_within(limits)?);
@@ -134239,9 +134199,6 @@ fn decoded_bound_9(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(OpenAnswer::decoded_bound_within(limits)?);
     biggest = biggest.max(WatchClose::decoded_bound_within(limits)?);
     biggest = biggest.max(CloseAnswer::decoded_bound_within(limits)?);
-    biggest = biggest.max(Member::decoded_bound_within(limits)?);
-    biggest = biggest.max(Batch::decoded_bound_within(limits)?);
-    biggest = biggest.max(BatchReply::decoded_bound_within(limits)?);
     biggest = biggest.max(Gone::decoded_bound_within(limits)?);
     biggest = biggest.max(Hello::decoded_bound_within(limits)?);
     biggest = biggest.max(Delivery::decoded_bound_within(limits)?);

@@ -23,6 +23,7 @@ fn batch(h: &fixtures::Harness) -> (Token, w::Batch) {
             | Request::Read { .. }
             | Request::StreamsFull { .. }
             | Request::Authorized(_)
+            | Request::AskedLink(_)
             | Request::Approval(_)
             | Request::Save { .. }
             | Request::Erase { .. }
@@ -60,6 +61,7 @@ fn result(h: &fixtures::Harness, token: u64) -> Option<&Readout> {
             | Request::Read { .. }
             | Request::StreamsFull { .. }
             | Request::Authorized(_)
+            | Request::AskedLink(_)
             | Request::Approval(_)
             | Request::Save { .. }
             | Request::Erase { .. }
@@ -112,6 +114,7 @@ fn read_count(h: &fixtures::Harness) -> u32 {
             Request::Exchange { .. }
             | Request::StreamsFull { .. }
             | Request::Authorized(_)
+            | Request::AskedLink(_)
             | Request::Approval(_)
             | Request::Save { .. }
             | Request::Erase { .. }
