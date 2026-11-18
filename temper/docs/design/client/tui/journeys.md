@@ -589,7 +589,8 @@ where 8.2 says otherwise:
   rather than before the TUI starts; a `see` after it waits for the
   frame the steps lead to.
 - **The welcome's link, wrapped:** at 80 columns the welcome draws the
-  printed link over rows. The redaction seeks a `box-line` link's secret in
+  printed link over rows, and so does `/web`'s note (`box.md`, *`/web`,
+  temper in the browser*). The redaction seeks a `box-line` link's secret in
   each `mark`'s and the `end`'s print across the rows it wraps over too,
   the print's rows read as one where the link continues, each row's
   indentation and line feed left out, and the last scan reads the
