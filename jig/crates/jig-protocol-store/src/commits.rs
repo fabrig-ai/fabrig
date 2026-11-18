@@ -198,13 +198,6 @@ pub(crate) fn operations(
         .ok()
         .ok_or(Refusal::Check(CommitCheck::Capacity))?;
         ops.push(skein_kv::Op::Put {
-            key: keys::encode_own(&keys::Own::Layouts, store.limits.store.key)
-                .ok_or(Refusal::Check(CommitCheck::Encoding))?,
-            value: store.layouts.encode(),
-        })
-        .ok()
-        .ok_or(Refusal::Check(CommitCheck::Capacity))?;
-        ops.push(skein_kv::Op::Put {
             key: keys::installation(store.limits.store.key).ok_or(Refusal::Check(CommitCheck::Encoding))?,
             value: codec::accounts::Installation { id: store.installation }.encode(),
         })
@@ -348,10 +341,10 @@ fn operation_key(op: &skein_kv::Op) -> Box<[u8]> {
 
 /// A commit's most operations: a log append and two turn places per write,
 /// or a history drop and its place, the first commit's
-/// own rows (Format, Floor, Layouts and the installation's identifier), and the
+/// own rows (Format, Floor and the installation's identifier), and the
 /// orphans' erases it carries.
 pub(crate) fn most_ops(writes: u32, orphan_erases: u32) -> Option<u32> {
-    writes.checked_mul(3)?.checked_add(4)?.checked_add(orphan_erases)
+    writes.checked_mul(3)?.checked_add(3)?.checked_add(orphan_erases)
 }
 
 fn copy(

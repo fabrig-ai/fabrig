@@ -212,9 +212,11 @@ questions are entries, not tasks (contract/documents.md, 1, and contract/README.
 - **Nothing else is the inbox's own:** no archive, no snooze, no flag.
   What is done is in the history of the task it was about.
 - **Live and bounded.** An entry appears as the commit that makes it
-  waits for the party, and leaves as it stops waiting. The engine holds
-  each party's entries up to a limit; the page reads the rest a page at a
-  time.
+  waits for the party, and leaves as it stops waiting. What needs the
+  party is paged from live tasks, every need on some page, the last page
+  saying none waits after it; the engine holds the updates up to a limit,
+  and the page reads the rest a page at a time from the store
+  (`../../domain/people/README.md`, section 5, *Bounded*).
 
 ## 4. Conversations
 

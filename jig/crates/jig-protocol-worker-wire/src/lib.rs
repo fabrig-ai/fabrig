@@ -8,7 +8,7 @@ use alloc::boxed::Box;
 use skein_lib::Token;
 
 #[rustfmt::skip]
-#[path = "generated/v17.rs"]
+#[path = "generated/worker_wire.rs"]
 pub mod v17;
 mod application;
 mod kinds;

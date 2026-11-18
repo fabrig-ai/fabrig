@@ -11,6 +11,7 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
+use fabrig_boundary::record_family;
 use serde_json::Value;
 use skein_scratch::Scratch;
 
@@ -79,7 +80,7 @@ const VERSION_ALLOWED: &[VersionAllowance] = &[
 #[derive(Debug)]
 struct Package {
     name: String,
-    generated: BTreeMap<String, BTreeSet<u32>>,
+    generated: BTreeSet<String>,
     schemas: BTreeMap<String, BTreeSet<u32>>,
     dependencies: BTreeSet<String>,
     failures: Vec<String>,
@@ -116,7 +117,7 @@ fn packages(metadata: &str) -> Result<Vec<Package>, String> {
         }
         let mut package = Package {
             name: name.to_owned(),
-            generated: BTreeMap::new(),
+            generated: BTreeSet::new(),
             schemas: BTreeMap::new(),
             dependencies,
             failures: Vec::new(),
@@ -155,15 +156,15 @@ fn generated(directory: &Path, package: &mut Package) {
             match entry {
                 Ok(entry) => {
                     let path = entry.path();
-                    if let Some((family, version)) = record_family(&path) {
-                        match fs::metadata(&path) {
-                            Ok(metadata) => {
-                                if metadata.is_file() {
-                                    package.generated.entry(family.to_owned()).or_default().insert(version);
-                                }
-                            }
-                            Err(why) => package.failures.push(format!("{}: {why}", path.display())),
+                    if path.is_file() && versioned_module(&path) {
+                        package.failures.push(format!("{}: generated module named by a version", path.display()));
+                    }
+                    match record_family(&path) {
+                        Ok(Some(family)) => {
+                            package.generated.insert(family);
                         }
+                        Ok(None) => (),
+                        Err(why) => package.failures.push(format!("{}: {why}", path.display())),
                     }
                 }
                 Err(why) => package.failures.push(format!("{}: {why}", directory.display())),
@@ -199,27 +200,13 @@ fn schemas(directory: &Path, package: &mut Package) {
     }
 }
 
-/// Generated records, not glue (tools/crates/design.md, 2.2).
-fn record_family(path: &Path) -> Option<(&str, u32)> {
-    let stem = path.file_name()?.to_str()?.strip_suffix(".rs")?;
-    let (family, version) = if let Some(version) = stem
-        .strip_prefix('v')
-        .filter(|version| !version.is_empty() && version.bytes().all(|byte| byte.is_ascii_digit()))
-    {
-        ("(own)", version)
-    } else {
-        let (family, version) = stem.rsplit_once("_v")?;
-        if family.is_empty()
-            || !family.bytes().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_')
-        {
-            return None;
-        }
-        (family, version)
+/// Versioned filenames are forbidden even when their contents are not records.
+fn versioned_module(path: &Path) -> bool {
+    let Some(stem) = path.file_name().and_then(|name| name.to_str()).and_then(|name| name.strip_suffix(".rs")) else {
+        return false;
     };
-    if version.is_empty() || !version.bytes().all(|byte| byte.is_ascii_digit()) {
-        return None;
-    }
-    Some((family, version.parse().ok()?))
+    let version = stem.rsplit_once("_v").map(|(_, version)| version).or_else(|| stem.strip_prefix('v'));
+    version.is_some_and(|version| !version.is_empty() && version.bytes().all(|byte| byte.is_ascii_digit()))
 }
 
 /// Current texts, including split texts (tools/crates/design.md, 3.2).
@@ -293,13 +280,11 @@ fn version_findings(packages: &[Package], allowed: &[VersionAllowance]) -> Vec<S
     let mut matched = BTreeSet::new();
     for package in packages {
         failures.extend(package.failures.iter().map(|why| format!("{}: {why}", package.name)));
-        for (kind, families) in [("generated code", &package.generated), ("schema text", &package.schemas)] {
-            for (family, versions) in families {
-                if versions.len() > 1 {
-                    matched.insert(package.name.as_str());
-                    if !allowed.iter().any(|allowance| allowance.package == package.name) {
-                        failures.push(format!("{}: {kind} family {family} has versions {versions:?}", package.name));
-                    }
+        for (family, versions) in &package.schemas {
+            if versions.len() > 1 {
+                matched.insert(package.name.as_str());
+                if !allowed.iter().any(|allowance| allowance.package == package.name) {
+                    failures.push(format!("{}: schema text family {family} has versions {versions:?}", package.name));
                 }
             }
         }
@@ -350,7 +335,12 @@ fn scratch(files: &[&str]) -> Scratch {
     for name in files {
         let path = scratch.path().join(name);
         fs::create_dir_all(path.parent().expect("fixture directory")).expect("create fixture directory");
-        fs::write(path, "").expect("write fixture source");
+        let source = if name.contains("/src/generated/") && !name.ends_with("/layouts.rs") {
+            "// Generated by skein-codegen from fixture 1. Do not edit.\n"
+        } else {
+            ""
+        };
+        fs::write(path, source).expect("write fixture source");
     }
     scratch
 }
@@ -371,7 +361,7 @@ fn fixture_metadata(scratch: &Scratch, dependencies: &Value) -> Value {
 
 #[test]
 fn normal_workspace_dependencies_use_package_names() {
-    let scratch = scratch(&["a/src/generated/people_v1.rs"]);
+    let scratch = scratch(&["a/src/generated/people.rs"]);
     let mut metadata = fixture_metadata(
         &scratch,
         &serde_json::json!([
@@ -388,7 +378,7 @@ fn normal_workspace_dependencies_use_package_names() {
 
 #[test]
 fn only_normal_dependencies_count_under_any_target() {
-    let scratch = scratch(&["a/src/generated/people_v1.rs"]);
+    let scratch = scratch(&["a/src/generated/people.rs"]);
     for (kind, target, expected) in [
         (serde_json::json!("dev"), Value::Null, vec![]),
         (serde_json::json!("build"), Value::Null, vec![]),
@@ -402,17 +392,7 @@ fn only_normal_dependencies_count_under_any_target() {
 
 #[test]
 fn records_not_glue_make_a_codec() {
-    for (file, record) in [
-        ("people_v1.rs", true),
-        ("v12.rs", true),
-        ("team_2_v03.rs", true),
-        ("layouts.rs", false),
-        ("People_v1.rs", false),
-        ("people_v.rs", false),
-        ("people_v1.txt", false),
-        ("v.rs", false),
-        ("_v1.rs", false),
-    ] {
+    for (file, record) in [("people.rs", true), ("layouts.rs", false)] {
         let scratch = scratch(&[&format!("a/src/generated/{file}")]);
         let metadata = fixture_metadata(&scratch, &serde_json::json!([{"name": "b", "kind": null}]));
         let packages = packages(&metadata.to_string()).expect("fixture metadata");
@@ -420,14 +400,14 @@ fn records_not_glue_make_a_codec() {
         assert_eq!(findings(&packages, &[], &[]), expected, "{file}");
     }
     let scratch = scratch(&[]);
-    fs::create_dir_all(scratch.path().join("a/src/generated/people_v1.rs")).expect("record-shaped directory");
+    fs::create_dir_all(scratch.path().join("a/src/generated/people.rs")).expect("record-shaped directory");
     let metadata = fixture_metadata(&scratch, &serde_json::json!([{"name": "b", "kind": null}]));
     assert_eq!(findings(&packages(&metadata.to_string()).expect("fixture metadata"), &[], &[]), Vec::<String>::new());
 }
 
 #[test]
 fn allowances_match_dependencies_and_only_shrink() {
-    let scratch = scratch(&["a/src/generated/people_v1.rs"]);
+    let scratch = scratch(&["a/src/generated/people.rs"]);
     let allowed = [Allowance { package: "a", dependency: "b", reason: "fixture channel vocabulary" }];
     let metadata = fixture_metadata(&scratch, &serde_json::json!([{"name": "b", "kind": null}]));
     let packages = packages(&metadata.to_string()).expect("fixture metadata");
@@ -455,7 +435,7 @@ fn allowances_match_dependencies_and_only_shrink() {
 
 #[test]
 fn exceptions_excuse_every_package_finding_and_only_shrink() {
-    let scratch = scratch(&["a/src/generated/people_v1.rs"]);
+    let scratch = scratch(&["a/src/generated/people.rs"]);
     let exceptions = [Exception { what: "a", until: "G3" }];
     let metadata = fixture_metadata(
         &scratch,
@@ -481,22 +461,25 @@ fn exceptions_excuse_every_package_finding_and_only_shrink() {
 
 #[test]
 fn generated_families_hold_one_version_not_glue() {
-    for (files, expected) in [
-        (
-            vec!["a/src/generated/v17.rs", "a/src/generated/v18.rs"],
-            vec!["a: generated code family (own) has versions {17, 18}"],
-        ),
-        (
-            vec!["a/src/generated/people_v16.rs", "a/src/generated/people_v17.rs"],
-            vec!["a: generated code family people has versions {16, 17}"],
-        ),
-        (vec!["a/src/generated/layouts.rs", "a/src/generated/v2.rs"], vec![]),
-    ] {
-        let scratch = scratch(&files);
+    for file in ["v13.rs", "tasks_v13.rs", "view_v3.rs"] {
+        let path = format!("a/src/generated/{file}");
+        let scratch = scratch(&[&path]);
+        fs::write(scratch.path().join(&path), "// no record header\n").expect("non-record module");
         let metadata = fixture_metadata(&scratch, &serde_json::json!([]));
         let packages = packages(&metadata.to_string()).expect("fixture metadata");
-        assert_eq!(version_findings(&packages, &[]), expected, "{files:?}");
+        let failures = version_findings(&packages, &[]);
+        assert_eq!(failures.len(), 1, "{failures:?}");
+        assert!(
+            failures[0].contains(&path) && failures[0].contains("generated module named by a version"),
+            "{failures:?}"
+        );
     }
+    let scratch = scratch(&["a/src/generated/tasks.rs", "a/src/generated/layouts.rs"]);
+    let metadata = fixture_metadata(&scratch, &serde_json::json!([]));
+    assert_eq!(
+        version_findings(&packages(&metadata.to_string()).expect("fixture metadata"), &[]),
+        Vec::<String>::new()
+    );
 }
 
 #[test]
@@ -529,7 +512,7 @@ fn current_texts_group_versions_not_parts_or_kept_texts() {
 #[test]
 fn invalid_text_names_are_never_excused() {
     for name in ["notes.schema", "X-v1.schema", "x-v.schema", "x-v1-.schema", "x-v1tail.schema"] {
-        let scratch = scratch(&[&format!("a/schema/{name}"), "a/src/generated/v1.rs", "a/src/generated/v2.rs"]);
+        let scratch = scratch(&[&format!("a/schema/{name}"), "a/schema/x-v1.schema", "a/schema/x-v2.schema"]);
         let metadata = fixture_metadata(&scratch, &serde_json::json!([]));
         let packages = packages(&metadata.to_string()).expect("fixture metadata");
         for allowed in [&[][..], &[VersionAllowance { package: "a", reason: "fixture" }][..]] {
@@ -545,28 +528,22 @@ fn invalid_text_names_are_never_excused() {
 }
 
 #[test]
-fn version_allowances_excuse_both_kinds_and_only_shrink() {
+fn version_allowances_excuse_schema_versions_and_only_shrink() {
     let scratch = scratch(&[
-        "a/src/generated/v1.rs",
-        "a/src/generated/v2.rs",
         "a/schema/x-v1.schema",
         "a/schema/x-v2.schema",
-        "b/src/generated/people_v16.rs",
-        "b/src/generated/people_v17.rs",
+        "b/schema/people-v16.schema",
+        "b/schema/people-v17.schema",
     ]);
     let metadata = fixture_metadata(&scratch, &serde_json::json!([]));
     let packages = packages(&metadata.to_string()).expect("fixture metadata");
     assert_eq!(
         version_findings(&packages, &[]),
-        [
-            "a: generated code family (own) has versions {1, 2}",
-            "a: schema text family x has versions {1, 2}",
-            "b: generated code family people has versions {16, 17}",
-        ]
+        ["a: schema text family x has versions {1, 2}", "b: schema text family people has versions {16, 17}"]
     );
     let allowed = [VersionAllowance { package: "a", reason: "fixture" }];
-    assert_eq!(version_findings(&packages, &allowed), ["b: generated code family people has versions {16, 17}"]);
-    let scratch = self::scratch(&["a/src/generated/v2.rs", "a/schema/x-v2.schema"]);
+    assert_eq!(version_findings(&packages, &allowed), ["b: schema text family people has versions {16, 17}"]);
+    let scratch = self::scratch(&["a/src/generated/x.rs", "a/schema/x-v2.schema"]);
     let metadata = fixture_metadata(&scratch, &serde_json::json!([]));
     let packages = self::packages(&metadata.to_string()).expect("fixture metadata");
     assert_eq!(version_findings(&packages, &allowed), ["a (fixture): remove it: the check's allowances only shrink"]);
@@ -610,7 +587,7 @@ fn metadata_requires_readable_fields() {
 
 #[test]
 fn unreadable_generated_directories_are_never_excused() {
-    let scratch = scratch(&["a/src/generated", "b/src/generated/people_v1.rs"]);
+    let scratch = scratch(&["a/src/generated", "b/src/generated/people.rs"]);
     let mut metadata = fixture_metadata(&scratch, &serde_json::json!([]));
     metadata["packages"][1]["dependencies"] = serde_json::json!([{"name": "a", "kind": null}]);
     let packages = packages(&metadata.to_string()).expect("fixture metadata");

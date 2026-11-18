@@ -23,8 +23,8 @@ fn planted(ops: &[skein_kv::Op]) -> Store {
     fixtures::over(stores)
 }
 
-// Format, floor, layouts, deployment header and installation identifier.
-const OPENED_ROWS: usize = 5;
+// Format, floor, deployment header and installation identifier.
+const OPENED_ROWS: usize = 4;
 const LARGE_RESULT_BYTES: u32 = 2048;
 
 #[test]
@@ -56,7 +56,6 @@ fn opened_rows() -> [skein_kv::Op; OPENED_ROWS] {
     [
         fixtures::floor_put(),
         fixtures::format_put(fixtures::DEPLOYMENT),
-        fixtures::layouts_put(),
         fixtures::header_put(fixtures::DEPLOYMENT, 1),
         fixtures::installation_put(fixtures::INSTALLATION),
     ]
@@ -152,11 +151,8 @@ fn a_store_answers_its_kept_installation_not_the_drawn_one() {
 
 #[test]
 fn a_checked_store_without_its_installation_is_corrupt() {
-    let mut store = planted(&[
-        fixtures::format_put(fixtures::DEPLOYMENT),
-        fixtures::layouts_put(),
-        fixtures::header_put(fixtures::DEPLOYMENT, 1),
-    ]);
+    let mut store =
+        planted(&[fixtures::format_put(fixtures::DEPLOYMENT), fixtures::header_put(fixtures::DEPLOYMENT, 1)]);
     assert_corrupt(&open(&mut store));
     assert_eq!(store.phase, Phase::Stopped);
 }
@@ -165,7 +161,6 @@ fn a_checked_store_without_its_installation_is_corrupt() {
 fn an_undecodable_installation_is_corrupt() {
     let mut store = planted(&[
         fixtures::format_put(fixtures::DEPLOYMENT),
-        fixtures::layouts_put(),
         fixtures::header_put(fixtures::DEPLOYMENT, 1),
         skein_kv::Op::Put { key: keys::installation(fixtures::KEY_LIMIT).expect("key fits"), value: Box::new([0, 1]) },
     ]);
@@ -193,11 +188,8 @@ fn a_store_of_another_accounts_version_refuses_naming_accounts() {
 
 #[test]
 fn a_store_of_another_deployment_refuses_to_open() {
-    let mut store = planted(&[
-        fixtures::format_put(fixtures::OTHER_DEPLOYMENT),
-        fixtures::layouts_put(),
-        fixtures::header_put(fixtures::DEPLOYMENT, 1),
-    ]);
+    let mut store =
+        planted(&[fixtures::format_put(fixtures::OTHER_DEPLOYMENT), fixtures::header_put(fixtures::DEPLOYMENT, 1)]);
     let events = open(&mut store);
     assert_refusal(&events, OpenRefusal::Deployment);
     super::words::has_deployment_slots(&events, super::words::DEPLOYMENT);
@@ -243,7 +235,7 @@ fn a_header_equal_to_the_last_commit_opens_with_it() {
 
 #[test]
 fn a_format_row_without_its_header_refuses_as_numbers() {
-    let mut store = planted(&[fixtures::format_put(fixtures::DEPLOYMENT), fixtures::layouts_put()]);
+    let mut store = planted(&[fixtures::format_put(fixtures::DEPLOYMENT)]);
     assert_refusal(&open(&mut store), OpenRefusal::Numbers { store: 1, header: 0 });
 }
 
@@ -258,7 +250,7 @@ fn an_unknown_core_version_is_refused_before_decoding_its_header() {
 
 #[test]
 fn a_corrupt_header_stops_the_open() {
-    let mut store = planted(&[fixtures::format_put(fixtures::DEPLOYMENT), fixtures::layouts_put(), corrupt_header()]);
+    let mut store = planted(&[fixtures::format_put(fixtures::DEPLOYMENT), corrupt_header()]);
     assert_corrupt(&open(&mut store));
     assert_eq!(store.phase, Phase::Stopped);
 }
@@ -281,7 +273,7 @@ fn a_stopped_open_answers_nothing_further() {
 }
 
 #[test]
-fn opening_checks_no_row_beyond_format_layouts_header_and_installation() {
+fn opening_checks_no_row_beyond_format_floor_header_and_installation() {
     let mut stores = stores_with_header();
     fixtures::plant(&mut stores, &[skein_kv::Op::Put { key: Box::new([1, 0, 255]), value: Box::new([]) }]);
     fixtures::plant(&mut stores, &[fixtures::header_put(fixtures::DEPLOYMENT, 3)]);

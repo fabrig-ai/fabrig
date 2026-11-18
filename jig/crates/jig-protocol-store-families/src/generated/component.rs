@@ -215,30 +215,6 @@ pub enum Path {
     FloorVersion,
     /// Bytes after `Floor`.
     FloorTail,
-    /// The `component` field of `Layouts`.
-    LayoutsComponent,
-    /// The `core` field of `Layouts`.
-    LayoutsCore,
-    /// The `tasks` field of `Layouts`.
-    LayoutsTasks,
-    /// The `people` field of `Layouts`.
-    LayoutsPeople,
-    /// The `notes` field of `Layouts`.
-    LayoutsNotes,
-    /// The `accounts` field of `Layouts`.
-    LayoutsAccounts,
-    /// The `settings` field of `Layouts`.
-    LayoutsSettings,
-    /// The `secrets` field of `Layouts`.
-    LayoutsSecrets,
-    /// The `skein_oauth` field of `Layouts`.
-    LayoutsSkeinOauth,
-    /// The `smith_transcript` field of `Layouts`.
-    LayoutsSmithTranscript,
-    /// The version of `Layouts`.
-    LayoutsVersion,
-    /// Bytes after `Layouts`.
-    LayoutsTail,
 }
 
 impl Path {
@@ -324,18 +300,6 @@ impl Path {
             Self::FloorBuild => "Floor.build",
             Self::FloorVersion => "Floor (version)",
             Self::FloorTail => "Floor (tail)",
-            Self::LayoutsComponent => "Layouts.component",
-            Self::LayoutsCore => "Layouts.core",
-            Self::LayoutsTasks => "Layouts.tasks",
-            Self::LayoutsPeople => "Layouts.people",
-            Self::LayoutsNotes => "Layouts.notes",
-            Self::LayoutsAccounts => "Layouts.accounts",
-            Self::LayoutsSettings => "Layouts.settings",
-            Self::LayoutsSecrets => "Layouts.secrets",
-            Self::LayoutsSkeinOauth => "Layouts.skein_oauth",
-            Self::LayoutsSmithTranscript => "Layouts.smith_transcript",
-            Self::LayoutsVersion => "Layouts (version)",
-            Self::LayoutsTail => "Layouts (tail)",
         }
     }
 }
@@ -2555,12 +2519,12 @@ impl Floor {
 
 fn floor_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(Floor::encoded_bound_within(limits)?);
-    layouts_encoded_bound_family(limits, biggest)
+    Some(biggest)
 }
 
 fn floor_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(Floor::decoded_bound_within(limits)?);
-    layouts_decoded_bound_family(limits, biggest)
+    Some(biggest)
 }
 
 fn check_floor_record_limits(limits: &Limits) -> Result<(), Problem> {
@@ -2572,214 +2536,5 @@ impl Limits {
     fn values_for_floor_record(&self, values: &mut List<u32>) {
         values.push(self.floor_build).expect("room for every named limit");
     }
-}
-
-/// Movable fields of `Layouts`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct LayoutsParts {
-    /// The `component` field.
-    pub component: [u8; 32],
-    /// The `core` field.
-    pub core: [u8; 32],
-    /// The `tasks` field.
-    pub tasks: [u8; 32],
-    /// The `people` field.
-    pub people: [u8; 32],
-    /// The `notes` field.
-    pub notes: [u8; 32],
-    /// The `accounts` field.
-    pub accounts: [u8; 32],
-    /// The `settings` field.
-    pub settings: [u8; 32],
-    /// The `secrets` field.
-    pub secrets: [u8; 32],
-    /// The `skein_oauth` field.
-    pub skein_oauth: [u8; 32],
-    /// The `smith_transcript` field.
-    pub smith_transcript: [u8; 32],
-}
-
-/// `Layouts` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Layouts {
-    component: [u8; 32],
-    core: [u8; 32],
-    tasks: [u8; 32],
-    people: [u8; 32],
-    notes: [u8; 32],
-    accounts: [u8; 32],
-    settings: [u8; 32],
-    secrets: [u8; 32],
-    skein_oauth: [u8; 32],
-    smith_transcript: [u8; 32],
-}
-
-impl Layouts {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: LayoutsParts) -> Result<Self, Problem> {
-        let LayoutsParts { component, core, tasks, people, notes, accounts, settings, secrets, skein_oauth, smith_transcript } = parts;
-        let value = Self { component, core, tasks, people, notes, accounts, settings, secrets, skein_oauth, smith_transcript };
-        Ok(value)
-    }
-
-    /// Reads the `component` field.
-    #[must_use]
-    pub fn component(&self) -> &[u8; 32] { &self.component }
-
-    /// Reads the `core` field.
-    #[must_use]
-    pub fn core(&self) -> &[u8; 32] { &self.core }
-
-    /// Reads the `tasks` field.
-    #[must_use]
-    pub fn tasks(&self) -> &[u8; 32] { &self.tasks }
-
-    /// Reads the `people` field.
-    #[must_use]
-    pub fn people(&self) -> &[u8; 32] { &self.people }
-
-    /// Reads the `notes` field.
-    #[must_use]
-    pub fn notes(&self) -> &[u8; 32] { &self.notes }
-
-    /// Reads the `accounts` field.
-    #[must_use]
-    pub fn accounts(&self) -> &[u8; 32] { &self.accounts }
-
-    /// Reads the `settings` field.
-    #[must_use]
-    pub fn settings(&self) -> &[u8; 32] { &self.settings }
-
-    /// Reads the `secrets` field.
-    #[must_use]
-    pub fn secrets(&self) -> &[u8; 32] { &self.secrets }
-
-    /// Reads the `skein_oauth` field.
-    #[must_use]
-    pub fn skein_oauth(&self) -> &[u8; 32] { &self.skein_oauth }
-
-    /// Reads the `smith_transcript` field.
-    #[must_use]
-    pub fn smith_transcript(&self) -> &[u8; 32] { &self.smith_transcript }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> LayoutsParts { LayoutsParts { component: self.component, core: self.core, tasks: self.tasks, people: self.people, notes: self.notes, accounts: self.accounts, settings: self.settings, secrets: self.secrets, skein_oauth: self.skein_oauth, smith_transcript: self.smith_transcript } }
-
-}
-
-impl Layouts {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(2).expect("schema ceilings fit u32");
-        size = size.checked_add(32).expect("schema ceilings fit u32");
-        size = size.checked_add(32).expect("schema ceilings fit u32");
-        size = size.checked_add(32).expect("schema ceilings fit u32");
-        size = size.checked_add(32).expect("schema ceilings fit u32");
-        size = size.checked_add(32).expect("schema ceilings fit u32");
-        size = size.checked_add(32).expect("schema ceilings fit u32");
-        size = size.checked_add(32).expect("schema ceilings fit u32");
-        size = size.checked_add(32).expect("schema ceilings fit u32");
-        size = size.checked_add(32).expect("schema ceilings fit u32");
-        size = size.checked_add(32).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        writer.put(&VERSION.to_be_bytes())?;
-        let field_component = &self.component;
-        writer.put(field_component)?;
-        let field_core = &self.core;
-        writer.put(field_core)?;
-        let field_tasks = &self.tasks;
-        writer.put(field_tasks)?;
-        let field_people = &self.people;
-        writer.put(field_people)?;
-        let field_notes = &self.notes;
-        writer.put(field_notes)?;
-        let field_accounts = &self.accounts;
-        writer.put(field_accounts)?;
-        let field_settings = &self.settings;
-        writer.put(field_settings)?;
-        let field_secrets = &self.secrets;
-        writer.put(field_secrets)?;
-        let field_skein_oauth = &self.skein_oauth;
-        writer.put(field_skein_oauth)?;
-        let field_smith_transcript = &self.smith_transcript;
-        writer.put(field_smith_transcript)?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::LayoutsTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let version = reader.u16().ok_or(Problem { path: Path::LayoutsVersion, reason: skein_codec::Reason::Short })?;
-        if version != VERSION { return Err(Problem { path: Path::LayoutsVersion, reason: skein_codec::Reason::Version }); }
-        let decoded_component = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::LayoutsComponent, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
-        let decoded_core = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::LayoutsCore, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
-        let decoded_tasks = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::LayoutsTasks, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
-        let decoded_people = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::LayoutsPeople, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
-        let decoded_notes = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::LayoutsNotes, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
-        let decoded_accounts = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::LayoutsAccounts, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
-        let decoded_settings = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::LayoutsSettings, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
-        let decoded_secrets = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::LayoutsSecrets, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
-        let decoded_skein_oauth = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::LayoutsSkeinOauth, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
-        let decoded_smith_transcript = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::LayoutsSmithTranscript, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
-        Ok(Self { component: decoded_component, core: decoded_core, tasks: decoded_tasks, people: decoded_people, notes: decoded_notes, accounts: decoded_accounts, settings: decoded_settings, secrets: decoded_secrets, skein_oauth: decoded_skein_oauth, smith_transcript: decoded_smith_transcript })
-    }
-}
-
-impl Layouts {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 2_u64;
-        size = size.checked_add(u64::from(32_u32))?.checked_add(u64::from(32_u32))?;
-        size = size.checked_add(u64::from(32_u32))?.checked_add(u64::from(32_u32))?;
-        size = size.checked_add(u64::from(32_u32))?.checked_add(u64::from(32_u32))?;
-        size = size.checked_add(u64::from(32_u32))?.checked_add(u64::from(32_u32))?;
-        size = size.checked_add(u64::from(32_u32))?.checked_add(u64::from(32_u32))?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-fn layouts_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(Layouts::encoded_bound_within(limits)?);
-    Some(biggest)
-}
-
-fn layouts_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(Layouts::decoded_bound_within(limits)?);
-    Some(biggest)
 }
 

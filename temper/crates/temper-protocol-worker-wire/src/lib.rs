@@ -5,6 +5,7 @@ extern crate alloc;
 
 #[rustfmt::skip]
 mod generated {
+    #[path = "worker_wire.rs"]
     pub mod v1;
 }
 

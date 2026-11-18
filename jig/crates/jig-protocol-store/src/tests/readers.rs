@@ -26,7 +26,6 @@ fn raw_store(rows: &[skein_kv::Op]) -> Store {
     );
     for op in [
         fixtures::format_put(fixtures::DEPLOYMENT),
-        fixtures::layouts_put(),
         fixtures::header_put(fixtures::DEPLOYMENT, 1),
         fixtures::installation_put(fixtures::INSTALLATION),
     ] {
@@ -368,7 +367,6 @@ fn retained_inventory_matches_independent_committed_raw_inputs() {
     for op in [
         fixtures::format_put(fixtures::DEPLOYMENT),
         fixtures::floor_put(),
-        fixtures::layouts_put(),
         fixtures::header_put(fixtures::DEPLOYMENT, 1),
         fixtures::installation_put(fixtures::INSTALLATION),
     ]

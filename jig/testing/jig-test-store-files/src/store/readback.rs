@@ -245,10 +245,6 @@ impl Store {
                         codec::component::Format::decode(value)
                             .map_err(|failure| inventory(key, format!("format row: {failure:?}")))?;
                     }
-                    keys::Own::Layouts => {
-                        codec::component::Layouts::decode(value)
-                            .map_err(|failure| inventory(key, format!("layouts row: {failure:?}")))?;
-                    }
                     keys::Own::Floor => {
                         protocol::component_v3::Floor::decode(
                             &protocol::component_v3::CEILINGS,

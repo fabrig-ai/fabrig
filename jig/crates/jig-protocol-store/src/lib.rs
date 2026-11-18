@@ -110,7 +110,6 @@ pub struct Store {
     limits: Limits,
     application: sizes::Application,
     codec_limits: codec::View,
-    layouts: codec::component::Layouts,
     registry: Box<registry::Layouts>,
     layout_work: Box<registry::ReadWork>,
     /// Today's catalogue, overlaid at open and replaced before each catalogue commit.
@@ -262,7 +261,6 @@ impl Store {
             limits: *limits,
             application,
             codec_limits,
-            layouts: format::layouts(),
             registry: Box::new(registry::Layouts::new()),
             layout_work: Box::new(registry::ReadWork::new()),
             names: codec::names(models),
@@ -666,11 +664,7 @@ pub use boundary::{
 mod tests;
 
 pub use jig_protocol_store_families::component_v3;
-pub use jig_protocol_store_settings::settings_v3;
-#[rustfmt::skip]
-#[path = "generated/layouts.rs"]
-mod layouts;
-
 pub use jig_protocol_store_families::secrets_v1;
+pub use jig_protocol_store_settings::settings_v3;
 
 pub use jig_protocol_store_families::{openings_v1, registry_v1};

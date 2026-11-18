@@ -11,7 +11,9 @@ extern crate alloc;
 #[rustfmt::skip]
 mod generated {
     /// Current bounded transcript codec, written from transcript-v7.schema.
-    pub mod v7;
+    pub mod v7 {
+        include!("generated/transcript.rs");
+    }
 }
 
 pub use generated::v7;

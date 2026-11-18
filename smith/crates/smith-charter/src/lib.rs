@@ -11,7 +11,9 @@ use alloc::boxed::Box;
 
 #[rustfmt::skip]
 mod generated {
-    pub mod v5;
+    pub mod v5 {
+        include!("generated/charter.rs");
+    }
 }
 
 pub use generated::v5;

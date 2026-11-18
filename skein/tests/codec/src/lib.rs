@@ -8,7 +8,7 @@
 extern crate alloc;
 
 #[rustfmt::skip]
-#[path = "generated/v1.rs"]
+#[path = "generated/sample.rs"]
 pub mod v1;
 
 #[rustfmt::skip]

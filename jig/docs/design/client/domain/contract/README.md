@@ -311,7 +311,7 @@ party reads is therefore never lost by a crash.
 | `activity{n}`: a task's activity, a page, from its end | the store: words, run boundaries, turns, what it heard |
 | `activity_beside{n, position, side}`: the page of a task's activity next to its line at `position`, earlier or later, that line left out | the store, as `activity{n}` |
 | `turn{n, attempt, turn}`: one committed turn of a task's activity | the store: the task's transcript (`../../../protocol/store/transcripts.md`, 3) |
-| `inbox`: a group of it, a page, filtered by project, kind or root | live state, then the store past the engine's limit |
+| `inbox`: a group of it, a page, filtered by project, kind or root | needs: live state, every page; updates: live state, then the store past the engine's limit |
 | `tasks{query}`: a task query's page (4.1) | live state, then the store's indexes of ended tasks |
 | a project; its spend, a page; its notes, a page | live state; the store; the notes child |
 | the deployment | live state |
