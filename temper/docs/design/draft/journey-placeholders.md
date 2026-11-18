@@ -4,19 +4,19 @@ Draft, 2026-11-17, on the user's word. Every branch that records a journey again
 
 ## 1. What happens
 
-- **`add` redacts, then proves:** it replaces each secret with `x`s of its own length, wherever it appears and in every form, and then replays the redacted recording against its live prints (`temper/docs/design/client/web/journeys.md`, 3.6 and 4.3; `temper/crates/temper-client-shell-web/src/journey/redact.rs`; `temper/crates/temper-client-shell-tui/src/journey/redact.rs`).
+- **`add` redacts, then proves:** it replaces each secret with `x`s of its own length, wherever it appears and in every form, and then replays the redacted recording against its live prints (`temper/docs/design/client/web/journey-redaction.md`; `temper/docs/design/client/web/journeys.md`, 4.3; `temper/crates/temper-client-shell-web/src/journey/redact.rs`; `temper/crates/temper-client-shell-tui/src/journey/redact.rs`).
 - **Nothing replaces a value that isn't a secret,** so the build, the ports and anything else a run draws stay in the recording, its marks and its prints.
 
 ## 2. Wanted
 
 - **Values that vary are normalised:** at `add`, and so at `again` (8.1), every value that varies between two recordings of the same screens and isn't a secret is replaced by a fixed placeholder of its kind. That covers the build's identity (version, commit and dirty mark), every loopback port, and whatever else the recorder finds varying from run to run, such as a wall time or a generated id.
-  - Each is sought in every field and form, as redaction's originals are (3.6), so the recording, its marks and its prints agree.
+  - Each is sought in every field and form, as redaction's originals are (`temper/docs/design/client/web/journey-redaction.md`), so the recording, its marks and its prints agree.
   - A placeholder is the same bytes whatever the original's length, and a framed field's length follows it.
   - Redaction of secrets stays as it is, and a secret is never a placeholder's.
 - **The proof still holds:** the first replay's proof (4.3) and the replay's check (4.2) pass on a normalised recording.
 - **The same screens make the same bytes:** two recordings of one journey, made with different builds, ports and times, are byte-identical, prints included.
 - **Normalised once, not recorded again:** the committed recordings are normalised by the same code, and their prints made again from them (5). No journey is recorded again, and no box is run for it.
-- Revise `journeys.md`, 3.6, 4.3 and 8.1, and `temper/docs/design/client/tui/journeys.md`, with their status files.
+- Revise `temper/docs/design/client/web/journey-redaction.md`, `journeys.md`, 4.3 and 8.1, and `temper/docs/design/client/tui/journeys.md`, with their status files.
 
 ## 3. Out
 

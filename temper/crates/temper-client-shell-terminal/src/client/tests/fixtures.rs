@@ -361,7 +361,7 @@ pub(super) fn committed_chat() -> NativeClient {
     let mut work = Queue::with_capacity(host.out.capacity());
     let mut task_watch = None;
     while let Some(request) = host.out.pop() {
-        if let domain::Request::Client { request: Request::Exchange { message, .. } } = &request {
+        if let domain::Request::Client { request: Request::Exchange { exchange, message, .. } } = &request {
             let mut opens = skein_lib::List::with_capacity(64);
             if let jig_client::Message::Watch(bytes) = message {
                 opens

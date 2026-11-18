@@ -250,6 +250,7 @@ fn opens(path: &[u8], body: &[u8]) -> Vec<w::Open> {
     }
     vec![]
 }
+#[expect(dead_code, reason = "the implicit me watch uses name zero rather than an opening exchange")]
 fn opening(path: &[u8], body: &[u8]) -> Option<w::Open> {
     opens(path, body).into_iter().find(|open| {
         open.subject().owner() == &w::Owner::Jig

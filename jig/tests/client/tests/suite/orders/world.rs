@@ -293,9 +293,7 @@ impl World {
                 let tokens: Vec<_> = self
                     .exchanges
                     .iter()
-                    .filter_map(|exchange| {
-                        matches!(exchange.kind, ExchangeKind::Me(_) | ExchangeKind::Watch).then_some(exchange.token)
-                    })
+                    .filter_map(|exchange| matches!(exchange.kind, ExchangeKind::Watch).then_some(exchange.token))
                     .collect();
                 for exchange in tokens {
                     self.deliver(Event::Lost { exchange });
@@ -943,7 +941,7 @@ pub fn stop() -> client::Ask {
 #[test]
 #[expect(clippy::too_many_lines, reason = "one report answers the list then settles its ordered follow-on batch")]
 fn a_roots_list_answer_and_its_demands_leave_at_one_settle() {
-    let mut world = World::run(Mode::root(), vec![("admit_me", Command::AdmitMe)]);
+    let mut world = World::run(Mode::root(), vec![]);
     let Machine::Root(machine, limits) = &mut world.machine else { unreachable!("root fixture") };
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: **limits };
     let mut out = Queue::uncapped();

@@ -9,9 +9,9 @@ pub(super) fn host(linked: bool, proposed: bool) -> Host {
     let mut duties =
         host.report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(hello) }));
     duties.asked.extend(first.asked);
-    settle(&mut host, duties, linked);
+    settle(&mut host, duties, linked, proposed);
     duties = give(&mut host, Event::Act { act: Act::Go { address: Address::Chat { task: 9 } } });
-    settle(&mut host, duties, linked);
+    settle(&mut host, duties, linked, proposed);
     for _ in 0..host.env.limits.client.domain.watches {
         let chat = host.root.pages().chat().unwrap();
         if chat.draft.is_some()
@@ -23,7 +23,7 @@ pub(super) fn host(linked: bool, proposed: bool) -> Host {
         let due = root::next_deadline(&host.root).expect("fixture reads retry");
         host.clocks(due, Wall::EPOCH);
         let duties = host.report(Report::Due);
-        settle(&mut host, duties, linked);
+        settle(&mut host, duties, linked, proposed);
     }
     assert!(host.root.pages().chat().unwrap().draft.is_some());
     assert_eq!(host.root.pages().chat().unwrap().goal_from(&host.root), linked.then_some((25, 1)));
@@ -31,7 +31,7 @@ pub(super) fn host(linked: bool, proposed: bool) -> Host {
     host
 }
 
-fn settle(host: &mut Host, duties: Duties, linked: bool) {
+fn settle(host: &mut Host, duties: Duties, linked: bool, proposed: bool) {
     let mut pending = std::collections::VecDeque::from(duties.asked);
     while let Some(request) = pending.pop_front() {
         if let Request::Exchange { exchange, message: Message::Batch(bytes), .. } = &request {
