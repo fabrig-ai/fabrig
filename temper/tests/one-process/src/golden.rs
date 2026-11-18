@@ -739,6 +739,16 @@ fn startup_configuration(
         configured.document = document;
         configured
     };
+    // Kept document inputs become current startup facts; the generation stays untouched.
+    document["engine"]["hosts"].as_object_mut().expect("kept hosts").remove("workers");
+    for worker in document["workers"].as_array_mut().expect("kept workers") {
+        worker["name"] = "local".into();
+        for member in ["agent", "limits", "memory_bytes"] {
+            worker.as_object_mut().expect("kept worker").remove(member);
+        }
+    }
+    document.jig_over("fleet.slots", 4);
+    document.agent_bounds(&temper_playground::documents::agent());
     temper_playground::documents::settings::strip_fixed(&mut document);
     document.jig.core.brief.sections = document.jig.core.brief.sections.max(jig_domain_core::CORE_SECTIONS);
     let given = temper_playground::documents::given(&document);

@@ -65,7 +65,6 @@ impl Harness for Incident {
         ] {
             value.jig_over(name, count);
         }
-        value["workers"][0]["limits"]["overrides"]["hub.charter_bytes"] = 65_536.into();
         value.temper_over("root.journal.run_bytes", 45_000);
         value.temper_over("forge.judge_projects", 3);
         value["engine"]["llm"]["providers"][0]["sources"]["programs"] = json!(["claude_code"]);

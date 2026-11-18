@@ -134,6 +134,13 @@ impl Configuration {
         self.operations_given |= name == "git_component.operations";
         limits::apply(&mut self.limits, name.as_bytes(), value).expect("world's temper limit");
     }
+    /// A hosted world's engine supplies the same hub bounds as its current agent.
+    pub fn agent_bounds(&mut self, agent: &temper_service::settings::Agent) {
+        self.jig_over("hub.accounts", agent.host_limits.accounts);
+        self.jig_over("hub.run_calls", agent.host_limits.calls);
+        self.jig_over("hub.event_bytes", agent.bounds.message_bytes);
+        super::turn_bounds::apply(self, agent.limits.bodies.turn_body);
+    }
     /// Reset carrier figures to the stock derivation before a world's agent-specific turn.
     pub fn use_stock_carriers(&mut self) {
         let sources = temper_service_core::derived::STOCK.with_payload(self.limits.tool_payload);
@@ -244,6 +251,7 @@ pub fn story_a(document: Value) -> Configuration {
     world.temper_over("forge.client.answer_bytes", 65_536_u64);
     world.temper_over("forge.client.op_bytes", 512_u64);
     world.temper_over("forge_component.body_bytes", 16_384_u64);
+    world.agent_bounds(&super::agent());
     world.derive_places();
     world
 }
