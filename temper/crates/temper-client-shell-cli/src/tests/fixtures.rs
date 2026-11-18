@@ -742,7 +742,7 @@ impl Frame {
                 socket.reply.extend(body.iter().copied());
             }
             b"/jig/v1/batch" => self.batch(fd),
-            b"/jig/v1/stream?version=32" => self.hello(fd),
+            b"/jig/v1/stream" => self.hello(fd),
             b"/jig/v1/watch" => {
                 let open = w::Open::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&socket.request[end + 4..]))
                     .expect("watch record");

@@ -115,7 +115,7 @@ fn read_count(h: &fixtures::Harness) -> u32 {
 
 #[test]
 fn a_continued_watch_waits_for_its_opening_and_cleanup_before_reusing_watch_room() {
-    let limits = Limits::new(jig_client_domain::Limits { watches: 1, ..*fixtures::limits().client() }, 4).unwrap();
+    let limits = Limits::new(jig_client_domain::Limits { watches: 2, ..*fixtures::limits().client() }, 4).unwrap();
     let mut h = fixtures::Harness::new(&limits);
     h.open(fixtures::WATCH, fixtures::application_subject());
     h.stream_record(&fixtures::hello_event(fixtures::HEARTBEAT));
