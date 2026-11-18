@@ -103,7 +103,13 @@ fn front(
                 out.put(query).expect("sized path");
                 out.finish()
             }
-            None => temper_client_domain::address::print(root.pages().address()),
+            None => {
+                if root.pages().root_pending() {
+                    Box::from(b"/".as_slice())
+                } else {
+                    temper_client_domain::address::print(root.pages().address())
+                }
+            }
         };
         b.open(Role::Link);
         b.style(crate::look::OUTSIDE_PRIMARY);

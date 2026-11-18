@@ -79,9 +79,12 @@ pub(crate) fn went(root: &mut Domain, place: &Place) {
             state: if code.is_some() { State::Reading } else { State::Typing { unread: false } },
             again: None,
         }),
-        Place::Address(_) | Place::Authorize { .. } | Place::AuthorizeMalformed | Place::Missing | Place::Public(_) => {
-            None
-        }
+        Place::Address(_)
+        | Place::Authorize { .. }
+        | Place::AuthorizeMalformed
+        | Place::Root
+        | Place::Missing
+        | Place::Public(_) => None,
     };
     if page.is_some() || root.approval.is_some() {
         root.approval = page;
