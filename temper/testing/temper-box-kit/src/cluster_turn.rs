@@ -57,8 +57,7 @@ pub fn prepare(cluster: &mut Cluster, root: &Path, addresses: &[std::net::Socket
     engine["application"]["limits"]["overrides"]["forge.client.op_bytes"] = prepare.result.into();
     engine["engine"]["limits"]["overrides"]["hub.event_bytes"] = (payload - 2).into();
     engine["application"]["limits"]["overrides"]["checkout.message_bytes"] = payload.into();
-    let turn = support::configuration::turn_bounds::turn_body(&agent);
-    support::configuration::turn_bounds::apply(&mut engine, turn);
+    support::configuration::turn_bounds::apply_with_stock(&mut engine, &agent);
 
     write(
         &cluster.dir("engine").join("config/landing-settings.json"),

@@ -18,6 +18,7 @@ const REPEATED_LANDED_READ: usize = 13;
 
 #[test]
 fn a_chats_change_lands_on_connected_github() {
+    let start = crate::cpu();
     let mut fixture = github::fixture();
     fixture.connected = false;
     fixture.configure = |value, agent, at| (landing::fixture().configure)(value, agent, at);
@@ -57,6 +58,7 @@ fn a_chats_change_lands_on_connected_github() {
     check_authenticated_git(&ran);
     let pem = ran.github().app.as_ref().expect("converted App").pem.expose();
     let _files = github::check_secrets(&ran, pem, Some(&ran.path().join("github-app.pem")));
+    eprintln!("GitHub story CPU: {} ns (user + system, children included)", crate::cpu() - start);
 }
 
 fn check_authenticated_git(ran: &Ran) {

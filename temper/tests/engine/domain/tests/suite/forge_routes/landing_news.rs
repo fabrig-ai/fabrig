@@ -348,9 +348,7 @@ fn joined_batch_with_tests(by_test: bool) -> (World, engine::Assignment, Vec<u64
     for call in [94, 95, 96] {
         changes.push(ready_goal_change_with_failure(&mut world, &goal, call, by_test && call == 96));
     }
-    for _ in 0..600 {
-        world.tick();
-    }
+    world.advance_ticks(600);
     assert!(landing_rows(&world).is_empty(), "full room leaves all three waiting");
     for change in &changes {
         assert!(matches!(
@@ -427,9 +425,7 @@ fn ready_goal_change_with_failure(world: &mut World, goal: &engine::Assignment, 
         fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"failures", b"a\n", 1).expect("red top");
     }
     finish_producer(world, &producer, forge_world::REPO);
-    for _ in 0..100 {
-        world.tick();
-    }
+    world.advance_ticks(100);
     change
 }
 

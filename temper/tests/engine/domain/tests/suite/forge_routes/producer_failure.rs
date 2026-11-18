@@ -82,9 +82,7 @@ fn an_inapplicable_change_finishes_without_a_hold() {
     let read = resumed.messages.iter().map(|word| word.number).max();
     let reply = b"No changes were made: the repository has no search UI.";
     world.send(protocol::turn(CHANNEL, resumed.task, resumed.attempt, 1, 1, read, reply));
-    for _ in 0..STEPS {
-        world.tick();
-    }
+    world.advance_ticks(STEPS);
     let reads::Answer::Ended(past) =
         world.party_read(reads::Read::Turn { task: chat.task, attempt: resumed.attempt, turn: 1 })
     else {
@@ -183,9 +181,7 @@ fn person_reply(world: &mut World, chat: &engine::Assignment, reply: &[u8]) {
     let read = chat.messages.iter().map(|word| word.number).max();
     world.send(protocol::turn(CHANNEL, chat.task, chat.attempt, 1, 0, read, reply));
     park_after_turn(world, chat, read, 1);
-    for _ in 0..STEPS {
-        world.tick();
-    }
+    world.advance_ticks(STEPS);
     let reads::Answer::Ended(past) =
         world.party_read(reads::Read::Turn { task: chat.task, attempt: chat.attempt, turn: 1 })
     else {
@@ -275,9 +271,7 @@ fn a_failed_producers_words_reach_its_hold_and_its_chats_reply() {
     let reply = format!("I could not make the change: {}", core::str::from_utf8(&notice.words).expect("explanation"));
     let read = resumed.messages.iter().map(|word| word.number).max();
     world.send(protocol::turn(CHANNEL, resumed.task, resumed.attempt, 1, 1, read, reply.as_bytes()));
-    for _ in 0..STEPS {
-        world.tick();
-    }
+    world.advance_ticks(STEPS);
     let reads::Answer::Ended(past) =
         world.party_read(reads::Read::Turn { task: resumed.task, attempt: resumed.attempt, turn: 1 })
     else {
@@ -576,9 +570,7 @@ fn resume_production(world: &mut World, task: u64, first: u64, reason: &[u8]) {
     producer_terminal(world, task, first, reason);
     refresh(world, task);
     answer_reads(world, reads);
-    for _ in 0..20 {
-        world.tick();
-    }
+    world.advance_ticks(20);
 }
 
 #[test]
@@ -616,9 +608,7 @@ fn pushed_failure_with_message(message: &[u8]) -> (World, engine::Assignment, u6
         .expect("producer pushes partial work");
     // Read the pushed branch before the terminal result reaches the connector.
     refresh(&mut world, task);
-    for _ in 0..20 {
-        world.tick();
-    }
+    world.advance_ticks(20);
     let reads = pending_reads(&mut world, task);
     finish_failed_producer(&mut world, &first, task, PUSHED_FAILURE);
     answer_reads(&mut world, reads);

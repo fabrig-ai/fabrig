@@ -151,6 +151,10 @@ fn declaration(schema: &schema::Schema, at: DeclIx) -> Declaration {
 
 /// Parses and validates one version of a codec family.
 pub fn parse(source: &str) -> Result<Schema, Error> {
+    with_tables(source).map(|(schema, _)| schema)
+}
+
+pub(crate) fn with_tables(source: &str) -> Result<(Schema, schema::Schema), Error> {
     let parsed = schema::parse(source.as_bytes()).map_err(|error| refusal(source, error))?;
     let schema = Schema {
         family: spelling(&parsed, parsed.family()),
@@ -158,5 +162,5 @@ pub fn parse(source: &str) -> Result<Schema, Error> {
         declarations: (0..parsed.declarations()).map(|at| declaration(&parsed, DeclIx::new(at))).collect(),
     };
     check::check(&schema)?;
-    Ok(schema)
+    Ok((schema, parsed))
 }

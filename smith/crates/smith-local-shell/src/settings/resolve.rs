@@ -116,7 +116,7 @@ pub(crate) fn build(selection: Selection, document: bool) -> Result<(Resolved, B
         &agent.service.limits.domain.run,
     )
     .map_err(|why| relationships::profile(&settings, &models, why))?;
-    smith_local_service::profile::host_limits(&agent.profile, &agent.service.limits)
+    smith_local_service::profile::host_limits(&agent.profile, &agent.service.limits, &agent.service.domain.limits)
         .map_err(|why| relationships::profile(&settings, &models, why))?;
     let limits = local::limits(&settings, &models, &agent)?;
     let local = local::build(&settings, &models, &agent, &accounts)?;

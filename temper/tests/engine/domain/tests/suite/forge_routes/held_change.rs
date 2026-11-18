@@ -76,9 +76,7 @@ fn a_change_held_for_effects_before_its_producer_asks_its_producer_once_released
     assert!(change_row(&world, task).delegate.is_none());
     assert_eq!(delegate_count(&world, task), 0);
     world.send(first_read);
-    for _ in 0..STEPS {
-        world.tick();
-    }
+    world.advance_ticks(STEPS);
     assert!(matches!(live_task(&world, task).phase, tasks::Phase::Held { why: tasks::Hold::Effects, .. }));
     assert!(change_row(&world, task).delegate.is_none());
     assert_eq!(delegate_count(&world, task), 0, "returning reads cannot make a producer while held");
@@ -149,9 +147,7 @@ fn a_lagging_pull_head_waits_without_drift_then_goes_on_at_the_branch_head() {
             break;
         }
     }
-    for _ in 0..STEPS {
-        world.tick();
-    }
+    world.advance_ticks(STEPS);
     if let tasks::Phase::Held { source: Some(source), .. } = &live_task(&world, task).phase {
         let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("hold account") };
         panic!("unexpected hold: {}", core::str::from_utf8(words).expect("hold UTF-8"));
@@ -159,9 +155,7 @@ fn a_lagging_pull_head_waits_without_drift_then_goes_on_at_the_branch_head() {
     assert_eq!(change_row(&world, task).change.state, State::Opening { requested: true });
     assert_eq!(change_row(&world, task).change.last_head, Some(translate::commit(head)));
     let since = change_row(&world, task).change.since;
-    for _ in 0..20 {
-        world.tick();
-    }
+    world.advance_ticks(20);
     assert_eq!(change_row(&world, task).change.since, since, "waiting counts the opening stall");
     world.lagging_pull_head = None;
     world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
@@ -201,9 +195,7 @@ fn a_chat_tells_its_person_why_its_change_holds_before_waiting() {
     let read = resumed.messages.iter().map(|word| word.number).max();
     world.send(protocol::turn(CHANNEL, resumed.task, resumed.attempt, 1, 0, read, reply.as_bytes()));
     park_after_turn(&mut world, &resumed, read, 1);
-    for _ in 0..STEPS {
-        world.tick();
-    }
+    world.advance_ticks(STEPS);
     assert!(matches!(live_task(&world, chat.task).phase, tasks::Phase::Active(tasks::Active::Idle)));
     let reads::Answer::Ended(past) =
         world.party_read(reads::Read::Turn { task: chat.task, attempt: resumed.attempt, turn: 1 })

@@ -103,9 +103,7 @@ fn a_released_cancelled_repair_asks_again_at_a_head_still_failing() {
     assert_eq!(row.change.repairs, 1, "replacement spends the reset allowance");
     assert!(row.producer_failure.is_none(), "fresh delegation clears the cancellation account");
     assert!(matches!(row.change.state, State::Repairing { .. }));
-    for _ in 0..STEPS {
-        world.tick();
-    }
+    world.advance_ticks(STEPS);
     assert_eq!(change_row(&world, change).delegate.expect("same replacement").0, fresh);
     assert_eq!(live_task(&world, change).made, 4, "change, producer and exactly two repairs");
 }
@@ -143,9 +141,7 @@ fn a_released_failed_repair_receives_the_job_log_again_and_merges_nothing() {
     assert_eq!(ci_words(&first), ci_words(&replacement), "the same failed step and diagnostic");
     assert_eq!(change_row(&world, change).change.repairs, 1, "release resets the repair allowance");
     super::reviews::finish_review(&mut world, &replacement, tasks::TaskResult::Failure { reason: REASON.into() });
-    for _ in 0..STEPS {
-        world.tick();
-    }
+    world.advance_ticks(STEPS);
     assert!(matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }), "replacement's failure holds again");
     assert_eq!(world.assigned.len(), 4, "exactly one replacement asked");
     assert_eq!(live_task(&world, change).made, 4, "change, producer and exactly two repairs");

@@ -74,7 +74,7 @@ fn plan_world(control: bool) -> (World, engine::Assignment) {
 }
 
 fn plan_world_with_limits(control: bool, limits: &StoryLimits) -> (World, engine::Assignment) {
-    let mut world = World::configured_limits(true, true, false, PLAN_STEPS, Gate::default(), None, *limits);
+    let mut world = World::configured_limits(true, true, false, PLAN_STEPS, Gate::default(), None, limits.clone());
     world.adopt();
     world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
     let people::Ask::Create { project, mut batch } = adoption_chat(&world) else { panic!("create") };

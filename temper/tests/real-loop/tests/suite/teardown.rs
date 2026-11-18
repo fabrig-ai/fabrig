@@ -7,6 +7,7 @@ fn a_cancelled_stubborn_agent_names_its_killer_and_grace_with_recent_notes() {
         check, fixtures, llm, run_stubborn_on, scripts,
     };
     const CHAT: usize = 1;
+    let start = crate::cpu();
     let scratch = Scratch::new("stubborn-cancel");
     fixtures::standing_chats(scratch.path()).expect("standing chat fixture");
     let ran = run_stubborn_on(
@@ -47,4 +48,5 @@ fn a_cancelled_stubborn_agent_names_its_killer_and_grace_with_recent_notes() {
     millis.parse::<u64>().expect("relative note time");
     assert!(!debug.is_empty(), "{finding}");
     assert!(lines.count() < 100, "at most 100 notes: {finding}");
+    eprintln!("stubborn story CPU: {} ns (user + system, children included)", crate::cpu() - start);
 }

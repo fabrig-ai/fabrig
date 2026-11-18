@@ -201,17 +201,26 @@ fn flow(
             b.style(look::NEED_ROW);
             b.bind(bindings.insert(other.open()));
             from_all(b, root, *other, w, bindings, times);
-            ask::text(
-                b,
-                Role::Text,
-                &match other {
-                    temper_client_domain::pages::findings::Need::Existing(need) => {
-                        crate::shared::need_line(need, w).words
+            let question = match other {
+                temper_client_domain::pages::findings::Need::Existing(needs::Need::Card(card)) => {
+                    let asked = ask::read(card, w);
+                    match asked.kind {
+                        ask::Kind::Held => Some(crate::shared::hold_sentence(card.document(), w)),
+                        ask::Kind::PersonTask => None,
+                        ask::Kind::Question if ask::title_in_from(card) => None,
+                        ask::Kind::Question | ask::Kind::Funds { .. } | ask::Kind::Proposal => {
+                            Some(crate::shared::need_line(&needs::Need::Card(card), w).words)
+                        }
                     }
-                    temper_client_domain::pages::findings::Need::Finding(card) => card.row.title().into(),
-                },
-                look::ASK_QUESTION,
-            );
+                }
+                temper_client_domain::pages::findings::Need::Existing(need) => {
+                    Some(crate::shared::need_line(need, w).words)
+                }
+                temper_client_domain::pages::findings::Need::Finding(card) => Some(card.row.title().into()),
+            };
+            if let Some(question) = question {
+                ask::text(b, Role::Text, &question, look::ASK_QUESTION);
+            }
             b.close();
         }
     }
@@ -241,15 +250,9 @@ fn card_main(
     b.open(Role::Slot);
     b.style(look::ASK);
     from(b, root, needs::Need::Card(card), w, bindings, times, true);
-    let question = match asked.kind {
-        ask::Kind::Funds { spent, limit } => w.say(Word::NeedsFundsUsed, &[Hole::Number(spent), Hole::Number(limit)]),
-        ask::Kind::Question => match &asked.parsed {
-            Some(parsed) => parsed.question.clone(),
-            None => asked.short.clone(),
-        },
-        ask::Kind::Proposal | ask::Kind::Held | ask::Kind::PersonTask => asked.short.clone(),
-    };
-    ask::text(b, Role::Heading { level: 1 }, &question, look::FLOW_Q);
+    if let Some(question) = ask::question(&asked, w) {
+        ask::text(b, Role::Heading { level: 1 }, &question, look::FLOW_Q);
+    }
     if let Some(group) = &group {
         super::findings::group_rows(b, group, w, bindings, times);
     }
@@ -529,19 +532,30 @@ fn context(b: &mut Builder, root: &Domain, asked: &ask::Asked<'_>, w: &Words, ro
     b.open(Role::Slot);
     b.style(look::ASK_CONTEXT);
     if let jig_client::contract::ReadValue::Escalation(held) = page {
-        crate::cards::specification_after_title(b, &held.task.spec, w);
+        crate::cards::specification_words(b, &held.task.spec, w, ask::title_in_from(asked.card));
+        match asked.kind {
+            ask::Kind::Funds { .. } => {
+                crate::cards::hold(b, held.task.chip.task, &jig_client::contract::HoldCategory::Budget, w);
+            }
+            ask::Kind::Question | ask::Kind::Proposal | ask::Kind::Held | ask::Kind::PersonTask => {}
+        }
     }
     if let jig_client::contract::ReadValue::PersonTask(task) = page {
-        crate::cards::specification_after_title(b, &task.spec, w);
+        if ask::title_in_from(asked.card) {
+            skein_ui::markdown::read(crate::shared::after_title(&task.spec.specification.words), 3, b);
+            crate::cards::specification_facts(b, &task.spec, w);
+        } else {
+            crate::cards::specification_after_title(b, &task.spec, w);
+        }
     }
     match asked.kind {
-        ask::Kind::Proposal | ask::Kind::Held | ask::Kind::Funds { .. } => {
+        ask::Kind::Proposal => {
             crate::confirm::facts_at(b, page, w, rows, crate::cards::Place::Inbox);
             if let jig_client::contract::ObjectKey::Proposal(key) = asked.card.object {
                 crate::cards::proposal::owned_approval(b, root, key.number, w);
             }
         }
-        ask::Kind::Question | ask::Kind::PersonTask => {}
+        ask::Kind::Question | ask::Kind::PersonTask | ask::Kind::Held | ask::Kind::Funds { .. } => {}
     }
     b.close();
 }
