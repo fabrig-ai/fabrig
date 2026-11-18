@@ -1,6 +1,9 @@
 # sign-in: status
 
-2026-11-17. Where temper's code lags or departs from [sign-in.md](sign-in.md).
+2026-11-18. Where temper's code lags or departs from [sign-in.md](sign-in.md).
+
+- **Not yet:** 2.1: jig reading the proxy's `X-Forwarded-For` as an approval's source [in flight: change 8873].
+- **Not yet:** 2.3: a terminal elsewhere signed in by the browser's approval asked by the public name, guarded by its kind [in flight: change 8881].
 
 
 

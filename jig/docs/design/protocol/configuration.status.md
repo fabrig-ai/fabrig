@@ -1,10 +1,11 @@
 # configuration: status
 
-2026-11-12. Where jig's code lags or departs from [configuration.md](configuration.md).
+2026-11-18. Where jig's code lags or departs from [configuration.md](configuration.md).
 
 
 - **Not yet:** 3: a provider's `direct` endpoint, its checks, and a list read on it [in flight: change 927].
 - **Not yet:** 4: the `programs` row's credential source on a provider's `direct` endpoint (`../domain/accounts.md`, 3.4) [in flight: change 928].
+- **Not yet:** 3: `approval` enabling asks by the public name under their kinds' rules [in flight: change 8881].
 
 - **Not yet:** 3 and 3.2: a template's `ended_by` `standing` and a model's `cache_life_ms` (`../domain/tasks/standing.md`, section 7).
 - **Not yet:** 3: parts under a resuming charter (`../domain/tasks/standing.md`, 5.4).

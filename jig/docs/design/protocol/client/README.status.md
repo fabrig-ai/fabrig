@@ -1,6 +1,6 @@
 # client: status
 
-2026-11-17. Where jig's code lags or departs from [README.md](README.md).
+2026-11-18. Where jig's code lags or departs from [README.md](README.md).
 Unlisted sections have no known gap.
 
 
@@ -17,5 +17,6 @@ watch ending.
   to use the current terminal's link still holds.
 
 - **Not yet:** 4: a turn read answered gone past its transcript's horizon: no retention drops a transcript (`../store/README.md`, 6.1). 11: the protocol world's stories over an in-process transport: `jig/tests/client-protocol` runs them through native HTTP bytes alone.
+- **Not yet:** 10: the approvals' two waiting per source by the public name and three wrong grants [in flight: change 8881].
 - **Departs:** 8, *Never taken, nothing made*: the approval-expiry reservation remains `sign-in.status.md` (Departs, the whole document).
 - **Departs:** 4: a tree's `next` is a cursor no read takes: `jig/crates/jig-protocol-engine-clients/src/translate/watches.rs` writes it with `cursor::encode_tree`, in the form `Tree`; `cursor::decode` refuses that form, `cursor::decode_window`, which a family's window reads, takes a bare `DocumentCursor` (`jig/crates/jig-protocol-engine-clients/src/tests/reads.rs`), and a watch opens with no cursor at all, so a client that gives it back is refused. It stays because the request of 2026-11-05 held behaviour still while the cursor became a schema's record, and no debt item holds it.  the mounted-call peer-end departure remains `default-http.status.md`, 4.
