@@ -5779,6 +5779,7 @@ dependencies = [
  "skein-ui-web",
  "skein-world",
  "temper-agent-fixtures",
+ "temper-box-kit",
  "temper-client-domain",
  "temper-engine-domain",
  "temper-engine-service",

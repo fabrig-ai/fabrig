@@ -5,6 +5,7 @@
 //! under the scratch, as jig's `tests/client-browser` does, since `temper serve` joins paths to its working
 //! directory and the harness starts it in the test's. The first-run demo reserves every listener init wrote
 //! through `temper_fixtures::ports` (temper/docs/design/testing/process-tier.md, Three at a time).
+//! Ctl commits the world's kept providers before a restart (temper/docs/design/protocol/configuration/providers.md, 3, 6).
 use std::{fs, os::unix::fs::PermissionsExt, path::Path};
 use temper_playground::documents::turn_bounds;
 
@@ -135,14 +136,21 @@ pub(crate) fn private(path: &Path, bytes: &[u8]) {
         && let Ok(mut document) = serde_json::from_slice::<serde_json::Value>(bytes)
         && document.get("world_providers").is_some()
     {
-        temper_agent_fixtures::providers::keep(&mut document, path.parent().expect("fixture root"));
+        let directory = path.parent().expect("fixture root");
+        temper_agent_fixtures::providers::keep(&mut document, directory);
+        let settings = directory.join("browser-agents.json");
+        if settings.is_file() {
+            let mut value = serde_json::from_slice(&fs::read(&settings).expect("ctl settings")).expect("settings JSON");
+            provider_settings(directory, &mut value);
+            private(&settings, &serde_json::to_vec(&value).expect("agents and providers JSON"));
+        }
         rendered = Some(serde_json::to_vec(&document).expect("deployment JSON"));
     }
     fs::write(path, rendered.as_deref().unwrap_or(bytes)).expect("fixture file");
     fs::set_permissions(path, fs::Permissions::from_mode(0o600)).expect("private fixture");
 }
 
-/// The deployment and its prospective agents setting, applied by ctl before the ordinary stories.
+/// The deployment and its prospective agents and providers, applied by ctl before the ordinary stories.
 pub(crate) fn write(directory: &Path, bundle: &Path) {
     assert!(Path::new("/usr/bin/git").is_file(), "/usr/bin/git is required");
     for name in ["", "accounts", "secrets", "state"] {
@@ -166,11 +174,18 @@ pub(crate) fn write(directory: &Path, bundle: &Path) {
     temper_agent_fixtures::apply(&mut value, directory, &agent);
     let composed = temper_agent_fixtures::at(&value, directory);
     turn_bounds::apply(&mut value, turn_bounds::turn_body(&composed));
-    private(
-        &directory.join("browser-agents.json"),
-        &serde_json::to_vec(&agent_settings(&agent)).expect("agents setting JSON"),
-    );
+    let mut settings = agent_settings(&agent);
+    provider_settings(directory, &mut settings);
+    private(&directory.join("browser-agents.json"), &serde_json::to_vec(&settings).expect("agents and providers JSON"));
     private(&directory.join("temper.json"), &serde_json::to_vec(&value).expect("deployment JSON"));
+}
+
+/// Keep ctl's prospective providers aligned with the world's kept inputs, including fixture edits.
+fn provider_settings(directory: &Path, settings: &mut serde_json::Value) {
+    let providers = temper_agent_fixtures::providers::read(directory);
+    let items = settings["items"].as_array_mut().expect("settings items");
+    items.retain(|item| item["setting"]["kind"] != "provider");
+    items.extend(temper_box_kit::provider_setup::items(&providers));
 }
 
 /// Persist the prospective startup figures through the owner's settings decision as well
@@ -349,6 +364,25 @@ pub(crate) fn shape(mut value: serde_json::Value) -> temper_service_core::startu
 #[cfg(test)]
 mod tests {
     use super::stock_engine;
+
+    #[test]
+    fn ctl_settings_commit_the_world_providers_before_a_restart() {
+        let scratch = skein_scratch::Scratch::new("browser-provider-settings");
+        let directory = scratch.path();
+        super::write(directory, &directory.join("bundle"));
+        let settings: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(directory.join("browser-agents.json")).expect("ctl settings file"))
+                .expect("settings JSON");
+        let items = settings["items"].as_array().expect("settings items");
+        let providers: Vec<_> = items.iter().filter(|item| item["setting"]["kind"] == "provider").cloned().collect();
+        let wanted = temper_agent_fixtures::providers::read(directory);
+        assert_eq!(providers, temper_box_kit::provider_setup::items(&wanted), "ctl must commit the kept providers");
+        assert_eq!(providers.len(), 1, "the world has one non-scripted provider");
+        assert_eq!(providers[0]["setting"], serde_json::json!({"kind":"provider","number":1}));
+        assert_eq!(providers[0]["set"]["endpoints"][0]["address"]["socket"], super::UNREACHED);
+        assert!(providers.iter().all(|item| item["setting"]["number"] != 3), "the scripted provider is fixed");
+        assert_eq!(items.iter().filter(|item| item["setting"]["kind"] == "agents").count(), 1);
+    }
 
     #[test]
     fn demo_reserves_every_init_listener_and_moves_its_references() {

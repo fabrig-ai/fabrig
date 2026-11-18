@@ -217,6 +217,7 @@ impl Tier {
     pub fn with_model(self) -> Self {
         let path = self.scratch.path().join("temper.json");
         let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
+        value["world_providers"] = temper_agent_fixtures::providers::read(self.scratch.path());
         // As in jig's browser deployment, a provider offering no credential source gets a
         // deployment-held None account at startup: the view's demo_accounts fixture has this shape.
         temper_agent_fixtures::providers::input(&mut value)["providers"][0]["sources"] = serde_json::json!({});
@@ -508,6 +509,27 @@ fn copy_bundle(from: &Path, to: &Path) {
 mod tests {
     use super::configuration::{UNREACHED, documents};
     use std::{fs, path::Path};
+    #[test]
+    fn a_model_without_credentials_keeps_the_world_provider_for_every_start() {
+        let scratch = skein_scratch::Scratch::new("browser-model-provider");
+        super::configuration::write(scratch.path(), &scratch.path().join("bundle"));
+        let tier = super::Tier { scratch, forged: Box::new([]) }.with_model();
+        let wanted = temper_agent_fixtures::providers::read(tier.scratch.path());
+        assert_eq!(wanted["endpoints"][0]["address"]["socket"], UNREACHED);
+        assert_eq!(wanted["providers"][0]["sources"], serde_json::json!({}));
+        let settings: serde_json::Value =
+            serde_json::from_slice(&fs::read(tier.scratch.path().join("browser-agents.json")).expect("ctl settings"))
+                .expect("settings JSON");
+        let providers: Vec<_> = settings["items"]
+            .as_array()
+            .expect("settings items")
+            .iter()
+            .filter(|item| item["setting"]["kind"] == "provider")
+            .cloned()
+            .collect();
+        assert_eq!(providers, temper_box_kit::provider_setup::items(&wanted));
+    }
+
     #[test]
     fn the_page_excludes_only_the_three_decimal_github_routes() {
         for (path, page) in [
