@@ -65,6 +65,7 @@ pub enum Command {
     ReplyRead(u32),
     ReleaseReads,
     ReleaseWatchExchanges,
+    HoldWatchExchanges,
     Stored(bool),
     AckAll,
     Fire(Time),
@@ -145,6 +146,7 @@ pub struct World {
     child_pending: Vec<ChildWrite>,
     label: &'static str,
     unlinked: bool,
+    hold_watches: bool,
 }
 
 impl World {
@@ -193,6 +195,7 @@ impl World {
             child_pending: Vec::new(),
             label: "start",
             unlinked,
+            hold_watches: false,
         };
         for record in &kept {
             world.recorded.insert(record.key, record.first_sent);
@@ -208,7 +211,9 @@ impl World {
         }
         while let Some((label, command)) = schedule.next(world.now) {
             world.label = "peer";
-            world.admit_watches();
+            if !world.hold_watches {
+                world.admit_watches();
+            }
             world.label = label;
             world.execute(command);
         }
@@ -289,6 +294,7 @@ impl World {
                 let token = self.read_exchange(project);
                 self.complete_read(token);
             }
+            Command::HoldWatchExchanges => self.hold_watches = true,
             Command::ReleaseWatchExchanges => {
                 let tokens: Vec<_> = self
                     .exchanges

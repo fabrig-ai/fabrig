@@ -49,13 +49,14 @@ fn page(handle: Handle, why: c::ReadNone) -> Edge {
 /// consequences settle before its new work and the already queued next entrance.
 #[test]
 fn link_consequences_settle_before_the_next_entrance_under_load() {
-    // The first task opening and a read fill the two exchange places.
+    // The two task openings fill the two exchange places.
     const EXCHANGES: u32 = 2;
     let mut limits = test::limits().client;
     limits.exchanges = EXCHANGES;
     let world = World::run(
         Mode::Linked(limits),
         vec![
+            ("hold_watches", Command::HoldWatchExchanges),
             ("watch_a", Command::watch(A, TASK)),
             ("watch_b", Command::watch(B, OTHER_TASK)),
             ("read_a", read(A, PROJECT)),
