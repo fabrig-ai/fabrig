@@ -47,13 +47,44 @@ fn upgrade_check_names_the_record_a_start_refuses_without_switching_generation()
         let text = format!("{out}{err}");
         let line = text.lines().find(|line| line.contains(refusal)).expect(&text).to_owned();
         if checking {
-            assert!(err.is_empty(), "{err}");
+            // Only wall-time warnings may accompany a refusal; the refusal itself belongs on stdout.
+            assert!(err.lines().all(engine_long_pass), "{err}");
             assert!(out.contains(refusal), "{out}");
             assert_eq!(std::fs::read(&active_path).expect("active after refused check"), active);
             check_refusal = Some(line);
         } else {
             assert_eq!(Some(line), check_refusal, "a start refuses the same record in the same words");
         }
+    }
+}
+
+fn engine_long_pass(line: &str) -> bool {
+    let Some(timings) =
+        line.strip_prefix("temper-engine serve: long pass: ").and_then(|line| line.strip_suffix(" ms bound"))
+    else {
+        return false;
+    };
+    let Some((total, rest)) = timings.split_once(" ms, engine ") else { return false };
+    let Some((engine, bound)) = rest.split_once(" ms of it, past the ") else { return false };
+    [total, engine, bound]
+        .iter()
+        .all(|number| number.bytes().all(|byte| byte.is_ascii_digit()) && number.parse::<u128>().is_ok())
+}
+
+#[test]
+fn only_engine_long_pass_diagnostics_are_accepted_on_stderr() {
+    let warning = "temper-engine serve: long pass: 2378 ms, engine 2378 ms of it, past the 1000 ms bound";
+    assert!(engine_long_pass(warning));
+    for line in [
+        String::new(),
+        warning.replace("2378", "+2378"),
+        warning.replace("1000", ""),
+        warning.replace("engine 2378", "drain 2378"),
+        format!("{warning}; extra output"),
+        "temper-engine serve: restart refused during core restore: PeopleBound(IdentityBytes), key People(Person(1))"
+            .into(),
+    ] {
+        assert!(!engine_long_pass(&line), "{line}");
     }
 }
 
