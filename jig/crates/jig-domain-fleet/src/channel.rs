@@ -64,6 +64,8 @@ pub(crate) struct Channel {
     pub(crate) mismatched: bool,
     /// Tasks refused here for their values, until this channel is lost.
     pub(crate) untranslated: skein_lib::List<Token>,
+    /// A program started without its tools for this task and source, ordered across channels.
+    pub(crate) untooled: Map<(Token, crate::SourceName), u64>,
     /// The attempts it hosts or holds the answers of, each taking a slot.
     pub(crate) hosts: Set<Id<Attempt>>,
     /// The workstreams it holds workspaces for, by when each was last used,
@@ -253,6 +255,7 @@ pub(crate) fn hello(
         shutting_down: false,
         mismatched: false,
         untranslated: skein_lib::List::uncapped(),
+        untooled: Map::uncapped(),
         hosts: Set::with_capacity(limits.slots),
         workstreams: Map::with_capacity(limits.workstreams),
         uses: 0,

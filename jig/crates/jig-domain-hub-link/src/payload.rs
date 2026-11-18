@@ -207,12 +207,12 @@ pub(crate) fn ending(ending: &host::Ending) -> tasks::End {
                 }
             }
             host::Failure::Run(host::RunFailure::Transcript) => tasks::End::Failed(tasks::Class::Transient),
+            host::Failure::Run(host::RunFailure::Untooled) => tasks::End::Refused,
             host::Failure::Unprepared(host::Preparation::Permanent { .. }) => {
                 tasks::End::Failed(tasks::Class::Permanent)
             }
             host::Failure::Run(
                 host::RunFailure::Model
-                | host::RunFailure::Untooled
                 | host::RunFailure::Budget
                 | host::RunFailure::Policy
                 | host::RunFailure::Cancelled

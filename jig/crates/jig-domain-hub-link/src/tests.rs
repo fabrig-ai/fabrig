@@ -833,14 +833,39 @@ fn untranslated_runs_and_jobs_keep_a_retry_reason_on_the_usual_answer_route() {
 }
 
 #[test]
-fn an_untooled_failure_is_the_runs_own_failure() {
+fn an_untooled_failure_keeps_its_tag_on_the_usual_answer_route() {
     let ending = host::Ending::Failed {
         failure: host::Failure::Run(host::RunFailure::Untooled),
         detail: b"missing tools".as_slice().into(),
         work: host::Work { left: None, saved: None },
         model: None,
     };
-    assert_eq!(payload::ending(&ending), tasks::End::Failed(tasks::Class::Run));
+    assert_eq!(payload::ending(&ending), tasks::End::Refused);
+    let mut link = link();
+    let mut out = Queue::uncapped();
+    step(
+        &mut link,
+        Time::ZERO,
+        Event::Up {
+            channel: CHANNEL,
+            value: host::LinkUp::Answer {
+                run: RUN,
+                attempt: ATTEMPT,
+                answer: host::RunAnswer { turns: 0, spent: 0, read: None, refused: Box::new([]), ending },
+            },
+        },
+        &mut out,
+    );
+    let Request::Core(core::Event::Fleet(fleet::Event::Answer { payload, .. })) = out.pop().unwrap() else {
+        panic!("fleet answer")
+    };
+    step(&mut link, Time::ZERO, Event::AnswerPayload { run: RUN, attempt: ATTEMPT, payload }, &mut out);
+    let Request::Core(core::Event::AnswerPayload { end, untooled, unusable_history, .. }) = out.pop().unwrap() else {
+        panic!("task terminal")
+    };
+    assert_eq!(end, tasks::End::Refused);
+    assert!(untooled);
+    assert!(!unusable_history);
 }
 
 #[test]
