@@ -650,11 +650,16 @@ fn asks_cannot_be_amended() {
             reason: Box::new([]),
         };
         let reply = response(&mut world, |reply_to| Event::Amend {
-            operation: tasks::Amend { task: ASKER, stop_run: false, amendment: Box::new(amendment), message: ANSWER },
+            operation: tasks::Amend {
+                funder: None,
+                task: ASKER,
+                stop_run: false,
+                amendment: Box::new(amendment),
+                message: ANSWER,
+            },
             reply_to,
             by: Party::Task(REQUESTER),
             places: Box::new([]),
-            funder: None,
         });
         assert!(matches!(reply, Reply::Refused(problem) if problem.why == Refusal::Spec));
         assert_eq!(world.record(ASKER).spec.asks, old);
@@ -897,13 +902,13 @@ fn keep_requester(world: &mut World) {
             reply_to,
             by: PERSON_PARTY,
             operation: tasks::Amend {
+                funder: None,
                 task: REQUESTER,
                 stop_run: false,
                 amendment: Box::new(amendment),
                 message: ANSWER,
             },
             places: Box::new([]),
-            funder: None,
         }),
         Reply::Done
     );

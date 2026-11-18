@@ -382,10 +382,13 @@ usable and settled fields beside the rows.
     deployment's rules;
   - *amending,* in a task's document: within, the whole authority the
     party may give alone (their role's, its budget no more than their
-    pool has left, its tasks no more than the task has left), the budget
-    they may add to the task, and the grants they hold, listed; and,
-    past that, the policy's ceiling, its budget no more than their pool
-    has left;
+    role's spend nor than what they can fund: their pool's left, plus
+    the task's budget where their pool funds it already, or plus what
+    the task has spent where it doesn't, `../../../domain/authority.md`,
+    8.4; its tasks no more than the task has left), the budget they may
+    add to the task (that budget less the task's), and the grants they
+    hold, listed; and, past that, the policy's ceiling, its budget not
+    bounded by their pool, since a proposal's accepter funds it;
   - *beyond the first bound:* proposable, to the roles the project's
     policy names for that kind of proposal, in their order; or, where it
     names none, refused as lacking authority, saying that no proposal

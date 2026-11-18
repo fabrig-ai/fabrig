@@ -90,6 +90,7 @@ fn refunding_changes_the_payer_of_financial_descendants() {
     h.send(Event::CarvePool { reply_to: to(), project: PROJECT, person: OTHER, period: 0, budget: 100 });
     h.send(Event::Amend {
         operation: crate::Amend {
+            funder: Some(Funder::Pool { project: PROJECT, person: OTHER, period: 0 }),
             task: ROOT,
             message: 1,
             stop_run: false,
@@ -109,7 +110,6 @@ fn refunding_changes_the_payer_of_financial_descendants() {
         places: Box::new([]),
         reply_to: to(),
         by: Party::Person(OTHER),
-        funder: Some(Funder::Pool { project: PROJECT, person: OTHER, period: 0 }),
     });
     assert_eq!(h.domain.task(ROOT).unwrap().requester, Party::Person(HOLDER));
     assert_eq!(h.domain.payer(CHILD), Some(Payer::Party(OTHER)));

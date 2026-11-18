@@ -398,6 +398,7 @@ fn accepted_amendment(world: &mut World, funder: Funder, budget: u64) -> Reply {
     let message = world.record(1).last_message + 1;
     send(world, |reply_to| Event::Amend {
         operation: tasks::Amend {
+            funder: Some(funder),
             task: 1,
             message,
             stop_run: false,
@@ -417,7 +418,6 @@ fn accepted_amendment(world: &mut World, funder: Funder, budget: u64) -> Reply {
         places: Box::new([]),
         reply_to,
         by: PERSON_PARTY,
-        funder: Some(funder),
     })
 }
 

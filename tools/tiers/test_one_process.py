@@ -113,7 +113,7 @@ class RunnerFixture(unittest.TestCase):
             'target-directory': str(self.root / 'target'), 'base-output-directories': ['debug'],
             'non-test-binaries': {'fixture-id': [{'name': 'helper', 'path': 'debug/helper', 'kind': 'bin-exe'},
                                                {'name': 'library', 'path': 'debug/library.so', 'kind': 'dylib'}]},
-            'build-script-out-dirs': {'fixture-id': str(self.root / 'out')}, 'linked-paths': {}}}
+            'build-script-out-dirs': {'fixture-id': str(self.root / 'out')}, 'linked-paths': []}}
         self.binary()
 
     def binary(self, binary_id='fixture::suite', names=('a', 'b', 'c'), native='tests'):
@@ -674,13 +674,13 @@ class BaseTests(RunnerFixture):
             'target-directory': '/target', 'base-output-directories': ['debug'],
             'non-test-binaries': {'fixture-id': [{'name': 'one'}]},
             'build-script-out-dirs': {'fixture-id': 'out/fixture'},
-            'linked-paths': {'shared': ['fixture-id']}}}
+            'linked-paths': ['debug/build/shared/out']}}
         second = {'rust-suites': {'zebra': {}}, 'rust-build-meta': {
             'target-directory': '/target', 'base-output-directories': ['debug', 'custom'],
             'non-test-binaries': {'fixture-id': [{'name': 'one'}, {'name': 'two'}],
                                   'zebra-id': [{'name': 'zebra'}]},
             'build-script-out-dirs': {'zebra-id': 'out/zebra'},
-            'linked-paths': {'shared': ['fixture-id', 'zebra-id'], 'other': ['zebra-id']}}}
+            'linked-paths': ['debug/build/shared/out', 'debug/build/zebra/out']}}
         listing = self.module['merge_listings']([first, second])
         self.assertEqual(set(listing['rust-suites']), {'fixture::suite', 'zebra'})
         self.assertEqual(listing['rust-build-meta'], {
@@ -688,7 +688,7 @@ class BaseTests(RunnerFixture):
             'non-test-binaries': {'fixture-id': [{'name': 'one'}, {'name': 'two'}],
                                   'zebra-id': [{'name': 'zebra'}]},
             'build-script-out-dirs': {'fixture-id': 'out/fixture', 'zebra-id': 'out/zebra'},
-            'linked-paths': {'shared': ['fixture-id', 'zebra-id'], 'other': ['zebra-id']}})
+            'linked-paths': ['debug/build/shared/out', 'debug/build/zebra/out']})
 
     def test_listings_with_different_target_directories_are_refused(self):
         listings = [{'rust-suites': {}, 'rust-build-meta': {'target-directory': target}}

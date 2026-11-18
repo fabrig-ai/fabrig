@@ -211,7 +211,7 @@ fn a_partys_batch_beyond_the_project_ceiling_answers_refuse() {
 fn a_partys_widening_beyond_their_role_answers_propose() {
     let domain = domain_with_role_spend(40);
     let mut ask = batch_request(60);
-    ask.request = PersonRequest::Amend(crate::tests_fixtures::delegate(60).authority);
+    ask.request = PersonRequest::Amend { authority: crate::tests_fixtures::delegate(60).authority, credit: 0 };
     let mut why = skein_lib::Queue::uncapped();
     assert_eq!(crate::check_request(&domain, &ask, &mut why).answer, crate::Answer::Propose);
 }
@@ -248,9 +248,23 @@ fn a_partys_widening_beyond_their_pool_answers_propose() {
     let domain = domain_with_role_spend(80);
     let mut ask = batch_request(60);
     ask.pool = numbers(40);
-    ask.request = PersonRequest::Amend(crate::tests_fixtures::delegate(60).authority);
+    ask.request = PersonRequest::Amend { authority: crate::tests_fixtures::delegate(60).authority, credit: 0 };
     let mut why = skein_lib::Queue::uncapped();
     assert_eq!(crate::check_request(&domain, &ask, &mut why).answer, crate::Answer::Propose);
+}
+
+#[test]
+fn a_partys_widening_reserves_only_what_its_credit_does_not_cover() {
+    let domain = domain_with_role_spend(80);
+    for (credit, reserved) in [(30, 30), (60, 0), (u64::MAX, 0)] {
+        let mut ask = batch_request(60);
+        ask.pool = numbers(40);
+        ask.request = PersonRequest::Amend { authority: fixtures::delegate(60).authority, credit };
+        let mut why = skein_lib::Queue::uncapped();
+        let checked = crate::check_request(&domain, &ask, &mut why);
+        assert_eq!(checked.answer, crate::Answer::Allow, "credit {credit}: {why:?}");
+        assert_eq!(checked.numbers, Some(Numbers { reserved, ..ask.pool }));
+    }
 }
 
 fn task_source(finding: crate::Finding) -> crate::Finding {
