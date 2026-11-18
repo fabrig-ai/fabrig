@@ -832,8 +832,9 @@ they are, and two small root files carry the rest.
   with and without Google; each `Authorize` state; out of date; no
   project yet with and without the welcome; the GitHub App's setup pages;
   and night. It takes in the six repairs of `look-round-22`: the
-  welcome's top bar, signed in, ending with the person's name and "Sign
-  out" after its steps at each width; the top bar over an empty main
+  welcome's top bar with its steps and link region, no person or "Sign
+  out", and the night switch last (`welcome-top` and `night-switch-top`)
+  at each width; the top bar over an empty main
   while `me` is read at `/chats` and `/chats/new`, until "No project yet"
   settles, with the heading's focus once the page comes (2.3); "Code" and
   "Project name" at 14 px on a 22.4 px line, the field and its act

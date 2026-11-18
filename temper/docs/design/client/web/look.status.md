@@ -2,10 +2,6 @@
 
 2026-11-18. Where the tree's code lags or departs from [look.md](look.md).
 
-- **Not yet:** *Day and night*, *The switch*, and *Outside a project*, *The
-  top bar*: `temper.css` has no `#app > .temper-top > .temper-night-switch`
-  rules, and no rule keeps the mark left and the switch at the bar's right
-  edge in every state [in flight: change 8629].
 - **Not yet:** *Day and night*, *The switch*: the `night-switch-top`
   request's rendered comparison follows landing on main, owned by temper/ui
   (`look-requests.md`, 4): its `journeys/night-switch-top/` welcome pages by
