@@ -132,7 +132,6 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 [temper]
 "temper-engine-service-vocabulary::figures" = "step" # Named application limits round trips.
 "temper-agent::suite" = "end-to-end" # Shipped agent's command-line boundary.
-"temper-box-kit::parent" = "real-loop" # step and real-loop: observe() cases and real /bin/cat process identities.
 "temper-box-kit::screen" = "step" # Terminal cell reader on renderer output, without io.
 "temper-box-machine::real_loop" = "real-loop" # Box service and hosted children on one real ring.
 "temper-box::live" = "end-to-end"
@@ -170,6 +169,7 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "temper-playground-serve::suite" = "end-to-end" # Shipped static host's command-line boundary.
 "temper-playground-world::memory" = "simulated" # Playground's hosted processes on the simulator.
 "temper-playground-world::suite" = "simulated" # Playground's hosted processes on the simulator.
+"temper-process-guard::parent" = "real-loop" # step and real-loop: observe() cases and real /bin/cat process identities.
 "temper-protocol-reaches::suite" = "step" # Seeded judgement functions on generated tables.
 "temper-qa-tool::suite" = "real-loop" # step, domain and real-loop: fake-clock world beside real sockets, locks and shell children.
 "temper-qa::suite" = "end-to-end" # Shipped QA tool's command-line boundary.

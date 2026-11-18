@@ -5613,6 +5613,7 @@ dependencies = [
  "temper-init",
  "temper-limits-fixtures",
  "temper-playground",
+ "temper-process-guard",
  "temper-real-loop-world",
  "temper-service",
  "temper-settings-form",
@@ -7464,6 +7465,16 @@ dependencies = [
  "temper-playground",
  "temper-service",
  "temper-test-env",
+]
+
+[[package]]
+name = "temper-process-guard"
+version = "0.0.0"
+dependencies = [
+ "skein-io",
+ "skein-lib",
+ "skein-shell",
+ "skein-world",
 ]
 
 [[package]]

@@ -67,6 +67,7 @@ jig-channel-kit.workspace = true
 skein-tls-kit.workspace = true
 serde_json.workspace = true
 temper-box-shell.workspace = true
+temper-process-guard.workspace = true
 
 
 [target.'cfg(not(all(target_arch = "wasm32", target_os = "unknown")))'.dependencies]
