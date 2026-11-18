@@ -116,11 +116,11 @@ proposed, what an action needs, and what an acceptance funds.
   (`lifecycle.md`, 7), so a restart finds it live: the start links the
   decider by its kind, a person among the people and a task among the
   live tasks, and refuses a store where it cannot
-  (`../../protocol/store/README.md`, 10.1). Reads show the kind: the
-  held task's document, its chip's hold on the client wire, and the
-  client's words, each naming the decider as a task or a person with its
-  number (`../../client/domain/contract/documents.md`, 1). The
-  escalation's holder, decision and revision are as before.
+  (`../../protocol/store/README.md`, 10.1). The held task's document
+  names the decider as a task or a person with its number; the client
+  wire and the client's words name its number alone, and whether they
+  show its kind is an open question (below). The escalation's holder,
+  decision and revision are as before.
 - **A decided entry stays read.** A holder's run may decide an entry in
   the turn that first reads it, as a model does: the decision commits
   with its call, before the turn naming the entry as read. The entry
@@ -141,3 +141,15 @@ proposed, what an action needs, and what an acceptance funds.
   its hold. The
   proposal a task's result made is the exception: its closing waits for
   it to be decided (`lifecycle.md`, 7), and only a cancel of the task withdraws it.
+
+## Open questions
+
+- **An escalation's decider on the client wire.** The chip's hold on the
+  client wire carries a rejection's decider as its number alone
+  (`HoldEscalationRejected.by`), the engine giving a task's or a
+  person's number alike, and the client's contract and words show it so
+  (`../../client/domain/contract/documents.md`, 1). Showing its kind, a
+  `Requester`'s `Task` or `Person`, moves the client wire's version
+  (`../../protocol/client/README.md`, 6) and records again the journeys
+  that show a task's chip; whether and when is a later move of the
+  client wire's (B1's requester, 2026-11-18).

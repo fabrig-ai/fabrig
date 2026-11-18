@@ -2,7 +2,6 @@
 
 2026-11-18. Where jig's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 10.1: an escalation's decider is stored as a bare number, with no kind, and linked as a person. [in flight: change 7602]
 
 
 
