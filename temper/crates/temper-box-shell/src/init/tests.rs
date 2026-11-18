@@ -441,24 +441,15 @@ fn init_keeps_an_existing_provider_key_even_without_openssl() {
     fs::remove_dir_all(root).unwrap();
 }
 
+const PROVIDER_KEY: &[u8] = include_bytes!("fixtures/provider.pem");
+
 #[test]
 fn init_makes_a_private_3072_bit_provider_key_before_writing_its_document() {
     use std::process::{Command, Stdio};
     let root = scratch("provider-key");
     let dirs = directories(&root);
     let env = vec![(b"PATH".as_slice().into(), b"/usr/bin:/bin".as_slice().into())];
-    let mut io = Io::open().unwrap();
-    let Done::Usage(before) = io.perform(Op::Usage).unwrap() else { panic!("usage") };
-    let clock = skein_shell::Clock::new();
-    let started = clock.now().now;
-    let written = write(&dirs, &env, &root.join("temper"), [0; 3]).unwrap();
-    let elapsed = clock.now().now.saturating_since(started);
-    let Done::Usage(after) = io.perform(Op::Usage).unwrap() else { panic!("usage") };
-    eprintln!(
-        "init provider key: wall {elapsed:?}, child user {} ns, child system {} ns",
-        after.children.user.as_nanos().saturating_sub(before.children.user.as_nanos()),
-        after.children.system.as_nanos().saturating_sub(before.children.system.as_nanos())
-    );
+    let written = write_with_key(&dirs, &env, &root.join("temper"), [0; 3], PROVIDER_KEY).unwrap();
     assert!(written.no_sign_in.is_none());
     let key = path(&dirs.data).join("provider.key");
     assert_eq!(fs::metadata(&key).unwrap().mode() & 0o777, 0o600);

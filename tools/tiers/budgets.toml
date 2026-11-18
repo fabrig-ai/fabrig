@@ -118,18 +118,6 @@ cpu_s = 0.93
 why = "Same-work backlog (the user, 11-18): its CPU alone swings 1.3 times on the same code (main's figures 0.375, 0.291 s), so a gate can flag it on noise. The line is half again its largest figure; the repair that makes its work the same at every run drops it (skein/docs/foundation/testing-strategy.md, 10)."
 
 [[gate.default.reasons]]
-binary = "temper-box-shell"
-test = "fake::check::tests::observations"
-cpu_s = 0.16
-why = "Same-work backlog (the user, 11-18): its CPU alone swings 1.9 times on the same code (main's figures 0.054, 0.105, 0.082 s), so a gate can flag it on noise. The line is half again its largest figure; the repair that makes its work the same at every run drops it (skein/docs/foundation/testing-strategy.md, 10)."
-
-[[gate.default.reasons]]
-binary = "temper-box-shell"
-test = "init::tests::init_makes_a_private_3072_bit_provider_key_before_writing_its_document"
-cpu_s = 0.61
-why = "Same-work backlog (the user, 11-18): its CPU alone swings 1.8 times on the same code (main's figures 0.183, 0.227, 0.127 s), so a gate can flag it on noise. The line is half again its largest figure; the repair that makes its work the same at every run drops it (skein/docs/foundation/testing-strategy.md, 10)."
-
-[[gate.default.reasons]]
 binary = "temper-client-shell-web"
 test = "host::tests::a_filter_chosen_pushes_the_inbox_at_its_query"
 cpu_s = 0.06

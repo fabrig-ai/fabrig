@@ -138,13 +138,29 @@ fn encoded(records: Records) -> Result<Vec<Vec<u8>>, String> {
         })
         .collect()
 }
+// A fixed 64 KiB write buffer, independent of the observation line bound.
+const OBSERVATION_CHUNK: usize = 64 * 1024;
+fn write_overlong(path: &Path, before: &[u8], after: &[u8]) {
+    use std::io::Write;
+    let mut file = fs::File::create(path).expect("overlong observations fixture");
+    file.write_all(before).expect("before overlong line");
+    let chunk = vec![b'x'; OBSERVATION_CHUNK];
+    let bound = skein_lib::usize_of(temper_fake::limits::OBSERVATION_BYTES);
+    for _ in 0..bound / OBSERVATION_CHUNK {
+        file.write_all(&chunk).expect("overlong line chunk");
+    }
+    file.write_all(&chunk[..bound % OBSERVATION_CHUNK]).expect("overlong line remainder");
+    // Exactly one byte beyond the line bound (including LF).
+    file.write_all(b"\n").expect("overlong line LF");
+    file.write_all(after).expect("after overlong line");
+}
+
 #[test]
 fn observations() {
     let root = scratch("fake-check-observations");
+    write_overlong(&root.join("overlong-prefix"), b"", START);
+    write_overlong(&root.join("overlong-tail"), START, b"");
     let bound = skein_lib::usize_of(temper_fake::limits::OBSERVATION_BYTES);
-    // Exactly one byte beyond the line bound (including LF).
-    let mut overlong = vec![b'x'; bound];
-    overlong.push(b'\n');
     let overlong_error = format!("line 1: line past {bound} bytes");
     let missing_file =
         format!("observations {}: {}", root.join("absent").display(), std::io::Error::from_raw_os_error(2));
@@ -173,8 +189,8 @@ fn observations() {
         ("no-checkpoint", Some(DELETED.to_vec()), Err(MISSING)),
         ("empty", Some(vec![]), Err(MISSING)),
         ("absent", None, Err(missing_file.as_str())),
-        ("overlong-prefix", Some([overlong.as_slice(), START].concat()), Err(overlong_error.as_str())),
-        ("overlong-tail", Some([START, overlong.as_slice()].concat()), Ok((1, 0, vec![START.to_vec()]))),
+        ("overlong-prefix", None, Err(overlong_error.as_str())),
+        ("overlong-tail", None, Ok((1, 0, vec![START.to_vec()]))),
         (
             "checkpoints",
             Some([START, DELETED, LOST, b"partial"].concat()),
