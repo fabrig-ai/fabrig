@@ -9,7 +9,11 @@ use std::{
     path::{Path, PathBuf},
 };
 pub(super) type RecipeFiles = BTreeMap<Box<[u8]>, Vec<u8>>;
-const DOCUMENTS: [&[u8]; 4] = [b"engine.json", b"forgejo.json", b"model.json", b"worker.json"];
+fn documents() -> [&'static [u8]; 5] {
+    let mut names = crate::drive::deployment::inputs().map(|(name, _)| name.as_bytes());
+    names.sort_unstable();
+    names
+}
 
 pub(super) enum Reader<'a> {
     Directory(&'a Path),
@@ -110,7 +114,7 @@ impl Reader<'_> {
                 }
             }
         }
-        for document in DOCUMENTS {
+        for document in documents() {
             if !files.contains_key(document) {
                 return Err(Refusal::file(
                     name,
@@ -134,7 +138,7 @@ impl Reader<'_> {
 
 fn config_name(name: &str, path: &[u8]) -> Result<String, Refusal> {
     let file = format!("config/{}", String::from_utf8_lossy(path));
-    if !DOCUMENTS.contains(&path) {
+    if !documents().contains(&path) {
         return Err(Refusal::file(name, &file, "unexpected document"));
     }
     Ok(file)

@@ -73,6 +73,7 @@ pub struct Adopted {
     pub repository: u32,
     pub owner: Box<[u8]>,
     pub name: Box<[u8]>,
+    pub landing: Box<[u8]>,
     pub role: Role,
     pub home: bool,
     pub kinds: Kinds,

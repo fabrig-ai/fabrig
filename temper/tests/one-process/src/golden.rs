@@ -176,6 +176,7 @@ struct Judge {
     released: bool,
     opening: Opening,
     checked: bool,
+    in_flight: Option<(u64, bool)>,
     ticks: u32,
 }
 impl Judge {
@@ -199,6 +200,18 @@ impl Judge {
     }
 }
 impl Judge {
+    fn coding_in_flight(&mut self) -> bool {
+        // Both presence and absence stay the same between durable commits.
+        let store = self.store.borrow();
+        if let Some((at, found)) = self.in_flight
+            && at == store.applied
+        {
+            return found;
+        }
+        let found = in_flight(&store).is_some();
+        self.in_flight = Some((store.applied, found));
+        found
+    }
     fn act_checked(&mut self, _: Time, procs: &mut [Proc]) -> Result<(), String> {
         self.ticks += 1;
         let (first, others) = procs.split_at_mut(1);
@@ -231,19 +244,20 @@ impl Judge {
             }
             self.checked = true;
         }
-        let complete = match self.opening {
-            Opening::Make => self.forge.forge_complete() && in_flight(&self.store.borrow()).is_some(),
-            Opening::Read => {
-                if !self.stopped
-                    && let Some(end) = service.service.end()
-                {
-                    return Err(format!("floor start refused: {end:?}"));
+        let complete = !self.stopped
+            && match self.opening {
+                Opening::Make => self.coding_in_flight() && self.forge.forge_complete(),
+                Opening::Read => {
+                    if !self.stopped
+                        && let Some(end) = service.service.end()
+                    {
+                        return Err(format!("floor start refused: {end:?}"));
+                    }
+                    others.iter().any(
+                        |proc| matches!(proc, Proc::Other(HarnessProcess::Calls(caller)) if caller.answers.len() == 3),
+                    )
                 }
-                others
-                    .iter()
-                    .any(|proc| matches!(proc, Proc::Other(HarnessProcess::Calls(caller)) if caller.answers.len() == 3))
-            }
-        };
+            };
         if !self.stopped && complete {
             for proc in others.iter_mut() {
                 if let Proc::Other(HarnessProcess::Client(person)) = proc {
@@ -405,19 +419,30 @@ fn assert_history(store: &Store) -> Result<(), String> {
 pub(crate) fn configuration(deployment: &[u8]) -> Box<[u8]> {
     let mut document: serde_json::Value = serde_json::from_slice(deployment).expect("deployment");
     document["engine"]["limits"]["overrides"]["people.inbox_tasks"] = 16.into();
-    let mut provider = document["engine"]["llm"]["providers"][0].clone();
+    if document["world_settings"]["llm"].is_null() {
+        let source: serde_json::Value =
+            serde_json::from_slice(temper_playground::stories::A.deployment).expect("story deployment");
+        document["world_settings"]["llm"] = source["world_settings"]["llm"].clone();
+    }
+    let mut provider = document["world_settings"]["llm"]["providers"][0].clone();
     provider["number"] = 2.into();
     provider["name"] = "golden-provider".into();
     provider["models"] = serde_json::json!(["fake-key"]);
+    provider["endpoint"] = "golden".into();
+    let mut endpoint = document["world_settings"]["llm"]["endpoints"][0].clone();
+    endpoint["name"] = "golden".into();
+    endpoint["number"] = 2.into();
+    endpoint["provider"] = "golden-provider".into();
+    document["world_settings"]["llm"]["endpoints"].as_array_mut().expect("endpoints").push(endpoint);
     let catalogue: serde_json::Value =
         serde_json::from_slice(include_bytes!("../../../crates/temper-playground/stories/a/catalogue.json"))
             .expect("story catalogue");
-    document["engine"]["llm"]["models"] = catalogue["models"].clone();
+    document["world_settings"]["llm"]["models"] = catalogue["models"].clone();
     let mut model = catalogue["models"][0].clone();
     model["name"] = "fake-key".into();
-    document["engine"]["llm"]["models"].as_array_mut().expect("models").push(model);
-    document["engine"]["llm"]["providers"][0]["models"] = serde_json::json!(["fake"]);
-    document["engine"]["llm"]["providers"].as_array_mut().expect("providers").push(provider);
+    document["world_settings"]["llm"]["models"].as_array_mut().expect("models").push(model);
+    document["world_settings"]["llm"]["providers"][0]["models"] = serde_json::json!(["fake"]);
+    document["world_settings"]["llm"]["providers"].as_array_mut().expect("providers").push(provider);
     for name in ["tasks.tasks", "tasks.project_tasks"] {
         document["engine"]["limits"]["overrides"][name] = 8.into();
     }
@@ -459,6 +484,7 @@ pub fn make(directory: &Path) {
                 released: false,
                 opening: Opening::Make,
                 checked: false,
+                in_flight: None,
                 ticks: 0,
             },
         )
@@ -590,6 +616,7 @@ pub fn read(directory: &Path) {
                 released: false,
                 opening: Opening::Read,
                 checked: false,
+                in_flight: None,
                 ticks: 0,
             },
         )
@@ -727,7 +754,21 @@ fn startup_configuration(directory: &Path) -> (Vec<u8>, temper_service::stock::G
     let configuration = std::fs::read(directory.join("configuration.json")).expect("kept startup configuration");
     let mut document: serde_json::Value = serde_json::from_slice(&configuration).expect("kept configuration JSON");
     bridge_kept_profiles(&mut document);
+    if let Some(legacy) = document["engine"].as_object_mut().expect("kept engine").remove("llm") {
+        document["world_settings"]["llm"] = legacy;
+    }
+    // The kept providers share a dial; each provider setting owns its numbered endpoint.
+    let llm = &mut document["world_settings"]["llm"];
+    if llm["endpoints"].as_array().expect("kept endpoints").len() == 1 {
+        let mut endpoint = llm["endpoints"][0].clone();
+        endpoint["name"] = "golden".into();
+        endpoint["number"] = 2.into();
+        endpoint["provider"] = "golden-provider".into();
+        llm["endpoints"].as_array_mut().expect("kept endpoints").push(endpoint);
+        llm["providers"][1]["endpoint"] = "golden".into();
+    }
     // Kept deployment inputs use the current box shape; the stored generation stays untouched.
+    document["world_settings"]["playground"] = true.into();
     let mut inherited = Vec::new();
     for worker in document["workers"].as_array_mut().expect("kept workers") {
         let worker = worker.as_object_mut().expect("kept worker");

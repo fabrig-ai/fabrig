@@ -6,6 +6,10 @@ pub fn read_handover(
     read: &temper_engine_service::HandoverRead,
 ) -> Result<Option<skein_lib::Secret>, temper_engine_service::HandoverUnread> {
     use temper_engine_service::HandoverUnread;
+    if read.forge == 0 {
+        make_playground_key(super::path(&read.path))
+            .map_err(|why| HandoverUnread::Kernel(why.raw_os_error().expect("key io returns an errno")))?;
+    }
     match skein_shell::read_private_file(super::path(&read.path), read.max, skein_shell::effective_user()) {
         Ok(value) => {
             let bytes = value.expose();
@@ -19,6 +23,34 @@ pub fn read_handover(
         Err(skein_shell::Unread::Kernel(error)) => Err(HandoverUnread::Kernel(temper_shell::directories::errno(error))),
     }
 }
+/// The scripted account's key is made before its read and the playground's group start
+/// (temper/docs/design/protocol/configuration/providers.md, 4).
+fn make_playground_key(path: &std::path::Path) -> std::io::Result<()> {
+    use std::{
+        fs,
+        io::Write as _,
+        os::unix::fs::{DirBuilderExt as _, OpenOptionsExt as _},
+    };
+    let directory = path.parent().expect("the playground key is in demo");
+    fs::DirBuilder::new().recursive(true).mode(0o700).create(directory)?;
+    let random = skein_shell::crypto_seed().map_err(std::io::Error::from_raw_os_error)?;
+    let mut key = Vec::with_capacity(65);
+    for byte in random.expose() {
+        const HEX: &[u8] = b"0123456789abcdef";
+        key.push(HEX[usize::from(byte >> 4)]);
+        key.push(HEX[usize::from(byte & 15)]);
+    }
+    key.push(b'\n');
+    let key = skein_lib::Secret::new(key.into_boxed_slice());
+    match fs::remove_file(path) {
+        Ok(()) => {}
+        Err(why) if why.kind() == std::io::ErrorKind::NotFound => {}
+        Err(why) => return Err(why),
+    }
+    let mut file = fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(path)?;
+    file.write_all(key.expose())
+}
+
 pub fn remove_handover(remove: &temper_engine_service::HandoverRemoval) -> Result<(), i32> {
     match std::fs::remove_file(super::path(&remove.path)) {
         Ok(()) => Ok(()),
@@ -321,6 +353,7 @@ fn start_failure(failure: &jig_domain_core::start::Failure) -> String {
                     Setting::Policy(n) => ("policy", n),
                     Setting::Model(n) => ("model", n),
                     Setting::Worker(_)
+                    | Setting::Provider(_)
                     | Setting::Rules
                     | Setting::Application { .. }
                     | Setting::ProjectPolicy { .. } => unreachable!("only ranged kinds in a numbers refusal"),

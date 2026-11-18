@@ -9,6 +9,11 @@ pub struct Member {
 }
 pub const LANDING: &str = "moved: a project's landing is settings, project-landing and project-gates; set them with temper ctl settings apply";
 pub const MEMBERS: &[Member] = &[
+    Member {
+        path: "engine.llm",
+        words: "moved: LLM providers are settings; see them with temper ctl settings show provider",
+    },
+    Member { path: "application.demo", words: "moved: the playground's scripted model is the box's own" },
     Member { path: "application.landing", words: LANDING },
     Member {
         path: "application.machine",
@@ -87,10 +92,13 @@ pub fn child(path: &str, name: &str) -> Option<&'static Member> {
 }
 #[must_use]
 pub fn words(path: &Path) -> &'static [u8] {
+    at_path(path).expect("every fixed member has its moved words").words.as_bytes()
+}
+pub(super) fn at_path(path: &Path) -> Option<&'static Member> {
     let mut length = 0;
     super::problems::render_path(path, &mut Writer::new(0), &mut length, true);
     let mut writer = Writer::new(length);
     super::problems::render_path(path, &mut writer, &mut 0, false);
     let rendered = writer.finish();
-    at(&rendered).expect("every fixed member has its moved words").words.as_bytes()
+    at(&rendered)
 }

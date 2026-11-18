@@ -448,6 +448,9 @@ fn encode_setting(value: p::Setting, limits: &w::Limits) -> Result<w::Setting, w
         p::Setting::Worker(number) => {
             w::Setting::Worker(w::SettingNumber::new(limits, w::SettingNumberParts { number })?)
         }
+        p::Setting::Provider(number) => {
+            w::Setting::Provider(w::SettingNumber::new(limits, w::SettingNumberParts { number })?)
+        }
         p::Setting::Rules => w::Setting::Rules,
         p::Setting::Application { kind, scope, number } => w::Setting::Application(w::ApplicationSetting::new(
             limits,
@@ -466,6 +469,7 @@ fn encode_setting_fault(value: p::SettingFault) -> w::SettingFault {
         p::SettingFault::Owner => w::SettingFault::Owner,
         p::SettingFault::Judged => w::SettingFault::Judged,
         p::SettingFault::Linked => w::SettingFault::Linked,
+        p::SettingFault::Accounts => w::SettingFault::Accounts,
         p::SettingFault::Range => w::SettingFault::Range,
     }
 }

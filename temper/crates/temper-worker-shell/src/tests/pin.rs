@@ -94,6 +94,9 @@ fn the_checked_agent_and_source_environment_need_no_second_configuration_read() 
     bytes["environment"] = serde_json::json!([{"name":"PINNED_ENV","value":"at-start"}]);
     bytes["programs"] =
         serde_json::json!({"claude_code":{"path":"/missing/claude","directory":directory.join("missing/programs")}});
+    for endpoint in bytes["endpoints"].as_array_mut().expect("fixture endpoints") {
+        endpoint.as_object_mut().expect("fixture endpoint").remove("program");
+    }
     bytes["endpoints"][0]["program"] = "claude_code".into();
     let bytes = serde_json::to_vec(&bytes).expect("pin fixture");
     fs::write(directory.join("agent.json"), &bytes).expect("pin fixture");

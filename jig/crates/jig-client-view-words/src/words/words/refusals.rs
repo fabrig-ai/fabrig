@@ -150,6 +150,7 @@ impl Words {
                         return;
                     }
                     SettingFault::Linked => JigPhrase::SettingFaultLinked,
+                    SettingFault::Accounts => JigPhrase::SettingFaultAccounts,
                     SettingFault::Shape => JigPhrase::SettingFaultShape,
                     SettingFault::Count => JigPhrase::SettingFaultCount,
                     SettingFault::Reference => JigPhrase::SettingFaultReference,
@@ -272,7 +273,9 @@ impl Words {
             }
             Setting::Policy(n) => (n.number, JigPhrase::SettingRangePolicyStock, JigPhrase::SettingRangePolicyPast),
             Setting::Model(n) => (n.number, JigPhrase::SettingRangeModelStock, JigPhrase::SettingRangeModelPast),
-            Setting::Worker(n) => (n.number, JigPhrase::SettingRangeStock, JigPhrase::SettingRangePast),
+            Setting::Worker(n) | Setting::Provider(n) => {
+                (n.number, JigPhrase::SettingRangeStock, JigPhrase::SettingRangePast)
+            }
             Setting::Application { number, .. } => (number, JigPhrase::SettingRangeStock, JigPhrase::SettingRangePast),
             Setting::ProjectPolicy { project } => (project, JigPhrase::SettingRangeStock, JigPhrase::SettingRangePast),
             Setting::Rules => (0, JigPhrase::SettingRangeStock, JigPhrase::SettingRangePast),
@@ -314,6 +317,11 @@ impl Words {
             Setting::Worker(n) => {
                 let number = skein_lib::Decimal::of(u64::from(n.number));
                 let text = skein_lib::bytes::concat(&[b"Worker ", number.as_bytes()]);
+                b.text(skein_ui::Run::Plain, &text);
+            }
+            Setting::Provider(n) => {
+                let number = skein_lib::Decimal::of(u64::from(n.number));
+                let text = skein_lib::bytes::concat(&[b"Provider ", number.as_bytes()]);
                 b.text(skein_ui::Run::Plain, &text);
             }
             Setting::Rules => self.text(b, JigPhrase::SettingRules, &[]),

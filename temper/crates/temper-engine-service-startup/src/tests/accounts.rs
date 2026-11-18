@@ -12,16 +12,26 @@ fn replaced(input: &[u8], from: &[u8], to: &[u8]) -> Box<[u8]> {
 
 #[test]
 fn configured_accounts_are_refused_at_their_path() {
-    let document = replaced(&fixtures::document(), br#""llm": {"#, br#""llm": {"accounts": [],"#);
+    let document = fixtures::document();
+    let engine = replaced(&fixtures::value(&document, b"engine"), b"{", br#"{"llm":{"accounts":[]},"#);
+    let document = fixtures::with(&document, b"engine", &engine);
     let found =
         crate::named(&fixtures::engine_part(&document), &jig_protocol_config::Directories::working()).unwrap_err();
-    assert_eq!(&*crate::startup::lines(&found), b"engine.llm.accounts: unknown member\n");
+    assert_eq!(
+        &*crate::startup::lines(&found),
+        b"engine.llm: moved: LLM providers are settings; see them with temper ctl settings show provider\n"
+    );
 }
 
 #[test]
 fn an_endpoint_account_is_refused_at_its_path() {
-    let document = replaced(&fixtures::document(), br#""dialect": 3,"#, br#""dialect": 3,"account": 1,"#);
+    let document = fixtures::document();
+    let engine = replaced(&fixtures::value(&document, b"engine"), b"{", br#"{"llm":{"endpoints":[{"account":1}]},"#);
+    let document = fixtures::with(&document, b"engine", &engine);
     let found =
         crate::named(&fixtures::engine_part(&document), &jig_protocol_config::Directories::working()).unwrap_err();
-    assert_eq!(&*crate::startup::lines(&found), b"engine.llm.endpoints[0].account: unknown member\n");
+    assert_eq!(
+        &*crate::startup::lines(&found),
+        b"engine.llm: moved: LLM providers are settings; see them with temper ctl settings show provider\n"
+    );
 }

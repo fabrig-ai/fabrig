@@ -1,4 +1,5 @@
 //! Retained landing verdicts (temper/docs/design/domain/after-landing.md, 5.3, 6 and 10).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
 use crate::{Domain, Verification};
 use crate::{Key, Request, Stored, TierVerdict, TierVerification};
 use alloc::boxed::Box;
@@ -87,7 +88,7 @@ pub(crate) fn landed(d: &mut Domain, commit: Commit, task: u64, out: &mut Queue<
         }
         for tier in &entry.tiers {
             let branch = match &tier.follows {
-                crate::Follows::Landing => &adopted.settings.default_branch,
+                crate::Follows::Landing => &adopted.landing,
                 crate::Follows::Branch(branch) => branch,
                 crate::Follows::Goals => continue,
             };

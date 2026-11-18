@@ -32,6 +32,7 @@ pub enum JigPhrase {
     SettingFaultGrace,
     SettingFaultOwner,
     SettingFaultLinked,
+    SettingFaultAccounts,
     SettingRangeStock,
     SettingRangePast,
     SettingRangeCharterStock,
@@ -1117,16 +1118,17 @@ impl JigPhrase {
             Self::SettingFaultGrace => 7915,
             Self::SettingFaultOwner => 7916,
             Self::SettingFaultLinked => 7930,
-            Self::SettingRangeStock => 7932,
-            Self::SettingRangePast => 7933,
-            Self::SettingRangeCharterStock => 7934,
-            Self::SettingRangeCharterPast => 7935,
-            Self::SettingRangeTemplateStock => 7936,
-            Self::SettingRangeTemplatePast => 7937,
-            Self::SettingRangePolicyStock => 7938,
-            Self::SettingRangePolicyPast => 7939,
-            Self::SettingRangeModelStock => 7940,
-            Self::SettingRangeModelPast => 7941,
+            Self::SettingFaultAccounts => 7932,
+            Self::SettingRangeStock => 7933,
+            Self::SettingRangePast => 7934,
+            Self::SettingRangeCharterStock => 7935,
+            Self::SettingRangeCharterPast => 7936,
+            Self::SettingRangeTemplateStock => 7937,
+            Self::SettingRangeTemplatePast => 7938,
+            Self::SettingRangePolicyStock => 7939,
+            Self::SettingRangePolicyPast => 7940,
+            Self::SettingRangeModelStock => 7941,
+            Self::SettingRangeModelPast => 7942,
 
             Self::ActRename => 7837,
             Self::ActRemoveProject => 7839,
@@ -1807,6 +1809,7 @@ impl JigPhrase {
             | Self::SettingFaultBudget
             | Self::SettingFaultGrace
             | Self::SettingFaultOwner
+            | Self::SettingFaultAccounts
             | Self::SettingFaultLinked
             | Self::SettingFaultJudged
             | Self::DependencyParked
@@ -2470,7 +2473,7 @@ impl JigPhrase {
     }
 }
 /// Every jig phrase; loading checks this whole contract.
-pub const ALL: [JigPhrase; 665] = [
+pub const ALL: [JigPhrase; 666] = [
     JigPhrase::TooLinked,
     JigPhrase::SettingsChanged,
     JigPhrase::SettingProjectPolicy,
@@ -2497,6 +2500,7 @@ pub const ALL: [JigPhrase; 665] = [
     JigPhrase::SettingFaultGrace,
     JigPhrase::SettingFaultOwner,
     JigPhrase::SettingFaultLinked,
+    JigPhrase::SettingFaultAccounts,
     JigPhrase::SettingRangeStock,
     JigPhrase::SettingRangePast,
     JigPhrase::SettingRangeCharterStock,

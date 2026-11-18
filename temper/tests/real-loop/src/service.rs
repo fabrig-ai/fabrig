@@ -136,7 +136,7 @@ impl ServiceHost {
         let address = forge
             .as_ref()
             .map_or(([127, 0, 0, 1], 0).into(), |listener| listener.local_addr().expect("held forge address"));
-        fixtures::write(&path, address, address).expect("stand-in standalone documents");
+        fixtures::write_configured(&path, address, address, configure).expect("stand-in standalone documents");
         if direct_key {
             fixtures::key_documents(&path).expect("standard key route");
         }
@@ -147,17 +147,12 @@ impl ServiceHost {
             crate::github::write(&path, address, clients.expect("fixed clients"), fixture).expect("GitHub documents");
         }
         if fixture.is_none() && github.is_none() {
-            let mut value = serde_json::from_slice(&std::fs::read(path.join("temper.json")).expect("deployment"))
-                .expect("deployment JSON");
-            if let Some(configure) = configure {
-                let mut agent = serde_json::from_slice(&std::fs::read(path.join("world-agent.json")).expect("agent"))
-                    .expect("agent JSON");
-                configure(&mut value, &mut agent);
-                fixtures::turn_bounds::apply(&mut value, fixtures::turn_bounds::turn_body(&agent));
-                fixtures::private(&path.join("world-agent.json"), &serde_json::to_vec(&agent).expect("agent JSON"))
-                    .expect("agent configuration");
-                temper_agent_fixtures::apply(&mut value, &path, &agent);
-            }
+            let mut value: serde_json::Value =
+                serde_json::from_slice(&std::fs::read(path.join("temper.json")).expect("deployment"))
+                    .expect("deployment JSON");
+            value["world_settings"] =
+                serde_json::from_slice(&std::fs::read(path.join("world-settings.json")).expect("world settings"))
+                    .expect("world settings JSON");
             fixtures::finish_configuration(&path, &mut value).expect("world defaults separated from startup");
         }
         if let Some(shape) = &cluster {
@@ -194,8 +189,8 @@ impl ServiceHost {
         };
         let restartable = cluster.is_some();
         let queued = if restartable { operations } else { 1 };
-        let records_seeded = matches!(cluster, Some(crate::cluster::Shape::Worker { .. }))
-            || cluster.is_none() && fixture.is_none() && github.is_none();
+        let records_seeded =
+            matches!(cluster, Some(crate::cluster::Shape::Worker { .. })) || fixture.is_none() && github.is_none();
         Self {
             pending_streak: crate::patience::PendingStreak::default(),
             restartable,
@@ -454,14 +449,6 @@ impl ServiceHost {
             self.service = None;
             if self.fixture.is_some() || self.github.is_some() {
                 fixtures::seed(&self.path, self.forge_address.expect("forge peer address"), self.github);
-            }
-            if matches!(self.cluster, Some(crate::cluster::Shape::Engine { .. })) {
-                let mut agent: serde_json::Value = serde_json::from_slice(
-                    &std::fs::read(self.path.join("world-agent.json")).expect("world agent fixture"),
-                )
-                .expect("agent JSON");
-                agent["profile"]["policy"]["unacknowledged"] = 1.into();
-                crate::cluster::seed_agents(&self.path, &agent);
             }
             self.records_seeded = true;
         }

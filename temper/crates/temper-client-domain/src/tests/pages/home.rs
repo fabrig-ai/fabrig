@@ -616,8 +616,19 @@ fn home_reads_its_projects_needs_and_releases_them() {
             last = last.max(handle.number);
         }
         let keeps_chats = place == Place::Address(Address::Settings { project: f::PROJECT });
+        let missing = place == Place::Missing;
         let out = event(&mut f.root, Event::Went { place });
-        assert!(f.root.pages().inbox().is_none());
+        if missing {
+            assert_eq!(f.root.pages().address(), &Address::AllHome);
+            assert_eq!(f.root.pages().inbox().unwrap().filter, crate::address::Filter::ALL);
+            let mut replaced = false;
+            for request in &out {
+                replaced |= *request == Request::Show { address: Address::Home { project: f::PROJECT }, replace: true };
+            }
+            assert!(replaced);
+        } else {
+            assert!(f.root.pages().inbox().is_none());
+        }
         assert_eq!(f.root.pages().chats().is_some(), keeps_chats);
         for handle in &handles {
             assert!(f.root.client().document(*handle).is_none(), "released {handle:?}");

@@ -27,11 +27,11 @@ The pages a person meets it on are `../../client/pages/settings.md`, 2.
 
 - **What stays** is `engine.md`'s other members and jig's other parts:
   the directories, the listeners, the workers and their secrets' files,
-  the limits, the first owners and the sign-in providers, `machine`,
-  `clients`, `sign_in`, `webhooks` and `demo`, and, for now, the LLM
-  providers and their endpoints (`engine.llm`), which are configuration of
-  the work too, and leave the document by a design of their own, later. Of their
-  members `temper-box init` gives each `keep` and `drop` (jig's
+  the limits, the first owners and the sign-in providers, `clients`,
+  `sign_in` and `webhooks`. The LLM providers and their endpoints
+  (`engine.llm`) are jig's `provider` kind, and the playground's
+  scripted provider the box's constant (`providers.md`). Of the stock's
+  providers each has its `keep` and `drop` (jig's
   `protocol/configuration.md`, section 3): OpenAI's keep `gpt-*` and drop `*audio*`,
   `*image*`, `*realtime*`, `*search*`, `*transcribe*`, `*tts*` and the dated
   `*-20??-??-??`; Anthropic's keep `claude-*` and drop the dated `*-20??????`. The

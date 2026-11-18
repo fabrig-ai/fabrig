@@ -186,6 +186,9 @@ fn settings_answers_and_each_fault_keep_their_facts() {
                     p::Setting::Worker(number) => w::Setting::Worker(
                         w::SettingNumber::new(&limits, w::SettingNumberParts { number }).expect("number")
                     ),
+                    p::Setting::Provider(number) => w::Setting::Provider(
+                        w::SettingNumber::new(&limits, w::SettingNumberParts { number }).expect("number")
+                    ),
                     p::Setting::Rules => w::Setting::Rules,
                     p::Setting::Application { kind, scope, number } => w::Setting::Application(
                         w::ApplicationSetting::new(&limits, w::ApplicationSettingParts { kind, scope, number })

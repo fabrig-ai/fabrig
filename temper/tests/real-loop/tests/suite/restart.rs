@@ -54,7 +54,7 @@ fn a_restarted_service_keeps_the_chat_with_its_reply() {
     assert!(!asked, "the restarted service asked the model again");
     let inventory: serde_json::Value =
         serde_json::from_slice(&second.calls()[SETTINGS].stdout).expect("settings inventory");
-    assert_eq!(inventory["newest"], 2, "the ctl change survives restart");
+    assert_eq!(inventory["newest"], 3, "rebinding the provider's dial releases new defaults after the ctl change");
     let charter: serde_json::Value = serde_json::from_slice(&second.calls()[CHARTER].stdout).expect("charter setting");
     assert_eq!(charter["value"]["waiting"], 2_000_000, "the saved value overrides the world's 1 ms default");
 }

@@ -38,7 +38,8 @@ are `../../../client/forge/records.md`'s:
 - `branch`, the source branch, in that repository; `at`, the commit the
   person means, as 40 or 64 lowercase hexadecimal digits, none for its
   head when the change takes it;
-- `into`, the landing branch, none for the repository's default branch;
+- `into`, the landing branch, none for the repository's landing branch
+  (`../adoption.md`, 8);
 - `title`; `body`, none or more words;
 - `budget`: an amount, or as allowed.
 
@@ -51,7 +52,8 @@ The root resolves it before anything is made. Each refusal is
   of them, refused naming each by owner and name (`several`); with none
   at all, refused (`no_repository`, a case the draft leaves unsaid); a
   named one not among them, refused (`not_a_repository`).
-- **The landing branch:** `into`, or the repository's default branch. A
+- **The landing branch:** `into`, or the repository's landing branch,
+  the one its adoption names (`../adoption.md`, 8). A
   branch under the repository's prefix, temper's own (`../branches.md`),
   is refused naming the repository and the prefix (`under_prefix`): a
   goal's branch as the target is section 8's. A branch the repository

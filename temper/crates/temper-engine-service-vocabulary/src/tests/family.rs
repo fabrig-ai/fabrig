@@ -482,6 +482,7 @@ fn a_core_refusal_uses_jigs_refusal_record() {
 }
 fn adopted(protection: forge::Protection) -> forge::ApplicationOutcome {
     forge::ApplicationOutcome::Adopted(forge::AdoptedRepository {
+        landing: b"staging".as_slice().into(),
         repository: skein_forge::api::Repository { forge: 1, repository: 42 },
         owner: b"acme".as_slice().into(),
         name: b"shop".as_slice().into(),
@@ -507,12 +508,27 @@ fn an_adopted_repository_keeps_its_facts_in_the_answer() {
     let a = record.into_parts();
     assert_eq!((a.forge, a.repository, a.home, a.role), (1, 42, true, w::Role::Fork));
     assert_eq!((a.owner.as_ref(), a.name.as_ref()), (b"acme".as_slice(), b"shop".as_slice()));
+    assert_eq!(a.landing.as_ref(), b"staging");
     let k = a.kinds;
     assert_eq!(
         [k.read(), k.push(), k.open(), k.land(), k.review(), k.status(), k.comment(), k.issue(), k.branch()],
         [true, false, true, false, true, false, true, false, true]
     );
     assert_eq!(a.protection, w::Protection::Absent);
+}
+#[test]
+fn an_adopted_landing_past_the_client_bound_is_empty_not_cut() {
+    for length in [1024, 1025] {
+        let forge::ApplicationOutcome::Adopted(mut outcome) = adopted(forge::Protection::Absent) else {
+            panic!("adopted")
+        };
+        outcome.landing = [b'a'; 1025].get(..length).expect("test length").into();
+        let w::Outcome::Adopted(record) = encoded(Some(forge::ApplicationOutcome::Adopted(outcome))) else {
+            panic!("adopted answer")
+        };
+        let expected = if length == 1024 { [b'a'; 1024].as_slice() } else { &[] };
+        assert_eq!(record.landing(), expected, "landing length {length}");
+    }
 }
 #[test]
 fn an_adopted_repository_keeps_its_protection_rule() {

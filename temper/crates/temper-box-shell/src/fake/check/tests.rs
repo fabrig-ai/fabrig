@@ -229,6 +229,7 @@ const REPO: Repository = Repository { forge: 1, repository: 2 };
 fn repository() -> d::Stored {
     d::Stored::Repository(d::Repository {
         contexts: Box::new([]),
+        landing: b"main".as_slice().into(),
         workflows: Box::default(),
         project: 1,
         home: true,
@@ -330,7 +331,12 @@ fn unreadable_store(path: &Path, errno: u8) -> Outcome {
 fn agent_metadata_fixture(root: &Path) -> temper_service::settings::Agent {
     let (agent, _) = crate::tests::configuration::documents(root, "/fixture/temper");
     fs::write(root.join("root.der"), skein_tls_kit::pki::ROOT).expect("fixture trust");
-    crate::agent::prepare_bytes(agent.into_boxed_slice()).expect("agent metadata").agent
+    let mut agent: serde_json::Value = serde_json::from_slice(&agent).expect("agent JSON");
+    for endpoint in agent["endpoints"].as_array_mut().expect("fixture endpoints") {
+        endpoint.as_object_mut().expect("fixture endpoint").remove("program");
+    }
+    let bytes = serde_json::to_vec(&agent).expect("agent JSON").into_boxed_slice();
+    crate::agent::prepare_bytes(bytes).expect("agent metadata").agent
 }
 #[test]
 fn verb() {
@@ -415,9 +421,14 @@ fn verb() {
             Copy::Absent => {}
             Copy::File => fs::write(&check.store, b"not a store").expect("non-store"),
         }
+        let entries_before = fs::read_dir(data).expect("fixture entries").count();
         assert_eq!(outcome(&directories, &check), expected, "{name}");
         assert_eq!(fs::read(data.join("agents.setting")).expect("copy remains"), copy_before, "{name}: read-only copy");
-        assert_eq!(fs::read_dir(data).expect("data entries").count(), 1, "{name}: creates no data resources");
+        assert_eq!(
+            fs::read_dir(data).expect("data entries").count(),
+            entries_before,
+            "{name}: creates no data resources"
+        );
         assert!(!directory.join("cache").exists(), "{name}: creates no cache directory");
     }
     fs::remove_dir_all(root).expect("scratch removed");

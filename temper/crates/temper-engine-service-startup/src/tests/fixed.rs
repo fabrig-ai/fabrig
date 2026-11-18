@@ -17,6 +17,7 @@ fn engine(value: &Value, directories: &config::Directories) -> Result<config::En
 fn moved_engine_members_print_their_destinations() {
     let document: Value = serde_json::from_slice(&stock::generated()).unwrap();
     for (member, words) in [
+        ("llm", "moved: LLM providers are settings; see them with temper ctl settings show provider"),
         ("deployment", "moved: temper keeps the store in the data directory's state"),
         ("providers", "moved: temper fixes its identity providers: 1 link, 2 deployment, 3 Google's"),
         ("connectors", "moved: temper fixes its connector, the forge's, 1"),

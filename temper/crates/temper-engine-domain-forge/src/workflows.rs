@@ -1,5 +1,6 @@
 //! CI workflow names at the landing branch's tip
 //! (temper/docs/design/domain/forge/adoption.md, 7).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
 use alloc::boxed::Box;
 use skein_forge::api;
 use skein_lib::{Env, List, Map, Queue, Set, Token};
@@ -82,7 +83,7 @@ pub(crate) fn read(
     });
     let read = match tip {
         Some(head) => api::Read::File { head, path: path.clone(), max_bytes: env.limits.client.answer_bytes },
-        None => api::Read::Branch { branch: row.settings.default_branch.clone() },
+        None => api::Read::Branch { branch: row.landing.clone() },
     };
     d.sequence = sequence;
     let owner = Token::new(sequence | (1_u64 << 60_u32));
@@ -226,7 +227,7 @@ pub(crate) fn first_tip(
     out: &mut Queue<Request>,
 ) {
     if let Some(row) = d.repositories.get(&repository)
-        && row.settings.default_branch.as_ref() == branch
+        && row.landing.as_ref() == branch
     {
         read(d, env, repository, Some(tip), out);
     }
@@ -243,7 +244,7 @@ pub(crate) fn landed(
     out: &mut Queue<Request>,
 ) {
     let Some(row) = d.repositories.get(&repository) else { return };
-    if row.settings.default_branch.as_ref() != branch {
+    if row.landing.as_ref() != branch {
         return;
     }
     let mut changed = d.workflows.marked.contains(&repository);

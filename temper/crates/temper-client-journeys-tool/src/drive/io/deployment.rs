@@ -62,15 +62,12 @@ pub(in crate::drive) fn prepare_with(plan: &Plan, random: Option<[u8; 32]>) -> R
         let source = plan.options.deployment.as_ref().expect("deployment directory");
         for entry in fs::read_dir(source).map_err(|why| format!("{}: {why}", source.display()))? {
             let entry = entry.map_err(|why| format!("{}: {why}", source.display()))?;
-            if !["engine.json", "worker.json", "forgejo.json", "model.json"]
-                .iter()
-                .any(|name| entry.file_name() == *name)
-            {
+            if !deployment::inputs().iter().any(|(name, _)| entry.file_name() == *name) {
                 return Err(format!("{}: unexpected deployment document", entry.path().display()));
             }
         }
         let mut input = vec![];
-        for name in ["engine.json", "worker.json", "forgejo.json", "model.json"] {
+        for (name, _) in deployment::inputs() {
             input.push((name, read(&source.join(name), deployment::DOCUMENT_BYTES)?));
         }
         let documents = deployment::documents(
@@ -132,6 +129,8 @@ pub(in crate::drive) fn prepare_with(plan: &Plan, random: Option<[u8; 32]>) -> R
     std::os::unix::fs::symlink(plan.options.bin.join("temper-box"), &git)
         .map_err(|why| format!("{}: {why}", git.display()))?;
 
+    let providers = read(&beneath(scratch, Path::new("config/providers.json"))?, deployment::DOCUMENT_BYTES)?;
+    replace(&scratch.join("data/engine/providers.setting"), &providers)?;
     let forge = read(&beneath(scratch, Path::new("config/forgejo.json"))?, deployment::DOCUMENT_BYTES)?;
     let model = read(&beneath(scratch, Path::new("config/model.json"))?, deployment::DOCUMENT_BYTES)?;
     if !plan.options.scripts.is_empty() {

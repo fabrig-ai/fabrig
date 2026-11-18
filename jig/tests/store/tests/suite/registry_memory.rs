@@ -9,9 +9,9 @@ use skein_heap::Meter;
 // Empty: peak 1,232,458, registry and read workspace retained 8,751 bytes.
 const EMPTY_PEAK: u64 = 1_600_000;
 const EMPTY_REGISTRY: u64 = 9_900;
-// Seeded at current core/tasks and the other families' last kept texts: peak 5,594,881, retained share 1,894,877 bytes.
-// Log-held conversion plans retain their fitted workspace and value buffer.
-const SEEDED_PEAK: u64 = 7_000_000;
+// Seeded at current core/tasks and the other families' last kept texts: peak 78,319,885 bytes.
+// ReadWork::fit reserves conversion buffers at the fixture's derived settings_value during open.
+const SEEDED_PEAK: u64 = 98_000_000;
 const SEEDED_REGISTRY: u64 = 2_400_000;
 
 const SETS: OwnerSets =

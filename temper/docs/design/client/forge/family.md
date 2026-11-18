@@ -258,7 +258,7 @@ the person to check existence and grant the repository to the App.
 
 | Outcome | The form says |
 |---|---|
-| adopted | "Adopted OWNER/NAME on forge F as ROLE." then "It is the project's home." if so; "temper may: KINDS." in the forge's words; "temper's forge user can only read OWNER/NAME on forge F: work there fails until it has write." if it may not push and the role isn't context; on GitHub, "Commit statuses stay temper's own: GitHub's rules cannot require them."; "temper's forge user may not read the branch protection: the forge shows it to repository administrators only." if unknown; "It merges by STYLE."; then each rule as `repositories.md`, 1 words it, on Forgejo its branch protection alone |
+| adopted | "Adopted OWNER/NAME on forge F as ROLE." then "It lands into BRANCH.", BRANCH the landing branch its record keeps (`../../domain/forge/adoption.md`, 8), where the outcome names one; "It is the project's home." if so; "temper may: KINDS." in the forge's words; "temper's forge user can only read OWNER/NAME on forge F: work there fails until it has write." if it may not push and the role isn't context; on GitHub, "Commit statuses stay temper's own: GitHub's rules cannot require them."; "temper's forge user may not read the branch protection: the forge shows it to repository administrators only." if unknown; "It merges by STYLE."; then each rule as `repositories.md`, 1 words it, on Forgejo its branch protection alone |
 | refused by the core | jig's words for its refusal |
 | no such forge | "No forge F is configured." |
 | not connected | "Forge F is not connected.", linked to the forges' page (`../pages/README.md`) |

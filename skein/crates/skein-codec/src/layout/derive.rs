@@ -5,20 +5,23 @@ use crate::schema::{
     DeclIx, FieldIx, Held, MAX_DECLARATIONS, Named, Root, Schema, Shape, Span, Type, TypeIx, VariantIx,
 };
 use alloc::boxed::Box;
-use skein_lib::List;
+use skein_lib::{List, Map};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg(test)]
+mod tests;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum At {
     Decl(DeclIx),
     Type(TypeIx),
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct Location {
     text: u32,
     at: At,
     variant: Option<VariantIx>,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct Key {
     old: Location,
     new: Location,
@@ -50,9 +53,12 @@ pub(super) enum Policy {
 struct Builder {
     plan: Plan,
     policy: Policy,
+    // Worklists assign first-discovery indices; the maps only find them again.
     keys: List<Key>,
+    key_indices: Map<Key, u32>,
     places: List<Place>,
     read_keys: List<Location>,
+    read_indices: Map<Location, u32>,
     read_places: List<Place>,
     pairs: List<Pair>,
 }
@@ -124,6 +130,29 @@ fn matched_part(old: &Schema, shape: Shape, new: &Schema, current: Target) -> Op
 }
 
 impl Builder {
+    fn new(head: Option<u16>, old_head: bool, tag: Option<u8>, policy: Policy) -> Self {
+        Self {
+            plan: Plan {
+                nodes: List::uncapped(),
+                reads: List::uncapped(),
+                dropped: List::with_capacity(MAX_DECLARATIONS),
+                root: 0,
+                depth: 0,
+                fields: 0,
+                head,
+                old_head,
+                tag,
+            },
+            policy,
+            keys: List::uncapped(),
+            key_indices: Map::uncapped(),
+            places: List::uncapped(),
+            read_keys: List::uncapped(),
+            read_indices: Map::uncapped(),
+            read_places: List::uncapped(),
+            pairs: List::uncapped(),
+        }
+    }
     fn pair(&mut self, olds: &[&Schema], news: &[&Schema], a: u32, b: u32) -> u32 {
         for at in 0..self.pairs.len() {
             let pair = self.pairs.get(at).expect("pair index");
@@ -142,26 +171,24 @@ impl Builder {
         at
     }
     fn request_read(&mut self, key: Location, place: Place) -> u32 {
-        for at in 0..self.read_keys.len() {
-            if self.read_keys.get(at) == Some(&key) {
-                return at;
-            }
+        if let Some(at) = self.read_indices.get(&key) {
+            return *at;
         }
         let at = self.read_keys.len();
         self.read_keys.push(key).expect("read nodes bounded by reached texts");
+        self.read_indices.insert(key, at).expect("one index per reader");
         self.read_places.push(place).expect("one place per reader");
         self.plan.reads.push(Read { kind: ReadKind::Pending, minimum: 0, depth: 0 }).expect("one reader per key");
         at
     }
     fn request(&mut self, key: Key, place: Place) -> u32 {
-        for at in 0..self.keys.len() {
-            if self.keys.get(at) == Some(&key) {
-                return at;
-            }
+        if let Some(at) = self.key_indices.get(&key) {
+            return *at;
         }
         let at = self.keys.len();
         let read = self.request_read(key.old, place);
         self.keys.push(key).expect("conversion nodes bounded by reached texts");
+        self.key_indices.insert(key, at).expect("one index per conversion");
         self.places.push(place).expect("one place per conversion");
         self.plan
             .nodes
@@ -701,25 +728,7 @@ pub(super) fn plan(
         Shape::Record { versioned: true, .. } => Some(new.version()),
         Shape::Record { versioned: false, .. } | Shape::Enum { .. } => None,
     };
-    let mut builder = Builder {
-        plan: Plan {
-            nodes: List::uncapped(),
-            reads: List::uncapped(),
-            dropped: List::with_capacity(MAX_DECLARATIONS),
-            root: 0,
-            depth: 0,
-            fields: 0,
-            head,
-            old_head: headed,
-            tag: root_tag(old, old_root),
-        },
-        policy,
-        keys: List::uncapped(),
-        places: List::uncapped(),
-        read_keys: List::uncapped(),
-        read_places: List::uncapped(),
-        pairs: List::uncapped(),
-    };
+    let mut builder = Builder::new(head, headed, root_tag(old, old_root), policy);
     let pair = builder.pair(olds.as_slice(), news.as_slice(), 0, 0);
     if builder.pairs.get(pair).expect("root pair").matching.get(new_root.decl.index()).copied().flatten()
         != Some(old_root.decl)

@@ -505,6 +505,15 @@ impl Domain {
         result
     }
     #[must_use]
+    pub fn holds_provider(&self, provider: u32) -> bool {
+        for (_, account) in &self.accounts {
+            if account.provider == provider {
+                return true;
+            }
+        }
+        false
+    }
+    #[must_use]
     pub fn accounts(&self) -> u32 {
         self.accounts.len()
     }

@@ -47,6 +47,7 @@ pub fn adoption() -> client::forge::Adoption {
 }
 pub fn adopted(protection: client::forge::Protection) -> client::forge::Adopted {
     client::forge::Adopted {
+        landing: b"main".as_slice().into(),
         forge: 1,
         repository: 7,
         owner: Box::from(*b"acme"),

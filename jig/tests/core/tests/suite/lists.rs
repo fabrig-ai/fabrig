@@ -420,3 +420,39 @@ fn an_answer_for_a_removed_account_changes_nothing() {
     assert_eq!(world.store.rows, before);
     assert_eq!(world.domain.settings().newest(), 1);
 }
+
+#[test]
+fn a_pending_provider_model_is_not_offered_and_running_lists_still_read() {
+    let (mut world, signed) = setup();
+    world.answer_list(listed(&[b"scripted"]));
+    let provider = jig_test_profile::fixtures::provider_setting(4, b"local", 5);
+    let mut model = entry(&world, 1);
+    model.number = 2;
+    model.model.name = b"local-model".as_slice().into();
+    model.model.provider = 4;
+    model.model.endpoint = 5;
+    let against = world.domain.settings().newest();
+    changed(
+        &change(
+            &mut world,
+            signed,
+            70,
+            against,
+            Box::new([
+                s::Item {
+                    setting: s::Setting::Provider(4),
+                    edit: s::Edit::Set(s::Value::Provider(Box::new(provider.clone()))),
+                },
+                s::Item { setting: s::Setting::Model(2), edit: s::Edit::Set(s::Value::Model(Box::new(model))) },
+            ]),
+        ),
+        against + 1,
+    );
+    let offer = frame(&mut world, signed);
+    assert!(offer.projects.as_slice().iter().all(|project| project.offer.as_slice().iter().all(|row| row.model != 1)));
+    read(&mut world, &[b"scripted", b"new-model"]);
+    assert_eq!(entry(&world, NEW).model.name.as_ref(), b"new-model");
+    assert_eq!(world.domain.settings().value(s::Setting::Provider(4)).unwrap().as_provider(), Some(&provider));
+    let offer = frame(&mut world, signed);
+    assert!(offer.projects.as_slice().iter().all(|project| project.offer.as_slice().iter().all(|row| row.model != 1)));
+}
