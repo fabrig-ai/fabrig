@@ -31,5 +31,9 @@ pub mod every;
 #[path = "every/v2.rs"]
 pub mod every_v2;
 
+#[rustfmt::skip]
+#[path = "every/v3.rs"]
+pub mod every_v3;
+
 #[path = "../patches/mod.rs"]
 pub mod patches;

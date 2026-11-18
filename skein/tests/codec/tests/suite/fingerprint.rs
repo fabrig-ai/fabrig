@@ -144,12 +144,17 @@ mod tests {
 
     #[test]
     fn every_fixture_family_digest_is_golden() {
-        let schema = parse(include_str!("../../schema/every-v1.schema").as_bytes()).expect("every schema");
-        let mut hex = String::new();
-        for byte in schema.fingerprints().family().digest() {
-            write!(hex, "{byte:02x}").expect("string write");
+        for (version, text, digest) in [
+            (1, include_str!("../../schema/every-v1.schema"), "8b13d594a02c726d494e5811152222d9f3d294c9f396773f71b517f000e786fb"),
+            (3, include_str!("../../schema/every-v3.schema"), "73a07d871952655755d3037ba0736f4689ccacb64d262aea7032c9218526aeef"),
+        ] {
+            let schema = parse(text.as_bytes()).expect("every schema");
+            let mut hex = String::new();
+            for byte in schema.fingerprints().family().digest() {
+                write!(hex, "{byte:02x}").expect("string write");
+            }
+            assert_eq!(hex, digest, "every-v{version}");
         }
-        assert_eq!(hex, "8b13d594a02c726d494e5811152222d9f3d294c9f396773f71b517f000e786fb");
     }
 
     #[test]

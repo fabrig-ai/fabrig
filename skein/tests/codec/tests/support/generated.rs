@@ -18,7 +18,7 @@ pub struct Root {
 
 #[derive(Debug)]
 pub enum Decoded {
-    Value { debug: String, bytes: Vec<u8> },
+    Value { debug: String, bytes: Vec<u8>, measured: u32 },
     Problem { path: String, reason: skein_codec::Reason },
 }
 
@@ -33,7 +33,7 @@ macro_rules! roots {
                         let debug = format!("{value:?}");
                         let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length"));
                         value.encode(&mut writer).expect("measured room");
-                        Decoded::Value { debug, bytes: writer.finish().into_vec() }
+                        Decoded::Value { debug, bytes: writer.finish().into_vec(), measured: value.measure() }
                     }
                     Err(problem) => Decoded::Problem {
                         path: format!("{:?}", problem.path), reason: problem.reason,
@@ -44,7 +44,8 @@ macro_rules! roots {
     };
 }
 
-pub fn families() -> [Family; 5] {
+#[expect(clippy::disallowed_macros, reason = "decoder oracles embed their fixture texts")]
+pub fn families() -> [Family; 7] {
     [
         Family {
             name: "sample",
@@ -71,6 +72,17 @@ pub fn families() -> [Family; 5] {
             name: "every",
             text: include_str!("../../schema/every-v1.schema"),
             roots: roots!(every; Blank, Numbers, Strings, Light, Stamp, Shape, Nest, Every),
+        },
+        Family {
+            name: "every",
+            text: include_str!("../../schema/every-v2.schema"),
+            roots: roots!(every_v2; Blank, Numbers, Texts, Light, Stamp, Shape, Nest, Every),
+        },
+        Family {
+            name: "every",
+            text: include_str!("../../schema/every-v3.schema"),
+            roots: roots!(every_v3; Blank, Numbers, Texts, Light, Stamp, Shape, Nest, Every,
+                Kinds, Lists, Options, Grouped, Held, LongRecord),
         },
     ]
 }
