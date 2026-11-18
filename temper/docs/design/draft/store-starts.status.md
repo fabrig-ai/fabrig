@@ -1,0 +1,13 @@
+# store-starts: status
+
+2026-11-18. Where the design lags or departs from [store-starts.md](store-starts.md).
+
+Section 2 is designed. A zero-budget task outliving its ledger is jig's `domain/authority.md`, section 7, *A zero-budget task may outlive its ledger*, and `protocol/store/README.md`, 10.1. The typed decider is jig's `domain/tasks/proposals.md`, *An escalation's decider has its kind*, and `client/domain/contract/documents.md`, 1, with the client wire's version moved by jig's `protocol/client/README.md`, 6's rule. The repair of stored rejections is jig's `protocol/store/jobs.md`, 1, `escalation-deciders`. The check before a swap is `../protocol/binaries.md`, section 2, and `redeploys.md`, 5.1.
+
+- **Design lags:** none.
+- **Design departs:**
+  - 2, *The store's version moves, and its patch repairs what is already stored*: no version moves and no patch is written. The tasks family's rejection gains its decider's kind as a field with a default, a person's, which the open's plan derives, and jig's job `escalation-deciders` types each live task's rejection by this draft's rule, once per store (jig's `protocol/store/jobs.md`, 1). Because a registered family's layout changes by defaults, former names and jobs, without a version move or patch (jig's `protocol/store/layouts.md`, 1; `AGENTS.md`, section 2), and a job runs once per store, so patching twice changes nothing (the designer, 2026-11-18).
+  - 2, *each existing rejection is typed*: the job types the rejections live tasks hold; an ended task's record keeps one it held as a person's. Because no start links an ended task's escalation and no read shows it, and the ancestor that decided it may have ended since, so the draft's rule could not tell it (the designer, 2026-11-18).
+  - 2, *Revise `holds.md`*: the typed decider is designed in jig's `domain/tasks/proposals.md`, which designs escalations, and `holds.md` is unchanged. Because `holds.md` designs resource holds alone, and one concept is kept in one document (`DESIGN.md`, section 5; the designer, 2026-11-18).
+  - 2, *An escalation's rejecter is typed*: jig's tasks domain names it `EscalationDecider`, a task or a person, rather than its `Party`. Because a deployment never decides an escalation, so the store's kind holds every decider whole; a decided proposal keeps `Party` as before (the designer, 2026-11-18).
+- **Open:** none.

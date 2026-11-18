@@ -1,6 +1,6 @@
 # redeploys: status
 
-2026-11-16. Where the design lags or departs from [redeploys.md](redeploys.md).
+2026-11-18. Where the design lags or departs from [redeploys.md](redeploys.md).
 
 Sections 3.1, 3.2, 3.3's interim and 3.4 are designed (`../protocol/wires.md`; jig's `protocol/channel/wires.md`; skein's `data/codec/command.md`, 2, the wire rule).
 
@@ -21,7 +21,7 @@ the engine's temper. The clients' wires keep no kept text and no bridge;
 temper's side of section 8 is `../protocol/wires.md`, section 9.
 The rest remains below.
 
-Section 5 is designed (milestone R5). 5.1 in `../protocol/wires.md`, 10: the engine keeps each worker's last opening since its start (jig's `protocol/store/records.md`, 3, *The workers' openings*), and `upgrade --check` judges each configured worker by it, with the function the opening judges by (jig's `protocol/channel/wires.md`, 3), and the engine's own wires, `temper-host-tools`, by the stored wires. 5.2 in `../domain/root.md`, 8.2 and jig's `domain/engine/restart.md`, 1, *Settling before the stop*: no run or job placed and no procedure stepped while the engine settles. 5.3 in `../protocol/configuration/README.md` (the workers' grace) and jig's `domain/engine/fleet.md` (the engine's grace above the stop bound). 5.4 is the workers' admission of preparations, section 6.4's.
+Section 5 is designed (milestone R5). 5.1's restores, through the start's fit and link checks and naming the first record a start would refuse, are `../protocol/binaries.md`, section 2's and jig's `protocol/store/opening.md`, 5's. 5.1 in `../protocol/wires.md`, 10: the engine keeps each worker's last opening since its start (jig's `protocol/store/records.md`, 3, *The workers' openings*), and `upgrade --check` judges each configured worker by it, with the function the opening judges by (jig's `protocol/channel/wires.md`, 3), and the engine's own wires, `temper-host-tools`, by the stored wires. 5.2 in `../domain/root.md`, 8.2 and jig's `domain/engine/restart.md`, 1, *Settling before the stop*: no run or job placed and no procedure stepped while the engine settles. 5.3 in `../protocol/configuration/README.md` (the workers' grace) and jig's `domain/engine/fleet.md` (the engine's grace above the stop bound). 5.4 is the workers' admission of preparations, section 6.4's.
 
 Section 9 is designed and built: jig's `domain/tasks/lifecycle.md`, 6 gives infrastructure failures a class and a bound of their own.
 

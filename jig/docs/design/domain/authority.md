@@ -439,6 +439,17 @@ would. Project 0 names no project and has no policy (people/README.md, section
   goes back to that period, so a reset frees nothing reserved. A
   recurring task's budget is carved again each period (tasks/README.md,
   section 5).
+- **A zero-budget task may outlive its ledger.** A pool's, a recurring
+  task's or a period's ledger closes once nothing is reserved on it and
+  its project has a newer period (`../protocol/store/README.md`, 10.1).
+  A task whose budget is 0 reserves nothing, so the ledger funding it
+  may close while it lives; it alone can, since any budget keeps its
+  ledger's reservation above 0. Its priced work is charged to its
+  project's current period. A restart accepts it, and its end releases
+  nothing and posts nothing to the closed ledger: what it and the tasks
+  it funded spent, if anything, is added to its project's current
+  period's "spent by ended tasks", the newest live period. No ledger is
+  kept open for it, and it is never moved to another funder.
 - **A change of spend per period resizes what it opened,** in the
   decision that commits it: the project's spend its open period, and a
   role's (`RoleSpend`, its spend alone, or a whole role's edit that
