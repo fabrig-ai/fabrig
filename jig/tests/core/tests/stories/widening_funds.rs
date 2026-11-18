@@ -107,6 +107,26 @@ fn an_owners_widening_refunds_the_old_pool_and_commits_the_new_funder_alone_or_c
 }
 
 #[test]
+fn an_owners_budgeted_widening_opens_their_pool_and_refunds_the_old_funder() {
+    let (mut world, task) = spent_task(675);
+    owner(&mut world, false);
+    assert!(!world.store.rows.contains_key(&root::Key::Core(core::Key::Tasks(tasks::Key::Ledger(GIVER)))));
+    let before = ledger(&world, ORIGINAL);
+    assert_eq!((live_row(&world, task).funder, live_row(&world, task).numbers.budget), (ORIGINAL, 100));
+    let mut change = edit(150);
+    change.authority.as_mut().expect("authority").tools = 1;
+    amend(&mut world, task, 12, change, false);
+    let row = live_row(&world, task);
+    assert_eq!(row.authority.tools, tasks::Tools(1));
+    assert_eq!((row.funder, row.numbers.budget, row.numbers.spent, row.numbers.spent_below), (GIVER, 120, 0, 0));
+    assert_eq!(row.authority.budget.spend, 120);
+    assert_eq!((ledger(&world, GIVER).budget, ledger(&world, GIVER).reserved), (500, 120));
+    assert_eq!(ledger(&world, ORIGINAL).reserved, before.reserved.checked_sub(100).expect("task reservation"));
+    assert_eq!(ledger(&world, ORIGINAL).spent_below, before.spent_below.checked_add(30).expect("task spend"));
+    world.close();
+}
+
+#[test]
 fn an_owners_budget_and_deadline_narrowing_keep_the_original_pool() {
     let (mut world, task) = spent_task(672);
     owner(&mut world, false);
