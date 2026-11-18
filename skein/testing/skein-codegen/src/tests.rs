@@ -2,7 +2,25 @@
 
 use core::fmt::Write;
 
-use crate::{generate, parse};
+use crate::{Golden, Output, Schema, goldens, parse};
+
+fn generate(schema: &Schema) -> Output {
+    let output = crate::generate(schema);
+    assert_eq!(goldens(schema), output.goldens, "fixed values match over the generator's regression schemas");
+    output
+}
+
+#[test]
+fn fixed_rule_values_keep_names_order_and_bytes() {
+    let schema = parse("family f 1 record Note { title: text 8 }").expect("valid note");
+    assert_eq!(
+        goldens(&schema),
+        [
+            Golden { name: "record_note_smallest.bin".into(), bytes: vec![0, 0, 0, 0] },
+            Golden { name: "record_note_full.bin".into(), bytes: vec![0, 0, 0, 3, b'a', b'b', b'c'] },
+        ]
+    );
+}
 
 #[test]
 fn path_names_keep_schema_spelling_and_variant_order() {
@@ -228,7 +246,7 @@ fn a_boxed_scalar_record_imports_its_box() {
     assert!(output.rust.contains("Value(Box<Value>)"));
 }
 
-fn small_bound_family() -> crate::Output {
+fn small_bound_family() -> Output {
     let schema = parse("family tiny 1\nrecord Value { payload: bytes 64 flags: list 2 u8 maybe: option bytes 10 }")
         .expect("valid small family");
     generate(&schema)

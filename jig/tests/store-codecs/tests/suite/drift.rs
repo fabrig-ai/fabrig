@@ -1,4 +1,4 @@
-//! The committed codecs and golden bytes against their schemas (skein's data/codec/README.md, 6).
+//! The store records' drift and pinned constructs (skein's data/codec/README.md, 6).
 use std::{fmt::Write as _, fs, path::PathBuf};
 #[path = "../../../codec-families.rs"]
 mod families;
@@ -8,7 +8,7 @@ fn store() -> PathBuf {
 }
 
 #[test]
-fn codec_families_match_their_schemas_and_goldens() {
+fn codec_families_match_their_schemas_and_are_pinned() {
     families::check();
 }
 

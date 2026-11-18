@@ -42,20 +42,12 @@ fn group_counts_agree_on_homes_and_needs_intro() {
         "CI?\nFindings: 2/3 2/4 2/5\nChoice: A",
         "Flakes?\nFindings: 2/6 2/7 2/9 2/12\nChoice: A",
     ];
-    for (questions, cut, sentence, head, needs_head, counts) in [
-        (
-            groups.to_vec(),
-            false,
-            "11 findings need you.",
-            "Needs you · 11",
-            "Needs you · 4",
-            ["2 high", "4 medium", "5 low"],
-        ),
+    for (questions, cut, sentence, head, counts) in [
+        (groups.to_vec(), false, "11 findings need you.", "Needs you · 11", ["2 high", "4 medium", "5 low"]),
         (
             [groups.as_slice(), &["Plain?\nChoice: A"]].concat(),
             false,
             "Five things need you.",
-            "Needs you · 5",
             "Needs you · 5",
             ["2 high", "4 medium", "5 low"],
         ),
@@ -64,17 +56,9 @@ fn group_counts_agree_on_homes_and_needs_intro() {
             false,
             "Four findings need you.",
             "Needs you · 4",
-            "Needs you · 3",
             ["1 high", "2 medium", "1 low"],
         ),
-        (
-            groups.to_vec(),
-            true,
-            "4+ things need you.",
-            "Needs you · 4+",
-            "Needs you · 4+",
-            ["2 high", "4 medium", "5 low"],
-        ),
+        (groups.to_vec(), true, "4+ things need you.", "Needs you · 4+", ["2 high", "4 medium", "5 low"]),
     ] {
         for (address, is_needs) in [
             (Address::Home { project: f::groups::PROJECT }, false),
@@ -95,7 +79,7 @@ fn group_counts_agree_on_homes_and_needs_intro() {
                 let text = f::main_text(view.tree());
                 contains(&text, sentence);
                 if is_needs {
-                    main_find(view.tree(), Role::Heading { level: 2 }, needs_head.as_bytes());
+                    main_find(view.tree(), Role::Heading { level: 2 }, head.as_bytes());
                 } else {
                     main_find(view.tree(), Role::Heading { level: 2 }, head.as_bytes());
                     let sevs = styled(view.tree(), crate::look::HOME_SEVS);
@@ -103,6 +87,41 @@ fn group_counts_agree_on_homes_and_needs_intro() {
                     for count in counts {
                         contains(&sevs, count);
                     }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn every_open_row_counts_even_when_only_eight_cards_are_read() {
+    let questions = [f::groups::QUESTION; 29];
+    let findings = f::groups::bugs();
+    for cut in [false, true] {
+        for address in [
+            Address::Home { project: f::groups::PROJECT },
+            Address::AllHome,
+            Address::Inbox { filter: d::address::Filter::ALL },
+        ] {
+            let root = f::groups::at(&questions, &findings, &[], cut, address);
+            let inbox = root.pages().inbox().unwrap();
+            assert_eq!(inbox.rows.len(), 29);
+            assert_eq!(inbox.cards.len(), 8);
+            for card in &inbox.cards {
+                assert!(card.page.is_some());
+            }
+            for browser in [false, true] {
+                let view = group_view(&root, browser);
+                let text = f::main_text(view.tree());
+                if root.pages().address() == &(Address::Inbox { filter: d::address::Filter::ALL }) && !browser {
+                    contains(&text, if cut { "29+" } else { "29" });
+                } else {
+                    contains(&text, if cut { "29+ things need you." } else { "29 things need you." });
+                    main_find(
+                        view.tree(),
+                        Role::Heading { level: 2 },
+                        if cut { "Needs you · 29+" } else { "Needs you · 29" }.as_bytes(),
+                    );
                 }
             }
         }

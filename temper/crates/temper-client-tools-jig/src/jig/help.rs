@@ -148,6 +148,7 @@ fn argument_record(argument: &Argument, limits: &Limits, out: &mut Writer) -> Re
 pub fn argument_type(kind: Kind, out: &mut Writer) -> Result<(), Overflow> {
     out.put(match kind {
         Kind::Number | Kind::NumberRange { .. } => b"a number",
+        Kind::Amount => b"an amount with at most two decimals, as 130 or 1.25",
         Kind::Count | Kind::Places => b"a count",
         Kind::NamedNumber { words, prefixes, .. } => return choices(words, prefixes, out),
         Kind::Word { set } => return choices(set, &[], out),
