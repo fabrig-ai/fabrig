@@ -742,9 +742,14 @@ impl Joint {
             if let Some(sign_in) = self.transport.sign_in(who) {
                 self.component.sign_out(who, sign_in);
                 self.pump_component();
+                self.drain();
             }
             self.detach(who);
         }
+        let mut transport = Transport::new(self.transport.served());
+        transport.models.clone_from(&self.transport.models);
+        transport.providers.clone_from(&self.transport.providers);
+        self.transport = transport;
         self.component = crate::component::Composition::with_printed_link(
             config,
             limits.client.domain,
@@ -1727,6 +1732,7 @@ impl Joint {
         self.next_limits = Some(limits);
     }
     fn hello(&mut self, who: ClientId) {
+        self.component.open_stream(who);
         self.callbacks.push((
             who,
             translate::callback(jig_client_test_domain::Event::Client {
@@ -2619,6 +2625,10 @@ impl Front<Temper> for Joint {
         // A story can establish the person's membership before opening its Home.
         if self.transport.clients().contains(&who) {
             assert_eq!(self.transport.party(who), party, "the fixture-bound person");
+            if self.transport.sign_in(who).is_some() && self.component.refresh(who) {
+                self.transport.detach(who);
+                self.callbacks.retain(|(client, _)| *client != who);
+            }
             return;
         }
         assert_eq!(party, self.caller, "the configured caller");

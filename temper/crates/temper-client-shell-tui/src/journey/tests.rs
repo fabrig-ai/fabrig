@@ -543,7 +543,7 @@ fn duties_keep_the_seams_order_and_fields() {
             },
             Request::Save { records: saved },
             Request::Erase { records: erased },
-            Request::OpenStream { credential: None },
+            Request::OpenStream { credential: None, version: jig_client_protocol_wire::VERSION },
             Request::CloseStream,
         ],
         keep: Some(Some(credential())),

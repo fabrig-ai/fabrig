@@ -84,36 +84,23 @@ pub fn reread_deployment(root: &mut d::Domain, me: skein_lib::Token, owned: bool
         root,
         d::Event::Client {
             event: jig_client::Event::Up {
-                up: jig_client::Up::WatchEnded { watch: me, end: jig_client::contract::WatchEnd::Busy },
+                up: jig_client::Up::WatchEnded { watch: me, end: jig_client::contract::WatchEnd::Dropped },
             },
         },
     );
     let mut out = skein_lib::Queue::uncapped();
-    let env = skein_lib::Env { now: d::next_deadline(root).unwrap(), wall: f::NOW, limits: f::domain_limits() };
-    d::fire(root, &env, &mut out);
-    let mut me = None;
-    while let Some(request) = out.pop() {
-        if let d::Request::Unlinked {
-            request:
-                jig_client::UnlinkedRequest::Down {
-                    down:
-                        jig_client::Down::Open {
-                            watch,
-                            subject: jig_client::Watchable::Jig(jig_client::contract::Subject::Me),
-                        },
-                },
-        } = request
-        {
-            me = Some(watch);
-        }
-    }
+    let env = skein_lib::Env {
+        now: skein_lib::Time::ZERO.saturating_add(f::domain_limits().client.domain.backoff.first),
+        wall: f::NOW,
+        limits: f::domain_limits(),
+    };
     d::step(
         root,
         &env,
         d::Event::Client {
             event: jig_client::Event::Up {
                 up: jig_client::Up::Watched {
-                    watch: me.expect("me reopens after a gap"),
+                    watch: me,
                     event: jig_client::contract::WatchEvent::Delivered(jig_client::contract::Delivery::Me(Box::new(
                         frame,
                     ))),

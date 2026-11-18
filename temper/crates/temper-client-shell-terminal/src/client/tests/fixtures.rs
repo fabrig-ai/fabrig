@@ -160,19 +160,8 @@ pub(super) fn started_kept() -> (NativeClient, skein_lib::Token) {
     host.event(domain::Event::Client {
         event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
     });
-    let mut frame = None;
-    while let Some(request) = host.out.pop() {
-        if let domain::Request::Unlinked {
-            request:
-                jig_client::UnlinkedRequest::Down {
-                    down: Down::Open { watch, subject: Watchable::Jig(jig_client::contract::Subject::Me) },
-                },
-        } = request
-        {
-            frame = Some(watch);
-        }
-    }
-    (host, frame.expect("frame watch"))
+    while host.out.pop().is_some() {}
+    (host, skein_lib::Token::new(0))
 }
 
 pub(super) fn recovered_link_chat() -> (NativeClient, skein_lib::Token) {
@@ -354,19 +343,20 @@ pub(super) fn committed_chat() -> NativeClient {
             .expect("served jig");
     let mut versions = List::with_capacity(1);
     versions.push(served).expect("one owner");
-    let hello = w::StreamEvent::Hello(
+    let hello = jig_client_test_records::opened(
         w::Hello::new(
             &w::CEILINGS,
             w::HelloParts { stream: [7; 16], served: versions, heartbeat: host.env.limits.client.domain.heartbeat },
         )
         .expect("stream hello"),
+        jig_client_test_records::frame_record(),
     );
     host.transport(jig_client::Event::Streamed { message: jig_client::Streamed::Record(stream_event(&hello)) });
     let mut work = Queue::with_capacity(host.out.capacity());
     let mut task_watch = None;
     while let Some(request) = host.out.pop() {
         if let domain::Request::Client {
-            request: Request::Exchange { message: jig_client::Message::Watch(bytes), .. },
+            request: Request::Exchange { exchange, message: jig_client::Message::Watch(bytes), .. },
         } = &request
         {
             let open = w::Open::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("watch open");
@@ -378,8 +368,13 @@ pub(super) fn committed_chat() -> NativeClient {
                     task_watch = Some(open.watch());
                 }
             }
+            let answer = w::OpenAnswer::Admitted;
+            let mut body = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("answer length"));
+            answer.encode(&mut body).expect("opening answer");
+            host.transport(jig_client::Event::Reply { exchange: *exchange, message: body.finish() });
+        } else {
+            work.push(request);
         }
-        work.push(request);
     }
     host.out = work;
     let value = w::DeliveryValue::Task(Box::new(committed_task()));

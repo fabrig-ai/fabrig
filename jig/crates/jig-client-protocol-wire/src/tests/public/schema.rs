@@ -130,8 +130,8 @@ fn listing(schema: &Schema) -> String {
 }
 
 fn client_schema() -> Schema {
-    let mut source = fs::read_to_string(package().join("schema/client-v30.schema")).expect("client schema");
-    source.push_str(&fs::read_to_string(package().join("schema/client-v30-part1.schema")).expect("client schema part"));
+    let mut source = fs::read_to_string(package().join("schema/client-v31.schema")).expect("client schema");
+    source.push_str(&fs::read_to_string(package().join("schema/client-v31-part1.schema")).expect("client schema part"));
     parse(&source).expect("client schema valid")
 }
 

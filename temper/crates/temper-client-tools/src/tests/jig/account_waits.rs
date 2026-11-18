@@ -29,7 +29,7 @@ fn account_waits_recompute_the_same_projection_as_account_reads() {
         assert_eq!(changed.status, 0, "{changed:?}");
         let prefix = changed.stdout.strip_suffix(b",\"met\":true}").expect("wait envelope");
         assert_eq!(f::appended(prefix, b"}"), read.stdout, "read and wait expose identical facts/digest");
-        assert_eq!(root.watches.len(), 1, "both joined handles closed");
+        assert_eq!(root.watches.len(), 0, "both joined handles closed");
     }
 }
 #[test]
@@ -109,7 +109,7 @@ fn account_timeouts_release_both_watches_without_retaining_a_deadline() {
         let printed = root.answer(call).expect("timeout");
         assert_eq!(printed.status, 3);
         assert!(f::json_has(&printed, b"\"why\":\"timeout\",\"met\":false"));
-        assert_eq!(root.watches.len(), 1);
+        assert_eq!(root.watches.len(), 0);
         assert_eq!(crate::root::next_deadline(&root.root), None);
     }
 }
@@ -121,7 +121,7 @@ fn account_permission_loss_releases_both_joined_watches() {
     root.watch_event(&f::DEPLOYMENT_WATCH, c::WatchEvent::Opened);
     root.end(call, &f::DEPLOYMENT_WATCH, c::WatchEnd::NotAllowed);
     assert_eq!(root.answer(call).expect("deployment permission lost").status, 2);
-    assert_eq!(root.watches.len(), 1);
+    assert_eq!(root.watches.len(), 0);
 }
 #[test]
 fn account_waits_need_a_changed_digest_with_a_met_condition() {

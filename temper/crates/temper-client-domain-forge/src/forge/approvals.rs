@@ -130,7 +130,6 @@ pub fn configure(side: &mut Side, limits: Limits, out: &mut Queue<Request>) {
         return;
     }
     if side.link == Link::Live
-        && side.party.is_some()
         && !side.approvals_open
         && let State::Unknown = side.approvals.state
     {

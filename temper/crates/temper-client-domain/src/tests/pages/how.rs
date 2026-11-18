@@ -87,6 +87,7 @@ fn me(asking: bool, tracked: bool, several: bool) -> c::Me {
     }
     me
 }
+#[expect(clippy::too_many_lines, reason = "one How work runs fixture stages the page and its setting answers together")]
 fn fixture(
     asking: bool,
     tracked: bool,
@@ -119,7 +120,11 @@ fn fixture(
         let mut writer = Writer::new(usize::try_from(record.measure()).unwrap());
         record.encode(&mut writer).unwrap();
         let bytes = wire::setting_answer(
-            &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(writer.finish()) }).unwrap(),
+            &w::SettingAnswer::new(
+                &w::CEILINGS,
+                w::SettingAnswerParts { revision: None, value: Some(writer.finish()) },
+            )
+            .unwrap(),
         );
         up(
             &mut root,
@@ -144,8 +149,9 @@ fn fixture(
             }
             None => None,
         };
-        let answer =
-            wire::setting_answer(&w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value }).unwrap());
+        let answer = wire::setting_answer(
+            &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { revision: None, value }).unwrap(),
+        );
         up(
             &mut root,
             Up::ReadDone {

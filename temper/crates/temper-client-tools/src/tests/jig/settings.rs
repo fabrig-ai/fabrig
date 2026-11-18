@@ -1005,7 +1005,7 @@ fn settings_reads_request_the_exact_contract_and_do_not_watch_settings() {
     ] {
         let (root, call) = fixtures::read_call(&argv);
         assert_eq!(root.reads.get(&call).expect("one read").1, expected);
-        assert_eq!(root.watches.len(), 1, "only shared me watch");
+        assert_eq!(root.watches.len(), 0, "no application watch remains");
     }
 }
 
@@ -1027,7 +1027,7 @@ fn an_unqualified_setting_reads_the_inventoried_revision_before_its_value() {
         );
         root.serve(call, c::ReadResult::None(c::ReadNone::Unknown));
         assert_eq!(root.answer(call).expect("value refusal").status, 2);
-        assert_eq!(root.watches.len(), 1, "only the shared me watch");
+        assert_eq!(root.watches.len(), 0, "no application watch remains");
     }
 }
 
@@ -1526,7 +1526,7 @@ fn proposal_reads_use_one_exact_read_and_keep_not_served_and_role_statuses() {
         root.reads.get(&call).expect("exact read").1,
         c::Read::Proposal { proposal: c::ProposalKey { proposer: c::Proposer::Party(73), number: 7 } }
     );
-    assert_eq!(root.watches.len(), 1);
+    assert_eq!(root.watches.len(), 0);
     for (page, status) in [
         (jig_client::Readout::NotServed { family: None, served: None }, 1),
         (jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)), 2),
@@ -2197,7 +2197,7 @@ fn forge_setting_page(value: Option<Box<[u8]>>) -> jig_client::Readout {
     jig_client::Readout::Family {
         family: wire::FORGE,
         record: Some(wire::setting_answer(
-            &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value }).unwrap(),
+            &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { revision: None, value }).unwrap(),
         )),
     }
 }
@@ -2375,7 +2375,7 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
                 );
                 assert_eq!(text.contains("the stock"), stock, "{text}");
             }
-            assert_eq!(root.watches.len(), 1);
+            assert_eq!(root.watches.len(), 0);
             if historical {
                 continue;
             }

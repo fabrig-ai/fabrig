@@ -113,6 +113,7 @@ impl World {
                 | Request::FamilyDelivery { .. }
                 | Request::Ended { .. }
                 | Request::Hello { .. }
+                | Request::ReadAgain { .. }
                 | Request::Read { .. }
                 | Request::Fact { .. }) => panic!("unplanned neighbor request: {other:?}"),
             }

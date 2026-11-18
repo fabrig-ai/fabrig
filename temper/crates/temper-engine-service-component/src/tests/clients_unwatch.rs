@@ -99,6 +99,7 @@ impl Stand {
     }
     fn stream(&mut self) -> [u8; 16] {
         self.down(kit::Event::Transport(kit::FromTransport::StreamOpen {
+            version: None,
             stream: STREAM,
             credential: Some(self.credential.clone()),
         }));

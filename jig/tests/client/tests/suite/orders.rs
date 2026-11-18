@@ -49,8 +49,8 @@ fn page(handle: Handle, why: c::ReadNone) -> Edge {
 /// consequences settle before its new work and the already queued next entrance.
 #[test]
 fn link_consequences_settle_before_the_next_entrance_under_load() {
-    // The me opening and two task openings fill the three exchange places.
-    const EXCHANGES: u32 = 3;
+    // The first task opening and a read fill the two exchange places.
+    const EXCHANGES: u32 = 2;
     let mut limits = test::limits().client;
     limits.exchanges = EXCHANGES;
     let world = World::run(
@@ -61,9 +61,10 @@ fn link_consequences_settle_before_the_next_entrance_under_load() {
             ("read_a", read(A, PROJECT)),
             ("read_b", read(B, PROJECT)),
             ("credentials", Command::credentials()),
+            ("stale", Command::ReleaseReads),
             ("next", read(C, PROJECT)),
             ("next_done", Command::ReplyRead(PROJECT)),
-            ("stale", Command::ReleaseReads),
+            ("duplicate", Command::ReleaseReads),
         ],
     );
     assert_eq!(
@@ -82,6 +83,7 @@ fn link_consequences_settle_before_the_next_entrance_under_load() {
     assert_eq!(world.at("next"), &[Edge::Read(PROJECT)]);
     assert_eq!(world.at("next_done"), &[page(C, c::ReadNone::Unknown)]);
     assert_eq!(world.at("stale").len(), 0);
+    assert_eq!(world.at("duplicate").len(), 0);
 }
 
 /// `deferred_reads_dispatched`: current deferred demands retain FIFO precedence
@@ -93,7 +95,6 @@ fn deferred_reads_leave_in_order_under_load() {
     let world = World::run(
         Mode::Linked(limits),
         vec![
-            ("opening_done", Command::AdmitMe),
             ("occupied", read(OCCUPIED, BLOCKING_PROJECT)),
             ("obsolete", read(A, OBSOLETE_PROJECT)),
             ("a", read(A, PROJECT_A)),
@@ -205,7 +206,7 @@ fn child_records_precede_transport_within_a_step() {
         ],
     );
     assert_eq!(
-        world.at("me"),
+        world.at("hello"),
         vec![
             Edge::ChildSave(jig_client_test_domain::store::Record::First(
                 jig_client_test_domain::first::Record::Place {
@@ -220,6 +221,7 @@ fn child_records_precede_transport_within_a_step() {
             Edge::ChildErase(jig_client_test_domain::store::Key::Jig(jig_client_view::store::StoreKey::Draft {
                 task: world::MIDDLE_DRAFT
             })),
+            Edge::StreamSaved,
             Edge::ReadFamily(world::PAGE_A.item),
             Edge::WatchFamily(world::PAGE_A.item),
         ]

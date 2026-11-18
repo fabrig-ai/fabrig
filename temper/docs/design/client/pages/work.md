@@ -293,11 +293,20 @@
   tracked, by priority, parts: [GOAL_PART] }`, the label template `shapes::GOAL`'s, its live group
   watched and its ended group read by when each ended, as `Chats`, and read
   again only as its mark grows (`../forge/parts.md`, 6); `listed`
-  puts goals in the project's index. Each row's goal part carries its
+  puts goals in the project's index. The rail's facts that the project
+  has goals or milestones take this watch and read, and the milestones'
+  list's, while the page holds them, with no narrower twin beside them
+  (`milestone.md`, 1, *`Domain::has_goals`*). Each row's goal part carries its
   report's headline and when it was written (`goal.md`, 1, *A goal's
   report*; `../forge/parts.md`, 3), with no read per row. The needs are `inbox`'s
-  group for the project, read again as the watch or `me`'s `needs_total`
-  moves, each row's `selection` naming its goals.
+  group for the project, each row's `selection` naming its goals, read
+  once as the page opens and again only as their marks move: `me`'s
+  `needs_total` moving, or the inbox's mark, the rail's standing watch of
+  `inbox` (`needs-you.md`) delivering again, which the engine does only
+  once it has marked the party's inbox changed (jig's
+  `client/domain/contract/README.md`, 5.2). That watch's first delivery
+  is no move; each after it is, the first once it opens again after a
+  drop among them; and no delivery of the goals' is one.
 
   **A row** is one link to the goal's `Task`, public as `goals::row`, since
   Home's area will reuse it: its top line the chip's title (its spec's first

@@ -55,8 +55,10 @@ is still open is listed in `README.md`, section 12.
   engine coalesces its watches' changes meanwhile. Nothing is
   acknowledged by hand, and the engine keeps no backlog (section 5).
 - **The stream keeps the link.** It opens with a hello (the engine's
-  versions, its heartbeat), carries a heartbeat while nothing else is
-  sent, and its loss drops every watch on it, which the client reopens.
+  versions, its heartbeat, then `me`), carries a heartbeat while nothing
+  else is sent, and its loss drops every watch on it, which the client
+  reopens. Every stream watches `me` from its opening, so the client
+  opens no watch of it (`wire.md`, section 2).
 - **jig owns credentials; sign-in flows are the application's.** jig's
   built-ins are the printed link, on loopback, and services'
   credentials; every other way is the application's own flow on its own
@@ -323,7 +325,12 @@ recipient.
   reads that answer from any engine. *Version not served* is the first
   variant, tag 0, of each answer that carries it (a keyed request's, a
   read's, a watch's opening's, and a watch's end), and its bytes never
-  change: a later version adds its variants after it.
+  change: a later version adds its variants after it. So is the hello
+  alone, the stream's first variant, tag 0: the stream's name, the
+  ranges served and the heartbeat, encoded as version 27 encodes them,
+  which an engine sends a stream whose opening names no version it
+  serves, so that a client of any version reads the ranges and is
+  refused by name (`wire.md`, section 2).
 - **The engine serves a range** of each owner's versions, which its
   stream's hello states (`../../client/domain/contract/README.md`, section 6). To
   serve a version is to keep its generated codecs and their translations

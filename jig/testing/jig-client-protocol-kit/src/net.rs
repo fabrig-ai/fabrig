@@ -366,6 +366,7 @@ impl Net {
 }
 fn stream(socket: &Socket) -> bool {
     socket.shell.received.starts_with(b"GET /jig/v1/stream ")
+        || socket.shell.received.starts_with(b"GET /jig/v1/stream?version=")
 }
 fn body(http: &[u8]) -> Option<&[u8]> {
     let end = http.windows(4).position(|bytes| bytes == b"\r\n\r\n")?;

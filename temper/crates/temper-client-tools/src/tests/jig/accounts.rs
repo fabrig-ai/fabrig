@@ -52,7 +52,7 @@ fn account_reads_close_authorized_watches_after_the_first_projection() {
         let expected = if email { b"\"email\":\"alice@example.com\"".as_slice() } else { b"\"email\":null" };
         assert_eq!(f::occurrences(&printed.stdout, expected), if owner { 2 } else { 1 });
         assert!(f::json_has(&printed, b"\"display\":"));
-        assert_eq!(root.watches.len(), 1, "only shared me remains");
+        assert_eq!(root.watches.len(), 0, "no application watch remains");
         let common = f::json_without_digest(&printed.stdout);
         assert_eq!(f::last_digest(&printed.stdout).as_ref(), Digest::of(&common).hex());
     }
@@ -143,7 +143,7 @@ fn models_group_the_offer_in_provider_order_with_empty_providers_and_unknown_las
     for project in ["absent", "999"] {
         let call = root.submit(&["model", "list", "--project", project]);
         assert_eq!(root.answer(call).expect("membership error").status, 1);
-        assert_eq!(root.watches.len(), 1, "invalid projects open no watch");
+        assert_eq!(root.watches.len(), 0, "invalid projects open no watch");
     }
     for flags in [&["model", "list", "--project", "shop", "--json"][..], &["model", "list", "--json"]] {
         let call = root.submit(flags);

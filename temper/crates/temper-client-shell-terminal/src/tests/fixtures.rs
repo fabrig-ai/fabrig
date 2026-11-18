@@ -255,6 +255,19 @@ fn populate_page(
 ) {
     use contract::{Delivery, ReadResult, Subject, WatchEvent};
     use temper_client_domain::{Event, Request};
+    client::step(
+        root,
+        env,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: Token::new(0),
+                    event: WatchEvent::Delivered(Delivery::Me(Box::new(page_frame(address)))),
+                },
+            },
+        },
+        out,
+    );
     for _ in 0..128 {
         let Some(request) = out.pop() else {
             break;
@@ -268,7 +281,9 @@ fn populate_page(
             } => {
                 use temper_client_protocol_wire::{self as wire, v1 as w};
                 if let w::Read::Setting(_) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read() {
-                    let value = w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: None }).unwrap();
+                    let value =
+                        w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { revision: None, value: None })
+                            .unwrap();
                     client::step(
                         root,
                         env,
@@ -430,10 +445,10 @@ fn populate_page(
                         held: skein_lib::List::with_capacity(0),
                         pending: skein_lib::List::with_capacity(0),
                     }))),
-                    Subject::Me => Some(Delivery::Me(Box::new(page_frame(address)))),
                     Subject::Task { .. } => Some(Delivery::Task(Box::new(jig_client_kit::stories::task()))),
                     Subject::Deployment => Some(Delivery::Deployment(Box::new(workers_deployment()))),
-                    Subject::Terminal { .. }
+                    Subject::Me
+                    | Subject::Terminal { .. }
                     | Subject::Tree { .. }
                     | Subject::Chips { .. }
                     | Subject::Inbox { .. }

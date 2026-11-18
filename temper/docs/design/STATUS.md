@@ -733,7 +733,7 @@ Drafts:
 - [`draft/one-owner.md`](draft/one-owner.status.md)
 - [`draft/outbox-room-wait.md`](draft/outbox-room-wait.status.md)
 - [`draft/own-way.md`](draft/own-way.status.md)
-- [`draft/page-round-trips.md`](draft/page-round-trips.status.md)
+- [`draft/page-round-trips.md`](draft/page-round-trips.status.md) — R3, goal 6236: `me` with the stream, its hello holding the served ranges and then `me`, every stream watching it (jig's `protocol/client/wire.md`, 2); what names no party asked with the hello (`client/README.md`, 3.4); no narrower twin of a list's watch; the needs' selection read again only as `me`'s `needs_total` or the inbox moves (`client/pages/work.md`, 1); a setting's read answering with its revision (`protocol/configuration/settings.md`, 2).
 - [`draft/panics.md`](draft/panics.status.md)
 - [`draft/per-wake.md`](draft/per-wake.status.md)
 - [`draft/pre-pr-failure-list.md`](draft/pre-pr-failure-list.status.md)

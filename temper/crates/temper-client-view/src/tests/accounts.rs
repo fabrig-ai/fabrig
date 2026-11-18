@@ -34,6 +34,9 @@ fn trial_event(root: &mut d::Domain, event: d::Event) -> skein_lib::Queue<d::Req
 }
 
 fn opened(out: &skein_lib::Queue<d::Request>, subject: jig_client::Watchable) -> Token {
+    if subject == jig_client::Watchable::Jig(c::Subject::Me) {
+        return Token::new(0);
+    }
     out.iter()
         .find_map(|request| {
             if let d::Request::Unlinked {

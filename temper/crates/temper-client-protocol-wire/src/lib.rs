@@ -100,7 +100,7 @@ pub const fn owner(number: u16) -> Option<Owner> {
     }
 }
 /// Every record's version, served by both ends (client/forge/records.md).
-pub const CLIENT_VERSION: u32 = 34;
+pub const CLIENT_VERSION: u32 = 35;
 
 /// The deployment's maximum number of forges (client/forge/records.md).
 pub const FORGES: u32 = 16;

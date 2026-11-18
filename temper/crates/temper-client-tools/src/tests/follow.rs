@@ -182,7 +182,7 @@ fn read_as(panel: &w::FollowsPanel, show: bool, json: bool, me: c::Me) -> jig::P
             },
         },
     });
-    assert_eq!(root.watches.len(), 1, "one-shot read retires its watch");
+    assert_eq!(root.watches.len(), 0, "one-shot read retires its watch");
     root.answer(call).unwrap()
 }
 fn parity(verdict: w::FollowVerdict) -> w::FollowParity {

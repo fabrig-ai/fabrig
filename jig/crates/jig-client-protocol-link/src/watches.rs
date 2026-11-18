@@ -23,6 +23,14 @@ impl Watches {
     pub(crate) fn new(limits: &Limits) -> Self {
         Self(Map::with_capacity(limits.client().watches))
     }
+    pub(crate) fn opening(&self) -> bool {
+        for (_, opening) in &self.0 {
+            if opening.subject.is_none() && !opening.admitted {
+                return true;
+            }
+        }
+        false
+    }
     pub(crate) fn named(&self, name: u64) -> Option<Token> {
         for (token, opening) in &self.0 {
             if opening.name == name {

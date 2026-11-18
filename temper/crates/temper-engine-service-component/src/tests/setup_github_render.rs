@@ -43,6 +43,7 @@ fn render(words: &[&[u8]], json: bool, record: &Record) -> tools::jig::Printed {
         client::Event::StartUnlinked { kept: List::with_capacity(0) },
         client::Event::SignIn { with: client::With::Transport },
         client::Event::Up { up: client::Up::Served { served: true, versions: None } },
+        client::Event::Up { up: client::Up::Watched { watch: Token::new(0), event: c::WatchEvent::Delivered(me()) } },
     ] {
         cli::step(&mut root, &env, cli::Event::Client { event }, &mut out);
     }
@@ -52,12 +53,6 @@ fn render(words: &[&[u8]], json: bool, record: &Record) -> tools::jig::Printed {
         let Some(request) = out.pop() else { break };
         let event = match request {
             cli::Request::Printed { printed, .. } => return printed,
-            cli::Request::Unlinked {
-                request:
-                    client::UnlinkedRequest::Down {
-                        down: client::Down::Open { watch, subject: client::Watchable::Jig(c::Subject::Me) },
-                    },
-            } => Some(client::Event::Up { up: client::Up::Watched { watch, event: c::WatchEvent::Delivered(me()) } }),
             cli::Request::Unlinked {
                 request: client::UnlinkedRequest::Down { down: client::Down::Open { watch, .. } },
             } => {
