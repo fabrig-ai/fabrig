@@ -20,6 +20,15 @@ pub(in crate::tests) fn funded(budget: u64, delegates: bool) -> (Core, Limits) {
     (core, limits)
 }
 
+fn funded_with_minimum(budget: u64, minimum: u64) -> (Core, Limits) {
+    let (mut core, limits) = funded(budget, true);
+    let mut rules = core.authority.rules().clone();
+    rules.minimum_run_spend = minimum;
+    authority::step(&mut core.authority, authority::Event::Rules(Box::new(rules)), &mut Queue::uncapped());
+    assert_eq!(core.authority.rules().minimum_run_spend, minimum);
+    (core, limits)
+}
+
 pub(in crate::tests) fn claim(core: &mut Core, limits: &Limits) -> u64 {
     let context = core.tasks.run_context(TASK).expect("due task");
     let RunAdmission::Allow(allowance) = core.run_admission(&context, Wall::EPOCH, Box::new([])) else {
@@ -62,6 +71,28 @@ fn a_delegating_run_reserves_half_the_task_funds_up_to_the_cap() {
 }
 
 #[test]
+fn small_delegating_runs_reserve_the_whole_up_to_the_cap() {
+    for (budget, expected) in [(99, 99), (100, 100), (101, 100)] {
+        let (mut core, limits) = funded_with_minimum(budget, 50);
+        assert_eq!(claim(&mut core, &limits), expected);
+        let row = core.tasks.task(TASK).expect("claimed task");
+        assert_eq!(row.numbers.reserved, expected);
+        assert_eq!(row.run_reserved, expected);
+    }
+}
+
+#[test]
+fn a_delegating_run_whose_half_is_at_the_minimum_reserves_the_whole() {
+    for budget in [2, 3] {
+        let (mut core, limits) = funded(budget, true);
+        assert_eq!(claim(&mut core, &limits), budget);
+        let row = core.tasks.task(TASK).expect("claimed task");
+        assert_eq!(row.numbers.reserved, budget);
+        assert_eq!(row.run_reserved, budget);
+    }
+}
+
+#[test]
 fn a_run_that_cannot_delegate_keeps_its_full_task_funds() {
     let (mut core, limits) = funded(100, false);
     assert_eq!(claim(&mut core, &limits), 100);
@@ -69,10 +100,9 @@ fn a_run_that_cannot_delegate_keeps_its_full_task_funds() {
 }
 
 #[test]
-fn a_half_at_the_minimum_or_short_of_the_reserve_is_held_for_budget() {
-    // At the minimum, or above it but short of a three-completion reserve floor.
-    for (budget, reserve_turns) in [(2, 1), (3, 1), (4, 2)] {
-        let (mut core, limits) = funded(budget, true);
+fn a_whole_at_or_below_the_minimum_or_a_half_short_of_the_reserve_is_held_for_budget() {
+    for (budget, reserve_turns, minimum) in [(0, 1, 1), (1, 1, 1), (4, 2, 1), (50, 1, 50)] {
+        let (mut core, limits) = funded_with_minimum(budget, minimum);
         core.current.test_charter_mut(1).policy.reserve_turns = reserve_turns;
         assert_eq!(core.run_reserve(TASK), u64::from(reserve_turns) + 1);
         let context = core.tasks.run_context(TASK).expect("due task");
@@ -84,5 +114,6 @@ fn a_half_at_the_minimum_or_short_of_the_reserve_is_held_for_budget() {
             tasks::Phase::Held { was: tasks::Was::Active(tasks::Active::Due), why: tasks::Hold::Budget, source: None }
         );
         assert_eq!(row.numbers.reserved, 0);
+        assert_eq!(row.run_reserved, 0);
     }
 }
