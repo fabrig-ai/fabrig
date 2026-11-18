@@ -608,9 +608,10 @@ pub fn generate(schema: &Schema) -> Output;
   of the right case and no keyword, fields not named as the generated
   methods, declarations and their parts (fields, a version, a tail)
   numbered within a path's `u16`, and each generated name (types,
-  paths, limits) used once. A family written lean also names no type as
-  an item a lean module re-exports (`Path`, `Problem`, `Record`): that
-  check is the form's, since a sealed module re-exports none of them.
+  paths, limits) used once, no type named `Path` or `Problem`, which a
+  sealed module declares and a lean one re-exports. A family written
+  lean also names no type `Record`, which a lean module re-exports: that
+  check is the form's, since a sealed module declares no `Record`.
 - **Refusals as before.** A text with one fault is refused at the same
   line with the same message as before the parser moved; a text with
   several gives the first by pass: characters, then the grammar, then

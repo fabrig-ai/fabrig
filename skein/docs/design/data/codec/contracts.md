@@ -24,7 +24,8 @@ document goes with the goal's last change.
   // skein_codegen; Form derives Clone, Copy, Debug, equality
   pub enum Form { Sealed, Lean }
   // the form's own checks on a parsed schema (README.md, 7):
-  // Lean refuses a type named Path, Problem or Record; Sealed adds none
+  // Lean refuses a type named Path, Problem or Record (parse already
+  // refuses Path and Problem for both forms); Sealed adds none
   pub fn check_as(schema: &Schema, form: Form) -> Result<(), Error>;
   // generate_as expects check_as(schema, form) to have passed
   pub fn generate_as(schema: &Schema, form: Form) -> Output;
