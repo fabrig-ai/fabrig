@@ -41,6 +41,43 @@ fn host() -> Host {
     Host::new(&Settings { limits: limits::tui() }, 7, Time::ZERO, Wall::EPOCH)
 }
 
+#[test]
+fn a_fixed_tuis_first_request_key_is_not_the_browser_setups() {
+    let start = skein_shell::FixedStart::read(b"1767690000,7").expect("fixed start");
+    let (seed, _) = crate::start::fixed_run(&start);
+    assert_ne!(
+        first_request_key(seed),
+        first_request_key(start.seed),
+        "the TUI's first request must not reuse the browser setup's request key"
+    );
+}
+
+fn first_request_key(seed: u64) -> [u8; 16] {
+    let mut host = Host::new(&Settings { limits: limits::tui() }, seed, Time::ZERO, Wall::EPOCH);
+    start(&mut host, Some(Secret::new(Box::new([7; 40]))));
+    let hello = hello_for_me(&host, launchpad_me(false));
+    let duties =
+        host.report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(hello) }));
+    admit(&mut host, duties);
+    host.step(root::Event::Client {
+        event: jig_client::Event::Send {
+            key: jig_client::Key { asker: jig_client::Asker::JIG, number: 1 },
+            name: None,
+            request: jig_client::Ask::Jig(Box::new(jig_client::contract::Ask::Stop { project: 3, task: 9 })),
+        },
+    });
+    let duties = host.report(Report::Due);
+    let duties = stored(&mut host, duties);
+    duties
+        .asked
+        .iter()
+        .find_map(|request| {
+            let Request::Exchange { message: Message::Request(bytes), .. } = request else { return None };
+            Some(*w::Keyed::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("keyed request").key())
+        })
+        .expect("the saved first request is sent")
+}
+
 fn start(host: &mut Host, credential: Option<Secret>) -> Duties {
     start_look(host, credential, None, false)
 }
