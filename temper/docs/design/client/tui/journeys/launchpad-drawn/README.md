@@ -10,8 +10,8 @@ recommended and Semicolon. `/new` returns to the launchpad; `n` walks
 the question, and Enter takes Comma.
 
 - `01.html` and `01.txt`: the launchpad with `/change Add a CSV export
-  to the report` in the box, before Enter sends it. Start has `/change`
-  and `/ask`; this early frame has no needs line or `/draft` yet.
+  to the report` in the box, before Enter sends it. Start has `/draft`,
+  `/change` and `/ask`, with "Nothing needs you." above it.
 - `02.html` and `02.txt`: the chat's opening words, its reply and the
   goal's relayed question, the fake model's greeting and the goal's
   Running line; `/new` in the box, before Enter sends it.
