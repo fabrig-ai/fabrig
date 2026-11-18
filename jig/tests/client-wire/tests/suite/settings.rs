@@ -54,8 +54,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(w::LlmChoice::decode(&w::CEILINGS, &mut Reader::new(&out.finish())).unwrap(), choice);
     }
     {
-        let bytes =
-            super::client_values::value("record_setting_number_smallest.bin");
+        let bytes = super::client_values::value("record_setting_number_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::SettingNumber::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -64,8 +63,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("enum_setting_charter_smallest.bin");
+        let bytes = super::client_values::value("enum_setting_charter_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::Setting::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -74,8 +72,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("enum_setting_template_smallest.bin");
+        let bytes = super::client_values::value("enum_setting_template_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::Setting::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -84,8 +81,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("enum_setting_policy_smallest.bin");
+        let bytes = super::client_values::value("enum_setting_policy_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::Setting::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -94,8 +90,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("enum_setting_rules_smallest.bin");
+        let bytes = super::client_values::value("enum_setting_rules_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::Setting::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -104,8 +99,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("record_setting_model_smallest.bin");
+        let bytes = super::client_values::value("record_setting_model_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::SettingModel::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -123,8 +117,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("enum_setting_hosts_engine_smallest.bin");
+        let bytes = super::client_values::value("enum_setting_hosts_engine_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::SettingHosts::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -133,8 +126,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("enum_setting_hosts_both_smallest.bin");
+        let bytes = super::client_values::value("enum_setting_hosts_both_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::SettingHosts::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -143,8 +135,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("record_charter_document_full.bin");
+        let bytes = super::client_values::value("record_charter_document_full.bin");
         let mut input = Reader::new(bytes);
         let value = w::CharterDocument::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -168,8 +159,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(w::Charter::decode(&w::CEILINGS, &mut Reader::new(&out.finish())).unwrap(), value);
     }
     {
-        let bytes =
-            super::client_values::value("record_setting_policy_smallest.bin");
+        let bytes = super::client_values::value("record_setting_policy_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::SettingPolicy::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -205,8 +195,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("enum_setting_value_policy_smallest.bin");
+        let bytes = super::client_values::value("enum_setting_value_policy_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::SettingValue::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -215,8 +204,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("enum_setting_value_rules_smallest.bin");
+        let bytes = super::client_values::value("enum_setting_value_rules_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::SettingValue::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -225,8 +213,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("record_setting_set_smallest.bin");
+        let bytes = super::client_values::value("record_setting_set_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::SettingSet::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -235,8 +222,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("enum_setting_edit_set_smallest.bin");
+        let bytes = super::client_values::value("enum_setting_edit_set_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::SettingEdit::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -245,8 +231,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("enum_setting_edit_removed_smallest.bin");
+        let bytes = super::client_values::value("enum_setting_edit_removed_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::SettingEdit::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -255,8 +240,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("enum_setting_edit_reset_smallest.bin");
+        let bytes = super::client_values::value("enum_setting_edit_reset_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::SettingEdit::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -265,8 +249,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("record_setting_item_smallest.bin");
+        let bytes = super::client_values::value("record_setting_item_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::SettingItem::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -275,8 +258,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("enum_running_stays_smallest.bin");
+        let bytes = super::client_values::value("enum_running_stays_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::Running::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -285,8 +267,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("enum_running_moves_smallest.bin");
+        let bytes = super::client_values::value("enum_running_moves_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::Running::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -295,8 +276,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("record_change_settings_smallest.bin");
+        let bytes = super::client_values::value("record_change_settings_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::ChangeSettings::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -314,8 +294,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("record_refusal_stale_smallest.bin");
+        let bytes = super::client_values::value("record_refusal_stale_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::RefusalStale::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -324,8 +303,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("record_refusal_full_smallest.bin");
+        let bytes = super::client_values::value("record_refusal_full_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::RefusalFull::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -334,8 +312,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("enum_setting_fault_shape_smallest.bin");
+        let bytes = super::client_values::value("enum_setting_fault_shape_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::SettingFault::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -344,8 +321,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("enum_setting_fault_count_smallest.bin");
+        let bytes = super::client_values::value("enum_setting_fault_count_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::SettingFault::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -363,8 +339,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("enum_setting_fault_rules_smallest.bin");
+        let bytes = super::client_values::value("enum_setting_fault_rules_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::SettingFault::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -373,8 +348,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("enum_setting_fault_budget_smallest.bin");
+        let bytes = super::client_values::value("enum_setting_fault_budget_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::SettingFault::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -383,8 +357,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("enum_setting_fault_grace_smallest.bin");
+        let bytes = super::client_values::value("enum_setting_fault_grace_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::SettingFault::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -393,8 +366,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("enum_setting_fault_owner_smallest.bin");
+        let bytes = super::client_values::value("enum_setting_fault_owner_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::SettingFault::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -403,8 +375,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("record_malformed_settings_smallest.bin");
+        let bytes = super::client_values::value("record_malformed_settings_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::MalformedSettings::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -413,8 +384,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("record_read_setting_smallest.bin");
+        let bytes = super::client_values::value("record_read_setting_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::ReadSetting::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -423,8 +393,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("record_read_revision_smallest.bin");
+        let bytes = super::client_values::value("record_read_revision_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::ReadRevision::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -433,8 +402,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("record_read_revisions_smallest.bin");
+        let bytes = super::client_values::value("record_read_revisions_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::ReadRevisions::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -461,8 +429,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("record_setting_line_smallest.bin");
+        let bytes = super::client_values::value("record_setting_line_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::SettingLine::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -471,8 +438,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("record_revision_party_smallest.bin");
+        let bytes = super::client_values::value("record_revision_party_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::RevisionParty::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -508,8 +474,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("record_revision_head_smallest.bin");
+        let bytes = super::client_values::value("record_revision_head_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::RevisionHead::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -518,8 +483,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("record_held_revision_smallest.bin");
+        let bytes = super::client_values::value("record_held_revision_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::HeldRevision::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -528,8 +492,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("record_settings_proposal_smallest.bin");
+        let bytes = super::client_values::value("record_settings_proposal_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::SettingsProposal::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -538,8 +501,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("record_settings_document_smallest.bin");
+        let bytes = super::client_values::value("record_settings_document_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::SettingsDocument::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -548,8 +510,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("record_setting_document_smallest.bin");
+        let bytes = super::client_values::value("record_setting_document_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::SettingDocument::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -567,8 +528,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("enum_revision_edit_set_smallest.bin");
+        let bytes = super::client_values::value("enum_revision_edit_set_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::RevisionEdit::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -595,8 +555,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("enum_revision_edit_reset_smallest.bin");
+        let bytes = super::client_values::value("enum_revision_edit_reset_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::RevisionEdit::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -605,8 +564,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("record_revision_item_smallest.bin");
+        let bytes = super::client_values::value("record_revision_item_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::RevisionItem::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -615,8 +573,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("record_revision_document_smallest.bin");
+        let bytes = super::client_values::value("record_revision_document_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::RevisionDocument::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -625,8 +582,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("record_revision_forgotten_smallest.bin");
+        let bytes = super::client_values::value("record_revision_forgotten_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::RevisionForgotten::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -698,8 +654,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("record_revision_item_head_smallest.bin");
+        let bytes = super::client_values::value("record_revision_item_head_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::RevisionItemHead::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -708,8 +663,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("record_revision_row_smallest.bin");
+        let bytes = super::client_values::value("record_revision_row_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::RevisionRow::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -718,8 +672,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("record_revisions_page_smallest.bin");
+        let bytes = super::client_values::value("record_revisions_page_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::RevisionsPage::decode(&w::CEILINGS, &mut input).unwrap();
         assert!(input.is_empty());
@@ -845,8 +798,7 @@ fn restore_records_and_new_arms_round_trip_their_committed_bytes() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("record_outcome_restored_full.bin");
+        let bytes = super::client_values::value("record_outcome_restored_full.bin");
         let mut input = Reader::new(bytes);
         let value = w::OutcomeRestored::decode(&w::CEILINGS, &mut input).expect("committed record");
         assert!(input.is_empty());
@@ -855,8 +807,7 @@ fn restore_records_and_new_arms_round_trip_their_committed_bytes() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("enum_outcome_restored_smallest.bin");
+        let bytes = super::client_values::value("enum_outcome_restored_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::Outcome::decode(&w::CEILINGS, &mut input).expect("committed record");
         assert!(input.is_empty());
@@ -865,8 +816,7 @@ fn restore_records_and_new_arms_round_trip_their_committed_bytes() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("record_refusal_forgotten_smallest.bin");
+        let bytes = super::client_values::value("record_refusal_forgotten_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::RefusalForgotten::decode(&w::CEILINGS, &mut input).expect("committed record");
         assert!(input.is_empty());
@@ -875,8 +825,7 @@ fn restore_records_and_new_arms_round_trip_their_committed_bytes() {
         assert_eq!(out.finish().as_ref(), bytes);
     }
     {
-        let bytes =
-            super::client_values::value("enum_refusal_forgotten_smallest.bin");
+        let bytes = super::client_values::value("enum_refusal_forgotten_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::Refusal::decode(&w::CEILINGS, &mut input).expect("committed record");
         assert!(input.is_empty());

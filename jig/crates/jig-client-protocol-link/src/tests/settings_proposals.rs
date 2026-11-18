@@ -31,15 +31,13 @@ fn every_settings_proposal_record_translates_both_ways() {
         assert_eq!(e::wire_settings_review(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes =
-            client_values::value("record_proposal_action_settings_smallest.bin");
+        let bytes = client_values::value("record_proposal_action_settings_smallest.bin");
         let wire = w::ProposalActionSettings::decode(limits.wire(), &mut Reader::new(bytes)).expect("wire fixture");
         let client = t::restore_owner_proposal_action_settings(&wire, &limits).expect("client record");
         assert_eq!(e::wire_owner_proposal_action_settings(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes =
-            client_values::value("record_retained_action_settings_smallest.bin");
+        let bytes = client_values::value("record_retained_action_settings_smallest.bin");
         let wire = w::RetainedActionSettings::decode(limits.wire(), &mut Reader::new(bytes)).expect("wire fixture");
         let client = t::restore_owner_retained_action_settings(&wire, &limits).expect("client record");
         assert_eq!(e::wire_owner_retained_action_settings(&client, limits.wire()), Ok(wire));
@@ -57,8 +55,7 @@ fn every_settings_proposal_record_translates_both_ways() {
         assert_eq!(e::wire_setting_origin(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes =
-            client_values::value("enum_setting_origin_not_offered_smallest.bin");
+        let bytes = client_values::value("enum_setting_origin_not_offered_smallest.bin");
         let wire = w::SettingOrigin::decode(limits.wire(), &mut Reader::new(bytes)).expect("wire fixture");
         let client = t::restore_setting_origin(&wire).expect("client record");
         assert_eq!(e::wire_setting_origin(&client, limits.wire()), Ok(wire));

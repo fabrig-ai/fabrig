@@ -9,7 +9,6 @@ fn check(bytes: &[u8]) {
         assert_eq!(writer.finish().as_ref(), bytes);
     }
 }
-#[expect(clippy::disallowed_macros, reason = "fuzzy seeds embed the cursor family's schema text")]
 fn goldens() -> Vec<Vec<u8>> {
     let text = include_str!("../../../../../crates/jig-protocol-engine-clients/schema/cursor-v2.schema");
     let mut goldens = skein_codegen::goldens(&skein_codegen::parse(text).expect("cursor schema"));

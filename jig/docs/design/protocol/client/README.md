@@ -216,8 +216,8 @@ recipient.
   record of the family `jig-engine-cursor`
   (`jig/crates/jig-protocol-engine-clients/schema/cursor-v2.schema`),
   whose fixed-rule values are built from its schema text in tests
-  (skein's `data/codec/README.md`, 6), with a key inside one in the store's codec. A cursor of another version does not decode, and
-  its read is answered unknown (`../README.md`, section 7).
+  (skein's `data/codec/README.md`, 6), with a key inside one in the store's
+  codec. A cursor of another version does not decode, and its read is answered unknown (`../README.md`, section 7).
 - **Credential boundaries, on the client,** visibly end pending reads
   in the domain's `Page` forms: jig's `ReadNone::SignedOut` or
   a family's `None`, once each, on sign-out and unconditionally on

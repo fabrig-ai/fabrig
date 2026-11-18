@@ -90,7 +90,6 @@ fn mutated(seed: u64, rng: &mut Rng, limits: &Limits, bounds: &str, golden: &[u8
     }
 }
 
-#[expect(clippy::disallowed_macros, reason = "fuzzy seeds embed the public family's schema text")]
 fn public_values() -> Vec<skein_codegen::Golden> {
     let text = include_str!("../../../../../crates/jig-client-protocol-wire/schema/public-v1.schema");
     skein_codegen::goldens(&skein_codegen::parse(text).expect("public schema"))

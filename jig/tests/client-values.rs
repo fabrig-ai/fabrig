@@ -16,7 +16,6 @@ pub(super) fn value(name: &str) -> &'static [u8] {
     &client().iter().find(|value| value.name == name).expect("named client value").bytes
 }
 
-#[expect(clippy::disallowed_macros, reason = "tests embed the client family's schema text")]
 fn text() -> String {
     include_str!("../crates/jig-client-protocol-wire/schema/client-v32.schema").to_owned()
         + include_str!("../crates/jig-client-protocol-wire/schema/client-v32-part1.schema")

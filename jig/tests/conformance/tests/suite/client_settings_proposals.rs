@@ -171,12 +171,10 @@ fn retained_settings_actions_keep_the_revision_they_made() {
         )
         .expect("ended proposal"),
     );
-    let mut ended = w::Ended::decode(
-        limits.wire(),
-        &mut Reader::new(super::client_values::value("record_ended_smallest.bin")),
-    )
-    .expect("ended envelope")
-    .into_parts();
+    let mut ended =
+        w::Ended::decode(limits.wire(), &mut Reader::new(super::client_values::value("record_ended_smallest.bin")))
+            .expect("ended envelope")
+            .into_parts();
     ended.key = w::ObjectKey::Proposal(
         w::ObjectKeyProposal::new(limits.wire(), w::ObjectKeyProposalParts { value: key }).expect("proposal subject"),
     );
