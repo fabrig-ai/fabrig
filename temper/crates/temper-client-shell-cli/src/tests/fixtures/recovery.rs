@@ -437,6 +437,7 @@ fn adopted() -> temper_client_protocol_wire::v1::Outcome {
         f::Adopted::new(
             &f::CEILINGS,
             f::AdoptedParts {
+                landing: b"main".as_slice().into(),
                 forge: 3,
                 repository: 42,
                 owner: b"o".as_slice().into(),

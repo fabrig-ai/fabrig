@@ -9,6 +9,7 @@ use temper_protocol_worker_wire::{self as payload, v1};
 pub(super) fn seed_reds(service: &mut crate::Service, task: u64) {
     let repository = forge::Repository {
         contexts: Box::new([]),
+        landing: b"main".as_slice().into(),
         workflows: Box::new([]),
         project: 1,
         home: true,

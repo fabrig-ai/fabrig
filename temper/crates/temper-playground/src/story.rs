@@ -46,9 +46,6 @@ pub enum Links {
 pub fn prepare(disk: &mut skein_fake_machine::Machine, deployment: &[u8], seed: u64) {
     machine::setup(disk);
     let document: serde_json::Value = serde_json::from_slice(deployment).expect("deployment JSON");
-    if let Some(key) = document.pointer("/application/demo/llm/key").and_then(serde_json::Value::as_str) {
-        machine::lay_handover(disk, key.as_bytes(), documents::KEY);
-    }
     if let Some(setup) = document["setup"].as_array() {
         for entry in setup {
             if let Some(directory) = entry["directory"].as_str() {
@@ -56,7 +53,7 @@ pub fn prepare(disk: &mut skein_fake_machine::Machine, deployment: &[u8], seed: 
             }
         }
     }
-    if !document["application"]["demo"].is_null() {
+    if document["world_settings"]["playground"] == true {
         use temper_forge_setup::{
             machine::BoxKind,
             place::{File, Place},
@@ -130,7 +127,7 @@ pub fn world_metered<N: Meter>(start: Start, meter: N) -> World<Process<()>, Mac
 /// The playground's git reaches the live peer that issues its bot's credential.
 #[must_use]
 pub fn route(document: &serde_json::Value) -> Option<skein_fake_forge_http::git::Limits> {
-    (!document["application"]["demo"].is_null()).then(|| temper_fake::forge::git_limits().git())
+    (document["world_settings"]["playground"] == true).then(|| temper_fake::forge::git_limits().git())
 }
 
 /// The visitor follows the service and its two fake peers.

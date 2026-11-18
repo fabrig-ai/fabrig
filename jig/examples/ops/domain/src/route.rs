@@ -733,7 +733,8 @@ fn core_ask(
         | (None, core::Ask::Close { .. } | core::Ask::Release { .. } | core::Ask::SubscriptionDone { .. })
         | (
             Some(Connector::Infrastructure | Connector::Observability) | None,
-            core::Ask::Workers(_)
+            core::Ask::Providers(_)
+            | core::Ask::Workers(_)
             | core::Ask::Catalogue { .. }
             | core::Ask::StepMade { first: None, .. }
             | core::Ask::ForgetProjection { .. }

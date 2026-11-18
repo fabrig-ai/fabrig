@@ -1,0 +1,27 @@
+{
+  "providers": [
+    {
+      "name": "openai",
+      "number": 1,
+      "endpoint": "fake",
+      "sources": {
+        "keys": true
+      },
+      "signed_in_plan": false,
+      "endpoints": [
+        {
+          "name": "fake",
+          "number": 1,
+          "dialect": 3,
+          "address": {
+            "socket": "{place.model}"
+          },
+          "transport": "plaintext",
+          "headers": [],
+          "connect_ms": 10000,
+          "handshake_ms": 10000
+        }
+      ]
+    }
+  ]
+}

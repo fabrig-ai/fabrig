@@ -18,6 +18,20 @@ record Charter { rest: bool number: u32 policy: RunPolicy hosts: Kinds spend: u6
 record Overlay { rest: option bool model: option Model alternatives: option list 64 Model inspect: option bool modify: option bool shell: option bool agents: option bool tools: option u64 hosts: option Kinds waiting: option duration resume: option bool turns: option u32 time: option duration reserve_turns: option u32 reserve_time: option duration call_timeout: option duration spend: option u64 documents: option list 2 Document instructions: bytes 65536 parts: list 8 CharterPart }
 enum ModelSource { stock, list, person }
 record CatalogueModel { number: u32 model: Model shown: option bytes 4096 description: option bytes 512 picker: bool withdrawn: bool source: ModelSource estimated: bool first_read: option u64 }
+record ProviderNumber { number: u32 }
+record ProviderText { bytes: bytes 4096 }
+record ProviderList { keep: list 16 ProviderText drop: list 16 ProviderText }
+record ProviderTls { server_name: bytes 4096 trust: option bytes 4096 }
+enum ProviderTransport { tls: ProviderTls, plaintext }
+record ProviderRegistration { issuer: bytes 4096 client: bytes 4096 scopes: list 64 ProviderText name_hint: option bytes 4096 authorization: bytes 4096 token: bytes 4096 revocation: option bytes 4096 keys: bytes 4096 endpoint_transport: ProviderTransport must_grant: list 64 ProviderText resource: option bytes 4096 redirect_path: bytes 4096 redirect_port: option u16 }
+record Provider { name: bytes 128 number: u32 endpoint: option bytes 4096 direct: option bytes 4096 list: option ProviderList signed_in_plan: bool manage_usage: option bytes 2048 sign_in: option ProviderRegistration keys: bool programs: list 64 ProviderText }
+record ProviderIpv4 { ip: fixed 4 port: u16 }
+record ProviderIpv6 { ip: fixed 16 port: u16 flowinfo: u32 scope_id: u32 }
+record ProviderHost { name: bytes 253 port: u16 }
+enum ProviderAddress { ipv4: ProviderIpv4, ipv6: ProviderIpv6, host: ProviderHost }
+record ProviderHeader { name: bytes 4096 value: bytes 4096 }
+record ProviderEndpoint { name: bytes 4096 number: u32 dialect: u32 provider: bytes 128 program: option bytes 32 address: ProviderAddress transport: ProviderTransport headers: list 16 ProviderHeader connect: duration handshake: duration }
+record ProviderSetting { provider: Provider endpoints: list 64 ProviderEndpoint withdrawn: bool }
 record WorkerNumber { number: u32 }
 record WorkerSetting { number: u32 name: bytes 128 places: u32 digest: option fixed 32 withdrawn: bool }
 record ModelNumber { number: u32 }
@@ -26,7 +40,7 @@ record TemplateNumber { number: u32 }
 record PolicyNumber { number: u32 }
 record ApplicationSetting { kind: u32 scope: u32 number: u32 }
 record ProjectPolicySetting { project: u32 }
-enum Setting { charter: CharterNumber, template: TemplateNumber, policy: PolicyNumber, rules, application: ApplicationSetting, project_policy: ProjectPolicySetting, model: ModelNumber, worker: WorkerNumber }
+enum Setting { charter: CharterNumber, template: TemplateNumber, policy: PolicyNumber, rules, application: ApplicationSetting, project_policy: ProjectPolicySetting, model: ModelNumber, worker: WorkerNumber, provider: ProviderNumber }
 record LastExact { bytes: bytes 4096 }
 record LastOpen { bytes: bytes 4096 }
 enum Last { exact: LastExact, open: LastOpen }
@@ -81,7 +95,7 @@ record LlmLater { main: ModelEffort subagents: list 64 ModelEffort }
 record LlmChoice { account: option u32 main: ModelEffort subagents: list 64 ModelEffort later: option LlmLater }
 record Symbol { connector: u16 symbol: u16 }
 record Template { number: u32 name: bytes 65536 executor: TemplateExecutor contract: Contract shallower: u32 budget: TemplateBudget deadline: TemplateDeadline tracked: option u32 flags: Flags label: u32 grace: option duration llm: option LlmChoice resources: list 32 Symbol }
-enum Value { charter: boxed Charter, template: boxed Template, policy: boxed ConfiguredPolicy, rules: boxed Rules, model: boxed CatalogueModel, overlay: boxed Overlay, worker: boxed WorkerSetting }
+enum Value { charter: boxed Charter, template: boxed Template, policy: boxed ConfiguredPolicy, rules: boxed Rules, model: boxed CatalogueModel, overlay: boxed Overlay, worker: boxed WorkerSetting, provider: boxed ProviderSetting }
 record Party { number: u64 }
 record ListDecider { provider: u32 }
 enum Decider { first_start, release, party: Party, list: ListDecider }

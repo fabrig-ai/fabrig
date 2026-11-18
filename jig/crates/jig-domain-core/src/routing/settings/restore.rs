@@ -203,6 +203,7 @@ fn fold(core: &mut Core, limits: &Limits, setting: s::Setting, edit: s::RestoreE
         }
         let bound = match setting {
             s::Setting::Worker(_) => limits.fleet.configured_workers,
+            s::Setting::Provider(_) => s::PROVIDERS,
             s::Setting::Model(_) => jig_domain_tasks::MODELS,
             s::Setting::Charter(_) => limits.tasks.charters,
             s::Setting::Template(_) => limits.templates,
@@ -241,6 +242,7 @@ fn application_kind(setting: s::Setting) -> Option<u32> {
         s::Setting::Charter(_)
         | s::Setting::Template(_)
         | s::Setting::Policy(_)
+        | s::Setting::Provider(_)
         | s::Setting::Worker(_)
         | s::Setting::Model(_)
         | s::Setting::Rules
@@ -251,6 +253,7 @@ fn group_name(setting: s::Setting) -> s::Setting {
     match setting {
         s::Setting::Model(_) => s::Setting::Model(0),
         s::Setting::Worker(_) => s::Setting::Worker(0),
+        s::Setting::Provider(_) => s::Setting::Provider(0),
         s::Setting::Charter(_) => s::Setting::Charter(0),
         s::Setting::Template(_) => s::Setting::Template(0),
         s::Setting::Policy(_) => s::Setting::Policy(0),
@@ -267,6 +270,7 @@ fn deleted(core: &Core, setting: s::Setting) -> bool {
         s::Setting::Charter(_)
         | s::Setting::Template(_)
         | s::Setting::Policy(_)
+        | s::Setting::Provider(_)
         | s::Setting::Worker(_)
         | s::Setting::Model(_)
         | s::Setting::Rules => return false,

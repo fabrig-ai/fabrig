@@ -12,7 +12,7 @@ fn workspace_reuse_is_off_until_requested() {
 
 #[test]
 fn workspace_reuse_on_an_engine_alone_does_nothing() {
-    let mut service = crate::startup::with_setup(
+    let mut service = fixtures::with_setup(
         &fixtures::engine_alone_document(),
         &jig_protocol_config::Directories::working(),
         &fixtures::files(),

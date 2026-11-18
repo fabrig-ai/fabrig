@@ -684,6 +684,8 @@ fn prepare(
         let peers = checked_peers(&effective, &content)?;
         let steps = scripts_for_start(&effective, &peers, options)?;
         let bytes = replace_bundle(&effective, content, bundle, adapter)?;
+        let providers = backends::providers(&peers).map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
+        write(&crate::path(&effective.data).join("providers.setting"), &providers, true)?;
         return Ok(Prepared {
             directories: effective,
             bytes,
@@ -697,12 +699,12 @@ fn prepare(
         &effective,
         environment,
         &binary,
-        chosen.map_or([0; 3], |ports| [ports.listeners[0], ports.listeners[3], ports.listeners[4]]),
+        chosen.map_or([0; 2], |ports| [ports.listeners[0], ports.listeners[4]]),
         Some(adapter),
     )?;
     let mut held = Listeners(written.listeners);
     if let Some(chosen) = chosen {
-        for ((_, port), wanted) in held.0.iter().zip([chosen.listeners[0], chosen.listeners[3], chosen.listeners[4]]) {
+        for ((_, port), wanted) in held.0.iter().zip([chosen.listeners[0], chosen.listeners[4]]) {
             if port.get() != wanted {
                 return Err(format!("{CHOSEN_PORTS}: port {wanted}: init chose port {port} instead"));
             }
@@ -755,6 +757,7 @@ fn prepare(
     ] {
         write(&crate::path(&effective.config).join(name), document, name == "temper.json")?;
     }
+    write(&crate::path(&effective.data).join("providers.setting"), &documents.providers, false)?;
     write(
         &crate::path(&effective.data).join("github-app.pem"),
         &forge.github_app_key().expect("generated GitHub App"),

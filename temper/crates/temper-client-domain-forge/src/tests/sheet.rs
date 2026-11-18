@@ -119,6 +119,7 @@ fn pending(side: &Side) -> Token {
 }
 fn adopted_answer() -> forge::Answer {
     forge::Answer::Adopted(forge::Adopted {
+        landing: b"main".as_slice().into(),
         forge: GITHUB,
         repository: 1,
         owner: b"acme".as_slice().into(),

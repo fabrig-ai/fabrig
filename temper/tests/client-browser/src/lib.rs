@@ -219,7 +219,7 @@ impl Tier {
         let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
         // As in jig's browser deployment, a provider offering no credential source gets a
         // deployment-held None account at startup: the view's demo_accounts fixture has this shape.
-        value["engine"]["llm"]["providers"][0]["sources"] = serde_json::json!({});
+        temper_agent_fixtures::providers::input(&mut value)["providers"][0]["sources"] = serde_json::json!({});
         configuration::private(&path, &serde_json::to_vec(&value).expect("model deployment JSON"));
         self
     }
@@ -458,7 +458,17 @@ fn account_provider(value: &mut serde_json::Value, sign_in: &serde_json::Value) 
     // One git operation leaves the small profile's sockets room for the accounts driver.
     value["application"]["limits"]["overrides"]["git_component.operations"] = 1.into();
     value["application"]["limits"]["overrides"]["checkout.workspaces"] = 1.into();
-    value["engine"]["llm"]["providers"] = serde_json::json!([{
+    let mut endpoint = temper_agent_fixtures::providers::input(value)["endpoints"][0].clone();
+    endpoint["provider"] = "Test provider".into();
+    endpoint["name"] = "fake".into();
+    endpoint["number"] = 1.into();
+    endpoint["address"] = serde_json::json!({"socket":configuration::UNREACHED});
+    endpoint["transport"] = "plaintext".into();
+    for key in ["server_name", "trust"] {
+        endpoint.as_object_mut().expect("endpoint").remove(key);
+    }
+    temper_agent_fixtures::providers::input(value)["endpoints"] = serde_json::json!([endpoint]);
+    temper_agent_fixtures::providers::input(value)["providers"] = serde_json::json!([{
         "name":"Test provider", "number":1, "signed_in_plan":false, "endpoint":"fake",
         "sources":{"keys":true,"sign_in":sign_in}
     }]);
@@ -467,10 +477,17 @@ fn account_provider(value: &mut serde_json::Value, sign_in: &serde_json::Value) 
 /// The welcome's own provider on the same issuer, whose one subject would renew on the first
 /// provider (temper/docs/design/client/web/testing.md, 2). Provider 2 has its own stock models.
 fn welcome_provider(value: &mut serde_json::Value, sign_in: &serde_json::Value) {
-    value["engine"]["llm"]["providers"].as_array_mut().expect("providers").push(serde_json::json!({
-        "name":"Welcome provider", "number":2, "signed_in_plan":false, "endpoint":"fake",
-        "sources":{"keys":true,"sign_in":sign_in}
-    }));
+    let mut endpoint = temper_agent_fixtures::providers::input(value)["endpoints"][0].clone();
+    endpoint["name"] = "welcome".into();
+    endpoint["number"] = 2.into();
+    endpoint["provider"] = "Welcome provider".into();
+    temper_agent_fixtures::providers::input(value)["endpoints"].as_array_mut().expect("endpoints").push(endpoint);
+    temper_agent_fixtures::providers::input(value)["providers"].as_array_mut().expect("providers").push(
+        serde_json::json!({
+            "name":"Welcome provider", "number":2, "signed_in_plan":false, "endpoint":"welcome",
+            "sources":{"keys":true,"sign_in":sign_in}
+        }),
+    );
 }
 
 /// Keep the built bundle immutable while giving this one-serve story its static issuer document.
@@ -529,21 +546,14 @@ mod tests {
         (serde_json::from_slice(&agent).expect("agent JSON"), serde_json::from_slice(&value).expect("deployment JSON"))
     }
     fn stock_defaults(value: &serde_json::Value) -> jig_domain_core::settings::Defaults {
-        let document = jig_protocol_config::document(
-            &serde_json::to_vec(&value["engine"]).expect("engine JSON"),
-            &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
-        )
-        .expect("engine document");
-        let engine = temper_engine_service::startup::engine(&document, 0, &jig_protocol_config::Directories::working())
-            .expect("account deployment admits stock settings");
+        let engine = super::configuration::stock_engine(value);
         let core = jig_protocol_config::core(&engine, [0; 16], 1);
         core.defaults
     }
     #[test]
     fn the_tier_passes_startup_validation_with_stock_defaults() {
         let (_, deployment) = documents(Path::new("/private/test"), Path::new("/test/bundle"));
-        let shape = temper_service::startup::shape(&deployment, &jig_protocol_config::Directories::working())
-            .expect("browser deployment admits stock settings");
+        let shape = super::configuration::shape(serde_json::from_slice(&deployment).expect("deployment JSON"));
         assert_eq!(shape, temper_service_core::startup::Shape::Standalone);
     }
     #[test]
@@ -551,8 +561,9 @@ mod tests {
         let mut value = tier_configuration().1;
         super::account_provider(&mut value, &super::account_registration("http://127.0.0.1:9"));
         let defaults = stock_defaults(&value);
-        assert_eq!(defaults.models.len(), 4);
-        assert!(defaults.models.iter().all(|entry| entry.model.provider == 1));
+        assert_eq!(defaults.models.len(), 7);
+        assert_eq!(defaults.models.iter().filter(|entry| entry.model.provider == 1).count(), 4);
+        assert_eq!(defaults.models.iter().filter(|entry| entry.model.provider == 2).count(), 3);
     }
     #[test]
     fn the_welcome_provider_has_its_own_stock_offer() {
@@ -569,11 +580,7 @@ mod tests {
         let sign_in = super::account_registration("http://127.0.0.1:9");
         super::account_provider(&mut value, &sign_in);
         super::welcome_provider(&mut value, &sign_in);
-        let shape = temper_service::startup::shape(
-            &serde_json::to_vec(&value).expect("two-provider deployment JSON"),
-            &jig_protocol_config::Directories::working(),
-        )
-        .expect("browser deployment admits two sign-in providers");
+        let shape = super::configuration::shape(value.clone());
         assert_eq!(shape, temper_service_core::startup::Shape::Standalone);
         let engine = super::configuration::stock_engine(&value);
         let core = jig_protocol_config::core(&engine, [0; 16], 1);
@@ -606,8 +613,8 @@ mod tests {
     }
     #[test]
     fn the_tiers_llm_endpoint_is_unreached() {
-        let (agent, value) = tier_configuration();
-        assert_eq!(value["engine"]["llm"]["endpoints"][0]["address"]["socket"], UNREACHED);
+        let (agent, mut value) = tier_configuration();
+        assert_eq!(temper_agent_fixtures::providers::input(&mut value)["endpoints"][0]["address"]["socket"], UNREACHED);
         assert_eq!(agent["endpoints"][0]["address"], UNREACHED);
     }
     #[test]

@@ -191,6 +191,7 @@ fn limits_take_each_bound_from_its_source_field() {
             rule_contexts_item: 16,
             adopted_owner: 16,
             adopted_name: 16,
+            adopted_landing: 16,
             core_refused_refusal: 64,
             ..v1::CEILINGS
         }

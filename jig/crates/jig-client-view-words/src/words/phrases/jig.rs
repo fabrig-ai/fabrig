@@ -32,6 +32,7 @@ pub enum JigPhrase {
     SettingFaultGrace,
     SettingFaultOwner,
     SettingFaultLinked,
+    SettingFaultAccounts,
 
     ActRename,
     ActRemoveProject,
@@ -1107,6 +1108,7 @@ impl JigPhrase {
             Self::SettingFaultGrace => 7915,
             Self::SettingFaultOwner => 7916,
             Self::SettingFaultLinked => 7930,
+            Self::SettingFaultAccounts => 7932,
             Self::ActRename => 7837,
             Self::ActRemoveProject => 7839,
             Self::NameTaken => 7830,
@@ -1776,6 +1778,7 @@ impl JigPhrase {
             | Self::SettingFaultBudget
             | Self::SettingFaultGrace
             | Self::SettingFaultOwner
+            | Self::SettingFaultAccounts
             | Self::SettingFaultLinked
             | Self::SettingFaultJudged
             | Self::DependencyParked
@@ -2439,7 +2442,7 @@ impl JigPhrase {
     }
 }
 /// Every jig phrase; loading checks this whole contract.
-pub const ALL: [JigPhrase; 655] = [
+pub const ALL: [JigPhrase; 656] = [
     JigPhrase::TooLinked,
     JigPhrase::SettingsChanged,
     JigPhrase::SettingProjectPolicy,
@@ -2466,6 +2469,7 @@ pub const ALL: [JigPhrase; 655] = [
     JigPhrase::SettingFaultGrace,
     JigPhrase::SettingFaultOwner,
     JigPhrase::SettingFaultLinked,
+    JigPhrase::SettingFaultAccounts,
     JigPhrase::ActRename,
     JigPhrase::ActRemoveProject,
     JigPhrase::NameTaken,

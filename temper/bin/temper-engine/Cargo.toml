@@ -23,6 +23,7 @@ skein-fail-stop.workspace = true
 
 [dev-dependencies]
 temper-deployment-fixtures.workspace = true
+temper-agent-fixtures.workspace = true
 serde_json.workspace = true
 skein-scratch.workspace = true
 skein-shell.workspace = true

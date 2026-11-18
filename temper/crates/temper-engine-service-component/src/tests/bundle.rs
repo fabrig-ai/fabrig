@@ -115,6 +115,24 @@ fn push_root_files_are_fixed_revalidated_and_allowed_by_the_page_policy() {
     }
 }
 #[test]
+fn the_served_service_worker_opens_needs_for_notification_presses() {
+    let (_, peer, status, _) = get(b"/sw.js", b"");
+    assert_eq!(status, 200);
+    let body = fixtures::bundle::body(&peer);
+    assert_eq!(body, crate::clients::bundle::SERVICE_WORKER);
+    for (path, expected) in [
+        (b"`/needs?project=${project}`".as_slice(), true),
+        (b"\"/needs\"".as_slice(), true),
+        (b"/?project=".as_slice(), false),
+    ] {
+        let mut found = false;
+        for part in body.windows(path.len()) {
+            found |= part == path;
+        }
+        assert_eq!(found, expected, "{path:?}");
+    }
+}
+#[test]
 fn a_matching_etag_is_answered_not_modified() {
     let (_, peer, status, headers) = get(b"/chats/7", b"If-None-Match: \"0011223344556677\"\r\n");
     assert_eq!(status, 304);

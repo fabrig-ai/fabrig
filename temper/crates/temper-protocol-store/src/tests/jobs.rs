@@ -43,6 +43,7 @@ pub(super) fn application(repository: Repository) -> Stored {
         token: 1,
         until: Wall::EPOCH,
         outcome: d::ApplicationOutcome::Adopted(d::AdoptedRepository {
+            landing: b"main".as_slice().into(),
             repository,
             owner: adopted.owner,
             name: adopted.name,

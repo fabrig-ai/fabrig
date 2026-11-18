@@ -324,6 +324,7 @@ pub fn config(seed: u64) -> engine::Config {
         ways_stock: temper_engine_service_stock::stock::ways(),
         period_span: PERIOD_SPAN,
         core: jig_domain_core::Config {
+            fixed_providers: Box::new([]),
             parts: Box::new([]),
             deployment: [31; 16],
             seed,
@@ -340,6 +341,7 @@ pub fn config(seed: u64) -> engine::Config {
             grants: Box::new([]),
             kinds: Box::default(),
             defaults: jig_domain_core::settings::Defaults {
+                providers: Box::new([provider_setting()]),
                 workers: Box::new([jig_domain_core::settings::WorkerSetting {
                     number: 1,
                     name: Box::from(b"worker".as_slice()),
@@ -358,7 +360,7 @@ pub fn config(seed: u64) -> engine::Config {
                     direct: Box::new([]),
                     providers: Box::new([]),
                     number: 1,
-                    dialect: 1,
+                    dialect: 3,
                     program: None,
                 }]),
                 key_bytes: 256,
@@ -470,7 +472,7 @@ pub fn charter() -> engine::Charter {
             model: engine::Model {
                 provider: 1,
                 program: None,
-                dialect: 1,
+                dialect: 3,
                 endpoint: 1,
                 name: b"scripted".as_slice().into(),
                 cache_life_ms: 0,
@@ -1010,7 +1012,9 @@ impl World {
                 assert_eq!((run.raw(), attempt.raw()), (assignment.task, assignment.attempt));
                 assert!(self.terminal_snapshot.is_some(), "only a committed terminal has no adopted claim");
             }
-            Delivery::WorkerFigures { .. } | Delivery::Link { down: host::LinkDown::Grant { .. }, .. } => {}
+            Delivery::Providers(..)
+            | Delivery::WorkerFigures { .. }
+            | Delivery::Link { down: host::LinkDown::Grant { .. }, .. } => {}
             Delivery::TurnBusy { turn, .. } => self.turn(turn),
             Delivery::Result { person, task, words } => {
                 if let Err(why) = self.referee.result(&self.store.rows, person, task, &words) {
@@ -1169,3 +1173,34 @@ mod tests {
 
 mod creating;
 pub use creating::{chat, configured_chat, goal, goal_from};
+
+fn provider_setting() -> jig_domain_core::settings::ProviderSetting {
+    use jig_domain_core::settings::{Endpoint, EndpointAddress, Provider, ProviderSetting, Transport};
+    ProviderSetting {
+        provider: Provider {
+            number: 1,
+            name: b"Scripted".as_slice().into(),
+            endpoint: Some(b"scripted".as_slice().into()),
+            direct: None,
+            list: None,
+            signed_in_plan: false,
+            manage_usage: None,
+            sign_in: None,
+            keys: false,
+            programs: Box::new([]),
+        },
+        endpoints: Box::new([Endpoint {
+            number: 1,
+            name: b"scripted".as_slice().into(),
+            provider: b"Scripted".as_slice().into(),
+            dialect: 3,
+            program: None,
+            address: EndpointAddress::Socket(::core::net::SocketAddr::from(([127, 0, 0, 1], 8080))),
+            transport: Transport::Plaintext,
+            headers: Box::new([]),
+            connect: Duration::from_millis(10_000),
+            handshake: Duration::from_millis(10_000),
+        }]),
+        withdrawn: false,
+    }
+}

@@ -44,6 +44,11 @@ fn fixture() -> (Core, Limits) {
     configuration.settings.llm_providers.providers[0].offers.key = true;
     let mut provider = configuration.settings.llm_providers.providers[0].clone();
     provider.number = OTHER_PROVIDER;
+    provider.name = b"Other".as_slice().into();
+    let mut reference = provider_setting(OTHER_PROVIDER, b"Other", 1);
+    reference.provider.endpoint = None;
+    reference.endpoints = Box::new([]);
+    configuration.defaults.providers = Box::new([configuration.defaults.providers[0].clone(), reference]);
 
     configuration.settings.llm_providers.providers =
         Box::new([configuration.settings.llm_providers.providers[0].clone(), provider]);

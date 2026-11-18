@@ -14,7 +14,7 @@ mod directories;
 pub use directories::{Directories, Directory};
 mod defaults;
 mod domain;
-pub use defaults::pass;
+pub use defaults::{pass, pass_providers};
 mod projects;
 pub use domain::{
     Deployment, Provider as IdentityProvider, ProviderKind, amendment_bytes_max, check_effective_limits,
@@ -31,7 +31,7 @@ pub mod llm;
 pub use clients::Clients;
 pub use files::{File, Files, files, worker_files};
 pub use hosts::Hosts;
-pub use llm::{Endpoint, Header, Llm, Provider, Transport};
+pub use llm::{Endpoint, EndpointAddress, Header, Llm, Provider, ProviderSetting, Registration, Transport};
 pub mod address;
 mod document;
 pub mod members;
@@ -54,6 +54,8 @@ pub enum Defaults {
     Document,
     /// The application's defaults, given by `pass`; the four members are refused.
     Passed,
+    /// All defaults, including providers, passed by the application.
+    PassedProviders,
 }
 /// The engine's protocol configuration (configuration.md, 3).
 #[derive(Clone, Debug)]
@@ -74,6 +76,8 @@ pub struct Engine {
     pub charters: Box<[jig_domain_core_vocabulary::Charter]>,
     pub templates: Box<[jig_domain_core_vocabulary::Template]>,
     pub llm: Llm,
+    pub provider_defaults: Option<Box<[ProviderSetting]>>,
+    pub fixed_llm_providers: Box<[ProviderSetting]>,
     pub hosts: Hosts,
     pub clients: Clients,
     pub limits: Limits,
@@ -115,7 +119,12 @@ pub fn engine_over(
         problems.past = problems.past.saturating_add(parsed.problems.past);
     }
     let mut llm = None;
-    if let Some(at) = object.required(document, b"llm", &path, &mut problems) {
+    if defaults == Defaults::PassedProviders {
+        if object.member(document, b"llm").is_some() {
+            problems.push(path.member(b"llm"), What::Stored);
+        }
+        llm = Some(Llm { models: Box::new([]), providers: Box::new([]), endpoints: Box::new([]) });
+    } else if let Some(at) = object.required(document, b"llm", &path, &mut problems) {
         llm = llm::parse(document, at, &path.member(b"llm"), directories, defaults, &mut problems);
     }
     let mut hosts = None;
@@ -151,7 +160,7 @@ pub fn engine_over(
     {
         providers = domain::providers(document, at, &path.member(b"providers"), &mut problems);
     }
-    let mut rules = if defaults == Defaults::Passed { Some(defaults::empty_rules()) } else { None };
+    let mut rules = if defaults == Defaults::Document { None } else { Some(defaults::empty_rules()) };
     if defaults == Defaults::Document
         && let Some(at) = object.required(document, b"rules", &path, &mut problems)
     {
@@ -209,6 +218,8 @@ pub fn engine_over(
         charters: offers.charters.expect("required member checked"),
         templates: offers.templates.expect("required member checked"),
         llm: llm.expect("required member checked"),
+        provider_defaults: None,
+        fixed_llm_providers: Box::new([]),
         hosts: hosts.expect("required member checked"),
         clients: clients.expect("required member checked"),
         limits,

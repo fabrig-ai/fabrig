@@ -19,6 +19,9 @@ import tomllib
 import xml.etree.ElementTree as ET
 
 
+# Every budget red ends here (tools/tiers/budgets.md, 10.1).
+REPAIR_LINE = "repair: read skein/docs/foundation/testing-strategy.md in full first, then ask 8.1's three questions in order: does the test belong to its tier; if it does, can it be made faster; if neither, take the measurements to the user."
+
 GROUPS = ("skein", "smith", "jig", "temper", "hearth", "repository")
 KEYS = {"cpu_suite_s", "cpu_test_s", "wall_hard_s"}
 # nextest's abort message for the signals of cancellation (tools/tiers/design.md, 7.3).
@@ -722,6 +725,7 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
                     for binary in sorted({p['binary_id'] for p in processes if p['layer'] is None}))
     (over if gate else warnings).extend(layer_over)
     references = reference_rows(data, gate_limits, ledger, base, warnings, over if gate else warnings)
+    over = [line + '\n' + REPAIR_LINE for line in over]
     verdict = ('over budget' if over else 'starved' if suite['starved_run'] or suite['starved']
                else 'within budget' if limits or (gate and gate_limits) else 'no budget set')
     return dict(pair=pair, tests=tests, suite=suite, processes=processes, failures=failures,
@@ -1017,6 +1021,7 @@ def summarize_records(items, pair, limits, run, timeouts, failures):
         over.append(f"suite {pair}: {totals['cpu_s']:.6f}s > {limits['cpu_suite_s']}s")
     warnings = [f"{pair} {name}: auto-reaped descendant CPU may be absent from complete_scope"
                 for name in limits.get('auto_reap', [])] if pair != 'tools' else []
+    over = [line + '\n' + REPAIR_LINE for line in over]
     return dict(pair=pair, tests=tests, warnings=warnings, suite=dict(totals, tests=len(tests), wall_s=run['wall_s'],
                 starved_run=wall_starved, unobserved=0, cpu_by='test'), processes=[], layers=[], trees=[], references=[], failures=failures, unobserved=[], over_budget=over,
                 verdict="over budget" if over else "starved" if wall_starved or timeouts else "within budget" if limits else "no budget set")

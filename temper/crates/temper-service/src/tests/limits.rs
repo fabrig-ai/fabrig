@@ -96,7 +96,7 @@ fn history_limits_have_defaults_dotted_bounds_and_named_startup_refusals() {
         [br#"{"forge.history_days":0}"#.as_slice(), br#"{"forge.history_days":3651}"#, br#"{"forge.history_events":0}"#]
     {
         let document = fixtures::with(&fixtures::document(), b"application.limits.overrides", overrides);
-        let problems = crate::startup::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
+        let problems = fixtures::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
         let expected = if overrides == br#"{"forge.history_events":0}"# {
             b"application.limits.overrides.forge.history_events: outside its type\n".as_slice()
         } else {
@@ -122,7 +122,7 @@ fn checkout_preparations_is_a_named_override_and_zero_refuses_start() {
     }
     let document =
         fixtures::with(&fixtures::document(), b"application.limits.overrides", br#"{"checkout.preparations":0}"#);
-    let problems = crate::startup::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
+    let problems = fixtures::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
     assert_eq!(
         crate::startup::lines(&problems).as_ref(),
         b"application.limits.overrides.checkout.preparations: 0; requires at least 1\n"
@@ -137,7 +137,7 @@ fn red_limit_overrides_past_their_ranges_refuse_start_by_name() {
         let document = fixtures::with(&fixtures::document(), b"application.limits.overrides", input.as_bytes());
         let directories = jig_protocol_config::Directories::working();
         for problems in [
-            crate::startup::named(&document, &directories).unwrap_err(),
+            fixtures::named(&document, &directories).unwrap_err(),
             crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
                 .unwrap_err(),
         ] {
@@ -153,7 +153,7 @@ fn red_limit_overrides_past_their_ranges_refuse_start_by_name() {
 fn a_zero_change_tasks_override_refuses_the_start_naming_the_limit() {
     let document =
         fixtures::with(&fixtures::document(), b"application.limits.overrides", br#"{"forge.change_policy.tasks":0}"#);
-    let problems = crate::startup::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
+    let problems = fixtures::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
     assert_eq!(
         crate::startup::lines(&problems).as_ref(),
         b"application.limits.overrides.forge.change_policy.tasks: outside its type\n",
@@ -167,7 +167,7 @@ fn forge_changes_past_the_tier_ceiling_refuses_both_startup_routes() {
         let member = format!(r#"{{"profile":"standard","overrides":{{"forge.changes":{changes}}}}}"#);
         let document = fixtures::with(&fixtures::document(), b"application.limits", member.as_bytes());
         let directories = jig_protocol_config::Directories::working();
-        let starting = crate::startup::named(&document, &directories).unwrap_err();
+        let starting = fixtures::named(&document, &directories).unwrap_err();
         let reading =
             crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
                 .unwrap_err();
@@ -189,7 +189,7 @@ fn standard_changes_at_the_tier_bound_fit_the_stock_store() {
         br#"{"profile":"standard","overrides":{"forge.changes":768,"forge.client.op_bytes":262144}}"#,
     );
     let directories = jig_protocol_config::Directories::working();
-    crate::startup::named(&document, &directories).expect("the stock map admits the tier cap");
+    fixtures::named(&document, &directories).expect("the stock map admits the tier cap");
     crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
         .expect("the stock reader admits the tier cap");
 }
@@ -776,7 +776,7 @@ fn secrets_schema_fits_the_small_page_ceiling() {
     const KEY_BYTES: u64 = 10;
     let (_, _, profile) = fixtures::store_limits();
     assert_eq!(v1::Stored::encoded_bound(&v1::CEILINGS), Some(APPLICATION_BYTES));
-    assert_eq!(profile.store.page.bytes, 4_582_931);
+    assert_eq!(profile.store.page.bytes, 39_714_179);
     assert!(APPLICATION_BYTES + KEY_BYTES < u64::from(profile.store.page.bytes));
 }
 
@@ -841,7 +841,7 @@ fn the_watch_rooms_follow_the_streams() {
 fn a_room_past_what_the_views_hold_is_refused() {
     // Views reserve two slots per watch; this stream count overflows their slot count.
     let document = engine_overrides(br#""clients.streams":126322568"#);
-    let problems = crate::startup::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
+    let problems = fixtures::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
     assert_eq!(crate::startup::lines(&problems).as_ref(),
         b"engine.limits.overrides.clients.streams: must agree with representable watch rooms (clients.streams times 31, with two slots per watch)\n");
     let mut settings = fixtures::engine();
@@ -1063,7 +1063,7 @@ fn an_override_naming_a_watch_room_is_refused() {
         (br#""views.watchers_per_party":17"#.as_slice(), b"engine.limits.overrides.views.watchers_per_party: must agree with engine.limits.overrides.clients.streams, which sizes both watch rooms\n".as_slice()),
     ] {
         let document = engine_overrides(extra);
-        let problems = crate::startup::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
+        let problems = fixtures::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
         assert_eq!(crate::startup::lines(&problems).as_ref(), expected, "{extra:?}");
     }
 }

@@ -12,6 +12,7 @@ test = false
 doctest = false
 
 [dependencies]
+temper-agent-fixtures.workspace = true
 skein-scratch.workspace = true
 skein-shell.workspace = true
 temper-shell.workspace = true

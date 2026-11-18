@@ -762,7 +762,7 @@ pub const SETTINGS: Tool = Tool {
     line: b"Read the settings, the revisions running work holds, and pending proposals",
     prints: b"`newest revision R`, each setting and its last revision, the held revisions and their live tasks, and the pending proposals",
     result: b"settings",
-    forms: &[&[]],
+    forms: &[&[], &[positional(b"kind", b"provider", Kind::Word { set: &[b"provider"] }, Required, b"Every provider, including withdrawn ones; taken at the engine's next start")]],
     keyed: Keyed::Never,
     area: 1,
     notes: b"settings show KIND NUMBER --json prints one value to edit.\nsettings apply and settings propose take the newest revision this\nprints as `--against`.\n",
@@ -776,8 +776,8 @@ pub const SETTING: Tool = Tool {
         &[
             positional(
                 b"kind",
-                b"charter|template|policy|model|worker",
-                Kind::Word { set: &[b"charter", b"template", b"policy", b"model", b"worker"] },
+                b"charter|template|policy|model|worker|provider",
+                Kind::Word { set: &[b"charter", b"template", b"policy", b"model", b"worker", b"provider"] },
                 Required,
                 b"The setting's kind",
             ),

@@ -69,7 +69,10 @@ impl Story {
             Temper::step(
                 &mut probe.root,
                 &story.env,
-                Event::Went { place: temper_client_domain::Place::Missing }.into(),
+                Event::Went {
+                    place: temper_client_domain::Place::Public(temper_client_domain::address::Public::Projects),
+                }
+                .into(),
                 &mut probe.out,
             );
             for handle in

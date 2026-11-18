@@ -145,7 +145,7 @@ fn expanded_engine() -> Document {
     let mut base = document(fixtures::ENGINE_SMALL);
     let direct = document(
         br#"{
-        "name":"anthropic-api","number":4,"dialect":3,"provider":"fake-provider",
+        "name":"anthropic-api","number":4,"dialect":3,"provider":"Fake",
         "address":{"socket":"127.0.0.1:7101"},"transport":"plaintext",
         "headers":[],"connect_ms":10000,"handshake_ms":10000
     }"#,

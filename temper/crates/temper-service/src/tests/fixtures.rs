@@ -757,11 +757,3 @@ pub fn turn_document() -> Box<[u8]> {
     overrides["hub.event_bytes"] = 4_096_u32.into();
     with(&document, b"engine.limits.overrides", &serde_json::to_vec(&overrides).unwrap())
 }
-
-pub fn turn_jig() -> jig_protocol_config::Engine {
-    let mut jig = engine().jig;
-    jig.limits.core.tasks.spec_bytes = 16_384;
-    jig.limits.core.tasks.result_bytes = 4_096;
-    jig.limits.core.tasks.message_bytes = 4_096;
-    jig
-}

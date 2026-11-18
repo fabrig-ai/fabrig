@@ -6,13 +6,10 @@ use jig_domain_core_vocabulary::{
     settings::{CatalogueModel, ModelSource},
 };
 use skein_json::Document;
-use skein_lib::{Duration, List};
+use skein_lib::List;
 /// The most models configuration names: authority keeps a party's models one bit each
 /// (protocol/limits.md).
 pub(crate) const MODELS: u32 = 64;
-// smith/docs/design/protocol/agent.md, section 4: the dialect numbers are fixed for good.
-const ANTHROPIC: u32 = 2;
-const OPENAI: u32 = 3;
 /// The engine's endpoints, providers and default catalogue
 /// (jig/docs/design/protocol/configuration.md, 3).
 #[derive(Clone, Debug)]
@@ -47,30 +44,10 @@ impl Llm {
     }
 }
 pub(crate) mod providers;
+pub use jig_domain_core_vocabulary::settings::{
+    ENDPOINTS, Endpoint, EndpointAddress, Header, PROVIDERS, ProviderSetting, Transport,
+};
 pub use providers::{Provider, Registration};
-#[derive(Clone, Debug)]
-pub struct Endpoint {
-    pub name: Box<[u8]>,
-    pub number: u32,
-    pub dialect: u32,
-    pub provider: Box<[u8]>,
-    pub program: Option<Box<[u8]>>,
-    pub address: Address,
-    pub transport: Transport,
-    pub headers: Box<[Header]>,
-    pub connect: Duration,
-    pub handshake: Duration,
-}
-#[derive(Clone, Debug)]
-pub struct Header {
-    pub name: Box<[u8]>,
-    pub value: Box<[u8]>,
-}
-#[derive(Clone, Debug)]
-pub enum Transport {
-    Tls { server_name: Box<[u8]>, trust: Option<Box<[u8]>> },
-    Plaintext,
-}
 pub(crate) fn parse(
     document: &Document,
     at: u32,
@@ -79,13 +56,14 @@ pub(crate) fn parse(
     defaults: crate::Defaults,
     problems: &mut Problems,
 ) -> Option<Llm> {
+    let before = (problems.problems.len(), problems.past);
     let mut object = check::object(document, at, path, problems, "llm")?;
     let mut endpoints = List::<Endpoint>::with_capacity(document.len());
     if let Some(items) = check::list(&mut object, document, b"endpoints", document.len(), path, problems) {
         for (index, at) in items.iter().enumerate() {
             let path =
                 path.member(b"endpoints").child(Segment::Index(u32::try_from(index).expect("list bounded by u32")));
-            if let Some(value) = endpoint(document, *at, &path, directories, problems) {
+            if let Some(value) = endpoint(document, *at, &path, directories, None, problems) {
                 for previous in &endpoints {
                     if previous.name == value.name {
                         problems.push(path.member(b"name"), What::Unique);
@@ -132,7 +110,8 @@ pub(crate) fn parse(
             }
         }
     }
-    let providers = providers::parse(&mut object, document, path, models.as_slice(), directories, defaults, problems);
+    let mut models = models.into_boxed();
+    let providers = providers::parse(&mut object, document, path, &mut models, directories, defaults, problems);
     for (index, provider) in providers.iter().enumerate() {
         let provider_path = check::index(&path.member(b"providers"), index);
         direct_binding(provider, endpoints.as_slice(), &provider_path, problems);
@@ -146,33 +125,24 @@ pub(crate) fn parse(
             }
         }
     }
-    program_bindings(endpoints.as_slice(), models.as_slice(), providers.as_slice(), path, problems);
-    for model in models.iter_mut() {
-        for provider in &providers {
-            if provider.models.contains(&model.model.name) {
-                model.model.provider = provider.number;
+    program_bindings(endpoints.as_slice(), &models, providers.as_slice(), path, problems);
+    object.finish(document, path, problems);
+    let value = Llm { endpoints: endpoints.into_boxed(), models, providers: providers.into_boxed() };
+    if before == (problems.problems.len(), problems.past) {
+        for (index, provider) in provider_values(&value).iter().enumerate() {
+            let path = check::index(&path.member(b"providers"), index);
+            if provider.provider.number > PROVIDERS || value.endpoints.len() > skein_lib::usize_of(ENDPOINTS) {
+                problems.push(path, What::Bound);
+            } else if !jig_domain_core_vocabulary::settings::providers::fits(provider) {
+                problems.push(path, What::Form);
             }
         }
     }
-    object.finish(document, path, problems);
-    Some(Llm { endpoints: endpoints.into_boxed(), models: models.into_boxed(), providers: providers.into_boxed() })
+    Some(value)
 }
 /// A direct way speaks the program endpoint's dialect and accepts credentials (configuration.md, 3).
 fn direct_binding(provider: &Provider, endpoints: &[Endpoint], path: &Path, problems: &mut Problems) {
-    let Some(name) = &provider.direct else { return };
-    let mut program_dialect = None;
-    for endpoint in endpoints {
-        if provider.endpoint.as_deref() == Some(endpoint.name.as_ref()) && endpoint.program.is_some() {
-            program_dialect = Some(endpoint.dialect);
-        }
-    }
-    let mut valid = false;
-    for endpoint in endpoints {
-        if endpoint.name == *name && endpoint.program.is_none() && program_dialect == Some(endpoint.dialect) {
-            valid = true;
-        }
-    }
-    if !valid || (!provider.keys && provider.sign_in.is_none()) {
+    if !jig_domain_core_vocabulary::settings::providers::direct(provider, endpoints) {
         problems.push(path.member(b"direct"), What::Refers);
     }
 }
@@ -185,35 +155,8 @@ fn program_bindings(
     path: &Path,
     problems: &mut Problems,
 ) {
-    for (index, endpoint) in endpoints.iter().enumerate() {
-        let Some(program) = &endpoint.program else { continue };
-        let at = check::index(&path.member(b"endpoints"), index).member(b"program");
-        let mut valid = false;
-        let mut refused = program.is_empty() || program.len() > skein_lib::length::usize_of(jig_domain_accounts::NAME);
-        for provider in providers {
-            if provider.endpoint.as_deref() == Some(endpoint.name.as_ref()) {
-                valid = true;
-                if !provider.programs.contains(program) {
-                    refused = true;
-                }
-            }
-        }
-        for model in models {
-            if model.model.endpoint != endpoint.number {
-                continue;
-            }
-            for provider in providers {
-                if provider.models.contains(&model.model.name) {
-                    valid = true;
-                    if !provider.programs.contains(program) {
-                        refused = true;
-                    }
-                }
-            }
-        }
-        if !valid || refused {
-            problems.push(at, What::Refers);
-        }
+    for &index in &jig_domain_core_vocabulary::settings::providers::program_bindings(endpoints, models, providers) {
+        problems.push(path.member(b"endpoints").child(Segment::Index(index)).member(b"program"), What::Refers);
     }
 }
 
@@ -222,19 +165,22 @@ fn endpoint(
     at: u32,
     path: &Path,
     directories: &Directories,
+    owner: Option<&[u8]>,
     problems: &mut Problems,
 ) -> Option<Endpoint> {
     let mut object = check::object(document, at, path, problems, "endpoint")?;
     let name = check::text(&mut object, document, b"name", path, problems);
     let number = check::count(&mut object, document, b"number", path, problems);
     let dialect = check::count(&mut object, document, b"dialect", path, problems);
-    if let Some(dialect) = dialect {
-        match dialect {
-            ANTHROPIC | OPENAI => {}
-            _ => problems.push(path.member(b"dialect"), What::Form),
-        }
+    if let Some(dialect) = dialect
+        && !jig_domain_core_vocabulary::settings::providers::dialect(dialect)
+    {
+        problems.push(path.member(b"dialect"), What::Form);
     }
-    let provider = check::text(&mut object, document, b"provider", path, problems);
+    let provider = match owner {
+        Some(name) => Some(skein_lib::bytes::copy_of(name)),
+        None => check::text(&mut object, document, b"provider", path, problems),
+    };
     let program = optional_text(&mut object, document, b"program", path, problems);
     let address = check::address(&mut object, document, b"address", path, problems);
     if let Some(address) = &address {
@@ -251,7 +197,7 @@ fn endpoint(
         dialect: dialect?,
         provider: provider?,
         program,
-        address: address?,
+        address: endpoint_address(address?)?,
         transport: transport?,
         headers: headers.into_boxed(),
         connect: connect?,
@@ -308,6 +254,10 @@ fn headers(object: &mut read::Object, document: &Document, path: &Path, problems
     if let Some(items) = check::list(object, document, b"headers", document.len(), path, problems) {
         for (index, at) in items.iter().enumerate() {
             let path = path.member(b"headers").child(Segment::Index(u32::try_from(index).expect("bounded list")));
+            if index >= skein_lib::usize_of(jig_domain_core_vocabulary::settings::providers::HEADERS) {
+                problems.push(path, What::Form);
+                continue;
+            }
             if let Some(mut object) = check::object(document, *at, &path, problems, "header") {
                 let name = check::text(&mut object, document, b"name", &path, problems);
                 let value = check::text(&mut object, document, b"value", &path, problems);
@@ -315,7 +265,11 @@ fn headers(object: &mut read::Object, document: &Document, path: &Path, problems
                 if let Some(name) = name
                     && let Some(value) = value
                 {
-                    result.push(Header { name, value }).expect("input count bounded");
+                    let header = Header { name, value };
+                    if !jig_domain_core_vocabulary::settings::providers::header(&header) {
+                        problems.push(path.member(b"name"), What::Form);
+                    }
+                    result.push(header).expect("input count bounded");
                 }
             }
         }
@@ -513,3 +467,32 @@ fn network_address(address: &Address, path: &Path, problems: &mut Problems) {
         Address::Addr(skein_io::Addr::Ip(_)) | Address::Host { .. } => {}
     }
 }
+
+fn endpoint_address(address: Address) -> Option<EndpointAddress> {
+    match address {
+        Address::Addr(skein_io::Addr::Ip(socket)) => Some(EndpointAddress::Socket(socket)),
+        Address::Host { name, port } => Some(EndpointAddress::Host { name, port }),
+        Address::Addr(skein_io::Addr::InProcess(_)) => None,
+    }
+}
+
+/// Providers and their own endpoints, as the settings defaults.
+#[must_use]
+pub fn provider_values(llm: &Llm) -> Box<[ProviderSetting]> {
+    let mut result = List::with_capacity(u32::try_from(llm.providers.len()).expect("bounded providers"));
+    for provider in &llm.providers {
+        let mut endpoints = List::with_capacity(u32::try_from(llm.endpoints.len()).expect("bounded endpoints"));
+        for endpoint in &llm.endpoints {
+            if endpoint.provider == provider.name {
+                endpoints.push(endpoint.clone()).expect("endpoint count");
+            }
+        }
+        result
+            .push(ProviderSetting { provider: provider.clone(), endpoints: endpoints.into_boxed(), withdrawn: false })
+            .expect("provider count");
+    }
+    result.into_boxed()
+}
+
+mod setting;
+pub use setting::{provider_setting, providers_setting, render_provider, render_providers};

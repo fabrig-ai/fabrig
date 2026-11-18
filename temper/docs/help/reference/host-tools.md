@@ -367,7 +367,7 @@ Offered where the run's charter names the settings family and its authority hold
 
 ## propose_settings
 
-Propose whole settings from items or a note revision. One owner acceptance makes a revision; keep your document separate.
+Propose whole settings from items/note revision; owner acceptance makes a revision. Keep your document separate.
 
 A write.
 Offered where the run's charter names the settings family and its authority holds it.
@@ -384,6 +384,8 @@ Offered where the run's charter names the settings family and its authority hold
     - `project`: integer [1, 4294967295]. Project settings: required; landing-rule: optional, absent=deployment; charter-words/template-goal/welcome: none.
   - `set`: any value. Its whole new value, as a settings file holds it; forge-charter takes a charter number. Read the setting first.
   - `edit`: one of `reset|removed`. In place of set: reset, to follow its default again, or removed, no longer offered.
+  - `remove`: boolean. true instead of set or edit: withdraw the setting.
+  - `reset`: boolean. true instead of set or edit: follow its default.
 
 ## read_forge
 
@@ -559,7 +561,7 @@ Offered to an asking run, where its authority holds the asking family.
 
 ### kind
 
-one of `charter|template|policy|rules|model|worker|landing-rule|forge-charter|template-goal|project-policy|project-ways|project-questions|project-classes|charter-words|project-words|follow|dependency|project-areas|project-triager|welcome|agents`.
+one of `charter|template|policy|rules|model|worker|provider|landing-rule|forge-charter|template-goal|project-policy|project-ways|project-questions|project-classes|charter-words|project-words|follow|dependency|project-areas|project-triager|welcome|agents`.
 
 ### words
 
