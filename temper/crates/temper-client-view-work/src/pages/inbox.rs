@@ -78,7 +78,13 @@ pub fn main(
                 count = count.checked_add(1).expect("listed cards fit");
             }
         }
-        let limited = *inbox.cut.get(usize::from(updates)).expect("two sections");
+        let mut limited = *inbox.cut.get(usize::from(updates)).expect("two sections");
+        if !updates {
+            let counted = root.pages().needs().counted(inbox, root.forge().approvals());
+            let (needs, cut) = super::home::needs_count(counted);
+            count = u64::from(needs);
+            limited = cut;
+        }
         let answered = inbox.answered(if updates {
             jig_client::contract::InboxReadGroup::Updates
         } else {
