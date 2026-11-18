@@ -5,7 +5,6 @@
 
 - **Not yet:** area 2: `goal start`'s and `milestone new`'s `--budget` in ctl's amount, and `--as-allowed`'s help lines saying what it takes [in flight: change 7671].
 - **Not yet:** area 7: no `draft` group or tool [in flight: change 665].
-- **Not yet:** area 2: no `proposal withdraw`, and `proposal show` prints an amendment as `amend` alone, without its target or its authority before and after [in flight: change 8257].
 - **Not yet:** area 2: a budget or tasks raised by `task amend` is not
   funded by the party who gives it: the engine resizes the task's
   existing funder's reservation, whoever amends, as jig's

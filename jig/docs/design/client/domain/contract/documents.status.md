@@ -5,7 +5,6 @@
 
 
 - **Not yet:** 1: the omitted-count mark gap remains `../../../domain/engine/settings.status.md`, 12.
-- **Not yet:** 1: a party's pending amendment, a party's retained amendment, a party's withdrawn proposal and a party's batch of more than one goal read `malformed` on the client wire, and `Ended::matches` takes a retained amendment or batch as a task's alone [in flight: change 8247].
 
 `README.md`, sections 4 and 5.3 have a party's scope and withheld turns by plan
 `ui-ask-m4` but for the gaps below: `NoteScope::Party { party }` on the

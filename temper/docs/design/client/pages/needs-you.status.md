@@ -6,7 +6,6 @@
 - **Not yet:** 1, **What the client keeps**, *The needs' rows* and the count after *Later*, with *Its intro*, *Its head* and the terminal's "Needs you N": the client holds the inbox's first window of needs, counts the open cards read, and takes a filtered read's cut from `page.cut` [in flight: change 7583].
 - **Not yet:** 1, **Needs you**: a need whose card is not read is neither listed nor opened, and the terminal's inbox draws no row for it [in flight: change 7587].
 - **Not yet:** 1, *A group of findings*: no test pins a person task asked under a standing role as a group's card [in flight: change 7584].
-- **Not yet:** 1, *By its kind*: a proposal's card has no Withdraw, a card's sends need its read, and a card with a key is kept after its proposal leaves the inbox [in flight: change 8258].
 - **Not yet:** 1, *An approval*: its size [in flight: change 535].
 - **Not yet:** 1, *Its title once*, *Why it's held* and *By its kind*:
   a held, funds or person task card draws its title again under the from

@@ -3,7 +3,6 @@
 2026-11-18. Where jig's code lags or departs from [README.md](README.md).
 
 - **Not yet:** 5, *Bounded*: needs are read from the child's cached prefix of `people.inbox_entries`, and past it a page goes to the store, which holds none, so the later pages of a party's needs are empty [in flight: change 7577].
-- **Not yet:** 5, *Each source keeps its own needs*: a party's proposal is projected under the number of the task it names, and each save replaces that whole bucket, so a save of the task erases the proposal's need and a save of the proposal the task's others; a proposal's need names its number alone [in flight: change 8255].
 - **Not yet:** 10: the world's story of an owner's deletion refused while a task is live [in flight: change 628].
 - **Not yet:** 10: the world's stories of a deleted project's read answered gone and an owner's deletion answered removed after it ended [in flight: change 629].
 
