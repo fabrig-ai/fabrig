@@ -221,6 +221,10 @@ pub fn read_handover(
     use skein_fake_machine::{How, Is, Refusal};
     use skein_io::file::Unsafe;
     use temper_service::HandoverUnread;
+    if read.forge == 0 {
+        // The world supplies the kernel's random-source result at the same shell boundary.
+        crate::machine::lay_handover(disk, &read.path, crate::documents::KEY);
+    }
     let (index, path) = crate::machine::path(&read.path);
     let root = disk.reopen_root(index);
     let opened = disk.open(root, path, How::ReadNoFollow);

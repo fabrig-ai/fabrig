@@ -40,5 +40,5 @@ fn small_holds_composed_settings() {
     assert_eq!(tasks.spec_bytes, 4_096);
     assert_eq!(tasks.result_bytes, 512);
     assert_eq!(limits.core.settings.alternatives, 63);
-    assert_eq!(limits.store.store.value, 4_580_852);
+    assert_eq!(limits.store.store.value, 39_712_100);
 }

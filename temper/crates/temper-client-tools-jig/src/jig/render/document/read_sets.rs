@@ -4,6 +4,10 @@ use crate::jig::runner::reads::Reading;
 use jig_client::{Readout, contract as c};
 use skein_json::writer::Encoder;
 use skein_ui::phrases::Phrasebook;
+#[expect(
+    clippy::too_many_lines,
+    reason = "read-set dispatch keeps provider settings and the other selected documents together"
+)]
 pub(super) fn text(
     reading: &Reading,
     me: Option<&c::Me>,
@@ -16,6 +20,10 @@ pub(super) fn text(
         super::person_text(person, reading.person_answerer, me, book, out);
     }
     let call = &reading.called.call;
+    if crate::jig::runner::providers::all(call) {
+        super::settings::providers_text(reading, limits, vocabulary, out);
+        return;
+    }
     if call.tool == 1 {
         super::super::lists::inboxes(reading, limits, book, out);
         return;
@@ -44,7 +52,10 @@ pub(super) fn text(
                 | c::ReadValue::Setting(_)
                 | c::ReadValue::Revision(_)
                 | c::ReadValue::Revisions(_)),
-            )) => super::settings::text(value, call, limits, vocabulary, out),
+            )) => {
+                super::settings::text(value, call, limits, vocabulary, out);
+                super::settings::provider_marks(value, reading, out);
+            }
 
             Readout::Jig(c::ReadResult::Value(value @ c::ReadValue::Proposal(_))) => {
                 super::proposal::text(value, reading, limits, out);
@@ -130,6 +141,10 @@ fn ended_text(
 #[expect(clippy::too_many_lines, reason = "read-set dispatch keeps each selected document's encoding together")]
 pub(super) fn encode(reading: &Reading, me: Option<&c::Me>, limits: &Limits, out: &mut Encoder, budget: &mut Cut) {
     let call = &reading.called.call;
+    if crate::jig::runner::providers::all(call) {
+        super::settings::providers_encode(reading, out);
+        return;
+    }
     if call.tool == 1 && super::subjects::inbox_eligible(call) {
         super::subjects::encode_inbox_read(reading, limits, out);
         return;

@@ -208,11 +208,11 @@ fn typed_callback_never_appears_in_the_view_or_page_address() {
 // client/pages/README.md The paste: changing page or way drops the value.
 #[test]
 fn leaving_the_page_or_way_drops_the_paste() {
-    for destination in [b"/accounts".as_slice(), b"/accounts/connect?provider=17&way=key"] {
+    for destination in [b"/accounts".as_slice(), b"/accounts/connect?provider=3&way=key"] {
         let (mut front, mut root, source) = begin(b"/accounts/connect");
         paste(&mut front, &mut root, &callback());
         h::event(&mut front, &mut root, Temper::went(at(destination)));
-        let returned = format!("/accounts/connect?provider=17&way=sign-in&source={source}");
+        let returned = format!("/accounts/connect?provider=3&way=sign-in&source={source}");
         h::event(&mut front, &mut root, Temper::went(at(returned.as_bytes())));
         assert!(disabled(&root), "a returned page asks for a fresh paste");
     }
@@ -260,7 +260,7 @@ fn watch_success_replaces_a_pending_paste_with_ready() {
 fn reload_of_the_waiting_source_drops_the_pasted_value() {
     let (mut front, mut root, source) = begin(b"/accounts/connect");
     paste(&mut front, &mut root, &callback());
-    let returned = format!("/accounts/connect?provider=17&way=sign-in&source={source}");
+    let returned = format!("/accounts/connect?provider=3&way=sign-in&source={source}");
     h::reopen(&mut front, &mut root, at(returned.as_bytes()));
     assert!(disabled(&root));
     assert_eq!(front.leaves.len(), 0);

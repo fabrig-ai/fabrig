@@ -103,11 +103,11 @@ fn went(root: &mut Domain, env: &Env<Limits>, place: Place, returned: bool, out:
                 forge(root, env, forge::Event::Left, out);
             }
         }
-        Place::Approve { .. }
-        | Place::Authorize { .. }
-        | Place::AuthorizeMalformed
-        | Place::Missing
-        | Place::Public(_) => {
+        Place::Root | Place::Missing => {
+            pages(root, env, crate::pages::Event::Root, out);
+            forge(root, env, forge::Event::Left, out);
+        }
+        Place::Approve { .. } | Place::Authorize { .. } | Place::AuthorizeMalformed | Place::Public(_) => {
             pages(root, env, crate::pages::Event::Left, out);
             forge(root, env, forge::Event::Left, out);
         }
@@ -129,6 +129,7 @@ pub(crate) fn pages(root: &mut Domain, env: &Env<Limits>, event: crate::pages::E
         },
         crate::pages::Event::Push(_)
         | crate::pages::Event::Started
+        | crate::pages::Event::Root
         | crate::pages::Event::Left
         | crate::pages::Event::SignInKept { .. }
         | crate::pages::Event::SignInAddress { .. }

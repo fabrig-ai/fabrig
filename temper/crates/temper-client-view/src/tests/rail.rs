@@ -511,9 +511,9 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
         f::deliver_me(&mut root, watch, me);
         let team = current == "Team";
         let (home, needs) = if address == (Address::Inbox { filter: d::address::Filter::ALL }) {
-            (b"/home".as_slice(), b"/".as_slice())
+            (b"/home".as_slice(), b"/needs".as_slice())
         } else {
-            (b"/projects/1".as_slice(), b"/?project=1".as_slice())
+            (b"/projects/1".as_slice(), b"/needs?project=1".as_slice())
         };
         if team {
             with_people(&mut root, 2);
@@ -545,7 +545,10 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
             assert_eq!(parts[3].styles.as_slice(), [look::RAIL_NEW]);
             assert_eq!(parts[4].styles.as_slice(), [look::RAIL_FOOT]);
             let brand = parts[0].id;
-            assert_eq!(crate::href(&mut view, brand).as_deref(), Some(home));
+            assert_eq!(
+                crate::href(&mut view, brand).as_deref(),
+                Some(if browser { b"/home".as_slice() } else { home })
+            );
             let nav = children(styled(view.tree(), look::RAIL_NAV));
             let mut names = vec![Some(b"Home".as_slice()), Some(b"Needs you"), Some(b"Work")];
             if team {
@@ -1403,4 +1406,36 @@ fn the_terminal_row_is_unchanged() {
     let text = String::from_utf8_lossy(print.text.as_slice());
     assert!(text.lines().any(|line| line.trim() == "[3] Shop · work/hello +2 (pressed)"), "{text}");
     assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::PROJECTS_ROW)));
+}
+
+#[test]
+fn browser_marks_choose_home_by_all_of_me_not_the_open_project() {
+    for address in [Address::Home { project: f::PROJECT }, Address::Welcome { step: d::Step::WelcomeAsked }] {
+        for projects in [0, 1, 2] {
+            let (mut root, watch, _) = f::root_at(address.clone(), &f::domain_limits());
+            let mut me = root.pages().me(root.client()).unwrap().clone();
+            let project = me.projects.get(0).unwrap().clone();
+            me.projects = List::with_capacity(2);
+            for n in 0..projects {
+                let mut project = project.clone();
+                project.project = f::PROJECT + n;
+                me.projects.push(project).unwrap();
+            }
+            f::deliver_me(&mut root, watch, me);
+            let mut view = f::browser_page_view(&root);
+            let brand = f::find(view.tree(), Role::Link, b"temper home")
+                .or_else(|| f::find(view.tree(), Role::Link, b"temper"))
+                .unwrap();
+            let home = if projects == 1 { Address::Home { project: f::PROJECT } } else { Address::AllHome };
+            assert_eq!(
+                crate::href(&mut view, brand).as_deref(),
+                Some(if projects == 1 { b"/projects/1".as_slice() } else { b"/home".as_slice() })
+            );
+            assert_eq!(
+                crate::act(&mut view, brand, Act::Press),
+                Some(d::Action::Pages(pages::Act::Go { address: home })),
+                "{address:?}, {projects}"
+            );
+        }
+    }
 }

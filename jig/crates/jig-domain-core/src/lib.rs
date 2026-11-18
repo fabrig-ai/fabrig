@@ -381,6 +381,7 @@ impl Core {
         }
         let fleet_needs = fleet_needs::configured(&config, limits);
         let mut current = settings::Current::new(config.defaults, limits, &config.kinds);
+        current.fixed_providers = config.fixed_providers;
         config.settings.models = settings::catalogue::table(&current);
         charters::rebuild(&mut current, limits);
         for project in &config.seed_projects {

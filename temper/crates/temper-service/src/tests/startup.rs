@@ -42,7 +42,7 @@ fn transcript_document(bytes: u32) -> Box<[u8]> {
 #[test]
 fn startup_names_a_transcript_past_the_codec_ceiling() {
     let document = transcript_document(33_554_433);
-    let found = crate::named(&document, &config::Directories::working()).unwrap_err();
+    let found = fixtures::named(&document, &config::Directories::working()).unwrap_err();
     assert_eq!(
         lines(&found).as_ref(),
         b"application.limits.overrides.root.loads.transcript_bytes: 33554433 bytes, past the transcript codec's ceiling of 33554432\n"
@@ -71,7 +71,8 @@ fn record_sizing_leaves_driver_admission_until_after_agent_checks() {
     engine.limits.root.loads.transcript_bytes = 3_000_000;
     engine.limits.root.loads.read_bytes = 1_000_000;
     let root = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
-    let refused = crate::store::admit(&root, &root.forge, &engine.jig.limits.store, None).unwrap_err();
+    let refused = crate::store::admit(&root, &root.forge, &engine.jig.limits.store, Some(root.loads.transcript_bytes))
+        .unwrap_err();
     let crate::store::Refusal::ReadRoom { read, needs } = refused else {
         panic!("the driver's page is the only refusal: {refused:?}");
     };
@@ -85,8 +86,7 @@ fn record_sizing_leaves_driver_admission_until_after_agent_checks() {
 #[test]
 fn a_read_bound_set_to_the_refusals_number_starts() {
     const TRANSCRIPT: u32 = 10_000_000;
-    // With a smaller agent turn the page drives the requirement; with a turn
-    // as large as the transcript the decoded row drives it instead.
+    // The provider row floor is covered by the chunk; each decoded turn must fit the read itself.
     for turn in [fixtures::startup_agent().limits.bodies.turn_body, TRANSCRIPT] {
         let mut agent = fixtures::startup_agent();
         agent.limits.bodies.turn_body = turn;
@@ -126,13 +126,12 @@ fn a_read_bound_set_to_the_refusals_number_starts() {
         let decoded = u64::from(turn)
             + u64::try_from(size_of::<jig_domain_core::reads::Row>()).unwrap()
             + u64::try_from(size_of::<jig_domain_core::Record>()).unwrap();
-        assert!(frame > map);
-        assert_eq!(page, frame);
-        assert!(u64::from(store.store.chunk) < page);
-        assert_eq!(decoded > page, turn == TRANSCRIPT);
-        let required = page.max(decoded);
-        // A read with no carrier room exercises both causes together; the
-        // same complete figure must be named there and at one byte short.
+        assert!(map > frame);
+        assert_eq!(page, map);
+        assert!(u64::from(store.store.chunk) >= page);
+        assert!(decoded < page);
+        let required = decoded;
+        // The complete decoded figure is named both without carrier room and at one byte short.
         for read in [u64::from(turn), required - 1, required] {
             let text = core::str::from_utf8(&document).unwrap();
             let needle = format!("\"root.loads.read_bytes\":{}", store.core.load_bytes);
@@ -275,14 +274,6 @@ fn startup_names_the_policy_row_before_its_general_refusal() {
 }
 
 #[test]
-fn the_template_shaped_demo_reads_into_its_public_fields() {
-    let (members, problems) = application(&fixtures::demo_application(), &fixtures::engine().jig);
-    assert_eq!(&*lines(&problems), b"");
-    let demo = members.unwrap().demo.unwrap();
-    assert_eq!(demo.provider, 3);
-    assert!(demo.key_file.ends_with(b"llm.key"));
-}
-#[test]
 fn the_welcome_member_is_refused_with_its_moved_words() {
     for value in ["true", "false", "\"yes\"", "1", "null", "{}", "[]"] {
         let input = format!("{{\"welcome\":{value},{}", &core::str::from_utf8(fixtures::APPLICATION).unwrap()[1..]);
@@ -296,49 +287,23 @@ fn the_welcome_member_is_refused_with_its_moved_words() {
     }
 }
 #[test]
-fn a_null_demo_reads_as_none() {
+fn the_demo_member_is_refused_with_its_moved_words() {
+    for value in ["null", "{}", "false"] {
+        let input = format!("{{\"demo\":{value},{}", &core::str::from_utf8(fixtures::APPLICATION).unwrap()[1..]);
+        let (members, problems) = application(input.as_bytes(), &fixtures::engine().jig);
+        assert!(members.is_none(), "{value}");
+        assert_eq!(
+            lines(&problems).as_ref(),
+            b"application.demo: moved: the playground's scripted model is the box's own\n"
+        );
+    }
+}
+#[test]
+fn an_engine_document_has_no_demo() {
     let (members, problems) = application(fixtures::APPLICATION, &fixtures::engine().jig);
     assert_eq!(&*lines(&problems), b"");
     assert!(members.unwrap().demo.is_none());
 }
-#[test]
-fn an_unanswerable_demo_is_refused_at_its_field() {
-    use temper_client_protocol_wire::v1::CEILINGS;
-    let input = fixtures::demo_application();
-    let input = core::str::from_utf8(&input).unwrap();
-    for (row, from, to, expected) in [
-        (
-            "cue count at bound",
-            "\"asked\":[",
-            ["\"asked\":[", &"{\"cue\":\"extra\",\"turns\":[\"x\"]},".repeat(5)].concat(),
-            "",
-        ),
-        (
-            "cue count past bound",
-            "\"asked\":[",
-            ["\"asked\":[", &"{\"cue\":\"extra\",\"turns\":[\"x\"]},".repeat(6)].concat(),
-            "application.demo.llm.asked: past its bound\n",
-        ),
-        (
-            "cue at bound",
-            "Add CSV export to widget",
-            "x".repeat(usize::try_from(CEILINGS.playground_answer_cues_item).unwrap()),
-            "",
-        ),
-        (
-            "cue past bound",
-            "Add CSV export to widget",
-            "x".repeat(usize::try_from(CEILINGS.playground_answer_cues_item + 1).unwrap()),
-            "application.demo.llm.asked[0].cue: past its bound\n",
-        ),
-    ] {
-        let input = input.replace(from, &to);
-        let (members, problems) = application(input.as_bytes(), &fixtures::engine().jig);
-        assert_eq!(members.is_some(), expected.is_empty(), "{row}");
-        assert_eq!(&*lines(&problems), expected.as_bytes(), "{row}");
-    }
-}
-
 #[test]
 fn the_clients_listener_is_read_from_the_application_member() {
     let jig = fixtures::engine().jig;
@@ -404,7 +369,7 @@ fn the_example_engine_keeps_jigs_chat_and_goal_templates() {
 fn a_chats_member_is_refused_as_unknown_naming_its_path() {
     let input = fixtures::document();
     let input = core::str::from_utf8(&input).unwrap().replacen("\"engine\":{", "\"engine\":{\"chats\":[],", 1);
-    let problems = crate::named(input.as_bytes(), &jig_protocol_config::Directories::working()).unwrap_err();
+    let problems = fixtures::named(input.as_bytes(), &jig_protocol_config::Directories::working()).unwrap_err();
     assert_eq!(&*lines(&problems), b"engine.chats: unknown member\n");
 }
 fn refused(input: &[u8]) -> Box<[u8]> {
@@ -546,7 +511,7 @@ fn jig_refusals_print_words() {
 }
 #[test]
 fn named_lists_each_file_with_its_bound_and_privacy() {
-    let named = crate::named(&fixtures::document(), &jig_protocol_config::Directories::working()).unwrap();
+    let named = fixtures::named(&fixtures::document(), &jig_protocol_config::Directories::working()).unwrap();
     assert_eq!(named.files.len(), 1, "all files listed");
     let (name, path, max, private) = (b"worker-secret".as_slice(), b"workers[0].secret".as_slice(), 257, true);
     let file = named.files.iter().find(|file| file.path.as_ref() == name).expect("listed file");
@@ -557,12 +522,12 @@ fn named_lists_each_file_with_its_bound_and_privacy() {
     let expected = [path, b": missing\n"].concat();
     assert_eq!(&*lines(&problems), expected.as_slice(), "path {name:?}");
     let document = fixtures::with(&fixtures::document(), b"workers[0].secret", br#""agent.json""#);
-    let named = crate::named(&document, &config::Directories::working()).unwrap();
+    let named = fixtures::named(&document, &config::Directories::working()).unwrap();
     assert!(named.files.iter().any(|file| file.private && file.path.as_ref() == b"agent.json"));
 }
 #[test]
 fn named_returns_the_worker_root_and_the_agent_configuration() {
-    let named = crate::named(&fixtures::document(), &jig_protocol_config::Directories::working()).unwrap();
+    let named = fixtures::named(&fixtures::document(), &jig_protocol_config::Directories::working()).unwrap();
     assert_eq!(named.deployment.as_ref(), b"state");
     assert_eq!(named.worker.as_ref().expect("standalone worker").root.as_ref(), b"workspaces");
     assert_eq!(named.worker.as_ref().expect("standalone worker").agent.as_ref(), b"agent.json");
@@ -587,17 +552,17 @@ fn a_file_named_but_not_given_refuses_the_start_naming_it() {
 #[test]
 fn jigs_problems_keep_their_paths_under_engine() {
     let input = fixtures::with(&fixtures::document(), b"engine.memory_bytes", br#""bad""#);
-    let problems = crate::named(&input, &jig_protocol_config::Directories::working()).unwrap_err();
+    let problems = fixtures::named(&input, &jig_protocol_config::Directories::working()).unwrap_err();
     assert_eq!(&*lines(&problems), b"engine.memory_bytes: wrong value kind\n".as_slice());
 }
 #[test]
 fn a_zero_byte_budget_refuses_the_start_naming_its_member() {
     let input = fixtures::document();
     let zero = fixtures::with(&input, b"engine.memory_bytes", b"0");
-    let problems = crate::named(&zero, &config::Directories::working()).unwrap_err();
+    let problems = fixtures::named(&zero, &config::Directories::working()).unwrap_err();
     assert_eq!(lines(&problems).as_ref(), b"engine.memory_bytes: past its bound\n");
     let one = fixtures::with(&input, b"engine.memory_bytes", b"1");
-    crate::named(&one, &config::Directories::working()).expect("a positive byte budget is valid");
+    fixtures::named(&one, &config::Directories::working()).expect("a positive byte budget is valid");
 }
 
 #[test]
@@ -681,14 +646,6 @@ fn a_worker_secret_at_its_bound_excludes_its_final_newline() {
 }
 
 #[test]
-fn a_missing_demo_is_refused_naming_its_path() {
-    let input = core::str::from_utf8(fixtures::APPLICATION).unwrap().replace("\"demo\":null,", "");
-    let (members, problems) = application(input.as_bytes(), &fixtures::engine().jig);
-    assert!(members.is_none());
-    assert_eq!(&*lines(&problems), b"application.demo: missing\n");
-}
-
-#[test]
 fn a_setup_or_box_override_is_handed_on_with_its_value() {
     for (override_value, repositories) in [("", 6_u64), (",\"forge.client.repositories\":3", 3)] {
         let input = core::str::from_utf8(fixtures::APPLICATION).unwrap().replace(
@@ -713,7 +670,7 @@ fn a_setup_or_box_override_is_handed_on_with_its_value() {
 #[test]
 fn a_clients_provider_key_and_secret_are_private_files_named_by_path() {
     let document = fixtures::with(&fixtures::document(), b"engine.clients", br#"{"provider":{"key":"provider.pem","clients":[{"id":"app","secret":"app.secret","redirect_uri":"https://app.example.com/cb"}],"addresses":[]}}"#);
-    let named = crate::named(&document, &jig_protocol_config::Directories::working()).unwrap();
+    let named = fixtures::named(&document, &jig_protocol_config::Directories::working()).unwrap();
     for (name, expected) in [
         (b"provider.pem".as_slice(), b"engine.clients.provider.key: missing\n".as_slice()),
         (b"app.secret", b"engine.clients.provider.clients[0].secret: missing\n"),
@@ -742,14 +699,14 @@ fn an_in_process_webhook_listener_is_refused() {
     let input =
         fixtures::with(&fixtures::document(), b"application.webhooks", br#"{"listener":{"in_process":"hooks"}}"#);
     assert_eq!(
-        &*lines(&crate::named(&input, &jig_protocol_config::Directories::working()).unwrap_err()),
+        &*lines(&fixtures::named(&input, &jig_protocol_config::Directories::working()).unwrap_err()),
         b"application.webhooks.listener: invalid form\n"
     );
 }
 #[test]
 fn the_configured_bundle_is_named_for_the_binary() {
     let document = fixtures::with(&fixtures::document(), b"application.clients.bundle", br#""/bundle""#);
-    let named = crate::named(&document, &jig_protocol_config::Directories::working()).expect("named");
+    let named = fixtures::named(&document, &jig_protocol_config::Directories::working()).expect("named");
     assert_eq!(named.bundle.as_deref(), Some(b"/bundle".as_slice()));
     assert_eq!(named.bundle_limits, crate::limits::Clients { bundle_files: 128, bundle_bytes: 32 << 20 });
 }
@@ -766,7 +723,7 @@ fn a_webhook_listener_with_a_bundle_is_refused() {
         br#"{"listener":{"socket":"127.0.0.1:7200"},"bundle":null}"#,
     );
     assert_eq!(
-        &*lines(&crate::named(&document, &jig_protocol_config::Directories::working()).unwrap_err()),
+        &*lines(&fixtures::named(&document, &jig_protocol_config::Directories::working()).unwrap_err()),
         b"application.webhooks.bundle: unknown member\n"
     );
 }
@@ -781,7 +738,7 @@ fn paths_are_resolved_by_kind_and_absolute_only_members_refuse_relative_values()
         (b"application.clients.bundle", br#""/kept/bundle""#, b"/kept/bundle", false),
     ] {
         let document = fixtures::with(&fixtures::document(), member, input);
-        let result = crate::named(&document, &directories);
+        let result = fixtures::named(&document, &directories);
         if refused {
             let lines = lines(&result.unwrap_err());
             let expected = [member, b": must be an absolute path\n"].concat();
@@ -802,6 +759,7 @@ fn a_standalone_check_reserve_shortfall_prepares_with_one_warning() {
     let mut agent = fixtures::startup_agent();
     agent.bounds.checks = skein_lib::Duration::from_millis(90_000);
     let mut defaults = crate::stock::with_models(Box::new([fixtures::small_model()]), 32);
+    defaults.providers = temper_worker_service_fixtures::providers();
     defaults.charters.iter_mut().find(|charter| charter.number == 2).unwrap().policy.reserve_time =
         skein_lib::Duration::from_secs(60);
     let mut service = crate::startup::startup_with(
@@ -890,13 +848,13 @@ fn a_store_reader_derives_serves_limits_or_their_problem_path() {
 #[test]
 fn an_engine_alone_prepares_without_a_worker_or_its_files_and_agent() {
     let input = fixtures::engine_alone_document();
-    let named = crate::named(&input, &config::Directories::working()).unwrap();
+    let named = fixtures::named(&input, &config::Directories::working()).unwrap();
     assert!(named.worker.is_none());
     let mut files = fixtures::files();
     for path in [b"worker-secret".as_slice(), fixtures::AGENT_JSON] {
         files.entries = fixtures::without(files.entries, path);
     }
-    let service = crate::startup::with_setup(
+    let service = fixtures::with_setup(
         &input,
         &config::Directories::working(),
         &files,
@@ -1014,26 +972,11 @@ fn clients_public_bounds_dns_labels_and_the_host() {
 }
 
 #[test]
-fn a_document_without_demo_forge_and_project_is_read() {
-    let input = fixtures::demo_application();
-    let input = core::str::from_utf8(&input).unwrap().replace(",\n\"forge\":1,\"project\":1", "");
-    let (members, problems) = application(input.as_bytes(), &fixtures::turn_jig());
-    assert_eq!(&*lines(&problems), b"");
-    let demo = members.unwrap().demo.unwrap();
-    assert_eq!(demo.provider, 3);
-    assert_eq!(demo.owner.as_ref(), b"playground");
-    assert_eq!(demo.name.as_ref(), b"widget");
-    assert_eq!(demo.landing.as_ref(), b"main");
-    assert!(demo.key_file.ends_with(b"demo/llm.key"));
-    assert_eq!(demo.cues.len(), 3);
-}
-
-#[test]
 fn a_document_naming_forges_is_refused_by_path() {
     let input = core::str::from_utf8(&fixtures::turn_document())
         .unwrap()
         .replace("\"application\":{", "\"application\":{\"forges\":[],");
-    let found = crate::named(input.as_bytes(), &config::Directories::working()).unwrap_err();
+    let found = fixtures::named(input.as_bytes(), &config::Directories::working()).unwrap_err();
     assert_eq!(lines(&found).as_ref(), b"application.forges: unknown member\n");
 }
 #[test]
@@ -1042,19 +985,8 @@ fn identities_and_setup_are_unknown_members() {
         let input = core::str::from_utf8(&fixtures::turn_document())
             .unwrap()
             .replace("\"application\":{", &format!("\"application\":{{\"{member}\":[],"));
-        let found = crate::named(input.as_bytes(), &config::Directories::working()).unwrap_err();
+        let found = fixtures::named(input.as_bytes(), &config::Directories::working()).unwrap_err();
         assert_eq!(lines(&found).as_ref(), format!("application.{member}: unknown member\n").as_bytes());
-    }
-}
-
-#[test]
-fn demo_refuses_forge_and_project_members() {
-    for member in ["forge", "project"] {
-        let input = fixtures::demo_application();
-        let input = core::str::from_utf8(&input).unwrap().replace("\"demo\":{", &format!("\"demo\":{{\"{member}\":1,"));
-        let (members, problems) = application(input.as_bytes(), &fixtures::turn_jig());
-        assert!(members.is_none());
-        assert_eq!(lines(&problems).as_ref(), format!("application.demo.{member}: unknown member\n").as_bytes());
     }
 }
 
@@ -1111,7 +1043,7 @@ fn capacity_overrides_name_the_failed_dependency() {
         };
         let document = super::stock::limited(&initial, member, value);
         if causes.is_empty() {
-            crate::named(&document, &config::Directories::working()).expect("independent init override is admitted");
+            fixtures::named(&document, &config::Directories::working()).expect("independent init override is admitted");
             continue;
         }
         let found = fixtures::start(

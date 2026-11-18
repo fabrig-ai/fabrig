@@ -132,6 +132,7 @@ fn following(line: &[u8], answer: &SeeAnswer) -> &'static [u8] {
                 | jig_domain_core::settings::Setting::ProjectPolicy { .. } => "settings policy N",
                 jig_domain_core::settings::Setting::Model(_) => "settings model N",
                 jig_domain_core::settings::Setting::Worker(_) => "settings worker N",
+                jig_domain_core::settings::Setting::Provider(_) => "settings provider N",
                 jig_domain_core::settings::Setting::Rules => "settings rules",
                 jig_domain_core::settings::Setting::Application { kind, .. } => match kind {
                     1 => "settings landing-rule N",

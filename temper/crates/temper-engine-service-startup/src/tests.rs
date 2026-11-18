@@ -14,3 +14,4 @@ mod stock;
 mod reds;
 
 mod fixed;
+mod providers;

@@ -23,7 +23,9 @@
     (3) follows the main;
   - *the top bar,* on any other page, the frame wherever the rail
     isn't (the look request `outside-pages`; `web/look.md`,
-    *Outside a project*): temper's mark, "temper", a link to `/`; then,
+    *Outside a project*): temper's mark, "temper", a link in the browser
+    to where the root goes, `rail::root_home` (`web/README.md`, 2.3), and in
+    the terminal to the inbox; then,
     signed in, at its right: "Offline" while the link is offline and
     "Behind" while a page's watch reopens, the person's name, "Sign out did not reach the engine." while that
     holds (`line.md`, 6), and "Sign out" once `me` is read or while that alert
@@ -239,8 +241,10 @@
 `web/whole-story/`, each page's `nav.rail`), on a project page (1): a
 navigation named by the open project, in this order:
 
-- temper's name, a link to where "Home" goes, named "temper
-  home";
+- temper's name, named "temper home", a link in the browser to where
+  the root goes, `rail::root_home` (`web/README.md`, 2.3; draft-2's
+  answer of 2026-11-18: the mark goes where the root goes, inside and
+  outside a project), and in the terminal to where "Home" goes;
 - the switcher (*Projects in the rail,* below);
 - "Home", to the open project's `Home`, and to `AllHome` on a page across
   projects; "Needs you", to *Needs you* filtered by the open project, and
@@ -446,7 +450,7 @@ The All projects row is the way back across projects, below.
 row while the person is in two projects or more, a button named "All
 projects", in small type at its right how many, "4 projects". Pressed, it
 goes to a page across projects: on `Inbox`, its filter with the project
-taken out, where a sign-in lands, `/`, having none; anywhere else
+taken out, `/needs` having none; anywhere else
 `AllHome` (`pages/home.md`, 1, *Home on All projects*). While the page is one across
 projects, `AllHome` or `Inbox` with no project, and the person is in two
 projects or more, the switcher's summary names "All projects" and its row
@@ -455,8 +459,9 @@ and never names it: its summary names that project and its row is the
 pressed one on every page, those across projects included, in the rail
 and a phone's top bar alike (the look request `one-project`, the user's
 word of 2026-11-15). "Home" and "Needs you"
-stay across projects there (`../draft/surfaces.md`, sections 1 and 2): "Home",
-temper's name and the phone's "Home" go to `AllHome`, current on it; "Needs
+stay across projects there (`../draft/surfaces.md`, sections 1 and 2): "Home"
+and the phone's "Home" go to `AllHome`, current on it, and temper's name in
+the terminal; "Needs
 you" and the phone's "Needs" go to `Inbox` with no project, current on it,
 their count across the person's projects (`pages/needs-you.md`, 1, *What the
 client keeps*). The rail's other entries keep the open project, the one last

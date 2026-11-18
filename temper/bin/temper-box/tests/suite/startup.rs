@@ -18,7 +18,6 @@ fn a_stock_policy_past_its_limit_refuses_before_listening() {
     let path = scratch.path().join("temper.json");
     let mut document: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
     document["engine"]["limits"]["overrides"]["core.policy_bytes"] = 100.into();
-    document["application"]["demo"] = serde_json::Value::Null;
     fs::write(&path, serde_json::to_vec(&document).expect("JSON")).expect("deployment");
     let output = std::process::Command::new(skein_scratch::paths::binary("temper-box"))
         .arg("serve")
@@ -802,6 +801,7 @@ fn serve_refuses_an_explicit_call_bound_below_the_agents_call_input() {
 #[test]
 fn serve_checks_the_owned_agents_admission_at_each_bound() {
     let scratch = owned_example("owned-admission-bounds");
+    temper_agent_fixtures::providers::remember(scratch.path(), &temper_service::stock::providers());
     let original = temper_agent_fixtures::read(scratch.path());
     for (member, value, expected) in [
         (
@@ -1602,7 +1602,7 @@ fn init_prints_written_files_account_guidance_and_explicit_start_flags_on_stderr
         let lines = String::from_utf8(output.stderr).expect("init lines");
         let mut expected = String::new();
         let names = if boxed {
-            vec!["worker.secret", "demo/llm.key", "demo/bin/git", "temper.json"]
+            vec!["worker.secret", "demo/bin/git", "temper.json"]
         } else {
             vec!["worker.secret", "temper.json"]
         };
@@ -1672,7 +1672,7 @@ fn box_initializes_only_absent_or_empty_configuration_directories() {
             assert!(!cache.exists());
         } else {
             let (first, held, _) = result.expect("initialization");
-            assert_eq!(held.len(), 3, "init retains its three deployment listeners");
+            assert_eq!(held.len(), 2, "init retains clients and webhooks");
             assert!(data.join("worker.secret").exists());
             assert!(cache.is_dir());
             let (second, reopened, _) = temper_box_shell::box_command::configuration(&dirs, &[]).expect("second read");

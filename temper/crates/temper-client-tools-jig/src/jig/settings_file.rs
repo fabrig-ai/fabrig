@@ -21,6 +21,7 @@ pub(crate) fn selector(call: &Call) -> c::Setting {
         Some(Value::Word(2)) => c::Setting::Policy(number),
         Some(Value::Word(3)) => c::Setting::Model(number),
         Some(Value::Word(4)) => c::Setting::Worker(number),
+        Some(Value::Word(5)) => c::Setting::Provider(number),
         Some(_) | None => unreachable!("parsed setting kind"),
     }
 }

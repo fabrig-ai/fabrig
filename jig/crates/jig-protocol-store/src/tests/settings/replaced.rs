@@ -62,11 +62,9 @@ fn revision_item_sum_and_count_bounds() {
     let limits = codec::settings::limits(&domain).unwrap();
     let count = s::capacity(&domain).unwrap().checked_mul(2).unwrap().min(jig_domain_tasks::SETTINGS_ITEMS);
     assert_eq!(limits.proposal_items, count);
-    let mut value = template();
-    value.name = Box::new([]);
-    let value = s::Value::Template(Box::new(value));
+    let value = s::Value::Provider(Box::new(provider_with_header_room()));
     let item = s::RevisionItem {
-        setting: s::Setting::Template(1),
+        setting: s::Setting::Provider(4),
         edit: s::Edit::Set(value.clone()),
         replaced: s::Replaced::Value(value),
     };
@@ -76,15 +74,19 @@ fn revision_item_sum_and_count_bounds() {
     let mut remaining = usize::try_from(limits.revision_items).unwrap().checked_sub(encoded.items().len()).unwrap();
     let s::Record::Revision { mut revision, .. } = row else { panic!("revision") };
     for item in &mut revision.items {
-        let (s::Edit::Set(s::Value::Template(edited)), s::Replaced::Value(s::Value::Template(replaced))) =
+        let (s::Edit::Set(s::Value::Provider(edited)), s::Replaced::Value(s::Value::Provider(replaced))) =
             (&mut item.edit, &mut item.replaced)
         else {
-            panic!("template values")
+            panic!("provider values")
         };
         for value in [edited, replaced] {
-            let length = remaining.min(skein_lib::length::usize_of(limits.template_name));
-            value.name = skein_lib::bytes::zeroed(length);
-            remaining = remaining.checked_sub(length).unwrap();
+            for endpoint in &mut value.endpoints {
+                for header in &mut endpoint.headers {
+                    let length = remaining.min(skein_lib::usize_of(limits.provider_header_value));
+                    header.value = skein_lib::bytes::zeroed(length);
+                    remaining = remaining.checked_sub(length).unwrap();
+                }
+            }
         }
     }
     assert_eq!(remaining, 0, "fixture fills the derived byte sum within the count");
@@ -97,8 +99,9 @@ fn revision_item_sum_and_count_bounds() {
     let bytes = codec::settings::encode(&row, &limits, &names).unwrap();
     assert_eq!(codec::settings::decode(&row.key(), &bytes, &limits, &names), Ok(row));
     let last = revision.items.last_mut().unwrap();
-    let s::Edit::Set(s::Value::Template(value)) = &mut last.edit else { panic!("template") };
-    value.name = skein_lib::bytes::zeroed(value.name.len().checked_add(1).unwrap());
+    let s::Edit::Set(s::Value::Provider(value)) = &mut last.edit else { panic!("provider") };
+    let header = value.endpoints.last_mut().unwrap().headers.last_mut().unwrap();
+    header.value = skein_lib::bytes::zeroed(header.value.len().checked_add(1).unwrap());
     let row = s::Record::Revision { history: false, revision };
     assert_eq!(codec::settings::encode(&row, &limits, &names).unwrap_err().reason, skein_codec::Reason::Bound);
     let wider = wire::Limits { revision_items: limits.revision_items.checked_add(1).unwrap(), ..limits };
@@ -115,6 +118,46 @@ fn revision_item_sum_and_count_bounds() {
         codec::settings::decode(&row.key(), &bytes, &limits, &names).unwrap_err().reason,
         skein_codec::Reason::Bound
     );
+}
+fn provider_with_header_room() -> s::ProviderSetting {
+    let mut endpoints = List::with_capacity(s::ENDPOINTS);
+    for number in 1..=s::ENDPOINTS {
+        let name = skein_lib::bytes::concat(&[b"endpoint-", skein_lib::Decimal::of(u64::from(number)).as_bytes()]);
+        let mut headers = List::with_capacity(s::providers::HEADERS);
+        for _ in 0..s::providers::HEADERS {
+            headers.push(s::Header { name: b"x".as_slice().into(), value: Box::new([]) }).unwrap();
+        }
+        endpoints
+            .push(s::Endpoint {
+                number,
+                name,
+                dialect: 3,
+                provider: b"local".as_slice().into(),
+                program: None,
+                address: s::EndpointAddress::Socket(::core::net::SocketAddr::from(([127, 0, 0, 1], 8080))),
+                transport: s::Transport::Plaintext,
+                headers: headers.into_boxed(),
+                connect: skein_lib::Duration::from_millis(1),
+                handshake: skein_lib::Duration::from_millis(1),
+            })
+            .unwrap();
+    }
+    s::ProviderSetting {
+        provider: s::Provider {
+            number: 4,
+            name: b"local".as_slice().into(),
+            endpoint: None,
+            direct: None,
+            list: None,
+            signed_in_plan: false,
+            manage_usage: None,
+            sign_in: None,
+            keys: false,
+            programs: Box::new([]),
+        },
+        endpoints: endpoints.into_boxed(),
+        withdrawn: false,
+    }
 }
 fn repeated_items(item: &s::RevisionItem, count: u32) -> Box<[s::RevisionItem]> {
     let mut items = List::with_capacity(count);

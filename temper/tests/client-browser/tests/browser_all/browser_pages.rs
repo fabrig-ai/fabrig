@@ -101,6 +101,11 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
         attribute: Some(b"class".as_slice().into()),
         name: b"needs-page".as_slice().into(),
     };
+    let home_page = || Step::Keep {
+        selector: b"main.temper-home".as_slice().into(),
+        attribute: Some(b"class".as_slice().into()),
+        name: b"home-page".as_slice().into(),
+    };
     let words = b"Add CSV export to widget";
     let mut steps = temper_client_browser_world::playground_ready();
     let mut stories = Stories::of_person(0);
@@ -178,6 +183,9 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
         // (temper/docs/design/client/view.md, 1).
         see(Find::exactly_named(Role::Button, b"New draft or change")),
         see(Find::exactly_named(Role::Main, b"")),
+        home_page(),
+        Step::Address(b"/projects/1".as_slice().into()),
+        Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(b"/needs") }),
         needs_page(),
     ]);
     steps.extend(temper_client_browser_world::start_change(true));
@@ -204,8 +212,8 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
         Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(b"/nowhere".as_slice()) }),
         see(Find::exactly_named(Role::Button, b"New draft or change")),
         see(Find::exactly_named(Role::Main, b"")),
-        needs_page(),
-        Step::Address(b"/".as_slice().into()),
+        home_page(),
+        Step::Address(b"/projects/1".as_slice().into()),
     ]);
     let mut script = Script::new(steps.into_boxed_slice());
     let mut harness = temper_client_browser_world::harness(tier.setup());

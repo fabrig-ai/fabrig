@@ -24,6 +24,10 @@ pub struct Engine {
     pub(crate) workers: crate::workers::Workers,
     pub(crate) clients: crate::clients::Clients,
     pub(crate) demo: Option<crate::settings::Demo>,
+    pub(crate) providers: Queue<Box<[jig_protocol_config::ProviderSetting]>>,
+    pub(crate) providers_path: Box<[u8]>,
+    pub(crate) providers_directory: Option<jig_protocol_config::Directories>,
+    pub(crate) running_providers: Box<[jig_protocol_config::ProviderSetting]>,
     pub(crate) places: Option<crate::places::Places>,
     pub(crate) box_link: route::box_link::Link,
     pub(crate) setup: crate::setup::Layer,
@@ -159,6 +163,10 @@ impl Engine {
             workers,
             clients,
             demo,
+            providers: Queue::uncapped(),
+            providers_path: Box::new([]),
+            providers_directory: None,
+            running_providers: Box::new([]),
             forge,
             setup,
             box_link: route::box_link::Link::new(0, false),
@@ -521,6 +529,9 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
         engine.forge.serving = Some(());
     }
     engine.clients.playground = engine.domain.playground().copied();
+    if engine.domain.quiescent() && engine.events.is_empty() && engine.pending.is_none() {
+        engine.clients.playground_admitted();
+    }
     engine.clients.starting = if open { None } else { Some(()) };
     engine.clients.iterate(
         now,
