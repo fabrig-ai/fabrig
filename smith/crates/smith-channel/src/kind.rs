@@ -1,4 +1,4 @@
-//! Version-ten kind identities (smith/docs/design/protocol/channel.md, sections 3–4).
+//! Version-eleven kind identities (smith/docs/design/protocol/channel.md, sections 3–4).
 
 use alloc::boxed::Box;
 

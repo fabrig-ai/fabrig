@@ -66,6 +66,7 @@ pub(crate) fn answer_status(answer: &smith_host_domain::Answer, account: Option<
                 | smith_host_domain::ModelFault::Provider
                 | smith_host_domain::ModelFault::Declined
                 | smith_host_domain::ModelFault::Program { .. }
+                | smith_host_domain::ModelFault::Untooled { .. }
                 | smith_host_domain::ModelFault::Truncated
                 | smith_host_domain::ModelFault::Malformed => ExitStatus::RunFailed,
             },
