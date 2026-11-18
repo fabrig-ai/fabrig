@@ -398,6 +398,7 @@ fn account_wait_status_distinguishes_progress_from_blocked_starts() {
         (TaskWaitWhy::Source(TaskSourceState::Asking), ChatStatus::Starting),
         (TaskWaitWhy::Source(TaskSourceState::Granted), ChatStatus::Starting),
         (TaskWaitWhy::Host, waiting.clone()),
+        (TaskWaitWhy::Untooled { worker: 2 }, waiting.clone()),
         (TaskWaitWhy::Empty, waiting.clone()),
         (TaskWaitWhy::Invalid(AccountWhy::Unknown), waiting.clone()),
         (TaskWaitWhy::Source(TaskSourceState::Later { until: None }), waiting.clone()),

@@ -116,7 +116,9 @@ fn start(inherited: &skein_world::Inherited) -> SignalHost<Tool> {
     )
     .unwrap_or_else(|why| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&why))));
     let root = |name: &[u8]| inherited.roots.iter().find(|(key, _)| key.as_ref() == name).expect("tool root").1;
-    service.rehearse_store(root(b"source"), root(b"scratch"), 1000).expect("tool roots adopted");
+    service
+        .rehearse_store(root(b"source"), root(b"scratch"), 1000, jig_protocol_store::Reach::Whole)
+        .expect("tool roots adopted");
     let owners = service.wait_state().engine.expect("upgrade engine");
     assert!(
         owners.workers.closed && owners.setup.closed && owners.forge.closed,

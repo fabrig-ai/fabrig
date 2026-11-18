@@ -53,6 +53,7 @@ fn startup(
     world.spawn(|| {
         Proc::new(Kind::Llm(Box::new(Llm {
             pending_streak: crate::patience::PendingStreak::default(),
+            queries: llm::Queries::default(),
             peer: llm::peer(llm::scripted(Box::new([]))).expect("deferred LLM"),
             scripts: Some(|_| Box::new([])),
             groups: None,

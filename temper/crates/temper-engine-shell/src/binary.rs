@@ -79,15 +79,11 @@ fn dispatch(
             print!("{}", versions());
             Ok(0)
         }
-        Reach::Words(["upgrade", mode @ ("--check" | "--back")]) => {
+        Reach::Words(["upgrade", mode @ ("--check" | "--workers" | "--back")]) => {
             let working = captured.working.as_ref().map_err(|why| (1, format!("temper-engine upgrade: {why}\n")))?;
-            let (directories, request) = crate::upgrade::configure(
-                *mode == "--check",
-                arguments,
-                &captured.environment,
-                working.as_os_str().as_bytes(),
-            )
-            .map_err(|why| refused(&why))?;
+            let (directories, request) =
+                crate::upgrade::configure(mode, arguments, &captured.environment, working.as_os_str().as_bytes())
+                    .map_err(|why| refused(&why))?;
             refuse_document(command, &directories).map_err(|why| (1, why))?;
             crate::upgrade::run(ENGINE.binary, &directories, &request, commit).map_err(|why| (1, why))
         }

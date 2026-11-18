@@ -799,7 +799,13 @@ fn a_store_at_thirteen_refuses_at_fourteen_without_reading_registry_or_writing()
             let directory = disk.root();
             disk.request(
                 &mut current,
-                Request::Rehearse { owner: Token::new(1), directory, scratch, installation: fixtures::INSTALLATION },
+                Request::Rehearse {
+                    owner: Token::new(1),
+                    directory,
+                    scratch,
+                    installation: fixtures::INSTALLATION,
+                    reach: crate::Reach::Whole,
+                },
             )
         } else {
             disk.open(&mut current)

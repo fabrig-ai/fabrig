@@ -833,6 +833,17 @@ fn untranslated_runs_and_jobs_keep_a_retry_reason_on_the_usual_answer_route() {
 }
 
 #[test]
+fn an_untooled_failure_is_the_runs_own_failure() {
+    let ending = host::Ending::Failed {
+        failure: host::Failure::Run(host::RunFailure::Untooled),
+        detail: b"missing tools".as_slice().into(),
+        work: host::Work { left: None, saved: None },
+        model: None,
+    };
+    assert_eq!(payload::ending(&ending), tasks::End::Failed(tasks::Class::Run));
+}
+
+#[test]
 fn a_named_model_failure_classes_only_its_unsent_outages_as_infrastructure() {
     use host::{ModelEvidence as Evidence, ModelFailureKind as Kind};
     for (kind, evidence, status, class, words) in [

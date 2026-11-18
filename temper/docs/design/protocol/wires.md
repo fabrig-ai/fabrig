@@ -397,15 +397,21 @@ them.
   them, and an opening the root hears before that commit is durable is
   committed once it is, so what the store keeps is each worker's last
   opening since the engine's last start.
-- **Never read by the engine:** they are for `upgrade --check` (10.2),
-  which runs with the engine stopped (`../draft/redeploys.md`, 5.1).
+- **Never read by the engine:** they are for `upgrade --check` and
+  `upgrade --workers` (10.2), which read a stopped deployment or a
+  checkpoint of a serving one, the state at one commit
+  (`../draft/redeploys.md`, 5.1; `../redeploy.md`, 4.1 and 4.2).
 
 ### 10.2 Whether the workers may stay
 
 `upgrade --check` (`binaries.md`, section 2) judges each worker by its
 kept opening (`../draft/redeploys.md`, 5.1), after its jobs' and
-restores' lines. Every line starts with the binary's name and
-`upgrade:`, as the check's others do, and none changes its exit code.
+restores' lines. `upgrade --workers` prints these lines alone, read
+over a checkpoint at a redeploy's settled stop with no job or restore
+before them, so that the redeploy judges again what may have changed
+since its check (`../redeploy.md`, 4.2). Every line starts with the
+binary's name and `upgrade:`, as the check's others do, and none
+changes its exit code.
 
 1. **The copy keeps no wires,** a store from before the row: `workers
    may stay: unknown; the copy keeps no wires`, and nothing more.

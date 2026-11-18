@@ -8,8 +8,8 @@ pub const READ_MESSAGE: u64 = 1;
 impl Story {
     #[must_use]
     pub fn reading_chat(seed: u64) -> Self {
-        let body = fixtures::TURN_BYTES;
-        Self::reading_chat_with(seed, Box::from(body), fixtures::domain_limits(), fixtures::owner_limits())
+        let body = fixtures::turn_bytes();
+        Self::reading_chat_with(seed, body, fixtures::domain_limits(), fixtures::owner_limits())
     }
     #[must_use]
     pub fn reading_chat_with(

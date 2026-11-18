@@ -44,6 +44,7 @@ pub enum JigPhrase {
     EngineLimitProjects,
 
     BoundsWorker,
+    WaitUntooled,
     BoundsEngine,
     RefusedWorkerAt,
     RefusedEngineAt,
@@ -1116,6 +1117,7 @@ impl JigPhrase {
             Self::NameDigits => 7835,
             Self::EngineLimitProjects => 7836,
             Self::BoundsWorker => 7840,
+            Self::WaitUntooled => 7931,
             Self::BoundsEngine => 7841,
             Self::RefusedWorkerAt => 7821,
             Self::RefusedEngineAt => 7822,
@@ -2329,7 +2331,8 @@ impl JigPhrase {
             | Self::DependencyPending
             | Self::DependencyDone
             | Self::CircleWaitsFor
-            | Self::ResultsThrough => Box::new([HoleShape { kind: HoleKind::Number, bytes: 0 }]),
+            | Self::ResultsThrough
+            | Self::WaitUntooled => Box::new([HoleShape { kind: HoleKind::Number, bytes: 0 }]),
             Self::SettingsRestored
             | Self::PolicyEffect
             | Self::RunRetryFailed
@@ -2436,7 +2439,7 @@ impl JigPhrase {
     }
 }
 /// Every jig phrase; loading checks this whole contract.
-pub const ALL: [JigPhrase; 654] = [
+pub const ALL: [JigPhrase; 655] = [
     JigPhrase::TooLinked,
     JigPhrase::SettingsChanged,
     JigPhrase::SettingProjectPolicy,
@@ -2473,6 +2476,7 @@ pub const ALL: [JigPhrase; 654] = [
     JigPhrase::NameDigits,
     JigPhrase::EngineLimitProjects,
     JigPhrase::BoundsWorker,
+    JigPhrase::WaitUntooled,
     JigPhrase::BoundsEngine,
     JigPhrase::RefusedWorkerAt,
     JigPhrase::RefusedEngineAt,

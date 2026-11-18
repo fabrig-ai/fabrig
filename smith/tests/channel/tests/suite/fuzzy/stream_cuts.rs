@@ -8,8 +8,6 @@ use skein_world::domain::assert_replays;
 use smith_channel::CEILINGS;
 use smith_channel_world::{Observation, World};
 
-const CHARTER: &[u8] = include_bytes!("../../../../../crates/smith-charter/golden/v5/record_charter_smallest.bin");
-
 fn run(seed: u64) -> (Vec<String>, (usize, usize, usize)) {
     let mut rng = Rng::new(seed);
     let mode = if rng.chance(500) { StreamMode::One } else { StreamMode::Two };
@@ -18,10 +16,10 @@ fn run(seed: u64) -> (Vec<String>, (usize, usize, usize)) {
     let cut = usize::try_from(rng.below(16) + 1).expect("bounded cut");
     if seed.is_multiple_of(2) {
         world.cut_agent_input_after(cut);
-        world.send_start(Box::from(CHARTER));
+        world.send_start(crate::values::charter("smallest").into_boxed_slice());
         world.settle();
     } else {
-        world.send_start(Box::from(CHARTER));
+        world.send_start(crate::values::charter("smallest").into_boxed_slice());
         world.settle();
         world.agent_admits();
         world.settle();

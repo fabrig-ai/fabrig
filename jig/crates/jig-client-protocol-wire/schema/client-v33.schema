@@ -709,7 +709,8 @@ record TaskSourceStateUnloaded { at: TaskSourcePlace why: TaskSourceUnread }
 enum TaskSourceState { asking, granted, later: TaskSourceStateUntil, limited: TaskSourceStateUntil, refused, needs_sign_in, misconfigured, unloaded: TaskSourceStateUnloaded, cancelled, closing, moving }
 record TaskWaitSource { state: TaskSourceState }
 record TaskWaitInvalid { why: AccountWhy }
-enum TaskWaitWhy { source: TaskWaitSource, refreshing, host, empty, invalid: TaskWaitInvalid }
+record TaskWaitUntooled { worker: u32 }
+enum TaskWaitWhy { source: TaskWaitSource, refreshing, host, empty, invalid: TaskWaitInvalid, untooled: TaskWaitUntooled }
 record TaskWaitAccount { account: option u32 source: option u32 why: TaskWaitWhy }
 enum HostKind { worker, engine }
 record AgentShortfallModel { charter: u32 model: u32 }

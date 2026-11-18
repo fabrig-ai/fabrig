@@ -120,15 +120,19 @@ impl Run<'_> {
     }
     fn perform(&mut self, mode: Mode) -> Result<(), Failure> {
         self.before()?;
+        self.checkpoint_for_check()?;
+        let may_stay = self.check(false)?;
+        if !may_stay || mode == Mode::Together {
+            return self.together();
+        }
         match mode {
-            Mode::Together => self.together(false),
+            Mode::Together => unreachable!("together has its own path"),
             Mode::Engine | Mode::Workers => {
                 self.stop(Part::Engine)?;
-                if !self.check()? {
+                if !self.check(true)? {
                     self.restore()?;
-                    return self.together(true);
+                    return self.together();
                 }
-                self.backup()?;
                 self.swap(Part::Engine)?;
                 self.restart(&[Part::Engine], &self.workers(), self.window)?;
                 match mode {
@@ -186,8 +190,11 @@ impl Run<'_> {
         let name = part_name(self.description, part);
         self.command(part, &format!("{name} stop"), line)?;
         self.note(&format!("{name} stopped at {at}"))?;
-        if part == Part::Engine && self.journal.record.told.is_none() {
-            self.read_told(at)?;
+        if part == Part::Engine {
+            if self.journal.record.told.is_none() {
+                self.read_told(at)?;
+            }
+            self.backup()?;
         }
         Ok(())
     }
@@ -207,53 +214,68 @@ impl Run<'_> {
         }
         Ok(())
     }
-    fn check(&mut self) -> Result<bool, Failure> {
+    fn checkpoint_for_check(&mut self) -> Result<(), Failure> {
+        let text = hosts::ctl(self.description, &["deployment", "checkpoint"], self.hosts)
+            .map_err(|why| Failure::at("check checkpoint", why))?;
+        let value: serde_json::Value =
+            serde_json::from_str(&text).map_err(|why| Failure::at("check checkpoint", why.to_string()))?;
+        let name = value
+            .get("name")
+            .and_then(serde_json::Value::as_str)
+            .filter(|name| checkpoint_name(name))
+            .ok_or_else(|| Failure::at("check checkpoint", "invalid checkpoint name"))?;
+        self.journal.record.checkpoint = Some(name.into());
+        self.note(&format!("check checkpoint {name}"))
+    }
+    fn check(&mut self, again: bool) -> Result<bool, Failure> {
         let binary = format!("{}/{}/temper-engine", self.description.engine.builds, self.commit);
-        let output = self.hosts.run(Part::Engine, &fill(&self.description.engine.check, &[("binary", &binary)]));
+        let (step, template, checkpoint) = if again {
+            ("verdict", &self.description.engine.verdict, &self.journal.record.backup)
+        } else {
+            ("check", &self.description.engine.check, &self.journal.record.checkpoint)
+        };
+        let checkpoint = checkpoint.as_deref().expect("checkpoint taken before its check or verdict");
+        let output = self.hosts.run(Part::Engine, &fill(template, &[("binary", &binary), ("checkpoint", checkpoint)]));
         let lines: Vec<String> = output.stdout.lines().chain(output.stderr.lines()).map(str::to_owned).collect();
-        self.journal.record.check = Some(Check { code: output.code, lines: lines.clone() });
+        let check = Some(Check { code: output.code, lines: lines.clone() });
+        if again {
+            self.journal.record.verdict = check;
+        } else {
+            self.journal.record.check = check;
+        }
         for line in &lines {
             self.note(line)?;
         }
-        // Save even a check with no output, including a command which could not run.
-        self.note(&format!("check exit {:?}", output.code))?;
-        success("check", &output)?;
+        // Save even a check or verdict with no output, including a command which could not run.
+        self.note(&format!("{step} exit {:?}", output.code))?;
+        success(step, &output)?;
         let may_stay =
             lines.iter().rev().find_map(|line| line.rsplit_once("workers may stay: ").map(|(_, verdict)| verdict))
                 == Some("yes");
-        self.note(if may_stay {
-            "check workers may stay: yes"
-        } else {
-            "check workers may stay: no or unknown; every part together"
-        })?;
+        self.note(&format!(
+            "{step} workers may stay: {}",
+            if may_stay { "yes" } else { "no or unknown; every part together" }
+        ))?;
         Ok(may_stay)
     }
     fn backup(&mut self) -> Result<(), Failure> {
-        let ran_job = self
-            .journal
-            .record
-            .check
-            .as_ref()
-            .is_some_and(|check| check.lines.iter().any(|line| line.contains("upgrade: ran ")));
-        if !ran_job || self.journal.record.backup.is_some() {
-            return Ok(());
+        let binary = format!("{}/temper-engine", self.description.engine.binaries);
+        let output = self.hosts.run(Part::Engine, &fill(&self.description.engine.checkpoint, &[("binary", &binary)]));
+        for line in output.stdout.lines().chain(output.stderr.lines()) {
+            self.note(line)?;
         }
-        let at = self.hosts.now();
-        let date = time::OffsetDateTime::from_unix_timestamp_nanos(i128::from(at))
-            .expect("u64 wall nanoseconds fit the calendar");
-        let name = format!(
-            "{}-{:04}{:02}{:02}T{:02}{:02}{:02}Z",
-            self.commit,
-            date.year(),
-            u8::from(date.month()),
-            date.day(),
-            date.hour(),
-            date.minute(),
-            date.second()
-        );
-        self.command(Part::Engine, "backup", &fill(&self.description.engine.backup, &[("name", &name)]))?;
-        self.journal.record.backup = Some(name.clone());
-        self.note(&format!("backup {name}"))
+        success("stop checkpoint", &output)?;
+        let name = output
+            .stdout
+            .lines()
+            .chain(output.stderr.lines())
+            .find_map(|line| {
+                let name = line.strip_prefix("temper-engine checkpoint: ")?.split_whitespace().next()?;
+                checkpoint_name(name).then_some(name)
+            })
+            .ok_or_else(|| Failure::at("stop checkpoint", "invalid checkpoint name"))?;
+        self.journal.record.backup = Some(name.into());
+        self.note(&format!("stop checkpoint {name}; backup"))
     }
     fn swap(&mut self, part: Part) -> Result<(), Failure> {
         let name = part_name(self.description, part);
@@ -377,7 +399,7 @@ impl Run<'_> {
         }
         Ok(())
     }
-    fn together(&mut self, checked: bool) -> Result<(), Failure> {
+    fn together(&mut self) -> Result<(), Failure> {
         let from = self.hosts.now();
         self.outage_from = Some(from);
         let lines: Vec<_> = self
@@ -407,10 +429,6 @@ impl Run<'_> {
             return Err(Failure::at("workers stop", "missing command answers"));
         }
         self.stop(Part::Engine)?;
-        if !checked {
-            self.check()?; // In together mode a no verdict still permits the drained restart.
-        }
-        self.backup()?;
         for part in std::iter::once(Part::Engine).chain(self.workers()) {
             self.swap(part)?;
         }
@@ -476,6 +494,9 @@ fn success(step: &str, output: &Output) -> Result<(), Failure> {
     } else {
         Err(Failure::at(step, format!("exit {:?}: {} {}", output.code, output.stderr.trim(), output.stdout.trim())))
     }
+}
+fn checkpoint_name(name: &str) -> bool {
+    jig_protocol_store::CheckpointName::parse(name.as_bytes()).is_some()
 }
 fn installed(text: &str, name: &str) -> Option<String> {
     let commit = text.split_whitespace().nth(2)?.strip_prefix('(')?.strip_suffix(')')?;

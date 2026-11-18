@@ -97,7 +97,8 @@ fn create(world: &mut World, signed: u64, project: u32, key: u8, person: bool) -
     member.flags.listed = true;
     member.tracked = Some(1);
     member.budget = people::Budget::Named;
-    member.authority.spend = 20;
+    // Half funds the twenty-unit run while keeping the same read authority.
+    member.authority.spend = 40;
     member.authority.tools = 2047 | core::ToolFamilies::JIG.ask.0;
     if person {
         member.executor = people::TaskExecutor::Person(people::PersonAddress::Person(PERSON));

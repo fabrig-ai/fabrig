@@ -20,7 +20,8 @@ pub struct Engine {
     pub start: String,
     pub log: String,
     pub check: String,
-    pub backup: String,
+    pub checkpoint: String,
+    pub verdict: String,
     pub swap: String,
     pub ctl: String,
 }
@@ -78,7 +79,7 @@ fn string<'a>(fields: &'a Map<String, Value>, key: &str, path: &str) -> Result<&
 }
 fn part<'a>(value: &'a Value, path: &str, engine: bool) -> Result<&'a Map<String, Value>, String> {
     let keys: &[&str] = if engine {
-        &["run", "binaries", "builds", "stop", "start", "log", "check", "backup", "swap", "ctl"]
+        &["run", "binaries", "builds", "stop", "start", "log", "check", "checkpoint", "verdict", "swap", "ctl"]
     } else {
         &["name", "run", "binaries", "builds", "stop", "start", "swap", "document"]
     };
@@ -99,8 +100,8 @@ fn part<'a>(value: &'a Value, path: &str, engine: bool) -> Result<&'a Map<String
             let text = string(fields, key, &member)?;
             let required: &[&str] = match *key {
                 "log" => &["since"],
-                "check" => &["binary"],
-                "backup" => &["name"],
+                "check" | "verdict" => &["binary", "checkpoint"],
+                "checkpoint" => &["binary"],
                 "swap" => &["from", "to"],
                 _ => &[],
             };

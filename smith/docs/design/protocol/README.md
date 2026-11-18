@@ -176,7 +176,7 @@ host would be another.
 | `smith-protocol-translate` | component | the translations between the channel's, the charter's and the transcript's records and the domains' values, shared by both halves and the local host's store (channel.md, charter.md, transcript.md) |
 | `smith-host-protocol` | component | the host's half: skein's channel and smith's codecs on the streams it is given, translated to and from `smith-host-domain` (host.md) |
 | `smith-local-protocol` | protocol layer | the local host's: the terminal, transcripts in files, signing in and committing in place (host.md) |
-| `smith-local-protocol-codec` | codecs | the local store's generated record code, below `smith-local-protocol`, which keeps its schema, layouts and golden bytes and translates it (`tools/crates/design.md`, 3.2) |
+| `smith-local-protocol-codec` | codecs | the local store's generated record code, below `smith-local-protocol`, which keeps its schema and layouts and translates it (`tools/crates/design.md`, 3.2) |
 | `smith-inline-agent` | domain | an agent capability in its host's process: one composed `smith-domain` per run, speaking `smith-host-domain`'s vocabulary (domain/host.md, section 9) |
 | `smith-agent-service`, `smith-local-service` | service | the agent process's and the product's `iterate`; each holds its profiles as step code, the `standard` profile among them, derives its limits and checks them (limits.md), and owns its event sink (events.md) |
 | `smith-agent-shell` | shell | the agent process, as a library: its configuration, its startup, and the one adapter that its binary and the worlds both run (agent.md) |
@@ -369,7 +369,7 @@ to an older reader or writer. Each has one version at a time.
     2). This wire is per-build: a spawning host pins its agent's program
     and configuration for its lifetime and adopts no older agents, so
     both halves move together. Every layout change moves the version
-    and keeps the previous schema and goldens; no bridge or previous
+    and keeps the previous schema text; no bridge or previous
     spoken version is needed. temper records this exemption in its wire
     bridge inventory (`temper/docs/design/draft/redeploys.md`, 4.2 and
     4.4). A consumer permitting independently upgraded agents needs a
@@ -422,7 +422,11 @@ it.
   - measured encoding;
   - bounded decoding with typed problems;
   - each record's encoded and decoded bounds;
-  - golden bytes.
+  - fixed-rule values built from schema text, without stored golden bytes.
+
+  Smith's family drift checks compare the records' module alone and refuse
+  unpinned constructs; the generator's own pin holds its bytes and tests
+  (skein's `data/codec/README.md`, section 6).
 
   Designed in skein's `data/codec/README.md`.
 - **Owners that close, and a process that ends** (programming-model.md,

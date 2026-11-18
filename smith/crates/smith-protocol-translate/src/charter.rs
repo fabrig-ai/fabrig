@@ -300,12 +300,11 @@ mod tests {
     use skein_lib::{Duration, Reader};
 
     #[test]
-    #[expect(clippy::disallowed_macros, reason = "programming-model.md, section 10.2: frozen charter fixture")]
     fn optional_check_bounds_cross_the_charter_boundary() {
         let mut endpoints = List::with_capacity(1);
         endpoints.push(crate::Endpoint { name: Box::default(), number: 17, dialect: 23 }).expect("one endpoint");
         let endpoints = Endpoints::new(endpoints);
-        let source = include_bytes!("../../smith-charter/golden/v5/record_charter_smallest.bin");
+        let source = &charter_fixture();
         let mut charter = crate::decode_charter(source, &wire::CEILINGS, &endpoints).expect("smallest charter");
         assert_eq!(charter.check_timeout, None);
         for bound in [None, Some(Duration::from_secs(1)), Some(Duration::from_secs(86_400))] {
@@ -317,15 +316,11 @@ mod tests {
     }
 
     #[test]
-    #[expect(
-        clippy::disallowed_macros,
-        reason = "programming-model.md, section 10.2: a unit test reads its frozen golden"
-    )]
     fn both_lifecycle_modes_cross_the_charter_boundary() {
         let mut endpoints = List::with_capacity(1);
         endpoints.push(crate::Endpoint { name: Box::default(), number: 17, dialect: 23 }).expect("one endpoint");
         let endpoints = Endpoints::new(endpoints);
-        let golden = include_bytes!("../../smith-charter/golden/v5/record_charter_smallest.bin");
+        let golden = &charter_fixture();
         let charter = wire::Charter::decode(&wire::CEILINGS, &mut Reader::new(golden)).expect("current golden");
         let mut writer = Writer::new(usize::try_from(charter.measure()).expect("bounded charter"));
         charter.encode(&mut writer).expect("measured charter");
@@ -339,5 +334,16 @@ mod tests {
             assert_eq!(crate::decode_charter(&encoded, &wire::CEILINGS, &endpoints), Ok(charter));
         }
         assert_eq!(crate::decode_charter(&[0, 3], &wire::CEILINGS, &endpoints), Err(run::Invalid::CharterVersion));
+    }
+    #[expect(clippy::disallowed_macros, reason = "the fixture embeds the current charter schema")]
+    fn charter_fixture() -> Box<[u8]> {
+        let schema =
+            skein_codegen::parse(include_str!("../../smith-charter/schema/charter-v5.schema")).expect("charter schema");
+        for value in skein_codegen::goldens(&schema) {
+            if value.name == "record_charter_smallest.bin" {
+                return value.bytes.into_boxed_slice();
+            }
+        }
+        panic!("smallest charter")
     }
 }

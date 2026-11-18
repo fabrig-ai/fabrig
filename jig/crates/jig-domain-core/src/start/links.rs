@@ -137,7 +137,12 @@ impl Core {
         }
         match row.escalation {
             tasks::Escalation::Waiting { holder: tasks::EscalationHolder::Person(person), .. }
-            | tasks::Escalation::Rejected { by: person, .. } => self.link_person(&source, person)?,
+            | tasks::Escalation::Rejected { by: tasks::EscalationDecider::Person(person), .. } => {
+                self.link_person(&source, person)?;
+            }
+            tasks::Escalation::Rejected { by: tasks::EscalationDecider::Task(task), .. } => {
+                self.link_task(&source, task)?;
+            }
             tasks::Escalation::Waiting { holder: tasks::EscalationHolder::Role { project, .. }, .. } => {
                 self.link_project(&source, project)?;
             }

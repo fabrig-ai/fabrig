@@ -14,10 +14,36 @@ struct Audited {
     swapped: BTreeSet<Part>,
     started: BTreeSet<Part>,
     context: String,
+    checked: bool,
+    serving_checkpoint: Option<String>,
+    settled_checkpoint: Option<String>,
+    last_checkpoint: Option<String>,
 }
 impl Audited {
     fn before(&self, part: Part, line: &str) {
+        if line.starts_with("check ") {
+            assert!(
+                !self.deployment.lines.iter().any(|call| call.line.starts_with("stop ")),
+                "check after a stop: {}",
+                self.context
+            );
+            assert!(self.deployment.engine.running, "check without the serving engine: {}", self.context);
+            let checkpoint = self.serving_checkpoint.as_ref().expect("act named the check's checkpoint");
+            assert_eq!(line, format!("check '/builds/{NEW}/temper-engine' '{checkpoint}'"), "{}", self.context);
+        }
+        if line.starts_with("stop ") {
+            assert!(self.checked, "stop before the check: {}", self.context);
+        }
+        if line.starts_with("checkpoint ") {
+            assert!(!self.deployment.engine.running, "checkpoint while engine runs: {}", self.context);
+            assert_eq!(line, "checkpoint '/bin/temper-engine'", "{}", self.context);
+        }
+        if line.starts_with("verdict ") {
+            let checkpoint = self.settled_checkpoint.as_ref().expect("stop checkpoint before verdict");
+            assert_eq!(line, format!("verdict '/builds/{NEW}/temper-engine' '{checkpoint}'"), "{}", self.context);
+        }
         if line.starts_with("swap ") {
+            assert!(self.settled_checkpoint.is_some(), "swap without this stop's checkpoint: {}", self.context);
             assert!(!self.deployment.machine(part).running, "swapping a running part: {} {part:?}", self.context);
         }
         if part == Part::Engine && line == "stop engine" && self.draining {
@@ -29,7 +55,27 @@ impl Audited {
         }
     }
     fn after(&mut self, part: Part, line: &str, answer: &Output) {
+        if line.starts_with("check ") {
+            self.checked = answer.code == Some(0);
+        }
+        if line.starts_with("stop ") && part == Part::Engine {
+            self.settled_checkpoint = None;
+        }
         if answer.code == Some(0) {
+            if line == "ctl engine 'deployment' 'checkpoint' '--json' </dev/null" {
+                self.serving_checkpoint = serde_json::from_str::<serde_json::Value>(&answer.stdout)
+                    .ok()
+                    .and_then(|value| value.get("name")?.as_str().map(str::to_owned));
+            }
+            if line.starts_with("checkpoint ") {
+                let name = answer
+                    .stdout
+                    .strip_prefix("temper-engine checkpoint: ")
+                    .and_then(|line| line.split_whitespace().next())
+                    .expect("fake checkpoint line");
+                self.settled_checkpoint = Some(name.into());
+                self.last_checkpoint = Some(name.into());
+            }
             if line.starts_with("swap ") {
                 self.swapped.insert(part);
             }
@@ -54,6 +100,7 @@ impl Hosts for Audited {
         answer
     }
     fn run_each(&mut self, lines: &[(Part, String)]) -> Vec<Output> {
+        assert!(self.deployment.engine.running, "drain without a live engine: {}", self.context);
         self.draining = true;
         for (part, line) in lines {
             self.before(*part, line);
@@ -75,6 +122,8 @@ impl Hosts for Audited {
 fn deployments_keep_swap_drain_refusal_and_done_invariants_seeded() {
     let mut outcomes = BTreeSet::new();
     let mut counts = BTreeSet::new();
+    let mut verdicts = BTreeSet::new();
+    let mut read_again = BTreeSet::new();
     for seed in 1..=96_u64 {
         for mode in [Mode::Engine, Mode::Workers, Mode::Together] {
             for verdict in 0..5 {
@@ -103,14 +152,11 @@ fn deployments_keep_swap_drain_refusal_and_done_invariants_seeded() {
                     deployment.opening(index, opening);
                 }
                 deployment.stop_logs.push_back(stop);
-                let (code, verdict_line) = match verdict {
-                    0 => (0, "workers may stay: yes"),
-                    1 => (0, "workers may stay: no"),
-                    2 => (0, "workers may stay: unknown; no wires kept"),
-                    3 => (0, "no verdict"),
-                    4 => (1, "check refuses the build"),
-                    _ => unreachable!(),
-                };
+                let (code, verdict_line) = verdict_answer(verdict);
+                let stop_verdict = (seed + verdict) % 5;
+                verdicts.insert(format!("{mode:?}/{verdict}/{stop_verdict}"));
+                let (stop_code, stop_line) = verdict_answer(stop_verdict);
+                deployment.verdict_answer(stop_code, stop_line);
                 let ran_job = next(&mut random) % 3 == 0;
                 deployment.check_answer(
                     code,
@@ -119,7 +165,9 @@ fn deployments_keep_swap_drain_refusal_and_done_invariants_seeded() {
                 accounts(&mut deployment, false, true);
                 accounts(&mut deployment, true, false);
                 let failure = fail(&mut deployment, &mut random);
-                let context = format!("seed {seed}, {mode:?}, verdict {verdict}, count {count}, failure {failure}");
+                let context = format!(
+                    "seed {seed}, {mode:?}, verdict {verdict}, stop verdict {stop_verdict}, count {count}, failure {failure}"
+                );
                 let mut hosts = Audited {
                     deployment,
                     turn: mode == Mode::Workers,
@@ -127,41 +175,22 @@ fn deployments_keep_swap_drain_refusal_and_done_invariants_seeded() {
                     swapped: BTreeSet::new(),
                     started: BTreeSet::new(),
                     context,
+                    checked: false,
+                    serving_checkpoint: None,
+                    settled_checkpoint: None,
+                    last_checkpoint: None,
                 };
                 let (outcome, record) = run(&d, &mut hosts, mode);
                 outcomes.insert(format!("{outcome:?}"));
-                match outcome {
-                    Outcome::Refused => {
-                        assert!(hosts.swapped.is_empty(), "refused after a swap: {}", hosts.context);
-                        for part in std::iter::once(Part::Engine).chain((0..count).map(Part::Worker)) {
-                            let machine = hosts.deployment.machine(part);
-                            assert!(
-                                machine.running && machine.installed.values().all(|build| build == OLD),
-                                "refusal left {part:?} changed: {}",
-                                hosts.context
-                            );
-                        }
-                    }
-                    Outcome::Done => {
-                        for part in &hosts.started {
-                            let machine = hosts.deployment.machine(*part);
-                            assert!(
-                                machine.running && machine.installed.values().all(|build| build == NEW),
-                                "done left {part:?} old: {}",
-                                hosts.context
-                            );
-                        }
-                        assert_eq!(record.openings.len(), count, "{}", hosts.context);
-                        assert!(record.openings.iter().all(|opening| !opening.refused), "{}", hosts.context);
-                    }
-                    Outcome::Failed => {
-                        assert!(
-                            record.lines.last().unwrap().line.starts_with("temper-redeploy run: failed at "),
-                            "{}",
-                            hosts.context
-                        );
-                    }
+                if record.verdict.is_some() {
+                    read_again.insert(stop_verdict);
                 }
+                assert_eq!(
+                    record.backup, hosts.last_checkpoint,
+                    "backup is the last stop's checkpoint: {}",
+                    hosts.context
+                );
+                audit_outcome(&hosts, outcome, &record);
                 assert!(
                     hosts.deployment.lines.iter().filter(|line| line.line.starts_with("check ")).count() <= 1,
                     "{}",
@@ -170,6 +199,8 @@ fn deployments_keep_swap_drain_refusal_and_done_invariants_seeded() {
             }
         }
     }
+    assert_eq!(verdicts.len(), 75, "each mode and each pair of scripted verdicts");
+    assert_eq!(read_again, [0, 1, 2, 3, 4].into(), "each verdict actually read again at a stop");
     assert_eq!(counts, [1, 2, 3, 4].into());
     assert_eq!(outcomes, ["Done".into(), "Failed".into(), "Refused".into()].into());
 }
@@ -244,13 +275,58 @@ fn fail(deployment: &mut Deployment, random: &mut u64) -> u64 {
         }
         7 => deployment.check = Output { code: None, stdout: String::new(), stderr: "cannot spawn".into() },
         8 => deployment.fail_line(Part::Engine, "log engine '0'", 1),
-        9 => deployment.fail_line(Part::Engine, &format!("backup '{NEW}-19700101T000001Z'"), 1),
+        9 => deployment.fail_line(Part::Engine, "checkpoint '/bin/temper-engine'", 1),
         10 => deployment.fail_line(Part::Engine, "ctl engine 'account' 'list' '--json' </dev/null", 1),
-        11 => deployment.documents[worker] = output(1, ""),
-        12 | 13 => {}
+        11 => deployment.ctl_answer("deployment checkpoint --json", output(1, "checkpoint refused")),
+        12 => deployment.ctl_answer("deployment checkpoint --json", output(0, "{\"name\":\"not-a-checkpoint\"}")),
+        13 => {}
         _ => unreachable!(),
     }
     failure
+}
+fn audit_outcome(hosts: &Audited, outcome: Outcome, record: &temper_redeploy_tool::record::Record) {
+    match outcome {
+        Outcome::Refused => {
+            assert!(hosts.swapped.is_empty(), "refused after a swap: {}", hosts.context);
+            for part in std::iter::once(Part::Engine).chain((0..hosts.deployment.workers.len()).map(Part::Worker)) {
+                let machine = hosts.deployment.machine(part);
+                assert!(
+                    machine.running && machine.installed.values().all(|build| build == OLD),
+                    "refusal left {part:?} changed: {}",
+                    hosts.context
+                );
+            }
+        }
+        Outcome::Done => {
+            for part in &hosts.started {
+                let machine = hosts.deployment.machine(*part);
+                assert!(
+                    machine.running && machine.installed.values().all(|build| build == NEW),
+                    "done left {part:?} old: {}",
+                    hosts.context
+                );
+            }
+            assert_eq!(record.openings.len(), hosts.deployment.workers.len(), "{}", hosts.context);
+            assert!(record.openings.iter().all(|opening| !opening.refused), "{}", hosts.context);
+        }
+        Outcome::Failed => {
+            assert!(
+                record.lines.last().expect("outcome printed").line.starts_with("temper-redeploy run: failed at "),
+                "{}",
+                hosts.context
+            );
+        }
+    }
+}
+fn verdict_answer(verdict: u64) -> (i32, &'static str) {
+    match verdict {
+        0 => (0, "workers may stay: yes"),
+        1 => (0, "workers may stay: no"),
+        2 => (0, "workers may stay: unknown; no wires kept"),
+        3 => (0, "no verdict"),
+        4 => (1, "cannot read the checkpoint"),
+        _ => unreachable!(),
+    }
 }
 fn next(random: &mut u64) -> u64 {
     *random ^= *random << 13;

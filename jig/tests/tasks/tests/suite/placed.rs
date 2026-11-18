@@ -99,7 +99,7 @@ fn a_task_held_for_failures_keeps_its_escalation_under_a_stop() {
         reply_to,
         task: 3,
         revision,
-        by: 1,
+        by: tasks::EscalationDecider::Person(1),
         entry: None,
         decision: tasks::EscalationDecision::Release,
     });

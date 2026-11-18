@@ -439,7 +439,7 @@ pub(crate) fn person_escalation_decide(
         reply_to: ReplyTo::new(request),
         task,
         revision,
-        by: party.person,
+        by: tasks::EscalationDecider::Person(party.person),
         entry,
         decision: semantic,
     })));
