@@ -5,7 +5,6 @@
 
 - **Not yet:** 2.1: no `internal-fixed-start` [in flight: change 7721].
 
-- **Not yet:** 2.4: the shell gives jig's sign-in part the link's route alone, so a page opened at `/sign-in?secret=…` takes no secret [in flight: change 8723].
 
 
 

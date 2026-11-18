@@ -2,7 +2,6 @@
 
 2026-11-18. Where temper's code lags or departs from [sign-in.md](sign-in.md).
 
-- **Not yet:** 2.1: the operator's help (`temper/docs/help/server.md`, 4) denies the link's route alone at the proxy, not its page, `/sign-in` [in flight: change 8722].
 
 
 Section 4.3 has no known gap in the endings' header and column, linking

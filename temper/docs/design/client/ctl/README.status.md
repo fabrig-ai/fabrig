@@ -4,7 +4,6 @@
 
 
 - **Not yet:** 5: the spent-pool refusal's figures in ctl's amount, and its `reserved:` line [in flight: change 7671].
-- **Not yet:** 6.1: `sign-in` takes the link in the route's form alone [in flight: change 8723].
 
 `tools.md`, sections 2 and 3 have no known gap in a project's classes, by plan
 `ui-reaches`: `temper ctl settings show project-classes` and a settings

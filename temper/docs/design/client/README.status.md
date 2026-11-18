@@ -5,7 +5,6 @@
 
 - **Not yet:** 2: there is no `temper-client-web-page`: the shell is the bundle's `cdylib`.
 
-- **Not yet:** 4, *The link's page, `/sign-in`*: no client of temper takes a link in the page's form, and there is no `LINK_PAGE` in `temper-client-domain-forge` [in flight: change 8723].
 
 
 
