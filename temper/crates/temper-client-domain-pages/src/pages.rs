@@ -753,6 +753,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         pages.accounts.added = None;
         pages.accounts.added_from_connect = false;
     }
+    let mut link = client.link().state;
     let returning = match &event {
         Event::Returned { .. } => true,
         Event::Push(_)
@@ -1301,7 +1302,8 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             me_changed(pages, client, out);
             pages.team.told(env, client, &Told::Changed { handle }, out);
         }
-        Event::Link { link } => {
+        Event::Link { link: changed } => {
+            link = changed;
             if let Some(task) = &mut pages.task {
                 // Successful sign-in can tell SignedOut then Starting in one step.
                 // The installed credential, rather than that intermediate tell,
@@ -1317,7 +1319,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         }
     }
     if let Some(page) = &mut pages.connect_model {
-        page.read_environment(&pages.address, client.link().state, &mut pages.next, out);
+        page.read_environment(&pages.address, link, &mut pages.next, out);
         page.refresh_login(client, &mut pages.serial, out);
     }
     default_chosen(pages, client);
@@ -1352,7 +1354,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             None => false,
         };
     pages.builders.configure(role, &mut pages.next, out);
-    pages.told.configure(pages.told_open, pages.party, &mut pages.next, env.limits.forge, out);
+    pages.told.configure(pages.told_open, pages.party, link, &mut pages.next, env.limits.forge, out);
     if let Some(page) = &mut pages.remembered {
         page.configure(accounts::current_me(client), &mut pages.next, out);
     }
@@ -1444,7 +1446,6 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     if let Some(left_off) = &mut pages.left_off {
         left_off.configure(me, &env.limits, out);
     }
-    pages.has_goals.configure(me, pages.project, &mut pages.next, out);
     if let Address::Home { project } = pages.address
         && pages.home.is_some()
         && pages.has_goals(client, project)
@@ -1477,7 +1478,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     | Address::Home { project } = pages.address
         && let Some(goals) = &mut pages.goals
     {
-        goals.configure(me, project, client, &env.limits, out);
+        goals.configure(me, project, client, &env.limits, pages.needs.inbox_moves, out);
     }
     if let Address::Work { project, .. }
     | Address::Goals { project, .. }
@@ -1491,6 +1492,15 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             reads.configure(me, project, client, &env.limits, env.wall, out);
         }
     }
+    pages.has_goals.configure(
+        me,
+        pages.project,
+        pages.goals.as_ref(),
+        pages.milestones.as_ref(),
+        client,
+        &mut pages.next,
+        out,
+    );
     if let Some(inbox) = &mut pages.inbox {
         inbox.next = inbox.next.max(pages.next);
         inbox.configure(client, &env.limits, out);
@@ -1631,9 +1641,11 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
         pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
         return false;
     }
+    if pages.needs.told(&told) {
+        return true;
+    }
     if pages.builders.told(client, &told, &mut pages.serial, out)
         || pages.models.told(client, &told)
-        || pages.needs.told(&told)
         || pages.choice.told(&told)
         || crate::acts::told(pages, &told)
     {

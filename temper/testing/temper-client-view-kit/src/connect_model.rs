@@ -322,7 +322,7 @@ pub fn program_root_with_line(address: d::Address, line: Option<&[u8]>) -> (d::D
     ] {
         d::step(&mut root, &env, event, &mut out);
     }
-    let me_watch = opened(&out, &c::Subject::Me);
+    let me_watch = skein_lib::Token::new(0);
     d::step(
         &mut root,
         &env,

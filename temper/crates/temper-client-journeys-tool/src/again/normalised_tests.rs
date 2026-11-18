@@ -3,7 +3,7 @@ use super::*;
 use jig_client_protocol_wire as w;
 use jig_client_shell_web::adapter::{Asked, Heard};
 use skein_lib::{
-    List, Overflow, Reader, Token, Wall, Writer,
+    List, Overflow, Token, Wall, Writer,
     base64::{self, Alphabet},
 };
 use skein_ui_web::{mapping::Primary, page::Page};
@@ -86,36 +86,12 @@ fn managed() -> Capture {
                 .expect("served jig"),
         )
         .expect("one owner");
-    let asks = capture.stream(&w::StreamEvent::Hello(
-        w::Hello::new(&w::CEILINGS, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
-            .expect("hello"),
-    ));
-    let watch = asks
-        .iter()
-        .find_map(|ask| {
-            let Asked::Exchange { call, .. } = ask else { return None };
-            if call.path.as_ref() != b"/jig/v1/watch" {
-                return None;
-            }
-            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(&call.body)).expect("watch");
-            let subject = w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).expect("subject");
-            (subject == w::Subject::Me).then_some(open.watch())
-        })
-        .expect("me watch");
     let mut me = jig_client_test_records::frame_two_projects_record().into_parts();
     me.deployment_role = Some(w::HeldRole::Owner);
-    let me = w::DeliveryValue::Me(w::Me::new(&w::CEILINGS, me).expect("deployment owner"));
-    let document = w::Owned::new(
-        &w::CEILINGS,
-        w::OwnedParts {
-            owner: w::Owner::Jig,
-            version: w::VERSION,
-            record: encoded(me.measure(), |writer| me.encode(writer)),
-        },
-    )
-    .expect("me envelope");
-    capture.stream(&w::StreamEvent::Delivery(
-        w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch, document }).expect("me delivery"),
+    capture.stream(&jig_client_test_records::opened(
+        w::Hello::new(&w::CEILINGS, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
+            .expect("hello"),
+        w::Me::new(&w::CEILINGS, me).expect("deployment owner"),
     ));
     capture.report(Report::Place { path: b"/forges/connect?forge=managed".as_slice().into() });
     capture.act(Role::TextField, b"Its address", Act::Input { value: b"https://forge.example".as_slice().into() });

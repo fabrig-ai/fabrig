@@ -221,6 +221,19 @@ fn client_fixture(me: u64, env: &Env<client::Limits>) -> client::Domain {
     ] {
         client::step(&mut root, env, event, &mut out);
     }
+    client::step(
+        &mut root,
+        env,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: skein_lib::Token::new(0),
+                    event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(frame(me)))),
+                },
+            },
+        },
+        &mut out,
+    );
     while let Some(request) = out.pop() {
         let client::Request::Unlinked {
             request:
@@ -232,38 +245,7 @@ fn client_fixture(me: u64, env: &Env<client::Limits>) -> client::Domain {
             continue;
         };
         let delivery = match subject {
-            c::Subject::Me => c::Delivery::Me(Box::new(c::Me {
-                providers: List::with_capacity(0),
-                providers_cut: false,
-                key_bytes: 256,
-                redirect_bytes: 256,
-                words_bytes: 8192,
-                party: c::MeParty {
-                    number: me,
-                    kind: c::PartyKind::Person,
-                    login: text(b"viewer"),
-                    name: text(b"Viewer"),
-                },
-                projects: List::from_boxed(Box::new([c::MeProject {
-                    project: 1,
-                    name: text(b"Project"),
-                    role: c::HeldRole::Member,
-                    pool: None,
-                    public: None,
-                    defaults: List::with_capacity(0),
-                    templates: List::with_capacity(0),
-                    creating: None,
-                    models: List::with_capacity(0),
-                    left_out: 0,
-                }])),
-                needs: c::Needs { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 },
-                needs_total: 0,
-                updates: c::Count { value: 0, limited: false },
-                results_seen: 0,
-                cut: false,
-                retention: Duration::from_secs(1000),
-                deployment_role: None,
-            })),
+            c::Subject::Me => panic!("me is delivered on implicit watch zero"),
             c::Subject::Inbox { .. } => c::Delivery::Inbox(Box::new(c::Inbox {
                 party: me,
                 needs: List::with_capacity(0),
@@ -297,4 +279,34 @@ fn client_fixture(me: u64, env: &Env<client::Limits>) -> client::Domain {
         );
     }
     root
+}
+
+fn frame(me: u64) -> c::Me {
+    c::Me {
+        providers: List::with_capacity(0),
+        providers_cut: false,
+        key_bytes: 256,
+        redirect_bytes: 256,
+        words_bytes: 8192,
+        party: c::MeParty { number: me, kind: c::PartyKind::Person, login: text(b"viewer"), name: text(b"Viewer") },
+        projects: List::from_boxed(Box::new([c::MeProject {
+            project: 1,
+            name: text(b"Project"),
+            role: c::HeldRole::Member,
+            pool: None,
+            public: None,
+            defaults: List::with_capacity(0),
+            templates: List::with_capacity(0),
+            creating: None,
+            models: List::with_capacity(0),
+            left_out: 0,
+        }])),
+        needs: c::Needs { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 },
+        needs_total: 0,
+        updates: c::Count { value: 0, limited: false },
+        results_seen: 0,
+        cut: false,
+        retention: Duration::from_secs(1000),
+        deployment_role: None,
+    }
 }

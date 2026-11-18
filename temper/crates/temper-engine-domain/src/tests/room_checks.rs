@@ -642,7 +642,7 @@ fn owner_root_with_limits(limits: &Limits) -> (Domain, Env<Limits>) {
 
 // Release the root's decisions against a durable store; the party is the only outside reader.
 #[expect(clippy::wildcard_enum_match_arm, reason = "this fixture only commits settings and receives party replies")]
-fn settled(root: &mut Domain, env: &Env<Limits>, input: PartyInput) -> people::Reply {
+pub(super) fn settled(root: &mut Domain, env: &Env<Limits>, input: PartyInput) -> people::Reply {
     // Each change needs fewer than 64 journal and child continuation handoffs.
     const HANDOFFS: u32 = 64;
     crate::try_step(root, env, Event::Party(input)).unwrap();

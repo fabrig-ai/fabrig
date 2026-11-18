@@ -54,6 +54,16 @@ impl Frame {
             socket.reply.extend(body.iter().copied());
             return;
         }
+        self.me_attempts.push(self.now);
+        if self.me_busy {
+            self.sockets
+                .get_mut(&fd)
+                .expect("stream socket")
+                .reply
+                .extend(b"HTTP/1.1 409 Conflict\r\nContent-Length: 0\r\n\r\n");
+            return;
+        }
+        self.watch = Some(0);
         self.stream = Some(fd);
         self.sockets
             .get_mut(&fd)
@@ -86,11 +96,13 @@ impl Frame {
                 .expect("forge version"),
             )
             .expect("second family");
-        let hello = w::StreamEvent::Hello(
+        self.opening = Some(
             w::Hello::new(&w::CEILINGS, w::HelloParts { stream: [1; 16], served, heartbeat: Duration::from_secs(60) })
                 .expect("hello"),
         );
-        self.sockets.get_mut(&fd).expect("stream socket").reply.extend(sse(&hello));
+        if self.deliver.is_some() {
+            self.deliver_me();
+        }
     }
 
     pub fn store_snapshot(&self) -> Box<[u8]> {

@@ -448,8 +448,9 @@ impl Component {
                 let (route, body) = routes::message(message);
                 self.receive(env, exchange, (credential, browser), route, body, out);
             }
-            crate::FromTransport::StreamOpen { stream, credential } => {
+            crate::FromTransport::StreamOpen { stream, credential, version } => {
                 self.receive(env, stream, (credential, false), Route::Stream, Box::new([]), out);
+                self.connections.get_mut(&stream).expect("received stream").version = version;
             }
             crate::FromTransport::StreamTaken { stream } => {
                 if let Some(stream) = self.streams.get_mut(&stream)
@@ -892,7 +893,7 @@ impl Component {
             });
         }
         for (_, stream) in &self.streams {
-            if !stream.closing() && !stream.waiting {
+            if !stream.closing() && stream.opened && !stream.waiting {
                 next = Some(match next {
                     Some(next) => next.min(stream.deadline),
                     None => stream.deadline,
@@ -908,7 +909,7 @@ impl Component {
         }
         let mut due = None;
         for (owner, stream) in &self.streams {
-            if !stream.closing() && !stream.waiting && stream.deadline <= env.now {
+            if !stream.closing() && stream.opened && !stream.waiting && stream.deadline <= env.now {
                 due = Some(*owner);
                 break;
             }

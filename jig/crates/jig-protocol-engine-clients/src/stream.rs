@@ -43,6 +43,9 @@ pub(crate) enum Phase {
 pub(crate) struct Stream {
     pub name: [u8; 16],
     pub sign_in: u64,
+    pub me: Option<Token>,
+    pub hello: Option<w::Hello>,
+    pub opened: bool,
     pub watches: Map<Token, Watch>,
     pub waiting: bool,
     pub phase: Phase,
@@ -61,6 +64,9 @@ impl Stream {
         Self {
             name,
             sign_in,
+            me: None,
+            hello: None,
+            opened: false,
             watches: Map::with_capacity(env.limits.watches_per_stream),
             waiting: false,
             phase: Phase::Open,
@@ -75,6 +81,7 @@ impl Stream {
     pub fn write(&mut self, packet: Packet) {
         assert!(!self.waiting, "one SSE event at a time");
         self.bytes = u32::try_from(packet.event.len()).expect("bounded packet");
+        self.opened = true;
         self.taken = packet.taken;
         self.waiting = true;
         self.message = Some(crate::Streamed::Record(packet.event));

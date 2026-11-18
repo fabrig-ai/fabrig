@@ -1,4 +1,4 @@
-//! Stream state, confirmed through the own watch (client/domain/client/watches.md, 2).
+//! Stream state, confirmed by the stream's me (client/domain/client/watches.md, 2).
 use crate::{Domain, Link, Request, Told, Watchable, contract, domain::tell};
 use skein_lib::Queue;
 impl Domain {
@@ -18,7 +18,7 @@ impl Domain {
     #[must_use]
     pub fn watches_full(&self) -> bool {
         for (_, watch) in &self.watches {
-            if watch.busy && !watch.closing {
+            if watch.busy && !watch.closing && !watch.own {
                 return true;
             }
         }
@@ -82,12 +82,14 @@ impl Domain {
             if watch.subject == Watchable::Jig(contract::Subject::Me) {
                 own = Some(*id);
             }
-            if watch.name.is_none() {
+            if watch.name.is_none() && watch.subject != Watchable::Jig(contract::Subject::Me) {
                 self.due.push(*id).expect("one opening per watch");
             }
         }
         if let Some(id) = own {
-            self.watches.get_mut(&id).expect("held frame watch").own = true;
+            let watch = self.watches.get_mut(&id).expect("held frame watch");
+            watch.own = true;
+            watch.name = Some(skein_lib::Token::new(0));
         } else {
             self.open(Watchable::Jig(contract::Subject::Me), true, out);
         }

@@ -56,18 +56,7 @@ fn ready() -> Domain {
             offset: jig_client_view::boundary::Offset { minutes: 0 },
         },
     ));
-    let watch = rows
-        .iter()
-        .find_map(|row| match row {
-            Request::Unlinked {
-                request:
-                    jig_client::UnlinkedRequest::Down {
-                        down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(Subject::Me) },
-                    },
-            } => Some(*watch),
-            _ => None,
-        })
-        .unwrap();
+    let watch = Token::new(0);
     drive(
         &mut root,
         Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } } },

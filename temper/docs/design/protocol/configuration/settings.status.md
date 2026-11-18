@@ -1,6 +1,6 @@
 # settings: status
 
-2026-11-12. Where the tree's code lags or departs from [settings.md](settings.md).
+2026-11-17. Where the tree's code lags or departs from [settings.md](settings.md).
 
 
 

@@ -705,13 +705,18 @@ impl DraftsPage {
         ] {
             temper_client_domain::step(&mut page.root, &env, event, &mut page.out);
         }
+        let me_opened =
+            { Up::Watched { watch: Token::new(0), event: WatchEvent::Delivered(Delivery::Me(Box::new(me.clone()))) } };
+        temper_client_domain::step(
+            &mut page.root,
+            &env,
+            Event::Client { event: jig_client::Event::Up { up: me_opened } },
+            &mut page.out,
+        );
         for _ in 0_u32..128 {
             let Some(request) = page.out.pop() else { break };
             let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else { continue };
             let up = match down {
-                Down::Open { watch, subject: Watchable::Jig(Subject::Me) } => {
-                    Up::Watched { watch, event: WatchEvent::Delivered(Delivery::Me(Box::new(me.clone()))) }
-                }
                 Down::Open { watch, subject: Watchable::Jig(Subject::Settings) } => Up::Watched {
                     watch,
                     event: WatchEvent::Delivered(Delivery::Settings(Box::new(SettingsDocument {
@@ -806,7 +811,8 @@ impl DraftsPage {
                         result: jig_client::Readout::Family {
                             family: wire::FORGE,
                             record: Some(wire::setting_answer(
-                                &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value }).unwrap(),
+                                &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { revision: None, value })
+                                    .unwrap(),
                             )),
                         },
                     }

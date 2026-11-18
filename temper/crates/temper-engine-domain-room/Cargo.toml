@@ -1,0 +1,16 @@
+[package]
+name = "temper-engine-domain-room"
+description = "Charter brief-room costs, admission and refusal diagnostics"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+jig-domain-core.workspace = true
+jig-domain-tasks.workspace = true
+skein-lib.workspace = true
+
+[lints]
+workspace = true

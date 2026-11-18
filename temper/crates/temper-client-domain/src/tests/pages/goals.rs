@@ -221,7 +221,7 @@ fn goals_read_its_query_and_release_it() {
     let root = crate::unlinked(&limits, fixtures::SEED);
     let mut goals = Goals::new(FIRST);
     let mut out = Queue::uncapped();
-    goals.configure(Some(&me()), fixtures::PROJECT, root.client(), &limits, &mut out);
+    goals.configure(Some(&me()), fixtures::PROJECT, root.client(), &limits, 0, &mut out);
     let query = c::TaskQuery {
         parts: List::from_boxed(Box::new([temper_client_domain_forge::parts::asks(
             temper_client_protocol_wire::GOAL_PART,
@@ -267,11 +267,11 @@ fn goals_read_its_query_and_release_it() {
             })
         }))
     );
-    goals.configure(Some(&me()), fixtures::PROJECT, root.client(), &limits, &mut out);
+    goals.configure(Some(&me()), fixtures::PROJECT, root.client(), &limits, 0, &mut out);
     assert!(out.is_empty(), "the same query keeps its reads");
     let mut changed = me();
     changed.projects.get_mut(0).unwrap().templates.get_mut(0).unwrap().label = LABEL + 1;
-    goals.configure(Some(&changed), fixtures::PROJECT, root.client(), &limits, &mut out);
+    goals.configure(Some(&changed), fixtures::PROJECT, root.client(), &limits, 0, &mut out);
     for handle in [goals.live, goals.ended, goals.needs] {
         assert_eq!(out.pop(), Some(Request::Client(jig_client::Event::Unwatch { handle })));
     }
@@ -543,7 +543,11 @@ fn needs_come_from_the_selection_and_read_again_as_needs_total_moves() {
     });
     assert!(h.reads().is_empty(), "unchanged total keeps the read");
     h.live(&[], false);
-    needs_read(&h.reads());
+    for (_, read) in h.reads() {
+        if let c::Read::Inbox { .. } = read {
+            panic!("a goal delivery is no inbox mark");
+        }
+    }
 }
 
 #[test]
@@ -725,10 +729,13 @@ struct FactHarness {
 }
 impl FactHarness {
     fn new(identity: c::Me) -> Self {
+        Self::at(identity, Address::Home { project: fixtures::PROJECT })
+    }
+    fn at(identity: c::Me, address: Address) -> Self {
         let mut root = crate::unlinked(&fact_limits(), fixtures::SEED);
         let me = fixtures::start(&mut root, List::with_capacity(0));
         let mut h = Self { root, out: Queue::uncapped(), me };
-        h.go(Address::Home { project: fixtures::PROJECT });
+        h.go(address);
         h.deliver_me(identity);
         h
     }
@@ -745,10 +752,13 @@ impl FactHarness {
         self.event(crate::Event::Went { place: crate::Place::Address(address) });
     }
     fn live(&mut self, watch: Token, lines: &[c::TaskLine]) {
+        self.live_at(watch, lines, 0);
+    }
+    fn live_at(&mut self, watch: Token, lines: &[c::TaskLine], ended_mark: u64) {
         self.up(Up::Watched {
             watch,
             event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
-                ended_mark: 0,
+                ended_mark,
                 rows: rows(lines),
                 more: false,
             }))),
@@ -785,10 +795,7 @@ fn fact_requests(down: &[Down], project: u32) -> (Token, Token) {
                 );
                 assert_eq!(*live, None);
                 assert_eq!(*ended, None);
-                // The fact is configured before Home's Goals page, whose query is the same.
-                if read.is_none() {
-                    read = Some(*token);
-                }
+                assert!(read.replace(*token).is_none(), "one fact ended read");
             }
             Down::Save { .. }
             | Down::Erase { .. }
@@ -802,6 +809,131 @@ fn fact_requests(down: &[Down], project: u32) -> (Token, Token) {
     assert!(watch.is_some(), "goal fact watch: {down:?}");
     assert!(read.is_some(), "goal fact read: {down:?}");
     (watch.unwrap(), read.unwrap())
+}
+
+fn list_requests(down: &[Down]) -> (Token, Token) {
+    let query = goals::query(&me(), fixtures::PROJECT).unwrap();
+    let ended_query = c::TaskQuery { phase: Some(c::PhaseClass::Ended), order: c::QueryOrder::Ended, ..query.clone() };
+    let mut watch = None;
+    let mut read = None;
+    for request in down {
+        match request {
+            Down::Open { watch: token, subject: Watchable::Jig(c::Subject::Tasks { query: got, window }) }
+                if *got == query =>
+            {
+                assert_eq!(*window, WINDOW, "only the list window, never a narrower twin");
+                assert!(watch.replace(*token).is_none(), "one list watch");
+            }
+            Down::Read { read: token, what: Readable::Jig(c::Read::Tasks { query: got, live: None, ended: None }) }
+                if *got == ended_query =>
+            {
+                assert!(read.replace(*token).is_none(), "one ended read, from the list");
+            }
+            Down::Save { .. }
+            | Down::Erase { .. }
+            | Down::Send { .. }
+            | Down::Open { .. }
+            | Down::Continue { .. }
+            | Down::Close { .. }
+            | Down::Read { .. } => {}
+        }
+    }
+    (watch.expect("list watch"), read.expect("list ended read"))
+}
+
+#[test]
+fn pages_with_goals_ask_the_list_before_the_fact() {
+    for address in [
+        Address::Work { project: fixtures::PROJECT, filter: crate::WorkFilter::All },
+        Address::Goals { project: fixtures::PROJECT, filter: GoalsFilter::All },
+        Address::Changes { project: fixtures::PROJECT },
+    ] {
+        let mut h = FactHarness::at(me(), address);
+        let (watch, read) = list_requests(&h.take());
+        h.answer(read, &[]);
+        assert!(!h.root.has_goals(fixtures::PROJECT));
+        h.deliver_me(me());
+        assert!(h.take().is_empty(), "no second-step twin to open or close");
+        h.live(watch, &[line(GOAL, Wall::EPOCH)]);
+        assert!(h.root.has_goals(fixtures::PROJECT), "a live list row supplies the fact");
+        h.take();
+        h.live_at(watch, &[], 1);
+        assert!(!h.root.has_goals(fixtures::PROJECT));
+        let mut read = None;
+        for request in h.take() {
+            if let Down::Read { read: token, what: Readable::Jig(c::Read::Tasks { query, .. }) } = request
+                && query.label == Some(LABEL)
+            {
+                read = Some(token);
+            }
+        }
+        h.up(Up::ReadDone {
+            read: read.expect("list's refreshed ended read"),
+            result: Readout::Jig(c::ReadResult::Value(page_at(&[line(GOAL, Wall::EPOCH)], false, 1))),
+        });
+        assert!(h.root.has_goals(fixtures::PROJECT), "the list's ended row supplies the fact");
+    }
+}
+
+fn inbox_watch(down: &[Down]) -> Token {
+    for request in down {
+        if let Down::Open { watch, subject: Watchable::Jig(c::Subject::Inbox { .. }) } = request {
+            return *watch;
+        }
+    }
+    panic!("standing inbox watch");
+}
+fn needs_reads(down: &[Down]) -> usize {
+    let mut count = 0_usize;
+    for request in down {
+        if let Down::Read {
+            what:
+                Readable::Jig(c::Read::Inbox { group: c::InboxReadGroup::Needs, project: Some(fixtures::PROJECT), .. }),
+            ..
+        } = request
+        {
+            count = count.checked_add(1).unwrap();
+        }
+    }
+    count
+}
+
+#[test]
+fn needs_read_again_on_inbox_moves_including_the_first_after_reopening() {
+    let address = Address::Work { project: fixtures::PROJECT, filter: crate::WorkFilter::All };
+    let mut h = FactHarness::at(me(), address.clone());
+    let opened = h.take();
+    assert_eq!(needs_reads(&opened), 1, "once on opening");
+    let inbox = inbox_watch(&opened);
+    let deliver = |h: &mut FactHarness, watch| {
+        h.up(Up::Watched {
+            watch,
+            event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new(temper_fixtures::client_documents::inbox(
+                List::uncapped(),
+                0,
+                c::Count { value: 0, limited: false },
+                0,
+                false,
+            )))),
+        });
+    };
+    deliver(&mut h, inbox);
+    assert_eq!(needs_reads(&h.take()), 0, "the first delivery is no move");
+    deliver(&mut h, inbox);
+    assert_eq!(needs_reads(&h.take()), 1, "a later delivery is a move, even with the same rows");
+    deliver(&mut h, inbox);
+    assert_eq!(needs_reads(&h.take()), 1, "each later delivery moves the mark");
+    let goals_watch = list_requests(&opened).0;
+    h.live(goals_watch, &[]);
+    assert_eq!(needs_reads(&h.take()), 0, "goals do not mark the inbox");
+    h.go(Address::Welcome { step: crate::Step::Ready });
+    assert!(h.take().contains(&Down::Close { watch: inbox }));
+    h.go(address);
+    let reopened = h.take();
+    assert_eq!(needs_reads(&reopened), 1, "the new list reads once");
+    let inbox = inbox_watch(&reopened);
+    deliver(&mut h, inbox);
+    assert_eq!(needs_reads(&h.take()), 1, "the first delivery after reopening is a move");
 }
 
 fn reserved_handle(offset: u64) -> jig_client::Handle {
@@ -829,6 +961,13 @@ fn goals_opens_on_home_once_the_project_has_one() {
         assert!(handles[0].number > inbox.entries.number);
         assert!(inbox.next > handles[2].number, "later inbox cards cannot reuse goal handles");
         let requests = h.take();
+        if ended {
+            // An opening watch's close waits for its first delivery.
+            h.live(watch, &[]);
+            assert!(h.take().contains(&Down::Close { watch }));
+        } else {
+            assert!(requests.contains(&Down::Close { watch }), "Home releases the fact watch");
+        }
         let mut watching = false;
         let mut reads = 0_usize;
         for request in &requests {
@@ -893,39 +1032,31 @@ fn leaving_home_leaves_its_goals() {
 }
 
 #[test]
-fn has_goals_stands_across_pages_on_one_watch() {
-    let mut h = FactHarness::new(me());
-    assert!(!h.root.has_goals(fixtures::PROJECT), "undelivered");
-    let (watch, read) = fact_requests(&h.take(), fixtures::PROJECT);
-    assert!(h.root.client().document(reserved_handle(1)).is_some(), "fixed session watch handle");
-    h.answer(read, &[]);
-    h.live(watch, &[line(GOAL, Wall::EPOCH)]);
-    assert!(h.root.has_goals(fixtures::PROJECT));
-    assert!(!h.root.has_goals(OTHER.try_into().unwrap()), "only the open project");
-    h.take();
-    for address in [
-        Address::Goals { project: fixtures::PROJECT, filter: GoalsFilter::All },
-        Address::Chat { task: GOAL },
-        Address::Home { project: fixtures::PROJECT },
-    ] {
+fn has_goals_takes_the_list_then_stands_until_its_own_first_delivery() {
+    for address in [Address::Settings { project: fixtures::PROJECT }, Address::Chat { task: GOAL }] {
+        let mut h = FactHarness::at(me(), Address::Goals { project: fixtures::PROJECT, filter: GoalsFilter::All });
+        let opened = h.take();
+        let watch = list_requests(&opened).0;
+        h.live(watch, &[line(GOAL, Wall::EPOCH)]);
+        assert!(h.root.has_goals(fixtures::PROJECT));
+        assert!(!h.root.has_goals(OTHER.try_into().unwrap()), "only the open project");
+        h.take();
         h.go(address);
-        assert!(h.root.has_goals(fixtures::PROJECT), "the fact stays through navigation");
-        for request in h.take() {
-            assert_ne!(request, Down::Close { watch }, "navigation keeps the fact watch");
-            if let Down::Open { subject: Watchable::Jig(c::Subject::Tasks { window, .. }), .. } = request {
-                assert_ne!(window, 1, "navigation opens no second fact watch");
-            }
-        }
-        assert!(h.root.client().document(reserved_handle(1)).is_some());
+        assert!(h.root.has_goals(fixtures::PROJECT), "leaving the list keeps its last value");
+        let requests = h.take();
+        assert!(requests.contains(&Down::Close { watch }));
+        let (own, ended) = fact_requests(&requests, fixtures::PROJECT);
+        h.answer(ended, &[]);
+        assert!(h.root.has_goals(fixtures::PROJECT), "an empty ended read is not the watch's first delivery");
+        h.live(own, &[]);
+        assert!(!h.root.has_goals(fixtures::PROJECT), "the own watch now answers");
+        assert!(h.take().is_empty());
     }
-    h.live(watch, &[]);
-    assert!(!h.root.has_goals(fixtures::PROJECT), "both empty");
-    assert!(h.take().is_empty(), "the fact reads once, independently of the page");
 }
 
 #[test]
 fn an_ended_goal_counts() {
-    let mut h = FactHarness::new(me());
+    let mut h = FactHarness::at(me(), Address::Settings { project: fixtures::PROJECT });
     let (watch, read) = fact_requests(&h.take(), fixtures::PROJECT);
     h.live(watch, &[]);
     assert!(!h.root.has_goals(fixtures::PROJECT));
@@ -971,12 +1102,12 @@ fn another_project_starts_again() {
     let mut other = identity.projects.get(0).unwrap().clone();
     other.project = OTHER.try_into().unwrap();
     identity.projects = List::from_boxed(Box::new([identity.projects.get(0).unwrap().clone(), other]));
-    let mut h = FactHarness::new(identity.clone());
+    let mut h = FactHarness::at(identity.clone(), Address::Settings { project: fixtures::PROJECT });
     let (watch, read) = fact_requests(&h.take(), fixtures::PROJECT);
     h.live(watch, &[]);
     h.answer(read, &[line(GOAL, Wall::EPOCH)]);
     h.take();
-    h.go(Address::Home { project: OTHER.try_into().unwrap() });
+    h.go(Address::Settings { project: OTHER.try_into().unwrap() });
     let requests = h.take();
     assert!(requests.contains(&Down::Close { watch }));
     let (next_watch, next_read) = fact_requests(&requests, OTHER.try_into().unwrap());
@@ -1005,7 +1136,7 @@ fn another_project_starts_again() {
 #[test]
 fn a_sign_in_asks_the_read_again() {
     for delivered in [false, true] {
-        let mut h = FactHarness::new(me());
+        let mut h = FactHarness::at(me(), Address::Settings { project: fixtures::PROJECT });
         let (_, read) = fact_requests(&h.take(), fixtures::PROJECT);
         if delivered {
             h.answer(read, &[line(GOAL, Wall::EPOCH)]);
@@ -1013,13 +1144,8 @@ fn a_sign_in_asks_the_read_again() {
         }
         h.event(crate::Event::Client { event: jig_client::Event::SignIn { with: jig_client::With::Transport } });
         assert!(!h.root.has_goals(fixtures::PROJECT), "sign-in releases the old fact");
-        let mut own = None;
-        for request in h.take() {
-            if let Down::Open { watch, subject: Watchable::Jig(c::Subject::Me) } = request {
-                own = Some(watch);
-            }
-        }
-        h.me = own.expect("sign-in reopens me");
+        h.take();
+        h.me = Token::new(0);
         h.deliver_me(me());
         let (_, next_read) = fact_requests(&h.take(), fixtures::PROJECT);
         assert_ne!(read, next_read, "reads are asked again, never replayed");

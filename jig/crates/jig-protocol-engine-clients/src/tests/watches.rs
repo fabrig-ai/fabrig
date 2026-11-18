@@ -541,3 +541,156 @@ fn an_untranslatable_me_document_also_names_its_sign_in() {
     assert!(world.stream().closing());
     assert!(world.out.is_empty());
 }
+
+fn opening_stream_me() -> (fixtures::Exchange, Token, Token) {
+    let mut world = fixtures::Exchange::new();
+    let owner = world.stream_open_version(Some(jig_client_protocol_wire::VERSION));
+    world.authenticate();
+    let watcher = world.take_watch();
+    (world, owner, watcher)
+}
+#[test]
+fn a_streams_zero_name_cannot_be_opened_or_closed_by_its_client() {
+    let (mut world, owner, watcher) = opening_stream_me();
+    let stream = world.stream().name;
+    world.component.down(&world.env, Event::Admitted { watcher }, &mut world.out);
+    let exchange = world.open_record(stream, 0, fixtures::owned_subject(&w::Subject::Me));
+    let w::OpenAnswer::Refused(why) =
+        w::OpenAnswer::decode(&fixtures::wire(), &mut Reader::new(world.response(exchange).1)).expect("refusal")
+    else {
+        panic!("held name refused");
+    };
+    assert_eq!(why.why(), &w::WatchRefusal::Busy);
+    assert!(world.out.is_empty(), "held name emits no core opening");
+    let exchange = world.unwatch(stream, 0);
+    assert_eq!(
+        w::CloseAnswer::decode(&fixtures::wire(), &mut Reader::new(world.response(exchange).1)),
+        Ok(w::CloseAnswer::Closed)
+    );
+    assert!(world.out.is_empty(), "the client's closing emits no core Unwatch");
+    world.component.down(
+        &world.env,
+        Event::Delivery {
+            watcher,
+            document: Box::new(core::documents::Document::Frame(fixtures::frame_two_projects())),
+        },
+        &mut world.out,
+    );
+    while world.component.up(&world.env, &mut world.out) {}
+    let mut opened = false;
+    for request in &world.out {
+        if let Request::Transport(crate::ToTransport::Streamed { stream, message: crate::Streamed::Record(record) }) =
+            request
+        {
+            assert_eq!(*stream, owner);
+            let w::StreamEvent::Opened(_) =
+                w::StreamEvent::decode(&fixtures::wire(), &mut Reader::new(record)).expect("record")
+            else {
+                panic!("opened");
+            };
+            opened = true;
+        }
+    }
+    assert!(opened);
+    world.out.clear();
+    world.component.down(
+        &world.env,
+        Event::Transport(crate::FromTransport::StreamTaken { stream: owner }),
+        &mut world.out,
+    );
+    world.out.clear();
+    world.component.down(
+        &world.env,
+        Event::Delivery {
+            watcher,
+            document: Box::new(core::documents::Document::Frame(fixtures::frame_two_projects())),
+        },
+        &mut world.out,
+    );
+    while world.component.up(&world.env, &mut world.out) {}
+    let mut delivered = false;
+    for request in &world.out {
+        if let Request::Transport(crate::ToTransport::Streamed { message: crate::Streamed::Record(record), .. }) =
+            request
+        {
+            let w::StreamEvent::Delivery(value) =
+                w::StreamEvent::decode(&fixtures::wire(), &mut Reader::new(record)).expect("record")
+            else {
+                panic!("delivery");
+            };
+            assert_eq!(value.watch(), 0);
+            delivered = true;
+        }
+    }
+    assert!(delivered);
+}
+#[test]
+fn the_streams_me_refused_or_ended_ends_the_stream_with_its_reason() {
+    for opened in [false, true] {
+        for signed_out in [false, true] {
+            for refused in [false, true] {
+                let (mut world, owner, watcher) = opening_stream_me();
+                if opened {
+                    world.component.down(&world.env, Event::Admitted { watcher }, &mut world.out);
+                    world.component.down(
+                        &world.env,
+                        Event::Delivery {
+                            watcher,
+                            document: Box::new(core::documents::Document::Frame(fixtures::frame_two_projects())),
+                        },
+                        &mut world.out,
+                    );
+                    while world.component.up(&world.env, &mut world.out) {}
+                    world.out.clear();
+                    world.component.down(
+                        &world.env,
+                        Event::Transport(crate::FromTransport::StreamTaken { stream: owner }),
+                        &mut world.out,
+                    );
+                    world.out.clear();
+                }
+                let event = if refused {
+                    Event::WatchRefused {
+                        watcher,
+                        why: if signed_out { core::WatchRefusal::SignedOut } else { core::WatchRefusal::Busy },
+                    }
+                } else {
+                    Event::WatchEnded {
+                        watcher,
+                        why: if signed_out { jig_domain_views::End::SignedOut } else { jig_domain_views::End::Gone },
+                    }
+                };
+                world.component.down(&world.env, event, &mut world.out);
+                while world.component.up(&world.env, &mut world.out) {}
+                let mut endings = 0_u32;
+                for request in &world.out {
+                    if let Request::Transport(crate::ToTransport::StreamEnded { stream, why }) = request {
+                        assert_eq!(*stream, owner);
+                        assert_eq!(*why, if signed_out { crate::Ended::SignedOut } else { crate::Ended::Busy });
+                        endings = endings.saturating_add(1);
+                    }
+                }
+                assert_eq!(endings, 1, "opened={opened}, refused={refused}");
+            }
+        }
+    }
+}
+#[test]
+fn watch_zero_is_an_ordinary_client_name_on_a_hello_alone_stream() {
+    let (mut world, stream) = stream_world();
+    let exchange = world.open_record(stream, 0, fixtures::owned_subject(&w::Subject::Me));
+    let watcher = world.take_watch();
+    world.component.down(&world.env, Event::Admitted { watcher }, &mut world.out);
+    assert_eq!(
+        w::OpenAnswer::decode(&fixtures::wire(), &mut Reader::new(world.response(exchange).1)),
+        Ok(w::OpenAnswer::Admitted)
+    );
+    world.unwatch(stream, 0);
+    let Some(Request::Core(event)) = world.out.pop() else {
+        panic!("unwatch");
+    };
+    let core::Event::Unwatch { watcher: found } = *event else {
+        panic!("unwatch");
+    };
+    assert_eq!(found, watcher);
+}

@@ -31,7 +31,7 @@ fn ready_with_limits(config: root::Config, limits: &root::Limits) -> (Session, T
     let worker = Worker::new(1, 1, vec![Box::new([Script::Wait])]);
     let (mut session, now, wall) = session_with_limits(config, *limits, Peers::new(vec![worker], Vec::new()));
     session.bind(ClientId(0), 1, identity(), now, wall);
-    session.poll(now, wall).expect("genuine authentication");
+    session.business_poll(now, wall).expect("genuine authentication");
     (session, now, wall)
 }
 
@@ -48,7 +48,7 @@ fn read(session: &mut Session, now: Time, wall: Wall, what: c::Read) -> c::ReadV
             down(jig_client::Down::Read { read: Token::new(91), what: jig_client::Readable::Jig(what) }),
         )
         .expect("whole read request");
-    let callbacks = session.poll(now, wall).expect("whole read answer");
+    let callbacks = session.business_poll(now, wall).expect("whole read answer");
     let [
         (
             ClientId(0),
@@ -106,7 +106,7 @@ fn ask(session: &mut Session, now: Time, wall: Wall, key: u8, ask: c::Ask) -> c:
             }),
         )
         .expect("whole keyed request");
-    let callbacks = session.poll(now, wall).expect("durable keyed answer");
+    let callbacks = session.business_poll(now, wall).expect("durable keyed answer");
     let [
         (
             ClientId(0),
@@ -391,7 +391,7 @@ fn task_source(session: &mut Session, now: Time, wall: Wall, number: u64) -> Box
             }
         })
         .expect("task from the core");
-    session.poll(now, wall).expect("consume the task read");
+    session.business_poll(now, wall).expect("consume the task read");
     source_task
 }
 
@@ -462,7 +462,7 @@ fn question_offers_keep_the_named_model() {
             wall,
         )
         .expect("component question answer");
-    let callbacks = session.poll(now, wall).expect("question decoded by the link");
+    let callbacks = session.business_poll(now, wall).expect("question decoded by the link");
     let value = callbacks
         .iter()
         .find_map(|(_, event)| {

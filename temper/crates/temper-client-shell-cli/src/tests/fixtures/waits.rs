@@ -5,11 +5,13 @@ impl Frame {
     pub fn socket_wait() -> Self {
         let mut frame = Self::read(&["task", "show", "41", "--until", "changed"]);
         frame.host.test_connections = Some(jig_client_shell_native::Limits {
-            // The live stream and the two completed watches occupy all three sockets.
+            // The live stream, completed task watch and a completed read occupy all three sockets.
             exchanges: 2,
             ..crate::limits::native().connections
         });
         frame.sign_in_then_deliver_me();
+        frame.exchange(0);
+        frame.probe_replies.clear();
         frame
     }
     pub fn exchange(&mut self, number: u64) {

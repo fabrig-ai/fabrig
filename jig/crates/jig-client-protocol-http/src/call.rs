@@ -101,6 +101,11 @@ pub fn answered(exchange: Token, status: u16, body: Box<[u8]>) -> Heard {
 }
 
 #[must_use]
-pub fn stream(mapping: &Mapping, credential: Option<&Secret>) -> Call {
-    call(mapping, credential, Method::Get, b"/v1/stream", Box::new([]))
+pub fn stream(mapping: &Mapping, credential: Option<&Secret>, version: u32) -> Call {
+    let version = skein_lib::Decimal::of(u64::from(version));
+    let mut route =
+        Writer::new(b"/v1/stream?version=".len().checked_add(version.as_bytes().len()).expect("bounded version route"));
+    route.put(b"/v1/stream?version=").expect("bounded stream route");
+    route.put(version.as_bytes()).expect("u32 version digits fit");
+    call(mapping, credential, Method::Get, &route.finish(), Box::new([]))
 }

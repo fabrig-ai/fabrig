@@ -124,6 +124,26 @@ fn client_wire_decoders_never_panic_and_reencode_the_same() {
         let encoded = writer.finish();
         forge_charter(&encoded);
         forge_charter(&temper_codecs_world::mutated(&mut rng, &encoded));
+        let record = v1::SettingAnswer::new(
+            &v1::CEILINGS,
+            v1::SettingAnswerParts {
+                value: if rng.chance(500) {
+                    Some(temper_codecs_world::drawn(&mut rng, 64).into_boxed_slice())
+                } else {
+                    None
+                },
+                revision: if rng.chance(500) {
+                    Some(u32::try_from(rng.below(1_u64 << 32)).expect("u32 draw"))
+                } else {
+                    None
+                },
+            },
+        )
+        .expect("bounded setting answer");
+        let encoded = temper_client_protocol_wire::setting_answer(&record);
+        assert_eq!(temper_client_protocol_wire::decode_setting_answer(&encoded, &v1::CEILINGS), Some(record));
+        setting_answer(&encoded);
+        setting_answer(&temper_codecs_world::mutated(&mut rng, &encoded));
         let bytes = temper_codecs_world::drawn(&mut rng, 512);
         for decode in decoders {
             decode(&bytes);

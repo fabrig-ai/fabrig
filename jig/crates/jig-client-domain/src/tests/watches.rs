@@ -120,9 +120,17 @@ fn a_watch_past_the_handles_limit_ends_at_once() {
 }
 #[test]
 fn an_application_handle_on_me_shares_the_client_s_own() {
-    let mut c = Client::started();
+    let mut c = Client::unsigned(fixtures::limits());
+    c.step(Event::Up { up: Up::SignedIn });
+    assert_eq!(c.domain.link(), Link::Starting);
+    assert!(c.downs().is_empty());
     let name = c.name(Watchable::Jig(contract::Subject::Me));
     c.step(Event::Watch { handle: ME, subject: Watchable::Jig(contract::Subject::Me) });
+    assert!(c.downs().is_empty());
+    c.step(Event::Up { up: fixtures::me(fixtures::PARTY, Duration::from_secs(1)) });
+    assert_eq!(c.domain.link(), Link::Live);
+    assert_eq!(c.domain.party(), Some(fixtures::PARTY));
+    assert_eq!(c.domain.document(ME).unwrap().state, State::Live);
     assert!(c.downs().is_empty());
     c.step(Event::Unwatch { handle: ME });
     assert!(c.downs().is_empty());
@@ -151,41 +159,21 @@ fn a_watch_refused_busy_is_opened_again_after_a_backoff() {
     c.deliver(SUBJECT_TASK);
     assert_eq!(c.domain.document(TASK).unwrap().state, State::Live);
 }
-const ME_REOPENS: [contract::WatchEnd; 7] = [
-    contract::WatchEnd::Busy,
-    contract::WatchEnd::Unknown,
-    contract::WatchEnd::NotAllowed,
-    contract::WatchEnd::Closed,
-    contract::WatchEnd::SubjectEnded,
-    contract::WatchEnd::Dropped,
-    contract::WatchEnd::Stopping,
-];
 #[test]
-fn me_refused_busy_is_opened_again_and_the_link_is_offline() {
-    for end in ME_REOPENS {
-        let mut c = Client::live();
-        c.step(Event::Watch { handle: ME, subject: Watchable::Jig(contract::Subject::Me) });
-        c.told();
-        c.end(fixtures::ME_WATCH, end);
-        assert_eq!(c.domain.link(), Link::Offline, "{end:?}");
-        assert_eq!(c.domain.document(ME).unwrap().state, State::Behind, "{end:?}");
-        assert_eq!(c.told().as_ref(), &[Told::Link { link: Link::Offline }, Told::Changed { handle: ME }], "{end:?}");
-        c.at(next_deadline(&c.domain).unwrap());
-        let watch = c.name(Watchable::Jig(contract::Subject::Me));
-        assert_ne!(watch, fixtures::ME_WATCH, "{end:?}");
-        assert_eq!(
-            c.downs().as_ref(),
-            &[Down::Open { watch, subject: Watchable::Jig(contract::Subject::Me) }],
-            "{end:?}"
-        );
-        assert_eq!(c.domain.link(), Link::Offline, "{end:?}");
-        let mut up = fixtures::me(fixtures::PARTY, Duration::from_secs(1));
-        let Up::Watched { watch: name, .. } = &mut up else { unreachable!("me delivery") };
-        *name = watch;
-        c.step(Event::Up { up });
-        assert_eq!(c.domain.link(), Link::Live, "{end:?}");
-        assert_eq!(c.domain.document(ME).unwrap().state, State::Live, "{end:?}");
-    }
+fn a_lost_me_stays_behind_without_a_watch_retry() {
+    let mut c = Client::live();
+    c.step(Event::Watch { handle: ME, subject: Watchable::Jig(contract::Subject::Me) });
+    c.told();
+    c.end(fixtures::ME_WATCH, contract::WatchEnd::Dropped);
+    assert_eq!(c.domain.link(), Link::Offline);
+    assert_eq!(c.domain.document(ME).unwrap().state, State::Behind);
+    assert_eq!(c.told().as_ref(), &[Told::Link { link: Link::Offline }, Told::Changed { handle: ME }]);
+    assert_eq!(next_deadline(&c.domain), None);
+    assert!(c.downs().is_empty());
+    c.step(Event::Up { up: fixtures::me(fixtures::PARTY, Duration::from_secs(1)) });
+    assert_eq!(c.domain.link(), Link::Live);
+    assert_eq!(c.domain.document(ME).unwrap().state, State::Live);
+    assert!(c.downs().is_empty());
 }
 #[test]
 fn a_watch_closed_before_its_opening_is_answered_closes_once_opened() {
@@ -230,15 +218,8 @@ fn the_application_s_watches_leave_one_for_me() {
     assert_eq!(c.told().as_ref(), &[Told::Ended { handle: OTHER, why: Why::Limit }]);
     assert!(c.downs().is_empty());
     c.step(Event::Up { up: Up::SignedIn });
-    let me = c.name(Watchable::Jig(contract::Subject::Me));
     let watch = c.name(task(SUBJECT_TASK));
-    assert_eq!(
-        c.downs().as_ref(),
-        &[
-            Down::Open { watch: me, subject: Watchable::Jig(contract::Subject::Me) },
-            Down::Open { watch, subject: task(SUBJECT_TASK) },
-        ]
-    );
+    assert_eq!(c.downs().as_ref(), &[Down::Open { watch, subject: task(SUBJECT_TASK) }]);
     assert_eq!(c.domain.watches.len(), 2);
 }
 
@@ -269,8 +250,8 @@ fn a_full_stream_tells_its_caller_and_keeps_retrying_until_me_returns() {
         c.step(Event::Up { up: Up::StreamsFull { full } });
         assert_eq!(c.domain.streams_full(), Some(full));
         assert_eq!(c.told().as_ref(), &[Told::Link { link: Link::Offline }]);
-        c.at(next_deadline(&c.domain).unwrap());
-        assert_eq!(c.downs().len(), 1);
+        assert_eq!(next_deadline(&c.domain), None);
+        assert!(c.downs().is_empty());
         assert_eq!(c.domain.streams_full(), Some(full));
         let name = c.name(Watchable::Jig(contract::Subject::Me));
         let mut up = fixtures::me(fixtures::PARTY, Duration::from_secs(1));
@@ -283,32 +264,13 @@ fn a_full_stream_tells_its_caller_and_keeps_retrying_until_me_returns() {
 }
 
 #[test]
-fn a_me_refused_busy_is_named_until_it_is_answered() {
+fn watches_full_names_only_an_application_watch() {
     let mut c = Client::started();
-    assert!(!c.domain.watches_full());
     c.end(fixtures::ME_WATCH, contract::WatchEnd::Busy);
-    assert!(c.domain.watches_full());
+    assert!(!c.domain.watches_full());
     assert_eq!(c.domain.link(), Link::Offline);
-    assert_eq!(c.told().as_ref(), &[Told::Link { link: Link::Offline }]);
-    let deadline = next_deadline(&c.domain).unwrap();
-    c.at(Time::from_nanos(deadline.as_nanos() - 1));
+    assert_eq!(next_deadline(&c.domain), None);
     assert!(c.downs().is_empty());
-    assert!(c.domain.watches_full());
-    c.at(deadline);
-    let watch = c.name(Watchable::Jig(contract::Subject::Me));
-    assert_ne!(watch, fixtures::ME_WATCH);
-    assert_eq!(c.downs().as_ref(), &[Down::Open { watch, subject: Watchable::Jig(contract::Subject::Me) }]);
-    assert!(c.domain.watches_full());
-    assert_eq!(c.domain.link(), Link::Offline);
-    let mut up = fixtures::me(fixtures::PARTY, Duration::from_secs(1));
-    let Up::Watched { watch: name, .. } = &mut up else { unreachable!("me delivery") };
-    *name = watch;
-    c.step(Event::Up { up });
-    assert!(!c.domain.watches_full());
-    assert_eq!(c.domain.link(), Link::Live);
-    c.end(watch, contract::WatchEnd::Busy);
-    c.step(Event::Up { up: Up::SignedOut });
-    assert!(!c.domain.watches_full());
 }
 
 fn application_watch() -> Client {
