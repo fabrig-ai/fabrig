@@ -1,7 +1,7 @@
 //! The small engine figures used by typed worlds.
 #[must_use]
 pub fn over(base: &jig_protocol_config::Limits) -> jig_protocol_config::Limits {
-    let mut rows = skein_lib::List::with_capacity(20);
+    let mut rows = skein_lib::List::with_capacity(21);
     for (name, value) in [
         (b"authority.executors".as_slice(), 22),
         (b"authority.grants".as_slice(), 16),
@@ -9,6 +9,7 @@ pub fn over(base: &jig_protocol_config::Limits) -> jig_protocol_config::Limits {
         (b"core.policy_bytes".as_slice(), 8192),
         (b"core.run_bytes".as_slice(), 32768),
         (b"core.templates".as_slice(), 7),
+        (b"fleet.slots".as_slice(), 4),
         (b"hub.turns".as_slice(), 1),
         (b"notes.recalled".as_slice(), 1),
         (b"notes.scopes".as_slice(), 32),
@@ -29,7 +30,7 @@ pub fn over(base: &jig_protocol_config::Limits) -> jig_protocol_config::Limits {
             value,
             reason: b"world's figure".as_slice().into(),
         })
-        .expect("twenty figures");
+        .expect("twenty-one figures");
     }
     let rows = rows.into_boxed();
     jig_protocol_config::overrides::with_overrides(base, &rows).expect("checked world figures")

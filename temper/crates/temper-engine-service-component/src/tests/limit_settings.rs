@@ -88,7 +88,7 @@ fn opening(inputs: &LimitInputs, kept: Option<jig_protocol_store::Stores>) -> St
     store.opened_limits(installation, pending);
     store
 }
-fn build(store: Store, state: LimitSettings) -> crate::Service {
+fn build(store: Store, state: LimitSettings) -> Box<crate::Service> {
     let input = &state.inputs;
     let start = startup::checked_start_with_limits(
         &input.document,
@@ -103,8 +103,9 @@ fn build(store: Store, state: LimitSettings) -> crate::Service {
         &state.in_force.temper,
     )
     .unwrap();
-    let mut service =
-        crate::Service::prepared(start.engine, &input.seeds, None, start.forges, start.io, None, None).unwrap();
+    let mut service = Box::new(
+        crate::Service::prepared(start.engine, &input.seeds, None, start.forges, start.io, None, None).unwrap(),
+    );
     service.engine.as_mut().unwrap().take_limit_store(store, state);
     service
 }
@@ -171,7 +172,7 @@ fn save_all(
     };
     // The fixture's direct commit is durable before this process is crashed.
 }
-fn kept(service: crate::Service) -> jig_protocol_store::Stores {
+fn kept(service: Box<crate::Service>) -> jig_protocol_store::Stores {
     service.engine.unwrap().store.host.component.into_stores()
 }
 fn repository(number: u32) -> forge::Stored {

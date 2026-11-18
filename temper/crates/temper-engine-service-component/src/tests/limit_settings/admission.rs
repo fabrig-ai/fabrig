@@ -211,7 +211,7 @@ fn non_limit_requests_bypass_resolution_and_limit_items_replace_the_whole_list()
     assert!(admission::party(Some(&state), acceptance).is_ok(), "proposal acceptance has no second check");
 }
 
-fn owned() -> crate::Service {
+fn owned() -> Box<crate::Service> {
     let mut input = inputs();
     let mut document: serde_json::Value = serde_json::from_slice(&input.document).unwrap();
     document["engine"]["owners"] = serde_json::json!([{"provider":1_u32,"subject":"owner-a"}]);
@@ -272,7 +272,7 @@ fn durable_words_update_the_service_lists_but_not_its_running_figures() {
     assert_eq!(engine.domain.commits_in_flight(), 0);
 }
 
-fn lowered_start() -> crate::Service {
+fn lowered_start() -> Box<crate::Service> {
     let mut service = owned();
     let values: Box<[s::Override]> = Box::new([
         item(b"forge.client.entries", 8),
