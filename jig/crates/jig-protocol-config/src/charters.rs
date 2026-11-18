@@ -45,7 +45,7 @@ pub(crate) fn parse(
     Some(charters.into_boxed())
 }
 pub(crate) fn files(engine: &crate::Engine, files: &mut List<crate::File>) {
-    if engine.defaults == crate::Defaults::Passed {
+    if engine.defaults != crate::Defaults::Document {
         return;
     }
     for (index, charter) in engine.charters.iter().enumerate() {

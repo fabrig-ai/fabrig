@@ -163,6 +163,7 @@ fn review_value(
                 view::Setting::Application { kind, .. } => application_value(kind, &value, limits, out),
                 view::Setting::Charter(_)
                 | view::Setting::Template(_)
+                | view::Setting::Provider(_)
                 | view::Setting::Worker(_)
                 | view::Setting::Model(_)
                 | view::Setting::Policy(_)
@@ -220,6 +221,7 @@ fn encode_application_value(kind: u32, value: &view::SettingValue, out: &mut ske
             }
         }
         view::SettingValue::Overlay(_)
+        | view::SettingValue::Provider(_)
         | view::SettingValue::Worker(_)
         | view::SettingValue::Model(_)
         | view::SettingValue::Charter(_)

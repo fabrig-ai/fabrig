@@ -288,8 +288,9 @@ answer not found.
   delivery log, which the forge component reads, with no address GitHub
   must reach (../forge/README.md, section 4).
 
-**`demo`:** the playground's scripted model, or `null` for none, never
-missing (`README.md`, section 8): its `llm`, the fake LLM the box runs, with its
+**`demo`:** refused since 2026-11-17, the playground's scripted model
+being the box's constant (`providers.md`, 4; `moved.md`, 3); what
+follows is the member as it was, which the constant keeps: its `llm`, the fake LLM the box runs, with its
 port (`listen`), its LLM provider of `engine.llm` (`provider`), its
 key's file (`key`) and its scripts (`asked`). Its members, their bounds
 and their checks against the document's LLM providers are ../setup/playground.md
@@ -342,7 +343,7 @@ any member it doesn't know.
 | `forge.namespace` | not configured: the root derives it from the deployment's id |
 | `identities` | not configured: each kept forge's `GitIdentity { forge, credential }`, its credential the forge's number, comes with its record (../forge/engine.md, 1) |
 | `machine` | the test's GitHub place, `application.test.github`, or github.com's; an owned or fake forge's place is chosen at its set-up (../setup/place.md) |
-| `playground` | `application.demo`'s provider, with `setup.deadline_ms`; none for `null` (../setup/playground.md) |
+| `playground` | the box's scripted provider, 3, with `setup.deadline_ms`; none outside a box (`providers.md`, 4; ../setup/playground.md) |
 | `under_box` | whether `temper-box internal serve` was given `--box` (../setup/box.md, 1) |
 | `forge.push` | `application.push`'s `services`, none for absent or `null`, which `AddDevice` judges an endpoint by (`../../domain/forge/attention.md`, 7.1) |
 

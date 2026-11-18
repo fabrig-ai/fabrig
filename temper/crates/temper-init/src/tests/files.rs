@@ -3,14 +3,8 @@ use crate::{Content, Directory, files};
 
 #[test]
 fn secrets_are_hexadecimal_without_a_digest_file() {
-    for (row, secret, digits, demo_key, key_digits) in [
-        (
-            "zero",
-            [0; 32],
-            b"0000000000000000000000000000000000000000000000000000000000000000\n",
-            [0xff; 32],
-            b"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\n",
-        ),
+    for (row, secret, digits) in [
+        ("zero", [0; 32], b"0000000000000000000000000000000000000000000000000000000000000000\n"),
         (
             "ascending",
             [
@@ -18,25 +12,22 @@ fn secrets_are_hexadecimal_without_a_digest_file() {
                 28, 29, 30, 31,
             ],
             b"000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f\n",
-            [0xab; 32],
-            b"abababababababababababababababababababababababababababababababab\n",
         ),
     ] {
-        let answered = files(&facts(), &DIRECTORIES, &secret, &demo_key).expect("valid facts");
+        let answered = files(&facts(), &DIRECTORIES, &secret).expect("valid facts");
         assert_eq!(content(&answered, b"worker.secret"), digits, "{row}");
         for file in &answered.files {
             assert_ne!(file.name, b"worker.digest", "{row}");
+            assert_ne!(file.name, b"demo/llm.key", "{row}");
         }
-        assert_eq!(content(&answered, b"demo/llm.key"), key_digits, "{row}");
     }
 }
 
 #[test]
 fn the_files_are_named_in_order() {
-    let answered = files(&facts(), &DIRECTORIES, &[0; 32], &[0xab; 32]).expect("valid facts");
+    let answered = files(&facts(), &DIRECTORIES, &[0; 32]).expect("valid facts");
     let expected = [
         ("secret", b"worker.secret".as_slice(), Directory::Data, Some(true)),
-        ("demo key", b"demo/llm.key".as_slice(), Directory::Data, Some(true)),
         ("demo git", b"demo/bin/git".as_slice(), Directory::Data, None),
         ("document last", b"temper.json".as_slice(), Directory::Config, Some(false)),
     ];

@@ -130,7 +130,7 @@ fn account_ending(root: &Root, expected: &str) {
 #[test]
 fn a_reload_without_source_offers_the_way_again() {
     let (mut front, mut root, _) = begin();
-    h::reopen(&mut front, &mut root, at(b"/accounts/connect?provider=17&way=sign-in"));
+    h::reopen(&mut front, &mut root, at(b"/accounts/connect?provider=3&way=sign-in"));
     assert!(button(&root, b"Continue with ChatGPT"));
     assert_eq!(front.leaves.len(), NONE);
 }
@@ -221,7 +221,7 @@ fn superseded_return_source_offers_the_way_again() {
     made(&mut front, &mut root, new_source, false);
     h::reopen(&mut front, &mut root, returned(old_source));
     assert!(button(&root, b"Continue with ChatGPT"));
-    assert_eq!(printed(&root), b"/accounts/connect?provider=17&way=sign-in");
+    assert_eq!(printed(&root), b"/accounts/connect?provider=3&way=sign-in");
     assert!(!words(&root).contains("Signed in to ChatGPT"));
 }
 

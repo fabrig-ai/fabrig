@@ -10,6 +10,17 @@ chooses for them, read the setup file's members, chosen at set-up;
 and `provider.key`, and writes `engine.clients.provider` with no client
 (`place.md`, 6).
 
+**Since 2026-11-17 the document holds no `engine.llm` and no
+`application.demo`** (`../configuration/providers.md`): the LLM
+providers are settings, the stock's OpenAI and Anthropic their defaults,
+and the playground's scripted provider is the box's constant, its port
+chosen at the box's start, its key made at the playground's start and
+its scripts in the binary. Where this document gives either member, the
+scripted model's port or `demo/llm.key` as `temper-box init` writes
+them, read `../configuration/providers.md`: `temper-box init` writes
+neither member, no `demo/llm.key` and chooses no scripted model's port,
+and `--box` still makes `demo/` and `demo/bin/git`.
+
 - **One document,** `temper-box serve`'s, `temper.json` in the
   configuration directory (../configuration/README.md, section 2 and ../configuration/directories.md). Every
   `temper-box forge` command and `temper box` read it whole, check it

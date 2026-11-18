@@ -39,6 +39,7 @@ temper-protocol-store.workspace = true
 temper-protocol-worker-wire.workspace = true
 
 [dev-dependencies]
+temper-fixtures.workspace = true
 temper-agent-fixtures.workspace = true
 temper-limits-fixtures.workspace = true
 jig-domain-tasks.workspace = true

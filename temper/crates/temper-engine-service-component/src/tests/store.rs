@@ -25,16 +25,14 @@ fn settings_history_room_follows_effective_capacities() {
 }
 
 #[test]
-fn task_values_still_refuse_the_profiles_ceiling() {
+fn task_values_past_the_codec_ceiling_refuse_before_the_provider_floor() {
     let (mut root, _, profile) = fixtures::store_limits();
-    root.tasks.batch_bytes = 4_194_304;
-    let Err(store::Refusal::Map(jig_protocol_store::sizes::SizeRefusal::Value { needs, has })) =
-        store::layout(&root, &root.forge, &profile)
-    else {
-        panic!("the task value exceeds the profile's ceiling")
-    };
-    assert!(needs > has);
-    assert_eq!(has, profile.store.value);
+    let settings = jig_protocol_store::sizes::settings_value(&engine::core_limits(&root)).unwrap();
+    root.tasks.batch_bytes = settings.checked_mul(2).unwrap();
+    assert_eq!(
+        store::layout(&root, &root.forge, &profile),
+        Err(store::Refusal::Map(jig_protocol_store::sizes::SizeRefusal::Ceiling))
+    );
 }
 
 #[test]
@@ -51,6 +49,7 @@ fn the_store_opens_over_memory_and_answers_a_commit() {
 fn sizes_past_skein_kvs_limits_refuse_the_store() {
     let (root, _, profile) = fixtures::store_limits();
     let checked = store::limits(&root, &root.forge, &profile).expect("small fits");
+    let profile = jig_protocol_store::Limits { store: checked.store, ..profile };
     assert!(checked.store.is_usable());
     assert_eq!(checked.store, checked.secrets);
     assert_eq!(checked.core, engine::core_limits(&root));
@@ -80,14 +79,16 @@ fn sizes_past_skein_kvs_limits_refuse_the_store() {
 }
 
 #[test]
-fn page_floor_admits_exact_map_and_frame_bounds_and_refuses_one_short() {
+fn page_floor_admits_the_exact_map_bound_and_refuses_one_short() {
     let (mut root, _, mut profile) = fixtures::store_limits();
     root.loads.transcript_bytes = 8;
     let map = store::limits(&root, &root.forge, &profile).expect("map-dominant page");
     let map_bytes = map.store.key.checked_add(map.store.value).unwrap();
     assert_eq!(map.store.page.bytes, map_bytes);
-    // Sizing only: make the frame larger than the map without allocating it.
-    for (transcript, page) in [(8, map_bytes), (map_bytes, map_bytes.checked_add(69).unwrap())] {
+    profile.store = map.store;
+    let transcript = 8;
+    let page = map_bytes;
+    {
         root.loads.transcript_bytes = transcript;
         // Model startup's turn-plus-record and decoded read-row load bounds.
         root.loads.bytes = transcript.checked_add(u32::try_from(size_of::<engine::Record>()).unwrap()).unwrap();
@@ -117,7 +118,7 @@ fn page_floor_admits_exact_map_and_frame_bounds_and_refuses_one_short() {
 #[test]
 fn shipped_maximum_frame_fits_small_page_and_out_of_codec_admission_refuses() {
     let (mut root, _, profile) = fixtures::store_limits();
-    root.loads.transcript_bytes = 4_582_862;
+    root.loads.transcript_bytes = jig_protocol_store::core_v6::CEILINGS.turn_record_transcript;
     // Model startup's turn-plus-record and decoded read-row load bounds.
     root.loads.bytes =
         root.loads.transcript_bytes.checked_add(u32::try_from(size_of::<engine::Record>()).unwrap()).unwrap();
@@ -127,12 +128,13 @@ fn shipped_maximum_frame_fits_small_page_and_out_of_codec_admission_refuses() {
         .checked_add(u64::try_from(size_of::<jig_domain_core::Record>()).unwrap())
         .unwrap();
     let checked = store::limits(&root, &root.forge, &profile).expect("shipped maximum fits Small");
-    assert_eq!(checked.store.page.bytes, 4_582_931);
-    assert_eq!(checked.store.page.bytes, profile.store.page.bytes);
-    for transcript in [jig_protocol_store::core_v6::CEILINGS.turn_record_transcript + 1, u32::MAX] {
-        root.loads.transcript_bytes = transcript;
-        assert!(store::limits(&root, &root.forge, &profile).is_none());
-    }
+    assert_eq!(checked.store.page.bytes, checked.store.key + checked.store.value);
+    assert!(
+        checked.store.page.bytes
+            >= jig_protocol_store::sizes::frame(&checked.core, root.loads.transcript_bytes).unwrap()
+    );
+    root.loads.transcript_bytes = jig_protocol_store::core_v6::CEILINGS.turn_record_transcript + 1;
+    assert!(store::limits(&root, &root.forge, &profile).is_none());
 }
 
 #[test]

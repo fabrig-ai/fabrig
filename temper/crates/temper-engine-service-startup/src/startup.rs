@@ -88,8 +88,7 @@ fn redirects(engine: &config::Engine) -> Box<[RedirectPort]> {
                 .push(RedirectPort {
                     port,
                     path: Path::root()
-                        .member(b"engine")
-                        .member(b"llm")
+                        .member(b"providers.setting")
                         .member(b"providers")
                         .child(Segment::Index(u32::try_from(index).expect("bounded providers")))
                         .member(b"sources")
@@ -328,16 +327,19 @@ pub fn engine_with_sources(
         return Err(problems);
     }
     let mut engine =
-        config::engine_over(document, at, directories, config::Defaults::Passed, &fixed(directories)?, &base)?;
-    let stock = match given {
-        crate::stock::Given::Stock => true,
-        crate::stock::Given::Own { .. } => false,
-    };
-    if stock && crate::stock::models(&engine.llm).is_empty() {
-        let mut problems = config::Problems::empty();
-        problems.push(Path::root().member(b"llm").member(b"providers"), config::What::Bound);
-        return Err(problems);
+        config::engine_over(document, at, directories, config::Defaults::PassedProviders, &fixed(directories)?, &base)?;
+    let running = given.running();
+    let fixed = given.fixed();
+    let mut providers = List::uncapped();
+    let mut endpoints = List::uncapped();
+    for value in running.iter().chain(fixed.iter()) {
+        providers.push(value.provider.clone()).expect("running providers");
+        for endpoint in &value.endpoints {
+            endpoints.push(endpoint.clone()).expect("running endpoints");
+        }
     }
+    engine.llm.providers = providers.into_boxed();
+    engine.llm.endpoints = endpoints.into_boxed();
     let Some(defaults) = given.defaults(&engine.llm, engine.limits.core.tasks.result_bytes) else {
         let mut problems = config::Problems::empty();
         problems.push(
@@ -349,8 +351,64 @@ pub fn engine_with_sources(
     if !fleet_override(document, at) {
         engine.limits.core.fleet.grace = worker_fleet_grace(&engine.limits);
     }
-    config::pass(&mut engine, defaults)?;
+    // Check the workers' bound before jig's bounded provider handoff.
+    if engine.llm.endpoints.len() > skein_lib::usize_of(config::llm::ENDPOINTS) {
+        engine.fixed_llm_providers = fixed;
+        config::pass(&mut engine, defaults)?;
+        return Ok(engine);
+    }
+    config::pass_providers(&mut engine, defaults, &running, fixed)?;
+    resolve_provider_trust(&mut engine.llm, directories)?;
     Ok(engine)
+}
+fn resolve_provider_trust(llm: &mut config::Llm, directories: &config::Directories) -> Result<(), config::Problems> {
+    for (index, endpoint) in llm.endpoints.iter_mut().enumerate() {
+        resolve_trust(
+            &mut endpoint.transport,
+            directories,
+            Path::root()
+                .member(b"providers.setting")
+                .member(b"endpoints")
+                .child(Segment::Index(u32::try_from(index).expect("bounded endpoints"))),
+        )?;
+    }
+    for (index, provider) in llm.providers.iter_mut().enumerate() {
+        if let Some(registration) = &mut provider.sign_in {
+            resolve_trust(
+                &mut registration.endpoint_transport,
+                directories,
+                Path::root()
+                    .member(b"providers.setting")
+                    .member(b"providers")
+                    .child(Segment::Index(u32::try_from(index).expect("bounded providers")))
+                    .member(b"sources")
+                    .member(b"sign_in"),
+            )?;
+        }
+    }
+    Ok(())
+}
+fn resolve_trust(
+    transport: &mut config::Transport,
+    directories: &config::Directories,
+    at: Path,
+) -> Result<(), config::Problems> {
+    match transport {
+        config::Transport::Plaintext => {}
+        config::Transport::Tls { trust, .. } => {
+            if let Some(path) = trust {
+                match directories.join(config::Directory::Config, path) {
+                    Ok(joined) => *path = joined,
+                    Err(what) => {
+                        let mut problems = config::Problems::empty();
+                        problems.push(at.member(b"trust"), what);
+                        return Err(problems);
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
 }
 pub fn engine(
     document: &skein_json::Document,
@@ -510,7 +568,8 @@ fn load_document(
         return if problems.is_empty() { Ok((shape, None)) } else { Err(problems) };
     }
     if check_start && let Some(engine) = &engine {
-        match given {
+        match given.source() {
+            crate::stock::Given::Running { .. } => unreachable!("unwrapped source"),
             crate::stock::Given::Stock => checks::stock(engine, &mut problems),
             crate::stock::Given::Own { .. } => {}
         }
@@ -609,6 +668,14 @@ fn all_files(parsed: &Parsed) -> Box<[config::File]> {
             let mut path = prefix.clone();
             for segment in &file.at.segments {
                 path = path.child(segment.clone());
+            }
+            if prefix == Path::root().member(b"engine")
+                && file.at.segments.as_slice().first() == Some(&Segment::Member(b"llm".as_slice().into()))
+            {
+                path = Path::root().member(b"providers.setting");
+                for segment in file.at.segments.iter().skip(1) {
+                    path = path.child(segment.clone());
+                }
             }
             file.at = path;
             files.push(file).expect("capacity includes every named file");
@@ -802,7 +869,8 @@ pub fn checked_start_with(
         kinds: Box::default(),
         period_span: crate::stock::PERIOD_SPAN,
         kinds_stock: Box::default(),
-        ways_stock: match given {
+        ways_stock: match given.source() {
+            crate::stock::Given::Running { .. } => unreachable!("unwrapped source"),
             crate::stock::Given::Stock => crate::stock::ways(),
             crate::stock::Given::Own { ways, .. } => ways.clone(),
         },
@@ -812,7 +880,8 @@ pub fn checked_start_with(
     if let Some(&connector) = core.connectors.first() {
         engine.kinds = crate::stock::kinds(&root, connector);
     }
-    engine.kinds_stock = match given {
+    engine.kinds_stock = match given.source() {
+        crate::stock::Given::Running { .. } => unreachable!("unwrapped source"),
         crate::stock::Given::Stock => crate::stock::forge(&root),
         crate::stock::Given::Own { forge, .. } => forge.clone(),
     };

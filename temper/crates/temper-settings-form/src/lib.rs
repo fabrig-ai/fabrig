@@ -11,6 +11,7 @@ mod kinds;
 pub mod overlay;
 pub mod page;
 pub mod proposal;
+pub mod providers;
 pub mod render;
 mod text;
 pub mod values;

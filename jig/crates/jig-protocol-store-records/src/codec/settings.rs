@@ -4,6 +4,7 @@
     reason = "typed encoders uniformly borrow the domain values they translate"
 )]
 use crate::settings_v3 as wire;
+mod providers;
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_core_vocabulary::{self as core, settings};
@@ -13,6 +14,36 @@ use jig_domain_tasks as tasks;
 use settings::application;
 use skein_lib::{List, Reader, Wall, Writer};
 const EMPTY: wire::Limits = wire::Limits {
+    provider_text_bytes: 0,
+    provider_list_keep: 0,
+    provider_list_drop: 0,
+    provider_tls_server_name: 0,
+    provider_tls_trust_some: 0,
+    provider_registration_issuer: 0,
+    provider_registration_client: 0,
+    provider_registration_scopes: 0,
+    provider_registration_name_hint_some: 0,
+    provider_registration_authorization: 0,
+    provider_registration_token: 0,
+    provider_registration_revocation_some: 0,
+    provider_registration_keys: 0,
+    provider_registration_must_grant: 0,
+    provider_registration_resource_some: 0,
+    provider_registration_redirect_path: 0,
+    provider_name: 0,
+    provider_endpoint_some: 0,
+    provider_direct_some: 0,
+    provider_manage_usage_some: 0,
+    provider_programs: 0,
+    provider_host_name: 0,
+    provider_header_name: 0,
+    provider_header_value: 0,
+    provider_endpoint_name: 0,
+    provider_endpoint_provider: 0,
+    provider_endpoint_program_some: 0,
+    provider_endpoint_headers: 0,
+    provider_setting_endpoints: 0,
+
     worker_setting_name: 0,
     text_bytes: 0,
     model_name_name: 0,
@@ -108,6 +139,9 @@ fn encode_setting(value: &settings::Setting, limits: &wire::Limits) -> Result<wi
         settings::Setting::Worker(number) => {
             wire::Setting::Worker(wire::WorkerNumber::new(limits, wire::WorkerNumberParts { number: *number })?)
         }
+        settings::Setting::Provider(number) => {
+            wire::Setting::Provider(wire::ProviderNumber::new(limits, wire::ProviderNumberParts { number: *number })?)
+        }
         settings::Setting::Application { kind, scope, number } => {
             wire::Setting::Application(wire::ApplicationSetting::new(
                 limits,
@@ -134,6 +168,7 @@ fn decode_setting(value: wire::Setting) -> settings::Setting {
         wire::Setting::Rules => settings::Setting::Rules,
         wire::Setting::Model(number) => settings::Setting::Model(number.number()),
         wire::Setting::Worker(number) => settings::Setting::Worker(number.number()),
+        wire::Setting::Provider(number) => settings::Setting::Provider(number.number()),
         wire::Setting::Application(value) => {
             let wire::ApplicationSettingParts { kind, scope, number } = value.into_parts();
             settings::Setting::Application { kind, scope, number }
@@ -439,6 +474,7 @@ fn encode_value(value: &settings::Value, limits: &wire::Limits) -> Result<wire::
                 withdrawn: value.withdrawn,
             },
         )?)),
+        settings::Value::Provider(value) => wire::Value::Provider(Box::new(providers::encode(value, limits)?)),
         settings::Value::Model(value) => wire::Value::Model(Box::new(encode_catalogue(value, limits)?)),
         settings::Value::Overlay(item) => wire::Value::Overlay(Box::new(encode_overlay(item, limits)?)),
         settings::Value::Application(_) => return Err(bound()),
@@ -458,6 +494,7 @@ fn decode_value(value: wire::Value, limits: &wire::Limits) -> Result<settings::V
             digest: *value.digest(),
             withdrawn: value.withdrawn(),
         })),
+        wire::Value::Provider(value) => settings::Value::Provider(Box::new(providers::decode(&value))),
         wire::Value::Model(value) => settings::Value::Model(Box::new(decode_catalogue(*value))),
     })
 }
@@ -2139,6 +2176,7 @@ pub fn encode(
                 settings::Setting::Charter(_)
                 | settings::Setting::Template(_)
                 | settings::Setting::Policy(_)
+                | settings::Setting::Provider(_)
                 | settings::Setting::Worker(_)
                 | settings::Setting::Model(_)
                 | settings::Setting::Rules
@@ -2202,6 +2240,7 @@ pub fn decode(
             settings::Setting::Charter(_)
             | settings::Setting::Template(_)
             | settings::Setting::Policy(_)
+            | settings::Setting::Provider(_)
             | settings::Setting::Worker(_)
             | settings::Setting::Model(_)
             | settings::Setting::Rules
@@ -2581,4 +2620,47 @@ fn encode_version(value: &settings::CharterVersion, limits: &wire::Limits) -> Re
 }
 fn decode_version(bytes: &[u8], limits: &wire::Limits) -> Result<settings::CharterVersion, wire::Problem> {
     decode_charter_version(wire::CharterVersion::decode(limits, &mut Reader::new(bytes))?, limits)
+}
+
+#[cfg(test)]
+mod provider_tests {
+    use super::*;
+    #[test]
+    fn a_provider_setting_round_trips_in_the_registered_family() {
+        use settings::{Endpoint, EndpointAddress, Provider, ProviderSetting, Transport};
+        let provider = ProviderSetting {
+            provider: Provider {
+                number: 4,
+                name: b"local".as_slice().into(),
+                endpoint: Some(b"local".as_slice().into()),
+                direct: None,
+                list: None,
+                signed_in_plan: false,
+                manage_usage: None,
+                sign_in: None,
+                keys: false,
+                programs: Box::new([]),
+            },
+            endpoints: Box::new([Endpoint {
+                number: 5,
+                name: b"local".as_slice().into(),
+                provider: b"local".as_slice().into(),
+                dialect: 3,
+                program: None,
+                address: EndpointAddress::Socket(::core::net::SocketAddr::from(([127, 0, 0, 1], 8080))),
+                transport: Transport::Plaintext,
+                headers: Box::new([]),
+                connect: skein_lib::Duration::from_millis(10_000),
+                handshake: skein_lib::Duration::from_millis(10_000),
+            }]),
+            withdrawn: true,
+        };
+        let key = settings::Key::Changed(settings::Setting::Provider(4));
+        let record = settings::Record::Changed {
+            setting: settings::Setting::Provider(4),
+            changed: settings::Changed { revision: 2, value: Some(settings::Value::Provider(Box::new(provider))) },
+        };
+        let bytes = encode(&record, &wire::CEILINGS, &[]).unwrap();
+        assert_eq!(decode(&key, &bytes, &wire::CEILINGS, &[]).unwrap(), record);
+    }
 }

@@ -27,7 +27,9 @@ fn json(bytes: &[u8]) -> Value {
 fn engine(bytes: &[u8]) -> jig_protocol_config::Engine {
     let bytes = serde_json::to_vec(&json(bytes)["engine"]).expect("engine JSON");
     let document = jig_protocol_config::document(&bytes, &DOCUMENT).expect("engine document");
-    startup::engine(&document, 0, &jig_protocol_config::Directories::working()).expect("stock engine")
+    let given = temper_service::stock::Given::Stock
+        .with_providers(temper_agent_fixtures::providers::parse(&rendered("providers.json")), Box::new([]));
+    startup::engine_with(&document, 0, &jig_protocol_config::Directories::working(), &given).expect("stock engine")
 }
 
 fn figures() -> jig_protocol_worker_wire::Figures {
@@ -112,14 +114,18 @@ fn the_turn_landing_documents_check_as_their_shapes() {
     let model = temper_fake::llm::Document::decode(&rendered("model.json")).expect("fake model document");
     assert_eq!(model.key(), b"/turn/data/model/key");
     let stock = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
-    assert!(!stock.models.is_empty());
+    assert_eq!(stock.models.len(), 7);
     for charter in &stock.charters {
         let resolved = jig_domain_core::settings::charters::resolved(charter, &stock.models, &engine.limits.core)
             .expect("stock charter resolves without a settings change");
         for configured in std::iter::once(&resolved.policy.model).chain(&resolved.policy.alternatives) {
-            assert_eq!(configured.endpoint, 0);
-            assert_eq!(configured.provider, 1);
-            assert!(model.models().iter().any(|model| model.name == configured.name));
+            if configured.provider == 1 {
+                assert_eq!(configured.endpoint, 1);
+                assert!(model.models().iter().any(|model| model.name == configured.name));
+            } else {
+                assert_eq!(configured.provider, 2, "the other stock provider remains in the catalogue");
+                assert!(!engine.llm.providers.iter().any(|provider| provider.number == configured.provider));
+            }
         }
     }
 }

@@ -337,7 +337,7 @@ impl Process {
         self.charter = smith_protocol_channel::encode_charter(
             start.charter.value(),
             &smith_charter::CEILINGS,
-            &super::worker_protocol::endpoints(),
+            &super::worker_protocol::endpoints_with_dialect(3),
         )
         .expect("fitted charter encodes");
         let transcript = start.transcript.map(agent::Transcript::into_value);
