@@ -10,7 +10,7 @@ fn moved_schema_matches_generated_records_and_is_pinned() {
     let unpinned = unpinned(&source).expect("schema valid");
     assert!(unpinned.is_empty(), "moved: unpinned constructs: {unpinned:?}");
     let output = generate(&parse(&source).expect("schema valid"));
-    let path = skein_scratch::paths::tree().join("crates/jig-protocol-accounts-codec/src/generated/v1.rs");
+    let path = skein_scratch::paths::tree().join("crates/jig-protocol-accounts-codec/src/generated/moved.rs");
     let again =
         "run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p jig-protocol-accounts-world --test suite -E 'test(drift::)'";
     if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {

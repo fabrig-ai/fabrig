@@ -5,6 +5,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import tempfile
 
 
 BASELINES = {f'{tree}/scripts/old-forms.txt'
@@ -16,6 +17,8 @@ RECORDINGS = {
         ['cargo', 'nextest', 'run', '-p', 'temper-playground-world', '--test', 'suite',
          '-E', 'test(=walk::story_a_walks_from_the_welcome_to_the_csv_change_landed)']),
 }
+CODECS = 'tools/merge/codecs.txt'
+CODEC_GENERATORS = ('skein/testing/skein-codegen/', 'skein/crates/skein-codec/')
 MARKER = re.compile(rb'^(?:<{7}|={7}|>{7}|\|{7})(?:[ \r\n]|$)', re.MULTILINE)
 
 
@@ -111,6 +114,65 @@ def regenerate(repository, path, stages, conflicts):
             target.unlink()
         target.write_bytes(previous)
         target.chmod(mode)
+        return False
+    return True
+
+
+def codec_list(repository, conflicts):
+    if CODECS in conflicts:
+        return {}
+    modules = {}
+    try:
+        for line in (repository / CODECS).read_text(encoding='utf-8').splitlines():
+            paths = line.split('#', 1)[0].split()
+            if not paths:
+                continue
+            if len(paths) < 2 or paths[0] in modules or any(
+                    Path(path).is_absolute() or '..' in Path(path).parts for path in paths):
+                raise ValueError('invalid codec list row')
+            modules[paths[0]] = paths[1:]
+    except (OSError, ValueError) as error:
+        print(f'{CODECS}: {error}', file=sys.stderr)
+        return {}
+    return modules
+
+
+def regenerate_codec(repository, path, schemas, stages, conflicts):
+    if any(source in conflicts or not (repository / source).is_file() for source in schemas):
+        print(f'{path}: schema text is missing or unmerged', file=sys.stderr)
+        return False
+    if any(source.startswith(CODEC_GENERATORS) for source in conflicts):
+        print(f'{path}: codec generator is unmerged', file=sys.stderr)
+        return False
+    if any(stage not in stages or stages[stage][0] not in (b'100644', b'100755')
+           for stage in (2, 3)):
+        return False
+    target = repository / path
+    if target.is_symlink() or not target.is_file():
+        return False
+    previous = target.read_bytes()
+    mode = target.stat().st_mode
+    replaced = False
+    try:
+        with tempfile.TemporaryDirectory(prefix='.merge-codec-', dir=target.parent) as temporary:
+            subprocess.run(['cargo', 'run', '-p', 'skein-codegen', '--bin', 'skein-codegen', '--',
+                            *schemas, temporary], cwd=repository, check=True, stdin=subprocess.DEVNULL,
+                           env={**os.environ, 'SKEIN_CODEGEN_WRITE': '1', 'TEMPER_INTERNAL_BUNDLE': 'none'})
+            output = Path(temporary) / target.name
+            if output.is_symlink() or not output.is_file():
+                raise ValueError('generator did not produce a regular file')
+            generated = output.read_bytes()
+            if not generated or MARKER.search(generated):
+                raise ValueError('generator left an empty file or conflict markers')
+            output.chmod(mode)
+            output.replace(target)
+            replaced = True
+        git(repository, 'add', '--', path)
+    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+        print(f'{path}: {error}', file=sys.stderr)
+        if replaced:
+            target.write_bytes(previous)
+            target.chmod(mode)
         return False
     return True
 
@@ -213,11 +275,17 @@ def main():
     repository = Path(__file__).resolve().parents[2]
     settled = []
     conflicts = unmerged(repository)
+    codecs = codec_list(repository, conflicts)
     for path, stages in sorted(conflicts.items()):
         try:
             if path in BASELINES and settle(repository, path, stages):
                 settled.append(path)
             elif path in RECORDINGS and regenerate(repository, path, stages, conflicts):
+                settled.append(path)
+            elif (path in codecs
+                  and left_record(repository, path, stages, request['head'], request['base'])['kind']
+                  in ('modified', 'added')
+                  and regenerate_codec(repository, path, codecs[path], stages, conflicts)):
                 settled.append(path)
         except (OSError, ValueError, subprocess.CalledProcessError) as error:
             print(f'{path}: {error}', file=sys.stderr)

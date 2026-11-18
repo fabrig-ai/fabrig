@@ -4,5 +4,5 @@
 extern crate alloc;
 
 #[rustfmt::skip]
-#[path = "generated/settings_v3.rs"]
+#[path = "generated/settings.rs"]
 pub mod settings_v3;

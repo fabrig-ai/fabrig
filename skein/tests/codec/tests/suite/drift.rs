@@ -13,7 +13,7 @@ mod tests {
         ("schema/every-v2.schema", "src/every/v2.rs", Some("golden/every-v2")),
         ("schema/every-v3.schema", "src/every/v3.rs", Some("golden/every-v3")),
         ("schema/secrets-v1.schema", "src/secrets/v1.rs", None),
-        ("schema/sample-v1.schema", "src/generated/v1.rs", None),
+        ("schema/sample-v1.schema", "src/generated/sample.rs", None),
         ("schema/scalars-v1.schema", "src/scalars/v1.rs", None),
         ("schema/lints-v1.schema", "src/lints/v1.rs", None),
     ];
