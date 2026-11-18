@@ -35,6 +35,66 @@ fn pending_job_upgrades_once_at_equal_levels() {
 }
 
 #[test]
+fn a_pending_decider_job_repairs_a_live_row_once_without_moving_levels() {
+    use jig_domain_core as core;
+    use jig_domain_tasks::{self as tasks, Escalation, EscalationDecider, Party, Stored};
+    use jig_protocol_store::{OwnerSet, OwnerSets};
+    use jig_store_world::World;
+    const BEFORE: OwnerSets = OwnerSets {
+        sets: &[
+            jig_protocol_store::SKEIN_SET,
+            jig_protocol_store::SMITH_SET,
+            OwnerSet { jobs: &[], ..jig_protocol_accounts::JIG_SET },
+        ],
+    };
+    const NOW: OwnerSets = OwnerSets {
+        sets: &[jig_protocol_store::SKEIN_SET, jig_protocol_store::SMITH_SET, jig_protocol_accounts::JIG_SET],
+    };
+    let mut world = World::unopened(907);
+    world.owner_sets(patches::current(BEFORE));
+    assert_eq!(world.open(), Some(0));
+    let core::Record::Tasks(Stored::Live(mut parent)) = root::live_task(1) else { panic!("parent") };
+    let core::Record::Tasks(Stored::Live(mut held)) = root::live_task(3) else { panic!("held") };
+    parent.delegates = Box::new([3]);
+    held.requester = Party::Task(1);
+    held.root = 1;
+    held.depth = 1;
+    held.phase =
+        tasks::Phase::Held { was: tasks::Was::Active(tasks::Active::Due), why: tasks::Hold::Budget, source: None };
+    held.escalation =
+        Escalation::Rejected { revision: 1, by: EscalationDecider::Person(1), reason: b"keep held".as_slice().into() };
+    assert_eq!(
+        world.commit(Box::new([
+            Write::Save(root::header(1)),
+            Write::Wires,
+            Write::Save(core::Record::Tasks(Stored::Live(parent))),
+            Write::Save(core::Record::Tasks(Stored::Live(held.clone()))),
+        ])),
+        Some(1)
+    );
+    world.crash(908);
+    world.owner_sets(patches::current(NOW));
+    let last = world.open().expect("decider job opens copy");
+    assert!(world.pending);
+    assert_eq!(world.ran().len(), 1);
+    assert_eq!((world.ran()[0].0, world.ran()[0].1.as_ref()), (Owner::Jig, "escalation-deciders"));
+    held.escalation =
+        Escalation::Rejected { revision: 1, by: EscalationDecider::Task(1), reason: b"keep held".as_slice().into() };
+    world.switch().expect("activate repaired store");
+    assert_eq!(world.get(core::Key::Tasks(tasks::Key::Live(3))), core::Record::Tasks(Stored::Live(held.clone())));
+    let contents = world.contents();
+    let bytes = contents.get(b"generations/2/manifest".as_slice()).and_then(Option::as_deref).expect("manifest");
+    let manifest = Manifest::decode(bytes).expect("manifest codec");
+    assert_eq!(manifest.before, manifest.after);
+    assert_eq!(world.commit(Box::new([Write::Save(root::header(last + 1)), Write::Wires])), Some(last + 1));
+    world.crash(909);
+    assert_eq!(world.open(), Some(last + 1));
+    assert!(!world.pending);
+    assert_eq!(world.ran(), []);
+    assert_eq!(world.get(core::Key::Tasks(tasks::Key::Live(3))), core::Record::Tasks(Stored::Live(held)));
+}
+
+#[test]
 fn private_check_refuses_the_copy_before_switch() {
     const SEED: u64 = 903;
     let records = Records::story();

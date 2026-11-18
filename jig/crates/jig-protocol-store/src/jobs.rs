@@ -97,9 +97,14 @@ pub struct JobRefusal {
 }
 
 /// Routes a page to its named jig job (protocol/store/jobs.md, 3–4).
-pub fn page(_job: &str, _page: &JobPage) -> Result<JobAnswer, JobRefusal> {
-    Err(JobRefusal { key: None, why: Box::from("no such jig job") })
+pub fn page(job: &str, page: &JobPage, store: &mut crate::Store) -> Result<JobAnswer, JobRefusal> {
+    match job {
+        "escalation-deciders" => escalation_deciders::page(page, store),
+        _ => Err(JobRefusal { key: None, why: Box::from("no such jig job") }),
+    }
 }
+
+mod escalation_deciders;
 
 pub(crate) mod admission;
 pub(crate) mod kept;

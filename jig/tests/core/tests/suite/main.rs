@@ -29,6 +29,7 @@ mod effect_fences;
 mod effects;
 mod ended_indexes;
 mod ended_watches;
+mod escalation_job;
 mod faults;
 mod fields;
 mod first_start;

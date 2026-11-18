@@ -195,7 +195,8 @@ pub fn seed(drivers: [&mut skein_io::file_layer::FileIo; 4], seed: u64) -> Seede
 }
 
 impl Store {
-    /// Public application rows for a job's page, at the binary's levels (protocol/store/opening.md, 3). No serving codec runs over these bytes.
+    /// Rows at the binary's layouts while a job page is out (protocol/store/jobs.md, 3).
+    /// Keys are whole for jig's jobs and relative to the application's tag for its jobs.
     pub fn patch_page(
         &mut self,
         range: skein_kv::Range,
@@ -203,20 +204,25 @@ impl Store {
         rows: u32,
     ) -> Result<PatchPage, OpenRefusal> {
         let directory::Opening::Patching(phase) = &self.directory.opening else { return Err(OpenRefusal::Failed) };
-        let out = match &**phase {
-            upgrade::phase::Patching::Jobs(running) => running.at_page(),
+        let owner = match &**phase {
+            upgrade::phase::Patching::Jobs(running) => running.page_owner(),
             upgrade::phase::Patching::Closing { .. }
             | upgrade::phase::Patching::Dropping(_)
             | upgrade::phase::Patching::Copying(_)
             | upgrade::phase::Patching::Mapping { .. }
             | upgrade::phase::Patching::Recovering { .. }
             | upgrade::phase::Patching::Sealing { .. }
-            | upgrade::phase::Patching::Checking(_) => false,
+            | upgrade::phase::Patching::Checking(_) => None,
         };
-        if !out || rows == 0 || rows > self.limits.store.ops {
+        let owner = owner.ok_or(OpenRefusal::Failed)?;
+        if rows == 0 || rows > self.limits.store.ops {
             return Err(OpenRefusal::Failed);
         }
-        let ranges = pages::application(&[range], self.limits.store.key).ok_or(OpenRefusal::Failed)?;
+        let ranges = if owner == Owner::Application {
+            pages::application(&[range], self.limits.store.key).ok_or(OpenRefusal::Failed)?
+        } else {
+            Box::new([range])
+        };
         let page = match pages::reader::walk(self, &ranges, after, rows) {
             Ok(page) => page,
             Err(failure) => {
@@ -226,8 +232,12 @@ impl Store {
         };
         let mut found = skein_lib::List::with_capacity(rows);
         for row in page.rows {
-            let key = keys::of_application(&row.row.key).ok_or(OpenRefusal::Failed)?;
-            found.push(skein_kv::Row { key: Box::from(key), value: row.row.value }).expect("bounded patch page");
+            let key = if owner == Owner::Application {
+                Box::from(keys::of_application(&row.row.key).ok_or(OpenRefusal::Failed)?)
+            } else {
+                row.row.key
+            };
+            found.push(skein_kv::Row { key, value: row.row.value }).expect("bounded patch page");
         }
         Ok(PatchPage { rows: found.into_boxed(), next: page.next })
     }

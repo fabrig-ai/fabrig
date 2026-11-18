@@ -163,15 +163,15 @@ impl Observe for Observer {
         }
         for note in service.notes().iter() {
             if let temper_service::Note::Engine(temper_engine_service::Note::Ran { of, job, .. }) = note {
-                assert_eq!(*of, jig_protocol_store::Owner::Application, "only application jobs are pending");
                 STATE.with(|s| {
                     let mut s = s.borrow_mut();
                     let epoch = s.epoch;
                     let at = s.ran.iter().rev().take_while(|(seen, _)| *seen == epoch).count();
+                    let expected = crate::upgrade::JOBS.get(at).copied().expect("pending job");
                     assert_eq!(
-                        crate::upgrade::JOBS.get(at).copied(),
-                        Some(job.as_ref()),
-                        "pending jobs run in order in each start"
+                        (*of, job.as_ref()),
+                        (crate::upgrade::job_owner(expected), expected),
+                        "pending jobs run in owner order in each start"
                     );
                     s.ran.push((epoch, job.clone()));
                 });
