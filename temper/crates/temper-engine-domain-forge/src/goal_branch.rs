@@ -1,6 +1,7 @@
 //! A held goal branch is made across restarts and releases of a failed making.
 //! Closing deletes it once a change landed it, and keeps it otherwise
 //! (temper/docs/design/domain/forge/README.md, 2, and temper/docs/design/domain/forge/branches.md, 1, and temper/docs/design/domain/forge/README.md, 9).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
 use super::{
     BranchHead, Domain, Env, Limits, LostReadState, Name, Request, Role, Stored, Writer, child, emit, keep_entry,
     save_hold, to_client,
@@ -317,7 +318,7 @@ fn missing(d: &mut Domain, env: &Env<Limits>, owner: Token, mut pending: Making,
     }
     let resource = to_client(&pending.name, &env.limits).expect("validated held branch");
     let repository = d.repositories.get(&resource.repository).expect("held repository");
-    let branch = repository.settings.default_branch.clone();
+    let branch = repository.landing.clone();
     pending.default = true;
     d.makings.insert(owner, pending).expect("replaces making read");
     child(
@@ -600,7 +601,7 @@ pub(super) fn retry(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
     pending.state = LostReadState::Asked;
     let resource = to_client(&pending.name, &env.limits).expect("validated held branch");
     let branch = if pending.default {
-        d.repositories.get(&resource.repository).expect("held repository").settings.default_branch.clone()
+        d.repositories.get(&resource.repository).expect("held repository").landing.clone()
     } else {
         match resource.what {
             skein_forge_client::What::Branch(branch) => branch,

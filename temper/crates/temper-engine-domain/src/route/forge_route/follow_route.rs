@@ -1,4 +1,5 @@
 //! Standing follow decisions (temper/docs/design/domain/forge/follows.md, 4–5).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
 use super::{Box, Domain, Env, Limits, List, ProcedureStep, StepEnd, Work, append, forge, tasks};
 use forge::follows::{FollowQuestion, FollowRefusal};
 use jig_domain_core::{Dependency, StepCancel, StepMessage};
@@ -120,7 +121,7 @@ pub(crate) fn make_refused(domain: &mut Domain, task: u64, why: tasks::Refusal) 
     true
 }
 fn branch<'a>(named: &'a [u8], repository: &'a forge::Repository) -> &'a [u8] {
-    if named.is_empty() { &repository.settings.default_branch } else { named }
+    if named.is_empty() { &repository.landing } else { named }
 }
 #[expect(clippy::too_many_lines, reason = "the owner act and ordered delegate batch form one procedure decision")]
 pub(crate) fn step(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunContext) {

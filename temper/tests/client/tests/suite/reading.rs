@@ -278,17 +278,27 @@ fn long_words(number: usize, length: usize) -> Vec<u8> {
 
 fn read_long_messages(agent: bool) {
     use temper_client_domain::Address;
-    for length in [538, 1149] {
-        let mut world = fixtures::long_messages_world(fixtures::SEED);
-        let task = fixtures::long_messages_task(world.front(), agent);
+    let mut world = fixtures::long_messages_world(fixtures::SEED);
+    let cases = [(1, 538), (2, 1149)].map(|(number, length)| {
+        let task = fixtures::long_messages_task(world.front(), agent, number);
         let messages: Vec<_> = (0..LONG_MESSAGES).map(|number| long_words(number, length)).collect();
-        for (number, words) in messages.iter().enumerate() {
-            fixtures::long_message(world.front(), task, u8::try_from(number + 1).expect("message key"), words);
-        }
-        let client = fixtures::long_messages_client(
-            &mut world,
-            if agent { Address::Task { task } } else { Address::Chat { task } },
-        );
+        let words: Vec<_> = messages.iter().map(Vec::as_slice).collect();
+        fixtures::long_messages(world.front(), task, 1, &words);
+        (length, task, messages)
+    });
+    let mut client = None;
+    for (length, task, messages) in cases {
+        let indices: std::collections::BTreeMap<_, _> =
+            messages.iter().enumerate().map(|(number, words)| (words.as_slice(), number)).collect();
+        let address = if agent { Address::Task { task } } else { Address::Chat { task } };
+        let client = if let Some(client) = client {
+            world.go(client, address);
+            client
+        } else {
+            let first = fixtures::long_messages_client(&mut world, address);
+            client = Some(first);
+            first
+        };
         world.person(client, vec![see(messages.last().expect("last message"))]);
         let outcome = world.run(Until::Done);
         assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
@@ -306,10 +316,13 @@ fn read_long_messages(agent: bool) {
             let mut face = TreeFace::new(world.tree(client));
             assert_eq!(face.find(&Find::text(b"Couldn't load earlier messages")), Found::Absent);
             for node in world.tree(client).nodes() {
-                let text: Vec<u8> = node.text.as_slice().iter().flat_map(|run| run.text.iter().copied()).collect();
+                let mut text = Vec::new();
+                for run in node.text.as_slice() {
+                    text.extend_from_slice(&run.text);
+                }
                 if text.starts_with(b"Long message ") {
-                    let number = messages.iter().position(|message| *message == text).expect("a message draws whole");
-                    visited[number] = true;
+                    let number = indices.get(text.as_slice()).expect("a message draws whole");
+                    visited[*number] = true;
                 }
             }
             if visited.iter().all(|seen| *seen) {
@@ -359,7 +372,7 @@ fn ended_page(agent: bool) -> (ChatWorld, ClientId, u64) {
         1,
     );
     *world.front() = front;
-    let task = fixtures::long_messages_task(world.front(), agent);
+    let task = fixtures::long_messages_task(world.front(), agent, 0);
     fixtures::long_message(world.front(), task, 1, &long_words(0, UNREADABLE_BYTES));
     for number in 1..TURNS {
         fixtures::long_message(

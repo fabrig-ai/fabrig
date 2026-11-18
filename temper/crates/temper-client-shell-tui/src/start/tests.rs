@@ -77,13 +77,39 @@ fn fixed_start_is_a_nonempty_captured_variable_on_loopback_only() {
 }
 
 #[test]
-fn a_fixed_runs_seed_is_stream_fours_and_its_first_reading_is_the_starts() {
+fn a_fixed_run_draws_its_seed_on_the_tuis_stream_and_keeps_the_starts_first_reading() {
     let start = skein_shell::FixedStart::read(b"1767690000,7").expect("fixed start");
     let (seed, clock) = super::fixed_run(&start);
-    let mut draw = [0; 8];
-    start.draw(4, &mut draw);
-    assert_eq!(seed, u64::from_le_bytes(draw), "the seed given to local_run");
+    let mut bytes = [0u8; 8];
+    start.draw(4, &mut bytes);
+    assert_eq!(seed, u64::from_le_bytes(bytes), "the seed given to local_run");
+    assert_ne!(seed, start.seed);
     assert_eq!(clock.now(), skein_shell::Now { now: skein_shell::FixedStart::NOW, wall: start.wall });
+}
+
+#[test]
+fn the_fixed_tui_and_page_share_no_request_keys() {
+    fn keys(limits: &jig_client::DomainLimits, seed: u64) -> Vec<skein_lib::RequestKey> {
+        // Domain::new gives this seed to RequestTable::new (jig-client-domain/src/domain.rs).
+        let mut table = skein_lib::RequestTable::new(&limits.requests, seed);
+        let mut keys = Vec::new();
+        for _ in 0..64 {
+            let admitted = table.ask((), 1, limits.ask_bytes, ()).expect("request fits the client's table");
+            keys.push(admitted.key);
+            table.not_kept(admitted.key, admitted.number).expect("retire the request to release its capacity");
+            let mut outputs = table.take(skein_lib::Time::ZERO, skein_lib::Wall::EPOCH);
+            while outputs.next_out().is_some() {}
+            table.reclaim();
+        }
+        keys
+    }
+
+    let start = skein_shell::FixedStart::read(b"1767690000,7").expect("fixed start");
+    let (seed, _) = super::fixed_run(&start);
+    let tui = keys(&crate::limits::tui().native.client.client.domain, seed);
+    let page = keys(&temper_client_shell_web::limits::client().client.domain, start.seed);
+    let shared = tui.iter().filter(|key| page.contains(key)).count();
+    assert_eq!(shared, 0, "shared request keys among each client's first 64");
 }
 
 #[test]

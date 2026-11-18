@@ -14,21 +14,8 @@ use crate::client::{Client, Interrupt, Operation, Pick, Plan, Release, Repo};
 use crate::forge::{Forge, Move};
 use crate::translate;
 
-fn object_markers(disk: &Checkout) -> BTreeSet<(Vec<u8>, u64)> {
-    let mut markers = BTreeSet::new();
-    for root in [b"ws".as_slice(), b"stores"] {
-        for path in disk.tree(root).into_keys() {
-            let parts: Vec<_> = path.split(|byte| *byte == b'/').collect();
-            if let [.., objects, name] = parts.as_slice()
-                && *objects == b"objects"
-                && let Ok(name) = std::str::from_utf8(name)
-                && let Ok(commit) = name.parse::<u64>()
-            {
-                markers.insert(([root, b"/", &path].concat(), commit));
-            }
-        }
-    }
-    markers
+fn object_markers(disk: &Checkout, objects: &[u8]) -> BTreeSet<u64> {
+    disk.tree(objects).into_keys().filter_map(|name| std::str::from_utf8(&name).ok()?.parse().ok()).collect()
 }
 
 /// Who the worker is to the forge, in every spec.
@@ -227,7 +214,7 @@ pub struct Told {
     pub released: u32,
 }
 
-/// Object markers a store, clone or fetch added anywhere on the fake disk.
+/// Object markers a store, clone or fetch added to its object directory.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Transfer {
     pub kind: Kind,
@@ -1313,7 +1300,7 @@ impl World {
             | Op::Merge { .. } => None,
         };
         let transfer = match &op {
-            Op::Store { remote, .. } => {
+            Op::Store { store, remote, .. } => {
                 let name = client
                     .repos
                     .iter()
@@ -1321,19 +1308,29 @@ impl World {
                     .expect("a Store names the spec's remote")
                     .name
                     .clone();
-                Some((name, op.kind(), object_markers(&self.disk)))
+                Some((name, [translate::store_path(*store).as_slice(), b"/objects"].concat()))
             }
-            Op::Clone { at, .. } | Op::Fetch { at, .. } => {
-                Some((at.repository.to_vec(), op.kind(), object_markers(&self.disk)))
+            Op::Clone { at, .. } => {
+                Some((at.repository.to_vec(), [translate::path(at).as_slice(), b"/.git/objects"].concat()))
+            }
+            Op::Fetch { at, store, .. } => {
+                Some((at.repository.to_vec(), [translate::store_path(*store).as_slice(), b"/objects"].concat()))
             }
             _ => None,
         };
-        let creates = op.kind() == Kind::Create;
+        // Each transfer can add objects only in its destination directory.
+        // Snapshot that directory, not every workspace's files and every store.
+        let transfer = transfer.map(|(repository, objects)| {
+            let before = object_markers(&self.disk, &objects);
+            (repository, objects, before)
+        });
+        let kind = op.kind();
+        let creates = kind == Kind::Create;
         self.forge.at(self.now);
         let done = translate::perform(&mut self.forge, &mut self.disk, op);
-        if let Some((repository, kind, before)) = transfer {
-            let after = object_markers(&self.disk);
-            let commits = after.difference(&before).map(|(_, commit)| *commit).collect();
+        if let Some((repository, objects, before)) = transfer {
+            let after = object_markers(&self.disk, &objects);
+            let commits = after.difference(&before).copied().collect();
             let client = *self.holds.get(&owner).expect("a hold's client");
             self.transfers.entry((client, repository)).or_default().push(Transfer { kind, commits });
         }

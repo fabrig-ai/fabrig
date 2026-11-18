@@ -6034,6 +6034,7 @@ dependencies = [
  "temper-client-protocol-wire",
  "temper-client-redaction",
  "temper-client-shell-terminal",
+ "temper-client-shell-web",
  "temper-client-tui",
  "temper-client-view",
  "temper-shell",

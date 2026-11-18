@@ -871,6 +871,7 @@ fn settings_pages_reserve_escaped_framing_within_the_allowance() {
 )]
 fn inventory_people_forms_share_repository_pagination() {
     let repositories = [engine::RepositoryIdentity {
+        landing: b"staging".as_slice().into(),
         host: b"forge.example:3847".as_slice().into(),
         owner: b"org".as_slice().into(),
         name: b"repo".as_slice().into(),
@@ -959,7 +960,7 @@ fn inventory_people_forms_share_repository_pagination() {
     .into_parts();
     assert!(!error);
     let expected = whole.strip_suffix(b"end\n").expect("terminal marker");
-    assert!(expected.ends_with(b"project repositories:\n  forge forge.example:3847 repository org/repo\nproject people:\n  person 1 owner: role 0, requester, forge identity unknown: cannot count for approvals\n  person 4 ada: role 1, forge forge.example:3847 user 3\n  person 5: role 2, forge forge.example:3847 user 7\n  person 6: role 2, forge forge.example:3847 user 2, temper's own forge writer: never counts as a person\n  person 7 grace: role 2, forge forge.example:3847 user 8, forge other.example unknown: cannot count for approvals there\nforge people:\n  forge 127.0.0.1:3000 configured owned-forge account ada; project membership unverified by this row\nmodels you can offer:\n  claude-opus-5-5: anthropic; efforts low, high; default high\n"), "{}", core::str::from_utf8(expected).expect("inventory UTF-8"));
+    assert!(expected.ends_with(b"project repositories:\n  forge forge.example:3847 repository org/repo landing staging\nproject people:\n  person 1 owner: role 0, requester, forge identity unknown: cannot count for approvals\n  person 4 ada: role 1, forge forge.example:3847 user 3\n  person 5: role 2, forge forge.example:3847 user 7\n  person 6: role 2, forge forge.example:3847 user 2, temper's own forge writer: never counts as a person\n  person 7 grace: role 2, forge forge.example:3847 user 8, forge other.example unknown: cannot count for approvals there\nforge people:\n  forge 127.0.0.1:3000 configured owned-forge account ada; project membership unverified by this row\nmodels you can offer:\n  claude-opus-5-5: anthropic; efforts low, high; default high\n"), "{}", core::str::from_utf8(expected).expect("inventory UTF-8"));
     let mut combined = skein_lib::Writer::new(expected.len());
     let mut from = 0;
     let mut pages = 0_u32;

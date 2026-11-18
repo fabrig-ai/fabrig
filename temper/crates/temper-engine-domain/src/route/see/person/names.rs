@@ -115,6 +115,7 @@ pub(crate) fn repositories(domain: &Domain, project: u32) -> Box<[RepositoryIden
                 host: repository.host.clone(),
                 owner: repository.owner.clone(),
                 name: repository.name.clone(),
+                landing: repository.landing.clone(),
             })
             .expect("one identity per readable repository");
     }

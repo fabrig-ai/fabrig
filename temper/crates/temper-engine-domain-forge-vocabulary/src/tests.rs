@@ -4,10 +4,19 @@ mod forge_user;
 mod history_read;
 mod purpose;
 mod rules_by_path;
+#[test]
+fn stored_repository_bytes_count_its_landing() {
+    let mut row = adopted();
+    let before = stored_bytes(&Stored::Repository(row.clone())).unwrap();
+    row.landing = b"staging".as_slice().into();
+    assert_eq!(stored_bytes(&Stored::Repository(row)), before.checked_add(3));
+}
+
 const REPO: skein_forge::api::Repository = skein_forge::api::Repository { forge: 1, repository: 2 };
 pub(crate) fn adopted() -> Repository {
     Repository {
         contexts: Box::new([]),
+        landing: b"main".as_slice().into(),
         workflows: Box::default(),
         project: 5,
         home: true,

@@ -58,6 +58,9 @@ pub fn outcome(
                 ],
                 words,
             );
+            if !adopted.landing.is_empty() {
+                status(builder, Word::LandsInto, &[Hole::Name(adopted.landing.clone())], words);
+            }
             if adopted.home {
                 status(builder, Word::IsHome, &[], words);
             }
