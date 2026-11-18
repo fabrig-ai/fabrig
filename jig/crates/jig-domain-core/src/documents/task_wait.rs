@@ -28,36 +28,66 @@ pub fn waiting(core: &Core, row: &tasks::TaskRecord) -> Option<TaskRunWait> {
             Some(TaskRunWait::Account { account: Some(account), source: None, why: TaskWaitWhy::Invalid(why) })
         }
         Err(RunWait::Credential) => Some(TaskRunWait::Credential),
-        Err(RunWait::Host) => Some(match core.fleet.standing_refusal(core.charter_of(row.number).hosts) {
-            Some((kind, record)) => TaskRunWait::Refused(TaskWaitRefused::Hello {
-                kind,
-                at: record.at,
-                why: record.why,
-                figures: record.figures,
-            }),
-            None => match core.charter_version(row.number) {
-                Some(version) => match core.fleet.bounds_refusal(version, core.charter_of(row.number).hosts) {
-                    Some(value) => TaskRunWait::Refused(TaskWaitRefused::Bounds {
-                        kind: value.kind,
-                        why: value.why,
-                        figures: value.figures,
-                    }),
-                    None => TaskRunWait::Host,
+        Err(RunWait::Host) => Some(host_wait(core, row.number)),
+        Err(RunWait::Account { account, source, why }) => {
+            if why == accounts::WaitWhy::Host
+                && let Some(source) = source
+                && let Some(wait) = untooled(core, row.number, Some(source))
+            {
+                return Some(wait);
+            }
+            Some(TaskRunWait::Account {
+                account,
+                source,
+                why: match why {
+                    accounts::WaitWhy::Refreshing => TaskWaitWhy::Refreshing,
+                    accounts::WaitWhy::Host => TaskWaitWhy::Host,
+                    accounts::WaitWhy::Empty => TaskWaitWhy::Empty,
+                    accounts::WaitWhy::Source(state) => TaskWaitWhy::Source(source_state(state)),
                 },
-                None => TaskRunWait::Host,
-            },
-        }),
-        Err(RunWait::Account { account, source, why }) => Some(TaskRunWait::Account {
-            account,
-            source,
-            why: match why {
-                accounts::WaitWhy::Refreshing => TaskWaitWhy::Refreshing,
-                accounts::WaitWhy::Host => TaskWaitWhy::Host,
-                accounts::WaitWhy::Empty => TaskWaitWhy::Empty,
-                accounts::WaitWhy::Source(state) => TaskWaitWhy::Source(source_state(state)),
-            },
-        }),
+            })
+        }
     }
+}
+
+fn host_wait(core: &Core, task: u64) -> TaskRunWait {
+    let kinds = core.charter_of(task).hosts;
+    if let Some((kind, record)) = core.fleet.standing_refusal(kinds) {
+        return TaskRunWait::Refused(TaskWaitRefused::Hello {
+            kind,
+            at: record.at,
+            why: record.why,
+            figures: record.figures,
+        });
+    }
+    if let Some(version) = core.charter_version(task)
+        && let Some(value) = core.fleet.bounds_refusal(version, kinds)
+    {
+        return TaskRunWait::Refused(TaskWaitRefused::Bounds {
+            kind: value.kind,
+            why: value.why,
+            figures: value.figures,
+        });
+    }
+    untooled(core, task, None).unwrap_or(TaskRunWait::Host)
+}
+
+fn untooled(core: &Core, task: u64, waiting_source: Option<u32>) -> Option<TaskRunWait> {
+    let fault = core.fleet.untooled(skein_lib::Token::new(task))?;
+    let (source, _) = accounts::programs::issued(&core.accounts, fault.source.as_bytes())?;
+    let fact = core.accounts.source(source)?;
+    if let Some(waiting_source) = waiting_source
+        && source != waiting_source
+    {
+        return None;
+    }
+    Some(TaskRunWait::Account {
+        account: Some(fact.account),
+        source: Some(source),
+        why: TaskWaitWhy::Untooled {
+            worker: fault.worker.checked_add(1).expect("a worker position is its number less one"),
+        },
+    })
 }
 
 fn source_state(state: accounts::State) -> TaskSourceState {

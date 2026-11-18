@@ -777,51 +777,79 @@ fn untooled_hello(world: &mut World, channel: Token, worker: u32) {
 fn an_untooled_program_leaves_each_place_until_a_worker_reopens() {
     use jig_domain_fleet as fleet;
     use jig_domain_link::SourceName;
-    let mut world = untooled_world();
-    untooled_hello(&mut world, Token::new(8), 1);
-    let task = world.task();
-    let first = world.attempt();
-    assert_eq!(world.received_grant().unwrap().0, Token::new(7));
-    untooled_on(&mut world, Token::new(7));
-    let reason: Box<[u8]> =
-        b"claude_code started without smith's tools: account claude-alice on worker box-1".as_slice().into();
-    let row = world.domain.core().tasks.task(task).unwrap().clone();
-    assert_eq!(row.tries, tasks::Tries::NONE);
-    assert_eq!(row.retry_notice, Some(tasks::RetryNotice::Refused { count: 1, reason: Some(reason.clone()) }));
-    assert!(matches!(row.phase, tasks::Phase::Active(tasks::Active::BackingOff { .. })));
-    assert!(world.store.rows.values().any(|row| matches!(row,
+    for reopen in [true, false] {
+        let mut world = untooled_world();
+        let task = world.task();
+        let first = world.attempt();
+        assert_eq!(world.received_grant().unwrap().0, Token::new(7));
+        untooled_on(&mut world, Token::new(7));
+        let reason: Box<[u8]> =
+            b"claude_code started without smith's tools: account claude-alice on worker box-1".as_slice().into();
+        let row = world.domain.core().tasks.task(task).unwrap().clone();
+        assert_eq!(row.tries, tasks::Tries::NONE);
+        assert_eq!(row.retry_notice, Some(tasks::RetryNotice::Refused { count: 1, reason: Some(reason.clone()) }));
+        assert!(matches!(row.phase, tasks::Phase::Active(tasks::Active::BackingOff { .. })));
+        assert!(world.store.rows.values().any(|row| matches!(row,
         root::Record::Core(core::Record::Core(core::CoreRecord::Terminal(terminal)))
         if terminal.task == task && terminal.attempt == first && terminal.end == tasks::End::RefusedWithReason { reason: reason.clone() }
     )));
-    untooled_on(&mut world, Token::new(7));
-    assert_eq!(world.domain.core().tasks.task(task).unwrap(), &row, "a duplicate ends no second time");
-    world.retry_due();
-    assert!(world.attempt() > first);
-    assert_eq!(world.received_grant().unwrap().0, Token::new(8));
-    assert_eq!(
-        world.received_grant().unwrap().3.form,
-        Form::Program(SourceName::new(b"claude-alice").expect("fixture source"))
-    );
-    untooled_on(&mut world, Token::new(8));
-    assert_eq!(
-        world.domain.core().fleet.untooled(Token::new(task)),
-        Some(fleet::Untooled {
-            channel: Token::new(8),
-            worker: 1,
-            source: SourceName::new(b"claude-alice").expect("fixture source"),
-        })
-    );
-    let last = world.attempt();
-    world.assigned = None;
-    world.advance(skein_lib::Duration::from_secs(10));
-    assert!(world.assigned.is_none(), "no place left: no timer-driven attempt");
-    assert_eq!(world.domain.core().tasks.task(task).unwrap().attempt, last);
-    assert!(world.domain.core().run_choice(task).is_err());
-    world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Lost { channel: Token::new(7) })));
-    untooled_hello(&mut world, Token::new(9), 0);
-    assert_eq!(world.received_grant().unwrap().0, Token::new(9));
-    assert!(world.attempt() > last);
-    assert_eq!(world.domain.core().tasks.task(task).unwrap().tries, tasks::Tries::NONE);
+        untooled_on(&mut world, Token::new(7));
+        assert_eq!(world.domain.core().tasks.task(task).unwrap(), &row, "a duplicate ends no second time");
+        world.retry_due();
+        assert_eq!(
+            funding_wait(&mut world, task),
+            Some(core::documents::TaskRunWait::Account {
+                account: Some(0),
+                source: Some(1),
+                why: core::documents::TaskWaitWhy::Untooled { worker: 1 },
+            })
+        );
+        untooled_hello(&mut world, Token::new(8), 1);
+        assert!(world.attempt() > first);
+        assert_eq!(world.received_grant().unwrap().0, Token::new(8));
+        assert_eq!(
+            world.received_grant().unwrap().3.form,
+            Form::Program(SourceName::new(b"claude-alice").expect("fixture source"))
+        );
+        untooled_on(&mut world, Token::new(8));
+        assert_eq!(
+            world.domain.core().fleet.untooled(Token::new(task)),
+            Some(fleet::Untooled {
+                channel: Token::new(8),
+                worker: 1,
+                source: SourceName::new(b"claude-alice").expect("fixture source"),
+            })
+        );
+        let last = world.attempt();
+        world.assigned = None;
+        world.advance(skein_lib::Duration::from_secs(10));
+        assert!(world.assigned.is_none(), "no place left: no timer-driven attempt");
+        assert_eq!(world.domain.core().tasks.task(task).unwrap().attempt, last);
+        assert!(world.domain.core().run_choice(task).is_err());
+        assert_eq!(
+            funding_wait(&mut world, task),
+            Some(core::documents::TaskRunWait::Account {
+                account: Some(0),
+                source: Some(1),
+                why: core::documents::TaskWaitWhy::Untooled { worker: 2 },
+            })
+        );
+        let channel = if reopen {
+            world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Lost { channel: Token::new(7) })));
+            untooled_hello(&mut world, Token::new(9), 0);
+            Token::new(9)
+        } else {
+            world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Check {
+                channel: Token::new(7),
+                name: SourceName::new(b"claude-alice").expect("fixture source"),
+            })));
+            Token::new(7)
+        };
+        assert_eq!(world.received_grant().unwrap().0, channel);
+        assert!(world.attempt() > last);
+        assert_eq!(world.domain.core().tasks.task(task).unwrap().tries, tasks::Tries::NONE);
+        assert_eq!(funding_wait(&mut world, task), None);
+    }
 }
 
 fn transcript_failure() -> jig_domain_host::Ending {
