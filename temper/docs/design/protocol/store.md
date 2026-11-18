@@ -364,10 +364,12 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   under the same name, currently `v25`. Registered values are converted
   at read from their stored layouts into that codec's layout
   (`floor.md`, 2); no older map codec or patch history is kept.
-  `temper-protocol-store` keeps the current schema, `golden/v25/`,
-  owner set and translations. The drift test, `temper-codecs-world`'s,
-  reads the schema and golden bytes there and the code in the codec
-  crate.
+  `temper-protocol-store` keeps the current schema, owner set and
+  translations. The drift test, `temper-codecs-world`'s, compares the
+  generated records with the code in the codec crate and refuses each
+  unpinned construct. Tests build values, without family golden files or
+  generated tests; skein's `every` pins the bytes
+  (`skein/docs/design/data/codec/README.md`, 6).
 - **Collections** are pieces or counted lists by jig's rule (jig's
   `protocol/store/records.md`, 1). The schema's limits are made from the
   forge's limits, and checked against the schema's ceilings at start.
@@ -782,7 +784,7 @@ Within the suites' budgets (`../testing/README.md`, section 2):
 - **Step tests** in `temper-protocol-store`: each family's key encoder
   against the derived order, and its decoder against its encoder; the
   interval of `Range::Forge` against `Range::contains` over generated
-  keys; each codec both ways, with golden bytes; each translation both
+  keys; each codec both ways, with built values; each translation both
   ways, a domain value equal to itself after a round trip; the schema's
   bounds at their limit and one past; the sizes against the forge's
   limits.

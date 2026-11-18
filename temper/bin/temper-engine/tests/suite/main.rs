@@ -112,6 +112,12 @@ fn help(text: &str) -> bool {
     let rows: Vec<_> =
         text.lines().filter(|line| line.starts_with("  ")).filter_map(|line| line.split_whitespace().next()).collect();
     text == ENGINE.help()
+        && text.contains("upgrade --workers")
+        && text
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ")
+            .contains("Judges the workers alone over a copy; switches nothing.")
         && ["serve", "versions", "upgrade", "checkpoint", "help"].iter().all(|word| rows.contains(word))
         && ["forge", "box", "program-login"].iter().all(|word| !rows.contains(word))
 }
@@ -202,6 +208,13 @@ const ROWS: &[Case] = &[
         2,
         empty,
         "temper-engine upgrade --check: invalid arguments\nusage: temper-engine upgrade --check [DIRECTORIES] DIRECTORY\n",
+    ),
+    (
+        &["upgrade", "--workers"],
+        None,
+        2,
+        empty,
+        "temper-engine upgrade --workers: invalid arguments\nusage: temper-engine upgrade --workers [DIRECTORIES] DIRECTORY\n",
     ),
     (
         &["upgrade", "--back", "extra"],

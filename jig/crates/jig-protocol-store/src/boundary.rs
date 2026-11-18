@@ -6,6 +6,13 @@ use skein_io::file;
 use skein_io::kernel::Fd;
 use skein_lib::{Queue, Secret, Token};
 
+/// How far a scratch start runs (protocol/store/opening.md, 5).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Reach {
+    Whole,
+    Openings,
+}
+
 /// What the engine's protocol layer asks of the component. Each request but
 /// `Commit` names its asker's token; each has one terminal event.
 #[derive(Debug)]
@@ -17,7 +24,7 @@ pub enum Request {
     /// Remove a checkpoint under its lock, without opening the deployment.
     RemoveCheckpoint { owner: Token, root: Root, name: crate::CheckpointName },
     /// Rehearse a stopped deployment over a caller-owned scratch root (opening.md 5).
-    Rehearse { owner: Token, directory: Root, scratch: Root, installation: [u8; 16] },
+    Rehearse { owner: Token, directory: Root, scratch: Root, installation: [u8; 16], reach: Reach },
     /// Name the previous generation again, before the active one's first own commit.
     Back { owner: Token, root: Root },
     /// End a rehearsal and empty its scratch root, close a checkpoint-only open,

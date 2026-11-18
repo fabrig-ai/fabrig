@@ -1,20 +1,5 @@
 //! Shared deterministic codec inputs (skein's data/codec/README.md, section 6).
 use skein_lib::Rng;
-use std::fs;
-
-/// Read this directory's golden files in a stable order, relative to the tree root.
-#[must_use]
-pub fn goldens(dir: &str) -> Vec<Vec<u8>> {
-    let root = skein_scratch::paths::tree().join(dir);
-    let mut paths: Vec<_> = fs::read_dir(root)
-        .expect("golden directory")
-        .map(|entry| entry.expect("golden entry"))
-        .filter(|entry| entry.file_type().expect("golden file type").is_file())
-        .map(|entry| entry.path())
-        .collect();
-    paths.sort();
-    paths.into_iter().map(|path| fs::read(path).expect("golden bytes")).collect()
-}
 
 /// Draw arbitrary bytes of any length through the given maximum.
 #[must_use]

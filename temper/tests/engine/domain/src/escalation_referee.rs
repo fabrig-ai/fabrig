@@ -466,7 +466,7 @@ impl Referee {
                             && record.escalation
                                 == (tasks::Escalation::Rejected {
                                     revision: archive.revision,
-                                    by: *by,
+                                    by: tasks::EscalationDecider::Person(*by),
                                     reason: reason.clone(),
                                 })
                     }
@@ -821,7 +821,8 @@ pub fn store_rules_changed(
 ) -> Result<(), &'static str> {
     let header = store_header(rows)?;
     if header.messages < previous.messages
-        || header.people.max(header.tasks) < previous.people.max(previous.tasks)
+        || header.people < previous.people
+        || header.tasks < previous.tasks
         || keys.iter().any(|key| matches!(key, Key::Core(jig_domain_core::Key::People(people::Key::Policy(_)))))
     {
         return store_rules(rows);
@@ -868,7 +869,12 @@ fn row_store_rules(
                     return Err("held fallback belongs to another project");
                 }
             }
-            tasks::Escalation::Rejected { by, .. } if by > header.people.max(header.tasks) => {
+            tasks::Escalation::Rejected { by, .. }
+                if match by {
+                    tasks::EscalationDecider::Person(person) => person > header.people,
+                    tasks::EscalationDecider::Task(task) => task > header.tasks,
+                } =>
+            {
                 return Err("rejection actor exceeds durable actor high-water mark");
             }
             tasks::Escalation::Unheld { .. }

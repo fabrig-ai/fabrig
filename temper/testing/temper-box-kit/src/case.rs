@@ -692,12 +692,6 @@ impl Judge {
                             .ok_or("before")?
                             .into()
                     }
-                    calls::Arg::InboxAfter(n) => {
-                        let v = call_json(&self.calls[*n])?;
-                        let cursor =
-                            v.pointer("/needs/after/value").and_then(Value::as_str).ok_or("next needs page")?;
-                        format!("00{cursor}")
-                    }
                 })
             })
             .collect()
@@ -1155,7 +1149,7 @@ fn describe(step: &calls::Step) -> String {
         Step::TrialEnded => "TrialEnded".into(),
         Step::Return => "Return".into(),
         Step::Terminal(_) => "Terminal".into(),
-        Step::ReleaseHold { name } => format!("ReleaseHold {}", String::from_utf8_lossy(name)),
+        Step::ReleaseHold { name, .. } => format!("ReleaseHold {}", String::from_utf8_lossy(name)),
         Step::Advance => "Advance".into(),
         Step::Push { path, .. } => format!("Push {}", String::from_utf8_lossy(path)),
         Step::AddWorker { name } => format!("AddWorker {name}"),
@@ -1196,7 +1190,6 @@ fn describe_argv(argv: &calls::Argv) -> String {
             calls::Arg::Delegate(call) => format!("delegate(call {call})"),
             calls::Arg::Digest(call) => format!("digest(call {call})"),
             calls::Arg::ActivityBefore(call) => format!("activity-before(call {call})"),
-            calls::Arg::InboxAfter(call) => format!("inbox-after(call {call})"),
         })
         .collect::<Vec<_>>()
         .join(" ")

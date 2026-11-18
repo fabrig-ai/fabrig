@@ -45,6 +45,9 @@ pub fn waiting(value: Option<d::TaskRunWait>, limits: &w::Limits) -> Result<Opti
                 account,
                 source,
                 why: match why {
+                    d::TaskWaitWhy::Untooled { worker } => {
+                        w::TaskWaitWhy::Untooled(w::TaskWaitUntooled::new(limits, w::TaskWaitUntooledParts { worker })?)
+                    }
                     d::TaskWaitWhy::Refreshing => w::TaskWaitWhy::Refreshing,
                     d::TaskWaitWhy::Host => w::TaskWaitWhy::Host,
                     d::TaskWaitWhy::Empty => w::TaskWaitWhy::Empty,

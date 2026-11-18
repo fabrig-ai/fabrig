@@ -43,7 +43,7 @@ fn a_milestone_admits_two_goals_with_delegation_room() {
             "T1 · first\n\nThe first.".as_bytes(),
             b"--no-deadline",
             b"--budget",
-            b"10",
+            b"0.10",
             b"--key",
             b"qa-ms2-g1",
         ],
@@ -65,7 +65,7 @@ fn a_milestone_admits_two_goals_with_delegation_room() {
             "T2 · second\n\nThe second, no wait.".as_bytes(),
             b"--no-deadline",
             b"--budget",
-            b"10",
+            b"0.10",
             b"--after",
             first_arg.as_bytes(),
             b"--key",
@@ -137,7 +137,7 @@ fn a_second_as_allowed_goal_names_its_milestones_empty_budget() {
     assert_eq!(
         String::from_utf8_lossy(&refused.stderr),
         format!(
-            "goal start: refused: milestone {milestone} had 0 left, 1 needed; give each goal in it --budget AMOUNT\n"
+            "goal start: refused: milestone {milestone} had 0.00 left, 0.01 needed; give each goal in it --budget AMOUNT\n"
         )
     );
 }
@@ -149,7 +149,7 @@ fn a_person_fills_and_concludes_a_milestone_with_a_waiting_goal() {
         &mut front,
         &mut root,
         1,
-        &[b"milestone", b"new", b"--project", b"1", b"--budget", b"400", b"Store shape", b"--key", b"store-shape"],
+        &[b"milestone", b"new", b"--project", b"1", b"--budget", b"4.00", b"Store shape", b"--key", b"store-shape"],
     );
     let milestone = fixtures::done_task(&made);
     let milestone_arg = milestone.to_string();
@@ -163,7 +163,7 @@ fn a_person_fills_and_concludes_a_milestone_with_a_waiting_goal() {
             b"--project",
             b"1",
             b"--budget",
-            b"10",
+            b"0.10",
             b"--no-deadline",
             b"--milestone",
             milestone_arg.as_bytes(),
@@ -184,7 +184,7 @@ fn a_person_fills_and_concludes_a_milestone_with_a_waiting_goal() {
             b"--project",
             b"1",
             b"--budget",
-            b"10",
+            b"0.10",
             b"--no-deadline",
             b"--milestone",
             milestone_arg.as_bytes(),

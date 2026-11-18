@@ -979,6 +979,7 @@ dependencies = [
  "jig-client-shell-native",
  "jig-client-test-domain",
  "jig-client-test-protocol-wire",
+ "jig-client-test-records",
  "jig-client-test-view",
  "jig-client-view",
  "jig-core-kit",
@@ -1168,6 +1169,7 @@ dependencies = [
  "jig-client-protocol-wire",
  "skein-codec",
  "skein-lib",
+ "smith-transcript",
 ]
 
 [[package]]
@@ -2237,6 +2239,7 @@ name = "jig-protocol-transcript"
 version = "0.0.0"
 dependencies = [
  "jig-client-domain",
+ "skein-codegen",
  "skein-lib",
  "smith-transcript",
 ]
@@ -2643,6 +2646,7 @@ dependencies = [
  "jig-domain-link",
  "jig-protocol-config",
  "jig-protocol-config-fixtures",
+ "skein-codegen",
  "skein-lib",
  "smith-charter",
  "smith-domain",
@@ -4391,6 +4395,7 @@ dependencies = [
  "serde",
  "serde_json",
  "skein-channel",
+ "skein-codegen",
  "skein-fake-channel",
  "skein-fake-llm-domain",
  "skein-fake-llm-protocol",
@@ -4475,6 +4480,7 @@ version = "0.0.0"
 dependencies = [
  "serde_json",
  "skein-channel",
+ "skein-codegen",
  "skein-heap",
  "skein-http",
  "skein-io",
@@ -4610,6 +4616,7 @@ name = "smith-channel-world"
 version = "0.0.0"
 dependencies = [
  "skein-channel",
+ "skein-codegen",
  "skein-fake-llm-domain",
  "skein-lib",
  "skein-world",
@@ -5297,6 +5304,7 @@ name = "smith-protocol-translate"
 version = "0.0.0"
 dependencies = [
  "skein-channel",
+ "skein-codegen",
  "skein-lib",
  "smith-channel",
  "smith-charter",
@@ -6142,7 +6150,9 @@ name = "temper-client-view-parts"
 version = "0.0.0"
 dependencies = [
  "jig-client",
+ "jig-client-protocol-link",
  "jig-client-protocol-wire",
+ "jig-client-test-records",
  "skein-lib",
  "skein-ui",
  "skein-ui-text",
@@ -7660,6 +7670,7 @@ dependencies = [
 name = "temper-redeploy-tool"
 version = "0.0.0"
 dependencies = [
+ "jig-protocol-store",
  "jig-protocol-worker-wire",
  "serde",
  "serde_json",
@@ -7670,7 +7681,6 @@ dependencies = [
  "temper-engine-shell",
  "temper-service-core",
  "temper-test-env",
- "time",
 ]
 
 [[package]]

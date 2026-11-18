@@ -28,7 +28,6 @@ pub enum Arg {
     Delegate(usize),
     Digest(usize),
     ActivityBefore(usize),
-    InboxAfter(usize),
     Number(u64),
     GithubApp,
     File(&'static str),
@@ -72,6 +71,7 @@ pub enum Step {
     /// Release a fake LLM hold through its owner in the loop.
     ReleaseHold {
         name: &'static [u8],
+        after_queries: usize,
     },
     /// Drain the engine, retaining its store and directories while workers live.
     StopEngine,
@@ -324,7 +324,14 @@ pub fn start_worker(name: &'static str) -> Step {
 /// Release the named fake LLM hold before proceeding.
 #[must_use]
 pub fn release_hold(name: &'static [u8]) -> Step {
-    Step::ReleaseHold { name }
+    release_hold_after_queries(name, 0)
+}
+
+/// Release a scripted response only after the peer has received this many queries.
+/// A retry repeats its input, so it need not advance the script's turn.
+#[must_use]
+pub fn release_hold_after_queries(name: &'static [u8], after_queries: usize) -> Step {
+    Step::ReleaseHold { name, after_queries }
 }
 #[must_use]
 pub fn push(path: &'static [u8], words: &'static [u8]) -> Step {
@@ -432,11 +439,6 @@ pub fn digest(call: usize) -> Arg {
 #[must_use]
 pub fn activity_before(call: usize) -> Arg {
     Arg::ActivityBefore(call)
-}
-/// The needs continuation supplied by an earlier inbox page.
-#[must_use]
-pub fn inbox_after(call: usize) -> Arg {
-    Arg::InboxAfter(call)
 }
 fn delegate_number(stdout: &[u8]) -> u64 {
     let value: serde_json::Value = serde_json::from_slice(stdout).expect("task tree JSON");
@@ -674,9 +676,13 @@ impl Caller {
                 writeln!(out, "caller waits_for=held request {:?}", String::from_utf8_lossy(name))
                     .expect("string writer");
             }
-            Some(Step::ReleaseHold { name }) => {
-                writeln!(out, "caller waits_for=LLM hold release {:?}", String::from_utf8_lossy(name))
-                    .expect("string writer");
+            Some(Step::ReleaseHold { name, after_queries }) => {
+                writeln!(
+                    out,
+                    "caller waits_for=LLM hold release {:?} after {after_queries} queries",
+                    String::from_utf8_lossy(name)
+                )
+                .expect("string writer");
             }
             Some(Step::StopEngine | Step::StartEngine { .. }) => out.push_str("caller waits_for=engine transition\n"),
             Some(Step::WorkerCancelled { name }) => {
@@ -759,9 +765,6 @@ impl Caller {
                 Arg::ActivityBefore(index) => self
                     .diagnostic_pointer(*index, &["/activity/before/value", "/before/value"])
                     .unwrap_or_else(|| format!("<activity cursor from call {index}>")),
-                Arg::InboxAfter(index) => self
-                    .diagnostic_pointer(*index, &["/needs/after/value"])
-                    .map_or_else(|| format!("<inbox cursor from call {index}>"), |cursor| format!("00{cursor}")),
             })
             .collect()
     }
@@ -836,7 +839,13 @@ impl Caller {
         if let Some(Step::StartWorker { name }) = self.steps.get(self.next) { Some(*name) } else { None }
     }
     pub(crate) fn releasing_hold(&self) -> Option<&'static [u8]> {
-        if let Some(Step::ReleaseHold { name }) = self.steps.get(self.next) { Some(*name) } else { None }
+        if let Some(Step::ReleaseHold { name, after_queries }) = self.steps.get(self.next)
+            && self.llm_queries.get() >= *after_queries
+        {
+            Some(*name)
+        } else {
+            None
+        }
     }
     pub(crate) fn advancing(&self) -> bool {
         matches!(self.steps.get(self.next), Some(Step::Advance))
@@ -1048,15 +1057,6 @@ impl Caller {
                     })
                     .into_bytes()
                     .into(),
-                Arg::InboxAfter(call) => {
-                    let value: serde_json::Value =
-                        serde_json::from_slice(&self.calls[*call].stdout).expect("inbox JSON");
-                    let cursor = value
-                        .pointer("/needs/after/value")
-                        .and_then(serde_json::Value::as_str)
-                        .expect("next needs page");
-                    format!("00{cursor}").into_bytes().into()
-                }
                 Arg::GithubApp => self.github_app.expect("person made the App").to_string().into_bytes().into(),
                 Arg::Number(number) => number.to_string().into_bytes().into(),
                 Arg::File(name) => self.scratch.join(name).as_os_str().as_bytes().into(),

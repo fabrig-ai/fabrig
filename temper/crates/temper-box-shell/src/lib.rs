@@ -241,8 +241,8 @@ fn configure_row(
     };
     match words {
         ["versions"] => return if arguments.is_empty() { Ok(Command::Versions) } else { Err(invalid()) },
-        ["upgrade", mode @ ("--check" | "--back")] => {
-            return temper_engine_shell::upgrade::configure(*mode == "--check", arguments, environment, working)
+        ["upgrade", mode @ ("--check" | "--workers" | "--back")] => {
+            return temper_engine_shell::upgrade::configure(mode, arguments, environment, working)
                 .map(|(directories, request)| Command::Upgrade { directories, request });
         }
         ["checkpoint"] => {

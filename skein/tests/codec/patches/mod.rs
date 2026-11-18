@@ -7,7 +7,8 @@ mod p0001;
 use skein_codec::patch::{Build, Halt, Old, Site};
 use skein_codec::value::Node;
 
-pub const PATCHES: &[&str] = &[r#"patch 1
+pub const PATCHES: &[&str] = &[
+    r#"patch 1
 owner skein 1
 
 # every 1 to 2: every derived change, a written declaration (Shape) and a
@@ -29,7 +30,19 @@ wrap Every.light Light option Light
 add Every.score u32 written
 order Every numbers strings light shape stamp empty nest held items
 written Every.score
-"#];
+"#,
+    r"patch 1
+owner skein 2
+
+family every 2 to 3
+add Kinds
+add Lists
+add Options
+add Grouped
+add Held
+add LongRecord
+",
+];
 
 pub mod kept {
     pub mod every {
@@ -165,6 +178,229 @@ versioned record Every {
     items: bytes 64 pieces Numbers
 }
 ",
+            r"family every 3
+
+# The byte pin holds every construct (data/codec/README.md, 6).
+# Older versions exercise patches (data/codec/patches.md, 8).
+
+versioned record Blank {}
+
+record Numbers {
+    small: u8
+    short: u16
+    word: u32
+    long: u64
+    flag: bool
+    pause: duration
+    tag: fixed 3
+}
+
+record Texts {
+    raw: bytes 8
+    key: secret 5
+    words: text 7
+}
+
+enum Light { off, red, amber, green }
+
+versioned record Stamp {
+    at: u64
+    note: option text 4
+    zone: text 8
+}
+
+enum Shape {
+    blank: Blank
+    numbers: Numbers
+    strings: boxed Texts
+    stamp: Stamp
+}
+
+record Nest {
+    blanks: list 3 Blank
+    lights: list 3 Light
+    maybe_lights: list 2 option Light
+    grid: list 2 list 2 u32
+    maybe_list: option list 3 u8
+    maybe_numbers: option Numbers
+    shapes: list 2 Shape
+    secrets: list 2 secret 3
+    stamps: list 2 Stamp
+    label: option text 8
+}
+
+versioned record Every {
+    numbers: Numbers
+    strings: Texts
+    light: option Light
+    shape: Shape
+    stamp: Stamp
+    empty: Blank
+    nest: Nest
+    score: u32
+    # Holds Thing of every-other (data/codec/README.md 3).
+    held: bytes 8 holds every-other Thing
+    # Holds pieces of Numbers (data/codec/README.md 3).
+    items: bytes 64 pieces Numbers
+}
+
+record Kinds {
+    light: Light
+}
+
+record Lists {
+    small: list 2 u8
+    short: list 2 u16
+    word: list 2 u32
+    long: list 2 u64
+    flag: list 2 bool
+    pause: list 2 duration
+    tag: list 2 fixed 3
+    raw: list 2 bytes 4
+    key: list 2 secret 4
+    words: list 2 text 4
+    grid: list 2 list 2 u8
+    options: list 2 option u8
+    records: list 2 Numbers
+    enums: list 2 Light
+}
+
+record Options {
+    small: option u8
+    short: option u16
+    word: option u32
+    long: option u64
+    flag: option bool
+    pause: option duration
+    tag: option fixed 3
+    raw: option bytes 4
+    key: option secret 4
+    words: option text 4
+    lists: option list 2 u8
+    maybe: option option u8
+    records: option Numbers
+    enums: option Light
+}
+
+record Grouped was Flags {
+    alpha: bool = false
+    bravo: bool
+    charlie: bool
+    delta: bool
+}
+
+record Held {
+    record_bytes: bytes 8 holds every-other Thing
+    enum_bytes: bytes 8 holds every-other Choice
+    record_secret: secret 8 holds every-other Thing
+    enum_secret: secret 8 holds every-other Choice
+    byte_pieces: bytes 64 pieces Numbers
+    secret_pieces: secret 64 pieces Numbers
+}
+
+record LongRecord {
+    alpha: bytes 4
+    bravo: bytes 4
+    charlie: bytes 4
+    delta: bytes 4
+    echo: bytes 4
+    foxtrot: bytes 4
+    golf: bytes 4
+    hotel: bytes 4
+    india: bytes 4
+    juliet: bytes 4
+    kilo: bytes 4
+    lima: bytes 4
+    mike: bytes 4
+    november: bytes 4
+    oscar: bytes 4
+    papa: bytes 4
+    quebec: bytes 4
+    romeo: bytes 4
+    sierra: bytes 4
+    tango: bytes 4
+    uniform: bytes 4
+    victor: bytes 4
+    whiskey: bytes 4
+    xray: bytes 4
+    yankee: bytes 4
+    zulu: bytes 4
+    amber: bytes 4
+    birch: bytes 4
+    cedar: bytes 4
+    dune: bytes 4
+    acorn: bytes 4
+    anchor: bytes 4
+    apron: bytes 4
+    atlas: bytes 4
+    autumn: bytes 4
+    avocado: bytes 4
+    walnut: bytes 4
+    badge: bytes 4
+    bamboo: bytes 4
+    barrel: bytes 4
+    beacon: bytes 4
+    beetle: bytes 4
+    bronze: bytes 4
+    cactus: bytes 4
+    camera: bytes 4
+    canyon: bytes 4
+    cello: bytes 4
+    cobalt: bytes 4
+    comet: bytes 4
+    compass: bytes 4
+    coral: bytes 4
+    cotton: bytes 4
+    coyote: bytes 4
+    cricket: bytes 4
+    crystal: bytes 4
+    dragon: bytes 4
+    engine: bytes 4
+    falcon: bytes 4
+    feather: bytes 4
+    fern: bytes 4
+    flute: bytes 4
+    fossil: bytes 4
+    galaxy: bytes 4
+    garden: bytes 4
+    glacier: bytes 4
+    granite: bytes 4
+    harbor: bytes 4
+    hazel: bytes 4
+    helmet: bytes 4
+    honey: bytes 4
+    igloo: bytes 4
+    island: bytes 4
+    ivory: bytes 4
+    jasmine: bytes 4
+    kettle: bytes 4
+    lantern: bytes 4
+    leopard: bytes 4
+    lobster: bytes 4
+    magnet: bytes 4
+    marble: bytes 4
+    meadow: bytes 4
+    mermaid: bytes 4
+    meteor: bytes 4
+    mosaic: bytes 4
+    napkin: bytes 4
+    nectar: bytes 4
+    ocean: bytes 4
+    olive: bytes 4
+    orchid: bytes 4
+    panda: bytes 4
+    pencil: bytes 4
+    planet: bytes 4
+    pollen: bytes 4
+    quartz: bytes 4
+    rainbow: bytes 4
+    raven: bytes 4
+    rocket: bytes 4
+    saffron: bytes 4
+    salmon: bytes 4
+    satin: bytes 4
+}
+",
         ];
         pub mod v1 {
             pub mod blank {}
@@ -293,9 +529,235 @@ versioned record Every {
                 pub const ITEMS: FieldIx = FieldIx::new(32);
             }
         }
+        pub mod v3 {
+            pub mod blank {}
+            pub mod numbers {
+                use skein_codec::schema::FieldIx;
+                pub const SMALL: FieldIx = FieldIx::new(0);
+                pub const SHORT: FieldIx = FieldIx::new(1);
+                pub const WORD: FieldIx = FieldIx::new(2);
+                pub const LONG: FieldIx = FieldIx::new(3);
+                pub const FLAG: FieldIx = FieldIx::new(4);
+                pub const PAUSE: FieldIx = FieldIx::new(5);
+                pub const TAG: FieldIx = FieldIx::new(6);
+            }
+            pub mod texts {
+                use skein_codec::schema::FieldIx;
+                pub const RAW: FieldIx = FieldIx::new(7);
+                pub const KEY: FieldIx = FieldIx::new(8);
+                pub const WORDS: FieldIx = FieldIx::new(9);
+            }
+            pub mod light {
+                use skein_codec::schema::VariantIx;
+                pub const OFF: VariantIx = VariantIx::new(0);
+                pub const RED: VariantIx = VariantIx::new(1);
+                pub const AMBER: VariantIx = VariantIx::new(2);
+                pub const GREEN: VariantIx = VariantIx::new(3);
+            }
+            pub mod stamp {
+                use skein_codec::schema::FieldIx;
+                pub const AT: FieldIx = FieldIx::new(10);
+                pub const NOTE: FieldIx = FieldIx::new(11);
+                pub const ZONE: FieldIx = FieldIx::new(12);
+            }
+            pub mod shape {
+                use skein_codec::schema::VariantIx;
+                pub const BLANK: VariantIx = VariantIx::new(4);
+                pub const NUMBERS: VariantIx = VariantIx::new(5);
+                pub const STRINGS: VariantIx = VariantIx::new(6);
+                pub const STAMP: VariantIx = VariantIx::new(7);
+            }
+            pub mod nest {
+                use skein_codec::schema::FieldIx;
+                pub const BLANKS: FieldIx = FieldIx::new(13);
+                pub const LIGHTS: FieldIx = FieldIx::new(14);
+                pub const MAYBE_LIGHTS: FieldIx = FieldIx::new(15);
+                pub const GRID: FieldIx = FieldIx::new(16);
+                pub const MAYBE_LIST: FieldIx = FieldIx::new(17);
+                pub const MAYBE_NUMBERS: FieldIx = FieldIx::new(18);
+                pub const SHAPES: FieldIx = FieldIx::new(19);
+                pub const SECRETS: FieldIx = FieldIx::new(20);
+                pub const STAMPS: FieldIx = FieldIx::new(21);
+                pub const LABEL: FieldIx = FieldIx::new(22);
+            }
+            pub mod every {
+                use skein_codec::schema::FieldIx;
+                pub const NUMBERS: FieldIx = FieldIx::new(23);
+                pub const STRINGS: FieldIx = FieldIx::new(24);
+                pub const LIGHT: FieldIx = FieldIx::new(25);
+                pub const SHAPE: FieldIx = FieldIx::new(26);
+                pub const STAMP: FieldIx = FieldIx::new(27);
+                pub const EMPTY: FieldIx = FieldIx::new(28);
+                pub const NEST: FieldIx = FieldIx::new(29);
+                pub const SCORE: FieldIx = FieldIx::new(30);
+                pub const HELD: FieldIx = FieldIx::new(31);
+                pub const ITEMS: FieldIx = FieldIx::new(32);
+            }
+            pub mod kinds {
+                use skein_codec::schema::FieldIx;
+                pub const LIGHT: FieldIx = FieldIx::new(33);
+            }
+            pub mod lists {
+                use skein_codec::schema::FieldIx;
+                pub const SMALL: FieldIx = FieldIx::new(34);
+                pub const SHORT: FieldIx = FieldIx::new(35);
+                pub const WORD: FieldIx = FieldIx::new(36);
+                pub const LONG: FieldIx = FieldIx::new(37);
+                pub const FLAG: FieldIx = FieldIx::new(38);
+                pub const PAUSE: FieldIx = FieldIx::new(39);
+                pub const TAG: FieldIx = FieldIx::new(40);
+                pub const RAW: FieldIx = FieldIx::new(41);
+                pub const KEY: FieldIx = FieldIx::new(42);
+                pub const WORDS: FieldIx = FieldIx::new(43);
+                pub const GRID: FieldIx = FieldIx::new(44);
+                pub const OPTIONS: FieldIx = FieldIx::new(45);
+                pub const RECORDS: FieldIx = FieldIx::new(46);
+                pub const ENUMS: FieldIx = FieldIx::new(47);
+            }
+            pub mod options {
+                use skein_codec::schema::FieldIx;
+                pub const SMALL: FieldIx = FieldIx::new(48);
+                pub const SHORT: FieldIx = FieldIx::new(49);
+                pub const WORD: FieldIx = FieldIx::new(50);
+                pub const LONG: FieldIx = FieldIx::new(51);
+                pub const FLAG: FieldIx = FieldIx::new(52);
+                pub const PAUSE: FieldIx = FieldIx::new(53);
+                pub const TAG: FieldIx = FieldIx::new(54);
+                pub const RAW: FieldIx = FieldIx::new(55);
+                pub const KEY: FieldIx = FieldIx::new(56);
+                pub const WORDS: FieldIx = FieldIx::new(57);
+                pub const LISTS: FieldIx = FieldIx::new(58);
+                pub const MAYBE: FieldIx = FieldIx::new(59);
+                pub const RECORDS: FieldIx = FieldIx::new(60);
+                pub const ENUMS: FieldIx = FieldIx::new(61);
+            }
+            pub mod grouped {
+                use skein_codec::schema::FieldIx;
+                pub const ALPHA: FieldIx = FieldIx::new(62);
+                pub const BRAVO: FieldIx = FieldIx::new(63);
+                pub const CHARLIE: FieldIx = FieldIx::new(64);
+                pub const DELTA: FieldIx = FieldIx::new(65);
+            }
+            pub mod held {
+                use skein_codec::schema::FieldIx;
+                pub const RECORD_BYTES: FieldIx = FieldIx::new(66);
+                pub const ENUM_BYTES: FieldIx = FieldIx::new(67);
+                pub const RECORD_SECRET: FieldIx = FieldIx::new(68);
+                pub const ENUM_SECRET: FieldIx = FieldIx::new(69);
+                pub const BYTE_PIECES: FieldIx = FieldIx::new(70);
+                pub const SECRET_PIECES: FieldIx = FieldIx::new(71);
+            }
+            pub mod long_record {
+                use skein_codec::schema::FieldIx;
+                pub const ALPHA: FieldIx = FieldIx::new(72);
+                pub const BRAVO: FieldIx = FieldIx::new(73);
+                pub const CHARLIE: FieldIx = FieldIx::new(74);
+                pub const DELTA: FieldIx = FieldIx::new(75);
+                pub const ECHO: FieldIx = FieldIx::new(76);
+                pub const FOXTROT: FieldIx = FieldIx::new(77);
+                pub const GOLF: FieldIx = FieldIx::new(78);
+                pub const HOTEL: FieldIx = FieldIx::new(79);
+                pub const INDIA: FieldIx = FieldIx::new(80);
+                pub const JULIET: FieldIx = FieldIx::new(81);
+                pub const KILO: FieldIx = FieldIx::new(82);
+                pub const LIMA: FieldIx = FieldIx::new(83);
+                pub const MIKE: FieldIx = FieldIx::new(84);
+                pub const NOVEMBER: FieldIx = FieldIx::new(85);
+                pub const OSCAR: FieldIx = FieldIx::new(86);
+                pub const PAPA: FieldIx = FieldIx::new(87);
+                pub const QUEBEC: FieldIx = FieldIx::new(88);
+                pub const ROMEO: FieldIx = FieldIx::new(89);
+                pub const SIERRA: FieldIx = FieldIx::new(90);
+                pub const TANGO: FieldIx = FieldIx::new(91);
+                pub const UNIFORM: FieldIx = FieldIx::new(92);
+                pub const VICTOR: FieldIx = FieldIx::new(93);
+                pub const WHISKEY: FieldIx = FieldIx::new(94);
+                pub const XRAY: FieldIx = FieldIx::new(95);
+                pub const YANKEE: FieldIx = FieldIx::new(96);
+                pub const ZULU: FieldIx = FieldIx::new(97);
+                pub const AMBER: FieldIx = FieldIx::new(98);
+                pub const BIRCH: FieldIx = FieldIx::new(99);
+                pub const CEDAR: FieldIx = FieldIx::new(100);
+                pub const DUNE: FieldIx = FieldIx::new(101);
+                pub const ACORN: FieldIx = FieldIx::new(102);
+                pub const ANCHOR: FieldIx = FieldIx::new(103);
+                pub const APRON: FieldIx = FieldIx::new(104);
+                pub const ATLAS: FieldIx = FieldIx::new(105);
+                pub const AUTUMN: FieldIx = FieldIx::new(106);
+                pub const AVOCADO: FieldIx = FieldIx::new(107);
+                pub const WALNUT: FieldIx = FieldIx::new(108);
+                pub const BADGE: FieldIx = FieldIx::new(109);
+                pub const BAMBOO: FieldIx = FieldIx::new(110);
+                pub const BARREL: FieldIx = FieldIx::new(111);
+                pub const BEACON: FieldIx = FieldIx::new(112);
+                pub const BEETLE: FieldIx = FieldIx::new(113);
+                pub const BRONZE: FieldIx = FieldIx::new(114);
+                pub const CACTUS: FieldIx = FieldIx::new(115);
+                pub const CAMERA: FieldIx = FieldIx::new(116);
+                pub const CANYON: FieldIx = FieldIx::new(117);
+                pub const CELLO: FieldIx = FieldIx::new(118);
+                pub const COBALT: FieldIx = FieldIx::new(119);
+                pub const COMET: FieldIx = FieldIx::new(120);
+                pub const COMPASS: FieldIx = FieldIx::new(121);
+                pub const CORAL: FieldIx = FieldIx::new(122);
+                pub const COTTON: FieldIx = FieldIx::new(123);
+                pub const COYOTE: FieldIx = FieldIx::new(124);
+                pub const CRICKET: FieldIx = FieldIx::new(125);
+                pub const CRYSTAL: FieldIx = FieldIx::new(126);
+                pub const DRAGON: FieldIx = FieldIx::new(127);
+                pub const ENGINE: FieldIx = FieldIx::new(128);
+                pub const FALCON: FieldIx = FieldIx::new(129);
+                pub const FEATHER: FieldIx = FieldIx::new(130);
+                pub const FERN: FieldIx = FieldIx::new(131);
+                pub const FLUTE: FieldIx = FieldIx::new(132);
+                pub const FOSSIL: FieldIx = FieldIx::new(133);
+                pub const GALAXY: FieldIx = FieldIx::new(134);
+                pub const GARDEN: FieldIx = FieldIx::new(135);
+                pub const GLACIER: FieldIx = FieldIx::new(136);
+                pub const GRANITE: FieldIx = FieldIx::new(137);
+                pub const HARBOR: FieldIx = FieldIx::new(138);
+                pub const HAZEL: FieldIx = FieldIx::new(139);
+                pub const HELMET: FieldIx = FieldIx::new(140);
+                pub const HONEY: FieldIx = FieldIx::new(141);
+                pub const IGLOO: FieldIx = FieldIx::new(142);
+                pub const ISLAND: FieldIx = FieldIx::new(143);
+                pub const IVORY: FieldIx = FieldIx::new(144);
+                pub const JASMINE: FieldIx = FieldIx::new(145);
+                pub const KETTLE: FieldIx = FieldIx::new(146);
+                pub const LANTERN: FieldIx = FieldIx::new(147);
+                pub const LEOPARD: FieldIx = FieldIx::new(148);
+                pub const LOBSTER: FieldIx = FieldIx::new(149);
+                pub const MAGNET: FieldIx = FieldIx::new(150);
+                pub const MARBLE: FieldIx = FieldIx::new(151);
+                pub const MEADOW: FieldIx = FieldIx::new(152);
+                pub const MERMAID: FieldIx = FieldIx::new(153);
+                pub const METEOR: FieldIx = FieldIx::new(154);
+                pub const MOSAIC: FieldIx = FieldIx::new(155);
+                pub const NAPKIN: FieldIx = FieldIx::new(156);
+                pub const NECTAR: FieldIx = FieldIx::new(157);
+                pub const OCEAN: FieldIx = FieldIx::new(158);
+                pub const OLIVE: FieldIx = FieldIx::new(159);
+                pub const ORCHID: FieldIx = FieldIx::new(160);
+                pub const PANDA: FieldIx = FieldIx::new(161);
+                pub const PENCIL: FieldIx = FieldIx::new(162);
+                pub const PLANET: FieldIx = FieldIx::new(163);
+                pub const POLLEN: FieldIx = FieldIx::new(164);
+                pub const QUARTZ: FieldIx = FieldIx::new(165);
+                pub const RAINBOW: FieldIx = FieldIx::new(166);
+                pub const RAVEN: FieldIx = FieldIx::new(167);
+                pub const ROCKET: FieldIx = FieldIx::new(168);
+                pub const SAFFRON: FieldIx = FieldIx::new(169);
+                pub const SALMON: FieldIx = FieldIx::new(170);
+                pub const SATIN: FieldIx = FieldIx::new(171);
+            }
+        }
         pub mod p0001 {
             pub use super::v1 as old;
             pub use super::v2 as new;
+        }
+        pub mod p0002 {
+            pub use super::v2 as old;
+            pub use super::v3 as new;
         }
     }
     pub mod lint_fixture {
@@ -754,5 +1216,10 @@ mod tests {
     #[test]
     fn p0001_goldens() {
         assert_eq!(skein_codegen::patch::goldens(&owner(), 1, super::written), Ok(()), "patch 0001 goldens");
+    }
+
+    #[test]
+    fn p0002_goldens() {
+        assert_eq!(skein_codegen::patch::goldens(&owner(), 2, super::written), Ok(()), "patch 0002 goldens");
     }
 }

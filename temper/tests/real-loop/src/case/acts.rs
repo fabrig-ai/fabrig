@@ -149,7 +149,6 @@ pub enum Read {
     CapA5Writing,
     CapOwnerWaiting,
     CapInboxHeld,
-    CapInboxHeldAfter,
     CapPassed,
     CapReleased,
     CapA5Ended,
@@ -157,7 +156,6 @@ pub enum Read {
     CapOwnerEnded,
     CapDirectorEnded,
     CapInboxEnded,
-    CapInboxEndedAfter,
     CapOwnerFirst,
     CapDirectorFirst,
     QaSubownerBefore,
@@ -173,7 +171,6 @@ pub enum Read {
     QaCoderEnded,
     QaReviewerEnded,
     QaInboxEnded,
-    QaInboxAfter,
     QaRootsEnded,
 }
 // Provisioning's key call does not count as a story act. The director's
@@ -1150,16 +1147,14 @@ pub const READS_6_7: &[(Read, usize)] = &[
     (Read::CapA5Writing, 9),
     (Read::CapOwnerWaiting, 10),
     (Read::CapInboxHeld, 11),
-    (Read::CapInboxHeldAfter, 12),
-    (Read::CapPassed, 15),
-    (Read::CapReleased, 17),
-    (Read::CapA5Ended, 18),
-    (Read::CapSubownerEnded, 19),
-    (Read::CapOwnerEnded, 20),
-    (Read::CapDirectorEnded, 21),
-    (Read::CapInboxEnded, 22),
-    (Read::CapInboxEndedAfter, 23),
-    (Read::CapDirectorFirst, 24),
+    (Read::CapPassed, 14),
+    (Read::CapReleased, 16),
+    (Read::CapA5Ended, 17),
+    (Read::CapSubownerEnded, 18),
+    (Read::CapOwnerEnded, 19),
+    (Read::CapDirectorEnded, 20),
+    (Read::CapInboxEnded, 21),
+    (Read::CapDirectorFirst, 22),
 ];
 
 #[must_use]
@@ -1191,9 +1186,8 @@ pub fn step_6_7() -> Vec<calls::Step> {
             b"\"work\":\"writing\"",
             b"\"task\"",
         ),
-        // The needs-group tag starts an unfiltered page, then its stored continuation.
+        // The needs-group tag starts an unfiltered page; empty needs have no continuation.
         call(D1, argv!["inbox", "--after", "00", "--json"]),
-        call(D1, argv!["inbox", "--after", calls::inbox_after(11), "--json"]),
         calls::release_hold(CAP_PASS_HOLD),
         // The director's document includes A's observation too. Once A parks
         // after its pass, only the director can satisfy the writing checkpoint.
@@ -1210,13 +1204,12 @@ pub fn step_6_7() -> Vec<calls::Step> {
         steps.push(call(D1, argv!["task", "show", number(task), "--activity", "32", "--json"]));
     }
     steps.push(call(D1, argv!["inbox", "--after", "00", "--json"]));
-    steps.push(call(D1, argv!["inbox", "--after", calls::inbox_after(22), "--json"]));
 
     // Without the timer, A1's whole journal fits the latest window.
     // The director still needs its earlier page.
     steps.push(call(
         D1,
-        argv!["task", "activity", number(CAP_DIRECTOR), "--before", calls::activity_before(21), "--json"],
+        argv!["task", "activity", number(CAP_DIRECTOR), "--before", calls::activity_before(20), "--json"],
     ));
     steps
 }
@@ -1329,8 +1322,7 @@ const QA_NEXT_ENDED: usize = QA_TESTER_LIVE + 1;
 const QA_DIRECTOR_ENDED: usize = QA_NEXT_ENDED + 1;
 const QA_FINAL: usize = QA_DIRECTOR_ENDED + 1;
 const QA_INBOX: usize = QA_FINAL + 8;
-const QA_INBOX_AFTER: usize = QA_INBOX + 1;
-const QA_ROOTS: usize = QA_INBOX_AFTER + 1;
+const QA_ROOTS: usize = QA_INBOX + 1;
 pub const READS_6_8: &[(Read, usize)] = &[
     (Read::QaSubownerBefore, QA_SUBOWNER_BEFORE),
     (Read::QaNextWriting, QA_NEXT_WRITING),
@@ -1345,7 +1337,6 @@ pub const READS_6_8: &[(Read, usize)] = &[
     (Read::QaCoderEnded, QA_FINAL + 6),
     (Read::QaReviewerEnded, QA_FINAL + 7),
     (Read::QaInboxEnded, QA_INBOX),
-    (Read::QaInboxAfter, QA_INBOX_AFTER),
     (Read::QaRootsEnded, QA_ROOTS),
 ];
 
@@ -1392,7 +1383,6 @@ pub fn step_6_8() -> Vec<calls::Step> {
         steps.push(call(D1, argv!["task", "show", number(task), "--activity", "32", "--json"]));
     }
     steps.push(call(D1, argv!["inbox", "--after", "00", "--json"]));
-    steps.push(call(D1, argv!["inbox", "--after", calls::inbox_after(QA_INBOX), "--json"]));
     steps.push(call(D1, argv!["task", "list", "--project", number(PROJECT), "--ended", "--json"]));
     steps
 }

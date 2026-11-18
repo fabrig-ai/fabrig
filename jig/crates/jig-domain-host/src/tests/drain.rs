@@ -182,6 +182,36 @@ fn cancel_after_a_drain_stops_live_runs_but_not_one_already_stopping() {
 }
 
 #[test]
+fn the_hub_keeps_an_untooled_failure_through_the_stop_save_and_release() {
+    let mut h = Harness::new();
+    let (owner, workspace, agent) = h.live(1);
+    assert_eq!(
+        h.step(fixtures::finished(owner, Finish::Failed { failure: crate::RunFailure::Untooled, model: None }))
+            .as_ref(),
+        [Request::Agent(ToAgent::Cancel { agent })]
+    );
+    assert_eq!(
+        h.step(Event::Agent(FromAgent::Gone { owner, detail: b"no tools".as_slice().into() })).as_ref(),
+        [Request::Save { owner, workspace }]
+    );
+    let requests = h.step(Event::Saved { owner, at: Some(Token::new(77)) });
+    let [Request::Release { workspace: released }, Request::Up(LinkUp::Answer { answer, .. })] = requests.as_ref()
+    else {
+        panic!("untooled failure tail: {requests:?}");
+    };
+    assert_eq!(*released, workspace);
+    assert_eq!(
+        answer.ending,
+        crate::Ending::Failed {
+            failure: Failure::Run(crate::RunFailure::Untooled),
+            detail: b"no tools".as_slice().into(),
+            work: Work { left: None, saved: Some(Token::new(77)) },
+            model: None,
+        }
+    );
+}
+
+#[test]
 fn the_hub_keeps_the_named_model_call_through_the_stop_save_and_release() {
     let model = crate::ModelFailure {
         endpoint: b"anthropic".as_slice().into(),

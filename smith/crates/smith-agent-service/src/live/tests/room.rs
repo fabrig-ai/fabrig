@@ -1,6 +1,5 @@
 //! Real channel fixture with explicit transport credit and decoded live records.
 #![expect(
-    clippy::disallowed_macros,
     clippy::disallowed_methods,
     clippy::disallowed_types,
     clippy::wildcard_enum_match_arm,
@@ -81,9 +80,7 @@ impl Room {
             smith_channel::StartParts {
                 identity: None,
                 activation: 1,
-                charter: Box::from(
-                    include_bytes!("../../../../smith-charter/golden/v5/record_charter_smallest.bin").as_slice(),
-                ),
+                charter: charter_fixture(),
                 workspace: None,
                 transcript: smith_protocol_translate::transcript_piece(&[]).unwrap(),
                 answered: List::with_capacity(0),
@@ -218,4 +215,16 @@ impl Room {
         }
         offsets
     }
+}
+
+#[expect(clippy::disallowed_macros, reason = "the fixture embeds the current charter schema")]
+fn charter_fixture() -> Box<[u8]> {
+    let schema = skein_codegen::parse(include_str!("../../../../smith-charter/schema/charter-v5.schema"))
+        .expect("charter schema");
+    for value in skein_codegen::goldens(&schema) {
+        if value.name == "record_charter_smallest.bin" {
+            return value.bytes.into_boxed_slice();
+        }
+    }
+    panic!("smallest charter")
 }

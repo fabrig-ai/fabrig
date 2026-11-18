@@ -121,6 +121,12 @@ impl Ran {
         let world::Kind::Llm(peer) = &self.outcome.procs[0].kind else { panic!("LLM root") };
         peer.peer.observations()
     }
+    /// Receipt times parallel to the peer's Query observations.
+    #[must_use]
+    pub fn llm_query_times(&self) -> &[Time] {
+        let world::Kind::Llm(peer) = &self.outcome.procs[0].kind else { panic!("LLM root") };
+        &peer.queries.times
+    }
     #[must_use]
     pub fn killed(&self) -> &[skein_world::real::Killed] {
         &self.outcome.killed

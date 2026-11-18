@@ -502,22 +502,31 @@ fn an_ask_the_run_cannot_grant_returns_why_and_the_run_goes_on() {
 
 #[test]
 fn a_sub_agent_that_ends_without_answering_returns_how_it_ended() {
-    let mut harness = Harness::new(LIMITS);
-    let (_, main) = harness.running_on(1, 100, agents());
-    let (child, _) = harness.child(main, 7, families(true, false, false), 101);
-    let requests = harness.step(ended(child, End::Fault(Fault::Provider), Spend::ZERO));
-    assert_eq!(
-        &*requests,
-        &[returned(
-            7,
-            Returned::Unanswered {
-                end: End::Fault(Fault::Provider),
-                used: crate::facts::Used { turns: 0, time: Duration::ZERO, spend: 0 },
-                left: BUDGET
-            }
-        )]
-    );
-    assert_eq!(harness.step(end_turn(main)).len(), 1, "the run goes on: main is nudged");
+    for fault in [
+        Fault::Provider,
+        Fault::Program { name: bytes(b"claude_code"), exit: None, detail: bytes(b"program failed") },
+        Fault::Untooled {
+            name: bytes(b"claude_code"),
+            detail: bytes(b"smith: the program started without smith's tools"),
+        },
+    ] {
+        let mut harness = Harness::new(LIMITS);
+        let (_, main) = harness.running_on(1, 100, agents());
+        let (child, _) = harness.child(main, 7, families(true, false, false), 101);
+        let requests = harness.step(ended(child, End::Fault(fault.clone()), Spend::ZERO));
+        assert_eq!(
+            &*requests,
+            &[returned(
+                7,
+                Returned::Unanswered {
+                    end: End::Fault(fault),
+                    used: crate::facts::Used { turns: 0, time: Duration::ZERO, spend: 0 },
+                    left: BUDGET
+                }
+            )]
+        );
+        assert_eq!(harness.step(end_turn(main)).len(), 1, "the run goes on: main is nudged");
+    }
 }
 
 #[test]

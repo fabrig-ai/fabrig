@@ -12,12 +12,16 @@ engine's grace above their stop bound, and `upgrade --check` names
 each worker that may stay by the opening the engine kept of it
 (`protocol/wires.md`, 10; `domain/root.md`, 8.2; R5, goal 2288).
 `temper-redeploy` redeploys a deployment from a description its operator
-keeps: the build staged on every host, the engine's settled stop and the
-new build's check, then the engine alone when the workers may stay,
-workers in turn when asked, and every part together otherwise, each
+keeps: the build staged on every host, a checkpoint taken while the old
+build serves and the new build's check over it, then the engine alone
+when the workers may stay, its settled stop's checkpoint the backup and
+the workers' verdict read again over it, workers in turn when asked, and
+every part together otherwise, each worker drained while the old engine
+serves; each
 redeploy recorded and refereed: each worker's agreed versions, each
 worker's return against the wait it was given, and no try spent or task
-held since but for a run's own failure (`redeploy.md`; R6, goal 2487).
+held since but for a run's own failure (`redeploy.md`; R6, goal 2487;
+C3, goal 7514).
 The engine's settled stop tells its workers it restarts: each that heard
 it keeps its runs through the restart wait, twenty minutes by default,
 its runs' relayed calls and completions waiting within their deadlines,
@@ -688,7 +692,7 @@ Drafts:
 - [`draft/change-landing-fixes.md`](draft/change-landing-fixes.status.md)
 - [`draft/change-stall-after.md`](draft/change-stall-after.status.md)
 - [`draft/chat-reading.md`](draft/chat-reading.status.md)
-- [`draft/checkpoints.md`](draft/checkpoints.status.md) — C1, goal 5099: taking one: the store's checkpoint at a barrier in its ordered work, skein-kv's holds on both stores' files and the component's on transcripts' removals, links for what nothing writes again and copies of the prefixes still appended to, its record and a fresh manifest, a temporary renamed into place and swept at open, the newest `store.checkpoints.keep` kept, a held lock skipped; `temper-engine checkpoint` over a stopped deployment, with `--hold NAME -- COMMAND` and `--remove NAME`, and `temper ctl DIR deployment checkpoint`, an owner's act. C2, goal 6983: restore: `temper-engine restore NAME` over a stopped deployment, a safety checkpoint first, the next generation and a transcript tree staged from the checkpoint with a manifest naming no previous generation, then a durable intent that the restore and every open roll forward (jig's `protocol/store/restoring.md`; `protocol/checkpoints.md`, 2.5).
+- [`draft/checkpoints.md`](draft/checkpoints.status.md) — C1, goal 5099: taking one: the store's checkpoint at a barrier in its ordered work, skein-kv's holds on both stores' files and the component's on transcripts' removals, links for what nothing writes again and copies of the prefixes still appended to, its record and a fresh manifest, a temporary renamed into place and swept at open, the newest `store.checkpoints.keep` kept, a held lock skipped; `temper-engine checkpoint` over a stopped deployment, with `--hold NAME -- COMMAND` and `--remove NAME`, and `temper ctl DIR deployment checkpoint`, an owner's act. C2, goal 6983: restore: `temper-engine restore NAME` over a stopped deployment, a safety checkpoint first, the next generation and a transcript tree staged from the checkpoint with a manifest naming no previous generation, then a durable intent that the restore and every open roll forward (jig's `protocol/store/restoring.md`; `protocol/checkpoints.md`, 2.5). C3, goal 7514: the redeploy over a checkpoint: the new build's full check over one taken while the old build serves, a verdict of no draining the workers to the old engine before its stop, the installed build's checkpoint at every settled stop as the backup, the verdict's inputs read again over it by `upgrade --workers`, a rehearsal that copies the maps alone and ends at their rows, and going back after the first commit by the new build's restore, then the previous build (`redeploy.md`, 4; `protocol/binaries.md`, section 2; jig's `protocol/store/opening.md`, 5). Their walks after landing.
 - [`draft/ci-on-forgejo-17.md`](draft/ci-on-forgejo-17.status.md)
 - [`draft/ci-runner-wait.md`](draft/ci-runner-wait.status.md)
 - [`draft/claude-api.md`](draft/claude-api.status.md)

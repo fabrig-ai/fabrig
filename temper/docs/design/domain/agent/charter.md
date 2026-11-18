@@ -292,8 +292,10 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
 - **Budget:** the run's turns, spend and time, with its reserve of turns
   and time for finishing (smith's `domain/budget.md`, 1), from its
   charter in configuration, at the task's revision; its spend is what
-  its task has left, capped per run, reserved at its claim, in the
-  deployment's unit (jig's `domain/hosts/charters.md`).
+  its task has left, half of it where the task may start a delegate, so
+  that a goal's changes are funded while its agent runs, capped per run,
+  reserved at its claim, in the deployment's unit (jig's
+  `domain/authority.md`, section 7, and `domain/hosts/charters.md`).
 - **Models:** the main session's and those its sub-agents may use, each
   with its endpoint, window, output and prices (`../../protocol/llm.md`,
   section 3): the task's LLM choice among those its charter allows,

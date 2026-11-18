@@ -373,7 +373,13 @@ fn rehearsal_decodes_seeded_records_at_their_layout_text_and_names_an_unknown_he
     let directory = disk.root();
     let events = disk.request(
         &mut store,
-        Request::Rehearse { owner: Token::new(1), directory, scratch, installation: fixtures::INSTALLATION },
+        Request::Rehearse {
+            owner: Token::new(1),
+            directory,
+            scratch,
+            installation: fixtures::INSTALLATION,
+            reach: crate::Reach::Whole,
+        },
     );
     assert!(
         events.iter().any(|event| if let Event::Decoded { records: 3, .. } = event { true } else { false }),
@@ -396,7 +402,13 @@ fn rehearsal_decodes_seeded_records_at_their_layout_text_and_names_an_unknown_he
     let directory = disk.root();
     let events = disk.request(
         &mut store,
-        Request::Rehearse { owner: Token::new(1), directory, scratch, installation: fixtures::INSTALLATION },
+        Request::Rehearse {
+            owner: Token::new(1),
+            directory,
+            scratch,
+            installation: fixtures::INSTALLATION,
+            reach: crate::Reach::Whole,
+        },
     );
     let [
         Event::Rehearsing { .. },

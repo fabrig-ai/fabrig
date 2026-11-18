@@ -16,11 +16,11 @@ name = "suite"
 path = "tests/suite/main.rs"
 
 [dependencies]
+jig-protocol-store.workspace = true
 temper-service-core.workspace = true
 skein-shell.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-time.workspace = true
 
 [dev-dependencies]
 skein-scratch.workspace = true
