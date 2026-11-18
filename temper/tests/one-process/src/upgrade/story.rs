@@ -73,7 +73,7 @@ struct State {
     before: Option<Maps>,
     before_files: std::collections::BTreeMap<Vec<u8>, Option<Vec<u8>>>,
     seal_cut: bool,
-    ran: Vec<u32>,
+    ran: Vec<(u32, Box<str>)>,
     checked: bool,
     starts: u32,
     issue: bool,
@@ -110,7 +110,11 @@ impl Observe for Observer {
             s.epoch += 1;
             if s.epoch > 1 {
                 if s.seal_cut {
-                    assert_eq!(s.ran, [1], "the cut follows the job's last page");
+                    assert_eq!(
+                        s.ran,
+                        crate::upgrade::JOBS.map(|name| (1, Box::from(name))),
+                        "the cut follows every job's last page"
+                    );
                     assert!(s.points.seal.is_some(), "seal completed before the cut");
                     let mut disk = s.disk.as_ref().expect("disk").borrow_mut();
                     let before = s.before.as_ref().expect("source generation");
@@ -147,15 +151,17 @@ impl Observe for Observer {
     fn before_iterate(&mut self, service: &mut temper_service::Service, now: Time, wall: Wall) -> bool {
         for note in service.notes().iter() {
             if let temper_service::Note::Engine(temper_engine_service::Note::Ran { of, job, .. }) = note {
-                assert_eq!(
-                    (*of, job.as_ref()),
-                    (jig_protocol_store::Owner::Application, crate::upgrade::JOB),
-                    "only the omitted production job runs"
-                );
+                assert_eq!(*of, jig_protocol_store::Owner::Application, "only application jobs are pending");
                 STATE.with(|s| {
                     let mut s = s.borrow_mut();
                     let epoch = s.epoch;
-                    s.ran.push(epoch);
+                    let at = s.ran.iter().rev().take_while(|(seen, _)| *seen == epoch).count();
+                    assert_eq!(
+                        crate::upgrade::JOBS.get(at).copied(),
+                        Some(job.as_ref()),
+                        "pending jobs run in order in each start"
+                    );
+                    s.ran.push((epoch, job.clone()));
                 });
             }
         }

@@ -90,7 +90,10 @@ fn a_read_bound_set_to_the_refusals_number_starts() {
     for turn in [fixtures::startup_agent().limits.bodies.turn_body, TRANSCRIPT] {
         let mut agent = fixtures::startup_agent();
         agent.limits.bodies.turn_body = turn;
-        let mut document = transcript_document(TRANSCRIPT);
+        let mut value: serde_json::Value = serde_json::from_slice(&transcript_document(TRANSCRIPT)).unwrap();
+        // The test pins read admission when the transcript drives the page.
+        value["application"]["limits"]["overrides"]["forge.changes"] = 0_u32.into();
+        let mut document = serde_json::to_vec(&value).unwrap().into_boxed_slice();
         if turn == TRANSCRIPT {
             let previous = u64::from(fixtures::startup_agent().limits.bodies.turn_body);
             let mut text = core::str::from_utf8(&document).unwrap().to_string();
