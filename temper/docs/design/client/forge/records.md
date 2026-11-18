@@ -21,7 +21,7 @@
   at the landing that changes it: a request, an outcome, a read, a
   subject or a field added to the family (the FORGE requests of
   `../engine.md`, the picker's ids in `Adopt`, a change's panel) changes
-  its schema, generated code and one set of golden bytes, and moves its
+  its schema and generated records, and moves its
   version by one, its layouts' list taking the new version's line;
   `PUBLIC_VERSION` does the same for the visitors' records (jig's
   `protocol/client/README.md`, section 6).

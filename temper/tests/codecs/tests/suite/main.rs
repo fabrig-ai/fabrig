@@ -10,6 +10,7 @@ mod drift;
 mod records;
 mod store_protection;
 mod store_queue;
+mod values;
 mod worker_wire;
 
 mod fuzzy {
