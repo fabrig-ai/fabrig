@@ -523,6 +523,28 @@ fn the_engine_prints_one_sign_in_link_at_start() {
     assert!(service.links().is_empty());
 }
 #[test]
+fn getting_the_printed_links_page_leaves_its_secret_for_the_links_post() {
+    let mut service = super::fixtures::ready();
+    let link = service.links().pop().expect("sign-in link");
+    let query = skein_lib::bytes::find(&link, b"?").expect("link query");
+    let query = link.get(query..).expect("printed secret query");
+    let mut target = skein_lib::Writer::new(b"/sign-in".len().checked_add(query.len()).unwrap());
+    target.put(b"/sign-in").unwrap();
+    target.put(query).unwrap();
+    let engine = service.engine.as_mut().expect("engine");
+    let mut page = peer::Peer::new(engine, b"GET", &target.finish(), &[], None);
+    page.pump(engine, false);
+    assert!(page.received().starts_with(b"HTTP/1.1 200"));
+    assert!(engine.events.is_empty(), "nothing reached the root");
+    page.close(engine);
+    let jig_client_protocol_wire::SignInAnswer::SignedIn(answer) = sign_in_with_link(engine, &link) else {
+        panic!("GET leaves the live printed link unspent for POST")
+    };
+    assert_eq!(answer.party(), OWNER_PARTY);
+    assert!(answer.token().is_some(), "the link's POST returns a credential");
+}
+
+#[test]
 fn a_link_sign_in_reaches_the_root_and_answers_a_token() {
     let mut service = super::fixtures::ready();
     let link = service.links().pop().unwrap();
