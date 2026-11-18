@@ -1,6 +1,8 @@
 # configuration: status
 
-2026-11-16. Where temper's code lags or departs from [README.md](README.md).
+2026-11-18. Where temper's code lags or departs from [README.md](README.md).
+
+- **Not yet:** 2, 3: `application.environment` is refused as an unknown member in every shape, and neither member table nor the `configuration` reference page lists it; the help pages `box` and `server` still name `application.workers[0].environment`, which the start refuses. [in flight: change 7446]
 
 
 
