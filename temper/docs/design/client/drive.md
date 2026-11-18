@@ -1,6 +1,6 @@
 # Driving the clients a line at a time
 
-Provisional, 2026-11-12, revised 2026-11-16. QA's hands on ctl, the web
+Provisional, 2026-11-12, revised 2026-11-18. QA's hands on ctl, the web
 client and the TUI (`../draft/landed-qa.md`, 7 and 10):
 `temper-client-journeys drive`, a session that starts a fake box, or a
 deployment's processes (`../testing/qa/deployment.md`), from a given
@@ -145,8 +145,10 @@ In order, each within its bound; a failure is 2.5's.
    (`web/testing.md`; skein's `ui/web/testing.md`, 2), opens the first
    link, now spent, so that serve prints a fresh link on stdout
    (`../protocol/setup/box.md`, 2) within 30 seconds; it opens that one,
-   then loads `/` on the box's origin and waits until the page shows the
-   client's main region, within 60 seconds. So the browser holds the
+   waits until that page shows the client's main region so its sign-in
+   is answered, then loads `/` on the box's origin and waits for its main
+   region, all within 60 seconds: loading `/` sooner cancels the sign-in's
+   exchange and leaves `/` signed out. So the browser holds the
    session's sign-in, a copy holds none (`../draft/landed-qa.md`, 5),
    and every session's first line meets the box's root page.
 4. **The TUI** starts at the session's first `tui` line (3.3), not
@@ -452,7 +454,7 @@ exited`, and ends with status 4 (2.5).
 | Line | What the session does | Bound |
 |---|---|---|
 | `deployment restart` | the deployment started again with its documents unchanged, as `deployment patch` does: the TUI ended first and the page loaded again after, except in a ctl session; a setting taken at the next start (`../domain/landing-settings.md`, 1.1) then holds | 300 s |
-| `deployment patch DOCUMENT PATH` | DOCUMENT `engine`, `worker` or `agent`, a word; PATH bytes, as a `forge commit` line's (3.5): the deployment's document patched by the file and the deployment started again, the TUI ended first and the page loaded again after, but in a ctl session (`../testing/qa/deployment.md`, 6.2) | 300 s |
+| `deployment patch DOCUMENT PATH` | DOCUMENT `engine` or `worker`, a word (temper writes the agent's configuration, `../protocol/configuration/figures.md`, 6); PATH bytes, as a `forge commit` line's (3.5): the deployment's document patched by the file and the deployment started again, the TUI ended first and the page loaded again after, but in a ctl session (`../testing/qa/deployment.md`, 6.2) | 300 s |
 
 On a box, a `deployment` line fails, `failed: line N: a box takes no
 deployment line`, and is not kept.

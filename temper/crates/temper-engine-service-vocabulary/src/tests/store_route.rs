@@ -900,11 +900,24 @@ fn patch_sites_return_the_machine_with_the_missing_site_and_progress_is_not_a_ro
 
 #[test]
 fn job_pages_reach_their_owners_and_progress_is_not_a_root_event() {
+    let (root, core, mut limits) = fixtures::store_limits();
+    limits.core = core;
+    let application = temper_protocol_store::application(&root.forge, root.tasks.spec_bytes).unwrap();
+    let mut component = store::Store::over(
+        &limits,
+        application,
+        &[],
+        store::Stores {
+            store: skein_kv::Store::memory(&limits.store),
+            secrets: skein_kv::Store::memory(&limits.secrets),
+        },
+    );
     let mut routes = fixtures::routes();
     let mut out = Queue::with_capacity(4);
     for (of, words) in [(store::Owner::Jig, "no such jig job"), (store::Owner::Application, "no such temper job")] {
-        route::up(
+        route::site(
             &mut routes,
+            &mut component,
             store::Event::Job {
                 owner: fixtures::OWNER,
                 of,

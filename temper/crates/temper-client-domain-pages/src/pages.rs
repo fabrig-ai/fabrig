@@ -81,6 +81,13 @@ pub mod tell;
 pub mod terminal;
 pub mod welcome;
 pub mod work;
+
+/// A page's cold-open ceiling (temper/docs/design/client/pages/work.md, 1, Its budget).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Budget {
+    pub waves: u32,
+    pub requests: u32,
+}
 /// The chosen playground waits for its project membership (temper/docs/design/client/forge/family.md, 7).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PlaygroundChoice {
@@ -112,6 +119,7 @@ pub struct Pages {
     address: Address,
     project: Option<u32>,
     watching: bool,
+    accounts_watching: bool,
     shown: u64,
     pub inbox: Option<inbox::Inbox>,
     pub home: Option<home::Home>,
@@ -437,6 +445,7 @@ impl Pages {
             address: Address::Inbox { filter: crate::address::Filter::ALL },
             project: None,
             watching: false,
+            accounts_watching: false,
             shown: 0,
             inbox: None,
             home: None,
@@ -753,6 +762,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         pages.accounts.added = None;
         pages.accounts.added_from_connect = false;
     }
+    let mut link = client.link().state;
     let returning = match &event {
         Event::Returned { .. } => true,
         Event::Push(_)
@@ -880,6 +890,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
             }
         }
+        Event::Act {
+            act: Act::Accounts(act @ accounts::Act::Submit { operation: accounts::Operation::CheckProgram { .. }, .. }),
+        } => pages.accounts.act(client, act, &mut pages.serial, out),
         Event::Act { act: Act::Accounts(act) } => {
             if pages.accounts_open {
                 pages.accounts.act(client, act, &mut pages.serial, out);
@@ -1232,10 +1245,12 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
         }
         Event::Act { act: Act::OpenProject { project } } => {
+            pages.switcher.supersede();
             choose_project(pages, client, project);
             out.push(Request::Show { address: Address::Chats { filter: ChatsFilter::All } });
         }
         Event::Act { act: Act::Project { project } } => {
+            pages.switcher.supersede();
             choose_project(pages, client, project);
             #[expect(clippy::match_same_arms, reason = "AllHome's project choice shows Home, as Home's does")]
             match &pages.address {
@@ -1284,6 +1299,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         }
         Event::Act { act: Act::SignOut } => out.push(Request::Client(jig_client::Event::SignOut)),
         Event::Act { act: Act::Go { address } } => {
+            if address != pages.address {
+                pages.switcher.supersede();
+            }
             if address == (Address::NewChat { draft: true })
                 && let Address::NewChat { .. } = pages.address
             {
@@ -1296,7 +1314,8 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             me_changed(pages, client, out);
             pages.team.told(env, client, &Told::Changed { handle }, out);
         }
-        Event::Link { link } => {
+        Event::Link { link: changed } => {
+            link = changed;
             if let Some(task) = &mut pages.task {
                 // Successful sign-in can tell SignedOut then Starting in one step.
                 // The installed credential, rather than that intermediate tell,
@@ -1311,8 +1330,15 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
         }
     }
+    if pages.watching && !pages.accounts_watching && link == Link::Live {
+        pages.accounts_watching = true;
+        out.push(Request::Client(jig_client::Event::Watch {
+            handle: accounts::handle(),
+            subject: Watchable::Jig(Subject::Accounts),
+        }));
+    }
     if let Some(page) = &mut pages.connect_model {
-        page.read_environment(&pages.address, client.link().state, &mut pages.next, out);
+        page.read_environment(&pages.address, link, &mut pages.next, out);
         page.refresh_login(client, &mut pages.serial, out);
     }
     default_chosen(pages, client);
@@ -1347,7 +1373,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             None => false,
         };
     pages.builders.configure(role, &mut pages.next, out);
-    pages.told.configure(pages.told_open, pages.party, &mut pages.next, env.limits.forge, out);
+    pages.told.configure(pages.told_open, pages.party, link, &mut pages.next, env.limits.forge, out);
     if let Some(page) = &mut pages.remembered {
         page.configure(accounts::current_me(client), &mut pages.next, out);
     }
@@ -1373,14 +1399,14 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     if let Some(chats) = &pages.chats {
         pages.next = pages.next.max(chats.goals.number.checked_add(1).expect("chat handles fit"));
     }
-    if pages.team_open && client.link().state != Link::SignedOut && client.link().state != Link::OutOfDate {
+    if !pages.team_open || client.link().state == Link::SignedOut || client.link().state == Link::OutOfDate {
+        pages.team.leave(out);
+    } else if client.link().state == Link::Live {
         let you = match pages.me(client) {
             Some(me) => me.party.number,
             None => 0,
         };
         pages.team.configure(&pages.address, pages.launchpad, you, env, client, &mut pages.next, out);
-    } else {
-        pages.team.leave(out);
     }
     if let Some(chat) = &mut pages.chat {
         chat.next = chat.next.max(pages.next);
@@ -1439,7 +1465,6 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     if let Some(left_off) = &mut pages.left_off {
         left_off.configure(me, &env.limits, out);
     }
-    pages.has_goals.configure(me, pages.project, &mut pages.next, out);
     if let Address::Home { project } = pages.address
         && pages.home.is_some()
         && pages.has_goals(client, project)
@@ -1460,19 +1485,13 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             (Some(me), Some(project)) => jig_client::shapes::template(me, project, chats::ASKING_TEMPLATE).is_some(),
             (Some(_), None) | (None, Some(_) | None) => false,
         };
-    if let Some(chats) = &mut pages.chats
-        && chats_offered
-    {
-        chats.configure(me, project, &env.limits, out);
-        chats.reconcile(client);
-    }
     if let Address::Work { project, .. }
     | Address::Goals { project, .. }
     | Address::Changes { project }
     | Address::Home { project } = pages.address
         && let Some(goals) = &mut pages.goals
     {
-        goals.configure(me, project, client, &env.limits, out);
+        goals.configure(me, project, client, &env.limits, pages.needs.inbox_moves, out);
     }
     if let Address::Work { project, .. }
     | Address::Goals { project, .. }
@@ -1486,11 +1505,35 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             reads.configure(me, project, client, &env.limits, env.wall, out);
         }
     }
+    if let Some(chats) = &mut pages.chats
+        && chats_offered
+    {
+        chats.configure(me, project, &env.limits, out);
+        chats.reconcile(client);
+    }
+    if me.is_some() && client.link().state == Link::Live {
+        if let Some(changes) = &mut pages.changes {
+            changes.configure(&mut pages.next, env.limits.forge, out);
+        }
+        if let Some(drafts) = &mut pages.drafts {
+            drafts.configure(&mut pages.next, env.limits.forge, out);
+        }
+    }
+    pages.has_goals.configure(
+        me,
+        pages.project,
+        pages.goals.as_ref(),
+        pages.milestones.as_ref(),
+        client,
+        &mut pages.next,
+        out,
+    );
     if let Some(inbox) = &mut pages.inbox {
         inbox.next = inbox.next.max(pages.next);
         inbox.configure(client, &env.limits, out);
         pages.next = pages.next.max(inbox.next);
     }
+    needs::read_at(pages, out);
     if let Some(task) = &mut pages.task {
         task.next = task.next.max(pages.next);
     }
@@ -1626,9 +1669,11 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
         pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
         return false;
     }
+    if pages.needs.told(&told) {
+        return true;
+    }
     if pages.builders.told(client, &told, &mut pages.serial, out)
         || pages.models.told(client, &told)
-        || pages.needs.told(&told)
         || pages.choice.told(&told)
         || crate::acts::told(pages, &told)
     {
@@ -1667,10 +1712,6 @@ fn started(pages: &mut Pages, out: &mut Queue<Request>) {
         out.push(Request::Client(jig_client::Event::Watch {
             handle: me_handle(),
             subject: Watchable::Jig(Subject::Me),
-        }));
-        out.push(Request::Client(jig_client::Event::Watch {
-            handle: accounts::handle(),
-            subject: Watchable::Jig(Subject::Accounts),
         }));
     }
 }
@@ -1833,6 +1874,7 @@ fn went(
     }
     let changing = returned || pages.address != address;
     if changing {
+        pages.switcher.supersede();
         tell::remember(pages, client);
         if returned || !tell::showing(&address) {
             pages.tell_words = Box::default();
@@ -2074,7 +2116,7 @@ fn went(
         leave_conversations(pages, out);
         pages.rail_handles = if rail_chats(&address) { RailHandles::Pending } else { RailHandles::None };
         if let Some(project) = work_project(&address) {
-            pages.drafts = Some(drafts::Drafts::new(project, &mut pages.next, env.limits.forge, out));
+            pages.drafts = Some(drafts::Drafts::new(project));
             // Goals and chats precede Changes' growing range, including the rail's chats.
             let mut page = goals::Goals::new(pages.next);
             if let Address::Goals { filter, .. } = address {
@@ -2084,7 +2126,7 @@ fn went(
             pages.next = pages.next.checked_add(3).expect("goal handles fit");
             pages.chats = Some(chats::Chats::new(pages.next));
             pages.next = pages.next.checked_add(3).expect("rail chat handles fit");
-            pages.changes = Some(changes::Changes::new(project, &mut pages.next, env.limits.forge, out));
+            pages.changes = Some(changes::Changes::new(project));
         }
         if let Address::Task { task } = address {
             pages.task = Some(task::Task::new(task, pages.next, &env.limits, out));
@@ -2760,7 +2802,7 @@ fn switcher_chosen(pages: &mut Pages, client: &Client, out: &mut Queue<Request>)
     if let Some(project) = pages.switcher.opening {
         choose_project(pages, client, project);
         if pages.project == Some(project) {
-            pages.switcher.opening = None;
+            pages.switcher.supersede();
             out.push(Request::Show { address: Address::Home { project } });
         }
     }
@@ -2796,6 +2838,7 @@ fn me_changed(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
                 page.leave();
             }
             pages.accounts = accounts::Accounts::default();
+            pages.accounts_watching = true;
             out.push(Request::Client(jig_client::Event::Unwatch { handle: accounts::handle() }));
             out.push(Request::Client(jig_client::Event::Watch {
                 handle: accounts::handle(),
@@ -2864,6 +2907,9 @@ fn link_changed(pages: &mut Pages, limits: &Limits, link: Link, out: &mut Queue<
             if pages.watching {
                 out.push(Request::Client(jig_client::Event::Unwatch { handle: me_handle() }));
                 pages.watching = false;
+            }
+            if pages.accounts_watching {
+                pages.accounts_watching = false;
                 out.push(Request::Client(jig_client::Event::Unwatch { handle: accounts::handle() }));
             }
             pages.accounts.leave(out);
@@ -2903,10 +2949,6 @@ fn link_changed(pages: &mut Pages, limits: &Limits, link: Link, out: &mut Queue<
                 out.push(Request::Client(jig_client::Event::Watch {
                     handle: me_handle(),
                     subject: Watchable::Jig(Subject::Me),
-                }));
-                out.push(Request::Client(jig_client::Event::Watch {
-                    handle: accounts::handle(),
-                    subject: Watchable::Jig(Subject::Accounts),
                 }));
             }
         }

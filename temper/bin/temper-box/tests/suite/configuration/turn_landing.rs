@@ -28,7 +28,7 @@ fn engine(bytes: &[u8]) -> jig_protocol_config::Engine {
     let bytes = serde_json::to_vec(&json(bytes)["engine"]).expect("engine JSON");
     let document = jig_protocol_config::document(&bytes, &DOCUMENT).expect("engine document");
     let given = temper_service::stock::Given::Stock
-        .with_providers(temper_fixtures::providers::parse(&rendered("providers.json")), Box::new([]));
+        .with_providers(temper_agent_fixtures::providers::parse(&rendered("providers.json")), Box::new([]));
     startup::engine_with(&document, 0, &jig_protocol_config::Directories::working(), &given).expect("stock engine")
 }
 
@@ -72,15 +72,14 @@ fn the_turn_landing_documents_check_as_their_shapes() {
 
     let bytes = rendered("worker.json");
     assert_eq!(startup::shape(&bytes, &directories).expect("worker shape"), Shape::WorkerAlone);
-    let part = startup::worker_part(&bytes, &directories, Some(b"/turn/data/bin/git")).expect("checked worker alone");
+    let part =
+        startup::worker_part(&bytes, &directories, Some(b"/turn/data/bin/git"), &[]).expect("checked worker alone");
     assert!(part.worker.jig.slots >= 2);
     assert!(json(&bytes)["workers"][0].get("limits").is_none(), "the engine supplies the worker's limits");
     assert_eq!(part.worker.jig.secret.as_ref(), b"/turn/data/worker/secrets/worker.secret");
     assert!(part.worker.jig.agent.is_none(), "temper pins the engine's agent figures");
     assert_eq!(part.worker.git.as_deref().expect("fake git"), b"/turn/data/bin/git");
 
-    let value = json(&rendered("agent.json"));
-    smith_agent_shell::config::from_value(value).expect("the driver fixture's agent configuration");
     let configuration =
         temper_worker_shell::agent::figures::configuration(&figures(), None, &PathBuf::from("/turn/data/worker"), &[])
             .expect("agent document from the engine's figures");
@@ -143,7 +142,7 @@ fn the_turn_landing_engine_passes_every_startup_check() {
 fn the_turn_landing_worker_passes_every_startup_check() {
     let bytes = rendered("worker.json");
     let directories = jig_protocol_config::Directories::working();
-    let part = startup::worker_part(&bytes, &directories, Some(b"/turn/data/bin/git")).expect("setup worker part");
+    let part = startup::worker_part(&bytes, &directories, Some(b"/turn/data/bin/git"), &[]).expect("setup worker part");
     admission("turn-landing-worker-admission", &bytes, part.files);
 }
 
@@ -157,9 +156,9 @@ fn admission(case: &str, bytes: &[u8], files: Box<[jig_protocol_config::File]>) 
         entries.push((file.path, Secret::new(Box::new([b'7'; 64])))).expect("named file count");
     }
     let scratch = crate::support::Scratch::startup(case);
-    let agent_path = scratch.path().join("agent.json");
-    std::fs::write(&agent_path, rendered("agent.json")).expect("rendered agent document");
-    let agent = temper_worker_shell::agent::read(&agent_path).expect("setup agent");
+    let configuration = temper_worker_shell::agent::figures::configuration(&figures(), None, scratch.path(), &[])
+        .expect("agent document from the engine's figures");
+    let agent = temper_worker_shell::agent::prepare_bytes(configuration).expect("setup agent").agent;
     let seeds = Seeds {
         link_secret: None,
         local_secret: None,
@@ -174,7 +173,8 @@ fn admission(case: &str, bytes: &[u8], files: Box<[jig_protocol_config::File]>) 
         let configuration = temper_worker_shell::agent::figures::configuration(&figures, None, scratch.path(), &[])
             .expect("agent document from the engine's figures");
         let agent = temper_worker_shell::agent::prepare_bytes(configuration).expect("worker's agent").agent;
-        let mut part = startup::worker_part(bytes, &directories, Some(b"/turn/data/bin/git")).expect("worker part");
+        let mut part =
+            startup::worker_part(bytes, &directories, Some(b"/turn/data/bin/git"), &[]).expect("worker part");
         temper_worker_service::figures::apply(&mut part, figures).expect("engine's figures applied");
         if let Err(problems) = temper_worker_service::startup::worker::check_worker_part(&mut part, &files, &agent) {
             panic!("{}", String::from_utf8_lossy(&temper_worker_service::startup::lines(&problems)));

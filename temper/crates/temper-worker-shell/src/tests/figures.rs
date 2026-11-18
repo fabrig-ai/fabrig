@@ -29,6 +29,59 @@ fn configured_figures_with(
     temper_engine_service_vocabulary::figures::Composer::new(&engine, &own).compose(&temper_service::stock::agents())
 }
 #[test]
+fn the_workers_watchdog_covers_stock_agent_figures_and_a_sixty_minute_tool() {
+    use jig_protocol_worker_wire as w;
+    use skein_lib::Duration;
+    let scratch = skein_scratch::Scratch::new("derived-agent-watchdog");
+    let mut input: serde_json::Value =
+        serde_json::from_slice(include_bytes!("../../../temper-init/template/temper.json"))
+            .expect("stock box document");
+    input["engine"]["clients"]["provider"] = serde_json::Value::Null;
+    let given = temper_service::stock::Given::Stock.with_providers(
+        temper_service::stock::providers(),
+        Box::new([temper_service::stock::scripted(([127, 0, 0, 1], 8370).into())]),
+    );
+    for (override_ms, expected_seconds) in [(None, 1205), (Some(3_600_000), 3605)] {
+        let mut parts = configured_figures_with(&input, &given).into_parts();
+        if let Some(value) = override_ms {
+            let mut agents = parts.agents.into_parts();
+            let mut profile = skein_lib::List::with_capacity(agents.profile.len() + 1);
+            for figure in agents.profile.into_boxed() {
+                profile.push(figure).expect("existing profile figure");
+            }
+            profile
+                .push(
+                    w::Limit::new(
+                        &w::CEILINGS,
+                        w::LimitParts { name: b"policy.tool_deadline".as_slice().into(), value },
+                    )
+                    .expect("tool deadline figure"),
+                )
+                .expect("profile room");
+            agents.profile = profile;
+            parts.agents = w::Agents::new(&w::CEILINGS, agents).expect("agent figures");
+        }
+        let figures = w::Figures::new(&w::CEILINGS, parts).expect("engine figures");
+        let bytes =
+            agent::figures::configuration(&figures, Some(std::path::Path::new("/fixture/claude")), scratch.path(), &[])
+                .expect("agent document from engine figures");
+        let configured =
+            agent::decoded_bytes(&bytes).expect("decode document").resolve(&mut Vec::new()).expect("derive agent");
+        let tool_deadline = configured.service.limits.domain.session.tools.tool_deadline;
+        let endpoints = configured.service.domain.limits;
+        let prepared = agent::prepare_bytes(bytes).expect("worker agent settings");
+        let host = prepared.agent.host_limits;
+        assert_eq!(host.no_progress, Duration::from_secs(expected_seconds));
+        assert!(host.no_progress >= tool_deadline);
+        assert_eq!(endpoints.len(), 4, "all stock endpoints participate");
+        for endpoint in &endpoints {
+            assert!(host.no_progress >= endpoint.head.checked_add(endpoint.idle).expect("endpoint turn"));
+        }
+        assert_eq!(smith_host_domain::check(&host), Ok(()));
+    }
+}
+
+#[test]
 fn a_boxs_demo_endpoint_keeps_its_name_and_uses_smiths_openai_provider() {
     let mut input: serde_json::Value =
         serde_json::from_slice(include_bytes!("../../../temper-init/template/temper.json")).expect("box document");
@@ -86,6 +139,7 @@ fn worker_inputs_refuse_the_old_file_and_validate_derived_program_and_claude() {
         &serde_json::to_vec(&document).expect("JSON"),
         &temper_service_shell::jig_directories(&directories),
         None,
+        &[],
     )
     .expect("worker part");
     let executable = data.join("temper-worker");

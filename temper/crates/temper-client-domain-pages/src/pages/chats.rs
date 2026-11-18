@@ -448,6 +448,13 @@ impl Chats {
             Told::Page { handle, .. } if handle == self.closed => {
                 self.ended_read.answered(None);
                 self.page_delivered = true;
+                self.page_answered = true;
+                true
+            }
+            Told::Ended { handle, .. } if handle == self.closed => {
+                self.ended_read.answered(None);
+                self.page_delivered = true;
+                self.page_answered = true;
                 true
             }
             Told::Ended { handle, .. } if handle == self.live => true,
@@ -488,10 +495,10 @@ impl Chats {
             | Told::Page { .. } => false,
         }
     }
-    /// The live watch has delivered and the closed read has answered with its value, for this query.
+    /// Both chat lists have answered, including refused or failed answers (client/pages/work.md, 1).
     #[must_use]
     pub fn known(&self, client: &Client) -> bool {
-        self.page_answered && self.live(client).is_some()
+        self.query.is_none() || (self.page_answered && super::home::delivered(client, self.live))
     }
     pub(super) fn delivered(&self, client: &Client, project: u32) -> bool {
         let Some(query) = &self.query else { return false };
@@ -626,8 +633,7 @@ fn newer(a: (skein_lib::Wall, u64), b: (skein_lib::Wall, u64)) -> bool {
 
 pub(crate) fn refresh(root: &mut dyn Routing, out: &mut Queue<Request>) {
     let parts = root.parts();
-    if let Address::Chats { .. } | Address::Work { .. } | Address::Goals { .. } | Address::Changes { .. } =
-        parts.pages.address
+    if let Address::Chats { .. } = parts.pages.address
         && let Some(chats) = &mut parts.pages.chats
     {
         chats.goal_watch(parts.client, parts.forge, chats.window, out);

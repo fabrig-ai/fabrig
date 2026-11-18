@@ -11,7 +11,9 @@ extern crate alloc;
 #[rustfmt::skip]
 mod generated {
     /// Current bounded transcript codec, written from transcript-v7.schema.
-    pub mod v7;
+    pub mod v7 {
+        include!("generated/transcript.rs");
+    }
 }
 
 pub use generated::v7;
@@ -77,7 +79,7 @@ pub mod wire {
     pub const FAMILY: &str = "smith-transcript";
 
     /// The version named by the current schema's header.
-    pub const VERSION: u16 = 7;
+    pub const VERSION: u16 = crate::v7::VERSION;
 
     /// The lowest version this build speaks.
     pub const FLOOR: u16 = crate::patches::kept::smith_transcript::FLOOR;

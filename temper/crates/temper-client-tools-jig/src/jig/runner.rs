@@ -195,6 +195,7 @@ fn run(runner: &mut Runner, client: &Client, env: &Env<crate::jig::Limits>, call
         | rows::REPLACE_KEY_AT..=rows::RETRY_AT
         | rows::VERIFY_AT
         | rows::EXPORT_AT
+        | rows::USES_AT
         | rows::SETTINGS_AT..=rows::REVISIONS_AT
         | rows::PROPOSAL_AT
         | rows::TASK_TEXT_AT

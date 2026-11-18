@@ -156,8 +156,14 @@ impl Service {
         self.engine.as_mut().expect("engine patch sets").owner_sets(sets);
     }
     /// Rehearse the configured restart over a copy, without adopting a worker or listeners.
-    pub fn rehearse_store(&mut self, directory: Fd, scratch: Fd, user: u32) -> Result<(), Fd> {
-        self.engine.as_mut().expect("rehearsal has an engine").rehearse_store(directory, scratch, user)
+    pub fn rehearse_store(
+        &mut self,
+        directory: Fd,
+        scratch: Fd,
+        user: u32,
+        reach: jig_protocol_store::Reach,
+    ) -> Result<(), Fd> {
+        self.engine.as_mut().expect("rehearsal has an engine").rehearse_store(directory, scratch, user, reach)
     }
     /// Ask jig to make the previous generation active, with the deployment stopped.
     pub fn back_store(&mut self, directory: Fd, user: u32) -> Result<(), Fd> {
@@ -167,6 +173,19 @@ impl Service {
     #[must_use]
     pub fn upgrade_report(&self) -> Option<&crate::upgrade::Report> {
         self.engine.as_ref()?.upgrade_report()
+    }
+    pub fn checkpoint_store(
+        &mut self,
+        directory: Fd,
+        user: u32,
+        adoption: jig_protocol_store::host::Adoption,
+        child: Option<crate::checkpoint::Child>,
+    ) -> Result<(), Fd> {
+        self.engine_component().checkpoint_store(directory, user, adoption, child)
+    }
+    #[must_use]
+    pub fn checkpoint_outcome(&self) -> Option<&crate::checkpoint::Outcome> {
+        self.engine.as_ref()?.checkpoint_outcome()
     }
     /// Push hosts awaiting this send's resolution (domain/forge/attention.md, 7.3).
     #[must_use]
@@ -452,7 +471,13 @@ fn held_listener_closed(service: &Service, event: &io::Event) -> bool {
 fn route_events(service: &mut Service) {
     for _ in 0..service.process.told_count() {
         let event = service.process.told().pop().expect("io event count");
-        if let io::Event::Shutdown { .. } = event {
+        if let io::Event::Shutdown { signal, .. } = event {
+            if let Some(engine) = &mut service.engine
+                && let Some(state) = &mut engine.checkpoint
+            {
+                state.shutdown(signal);
+                continue;
+            }
             service.shutdown();
             continue;
         }

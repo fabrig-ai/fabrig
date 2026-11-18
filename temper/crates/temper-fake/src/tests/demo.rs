@@ -10,7 +10,7 @@ type Row = (Vec<(&'static str, Option<Value>)>, &'static str);
 
 pub(super) fn fixture() -> Value {
     let mut d: Value = serde_json::from_slice(include_bytes!("../../../../docs/examples/owned.json")).unwrap();
-    d["world_providers"] = temper_fixtures::providers::stock();
+    d["world_providers"] = temper_agent_fixtures::providers::stock();
     d["world_providers"]["providers"].as_array_mut().unwrap().truncate(1);
     d["world_providers"]["endpoints"].as_array_mut().unwrap().truncate(1);
     d["world_providers"]["endpoints"].as_array_mut().unwrap().push(json!({
@@ -33,7 +33,7 @@ fn member(d: &skein_json::Document, at: u32, name: &[u8]) -> u32 {
 }
 fn engine(value: &Value, document: &skein_json::Document, directories: &config::Directories) -> config::Engine {
     let given = temper_engine_service_stock::stock::Given::Stock
-        .with_providers(temper_fixtures::providers::values(&value["world_providers"]), Box::new([]));
+        .with_providers(temper_agent_fixtures::providers::values(&value["world_providers"]), Box::new([]));
     temper_engine_service_startup::startup::engine_with(document, member(document, 0, b"engine"), directories, &given)
         .unwrap()
 }

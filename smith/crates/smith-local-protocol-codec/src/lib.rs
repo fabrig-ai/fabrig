@@ -4,5 +4,5 @@
 extern crate alloc;
 
 #[rustfmt::skip]
-#[path = "generated/local_store_v1.rs"]
+#[path = "generated/local_store.rs"]
 pub mod local_store_v1;

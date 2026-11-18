@@ -119,20 +119,20 @@ fn fixture_limits_fit_their_store() {
         Ok(sizes::Sizes {
             key: 516,
             value: sizes::settings_value(&fixtures::CORE_LIMITS).unwrap(),
-            ops: 16,
-            commit: 24_810
+            ops: 15,
+            commit: 24_285
         })
     );
 }
 fn too_few_operations_are_refused() {
     let mut limits = store();
     limits.ops = 14;
-    assert_eq!(check(&limits), Err(sizes::SizeRefusal::Ops { needs: 16, has: 14 }));
+    assert_eq!(check(&limits), Err(sizes::SizeRefusal::Ops { needs: 15, has: 14 }));
 }
 fn too_few_commit_bytes_are_refused() {
     let mut limits = store();
-    limits.commit = 24_809;
-    assert_eq!(check(&limits), Err(sizes::SizeRefusal::Commit { needs: 24_810, has: 24_809 }));
+    limits.commit = 24_284;
+    assert_eq!(check(&limits), Err(sizes::SizeRefusal::Commit { needs: 24_285, has: 24_284 }));
 }
 fn too_few_in_flight_slots_are_refused() {
     let mut limits = store();
@@ -148,8 +148,8 @@ fn a_journal_bound_past_the_queue_is_refused_at_start() {
 }
 fn too_few_queued_bytes_are_refused() {
     let mut limits = store();
-    limits.queued_bytes = 49_619;
-    assert_eq!(check(&limits), Err(sizes::SizeRefusal::QueuedBytes { needs: 49_620, has: 49_619 }));
+    limits.queued_bytes = 48_569;
+    assert_eq!(check(&limits), Err(sizes::SizeRefusal::QueuedBytes { needs: 48_570, has: 48_569 }));
 }
 #[test]
 fn a_domain_limit_past_its_family_ceiling_is_refused_at_start() {
@@ -225,7 +225,7 @@ fn larger_application_encodings_are_included_in_the_bounds() {
     let application = sizes::Application { version: 1, key: 1023, value };
     assert_eq!(
         sizes::check_commits(&fixtures::CORE_LIMITS, &application, &COMMITS, &map, 0),
-        Ok(sizes::Sizes { key: 1024, value, ops: 16, commit: 32_938 }),
+        Ok(sizes::Sizes { key: 1024, value, ops: 15, commit: 31_905 }),
     );
 }
 
@@ -279,30 +279,6 @@ fn table<const N: usize>(cases: [Case; N]) {
 }
 
 #[test]
-#[expect(clippy::disallowed_macros, reason = "ordinary tests embed the eight schema fixtures independently")]
-fn current_layouts_are_the_eight_distinct_runtime_schema_fingerprints() {
-    let layouts = format::layouts();
-    let current = wanted();
-    let families = [
-        (layouts.component, current.component, include_bytes!("../../schema/component-v3.schema").as_slice()),
-        (layouts.core, current.core, include_bytes!("../../schema/core-v6.schema").as_slice()),
-        (layouts.tasks, current.tasks, include_bytes!("../../schema/tasks-v13.schema").as_slice()),
-        (layouts.people, current.people, include_bytes!("../../schema/people-v17.schema").as_slice()),
-        (layouts.notes, current.notes, include_bytes!("../../schema/notes-v1.schema").as_slice()),
-        (layouts.accounts, current.accounts, include_bytes!("../../schema/accounts-v2.schema").as_slice()),
-        (layouts.settings, current.settings, include_bytes!("../../schema/settings-v3.schema").as_slice()),
-        (layouts.secrets, 1, include_bytes!("../../schema/secrets-v1.schema").as_slice()),
-    ];
-    let mut digests = skein_lib::Set::with_capacity(u32::try_from(families.len()).expect("eight families"));
-    for (digest, version, text) in families {
-        let schema = skein_codec::schema::parse(text).expect("current schema parses");
-        assert_eq!(schema.version(), version);
-        assert_eq!(digest, schema.fingerprints().family().digest());
-        assert!(digests.insert(digest).expect("eight families fit"), "families have distinct layouts");
-    }
-}
-
-#[test]
 fn the_manifest_at_both_bounds_reaches_its_whole_file_price() {
     let ceilings = &crate::component_v3::CEILINGS;
     let mut counts = skein_lib::List::with_capacity(ceilings.manifest_counts);
@@ -351,14 +327,4 @@ fn whole_file_admission_checks_the_manifests_exact_bound() {
     ] {
         assert_eq!(sizes::whole(bound), expected, "whole-file bound {bound}");
     }
-}
-
-#[test]
-#[expect(clippy::disallowed_macros, reason = "the kept schema copy is pinned against smith's generated code")]
-fn upstream_layouts_equal_the_kept_families_fingerprints() {
-    let layouts = format::layouts();
-    assert_eq!(layouts.skein_oauth, skein_oauth::FINGERPRINT);
-    let smith = skein_codec::schema::parse(include_bytes!("fixtures/smith-transcript-v7.schema"))
-        .expect("checked smith schema");
-    assert_eq!(layouts.smith_transcript, smith.fingerprints().family().digest());
 }

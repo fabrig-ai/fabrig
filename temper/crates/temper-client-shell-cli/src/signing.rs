@@ -3,7 +3,7 @@ use crate::{directory, host::Startup};
 use jig_client_shell_native::Shell;
 use skein_io::kernel::{Complete, Done, Fd, Op, OpenHow, Submit};
 use skein_lib::{Duration, Queue, Secret, Time, Token};
-const FIRST: Duration = Duration::from_millis(100);
+pub(crate) const FIRST: Duration = Duration::from_millis(100);
 const MOST: Duration = Duration::from_secs(2);
 const OPEN: Token = Token::new(1 << 59);
 #[derive(PartialEq, Eq)]
@@ -162,8 +162,7 @@ impl Signing {
         }
     }
     pub(crate) fn again(&mut self, now: Time, until: Time) {
-        self.retry = Some(now.saturating_add(self.backoff).min(until));
-        self.backoff = self.backoff.saturating_mul(2).min(MOST);
+        self.retry = Some(again(now, until, &mut self.backoff));
     }
     pub(crate) fn close(&mut self) {
         self.link = None;
@@ -178,4 +177,11 @@ impl Signing {
     pub(crate) fn is_empty(&self) -> bool {
         !self.opening && self.shell.as_ref().is_none_or(Shell::is_empty)
     }
+}
+
+/// The call retries after 100 ms, doubling to 2 s, never past its deadline.
+pub(crate) fn again(now: Time, until: Time, backoff: &mut Duration) -> Time {
+    let at = now.saturating_add(*backoff).min(until);
+    *backoff = backoff.saturating_mul(2).min(MOST);
+    at
 }

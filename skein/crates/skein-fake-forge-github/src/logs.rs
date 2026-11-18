@@ -153,20 +153,19 @@ fn redirect_to(origin: &[u8], target: &[u8]) -> Response {
     response
 }
 fn signed(key: &Secret, repository: u32, job: u64, attempt: u32, expires: u64, limits: &Limits) -> Option<Box<[u8]>> {
-    let mut out = Writer::new(usize::try_from(limits.github.target_bytes).ok()?);
-    for part in [
-        b"/logs/".as_slice(),
-        Decimal::of(u64::from(repository)).as_bytes(),
-        b"/",
-        Decimal::of(job).as_bytes(),
-        b"/",
-        Decimal::of(u64::from(attempt)).as_bytes(),
-        b"?expires=",
-        Decimal::of(expires).as_bytes(),
-    ] {
-        out.put(part).ok()?;
-    }
-    let prefix = answers::finish(out)?;
+    let prefix = answers::finish(
+        usize::try_from(limits.github.target_bytes).ok()?,
+        &answers::Body::Parts(&[
+            b"/logs/",
+            Decimal::of(u64::from(repository)).as_bytes(),
+            b"/",
+            Decimal::of(job).as_bytes(),
+            b"/",
+            Decimal::of(u64::from(attempt)).as_bytes(),
+            b"?expires=",
+            Decimal::of(expires).as_bytes(),
+        ]),
+    )?;
     let mut out = Writer::new(prefix.len().checked_add(11)?.checked_add(64)?);
     out.put(&prefix).ok()?;
     out.put(b"&signature=").ok()?;

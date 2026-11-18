@@ -125,7 +125,8 @@ fn default_engine_and_worker_grants_fit_the_channel_and_link() {
     }
     assert!(started(&fixtures::document(), &fixtures::files(), &fixtures::startup_agent()).is_empty());
     let worker =
-        crate::startup::worker_part(&fixtures::worker_alone_document(), &config::Directories::working(), None).unwrap();
+        crate::startup::worker_part(&fixtures::worker_alone_document(), &config::Directories::working(), None, &[])
+            .unwrap();
     assert_eq!(worker.limits.peer.installations, crate::limits::FORGE_INSTALLATIONS);
     assert_eq!(worker.limits.peer.token_bytes, crate::limits::FORGE_TOKEN_BYTES);
 }
@@ -133,7 +134,8 @@ fn default_engine_and_worker_grants_fit_the_channel_and_link() {
 #[test]
 fn a_worker_alone_takes_installation_and_token_bounds_from_its_configuration() {
     let mut part =
-        crate::startup::worker_part(&fixtures::worker_alone_document(), &config::Directories::working(), None).unwrap();
+        crate::startup::worker_part(&fixtures::worker_alone_document(), &config::Directories::working(), None, &[])
+            .unwrap();
     part.limits.peer.installations = 3;
     part.limits.peer.token_bytes = 64;
     let limits = crate::worker_settings::payload_limits(&part.limits).unwrap();

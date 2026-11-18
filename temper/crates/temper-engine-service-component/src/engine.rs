@@ -17,6 +17,7 @@ pub struct Engine {
     // Keep the root's state out of service construction and movement frames.
     pub(crate) domain: Box<root::Domain>,
     pub(crate) upgrade: Option<crate::upgrade::State>,
+    pub(crate) checkpoint: Option<crate::checkpoint::State>,
     pub(crate) env: Env<root::Limits>,
     pub(crate) store: crate::store::Store,
     pub(crate) accounts: Option<crate::accounts::Accounts>,
@@ -153,6 +154,7 @@ impl Engine {
         domain.connection_limits(own.forge.forges, own.forge_component.installations);
         let mut engine = Self {
             upgrade: None,
+            checkpoint: None,
             credentials,
             domain,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
@@ -392,6 +394,11 @@ impl Engine {
         self.pending_with_clients(now, self.notes.room(), self.clients.root_outputs_pending())
     }
     fn pending_with_clients(&self, now: Time, notes_room: u32, clients_pending: bool) -> bool {
+        if let Some(state) = &self.checkpoint
+            && state.pending()
+        {
+            return true;
+        }
         let effects = self.store.host.mark_durable() || self.end.is_some();
         let components = (self.store.opened || self.end.is_some()) && clients_pending
             || effects && self.setup.work_pending(now)
@@ -483,6 +490,9 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
     clock(engine, now, wall);
     engine.store.iterate();
     answer(engine);
+    if crate::checkpoint::advance(engine) {
+        return;
+    }
     if crate::upgrade::advance(engine) {
         engine.abort_if_ended();
         return;
@@ -768,6 +778,10 @@ pub(crate) fn answer(engine: &mut Engine) {
             break;
         }
         let event = engine.store.host.above.pop().expect("store terminals");
+        if let Some(state) = &mut engine.checkpoint {
+            state.store(event);
+            continue;
+        }
         match event {
             jig_protocol_store::Event::Opened { installation, pending, .. } => {
                 engine.store.opened = true;
@@ -787,6 +801,8 @@ pub(crate) fn answer(engine: &mut Engine) {
             | jig_protocol_store::Event::Rehearsing { .. }
             | jig_protocol_store::Event::Back { .. }
             | jig_protocol_store::Event::BackRefused { .. }
+            | jig_protocol_store::Event::Restored { .. }
+            | jig_protocol_store::Event::RestoreRefused { .. }
             | jig_protocol_store::Event::Closed { .. }) => {
                 let state = engine.upgrade.as_mut().expect("upgrade store event");
                 if let jig_protocol_store::Event::Undecodable { .. } = &event {
@@ -794,9 +810,14 @@ pub(crate) fn answer(engine: &mut Engine) {
                 }
                 if let jig_protocol_store::Event::Closed { .. } = &event {
                     state.closed = true;
+                    state.terminal = true;
                 }
-                if let jig_protocol_store::Event::Back { .. } | jig_protocol_store::Event::BackRefused { .. } = &event {
-                    state.back = true;
+                if let jig_protocol_store::Event::Back { .. }
+                | jig_protocol_store::Event::BackRefused { .. }
+                | jig_protocol_store::Event::Restored { .. }
+                | jig_protocol_store::Event::RestoreRefused { .. } = &event
+                {
+                    state.terminal = true;
                 }
                 state.report.events.push(event);
             }

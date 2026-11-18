@@ -163,9 +163,9 @@ impl Domain {
             return;
         }
         let mut shared = None;
-        let mut reserved = 1;
+        let mut reserved = u32::from(subject != Watchable::Jig(crate::contract::Subject::Me));
         for (id, w) in &self.watches {
-            if w.own {
+            if w.subject == Watchable::Jig(crate::contract::Subject::Me) {
                 reserved = 0;
             }
             if !w.closing && w.subject == subject {
@@ -195,7 +195,8 @@ impl Domain {
                     tell(out, Told::Ended { handle, why: Why::Limit });
                     return;
                 }
-                self.open(subject, false, out)
+                let own = subject == Watchable::Jig(crate::contract::Subject::Me);
+                self.open(subject, own, out)
             }
         };
         let w = self.watches.get(&id).expect("watch exists");
@@ -216,6 +217,8 @@ impl Domain {
         let id = name.raw();
         let name = if self.link == crate::Link::SignedOut {
             None
+        } else if own {
+            Some(Token::new(0))
         } else {
             down(out, Down::Open { watch: name, subject: subject.clone() });
             Some(name)
@@ -299,6 +302,11 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 domain.jig_versions = versions;
                 if !served {
                     domain.set_link(crate::Link::OutOfDate, out);
+                    domain.up(
+                        env,
+                        crate::Up::WatchEnded { watch: Token::new(0), end: crate::contract::WatchEnd::NotServed },
+                        out,
+                    );
                 }
             }
             crate::Up::ReadDone { read, result } => domain.read_done(read, result, out),

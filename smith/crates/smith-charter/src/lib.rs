@@ -11,7 +11,9 @@ use alloc::boxed::Box;
 
 #[rustfmt::skip]
 mod generated {
-    pub mod v5;
+    pub mod v5 {
+        include!("generated/charter.rs");
+    }
 }
 
 pub use generated::v5;
@@ -41,7 +43,7 @@ pub mod wire {
     pub const FAMILY: &str = "smith-charter";
 
     /// The version named by the current schema's header.
-    pub const VERSION: u16 = 5;
+    pub const VERSION: u16 = crate::v5::VERSION;
 
     /// The lowest version this build speaks.
     pub const FLOOR: u16 = crate::patches::kept::smith_charter::FLOOR;
@@ -70,14 +72,22 @@ pub mod wire {
         }
 
         #[test]
-        #[expect(clippy::disallowed_macros, reason = "the patch test embeds the kept version-four golden")]
+        #[expect(clippy::disallowed_macros, reason = "the patch test embeds the kept version-four schema")]
         fn a_version_four_charter_takes_up_contract_one() {
             use skein_codec::patch::Capacity;
             use skein_lib::Reader;
 
             let capacity = Capacity { versions: 2, patches: 2, text: 8192, bytes: 8192, nodes: 256 };
             let mut bridge = crate::patches::kept::smith_charter::bridge(capacity).expect("charter bridge");
-            let old = include_bytes!("../golden/v4/record_charter_smallest.bin");
+            let schema =
+                skein_codegen::parse(include_str!("../schema/kept/smith-charter-v4.schema")).expect("kept v4 schema");
+            let mut old = None;
+            for value in skein_codegen::goldens(&schema) {
+                if value.name == "record_charter_smallest.bin" {
+                    old = Some(value.bytes);
+                }
+            }
+            let old = old.expect("v4 charter");
             let current = bridge.translate(4, VERSION, b"Charter", old.as_slice().into()).expect("v4 taken up");
             let charter = crate::Charter::decode(&crate::CEILINGS, &mut Reader::new(&current)).expect("v5 charter");
             assert_eq!(charter.tools().contract(), 1);

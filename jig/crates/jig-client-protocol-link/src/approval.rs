@@ -62,7 +62,8 @@ impl Link {
                     out.push(Request::Approval(kind.busy()));
                     return;
                 }
-                ExchangeKind::Approval(_)
+                ExchangeKind::LinkAsk
+                | ExchangeKind::Approval(_)
                 | ExchangeKind::Authorize
                 | ExchangeKind::SignIn
                 | ExchangeKind::SignInApproval
@@ -95,7 +96,7 @@ impl Link {
             )
             .expect("checked exchange capacity");
         let credential = if kind.asking() { None } else { self.credential.clone() };
-        self.emit_exchange(exchange, credential, message, out);
+        self.emit_exchange(exchange, credential, message);
     }
     pub(super) fn approval_answer(&mut self, kind: ApprovalKind, body: &[u8], out: &mut Queue<Request>) {
         let mut reader = Reader::new(body);

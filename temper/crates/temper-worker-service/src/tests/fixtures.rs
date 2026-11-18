@@ -78,15 +78,17 @@ pub use startup::{
 pub use worker::assignment as worker_assignment;
 /// Parse the shipped agent with inert destinations and selected payload/output quantities.
 #[expect(
-    clippy::disallowed_macros,
     clippy::disallowed_types,
     reason = "ordinary fixture code embeds the shipped profile and returns the shell's text diagnostic"
 )]
 pub fn stock_configuration(payload: u32, output: u32) -> Result<smith_agent_shell::config::Configuration, String> {
-    let bytes = serde_json::to_string_pretty(&temper_fixtures::agent::stock(true))
+    let mut agent = temper_agent_fixtures::stock(true);
+    agent["profile"]["declared"]["tool_payload"] = payload.into();
+    for endpoint in agent["endpoints"].as_array_mut().expect("stock endpoints") {
+        endpoint["limits"]["output"] = output.into();
+    }
+    let bytes = serde_json::to_string_pretty(&agent)
         .expect("stock agent JSON")
-        .replace("\"tool_payload\": 10662", &format!("\"tool_payload\": {payload}"))
-        .replace("\"output\": 8192", &format!("\"output\": {output}"))
         .replace("$llm", "127.0.0.1:8370")
         .replace("\"$programs\"", r#"{"claude_code":{"path":"/fixture/claude","directory":"/fixture/programs"}}"#)
         .replace("api.anthropic.com:443", "127.0.0.1:8373")
@@ -102,7 +104,8 @@ pub fn stock_configuration(payload: u32, output: u32) -> Result<smith_agent_shel
 pub fn parsed_agent(config: smith_agent_shell::config::Configuration) -> settings::Agent {
     use std::os::unix::ffi::OsStrExt;
     let limits = config.service.limits;
-    let host_limits = smith_local_service::profile::host_limits(&config.profile, &limits).unwrap();
+    let host_limits =
+        smith_local_service::profile::host_limits(&config.profile, &limits, &config.service.domain.limits).unwrap();
     let mut protocol = smith_host_protocol::Limits {
         bodies: limits.channel.bodies,
         charter: limits.channel.charter,

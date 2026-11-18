@@ -141,7 +141,6 @@ fn an_undecodable_row_refuses_with_its_family_and_key_and_stops() {
         &mut stores,
         &[
             fixtures::format_put(fixtures::DEPLOYMENT),
-            fixtures::layouts_put(),
             fixtures::header_put(fixtures::DEPLOYMENT, 1),
             fixtures::installation_put(fixtures::INSTALLATION),
             skein_kv::Op::Put { key: key.clone(), value: Box::new([255]) },

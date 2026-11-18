@@ -155,8 +155,8 @@ const FORGE: forge::Limits = forge::Limits {
     entries: 8,
     // Named calls retained by jig’s stock core.call_records.
     named_calls: 128,
-    // The store’s tier-row cap, (759 - 1) / 2 (temper/docs/design/protocol/configuration/limits.md, forge.changes).
-    changes: 379,
+    // Fabrig’s development of 2026-11-16: twice dev’s 379 rounded up.
+    changes: 768,
     // Eight active issue projections beside the project’s changes.
     issues: 8,
     // Fabrig’s development of 2026-11-16: twice dev’s 5.
@@ -194,7 +194,12 @@ const FORGE: forge::Limits = forge::Limits {
     key_entries: 256,
     key_path_bytes: 1024,
     trees_in_flight: 2,
-    tiers: temper_engine_domain_forge::TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
+    tiers: temper_engine_domain_forge::TierLimits {
+        tiers: 2,
+        failing_tests: 16,
+        // Twice the longest failing test’s id today, about 221 bytes, rounded up.
+        test_id_bytes: 512,
+    },
     // Fabrig’s development of 2026-11-16: twice dev’s 8.
     judge_projects: 16,
     decided_per_project: 1024,
@@ -275,7 +280,7 @@ const ROOT: Root = Root {
         // Outputs at the journal's door, counted in the default admission watermark.
         deliveries: 512,
         // The stock’s deep task row before source derivation; derive() supplies the resume carrier.
-        transcript_bytes: 22_468_264,
+        transcript_bytes: 22_468_272,
         // At least brief.brief_bytes and jig stock people.words: the root's worst case.
         result_bytes: BRIEF.brief_bytes,
         // Holds the stock goal agent's charter and room for an overlay.
@@ -331,9 +336,9 @@ const BRIEF: engine::BriefLimits = engine::BriefLimits {
         preferences: 2048,
         now: 4096,
     },
-    // Three 131,584-byte task, pull and review sections, cut within the stock agent’s
-    // 337,300-byte charter room after 64 titles and framing (1,472) and a 195-byte margin.
-    brief_bytes: 334_999,
+    // Three 131,584-byte task, pull and review sections, cut within charter 5’s
+    // 319,686-byte stock host room after 64 titles and framing, with 66 bytes spare.
+    brief_bytes: 319_686 - 64 * (16 + 7) - 66,
     // Fabrig’s development of 2026-11-16: 300 seconds to gather sequential forge reads.
     gather: Duration::from_secs(300),
 };

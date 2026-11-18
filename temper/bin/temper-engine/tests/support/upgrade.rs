@@ -9,22 +9,22 @@ pub fn empty_directory(binary: &str) {
     std::fs::create_dir(data.join("state")).expect("empty stopped deployment directory");
     let mut document: serde_json::Value =
         serde_json::from_slice(include_bytes!("../../../../docs/examples/owned.json")).expect("example JSON");
-    temper_fixtures::providers::input(&mut document)["providers"][0]["sources"]
+    temper_agent_fixtures::providers::input(&mut document)["providers"][0]["sources"]
         .as_object_mut()
         .expect("sources")
         .remove("sign_in");
-    temper_fixtures::providers::input(&mut document)["endpoints"][0]
+    temper_agent_fixtures::providers::input(&mut document)["endpoints"][0]
         .as_object_mut()
         .expect("endpoint")
         .remove("server_name");
-    temper_fixtures::providers::input(&mut document)["endpoints"][0]["address"] =
+    temper_agent_fixtures::providers::input(&mut document)["endpoints"][0]["address"] =
         serde_json::json!({"socket":"127.0.0.1:1"});
-    temper_fixtures::providers::input(&mut document)["endpoints"][0]["transport"] = "plaintext".into();
-    temper_fixtures::providers::input(&mut document)["providers"][0]["signed_in_plan"] = false.into();
+    temper_agent_fixtures::providers::input(&mut document)["endpoints"][0]["transport"] = "plaintext".into();
+    temper_agent_fixtures::providers::input(&mut document)["providers"][0]["signed_in_plan"] = false.into();
     document["workers"] = serde_json::json!([]);
 
     document["engine"]["hosts"]["listener"] = serde_json::json!([{"socket":"127.0.0.1:7102"}]);
-    temper_fixtures::providers::keep(&mut document, &data);
+    temper_agent_fixtures::providers::keep(&mut document, &data);
     std::fs::write(config.join("temper.json"), serde_json::to_vec(&document).expect("document bytes"))
         .expect("configuration");
     for mode in ["--check", "--back"] {

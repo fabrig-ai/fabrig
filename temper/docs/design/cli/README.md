@@ -510,6 +510,14 @@ pub const SITE: skein_shell::Variable;
   and the journeys tool sets it. One constant,
   `temper_shell::environment::INTERNAL_RECORD`, which each table that
   runs the TUI holds: the client's bare form and `box`.
+- **`TEMPER_INTERNAL_FIXED_START`:** internal, `SECONDS,SEED`, read
+  where bare `temper` starts its TUI, from the binary's captured
+  environment: the TUI's seed and clock start from it when its engine's
+  address is loopback, and it is ignored elsewhere; a value that doesn't
+  read refuses the start, naming it (`../client/journey-clock.md`, 4.3).
+  The journeys tool sets it. One constant,
+  `temper_shell::environment::INTERNAL_FIXED_START`, which the client's
+  bare form's table holds.
 - **Twins dropped:** `TEMPER_ECHO`, `TEMPER_SEED`, `TEMPER_READY`,
   `TEMPER_OBSERVATIONS` and `TEMPER_DOCUMENT`. A test that set one
   passes the flag; a flag's precedence over its twin is skein's to test

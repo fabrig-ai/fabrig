@@ -4,7 +4,7 @@ Kind: reference
 
 JSON types, bounds and effects for settings files and `settings show`.
 
-Read/edit/set whole: `settings show KIND N`. Refusals: shape, count, reference, rules, budget, grace, owner, linked, accounts. Spend: deployment model-price units. uN: unsigned N-bit integer (0..2^N-1). bool: true/false. t[N]/h[N]: text/lowercase hex, <=N bytes; ns: nanoseconds; [N] T: <=N entries of T. ? optional; ! required; |null admits null. Choices: JSON strings; | separates alternatives; choice: described alternatives. set: setting.kind; project-policy: policy.
+Read/edit/set whole: `settings show KIND N`. Refusals: shape, count, reference, rules, budget, grace, owner, linked, accounts. Spend: deployment model-price units. uN: unsigned N-bit integer (0..2^N-1). bool: true/false. t[N]/h[N]: text/lowercase hex, <=N bytes; ns: nanoseconds; [N] T: <=N entries of T. ? optional; ! required; |null admits null. Choices: JSON strings; A|B: alternatives; choice: described alternatives. set: setting.kind; project-policy: policy.
 
 ## file
 File read by `settings apply` and `settings propose`.
@@ -44,8 +44,8 @@ Run policy from the task's creation revision.
 - agents:bool;May the agent open sub-agents with no more tools than its own?
 - call_timeout:ns;Longest call to temper's tools.
 - tools:u64;Host families need charter/task leave. Asking (2048): see/document; with settings (1024), propose_settings too. Without asking, 1024 grants settings tools. Default 1023 excludes both.
-- hosts:choice;Which hosts may run it. `workers`: The deployment's workers alone. `engine`: The engine's own slots alone. `both`: Either.
-- spend:u64;>= (reserve_turns + 1) costliest default-model completions, else budget refusal. Runs get task funds left, capped by rules.maximum_run_spend.
+- hosts:choice;Run hosts. `workers`: Deployment workers only. `engine`: The engine's own slots alone. `both`: Either.
+- spend:u64;>= (reserve_turns + 1) costliest default-model completions, else budget refusal. Runs get task funds left, half where the task may delegate, capped by rules.maximum_run_spend.
 - wake:wake|null;Wake policy for tasks made under this charter whose batch names none. Null/absent: jig's default, all rules `"immediate"`, `results` `"last_or_failure"`, questions, answers and timers waking.
 - documents:[8] document;Brief documents; at most `tasks.charter_documents`, else `shape` refusal.
 - parts:[8] charter-part;Ordered parts by run reasons; <=tasks.charter_parts; default [].

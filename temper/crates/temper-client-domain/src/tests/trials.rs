@@ -121,9 +121,10 @@ fn trial_pages() -> [crate::Address; 3] {
 }
 fn account_session(address: crate::Address) -> (Domain, Token, Token) {
     let mut root = crate::unlinked(&f::limits(), f::SEED);
-    let (me, accounts) = f::start_accounts(&mut root, List::with_capacity(0));
+    let me = f::start(&mut root, List::with_capacity(0));
     let mut out = Queue::uncapped();
     f::confirm(&mut root, me, f::PARTY, &mut out);
+    let accounts = f::accounts_watch(&out);
     let trials = opening(&out, trials::watch(&f::limits().forge).unwrap()).expect("trial watch");
     up(&mut root, Up::Watched { watch: trials, event: c::WatchEvent::Opened });
     event(&mut root, Event::Went { place: crate::Place::Address(address) });
@@ -238,7 +239,7 @@ fn the_rows_arrive_for_the_session() {
     f::start(&mut root, List::with_capacity(0));
     let mut child = Queue::uncapped();
     trials::configure(&mut root.forge, f::limits().forge, &mut child);
-    assert!(child.is_empty(), "no trial watch before me");
+    assert!(child.is_empty(), "no trial watch while starting");
     let (mut root, watch, frame) = opened();
     let Watchable::Family { scope, record, .. } = trials::watch(&f::limits().forge).unwrap() else {
         panic!("family watch")
@@ -275,7 +276,7 @@ fn the_rows_arrive_for_the_session() {
     up(&mut root, Up::SignedOut);
     assert_eq!((root.forge().trials()).len(), 0);
     let mut out = up(&mut root, Up::SignedIn);
-    let frame = opening(&out, Watchable::Jig(c::Subject::Me)).unwrap();
+    let frame = Token::new(0);
     f::confirm(&mut root, frame, f::PARTY, &mut out);
     assert!(opening(&out, trials::watch(&f::limits().forge).unwrap()).is_some());
 }

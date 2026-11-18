@@ -1,4 +1,6 @@
 //! The standalone start, composed from the engine and worker shells (protocol/services.md, 7).
+//! Fixed starts follow temper/docs/design/protocol/setup/box.md, 5 and
+//! temper/docs/design/client/journey-clock.md, 4.1.
 use crate::{Service, path, prefixed, program_login, setup};
 use skein_io::kernel::{Exit, Fd};
 use skein_lib::{List, Secret};
@@ -17,7 +19,7 @@ pub fn prepare(
     bytes: &[u8],
     owned: &mut Vec<Fd>,
 ) -> Result<Service, String> {
-    prepare_with_store(binary, environment, working, directories, bytes, owned).map(|(service, _)| service)
+    prepare_with_store(binary, environment, working, directories, bytes, owned, false).map(|(service, _)| service)
 }
 pub fn prepare_with_store(
     binary: &str,
@@ -26,6 +28,7 @@ pub fn prepare_with_store(
     directories: &Directories,
     bytes: &[u8],
     owned: &mut Vec<Fd>,
+    sizing: bool,
 ) -> Result<(Service, Box<[u8]>), String> {
     prepare_with_limits(
         binary,
@@ -40,8 +43,9 @@ pub fn prepare_with_store(
         None,
         &service::stock::Given::Stock,
         None,
-        false,
+        sizing,
         &[],
+        None,
     )
     .map(|(service, store, _)| (service, store))
 }
@@ -65,6 +69,7 @@ fn prepare_with_limits(
     program: Option<&std::path::Path>,
     sizing: bool,
     projects: &[jig_protocol_config::Project],
+    fixed_start: Option<&skein_shell::FixedStart>,
 ) -> Result<(Service, Box<[u8]>, u32), String> {
     let shape = service::startup::shape_with(bytes, &jig_directories(directories), given)
         .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
@@ -91,12 +96,23 @@ fn prepare_with_limits(
     let copy = path(&directories.data).join("agents.setting");
     let initial = if named.worker.is_some() { agents_setting(&copy, &mut std::io::stderr()) } else { None };
     let agents = initial.clone().unwrap_or_else(service::stock::agents);
-    let mut part = service::startup::box_worker(bytes, &jig_directories(directories), given, &agents)
+    let mut part = service::startup::box_worker(bytes, &jig_directories(directories), given, &agents, environment)
         .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     let agent = part
         .as_mut()
         .map(|part| -> Result<_, String> {
             let prepared = prepare_agent(part, directories, environment)?;
+            *part = service::startup::box_worker_with_agent(
+                bytes,
+                &jig_directories(directories),
+                given,
+                &agents,
+                environment,
+                &prepared.agent.declaration(),
+            )
+            .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?
+            .expect("box worker already read");
+            box_inputs_worker(part, directories)?;
             if let Some(program) = program {
                 part.named.program = program.as_os_str().as_encoded_bytes().into();
                 part.worker.jig.agent.as_mut().expect("derived agent").program.clone_from(&part.named.program);
@@ -128,7 +144,10 @@ fn prepare_with_limits(
         None
     };
     let accounts = engine::accounts(&engine)?;
-    let seeds = engine::seeds(link_secret, local_secret)?;
+    let seeds = match fixed_start {
+        Some(start) => engine::seeds_from(start, link_secret, local_secret),
+        None => engine::seeds(link_secret, local_secret)?,
+    };
     let git = temper_shell::lookup::find(environment, b"git");
     let mut start = service::startup::checked_start_with_worker(
         bytes,
@@ -213,7 +232,7 @@ pub(crate) fn configured_agent(
         .unwrap_or_else(service::stock::agents);
     let given =
         crate::scripted::given(directories, &service::stock::Given::Stock, crate::scripted::address(environment)?);
-    let mut part = service::startup::box_worker(bytes, &jig_directories(directories), &given, &initial)
+    let mut part = service::startup::box_worker(bytes, &jig_directories(directories), &given, &initial, environment)
         .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     part.as_mut().map(|part| prepare_agent(part, directories, environment)).transpose()
 }
@@ -313,7 +332,7 @@ pub fn operations_in(
     directories: &Directories,
     config: &[u8],
 ) -> Result<u32, String> {
-    operations_in_mode(binary, environment, working, directories, config, false)
+    operations_in_with(binary, environment, working, directories, config, &service::stock::Given::Stock)
 }
 /// The same for a boxed start.
 pub fn boxed_operations_in(
@@ -323,37 +342,7 @@ pub fn boxed_operations_in(
     directories: &Directories,
     config: &[u8],
 ) -> Result<u32, String> {
-    operations_in_mode(binary, environment, working, directories, config, true)
-}
-fn operations_in_mode(
-    binary: &str,
-    environment: &[EnvironmentEntry],
-    working: &[u8],
-    directories: &Directories,
-    config: &[u8],
-    boxed: bool,
-) -> Result<u32, String> {
-    directories.open(skein_shell::effective_user())?;
-    let mut owned = Vec::new();
-    let result = prepare_with_limits(
-        binary,
-        environment,
-        working,
-        directories,
-        config,
-        &mut owned,
-        boxed,
-        false,
-        None,
-        None,
-        &service::stock::Given::Stock,
-        None,
-        true,
-        &[],
-    )
-    .map(|(service, _, _)| service.operations());
-    close(owned);
-    result.map_err(|why| prefixed(&format!("{binary} serve"), &why))
+    operations_in_with(binary, environment, working, directories, config, &service::stock::Given::Stock)
 }
 pub fn prepare_in(
     binary: &str,
@@ -427,6 +416,7 @@ pub fn prepare_in_with_inputs(
         program,
         false,
         projects,
+        None,
     )
     .map(|(service, _, _)| service);
     if result.is_err() {
@@ -437,33 +427,14 @@ pub fn prepare_in_with_inputs(
 /// The same for an in-process world's service, with the supplied defaults.
 pub fn operations_in_with(
     binary: &str,
-    environment: &[EnvironmentEntry],
-    working: &[u8],
+    _environment: &[EnvironmentEntry],
+    _working: &[u8],
     directories: &Directories,
     config: &[u8],
     given: &service::stock::Given,
 ) -> Result<u32, String> {
-    directories.open(skein_shell::effective_user())?;
-    let mut owned = Vec::new();
-    let result = prepare_with_limits(
-        binary,
-        environment,
-        working,
-        directories,
-        config,
-        &mut owned,
-        false,
-        false,
-        None,
-        None,
-        given,
-        None,
-        true,
-        &[],
-    )
-    .map(|(service, _, _)| service.operations());
-    close(owned);
-    result.map_err(|why| prefixed(&format!("{binary} serve"), &why))
+    service::startup::operations_with(config, &jig_directories(directories), given)
+        .map_err(|why| prefixed(&format!("{binary} serve"), &String::from_utf8_lossy(&service::startup::lines(&why))))
 }
 pub fn run(
     binary: &str,
@@ -472,12 +443,14 @@ pub fn run(
     directories: &Directories,
     boxed: bool,
     record: bool,
+    fixed_start: Option<&skein_shell::FixedStart>,
 ) -> Result<Exit, String> {
     temper_service_shell::run(
         binary,
         directories,
         environment,
         crate::served::SERVED,
+        &fixed_start.map_or_else(skein_shell::Clock::new, skein_shell::Clock::fixed),
         |listeners| box_inputs(boxed, listeners),
         |bytes, owned, input| {
             prepare_with_limits(
@@ -495,6 +468,7 @@ pub fn run(
                 None,
                 false,
                 &[],
+                fixed_start,
             )
             .map(|(service, store, line_bytes)| temper_service_shell::Prepared {
                 service,

@@ -148,13 +148,21 @@ fn a_contract_init_may_omit_structured_output() {
 #[test]
 fn structured_output_without_a_contract_fails_init() {
     let (_, mut up) = init_contract(&["StructuredOutput"], false, false);
-    failed(up.pop(), b"smith: the program offers a built-in tool the run did not grant: StructuredOutput");
+    failed(
+        up.pop(),
+        llm::Failure::Program { exit: None },
+        b"smith: the program offers a built-in tool the run did not grant: StructuredOutput",
+    );
 }
 
 #[test]
 fn a_contract_init_refuses_duplicate_structured_output() {
     let (_, mut up) = init_contract(&["StructuredOutput", "StructuredOutput"], false, true);
-    failed(up.pop(), b"smith: the program offers a built-in tool the run did not grant: StructuredOutput");
+    failed(
+        up.pop(),
+        llm::Failure::Program { exit: None },
+        b"smith: the program offers a built-in tool the run did not grant: StructuredOutput",
+    );
 }
 
 const STRUCTURED_CALL: &[u8] = br#"{"type":"assistant","message":{"id":"structured","content":[{"type":"tool_use","id":"s","name":"StructuredOutput","input":{"outcome":{"form":"report","text":"draft","fields":{}}}}],"usage":{"input_tokens":13,"output_tokens":7}}}"#;
@@ -308,13 +316,17 @@ fn repeated_structured_output(framed: bool, split: bool) -> (Backend, Queue<ToDo
 #[test]
 fn an_init_with_an_ungranted_built_in_fails() {
     let (_, mut up) = init(&["mcp__smith__permission_prompt", "Read"], false);
-    failed(up.pop(), b"smith: the program offers a built-in tool the run did not grant: Read");
+    failed(
+        up.pop(),
+        llm::Failure::Program { exit: None },
+        b"smith: the program offers a built-in tool the run did not grant: Read",
+    );
 }
 
 #[test]
 fn an_init_without_a_granted_built_in_fails() {
     let (_, mut up) = init(&["mcp__smith__permission_prompt", "Read", "Glob"], true);
-    failed(up.pop(), b"smith: the program lacks a granted built-in tool: Grep");
+    failed(up.pop(), llm::Failure::Program { exit: None }, b"smith: the program lacks a granted built-in tool: Grep");
     let (backend, up) = init(&["mcp__smith__permission_prompt", "Read", "Glob", "Grep"], true);
     assert!(up.is_empty());
     assert_eq!(backend.startup.phase(), State::Running);
@@ -376,7 +388,7 @@ fn an_init_listing_a_served_sub_agent_is_admitted() {
             assert!(up.is_empty());
             assert_eq!(backend.startup.phase(), State::Running);
         } else {
-            failed(up.pop(), b"smith: the program started without smith's tools");
+            failed(up.pop(), llm::Failure::Untooled, b"smith: the program started without smith's tools");
             assert_eq!(backend.startup.phase(), State::Ending);
         }
     }
@@ -524,7 +536,11 @@ fn a_host_schema_refusal_names_the_tool_at_startup() {
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
     backend.prepare_invocation(&env(0), &mut up, &mut below);
-    failed(up.pop(), b"smith: MCP tool input schema is not an object: host_action");
+    failed(
+        up.pop(),
+        llm::Failure::Program { exit: None },
+        b"smith: MCP tool input schema is not an object: host_action",
+    );
     assert!(backend.startup.server().is_none());
     for request in &below {
         if let Below::Io(io::Request::Listen { .. }) = request {
@@ -572,9 +588,9 @@ fn result_id(event: Option<ToDomain>, expected: Token, expected_id: &[u8]) {
     assert_eq!(id.as_ref(), expected_id);
 }
 
-fn failed(event: Option<ToDomain>, words: &[u8]) {
+fn failed(event: Option<ToDomain>, expected: llm::Failure, words: &[u8]) {
     let Some(ToDomain::Failed { failure, detail, .. }) = event else { panic!("failure") };
-    assert_eq!(failure, llm::Failure::Program { exit: None });
+    assert_eq!(failure, expected);
     assert_eq!(detail.as_ref(), words);
 }
 
@@ -699,7 +715,11 @@ fn a_host_combinator_is_named_before_listening() {
         let mut up = Queue::with_capacity(32);
         let mut below = Queue::with_capacity(64);
         backend.prepare_invocation(&env(0), &mut up, &mut below);
-        failed(up.pop(), b"smith: MCP tool input schema is not an object: host_action");
+        failed(
+            up.pop(),
+            llm::Failure::Program { exit: None },
+            b"smith: MCP tool input schema is not an object: host_action",
+        );
         assert!(backend.startup.server().is_none());
     }
 }

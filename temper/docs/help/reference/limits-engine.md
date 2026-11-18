@@ -122,7 +122,7 @@ temper sizes the engine's watch rooms itself: a stream holds 31 watches, and the
 - `fleet.workers`: count, 8. Bounds workers in contact at once.
 - `fleet.needs_bytes`: bytes, 262,144. Bounds owned charter/model requirements retained for admission and placement.
 - `fleet.engine_slots`: count, 0. Bounds slots hosted inside the engine.
-- `fleet.slots`: count, 40. Bounds runs a worker hosts at once.
+- `fleet.slots`: count, 32. Bounds runs a worker hosts at once.
 - `fleet.workstreams`: count, 64. Bounds the workstreams kept per worker, for placement to prefer.
 - `fleet.attempts`: count, 64. Bounds the parent's attempts awaiting placement, acknowledgement or adoption, including replaced attempts.
 - `fleet.grants`: count, 32. Bounds credential names held by each attempt, across both protocol tables.
@@ -200,7 +200,7 @@ temper sizes the engine's watch rooms itself: a stream holds 31 watches, and the
 
 - `hub.program_sources`: count, 12. Bounds local program sources.
 - `hub.slots`: count, 80. Bounds runs and jobs hosted at once: the shared slots.
-- `hub.accounts`: count, 32. Bounds distinct grants retained for a hosted attempt.
+- `hub.accounts`: count, 4. Bounds distinct grants retained for a hosted attempt.
 - `hub.charter_bytes`: bytes, 262,144. Bounds bytes of a charter.
 - `hub.transcript_bytes`: bytes, 73,727,378. Bounds opaque transcript bytes, including the committed call tail.
 - `hub.delivery_evidence_bytes`: bytes, 4,096. Bounds opaque evidence bytes in one settled delivery call.
@@ -210,7 +210,7 @@ temper sizes the engine's watch rooms itself: a stream holds 31 watches, and the
 - `hub.held`: count, 8. Bounds inbound events a run holds until it is live.
 - `hub.inbox`: count, 82. Bounds messages a run starts with and refusals a turn or answer carries.
 - `hub.event_bytes`: bytes, 63,738. Bounds bytes of an inbound event.
-- `hub.run_calls`: count, 8. Bounds host calls a run has in flight at once, including delivery.
+- `hub.run_calls`: count, 48. Bounds host calls a run has in flight at once, including delivery.
 - `hub.facts`: count, 256. Bounds facts kept until the parent drains them.
 - `hub.told`: count, 256. Bounds activity and live pieces kept for the core while the link cannot take it.
 - `hub.turns`: count, 8. Bounds retained turns per attempt, with an additional window reserved for stopping.
@@ -289,6 +289,8 @@ temper sizes the engine's watch rooms itself: a stream holds 31 watches, and the
 - `clients.exchanges`: count, 68. Bounds client exchanges admitted at once.
 - `clients.queued_bytes`: bytes, 520,094,521. Bounds encoded records held by one client stream, including its in-flight record.
 - `clients.exchanges_per_client`: count, 2. Bounds exchanges in flight per sign-in, shared by its clients.
+- `clients.reads_per_client`: count, 32. Bounds reads in flight per sign-in, alone or in a batch.
+- `clients.openings_per_client`: count, 31. Bounds watch openings in flight per sign-in, alone or in a batch.
 - `clients.provider_codes`: count, 256. Bounds volatile authorization codes.
 - `clients.provider_tokens`: count, 1,024. Bounds volatile provider access tokens.
 - `clients.public.reads`: count, 0. Bounds public reads admitted at once; zero turns public reading off.

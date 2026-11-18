@@ -147,22 +147,63 @@ fn the_standalone_operations_check_retains_no_descriptors() {
     ] {
         write(name, bytes);
     }
+    let listener = crate::scripted::choose().expect("scripted listener");
+    let environment = [(
+        Box::from(crate::scripted::ADDRESS),
+        listener.local_addr().expect("scripted address").to_string().into_bytes().into_boxed_slice(),
+    )];
     let (agent, document) = configuration::documents(&directory, "/fixture/temper");
+    let named_file = directory.join("worker.secret");
     write("temper.json", &document);
-    temper_fixtures::agent::install(&directory, &serde_json::from_slice(&agent).expect("agent JSON"));
+    temper_agent_fixtures::install(&directory, &serde_json::from_slice(&agent).expect("agent JSON"));
     let mut document: serde_json::Value =
         serde_json::from_slice(&fs::read(directory.join("temper.json")).expect("installed document")).expect("JSON");
-    let composed = temper_fixtures::agent::at(&document, &directory);
+    let composed = temper_agent_fixtures::at(&document, &directory);
     configuration::support::turn_bounds::apply(
         &mut document,
         configuration::support::turn_bounds::turn_body(&composed),
     );
     let document = serde_json::to_vec(&document).expect("deployment JSON");
     assert_eq!(configuration::flags(&directory).len(), 6);
-    let operations = super::operations_in(&[], b"/", &configuration::directories(&directory), &document)
+    let operations = super::operations_in(&environment, b"/", &configuration::directories(&directory), &document)
         .expect("standalone operations");
     assert_no_descriptors_in(&directory);
     assert!(operations > 0);
+    assert!(!directory.join("workspaces").exists(), "counting credit must not pin the agent or open roots");
+    let mut owned = Vec::new();
+    let (service, _) =
+        super::prepare_with_store(&environment, b"/", &configuration::directories(&directory), &document, &mut owned)
+            .expect("same standalone preparation");
+    assert_eq!(operations, service.operations());
+    drop(service);
+    super::close(owned);
+    assert_no_descriptors_in(&directory);
+    let binary = std::env::current_exe().expect("current binary");
+    assert_eq!(
+        fs::metadata(directory.join("workspaces/agent").join(binary.file_name().expect("binary name")))
+            .expect("pinned program")
+            .len(),
+        fs::metadata(&binary).expect("running program").len()
+    );
+    let prepared = super::serve::configured_agent(&document, &configuration::directories(&directory), &environment)
+        .expect("derived agent")
+        .expect("local agent");
+    assert_eq!(
+        fs::read(directory.join("workspaces/agent/agent.json")).expect("pinned configuration"),
+        prepared.bytes.as_ref()
+    );
+    fs::remove_file(&named_file).expect("remove named file");
+    assert_eq!(
+        super::operations_in(&environment, b"/", &configuration::directories(&directory), &document)
+            .expect("count without named file"),
+        operations
+    );
+    write("temper.json", &document);
+    let why = super::prepare_in(&environment, b"/", &configuration::directories(&directory))
+        .err()
+        .expect("missing file refused");
+    assert!(why.starts_with("temper serve: "), "{why}");
+    assert!(why.contains(named_file.to_str().expect("named path")), "{why}");
     fs::remove_dir_all(directory).expect("remove operations scratch");
 }
 fn assert_no_descriptors_in(directory: &std::path::Path) {
@@ -288,7 +329,9 @@ fn configure_program_login(arguments: &[&str]) -> Result<super::Command, String>
 
 #[test]
 fn forge_commands_refuse_the_recorded_fake_kind_for_owned_operations() {
+    use std::os::unix::fs::PermissionsExt;
     let scratch = skein_scratch::Scratch::new("forge-not-owned");
+    std::fs::set_permissions(scratch.path(), std::fs::Permissions::from_mode(0o700)).expect("private deployment root");
     let document = configuration::check_document(scratch.path());
     std::fs::write(scratch.path().join("temper.json"), serde_json::to_vec(&document).expect("JSON")).expect("document");
     std::fs::create_dir_all(scratch.path().join("box/groups")).expect("groups");
@@ -329,6 +372,7 @@ fn serve_prepares_a_worker_alone_without_a_deployment_or_setup_host() {
         &serde_json::to_vec(&input).expect("worker document"),
         &temper_service_shell::jig_directories(&directories),
         None,
+        &[],
     )
     .expect("worker-alone preflight");
     assert_eq!(part.files.len(), 1, "only its link secret is read before figures");

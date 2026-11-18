@@ -2,8 +2,9 @@
 use super::{Called, Out, Runner, acts, reads};
 use crate::jig::{
     Limits,
-    call::{Call, Value, number, value},
+    call::{Call, Value, Values, number, value},
 };
+use alloc::boxed::Box;
 use jig_client::{Client, contract as c};
 use skein_lib::{Env, Queue};
 
@@ -120,6 +121,10 @@ fn change(
             context.sign_in |= source.kind == c::AccountKind::SignIn;
         }
     }
+    if call.tool == crate::jig::rows::USES_AT {
+        let change = c::AccountChange::SetUses { account, uses: uses(call) };
+        return Ok(acts::Request::Ask(c::Ask::AccountChange { holder, change }));
+    }
     let source_slot = if call.tool == 29 { 2 } else { 1 };
     let selected = if call.tool == 27 {
         Some(1)
@@ -162,6 +167,29 @@ fn change(
     };
     let ask = c::Ask::AccountChange { holder, change };
     if call.tool == 28 && !cut { Ok(acts::Request::Account { ask, context }) } else { Ok(acts::Request::Ask(ask)) }
+}
+fn uses(call: &Call) -> Option<Box<[c::AccountUse]>> {
+    if call.form == 1 {
+        return None;
+    }
+    let mut uses = skein_lib::List::with_capacity(crate::jig::rows::ACCOUNT_USES);
+    for (slot, values) in call.values.iter().enumerate().skip(1) {
+        match values {
+            Some(Values::Many(values)) => {
+                for value in values {
+                    let Value::Number(number) = value else { unreachable!("parsed use number") };
+                    let payer = if slot == 1 {
+                        c::AccountUse::Party(*number)
+                    } else {
+                        c::AccountUse::Project(u32::try_from(*number).expect("checked project number"))
+                    };
+                    uses.push(payer).expect("admitted account uses");
+                }
+            }
+            None | Some(Values::One(_)) => {}
+        }
+    }
+    Some(uses.into_boxed())
 }
 fn join(call: &Call) -> Option<u32> {
     Some(u32::try_from(number(call, 2)?).expect("checked number"))

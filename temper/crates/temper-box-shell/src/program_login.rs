@@ -5,17 +5,21 @@ pub(crate) fn command(
     name: &std::ffi::OsStr,
     environment: impl IntoIterator<Item = (std::ffi::OsString, std::ffi::OsString)>,
 ) -> Result<std::process::Command, String> {
+    use std::os::unix::ffi::OsStrExt;
+    let environment: Vec<_> = environment.into_iter().collect();
+    let own: Vec<super::EnvironmentEntry> =
+        environment.iter().map(|(name, value)| (name.as_bytes().into(), value.as_bytes().into())).collect();
     let bytes = directories.read()?;
     let mut part = temper_service::startup::box_worker(
         &bytes,
         &temper_service_shell::jig_directories(directories),
         &temper_service::stock::Given::Stock,
         &temper_service::stock::agents(),
+        &own,
     )
     .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())?
     .ok_or("workers: standalone takes one worker")?;
     if let Some(claude) = crate::fake_backends::configured_claude(directories)? {
-        use std::os::unix::ffi::OsStrExt;
         part.claude = Some(claude.as_os_str().as_bytes().into());
     }
     let executable = std::env::current_exe().map_err(|why| why.to_string())?;
@@ -23,7 +27,7 @@ pub(crate) fn command(
         &part,
         directories,
         name.to_str().ok_or("source name must be ASCII")?,
-        environment.into_iter().collect(),
+        environment,
         &executable,
     )
 }

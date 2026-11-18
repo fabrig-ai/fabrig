@@ -5,7 +5,7 @@
 extern crate alloc;
 
 #[rustfmt::skip]
-#[path = "generated/v1.rs"]
+#[path = "generated/client_wire.rs"]
 #[expect(clippy::similar_names, reason = "the schema names the approval fields rule and role")]
 pub mod v1;
 
@@ -36,7 +36,7 @@ pub const fn settings_kind(kind: u32) -> bool {
 #[rustfmt::skip]
 pub mod public_v1 {
     pub use crate::{PUBLIC_CHANGE, PUBLIC_LANDING, PUBLIC_LANDINGS, PUBLIC_VERSION};
-    include!("generated/public_v1.rs");
+    include!("generated/public.rs");
 }
 
 pub mod source;
@@ -45,7 +45,7 @@ mod public;
 pub use public::{public_bounds, public_limits};
 
 /// The visitor records' version (temper/docs/design/client/forge/README.md, 9.4).
-pub const PUBLIC_VERSION: u16 = 3;
+pub const PUBLIC_VERSION: u16 = public_v1::VERSION;
 /// A public change (temper/docs/design/client/forge/README.md, 9.1).
 pub const PUBLIC_CHANGE: u16 = 1;
 /// A project's public landings (temper/docs/design/client/forge/README.md, 9.1).
@@ -100,7 +100,10 @@ pub const fn owner(number: u16) -> Option<Owner> {
     }
 }
 /// Every record's version, served by both ends (client/forge/records.md).
-pub const CLIENT_VERSION: u32 = 34;
+pub const CLIENT_VERSION: u32 = {
+    let [high, low] = v1::VERSION.to_be_bytes();
+    u32::from_be_bytes([0, 0, high, low])
+};
 
 /// The deployment's maximum number of forges (client/forge/records.md).
 pub const FORGES: u32 = 16;

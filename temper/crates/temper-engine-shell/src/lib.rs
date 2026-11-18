@@ -14,10 +14,13 @@ pub mod served;
 pub use binary::{main, versions};
 pub use commands::ENGINE;
 
+pub mod checkpoint;
 pub mod forge;
 pub mod forge_sign_in;
+pub mod restore;
 pub mod serve;
 pub mod setup;
+pub mod stopped;
 pub mod upgrade;
 const CONFIG_BYTES: u32 = 1 << 20;
 

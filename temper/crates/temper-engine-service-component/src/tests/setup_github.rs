@@ -51,6 +51,7 @@ fn owner_service() -> Box<crate::Service> {
     load_routing(&mut service);
     restore_local(&mut service);
     service.engine.as_mut().unwrap().step(root::Event::Party(root::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: REPLY,
         identity: people::Identity {

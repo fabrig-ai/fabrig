@@ -53,6 +53,7 @@ pub const fn failure(value: &smith::RunFailure) -> host::RunFailure {
         smith::RunFailure::Model(smith::ModelFault::Refused { account, code: _ }) => {
             host::RunFailure::Refused { account: *account }
         }
+        smith::RunFailure::Model(smith::ModelFault::Untooled { .. }) => host::RunFailure::Untooled,
         smith::RunFailure::Transcript(_) => host::RunFailure::Transcript,
         smith::RunFailure::Model(
             smith::ModelFault::Completion { .. }

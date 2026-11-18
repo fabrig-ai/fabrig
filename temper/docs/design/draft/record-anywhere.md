@@ -8,14 +8,14 @@ to not enable that on any deployment (I need it for dev.fabrig.ai for
 example)", and "we should add a command line flag that enables that
 automatically without the url trick". A recording made on a deployment
 that lives on holds a working sign-in until `add` redacts it
-(`../client/web/journeys.md`, 3.6). The user chose that the recorder
+(`../client/web/journey-redaction.md`). The user chose that the recorder
 leave it out when it saves: "Let's go for the version that strips the
 sign-in secret, that's enough." What agents wrote may stay in a
 recording: "it's okay if the recording contains agents text." The user
 asked for it to be built (2026-11-12).
 
 It changes `../client/web/README.md`, 2.1 and 2.2;
-`../client/web/journeys.md`, 3.1, 3.5 and 3.6; `../protocol/sign-in.md`,
+`../client/web/journeys.md`, 3.1 and 3.5 and `../client/web/journey-redaction.md`; `../protocol/sign-in.md`,
 7; `../protocol/binaries.md`'s commands; and `cli.md`, 6.
 
 ## 1. In one page

@@ -37,7 +37,7 @@ pub(crate) fn documents(directory: &Path, bundle: &Path) -> (Box<[u8]>, Box<[u8]
     for name in ["views.watchers", "views.watchers_per_party"] {
         value["engine"]["limits"]["overrides"].as_object_mut().expect("engine overrides").remove(name);
     }
-    for member in ["charters", "templates", "policies", "rules"] {
+    for member in ["charters", "templates", "policies", "rules", "projects"] {
         value["engine"].as_object_mut().expect("engine object").remove(member);
     }
     value["world_providers"] =
@@ -70,16 +70,9 @@ pub(crate) fn documents(directory: &Path, bundle: &Path) -> (Box<[u8]>, Box<[u8]
     value["workers"][0]["name"] = "local".into();
     value["engine"]["limits"]["overrides"]["tasks.inbox_bytes"] = 4096.into();
     value["engine"]["limits"]["overrides"]["tasks.run_inbox"] = 8.into();
-    value["workers"][0]["limits"]["overrides"]["tasks.run_inbox"] = 8.into();
-    value["workers"][0]["limits"]["overrides"]["hub.inbox"] = 8.into();
-    value["workers"][0]["limits"]["overrides"]["hub.held"] = 8.into();
+    value["engine"]["limits"]["overrides"]["hub.inbox"] = 8.into();
+    value["engine"]["limits"]["overrides"]["hub.held"] = 8.into();
     value["engine"]["limits"].as_object_mut().expect("engine limits").remove("profile");
-    value["workers"][0]["limits"].as_object_mut().expect("worker limits").remove("profile");
-    value["workers"][0]["limits"]["overrides"]
-        .as_object_mut()
-        .expect("worker overrides")
-        .entry("tasks.result_bytes")
-        .or_insert(512.into());
     for worker in value["workers"].as_array_mut().expect("workers") {
         let worker = worker.as_object_mut().expect("worker");
         worker.remove("graces");
@@ -91,9 +84,10 @@ pub(crate) fn documents(directory: &Path, bundle: &Path) -> (Box<[u8]>, Box<[u8]
     value["engine"]["limits"]["overrides"]["hub.accounts"] = 4.into();
     value["engine"]["limits"]["overrides"]["hub.event_bytes"] = 2046.into();
     value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);
-    temper_fixtures::providers::input(&mut value)["endpoints"][0]["dialect"] = 3.into();
-    temper_fixtures::providers::input(&mut value)["endpoints"][0]["number"] = 1.into();
-    temper_fixtures::providers::input(&mut value)["endpoints"][0]["address"] = serde_json::json!({"socket":UNREACHED});
+    temper_agent_fixtures::providers::input(&mut value)["endpoints"][0]["dialect"] = 3.into();
+    temper_agent_fixtures::providers::input(&mut value)["endpoints"][0]["number"] = 1.into();
+    temper_agent_fixtures::providers::input(&mut value)["endpoints"][0]["address"] =
+        serde_json::json!({"socket":UNREACHED});
     value["engine"]["limits"]["overrides"]["core.load_slots"] = 8.into();
     value["engine"]["limits"]["overrides"]["documents.rows"] = 2.into();
     // The creation offer carries nine stock charters and four procedures.
@@ -141,14 +135,14 @@ pub(crate) fn private(path: &Path, bytes: &[u8]) {
         && let Ok(mut document) = serde_json::from_slice::<serde_json::Value>(bytes)
         && document.get("world_providers").is_some()
     {
-        temper_fixtures::providers::keep(&mut document, path.parent().expect("fixture root"));
+        temper_agent_fixtures::providers::keep(&mut document, path.parent().expect("fixture root"));
         rendered = Some(serde_json::to_vec(&document).expect("deployment JSON"));
     }
     fs::write(path, rendered.as_deref().unwrap_or(bytes)).expect("fixture file");
     fs::set_permissions(path, fs::Permissions::from_mode(0o600)).expect("private fixture");
 }
 
-/// The deployment's files and its two documents, `agent.json` and `temper.json`, in `directory`.
+/// The deployment and its prospective agents setting, applied by ctl before the ordinary stories.
 pub(crate) fn write(directory: &Path, bundle: &Path) {
     assert!(Path::new("/usr/bin/git").is_file(), "/usr/bin/git is required");
     for name in ["", "accounts", "secrets", "state"] {
@@ -168,8 +162,39 @@ pub(crate) fn write(directory: &Path, bundle: &Path) {
     private(&directory.join("root.der"), skein_tls_kit::pki::ROOT);
     let (agent, value) = documents(directory, bundle);
     let mut value = serde_json::from_slice(&value).expect("deployment JSON");
-    temper_fixtures::agent::apply(&mut value, directory, &serde_json::from_slice(&agent).expect("agent JSON"));
+    let agent = serde_json::from_slice(&agent).expect("agent JSON");
+    temper_agent_fixtures::apply(&mut value, directory, &agent);
+    private(
+        &directory.join("browser-agents.json"),
+        &serde_json::to_vec(&agent_settings(&agent)).expect("agents setting JSON"),
+    );
     private(&directory.join("temper.json"), &serde_json::to_vec(&value).expect("deployment JSON"));
+}
+
+/// Persist the prospective startup figures through the owner's settings decision as well
+/// (temper/docs/design/draft/config.md, 6.3; protocol/configuration/settings.md, 2, kind 21).
+fn agent_settings(agent: &serde_json::Value) -> serde_json::Value {
+    let mut profile = serde_json::Map::new();
+    for group in ["declared", "policy"] {
+        for (name, value) in agent["profile"][group].as_object().expect("agent profile group") {
+            profile.insert(format!("{group}.{name}"), value.clone());
+        }
+    }
+    let mut endpoints = serde_json::Map::new();
+    for endpoint in agent["endpoints"].as_array().expect("agent endpoints") {
+        let mut limits = endpoint["limits"].clone();
+        let object = limits.as_object_mut().expect("agent endpoint limits");
+        for (from, to) in [("head", "head_ms"), ("idle", "idle_ms")] {
+            let value = object.remove(from).expect("agent endpoint time");
+            object.insert(to.into(), value);
+        }
+        object.insert("oversized".into(), "fail".into());
+        endpoints.insert(endpoint["name"].as_str().expect("endpoint name").into(), limits);
+    }
+    let fallback = endpoints.values().next().expect("one endpoint").clone();
+    serde_json::json!({"items":[{"setting":{"kind":"agents"},"set":{
+        "profile":profile,"endpoints":endpoints,"fallback":fallback
+    }}]})
 }
 
 /// The three directories share the scratch root, as the process tier's flags do.
@@ -303,14 +328,14 @@ pub(crate) fn stock_engine(value: &serde_json::Value) -> jig_protocol_config::En
     )
     .expect("engine document");
     let mut value = value.clone();
-    let given = temper_fixtures::providers::given(&mut value, Path::new("/fixture"), None);
+    let given = temper_agent_fixtures::providers::given(&mut value, Path::new("/fixture"), None);
     temper_engine_service::startup::engine_with(&document, 0, &jig_protocol_config::Directories::working(), &given)
         .expect("stock engine")
 }
 
 #[cfg(test)]
 pub(crate) fn shape(mut value: serde_json::Value) -> temper_service_core::startup::Shape {
-    let given = temper_fixtures::providers::given(&mut value, Path::new("/fixture"), None);
+    let given = temper_agent_fixtures::providers::given(&mut value, Path::new("/fixture"), None);
     temper_service::startup::shape_with(
         &serde_json::to_vec(&value).expect("deployment JSON"),
         &jig_protocol_config::Directories::working(),

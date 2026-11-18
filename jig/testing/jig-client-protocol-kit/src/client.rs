@@ -140,6 +140,8 @@ impl Front {
         while let Some(event) = self.up.pop() {
             self.event(now, event);
         }
+        self.client.settle(now, fixtures::wall(now), &mut self.out);
+        let active = active || !self.out.is_empty();
         while let Some(request) = self.out.pop() {
             self.request(now, request);
         }
@@ -154,7 +156,8 @@ impl Front {
     }
     fn request(&mut self, now: Time, request: client::Request) {
         match request {
-            client::Request::Approval(_)
+            client::Request::AskedLink(_)
+            | client::Request::Approval(_)
             | client::Request::Authorized(_)
             | client::Request::ServiceCredential { .. } => {}
             client::Request::Told { told } => {
@@ -209,8 +212,12 @@ impl Front {
                     &mut self.below,
                 );
             }
-            client::Request::OpenStream { credential } => {
-                self.connections.down(now, client::Request::OpenStream { credential }, &mut self.below);
+            client::Request::OpenStream { credential, version, replaces } => {
+                self.connections.down(
+                    now,
+                    client::Request::OpenStream { credential, version, replaces },
+                    &mut self.below,
+                );
             }
             client::Request::CloseStream => {
                 self.connections.down(now, client::Request::CloseStream, &mut self.below);

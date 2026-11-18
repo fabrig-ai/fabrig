@@ -327,7 +327,7 @@ fn add_answer(outcome: &jig_client::Outcome, limits: forge::Limits) -> Result<()
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Needs {
     Unknown,
-    /// The project's cards of the needs' groups; `cut` where the read was cut.
+    /// Every open needs row, with approvals and findings; `cut` where the count is incomplete.
     Count {
         count: u32,
         cut: bool,
@@ -535,14 +535,7 @@ pub fn facts(root: &dyn Root, project: u32, wall: Wall) -> Facts {
     }
     let needs = match root.pages().inbox() {
         Some(inbox) if inbox.filter.project == Some(project) && inbox.known() => {
-            let open = root.pages().needs().all(inbox, root.forge().approvals());
-            Needs::Count {
-                count: u32::try_from(open.len()).expect("inbox cards fit"),
-                cut: *inbox.cut.first().expect("needs cut")
-                    || root.forge().approvals().more() > 0
-                    || root.pages().needs().findings().cut_for(inbox.filter),
-                findings: super::findings::counted(root.pages().needs().findings(), &open),
-            }
+            root.pages().needs().counted(inbox, root.forge().approvals())
         }
         Some(_) | None => Needs::Unknown,
     };

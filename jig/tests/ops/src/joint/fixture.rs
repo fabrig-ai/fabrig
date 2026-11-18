@@ -199,6 +199,9 @@ impl jig_client_kit::harness::App for Client {
     fn fire(root: &mut Self::Root, env: &skein_lib::Env<Self::Limits>, out: &mut skein_lib::Queue<Self::Request>) {
         Ops::fire(root, env, out);
     }
+    fn settle(root: &mut Self::Root, env: &skein_lib::Env<Self::Limits>, out: &mut skein_lib::Queue<Self::Request>) {
+        Ops::settle(root, env, out);
+    }
     fn take(root: &mut Self::Root, env: &skein_lib::Env<Self::Limits>, out: &mut skein_lib::Queue<Self::Request>) {
         Ops::take(root, env, out);
     }

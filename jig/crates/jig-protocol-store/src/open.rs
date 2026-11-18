@@ -12,6 +12,9 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
         return;
     }
     crate::rehearsal::announce(store, above);
+    if crate::rehearsal::end_openings(store, above) {
+        return;
+    }
     if let Err(why) = crate::jobs::admission::check(&store.owner_sets) {
         return refuse(store, owner, OpenRefusal::Set { owner: why }, above);
     }
@@ -55,6 +58,9 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
     };
     let binary = admission::binary(&store.owner_sets);
     let Some(found) = decode(store, owner, &found, binary.jig, above) else { return };
+    if !crate::restoring::deployment(store, found.deployment) {
+        return refuse(store, owner, OpenRefusal::Deployment, above);
+    }
     let found_levels = found.levels;
     let compared = format::compare(found_levels, binary);
     if let Err(why) = &compared

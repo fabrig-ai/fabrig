@@ -183,6 +183,7 @@ impl Operation {
                         c::AccountChange::MoveIn { .. } => b"import",
                         c::AccountChange::DeclareProgram { .. } => b"declare".as_slice(),
                         c::AccountChange::CheckProgram { .. } => b"verify",
+                        c::AccountChange::SetUses { .. } => b"uses",
                         c::AccountChange::AddKey { .. } => b"add-key".as_slice(),
                         c::AccountChange::ReplaceKey { .. } => b"replace-key",
                         c::AccountChange::Resume { .. } => b"retry",
@@ -191,7 +192,6 @@ impl Operation {
                         c::AccountChange::LoginProgram { .. }
                         | c::AccountChange::CancelLogin { .. }
                         | c::AccountChange::LoginEnded { .. }
-                        | c::AccountChange::SetUses { .. }
                         | c::AccountChange::FinishSignIn { .. } => b"account-change",
                     },
                     None,
@@ -833,10 +833,25 @@ pub fn newline(bytes: &[u8]) -> Box<[u8]> {
     out.put(b"\n").expect("measured newline");
     out.finish()
 }
-pub(crate) fn retry(call: &crate::jig::call::Call) -> Box<[u8]> {
+pub(crate) fn retry(call: &crate::jig::call::Call, json: bool) -> Box<[u8]> {
     use crate::jig::argv;
     let tool = act_tool(call.tool);
     let mut call = call.clone();
+    // JSON's embedded retry command keeps its spend-unit figures.
+    if json {
+        use crate::jig::{
+            call::{Value, Values},
+            table::Kind,
+        };
+        let form = tool.forms.get(usize::from(call.form)).expect("parsed form");
+        for (argument, slot) in form.iter().zip(&mut call.values) {
+            if argument.kind == Kind::Amount
+                && let Some(Values::One(Value::Number(value))) = slot
+            {
+                *slot = Some(Values::One(Value::Text(Box::from(skein_lib::Decimal::of(*value).as_bytes()))));
+            }
+        }
+    }
     call.tool = 0;
     let mut words = skein_lib::List::with_capacity(128);
     argv::back(&[tool], &call, &mut words).expect("parsed act");
@@ -867,9 +882,12 @@ pub(crate) fn act_tool(tool: u8) -> &'static crate::jig::table::Tool {
         rows::LIFT_AT => &rows::LIFT,
         rows::STOP_AT => &rows::STOP,
         rows::CANCEL_AT => &rows::CANCEL,
-        rows::CONNECT_AT..=rows::RETRY_AT | rows::DECLARE_AT | rows::VERIFY_AT | rows::EXPORT_AT | rows::IMPORT_AT => {
-            account_tool(tool)
-        }
+        rows::CONNECT_AT..=rows::RETRY_AT
+        | rows::DECLARE_AT
+        | rows::VERIFY_AT
+        | rows::EXPORT_AT
+        | rows::IMPORT_AT
+        | rows::USES_AT => account_tool(tool),
         rows::AMEND_AT => &rows::AMEND,
         rows::CHANGE_SETTINGS_AT => &rows::CHANGE_SETTINGS,
         rows::WORKER_ADD_AT => &rows::WORKER_ADD,
@@ -908,6 +926,7 @@ pub(crate) fn account_tool(tool: u8) -> &'static crate::jig::table::Tool {
         rows::REPLACE_KEY_AT => &rows::REPLACE_KEY,
         rows::FORGET_AT => &rows::FORGET,
         rows::RANK_AT => &rows::RANK,
+        rows::USES_AT => &rows::USES,
         rows::RETRY_AT => &rows::RETRY,
         rows::DECLARE_AT => &rows::DECLARE,
         rows::VERIFY_AT => &rows::VERIFY,
@@ -1092,9 +1111,9 @@ fn refused_text(
         && operation.word == b"project fund"
     {
         out.put(b"refused: the period has ");
-        out.number(*left);
+        super::amount(*left, out);
         out.put(b" left, the pools need ");
-        out.number(*needed);
+        super::amount(*needed, out);
         out.put(b"; raise the project's first: project fund ");
         out.number(u64::from(project));
         out.put(b" AMOUNT");
@@ -1202,9 +1221,9 @@ fn milestone_budget_refusal(operation: &Operation, refusal: &c::Refusal, out: &m
         out.put(b": refused: milestone ");
         out.number(milestone);
         out.put(b" had ");
-        out.number(*left);
+        super::amount(*left, out);
         out.put(b" left, ");
-        out.number(*needed);
+        super::amount(*needed, out);
         out.put(b" needed; give each goal in it --budget AMOUNT");
         return true;
     }
@@ -1225,6 +1244,12 @@ fn account_refusal(operation: &Operation, refusal: &c::Refusal, out: &mut Text) 
         } else {
             return false;
         }
+    } else if operation.word == b"uses" && *refusal == c::Refusal::Provider {
+        out.put(b"account uses: a plan account cannot pay for another person or a project with another person");
+        return true;
+    } else if operation.word == b"uses" && *refusal == c::Refusal::Unknown {
+        out.put(b"account uses: unknown account, party or project");
+        return true;
     } else if operation.word == b"retry" && *refusal == c::Refusal::NotOffered {
         out.put(b"account retry: the source is not limited, so there is nothing to resume");
     } else {
@@ -1305,9 +1330,9 @@ fn spent_pool(operation: &Operation, project: u32, needed: u64, left: u64, me: O
     out.put(b": refused: your pool in project ");
     out.number(u64::from(project));
     out.put(b" had ");
-    out.number(left);
+    super::amount(left, out);
     out.put(b" left, ");
-    out.number(needed);
+    super::amount(needed, out);
     out.put(b" needed");
     let pool = match membership {
         Some(held) => held.pool.as_ref(),
@@ -1317,11 +1342,18 @@ fn spent_pool(operation: &Operation, project: u32, needed: u64, left: u64, me: O
         && pool.left >= needed
     {
         out.put(b"\nnow: your pool has ");
-        out.number(pool.left);
+        super::amount(pool.left, out);
         out.put(b" left; budget ");
-        out.number(pool.numbers.budget);
+        super::amount(pool.numbers.budget, out);
         out.put(b"; this key keeps its first answer: start new work with a new --key");
         return;
+    }
+    if let Some(pool) = pool
+        && pool.numbers.reserved > 0
+    {
+        out.put(b"\nreserved: ");
+        super::amount(pool.numbers.reserved, out);
+        out.put(b", for the live work your pool funds; a goal or milestone started with --as-allowed takes all your pool may give: start them with --budget AMOUNT to leave room");
     }
     out.put(b"\nread it: project show ");
     out.number(u64::from(project));

@@ -78,6 +78,23 @@ fn only_complete_words_with_no_body_are_only_the_title() {
 }
 
 #[test]
+fn words_after_the_title_keep_body_bytes_but_not_trailing_blanks_alone() {
+    use jig_client::contract as c;
+    for (input, expected) in [
+        ("Release the runner", ""),
+        ("Release the runner\n \t\r\n", ""),
+        ("Release the runner\nIt waits on CI.", "It waits on CI."),
+        ("Release the runner\n\n More.\n", "\n More.\n"),
+        ("Release the runner\n\u{a0}", "\u{a0}"),
+    ] {
+        for cut in [true, false] {
+            let words = c::DocumentText { bytes: c::Text::new(input.as_bytes().into(), 128).unwrap(), cut };
+            assert_eq!(crate::shared::after_title(&words), expected.as_bytes(), "{input:?}, cut={cut}");
+        }
+    }
+}
+
+#[test]
 fn the_close_confirmation_names_each_live_delegates_fate() {
     let tree = closing(Some(CLOSE_GRACE));
     let text = fixtures::text(&tree);

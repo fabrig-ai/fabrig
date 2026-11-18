@@ -25,9 +25,11 @@ use skein_lib::{Queue, Token};
 use skein_sim::{Answer, Ask, Config, Handle, Pid, Sim};
 
 mod checked;
+mod escalation_deciders;
 mod floor;
 mod history;
 mod jobs;
+mod layouts;
 mod registry;
 mod value_types;
 
@@ -772,8 +774,7 @@ fn assert_sealed(store: &mut Store, last: u64) {
     let mut expected = crate::format::current(store.application.version, fixtures::DEPLOYMENT);
     expected.levels = crate::upgrade::admission::binary(&store.owner_sets);
     assert_eq!(fixtures::get_kv(store, &key).expect("format"), expected.encode().expect("format bytes"));
-    let key = crate::keys::encode_own(&crate::keys::Own::Layouts, store.limits.store.key).expect("layouts key");
-    assert_eq!(fixtures::get_kv(store, &key), Some(store.layouts.encode()));
+    assert_eq!(fixtures::get_kv(store, &[0, 3]), None);
 }
 
 fn assert_refused(events: &[Event], store: &Store) {

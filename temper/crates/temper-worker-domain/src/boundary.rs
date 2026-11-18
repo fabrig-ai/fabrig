@@ -124,6 +124,8 @@ pub enum Event {
 /// domain -> protocol
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    /// The first agent fault of an attempt, before its answer (domain/worker/README.md, 4.3).
+    AgentStopped { run: Token, attempt: Token, failure: host::AgentFailure },
     /// One failed preparation's operator note, on the first answer only (domain/worker/checkouts.md, 1.3).
     Unprepared { run: Token, attempt: Token, failure: host::Preparation, detail: Box<[u8]> },
     /// A results file was absent or malformed; content-free diagnostic.

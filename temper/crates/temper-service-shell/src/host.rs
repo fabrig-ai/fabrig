@@ -1,5 +1,7 @@
 //! The host drives the binary's service table (temper/docs/design/protocol/services.md, 7).
 //! Start refusals name their cause (temper/docs/design/protocol/binaries.md).
+//! Pass lengths keep the host's clock even with a fixed service clock
+//! (temper/docs/design/protocol/setup/box.md, 5; temper/docs/design/client/journey-clock.md, 4.1).
 use crate::Served;
 use skein_io::kernel::{Complete, Exit, Submit};
 use skein_lib::{Queue, Time, Wall};
@@ -96,7 +98,7 @@ pub(crate) fn wait_check(environment: &[EnvironmentEntry], debug: bool) -> bool 
 impl<S> skein_shell::Host for Host<S> {
     fn iterate(&mut self, now: Time, wall: Wall) {
         self.now = now;
-        self.watch.begin(now);
+        self.watch.begin(self.clock.now().now);
         for &stage in self.served.stages {
             (self.served.iterate_stage)(&mut self.service, stage, now, wall);
             self.watch.ended(Part::Service(stage), self.clock.now().now);
@@ -315,6 +317,18 @@ pub(super) mod adapter_tests {
         assert_eq!(host.ending(), ("own-service: one stage ended\n".into(), 0));
         assert_eq!(host.exit(), Some(Exit::Code(0)));
     }
+    #[test]
+    fn pass_measurement_uses_host_time_not_service_time() {
+        let mut host = host();
+        let before = host.clock.now().now;
+        host.iterate(Time::ZERO, Wall::EPOCH);
+        assert_eq!(host.service.at, Some(Time::ZERO), "the service keeps its supplied time");
+        // At most one host second from before this pass is not a long pass,
+        // regardless of how far the service's clock is from the host's.
+        host.watch.ended(Part::Drain, before.saturating_add(LONG_PASS));
+        assert_eq!(host.watch.pass_ended(), None);
+    }
+
     #[test]
     fn supplied_notes_print_in_order_under_the_binarys_prefix() {
         let mut host = host();

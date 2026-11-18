@@ -45,15 +45,12 @@ impl World {
         let live = root::LIVE;
         let ended = live + 1;
         let rows = vec![root::header(1), root::run_proof(live), root::person(1)];
-        let mut ops = vec![
-            skein_kv::Op::Put {
-                key: Box::new([0, 0]),
-                value: jig_protocol_store::format::current(root::APPLICATION.version, root::DEPLOYMENT)
-                    .encode()
-                    .expect("format"),
-            },
-            skein_kv::Op::Put { key: Box::new([0, 3]), value: jig_protocol_store::format::layouts().encode() },
-        ];
+        let mut ops = vec![skein_kv::Op::Put {
+            key: Box::new([0, 0]),
+            value: jig_protocol_store::format::current(root::APPLICATION.version, root::DEPLOYMENT)
+                .encode()
+                .expect("format"),
+        }];
         let floor = jig_protocol_store::component_v3::Floor::new(
             &jig_protocol_store::component_v3::CEILINGS,
             jig_protocol_store::component_v3::FloorParts { number: jig_protocol_store::FLOOR, build: Box::default() },

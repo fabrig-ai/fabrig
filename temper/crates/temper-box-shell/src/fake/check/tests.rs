@@ -330,7 +330,12 @@ fn unreadable_store(path: &Path, errno: u8) -> Outcome {
 fn agent_metadata_fixture(root: &Path) -> temper_service::settings::Agent {
     let (agent, _) = crate::tests::configuration::documents(root, "/fixture/temper");
     fs::write(root.join("root.der"), skein_tls_kit::pki::ROOT).expect("fixture trust");
-    crate::agent::prepare_bytes(agent.into_boxed_slice()).expect("agent metadata").agent
+    let mut agent: serde_json::Value = serde_json::from_slice(&agent).expect("agent JSON");
+    for endpoint in agent["endpoints"].as_array_mut().expect("fixture endpoints") {
+        endpoint.as_object_mut().expect("fixture endpoint").remove("program");
+    }
+    let bytes = serde_json::to_vec(&agent).expect("agent JSON").into_boxed_slice();
+    crate::agent::prepare_bytes(bytes).expect("agent metadata").agent
 }
 #[test]
 fn verb() {
@@ -392,7 +397,7 @@ fn verb() {
             serde_json::from_slice(&crate::tests::configuration::documents(&root, "/fixture/temper").0)
                 .expect("agent JSON");
         let mut fixture = crate::tests::configuration::check_document(&root);
-        temper_fixtures::agent::apply(&mut fixture, data, &agent_value);
+        temper_agent_fixtures::apply(&mut fixture, data, &agent_value);
         let copy_before = fs::read(data.join("agents.setting")).expect("fixture copy");
         let bytes = document.map(|document| serde_json::to_vec(&document).expect("fixture document"));
         if let Some(bytes) = &bytes {

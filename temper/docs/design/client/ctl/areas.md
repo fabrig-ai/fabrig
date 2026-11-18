@@ -57,6 +57,25 @@ The table grows area by area, each with its stories (`testing.md`).
    `--priority` replaces a tracked template's priority. Model controls
    are area 5's; absent sub-agent flags preserve the template's list.
 
+   **A budget is ctl's amount** (`results.md`, 1), as `task show`
+   prints it: `goal start --budget 130` gives the goal 13,000 spend
+   units, which `task show` prints `of 130.00`; `milestone new --budget
+   130` makes a milestone that `task show` and `milestone show` both
+   print `of 130.00`; `--budget 1.005` is usage, nothing sent. **`--as-allowed`
+   takes all the party may give from its pool,** what the pool has
+   left up to its role's spend (jig's `domain/authority.md`, section
+   7), or, with `--milestone`, all the milestone has left
+   (`milestones.md`, 3). Its reservation holds that while the work is
+   live, so the party's next start finds none left. Its line in `help`
+   says so, `goal start`'s: `--as-allowed: a switch. Take all you may
+   give from your pool, or with --milestone all the milestone has
+   left, instead of a named budget: none is left for the next start
+   while this goal is live`; `milestone new`'s: `--as-allowed: a
+   switch. Take all you may give from your pool instead of a named
+   budget: none is left for your next start while this milestone is
+   live`. A start then refused for its pool says why and names
+   `--budget`, in the `reserved:` line of `README.md`, section 5.
+
    The general `proposal show PROPOSAL` reads every proposal kind. For
    settings it prints the engine's current/origin/would-be review and its
    newest revision; retained ended and withdrawn records keep their state.
@@ -77,18 +96,29 @@ The table grows area by area, each with its stories (`testing.md`).
      | `--spec FILE` | its spec's words, whole; its parameters and inputs kept |
      | `--dependency TASK`... \| `--no-dependencies` | its dependencies, whole: those named, in order; what it names anew is added, what it leaves out removed |
      | `--model MODEL [--effort EFFORT]` | its main model and effort (area 5) |
-     | `--budget AMOUNT` | its authority's spend, AMOUNT in the unit the client shows budgets in, the rest of its authority restated as shown |
+     | `--budget AMOUNT` | its authority's spend, AMOUNT in ctl's amount (`results.md`, 1), the rest of its authority restated as shown |
      | `--tasks N` | the tasks its subtree may make over its life, the rest of its authority restated as shown |
+     | `--to-party PARTY` \| `--to-role ROLE` | a person task's address: party PARTY, or the project's role ROLE, at the person revision the tool's read shows |
 
-     FILE is a path, or `-` for stdin, used once, as TEXT is.
+     FILE is a path, or `-` for stdin, used once, as TEXT is. The form's
+     positions keep their numbers: `--to-party` and `--to-role` follow
+     `--tasks`, and `--budget` is its last, after `--to-role`; the help's
+     synopsis names `[--budget AMOUNT]` before `[--tasks N]`, as the
+     table does. Its line in `help`: `--budget AMOUNT: an amount with at
+     most two decimals, as 130 or 1.25; optional. Its budget, as task
+     show prints it; the rest of its authority kept`.
    - **A budget or tasks raised is a widening,** funded by the party who
      gives it, who becomes the task's funder (jig's `domain/authority.md`,
      section 7, "Whoever widens a task funds it"): from their role's pool,
      within what the policy lets them give alone, or proposed past it, as
      the next bullets say. It is the way out a hold for a task's own
      budget or tasks names (jig's `domain/tasks/lifecycle.md`, 6; `../../domain/forge/change/repairs.md`
-     ): `task amend 41 --rev 8 --budget 2000 "room for its review"`,
-     then `task release 41 --hold 3`; for tasks, the hold prints
+     ): `task amend 41 --rev 8 --budget 20 "room for its review"`,
+     then `task release 41 --hold 3`. `--budget 20` restates the task's
+     authority with spend 2,000 units, which `task show` then prints `of
+     20.00`; JSON's `budget` names spend units, as `goal start`'s does;
+     `--budget 1.005` is usage, nothing sent. A budget lower than the
+     task's is a narrowing, sent as any narrowing is. For tasks, the hold prints
      `task amend 41 --rev 8 --tasks N REASON`, then the release. N is
      a replacement lifetime allowance with room for a repair and review;
      release never erases tasks already made. A hold whose lack the task's
@@ -105,11 +135,51 @@ The table grows area by area, each with its stories (`testing.md`).
      the document's revision is no longer REV: `temper ctl: task 41
      moved: its spec revision is 9, not 7; read again: task show 41`,
      exit 1.
+   - **An address passes a person task up** to whoever can settle it,
+     such as the project's owner: `task amend 41 --to-party 1 "over to
+     the owner"`, or `--to-role ROLE` for a role of the task's project.
+     It is jig's `Amendment.addressed`, an `AddressChange` (jig's
+     `domain/tasks/changes.md`, *What an amendment may change*):
+     - **Its revision is the person task's,** `Task::person_revision` of
+       the document the tool reads, never `--rev`'s. A document with no
+       person revision is no person task: the tool sends nothing and
+       exits 1, `temper ctl: task 41 is not a person task: only a person
+       task takes --to-party or --to-role`, before any other check of
+       the call's changes.
+     - **It needs no `--rev`.** jig compares the spec revision of every
+       amendment but a priority alone, so the tool names the spec
+       revision of the same read; `--rev`, given, is compared with it
+       as for any change. A priority beside an address needs none
+       either, the read's spec revision named for both; the call's
+       other changes need it, as the bullet above says, refused as
+       usage without it. `--rev REV`'s line says it is not needed for
+       a priority or an address alone.
+     - **It is a change,** even naming the address the task has now: jig
+       then lets go of a party who took it. An amendment naming an
+       address alone is sent, never `amend changes nothing`, and the
+       amendment editor never compares an address away (`../README.md`,
+       3.7).
+     - **A person revision moved** since the read is jig's refusal,
+       `Moved`, printed as any moved refusal is: `task amend: ` and its
+       words, then `read again: task show 41`, exit 2 (`results.md`, 3).
+     - **Both paths send it:** the drafted one, and the keyed one
+       (`--key KEY`), which names its changes whole. A keyed retry made
+       after the change took effect reads the moved person revision, so
+       it is no longer the request its key holds, and jig answers it as
+       that key's conflict, not as done; `task show TASK` says where the
+       task waits now.
+     - **Who may** is jig's admission of the task's `amend` act (jig's
+       `domain/tasks/changes.md`, *Who may*): its requester and those
+       above it in the tree, and a party whose role in the project
+       allows it, the project's owners and maintainers among them. The
+       party a person task waits on holds no `amend` act for that alone,
+       and the tool says `amendment not offered`, as for any act it is
+       not offered.
    - **What the document must hold whole:** a deadline, a budget or
      tasks restates the task's authority, a spec's words its spec. Where the document cut
      it to the client's bounds, the tool sends nothing and exits 1,
      `temper ctl: task 41's authority is cut in this read; amend its
-     deadline or tasks from a client with wider bounds` (or `spec`, `words`).
+     deadline, budget or tasks from a client with wider bounds` (or `spec`, `words`).
    - **Beyond the party's bounds,** an amendment follows `tools.md`, 3, compared
      by jig's admission for the task's offered `amend` act: within,
      sent; past what the party holds but proposable, a deadline later
@@ -120,7 +190,8 @@ The table grows area by area, each with its stories (`testing.md`).
      circle, a goal past the project's goals) is the engine's refusal,
      exit 2.
    - **The same flag twice, or both of a pair,** exits 1 as usage;
-     `--dependency` alone may repeat.
+     `--dependency` alone may repeat. `--to-party` and `--to-role` are a
+     pair, as `--priority` and `--untracked` are.
 3. **Several parties:** `party make --project PROJECT --role ROLE --out
    FILE` (jig's `MakeService`, keyed; `README.md`, section 7), `sign-in --service
    FILE`, `deployment show`, `deployment census` (`tools.md`, 2), `task move TASK REASON`, a person task's
@@ -206,6 +277,7 @@ The table grows area by area, each with its stories (`testing.md`).
    | `account declare PROVIDER ADAPTER NAME [--account ACCOUNT]` | declares a program's login under the source's NAME (1 to 32 of `a` to `z`, `0` to `9` and `-`): a new account, or a source of ACCOUNT; the answer names the command to run on each host with its directories, `temper-box program-login --config CONFIG --data DATA --cache CACHE NAME`; CONFIG, DATA and CACHE stand for that box's directories, and skips it where the programs directory's NAME is already signed in, then `account verify ACCOUNT --source program`, ACCOUNT as `account list` shows it (`../../protocol/credentials.md`, section 3) | declare a program's login | yes |
    | `account verify ACCOUNT [--source SOURCE]` | has each host check a program source's login now; answered once asked, then `account list --until settled` | check | |
    | `account rank ACCOUNT POSITION [--source SOURCE]` | the account's place among its holder's accounts of its LLM provider, from 1; with `--source`, the source's place in the account's order | order | |
+   | `account uses ACCOUNT [--party N]... [--project N]...` | sets exactly the named parties and projects, at most 16 together; `account uses ACCOUNT --default` restores jig's defaults; prints `done: uses` (`README.md`, section 5) | set uses | |
    | `account retry ACCOUNT [--source SOURCE]` | resumes a limited source, so that the runs it holds start again | resume | |
    | `account export ACCOUNT FILE` | moves a signed-in account out, by its holder: FILE made new and private before anything is sent; the signed-in source withdrawn, so that no run takes it and no refresh follows; its record written to FILE and synced; then *written*, and the engine erases it. Prints `moved out: account N to FILE`. FILE already there, exit 1, nothing sent. Refused, exit 2, FILE removed: "not signed in" (no signed-in source: a key is added again, a program's login is per host), "moving", "cancelled" (*written* past the move's deadline). A record not written, or lost on its way, is not erased: exit 1, FILE removed, and the engine cancels the move at its deadline | move out, then *written* | |
    | `account import FILE` | moves a record in from FILE, read as a key's file is: taken into the secrets' store, checked as this application's and its subject held by no other holder, the account made or the one of its subject renewed; prints `moved in: account N`, `, renewed` after it for a renewal, then removes FILE. FILE refused (not private, a link, empty, past the bound), exit 1, nothing sent. Refused, exit 2, FILE kept: "not ours" (another application's or LLM provider's record), "held" (its subject held by another holder), "moving" (its subject's account moving out here) | move in | yes |
@@ -394,8 +466,6 @@ The table grows area by area, each with its stories (`testing.md`).
      the model, adds `flag` (`--model` or `--sub-agent`) and `value`, as
      a refused account act adds `next`. Other acts keep jig's words for
      the refusal, `This model cannot be chosen: MODEL`.
-   - **An account's uses** have no tool: each takes jig's default (jig's
-     `domain/accounts.md`, 4.2; `README.md`, section 12).
    - **An account moved,** `account export` and `account import`, is
      jig's move (jig's `domain/accounts.md`, section 6) through
      `jig-client`'s `move_out`, `written` and `move_in` (jig's

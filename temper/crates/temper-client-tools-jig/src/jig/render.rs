@@ -638,3 +638,14 @@ fn plain_task(reading: &crate::jig::runner::reads::Reading) -> bool {
         && reading.documents.is_empty()
         && reading.specification.is_none()
 }
+
+/// Print ctl's amount: a hundred spend units, with two decimals.
+pub fn amount(value: u64, out: &mut Text) {
+    let fraction = value.checked_rem(100).expect("nonzero divisor");
+    out.number(value.checked_div(100).expect("nonzero divisor"));
+    out.put(b".");
+    if fraction < 10 {
+        out.put(b"0");
+    }
+    out.number(fraction);
+}

@@ -102,12 +102,7 @@ fn rung_b0s_live_configuration_is_admitted_without_an_account_or_backend() {
     directories.config = paths[0].as_os_str().as_bytes().into();
     directories.data = paths[1].as_os_str().as_bytes().into();
     directories.cache = paths[2].as_os_str().as_bytes().into();
-    let result = temper_box_shell::boxed_operations_in(
-        &[],
-        b"/",
-        &directories,
-        &fs::read(paths[0].join("temper.json")).expect("configuration"),
-    );
+    let result = crate::admission(&directories, &fs::read(paths[0].join("temper.json")).expect("configuration"));
     assert!(result.is_ok(), "B0's real configuration admits before any live account: {:?}", result.err());
     scratch.remove();
 }
@@ -727,6 +722,7 @@ fn serve_names_what_to_raise_for_eight_slots() {
             &serde_json::to_vec(&worker_document).unwrap(),
             &jig_protocol_config::Directories::working(),
             None,
+            &[],
         )
         .expect("resolved worker places");
         assert!(part.worker.jig.limits.expect("derived worker limits").hub.slots >= 8);
@@ -748,6 +744,7 @@ fn serve_names_what_to_raise_for_eight_slots() {
                 &jig_protocol_config::Directories::working(),
                 &temper_service::stock::Given::Stock,
                 &temper_service::stock::agents(),
+                &[],
             )
             .expect("engine figures")
             .expect("worker");
@@ -779,16 +776,16 @@ fn serve_refuses_an_explicit_call_bound_below_the_agents_call_input() {
     let path = scratch.path().join("temper.json");
     let mut document: serde_json::Value =
         serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-    // The owned agent declares tool_payload 10662; one below refuses, equality prepares.
+    // The owned agent declares tool_payload 63740; one below refuses, equality prepares.
     for (bound, expected) in [
         (
-            10661,
+            63739,
             Some(concat!(
-                "temper serve: engine.limits.overrides.core.call_answer_bytes: 10661 bytes, short of the agent's call input (profile.declared.tool_payload), 10662 bytes; raise it to at least 10662 bytes, or omit it to follow the agent's call input\n",
-                "temper serve: engine.limits.overrides.core.call_answer_bytes: call input 10662 bytes; wire answer 10661 bytes; smith host_reply_bytes 10662 bytes\n",
+                "temper serve: engine.limits.overrides.core.call_answer_bytes: 63739 bytes, short of the agent's call input (profile.declared.tool_payload), 63740 bytes; raise it to at least 63740 bytes, or omit it to follow the agent's call input\n",
+                "temper serve: engine.limits.overrides.core.call_answer_bytes: call input 63740 bytes; wire answer 63739 bytes; smith host_reply_bytes 63740 bytes\n",
             )),
         ),
-        (10662, None),
+        (63740, None),
     ] {
         document["engine"]["limits"]["overrides"]["core.call_answer_bytes"] = bound.into();
         support::write_private(&path, &serde_json::to_vec(&document).expect("configuration JSON"));
@@ -804,8 +801,8 @@ fn serve_refuses_an_explicit_call_bound_below_the_agents_call_input() {
 #[test]
 fn serve_checks_the_owned_agents_admission_at_each_bound() {
     let scratch = owned_example("owned-admission-bounds");
-    temper_fixtures::providers::remember(scratch.path(), &temper_service::stock::providers());
-    let original = temper_fixtures::agent::read(scratch.path());
+    temper_agent_fixtures::providers::remember(scratch.path(), &temper_service::stock::providers());
+    let original = temper_agent_fixtures::read(scratch.path());
     for (member, value, expected) in [
         (
             "max_turns",
@@ -825,39 +822,33 @@ fn serve_checks_the_owned_agents_admission_at_each_bound() {
         ("max_turns", 800, None),
         (
             "check_timeout",
-            60001,
+            300_001,
             Some(
-                "engine.charters[1].reserve_time_ms: needs checks within 60000 ms; the agent's profile.policy.check_timeout is 60001 ms; raise charter 2's reserve_time (temper help settings) or lower the timeout\n",
+                "engine.charters[1].reserve_time_ms: needs checks within 300000 ms; the agent's profile.policy.check_timeout is 300001 ms; raise charter 2's reserve_time (temper help settings) or lower the timeout\n",
             ),
         ),
-        ("check_timeout", 60000, None),
-        (
-            "check_timeout",
-            300_000,
-            Some(
-                "engine.charters[1].reserve_time_ms: needs checks within 60000 ms; the agent's profile.policy.check_timeout is 300000 ms; raise charter 2's reserve_time (temper help settings) or lower the timeout\n",
-            ),
-        ),
+        ("check_timeout", 300_000, None),
+        ("check_timeout", 60_000, None),
         (
             "tool_payload",
-            10661,
+            63739,
             Some(
-                "engine.limits: needs 10660-byte messages (tasks.message_bytes); the agent offers 10659 (tool_payload less 2)\n",
+                "engine.limits: needs 63738-byte messages (tasks.message_bytes); the agent offers 63737 (tool_payload less 2)\n",
             ),
         ),
-        ("tool_payload", 10662, None),
+        ("tool_payload", 63740, None),
         (
             "tool_payload",
             600,
             Some(
-                "engine.limits: needs 10660-byte messages (tasks.message_bytes); the agent offers 598 (tool_payload less 2)\ntemper serve: workers[0].agent.profile.declared.tool_payload: 600 bytes, short of temper's documentation answer (read_docs), 2048 bytes\n",
+                "engine.limits: needs 63738-byte messages (tasks.message_bytes); the agent offers 598 (tool_payload less 2)\ntemper serve: workers[0].agent.profile.declared.tool_payload: 600 bytes, short of temper's documentation answer (read_docs), 2048 bytes\n",
             ),
         ),
     ] {
         let mut agent = original.clone();
         let section = if member == "tool_payload" { "declared" } else { "policy" };
         agent["profile"][section][member] = value.into();
-        temper_fixtures::agent::install(scratch.path(), &agent);
+        temper_agent_fixtures::install(scratch.path(), &agent);
         let result = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(scratch.path()));
         match expected {
             Some(line) if member != "tool_payload" => {
@@ -885,12 +876,12 @@ fn serve_checks_the_owned_agents_admission_at_each_bound() {
     agent["profile"]["policy"]["max_turns"] = 5.into();
     agent["profile"]["policy"]["check_timeout"] = 300_000.into();
     agent["profile"]["declared"]["tool_payload"] = 600.into();
-    temper_fixtures::agent::install(scratch.path(), &agent);
+    temper_agent_fixtures::install(scratch.path(), &agent);
     assert_eq!(
         temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(scratch.path()))
             .err()
             .expect("old tuple refused"),
-        "temper serve: engine.limits: needs 10660-byte messages (tasks.message_bytes); the agent offers 598 (tool_payload less 2)\ntemper serve: workers[0].agent.profile.declared.tool_payload: 600 bytes, short of temper's documentation answer (read_docs), 2048 bytes\n"
+        "temper serve: engine.limits: needs 63738-byte messages (tasks.message_bytes); the agent offers 598 (tool_payload less 2)\ntemper serve: workers[0].agent.profile.declared.tool_payload: 600 bytes, short of temper's documentation answer (read_docs), 2048 bytes\n"
     );
     scratch.remove();
 }
@@ -1444,9 +1435,9 @@ fn programs_directories_are_checked_at_the_name_before_startup_effects() {
             symlink(&real, &target).expect("leaf link");
         }
         let path = target.clone();
-        let mut agent = temper_fixtures::agent::read(directory);
+        let mut agent = temper_agent_fixtures::read(directory);
         agent["programs"] = serde_json::json!({"claude_code":{"path":"/usr/bin/true", "directory":path}});
-        temper_fixtures::agent::install(directory, &agent);
+        temper_agent_fixtures::install(directory, &agent);
         // A later missing secret proves that the preflight neither creates nor inspects a login.
         fs::remove_file(directory.join("worker.secret")).expect("absent peer");
         let refused = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(directory))
@@ -1927,6 +1918,7 @@ fn the_live_github_configuration_passes_startup_admission() {
                 &bytes,
                 &temper_box_shell::directories::jig_directories(&directories),
                 None,
+                &[],
             )
             .expect("worker part");
             part.named.program = skein_scratch::paths::binary("temper-box").as_os_str().as_bytes().into();
@@ -1948,8 +1940,7 @@ fn the_live_github_configuration_passes_startup_admission() {
             temper_service_shell::close(descriptors);
             operations
         } else {
-            temper_box_shell::operations_in(&[], b"/", &directories, &bytes)
-                .unwrap_or_else(|why| panic!("{owner}/{member}: {why}"))
+            crate::admission(&directories, &bytes).unwrap_or_else(|why| panic!("{owner}/{member}: {why}"))
         };
         eprintln!("{owner}/{member}: startup admission passed; operations={operations}");
     }
@@ -2009,11 +2000,11 @@ fn turn_bounds() {
         ["crates/temper-init/template/temper.json", "crates/temper-init/template/bare.json", "docs/examples/owned.json"]
     {
         let agent = if deployment.ends_with("temper.json") {
-            temper_fixtures::agent::stock(true)
+            temper_agent_fixtures::stock(true)
         } else if deployment.ends_with("bare.json") {
-            temper_fixtures::agent::stock(false)
+            temper_agent_fixtures::stock(false)
         } else {
-            temper_fixtures::agent::configuration(
+            temper_agent_fixtures::configuration(
                 &serde_json::from_slice(&fs::read(root.join(deployment)).expect("owned document")).expect("JSON"),
             )
         };
@@ -2103,7 +2094,7 @@ fn the_template_agent_refuses_jigs_small_hub_turn_bound_before_serving() {
         .args(support::configuration::flags(scratch.path()))
         .output()
         .expect("serve");
-    let agent = temper_fixtures::agent::read(scratch.path());
+    let agent = temper_agent_fixtures::read(scratch.path());
     let turn = support::configuration::turn_bounds::turn_body(&agent);
     assert!(!output.status.success());
     assert!(String::from_utf8_lossy(&output.stderr).lines().find(|line| line.starts_with("temper serve:")).expect("startup problem").starts_with(&format!(
@@ -2426,7 +2417,7 @@ fn a_fresh_box_offers_chatgpt_and_claude_with_no_claude_on_path() {
     );
     eprintln!("fresh box Model step: {} ms", clock.now().now.as_nanos().saturating_sub(began.as_nanos()) / 1_000_000);
     assert!(seen.finished, "{}", String::from_utf8_lossy(&seen.stderr));
-    let agent = temper_fixtures::agent::read(scratch.path());
+    let agent = temper_agent_fixtures::read(scratch.path());
     assert_eq!(agent["programs"]["claude_code"]["path"], "fetched");
     scratch.remove();
 }
@@ -2446,7 +2437,7 @@ fn a_fetched_program_runs_through_its_launcher() {
         .output()
         .unwrap();
     assert!(init.status.success(), "{}", String::from_utf8_lossy(&init.stderr));
-    let agent = temper_fixtures::agent::read(directory);
+    let agent = temper_agent_fixtures::read(directory);
     assert_eq!(agent["programs"]["claude_code"]["path"], "fetched");
     let build = claude_code::build(
         if cfg!(target_os = "macos") {

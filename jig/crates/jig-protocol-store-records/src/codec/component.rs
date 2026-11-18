@@ -233,64 +233,6 @@ impl Attempt {
     }
 }
 
-/// Each kept family's layout fingerprint, kept by the first commit (protocol/store/records.md, 3).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct Layouts {
-    pub component: [u8; 32],
-    pub core: [u8; 32],
-    pub tasks: [u8; 32],
-    pub people: [u8; 32],
-    pub notes: [u8; 32],
-    pub accounts: [u8; 32],
-    pub settings: [u8; 32],
-    pub secrets: [u8; 32],
-    pub skein_oauth: [u8; 32],
-    pub smith_transcript: [u8; 32],
-}
-
-impl Layouts {
-    /// Encode the ten fixed digests with the component family's version.
-    #[must_use]
-    pub fn encode(&self) -> Box<[u8]> {
-        let row = wire::Layouts::new(
-            &wire::CEILINGS,
-            wire::LayoutsParts {
-                component: self.component,
-                core: self.core,
-                tasks: self.tasks,
-                people: self.people,
-                notes: self.notes,
-                accounts: self.accounts,
-                settings: self.settings,
-                secrets: self.secrets,
-                skein_oauth: self.skein_oauth,
-                smith_transcript: self.smith_transcript,
-            },
-        )
-        .expect("layouts have no bounded fields");
-        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
-        row.encode(&mut writer).expect("measured room");
-        writer.finish()
-    }
-
-    /// Decode one complete row, refusing another version or trailing bytes.
-    pub fn decode(bytes: &[u8]) -> Result<Self, wire::Problem> {
-        let wire::LayoutsParts {
-            component,
-            core,
-            tasks,
-            people,
-            notes,
-            accounts,
-            settings,
-            secrets,
-            skein_oauth,
-            smith_transcript,
-        } = wire::Layouts::decode(&wire::CEILINGS, &mut Reader::new(bytes))?.into_parts();
-        Ok(Self { component, core, tasks, people, notes, accounts, settings, secrets, skein_oauth, smith_transcript })
-    }
-}
-
 /// A task log's place (protocol/store/logs.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct HistoryLog {

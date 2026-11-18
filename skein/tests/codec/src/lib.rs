@@ -8,7 +8,7 @@
 extern crate alloc;
 
 #[rustfmt::skip]
-#[path = "generated/v1.rs"]
+#[path = "generated/sample.rs"]
 pub mod v1;
 
 #[rustfmt::skip]
@@ -30,6 +30,11 @@ pub mod every;
 #[rustfmt::skip]
 #[path = "every/v2.rs"]
 pub mod every_v2;
+
+#[rustfmt::skip]
+#[path = "every/v3.rs"]
+#[expect(clippy::option_option, reason = "the pin exercises all three nested-option wire states")]
+pub mod every_v3;
 
 #[path = "../patches/mod.rs"]
 pub mod patches;

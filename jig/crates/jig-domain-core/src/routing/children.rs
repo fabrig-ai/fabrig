@@ -807,6 +807,7 @@ pub(crate) fn route_fleet(
         | fleet::Event::CheckProgram { .. }
         | fleet::Event::SignOutProgram { .. }
         | fleet::Event::Sources { .. }
+        | fleet::Event::Untooled { .. }
         | fleet::Event::Mismatch { .. }
         | fleet::Event::Draining { .. }
         | fleet::Event::Logins { .. }
@@ -911,7 +912,8 @@ fn host_shape(event: &fleet::Event) -> bool {
         | fleet::Event::Loaded
         | fleet::Event::Hello { .. }
         | fleet::Event::Lost { .. } => true,
-        fleet::Event::ReadList { .. }
+        fleet::Event::Untooled { .. }
+        | fleet::Event::ReadList { .. }
         | fleet::Event::ListRead { .. }
         | fleet::Event::StartJob { .. }
         | fleet::Event::Start { .. }

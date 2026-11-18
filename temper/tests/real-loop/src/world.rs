@@ -158,6 +158,9 @@ impl Host for Kind {
                 || host.next_policy_deadline().is_some_and(|deadline| deadline <= now)
             {
                 host.iterate(now, wall);
+                if let Self::Llm(llm) = self {
+                    llm.queries.observe(now, llm.peer.observations());
+                }
             }
         }
     }
@@ -197,7 +200,7 @@ pub(crate) fn run(
     direct_key: bool,
     sign_in: bool,
 ) -> CheckedOutcome<Proc> {
-    run_with_agent(scratch, recipe, steps, direct_key, sign_in, agent::agent)
+    run_with_agent(scratch, recipe, steps, direct_key, sign_in, agent::agent, None)
 }
 
 pub(crate) fn run_stubborn(
@@ -205,7 +208,16 @@ pub(crate) fn run_stubborn(
     recipe: impl FnOnce() -> llm::Recipe,
     steps: impl FnOnce() -> Vec<crate::calls::Step>,
 ) -> CheckedOutcome<Proc> {
-    run_with_agent(scratch, recipe, steps, false, false, agent::stubborn)
+    run_with_agent(scratch, recipe, steps, false, false, agent::stubborn, None)
+}
+
+pub(crate) fn run_configured(
+    scratch: &skein_scratch::Scratch,
+    recipe: impl FnOnce() -> llm::Recipe,
+    configure: fn(&mut serde_json::Value, &mut serde_json::Value),
+    steps: impl FnOnce() -> Vec<crate::calls::Step>,
+) -> CheckedOutcome<Proc> {
+    run_with_agent(scratch, recipe, steps, false, false, agent::agent, Some(configure))
 }
 
 fn run_with_agent(
@@ -215,6 +227,7 @@ fn run_with_agent(
     direct_key: bool,
     sign_in: bool,
     agent: agent::Factory,
+    configure: Option<fn(&mut serde_json::Value, &mut serde_json::Value)>,
 ) -> CheckedOutcome<Proc> {
     let patience = crate::PATIENCE;
     // As the browser tier does, reserve a kernel port before the immutable
@@ -240,6 +253,7 @@ fn run_with_agent(
     world.spawn(|| {
         Proc::new(Kind::Llm(Box::new(Llm {
             pending_streak: crate::patience::PendingStreak::default(),
+            queries: llm::Queries::default(),
             peer: llm::peer(recipe()).expect("independent LLM peer"),
             scripts: None,
             groups: None,
@@ -255,7 +269,10 @@ fn run_with_agent(
     world.spawn_signals(|signals| {
         Proc::new(Kind::Service(Box::new(match issuer {
             Some(address) => ServiceHost::with_issuer(scratch.path().into(), signals, address),
-            None => ServiceHost::new(scratch.path().into(), signals, direct_key),
+            None => match configure {
+                Some(configure) => ServiceHost::configured_only(scratch.path().into(), signals, configure),
+                None => ServiceHost::new(scratch.path().into(), signals, direct_key),
+            },
         })))
     });
     host(&mut world, scratch.path(), steps, direct_key, 1, agent);
@@ -296,6 +313,7 @@ impl std::ops::DerefMut for ForgePeer {
     }
 }
 pub(crate) struct Llm {
+    pub(crate) queries: llm::Queries,
     pub(crate) pending_streak: crate::patience::PendingStreak,
     pub(crate) peer: skein_fake_peers::llm::Peer,
     scripts: Option<Scripts>,
@@ -385,6 +403,7 @@ pub(crate) fn run_forge(
     world.spawn(|| {
         Proc::new(Kind::Llm(Box::new(Llm {
             pending_streak: crate::patience::PendingStreak::default(),
+            queries: llm::Queries::default(),
             peer: llm::peer(llm::scripted(Box::new([]))).expect("deferred peer"),
             scripts: Some(scripts),
             groups: None,
@@ -443,6 +462,7 @@ pub(crate) fn run_github(
     world.spawn(|| {
         Proc::new(Kind::Llm(Box::new(Llm {
             pending_streak: crate::patience::PendingStreak::default(),
+            queries: llm::Queries::default(),
             peer: llm::peer(llm::scripted(Box::new([]))).expect("deferred peer"),
             scripts: None,
             groups: Some(scripts),
@@ -684,6 +704,7 @@ impl Children {
 struct LlmHistory {
     seen: usize,
     pending: i64,
+    queries: usize,
     visits: usize,
 }
 impl LlmHistory {
@@ -691,9 +712,14 @@ impl LlmHistory {
         // Deferred forge/GitHub peers are replaced before they run; a driven peer only appends.
         let suffix = observations.get(self.seen..).ok_or("LLM observation history never shrinks")?;
         self.visits += suffix.len();
-        self.pending = suffix.iter().fold(self.pending, |n, event| {
-            n + i64::from(matches!(event, Query { .. })) - i64::from(matches!(event, Answered { .. }))
-        });
+        for event in suffix {
+            if matches!(event, Query { .. }) {
+                self.queries += 1;
+                self.pending += 1;
+            } else if matches!(event, Answered { .. }) {
+                self.pending -= 1;
+            }
+        }
         self.seen = observations.len();
         Ok(self.pending)
     }
@@ -988,6 +1014,9 @@ impl Referee<Proc> for Judge {
         else {
             return Err("root admission order".into());
         };
+        if let Some(engine) = service.service.as_ref().and_then(crate::service::Driven::engine_domain) {
+            caller.observe_read_version(engine);
+        }
         // This story-local join observes the engine's durable terminal record,
         // even when the live task has already been reclaimed before Ready closes.
         if procs.iter().any(|proc| {
@@ -1014,14 +1043,15 @@ impl Referee<Proc> for Judge {
                 line.as_ref() == b"temper open: the link was refused: use the fresh link temper serve printed\n"
             }));
         }
-        let queries = peer.observations().iter().filter(|event| matches!(event, Query { .. })).count();
+        let pending = self.llm_history.observe(peer.observations())?;
+        let queries = self.llm_history.queries;
         caller.llm_queries.set(queries);
         caller.held.set(
             service.held_at(caller.held_index())
                 || !workers.is_empty()
                     && caller.held_name().is_some_and(|name| peer.holds.iter().any(|hold| hold.as_ref() == name))
                     && queries > caller.held_queries.get()
-                    && pending_llm(peer.observations()),
+                    && pending > 0,
         );
         caller.links.set(service.links());
         let lock_changed = self.children.lock_changed(children, caller)?;
@@ -1039,7 +1069,6 @@ impl Referee<Proc> for Judge {
         } else {
             false
         };
-        let pending = self.llm_history.observe(peer.observations())?;
         let placing = placed(workers) && pending > 0 && peer.placement_hold;
         let named_worker = |name| {
             worker_position(workers, name).and_then(|position| {
@@ -1271,6 +1300,7 @@ fn cluster_roots<R: Referee<Proc>>(
         let placement_hold = holds.iter().any(|name| name.as_ref() == crate::cluster::PLACED);
         Proc::new(Kind::Llm(Box::new(Llm {
             pending_streak: crate::patience::PendingStreak::default(),
+            queries: llm::Queries::default(),
             peer: llm::peer(recipe).expect("cluster LLM"),
             scripts: forge.map(|(_, scripts, _)| scripts),
             groups: None,
@@ -1325,11 +1355,6 @@ fn script_holds(recipe: &llm::Recipe) -> Vec<Box<[u8]>> {
         }
     }
     names
-}
-
-fn pending_llm(observations: &[skein_fake_peers::llm::Observation]) -> bool {
-    observations.iter().filter(|event| matches!(event, Query { .. })).count()
-        > observations.iter().filter(|event| matches!(event, Answered { .. })).count()
 }
 
 fn contact_cancelled(worker: &ServiceHost) -> bool {
@@ -1580,6 +1605,7 @@ mod tests {
                     reference_visits += prefix.len();
                     let pending = history.observe(prefix).expect("growing history");
                     assert_eq!(pending, expected, "{name}, prefix {length}");
+                    assert_eq!(history.queries, prefix.iter().filter(|event| matches!(event, Query { .. })).count());
                     for placed in [false, true] {
                         assert_eq!(placed && pending > 0, placed && expected > 0, "{name}, prefix {length}");
                     }

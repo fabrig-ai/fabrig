@@ -225,7 +225,12 @@ impl Harness {
     /// Has main finish with `change()` as call `call`: the owner of the
     /// landing, whose first check is in flight.
     pub(super) fn land(&mut self, conversation: Token, call: u64) -> Token {
-        let requests = self.step(finish(conversation, call, Declared::Change(change())));
+        let run = self.domain.conversations.get(skein_lib::Id::from_token(conversation)).unwrap().run;
+        let activation = self.domain.runs.get(run).unwrap().activation;
+        let mut event = finish(conversation, call, Declared::Change(change()));
+        let Event::Delegated { name, .. } = &mut event else { unreachable!("finish is delegated") };
+        name.activation = activation;
+        let requests = self.step(event);
         let [Request::Check { owner, program, deadline, tail }, Request::Checking { host_run: _, deadline: until }] =
             &*requests
         else {

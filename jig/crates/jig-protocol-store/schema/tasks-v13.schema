@@ -240,7 +240,8 @@ enum EscalationHolder { task: EscalationTask, person: EscalationPerson, role: Es
 record UnheldEscalation { revision: u64 }
 record RoutingEscalation { revision: u64 }
 record WaitingEscalation { revision: u64 holder: EscalationHolder entry: u64 since: u64 }
-record RejectedEscalation { revision: u64 by: u64 reason: bytes 524288 }
+enum DeciderKind { person, task }
+record RejectedEscalation { revision: u64 by: u64 reason: bytes 524288 by_kind: DeciderKind = person }
 enum Escalation { unheld: UnheldEscalation, routing: RoutingEscalation, waiting: WaitingEscalation, rejected: RejectedEscalation }
 record PersonAnswer { by: u64 at: u64 }
 record PersonStallNotice { message: u64 at: u64 activity: u64 }

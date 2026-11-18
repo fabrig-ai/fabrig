@@ -1,4 +1,4 @@
-//! Every recording field (client/web/journeys.md, 3.6).
+//! Every recording field (client/web/journey-redaction.md).
 use super::{Framing, Line};
 use jig_client_shell_web::adapter::Heard;
 use skein_ui::Act;
@@ -23,8 +23,10 @@ pub fn fields_mut(line: &mut Line) -> Vec<(&mut Box<[u8]>, Framing)> {
         Line::Stored { key, value } | Line::Save { key, value } => vec![(key, Framed), (value, Framed)],
         Line::Written(bytes) | Line::Unwritten(bytes) | Line::Erase(bytes) => vec![(bytes, Framed)],
         Line::Heard(heard) => match heard {
-            Heard::Answered { body, .. } => vec![(body, Framed)],
-            Heard::Failed { .. }
+            Heard::Answered { body, .. } | Heard::Part { bytes: body, .. } => vec![(body, Framed)],
+            Heard::Begun { .. }
+            | Heard::Done { .. }
+            | Heard::Failed { .. }
             | Heard::StreamOpened
             | Heard::StreamRefused { .. }
             | Heard::Piece { .. }
@@ -54,6 +56,7 @@ pub fn fields_mut(line: &mut Line) -> Vec<(&mut Box<[u8]>, Framing)> {
         Line::Journey { .. }
         | Line::Seed(_)
         | Line::Clocks { .. }
+        | Line::Fixed
         | Line::Primary(_)
         | Line::Zone(_)
         | Line::Turn { .. }

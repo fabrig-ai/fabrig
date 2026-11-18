@@ -682,7 +682,7 @@ impl Component {
         let kind = frame.kind();
         let body = frame.bytes().get(8..).expect("validated frame header");
         if kind == wire::Kind::Wires.number() {
-            let record = wire::v16::Agreed::decode(&limits, &mut skein_lib::Reader::new(body));
+            let record = wire::v17::Agreed::decode(&limits, &mut skein_lib::Reader::new(body));
             let agreed = match record {
                 Ok(record) => crate::wires::statement(&self.wires, &record),
                 Err(_) => None,
@@ -952,7 +952,7 @@ impl Component {
     fn translated(
         &mut self,
         frame: channel::Frame,
-        limits: &wire::v16::Limits,
+        limits: &wire::v17::Limits,
         out: &mut Queue<Request>,
     ) -> Option<channel::Frame> {
         let kind = frame.kind();

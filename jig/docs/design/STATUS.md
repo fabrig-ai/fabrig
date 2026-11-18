@@ -54,7 +54,7 @@ words naming their bytes, a start still past it fails its run with its bytes and
 room, the link and its pings going on, and a side whose other frames,
 or the engine's smallest resumed start, could pass it is not made;
 making a start past it by its other parts run is an open question
-(`protocol/channel/records.md`, 2, and `protocol/channel/README.md`, 8, 10 and 13). Store retention (`protocol/store/retention.md`) erases an ended task's turns, then its full record, keeping a summary, then the summary, each past a horizon of the deployment's limits, on the core's hourly pass, and collects forgotten tasks' remains and decided person proposals (`protocol/store/retention.status.md`). A task's history and its turns are kept in two of skein-kv's payload logs in the store's generation, compressed, read through a view of the map and the logs, linked into a new generation and dropped whole by retention (`protocol/store/logs.md`); a task with a transcript file keeps using it until retention drops it. A checkpoint, a deployment's state at one commit, is taken while the engine serves or over a stopped deployment, mostly by hard links, and the newest are kept (`protocol/store/checkpoints.md`); restoring one is later work. Rehearsal and going back remain `protocol/store/opening.status.md`, 5. A start whose store fails a link refuses,
+(`protocol/channel/records.md`, 2, and `protocol/channel/README.md`, 8, 10 and 13). Store retention (`protocol/store/retention.md`) erases an ended task's turns, then its full record, keeping a summary, then the summary, each past a horizon of the deployment's limits, on the core's hourly pass, and collects forgotten tasks' remains and decided person proposals (`protocol/store/retention.status.md`). A task's history and its turns are kept in two of skein-kv's payload logs in the store's generation, compressed, read through a view of the map and the logs, linked into a new generation and dropped whole by retention (`protocol/store/logs.md`); a task with a transcript file keeps using it until retention drops it. A checkpoint, a deployment's state at one commit, is taken while the engine serves or over a stopped deployment, mostly by hard links, and the newest are kept (`protocol/store/checkpoints.md`); restoring one over a stopped deployment takes a safety checkpoint, stages the next generation and a transcript tree from it, and switches through a durable intent that every open rolls forward (`protocol/store/restoring.md`). Rehearsal and going back remain `protocol/store/opening.status.md`, 5. A start whose store fails a link refuses,
 naming the record and what it links to, and no route writes a link to
 a person the core does not hold; the core world, killed at any file
 operation of a decision and again during its restart, starts from a
@@ -71,6 +71,13 @@ bound shortfalls and required/offered figures through the v21 client
 wire, including a standing hello's figures and every charter-bound
 shortfall's charter (`domain/engine/fleet.md`;
 `client/domain/contract/documents.md`, 1; `protocol/client/wire.md`, section 1).
+A client root settles each iteration before its link sends, and the
+link sends what it gathered as one batch, `POST <prefix>/v1/batch`,
+whose replies stream back framed as each is released, each member
+admitted and answered as alone against the sign-in's reads and openings
+in flight; a stream's opening names the one it replaces, and no stream
+gone waits before it, at the v28 client wire (`client/domain/root.md`, 3;
+`protocol/client/wire.md`, 2.1 to 2.3; `protocol/client/default-http.md`, 6).
 Numbered model settings, catalogue-derived
 charter versions and endpoint bounds at hello are built, with worker
 provider-list reads, retained per-account names, atomic catalogue updates
@@ -157,6 +164,11 @@ lives beside the printed link, each spent apart, the local one drawn
 again at once and never printed; its first may be given at start, as a
 box gives its front's, and the printed link's sign-ins are said to the
 startup, `LinkSignedIn` (`protocol/client/wire.md`, 2.2 and `protocol/client/sign-in.md`).
+A person's signed-in client asks an asked link, `LinkAsk` on client
+wire 28: one live per sign-in and four in the deployment, its digest in
+memory alone, signing in the asker's own party in a sign-in people caps
+at the asker's saved expiry (`protocol/client/sign-in.md`;
+`domain/people/README.md`, section 3).
 The history of eight digests is memory-only, so forgotten links are unknown; longer history and
 fallback to a live cookie remain deferred (`protocol/client/sign-in.md` and `protocol/client/README.md`, section 12
 ; `client/domain/client/README.md`, sections 9 and 15).
@@ -238,6 +250,7 @@ Design documents:
 - [`protocol/store/parts.md`](protocol/store/parts.status.md)
 - [`protocol/store/logs.md`](protocol/store/logs.status.md)
 - [`protocol/store/checkpoints.md`](protocol/store/checkpoints.status.md)
+- [`protocol/store/restoring.md`](protocol/store/restoring.status.md)
 - [`protocol/store/crates.md`](protocol/store/crates.status.md)
 - [`protocol/browser/README.md`](protocol/browser/README.status.md)
 

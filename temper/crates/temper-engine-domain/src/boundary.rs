@@ -126,6 +126,8 @@ pub struct ForgeRepository {
     pub start: ForgeStart,
     pub push: Option<Box<[u8]>>,
     pub landing: Option<Box<[u8]>>,
+    /// This task's own checked delivery (temper/docs/design/protocol/channel.md, 4).
+    pub delivered: Option<skein_forge::api::Commit>,
     pub identity: u32,
 }
 
@@ -146,13 +148,7 @@ pub struct KindValue {
     pub value: forge::settings::SizedValue,
 }
 
-/// Whether a charter offers only the asking family's tools and optional settings
-/// (temper/docs/design/domain/agent/tools.md).
-#[must_use]
-pub fn asking(tools: jig_domain_tasks::Tools) -> bool {
-    let families = jig_domain_core::ToolFamilies::JIG;
-    tools.0 & families.ask.0 != 0 && tools.0 & !(families.ask.0 | families.settings) == 0
-}
+pub use temper_engine_domain_room::asking;
 
 /// A run of this policy is given no repository: an asking charter's, or one that
 /// names none of inspect, modify and shell (temper/docs/design/domain/agent/charter.md, 2).
@@ -887,7 +883,10 @@ pub enum ForgeReadAnswer {
     Finding(Option<forge::FindingAnswer>),
     View(Box<temper_engine_domain_ways::View>),
     ProgramEnvironment,
-    Setting(Option<forge::settings::SizedValue>),
+    Setting {
+        value: Option<forge::settings::SizedValue>,
+        revision: Option<u32>,
+    },
     /// The proposal's items and whether an enforcing approval covers an owned Forgejo (domain/forge/change/questions.md, 2).
     ProposalItems {
         items: Box<[(forge::settings::SettingKey, forge::settings::Edit)]>,
@@ -971,6 +970,8 @@ pub enum PartyInput {
     SignedIn {
         /// Authenticated sign-in offered beside the printed link.
         held: Option<u64>,
+        /// Cap on a new sign-in's expiry, handed to people unchanged.
+        until: Option<Wall>,
         /// Web-issued right to this one sign-in reply, moved through people to a durable terminal.
         reply_to: ReplyTo,
         /// Protocol-authenticated forge/user key and display bytes, bounded by people

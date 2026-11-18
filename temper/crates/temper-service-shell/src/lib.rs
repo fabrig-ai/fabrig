@@ -147,23 +147,27 @@ pub struct Prepared<S, A = ()> {
 }
 /// Run serve on the binary's service. Its hooks check inputs before reading the document,
 /// prepare the service, then adopt binary-specific descriptors after the inherited listeners.
+#[expect(clippy::too_many_arguments, reason = "serve supplies its loop clock beside its startup hooks")]
 pub fn run<S, B, A>(
     binary: &str,
     directories: &Directories,
     environment: &[EnvironmentEntry],
     served: Served<S>,
+    clock: &Clock,
     before: impl FnOnce(usize) -> Result<B, String>,
     prepare: impl FnOnce(&[u8], &mut Vec<Fd>, B) -> Result<Prepared<S, A>, String>,
     adopt: impl FnOnce(&mut S, &mut Vec<Fd>, A) -> Result<(), String>,
 ) -> Result<Exit, String> {
-    run_inner(binary, directories, environment, served, before, prepare, adopt)
+    run_inner(binary, directories, environment, served, clock, before, prepare, adopt)
         .map_err(|why| prefixed(&format!("{binary} serve"), &why))
 }
+#[expect(clippy::too_many_arguments, reason = "serve supplies its loop clock beside its startup hooks")]
 fn run_inner<S, B, A>(
     binary: &str,
     directories: &Directories,
     environment: &[EnvironmentEntry],
     served: Served<S>,
+    clock: &Clock,
     before: impl FnOnce(usize) -> Result<B, String>,
     prepare: impl FnOnce(&[u8], &mut Vec<Fd>, B) -> Result<Prepared<S, A>, String>,
     adopt: impl FnOnce(&mut S, &mut Vec<Fd>, A) -> Result<(), String>,
@@ -209,7 +213,7 @@ fn run_inner<S, B, A>(
     let mut host = Host::with_binary(binary, service, served, directories.clone(), environment);
     host.store = store;
     host.link_file = link_file;
-    let exit = skein_shell::drive(&mut kernel, &Clock::new(), &mut host);
+    let exit = skein_shell::drive(&mut kernel, clock, &mut host);
     if let Some(path) = &host.link_file {
         link_file::forget(path);
     }

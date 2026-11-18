@@ -156,6 +156,7 @@ fn ended_change(repository: Repository) -> forge::Stored {
             owns_turn: false,
             last_head: None,
             last_checked: None,
+            last_checked_by: None,
             clock: None,
         },
         room: None,

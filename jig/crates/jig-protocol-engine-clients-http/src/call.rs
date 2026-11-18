@@ -14,6 +14,8 @@ pub(crate) struct Call {
     pub method: skein_http::Method,
     pub public: bool,
     pub stream: Option<crate::stream::Stream>,
+    pub replaces: Option<[u8; 16]>,
+    pub batch: Option<crate::batch::Batch>,
     pub events: Queue<http::Event>,
     pub requests: Queue<http::Request>,
     pub body_kind: http::Body,
@@ -37,6 +39,8 @@ impl Call {
             method: skein_http::Method::Get,
             public: false,
             stream: None,
+            replaces: None,
+            batch: None,
             events: Queue::with_capacity(8),
             requests: Queue::with_capacity(8),
             body_kind: http::Body::None,
@@ -106,7 +110,7 @@ impl Call {
             self.room(limits);
         }
     }
-    fn room(&mut self, limits: &Limits) {
+    pub(super) fn room(&mut self, limits: &Limits) {
         let left = self.response.len().checked_sub(self.offset).expect("response offset");
         self.requests.push(http::Request::Reply(Down::Demand {
             read: Read::Nothing,
@@ -178,7 +182,32 @@ impl Call {
                         }
                         None => {
                             self.streaming = true;
-                            jig_protocol_engine_clients::FromTransport::StreamOpen { stream: self.name, credential }
+                            jig_protocol_engine_clients::FromTransport::StreamOpen {
+                                stream: self.name,
+                                credential,
+                                replaces: self.replaces,
+                                version: match self.route {
+                                    Route::Stream(version) => version,
+                                    Route::Public(_)
+                                    | Route::Link
+                                    | Route::LinkAsk
+                                    | Route::Service
+                                    | Route::SignInApproval
+                                    | Route::ApprovalAsk
+                                    | Route::ApprovalRead
+                                    | Route::ApprovalDecide
+                                    | Route::SignOut
+                                    | Route::Authorize
+                                    | Route::Request
+                                    | Route::Read
+                                    | Route::Watch
+                                    | Route::Batch
+                                    | Route::Unwatch
+                                    | Route::Gone
+                                    | Route::BadQuery
+                                    | Route::Missing => unreachable!("stream route"),
+                                },
+                            }
                         }
                     };
                     out.push(Request::Component(message));
@@ -194,6 +223,7 @@ impl Call {
                     &mut stream.below,
                 );
             }
+            http::Event::Reply(Up::Room) if self.batch.is_some() => self.batch_send(&env.limits),
             http::Event::Reply(Up::Room) => self.send(&env.limits),
             http::Event::Done(_)
             | http::Event::Ended

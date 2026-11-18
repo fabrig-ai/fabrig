@@ -74,7 +74,7 @@ fn plan_world(control: bool) -> (World, engine::Assignment) {
 }
 
 fn plan_world_with_limits(control: bool, limits: &StoryLimits) -> (World, engine::Assignment) {
-    let mut world = World::configured_limits(true, true, false, PLAN_STEPS, Gate::default(), None, *limits);
+    let mut world = World::configured_limits(true, true, false, PLAN_STEPS, Gate::default(), None, limits.clone());
     world.adopt();
     world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
     let people::Ask::Create { project, mut batch } = adoption_chat(&world) else { panic!("create") };
@@ -611,12 +611,34 @@ fn change_with_one_level_left_is_refused_as_the_depth_limit() {
 }
 
 #[test]
+fn a_goal_under_the_run_cap_funds_a_change_while_its_agent_runs() {
+    let mut world = goal_branch::adopted_world();
+    let people::Ask::Create { project, mut batch } = goal_branch::goal_request(&world, true) else {
+        panic!("goal request")
+    };
+    batch[0].budget = people::Budget::AsAllowed { cap: Some(40) };
+    let goal = assigned_chat(&mut world, 92, people::Ask::Create { project, batch });
+    assert_eq!(live(&world, goal.task).numbers.budget, 40);
+    let answer = change(&mut world, &goal, 93, None, b"Small fix");
+    let engine::CallAnswer::Delegated(made) = answer else { panic!("change admitted: {answer:?}") };
+    assert_eq!(goal.run.budget, 20);
+    assert_eq!(made.len(), 1);
+    let row = live(&world, made[0].task);
+    assert_eq!(row.requester, tasks::Party::Task(goal.task));
+    assert_eq!(row.numbers.budget, 10, "half of the twenty left after the live run's reservation");
+    assert_eq!(row.authority.budget.spend, 10);
+    assert_eq!(live(&world, goal.task).numbers.reserved, 30);
+}
+
+#[test]
 fn change_with_half_the_remainder_at_minimum_is_refused_as_funding() {
     let (mut world, chat) = configured_chat(
-        62,
+        12,
         Box::new([people::Executor::Charter(1), people::Executor::Charter(4), people::Executor::Procedure(2)]),
         11,
     );
+    assert_eq!(chat.run.budget, 6, "the run holds its six-unit reserve floor");
+    assert!(matches!(change(&mut world, &chat, 93, None, b"First fix"), engine::CallAnswer::Delegated(_)));
     let row = live(&world, chat.task);
     assert_eq!(
         (row.numbers.budget - row.numbers.reserved - row.numbers.spent - row.numbers.spent_below) / 2,
@@ -624,7 +646,7 @@ fn change_with_half_the_remainder_at_minimum_is_refused_as_funding() {
         "fixture leaves half at the minimum"
     );
     assert!(
-        matches!(change(&mut world, &chat, 93, None, b"Small fix"), engine::CallAnswer::DelegationRefused(problem) if problem.why == tasks::Refusal::Funding)
+        matches!(change(&mut world, &chat, 94, None, b"Small fix"), engine::CallAnswer::DelegationRefused(problem) if problem.why == tasks::Refusal::Funding)
     );
 }
 

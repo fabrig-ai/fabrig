@@ -130,7 +130,7 @@ fn a_run_s_start_file_says_what_it_was_given() {
     let charter = wire::edit_charter(&policy(), |parts| {
         let mut tools = parts.tools.clone().into_parts();
         let mut families = tools.families.into_parts();
-        families.skein_bools[0] = true;
+        families.inspect = true;
         tools.families = smith_charter::Families::new(&smith_charter::CEILINGS, families).expect("valid dump fixture");
         parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("valid dump fixture");
         parts.brief = skein_lib::List::with_capacity(1);

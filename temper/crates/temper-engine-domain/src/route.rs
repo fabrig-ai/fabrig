@@ -215,8 +215,8 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
         Event::Party(crate::PartyInput::SignOut { reply_to, sign_in }) => {
             domain.work.push(Work::People(people::Event::SignOut { reply_to, sign_in }));
         }
-        Event::Party(crate::PartyInput::SignedIn { reply_to, identity, held }) => {
-            domain.work.push(Work::Core(core::Event::SignIn { reply_to, identity, held }));
+        Event::Party(crate::PartyInput::SignedIn { until, reply_to, identity, held }) => {
+            domain.work.push(Work::Core(core::Event::SignIn { until, reply_to, identity, held }));
         }
         Event::Party(crate::PartyInput::Application { reply_to, sign_in, key, digest, scope, request, carried }) => {
             let admission = applications::Admission { reply_to, sign_in, key, digest, scope, carried };
@@ -583,6 +583,10 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                     decision,
                     forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Wall },
                 );
+            }
+            Work::Forge(forge::Event::StatusTask { project, task }) => {
+                let event = forge_route::status_route::admission(domain, project, task);
+                forge_event(domain, env, decision, event);
             }
             Work::Forge(event) => forge_event(domain, env, decision, event),
             Work::ForgeSettings(mut output) => forge_route::outputs(domain, env, decision, &mut output),

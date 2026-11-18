@@ -38,7 +38,6 @@ fn cluster_turn_setup_declares_the_paced_gate_and_prepare_job() {
         temper_service::limits::prepare_jobs(&engine.limits).contains(&temper_service::limits::prepare_bound()),
         "the worker's merge train must be declared"
     );
-    support::write_private(&cluster.dir("llm").join("root.der"), skein_tls_kit::pki::ROOT);
     let document = cluster_turn_setup::read(&cluster.dir("engine").join("config/temper.json"));
     let bytes = serde_json::to_vec(&support::cluster::agent_configuration(&document, &cluster.dir("w1").join("data")))
         .expect("agent JSON");
@@ -61,7 +60,7 @@ fn cluster_turn_setup_declares_the_paced_gate_and_prepare_job() {
                 startup::named(&bytes, &directories).expect("checked engine alone");
             }
             startup::Shape::WorkerAlone => {
-                startup::worker_part(&bytes, &directories, None).expect("checked worker alone");
+                startup::worker_part(&bytes, &directories, None, &[]).expect("checked worker alone");
             }
             startup::Shape::Standalone => panic!("separate deployment processes"),
         }
@@ -80,9 +79,6 @@ fn cluster_turn_setup_declares_the_paced_gate_and_prepare_job() {
 fn cluster_turn_settings_leave_spend_for_preparation_and_keep_current_fields() {
     use serde_json::json;
     let scratch = support::Scratch::new("cluster-turn-settings");
-    std::fs::create_dir_all(scratch.path().join("engine")).expect("engine directory");
-    std::fs::copy(cluster_turn_setup::fixture().join("settings.json"), scratch.path().join("engine/settings.json"))
-        .expect("worker settings");
     let calls: Vec<_> = [
         json!({}),
         json!({"newest":7}),
@@ -166,6 +162,11 @@ fn printed_links_count_and_fail_without_disclosing_secrets() {
 #[test]
 fn a_judge_keeps_an_action_finding_for_watch() {
     support::account_move::tests::a_judge_keeps_an_action_finding_for_watch();
+}
+
+#[test]
+fn person_a_new_project_waits_for_its_applied_home() {
+    support::person::a_new_project_waits_for_its_applied_home();
 }
 
 #[test]
@@ -261,7 +262,7 @@ fn landing_configuration_admission(case: &str, configure: fn(&std::path::Path, u
         let bytes = std::fs::read(root.join(path)).expect("fixture file");
         entries.push((file.path, Secret::new(bytes.into_boxed_slice()))).expect("named file count");
     }
-    let agent = temper_fixtures::agent::prepared(root).agent;
+    let agent = temper_agent_fixtures::prepared(root).agent;
     let seeds = Seeds {
         link_secret: None,
         local_secret: None,

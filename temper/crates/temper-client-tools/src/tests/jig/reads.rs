@@ -421,6 +421,33 @@ fn a_task_read_retains_its_account_wait_reason() {
 }
 
 #[test]
+fn an_untooled_wait_names_its_account_source_and_worker_in_text_and_json() {
+    use jig_client::contract as c;
+    for (argv, expected) in [
+        (
+            fixtures::TASK_JSON_CALL,
+            br#""run_wait":{"account":{"account":4,"source":7,"why":{"untooled":{"worker":2}}}}"#.as_slice(),
+        ),
+        (fixtures::TASK_CALL, b"next run: account 4 source 7: untooled on worker 2".as_slice()),
+    ] {
+        let mut task = fixtures::goal(fixtures::TASK, fixtures::waiting_on_me());
+        task.run_wait = Some(c::TaskRunWait::Account {
+            account: Some(4),
+            source: Some(7),
+            why: c::TaskWaitWhy::Untooled { worker: 2 },
+        });
+        let answer = fixtures::read_answer(argv, fixtures::task_result(task));
+        assert!(skein_lib::bytes::find(&answer.stdout, expected).is_some(), "{:?}", answer.stdout);
+        if argv == fixtures::TASK_CALL {
+            assert!(
+                skein_lib::bytes::find(&answer.stdout, b"its program started without its tools on worker 2").is_some()
+            );
+            assert!(skein_lib::bytes::find(&answer.stdout, b"account verify 4 --source program").is_some());
+        }
+    }
+}
+
+#[test]
 fn a_source_wait_prints_a_null_json_deadline() {
     use jig_client::contract as c;
     for state in [c::TaskSourceState::Later { until: None }, c::TaskSourceState::Limited { until: None }] {
@@ -1330,7 +1357,7 @@ fn task_waits_explain_the_next_act_after_the_code_line() {
                 why: Some(c::AgentShortfall::Spend),
                 figures: Some(c::Figures { required: 5000, offered: 2000 }),
             }),
-            "  no worker can take this: a run here may spend 5000, and the largest worker takes 2000",
+            "  no worker can take this: a run here may spend 50.00, and the largest worker takes 20.00",
             &[],
         ),
         (

@@ -2,7 +2,7 @@
 use crate::again::{self, Paths};
 use crate::{
     EnvironmentEntry, TABLE,
-    table::{ADD, AGAIN, CAUTION, CHROMIUM, DRIVE, RECIPE_HASH, RECIPE_LIST, RECIPE_WALK, REPRINT, TARGET},
+    table::{ADD, AGAIN, CAUTION, CHROMIUM, DRIVE, NORMALISE, RECIPE_HASH, RECIPE_LIST, RECIPE_WALK, REPRINT, TARGET},
 };
 use crate::{JOURNEYS, Refusal, TUI_JOURNEYS, add_to, named, reprint, tui, tui_again};
 use skein_shell::{Front, Table};
@@ -49,6 +49,11 @@ pub fn main(version: &'static str, commit: &'static str) -> ExitCode {
             } else if *command == ADD {
                 let rest: Vec<_> = rest.iter().map(|word| OsStr::from_bytes(word).to_os_string()).collect();
                 add_arguments(&rest)
+            } else if *command == NORMALISE {
+                if !rest.is_empty() {
+                    usage(&NORMALISE, "unexpected arguments");
+                }
+                normalise_all()
             } else if *command == AGAIN {
                 let (prepared, name) = match rest {
                     [name] => (None, name),
@@ -133,8 +138,14 @@ fn add_arguments(arguments: &[OsString]) -> Result<bool, String> {
     let recording = fs::read(file).map_err(|_| "cannot read FILE; nothing was written".to_owned())?;
     let added = add_to(Path::new(JOURNEYS), Path::new(TUI_JOURNEYS), name, &recording, &given)
         .map_err(|why| format!("{}; nothing was written", refusal(why)))?;
-    if recording.split(|byte| *byte == b'\n').any(|line| line.starts_with(b"screen ")) {
-        println!(
+    let is_tui = recording.split(|byte| *byte == b'\n').any(|line| line.starts_with(b"screen "));
+    println!("{}", addition(&added, is_tui));
+    Ok(false)
+}
+
+pub(crate) fn addition(added: &crate::Added, is_tui: bool) -> String {
+    let redaction = if is_tui {
+        format!(
             "link: {}; stored: {}; typed: {}; given: {}; approval: {}; credential: {}; bearer: {}; places replaced: {}",
             added.link,
             added.stored,
@@ -144,15 +155,15 @@ fn add_arguments(arguments: &[OsString]) -> Result<bool, String> {
             added.credential,
             added.bearer,
             added.places
-        );
+        )
     } else {
-        println!(
+        format!(
             "link: {}; stored: {}; typed: {}; given: {}; places replaced: {}",
             added.link, added.stored, added.typed, added.given, added.places
-        );
-    }
-    println!("{CAUTION}");
-    Ok(false)
+        )
+    };
+    let placeholders = placeholder_counts(added.build, added.port, added.code, added.placeholder_places, added.stood);
+    format!("{redaction}\n{placeholders}\n{CAUTION}")
 }
 
 fn record_again(name: &str, prepared: Option<&Path>, environment: &[EnvironmentEntry]) -> Result<(), String> {
@@ -275,6 +286,27 @@ fn build(
     Ok(Paths { temper: scratch.join("temper-box"), bundle, cache: None, chromium, scratch: scratch.to_owned() })
 }
 
+fn placeholder_counts(build: u32, port: u32, code: u32, places: u32, stood: u32) -> String {
+    format!("placeholders: build: {build}; port: {port}; code: {code}; places replaced: {places}; stood: {stood}")
+}
+
+fn normalise_all() -> Result<bool, String> {
+    let (written, stale) = crate::normalise(Path::new(JOURNEYS), Path::new(TUI_JOURNEYS)).map_err(refusal)?;
+    for (name, normalised) in written {
+        println!("{name}: normalised");
+        println!(
+            "{}",
+            placeholder_counts(normalised.build, normalised.port, normalised.code, normalised.places, normalised.stood)
+        );
+    }
+    let has_stale = !stale.is_empty();
+    for why in stale {
+        eprintln!("temper-client-journeys: {}; recording left as it was", refusal(why));
+    }
+    let reprint_stale = reprint_all()?;
+    Ok(has_stale || reprint_stale)
+}
+
 fn reprint_all() -> Result<bool, String> {
     let stale = reprint(Path::new(JOURNEYS), Path::new(JOURNEYS)).map_err(refusal)?;
     let tui_stale = tui::reprint(Path::new(TUI_JOURNEYS), Path::new(TUI_JOURNEYS)).map_err(refusal)?;
@@ -306,7 +338,7 @@ fn reprint_all() -> Result<bool, String> {
     Ok(!stale.is_empty() || !tui_stale.is_empty())
 }
 
-fn refusal(why: Refusal) -> String {
+pub(crate) fn refusal(why: Refusal) -> String {
     match why {
         Refusal::TuiWalk { name, unreadable } => {
             format!("{name}/walk is unreadable at line {}: {}", unreadable.line, unreadable.why)

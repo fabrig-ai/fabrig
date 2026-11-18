@@ -2,7 +2,20 @@ use super::*;
 use jig_client_protocol_wire as w;
 use skein_http::Method;
 use skein_lib::stream::{Down, Up};
+mod batch;
 mod fixtures;
+
+#[test]
+fn a_printed_link_has_the_client_mappings_asked_link_bytes() {
+    let settings = fixtures::mount().settings;
+    let secret = Secret::new(Box::new([7; 32]));
+    let address = core::net::SocketAddr::from(([127, 0, 0, 1], 8080));
+    assert_eq!(
+        printed_link(address, &link_path(&settings, &secret)).as_ref(),
+        b"http://127.0.0.1:8080/jig/v1/sign-in/link?secret=BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc"
+    );
+}
+
 #[test]
 fn a_read_post_becomes_the_component_s_read_exchange() {
     let mut mount = fixtures::mount();
@@ -200,7 +213,12 @@ fn a_browser_exchange_s_cookie_is_its_credential() {
         let mut out = Queue::with_capacity(16);
         fixtures::call(&mut mount, &mut out, method, path, &fixtures::browser(), b"");
         let expected = if stream {
-            kit::FromTransport::StreamOpen { stream: fixtures::EXCHANGE, credential: Some(fixtures::credential()) }
+            kit::FromTransport::StreamOpen {
+                stream: fixtures::EXCHANGE,
+                credential: Some(fixtures::credential()),
+                replaces: None,
+                version: None,
+            }
         } else {
             kit::FromTransport::Exchange {
                 browser: true,
@@ -253,6 +271,22 @@ fn the_bearer_wins_when_a_cookie_also_arrives() {
             exchange: fixtures::EXCHANGE,
             credential: Some(fixtures::credential()),
             message: kit::Message::Read(Box::new([]))
+        }]
+    );
+}
+
+#[test]
+fn the_asked_link_route_reaches_the_component() {
+    let mut mount = fixtures::mount();
+    let mut out = Queue::with_capacity(16);
+    fixtures::call(&mut mount, &mut out, Method::Post, b"/jig/v1/link/ask", &[], b"ask");
+    assert_eq!(
+        *fixtures::component(&mut out),
+        [kit::FromTransport::Exchange {
+            exchange: fixtures::EXCHANGE,
+            credential: None,
+            browser: false,
+            message: kit::Message::LinkAsk(Box::from(b"ask".as_slice())),
         }]
     );
 }
@@ -975,7 +1009,10 @@ fn a_call_ended_before_its_reply_says_its_exchange_gone_once() {
                     mount.down(&fixtures::env(), Event::Component(reply));
                     fixtures::pump(&mut mount, &mut out);
                 }
-                kit::ToTransport::Streamed { .. } | kit::ToTransport::StreamEnded { .. } => unreachable!("reply row"),
+                kit::ToTransport::Part { .. }
+                | kit::ToTransport::Done { .. }
+                | kit::ToTransport::Streamed { .. }
+                | kit::ToTransport::StreamEnded { .. } => unreachable!("reply row"),
             }
         }
         fixtures::event(&mut mount, &mut out, exchange, http::Event::Closed);

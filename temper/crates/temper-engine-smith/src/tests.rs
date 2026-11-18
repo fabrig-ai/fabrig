@@ -343,6 +343,7 @@ fn delivering_assignment() -> engine::Assignment {
         start: engine::ForgeStart::Base(b"temper/23/g23".as_slice().into()),
         push: Some(b"temper/23/r23".as_slice().into()),
         landing: None,
+        delivered: None,
         identity: 1,
     }]);
     assignment

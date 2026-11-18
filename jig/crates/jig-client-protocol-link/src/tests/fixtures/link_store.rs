@@ -184,9 +184,11 @@ impl Harness {
     }
     pub fn written(&mut self) {
         self.link.step(Time::ZERO, Event::Stored, &mut self.out);
+        self.link.settle(&mut self.out);
     }
     pub fn write_failed(&mut self) {
         self.link.step(Time::ZERO, Event::NotStored, &mut self.out);
+        self.link.settle(&mut self.out);
     }
     pub fn exchanges(&self) -> u32 {
         let mut count = 0_u32;
@@ -200,6 +202,7 @@ impl Harness {
                 | Request::Answer { .. }
                 | Request::NotWritten { .. }
                 | Request::NotKept { .. }
+                | Request::ReadAgain { .. }
                 | Request::Read { .. }
                 | Request::OpenStream { .. }
                 | Request::CloseStream
@@ -209,6 +212,7 @@ impl Harness {
                 | Request::Hello { .. }
                 | Request::Signing { .. }
                 | Request::ServiceCredential { .. }
+                | Request::AskedLink(_)
                 | Request::Approval(_)
                 | Request::Authorized(_)
                 | Request::StreamsFull { .. }
@@ -229,6 +233,7 @@ impl Harness {
                 | Request::Answer { .. }
                 | Request::NotWritten { .. }
                 | Request::NotKept { .. }
+                | Request::ReadAgain { .. }
                 | Request::Read { .. }
                 | Request::OpenStream { .. }
                 | Request::CloseStream
@@ -238,6 +243,7 @@ impl Harness {
                 | Request::Hello { .. }
                 | Request::Signing { .. }
                 | Request::ServiceCredential { .. }
+                | Request::AskedLink(_)
                 | Request::Approval(_)
                 | Request::Authorized(_)
                 | Request::StreamsFull { .. }

@@ -1,6 +1,7 @@
 //! Four file drivers over the simulated crashing machine (protocol/store/README.md, 9).
 use crate::{model::Model, root};
 mod checkpoint;
+mod restoring;
 use jig_domain_core as core;
 use jig_protocol_store::{
     Arrived, Below, Event, Get, Io, Load, OpenRefusal, Owner, OwnerSets, Request, Restore, Root, Row, Secrets, Store,
@@ -737,7 +738,7 @@ impl World {
                         unreachable!("a start's pages need a start-mode store")
                     }
                     Event::Job { owner, of, job, page } => {
-                        let result = answer_job(of, &job, &page);
+                        let result = answer_job(of, &job, &page, &mut self.store);
                         answer = Some(Request::Job { owner, answer: result });
                     }
                     Event::Site { owner, of, key, site, at, patcher } => {
@@ -758,6 +759,8 @@ impl World {
                     }
                     other @ (Event::Checkpointed { .. }
                     | Event::CheckpointRefused { .. }
+                    | Event::Restored { .. }
+                    | Event::RestoreRefused { .. }
                     | Event::CheckpointHeld { .. }
                     | Event::CheckpointRemoved { .. }
                     | Event::Decoded { .. }
@@ -826,7 +829,13 @@ impl World {
     }
 
     pub fn rehearsal_request(&mut self) -> Request {
-        Request::Rehearse { owner: OWNER, directory: self.root, scratch: self.scratch_root(), installation: self.drawn }
+        Request::Rehearse {
+            owner: OWNER,
+            directory: self.root,
+            scratch: self.scratch_root(),
+            installation: self.drawn,
+            reach: jig_protocol_store::Reach::Whole,
+        }
     }
 
     /// Answer fixture jobs and frame sites, retaining the rehearsal's ordered events.
@@ -842,7 +851,7 @@ impl World {
                 if let Event::Site { owner, of, key, site, at, patcher } = event {
                     answer = Some(answer_site(owner, of, key, site, at, patcher, &mut contexts));
                 } else if let Event::Job { owner, of, job, page } = event {
-                    let result = answer_job(of, &job, &page);
+                    let result = answer_job(of, &job, &page, &mut self.store);
                     answer = Some(Request::Job { owner, answer: result });
                 } else {
                     if let Event::Opened { last, pending, .. } = &event {
@@ -1373,12 +1382,13 @@ fn answer_job(
     of: Owner,
     name: &str,
     page: &jig_protocol_store::JobPage,
+    store: &mut Store,
 ) -> Result<jig_protocol_store::JobAnswer, jig_protocol_store::JobRefusal> {
     if let Some(answer) = crate::patches::job(of, name, page) {
         return Ok(answer);
     }
     if of == Owner::Jig {
-        jig_protocol_store::jobs::page(name, page)
+        jig_protocol_store::jobs::page(name, page, store)
     } else {
         Err(jig_protocol_store::JobRefusal { key: None, why: "no such fixture job".into() })
     }

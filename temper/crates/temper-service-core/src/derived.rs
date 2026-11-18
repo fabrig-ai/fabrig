@@ -2,6 +2,21 @@
 use crate::agent::Declaration;
 use jig_protocol_config::Limits;
 
+/// Jig's stock with temper's counts (configuration/limits.md, one stock).
+#[must_use]
+pub fn stock() -> Limits {
+    let mut limits = jig_protocol_config::stock();
+    // Fabrig's own development's 48 calls per response.
+    limits.hub.run_calls = 48;
+    // Fabrig's own development's workers have at most 12 places; the
+    // largest round ceiling whose 48-call engine channel fits u32 is 32.
+    limits.core.fleet.slots = 32;
+    // Fabrig's own development's agent uses smith's standard profile,
+    // whose credential accounts are fixed at four, independent of conversations.
+    limits.hub.accounts = 4;
+    limits
+}
+
 /// The projection of an agent's declaration used by the carriers.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Sources {
@@ -69,12 +84,12 @@ pub fn call_answer(payload: u32, stock: u32) -> u32 {
 /// measured over the base's owners before any document override.
 #[must_use]
 pub fn output(limits: &Limits) -> Option<u32> {
-    use jig_protocol_worker_wire::{CEILINGS, sizes, v16};
+    use jig_protocol_worker_wire::{CEILINGS, sizes, v17};
     let own = crate::limits::stock();
     let payload = temper_protocol_worker_wire::limits(&checkout_bounds(&own.checkout, &own.peer))?;
     let sizes = worker_sizes(limits, limits.hub.slots, &payload, own.peer.forges)?;
     let bodies = sizes::limits(&sizes)?;
-    let mut room = u32::try_from(v16::Credential::encoded_bound(&bodies)?).ok()?.checked_add(22)?.max(270);
+    let mut room = u32::try_from(v17::Credential::encoded_bound(&bodies)?).ok()?.checked_add(22)?.max(270);
     for rule in jig_protocol_worker_wire::KINDS {
         // Assignments, job specs and opening figures are checked against room when sent.
         if rule.body != jig_protocol_worker_wire::Kind::Assignment
@@ -174,7 +189,7 @@ pub fn worker_document(
     directories: &jig_protocol_config::Directories,
     sources: Sources,
 ) -> Result<jig_protocol_config::Worker, jig_protocol_config::Problems> {
-    let mut base = jig_protocol_config::stock();
+    let mut base = stock();
     if let Err(found) = worker(&mut base, sources) {
         let mut problems = jig_protocol_config::Problems::empty();
         problems.push(found.path, found.what);
@@ -304,10 +319,10 @@ pub fn checkout_payload(checkout: &crate::limits::Checkout) -> temper_protocol_w
 /// fields remain at their ceilings: they do not occur in an Answer.
 #[must_use]
 pub fn checkout_answer(jig: &Limits, payload: &temper_protocol_worker_wire::v1::Limits) -> Option<u64> {
-    use jig_protocol_worker_wire::{CEILINGS, v16};
+    use jig_protocol_worker_wire::{CEILINGS, v17};
     let saved = temper_protocol_worker_wire::v1::Saved::encoded_bound(payload)?;
     let ceiling = u64::from(CEILINGS.work_saved_some);
-    let limits = v16::Limits {
+    let limits = v17::Limits {
         work_left_some: u32::try_from(temper_protocol_worker_wire::v1::Left::encoded_bound(payload)?).ok()?,
         work_saved_some: u32::try_from(saved.min(ceiling)).ok()?,
         answer_refused: jig.core.tasks.run_inbox,
@@ -321,5 +336,5 @@ pub fn checkout_answer(jig: &Limits, payload: &temper_protocol_worker_wire::v1::
     // At the saved ceiling, the largest ending contains Work, not a refusal.
     // Any excess extends that same byte field; measure even a ceiling shortfall
     // so it cannot hide the rooms that must rise with it.
-    v16::Answer::encoded_bound(&limits)?.checked_add(saved.saturating_sub(ceiling))?.checked_add(8)
+    v17::Answer::encoded_bound(&limits)?.checked_add(saved.saturating_sub(ceiling))?.checked_add(8)
 }

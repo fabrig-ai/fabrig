@@ -1214,17 +1214,15 @@ pub fn answer(
                         kinds: w::Kinds::new(
                             limits,
                             w::KindsParts {
-                                skein_bools: [
-                                    a.kinds.read,
-                                    a.kinds.push,
-                                    a.kinds.open,
-                                    a.kinds.land,
-                                    a.kinds.review,
-                                    a.kinds.status,
-                                    a.kinds.comment,
-                                    a.kinds.issue,
-                                    a.kinds.branch,
-                                ],
+                                read: a.kinds.read,
+                                push: a.kinds.push,
+                                open: a.kinds.open,
+                                land: a.kinds.land,
+                                review: a.kinds.review,
+                                status: a.kinds.status,
+                                comment: a.kinds.comment,
+                                issue: a.kinds.issue,
+                                branch: a.kinds.branch,
                             },
                         )
                         .ok()?,
@@ -2454,12 +2452,12 @@ pub fn forge_read(answer: root::ForgeReadAnswer, program_environment: &[u8], lim
             .ok()?;
             Some(wire::program_environment_answer(&record))
         }
-        root::ForgeReadAnswer::Setting(value) => {
+        root::ForgeReadAnswer::Setting { value, revision } => {
             let value = match value {
                 Some(value) => Some(temper_engine_smith::kinds::encode(&value.value)),
                 None => None,
             };
-            let record = w::SettingAnswer::new(limits, w::SettingAnswerParts { value }).ok()?;
+            let record = w::SettingAnswer::new(limits, w::SettingAnswerParts { value, revision }).ok()?;
             Some(wire::setting_answer(&record))
         }
         root::ForgeReadAnswer::ProposalItems { items: values, owned_approval } => {

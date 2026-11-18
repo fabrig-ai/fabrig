@@ -163,6 +163,19 @@ target is a compile error naming the three (`readiness.md`, 5, 6).
   at startup, beside the seed and never derived from it, and handed to
   the service's startup as a `Secret`. The service keys each `CryptoRng`
   from it; a world draws it from its own seed instead.
+- **A fixed clock,** for a process a tool walks on a fixed start
+  (lib.md, section 8, `FixedStart`): `Clock::fixed(start: &FixedStart)
+  -> Clock` reads `FixedStart::NOW` and the start's wall, then moves only
+  to the deadlines it is asked for, through a `FixedClock` over
+  `CLOCK_MONOTONIC`'s readings. `Clock::until(&self, deadline:
+  Option<Time>) -> Option<Time>` gives the monotonic instant the kernel
+  waits until for a step's deadline: the deadline itself on the host's
+  clock, and on a fixed one the instant the host's time reaches it
+  (`FixedClock::until`). `Clock::new` is the host's clock, as before, and
+  a wait of the shell's own, `posix::wait_readable`'s, keeps it. A process
+  on a fixed start takes its seed and its cryptographic seed from the
+  start (`FixedStart::draw`), not from `getrandom`: the program's startup
+  chooses both, and the kit reads no setting of its own for them.
 
 ## 6. Startup
 
@@ -728,8 +741,9 @@ every service's `main`.
   (../../foundation/testing-strategy.md, 6; ../testing/README.md, 5).
 - **`drive(kernel, clock, host)`** is the loop: reap, read the clock,
   iterate, drain; then return the host's exit once it holds nothing
-  (section 12), or else submit, waiting not at all while work is pending,
-  until the earliest deadline, or until a completion. A service's `main`
+  (section 12), or else ask the clock's `until` for the earliest deadline
+  (section 5), at every iteration, and submit, waiting not at all while
+  work is pending, until the instant `until` gave, or until a completion. A service's `main`
   is its startup, then `drive`. It is native, as the kernel and the
   clock it takes are (section 13).
 - **The hook** runs once per iteration, after `iterate` and before the

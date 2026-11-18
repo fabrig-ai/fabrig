@@ -895,6 +895,7 @@ pub fn repository(repository: u32, owner: &[u8], name: &[u8]) -> temper_engine_d
         start: temper_engine_domain::ForgeStart::Base(b"main".as_slice().into()),
         push: Some(b"temper/task-7".as_slice().into()),
         landing: None,
+        delivered: None,
         identity: 1,
     }
 }
@@ -1126,6 +1127,7 @@ fn signed_worker_on(channel: Token) -> crate::Service {
     use temper_engine_domain as root;
     let mut service = restored_key();
     service.engine.as_mut().expect("engine").step(root::Event::Party(root::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: skein_lib::ReplyTo::new(Token::new(100)),
         identity: jig_domain_people::Identity {

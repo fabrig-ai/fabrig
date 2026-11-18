@@ -1,5 +1,23 @@
 use super::*;
 
+#[test]
+fn a_successful_check_does_not_format_its_diagnostic() {
+    struct Diagnostic(std::cell::Cell<u32>);
+    impl std::fmt::Display for Diagnostic {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            self.0.set(self.0.get() + 1);
+            f.write_str("delivery missed its deadline: Word(7, 9)")
+        }
+    }
+    let diagnostic = Diagnostic(std::cell::Cell::new(0));
+    require(true, Promise::Lost, format_args!("{diagnostic}")).expect("passing check");
+    assert_eq!(diagnostic.0.get(), 0, "success formats no text");
+    let failure = require(false, Promise::Lost, format_args!("{diagnostic}")).expect_err("failed check");
+    assert_eq!(failure.promise, Promise::Lost);
+    assert_eq!(failure.why, "delivery missed its deadline: Word(7, 9)");
+    assert_eq!(diagnostic.0.get(), 1, "failure formats once at the reporting boundary");
+}
+
 /// Projectless authority is checked independently (jig/docs/design/domain/authority.md, 6.1).
 #[test]
 fn a_projectless_task_has_only_stripped_deployment_authority() {

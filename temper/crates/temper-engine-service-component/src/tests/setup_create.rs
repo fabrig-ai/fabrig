@@ -649,6 +649,7 @@ fn sign_owner(service: &mut crate::Service) {
     let reply = owner_reply(
         service,
         root::PartyInput::SignedIn {
+            until: None,
             held: None,
             reply_to: ReplyTo::new(Token::new(91)),
             identity: people::Identity {

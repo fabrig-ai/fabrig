@@ -32,7 +32,7 @@ mod loads;
 pub mod logs;
 mod view;
 pub use jobs::{
-    Converts, Job, JobAnswer, JobCount, JobLayout, JobPage, JobRefusal, JobRoom, JobRow, JobWrite, KeyRange,
+    Converts, Job, JobAnswer, JobCount, JobLayout, JobPage, JobRefusal, JobRoom, JobRow, JobWrite, KeyRange, Layouts,
 };
 mod open;
 mod pages;
@@ -46,6 +46,7 @@ pub use upgrade::sets::{Frames, JIG, KeptFamily, KeptMap, Keys, Owner, OwnerSet,
 mod reads;
 mod registry;
 pub mod restore;
+mod restoring;
 pub mod retained;
 mod rows;
 mod secrets;
@@ -109,7 +110,6 @@ pub struct Store {
     limits: Limits,
     application: sizes::Application,
     codec_limits: codec::View,
-    layouts: codec::component::Layouts,
     registry: Box<registry::Layouts>,
     layout_work: Box<registry::ReadWork>,
     /// Today's catalogue, overlaid at open and replaced before each catalogue commit.
@@ -134,6 +134,7 @@ pub struct Store {
     start_open_failure: Option<Box<restore::OpenFailure>>,
     rehearsal: Option<rehearsal::State>,
     back: Option<back::State>,
+    restoring: Option<Box<restoring::State>>,
     checkpoint_open: Option<checkpoint_open::State>,
     named_checkpoints: Box<checkpoints::named::Named>,
     /// Keep the census rule off service construction stacks (protocol/store/README.md, 6.3).
@@ -193,7 +194,8 @@ pub fn seed(drivers: [&mut skein_io::file_layer::FileIo; 4], seed: u64) -> Seede
 }
 
 impl Store {
-    /// Public application rows for a job's page, at the binary's levels (protocol/store/opening.md, 3). No serving codec runs over these bytes.
+    /// Rows at the binary's layouts while a job page is out (protocol/store/jobs.md, 3).
+    /// Keys are whole for jig's jobs and relative to the application's tag for its jobs.
     pub fn patch_page(
         &mut self,
         range: skein_kv::Range,
@@ -201,20 +203,25 @@ impl Store {
         rows: u32,
     ) -> Result<PatchPage, OpenRefusal> {
         let directory::Opening::Patching(phase) = &self.directory.opening else { return Err(OpenRefusal::Failed) };
-        let out = match &**phase {
-            upgrade::phase::Patching::Jobs(running) => running.at_page(),
+        let owner = match &**phase {
+            upgrade::phase::Patching::Jobs(running) => running.page_owner(),
             upgrade::phase::Patching::Closing { .. }
             | upgrade::phase::Patching::Dropping(_)
             | upgrade::phase::Patching::Copying(_)
             | upgrade::phase::Patching::Mapping { .. }
             | upgrade::phase::Patching::Recovering { .. }
             | upgrade::phase::Patching::Sealing { .. }
-            | upgrade::phase::Patching::Checking(_) => false,
+            | upgrade::phase::Patching::Checking(_) => None,
         };
-        if !out || rows == 0 || rows > self.limits.store.ops {
+        let owner = owner.ok_or(OpenRefusal::Failed)?;
+        if rows == 0 || rows > self.limits.store.ops {
             return Err(OpenRefusal::Failed);
         }
-        let ranges = pages::application(&[range], self.limits.store.key).ok_or(OpenRefusal::Failed)?;
+        let ranges = if owner == Owner::Application {
+            pages::application(&[range], self.limits.store.key).ok_or(OpenRefusal::Failed)?
+        } else {
+            Box::new([range])
+        };
         let page = match pages::reader::walk(self, &ranges, after, rows) {
             Ok(page) => page,
             Err(failure) => {
@@ -224,8 +231,12 @@ impl Store {
         };
         let mut found = skein_lib::List::with_capacity(rows);
         for row in page.rows {
-            let key = keys::of_application(&row.row.key).ok_or(OpenRefusal::Failed)?;
-            found.push(skein_kv::Row { key: Box::from(key), value: row.row.value }).expect("bounded patch page");
+            let key = if owner == Owner::Application {
+                Box::from(keys::of_application(&row.row.key).ok_or(OpenRefusal::Failed)?)
+            } else {
+                row.row.key
+            };
+            found.push(skein_kv::Row { key, value: row.row.value }).expect("bounded patch page");
         }
         Ok(PatchPage { rows: found.into_boxed(), next: page.next })
     }
@@ -250,7 +261,6 @@ impl Store {
             limits: *limits,
             application,
             codec_limits,
-            layouts: format::layouts(),
             registry: Box::new(registry::Layouts::new()),
             layout_work: Box::new(registry::ReadWork::new()),
             names: codec::names(models),
@@ -268,6 +278,7 @@ impl Store {
             start_open_failure: None,
             rehearsal: None,
             back: None,
+            restoring: None,
             checkpoint_open: None,
             named_checkpoints: Box::new(checkpoints::named::Named::new()),
         }
@@ -375,6 +386,17 @@ impl Store {
         }
     }
 
+    /// Independent durable memory maps and payload logs for a domain world's
+    /// fork. The caller opens a fresh component over the result.
+    /// Directory-backed stores have no in-memory fork.
+    #[must_use]
+    pub fn fork_memory(&self) -> Option<Stores> {
+        Some(Stores {
+            store: self.stores.store.fork_memory(&self.limits.store)?,
+            secrets: self.stores.secrets.fork_memory(&self.limits.secrets)?,
+        })
+    }
+
     #[must_use]
     pub fn work_pending(&self) -> bool {
         directory::ready(self)
@@ -453,9 +475,11 @@ pub fn down(store: &mut Store, env: &Env<Limits>, request: Request, above: &mut 
     let lengths = rehearsal::lengths(below);
     let mut events = Queue::uncapped();
     down_inner(store, env, request, &mut events, below);
-    view::events(store, &mut events, above);
+    let mut terminals = Queue::uncapped();
+    restoring::events(store, env, &mut events, &mut terminals, below);
+    view::events(store, &mut terminals, above);
     fire_views(store, env, above, below);
-    accounted(store, lengths, above, below);
+    accounted(store, env, lengths, above, below);
 }
 fn fire_views(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Below) {
     view::fire(store, env, above, below);
@@ -464,12 +488,14 @@ fn fire_views(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, be
         view::fire(store, env, above, below);
     }
 }
-fn accounted(store: &mut Store, lengths: [u32; 4], above: &mut Queue<Event>, below: &mut Below) {
+fn accounted(store: &mut Store, env: &Env<Limits>, lengths: [u32; 4], above: &mut Queue<Event>, below: &mut Below) {
     rehearsal::issued(store, below, lengths);
     checkpoint_open::issued(store, below, lengths);
     let lengths = rehearsal::lengths(below);
     rehearsal::advance_close(store, above, below);
-    checkpoint_open::advance(store, above, below);
+    let mut events = Queue::uncapped();
+    checkpoint_open::advance(store, &mut events, below);
+    restoring::events(store, env, &mut events, above, below);
     rehearsal::issued(store, below, lengths);
     checkpoint_open::issued(store, below, lengths);
 }
@@ -504,8 +530,8 @@ fn down_inner(store: &mut Store, env: &Env<Limits>, request: Request, above: &mu
         Request::Checkpoint { .. } | Request::HoldCheckpoint { .. } | Request::RemoveCheckpoint { .. } => {
             unreachable!("checkpoint routed before stopped guard")
         }
-        Request::Rehearse { owner, directory, scratch, installation } => {
-            rehearsal::begin(store, owner, directory, scratch, installation, above, below);
+        Request::Rehearse { owner, directory, scratch, installation, reach } => {
+            rehearsal::begin(store, owner, directory, scratch, installation, reach, above, below);
         }
         Request::Back { owner, root } => back::begin(store, owner, root, above, below),
         Request::Close { .. } => unreachable!("close routed before stopped guard"),
@@ -539,11 +565,20 @@ pub fn up(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue<Event>
     let lengths = rehearsal::lengths(below);
     let mut events = Queue::uncapped();
     up_routed(store, env, io, &mut events, below);
-    view::events(store, &mut events, above);
+    let mut terminals = Queue::uncapped();
+    restoring::events(store, env, &mut events, &mut terminals, below);
+    view::events(store, &mut terminals, above);
     fire_views(store, env, above, below);
-    accounted(store, lengths, above, below);
+    accounted(store, env, lengths, above, below);
 }
 fn up_routed(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue<Event>, below: &mut Below) {
+    if restoring::owns(&io) {
+        let arrived = match io {
+            Io::Store(a) | Io::Secrets(a) | Io::Transcripts(a) | Io::Checkpoints(a) => a,
+        };
+        restoring::up(store, env, arrived, above, below);
+        return;
+    }
     rehearsal::arriving(store, &io);
     checkpoint_open::arriving(store, &io);
     if checkpoint_open::closing(store) {
@@ -586,9 +621,11 @@ pub fn fire(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, belo
     let lengths = rehearsal::lengths(below);
     let mut events = Queue::uncapped();
     fire_inner(store, env, &mut events, below);
-    view::events(store, &mut events, above);
+    let mut terminals = Queue::uncapped();
+    restoring::events(store, env, &mut events, &mut terminals, below);
+    view::events(store, &mut terminals, above);
     fire_views(store, env, above, below);
-    accounted(store, lengths, above, below);
+    accounted(store, env, lengths, above, below);
 }
 fn fire_inner(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Below) {
     if store.phase != Phase::Stopped && !rehearsal::preparing(store) && store.back.is_none() {
@@ -619,19 +656,15 @@ mod openings;
 pub use boundary::{
     Arrived, BackRefusal, Below, CARRIED, CarriedKind, Check, CheckpointRefusal, Checkpointed, CommitCheck,
     CommitFailure, Cursor, Event, Family, Generations, Get, HELD, Io, KeptWire, Load, Older, OpenRefusal, OpenedTerm,
-    OpenedWire, Purpose, Request, Restore, Root, Row, SecretOwner, SecretRow, SecretValue, Secrets, TranscriptRead,
-    Undecoded, Unplanned, Unready, WorkerOpening, Write,
+    OpenedWire, Purpose, Reach, Request, Restore, RestoreRefusal, Restored, Root, Row, SecretOwner, SecretRow,
+    SecretValue, Secrets, TranscriptRead, Undecoded, Unplanned, Unready, WorkerOpening, Write,
 };
 
 #[cfg(test)]
 mod tests;
 
 pub use jig_protocol_store_families::component_v3;
-pub use jig_protocol_store_settings::settings_v3;
-#[rustfmt::skip]
-#[path = "generated/layouts.rs"]
-mod layouts;
-
 pub use jig_protocol_store_families::secrets_v1;
+pub use jig_protocol_store_settings::settings_v3;
 
 pub use jig_protocol_store_families::{openings_v1, registry_v1};

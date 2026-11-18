@@ -23,7 +23,7 @@
   ends at once (`../../../protocol/client/wire.md`, 2.2), and the client sends
   none unless the transport carries one (`README.md`, section 9). Once signed in,
   the client opens each such watch under a fresh name; one on `me` is
-  the client's own (2), not a second.
+  the client's own, which its stream brings (2), and opens nothing.
 - **Each opening is named afresh.** The client names each watch it opens
   on the engine with a name of its own, never reused, so a delivery for
   a watch it closed is dropped, even when the application has given its
@@ -64,33 +64,38 @@
   ends a handle with no `Ended`.
 - **Bounded:** handles, the engine's watches, and the bytes of each
   document held (`README.md`, section 11). A `Watch` past them ends at once, refused
-  by the client's limit. One of the engine's watches is `me`'s (2):
-  while no watch on `me` is held, the application's take at most one
-  fewer, so that a sign-in always opens it.
+  by the client's limit. One of the engine's watches is always the
+  stream's `me` (2), so the application's take at most one fewer.
 
 ## 2. The link
 
-- **The client watches `me` itself** while a sign-in is live, under a
-  handle of its own, which an application's handle on `me` shares (1).
-  `me` names the party, which the client confirms to the request table,
-  so that only that party's requests are sent; and the retention of
-  answers (../contract/requests.md, 1), from which the table cuts its retries
-  (`requests.md`). `me` ends only with the sign-in, or when jig's version is
-  not served (below): a refusal of it, busy included, or any other end
-  of it, is opened again after a backoff, as a dropped watch (1), and
-  the link is offline until its next delivery.
+- **`me` comes with the stream.** The client holds `me` while a sign-in
+  is live, under a handle of its own, which an application's handle on
+  `me` shares (1), and opens no watch of it: its stream's opening names
+  jig's version, the hello brings `me`'s first value, and its later
+  values are deliveries of the stream's own watch of it, named `0`
+  (`../../../protocol/client/wire.md`, section 2). `me` names the party,
+  which the client confirms to the request table, so that only that
+  party's requests are sent; and the retention of answers
+  (../contract/requests.md, 1), from which the table cuts its retries
+  (`requests.md`). `me` ends only with the sign-in, or when jig's version
+  is not served (below). Its watch refused or ended on the engine ends
+  the stream, which the client takes as dropped and opens again after a
+  backoff, the link offline until the next hello. A hello alone whose
+  ranges serve jig's version is a record out of its order: it drops the
+  stream, to open again after its backoff.
 - **Its states,** told by `Link(state)` and read with `client.link()`:
   - *signed out:* no sign-in is live (`README.md`, section 9);
-  - *starting:* signed in, and `me`'s first delivery has not come;
-  - *live:* the stream is live, and `me` has been delivered on it;
+  - *starting:* signed in, and no hello has come on the stream;
+  - *live:* the stream is live, its hello and `me` with it come;
   - *offline:* the stream dropped, or went silent past twice its
-    heartbeat (`../../../protocol/client/wire.md`, section 2), or `me` was
-    refused or ended on it (above). Requests wait, parked, and what
-    dropped, the stream and its watches or `me` alone, opens again after
+    heartbeat (`../../../protocol/client/wire.md`, section 2), or the
+    engine ended it, its `me` refused or ended (above). Requests wait,
+    parked, and the stream and its watches open again after
     backoffs drawn from the seed: a first span, doubling to a most,
     jittered.
-    `me`'s next delivery brings the link back, and with it the confirmed
-    party's parked requests;
+    The next hello, with `me`, brings the link back, and with it the
+    confirmed party's parked requests;
   - *out of date:* the engine serves no version of jig's that the client
     speaks; or it sent a record of jig's this build can't read
     (`unreadable`, below). It sends nothing, and keeps every request.
@@ -109,8 +114,9 @@
   transport bound (`../../../protocol/client/wire.md`, 2, and `../../../protocol/client/default-http.md`, 2). `Link(state)`
   tells the caller when this fact arrives even if the state is unchanged;
   it stays through retries until `me` returns or the sign-in ends.
-  `watches_full` says that a watch the client holds, `me`'s or an
-  application's, was last answered busy (1) and has had no answer since.
+  `watches_full` says that a watch the client opened for an application
+  was last answered busy (1) and has had no answer since; `me`'s, which
+  the engine opens, ends its stream instead (above).
   It clears when that watch is answered, or is closed or ended. It carries
   no count, since a refusal names none, and tells no `Link(state)`: an
   application reads it when it has cause to, as at a deadline.

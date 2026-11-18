@@ -757,7 +757,7 @@ pub fn configure(side: &mut super::Side, limits: super::Limits, out: &mut skein_
         side.changed();
         return;
     }
-    if side.party.is_some()
+    if side.link == Link::Live
         && !side.forges_open
         && let State::Unknown = side.forges
     {
@@ -997,9 +997,8 @@ fn delivered(
         },
         None => State::Unknown,
     };
-    if let Some(before) = before
-        && let Some(after) = fake_row(&side.forges)
-        && before != after
+    if let Some(after) = fake_row(&side.forges)
+        && before.unwrap_or(false) != after
     {
         super::playground::read(side, out);
     }
@@ -1007,7 +1006,7 @@ fn delivered(
         end(side, out);
     }
 }
-/// Only two delivered documents can reveal a gained or lost fake row (client/forge/family.md, 7).
+/// A first fake row also reveals a playground started since the live link's read (client/forge/family.md, 7).
 fn fake_row(state: &State) -> Option<bool> {
     match state {
         State::Unknown | State::Ended => None,

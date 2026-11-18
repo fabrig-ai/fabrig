@@ -41,6 +41,61 @@ fn numbered_hold_reasons_keep_the_documents_supplied_identity() {
 }
 
 #[test]
+fn hold_sentences_keep_the_first_clause_or_the_reason_and_dependency_question() {
+    let w = fixtures::words();
+    let mut task = fixtures::task::document();
+    task.hold = Some(Box::new(c::ChipHold {
+        placed: None,
+        words: None,
+        circle: None,
+        account: None,
+        source: None,
+        reason: c::HoldCategory::EffectFailed,
+        revision: 1,
+        before: c::PriorPhase::Active(c::RunStage::Idle),
+        escalation: None,
+        tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0, infrastructure: 0 },
+        hold_wait_since: None,
+    }));
+    for (input, cut, expected) in [
+        (
+            Some(
+                "forge could not release this task's resources; resolve this reason, then task release 6978 --hold 1; or task cancel 6978 REASON",
+            ),
+            false,
+            "Forge could not release this task's resources.",
+        ),
+        (Some("waiting\nraw account"), true, "Waiting."),
+        (Some("waiting"), true, "Waiting…"),
+        (Some("waiting...; more"), false, "Waiting..."),
+        (Some("waiting.; more"), false, "Waiting."),
+        (Some("waiting!; more"), false, "Waiting!"),
+        (Some("waiting?; more"), false, "Waiting?"),
+        (Some("waiting…; more"), false, "Waiting…"),
+        (Some("; more"), false, "An effect failed permanently."),
+        (Some("\nmore"), true, "An effect failed permanently."),
+        (Some(""), false, "An effect failed permanently."),
+        (None, false, "An effect failed permanently."),
+    ] {
+        task.hold.as_mut().unwrap().words = match input {
+            Some(s) => Some(c::DocumentText { bytes: c::Text::new(s.as_bytes().into(), 512).unwrap(), cut }),
+            None => None,
+        };
+        assert_eq!(crate::shared::hold_sentence(Some(&task), &w).as_ref(), expected.as_bytes(), "{input:?}, cut={cut}");
+    }
+    task.hold.as_mut().unwrap().reason = c::HoldCategory::Stalled;
+    assert_eq!(crate::shared::hold_sentence(Some(&task), &w).as_ref(), b"The executor stopped progressing.");
+    task.hold.as_mut().unwrap().reason = c::HoldCategory::Dependency { task: 5 };
+    assert_eq!(
+        crate::shared::hold_sentence(Some(&task), &w),
+        crate::cards::proposal::dependency_question(&task, &w).unwrap()
+    );
+    task.hold = None;
+    assert_eq!(crate::shared::hold_sentence(Some(&task), &w).as_ref(), b"This task is held.");
+    assert_eq!(crate::shared::hold_sentence(None, &w).as_ref(), b"This task is held.");
+}
+
+#[test]
 fn dependency_refusals_use_jigs_words() {
     for (refusal, expected) in [
         (

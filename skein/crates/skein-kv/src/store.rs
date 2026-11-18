@@ -329,6 +329,27 @@ impl Store {
         store
     }
 
+    /// Copy an in-memory store's durable map, census and payload logs, with no
+    /// pending operations or read cache. Later writes belong to the copy alone.
+    /// Directory-backed stores cannot be copied through this test fixture face.
+    #[must_use]
+    pub fn fork_memory(&self, limits: &Limits) -> Option<Store> {
+        match self.state {
+            State::Memory => {}
+            State::Closed | State::Open { .. } => return None,
+        }
+        assert!(
+            self.queue.is_empty() && self.reads.is_empty() && self.drops.is_empty(),
+            "memory operations finish inline"
+        );
+        let mut copy = Store::memory(limits);
+        copy.last = self.last;
+        copy.map = self.map.clone();
+        copy.rule.clone_from(&self.rule);
+        copy.logs = self.logs.clone();
+        Some(copy)
+    }
+
     /// Enable the census before opening, or before the first in-memory commit
     /// (skein/docs/design/data/kv.md, 2.2). Prefix lengths are clamped to `1..=CENSUS_PREFIX`.
     pub fn count(&mut self, rule: CensusRule) {
@@ -691,8 +712,8 @@ pub fn down(
             }
             State::Open { dir, phase } => commit_disk(store, dir, phase, owner, ops, &mut step),
         },
-        Request::ReadLog { owner, log, at, direction, max } => {
-            read_requested(store, state, owner, log, at, direction, max, &mut step)
+        Request::ReadLog { owner, log, at, direction, max, rows } => {
+            read_requested(store, state, owner, log, at, direction, max, rows, &mut step)
         }
         Request::Get { owner, key } => {
             let available = match &state {
@@ -1605,6 +1626,7 @@ fn read_requested(
     at: u64,
     direction: Direction,
     max: u32,
+    rows: u32,
     step: &mut Step<'_>,
 ) -> State {
     let usable = match &state {
@@ -1616,11 +1638,11 @@ fn read_requested(
         step.above.push(Event::Refused { owner, refusal: Refusal::Unavailable });
         return state;
     }
-    if max == 0 || max > step.env.limits.page.bytes {
+    if max == 0 || max > step.env.limits.page.bytes || rows == 0 {
         step.above.push(Event::Refused { owner, refusal: Refusal::TooLarge(Large::Page) });
         return state;
     }
-    let read = Read::new(owner, log, at, direction, max, store.logs.extent(&store.map, log));
+    let read = Read::new(owner, log, at, direction, max, rows, store.logs.extent(&store.map, log));
     if read.finished() {
         step.above.push(read.answer());
         return state;

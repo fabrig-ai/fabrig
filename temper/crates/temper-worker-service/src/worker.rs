@@ -860,8 +860,26 @@ impl Worker {
             detail,
         });
     }
+    fn note_agent_stopped(&mut self, run: Token, attempt: Token, failure: hub::AgentFailure) {
+        let no_progress_ms = match failure {
+            hub::AgentFailure::NoProgress => Some(self.agent.host_limits.no_progress.as_millis()),
+            hub::AgentFailure::WallTime
+            | hub::AgentFailure::Rules
+            | hub::AgentFailure::Exited
+            | hub::AgentFailure::Unstarted => None,
+        };
+        self.notes.push(crate::worker_alone::Note::AgentStopped {
+            run: run.raw(),
+            attempt: attempt.raw(),
+            failure,
+            no_progress_ms,
+        });
+    }
     pub(crate) fn route(&mut self, request: root::Request) {
         match request {
+            root::Request::AgentStopped { run, attempt, failure } => {
+                self.note_agent_stopped(run, attempt, failure);
+            }
             root::Request::Unprepared { run, attempt, failure, detail } => {
                 self.note_unprepared(run, attempt, failure, &detail);
             }
@@ -1561,7 +1579,7 @@ mod prepared_tests {
                     assert_eq!((lowest, highest), (16, 16));
                     opening = Some(
                         jig_protocol_worker_wire::Credential::decode(
-                            &jig_protocol_worker_wire::v16::CEILINGS,
+                            &jig_protocol_worker_wire::v17::CEILINGS,
                             &mut Reader::new(&credential),
                         )
                         .expect("worker credential"),

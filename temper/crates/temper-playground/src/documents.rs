@@ -353,8 +353,10 @@ pub fn agent() -> temper_service::settings::Agent {
 /// Service metadata derived from the profile used by the hosted agent.
 #[must_use]
 pub fn agent_for(profile: &smith_agent_service::profile::Profile) -> temper_service::settings::Agent {
-    let limits = agent_limits_for(profile);
-    let host_limits = smith_local_service::profile::host_limits(profile, &limits).expect("agent host limits");
+    let configuration = agent_configuration_for(profile);
+    let limits = configuration.limits;
+    let host_limits = smith_local_service::profile::host_limits(profile, &limits, &configuration.domain.limits)
+        .expect("agent host limits");
     let channel = limits.channel;
     let mut protocol = smith_host_protocol::Limits {
         bodies: channel.bodies,

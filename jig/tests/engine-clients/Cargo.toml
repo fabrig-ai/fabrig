@@ -14,6 +14,7 @@ doctest = false
 jig-protocol-config-fixtures.workspace = true
 jig-engine-clients-kit.workspace = true
 [dev-dependencies]
+skein-codegen.workspace = true
 jig-test-service.workspace = true
 skein-world.workspace = true
 jig-protocol-engine-clients.workspace = true

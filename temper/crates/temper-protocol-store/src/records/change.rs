@@ -652,6 +652,7 @@ pub(super) fn encode_change(value: &d::Change) -> w::Change {
         owns_turn,
         last_head,
         last_checked,
+        last_checked_by,
         gate_failures,
         released,
         released_resolution,
@@ -683,6 +684,7 @@ pub(super) fn encode_change(value: &d::Change) -> w::Change {
             owns_turn: *owns_turn,
             last_head: *last_head,
             last_checked: *last_checked,
+            last_checked_by: *last_checked_by,
             gate_failures: encode_gate_failures(gate_failures),
             released_resolution: *released_resolution,
             released: match released {
@@ -715,6 +717,7 @@ pub(super) fn decode_change(value: w::Change) -> d::Change {
         owns_turn,
         last_head,
         last_checked,
+        last_checked_by,
         gate_failures,
         released,
         released_resolution,
@@ -745,6 +748,7 @@ pub(super) fn decode_change(value: w::Change) -> d::Change {
         owns_turn,
         last_head,
         last_checked,
+        last_checked_by,
         gate_failures: decode_gate_failures(gate_failures),
         released_resolution,
         released: match released {

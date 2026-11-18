@@ -15,6 +15,7 @@ pub struct Group {
 pub const GROUPS: &[Group] = &[
     Group { name: b"sign-in", line: b"Sign in with a printed link or a service file" },
     Group { name: b"sign-out", line: b"End the sign-in and leave the token empty" },
+    Group { name: b"link", line: b"Write a fresh one-time sign-in link to a private file" },
     Group { name: b"pending", line: b"List the requests DIR keeps, without reaching the engine" },
     Group { name: b"help", line: b"Read the page ctl and the groups, a group's tools, or one tool's record" },
     Group { name: b"me", line: b"Read your party: its projects, what it may start, and what waits on it" },
@@ -164,6 +165,8 @@ pub const TOOLS: &[&Tool] = &[
     &rows::WORKER_PLACES,
     &rows::WORKER_REMOVE,
     &crate::checkpoint::ROW,
+    &rows::USES,
+    &rows::LINK,
 ];
 pub fn parse(words: &[&[u8]]) -> Result<Parsed, Usage> {
     let parsed = argv::parse(TOOLS, words, &crate::limits::tools())?;

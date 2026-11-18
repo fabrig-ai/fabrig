@@ -235,6 +235,7 @@ pub(super) fn restart_box_with_second_owner(world: &mut World) {
     world.driver.send(Event::Forge(Box::new(forge::Event::SetupPerson { forge: 1, login: b"ada".as_slice().into() })));
     world.driver.settle();
     world.driver.send(Event::Party(PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(101)),
         identity: people::Identity {
@@ -401,6 +402,7 @@ impl World {
         driver.period_sent = true;
         driver.settle();
         driver.send(Event::Party(PartyInput::SignedIn {
+            until: None,
             held: None,
             reply_to: ReplyTo::new(Token::new(101)),
             identity: people::Identity {
@@ -463,6 +465,7 @@ impl World {
     }
     pub fn member(&mut self) -> u64 {
         self.driver.send(Event::Party(PartyInput::SignedIn {
+            until: None,
             held: None,
             reply_to: ReplyTo::new(Token::new(11)),
             identity: people::Identity {
@@ -858,6 +861,7 @@ fn restart_configured_world(world: &mut World, run: &engine::Assignment, config:
     world.driver.send(greeting);
     world.driver.settle();
     world.driver.send(Event::Party(PartyInput::SignedIn {
+        until: None,
         held: Some(world.owner),
         reply_to: ReplyTo::new(Token::new(101)),
         identity: people::Identity {

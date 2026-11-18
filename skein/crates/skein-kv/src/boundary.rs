@@ -12,7 +12,7 @@ pub enum Request {
     Commit { owner: Token, ops: Box<[Op]> },
     Get { owner: Token, key: Box<[u8]> },
     Load { owner: Token, range: Range, max: Page },
-    ReadLog { owner: Token, log: u64, at: u64, direction: Direction, max: u32 },
+    ReadLog { owner: Token, log: u64, at: u64, direction: Direction, max: u32, rows: u32 },
     Hold { owner: Token },
     Release { owner: Token },
     Close { owner: Token },
@@ -198,7 +198,7 @@ pub struct LogRecord {
 }
 
 /// The store alone writes rows under this prefix (data/kv.md, 6.1).
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct LogRule {
     pub prefix: Box<[u8]>,
 }

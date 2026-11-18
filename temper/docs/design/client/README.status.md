@@ -1,6 +1,6 @@
 # README: status
 
-2026-11-15. Where temper's code lags or departs from [README.md](README.md).
+2026-11-18. Where temper's code lags or departs from [README.md](README.md).
 
 
 - **Not yet:** 2: there is no `temper-client-web-page`: the shell is the bundle's `cdylib`.
@@ -8,6 +8,8 @@
 
 
 - **Not yet:** 3.6: the sheet for deleting a project, absent from `confirm.rs` [in flight: change 633].
+
+
 
 - **Departs:** 2, *The crate graph*: `temper-client-domain-forge` also depends on
   `temper-protocol-records`, because the forge's side encodes and decodes a

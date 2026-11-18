@@ -35,7 +35,18 @@ fn facts(goals: &[Goal], changes: &[Change], chats: &[Chat]) -> Facts {
             Where::Landed { default_branch: false, .. } | Where::Queued { .. } => {}
         }
     }
-    Facts { goals: list(goals), changes: list(changes), chats: list(chats), landed_default, ..Facts::default() }
+    Facts {
+        known: answered(),
+        goals: list(goals),
+        changes: list(changes),
+        chats: list(chats),
+        landed_default,
+        ..Facts::default()
+    }
+}
+
+fn answered() -> work::Known {
+    work::Known { goals: true, needs: true, milestones: true, chats: true, changes: true, drafts: true }
 }
 
 fn goal(task: u64, live: bool, activity: u64) -> Goal {
@@ -86,7 +97,7 @@ fn each_item_is_placed_by_its_own_facts() {
     let cases = [
         Case {
             name: "empty project",
-            facts: Facts::default(),
+            facts: Facts { known: answered(), ..Facts::default() },
             wall: wall(NOW),
             want: work(&[], &[], &[], Filters::default()),
         },
@@ -325,6 +336,7 @@ fn each_item_is_placed_by_its_own_facts() {
                         belongs: Belongs::Nothing,
                     },
                 ]),
+                known: answered(),
                 ..Facts::default()
             },
             wall: Wall::from_nanos(wall(NOW).as_nanos() + 1),
@@ -583,6 +595,9 @@ impl Fixture {
         });
     }
     fn lists(&mut self) {
+        self.lists_answering_needs(true);
+    }
+    fn lists_answering_needs(&mut self, needs: bool) {
         let mut ended_goal = super::chats::chat_line();
         ended_goal.chip.task = 2;
         ended_goal.last_activity = wall(20);
@@ -617,6 +632,8 @@ impl Fixture {
                         ended: c::EndedGroup::Rows { rows, after: None, cut: false },
                     })),
                 );
+            } else if needs && let c::Read::Inbox { .. } = what {
+                self.up(Up::ReadDone { read, result: Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)) });
             } else if let c::Read::Notes { .. } = what {
                 panic!("Work rows read no notes");
             }
@@ -707,11 +724,11 @@ impl Fixture {
 }
 
 #[test]
-fn facts_wait_for_all_lists_and_gather_each_kind_and_owner() {
+fn facts_gather_answered_lists_and_each_kind_and_owner() {
     let mut fixture = Fixture::new();
-    assert_eq!(work::facts(&fixture.root, f::PROJECT), None, "unread");
+    assert!(!work::facts(&fixture.root, f::PROJECT).unwrap().known.all(), "unread");
     fixture.lists();
-    assert_eq!(work::facts(&fixture.root, f::PROJECT), None, "changes unread");
+    assert!(!work::facts(&fixture.root, f::PROJECT).unwrap().known.in_flight(), "changes unread");
     fixture.panel();
     fixture.drafts(&[]);
     for request in &fixture.out {
@@ -814,8 +831,11 @@ fn only_read_hidden_settings_override_filters() {
                     Readout::Family {
                         family: wire::FORGE,
                         record: Some(wire::setting_answer(
-                            &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(bytes.finish()) })
-                                .unwrap(),
+                            &w::SettingAnswer::new(
+                                &w::CEILINGS,
+                                w::SettingAnswerParts { revision: None, value: Some(bytes.finish()) },
+                            )
+                            .unwrap(),
                         )),
                     }
                 }
@@ -903,11 +923,18 @@ fn landed_drafts_place_only_when_listed_and_mix_newest_first_with_chats() {
     assert!(work::shown(&placed.filters, work::Overrides::default()).drafts);
 }
 #[test]
-fn facts_wait_for_drafts_and_gather_the_wire_rows() {
+fn facts_give_in_flight_before_drafts_and_gather_the_wire_rows() {
     let mut fixture = Fixture::new();
     fixture.lists();
     fixture.panel();
-    assert!(work::facts(&fixture.root, f::PROJECT).is_none(), "drafts unread");
+    let facts = work::facts(&fixture.root, f::PROJECT).unwrap();
+    let placed = work::place(&facts, wall(NOW));
+    assert!(facts.known.in_flight());
+    assert!(!placed.known);
+    assert!(placed.in_flight.as_slice().contains(&card(Item::Goal(1), &[11, 15])));
+    assert!(placed.drafts.is_empty());
+    assert!(placed.landed.is_empty());
+    assert_eq!(placed.filters, Filters::default());
     let rows = [
         draft(b"ready.md", true, None, 40),
         draft(b"started.md", true, Some(42), 50),
@@ -923,13 +950,35 @@ fn facts_wait_for_drafts_and_gather_the_wire_rows() {
     assert_eq!(work::place(&facts, wall(NOW)).drafts, list(&[card(Item::Landed(0), &[]), card(Item::Draft(3), &[])]));
 }
 #[test]
-fn refused_or_ended_drafts_answer_with_no_rows() {
+fn refused_or_ended_lists_answer_with_no_rows() {
     for reason in [c::WatchEnd::NotAllowed, c::WatchEnd::SubjectEnded] {
         let mut fixture = Fixture::new();
-        fixture.lists();
-        fixture.panel();
-        fixture.up(Up::WatchEnded { watch: fixture.drafts, end: reason });
-        assert!(work::facts(&fixture.root, f::PROJECT).unwrap().landed.is_empty());
+        let mut reads = List::uncapped();
+        for request in &fixture.out {
+            if let Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: Down::Read { read, what: Readable::Jig(c::Read::Tasks { .. } | c::Read::Inbox { .. }) },
+                    },
+            } = request
+            {
+                reads.push(*read).unwrap();
+            }
+        }
+        for read in reads.into_boxed() {
+            fixture.up(Up::ReadDone { read, result: Readout::Jig(c::ReadResult::None(c::ReadNone::Unreachable)) });
+        }
+        for watch in [fixture.goals, fixture.chats, fixture.changes, fixture.drafts] {
+            fixture.up(Up::WatchEnded { watch, end: reason });
+        }
+        let facts = work::facts(&fixture.root, f::PROJECT).unwrap();
+        assert!(facts.known.all());
+        let placed = work::place(&facts, wall(NOW));
+        assert!(placed.known);
+        assert!(placed.in_flight.is_empty());
+        assert!(placed.drafts.is_empty());
+        assert!(placed.landed.is_empty());
+        assert_eq!(placed.filters, Filters::default());
     }
 }
 #[test]
@@ -980,7 +1029,7 @@ fn work_goals_and_changes_keep_the_drafts_watch_until_leaving() {
 
 #[test]
 fn main_landings_group_goals_but_keep_chat_and_unread_changes_and_count_goal_branches() {
-    let mut facts = Facts::default();
+    let mut facts = Facts { known: answered(), ..Facts::default() };
     for (task, at, belongs) in [
         (22, NOW - 10_800, Belongs::Goal(7)),
         (30, NOW - 7_200, Belongs::Chat(9)),
@@ -1199,4 +1248,39 @@ fn signer(party: u64, name: Option<&[u8]>) -> w::ChangesSigned {
         },
     )
     .unwrap()
+}
+
+#[test]
+fn in_flight_waits_for_needs_and_accepts_their_refusal_or_failure() {
+    for result in [
+        Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)),
+        Readout::Jig(c::ReadResult::None(c::ReadNone::Malformed)),
+        Readout::Limit,
+    ] {
+        let mut fixture = Fixture::new();
+        fixture.lists_answering_needs(false);
+        fixture.panel();
+        let facts = work::facts(&fixture.root, f::PROJECT).unwrap();
+        assert!(!facts.known.needs);
+        assert!(work::place(&facts, wall(NOW)).in_flight.is_empty());
+        let mut read = None;
+        for request in &fixture.out {
+            if let Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: Down::Read { read: token, what: Readable::Jig(c::Read::Inbox { .. }) },
+                    },
+            } = request
+            {
+                read = Some(*token);
+            }
+        }
+        fixture.up(Up::ReadDone { read: read.unwrap(), result });
+        let facts = work::facts(&fixture.root, f::PROJECT).unwrap();
+        assert!(facts.known.needs);
+        let work = work::place(&facts, wall(NOW));
+        assert!(work.in_flight.as_slice().contains(&card(Item::Goal(1), &[11, 15])));
+        assert!(!work.known);
+        assert!(work.drafts.is_empty());
+    }
 }

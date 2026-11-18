@@ -12,7 +12,13 @@ pub struct Job {
 pub struct Converts {
     pub family: &'static str,
     pub value_type: u16,
-    pub from: [u8; 32],
+    pub from: Layouts,
+}
+/// The layouts a written job converts (protocol/store/jobs.md, 1 and 4).
+#[derive(Clone, Copy, Debug)]
+pub enum Layouts {
+    One([u8; 32]),
+    Unplanned,
 }
 /// Inclusive start and exclusive end; application keys are relative to its tag.
 #[derive(Clone, Copy, Debug)]
@@ -38,7 +44,7 @@ pub struct JobRow {
     pub key: Box<[u8]>,
     pub value: Box<[u8]>,
 }
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct JobLayout {
     pub root: Box<str>,
     pub variant: Option<Box<str>>,
@@ -91,9 +97,14 @@ pub struct JobRefusal {
 }
 
 /// Routes a page to its named jig job (protocol/store/jobs.md, 3–4).
-pub fn page(_job: &str, _page: &JobPage) -> Result<JobAnswer, JobRefusal> {
-    Err(JobRefusal { key: None, why: Box::from("no such jig job") })
+pub fn page(job: &str, page: &JobPage, store: &mut crate::Store) -> Result<JobAnswer, JobRefusal> {
+    match job {
+        "escalation-deciders" => escalation_deciders::page(page, store),
+        _ => Err(JobRefusal { key: None, why: Box::from("no such jig job") }),
+    }
 }
+
+mod escalation_deciders;
 
 pub(crate) mod admission;
 pub(crate) mod kept;

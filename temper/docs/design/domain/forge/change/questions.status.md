@@ -12,6 +12,9 @@
   and the requester idle with it [in flight: change 838].
 - **Not yet:** 1, *Passed up*: the question's label names no answer form
   [in flight: change 839].
+- **Not yet:** 1, *Who pushed it*: a change keeps no `last_checked_by`,
+  and no delegate's item names its own delivery [in flight: change
+  7044].
 
 - **Not yet:**
   -  the request-to-repair fuzzy coverage remains `gates.status.md`, 1.

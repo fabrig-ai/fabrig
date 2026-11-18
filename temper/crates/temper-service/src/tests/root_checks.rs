@@ -376,7 +376,7 @@ fn profile_question_bound(bytes: &[u8]) -> u32 {
 #[test]
 fn the_reference_profile_keeps_four_questions_per_change() {
     let generated = super::stock::generated();
-    let agent = fixtures::parsed_agent(fixtures::stock_configuration(10_662, 8192).expect("init agent"));
+    let agent = fixtures::parsed_agent(fixtures::stock_configuration(63_740, 48_000).expect("init agent"));
     assert_eq!(profile_question_bound(&generated), 80, "init keeps standard's bound");
     complete_profile_startup(&generated, &agent);
     let reference = reference_document(&generated);
@@ -387,7 +387,7 @@ fn the_reference_profile_keeps_four_questions_per_change() {
 #[test]
 fn shipped_payload_profiles_pass_complete_startup_checks() {
     let generated = super::stock::generated();
-    let agent = fixtures::parsed_agent(fixtures::stock_configuration(10_662, 8192).expect("stock agent"));
+    let agent = fixtures::parsed_agent(fixtures::stock_configuration(63_740, 48_000).expect("stock agent"));
     complete_profile_startup(&generated, &agent);
     complete_profile_startup(&reference_document(&generated), &reference_agent());
 }
@@ -397,7 +397,7 @@ fn raised_checkout_profiles_pass_complete_startup_checks() {
     let mut stock: serde_json::Value = serde_json::from_slice(&super::stock::generated()).unwrap();
     stock["application"]["limits"]["overrides"]["checkout.conflicts"] = 1024_u32.into();
     stock["application"]["limits"]["overrides"]["git_component.stdout_bytes"] = 262_144_u32.into();
-    let stock_agent = fixtures::parsed_agent(fixtures::stock_configuration(10_662, 8192).expect("stock agent"));
+    let stock_agent = fixtures::parsed_agent(fixtures::stock_configuration(63_740, 48_000).expect("stock agent"));
     complete_profile_startup(&serde_json::to_vec(&stock).unwrap(), &stock_agent);
     let generated = fixtures::document();
     let mut agent = fixtures::startup_agent();
@@ -574,7 +574,7 @@ fn init_documents_start_without_carrier_overrides() {
     for name in own_names {
         input["application"]["limits"]["overrides"].as_object_mut().unwrap().remove(name);
     }
-    let agent = fixtures::parsed_agent(fixtures::stock_configuration(10_662, 8192).unwrap());
+    let agent = fixtures::parsed_agent(fixtures::stock_configuration(63_740, 48_000).unwrap());
     let bytes = serde_json::to_vec(&input).unwrap();
     let checked = checked_profile_with_files(&bytes, &agent, &super::stock::files());
     for name in jig_names {
@@ -639,7 +639,7 @@ fn reference_overrides_stand_over_the_derived_base() {
 #[test]
 fn box_start_refuses_twice_the_stock_turn_without_panicking() {
     let document = super::stock::generated();
-    let mut agent = fixtures::parsed_agent(fixtures::stock_configuration(10_662, 8192).unwrap());
+    let mut agent = fixtures::parsed_agent(fixtures::stock_configuration(63_740, 48_000).unwrap());
     agent.limits.bodies.turn_body = temper_service_core::derived::STOCK.turn * 2;
     let found = crate::startup::checked_start_with(
         &document,

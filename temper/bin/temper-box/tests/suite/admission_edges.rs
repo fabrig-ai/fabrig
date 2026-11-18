@@ -27,7 +27,21 @@ impl Part {
 }
 
 fn number(document: &Value, part: Part, name: &str) -> u64 {
-    document.pointer(part.limits()).expect("limits")[name].as_u64().expect("byte bound")
+    let worker = temper_service::startup::box_worker(
+        &serde_json::to_vec(document).expect("fixture JSON"),
+        &jig_protocol_config::Directories::working(),
+        &temper_service::stock::Given::Stock,
+        &temper_service::stock::agents(),
+        &[],
+    )
+    .expect("fixture composition")
+    .expect("box worker");
+    for limit in worker.figures.expect("composed figures").limits() {
+        if limit.name() == name.as_bytes() {
+            return limit.value();
+        }
+    }
+    panic!("{}.{name}: missing composed figure", part.path());
 }
 
 fn set(document: &mut Value, part: Part, name: &str, bytes: u64) {
@@ -43,9 +57,7 @@ fn edge(part: Part, name: &str) {
     let mut document: Value =
         serde_json::from_slice(&fs::read(scratch.path().join("temper.json")).expect("fixture document"))
             .expect("fixture JSON");
-    let admit = |document: &Value| {
-        temper_box_shell::operations_in(&[], b"/", &directories, &serde_json::to_vec(document).expect("JSON"))
-    };
+    let admit = |document: &Value| crate::admission(&directories, &serde_json::to_vec(document).expect("JSON"));
     admit(&document).expect("unmodified fixture must start");
     let turn = number(&document, Part::Engine, "hub.turn_bytes");
     let resume = number(&document, Part::Engine, "core.resume_bytes");
@@ -105,9 +117,7 @@ fn transcript_padding_covers_all_resume_window_remainders() {
             let part = Part::Engine;
             set(&mut document, part, "hub.transcript_bytes", transcript);
         }
-        let admit = |document: &Value| {
-            temper_box_shell::operations_in(&[], b"/", &directories, &serde_json::to_vec(document).expect("JSON"))
-        };
+        let admit = |document: &Value| crate::admission(&directories, &serde_json::to_vec(document).expect("JSON"));
         admit(&document).expect("both hubs hold the padded configured window");
         {
             let part = Part::Engine;

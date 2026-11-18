@@ -494,6 +494,11 @@ impl Milestones {
                 }
                 return true;
             }
+            Told::Ended { handle, .. } if *handle == self.ended => {
+                self.answered = true;
+                self.ended_read.answered(None);
+                return true;
+            }
             Told::Ended { handle, .. } if *handle == self.live => return true,
             Told::Page { .. }
             | Told::Changed { .. }
@@ -513,6 +518,17 @@ impl Milestones {
             unwatch(self.ended, out);
         }
     }
+    pub(super) fn has_rows(&self, client: &Client) -> Option<bool> {
+        if !self.ended_rows.is_empty() {
+            return Some(true);
+        }
+        if let Some(document) = client.document(self.live)
+            && let Some(Latest::Jig(c::Delivery::Tasks(tasks))) = document.latest
+        {
+            return Some(!tasks.rows.is_empty());
+        }
+        if self.answered { Some(false) } else { None }
+    }
     /// The project's milestone list has answered; a project without its template has none.
     #[must_use]
     pub fn known(&self, client: &Client) -> bool {
@@ -522,12 +538,7 @@ impl Milestones {
         if !self.answered {
             return false;
         }
-        if let Some(doc) = client.document(self.live)
-            && let Some(Latest::Jig(c::Delivery::Tasks(_))) = doc.latest
-        {
-            return true;
-        }
-        false
+        super::home::delivered(client, self.live)
     }
     #[must_use]
     pub fn lines(&self) -> &[c::TaskLine] {

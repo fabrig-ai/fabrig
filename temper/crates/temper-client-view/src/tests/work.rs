@@ -204,6 +204,8 @@ impl Fixture {
                         ended: c::EndedGroup::None,
                     })),
                 );
+            } else if let c::Read::Inbox { .. } = what {
+                self.up(Up::ReadDone { read, result: Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)) });
             } else if let c::Read::Notes { .. } = what {
                 panic!("Work rows read no notes");
             }
@@ -343,7 +345,11 @@ fn sections_wait_for_answers_omit_empty_and_draw_the_whole_small_project() {
     for words in [f::browser_words(), f::words()] {
         let mut page = Fixture::new(None, false);
         let (unread, _) = page.tree(&words);
-        assert!(styled(&unread, look::WORK_HEADLINE).is_empty());
+        assert_eq!(
+            styled(&unread, look::WORK_HEADLINE).len(),
+            usize::from(words.shell == crate::words::Shell::Browser)
+        );
+        assert!(!has(&unread, "Nothing in flight yet."));
         assert!(styled(&unread, look::WORK_SECTION).is_empty());
         assert!(!has(&unread, "Nothing in flight yet."));
         page.populate(false);

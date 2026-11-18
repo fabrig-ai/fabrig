@@ -58,6 +58,7 @@ fn a_linked_ops_root_signs_in_through_the_byte_face() {
     );
     joint.starting(ClientId(0));
     for _ in 0..300 {
+        d::settle(&mut root, &env, &mut requests);
         while let Some(request) = requests.pop() {
             if let d::Request::Client { request } = request {
                 joint.wire(ClientId(0), env.now, env.wall, d::Request::Client { request });

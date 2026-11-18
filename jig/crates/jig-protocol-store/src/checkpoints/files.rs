@@ -15,18 +15,7 @@ pub(crate) enum Step {
     CheckPage { secret: bool, root: Root },
     CheckClose { secret: bool },
     Shard,
-    ReadOpen,
-    LinkSource { reader: skein_lib::Token },
-    LinkDestination { reader: skein_lib::Token, source: Root },
-    Link { reader: skein_lib::Token, source: Root, destination: Root },
-    LinkDestinationClose { reader: skein_lib::Token, source: Root, way: LinkWay },
-    LinkSourceClose { reader: skein_lib::Token, way: LinkWay },
-    WriteOpen { reader: skein_lib::Token },
-    Read { reader: skein_lib::Token, writer: skein_lib::Token, offset: u64 },
-    Write { reader: skein_lib::Token, writer: skein_lib::Token, offset: u64, count: u64 },
-    FileSync { reader: skein_lib::Token, writer: skein_lib::Token },
-    WriteClose { reader: skein_lib::Token },
-    ReadClose,
+    Transfer(Box<super::transfer::Transfer>),
     SyncOpen { index: u32 },
     Sync { index: u32, root: Root },
     SyncClose { index: u32 },
@@ -60,18 +49,7 @@ pub(super) fn holding(step: &Step) -> bool {
         | Step::CheckPage { .. }
         | Step::CheckClose { .. }
         | Step::Shard
-        | Step::ReadOpen
-        | Step::LinkSource { .. }
-        | Step::LinkDestination { .. }
-        | Step::Link { .. }
-        | Step::LinkDestinationClose { .. }
-        | Step::LinkSourceClose { .. }
-        | Step::WriteOpen { .. }
-        | Step::Read { .. }
-        | Step::Write { .. }
-        | Step::FileSync { .. }
-        | Step::WriteClose { .. }
-        | Step::ReadClose
+        | Step::Transfer(_)
         | Step::SyncOpen { .. }
         | Step::Sync { .. }
         | Step::SyncClose { .. } => true,
@@ -109,18 +87,7 @@ pub(super) fn published(step: &Step) -> bool {
         | Step::CheckPage { .. }
         | Step::CheckClose { .. }
         | Step::Shard
-        | Step::ReadOpen
-        | Step::LinkSource { .. }
-        | Step::LinkDestination { .. }
-        | Step::Link { .. }
-        | Step::LinkDestinationClose { .. }
-        | Step::LinkSourceClose { .. }
-        | Step::WriteOpen { .. }
-        | Step::Read { .. }
-        | Step::Write { .. }
-        | Step::FileSync { .. }
-        | Step::WriteClose { .. }
-        | Step::ReadClose
+        | Step::Transfer(_)
         | Step::SyncOpen { .. }
         | Step::Sync { .. }
         | Step::SyncClose { .. }
@@ -133,7 +100,7 @@ pub(super) fn published(step: &Step) -> bool {
         | Step::Rename { .. } => false,
     }
 }
-pub(super) fn join(a: &[u8], b: &[u8]) -> Box<[u8]> {
+pub(crate) fn join(a: &[u8], b: &[u8]) -> Box<[u8]> {
     let mut out = Writer::new(a.len().checked_add(b.len()).expect("bounded checkpoint path"));
     out.put(a).expect("measured prefix");
     out.put(b).expect("measured suffix");
@@ -158,7 +125,7 @@ fn relative(part: u8, number: u64) -> Box<[u8]> {
 fn source(store: &Store, part: u8, number: u64) -> Box<[u8]> {
     file_path(store.directory.active.expect("serving active generation").number, part, number)
 }
-fn file_path(generation: u64, part: u8, number: u64) -> Box<[u8]> {
+pub(crate) fn file_path(generation: u64, part: u8, number: u64) -> Box<[u8]> {
     match part {
         1 => under(&generations::map(generation, generations::Map::Store), b"snapshot"),
         2 => under(&generations::map(generation, generations::Map::Store), &segment(number)),
@@ -258,11 +225,20 @@ pub(super) fn close(cut: &mut Cut, file: skein_lib::Token, below: &mut Below) {
     below.checkpoints.push(file::Request::Close { owner: OWNER, file });
 }
 fn read_open(store: &Store, cut: &mut Cut, below: &mut Below) -> Step {
-    let row = &current(cut).row;
-    let path = source(store, row.part, row.number);
-    let request = file::Request::OpenReadNoFollow { owner: OWNER, root: cut.session.root.fd, name: path.clone() };
-    ask(cut, path, request, below);
-    Step::ReadOpen
+    let selected = current(cut);
+    let row = &selected.row;
+    let linking = if row.way == 1 { super::transfer::Linking::Always } else { super::transfer::Linking::Never };
+    Step::Transfer(Box::new(super::transfer::Transfer::begin(
+        cut.session.root,
+        cut.session.root,
+        source(store, row.part, row.number),
+        destination(cut),
+        selected.end,
+        linking,
+        row.part == 4,
+        OWNER,
+        &mut below.checkpoints,
+    )))
 }
 fn next_file(store: &Store, cut: &mut Cut, below: &mut Below) -> Step {
     if cut.record.files.len() == cut.sources.len() {
@@ -282,34 +258,6 @@ fn next_file(store: &Store, cut: &mut Cut, below: &mut Below) -> Step {
             Step::Shard
         }
         None => read_open(store, cut, below),
-    }
-}
-fn write_open(cut: &mut Cut, reader: skein_lib::Token, below: &mut Below) -> Step {
-    current_mut(cut).row.way = 2;
-    let path = destination(cut);
-    let request =
-        file::Request::CreateNoFollow { owner: OWNER, root: cut.session.root.fd, name: path.clone(), mode: 0o600 };
-    ask(cut, path, request, below);
-    Step::WriteOpen { reader }
-}
-fn read(
-    store: &Store,
-    cut: &mut Cut,
-    reader: skein_lib::Token,
-    writer: skein_lib::Token,
-    offset: u64,
-    below: &mut Below,
-) -> Step {
-    let length = current(cut).row.length;
-    if offset == length {
-        below.checkpoints.push(file::Request::Sync { owner: OWNER, file: writer });
-        Step::FileSync { reader, writer }
-    } else {
-        let row = &current(cut).row;
-        cut.session.path = source(store, row.part, row.number);
-        let max = u32::try_from(length.saturating_sub(offset).min(u64::from(CHUNK))).expect("bounded copy chunk");
-        below.checkpoints.push(file::Request::ReadAt { owner: OWNER, file: reader, offset, max });
-        Step::Read { reader, writer, offset }
     }
 }
 fn finished_file(store: &Store, cut: &mut Cut, below: &mut Below) -> Step {
@@ -416,7 +364,7 @@ fn measure(cut: &mut Cut, start: u32, mut held: u64, below: &mut Below) -> Step 
     close(cut, cut.session.root.token, below);
     Step::Finished { held }
 }
-pub(super) fn made(event: &file::Event, existing: bool) -> bool {
+pub(crate) fn made(event: &file::Event, existing: bool) -> bool {
     kind(event) == Kind::Made || existing && error(event) == Some(Error::Exists)
 }
 fn known(name: &[u8], secret: bool) -> bool {
@@ -448,7 +396,7 @@ fn known(name: &[u8], secret: bool) -> bool {
     false
 }
 #[expect(clippy::disallowed_methods, reason = "the file protocol renders bounded directory names in refusals")]
-pub(super) fn text(path: &[u8]) -> Box<str> {
+pub(crate) fn text(path: &[u8]) -> Box<str> {
     let prefix = path.get(..path.len().min(128)).expect("bounded path prefix");
     Box::from(core::str::from_utf8(prefix).unwrap_or("<non-UTF8 path>"))
 }
@@ -456,10 +404,7 @@ pub(crate) fn failure(path: &[u8], event: &file::Event) -> CheckpointRefusal {
     let error = error(event).unwrap_or(Error::Other(0));
     CheckpointRefusal::Failed { path: text(path), error }
 }
-fn vanished(store: &Store, cut: &Cut) -> CheckpointRefusal {
-    let row = &current(cut).row;
-    CheckpointRefusal::Vanished { path: text(&source(store, row.part, row.number)) }
-}
+
 #[expect(clippy::too_many_lines, reason = "the total single-flight checkpoint file transition table")]
 pub(super) fn up(
     store: &mut Store,
@@ -532,148 +477,23 @@ pub(super) fn up(
             }
             read_open(store, cut, below)
         }
-        Step::ReadOpen => {
-            if let file::Event::Failed { error: Error::NotFound, .. } = arrived.event {
-                if current(cut).row.part != 4 {
-                    return Err(vanished(store, cut));
-                }
-                current_mut(cut).row.way = 3;
+        Step::Transfer(mut transfer) => {
+            if !transfer.arrived(arrived, &mut below.checkpoints) {
+                Step::Transfer(transfer)
+            } else if let Some(error) = transfer.failure() {
+                let path = text(&transfer.path());
+                return Err(match error {
+                    super::transfer::Fault::Missing | super::transfer::Fault::Short => {
+                        CheckpointRefusal::Vanished { path }
+                    }
+                    super::transfer::Fault::File(error) => CheckpointRefusal::Failed { path, error },
+                });
+            } else {
+                let selected = current_mut(cut);
+                selected.row.length = transfer.length();
+                selected.row.way = transfer.way();
                 finished_file(store, cut, below)
-            } else {
-                let (reader, length) = opened(&mut cut.session, arrived)?;
-                let source = current_mut(cut);
-                source.row.length = source.end.unwrap_or(length);
-                if length < source.row.length {
-                    return Err(vanished(store, cut));
-                }
-                if source.row.way == 1 {
-                    let row = &source.row;
-                    let from = source_path(store, row.part, row.number);
-                    let (parent, _) = split(&from);
-                    open_dir(cut, parent, below);
-                    Step::LinkSource { reader }
-                } else {
-                    write_open(cut, reader, below)
-                }
             }
-        }
-        Step::LinkSource { reader } => {
-            let source = directory(cut, arrived)?;
-            let (parent, _) = split(&destination(cut));
-            open_dir(cut, parent, below);
-            Step::LinkDestination { reader, source }
-        }
-        Step::LinkDestination { reader, source } => {
-            let destination_root = directory(cut, arrived)?;
-            let row = &current(cut).row;
-            let from = source_path(store, row.part, row.number);
-            let (_, from_leaf) = split(&from);
-            let (_, to) = split(&destination(cut));
-            let request = file::Request::HardLink {
-                owner: OWNER,
-                from_root: source.fd,
-                from: from_leaf,
-                to_root: destination_root.fd,
-                to,
-            };
-            ask(cut, from, request, below);
-            Step::Link { reader, source, destination: destination_root }
-        }
-        Step::Link { reader, source, destination } => {
-            let way = if kind(&arrived.event) == Kind::Linked {
-                LinkWay::Linked
-            } else {
-                match error(&arrived.event) {
-                    Some(Error::Permission | Error::TooManyLinks | Error::Other(_)) => LinkWay::Copy,
-                    Some(Error::NotFound) => {
-                        if current(cut).row.part == 4 {
-                            LinkWay::Missing
-                        } else {
-                            return Err(vanished(store, cut));
-                        }
-                    }
-                    Some(
-                        Error::Busy
-                        | Error::Refused
-                        | Error::Reset
-                        | Error::BrokenPipe
-                        | Error::NotConnected
-                        | Error::AddressInUse
-                        | Error::AddressNotAvailable
-                        | Error::Unreachable
-                        | Error::TimedOut
-                        | Error::TooManyOpenFiles
-                        | Error::NoBufferSpace
-                        | Error::Cancelled
-                        | Error::TooLate
-                        | Error::Exists
-                        | Error::NotADirectory
-                        | Error::IsADirectory
-                        | Error::NotEmpty
-                        | Error::ReadOnly
-                        | Error::NoSpace
-                        | Error::NameTooLong
-                        | Error::Escape
-                        | Error::NotAFile
-                        | Error::InvalidArgument,
-                    )
-                    | None => return Err(failure(&cut.session.path, &arrived.event)),
-                }
-            };
-            close(cut, destination.token, below);
-            Step::LinkDestinationClose { reader, source, way }
-        }
-        Step::LinkDestinationClose { reader, source, way } => {
-            success(&arrived.event, Success::Closed, cut)?;
-            close(cut, source.token, below);
-            Step::LinkSourceClose { reader, way }
-        }
-        Step::LinkSourceClose { reader, way } => {
-            success(&arrived.event, Success::Closed, cut)?;
-            match way {
-                LinkWay::Copy => write_open(cut, reader, below),
-                LinkWay::Linked | LinkWay::Missing => {
-                    if way == LinkWay::Missing {
-                        current_mut(cut).row.way = 3;
-                    }
-                    close(cut, reader, below);
-                    Step::ReadClose
-                }
-            }
-        }
-        Step::WriteOpen { reader } => {
-            let (writer, _) = opened(&mut cut.session, arrived)?;
-            read(store, cut, reader, writer, 0, below)
-        }
-        Step::Read { reader, writer, offset } => {
-            let file::Event::Read { bytes, .. } = arrived.event else {
-                return Err(failure(&cut.session.path, &arrived.event));
-            };
-            let count = skein_lib::length::len_u64(bytes.len());
-            if count == 0 {
-                return Err(vanished(store, cut));
-            }
-            cut.session.path = destination(cut);
-            below.checkpoints.push(file::Request::WriteAt { owner: OWNER, file: writer, offset, bytes });
-            Step::Write { reader, writer, offset, count }
-        }
-        Step::Write { reader, writer, offset, count } => {
-            success(&arrived.event, Success::Written, cut)?;
-            read(store, cut, reader, writer, offset.checked_add(count).expect("copy bounded by end"), below)
-        }
-        Step::FileSync { reader, writer } => {
-            success(&arrived.event, Success::Synced, cut)?;
-            close(cut, writer, below);
-            Step::WriteClose { reader }
-        }
-        Step::WriteClose { reader } => {
-            success(&arrived.event, Success::Closed, cut)?;
-            close(cut, reader, below);
-            Step::ReadClose
-        }
-        Step::ReadClose => {
-            success(&arrived.event, Success::Closed, cut)?;
-            finished_file(store, cut, below)
         }
         Step::SyncOpen { index } => {
             let root = directory(cut, arrived)?;
@@ -799,18 +619,7 @@ pub(super) fn up(
         | Step::CheckPage { .. }
         | Step::CheckClose { .. }
         | Step::Shard
-        | Step::ReadOpen
-        | Step::LinkSource { .. }
-        | Step::LinkDestination { .. }
-        | Step::Link { .. }
-        | Step::LinkDestinationClose { .. }
-        | Step::LinkSourceClose { .. }
-        | Step::WriteOpen { .. }
-        | Step::Read { .. }
-        | Step::Write { .. }
-        | Step::FileSync { .. }
-        | Step::WriteClose { .. }
-        | Step::ReadClose
+        | Step::Transfer(_)
         | Step::SyncOpen { .. }
         | Step::Sync { .. }
         | Step::SyncClose { .. }
@@ -829,9 +638,6 @@ pub(super) fn up(
         | Step::MeasureClose { .. }
         | Step::Finished { .. }) => Ok(Progress::Pending(next)),
     }
-}
-fn source_path(store: &Store, part: u8, number: u64) -> Box<[u8]> {
-    source(store, part, number)
 }
 #[derive(PartialEq, Eq)]
 enum Kind {
@@ -877,7 +683,7 @@ fn kind(event: &file::Event) -> Kind {
         | file::Event::Cancelled { .. } => Kind::Other,
     }
 }
-fn error(event: &file::Event) -> Option<Error> {
+pub(crate) fn error(event: &file::Event) -> Option<Error> {
     match event {
         file::Event::Failed { error, .. } => Some(*error),
         file::Event::Linked { .. }
@@ -904,12 +710,6 @@ fn error(event: &file::Event) -> Option<Error> {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub(crate) enum LinkWay {
-    Linked,
-    Copy,
-    Missing,
-}
 fn split(path: &[u8]) -> (Box<[u8]>, Box<[u8]>) {
     let mut at = 0;
     for (index, byte) in path.iter().enumerate() {

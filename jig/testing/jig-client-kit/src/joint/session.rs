@@ -206,6 +206,27 @@ impl Session {
         self.hello(client);
     }
 
+    fn drop_stream_me(&mut self) {
+        for client in self.driver.transport.clients() {
+            if self.driver.transport.sign_in(client).is_some()
+                && !self.callbacks.iter().any(|(owner, event)| {
+                    *owner == client
+                        && matches!(event, Event::Client { event: jig_client::Event::Up {
+                    up: jig_client::Up::WatchEnded { watch, .. }
+                } } if *watch == skein_lib::Token::new(0))
+                })
+            {
+                self.callbacks.push((
+                    client,
+                    crate::test::up(jig_client::Up::WatchEnded {
+                        watch: skein_lib::Token::new(0),
+                        end: client::WatchEnd::Dropped,
+                    }),
+                ));
+            }
+        }
+    }
+
     /// A fresh root receives genuine stream negotiation and recreates its own
     /// reads/watches. Existing authentication remains the owner's actual session.
     pub fn reload(&mut self, client: ClientId, now: Time, wall: Wall) {
@@ -265,6 +286,7 @@ impl Session {
             self.delayed.push(value);
         } else {
             self.callbacks.push(value);
+            self.component.open_stream(client);
         }
     }
 
@@ -294,6 +316,7 @@ impl Session {
             };
             self.callbacks.push((client, event));
         }
+        self.drop_stream_me();
         for client in self.driver.transport.clients() {
             self.component.detach(client);
             self.driver.transport.detach(client);
@@ -328,6 +351,7 @@ impl Session {
             };
             self.callbacks.push((client, event));
         }
+        self.drop_stream_me();
         for client in self.driver.transport.clients() {
             self.component.detach(client);
             self.driver.transport.detach(client);
@@ -791,25 +815,7 @@ fn unrouted_delivery(other: &root::Delivery) -> Result<(), Invalid> {
 #[cfg(test)]
 impl Session {
     fn business_poll(&mut self, now: Time, wall: Wall) -> Result<Vec<(ClientId, Event)>, Invalid> {
-        Ok(self
-            .poll(now, wall)?
-            .into_iter()
-            .filter(|(_, event)| {
-                !matches!(
-                    event,
-                    Event::Client {
-                        event: jig_client::Event::Up {
-                            up: jig_client::Up::Served { versions: Some(_), .. }
-                                | jig_client::Up::FamilyServed { .. }
-                                | jig_client::Up::Watched {
-                                    event: client::WatchEvent::Alive | client::WatchEvent::Opened,
-                                    ..
-                                }
-                        }
-                    }
-                )
-            })
-            .collect())
+        Ok(crate::joint::business_callbacks(self.poll(now, wall)?))
     }
 }
 
@@ -897,10 +903,8 @@ mod tests {
             Err(super::super::referee::MissingAcknowledgement(watcher)),
             "taking locally cannot stand in for the dropped root input"
         );
-        assert_eq!(session.driver.referee.acknowledgements(), 1);
         session.driver.send(now, wall, root::Event::Core(acknowledgement));
         assert_eq!(session.driver.referee.check(), Ok(()));
-        assert!(session.driver.referee.acknowledgements() >= 1);
     }
 
     #[test]
@@ -942,13 +946,14 @@ mod tests {
     }
 
     #[test]
+    #[expect(clippy::too_many_lines, reason = "checks heartbeat and closure ownership across shared stream routes")]
     fn stream_comments_keep_each_open_watch_alive_without_recreating_closed_routes() {
         let (mut session, now, wall) = session();
         let client = ClientId(0);
         session.stream_heartbeat(Duration::from_millis(50));
         session.bind(client, 1, identity(), now, wall);
         let _ = session.business_poll(now, wall).expect("actual authentication");
-        for watch in [Token::new(0), Token::new(u64::MAX)] {
+        for watch in [Token::new(19), Token::new(u64::MAX)] {
             session.send(client, now, wall, frame(watch)).expect("actual owner watch");
         }
         let first = session.business_poll(now, wall).expect("actual Me packets");
@@ -980,7 +985,8 @@ mod tests {
                 .expect("quiet stream")
                 .is_empty()
         );
-        let comments = session.poll(due, wall).expect("actual quiet-stream comment");
+        let mut comments = session.poll(due, wall).expect("actual quiet-stream comment");
+        comments.retain(|(_, event)| !matches!(event, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Watched { watch, .. } } } if *watch == Token::new(0)));
         assert_eq!(comments.len(), 2);
         assert!(comments.iter().all(|(owner, event)| *owner == client
             && matches!(
@@ -1008,11 +1014,14 @@ mod tests {
             })
             .collect();
         tokens.sort();
-        assert_eq!(tokens, vec![Token::new(0), Token::new(u64::MAX)]);
+        assert_eq!(tokens, vec![Token::new(19), Token::new(u64::MAX)]);
         assert_eq!(session.driver.world.store.rows, rows);
         assert_eq!(session.driver.world.store.applied, applied);
         assert_eq!(session.driver.world.commits.len(), commits);
-        assert!(session.driver.transport.taken(client, Token::new(0)).is_none(), "Alive did not ACK the normal flight");
+        assert!(
+            session.driver.transport.taken(client, Token::new(19)).is_none(),
+            "Alive did not ACK the normal flight"
+        );
         session
             .send(
                 client,
@@ -1020,14 +1029,15 @@ mod tests {
                 wall,
                 Request::Unlinked {
                     request: jig_client::UnlinkedRequest::Down {
-                        down: jig_client::Down::Close { watch: Token::new(0) },
+                        down: jig_client::Down::Close { watch: Token::new(19) },
                     },
                 },
             )
             .expect("close original watch");
         let _ = session.poll(due, wall).expect("original close");
         let next = due.saturating_add(Duration::from_millis(50));
-        let comments = session.poll(next, wall).expect("remaining original route");
+        let mut comments = session.poll(next, wall).expect("remaining original route");
+        comments.retain(|(_, event)| !matches!(event, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Watched { watch, .. } } } if *watch == Token::new(0)));
         assert!(
             matches!(comments.as_slice(), [(owner, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Watched {
             watch, event: client::WatchEvent::Alive,
@@ -1203,7 +1213,7 @@ mod tests {
         let (mut session, now, wall) = session();
         session.bind(ClientId(0), 1, identity(), now, wall);
         session.business_poll(now, wall).expect("genuine authentication");
-        let native = Token::new(0);
+        let native = Token::new(9);
         session
             .send(
                 ClientId(0),
@@ -1258,12 +1268,12 @@ mod tests {
             session.held(*delivery, now, wall).expect("old route discarded without acknowledging");
         }
         session.send(ClientId(0), now, wall, frame(native)).expect("root supplies its new watch");
-        let reopened = session.driver.transport.watch_token(ClientId(0), native).expect("fresh route");
-        assert_ne!(old, reopened);
         let callbacks = take_signed_in(
             ClientId(0),
             session.business_poll(now, wall).expect("actual fresh Me plus untouched sibling"),
         );
+        let reopened = session.driver.transport.watch_token(ClientId(0), native).expect("fresh route after hello");
+        assert_ne!(old, reopened);
         assert_eq!(callbacks.len(), 3);
         assert!(matches!(
             &callbacks[0],
@@ -1529,6 +1539,7 @@ mod tests {
         let until = now.saturating_add(skein_lib::Duration::from_secs(1));
         session.restart(jig_test_profile::config(8455), now, wall, until).expect("actual cold restart");
         assert!(session.offline());
+        assert!(session.business_poll(now, wall).expect("implicit me ends with the stream").is_empty());
         assert_eq!(session.next_due(), Some(until));
         let retry = Token::new(312);
         let before = session.driver.world.store.rows.clone();

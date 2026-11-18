@@ -1,5 +1,7 @@
 //! Scratch starts and their cancellable close (protocol/store/opening.md 5).
-use crate::{Arrived, Below, Event, Io, KeptWire, OpenRefusal, Phase, Root, Store, directory, generations, open};
+use crate::{
+    Arrived, Below, Event, Io, KeptWire, OpenRefusal, Phase, Reach, Root, Store, directory, generations, open,
+};
 use alloc::boxed::Box;
 use generations::{Copying, Progress, Removing};
 use skein_io::file;
@@ -11,6 +13,7 @@ pub(crate) use decode::records;
 enum Stage {
     Locking,
     Reading,
+    Intent,
     Emptying(Removing),
     Making,
     Copying(Copying),
@@ -26,6 +29,7 @@ pub(crate) struct State {
     scratch: Root,
     owner: Token,
     installation: [u8; 16],
+    reach: Reach,
     active: Option<generations::Active>,
     stage: Stage,
     announced: bool,
@@ -34,12 +38,14 @@ pub(crate) struct State {
     files: crate::file_handles::Owned,
 }
 
+#[expect(clippy::too_many_arguments, reason = "a rehearsal carries its reach beside the adopted roots")]
 pub(crate) fn begin(
     store: &mut Store,
     owner: Token,
     source: Root,
     scratch: Root,
     installation: [u8; 16],
+    reach: Reach,
     above: &mut Queue<Event>,
     below: &mut Below,
 ) {
@@ -56,6 +62,7 @@ pub(crate) fn begin(
         scratch,
         owner,
         installation,
+        reach,
         active: None,
         stage: Stage::Locking,
         announced: false,
@@ -76,9 +83,13 @@ fn state(store: &mut Store) -> &mut State {
 pub(crate) fn preparing(store: &Store) -> bool {
     let Some(state) = &store.rehearsal else { return false };
     match state.stage {
-        Stage::Locking | Stage::Reading | Stage::Emptying(_) | Stage::Making | Stage::Copying(_) | Stage::Active => {
-            true
-        }
+        Stage::Locking
+        | Stage::Intent
+        | Stage::Reading
+        | Stage::Emptying(_)
+        | Stage::Making
+        | Stage::Copying(_)
+        | Stage::Active => true,
         Stage::Opening | Stage::Closing | Stage::Cleaning(_) | Stage::Finished => false,
     }
 }
@@ -86,6 +97,7 @@ pub(crate) fn waiting(store: &Store) -> Option<&'static str> {
     let state = store.rehearsal.as_ref()?;
     Some(match state.stage {
         Stage::Locking => "lock source",
+        Stage::Intent => "check source intent",
         Stage::Reading => "read source active",
         Stage::Emptying(_) => "empty scratch",
         Stage::Making => "make scratch generations",
@@ -109,11 +121,26 @@ pub(crate) fn up(store: &mut Store, arrived: Arrived, above: &mut Queue<Event>, 
             below.store.push(file::Request::Load {
                 owner: directory::OWNER,
                 root: state.source.token,
-                path: Box::from(generations::ACTIVE),
-                max: generations::ACTIVE_BYTES,
+                path: Box::from(crate::restoring::roll::INTENT),
+                max: 256,
                 no_follow: true,
             });
-            state.stage = Stage::Reading;
+            state.stage = Stage::Intent;
+        }
+        Stage::Intent => {
+            if let file::Event::Failed { error: skein_io::kernel::Error::NotFound, .. } = arrived.event {
+                let state = state(store);
+                below.store.push(file::Request::Load {
+                    owner: directory::OWNER,
+                    root: state.source.token,
+                    path: Box::from(generations::ACTIVE),
+                    max: generations::ACTIVE_BYTES,
+                    no_follow: true,
+                });
+                state.stage = Stage::Reading;
+            } else {
+                refused(store, OpenRefusal::Generations { why: crate::Generations::Unfinished }, above);
+            }
         }
         Stage::Reading => {
             let file::Event::Loaded { bytes, .. } = arrived.event else {
@@ -145,8 +172,15 @@ pub(crate) fn up(store: &mut Store, arrived: Arrived, above: &mut Queue<Event>, 
             let chunk = store.limits.store.chunk;
             let state = state(store);
             let number = state.active.expect("active read before scratch copy").number;
-            state.stage =
-                Stage::Copying(generations::copy_between(state.source, state.scratch, number, number, chunk, below));
+            state.stage = Stage::Copying(generations::copy_between(
+                state.source,
+                state.scratch,
+                number,
+                number,
+                chunk,
+                state.reach,
+                below,
+            ));
         }
         Stage::Copying(mut copying) => match generations::copied(&mut copying, arrived, below) {
             Progress::Pending => state(store).stage = Stage::Copying(copying),
@@ -196,6 +230,18 @@ fn kept_wires(store: &mut Store, owner: Token) -> Option<Box<[KeptWire]>> {
     crate::rows::kept_wires(&bytes)
 }
 
+/// End an openings-only rehearsal after the recovered rows have been announced.
+pub(crate) fn end_openings(store: &mut Store, above: &mut Queue<Event>) -> bool {
+    let Some(state) = &store.rehearsal else { return false };
+    match state.reach {
+        Reach::Whole => false,
+        Reach::Openings => {
+            close(store, state.owner, above);
+            true
+        }
+    }
+}
+
 pub(crate) fn close(store: &mut Store, owner: Token, above: &mut Queue<Event>) {
     let Some(state) = &mut store.rehearsal else { return open::refuse(store, owner, OpenRefusal::Failed, above) };
     if state.close.is_some() {
@@ -242,6 +288,7 @@ pub(crate) fn closing_up(store: &mut Store, io: Io, above: &mut Queue<Event>, be
             }
         }
         Stage::Locking
+        | Stage::Intent
         | Stage::Reading
         | Stage::Emptying(_)
         | Stage::Making
@@ -267,6 +314,7 @@ pub(crate) fn advance_close(store: &mut Store, above: &mut Queue<Event>, below: 
             }
         }
         Stage::Locking
+        | Stage::Intent
         | Stage::Reading
         | Stage::Emptying(_)
         | Stage::Making

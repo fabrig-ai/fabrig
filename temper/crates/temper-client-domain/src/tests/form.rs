@@ -375,6 +375,7 @@ fn version_refused() -> (crate::Domain, jig_client::Key) {
     let mut link = link::Link::new(&bounds).unwrap();
     let mut sent = Queue::uncapped();
     link.step(skein_lib::Time::ZERO, link::Event::Send { attempt, key, ask, value }, &mut sent);
+    link.settle(&mut sent);
     let Some(link::Request::Exchange { exchange, .. }) = sent.pop() else { panic!("keyed exchange") };
     link.step(skein_lib::Time::ZERO, link::Event::Reply { exchange, message: version_answer(&bounds) }, &mut sent);
     while let Some(request) = sent.pop() {
@@ -386,7 +387,7 @@ fn version_refused() -> (crate::Domain, jig_client::Key) {
                 jig_client::Up::Answer { attempt, envelope, answer, why }
             }
             // M4's Authorize place answers it
-            link::Request::Approval(_) | link::Request::Authorized(_) => continue,
+            link::Request::AskedLink(_) | link::Request::Approval(_) | link::Request::Authorized(_) => continue,
             link::Request::Save { .. }
             | link::Request::Erase { .. }
             | link::Request::Kept { .. }
@@ -403,6 +404,7 @@ fn version_refused() -> (crate::Domain, jig_client::Key) {
             | link::Request::FamilyDelivery { .. }
             | link::Request::Ended { .. }
             | link::Request::Hello { family: None, .. }
+            | link::Request::ReadAgain { .. }
             | link::Request::Read { .. }
             | link::Request::Fact { .. } => panic!("version refusal's typed answer: {request:?}"),
         };

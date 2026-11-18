@@ -115,6 +115,7 @@ fn full_people_roles_signins_pending_waiters_answers_and_expiry_fit() {
                 name: Box::new([]),
             };
             test.event(Event::SignedIn {
+                until: None,
                 held: None,
                 reply_to,
                 person: number,
@@ -298,6 +299,7 @@ fn retained_account_sign_in_answers_keep_their_longest_addresses() {
     test.complete();
     let reply_to = test.to();
     test.event(Event::SignedIn {
+        until: None,
         held: None,
         reply_to,
         person: PERSON,

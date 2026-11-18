@@ -6,8 +6,13 @@ pub mod story;
 use jig_protocol_store::{KeptMap, Owner, OwnerSets, codec, keys};
 use std::{collections::BTreeSet, path::Path};
 
-/// A pending production job upgrades the second build without moving any owner's level.
+/// Pending production jobs upgrade the second build without moving any owner's level.
 pub(super) const JOB: &str = "deleted-repository-forge-rows";
+pub(super) const JOBS: [&str; 6] =
+    ["escalation-deciders", "test-ids-landing", "test-ids-receipt", "test-ids-tier", "test-ids-verification", JOB];
+pub(super) fn job_owner(name: &str) -> Owner {
+    if name == "escalation-deciders" { Owner::Jig } else { Owner::Application }
+}
 pub(super) const CURRENT_SETS: OwnerSets = temper_engine_service::store::OWNER_SETS;
 
 thread_local! { static FIRST_SETS: OwnerSets = first_build(); }
@@ -23,18 +28,21 @@ fn first_build() -> OwnerSets {
                 .sets
                 .iter()
                 .map(|set| {
-                    if set.owner != Owner::Application {
-                        return *set;
-                    }
-                    jig_protocol_store::OwnerSet {
+                    let set = jig_protocol_store::OwnerSet {
                         jobs: Box::leak(
                             set.jobs
                                 .iter()
                                 .copied()
-                                .filter(|job| job.name != JOB)
+                                .filter(|job| !JOBS.contains(&job.name))
                                 .collect::<Vec<_>>()
                                 .into_boxed_slice(),
                         ),
+                        ..*set
+                    };
+                    if set.owner != Owner::Application {
+                        return set;
+                    }
+                    jig_protocol_store::OwnerSet {
                         families: Box::leak(
                             set.families
                                 .iter()
@@ -58,7 +66,7 @@ fn first_build() -> OwnerSets {
                                 .collect::<Vec<_>>()
                                 .into_boxed_slice(),
                         ),
-                        ..*set
+                        ..set
                     }
                 })
                 .collect::<Vec<_>>()
@@ -74,7 +82,6 @@ pub fn golden_ranges(directory: &Path) {
     let maps = maps::Maps::read(&mut disk);
     let reserved = [
         (keys::encode_own(&keys::Own::Format, 64).expect("format key"), "format"),
-        (keys::encode_own(&keys::Own::Layouts, 64).expect("layouts key"), "layouts"),
         (keys::encode_own(&keys::Own::Wires, 64).expect("wires key"), "wires"),
         (keys::encode_own(&keys::Own::Floor, 64).expect("floor key"), "floor"),
         (keys::installation(64).expect("installation key"), "installation"),
@@ -106,7 +113,9 @@ pub fn golden_ranges(directory: &Path) {
                 .then(|| reserved.iter().find(|(reserved, _)| reserved.as_ref() == key.as_slice()))
                 .flatten();
             let component = (map == KeptMap::Store).then(|| keys::decode_own(key)).flatten();
-            if map == KeptMap::Store && key.starts_with(&[0, 9]) {
+            if map == KeptMap::Store && key.as_slice() == [0, 3] {
+                assert!(families.is_empty(), "reserved unread key {key:02x?} in {families:?}");
+            } else if map == KeptMap::Store && key.starts_with(&[0, 9]) {
                 assert!(families.is_empty(), "reserved log extent {key:02x?} in {families:?}");
                 assert_eq!(key.len(), 10, "extent's log number");
                 let _: [u8; 8] = value.as_slice().try_into().expect("extent's length");
@@ -127,9 +136,6 @@ pub fn golden_ranges(directory: &Path) {
                 match *name {
                     "format" => {
                         codec::component::Format::decode(value).expect("format at its own key");
-                    }
-                    "layouts" => {
-                        codec::component::Layouts::decode(value).expect("layouts at their own key");
                     }
                     "floor" => {
                         let floor = jig_protocol_store::component_v3::Floor::decode(
@@ -209,7 +215,7 @@ fn registry(component: &keys::Own, value: &[u8]) -> &'static str {
     }
 }
 
-/// Only the unused receipt layout is registered and retired; the pending job ends once.
+/// Only the unused receipt layout is registered and retired; each pending job ends once.
 fn registry_upgrade(before: &maps::Maps, after: &maps::Maps) -> BTreeSet<Vec<u8>> {
     use jig_protocol_store::registry_v1 as wire;
     use skein_lib::Reader;
@@ -247,12 +253,18 @@ fn registry_upgrade(before: &maps::Maps, after: &maps::Maps) -> BTreeSet<Vec<u8>
             .expect("registry text");
     assert_eq!(text.text(), family.current.as_bytes());
     assert!(!before.store.contains_key(text_key.as_ref()), "second build brings production text");
-    let job_key =
-        keys::encode_own(&keys::Own::Job { owner: Owner::Application, name: JOB.into() }, 1024).expect("job key");
-    assert!(!before.store.contains_key(job_key.as_ref()), "first build leaves the job pending");
-    let job =
-        wire::Job::decode(&wire::CEILINGS, &mut Reader::new(after.store.get(job_key.as_ref()).expect("job done row")))
-            .expect("done job");
-    assert!(job.ended() > 0, "job end committed");
-    BTreeSet::from([old_key, new_key, text_key.into_vec(), job_key.into_vec()])
+    let mut changed = BTreeSet::from([old_key, new_key, text_key.into_vec()]);
+    for name in JOBS {
+        let job_key =
+            keys::encode_own(&keys::Own::Job { owner: job_owner(name), name: name.into() }, 1024).expect("job key");
+        assert!(!before.store.contains_key(job_key.as_ref()), "first build leaves {name} pending");
+        let job = wire::Job::decode(
+            &wire::CEILINGS,
+            &mut Reader::new(after.store.get(job_key.as_ref()).expect("job done row")),
+        )
+        .expect("done job");
+        assert!(job.ended() > 0, "job end committed");
+        changed.insert(job_key.into_vec());
+    }
+    changed
 }

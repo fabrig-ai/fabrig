@@ -11,6 +11,7 @@ pub(crate) fn prepared() -> Harness {
         push: Box::from(b"topic".as_slice()),
         landing: Some(Box::from(b"goal".as_slice())),
         expected: None,
+        delivered: None,
     };
     prepared_items(items)
 }
@@ -368,6 +369,7 @@ fn two_writable() -> Harness {
             push: Box::from(b"topic".as_slice()),
             expected: None,
             landing: Some(Box::from(b"goal".as_slice())),
+            delivered: None,
         };
     }
     prepared_items(items)

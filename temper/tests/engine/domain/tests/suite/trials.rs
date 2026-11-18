@@ -626,6 +626,7 @@ fn another_persons_account_is_not_theirs() {
 
 fn sign_in_second(driver: &mut Driver) {
     driver.send(engine::Event::Party(engine::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(501)),
         identity: people::Identity {

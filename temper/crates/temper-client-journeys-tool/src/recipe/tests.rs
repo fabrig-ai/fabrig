@@ -852,7 +852,7 @@ fn walk_success_and_session_failures_keep_their_statuses() {
     }
 }
 fn config(files: &mut Files, name: &str) {
-    for document in ["engine.json", "worker.json", "agent.json", "forgejo.json", "model.json", "providers.json"] {
+    for document in ["engine.json", "worker.json", "forgejo.json", "model.json", "providers.json"] {
         put(files, name, &format!("config/{document}"), b"opaque, not parsed here");
     }
 }
@@ -863,14 +863,14 @@ fn deployment_chain() -> Files {
 }
 
 #[test]
-fn deployment_config_requires_exactly_five_bounded_documents_without_parsing() {
+fn deployment_config_requires_exactly_four_bounded_documents_without_parsing() {
     let mut files = deployment_chain();
     put(&mut files, "root", "config/engine.json", &vec![b'x'; 262_144]);
     let chain = read(&files, "child").expect("256 KiB inclusive, opaque documents");
     assert_eq!(chain.kind(), Kind::Deployment);
     assert_eq!(chain.names().collect::<Vec<_>>(), ["root", "child"]);
     assert_eq!(chain.config_dir(Path::new("/recipes")), Some("/recipes/root/config".into()));
-    for document in ["engine.json", "worker.json", "agent.json", "forgejo.json", "model.json", "providers.json"] {
+    for document in ["engine.json", "worker.json", "forgejo.json", "model.json", "providers.json"] {
         let mut missing = files.clone();
         let path = format!("config/{document}");
         missing.get_mut("root").expect("root").remove(OsStr::new(&path));
@@ -964,7 +964,7 @@ fn deployment_hash_frames_config_after_files_in_name_byte_order() {
     let files = deployment_chain();
     let mut chain = read(&files, "child").expect("deployment");
     let hash = chain.hash();
-    assert_eq!(hex(hash), "f7b7c1ecb80b12c49145a1ebbfc9d9c06c5afc5bd0956846454203a6ac6946b2");
+    assert_eq!(hex(hash), "566d0e9fb9a9b8af083f76d548abf138d5036f8e07039b34991d318365883e1b");
     let mut changed = files.clone();
     put(&mut changed, "root", "config/engine.json", b"Opaque, not parsed here");
     assert_ne!(read(&changed, "child").expect("one changed byte").hash(), hash);

@@ -1826,6 +1826,7 @@ pub(crate) fn workspace_repository(
         owner: item.owner,
         start,
         landing: if push.is_some() { item.landing } else { None },
+        delivered: item.delivered,
         push,
         // The repository's git identity, from configuration (D10).
         identity: item.credential?,
@@ -2525,6 +2526,7 @@ pub(super) fn start_recovered_change(
                     owns_turn: false,
                     last_head: None,
                     last_checked: None,
+                    last_checked_by: None,
                     clock: None,
                 },
                 pull: None,

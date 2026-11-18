@@ -167,7 +167,9 @@ pub(crate) fn events(store: &mut Store, events: &mut Queue<Event>, above: &mut Q
             | Event::Corrupt { owner }
             | Event::Turns { owner, .. }
             | Event::Unread { owner } => Some(*owner),
-            Event::CheckpointHeld { .. }
+            Event::Restored { .. }
+            | Event::RestoreRefused { .. }
+            | Event::CheckpointHeld { .. }
             | Event::CheckpointRemoved { .. }
             | Event::Checkpointed { .. }
             | Event::CheckpointRefused { .. }

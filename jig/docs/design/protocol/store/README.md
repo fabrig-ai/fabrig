@@ -30,8 +30,9 @@ section 11.
   writer, with a tag per owner, then per family. Every range the domain
   asks for maps to a short, fixed list of intervals (section 4).
 - **Records from schemas,** with skein's generator: a codec per family,
-  versioned, golden bytes and fuzzing. A format row names the versions,
-  each owner's level and the deployment; a floor row names the oldest
+  versioned, with fixed-rule values built from schema text and fuzzing.
+  A format row names the versions, each owner's level and the deployment;
+  a floor row names the oldest
   store the build opens. A store of another version or deployment
   refuses to open (`records.md`).
 - **Values name their layout.** A registered family's value carries its
@@ -112,11 +113,13 @@ skein-io                        files: the ring, or the simulator's disk
   the log segments skein-kv writes no more and copying the rest,
   upgrades it and switches to it (`opening.md`, 2). Two generations may
   share a file under two names, which neither writes. Transcripts
-  are shared by every generation:
+  sit outside the generations: an upgrade keeps their tree, while a
+  restore replaces it (`restoring.md`):
 
 ```
 <deployment>/
 ├── active          the active generation's number: its decimal digits and a newline
+├── restore         an outstanding restore intent, resolved before active (restoring.md)
 ├── generations/
 │   ├── 7/          the previous generation, kept until the next switch
 │   │   ├── store/      skein-kv: snapshot, log segments, task logs (logs/)
@@ -158,7 +161,7 @@ skein-io                        files: the ring, or the simulator's disk
   (`Manifest`, beside the format row in `component-v3.schema`, `records.md`, 3),
   encoded and versioned as every record. It names:
   - `generation`, the generation's number, and `from`, the one it was
-    upgraded from, none for a first start's;
+    upgraded from, none for a first start's or a restored generation's;
   - `before` and `after`, each owner's levels (`records.md`, 3);
     a first start's before levels are all none, and its after levels
     the binary's;
@@ -173,9 +176,11 @@ skein-io                        files: the ring, or the simulator's disk
   - `written`, the wall-clock time it was written, `env.wall` in its own
     unit.
 
-  Nothing at open reads it: it is the operator's record of what an
-  upgrade did, and what temper's `upgrade --check` and `versions`
-  print (temper's `draft/upgrades.md`, 3.1).
+  An ordinary open reads no manifest; resolving a restore may read its
+  staged generation's (`restoring.md`, 5), and going back reads its active
+  one's (`opening.md`, 5). It is also the operator's record of what an
+  upgrade did, printed by temper's `upgrade --check` and `versions`
+  (temper's `draft/upgrades.md`, 3.1).
 - **A directory in the layout before generations** (`store/`, `secrets/` or
   `transcripts/` at its top, and no `active`) is a store from an older
   build, made before generations. Generations never have the first
@@ -261,7 +266,9 @@ skein-io                        files: the ring, or the simulator's disk
   directory whole, or is a checkpoint: the state at one commit, taken
   while the engine serves or over a stopped deployment, mostly by hard
   links (`checkpoints.md`). A first start refuses a `checkpoints/` that
-  holds anything (`checkpoints.md`, 7).
+  holds anything (`checkpoints.md`, 7). Restoring a checkpoint over a stopped
+  deployment first takes a safety checkpoint, then stages and rolls forward
+  its intent (`restoring.md`).
 - **Opened before the root starts** (`opening.md`; `../service.md`,
   section 3).
 
@@ -773,13 +780,17 @@ Each within jig's suites' budgets.
   restart; decoder-only duplicates stay in the step tests.
 - **Step tests:** each key encoder against the derived order; each
   range's intervals against its predicate; each codec both ways, with
-  golden bytes; refusals at open (format, deployment, sizes, numbers).
+  values built from schema text or constructors, not stored codec bytes
+  (skein's `data/codec/README.md`, 6); full fixed-rule values decoded at the
+  ceilings within their heap bounds and released; refusals at open
+  (format, deployment, sizes, numbers).
   Direct transcript pages either advance through a nonempty prefix or
   terminate `Unread` when no turn fits. The copy's check refuses a row
   the restart cannot load (`Check::Load`), naming its key: the active
   generation and source stay unchanged, and the next start sweeps the
   abandoned copy.
-- **Fuzz targets** for each family's decoder and a frame's.
+- **Fuzz targets** for each family's decoder and a frame's. Family seeds
+  are full fixed-rule values built from their schema texts, not files.
 - **On the real ring,** the reference binary (`../service.md`, section 7)
   killed around each phase of a turn's commit and started again. A killed
   process keeps the page cache, so this checks integration, not power
@@ -794,7 +805,22 @@ The domain owes 10.1 to 10.9; skein owes 10.10, and the application
 
 In each child's keys: the tasks child's history and ended tasks after
 its live families (stubs among these), decided proposals apart from
-pending ones, and past funding periods apart from live ones (4.3);
+pending ones, and past funding periods apart from live ones (4.3). A
+pool's, a recurring task's or a period's ledger closes into the past
+periods once nothing is reserved on it and its project has a newer
+period, so a live task whose budget is 0, which reserves nothing, may
+still name a closed one as its funder. The start reads no past period
+for it: it links such a task by its budget of 0 and its funder's period
+being older than its project's newest live one, and refuses a task
+whose ledger is not live on any other ground, as before. The task's end
+posts nothing to the closed ledger, and what it spent, if anything,
+goes to its project's current period (`../../domain/authority.md`,
+section 7). No ledger is kept open for such a task, and no task is
+moved off its funder. An escalation's decider is stored with its kind,
+a task's or a person's, and linked by it (`../../domain/tasks/proposals.md`,
+*An escalation's decider has its kind*; `jobs.md`, 1, for the stores
+that kept it as a bare number): each party a live task names is linked by its kind, and a
+start refuses what it cannot link;
 
 ### 10.2 The restart reads live work only
 
@@ -906,7 +932,7 @@ intervals, and its indexes, by the rules of section 7.
   is stopped works; a copy that keeps hard links keeps the files two
   generations share as one, and one that does not stores them twice and
   restores a deployment that opens the same. A copy while it serves is
-  a checkpoint's (`checkpoints.md`), whose restore is open there (10).
+  a checkpoint's (`checkpoints.md`), restored by `restoring.md`.
 - **Finding a turn faster:** a row per turn in the map, if walking an
   attempt's frames proves slow for parties' reads.
 - **Values on disk,** with only keys in memory, if a deployment outgrows

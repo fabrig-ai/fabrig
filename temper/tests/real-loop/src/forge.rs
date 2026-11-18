@@ -51,7 +51,7 @@ pub fn write(scratch: &Path, forge: SocketAddr, fixture: &Fixture) -> std::io::R
 
     (fixture.configure)(&mut config, &mut agent, forge);
     fixtures::turn_bounds::apply(&mut config, fixtures::turn_bounds::turn_body(&agent));
-    temper_fixtures::agent::apply(&mut config, scratch, &agent);
+    temper_agent_fixtures::apply(&mut config, scratch, &agent);
     fixtures::finish_configuration(scratch, &mut config)?;
     fixtures::private(&scratch.join("world-agent.json"), &serde_json::to_vec(&agent)?)
 }
@@ -227,8 +227,10 @@ impl Seen {
             }
             self.observations.push(observed);
         }
-        // Every forge change is observed; unchanged passes need no outside API read.
-        if self.snapshots.is_empty() || self.observations.len() != previous {
+        // Every forge change, including CI completion, is observed. Unchanged
+        // passes need neither a branch snapshot nor a dispatch listing.
+        let changed = self.snapshots.is_empty() || self.observations.len() != previous;
+        if changed {
             let forge = handle.borrow();
             let branches: Box<[_]> =
                 forge.domain.branches(repository).iter().map(|(name, head)| (name.clone(), *head)).collect();
@@ -251,7 +253,9 @@ impl Seen {
                 self.snapshots.push(Snapshot { at: now, branches, pulls });
             }
         }
-        self.read_dispatches(repository)?;
+        if changed {
+            self.read_dispatches(repository)?;
+        }
         self.collect_deliveries(peer.observations())
     }
     fn collect_deliveries(&mut self, records: &[Observation]) -> Result<(), String> {

@@ -2,7 +2,8 @@
 
 use skein_lib::List;
 
-use crate::{Numbers, carve, charge, left, settle};
+use crate::tests_fixtures::{authority, rules};
+use crate::{Numbers, carve, charge, left, run_spend, settle};
 
 fn add(a: u64, b: u64) -> u64 {
     a.checked_add(b).unwrap()
@@ -18,6 +19,37 @@ fn remainder(a: u64, b: u64) -> u64 {
 
 fn fresh(budget: u64) -> Numbers {
     Numbers { budget, spent: 0, spent_below: 0, reserved: 0 }
+}
+
+#[test]
+fn a_run_keeps_half_for_delegates_after_spend_and_reservations_and_before_the_cap() {
+    let authority = authority();
+    let rules = rules(authority.clone());
+    for (numbers, expected) in [
+        (fresh(100), 50),
+        (fresh(301), 80),
+        (fresh(7), 3),
+        (Numbers { spent: 10, spent_below: 20, reserved: 30, ..fresh(101) }, 20),
+        (Numbers { spent: 101, ..fresh(100) }, 0),
+    ] {
+        assert_eq!(run_spend(&rules, &authority, numbers), expected, "{numbers:?}");
+    }
+}
+
+#[test]
+fn a_run_with_no_delegation_keeps_all_available_funds_up_to_the_cap() {
+    let given = authority();
+    let rules = rules(given.clone());
+    let mut no_kinds = given.clone();
+    no_kinds.delegation.kinds = Box::new([]);
+    let mut no_tasks = given.clone();
+    no_tasks.delegation.tasks = 0;
+    let mut no_depth = given;
+    no_depth.delegation.depth = 0;
+    for authority in [no_kinds, no_tasks, no_depth] {
+        assert_eq!(run_spend(&rules, &authority, fresh(100)), 80);
+        assert_eq!(run_spend(&rules, &authority, fresh(50)), 50);
+    }
 }
 
 #[test]

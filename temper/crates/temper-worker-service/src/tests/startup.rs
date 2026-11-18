@@ -33,9 +33,9 @@ fn a_worker_alone_with_the_owned_examples_worker_fits_one_ring() {
     let input = fixtures::owned_worker_alone_document();
     let directories = config::Directories::working();
     let mut agent = fixtures::owned_worker_agent();
-    agent.host_limits.message_bytes = 10_662;
+    agent.host_limits.message_bytes = 63_740;
     agent.host_limits.messages = 82;
-    let mut part = crate::startup::worker_part(&input, &directories, Some(b"/usr/bin/git")).unwrap();
+    let mut part = crate::startup::worker_part(&input, &directories, Some(b"/usr/bin/git"), &[]).unwrap();
     let owned = include_bytes!("../../../../docs/examples/owned.json");
     let document =
         config::document(owned, &config::DocumentLimits { bytes: 1_048_576, tokens: 1_048_576, depth: 32 }).unwrap();
@@ -123,7 +123,7 @@ fn the_worker_uses_constant_deadlines_workspaces_and_the_shells_git() {
     use skein_lib::Duration;
     let directories = config::Directories::given(b"/config", b"/data", b"/cache").unwrap();
     for git in [Some(b"/tools/git".as_slice()), None] {
-        let part = crate::startup::worker_part(&fixtures::worker_alone_document(), &directories, git).unwrap();
+        let part = crate::startup::worker_part(&fixtures::worker_alone_document(), &directories, git, &[]).unwrap();
         let worker = &part.worker;
         assert_eq!(worker.root.as_ref(), b"/data/workspaces");
         assert_eq!(part.named.root, worker.root);
@@ -143,6 +143,6 @@ fn the_worker_uses_constant_deadlines_workspaces_and_the_shells_git() {
         assert_eq!(worker.jig.limits.as_ref().expect("worker limits").hub.source_interval, worker.jig.check_interval);
     }
     let found =
-        crate::startup::worker_part(&fixtures::worker_alone_document(), &directories, Some(b"git")).unwrap_err();
+        crate::startup::worker_part(&fixtures::worker_alone_document(), &directories, Some(b"git"), &[]).unwrap_err();
     assert_eq!(found.problems.get(0).unwrap().what, What::Absolute);
 }

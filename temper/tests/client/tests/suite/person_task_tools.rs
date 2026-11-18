@@ -273,7 +273,7 @@ pub(super) const ROLE_NOW: &str = "Tests are green.\nWaiting for a change, then 
 fn start_standing_role() -> (Ctl, u64) {
     let mut ctl = standing_ctl();
     let started = ctl.call(
-        &[b"role", b"start", b"--project", b"1", b"--budget", b"50", b"Owns the tests", b"--key", b"tests-role"],
+        &[b"role", b"start", b"--project", b"1", b"--budget", b"0.50", b"Owns the tests", b"--key", b"tests-role"],
         None,
     );
     assert_eq!(started.status, 0, "{started:?}");
@@ -610,6 +610,7 @@ fn sign_in_stranger(ctl: &mut Ctl) -> u64 {
     let driver = &mut ctl.front.engine;
     // A held person without a project role reaches executor permission admission.
     driver.send(engine::Event::Party(engine::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: skein_lib::ReplyTo::new(REPLY),
         identity: jig_domain_people::Identity {
@@ -887,7 +888,7 @@ fn standing_ctl() -> Ctl {
 fn a_started_standing_role_has_its_budget_on_how_work_runs() {
     let mut ctl = standing_ctl();
     let started = ctl.call(
-        &[b"role", b"start", b"--project", b"1", b"--budget", b"50", b"Owns the tests", b"--key", b"tests-role"],
+        &[b"role", b"start", b"--project", b"1", b"--budget", b"0.50", b"Owns the tests", b"--key", b"tests-role"],
         None,
     );
     assert_eq!(started.status, 0, "{started:?}");

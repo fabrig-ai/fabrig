@@ -419,8 +419,8 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>, value: &mut Value) {
     value["engine"]["limits"]["overrides"]["tasks.authority_grants"] = 16.into();
     // The creation offer carries nine stock charters and four procedures.
     value["engine"]["limits"]["overrides"]["documents.lines"] = 12.into();
-    super::configuration::turn_bounds::apply(value, super::configuration::turn_bounds::turn_body(&agent));
-    temper_fixtures::agent::apply(value, directory, &agent);
+    super::configuration::use_derived(value);
+    temper_agent_fixtures::apply(value, directory, &agent);
 }
 
 #[must_use]

@@ -73,8 +73,23 @@ pub fn run_cluster_forge(
     rules: fn() -> Box<[Box<[skein_fake_llm_domain::api::Rule]>]>,
     steps: impl FnOnce() -> Vec<calls::Step>,
 ) -> Cluster {
+    run_cluster_forge_prepared(workers, late, fixture, scripts, rules, |_| {}, steps)
+}
+
+/// Prepare the services' private filesystem and process inputs before any start.
+#[must_use]
+pub fn run_cluster_forge_prepared(
+    workers: &[&'static str],
+    late: &[&str],
+    fixture: forge::Fixture,
+    scripts: fn(SocketAddr) -> Box<[skein_fake_llm_domain::api::Script]>,
+    rules: fn() -> Box<[Box<[skein_fake_llm_domain::api::Rule]>]>,
+    prepare: impl FnOnce(&[crate::Scratch]),
+    steps: impl FnOnce() -> Vec<calls::Step>,
+) -> Cluster {
     assert!(late.iter().all(|name| workers.contains(name)), "configured late workers");
     run_with(workers, None, |scratch| {
+        prepare(scratch);
         crate::Outcome::Forge(world::run_cluster_forge(workers, late, scratch, fixture, scripts, rules, steps))
     })
 }
@@ -225,8 +240,12 @@ impl Shape {
 /// The worker promises the configured host's cancel, terminate and exit tail.
 fn agent_stop_bound(agent: &serde_json::Value) -> skein_lib::Duration {
     let configured = smith_agent_shell::config::from_value(agent.clone()).expect("cluster agent configuration");
-    let host = smith_agent_profile::host_limits(&configured.profile, &configured.service.limits)
-        .expect("cluster host supervision");
+    let host = smith_agent_profile::host_limits(
+        &configured.profile,
+        &configured.service.limits,
+        &configured.service.domain.limits,
+    )
+    .expect("cluster host supervision");
     host.cancel_grace
         .checked_add(host.kill_after)
         .and_then(|bound| bound.checked_add(host.exit_grace))

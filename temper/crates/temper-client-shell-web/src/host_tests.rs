@@ -1,11 +1,15 @@
 //! The host owns secret/clearing/target evidence; Chromium owns navigation and re-entry.
 use super::*;
 use jig_client::contract as c;
+use jig_client_protocol_wire as w;
+use skein_lib::{Reader, Token};
 use skein_ui::{EntryKind, Role};
 #[path = "host_tests_approve.rs"]
 mod approve;
 #[path = "host_tests_authorize.rs"]
 mod authorize;
+#[path = "host_tests_closing.rs"]
+mod closing;
 #[path = "host_tests_reload.rs"]
 mod reload;
 #[path = "host_tests_tab.rs"]
@@ -23,31 +27,7 @@ fn fixture_forges(forges: Option<&temper_client_protocol_wire::v1::Forges>) -> H
     host.client(jig_client::Event::StartUnlinked { kept: List::with_capacity(0) });
     host.client(jig_client::Event::SignIn { with: jig_client::With::Transport });
     host.client(jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } });
-    let me = host
-        .out
-        .iter()
-        .find_map(|request| match request {
-            Request::Unlinked {
-                request:
-                    jig_client::UnlinkedRequest::Down {
-                        down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Me) },
-                    },
-            } => Some(*watch),
-            Request::Client { .. }
-            | Request::Unlinked { .. }
-            | Request::Show { .. }
-            | Request::Leave { .. }
-            | Request::SignOut
-            | Request::Dropped { .. }
-            | Request::Screen { .. }
-            | Request::KeepLook { .. }
-            | Request::KeepSignIn { .. }
-            | Request::Tab { .. }
-            | Request::Copy { .. }
-            | Request::Push(_)
-            | Request::Fact { .. } => None,
-        })
-        .expect("me watch");
+    let me = Token::new(0);
     let link =
         jig_client_protocol_link::Limits::new(host.env.limits.client.domain, limits::EXCHANGES).expect("link bounds");
     let mut frame =
@@ -135,6 +115,53 @@ fn node(host: &Host, role: Role, name: &[u8]) -> NodeId {
         .expect("account control")
         .id
 }
+fn openings(path: &[u8], body: &[u8]) -> Vec<w::Open> {
+    if path == b"/jig/v1/watch" {
+        return vec![w::Open::decode(&w::CEILINGS, &mut Reader::new(body)).expect("opening")];
+    }
+    if path == b"/jig/v1/batch" {
+        return w::Batch::decode(&w::CEILINGS, &mut Reader::new(body))
+            .expect("batch")
+            .into_parts()
+            .members
+            .into_boxed()
+            .into_vec()
+            .into_iter()
+            .filter_map(|member| match member {
+                w::Member::Open(open) => Some(open),
+                w::Member::Read(_) | w::Member::Close(_) => None,
+            })
+            .collect();
+    }
+    vec![]
+}
+fn batch_admitted(host: &mut Host, exchange: u32, body: &[u8]) {
+    let batch = w::Batch::decode(&w::CEILINGS, &mut Reader::new(body)).expect("batch");
+    host.heard(Heard::Begun { exchange, status: 200 });
+    let mut complete = true;
+    for (place, member) in batch.into_parts().members.into_boxed().into_iter().enumerate() {
+        let reply = match member {
+            w::Member::Open(_) => encoded(w::OpenAnswer::Admitted.measure(), |w| w::OpenAnswer::Admitted.encode(w)),
+            w::Member::Close(_) => encoded(w::CloseAnswer::Closed.measure(), |w| w::CloseAnswer::Closed.encode(w)),
+            w::Member::Read(_) => {
+                complete = false;
+                continue; // These fixtures leave lone reads unanswered too.
+            }
+        };
+        let part = w::BatchReply::new(
+            &w::CEILINGS,
+            w::BatchReplyParts { member: u16::try_from(place).expect("member"), reply: Some(reply) },
+        )
+        .expect("part");
+        let bytes = encoded(part.measure(), |w| part.encode(w));
+        let frame = [part.measure().to_be_bytes().as_slice(), bytes.as_ref()].concat().into_boxed_slice();
+        host.heard(Heard::Part { exchange, bytes: frame });
+    }
+    if complete {
+        host.heard(Heard::Done { exchange });
+    }
+}
+
 #[test]
 fn the_reload_press_asks_the_browser_to_reload_once() {
     let mut host = fixture();
@@ -402,25 +429,24 @@ fn the_first_task_activity_answer_survives_transport_sign_in() {
         .expect("one served family");
     streamed(
         &mut host,
-        &w::StreamEvent::Hello(
+        &jig_client_test_records::opened(
             w::Hello::new(&w::CEILINGS, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
                 .expect("hello"),
+            jig_client_test_records::frame_record(),
         ),
     );
     let mut watch = None;
-    let mut me = None;
+    let me = 0;
     for request in host.requests() {
         let Asked::Exchange { call, .. } = request else { continue };
-        if call.path.as_ref() != b"/jig/v1/watch" {
-            continue;
-        }
-        let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(&call.body)).expect("watch envelope");
-        let subject = w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).expect("subject");
-        if matches!(subject, w::Subject::Task(_)) {
-            watch = Some(open.watch());
-        }
-        if subject == w::Subject::Me {
-            me = Some(open.watch());
+        for open in openings(&call.path, &call.body) {
+            if open.subject().owner() != &w::Owner::Jig {
+                continue;
+            }
+            let subject = w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).expect("subject");
+            if matches!(subject, w::Subject::Task(_)) {
+                watch = Some(open.watch());
+            }
         }
     }
     let watch = watch.expect("task watch");
@@ -467,7 +493,7 @@ fn the_first_task_activity_answer_survives_transport_sign_in() {
             w::Delivery::new(
                 &w::CEILINGS,
                 w::DeliveryParts {
-                    watch: me.expect("me watch"),
+                    watch: me,
                     document: owned(encoded(document.measure(), |writer| document.encode(writer))),
                 },
             )

@@ -804,6 +804,7 @@ impl Application for Ops {
             match up {
                 jig_fake_parties::Up::SignIn { to, provider, subject } => {
                     events.push(Input::Event(root::Event::Core(core::Event::SignIn {
+                        until: None,
                         held: None,
                         reply_to: ReplyTo::new(Token::new(to)),
                         identity: people::Identity {

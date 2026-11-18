@@ -13,6 +13,8 @@ use temper_client_shell_web::journey;
 fn the_committed_journeys_are_their_print() {
     let scratch = Scratch::new("temper-client-journeys-committed");
     let committed = Path::new(JOURNEYS);
+    assert_normalised(committed, false);
+    assert_normalised(Path::new(crate::TUI_JOURNEYS), true);
     let stale = crate::reprint(committed, scratch.path())
         .expect("reprint committed journeys; run cargo run -p temper-client-journeys");
     assert!(stale.is_empty(), "stale journeys: {stale:?}; run cargo run -p temper-client-journeys");
@@ -55,6 +57,22 @@ fn the_committed_journeys_are_their_print() {
         assert!(
             fs::read(tui.join(file)).expect("committed beside") == fs::read(out.join(file)).expect("reprinted beside"),
             "TUI {file} differs; run cargo run -p temper-client-journeys"
+        );
+    }
+}
+
+fn assert_normalised(root: &Path, tui: bool) {
+    for name in crate::names(root).expect("committed names") {
+        let recording = fs::read(root.join(&name).join("recording")).expect("committed recording");
+        let normalised = if tui {
+            temper_client_shell_tui::journey::normalise(&recording).expect("normalise TUI")
+        } else {
+            journey::normalise(&recording).expect("normalise browser")
+        };
+        assert!(
+            recording == normalised.recording.as_ref(),
+            "{} is not its own normalisation; run cargo run -p temper-client-journeys -- normalise",
+            root.join(name).display()
         );
     }
 }
@@ -275,14 +293,15 @@ fn fixture_recording() -> Box<[u8]> {
 
 fn fixture_with_secret(secret: Option<Box<[u8]>>) -> Box<[u8]> {
     let facts = journey::Facts {
+        fixed: false,
         seed: 11,
         now: Time::ZERO,
         wall: Wall::EPOCH,
         primary: Primary::Control,
         zone_minutes: 0,
-        ways: None,
+        ways: Some((b"google".as_slice().into(), b"http://127.0.0.1:34073".as_slice().into())),
         forges: Vec::new(),
-        path: b"/welcome".as_slice().into(),
+        path: b"/".as_slice().into(),
         secret,
         stored: Vec::new(),
     };
@@ -290,6 +309,15 @@ fn fixture_with_secret(secret: Option<Box<[u8]>>) -> Box<[u8]> {
     let mut recorder = journey::Recorder::new(&facts);
     recorder.turn(facts.now, facts.wall);
     recorder.report(&mut host, &page, temper_client_shell_web::host::Report::Start);
+    if facts.secret.is_none() {
+        recorder.report(
+            &mut host,
+            &page,
+            temper_client_shell_web::host::Report::Heard(jig_client_shell_web::adapter::Heard::StreamRefused {
+                status: 401,
+            }),
+        );
+    }
     host.draw(&mut page, &mut Vec::new());
     recorder.deadline(host.deadline());
     recorder.save(&page)
@@ -505,10 +533,10 @@ fn a_refusal_keeps_the_journey_of_its_name() {
 
 #[test]
 fn the_committed_journey_redacted_prints_the_same_pages() {
-    let root = Path::new(JOURNEYS).join("welcome-playground");
+    let root = Path::new(JOURNEYS).join("welcome-set-up");
     let recording = fs::read(root.join("recording")).expect("committed recording");
     let redacted = journey::redact(&recording, &[]).expect("redact committed journey");
-    let pages = crate::printed("welcome-playground", &redacted.recording).expect("read journey").expect("replay");
+    let pages = crate::printed("welcome-set-up", &redacted.recording).expect("read journey").expect("replay");
     assert!(!pages.is_empty(), "committed pages checked");
     for page in pages {
         let expected = fs::read(root.join(page.name)).expect("committed page");
@@ -626,6 +654,9 @@ impl TuiWorld {
         Self::sized(address, skein_ui_screen::Size { rows: 16, columns: 100 })
     }
     pub(super) fn sized(address: &[u8], size: skein_ui_screen::Size) -> Self {
+        Self::with_local(address, size, false)
+    }
+    fn with_local(address: &[u8], size: skein_ui_screen::Size, local: bool) -> Self {
         use temper_client_shell_tui::journey::{Facts, Recorder};
         let facts = Facts {
             set_up: false,
@@ -637,11 +668,11 @@ impl TuiWorld {
             scheme: Some(temper_client_tui::Scheme::Dark),
             background: None,
             plain: false,
-            version: Box::default(),
+            version: b"1.2.3 (abcdef123456-dirty)".as_slice().into(),
             boxed: false,
             address: address.into(),
             front: false,
-            local: false,
+            local,
             note: None,
             kept: Vec::new(),
             credential: None,
@@ -700,9 +731,11 @@ impl TuiWorld {
 fn tui_recording() -> Box<[u8]> {
     use skein_ui_screen_terminal::Key;
     use temper_client_shell_tui::host::Report;
-    let mut world = TuiWorld::new(b"127.0.0.1:8367");
+    let mut world = TuiWorld::with_local(b"127.0.0.1:34073", skein_ui_screen::Size { rows: 16, columns: 100 }, true);
+    world.mark();
+    world.report(Report::Local { link: None });
     world.report(Report::Key(Key::Paste(
-        format!("http://127.0.0.1:8367/jig/v1/sign-in/link?secret={}", "A".repeat(43)).into_bytes().into(),
+        format!("http://127.0.0.1:34073/jig/v1/sign-in/link?secret={}", "A".repeat(43)).into_bytes().into(),
     )));
     world.report(Report::Key(Key::Enter));
     world.save()
@@ -710,7 +743,9 @@ fn tui_recording() -> Box<[u8]> {
 
 fn tui_approval_recording() -> Box<[u8]> {
     use temper_client_shell_tui::host::Report;
-    let mut world = TuiWorld::new(b"127.0.0.1:8367");
+    let mut world = TuiWorld::with_local(b"127.0.0.1:34073", skein_ui_screen::Size { rows: 16, columns: 100 }, true);
+    world.mark();
+    world.report(Report::Local { link: None });
     let exchange = world.exchange(false);
     world.report(Report::Heard(jig_client::Event::Reply { exchange, message: tui_approval_reply() }));
     world.report(Report::Opened { opened: false });
@@ -762,6 +797,238 @@ fn tree_bytes(root: &Path) -> std::collections::BTreeMap<std::path::PathBuf, Opt
         }
     }
     files
+}
+
+#[test]
+fn normalised_stale_replays_use_the_proofs_safe_refusal() {
+    use temper_client_shell_tui::journey as tj;
+    let web = crate::proof_refusal(
+        "browser",
+        journey::Refusal::Stale(journey::Stale {
+            turn: 3,
+            line: 17,
+            recorded: "exchange private-recorded-bytes".into(),
+            asked: "open private-asked-bytes".into(),
+        }),
+    );
+    let tui = crate::tui::proof_refusal(
+        "terminal",
+        tj::Refusal::Stale(tj::Stale {
+            turn: 5,
+            line: 23,
+            recorded: b"send private-recorded-bytes".as_slice().into(),
+            asked: b"stream private-asked-bytes".as_slice().into(),
+        }),
+    );
+    assert!(matches!(&web, crate::Refusal::Proof { refusal: journey::Refusal::Stale(why), .. }
+        if why.recorded == "exchange" && why.asked == "open"));
+    assert!(matches!(&tui, crate::Refusal::TuiProof { refusal: tj::Refusal::Stale(why), .. }
+        if why.recorded.as_ref() == b"send" && why.asked.as_ref() == b"stream"));
+    assert_eq!(
+        crate::run::refusal(web),
+        "browser is stale at turn 3, line 17: recorded exchange, asked open; record it again (client/web/journeys.md, 8)"
+    );
+    assert_eq!(
+        crate::run::refusal(tui),
+        "terminal is stale at turn 5, line 23: recorded send, asked stream; record it again (client/tui/journeys.md, 8)"
+    );
+}
+
+#[test]
+fn placeholder_counts_follow_each_clients_redaction() {
+    let added = crate::Added {
+        link: 1,
+        stored: 2,
+        typed: 3,
+        given: 4,
+        places: 5,
+        approval: 6,
+        credential: 7,
+        bearer: 8,
+        build: 9,
+        port: 10,
+        code: 11,
+        placeholder_places: 12,
+        stood: 13,
+    };
+    for (tui, redaction) in [
+        (false, "link: 1; stored: 2; typed: 3; given: 4; places replaced: 5"),
+        (true, "link: 1; stored: 2; typed: 3; given: 4; approval: 6; credential: 7; bearer: 8; places replaced: 5"),
+    ] {
+        assert_eq!(
+            crate::run::addition(&added, tui),
+            format!(
+                "{redaction}\nplaceholders: build: 9; port: 10; code: 11; places replaced: 12; stood: 13\n{}",
+                crate::table::CAUTION
+            )
+        );
+    }
+}
+
+fn varying_recording(recording: &[u8]) -> Vec<u8> {
+    String::from_utf8(recording.to_vec())
+        .expect("recording text")
+        .replace("1.2.3 (abcdef123456-dirty)", "9.8.7 (fedcba654321-dirty)")
+        .replace("34073", "45182")
+        .replace("51, 52, 48, 55, 51", "52, 53, 49, 56, 50")
+        .into_bytes()
+}
+
+fn contains(bytes: &[u8], text: &[u8]) -> bool {
+    skein_lib::bytes::find(bytes, text).is_some()
+}
+
+#[test]
+fn add_gives_both_clients_placeholders_after_proving() {
+    let scratch = Scratch::new("journeys-add-placeholders");
+    for (name, recording, is_tui, approval) in [
+        ("browser", fixture_recording(), false, false),
+        ("terminal", tui_recording(), true, false),
+        ("approval", tui_approval_recording(), true, true),
+    ] {
+        let variant = varying_recording(&recording);
+        assert_ne!(recording.as_ref(), variant, "the fixture varies");
+        let mut first = None;
+        for (build, recording) in [("first", recording.as_ref()), ("second", variant.as_slice())] {
+            let root = scratch.path().join(name).join(build);
+            let web = root.join("web");
+            let tui = root.join("tui");
+            let added = crate::add_to(&web, &tui, name, recording, &[]).expect("prove then normalise and replay");
+            assert_eq!(
+                (added.build, added.port, added.code, added.stood),
+                (u32::from(is_tui), 1, u32::from(approval), 0)
+            );
+            assert!(added.placeholder_places > 0);
+            let directory = if is_tui { &tui } else { &web };
+            let saved = fs::read(directory.join(name).join("recording")).expect("written recording");
+            let files = tree_bytes(&directory.join(name));
+            let prints: Vec<_> = files
+                .iter()
+                .filter(|(path, _)| crate::printed_page(path) || crate::tui::printed_file(path))
+                .filter_map(|(_, bytes)| bytes.as_deref())
+                .collect();
+            let mut placeholders: Vec<&[u8]> = vec![b"10001"];
+            if is_tui {
+                placeholders.push(b"0.0.0 (000000000000)");
+            }
+            if approval {
+                placeholders.extend([b"BBBBBBBB".as_slice(), b"BBBB-BBBB".as_slice()]);
+            }
+            let live = if is_tui {
+                temper_client_shell_tui::journey::normalise(recording).expect("normalise live marks")
+            } else {
+                journey::normalise(recording).expect("normalise live marks")
+            };
+            let marks: Vec<_> = if is_tui {
+                use temper_client_shell_tui::journey as tj;
+                tj::lines(&live.recording)
+                    .expect("normalised live TUI")
+                    .into_iter()
+                    .filter_map(|line| match line {
+                        tj::Line::Mark(print) | tj::Line::End(print) => print,
+                        _ => None,
+                    })
+                    .collect()
+            } else {
+                journey::lines(&live.recording)
+                    .expect("normalised live browser")
+                    .into_iter()
+                    .filter_map(|line| match line {
+                        journey::Line::Mark(html) | journey::Line::End(html) => html,
+                        _ => None,
+                    })
+                    .collect()
+            };
+            for placeholder in placeholders {
+                assert!(contains(&saved, placeholder), "{} in written fields", String::from_utf8_lossy(placeholder));
+                if placeholder != b"BBBBBBBB" {
+                    assert!(
+                        prints.iter().any(|bytes| contains(bytes, placeholder)),
+                        "{name}: {} in replay's print",
+                        String::from_utf8_lossy(placeholder)
+                    );
+                    assert!(marks.iter().any(|bytes| contains(bytes, placeholder)), "{name}: placeholder in live mark");
+                }
+            }
+            if name == "terminal" {
+                let lines = temper_client_shell_tui::journey::lines(&saved).expect("written TUI lines");
+                assert!(
+                    lines.iter().any(|line| matches!(line,
+                    temper_client_shell_tui::journey::Line::Send {
+                        message: temper_client_shell_tui::journey::Sent::SignInLink(bytes), .. }
+                    if contains(bytes, "x".repeat(32).as_bytes()))),
+                    "link remains redacted"
+                );
+                absent(&saved, "A".repeat(43).as_bytes(), "normalised recording");
+            }
+            let snapshot = tree_bytes(directory);
+            if let Some(first) = &first {
+                assert!(snapshot == *first, "builds and ports add to identical recording and printed files");
+            } else {
+                first = Some(snapshot);
+            }
+        }
+    }
+}
+
+#[test]
+fn normalise_rewrites_scratch_copies_and_keeps_stale_recordings() {
+    use temper_client_shell_tui::journey as tj;
+    let scratch = Scratch::new("journeys-normalise");
+    let web = scratch.path().join("web");
+    let tui = scratch.path().join("tui");
+    for (source, target) in [(Path::new(JOURNEYS), &web), (Path::new(crate::TUI_JOURNEYS), &tui)] {
+        fs::create_dir_all(target).expect("scratch directory");
+        for (path, bytes) in tree_bytes(source) {
+            if let Some(bytes) = bytes {
+                fs::write(target.join(path), bytes).expect("copy committed file");
+            } else {
+                fs::create_dir_all(target.join(path)).expect("copy directory");
+            }
+        }
+    }
+    let browser = journey::prove(&fixture_recording()).expect("browser proof");
+    let terminal = tj::prove(&tui_recording()).expect("TUI proof");
+    for (root, good, stale) in [
+        (&web, browser.clone(), stale_recording(&browser)),
+        (&tui, terminal.clone(), {
+            let mut lines = tj::lines(&terminal).expect("TUI lines");
+            let at = lines.iter().position(|line| matches!(line, tj::Line::Deadline(_))).expect("deadline");
+            lines[at] = tj::Line::Deadline(Some(Time::ZERO));
+            tui_written(&lines).into()
+        }),
+    ] {
+        for (name, recording) in [("a-stale", stale), ("z-good", good)] {
+            fs::create_dir(root.join(name)).expect("fixture directory");
+            fs::write(root.join(name).join("recording"), recording).expect("fixture recording");
+            fs::write(root.join(name).join("01.html"), b"old print").expect("previous print");
+            fs::write(root.join(name).join("README.md"), b"Description").expect("description");
+        }
+    }
+    let before_web = tree_bytes(&web.join("a-stale"));
+    let before_tui = tree_bytes(&tui.join("a-stale"));
+    let (written, stale) = crate::normalise(&web, &tui).expect("normalise both scratch directories");
+    assert_eq!(written.iter().filter(|(name, _)| name == "z-good").count(), 2, "continue past both stale recordings");
+    assert_eq!(stale.len(), 2);
+    assert!(matches!(&stale[0], crate::Refusal::Proof { name, refusal: journey::Refusal::Stale(why) }
+        if name == "a-stale" && why.turn == 1 && why.recorded == "deadline" && why.asked == "deadline"));
+    assert!(matches!(&stale[1], crate::Refusal::TuiProof { name, refusal: tj::Refusal::Stale(why) }
+        if name == "a-stale" && why.turn == 1 && why.recorded.as_ref() == b"deadline" && why.asked.as_ref() == b"deadline"));
+    assert_eq!(before_web, tree_bytes(&web.join("a-stale")));
+    assert_eq!(before_tui, tree_bytes(&tui.join("a-stale")));
+    assert_eq!(crate::reprint(&web, &web).expect("reprint browser").len(), 1);
+    assert_eq!(crate::tui::reprint(&tui, &tui).expect("reprint TUI").len(), 1);
+    assert_eq!(before_web, tree_bytes(&web.join("a-stale")));
+    assert_eq!(before_tui, tree_bytes(&tui.join("a-stale")));
+    for root in [&web, &tui] {
+        assert_ne!(fs::read(root.join("z-good/01.html")).expect("new print"), b"old print");
+        fs::remove_dir_all(root.join("a-stale")).expect("remove stale fixture");
+        assert_normalised(root, root == &tui);
+    }
+    let before = tree_bytes(scratch.path());
+    let (written, stale) = crate::normalise(&web, &tui).expect("normalise again");
+    assert!(written.is_empty() && stale.is_empty(), "already normalised recordings aren't written again");
+    assert_eq!(before, tree_bytes(scratch.path()));
 }
 
 #[test]

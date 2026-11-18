@@ -10,6 +10,7 @@ fn check_lines_name_decoded_count_and_undecodable_places() {
             .0;
     for binary in ["temper", "temper-box", "temper-engine"] {
         let mut report = Report {
+            checkpoint: None,
             workers: configured(),
             events: Queue::uncapped(),
             elapsed: Duration::ZERO,
@@ -28,6 +29,7 @@ fn check_lines_name_decoded_count_and_undecodable_places() {
             (Undecoded::Frame { transcript: "7".into(), offset: 256 }, "transcript 7 at 256"),
         ] {
             let mut report = Report {
+                checkpoint: None,
                 workers: configured(),
                 events: Queue::uncapped(),
                 elapsed: Duration::ZERO,
@@ -50,6 +52,96 @@ fn check_lines_name_decoded_count_and_undecodable_places() {
                 "{text}"
             );
             assert!(!text.contains("registry commit, jobs and restores pass"));
+        }
+    }
+}
+
+#[test]
+fn workers_lines_are_the_checks_verdict_alone_for_yes_no_and_unknown() {
+    let dirs = Directories {
+        config: b"/config".as_slice().into(),
+        data: b"/data".as_slice().into(),
+        cache: b"/cache".as_slice().into(),
+        origins: [skein_shell::Origin::Flag; 3],
+    };
+    for verdict in ["yes", "no", "unknown"] {
+        let mut w1 = opening("w1");
+        let mut w2 = opening("w2");
+        w1.at = Wall::from_nanos(1_794_968_442_000_000_000);
+        w2.at = w1.at;
+        if verdict == "no" {
+            w1.output = 0;
+        }
+        let mut report = super::tests::report(Event::Rehearsing {
+            owner: Token::new(1),
+            wires: if verdict == "unknown" { None } else { Some(kept()) },
+            openings: Box::new([w1, w2]),
+        });
+        report.restored = true;
+        report.events.push(Event::Decoded { owner: Token::new(1), records: 123 });
+        report.events.push(Event::Ran {
+            owner: Token::new(1),
+            of: Owner::Application,
+            job: "fixture-job".into(),
+            rows: 2,
+            commits: 1,
+            counts: Box::new([]),
+        });
+        report.events.push(Event::Closed { owner: Token::new(1), removed: true });
+        for binary in ["temper-engine", "temper-box"] {
+            let (check, check_code) = lines(binary, &report, &dirs, b"/checkpoint");
+            assert_eq!(check_code, 0);
+            let expected = check
+                .split_inclusive('\n')
+                .filter(|line| {
+                    !line.contains("decoded ")
+                        && !line.contains("ran temper ")
+                        && !line.contains("whole rehearsal/tool time")
+                        && !line.contains("registry commit")
+                })
+                .collect::<String>();
+            let (text, code) = workers_lines(binary, &report, &dirs, b"/checkpoint");
+            assert_eq!(text, expected);
+            assert_eq!(code, 0, "{verdict} changes no exit code");
+            if verdict == "yes" {
+                assert_eq!(
+                    text,
+                    format!(
+                        "{binary} upgrade: worker w1 may stay: opened 2026-11-18T02:20:42Z\n{binary} upgrade: worker w2 may stay: opened 2026-11-18T02:20:42Z\n{binary} upgrade: workers may stay: yes\n"
+                    )
+                );
+            } else if verdict == "unknown" {
+                assert_eq!(text, format!("{binary} upgrade: workers may stay: unknown; the copy keeps no wires\n"));
+            } else {
+                assert!(text.contains("worker w1 may not stay: limits:"), "{text}");
+                assert!(text.ends_with("workers may stay: no\n"), "{text}");
+            }
+        }
+    }
+}
+
+#[test]
+fn workers_opening_refusals_keep_the_checks_words_and_fail() {
+    let dirs = Directories {
+        config: b"/config".as_slice().into(),
+        data: b"/data".as_slice().into(),
+        cache: b"/cache".as_slice().into(),
+        origins: [skein_shell::Origin::Flag; 3],
+    };
+    for why in [jig_protocol_store::Generations::Busy, jig_protocol_store::Generations::Unfinished] {
+        let why = jig_protocol_store::OpenRefusal::Generations { why };
+        let mut report =
+            super::tests::report(Event::Rehearsing { owner: Token::new(1), wires: None, openings: Box::new([]) });
+        report.events.push(Event::OpenRefused { owner: Token::new(1), why: why.clone() });
+        report.events.push(Event::Closed { owner: Token::new(1), removed: true });
+        report.end = Some(temper_engine_service::End::Stopped(temper_engine_service::Stop::StoreOpen { why }));
+        for binary in ["temper-engine", "temper-box"] {
+            let (check, check_code) = lines(binary, &report, &dirs, b"/checkpoint");
+            let (text, code) = workers_lines(binary, &report, &dirs, b"/checkpoint");
+            assert_eq!(check_code, 1);
+            assert_eq!(code, 1);
+            assert_eq!(text, check.split_once('\n').expect("check timing line").1);
+            assert!(text.contains("/checkpoint"), "{text}");
         }
     }
 }

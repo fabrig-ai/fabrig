@@ -40,7 +40,10 @@ fn box_help_configures_coding_run_tools() {
     for required in [
         "`CONFIG/temper.json`",
         "preserve the rest of the document",
-        "exactly the configured environment",
+        "`application.environment`",
+        "Absent: the worker's own `HOME` and `PATH`",
+        "exactly its entries, with the worker's own `HOME` and `PATH` added where it omits them",
+        "no other process variables",
         "deployment-specific absolute paths",
         "Install",
         "`cargo`",
@@ -71,10 +74,19 @@ fn server_walk_gives_the_agents_environment_as_entries() {
     let (_, steps) = page.split_once("\n## 5. ").expect("step 5");
     let (step, _) = steps.split_once("\n## 6. ").expect("step 6");
     let text = step.split_whitespace().collect::<Vec<_>>().join(" ");
-    for required in ["Entry `environment`: optional list, not a map; unique names:", "temper help box"] {
+    for required in [
+        "`application.environment`: optional list, not a map; unique names:",
+        "Absent: the worker's own `HOME` and `PATH`",
+        "exactly its entries, with the worker's own `HOME` and `PATH` added where it omits them",
+        "no other process variables",
+        "top-level only `workers` and `application`",
+        "Remove `application.workers`",
+        "No `claude` member",
+        "temper help box",
+    ] {
         assert!(text.contains(required), "step 5 must explain {required}");
     }
-    let (_, recipe) = step.split_once("`environment`").expect("agent environment");
+    let (_, recipe) = step.split_once("`application.environment`: optional list").expect("agent environment");
     let example = recipe.split('`').nth(1).expect("environment entries example");
     let environment: serde_json::Value = serde_json::from_str(example).expect("valid environment JSON");
     let mut document = coding_run_agent_document();
@@ -163,7 +175,7 @@ fn server_walk_says_when_a_forges_sign_in_meta_appears() {
 }
 
 fn coding_run_agent_document() -> serde_json::Value {
-    let mut document = temper_fixtures::agent::stock(true);
+    let mut document = temper_agent_fixtures::stock(true);
     // Inert endpoints keep configuration parsing independent of DNS, trust files and services.
     for endpoint in document["endpoints"].as_array_mut().expect("init endpoints") {
         endpoint["address"] = "127.0.0.1:9".into();

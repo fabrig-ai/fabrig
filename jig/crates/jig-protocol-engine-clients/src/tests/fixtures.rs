@@ -123,6 +123,8 @@ pub fn env() -> Env<Limits> {
             provider_tokens: 64,
             exchanges: 4,
             exchanges_per_client: 2,
+            reads_per_client: 32,
+            openings_per_client: 31,
             message_bytes: MESSAGE_BYTES,
             wire: wire(),
             link_span: Duration::from_secs(300),
@@ -215,11 +217,16 @@ impl Exchange {
         owner
     }
     pub fn stream_open(&mut self) -> Token {
+        self.stream_open_version(None)
+    }
+    pub fn stream_open_version(&mut self, version: Option<u32>) -> Token {
         let owner = self.component.name();
         self.component.down(
             &self.env,
             Event::Transport(crate::FromTransport::StreamOpen {
+                version,
                 stream: owner,
+                replaces: None,
                 credential: Some(Secret::new(self.token.clone())),
             }),
             &mut self.out,
@@ -813,7 +820,9 @@ impl Exchange {
     }
     pub fn approval_sign_in(&mut self, identity: &people::Identity) -> ReplyTo {
         let Some(Request::Core(event)) = self.out.pop() else { panic!("SignIn event") };
-        let core::Event::SignIn { reply_to, identity: given, held } = *event else { panic!("ordinary SignIn") };
+        let core::Event::SignIn { until: None, reply_to, identity: given, held } = *event else {
+            panic!("ordinary SignIn")
+        };
         assert_eq!(&given, identity);
         assert_eq!(held, None);
         reply_to

@@ -19,11 +19,11 @@ pub fn configure(directory: &Path, forge: &Throwaway) -> String {
     let path = directory.join("temper.json");
     let mut value: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
     let owned: Value = serde_json::from_slice(super::owned::EXAMPLE).expect("owned example");
-    let providers = temper_fixtures::providers::input(&mut value);
+    let providers = temper_agent_fixtures::providers::input(&mut value);
     providers["providers"].as_array_mut().expect("providers").retain(|provider| provider["number"] == 1);
     providers["endpoints"].as_array_mut().expect("endpoints").retain(|endpoint| endpoint["provider"] == "openai");
     value["engine"]["limits"]["overrides"]["documents.rows"] = 32.into();
-    let mut agent: Value = temper_fixtures::agent::configuration(&owned);
+    let mut agent: Value = temper_agent_fixtures::configuration(&owned);
     if let Some(program) = agent["programs"].get_mut("claude_code") {
         let claude = temper_test_env::value(&temper_shell::environment::PATH).and_then(|path| {
             std::env::split_paths(&path).map(|directory| directory.join("claude")).find(|program| program.is_file())
@@ -36,8 +36,6 @@ pub fn configure(directory: &Path, forge: &Throwaway) -> String {
         }
     }
     agent["profile"]["policy"]["max_turns"] = 16.into();
-    value["engine"]["limits"]["overrides"]["hub.event_bytes"] = 4096.into();
-    value["application"]["limits"]["overrides"]["checkout.message_bytes"] = 4098.into();
     let scripts = super::landing_scripts(super::ANSWER, forge);
     let skein_fake_llm_domain::api::Line::Call { arguments, .. } = &scripts[0].turns[0].lines[0] else {
         panic!("the process fixture delegates the coding procedure");
@@ -50,9 +48,9 @@ pub fn configure(directory: &Path, forge: &Throwaway) -> String {
         For a change review task, finish with {{\"form\":\"verdict\",\"label\":\"1\",\"text\":\"Checked\",\"fields\":{{}},\"items\":[]}}.",
         std::str::from_utf8(arguments).expect("delegate JSON").replace("@coding", "\\u0040coding")
     );
-    super::configuration::turn_bounds::apply(&mut value, super::configuration::turn_bounds::turn_body(&agent));
+    super::configuration::use_derived(&mut value);
     write_private(&path, &serde_json::to_vec(&value).expect("live configuration JSON"));
-    temper_fixtures::agent::install(directory, &agent);
+    temper_agent_fixtures::install(directory, &agent);
     instructions
 }
 
@@ -383,7 +381,6 @@ pub fn run(directory: &Path, forge: &Throwaway, instructions: &str, deadline: Du
                     let charter = super::ctl::json(&calls[5]);
                     let mut value = charter["value"].clone();
                     value["turns"] = 5.into();
-                    value["time"] = 240_000_000_000_u64.into();
                     value["instructions"] = instructions.into();
                     let template = super::ctl::json(&calls[6]);
                     let mut recipe = template["value"].clone();

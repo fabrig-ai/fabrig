@@ -27,6 +27,7 @@ impl Peer {
             upload: None,
             body: Vec::new(),
             status: None,
+            headers: Box::new([]),
             done: false,
             streaming: false,
             paused: false,

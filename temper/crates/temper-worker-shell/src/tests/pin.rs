@@ -94,6 +94,9 @@ fn the_checked_agent_and_source_environment_need_no_second_configuration_read() 
     bytes["environment"] = serde_json::json!([{"name":"PINNED_ENV","value":"at-start"}]);
     bytes["programs"] =
         serde_json::json!({"claude_code":{"path":"/missing/claude","directory":directory.join("missing/programs")}});
+    for endpoint in bytes["endpoints"].as_array_mut().expect("fixture endpoints") {
+        endpoint.as_object_mut().expect("fixture endpoint").remove("program");
+    }
     bytes["endpoints"][0]["program"] = "claude_code".into();
     let bytes = serde_json::to_vec(&bytes).expect("pin fixture");
     fs::write(directory.join("agent.json"), &bytes).expect("pin fixture");
@@ -102,6 +105,7 @@ fn the_checked_agent_and_source_environment_need_no_second_configuration_read() 
         &serde_json::to_vec(&document).expect("pin fixture"),
         &temper_service_shell::jig_directories(&super::configuration::directories(directory)),
         None,
+        &[],
     )
     .expect("pin fixture");
     let program = directory.join("temper-agent");
@@ -112,7 +116,7 @@ fn the_checked_agent_and_source_environment_need_no_second_configuration_read() 
     assert_eq!(prepared.bytes.as_ref(), bytes);
     assert_eq!(prepared.agent.bounds.program_endpoints.as_ref(), [1]);
     assert_eq!(prepared.agent.bounds.turns, 800);
-    assert_eq!(prepared.agent.tool_payload, 2048);
+    assert_eq!(prepared.agent.tool_payload, 63_740);
     assert_eq!(prepared.environment.as_ref(), [Box::from(b"PINNED_ENV=at-start".as_slice())]);
     fs::remove_file(directory.join("agent.json")).expect("pin fixture");
     fs::write(directory.join("worker.secret"), b"worker-secret").expect("pin fixture");

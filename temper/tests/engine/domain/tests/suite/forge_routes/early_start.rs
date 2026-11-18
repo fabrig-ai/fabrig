@@ -385,9 +385,7 @@ pub(super) fn stop(world: &mut World, goal: &engine::Assignment) {
 }
 
 fn ticks(world: &mut World) {
-    for _ in 0..QUIET_TICKS {
-        world.tick();
-    }
+    world.advance_ticks(QUIET_TICKS);
 }
 
 pub(super) fn active_without_producer(world: &World, task: u64) {

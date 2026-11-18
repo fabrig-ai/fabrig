@@ -297,7 +297,7 @@ fn grouped(figure: u64) -> String {
     grouped
 }
 
-fn store_refusal(binary: &str, (lines, exit): (Box<[u8]>, u8)) -> (String, u8) {
+pub(crate) fn store_refusal(binary: &str, (lines, exit): (Box<[u8]>, u8)) -> (String, u8) {
     use std::fmt::Write as _;
     let lines = String::from_utf8(lines.into_vec()).expect("refusal is UTF-8");
     let mut named = String::new();

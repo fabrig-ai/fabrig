@@ -1,4 +1,4 @@
-//! The browser tier (client/web/testing.md, 3): Chromium against `temper serve`, on a scratch deployment whose
+//! The browser tier (client/web/testing.md, 3): Chromium against `temper box`, on a scratch deployment whose
 //! forge and LLM endpoint are unreached, or the box's first-run demo with its own fakes, serving the
 //! bundle scripts/browser.sh builds. Its helpers are jig's
 //! `tests/client-browser/src/lib.rs`'s, for temper's binary and bundle.
@@ -22,7 +22,7 @@ mod issuer;
 mod public;
 pub mod reading;
 mod story;
-pub use history::reader_opens;
+pub use history::{page_opens, reader_opens};
 pub use story::Stories;
 
 /// How long a story waits for what a page shows.
@@ -200,18 +200,17 @@ pub fn connected() -> Step {
     }
 }
 
-/// A scratch deployment for one story's `temper serve` or `temper box`.
+/// A scratch deployment for one story's `temper box`.
 pub struct Tier {
     scratch: skein_scratch::Scratch,
     forged: Box<[u8]>,
-    command: &'static str,
 }
 impl Tier {
     #[must_use]
     pub fn new(name: &str) -> Self {
         let scratch = skein_scratch::Scratch::new(name);
         configuration::write(scratch.path(), &bundle());
-        Self { scratch, forged: forgery::request(), command: "serve" }
+        Self { scratch, forged: forgery::request() }
     }
     /// Give the deployment a usable model without a credential or a reachable LLM peer.
     #[must_use]
@@ -220,7 +219,7 @@ impl Tier {
         let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
         // As in jig's browser deployment, a provider offering no credential source gets a
         // deployment-held None account at startup: the view's demo_accounts fixture has this shape.
-        temper_fixtures::providers::input(&mut value)["providers"][0]["sources"] = serde_json::json!({});
+        temper_agent_fixtures::providers::input(&mut value)["providers"][0]["sources"] = serde_json::json!({});
         configuration::private(&path, &serde_json::to_vec(&value).expect("model deployment JSON"));
         self
     }
@@ -234,7 +233,7 @@ impl Tier {
     pub fn demo(name: &str) -> Self {
         let scratch = skein_scratch::Scratch::new(name);
         configuration::demo(scratch.path(), &temper(), &bundle());
-        Self { scratch, forged: forgery::request(), command: "" }
+        Self { scratch, forged: forgery::request() }
     }
     /// The demo with reading's replies on a private bundle, whose stylesheet turns the browser's
     /// anchoring off at `reading::anchoring_off`'s height alone (temper/docs/design/client/web/testing.md, 3).
@@ -364,9 +363,10 @@ impl Tier {
             args.extend(words.iter().map(std::ffi::OsString::from));
             Step::Run(Command { program: temper(), args, env: vec![], stdin, opens, within: WITHIN })
         };
-        vec![
-            command(&["sign-in", "-"], Stdin::Printed, None),
-            Step::Exited { code: 0, within: WITHIN },
+        let mut steps =
+            vec![command(&["sign-in", "-"], Stdin::Printed, None), Step::Exited { code: 0, within: WITHIN }];
+        steps.extend(self.project_calls());
+        steps.extend([
             command(
                 &["forge", "connect", "github", "--key", "github-connect"],
                 Stdin::Closed,
@@ -377,7 +377,8 @@ impl Tier {
                 }),
             ),
             Step::Exited { code: 0, within: WITHIN },
-        ]
+        ]);
+        steps
     }
     /// A tier whose server listens at a loopback port reserved beforehand, so that a restart opens the same
     /// address and a page reconnects to it. Jig's tier has the same hook.
@@ -401,11 +402,9 @@ impl Tier {
     }
     #[must_use]
     pub fn setup(&self) -> Setup<'_> {
-        let mut args = Vec::new();
-        if !self.command.is_empty() {
-            args.push(self.command.into());
-        }
-        args.extend(configuration::flags(self.scratch.path()));
+        // The box supplies serve's pipe and --box at every start, including its welcome default
+        // (temper/docs/design/protocol/configuration/settings.md, 2, kind 20).
+        let args = configuration::flags(self.scratch.path());
         Setup {
             server: temper(),
             args: args.clone(),
@@ -459,7 +458,7 @@ fn account_provider(value: &mut serde_json::Value, sign_in: &serde_json::Value) 
     // One git operation leaves the small profile's sockets room for the accounts driver.
     value["application"]["limits"]["overrides"]["git_component.operations"] = 1.into();
     value["application"]["limits"]["overrides"]["checkout.workspaces"] = 1.into();
-    let mut endpoint = temper_fixtures::providers::input(value)["endpoints"][0].clone();
+    let mut endpoint = temper_agent_fixtures::providers::input(value)["endpoints"][0].clone();
     endpoint["provider"] = "Test provider".into();
     endpoint["name"] = "fake".into();
     endpoint["number"] = 1.into();
@@ -468,8 +467,8 @@ fn account_provider(value: &mut serde_json::Value, sign_in: &serde_json::Value) 
     for key in ["server_name", "trust"] {
         endpoint.as_object_mut().expect("endpoint").remove(key);
     }
-    temper_fixtures::providers::input(value)["endpoints"] = serde_json::json!([endpoint]);
-    temper_fixtures::providers::input(value)["providers"] = serde_json::json!([{
+    temper_agent_fixtures::providers::input(value)["endpoints"] = serde_json::json!([endpoint]);
+    temper_agent_fixtures::providers::input(value)["providers"] = serde_json::json!([{
         "name":"Test provider", "number":1, "signed_in_plan":false, "endpoint":"fake",
         "sources":{"keys":true,"sign_in":sign_in}
     }]);
@@ -478,15 +477,17 @@ fn account_provider(value: &mut serde_json::Value, sign_in: &serde_json::Value) 
 /// The welcome's own provider on the same issuer, whose one subject would renew on the first
 /// provider (temper/docs/design/client/web/testing.md, 2). Provider 2 has its own stock models.
 fn welcome_provider(value: &mut serde_json::Value, sign_in: &serde_json::Value) {
-    let mut endpoint = temper_fixtures::providers::input(value)["endpoints"][0].clone();
+    let mut endpoint = temper_agent_fixtures::providers::input(value)["endpoints"][0].clone();
     endpoint["name"] = "welcome".into();
     endpoint["number"] = 2.into();
     endpoint["provider"] = "Welcome provider".into();
-    temper_fixtures::providers::input(value)["endpoints"].as_array_mut().expect("endpoints").push(endpoint);
-    temper_fixtures::providers::input(value)["providers"].as_array_mut().expect("providers").push(serde_json::json!({
-        "name":"Welcome provider", "number":2, "signed_in_plan":false, "endpoint":"welcome",
-        "sources":{"keys":true,"sign_in":sign_in}
-    }));
+    temper_agent_fixtures::providers::input(value)["endpoints"].as_array_mut().expect("endpoints").push(endpoint);
+    temper_agent_fixtures::providers::input(value)["providers"].as_array_mut().expect("providers").push(
+        serde_json::json!({
+            "name":"Welcome provider", "number":2, "signed_in_plan":false, "endpoint":"welcome",
+            "sources":{"keys":true,"sign_in":sign_in}
+        }),
+    );
 }
 
 /// Keep the built bundle immutable while giving this one-serve story its static issuer document.
@@ -613,7 +614,7 @@ mod tests {
     #[test]
     fn the_tiers_llm_endpoint_is_unreached() {
         let (agent, mut value) = tier_configuration();
-        assert_eq!(temper_fixtures::providers::input(&mut value)["endpoints"][0]["address"]["socket"], UNREACHED);
+        assert_eq!(temper_agent_fixtures::providers::input(&mut value)["endpoints"][0]["address"]["socket"], UNREACHED);
         assert_eq!(agent["endpoints"][0]["address"], UNREACHED);
     }
     #[test]

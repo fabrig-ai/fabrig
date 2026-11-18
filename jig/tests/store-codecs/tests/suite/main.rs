@@ -6,6 +6,7 @@ mod placed;
 mod profiles;
 mod questions;
 mod secrets;
+mod values;
 
 mod fuzzy {
     mod decode;

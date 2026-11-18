@@ -112,10 +112,12 @@ keeps (`../../protocol/configuration/README.md`, section 2).
   only the title: whole, not cut, with nothing past their first line
   feed but spaces, tabs, carriage returns and line feeds. One function
   of the shared parts says it, `shared::only_title(&DocumentText) ->
-  bool` (`common::chat::only_title`). It holds on Needs you's held
-  task, funds and person task cards (`needs-you.md`, 1), the
-  terminal's inbox cards, the goal's page's needs bands, which draw
-  those cards, and an agent's task's "Task brief" (`task.md`, 2). A
+  bool` (`common::chat::only_title`). It holds on the terminal's inbox
+  cards, the goal's page's needs bands, which draw
+  those cards, and an agent's task's "Task brief" (`task.md`, 2).
+  Needs you's held task, funds and person task cards, whose from line
+  names the title, draw only the words past their first line, by a
+  function beside it (`needs-you.md`, 1, *Its title once*). A
   title the card cuts is then read whole on its task's own page, whose
   heading keeps it. A proposal's card differs, since its tasks have no
   page yet: each proposed task's heading is its title, cut, and the

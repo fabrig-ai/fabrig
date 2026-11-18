@@ -57,6 +57,7 @@ pub struct ServiceHost {
     pub(crate) notes: Vec<(Time, temper_service::Note)>,
     pub(crate) runs: crate::cluster::Runs,
     pub(crate) tries: std::collections::BTreeMap<u64, jig_domain_tasks::Tries>,
+    tries_revision: Option<u64>,
     pub(crate) cancel_history: crate::cancel_kills::History,
     started_at: Option<Time>,
     pub(crate) service: Option<Driven>,
@@ -97,11 +98,19 @@ impl ServiceHost {
         fixture: Option<crate::forge::Fixture>,
         direct_key: bool,
     ) -> Self {
-        Self::with_shape(path, signals, fixture, direct_key, None, None, None)
+        Self::with_shape(path, signals, fixture, direct_key, None, None, None, None)
     }
     pub(crate) fn with_issuer(path: PathBuf, signals: Fd, issuer: SocketAddr) -> Self {
-        Self::with_shape(path, signals, None, false, None, None, Some(issuer))
+        Self::with_shape(path, signals, None, false, None, None, Some(issuer), None)
     }
+    pub(crate) fn configured_only(
+        path: PathBuf,
+        signals: Fd,
+        configure: fn(&mut serde_json::Value, &mut serde_json::Value),
+    ) -> Self {
+        Self::with_shape(path, signals, None, false, None, None, None, Some(configure))
+    }
+    #[expect(clippy::too_many_arguments, reason = "independent optional peer and configuration fixtures")]
     #[expect(
         clippy::too_many_lines,
         reason = "the hosted service composes the selected cluster shape and figures startup"
@@ -114,6 +123,7 @@ impl ServiceHost {
         cluster: Option<crate::cluster::Shape>,
         github: Option<crate::github::Fixture>,
         issuer: Option<SocketAddr>,
+        configure: Option<fn(&mut serde_json::Value, &mut serde_json::Value)>,
     ) -> Self {
         let clients_listener = github.map(|_| {
             let [listener] = temper_fixtures::ports::reserve::<1>(&[]);
@@ -136,6 +146,24 @@ impl ServiceHost {
         if let Some(fixture) = github {
             crate::github::write(&path, address, clients.expect("fixed clients"), fixture).expect("GitHub documents");
         }
+        if fixture.is_none() && github.is_none() {
+            let mut value: serde_json::Value =
+                serde_json::from_slice(&std::fs::read(path.join("temper.json")).expect("deployment"))
+                    .expect("deployment JSON");
+            value["world_settings"] =
+                serde_json::from_slice(&std::fs::read(path.join("world-settings.json")).expect("world settings"))
+                    .expect("world settings JSON");
+            if let Some(configure) = configure {
+                let mut agent = serde_json::from_slice(&std::fs::read(path.join("world-agent.json")).expect("agent"))
+                    .expect("agent JSON");
+                configure(&mut value, &mut agent);
+                fixtures::turn_bounds::apply(&mut value, fixtures::turn_bounds::turn_body(&agent));
+                fixtures::private(&path.join("world-agent.json"), &serde_json::to_vec(&agent).expect("agent JSON"))
+                    .expect("agent configuration");
+                temper_agent_fixtures::apply(&mut value, &path, &agent);
+            }
+            fixtures::finish_configuration(&path, &mut value).expect("world defaults separated from startup");
+        }
         if let Some(shape) = &cluster {
             shape.write(path.parent().expect("cluster scratch"), fixture.is_none() && github.is_none());
         }
@@ -149,6 +177,7 @@ impl ServiceHost {
                 &config,
                 &temper_service_shell::jig_directories(&roots),
                 Some(b"/usr/bin/git"),
+                &fixtures::environment(&path),
             )
             .expect("worker part");
             temper_service_core::process::Process::operations_for(
@@ -190,6 +219,7 @@ impl ServiceHost {
             notes: Vec::new(),
             runs: crate::cluster::Runs::default(),
             tries: std::collections::BTreeMap::new(),
+            tries_revision: None,
             cancel_history: crate::cancel_kills::History::default(),
             started_at: None,
             service: None,
@@ -229,10 +259,10 @@ impl ServiceHost {
         shape: crate::cluster::Shape,
         fixture: Option<crate::forge::Fixture>,
     ) -> Self {
-        Self::with_shape(path.join("data"), signals, fixture, false, Some(shape), None, None)
+        Self::with_shape(path.join("data"), signals, fixture, false, Some(shape), None, None, None)
     }
     pub(crate) fn github(path: PathBuf, signals: Fd, fixture: crate::github::Fixture) -> Self {
-        Self::with_shape(path, signals, None, false, None, Some(fixture), None)
+        Self::with_shape(path, signals, None, false, None, Some(fixture), None, None)
     }
     #[cfg(test)]
     pub(crate) fn clients_occupied_by(&mut self, listener: &TcpListener) {
@@ -266,6 +296,11 @@ impl ServiceHost {
             self.github_seen.seed_unaccepted(peer)?;
         }
         self.github_seen.checkpoint(peer, calls)
+    }
+    /// Worker and engine notes in iteration order, on the world's clock.
+    #[must_use]
+    pub fn notes(&self) -> &[(Time, temper_service::Note)] {
+        &self.notes
     }
     /// Settled lives in order; `ran()` and `linked()` retain their aggregate history.
     #[must_use]
@@ -451,6 +486,7 @@ impl ServiceHost {
                 &directories.read().expect("worker document"),
                 &temper_service_shell::jig_directories(&directories),
                 Some(b"/usr/bin/git"),
+                &fixtures::environment(&self.path),
             )
             .expect("worker part");
             if let Some(shape) = &self.cluster {
@@ -709,6 +745,7 @@ impl Host for ServiceHost {
                     &directories.read().expect("worker document"),
                     &temper_service_shell::jig_directories(&directories),
                     Some(b"/usr/bin/git"),
+                    &fixtures::environment(&self.path),
                 )
                 .expect("worker part");
                 let files =
@@ -731,6 +768,7 @@ impl Host for ServiceHost {
                     self.started_at.get_or_insert(now);
                 }
                 self.service = Some(service);
+                self.tries_revision = None;
             }
         }
         if let Some(fetch) = &mut self.fetch {
@@ -776,7 +814,12 @@ impl Host for ServiceHost {
                 }
             }
             service.iterate(now, wall);
-            record_tries(&mut self.tries, &mut self.cancel_history, service, now);
+            if let Some(engine) = service.engine_domain()
+                && self.tries_revision != Some(engine.revision())
+            {
+                self.tries_revision = Some(engine.revision());
+                record_tries(&mut self.tries, &mut self.cancel_history, service, now);
+            }
             while let Some(note) = service.take_listening() {
                 if let temper_service::Note::Engine(temper_service::EngineNote::Listening { listener, addr }) = note {
                     if self.records_seeded && matches!(self.cluster, Some(crate::cluster::Shape::Engine { .. })) {

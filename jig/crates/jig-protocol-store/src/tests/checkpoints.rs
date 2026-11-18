@@ -196,21 +196,26 @@ fn checkpoint_names_and_draw_halves_have_one_form() {
 }
 
 #[test]
-#[expect(clippy::disallowed_macros, reason = "checkpoint and manifest bytes are pinned to generated goldens")]
-fn checkpoint_and_manifest_goldens_round_trip_at_both_bounds() {
-    for bytes in [
-        include_bytes!("../../golden/component/record_checkpoint_smallest.bin").as_slice(),
-        include_bytes!("../../golden/component/record_checkpoint_full.bin").as_slice(),
-    ] {
-        let record = Checkpoint::decode(bytes).expect("checkpoint golden");
+fn checkpoint_and_manifest_fixed_rule_values_round_trip_at_both_bounds() {
+    let schema = skein_codegen::parse(super::COMPONENT_SCHEMA).expect("component schema");
+    let goldens = skein_codegen::goldens(&schema);
+    let value = |record: &str, size: &str| {
+        goldens
+            .iter()
+            .find(|value| value.name == format!("record_{record}_{size}.bin"))
+            .expect("fixed-rule value")
+            .bytes
+            .as_slice()
+    };
+    for bytes in [value("checkpoint", "smallest"), value("checkpoint", "full")] {
+        let record = Checkpoint::decode(bytes).expect("checkpoint value");
         assert_eq!(record.clone().encode().expect("bounded record").as_ref(), bytes);
         assert_eq!(Checkpoint::decode(&record.encode().expect("bounded record")), Checkpoint::decode(bytes));
     }
-    let mut full = Checkpoint::decode(include_bytes!("../../golden/component/record_checkpoint_full.bin"))
-        .expect("full checkpoint");
+    let mut full = Checkpoint::decode(value("checkpoint", "full")).expect("full checkpoint");
     full.build = Box::from([b'a'; 128]);
     assert_eq!(crate::component_v3::CEILINGS.checkpoint_files, FILES);
-    let file = full.files.get(0).expect("full golden has a file").clone();
+    let file = full.files.get(0).expect("full value has a file").clone();
     let mut files = List::with_capacity(FILES);
     for _ in 0..FILES {
         files.push(file.clone()).expect("file list ceiling");
@@ -218,21 +223,15 @@ fn checkpoint_and_manifest_goldens_round_trip_at_both_bounds() {
     full.files = files;
     let bytes = full.clone().encode().expect("FILES entries admitted");
     assert_eq!(Checkpoint::decode(&bytes), Ok(full));
-    for bytes in [
-        include_bytes!("../../golden/component/record_checkpoint_file_smallest.bin").as_slice(),
-        include_bytes!("../../golden/component/record_checkpoint_file_full.bin").as_slice(),
-    ] {
+    for bytes in [value("checkpoint_file", "smallest"), value("checkpoint_file", "full")] {
         let record =
-            CheckpointFile::decode(&crate::component_v3::CEILINGS, &mut Reader::new(bytes)).expect("file golden");
+            CheckpointFile::decode(&crate::component_v3::CEILINGS, &mut Reader::new(bytes)).expect("file value");
         let mut writer = Writer::new(usize::try_from(record.measure()).expect("file size"));
         record.encode(&mut writer).expect("measured file");
         assert_eq!(writer.finish().as_ref(), bytes);
     }
-    for bytes in [
-        include_bytes!("../../golden/component/record_manifest_smallest.bin").as_slice(),
-        include_bytes!("../../golden/component/record_manifest_full.bin").as_slice(),
-    ] {
-        let record = Manifest::decode(bytes).expect("manifest golden");
+    for bytes in [value("manifest", "smallest"), value("manifest", "full")] {
+        let record = Manifest::decode(bytes).expect("manifest value");
         assert_eq!(record.encode().as_ref(), bytes);
     }
 }

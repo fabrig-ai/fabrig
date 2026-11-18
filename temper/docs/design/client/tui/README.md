@@ -445,7 +445,8 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   on a box (2); then the
   credential's write ended, the transport's events, the window's size
   when it changed, the keys, and the root's deadline when it is due,
-  each a report whose duties are carried at once: the requests to the
+  each a report whose duties are carried at once, the root settled
+  first (jig's `client/domain/root.md`, section 3): the requests to the
   native shell, the credential kept or erased, the note written (2),
   the address noted for the binary, the engine's link file read and
   reported at once as `Local`, closing. Once anything was reported, the

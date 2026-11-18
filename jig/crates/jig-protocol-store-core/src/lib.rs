@@ -4,5 +4,5 @@
 extern crate alloc;
 
 #[rustfmt::skip]
-#[path = "generated/core_v6.rs"]
+#[path = "generated/core.rs"]
 pub mod core_v6;

@@ -85,7 +85,7 @@ fn run_wait_status(wait: &TaskRunWait) -> ChatStatus {
                 | TaskSourceState::Closing
                 | TaskSourceState::Moving => ChatStatus::RunWaiting(RunWaitKind::Account),
             },
-            TaskWaitWhy::Host | TaskWaitWhy::Empty | TaskWaitWhy::Invalid(_) => {
+            TaskWaitWhy::Host | TaskWaitWhy::Empty | TaskWaitWhy::Invalid(_) | TaskWaitWhy::Untooled { .. } => {
                 ChatStatus::RunWaiting(RunWaitKind::Account)
             }
         },

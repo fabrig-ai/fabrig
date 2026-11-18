@@ -102,9 +102,7 @@ fn drill_16_a_batch_four_conflict_is_settled_by_the_merge_job_without_an_agent()
     }
     fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"file", b"branch", 2)
         .expect("conflicting branch push");
-    for _ in 0..PAIR_TICKS {
-        world.tick();
-    }
+    world.advance_ticks(u32::try_from(PAIR_TICKS).expect("bounded paired horizon"));
     assert!(landing_rows(&world).is_empty(), "no room before restart: {:?}", landing_rows(&world));
     assert!(changes.iter().all(|change| matches!(
         super::super::goal_landing::row(&world, *change).change.state,

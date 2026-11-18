@@ -556,7 +556,8 @@ impl Judge {
         if addresses.next().is_some() {
             return Err("only provider and control addresses".into());
         }
-        temper_fixtures::providers::input(&mut value)["endpoints"][0]["address"] = json!({"socket":llm.to_string()});
+        temper_agent_fixtures::providers::input(&mut value)["endpoints"][0]["address"] =
+            json!({"socket":llm.to_string()});
         agent["endpoints"][0]["address"] = llm.to_string().into();
         value["workers"] = ws["workers"].clone();
         base(&mut value);
@@ -573,7 +574,7 @@ impl Judge {
         (self.fixture.configure)(&mut value, &mut agent, forge);
         self.settings = process_settings(&mut value);
         value["application"]["webhooks"] = json!({"listener":{"socket":"127.0.0.1:0"}});
-        super::configuration::turn_bounds::apply(&mut value, super::configuration::turn_bounds::turn_body(&agent));
+        super::configuration::use_derived(&mut value);
         value["engine"]["hosts"]["listener"] = json!([{"socket":self.hosts.to_string()}]);
         for key in ["fleet.workers", "fleet.attempts"] {
             // tests/real-loop/src/cluster.rs: one admitted position/attempt per worker.
@@ -691,12 +692,6 @@ impl Judge {
                             .and_then(Value::as_str)
                             .ok_or("before")?
                             .into()
-                    }
-                    calls::Arg::InboxAfter(n) => {
-                        let v = call_json(&self.calls[*n])?;
-                        let cursor =
-                            v.pointer("/needs/after/value").and_then(Value::as_str).ok_or("next needs page")?;
-                        format!("00{cursor}")
                     }
                 })
             })
@@ -1155,7 +1150,7 @@ fn describe(step: &calls::Step) -> String {
         Step::TrialEnded => "TrialEnded".into(),
         Step::Return => "Return".into(),
         Step::Terminal(_) => "Terminal".into(),
-        Step::ReleaseHold { name } => format!("ReleaseHold {}", String::from_utf8_lossy(name)),
+        Step::ReleaseHold { name, .. } => format!("ReleaseHold {}", String::from_utf8_lossy(name)),
         Step::Advance => "Advance".into(),
         Step::Push { path, .. } => format!("Push {}", String::from_utf8_lossy(path)),
         Step::AddWorker { name } => format!("AddWorker {name}"),
@@ -1196,7 +1191,6 @@ fn describe_argv(argv: &calls::Argv) -> String {
             calls::Arg::Delegate(call) => format!("delegate(call {call})"),
             calls::Arg::Digest(call) => format!("digest(call {call})"),
             calls::Arg::ActivityBefore(call) => format!("activity-before(call {call})"),
-            calls::Arg::InboxAfter(call) => format!("inbox-after(call {call})"),
         })
         .collect::<Vec<_>>()
         .join(" ")

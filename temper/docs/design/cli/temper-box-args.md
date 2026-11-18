@@ -66,9 +66,18 @@ Refused without changes if the configuration directory holds temper.json.
 - **Set:** public
 - **Forms:** `[DIRECTORIES] DIRECTORY`
 - Rehearses an upgrade over a copy; switches nothing.
-- **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.; `DIRECTORY`: A stopped deployment's data directory or a copy of one; never written.
+- **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.; `DIRECTORY`: A stopped deployment's data directory, a checkpoint of a serving deployment, or a copy of one; never written.
 - **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`
 - **Notes:** Uses the configuration serve would read and a scratch copy under the cache directory. Reports the jobs it ran, restores, elapsed time and whether workers may stay. What follows the switch is not rehearsed. Exit 0 when its jobs and restores pass, 1 when a start would be refused.
+
+### `temper-box upgrade --workers`
+
+- **Set:** public
+- **Forms:** `[DIRECTORIES] DIRECTORY`
+- Judges the workers alone over a copy; switches nothing.
+- **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.; `DIRECTORY`: A stopped deployment's data directory, a checkpoint of a serving deployment, or a copy of one; never written.
+- **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`
+- **Notes:** Uses the configuration serve would read and a scratch copy under the cache directory. Recovers the maps without task logs and prints only the workers' verdict, with no record decoded, level checked, plan, job or restore run. Exit 0 for yes, no or unknown; 1 on an opening refusal. Takes only DIRECTORY's lock, never the serving deployment's when reading a checkpoint; writes nothing under --data before the rehearsal.
 
 ### `temper-box upgrade --back`
 
@@ -78,6 +87,24 @@ Refused without changes if the configuration directory holds temper.json.
 - **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 - **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`
 - **Notes:** Stop the deployment first, then start the old binary after going back. Past the patched generation's first commit, going back is restoring a backup.
+
+### `temper-box checkpoint`
+
+- **Set:** public
+- **Forms:** `[DIRECTORIES]`, `--hold NAME [DIRECTORIES] -- COMMAND [ARGUMENT...]`, `--remove NAME [DIRECTORIES]`
+- takes a checkpoint of the stopped deployment; --hold runs a command under one's lock, --remove removes one
+- **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.; `NAME`: A checkpoint name: 20 decimal digits, a hyphen and 16 hexadecimal digits.; `COMMAND [ARGUMENT...]`: The child command and its arguments, only with --hold and after --.
+- **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`
+- **Notes:** --hold and --remove exclude each other. Uses the configuration serve reads. Taking one requires a stopped deployment; holding or removing one also works while it serves. --hold inherits the working directory and environment, sets TEMPER_CHECKPOINT to the checkpoint's absolute directory, and holds its lock until the child is closed. Exit 0 on success, 1 on refusal, 2 for invalid arguments; --hold exits as its child did, 128 plus its terminating signal, or 127 when the command cannot run.
+
+### `temper-box restore`
+
+- **Set:** public
+- **Forms:** `NAME [DIRECTORIES]`
+- restores a checkpoint over the stopped deployment, after a safety checkpoint of it
+- **Arguments:** `NAME`: A checkpoint name: 20 decimal digits, a hyphen and 16 hexadecimal digits.; `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
+- **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`
+- **Notes:** Uses the configuration serve reads. Stop the deployment first. The state before restoring is kept as a safety checkpoint; restore that checkpoint to bring it back. Exit 0 on success, 1 on refusal, 2 for invalid arguments.
 
 ### `--config CONFIG`
 
@@ -164,7 +191,7 @@ Refused without changes if the configuration directory holds temper.json.
 ### `temper-box ctl`
 
 - **Set:** internal
-- **Forms:** `DIR GROUP VERB [ARGUMENT...] [--json]`, `DIR me|inbox|sign-in|sign-out|pending [ARGUMENT...] [--json]`, `DIR --call FILE [--json]`, `help [GROUP [VERB]]`
+- **Forms:** `DIR GROUP VERB [ARGUMENT...] [--json]`, `DIR me|inbox|sign-in|sign-out|link|pending [ARGUMENT...] [--json]`, `DIR --call FILE [--json]`, `help [GROUP [VERB]]`
 - Act in a deployment as one party, one call a process: the agents' command line.
 - **Arguments:** `DIR`: ctl's private directory for one deployment and one party: its sign-in, its kept requests and the engine's address.; `GROUP`: A group of tools, a noun of temper's or one of the client's own names; temper ctl help lists them.; `VERB`: One of the group's tools; temper ctl help GROUP lists them.; `FILE`: One call as JSON, {"tool": "GROUP VERB", "arguments": {...}}, or - for stdin.
 - **Notes:** temper ctl help prints how to work through it, then the groups. A call holds one of the engine's streams while it runs, a wait for its whole span; past the engine's bound a call says so.
@@ -194,10 +221,10 @@ Refused without changes if the configuration directory holds temper.json.
 ### `temper-box internal serve`
 
 - **Set:** internal
-- **Forms:** `[DIRECTORIES] --box [--record]`
+- **Forms:** `[DIRECTORIES] --box [--record] [--fixed-start SECONDS,SEED]`
 - Run temper-box serve as the box's step, on the listeners and the pipe the box gives it.
 - **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
-- **Flags:** `--box`
+- **Flags:** `--fixed-start SECONDS,SEED`, `--box`
 
 ### `temper-box internal forge-child`
 
@@ -212,7 +239,7 @@ Refused without changes if the configuration directory holds temper.json.
 - **Forms:** `[DIRECTORIES] [--ready PREFIX] [--seed N] [--observations FILE] [--strict]`, `--document FILE [--ready PREFIX] [--seed N] [--observations FILE] [--scripts SCRIPTS] [--strict]`
 - Serve a fake LLM provider: the demo's, from the configuration, or one from a JSON document.
 - **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
-- **Flags:** `--document FILE`, `--ready PREFIX`, `--seed N`, `--observations FILE`, `--scripts SCRIPTS`, `--strict`
+- **Flags:** `--document FILE`, `--ready PREFIX`, `--seed N`, `--observations FILE`, `--scripts SCRIPTS`, `--fixed-start SECONDS,SEED`, `--strict`
 
 ### `temper-box fake forge`
 
@@ -220,7 +247,7 @@ Refused without changes if the configuration directory holds temper.json.
 - **Forms:** `[DIRECTORIES] FORGE [--ready PREFIX] [--seed N] [--observations FILE] [--state STATE]`, `--document FILE [--ready PREFIX] [--seed N] [--observations FILE] [--state STATE]`
 - Serve a fake forge: forge FORGE of the configuration, or one from a JSON document.
 - **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.; `FORGE`: A forge's number in the configuration.
-- **Flags:** `--document FILE`, `--ready PREFIX`, `--seed N`, `--observations FILE`, `--state STATE`
+- **Flags:** `--document FILE`, `--ready PREFIX`, `--seed N`, `--observations FILE`, `--state STATE`, `--fixed-start SECONDS,SEED`
 
 ### `temper-box fake forge check`
 
@@ -234,7 +261,7 @@ Refused without changes if the configuration directory holds temper.json.
 - **Set:** internal
 - **Forms:** `--document FILE [--ready PREFIX] [--seed N]`
 - Serve a fake OAuth issuer from a JSON document.
-- **Flags:** `--document FILE`, `--ready PREFIX`, `--seed N`
+- **Flags:** `--document FILE`, `--ready PREFIX`, `--seed N`, `--fixed-start SECONDS,SEED`
 
 ### `temper-box fake git`
 
@@ -285,6 +312,12 @@ Refused without changes if the configuration directory holds temper.json.
 - **Set:** internal
 - A JSON script file; repeat to join in order, relative to the working directory.
 - **Notes:** Requires --fake-backends; replaces generated model scripts for this start.
+
+### `--fixed-start SECONDS,SEED`
+
+- **Set:** internal
+- Start the fake box's engine and peers from this fixed instant and seed: SECONDS,SEED.
+- **Notes:** Requires --fake-backends on the box, or --box on internal serve.
 
 ### `--fake-backends`
 

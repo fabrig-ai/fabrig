@@ -20,6 +20,7 @@ pub enum Event {
         with: With,
     },
     SignOut,
+    AskLink,
     AskApproval,
     ReadApproval {
         code: ApprovalCode,
@@ -55,9 +56,21 @@ pub enum Event {
         read: Token,
         what: Readable,
     },
+    /// One idempotent retry after a lost read exchange, while its caller is current.
+    ReadAgain {
+        read: Token,
+        what: Readable,
+    },
     Reply {
         exchange: Token,
         message: Box<[u8]>,
+    },
+    Part {
+        exchange: Token,
+        message: Box<[u8]>,
+    },
+    Done {
+        exchange: Token,
     },
     Lost {
         exchange: Token,
@@ -77,6 +90,8 @@ pub enum Event {
         message: Streamed,
     },
     StreamGone,
+    /// Open the signed-in client's stream, including its implicit me watch.
+    OpenStream,
 }
 #[derive(Debug, PartialEq, Eq)]
 pub enum Request {
@@ -85,6 +100,7 @@ pub enum Request {
     },
     Authorized(Authorized),
     Approval(Approval),
+    AskedLink(AskedLink),
     Save {
         record: Record,
     },
@@ -121,6 +137,8 @@ pub enum Request {
     },
     OpenStream {
         credential: Option<Secret>,
+        replaces: Option<[u8; 16]>,
+        version: u32,
     },
     Signing {
         signing: Signing,
@@ -141,6 +159,11 @@ pub enum Request {
     Hello {
         family: Option<u16>,
         versions: Option<contract::VersionRange>,
+    },
+    /// A lost read may be sent once more if its token is still current.
+    ReadAgain {
+        read: Token,
+        what: Readable,
     },
     /// One terminal per read.
     Read {
@@ -190,6 +213,7 @@ pub enum Signing {
 #[derive(PartialEq, Eq)]
 pub enum Message {
     Authorize(Box<[u8]>),
+    LinkAsk(Box<[u8]>),
     ApprovalAsk(Box<[u8]>),
     ApprovalRead(Box<[u8]>),
     ApprovalDecide(Box<[u8]>),
@@ -198,6 +222,7 @@ pub enum Message {
     Read(Box<[u8]>),
     Watch(Box<[u8]>),
     Unwatch(Box<[u8]>),
+    Batch(Box<[u8]>),
     StreamGone(Box<[u8]>),
     SignInLink(Box<[u8]>),
     SignInService,
@@ -207,6 +232,8 @@ pub enum Message {
 #[derive(PartialEq, Eq)]
 pub enum Heard {
     Reply { exchange: Token, message: Box<[u8]> },
+    Part { exchange: Token, message: Box<[u8]> },
+    Done { exchange: Token },
     Lost { exchange: Token },
     Streamed { message: Streamed },
     StreamGone,
@@ -249,6 +276,14 @@ pub enum Taking {
     Expired,
     Used,
     Unknown,
+}
+
+/// An asked link's transient answer (jig/docs/design/client/domain/client/README.md, 9).
+#[derive(Debug, PartialEq, Eq)]
+pub enum AskedLink {
+    Asked { secret: Secret, expires: u64 },
+    NotAsked(NotAsked),
+    SignedOut,
 }
 
 /// An approval's single answer to its host (jig/docs/design/protocol/client/sign-in.md).
@@ -299,6 +334,7 @@ impl core::fmt::Debug for Message {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::Authorize(body) => f.debug_struct("Authorize").field("body_len", &body.len()).finish(),
+            Self::LinkAsk(body) => f.debug_struct("LinkAsk").field("body_len", &body.len()).finish(),
             Self::ApprovalAsk(body) => f.debug_struct("ApprovalAsk").field("body_len", &body.len()).finish(),
             Self::ApprovalRead(body) => f.debug_struct("ApprovalRead").field("body_len", &body.len()).finish(),
             Self::ApprovalDecide(body) => f.debug_struct("ApprovalDecide").field("body_len", &body.len()).finish(),
@@ -306,6 +342,7 @@ impl core::fmt::Debug for Message {
             Self::Request(body) => f.debug_struct("Request").field("body_len", &body.len()).finish(),
             Self::Read(body) => f.debug_struct("Read").field("body_len", &body.len()).finish(),
             Self::Watch(body) => f.debug_struct("Watch").field("body_len", &body.len()).finish(),
+            Self::Batch(body) => f.debug_struct("Batch").field("body_len", &body.len()).finish(),
             Self::Unwatch(body) => f.debug_struct("Unwatch").field("body_len", &body.len()).finish(),
             Self::StreamGone(body) => f.debug_struct("StreamGone").field("body_len", &body.len()).finish(),
             Self::SignInLink(body) => f.debug_struct("SignInLink").field("body_len", &body.len()).finish(),
@@ -321,6 +358,7 @@ impl core::fmt::Debug for Event {
         match self {
             Self::SignIn { with } => f.debug_struct("SignIn").field("with", with).finish(),
             Self::SignOut => f.write_str("SignOut"),
+            Self::AskLink => f.write_str("AskLink"),
             Self::AskApproval => f.write_str("AskApproval"),
             Self::ReadApproval { code } => f.debug_struct("ReadApproval").field("code", code).finish(),
             Self::DecideApproval { code, approve } => {
@@ -340,9 +378,16 @@ impl core::fmt::Debug for Event {
                 .field("value", value)
                 .finish(),
             Self::Read { read, what } => f.debug_struct("Read").field("read", read).field("what", what).finish(),
+            Self::ReadAgain { read, what } => {
+                f.debug_struct("ReadAgain").field("read", read).field("what", what).finish()
+            }
             Self::Reply { exchange, message } => {
                 f.debug_struct("Reply").field("exchange", exchange).field("body_len", &message.len()).finish()
             }
+            Self::Part { exchange, message } => {
+                f.debug_struct("Part").field("exchange", exchange).field("body_len", &message.len()).finish()
+            }
+            Self::Done { exchange } => f.debug_struct("Done").field("exchange", exchange).finish(),
             Self::Lost { exchange } => f.debug_struct("Lost").field("exchange", exchange).finish(),
             Self::Open { watch, subject } => {
                 f.debug_struct("Open").field("watch", watch).field("subject", subject).finish()
@@ -353,6 +398,7 @@ impl core::fmt::Debug for Event {
             Self::Close { watch } => f.debug_struct("Close").field("watch", watch).finish(),
             Self::Streamed { message } => f.debug_struct("Streamed").field("message", message).finish(),
             Self::StreamGone => f.write_str("StreamGone"),
+            Self::OpenStream => f.write_str("OpenStream"),
         }
     }
 }
@@ -364,6 +410,10 @@ impl core::fmt::Debug for Heard {
             Self::Reply { exchange, message } => {
                 f.debug_struct("Reply").field("exchange", exchange).field("body_len", &message.len()).finish()
             }
+            Self::Part { exchange, message } => {
+                f.debug_struct("Part").field("exchange", exchange).field("body_len", &message.len()).finish()
+            }
+            Self::Done { exchange } => f.debug_struct("Done").field("exchange", exchange).finish(),
             Self::Lost { exchange } => f.debug_struct("Lost").field("exchange", exchange).finish(),
             Self::Streamed { message } => f.debug_struct("Streamed").field("message", message).finish(),
             Self::StreamGone => f.write_str("StreamGone"),

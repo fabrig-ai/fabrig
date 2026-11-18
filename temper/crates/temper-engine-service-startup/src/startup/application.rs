@@ -22,6 +22,8 @@ pub struct Members {
     pub limits: limits::Limits,
     pub overrides: Box<[(Box<[u8]>, u64)]>,
     pub workers: Box<[Worker]>,
+    /// Position kept for the worker's reader; an engine alone refuses the member.
+    pub environment: Option<u32>,
 }
 /// The optional webhook listener (protocol/configuration/engine.md).
 #[derive(Debug)]
@@ -212,6 +214,13 @@ fn configured_limits(
             }),
         );
     }
+    let bound = temper_protocol_store::test_id_ceiling();
+    if limits.forge.tiers.test_id_bytes > bound {
+        problems.push(
+            super::checks::own(b"forge.tiers.test_id_bytes"),
+            What::Half(crate::startup::EngineWhat::TestIdBytes { bytes: limits.forge.tiers.test_id_bytes, bound }),
+        );
+    }
     // Pass the resolved client capacity once, including the profile default.
     handed
         .push((bytes::copy_of(b"forge.client.repositories"), u64::from(limits.forge.client.repositories)))
@@ -299,6 +308,8 @@ pub fn parse_over(
     }
     let at = read::required(&mut object, document, b"webhooks", &path, problems);
     let webhooks = webhooks(document, at, &path, problems);
+    let workers = workers(document, directories, problems);
+    let environment = if workers.is_empty() { None } else { object.member(document, b"environment") };
     read::finish(object, document, &path, problems);
     let mut found = config::Problems::empty();
     let test_github = temper_forge_setup::machine::read_test(document, test_at, directories, &mut found);
@@ -306,8 +317,6 @@ pub fn parse_over(
     if let Some(sign_in) = &sign_in {
         sign_in::check_forges(&sign_in.forges, jig, problems);
     }
-
-    let workers = workers(document, directories, problems);
     if !problems.is_empty() {
         return None;
     }
@@ -319,6 +328,7 @@ pub fn parse_over(
         test_github,
         demo: None,
         workers: workers.into_boxed(),
+        environment,
         limits: limits?,
         overrides: overrides.into_boxed(),
     })

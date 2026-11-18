@@ -1,7 +1,6 @@
 //! Hostile cursor bytes (jig/docs/design/protocol/client/README.md, 4; skein/docs/design/data/codec/README.md, 6).
 use jig_protocol_engine_clients::cursor_v2::{CEILINGS, Held};
 use skein_lib::{Reader, Rng, Writer, length::len_u64};
-use std::fs;
 
 fn check(bytes: &[u8]) {
     if let Ok(held) = Held::decode(&CEILINGS, &mut Reader::new(bytes)) {
@@ -11,12 +10,12 @@ fn check(bytes: &[u8]) {
     }
 }
 fn goldens() -> Vec<Vec<u8>> {
-    let root = skein_scratch::paths::tree().join("crates/jig-protocol-engine-clients/golden");
-    let mut paths: Vec<_> = fs::read_dir(root).expect("cursor goldens").map(|p| p.expect("entry").path()).collect();
-    paths.sort();
+    let text = include_str!("../../../../../crates/jig-protocol-engine-clients/schema/cursor-v2.schema");
+    let mut goldens = skein_codegen::goldens(&skein_codegen::parse(text).expect("cursor schema"));
+    goldens.sort_by(|left, right| left.name.cmp(&right.name));
     let mut values = Vec::new();
-    for path in paths {
-        let name = path.file_name().expect("golden name").to_string_lossy();
+    for golden in goldens {
+        let name = &golden.name;
         let prefix: &[u8] = if name.starts_with("record_held_") {
             &[]
         } else if name.starts_with("enum_form_") {
@@ -29,7 +28,7 @@ fn goldens() -> Vec<Vec<u8>> {
             continue;
         };
         let mut bytes = prefix.to_vec();
-        bytes.extend(fs::read(&path).expect("golden bytes"));
+        bytes.extend(golden.bytes);
         if name.starts_with("enum_note_scope_") {
             bytes.push(0);
         }

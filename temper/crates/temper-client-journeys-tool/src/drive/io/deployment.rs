@@ -149,6 +149,13 @@ pub(in crate::drive) fn prepare_with(plan: &Plan, random: Option<[u8; 32]>) -> R
     }
     deployment::values(&place, &forge, &model)
 }
+pub(in crate::drive) fn worker(plan: &Plan) -> Result<deployment::Worker, String> {
+    let scratch = &plan.options.scratch;
+    let document = read(&beneath(scratch, Path::new("config/worker/temper.json"))?, deployment::DOCUMENT_BYTES)?;
+    let digest = read(&beneath(scratch, Path::new("data/engine/secrets/worker.digest"))?, 65)?;
+    deployment::Worker::read(&document, &digest)
+}
+
 /// Resolve bounded settings inputs before ctl starts, leaving flags and stdin unchanged.
 pub(in crate::drive) fn settings_files(
     directory: Option<&Path>,

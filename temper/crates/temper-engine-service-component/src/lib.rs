@@ -40,6 +40,7 @@ mod places;
 mod route;
 mod runtime;
 pub use places::PlaceIo;
+pub mod checkpoint;
 #[doc(hidden)]
 pub mod setup;
 mod start_refusal;

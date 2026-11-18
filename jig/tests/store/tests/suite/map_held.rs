@@ -18,7 +18,6 @@ pub(super) fn world(seed: u64, limits: &Limits, tasks: &[u64]) -> World {
             format::current(root::APPLICATION.version, root::DEPLOYMENT).encode().expect("format"),
         ),
         (own(keys::Own::Floor), crate::frame_reads::floor()),
-        (own(keys::Own::Layouts), format::layouts().encode()),
         (
             keys::installation(limits.store.key).expect("installation key"),
             codec::accounts::Installation { id: root::DEPLOYMENT }.encode(),

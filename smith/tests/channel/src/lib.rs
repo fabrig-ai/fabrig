@@ -534,9 +534,7 @@ impl World {
     pub fn started() -> World {
         let mut world = World::new(smith_channel::CEILINGS, smith_channel::CEILINGS, StreamMode::Two);
         world.settle();
-        world.send_start(Box::from(
-            &include_bytes!("../../../crates/smith-charter/golden/v5/record_charter_smallest.bin")[..],
-        ));
+        world.send_start(smallest_charter());
         world.settle();
         world
     }
@@ -1266,12 +1264,8 @@ impl World {
 pub fn typed_charter(bytes: &[u8]) -> smith_host_domain::Charter {
     let value = smith_protocol_translate::decode_charter(bytes, &smith_charter::CEILINGS, &test_endpoints())
         .unwrap_or_else(|_| {
-            smith_protocol_translate::decode_charter(
-                include_bytes!("../../../crates/smith-charter/golden/v5/record_charter_smallest.bin"),
-                &smith_charter::CEILINGS,
-                &test_endpoints(),
-            )
-            .expect("fallback fixture policy")
+            smith_protocol_translate::decode_charter(&smallest_charter(), &smith_charter::CEILINGS, &test_endpoints())
+                .expect("fallback fixture policy")
         });
     smith_host_domain::Charter::new(value, u64::MAX).expect("fixture ownership")
 }
@@ -1310,6 +1304,65 @@ pub fn window_turn_fixture() -> smith_domain_session::record::Turn {
     )
 }
 
+fn smallest_charter() -> Box<[u8]> {
+    use skein_lib::{Duration, List, Writer};
+    use smith_charter::{self as c, CEILINGS};
+
+    let families =
+        c::Families::new(&CEILINGS, c::FamiliesParts { inspect: false, modify: false, shell: false, agents: false })
+            .expect("no families");
+    let tools = c::Tools::new(
+        &CEILINGS,
+        c::ToolsParts { families, wait: false, deliver: None, save: false, host: List::with_capacity(0), contract: 0 },
+    )
+    .expect("no tools");
+    let contract = c::Contract::new(
+        &CEILINGS,
+        c::ContractParts { report: None, verdicts: List::with_capacity(0), change: None, failure: None },
+    )
+    .expect("empty contract");
+    let reserve = c::Reserve::new(&CEILINGS, c::ReserveParts { turns: 0, time: Duration::ZERO }).expect("no reserve");
+    let budget = c::Budget::new(&CEILINGS, c::BudgetParts { turns: 0, spend: 0, time: Duration::ZERO, reserve })
+        .expect("zero budget");
+    let prices =
+        c::Prices::new(&CEILINGS, c::PricesParts { input: 0, cached: 0, cache_write: None, output: 0, unit: 0 })
+            .expect("zero prices");
+    let main = c::Llm::new(
+        &CEILINGS,
+        c::LlmParts {
+            endpoint: Box::default(),
+            account: None,
+            model: Box::default(),
+            effort: None,
+            window: 0,
+            output: 0,
+            prices,
+        },
+    )
+    .expect("empty model");
+    let charter = c::Charter::new(
+        &CEILINGS,
+        c::CharterParts {
+            instructions: Box::default(),
+            brief: List::with_capacity(0),
+            tools,
+            contract,
+            conventions: None,
+            budget,
+            main,
+            models: List::with_capacity(0),
+            waiting: Duration::ZERO,
+            resume: false,
+            mode: c::Mode::Finite,
+            check_timeout: None,
+        },
+    )
+    .expect("smallest charter");
+    let mut writer = Writer::new(usize::try_from(charter.measure()).expect("charter length"));
+    charter.encode(&mut writer).expect("measured charter");
+    writer.finish()
+}
+
 #[cfg(test)]
 mod read_tests {
     use super::*;
@@ -1319,9 +1372,7 @@ mod read_tests {
         let mut world = World::new(smith_channel::CEILINGS, smith_channel::CEILINGS, StreamMode::Two);
         world.host_holds_reads();
         world.settle();
-        world.send_start(Box::from(
-            &include_bytes!("../../../crates/smith-charter/golden/v5/record_charter_smallest.bin")[..],
-        ));
+        world.send_start(smallest_charter());
         world.settle();
         for control in [Control::Ping, Control::Unsupported { kind: 0x010f }] {
             let frame = control_frame(&control, &world.channel).expect("bounded channel control");

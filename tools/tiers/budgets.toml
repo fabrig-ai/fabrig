@@ -9,6 +9,24 @@
 [gate.default]
 references = { step = 0.04, domain = 0.2, system = 0.6, machine = 0.2, protocol = 0.2, io = 0.2, simulated = 1, real-loop = 1, end-to-end = 1, checks = 1 }
 
+[[gate.default.moves]]
+from = "temper.real-loop"
+to = "temper.domain"
+cpu_s = 1.5
+why = "The checkout world's fake-disk delivery, merge, reuse, store and simulation stories run below the real loop in their own binary."
+
+[[gate.default.reasons]]
+binary = "skein-codegen"
+test = "tests::changes_to_different_declarations_merge_line_by_line"
+cpu_s = 0.4
+why = "The acceptance family has 120 records and a long record split across methods; ten generations and three git merge-file merges check that independent declaration edits compose exactly. Landing run 1586 measured 0.266 CPU s alone."
+
+[[gate.default.reasons]]
+binary = "skein-codegen"
+test = "tests::family_and_field_helpers_have_no_ordinals_or_long_functions"
+cpu_s = 0.1
+why = "The 120-record family and 100-field record force family and method splits so the output check can reject ordinal helper names and functions past the line bound. Landing run 1586 measured 0.050 CPU s alone."
+
 [[gate.default.reasons]]
 binary = "temper-engine-domain-world::suite"
 test = "forge_routes::early_start::a_running_early_producer_asks_then_catches_up_with_a_squashed_dependency"
@@ -50,6 +68,30 @@ binary = "temper-service"
 test = "startup::welcome_policy::the_template_machine_gives_the_domain_its_places"
 cpu_s = 0.2
 why = "Real init documents supply the stock and test machine places, which a domain Connect must keep in its forge record. Absent and null share one stock world; the overridden machine needs a second world."
+
+[[gate.default.reasons]]
+binary = "temper-engine-domain-world::suite"
+test = "forge_routes::landing::two_goals::two_goals_land_in_one_green_turn"
+cpu_s = 0.27
+why = "Two goals' changes, each approved by its review behind a person's latch, form one turn landing of two on one green gate run, with one fast-forward, member pulls merged at their candidates, and the landing's panel checked. Two goals forming one turn cannot be shown with fewer."
+
+[[gate.default.reasons]]
+binary = "temper-client-journeys-tool"
+test = "tests::the_committed_journey_redacted_prints_the_same_pages"
+cpu_s = 0.25
+why = "Redaction must preserve every printed page of the whole committed welcome-set-up recording, the only web recording until the journeys are recorded again after R4 lands (temper/docs/design/client/web/journeys.md, 9); landing run 1593 measured 0.181 CPU s alone."
+
+[[gate.default.reasons]]
+binary = "temper-client-shell-web"
+test = "journey::normalise::tests::committed_welcome_set_up_normalises_and_replays_to_the_end"
+cpu_s = 0.30
+why = "Normalisation must preserve and replay the whole committed welcome-set-up recording through the shipped host to its end, the only web recording until the journeys are recorded again after R4 lands (temper/docs/design/client/web/journeys.md, 9); landing run 1593 measured 0.210 CPU s alone."
+
+[[gate.default.reasons]]
+binary = "temper-client-shell-tui"
+test = "journey::normalise::tests::an_approved_sign_in_normalises_and_replays_to_the_end"
+cpu_s = 0.14
+why = "A synthesized approval recording is normalised twice to check idempotency and replayed through the shipped terminal host to its end; landing run 1593 measured 0.110 CPU s alone."
 
 [gate.default.skein]
 ideal_s = 40
@@ -196,6 +238,12 @@ cpu_s = 72
 
 [gate.fuzzy]
 references = { step = 10, domain = 10, system = 10, machine = 10, protocol = 10, io = 10, simulated = 10, real-loop = 10, end-to-end = 10 }
+
+[[gate.fuzzy.moves]]
+from = "temper.real-loop"
+to = "temper.domain"
+cpu_s = 2.8
+why = "The checkout world's seeded fake-disk merge and simulation stories run below the real loop in their own binary."
 
 [gate.fuzzy.skein]
 ideal_s = 120

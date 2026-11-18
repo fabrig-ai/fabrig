@@ -138,7 +138,12 @@ pub fn one_repository() -> wire::Workspace {
             name: b"app".as_slice().into(),
             remote: b"https://forge.example/acme/app.git".as_slice().into(),
             start: wire::Start::Base { branch: b"main".as_slice().into() },
-            access: wire::Access::Writable { push: b"temper/task-7".as_slice().into(), expected: None, landing: None },
+            access: wire::Access::Writable {
+                push: b"temper/task-7".as_slice().into(),
+                expected: None,
+                landing: None,
+                delivered: None,
+            },
             identity: 1,
             account: None,
         }]),

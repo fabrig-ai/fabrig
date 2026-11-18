@@ -32,6 +32,17 @@ pub const INTERNAL_RECORD: Variable = Variable {
     notes: "Any nonempty value enables recording; an empty value is unset.",
 };
 
+/// A TUI walk's start (temper/docs/design/client/journey-clock.md, 4.3).
+pub const INTERNAL_FIXED_START: Variable = Variable {
+    name: "TEMPER_INTERNAL_FIXED_START",
+    set: Set::Internal,
+    form: "SECONDS,SEED",
+    way: Way::Reads,
+    line: "Start the TUI on a fixed clock and seed.",
+    absent: "Use the host's clock and a kernel seed.",
+    notes: "Only bare temper reads it, at a loopback engine. An empty value is unset; a malformed value refuses the start.",
+};
+
 pub const PATH: Variable = Variable {
     name: "PATH",
     set: Set::Public,

@@ -116,7 +116,7 @@ Pause, Resume and Close are `task`'s, as for any task.
   The store's new shape, from its draft
   made by person 4, Sam · 2026-11-16T09:12Z
   goals: 7 / 8 done · 0 failed · 1 closed · 1 live
-  spent: 212 of 400
+  spent: 2.12 of 4.00
   last landing: 2026-11-16T21:38Z, S7 history in task logs (task 820)
   goals:
     813  S1 Draft the layout       done
@@ -128,7 +128,9 @@ Pause, Resume and Close are `task`'s, as for any task.
   the maker by number and member name, as a task's requester prints.
   `ended: TIME, complete` replaces `last landing`'s place after it once
   ended, with `ended` or `closed`. Its totals are the forge's
-  `Milestone`; where it answers `not_milestone` the tool prints jig's
+  `Milestone`, `spent:` the forge's spend of the milestone's budget,
+  both in ctl's amount, as `task show` prints the milestone's
+  (`results.md`, 1); where it answers `not_milestone` the tool prints jig's
   facts alone and `totals: none`. Its goals are its delegates, live and
   ended, merged in the order they joined (`../../domain/milestones.md`,
   section 7), each its number, title and state, `live`, `done`, `failed`

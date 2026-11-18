@@ -171,9 +171,13 @@ impl Shell {
                 Report::Fetch(fetch::Report::Answered { exchange, status, body, headers: _ }) => {
                     Some(ViewReport::Answered { exchange, status, body })
                 }
-                Report::Fetch(fetch::Report::Failed { exchange }) | Report::Carried(Carried::Failed { exchange }) => {
-                    Some(ViewReport::Failed { exchange })
-                }
+                Report::Fetch(
+                    fetch::Report::Failed { exchange }
+                    | fetch::Report::Opened { exchange, .. }
+                    | fetch::Report::Piece { exchange, .. }
+                    | fetch::Report::Ended { exchange },
+                )
+                | Report::Carried(Carried::Failed { exchange }) => Some(ViewReport::Failed { exchange }),
                 Report::Fetch(fetch::Report::StreamOpened) => {
                     read_on = true;
                     Some(ViewReport::StreamOpened)
@@ -216,6 +220,7 @@ impl Shell {
                     headers: vec![("Content-Type".into(), "application/octet-stream".into())],
                     body: exchange.body,
                     bound: exchange.bound,
+                    pieces: None,
                     cache: skein_ui_web::fetch::Cache::Browser,
                     keep: &[],
                 });

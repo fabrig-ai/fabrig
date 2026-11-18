@@ -1555,7 +1555,7 @@ fn check_run() {
     let data = directory.join("data");
     fs::create_dir(&data).expect("fixture data");
     let mut value = support::configuration::check_document(directory);
-    temper_fixtures::agent::apply(&mut value, &data, &serde_json::from_slice(&agent).expect("agent JSON"));
+    temper_agent_fixtures::apply(&mut value, &data, &serde_json::from_slice(&agent).expect("agent JSON"));
     document(&directory.join("temper.json"), &value);
     let observations = directory.join("observations");
     fs::write(&observations, b"{\"observations_lost\":0}\n").expect("checkpoint");

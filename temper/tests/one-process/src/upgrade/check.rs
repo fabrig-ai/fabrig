@@ -1,5 +1,5 @@
 //! Rehearsal and rollback on the one-process world's disk, service and configuration.
-use super::{CURRENT_SETS, JOB, first_sets, maps::Maps};
+use super::{CURRENT_SETS, JOBS, first_sets, maps::Maps};
 use crate::{fixtures, referee, stories, world};
 use jig_protocol_store::{Owner, OwnerSets};
 use skein_fake_machine::{How, Is, Machine, Opened};
@@ -10,6 +10,7 @@ type Progress = Vec<temper_engine_service::Note>;
 #[derive(Clone, Copy, Debug)]
 enum Until {
     Check,
+    Workers,
     Back,
     Switched,
     Wires,
@@ -32,6 +33,10 @@ fn configured(document: &[u8]) -> temper_service::Service {
     .unwrap_or_else(|why| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&why))))
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one driver covers the restart cuts and both rehearsal reaches on the same disk"
+)]
 fn drive(disk: &mut Machine, document: &[u8], sets: OwnerSets, until: Until) -> (String, u8, Progress) {
     let mut service = configured(document);
     service.owner_sets(sets);
@@ -40,15 +45,26 @@ fn drive(disk: &mut Machine, document: &[u8], sets: OwnerSets, until: Until) -> 
     let source = disk.reopen_root(0);
     let source = sim.root(pid, Handle::new(source.raw()));
     match until {
-        Until::Check => {
+        Until::Check | Until::Workers => {
             let scratch = disk.lay(&[]);
             let scratch = sim.root(pid, Handle::new(scratch.raw()));
-            service.rehearse_store(source, scratch, 1000).expect("rehearsal adoption");
+            service
+                .rehearse_store(
+                    source,
+                    scratch,
+                    1000,
+                    match until {
+                        Until::Workers => jig_protocol_store::Reach::Openings,
+                        Until::Check => jig_protocol_store::Reach::Whole,
+                        Until::Back | Until::Switched | Until::Wires => unreachable!("rehearsal"),
+                    },
+                )
+                .expect("rehearsal adoption");
         }
         Until::Back => service.back_store(source, 1000).expect("back adoption"),
         Until::Switched | Until::Wires => service.adopt_store(source, 1000).expect("start adoption"),
     }
-    if let Until::Check | Until::Back = until {
+    if let Until::Check | Until::Workers | Until::Back = until {
         let owners = service.wait_state().engine.expect("upgrade engine");
         assert!(
             owners.workers.closed && owners.setup.closed && owners.forge.closed,
@@ -66,7 +82,7 @@ fn drive(disk: &mut Machine, document: &[u8], sets: OwnerSets, until: Until) -> 
         assert!(service.links().is_empty(), "no secret served before the switch/wires checkpoint");
         let wait = service.wait_state().engine.expect("engine state");
         let reached = match until {
-            Until::Check | Until::Back => service.is_empty(),
+            Until::Check | Until::Workers | Until::Back => service.is_empty(),
             Until::Switched => wait.restart == Some(jig_domain_core::start::Phase::Wires) && !wait.mark_durable,
             Until::Wires => wait.mark_durable,
         };
@@ -74,7 +90,26 @@ fn drive(disk: &mut Machine, document: &[u8], sets: OwnerSets, until: Until) -> 
             let report = service.upgrade_report().map_or_else(
                 || (String::new(), 0),
                 |report| {
-                    temper_engine_shell::upgrade::lines(
+                    let render = match until {
+                        Until::Workers => temper_engine_shell::upgrade::workers_lines,
+                        Until::Check | Until::Back | Until::Switched | Until::Wires => {
+                            temper_engine_shell::upgrade::lines
+                        }
+                    };
+                    if let Until::Workers = until {
+                        let events = report.events.iter().collect::<Vec<_>>();
+                        assert!(
+                            matches!(
+                                events.as_slice(),
+                                [
+                                    jig_protocol_store::Event::Rehearsing { .. },
+                                    jig_protocol_store::Event::Closed { removed: true, .. }
+                                ]
+                            ),
+                            "{events:?}"
+                        );
+                    }
+                    render(
                         "temper-box",
                         report,
                         &temper_shell::directories::Directories {
@@ -97,7 +132,7 @@ fn drive(disk: &mut Machine, document: &[u8], sets: OwnerSets, until: Until) -> 
         if let Some(end) = service.end() {
             assert!(service.upgrade_report().is_some(), "start refused: {end:?}");
         }
-        if let Until::Check | Until::Back = until {
+        if let Until::Check | Until::Workers | Until::Back = until {
             for submit in service.submissions().iter() {
                 if let skein_io::kernel::Op::Listen { .. }
                 | skein_io::kernel::Op::Connect { .. }
@@ -246,6 +281,13 @@ pub fn opened_worker_rehearsal() {
     assert!(report.contains("temper-box upgrade: worker local may stay: opened 2026-01-01T00:00:00Z\n"), "{report}");
     assert!(report.ends_with("temper-box upgrade: workers may stay: yes\n"), "{report}");
     assert_eq!(image(&mut disk), before, "rehearsal leaves the stopped deployment unchanged");
+    let (workers, code, patches) =
+        drive(&mut disk, &document, temper_engine_service::store::OWNER_SETS, Until::Workers);
+    assert_eq!(code, 0, "{workers}");
+    assert!(patches.is_empty(), "Openings runs no job");
+    let verdict = report.split_inclusive('\n').filter(|line| line.contains(" upgrade: worker")).collect::<String>();
+    assert_eq!(workers, verdict, "the stop's verdict is the check's worker lines alone");
+    assert_eq!(image(&mut disk), before, "workers leaves every source path and byte unchanged");
 }
 
 pub fn rehearsal_then_start_and_back() {
@@ -255,13 +297,20 @@ pub fn rehearsal_then_start_and_back() {
     let before = Maps::read(&mut disk);
     let (report, code, progress) = drive(&mut disk, &document, CURRENT_SETS, Until::Check);
     assert_eq!(code, 0, "{report}");
-    let [temper_engine_service::Note::Ran { of, job, rows, commits, counts }] = progress.as_slice() else {
-        panic!("only the pending job runs: {progress:?}")
-    };
-    assert_eq!((*of, job.as_ref()), (Owner::Application, JOB));
-    assert!(*commits > 0, "the job's end is committed");
-    assert!(counts.iter().all(|count| count.count == 0), "no deleted repository in this story");
-    assert!(report.contains(&format!("ran temper {JOB}: {rows} rows in {commits} commits")), "{report}");
+    assert_eq!(progress.len(), JOBS.len(), "each pending job runs");
+    for (note, expected) in progress.iter().zip(JOBS) {
+        let temper_engine_service::Note::Ran { of, job, rows, commits, counts } = note else {
+            panic!("job progress: {note:?}")
+        };
+        assert_eq!((*of, job.as_ref()), (super::job_owner(expected), expected));
+        assert!(*commits > 0, "the job's end is committed");
+        assert!(
+            counts.iter().all(|count| count.count == 0),
+            "no task rejection, long id or deleted repository in this story"
+        );
+        let owner = if *of == Owner::Jig { "jig" } else { "temper" };
+        assert!(report.contains(&format!("ran {owner} {expected}: {rows} rows in {commits} commits")), "{report}");
+    }
     assert!(
         report.contains("registry commit, jobs and restores pass; what follows the switch is not rehearsed"),
         "{report}"

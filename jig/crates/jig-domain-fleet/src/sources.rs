@@ -175,6 +175,7 @@ pub(crate) fn logins(
         sources.waiting = false;
         sources.previous = None;
         send(sources, channel, out);
+        crate::untooled::logins(host);
         domain.placing = true;
         for &attempt in &domain.channels.get(id).expect("current channel").hosts {
             domain.restart_holds.remove(&attempt);
@@ -196,10 +197,12 @@ fn fault(domain: &mut Domain, env: &Env<Limits>, channel: Token, out: &mut Queue
     out.push(Request::Refuse { channel, hello: None });
     crate::channel::lost(domain, env, channel, out);
 }
-pub(crate) fn check(domain: &Domain, channel: Token, name: SourceName, out: &mut Queue<Request>) {
+pub(crate) fn check(domain: &mut Domain, channel: Token, name: SourceName, out: &mut Queue<Request>) {
     let Some(&id) = domain.tokens.get(&channel) else { return };
-    let host = domain.channels.get(id).expect("current channel");
+    let host = domain.channels.get_mut(id).expect("current channel");
     if host.kind == crate::HostKind::Worker && host.sources.sent.contains(&name) {
+        crate::untooled::clear(host, name);
+        domain.placing = true;
         out.push(Request::Check { channel, name });
     }
 }

@@ -105,7 +105,9 @@ it. Its messages and their bytes are `../../../protocol/client/README.md`'s.
   a request presented with a valid one is that party's, and everything
   after is checked by their role and authority.
 - **Its built-in ways of signing in:** the printed link's one-time
-  secret, on a loopback listener, for one person's machine; a
+  secret, on a loopback listener, for one person's machine; the asked
+  link, a fresh one a person's signed-in client asks for that person's
+  browser, signing in the asker's own party no longer than the asker; a
   service's credential, issued when an owner makes the service; and a
   sign-in approved by a signed-in browser, for that browser's own
   party: a client asks, the browser, by its cookie alone, approves the
@@ -309,7 +311,7 @@ party reads is therefore never lost by a crash.
 | `activity{n}`: a task's activity, a page, from its end | the store: words, run boundaries, turns, what it heard |
 | `activity_beside{n, position, side}`: the page of a task's activity next to its line at `position`, earlier or later, that line left out | the store, as `activity{n}` |
 | `turn{n, attempt, turn}`: one committed turn of a task's activity | the store: the task's transcript (`../../../protocol/store/transcripts.md`, 3) |
-| `inbox`: a group of it, a page, filtered by project, kind or root | live state, then the store past the engine's limit |
+| `inbox`: a group of it, a page, filtered by project, kind or root | needs: live state, every page; updates: live state, then the store past the engine's limit |
 | `tasks{query}`: a task query's page (4.1) | live state, then the store's indexes of ended tasks |
 | a project; its spend, a page; its notes, a page | live state; the store; the notes child |
 | the deployment | live state |
@@ -512,7 +514,7 @@ party reads is therefore never lost by a crash.
 
 | Subject | Its document | Who may watch |
 |---|---|---|
-| `me` | `me` | the party, always |
+| `me` | `me` | the party, always; every stream watches it from its opening, its first value in the hello (section 6) |
 | `task{n}` | the task's document | a party who may see it |
 | `tree{root}` | a task's live subtree, within a window | likewise |
 | `chips` | a bounded set of tasks the client names, as chips | likewise, each |
@@ -695,7 +697,9 @@ any watch's deliveries do (`../../../protocol/client/README.md`, section 5).
   each application's by the application, and every message names its
   owner and its version (`../../../protocol/client/README.md`, section 6).
 - **The engine serves a range of each owner's versions,** which the hello
-  of its stream states; `me` carries none.
+  of its stream states first, then `me`, at the version of jig's the
+  stream's opening names (`../../../protocol/client/wire.md`, section 2);
+  `me` carries no range.
 - **A version not served is refused with a typed answer,** *version not
   served* (section 3), naming the owner and the ranges the engine
   serves, with nothing read, made or kept; a read and a watch in it

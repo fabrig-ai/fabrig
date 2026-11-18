@@ -1,4 +1,6 @@
 //! Bounded public-document rewrites for protocol/configuration/directories.md, 1. No files or sockets are opened here.
+//! Fixed starts follow temper/docs/design/protocol/setup/box.md, 5 and
+//! temper/docs/design/client/journey-clock.md, 4.1.
 use crate::{Refusal, read};
 use alloc::boxed::Box;
 use core::net::{IpAddr, SocketAddr};
@@ -35,7 +37,14 @@ pub const PROGRAM_MODEL: &str = "claude-opus-5-5";
 
 /// Long peers before ordinary box steps. The caller checks absolute, bounded config bytes and sockets.
 #[must_use]
-pub fn steps(config: &[u8], data: &[u8], peers: &Peers, scripts: Option<&[u8]>, strict: bool) -> Box<[Step]> {
+pub fn steps(
+    config: &[u8],
+    data: &[u8],
+    peers: &Peers,
+    scripts: Option<&[u8]>,
+    strict: bool,
+    fixed_start: Option<&[u8]>,
+) -> Box<[Step]> {
     let mut steps = List::with_capacity(4);
     let seed = Decimal::of(SEED);
     for (name, command, document, listen) in [
@@ -44,7 +53,7 @@ pub fn steps(config: &[u8], data: &[u8], peers: &Peers, scripts: Option<&[u8]>, 
         (b"fake model", b"llm", b"llm.json", peers.llm),
         (b"fake forgejo", b"forge", b"forgejo.json", peers.forgejo),
     ] {
-        let mut arguments = List::with_capacity(9);
+        let mut arguments = List::with_capacity(11);
         for word in [b"fake".as_slice(), command, b"--document"] {
             arguments.push(bytes::copy_of(word)).expect("peer arguments counted");
         }
@@ -65,6 +74,10 @@ pub fn steps(config: &[u8], data: &[u8], peers: &Peers, scripts: Option<&[u8]>, 
             arguments.push(bytes::copy_of(b"--state")).expect("state flag counted");
             let name = if name == b"fake github" { b"github-forge.state".as_slice() } else { b"forgejo-forge.state" };
             arguments.push(path(data, name)).expect("state path counted");
+        }
+        if let Some(start) = fixed_start {
+            arguments.push(bytes::copy_of(b"--fixed-start")).expect("fixed start flag counted");
+            arguments.push(bytes::copy_of(start)).expect("fixed start counted");
         }
         steps
             .push(Step::new(bytes::copy_of(name), arguments.into_boxed(), StepKind::Long).listening(Box::new([listen])))

@@ -344,6 +344,7 @@ fn a_design_delivery_reaches_its_landing_branch_through_real_git() {
                 account: None,
                 push: Some(push.into()),
                 expected: None,
+                delivered: None,
                 landing: Some(b"goal".as_slice().into()),
                 save: None,
             }]),

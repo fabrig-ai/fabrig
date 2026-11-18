@@ -15,7 +15,8 @@ impl Link {
                     out.push(Request::Authorized(Authorized::Busy));
                     return;
                 }
-                ExchangeKind::Approval(_)
+                ExchangeKind::LinkAsk
+                | ExchangeKind::Approval(_)
                 | ExchangeKind::SignInApproval
                 | ExchangeKind::SignIn
                 | ExchangeKind::SignOut { .. }
@@ -24,10 +25,6 @@ impl Link {
                 | ExchangeKind::WatchOpen { .. }
                 | ExchangeKind::WatchClose { .. } => {}
             }
-        }
-        if self.in_flight() >= self.limits.exchanges() {
-            out.push(Request::Authorized(Authorized::Busy));
-            return;
         }
         let Ok(record) = w::Authorize::new(self.limits.wire(), w::AuthorizeParts { query }) else {
             out.push(Request::Authorized(Authorized::Lost));

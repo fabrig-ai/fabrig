@@ -8,7 +8,20 @@ use std::{
     path::Path,
 };
 pub(crate) mod terminal;
+/// The TUI takes the walk's start (temper/docs/design/client/journey-clock.md, 4.4).
 pub(crate) fn environment(
+    given: &[crate::EnvironmentEntry],
+    scratch: &Path,
+) -> Result<Vec<(OsString, OsString)>, std::env::JoinPathsError> {
+    let mut environment = unfixed_environment(given, scratch)?;
+    let name = temper_shell::environment::INTERNAL_FIXED_START.name;
+    environment.retain(|(key, _)| key != name);
+    environment.push((name.into(), crate::again::FIXED_START.into()));
+    Ok(environment)
+}
+
+/// Isolated terminal settings without choosing a fixed start (client/drive.md, 5).
+pub(crate) fn unfixed_environment(
     given: &[crate::EnvironmentEntry],
     scratch: &Path,
 ) -> Result<Vec<(OsString, OsString)>, std::env::JoinPathsError> {

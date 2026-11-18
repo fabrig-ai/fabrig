@@ -1,7 +1,7 @@
 //! Jobs follow patches and closed windows, before the seal (protocol/store/jobs.md, 2–3).
 use super::{Patching, refuse, sealing, state, take};
 use crate::{
-    Below, Cursor, Event, Job, JobAnswer, JobCount, JobPage, JobRefusal, JobRoom, JobRow, JobWrite, Limits,
+    Below, Cursor, Event, Job, JobAnswer, JobCount, JobLayout, JobPage, JobRefusal, JobRoom, JobRow, JobWrite, Limits,
     OpenRefusal, Owner, Store, commits, keys, open, pages,
 };
 use alloc::boxed::Box;
@@ -20,6 +20,7 @@ pub(crate) struct Running {
     pending: List<(Owner, Job)>,
     index: u32,
     after: Option<Cursor>,
+    layouts: Queue<(u16, JobLayout)>,
     rows: u64,
     commits: u64,
     counts: List<JobCount>,
@@ -34,10 +35,10 @@ impl Running {
             Waiting::Page { .. } | Waiting::Commit { .. } | Waiting::Registry { .. } => false,
         }
     }
-    pub(crate) fn at_page(&self) -> bool {
+    pub(crate) fn page_owner(&self) -> Option<Owner> {
         match self.waiting {
-            Waiting::Page { .. } => true,
-            Waiting::Ready | Waiting::Commit { .. } | Waiting::Registry { .. } => false,
+            Waiting::Page { .. } => Some(self.current().0),
+            Waiting::Ready | Waiting::Commit { .. } | Waiting::Registry { .. } => None,
         }
     }
     fn current(&self) -> (Owner, Job) {
@@ -64,6 +65,7 @@ impl Running {
                     });
                     self.index = self.index.checked_add(1).expect("bounded pending jobs");
                     self.after = None;
+                    self.layouts = Queue::uncapped();
                     self.first = true;
                     self.rows = 0;
                     self.commits = 0;
@@ -107,6 +109,7 @@ pub(super) fn begin(
             pending,
             index: 0,
             after: None,
+            layouts: Queue::uncapped(),
             rows: 0,
             commits: 0,
             counts: List::uncapped(),
@@ -144,17 +147,30 @@ fn relative(owner: Owner, key: &[u8]) -> Option<&[u8]> {
 fn load(store: &mut Store, running: &mut Running, above: &mut Queue<Event>) -> Option<()> {
     let (of, job) = running.current();
     if running.first {
+        running.layouts = store.registry.written(&job)?;
         for name in job.counts {
             running.counts.push(JobCount { name: Box::from(*name), count: 0 }).expect("admitted count names");
         }
     }
     let ranges = ranges(store, of, &job)?;
-    let written = store.registry.written(&job);
-    let id = match &written {
-        Some((id, _)) => Some(*id),
-        None => None,
-    };
-    let walked = load_values(store, running, &ranges, job.converts.is_some(), id)?;
+    let mut next = None;
+    // Each layout gets its own walk from the first key. Only the last
+    // walk's empty page ends the job (protocol/store/jobs.md, 4).
+    for _ in 0..running.layouts.len().max(1) {
+        let id = match running.layouts.iter().next() {
+            Some((id, _)) => Some(*id),
+            None => None,
+        };
+        let walked = load_values(store, running, &ranges, job.converts.is_some(), id)?;
+        if walked.rows.is_empty() && walked.next.is_none() && running.layouts.len() > 1 {
+            running.layouts.pop()?;
+            running.after = None;
+        } else {
+            next = Some(walked);
+            break;
+        }
+    }
+    let walked = next?;
     if walked.rows.is_empty() && walked.next.is_some() {
         return None;
     }
@@ -173,8 +189,8 @@ fn load(store: &mut Store, running: &mut Running, above: &mut Queue<Event>) -> O
             room: room(store, of, &job)?,
             rows: rows.into_boxed(),
             end,
-            layout: match written {
-                Some((_, layout)) => Some(layout),
+            layout: match running.layouts.iter().next() {
+                Some((_, layout)) => Some(layout.clone()),
                 None => None,
             },
         },
@@ -189,6 +205,9 @@ fn load_values(
     written: bool,
     id: Option<u16>,
 ) -> Option<pages::Walked> {
+    if written && id.is_none() {
+        return Some(pages::Walked { rows: Box::new([]), next: None });
+    }
     let mut bound = 1_u64;
     for space in store.stores.store.census().keyspaces() {
         bound = bound.checked_add(space.rows)?;

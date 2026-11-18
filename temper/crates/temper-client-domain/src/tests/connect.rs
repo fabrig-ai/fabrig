@@ -174,14 +174,14 @@ fn watch(mut out: Queue<Request>) -> Option<Token> {
 }
 pub(super) fn opened(owner: bool) -> (crate::Domain, Token, Token) {
     let mut root = crate::unlinked(&f::limits(), f::SEED);
-    let (me, _) = f::start_accounts(&mut root, List::with_capacity(0));
+    let me = f::start(&mut root, List::with_capacity(0));
     let c::WatchEvent::Delivered(c::Delivery::Me(mut frame)) = f::frame(f::PARTY) else { panic!("me") };
     frame.deployment_role = Some(if owner { c::HeldRole::Owner } else { c::HeldRole::Member });
     let out = up(&mut root, Up::Watched { watch: me, event: c::WatchEvent::Delivered(c::Delivery::Me(frame)) });
     (root, me, watch(out).expect("session forges watch"))
 }
 #[test]
-fn the_forges_watch_opens_once_me_is_delivered_for_every_person() {
+fn me_opens_no_second_forges_watch_for_any_person() {
     for owner in [false, true] {
         let (mut root, me, _) = opened(owner);
         assert!(watch(up(&mut root, Up::Watched { watch: me, event: f::frame(f::PARTY) })).is_none());
@@ -203,20 +203,19 @@ fn a_refused_forges_watch_is_kept_until_the_next_sign_in() {
     while let Some(request) = served.pop() {
         out.push(request);
     }
-    let mut me = None;
+    let me = Token::new(0);
     let mut reopened = None;
     while let Some(request) = out.pop() {
         if let Request::Unlinked { request: client::UnlinkedRequest::Down { down: Down::Open { watch, subject } } } =
             request
         {
             match subject {
-                client::Watchable::Jig(c::Subject::Me) => me = Some(watch),
                 client::Watchable::Family { .. } => reopened = Some(watch),
                 client::Watchable::Jig(_) => {}
             }
         }
     }
-    let delivered = watch(up(&mut root, Up::Watched { watch: me.unwrap(), event: f::frame(f::PARTY) }));
+    let delivered = watch(up(&mut root, Up::Watched { watch: me, event: f::frame(f::PARTY) }));
     assert!(reopened.or(delivered).is_some());
 }
 #[test]

@@ -568,7 +568,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             })));
             out
         }
-        Event::SignIn { reply_to, identity, held } => sign_in(core, env, work, reply_to, identity, held),
+        Event::SignIn { until, reply_to, identity, held } => sign_in(core, env, work, reply_to, identity, held, until),
         Event::ReadLoaded { load, result } => crate::reads::loaded(core, env, work, load, result),
         Event::PublicRead { reply, read } => crate::public::reads::start(core, reply, read),
         Event::PublicAnswered { reply, answer } => crate::public::reads::answered(core, reply, answer),
@@ -655,6 +655,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             saved,
             invalid_saved,
             unusable_history,
+            untooled,
             read,
             refused,
         } => route_answer_payload(
@@ -663,7 +664,17 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             work,
             run,
             attempt,
-            run::payloads::Answer { payload, cumulative, end, saved, invalid_saved, unusable_history, read, refused },
+            run::payloads::Answer {
+                payload,
+                cumulative,
+                end,
+                saved,
+                invalid_saved,
+                unusable_history,
+                untooled,
+                read,
+                refused,
+            },
         ),
         Event::AcceptedTurn { task, attempt, turn, accepted, cumulative, read, transcript, opens_window } => {
             let record = crate::TurnRecord {

@@ -348,6 +348,7 @@ pub fn repository(repository: u32, owner: &[u8], name: &[u8]) -> temper_engine_d
         start: temper_engine_domain::ForgeStart::Base(b"main".as_slice().into()),
         push: Some(b"temper/task-7".as_slice().into()),
         landing: None,
+        delivered: None,
         identity: 1,
     }
 }
@@ -497,16 +498,15 @@ pub fn stock_files() -> settings::Files {
     super::stock::files()
 }
 
-#[expect(
-    clippy::disallowed_macros,
-    clippy::disallowed_types,
-    reason = "ordinary fixture code renders the shipped agent profile"
-)]
+#[expect(clippy::disallowed_types, reason = "ordinary fixture code renders the shipped agent profile")]
 pub fn stock_configuration(payload: u32, output: u32) -> Result<smith_agent_shell::config::Configuration, String> {
-    let bytes = serde_json::to_string_pretty(&temper_fixtures::agent::stock(true))
+    let mut stock = temper_agent_fixtures::stock(true);
+    stock["profile"]["declared"]["tool_payload"] = payload.into();
+    for endpoint in stock["endpoints"].as_array_mut().expect("stock endpoints") {
+        endpoint["limits"]["output"] = output.into();
+    }
+    let bytes = serde_json::to_string_pretty(&stock)
         .expect("stock agent JSON")
-        .replace("\"tool_payload\": 10662", &format!("\"tool_payload\": {payload}"))
-        .replace("\"output\": 8192", &format!("\"output\": {output}"))
         .replace("$llm", "127.0.0.1:8370")
         .replace("\"$programs\"", r#"{"claude_code":{"path":"/fixture/claude","directory":"/fixture/programs"}}"#)
         .replace("api.anthropic.com:443", "127.0.0.1:8373")
@@ -521,7 +521,8 @@ pub fn stock_configuration(payload: u32, output: u32) -> Result<smith_agent_shel
 pub fn parsed_agent(config: smith_agent_shell::config::Configuration) -> settings::Agent {
     use std::os::unix::ffi::OsStrExt;
     let limits = config.service.limits;
-    let host_limits = smith_local_service::profile::host_limits(&config.profile, &limits).unwrap();
+    let host_limits =
+        smith_local_service::profile::host_limits(&config.profile, &limits, &config.service.domain.limits).unwrap();
     let mut protocol = smith_host_protocol::Limits {
         bodies: limits.channel.bodies,
         charter: limits.channel.charter,

@@ -29,6 +29,19 @@ const DIRECTORIES: Argument =
     Argument { shown: temper_shell::commands::DIRECTORIES.shown, line: temper_shell::commands::DIRECTORIES.line };
 const FORGE: Argument =
     Argument { shown: temper_engine_shell::forge::FORGE.shown, line: temper_engine_shell::forge::FORGE.line };
+const FIXED_START_SETTINGS: skein_shell::Settings = skein_shell::Settings {
+    tool: "temper",
+    about: "The fake box's fixed start.",
+    table: &[skein_shell::Setting {
+        name: "fixed-start",
+        value: "SECONDS,SEED",
+        set: Set::Internal,
+        twin: None,
+        about: "Start the fake box's engine and peers from this fixed instant and seed: SECONDS,SEED.",
+        fallback: skein_shell::Fallback::Text(""),
+        notes: "Requires --fake-backends on the box, or --box on internal serve.",
+    }],
+};
 const BUNDLE_SETTINGS: skein_shell::Settings = skein_shell::Settings {
     tool: "temper",
     about: "The fake backends' web client bundle.",
@@ -76,7 +89,7 @@ pub(crate) const BOX: Command = Command {
     forms: &["[--config DIR] [--data DIR] [--cache DIR] [--echo none|steps] [--record]"],
     line: "Run a deployment as one box: the setup steps of each forge it sets up, then temper-box serve, each a child process.",
     arguments: &[DIRECTORIES],
-    settings: &[&directories::SETTINGS, &box_command::ECHO_SETTINGS, &BUNDLE_SETTINGS],
+    settings: &[&directories::SETTINGS, &box_command::ECHO_SETTINGS, &BUNDLE_SETTINGS, &FIXED_START_SETTINGS],
     switches: &[
         temper_engine_shell::commands::RECORD,
         Switch {
@@ -109,7 +122,7 @@ pub(crate) const BOX: Command = Command {
     notes: "Without --front, the box runs with no TUI, in a terminal or not. With --front, its local link goes to fd 3, its lines to fd 4 and stdin's end stops it; it writes nothing on its terminal. Steps run in order, each restarted when it exits until it has exited too often within its window, when the box gives up, stops the others and exits 1; they stop in reverse order. Its stdout is its sign-in links, each line whole; its stderr, the block's other lines and errors, and what --echo chooses; the box and each step log under the data directory.",
 };
 
-const COMMANDS: [Command; 30] = [
+const COMMANDS: [Command; 33] = [
     BOX,
     Command {
         reach: Reach::Words(&["init"]),
@@ -143,7 +156,10 @@ Refused without changes if the configuration directory holds temper.json.",
     HELP,
     temper_engine_shell::commands::VERSIONS,
     temper_engine_shell::commands::UPGRADE_CHECK,
+    temper_engine_shell::commands::UPGRADE_WORKERS,
     temper_engine_shell::commands::UPGRADE_BACK,
+    temper_engine_shell::commands::CHECKPOINT,
+    temper_engine_shell::commands::RESTORE,
     FETCH,
     PREPARE,
     RUN,
@@ -199,10 +215,10 @@ Refused without changes if the configuration directory holds temper.json.",
     Command {
         reach: Reach::Words(&["internal", "serve"]),
         set: Set::Internal,
-        forms: &["[DIRECTORIES] --box [--record]"],
+        forms: &["[DIRECTORIES] --box [--record] [--fixed-start SECONDS,SEED]"],
         line: "Run temper-box serve as the box's step, on the listeners and the pipe the box gives it.",
         arguments: &[DIRECTORIES],
-        settings: &[&directories::SETTINGS],
+        settings: &[&directories::SETTINGS, &FIXED_START_SETTINGS],
         switches: &[temper_engine_shell::commands::RECORD, Switch { name: "box", set: Set::Internal, line: "Take the box's listeners and pipe.", notes: "" }],
         variables: &[&environment::PATH, &environment::TERM, &environment::LISTEN_FDS, &environment::XDG_RUNTIME_DIR, &environment::JOB],
         notes: "",

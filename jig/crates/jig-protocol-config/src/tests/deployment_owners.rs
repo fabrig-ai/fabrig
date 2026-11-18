@@ -161,6 +161,7 @@ fn first_owners_hold_the_deployments_roles_across_start_and_restart() {
                 &mut core,
                 &env,
                 Event::SignIn {
+                    until: None,
                     held: None,
                     reply_to: ReplyTo::new(Token::new(1)),
                     identity: people::Identity {

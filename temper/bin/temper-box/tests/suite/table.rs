@@ -35,8 +35,28 @@ fn help(text: &str) -> bool {
         .filter_map(|line| line.split_whitespace().next())
         .collect();
     text == TABLE.help()
-        && names == ["init", "serve", "program-login", "help", "versions", "upgrade", "upgrade"]
+        && names
+            == [
+                "init",
+                "serve",
+                "program-login",
+                "help",
+                "versions",
+                "upgrade",
+                "upgrade",
+                "upgrade",
+                "checkpoint",
+                "checkpoint",
+                "checkpoint",
+                "restore",
+            ]
         && text.contains("temper-box [--config DIR]")
+        && text.contains("upgrade --workers")
+        && text
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ")
+            .contains("Judges the workers alone over a copy; switches nothing.")
         && ["forge", "fake", "internal", "ctl", "open"].iter().all(|word| !names.contains(word))
 }
 
@@ -61,7 +81,23 @@ fn internal_help(text: &str) -> bool {
 
 type Check = fn(&str) -> bool;
 type Case = (&'static [&'static str], i32, Check, &'static str);
+const CHECKPOINT_USAGE: &str = "temper-box checkpoint: invalid arguments\nusage: temper-box checkpoint [DIRECTORIES]\nusage: temper-box checkpoint --hold NAME [DIRECTORIES] -- COMMAND [ARGUMENT...]\nusage: temper-box checkpoint --remove NAME [DIRECTORIES]\n";
 const ROWS: &[Case] = &[
+    (&["checkpoint", "--", "cmd"], 2, empty, CHECKPOINT_USAGE),
+    (
+        &[
+            "checkpoint",
+            "--hold",
+            "00000000000000000012-00000000000000ff",
+            "--remove",
+            "00000000000000000012-00000000000000ff",
+            "--",
+            "cmd",
+        ],
+        2,
+        empty,
+        CHECKPOINT_USAGE,
+    ),
     (&["--version"], 0, version, ""),
     (&["-h"], 0, help, ""),
     (&["--help"], 0, help, ""),
@@ -98,6 +134,12 @@ const ROWS: &[Case] = &[
         2,
         empty,
         "temper-box upgrade --check: invalid arguments\nusage: temper-box upgrade --check [DIRECTORIES] DIRECTORY\n",
+    ),
+    (
+        &["upgrade", "--workers"],
+        2,
+        empty,
+        "temper-box upgrade --workers: invalid arguments\nusage: temper-box upgrade --workers [DIRECTORIES] DIRECTORY\n",
     ),
     (
         &["upgrade", "--back", "extra"],

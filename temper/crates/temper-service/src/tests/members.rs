@@ -25,6 +25,7 @@ const APPLICATION: &[u8] = br#"{
  "token":"https://issuer.example.test/token","keys":"https://issuer.example.test/keys",
  "transport":{"tls":{"server_name":"issuer.example.test","trust":"roots.pem"}}}},
  "members":[{"address":"person@example.test","login":"person"}],"forges":[{"forge":1,"client":"forge-client"}]},
+"environment":[{"name":"CARGO_TARGET_DIR","value":"/srv/target"}],
 "limits":{"profile":"standard","overrides":{}}
 }"#;
 

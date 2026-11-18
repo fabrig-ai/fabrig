@@ -21,6 +21,12 @@ fn task() -> c::Task {
     task.dependencies.push(c::TaskLink::Stored { number: 43, status: None }).unwrap();
     task
 }
+fn person() -> c::Task {
+    let mut task = task();
+    task.person_revision = Some(c::Revision { value: 23 });
+    task.chip.executor = c::ChipExecutor::Party { party: 1 };
+    task
+}
 fn no_change() -> c::Amendment {
     c::Amendment {
         addressed: None,
@@ -56,6 +62,145 @@ fn deadline_change(task: &c::Task, deadline: Option<Wall>) -> c::Amendment {
     let mut authority = task.authority.whole().expect("whole authority");
     authority.deadline = deadline;
     c::Amendment { authority: Some(authority), ..no_change() }
+}
+#[test]
+fn amend_sends_a_person_address_even_where_it_waits() {
+    sends(
+        &["task", "amend", "41", "--to-party", "1", "because"],
+        person(),
+        expected(
+            c::Amendment {
+                addressed: Some(c::AddressChange {
+                    revision: c::Revision { value: 23 },
+                    address: c::PersonAddress::Party(1),
+                }),
+                ..no_change()
+            },
+            REVISION,
+        ),
+    );
+}
+#[test]
+fn amend_sends_a_role_address() {
+    sends(
+        &["task", "amend", "41", "--to-role", "2", "because"],
+        person(),
+        expected(
+            c::Amendment {
+                addressed: Some(c::AddressChange {
+                    revision: c::Revision { value: 23 },
+                    address: c::PersonAddress::Role(2),
+                }),
+                ..no_change()
+            },
+            REVISION,
+        ),
+    );
+}
+#[test]
+fn amend_sends_a_keyed_address() {
+    sends(
+        &["task", "amend", "41", "--to-role", "2", "because", "--key", "pass-up"],
+        person(),
+        expected(
+            c::Amendment {
+                addressed: Some(c::AddressChange {
+                    revision: c::Revision { value: 23 },
+                    address: c::PersonAddress::Role(2),
+                }),
+                ..no_change()
+            },
+            REVISION,
+        ),
+    );
+}
+#[test]
+fn amend_sends_a_priority_beside_an_address_without_rev() {
+    sends(
+        &["task", "amend", "41", "--priority", "3", "--to-party", "1", "because"],
+        person(),
+        expected(
+            c::Amendment {
+                addressed: Some(c::AddressChange {
+                    revision: c::Revision { value: 23 },
+                    address: c::PersonAddress::Party(1),
+                }),
+                tracked: Some(c::Tracking::Tracked { priority: 3 }),
+                ..no_change()
+            },
+            REVISION,
+        ),
+    );
+}
+#[test]
+fn amend_checks_an_address_explicit_spec_revision() {
+    refuses(
+        &["task", "amend", "41", "--rev", "6", "--to-party", "1", "because"],
+        person(),
+        b"task 41 moved: its spec revision is 7, not 6; read again: task show 41\n",
+    );
+}
+#[test]
+fn amend_refuses_an_address_on_no_person_task() {
+    refuses(
+        &["task", "amend", "41", "--to-party", "1", "because"],
+        task(),
+        b"task 41 is not a person task: only a person task takes --to-party or --to-role\n",
+    );
+}
+#[test]
+fn amend_refuses_no_person_task_before_other_checks() {
+    refuses(
+        &["task", "amend", "41", "--rev", "6", "--to-role", "2", "because"],
+        task(),
+        b"task 41 is not a person task: only a person task takes --to-party or --to-role\n",
+    );
+}
+#[test]
+fn amend_renders_a_moved_person_revision_refusal() {
+    let (mut root, call) = f::send_choice_amend(&["task", "amend", "41", "--to-party", "1", "because"], person());
+    assert_eq!(
+        f::act_ask(&root, call),
+        &expected(
+            c::Amendment {
+                addressed: Some(c::AddressChange {
+                    revision: c::Revision { value: 23 },
+                    address: c::PersonAddress::Party(1)
+                }),
+                ..no_change()
+            },
+            REVISION
+        )
+    );
+    root.answered(
+        call,
+        c::Answer::Refused {
+            refusal: c::Refusal::Moved { now: c::Revision { value: 24 }, what: c::Moved::PersonTask },
+            at: None,
+        },
+    );
+    let answer = root.answer(call).expect("refusal");
+    assert_eq!(
+        (answer.status, answer.stderr.as_ref()),
+        (2, b"task amend: The object changed\nread again: task show 41\n".as_slice())
+    );
+}
+#[test]
+fn amend_address_keeps_other_changes_revision_rules() {
+    assert_eq!(
+        f::parse(&["task", "amend", "41", "--to-party", "1", "--untracked", "because"]),
+        Err(Usage::AmendmentRevision),
+    );
+}
+#[test]
+fn amend_role_address_checks_its_range() {
+    for role in ["0", "4294967295"] {
+        f::parse(&["task", "amend", "41", "--to-role", role, "because"]).expect("role in range");
+    }
+    assert_eq!(
+        f::parse(&["task", "amend", "41", "--to-role", "4294967296", "because"]),
+        Err(Usage::Kind { tool: 31, form: 0, argument: 15 })
+    );
 }
 #[test]
 fn amend_sends_a_priority_alone_without_a_revision() {
@@ -113,7 +258,7 @@ fn amend_refuses_a_deadline_on_a_cut_authority() {
     refuses(
         DEADLINE_CALL,
         task,
-        b"task 41's authority is cut in this read; amend its deadline or tasks from a client with wider bounds\n",
+        b"task 41's authority is cut in this read; amend its deadline, budget or tasks from a client with wider bounds\n",
     );
 }
 fn loaded(argv: &[&str], bytes: &[u8], index: usize, task: c::Task, ask: c::Ask) {
@@ -263,6 +408,7 @@ fn amend_refuses_both_of_a_pair() {
         (["--priority", "3", "--untracked"].as_slice(), 3),
         (["--deadline", "2030-01-02T03:04Z", "--no-deadline"].as_slice(), 5),
         (["--dependency", "43", "--no-dependencies"].as_slice(), 9),
+        (["--to-party", "1", "--to-role", "2"].as_slice(), 15),
     ] {
         let argv = f::extended(&["task", "amend", "41", "--rev", "7", "because"], flags);
         assert_eq!(f::parse(argv.as_slice()), Err(Usage::Twice { tool: 31, form: 0, argument }), "{flags:?}");
@@ -305,6 +451,8 @@ fn amend_refuses_a_repeated_flag() {
         (["--untracked", "--untracked"].as_slice(), 3),
         (["--instructions", "one", "--instructions", "two"].as_slice(), 6),
         (["--model", "chosen-model", "--model", "plain-model"].as_slice(), 10),
+        (["--to-party", "1", "--to-party", "2"].as_slice(), 14),
+        (["--to-role", "1", "--to-role", "2"].as_slice(), 15),
     ] {
         let argv = f::extended(&["task", "amend", "41", "--rev", "7", "because"], flags);
         assert_eq!(f::parse(argv.as_slice()), Err(Usage::Twice { tool: 31, form: 0, argument }), "{flags:?}");
@@ -394,6 +542,145 @@ fn amend_sends_and_answers_a_replacement_when_only_the_old_words_are_cut() {
     assert_eq!(answer.status, 0);
 }
 
+const BUDGET_CALL: &[&str] = &["task", "amend", "41", "--rev", "7", "--budget", "20", "because"];
+
+fn budget_task(budget_left: u64, held: u64, ceiling: u64) -> c::Task {
+    let mut task = task();
+    task.authority.authority.spend = 5;
+    let mut authority = task.authority.clone();
+    authority.authority.spend = held;
+    let mut ceiling_authority = task.authority.clone();
+    ceiling_authority.authority.spend = ceiling;
+    task.acts.get_mut(0).unwrap().admission = c::Admission::Bounded {
+        within: c::Bounds::Amend {
+            budget_left,
+            grants: List::with_capacity(0),
+            implications: List::with_capacity(0),
+            authority: Box::new(authority),
+            ceiling: Box::new(ceiling_authority),
+        },
+        beyond: c::Beyond::Proposed { to: c::Recipient::Party(f::RECIPIENT) },
+    };
+    task
+}
+fn budget_change(task: &c::Task, spend: u64) -> c::Amendment {
+    let mut authority = task.authority.whole().expect("whole authority");
+    authority.spend = spend;
+    c::Amendment { authority: Some(authority), ..no_change() }
+}
+
+#[test]
+fn amend_budget_restates_the_authority_in_ctls_amount_within_bounds() {
+    for (amount, spend) in [("20", 2000), ("20.5", 2050), ("0.07", 7)] {
+        let task = budget_task(spend - 5, spend, spend);
+        let change = budget_change(&task, spend);
+        sends(&["task", "amend", "41", "--rev", "7", "--budget", amount, "because"], task, expected(change, REVISION));
+    }
+}
+
+#[test]
+fn amend_budget_proposes_a_raise_past_the_partys_bounds() {
+    for task in [budget_task(0, 2000, 2000), budget_task(1995, 1999, 2000)] {
+        let change = Box::new(budget_change(&task, 2000));
+        sends(
+            BUDGET_CALL,
+            task,
+            c::Ask::Propose {
+                project: f::PROJECT,
+                action: c::ProposeAction::Amendment { task: f::TASK, revision: c::Revision { value: 7 }, change },
+                reason: f::act_text(b"because"),
+            },
+        );
+    }
+}
+
+#[test]
+fn amend_budget_refuses_a_raise_past_the_ceiling() {
+    refuses(BUDGET_CALL, budget_task(1995, 2000, 1999), b"amendment not offered\n");
+}
+
+#[test]
+fn amend_budget_refuses_a_malformed_amount() {
+    for amount in ["1.005", "1.", ".5", "-1", "abc", "1,5", "184467440737095516.16"] {
+        assert_eq!(
+            f::parse(&["task", "amend", "41", "--rev", "7", "--budget", amount, "because"]),
+            Err(Usage::Kind { tool: 31, form: 0, argument: 16 }),
+            "{amount}",
+        );
+    }
+}
+
+#[test]
+fn amend_budget_needs_a_whole_authority_and_the_shown_revision() {
+    let mut cut = task();
+    cut.authority.cut = true;
+    refuses(
+        BUDGET_CALL,
+        cut,
+        b"task 41's authority is cut in this read; amend its deadline, budget or tasks from a client with wider bounds\n",
+    );
+    let mut moved = task();
+    moved.spec_revision = c::Revision { value: 9 };
+    refuses(BUDGET_CALL, moved, b"task 41 moved: its spec revision is 9, not 7; read again: task show 41\n");
+    assert_eq!(f::parse(&["task", "amend", "41", "--budget", "20", "because"]), Err(Usage::AmendmentRevision));
+}
+
+#[test]
+fn amend_budget_combines_with_a_deadline_and_tasks_on_both_paths() {
+    let argv = [
+        "task",
+        "amend",
+        "41",
+        "--rev",
+        "7",
+        "--budget",
+        "20",
+        "--deadline",
+        "2030-01-02T03:04Z",
+        "--tasks",
+        "12",
+        "because",
+    ];
+    let keyed = f::extended(&argv, &["--key", "more-budget"]);
+    for argv in [argv.as_slice(), keyed.as_slice()] {
+        let task = task();
+        let mut authority = task.authority.whole().expect("whole authority");
+        authority.spend = 2000;
+        authority.deadline = Some(DEADLINE);
+        authority.delegation.tasks = 12;
+        sends(argv, task, expected(c::Amendment { authority: Some(authority), ..no_change() }, REVISION));
+    }
+}
+
+#[test]
+fn amend_budget_sends_a_narrowing_without_room_for_a_raise() {
+    let mut task = budget_task(0, 0, 0);
+    task.authority.authority.spend = 2001;
+    let change = budget_change(&task, 2000);
+    sends(BUDGET_CALL, task, expected(change, REVISION));
+}
+
+#[test]
+fn amend_budget_compares_away_an_unchanged_authority_unless_keyed() {
+    let mut task = task();
+    task.authority.authority.spend = 2000;
+    refuses(BUDGET_CALL, task.clone(), b"amend changes nothing on task 41\n");
+    let argv = f::extended(BUDGET_CALL, &["--key", "same-budget"]);
+    let change = budget_change(&task, 2000);
+    sends(argv.as_slice(), task, expected(change, REVISION));
+}
+
+#[test]
+fn amend_budget_json_keeps_spend_units_and_accepts_no_budget() {
+    let call =
+        f::from_json(br#"{"tool":"task amend","arguments":{"task":41,"rev":7,"budget":2050,"reason":"because"}}"#);
+    assert_eq!(call.values[16], Some(Values::One(Value::Number(2050))));
+    assert_eq!(f::from_json(&crate::jig::json::write_call(crate::table::TOOLS, &call).unwrap()), call);
+    let old = f::from_json(br#"{"tool":"task amend","arguments":{"task":41,"rev":7,"tasks":12,"reason":"because"}}"#);
+    assert_eq!(old.values[13], Some(Values::One(Value::Number(12))));
+    assert_eq!(old.values[16], None);
+}
+
 const TASKS_CALL: &[&str] = &["task", "amend", "41", "--rev", "7", "--tasks", "12", "because"];
 
 #[test]
@@ -428,7 +715,7 @@ fn amend_tasks_needs_a_whole_authority_and_the_shown_revision() {
     refuses(
         TASKS_CALL,
         cut,
-        b"task 41's authority is cut in this read; amend its deadline or tasks from a client with wider bounds\n",
+        b"task 41's authority is cut in this read; amend its deadline, budget or tasks from a client with wider bounds\n",
     );
     let mut moved = task();
     moved.spec_revision = c::Revision { value: 9 };

@@ -18,8 +18,8 @@ is still open (`README.md`, section 6).
   own; the system world runs the real engine and worker together, with
   smith's agents.
 - **Below the domain, one tier per layer it adds:** step tests of every
-  codec, translation and parser, against golden bytes and transcripts of
-  real peers; machine worlds of the forge component, the git component
+  codec and translation with built-value round trips, records drift and
+  pinned constructs, and each parser against transcripts of real peers; machine worlds of the forge component, the git component
   and the terminal shell; the forge's protocol world; temper's client
   joined to the engine's root; the one-process world on skein's
   simulator; the real-loop world on one ring; reconcile's world; the
@@ -62,7 +62,7 @@ is still open (`README.md`, section 6).
 
 | Tier (skein/docs/foundation/testing-strategy.md, section 2) | In temper |
 |---|---|
-| step tests | every domain crate and every fake; every codec (golden bytes, bounds, fuzz targets) and each translation both ways; git's argument and environment builders, and git's output parsers against transcripts of real git (../protocol/git.md, section 9); Forgejo's decoders, skein's, against the conformance's transcripts (skein's `forge/README.md`, section 9), and GitHub's, skein's (skein's `forge/github.md`); the forges' records and a git identity's value, golden bytes and fuzz targets (../protocol/forge/engine.md, 1; ../protocol/credentials.md, section 4); `temper-service`'s routing of the forges: start, connect, stop, installations, generations and pasted values, and GitHub's three routes on the clients' listener (../protocol/forge/README.md, section 9; 2.1); the setup's machines, files and specs, and the box's machine (../protocol/setup/testing.md, 1); lib's are skein's |
+| step tests | every domain crate and every fake; every codec (records drift, pinned constructs, built-value round trips, bounds, fuzz targets) and each translation both ways; git's argument and environment builders, and git's output parsers against transcripts of real git (../protocol/git.md, section 9); Forgejo's decoders, skein's, against the conformance's transcripts (skein's `forge/README.md`, section 9), and GitHub's, skein's (skein's `forge/github.md`); the forges' records and a git identity's value, built-value round trips and fuzz targets (../protocol/forge/engine.md, 1; ../protocol/credentials.md, section 4); `temper-service`'s routing of the forges: start, connect, stop, installations, generations and pasted values, and GitHub's three routes on the clients' listener (../protocol/forge/README.md, section 9; 2.1); the setup's machines, files and specs, and the box's machine (../protocol/setup/testing.md, 1); lib's are skein's |
 | domain worlds | each child domain with the world as its parent, and each component's root domain with its child domains; most of temper's tests |
 | system worlds | the engine, the worker and smith's agents together; temper's client joined to the engine's root (2.1) |
 | machine worlds | the git component against scripted process ends and outputs; the terminal shell's loop against a scripted stdin and stdout; skein's, for the machines it ships, the forge component among them (skein's `forge/connection.md`, section 10) |
@@ -581,6 +581,7 @@ bin/temper-box/tests/proof_live.rs   B0's offline driver proofs (2.6, 2.7), next
 testing/temper-box-kit              what temper-box's test binaries share, compiled once for them all (tools/crates/design.md, 3.2): the stories' processes, forges, people and fixtures
 testing/temper-box-kit/src/github.rs   GitHub's App as processes (2.6): the fake GitHub, the fake LLM, an engine alone and a worker alone, the App made on the layer and connected through ctl
 testing/temper-box-kit/src/cluster.rs  the cluster's reader: `bin/temper-box/tests/fixtures/cluster/` started, awaited and stopped on skein-world's `Binary` (../protocol/cluster.md, 5)
+testing/temper-process-guard        the kit's process guard, its tests on real processes
 bin/temper-box/tests/fixtures/cluster  the retained cluster's description, read by the process tier
 bin/temper-box/tests/fixtures/github   the GitHub App's documents, its key and its workers' secrets, read by the kit's GitHub stories
 bin/temper-box/tests/live.rs         the live tier (2.7), nextest profile live-temper
@@ -594,6 +595,8 @@ crates/temper-playground            the world's composition, the playground's an
 crates/temper-playground-serve-tool the browser tier's static host for the playground's bundle, called by bin/temper-playground-serve (tools.md, 3)
 testing/temper-github-app           the App on the fake GitHub layer's first fixed key, its records, seeded in jig's secrets' store before a start (2.4)
 testing/temper-fixtures             the documents, transcripts, memory literals and local browser that temper's client crates and worlds share
+testing/temper-agent-fixtures       the agents' configuration as the worker's writer makes it
+testing/temper-landing-fixtures     a project's landing settings, typed, for the engine's and client's worlds
 tests/<component>/<child>           a child domain's world, temper-<component>-<child>-world
 tests/<component>/domain            a component's world: the engine's, the worker's
 tests/engine/forge                  the forge connector's world
@@ -632,12 +635,9 @@ scripts/proof-live.sh               the live tier
   in skein's `forge/setup/README.md`, section 5. temper's fake git program,
   its core in `crates/temper-fake-git` and its hosted half in
   `crates/temper-fake-git-hosted`, sits on the fake forge (`fakes.md`, 3).
-- **Machine worlds live beside what they test:** the forge component's is
-  in skein's `forge/connection.md`, section 10; the git component's is in
-  `tests/worker/protocol-git` (../protocol/git.md, section 9); the terminal's
-  in `temper-client-shell-terminal`'s own tests (../client/testing.md
-  ). temper's protocol world for the forge, over skein's crates, is
-  `tests/engine/protocol-forge` (../protocol/forge/README.md, section 9).
+- **Machine worlds live beside what they test,** as the layout places
+  them (../protocol/forge/README.md, section 9); the forge component's is
+  skein's (`forge/connection.md`, section 10).
 - **The setup's crates** test as step code does: `temper-forge-setup`'s
   files, specs and steps, and `temper-box-machine`'s machine, by their step
   tests (../protocol/setup/testing.md, 1); reconcile's machine by skein's world;

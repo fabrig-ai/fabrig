@@ -931,6 +931,8 @@ pub enum Fault {
     Unauthorized { account: u32 },
     /// The backend program failed, with its bounded standard error tail.
     Program { name: Box<[u8]>, exit: Option<u32>, detail: Box<[u8]> },
+    /// The host's program started without smith's tools.
+    Untooled { name: Box<[u8]>, detail: Box<[u8]> },
     /// The account spent its provider allowance, ending the run.
     Limited { account: u32, reset_at: Option<Time> },
     /// The provider refused the account, ending the run with its bounded code.

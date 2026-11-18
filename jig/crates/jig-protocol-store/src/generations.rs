@@ -101,7 +101,11 @@ pub(crate) fn map(number: u64, map: Map) -> Box<[u8]> {
     join(&generation(number), suffix)
 }
 pub(crate) fn is_temporary(name: &[u8]) -> bool {
-    let Some(hex) = name.strip_prefix(b"active.skein-") else {
+    let hex = match name.strip_prefix(b"active.skein-") {
+        Some(hex) => Some(hex),
+        None => name.strip_prefix(b"restore.skein-"),
+    };
+    let Some(hex) = hex else {
         return false;
     };
     if hex.len() != 16 {
@@ -367,7 +371,7 @@ struct CopyParent {
 }
 /// Generation `from`'s maps linked and copied (protocol/store/opening.md 2, step 2).
 /// A patch links the snapshot and all but the newest log segment, found over every
-/// page first, and every task log in logs/shard; a rehearsal copies everything.
+/// page first, and every task log in logs/shard; a whole rehearsal copies everything, while Openings skips store/logs.
 /// Refused links fall back to copies. Two suspended directory pages bound the
 /// depth-first logs walk, with each destination synced before returning to its parent.
 /// Directories are made 0o700, secrets opened private, copied files created
@@ -381,6 +385,7 @@ pub(crate) struct Copying {
     to: u64,
     chunk: u32,
     way: CopyWay,
+    reach: crate::Reach,
     newest: Option<u64>,
     map: Map,
     source: Option<Root>,
@@ -398,7 +403,8 @@ pub(crate) struct Copying {
     progress: Progress,
 }
 pub(crate) fn copy(root: Root, from: u64, chunk: u32, below: &mut crate::Below) -> Copying {
-    let mut copying = copy_between(root, root, from, from.checked_add(1).unwrap_or(0), chunk, below);
+    let mut copying =
+        copy_between(root, root, from, from.checked_add(1).unwrap_or(0), chunk, crate::Reach::Whole, below);
     copying.way = CopyWay::Link;
     copying
 }
@@ -408,6 +414,7 @@ pub(crate) fn copy_between(
     from: u64,
     to: u64,
     chunk: u32,
+    reach: crate::Reach,
     below: &mut crate::Below,
 ) -> Copying {
     let valid = from != 0 && to != 0 && chunk != 0;
@@ -426,6 +433,7 @@ pub(crate) fn copy_between(
         to,
         chunk,
         way: CopyWay::Copy,
+        reach,
         newest: None,
         map: Map::Store,
         source: None,
@@ -488,6 +496,17 @@ fn copy_page(copying: &mut Copying, queue: &mut Queue<file::Request>) {
     copying.step = CopyStep::Page;
 }
 fn copy_next(copying: &mut Copying, queue: &mut Queue<file::Request>) -> Progress {
+    for _ in 0..copying.entries.len() {
+        let Some(entry) = copying.entries.get(copying.next) else { break };
+        if copying.reach != crate::Reach::Openings
+            || copying.map != Map::Store
+            || !copying.parents.is_empty()
+            || entry.name.as_ref() != b"logs"
+        {
+            break;
+        }
+        copying.next = copying.next.checked_add(1).expect("page index bounded by PAGE");
+    }
     if let Some(entry) = copying.entries.get(copying.next) {
         if entry.kind == Kind::Directory {
             let enter = copying.map == Map::Store

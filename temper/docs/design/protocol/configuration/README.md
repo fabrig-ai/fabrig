@@ -194,14 +194,14 @@ document says what temper adds. What is open is listed in `README.md`, section 9
 
   | Shape | `engine` | `workers` | `application` |
   |---|---|---|---|
-  | standalone | present, `hosts.listener` `[{"in_process": "workers"}]` | one, its `engine` `{"in_process": "workers"}` | every member, `workers` one entry |
-  | engine alone | present, `hosts.listener` one socket address on loopback (in `127.0.0.0/8`, or `::1`), plaintext, its port fixed or 0; its workers settings an owner adds (`../cluster.md`, 2) | `[]` | every member, `workers` `[]` |
-  | worker alone | absent | one, its `engine` a socket address on loopback, plaintext | `workers`, one entry; no other member |
+  | standalone | present, `hosts.listener` `[{"in_process": "workers"}]` | one, its `engine` `{"in_process": "workers"}` | every member, `environment` among them |
+  | engine alone | present, `hosts.listener` one socket address on loopback (in `127.0.0.0/8`, or `::1`), plaintext, its port fixed or 0; its workers settings an owner adds (`../cluster.md`, 2) | `[]` | every member but `environment` |
+  | worker alone | absent | one, its `engine` a socket address on loopback, plaintext | `environment` or none; no other member |
 
   - an engine alone is checked as standalone is, but for its listener,
     by the table, and its workers, which it has none of by default;
-  - a worker alone is checked for its worker part and its entry of
-    `application.workers` (section 3), then for the figures its engine
+  - a worker alone is checked for its worker part and its
+    `application.environment` (section 3), then for the figures its engine
     sends and the agent configuration written from them (`figures.md`,
     section 3), and for nothing of an engine's;
   - any other document is refused, naming the member that departs from
@@ -289,8 +289,25 @@ is as the members' were:
 | `root` | a directory, a data path | made private (0o700) if absent; an existing one must be the process's user's, private, and not reached through a link | the worker's workspace directory: every checkout's workspace is made under it (../git.md, section 2; `../../domain/worker/checkouts.md`) |
 | `git` | string, or `null` | an absolute path to an executable file, checked at start, whose `git version` is at least the one ../git.md, section 3 names; `null` for none, as `temper-box init` writes it on a machine with no git (../setup/init.md, 2) | the program the git component runs for each invocation in a repository whose record names none (../channel.md, section 4), in the environment ../git.md, section 5 gives it; with `null`, each such invocation fails, naming its forge's host, and the row of each connected forge but a fake one warns (../git.md, section 3; `../../client/forge/deployment.md`). A forge whose record names a git program runs that instead: the playground's fake forge the machine's fake `git` (`engine.md`; ../setup/init.md, 2) |
 
-| `claude` | string, or absent | an absolute path to an executable file; absent, the `claude` found on `PATH` at start, or `"fetched"` with none | Claude Code's program in the agent configuration temper writes (`figures.md`, section 6) |
-| `environment` | a list of `{"name", "value"}`, or absent | names unique; absent, none | the variables the agents' programs get, in the agent configuration temper writes (`figures.md`, section 6) |
+**The agents' environment** is `application.environment`, in the
+standalone and worker-alone shapes; an engine alone, which runs no
+agent, refuses it as an unknown member. It's the worker's own: the
+variables its agents' programs get, by the rule of `figures.md`,
+section 6, which gives the worker process's own `HOME` and `PATH`
+where the list is absent or omits them. Its entries have the form and
+bounds a worker entry's `environment` had before the entries went:
+
+| Member | Type | Bounds | Feeds |
+|---|---|---|---|
+| `environment` | a list of `{"name", "value"}`, or absent | each entry an object of exactly `name` and `value`, both required, each a string of at most 1,048,576 bytes; names unique, a repeated one refused at its entry's `name`; each refusal names the entry, `application.environment[i]` and its member | the agent configuration's `environment`, which temper writes at each start (`figures.md`, section 6) |
+
+- **smith's own checks hold too:** smith's decoder reads the written
+  configuration back before the start goes on (`figures.md`, section 6),
+  so a name that is empty or holds `=` or a NUL, or a value holding a
+  NUL, refuses the start as smith's configuration refuses it.
+- **Claude Code's program is no member:** it's the `claude` found on the
+  worker's `PATH` at start, or `"fetched"` with none (`figures.md`,
+  section 6).
 
 - **The worker's root takes the rest from its engine's figures**
   (`figures.md`, section 3): the hub's limits, the checkout's and the

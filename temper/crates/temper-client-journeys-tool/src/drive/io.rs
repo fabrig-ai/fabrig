@@ -385,6 +385,9 @@ impl Session {
                     });
                     self.event(Event::DeploymentPrepared(result));
                 }
+                Action::ReadDeploymentWorker => {
+                    self.event(Event::DeploymentWorker(deployment::worker(&self.machine.plan)));
+                }
                 Action::ReadDeploymentPatch { document, path } => {
                     self.event(Event::DeploymentPatch(deployment::patch(&self.machine.plan, document, &path)));
                 }

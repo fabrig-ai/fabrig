@@ -2,7 +2,90 @@
 
 use core::fmt::Write;
 
-use crate::{generate, parse};
+use crate::{Golden, generate, goldens, parse};
+
+fn merge_family() -> String {
+    let mut source = String::from("family merging 7\n");
+    for index in 0_u32..120 {
+        writeln!(&mut source, "record Record{index} {{ payload: bytes 8 }}").expect("schema string");
+    }
+    source.push_str("versioned record Long {\n");
+    for index in 0_u32..100 {
+        writeln!(&mut source, " field{index}: list 2 option bytes 8").expect("schema string");
+    }
+    source.push_str("}\nrecord Flags { a: bool b: bool c: bool d: bool }\nenum Choice { empty, full: Record119 }\n");
+    source
+}
+
+#[test]
+fn changes_to_different_declarations_merge_line_by_line() {
+    let original = merge_family();
+    let cases = [
+        (
+            ("record Record2 { payload: bytes 8 }", "record Record2 { payload: bytes 8 added: text 4 }"),
+            ("record Record118", "record Added { extra: bytes 3 }\nrecord Record118"),
+        ),
+        (("c: bool d: bool", "c: bool d: bool e: bool"), ("enum Choice { empty,", "enum Choice { another, empty,")),
+        (
+            (" field50:", " inserted: option list 2 bytes 4\n field50:"),
+            ("record Record75 { payload: bytes 8 }", "record Record75 { payload: bytes 16 }"),
+        ),
+    ];
+    let scratch = skein_scratch::Scratch::new("codegen-merge");
+    let base = scratch.path().join("base.rs");
+    let left = scratch.path().join("left.rs");
+    let right = scratch.path().join("right.rs");
+    let generated = |source: &str| generate(&parse(source).expect("merge family")).records;
+    let base_output = generated(&original);
+    check_item_names(&base_output);
+    check_function_lengths(&base_output);
+    std::fs::write(&base, base_output).expect("base output");
+    for ((old_left, new_left), (old_right, new_right)) in cases {
+        std::fs::write(&left, generated(&original.replace(old_left, new_left))).expect("left output");
+        std::fs::write(&right, generated(&original.replace(old_right, new_right))).expect("right output");
+        let merged = std::process::Command::new("git")
+            .args(["merge-file", "-p"])
+            .args([&left, &base, &right])
+            .output()
+            .expect("git merge-file");
+        let conflicts = String::from_utf8_lossy(&merged.stdout)
+            .lines()
+            .filter(|line| line.starts_with("<<<<<<<") || line.starts_with("=======") || line.starts_with(">>>>>>>"))
+            .map(str::to_owned)
+            .collect::<Vec<_>>();
+        assert!(merged.status.success(), "{old_left} / {old_right}: {conflicts:?}");
+        let combined = original.replace(old_left, new_left).replace(old_right, new_right);
+        let expected = generated(&combined);
+        let actual = String::from_utf8(merged.stdout).expect("generated Rust is UTF-8");
+        let difference = actual.lines().zip(expected.lines()).find(|(actual, expected)| actual != expected);
+        assert!(actual == expected, "{old_left} / {old_right}: first differing lines {difference:?}");
+    }
+}
+
+#[test]
+fn fixed_rule_values_keep_names_order_and_bytes() {
+    let schema = parse("family f 1 record Note { title: text 8 }").expect("valid note");
+    assert_eq!(
+        goldens(&schema),
+        [
+            Golden { name: "record_note_smallest.bin".into(), bytes: vec![0, 0, 0, 0] },
+            Golden { name: "record_note_full.bin".into(), bytes: vec![0, 0, 0, 3, b'a', b'b', b'c'] },
+        ]
+    );
+}
+
+#[test]
+fn versioned_records_name_their_modules_version() {
+    for version in [1_u16, 4097] {
+        let schema = parse(&format!("family versioned {version}\nversioned record First {{ value: u8 }}\nversioned record Second {{}}\nrecord Plain {{ value: u16 }}")).expect("versioned family");
+        let output = generate(&schema);
+        assert!(
+            output.records.contains(&format!("pub const VERSION: u16 = {};", crate::emit_limits::literal(version)))
+        );
+        assert_eq!(output.records.matches("writer.put(&VERSION.to_be_bytes())?;").count(), 2);
+        assert_eq!(output.records.matches("if version != VERSION").count(), 2);
+    }
+}
 
 #[test]
 fn path_names_keep_schema_spelling_and_variant_order() {
@@ -28,7 +111,7 @@ fn limit_names_and_values_follow_field_order() {
         let schema = parse(text).expect("fixture family");
         let output = generate(&schema);
         let fields = output
-            .rust
+            .records
             .split_once("pub struct Limits {\n")
             .expect("limits struct")
             .1
@@ -38,8 +121,7 @@ fn limit_names_and_values_follow_field_order() {
             .lines()
             .map(|line| line.trim().strip_prefix("pub ").expect("public limit").split_once(':').expect("field type").0)
             .collect::<Vec<_>>();
-        let names = output.rust.split_once("pub const LIMIT_NAMES: [&str; ").expect("names constant").1;
-        let (count, names) = names.split_once("] = [\n").expect("array length");
+        let names = output.records.split_once("pub const LIMIT_NAMES: &[&str] = &[\n").expect("names slice").1;
         let names = names
             .split_once("];\n")
             .expect("names end")
@@ -47,18 +129,14 @@ fn limit_names_and_values_follow_field_order() {
             .lines()
             .map(|line| line.trim().trim_end_matches(',').trim_matches('"'))
             .collect::<Vec<_>>();
-        assert_eq!(count.parse::<usize>().expect("length"), fields.len());
         assert_eq!(names, fields);
-        let values = output.rust.split_once("pub fn values(&self) -> [u32; ").expect("values method").1;
-        let (count, values) = values.split_once("] {\n        [\n").expect("returned array");
-        let values = values
-            .split_once("        ]\n")
-            .expect("values end")
-            .0
-            .split_whitespace()
-            .map(|field| field.trim_end_matches(',').strip_prefix("self.").expect("limit value"))
+        assert!(output.records.contains("pub fn values(&self) -> List<u32>"));
+        let values = output
+            .records
+            .lines()
+            .filter_map(|line| line.trim().strip_prefix("values.push(self."))
+            .map(|line| line.split_once(')').expect("pushed field").0)
             .collect::<Vec<_>>();
-        assert_eq!(count.parse::<usize>().expect("length"), fields.len());
         assert_eq!(values, fields);
         if !fields.is_empty() {
             use skein_codec::schema::{LimitLevel, limit_child, limit_name};
@@ -84,50 +162,12 @@ fn limit_names_and_values_follow_field_order() {
 }
 
 #[test]
-fn records_are_apart_from_the_embedded_tests() {
+fn the_records_module_has_no_tests() {
     let schema = parse("family sample 1\nrecord Note { body: text 8 }\nenum Entry { note: Note, empty }")
         .expect("valid bounded record and enum");
-    let output = generate(&schema);
-    assert!(!output.records.contains("cfg(test)"));
-    assert!(!output.records.contains("#[test]"));
-    let (records, tests) = output.rust.split_once("\n#[cfg(test)]\n").expect("embedded test module");
-    assert_eq!(output.records, records);
-    assert!(tests.starts_with(
-        "mod golden_tests {\n    use super::{CEILINGS, Note, NoteParts, Entry, Path};\n    use super::Limits;\n"
-    ));
-    assert!(tests.contains("fn golden_0()"));
-    assert!(tests.contains("fn bounds_0()"));
-    assert!(tests.ends_with("}\n"));
-}
-
-#[test]
-fn tests_name_the_records_by_their_public_path() {
-    let output = generate(&parse("family sample 1\nrecord Note { body: text 8 }").expect("valid family"));
-    let tests = output.tests.text("sample_codec::v1");
-    assert_eq!(tests.lines().next(), output.records.lines().next());
-    assert!(tests.contains("use sample_codec::v1::{CEILINGS, Note, NoteParts, Path};"));
-    assert!(tests.contains("use sample_codec::v1::Limits;"));
-    assert!(!tests.contains("super::"));
-    assert!(tests.contains("#[cfg(test)]\nmod golden_tests {"));
-    assert!(tests.contains("fn golden_0()"));
-    assert!(tests.contains("fn bounds_0()"));
-}
-
-#[test]
-fn an_empty_schema_has_an_empty_tests_module() {
-    let output = generate(&parse("family sample 1").expect("valid empty family"));
-    assert_eq!(
-        output.tests.text("sample_codec::v1"),
-        "// Generated by skein-codegen from sample 1. Do not edit.\n\n#[cfg(test)]\nmod golden_tests {\n}\n"
-    );
-}
-
-#[test]
-fn the_tests_target_lists_modules_in_name_order() {
-    assert_eq!(
-        crate::tests_main(&["v20", "public_v1"]),
-        "// Generated by skein-codegen: the tests of this crate's generated record code. Do not edit.\n\n#[rustfmt::skip]\nmod public_v1;\n#[rustfmt::skip]\nmod v20;\n"
-    );
+    let crate::Output { records } = generate(&schema);
+    assert!(!records.contains("#[cfg(test)]"));
+    assert!(!records.contains("#[test]"));
 }
 
 fn list_measure(declarations: &str) -> String {
@@ -135,8 +175,10 @@ fn list_measure(declarations: &str) -> String {
     const ITEMS: u32 = 1;
     let source = format!("family measured 1\n{declarations}\nrecord Rows {{ values: list {ITEMS} Cell }}");
     let output = generate(&parse(&source).expect("valid measurement family"));
-    let (_, measure) =
-        output.rust.split_once("impl Rows {\n    /// Measures this record's wire encoding.").expect("Rows measurement");
+    let (_, measure) = output
+        .records
+        .split_once("impl Rows {\n    /// Measures this record's wire encoding.")
+        .expect("Rows measurement");
     measure.split_once("\n    /// Writes").expect("encoding follows measurement").0.to_owned()
 }
 
@@ -178,42 +220,65 @@ fn variable_record_lists_measure_each_value() {
 }
 
 #[test]
-fn a_family_of_120_records_has_no_function_past_100_lines() {
+fn family_and_field_helpers_have_no_ordinals_or_long_functions() {
     let mut records = String::new();
     for index in 0_u32..120 {
         writeln!(&mut records, "record Record{index} {{}}").expect("schema string");
     }
+    records.push_str("versioned record Scalars {\n");
+    for index in 0_u32..100 {
+        writeln!(&mut records, "field{index}: u8").expect("schema string");
+    }
+    records.push_str("}\n");
     let schema = parse(&format!("family many 1\n{records}")).expect("valid family");
     let output = generate(&schema);
-    assert!(output.rust.contains("fn encoded_bound_0("));
-    assert!(output.rust.contains("fn decoded_bound_0("));
+    assert!(output.records.contains("fn record0_encoded_bound_family("));
+    assert!(output.records.contains("fn record119_decoded_bound_family("));
+    check_item_names(&output.records);
+    assert!(output.records.contains("fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>)"));
+    assert!(output.records.contains("Self::decode_from_field0_field(limits, reader)?;"));
+    assert!(output.records.contains("fn decode_from_field0_field(_limits: &Limits,"));
     for name in ["worst_case_bytes", "worst_case_heap", "worst_case_bytes_within", "worst_case_heap_within"] {
-        assert!(!output.rust.contains(name), "old name {name}");
+        assert!(!output.records.contains(name), "old name {name}");
     }
-    check_function_lengths(&output.rust);
+    check_function_lengths(&output.records);
 }
 
-fn check_function_lengths(source: &str) {
+pub(super) fn check_item_names(source: &str) {
+    for line in source.lines() {
+        let words = line.split_whitespace().collect::<Vec<_>>();
+        for pair in words.windows(2) {
+            if ["fn", "struct", "enum", "const"].contains(pair.first().expect("item keyword")) {
+                let name = pair.get(1).expect("item name").split(['(', ':', '<', '{']).next().expect("identifier");
+                assert!(
+                    !name
+                        .rsplit_once('_')
+                        .is_some_and(|(_, tail)| !tail.is_empty() && tail.bytes().all(|byte| byte.is_ascii_digit())),
+                    "ordinal item: {name}"
+                );
+                assert!(
+                    !name
+                        .rsplit_once("Decoded")
+                        .is_some_and(|(_, tail)| !tail.is_empty() && tail.bytes().all(|byte| byte.is_ascii_digit())),
+                    "ordinal decoded type: {name}"
+                );
+            }
+        }
+    }
+}
+
+pub(super) fn check_function_lengths(source: &str) {
     let mut function = None;
     for (index, line) in source.lines().enumerate() {
         let trimmed = line.trim_start();
         if trimmed.starts_with("pub fn ") || trimmed.starts_with("pub(crate) fn ") || trimmed.starts_with("fn ") {
             let indent = line.len().checked_sub(trimmed.len()).expect("indent length");
-            function = Some((index, format!("{}}}", " ".repeat(indent)), 0_usize));
+            function = Some((index, format!("{}}}", " ".repeat(indent))));
         }
-        // Table rows count as cases, rather than function logic (testing-strategy.md, 8).
-        if let Some((_, _, rows)) = &mut function
-            && trimmed.starts_with("(\"")
-        {
-            *rows = rows.checked_add(1).expect("table row count");
-        }
-        if let Some((start, closing, rows)) = &function
+        if let Some((start, closing)) = &function
             && line == closing
         {
-            assert!(
-                index.checked_sub(*start).expect("function length").checked_sub(*rows).expect("table rows") < 100,
-                "function at line {start}"
-            );
+            assert!(index.checked_sub(*start).expect("function length") < 100, "function at line {start}");
             function = None;
         }
     }
@@ -224,74 +289,8 @@ fn a_boxed_scalar_record_imports_its_box() {
     let schema = parse("family scalar 1\nrecord Value { n: u8 }\nenum Choice { value: boxed Value }")
         .expect("valid boxed variant");
     let output = generate(&schema);
-    assert!(output.rust.contains("use alloc::boxed::Box;"));
-    assert!(output.rust.contains("Value(Box<Value>)"));
-}
-
-fn small_bound_family() -> crate::Output {
-    let schema = parse("family tiny 1\nrecord Value { payload: bytes 64 flags: list 2 u8 maybe: option bytes 10 }")
-        .expect("valid small family");
-    generate(&schema)
-}
-
-fn planted_golden_failure() -> bool {
-    crate::test_helpers::golden(1_u8, &[1], Ok::<_, ()>(Box::from([2_u8])), Ok::<_, ()>(1_u8))
-}
-
-#[test]
-fn golden_tables_name_each_planted_failure() {
-    let output = small_bound_family();
-    assert!(output.rust.contains("fn golden_0()"), "one golden table is generated");
-    assert!(output.rust.contains("static GOLDEN_0: [Case; 2]"));
-    let failures = crate::test_helpers::table(&[
-        ("record_value_smallest", planted_golden_failure),
-        ("record_value_full", planted_golden_failure),
-    ]);
-    assert_eq!(failures, [Some("record_value_smallest"), Some("record_value_full")]);
-    let passed = crate::test_helpers::table(&[("record_value_smallest", || {
-        crate::test_helpers::golden(1_u8, &[1], Ok::<_, ()>(Box::from([1_u8])), Ok::<_, ()>(1_u8))
-    })]);
-    assert_eq!(passed, [None], "a passing table has no failures");
-}
-
-#[test]
-fn a_table_test_checks_returned_failures_whatever_its_cases() {
-    let output = small_bound_family();
-    for name in ["golden", "bounds"] {
-        let item = name.to_uppercase();
-        assert!(!output.rust.contains(&format!("const {item}_")), "table items are static");
-        let mut tables = 0_usize;
-        for part in output.rust.split(&format!("fn {name}_")).skip(1) {
-            let (index, body) = part.split_once("() {\n").expect("table function");
-            let (body, _) = body.split_once("    }").expect("table function end");
-            let (_, cases) = output.rust.split_once(&format!("static {item}_{index}: [Case; ")).expect("table item");
-            let (cases, _) = cases.split_once(']').expect("table length");
-            assert_eq!(
-                body.trim(),
-                format!(
-                    "let failures = table(&{item}_{index});\n        assert!(failures == [None; {cases}], \"{{failures:?}}\");"
-                )
-            );
-            tables += 1;
-        }
-        assert_eq!(tables, 1, "the fixture has one {name} table");
-    }
-}
-
-#[test]
-fn bound_tables_decode_at_a_small_limit_and_one_past_it() {
-    let output = small_bound_family();
-    assert!(output.rust.contains("Limits { value_payload: 3, ..CEILINGS }"), "a large ceiling uses a small test limit");
-    assert!(output.rust.contains("Limits { value_flags: 2, ..CEILINGS }"), "a smaller ceiling remains the test limit");
-    assert!(
-        output.rust.contains("Limits { value_maybe_some: 3, ..CEILINGS }"),
-        "an optional field is tested at its own limit"
-    );
-    let passed = crate::test_helpers::bound(("ValuePayload", "Bound"), &3_u8, &[3], &[4], |limit, bytes| {
-        let count = *bytes.first().expect("count supplied");
-        if count <= *limit { Ok(()) } else { Err(("ValuePayload", "Bound")) }
-    });
-    assert!(passed, "at the small limit decodes and one past is refused");
+    assert!(output.records.contains("use alloc::boxed::Box;"));
+    assert!(output.records.contains("Value(Box<Value>)"));
 }
 
 #[test]
@@ -302,11 +301,8 @@ fn a_family_of_400_bounded_declarations_generates_in_half_a_second() {
     }
     let schema = parse(&source).expect("valid large family");
     let output = generate(&schema);
-    assert_eq!(output.goldens.len(), 800, "two fixed golden values per record");
-    assert_eq!(output.rust.matches("fn golden_").count(), 1, "at most 1,024 golden cases per table");
-    assert_eq!(output.rust.matches("fn bounds_").count(), 7, "at most 64 bound cases per table");
     assert_eq!(
-        output.rust.matches("check_limits(limits)?;").count(),
+        output.records.matches("check_limits(limits)?;").count(),
         0,
         "constructors and decoders check only their values"
     );
@@ -318,7 +314,7 @@ fn an_optional_unbounded_record_needs_no_bound_check() {
         parse("family tiny 1\nrecord Number { n: u64 }\nrecord Value { payload: bytes 3 maybe: option Number }")
             .expect("valid family");
     let output = generate(&schema);
-    assert!(!output.rust.contains("if let Some(some_0) = self.maybe.as_ref()"));
+    assert!(!output.records.contains("if let Some(some_0) = self.maybe.as_ref()"));
 }
 
 #[test]
@@ -327,7 +323,7 @@ fn a_bound_checks_its_familys_limits_once() {
     let output = generate(&schema);
     let mut functions = 0_usize;
     for name in ["encoded_bound", "decoded_bound"] {
-        for part in output.rust.split(&format!("fn {name}")).skip(1) {
+        for part in output.records.split(&format!("fn {name}")).skip(1) {
             let (signature, body) = part.split_once(" {").expect("function body");
             let (body, _) = body.split_once('}').expect("function closes");
             let checks = body.matches("check_limits(limits)").count();
@@ -356,7 +352,7 @@ fn a_limits_field_does_not_shadow_constructor_bounds() {
     )
     .unwrap();
     let output = generate(&schema);
-    let constructor = output.rust.split_once("impl Endpoint {").unwrap().1.split_once("/// Reads").unwrap().0;
+    let constructor = output.records.split_once("impl Endpoint {").unwrap().1.split_once("/// Reads").unwrap().0;
     assert!(constructor.contains("new(skein_limits: &Limits"), "{constructor}");
     assert!(constructor.contains("value.check(skein_limits)?"), "{constructor}");
 }

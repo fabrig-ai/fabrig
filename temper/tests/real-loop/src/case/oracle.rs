@@ -152,7 +152,7 @@ impl Observed {
                 && let Some(calls::Arg::Lit(command)) = argv.0.first()
             {
                 let name = if let Some(calls::Arg::Lit(verb)) = argv.0.get(1)
-                    && !matches!(*command, "me" | "inbox" | "sign-in" | "sign-out" | "pending" | "help")
+                    && !matches!(*command, "me" | "inbox" | "sign-in" | "sign-out" | "link" | "pending" | "help")
                 {
                     format!("{command} {verb}")
                 } else {
@@ -7581,21 +7581,16 @@ pub fn step_6_7(observed: &Observed) -> Vec<Miss> {
     cap_amendment(observed, &mut misses);
     cap_release(observed, &mut misses);
     cap_running(observed, &mut misses);
-    for (read, after) in
-        [(Read::CapInboxHeld, Read::CapInboxHeldAfter), (Read::CapInboxEnded, Read::CapInboxEndedAfter)]
-    {
+    for read in [Read::CapInboxHeld, Read::CapInboxEnded] {
         let inbox = document(observed, read);
-        let continuation = document(observed, after);
         step_check(
             &mut misses,
             "6.7",
             inbox["needs"]["cut"] == false
                 && inbox.pointer("/needs/rows").and_then(Value::as_array).is_some_and(Vec::is_empty)
-                && continuation["needs"]["cut"] == false
-                && continuation.pointer("/needs/after").is_some_and(Value::is_null)
-                && continuation.pointer("/needs/rows").and_then(Value::as_array).is_some_and(Vec::is_empty),
+                && inbox.pointer("/needs/after").is_some_and(Value::is_null),
             CAP_INBOX,
-            format_args!("{read:?} and {after:?} must show the person's complete empty inbox: {inbox}; {continuation}"),
+            format_args!("{read:?} must show the person's complete empty inbox with no continuation: {inbox}"),
         );
     }
     misses
@@ -7993,11 +7988,8 @@ mod cap_tests {
             "hold":null,"authority":{"authority":{"deadline":deadline()}}},
             "activity":source(CAP_A5,&a5_lines[..1],&[BUILT+1_000_000])}));
         observed.documents.insert(Read::CapOwnerWaiting, json!({"task":{"chip":{"task":CAP_OWNER}}}));
-        for (read, after) in
-            [(Read::CapInboxHeld, Read::CapInboxHeldAfter), (Read::CapInboxEnded, Read::CapInboxEndedAfter)]
-        {
-            observed.documents.insert(read, json!({"needs":{"cut":false,"after":{"value":"stored"},"rows":[]}}));
-            observed.documents.insert(after, json!({"needs":{"cut":false,"after":null,"rows":[]}}));
+        for read in [Read::CapInboxHeld, Read::CapInboxEnded] {
+            observed.documents.insert(read, json!({"needs":{"cut":false,"after":null,"rows":[]}}));
         }
     }
     fn queries(observed: &mut Observed) {
@@ -8240,7 +8232,7 @@ mod cap_tests {
     fn both_inbox_reads_are_complete_and_empty() {
         let fixture = met();
         let mut passing = fixture.clone();
-        for read in [Read::CapInboxHeld, Read::CapInboxHeldAfter, Read::CapInboxEnded, Read::CapInboxEndedAfter] {
+        for read in [Read::CapInboxHeld, Read::CapInboxEnded] {
             field(&mut passing, read, "/needs/cut", CAP_INBOX);
             let mut bad = fixture.clone();
             bad.documents.get_mut(&read).expect("inbox")["needs"]["rows"] = json!([{"question":1}]);
@@ -8248,10 +8240,10 @@ mod cap_tests {
         }
     }
     #[test]
-    fn both_inbox_continuations_must_be_exhausted() {
+    fn both_empty_inbox_reads_have_no_continuation() {
         let fixture = met();
         let mut passing = fixture.clone();
-        for read in [Read::CapInboxHeldAfter, Read::CapInboxEndedAfter] {
+        for read in [Read::CapInboxHeld, Read::CapInboxEnded] {
             field(&mut passing, read, "/needs/after", CAP_INBOX);
         }
     }
@@ -9745,7 +9737,6 @@ fn qa_ended(observed: &Observed) -> bool {
     .iter()
     .all(|(read, report)| text(task_document(observed, *read), "/result/value/report/bytes") == *report);
     let inbox = document(observed, Read::QaInboxEnded);
-    let after = document(observed, Read::QaInboxAfter);
     let roots = document(observed, Read::QaRootsEnded);
     tasks_done
         && reports
@@ -9753,8 +9744,9 @@ fn qa_ended(observed: &Observed) -> bool {
         && waiting_delivery(observed, Read::QaOwnerEnded, A1, SUBOWNER_REPORT, Agent::QaOwner)
         && waiting_delivery(observed, Read::QaOwnerEnded, A2, NEXT_REPORT, Agent::QaOwner)
         && waiting_delivery(observed, Read::QaDirectorEnded, A, OWNER_REPORT, Agent::QaDirector)
-        && [inbox, after].iter().all(|d| d["needs"]["cut"] == false && d["needs"]["rows"] == serde_json::json!([]))
-        && after["needs"]["after"].is_null()
+        && inbox["needs"]["cut"] == false
+        && inbox["needs"]["rows"] == serde_json::json!([])
+        && inbox.pointer("/needs/after").is_some_and(Value::is_null)
         && roots["live"] == serde_json::json!([])
         && roots["live_after"].is_null()
         && roots.pointer("/ended/rows/rows") == Some(&serde_json::json!([]))

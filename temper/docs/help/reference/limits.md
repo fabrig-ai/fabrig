@@ -29,7 +29,7 @@ Every limit application.limits.overrides takes: its unit, the stock's value and 
 - `root.journal.writes`: count, 12,288. Bounds unique writes per commit, including the saved deployment header; a decision has one fewer slot.
 - `root.journal.deliveries`: count, 512. Sets the door output count used in the default admission watermark, without capping a decision.
 - `root.journal.transcript_bytes`: bytes, 18,431,846. Bounds transcript bytes or a wrapped child row's owned bytes admitted to the journal.
-- `root.journal.result_bytes`: bytes, 334,999. Bounds owned result text or assignment section text admitted to a held delivery.
+- `root.journal.result_bytes`: bytes, 318,148. Bounds owned result text or assignment section text admitted to a held delivery.
 - `root.journal.run_bytes`: bytes, 65,536. Bounds a run charter's owned bytes in a held assignment.
 - `root.loads.loads`: count, 2. Bounds issued store loads, including abandoned reads awaiting their terminal answer.
 - `root.loads.rows`: count, 2. Bounds rows requested and accepted in one incoming store page.
@@ -41,7 +41,7 @@ Every limit application.limits.overrides takes: its unit, the stock's value and 
 - `root.brief.sections`: count, 10. Bounds brief sections the root gathers at once.
 - `root.brief.parts`: count, 2. Bounds parts in one gathered brief section.
 - `root.brief.read_bytes`: bytes, 131,584. Bounds bytes read for one gathered brief section.
-- `root.brief.brief_bytes`: bytes, 334,999. Bounds the body of a gathered brief.
+- `root.brief.brief_bytes`: bytes, 318,148. Bounds the body of a gathered brief.
 - `root.brief.gather_ms`: milliseconds, 300,000. Bounds the time spent gathering a brief.
 - `root.brief.budgets.task`: bytes, 131,584. Bounds task section bytes in a gathered brief.
 - `root.brief.budgets.dependencies`: bytes, 128. Bounds dependency section bytes in a gathered brief.
@@ -64,7 +64,7 @@ Every limit application.limits.overrides takes: its unit, the stock's value and 
 - `forge.subscriptions`: count, 128. Bounds subscriptions to forge topics.
 - `forge.entries`: count, 8. Bounds durable outbox entries in the forge connector.
 - `forge.named_calls`: count, 128. Bounds retained named calls and their connector payloads, independently of outbox entries.
-- `forge.changes`: count, 379. Bounds live changes retained by the forge connector.
+- `forge.changes`: count, 768. Bounds live changes retained by the forge connector.
 - `forge.issues`: count, 8. Bounds live issue projections retained by the forge connector.
 - `forge.landing_members`: count, 5. Bounds changes and held member branches in one landing; at least each project's batch.
 - `forge.resources_per_task`: count, 10. Bounds distinct forge names watched by one task, including held resources and subscribed branches.
@@ -104,7 +104,7 @@ Every limit application.limits.overrides takes: its unit, the stock's value and 
 - `forge.brief_bytes`: bytes, 131,584. Bounds bytes retained for one gathered forge brief section.
 - `forge.tiers.tiers`: count, 2. Bounds tiers retained per repository.
 - `forge.tiers.failing_tests`: count, 16. Bounds failing tests reported per tier run.
-- `forge.tiers.test_id_bytes`: bytes, 256. Bounds a failing test's identifier in a tier's report.
+- `forge.tiers.test_id_bytes`: bytes, 512. Bounds a failing test's identifier in a tier's report.
 - `forge.sitting_ms`: milliseconds, 1,800,000. Sets the gap between a person's sittings on Home.
 - `forge.queue_window_ms`: milliseconds, 30,000. Sets the time allowed to gather a landing queue.
 - `forge.client.pending`: count, 4. Bounds logical forge calls retained, queued and in flight.

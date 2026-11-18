@@ -74,6 +74,7 @@ fn startup_pins_composed_default_file_and_fallback_figures() {
             &temper_service_shell::jig_directories(&dirs),
             &temper_service::stock::Given::Stock,
             &temper_service::stock::agents(),
+            &[],
         )
         .expect("box part")
         .expect("worker");
@@ -89,14 +90,16 @@ fn startup_pins_composed_default_file_and_fallback_figures() {
             "corrupt" => fs::write(&copy, b"not a setting").expect("bad copy"),
             _ => {}
         }
-        let operations =
-            serve::operations_in("temper-box", &[], b"/", &dirs, &serde_json::to_vec(&document).expect("JSON"))
-                .unwrap_or_else(|why| panic!("{case}: {why}"));
+        let mut owned = Vec::new();
+        let checked = crate::prepare(&[], b"/", &dirs, &serde_json::to_vec(&document).expect("JSON"), &mut owned)
+            .map(|service| service.operations());
+        crate::close(owned);
+        let operations = checked.unwrap_or_else(|why| panic!("{case}: {why}"));
         assert!(operations > 0);
         let pinned = root.join("workspaces/agent/agent.json");
         let actual: serde_json::Value =
             serde_json::from_slice(&fs::read(&pinned).expect("pinned agent")).expect("agent JSON");
-        let mut expected = temper_fixtures::agent::at(&document, root);
+        let mut expected = temper_agent_fixtures::at(&document, root);
         expected["programs"]["claude_code"]["directory"] = serde_json::json!(root.join("programs"));
         // The selected port is pinned against the retained listener in the box-start test below.
         expected["endpoints"]
@@ -195,6 +198,7 @@ fn box_refuses_sixty_five_endpoints_before_composing() {
         &temper_service_shell::jig_directories(&dirs),
         &given,
         &temper_service::stock::agents(),
+        &[],
     )
     .expect_err("endpoint bound");
     assert!(
@@ -225,7 +229,10 @@ fn every_box_pins_the_chosen_scripted_listener_in_its_fixed_provider_and_worker(
         crate::setup::check_with(&bytes, &temper_service_shell::jig_directories(&dirs), &given).unwrap().demo.unwrap();
     assert_eq!(demo.llm().listen(), address);
     let environment = [(Box::from(crate::scripted::ADDRESS), address.to_string().into_bytes().into_boxed_slice())];
-    serve::operations_in("temper-box", &environment, b"/", &dirs, &bytes).unwrap();
+    let mut owned = Vec::new();
+    let prepared = crate::prepare(&environment, b"/", &dirs, &bytes, &mut owned).unwrap();
+    drop(prepared);
+    crate::close(owned);
     let actual: serde_json::Value =
         serde_json::from_slice(&fs::read(scratch.path().join("workspaces/agent/agent.json")).unwrap()).unwrap();
     let endpoint = actual["endpoints"].as_array().unwrap().iter().find(|endpoint| endpoint["name"] == "demo").unwrap();

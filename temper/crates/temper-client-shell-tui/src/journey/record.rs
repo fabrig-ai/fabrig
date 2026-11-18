@@ -75,7 +75,7 @@ impl Recorder {
     pub fn new(facts: &Facts) -> Self {
         let mut this = Self { file: Vec::new(), turn: None, kept: false };
         for line in [
-            Line::Journey { version: 2 },
+            Line::Journey { version: 3 },
             Line::Seed(facts.seed),
             Line::Clocks { now: facts.now, wall: facts.wall },
             Line::Screen { size: facts.size, scheme: facts.scheme },
@@ -182,6 +182,8 @@ impl Recorder {
 
 fn heard(event: &Event) -> Line {
     match event {
+        Event::Part { exchange, message } => Line::Part { exchange: exchange.raw(), bytes: message.clone() },
+        Event::Done { exchange } => Line::Done(exchange.raw()),
         Event::Reply { exchange, message } => Line::Reply { exchange: exchange.raw(), bytes: message.clone() },
         Event::Lost { exchange } => Line::Unanswered(exchange.raw()),
         Event::StreamGone => Line::Gone,
@@ -200,6 +202,7 @@ fn heard(event: &Event) -> Line {
         | Event::SignIn { .. }
         | Event::SignOut
         | Event::Authorize { .. }
+        | Event::AskLink
         | Event::AskApproval
         | Event::ReadApproval { .. }
         | Event::DecideApproval { .. }
@@ -225,8 +228,12 @@ pub(super) fn asked(duties: &Duties) -> Vec<Line> {
                 message: Sent::of(message),
                 credential: credential.as_ref().map(|secret| secret.expose().into()),
             }),
-            Request::OpenStream { credential } => {
-                lines.push(Line::Stream(credential.as_ref().map(|secret| secret.expose().into())));
+            Request::OpenStream { credential, replaces, .. } => {
+                let credential = credential.as_ref().map(|secret| secret.expose().into());
+                lines.push(match replaces {
+                    Some(stream) => Line::Replacing { credential, stream: Box::from(*stream) },
+                    None => Line::Stream(credential),
+                });
             }
             Request::CloseStream => lines.push(Line::Unstream),
             Request::Save { records } => {
@@ -241,6 +248,7 @@ pub(super) fn asked(duties: &Duties) -> Vec<Line> {
             }
             Request::Told { .. }
             | Request::Authorized(_)
+            | Request::AskedLink(_)
             | Request::Approval(_)
             | Request::ServiceCredential { .. } => {
                 panic!("a duty outside the native shell's seam")
@@ -286,7 +294,12 @@ pub(super) fn is_ask(line: &Line) -> bool {
 
 pub(super) fn duty_order(line: &Line) -> Option<u8> {
     match line {
-        Line::Send { .. } | Line::Stream(_) | Line::Unstream | Line::Save { .. } | Line::Erase(_) => Some(0),
+        Line::Send { .. }
+        | Line::Stream(_)
+        | Line::Replacing { .. }
+        | Line::Unstream
+        | Line::Save { .. }
+        | Line::Erase(_) => Some(0),
         Line::Keep(_) => Some(1),
         Line::Note(_) => Some(2),
         Line::Signed(_) => Some(3),
@@ -321,6 +334,8 @@ pub(super) fn duty_order(line: &Line) -> Option<u8> {
         | Line::Key { .. }
         | Line::Resize(_)
         | Line::Reply { .. }
+        | Line::Part { .. }
+        | Line::Done(_)
         | Line::Unanswered(_)
         | Line::Streamed(_)
         | Line::Gone

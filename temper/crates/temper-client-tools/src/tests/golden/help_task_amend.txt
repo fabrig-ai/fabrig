@@ -1,6 +1,6 @@
-task amend TASK [--rev REV] [--priority PRIORITY | --untracked] [--deadline TIME | --no-deadline] [--instructions FILE] [--spec FILE] [--dependency TASK]... [--no-dependencies] [--model MODEL [--effort EFFORT]] [--tasks N] REASON [--key KEY]
+task amend TASK [--rev REV] [--priority PRIORITY | --untracked] [--deadline TIME | --no-deadline] [--instructions FILE] [--spec FILE] [--dependency TASK]... [--no-dependencies] [--model MODEL [--effort EFFORT]] [--budget AMOUNT] [--tasks N] [--to-party PARTY | --to-role ROLE] REASON [--key KEY]
   TASK (task): a number; required. The task's number
-  --rev REV: a number; optional. The spec revision the task prints; not needed for its priority alone
+  --rev REV: a number; optional. The spec revision the task prints; not needed for its priority or its address alone
   --priority PRIORITY: a number; optional. Track it at this priority
   --untracked: a switch. Stop tracking it
   --deadline TIME: text, at most 1048576 bytes; optional. Its new deadline, as 2026-10-24T17:00Z
@@ -13,6 +13,9 @@ task amend TASK [--rev REV] [--priority PRIORITY | --untracked] [--deadline TIME
   --effort EFFORT: text, at most 1048576 bytes, or - to read stdin; optional. An effort that model offers
   REASON (reason): text, at most 1048576 bytes, or - to read stdin; required. Why
   --tasks N: a number; optional. The tasks its subtree may make over its life; the rest of its authority kept
+  --to-party PARTY: a number; optional. Address the person task to this party
+  --to-role ROLE: a number from 0 to 4294967295; optional. Address the person task to this role of its project
+  --budget AMOUNT: an amount with at most two decimals, as 130 or 1.25; optional. Its budget, as task show prints it; the rest of its authority kept
 Amend a task: each control you name is replaced, the rest kept
 Prints: `done: task N, amend`, or `proposed: PROPOSAL, to RECIPIENT` when another party must agree
 --json: the record amend.
@@ -22,3 +25,5 @@ task show TASK`. Each file is read before anything is sent, one
 final newline trimmed, at most 32768 bytes of UTF-8. An amendment
 that names no change fails (exit 1); one that names a value the task
 already has is sent, and the engine answers it.
+An address re-addresses at this read's person revision; a non-person
+task fails (exit 1).

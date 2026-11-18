@@ -242,6 +242,7 @@ fn repository(name: &[u8], writable: bool) -> Repository {
         account: None,
         push,
         expected: None,
+        delivered: None,
         landing: None,
     }
 }
@@ -979,6 +980,185 @@ fn a_new_hold_delivers_the_existing_change_without_another_edit() {
         &*landings(h.one(Event::Done { owner: second, done: Done::Succeeded })),
         &[Landing::Landed { commit: commit(11) }]
     );
+}
+
+/// Prepare the task's push branch at `head`, with only the assignment as delivery evidence.
+fn delivered_hold(h: &mut Harness, client: u64, delivered: Option<Commit>, head: Commit) -> Token {
+    let repo = Repository { delivered, ..repository(b"a", true) };
+    let (hold, mut op) = h.prepare(client, spec(b"w", Box::new([repo])));
+    if let Op::Make { .. } = op {
+        assert_eq!(h.next(hold, Done::Succeeded).kind(), Kind::Clone);
+        op = h.next(hold, Done::Succeeded);
+    }
+    let Op::Fetch { want: Want::Branch { branch }, .. } = op else { panic!("fetch the start") };
+    assert_eq!(&*branch, b"main");
+    let Op::Point { into: Into::Landing, commit: pinned, .. } = h.next(hold, Done::Fetched { commit: head }) else {
+        panic!("pin the fetched push head")
+    };
+    assert_eq!(pinned, head);
+    let Op::CheckOut { commit: start, .. } = h.next(hold, Done::Succeeded) else { panic!("check out the start") };
+    assert_eq!(start, head);
+    let Prepared::Ready { .. } = prepared(h.one(Event::Done { owner: hold, done: Done::Succeeded })) else {
+        panic!("ready at the push head")
+    };
+    hold
+}
+
+#[test]
+fn a_tasks_delivery_outlives_its_hold_and_a_worker_restart() {
+    for restart in [false, true] {
+        let mut h = Harness::new(LIMITS);
+        let first = h.ready(1, one(b"w"));
+        h.one(Event::Push { hold: first, message: message() });
+        h.next(first, Done::Committed { commit: commit(11) });
+        assert_eq!(
+            &*landings(h.one(Event::Done { owner: first, done: Done::Succeeded })),
+            &[Landing::Landed { commit: commit(11) }]
+        );
+        h.one(Event::Release { hold: first });
+        if restart {
+            h = Harness::new(LIMITS);
+        }
+        let hold = delivered_hold(&mut h, 2, Some(commit(11)), commit(11));
+        let Op::Commit { at, parent, .. } = io(h.one(Event::Push { hold, message: message() }), hold) else {
+            panic!("commit on the new start")
+        };
+        assert_eq!(parent, commit(11));
+        assert_eq!(
+            h.next(hold, Done::Unchanged),
+            Op::Push {
+                at,
+                remote: remote(b"a"),
+                commit: commit(11),
+                branch: bytes(b"main"),
+                expected: Some(commit(11)),
+                identity: 0,
+                account: None,
+            }
+        );
+        assert_eq!(
+            &*landings(h.one(Event::Done { owner: hold, done: Done::Succeeded })),
+            &[Landing::Landed { commit: commit(11) }]
+        );
+        h.one(Event::Push { hold, message: message() });
+        assert_eq!(
+            &*landings(h.one(Event::Done { owner: hold, done: Done::Unchanged })),
+            &[Landing::Landed { commit: commit(11) }],
+            "finish reuses the checked push's landing without another push"
+        );
+    }
+}
+
+#[test]
+fn a_clean_new_hold_without_its_own_delivery_is_unchanged() {
+    let mut h = Harness::new(LIMITS);
+    let hold = delivered_hold(&mut h, 1, None, commit(11));
+    h.one(Event::Push { hold, message: message() });
+    assert_eq!(&*landings(h.one(Event::Done { owner: hold, done: Done::Unchanged })), &[Landing::Unchanged]);
+}
+
+#[test]
+fn a_push_branch_past_the_tasks_delivery_is_unchanged() {
+    let mut h = Harness::new(LIMITS);
+    let hold = delivered_hold(&mut h, 1, Some(commit(11)), commit(12));
+    h.one(Event::Push { hold, message: message() });
+    assert_eq!(&*landings(h.one(Event::Done { owner: hold, done: Done::Unchanged })), &[Landing::Unchanged]);
+}
+
+#[test]
+fn repushing_the_tasks_delivery_refuses_a_branch_moved_since_prepare() {
+    let mut h = Harness::new(LIMITS);
+    let hold = delivered_hold(&mut h, 1, Some(commit(11)), commit(11));
+    h.one(Event::Push { hold, message: message() });
+    retry_push(h.next(hold, Done::Unchanged), commit(11), commit(11));
+    assert_eq!(&*landings(h.one(Event::Done { owner: hold, done: Done::Rejected })), &[Landing::Moved]);
+}
+
+#[test]
+fn a_save_does_not_repush_the_tasks_delivery() {
+    let mut h = Harness::new(LIMITS);
+    let hold = delivered_hold(&mut h, 1, Some(commit(11)), commit(11));
+    h.one(Event::PushUnchecked { hold });
+    assert_eq!(&*landings(h.one(Event::Done { owner: hold, done: Done::Unchanged })), &[Landing::Unchanged]);
+    h.one(Event::Save { hold, message: message() });
+    assert_eq!(&*landings(h.one(Event::Done { owner: hold, done: Done::Unchanged })), &[Landing::Unchanged]);
+}
+
+#[test]
+fn own_delivery_precedes_a_producers_landing_comparison_including_a_contained_merge() {
+    for merge in [false, true] {
+        let mut h = Harness::new(MERGES);
+        let repo = Repository {
+            delivered: Some(commit(1)),
+            start: if merge {
+                Start::Merge { branch: bytes(b"main"), base: commit(7) }
+            } else {
+                Start::Branch { branch: bytes(b"main") }
+            },
+            ..retry_repository()
+        };
+        let (hold, _) = h.prepare(1, spec(b"w", Box::new([repo])));
+        h.next(hold, Done::Succeeded);
+        h.next(hold, Done::Succeeded);
+        let mut op = h.next(hold, Done::Fetched { commit: commit(1) });
+        if merge {
+            let Op::Fetch { want: Want::Commit { commit: base }, .. } = op else { panic!("fetch merge base") };
+            assert_eq!(base, commit(7));
+            h.next(hold, Done::Fetched { commit: commit(7) });
+            compares(h.next(hold, Done::Succeeded), commit(7), commit(1));
+            op = h.next(hold, Done::IsAncestor { contains: true });
+        }
+        landing_fetch(op);
+        h.next(hold, Done::Fetched { commit: commit(7) });
+        let Prepared::Ready { .. } = prepared(h.one(Event::Done { owner: hold, done: Done::Succeeded })) else {
+            panic!("ready without a merge")
+        };
+        h.one(Event::Push { hold, message: message() });
+        retry_push(h.next(hold, Done::Unchanged), commit(1), commit(1));
+        assert_eq!(
+            &*landings(h.one(Event::Done { owner: hold, done: Done::Succeeded })),
+            &[Landing::Landed { commit: commit(1) }]
+        );
+    }
+}
+
+#[test]
+fn own_delivery_keeps_an_explicit_lease_and_verifies_an_ambiguous_push() {
+    let mut h = Harness::new(LIMITS);
+    let repo = Repository { delivered: Some(commit(1)), expected: Some(commit(7)), ..repository(b"a", true) };
+    let hold = h.ready(1, spec(b"w", Box::new([repo])));
+    h.one(Event::Push { hold, message: message() });
+    retry_push(h.next(hold, Done::Unchanged), commit(1), commit(7));
+    assert_eq!(h.next(hold, failed(Fault::TimedOut)).kind(), Kind::Fetch);
+    assert_eq!(
+        &*landings(h.one(Event::Done { owner: hold, done: Done::Fetched { commit: commit(1) } })),
+        &[Landing::Landed { commit: commit(1) }]
+    );
+}
+
+#[test]
+fn own_delivery_requires_the_fetched_push_head_and_the_checkout_start() {
+    for (start, push, delivered) in [(1, 2, 1), (2, 1, 1)] {
+        let mut h = Harness::new(LIMITS);
+        let repo = Repository {
+            start: Start::Branch { branch: bytes(b"other") },
+            delivered: Some(commit(delivered)),
+            ..repository(b"a", true)
+        };
+        let (hold, _) = h.prepare(1, spec(b"w", Box::new([repo])));
+        h.next(hold, Done::Succeeded);
+        h.next(hold, Done::Succeeded);
+        let Op::Fetch { want: Want::Branch { branch }, .. } = h.next(hold, Done::Fetched { commit: commit(start) })
+        else {
+            panic!("fetch the distinct push branch")
+        };
+        assert_eq!(&*branch, b"main");
+        let Op::CheckOut { commit: checked, .. } = h.replaced(hold, commit(push)) else { panic!("check out start") };
+        assert_eq!(checked, commit(start));
+        h.one(Event::Done { owner: hold, done: Done::Succeeded });
+        h.one(Event::Push { hold, message: message() });
+        assert_eq!(&*landings(h.one(Event::Done { owner: hold, done: Done::Unchanged })), &[Landing::Unchanged]);
+    }
 }
 
 fn compares(op: Op, expected_ancestor: Commit, expected_commit: Commit) {

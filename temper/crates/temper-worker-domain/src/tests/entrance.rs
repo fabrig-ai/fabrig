@@ -255,6 +255,7 @@ fn landing_branch_is_bounded_and_translated_to_checkout() {
             push: Box::from(&b"topic"[..]),
             expected: Some([1; 32]),
             landing: Some(skein_lib::bytes::zeroed(length)),
+            delivered: None,
         };
         if length == 32 {
             assert_eq!(crate::assignment::check(&workspace, &h.env.limits), Ok(()));

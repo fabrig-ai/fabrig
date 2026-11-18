@@ -299,6 +299,7 @@ fn people_roles_config(seed: u64) -> (engine::Config, engine::Limits) {
 
 fn sign_in_person(driver: &mut Driver, user: u64, reply: u64) -> (u64, u64) {
     driver.send(engine::Event::Party(engine::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(reply)),
         identity: people::Identity {
@@ -5214,6 +5215,7 @@ fn signing_in_with_a_live_held_sign_in_keeps_its_number_expiry_and_pool() {
     let expires = before.iter().find(|(number, _, _)| *number == session).expect("live sign-in").2;
     let reply = Token::new(1101);
     driver.send(engine::Event::Party(engine::PartyInput::SignedIn {
+        until: None,
         reply_to: ReplyTo::new(reply),
         identity: people::Identity {
             key: temper_engine_domain_forge::user_key(1, 7_u64),
@@ -5485,7 +5487,7 @@ fn restored_rejection_reaches_jigs_link_pass_after_temper_loads_it() {
         if let Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task))) = row
             && let tasks::Escalation::Rejected { by, .. } = &mut task.escalation
         {
-            *by = 999;
+            *by = tasks::EscalationDecider::Person(999);
             record = Some(jig_domain_core::Key::Tasks(tasks::Key::Live(task.number)));
             changed += 1;
         }

@@ -137,6 +137,10 @@ pub struct Repository {
     /// Exact old head required for the push branch; None requests
     /// ordinary fast-forward. Successful pushes advance this condition.
     pub expected: Option<Commit>,
+    /// Head of this task's last checked push to `push`, as the engine recorded it.
+    /// Evidence only when prepare fetched that push head and the checkout starts on it
+    /// (temper/docs/design/domain/worker/checkouts.md, A task's own delivery outlives its hold).
+    pub delivered: Option<Commit>,
     /// Landing branch comparison, used by producer merge starts and Branch starts on the push target.
     pub landing: Option<Box<[u8]>>,
 }

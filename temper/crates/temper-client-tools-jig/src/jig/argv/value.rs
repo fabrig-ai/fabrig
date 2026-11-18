@@ -20,7 +20,7 @@ pub(super) fn valid(
         return if *value == Value::Switch { Ok(()) } else { Err(Usage::Kind { tool: 0, form: 0, argument }) };
     }
     let correct = match spec.kind {
-        Kind::Number | Kind::Count | Kind::Places | Kind::NumberRange { .. } => {
+        Kind::Amount | Kind::Number | Kind::Count | Kind::Places | Kind::NumberRange { .. } => {
             return valid_number(spec, value, argument, limits);
         }
         Kind::NamedNumber { words, prefixes, .. } => {
@@ -114,6 +114,7 @@ pub(super) fn valid(
 pub fn decode(table: &[&Tool], kind: Kind, bounds: Bound, word: &[u8]) -> Option<Value> {
     Some(match kind {
         Kind::Number | Kind::Count => Value::Number(number(word)?),
+        Kind::Amount => Value::Number(amount(word)?),
         Kind::NumberRange { .. } | Kind::Places => {
             let Bound::Numbers { least, most } = bounds else { return None };
             Value::Number(bounded_number(word, least, most)?)
@@ -223,6 +224,23 @@ pub(super) fn number(word: &[u8]) -> Option<u64> {
     }
     Some(value)
 }
+fn amount(word: &[u8]) -> Option<u64> {
+    for (at, byte) in word.iter().enumerate() {
+        if *byte == b'.' {
+            let whole = number(word.get(..at)?)?.checked_mul(100)?;
+            let digits = word.get(at.checked_add(1)?..)?;
+            let fraction = if digits.len() == 1 {
+                number(digits)?.checked_mul(10)?
+            } else if digits.len() == 2 {
+                number(digits)?
+            } else {
+                return None;
+            };
+            return whole.checked_add(fraction);
+        }
+    }
+    number(word)?.checked_mul(100)
+}
 fn worker_name(name: &[u8]) -> bool {
     let Some(first) = name.first() else { return false };
     if !first.is_ascii_alphanumeric() {
@@ -263,6 +281,13 @@ fn hex(word: &[u8]) -> Option<Box<[u8]>> {
 }
 pub(crate) fn encode(table: &[&Tool], kind: Kind, value: &Value) -> Result<Box<[u8]>, Unwritten> {
     Ok(match value {
+        Value::Number(n) if kind == Kind::Amount => {
+            let mut measured = crate::jig::render::Text::measure();
+            crate::jig::render::amount(*n, &mut measured);
+            let mut out = crate::jig::render::Text::writing_exact(measured);
+            crate::jig::render::amount(*n, &mut out);
+            out.finish()
+        }
         Value::Number(n) => Box::from(Decimal::of(*n).as_bytes()),
         Value::Word(index) => {
             let Kind::Word { set } = kind else {

@@ -61,7 +61,8 @@
 - **Each iteration:** the transport iterates; its loaded records start
   the client (`README.md`, 3.4); signing in, by the link or with the token DIRECTORY
   holds (`README.md`, section 4); the token written once signed in by a link; the
-  transport's events into the domain; the domain's `fire`; the
+  transport's events into the domain; the domain's `fire`; the domain
+  settled once (jig's `client/domain/root.md`, section 3); the
   transport's requests carried; the view built; each whole line made
   into one command and done; a print, when one is due; the output
   written.

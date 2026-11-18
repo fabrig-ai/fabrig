@@ -135,13 +135,13 @@ pub fn write(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> std::io::R
         &directory.join("providers.setting"),
         &jig_protocol_config::llm::provider_values(&crate::settings::configuration(&config).llm),
     )?;
-    temper_fixtures::agent::apply(&mut config, directory, &agent);
+    temper_agent_fixtures::apply(&mut config, directory, &agent);
     finish_configuration(directory, &mut config)
 }
 pub(crate) type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
 /// Machine programs are found through PATH, as in the shipped worker.
 pub(crate) fn environment(directory: &Path) -> Vec<EnvironmentEntry> {
-    let path = if crate::claude::configured(directory) {
+    let path = if directory.join("bin").is_dir() {
         format!("{}:/usr/bin:/bin", directory.join("bin").display())
     } else {
         "/usr/bin:/bin".into()
@@ -188,7 +188,7 @@ pub(crate) fn bind(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> std:
     config["world_settings"] = serde_json::from_slice(&std::fs::read(directory.join("world-settings.json"))?)?;
     bind_documents(&mut agent, &mut config, llm, forge);
     private(&agent_path, &serde_json::to_vec(&agent)?)?;
-    temper_fixtures::agent::apply(&mut config, directory, &agent);
+    temper_agent_fixtures::apply(&mut config, directory, &agent);
     finish_configuration(directory, &mut config)
 }
 
@@ -448,7 +448,7 @@ pub(crate) fn finish_configuration(directory: &Path, value: &mut serde_json::Val
         &directory.join("providers.setting"),
         &jig_protocol_config::llm::provider_values(&running.llm),
     )?;
-    let agent = temper_fixtures::agent::at(value, directory);
+    let agent = temper_agent_fixtures::at(value, directory);
     turn_bounds::apply(value, turn_bounds::turn_body(&agent));
     let mut flags =
         value.as_object_mut().expect("configuration").remove("world_settings").unwrap_or(serde_json::json!({}));

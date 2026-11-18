@@ -257,6 +257,9 @@ fn up(root: &mut d::Domain, up: jig_client::Up) -> Queue<d::Request> {
     event(root, d::Event::Client { event: jig_client::Event::Up { up } })
 }
 fn opening(out: &Queue<d::Request>, subject: jig_client::Watchable) -> Token {
+    if subject == jig_client::Watchable::Jig(c::Subject::Me) {
+        return Token::new(0);
+    }
     out.iter()
         .find_map(|r| {
             if let d::Request::Unlinked {
@@ -292,7 +295,6 @@ pub(crate) fn fed(kind: d::WayKind) -> (d::Domain, Token, Token) {
         out.push(r);
     }
     let me_watch = opening(&out, jig_client::Watchable::Jig(c::Subject::Me));
-    let accounts = opening(&out, jig_client::Watchable::Jig(c::Subject::Accounts));
     let mut more = up(
         &mut root,
         jig_client::Up::Watched { watch: me_watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) },
@@ -300,6 +302,7 @@ pub(crate) fn fed(kind: d::WayKind) -> (d::Domain, Token, Token) {
     while let Some(r) = more.pop() {
         out.push(r);
     }
+    let accounts = opening(&out, jig_client::Watchable::Jig(c::Subject::Accounts));
     let trials = opening(&out, d::forge::trials::watch(&f::limits().forge).unwrap());
     for request in &out {
         if let d::Request::Unlinked {

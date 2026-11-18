@@ -404,7 +404,7 @@ pub(crate) fn named_escalation(
         reply_to: ReplyTo::new(token),
         task,
         revision,
-        by: key.task,
+        by: tasks::EscalationDecider::Task(key.task),
         entry,
         decision: semantic,
     })));

@@ -59,7 +59,7 @@ this design.
 | JSON | `skein-json` | a bounded tokenizer, a sized writer | [data/json.md](data/json.md) |
 | DEFLATE | `skein-deflate` | raw DEFLATE: a whole input compressed within a bound, and one stream inflated within its caller's room | [data/deflate.md](data/deflate.md) |
 | framed channels | `skein-channel` | a framed channel between two peers over a stream: an opening that agrees a version, bounds, flow control | [net/channel.md](net/channel.md) |
-| codecs | `skein-codec`, `skein-codegen` | records described by schemas, and their codecs, bounds and golden bytes generated from them | [data/codec/README.md](data/codec/README.md) |
+| codecs | `skein-codec`, `skein-codegen` | records described by schemas, and their codecs and bounds generated from them, their bytes pinned once by the `every` fixture | [data/codec/README.md](data/codec/README.md) |
 | schema diffs | `skein-codegen` | matching two family versions and listing their changes | [data/codec/diff.md](data/codec/diff.md) |
 | record patches | `skein-codec` | versioned patch files for wires and transcripts' frames | [data/codec/patches.md](data/codec/patches.md) |
 | layouts and derived plans | `skein-codec` | a value type's layout, and the plan that converts a value from one layout to another as it is read | [data/codec/layouts.md](data/codec/layouts.md) |

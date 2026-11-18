@@ -364,10 +364,12 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   under the same name, currently `v25`. Registered values are converted
   at read from their stored layouts into that codec's layout
   (`floor.md`, 2); no older map codec or patch history is kept.
-  `temper-protocol-store` keeps the current schema, `golden/v25/`,
-  owner set and translations. The drift test, `temper-codecs-world`'s,
-  reads the schema and golden bytes there and the code in the codec
-  crate.
+  `temper-protocol-store` keeps the current schema, owner set and
+  translations. The drift test, `temper-codecs-world`'s, compares the
+  generated records with the code in the codec crate and refuses each
+  unpinned construct. Tests build values, without family golden files or
+  generated tests; skein's `every` pins the bytes
+  (`skein/docs/design/data/codec/README.md`, 6).
 - **Collections** are pieces or counted lists by jig's rule (jig's
   `protocol/store/records.md`, 1). The schema's limits are made from the
   forge's limits, and checked against the schema's ceilings at start.
@@ -397,10 +399,72 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   (section 3), each numbered in `temper-protocol-store`'s owner set,
   in its keys' order, and never renumbered. `temper-secrets` is outside
   the registry, fixed at version 1. Family 12 is reserved, outside the
-  family's keys. The application's job at open is
-  `deleted-repository-forge-rows` (below), dispatched by
-  `temper_protocol_store::jobs::page`; a name it does not know is its
-  refusal.
+  family's keys. The application's jobs at open are, in this order,
+  `test-ids-landing`, `test-ids-receipt`, `test-ids-tier`,
+  `test-ids-verification` and `deleted-repository-forge-rows` (below),
+  dispatched by `temper_protocol_store::jobs::page`; a name it does not
+  know is its refusal.
+- **The jobs `test-ids-*`** bring a store written while a failing
+  test's id had a ceiling of 4,096 bytes to the binary's ceiling of
+  1,024 (below; `../draft/config.md`, 5.2). A narrowed bound is a
+  `retype`, which no plan derives (skein's `data/codec/layouts.md`, 2),
+  so every older layout of the four value types whose values reach
+  `FailingTest` or `TierFlake` is unplanned, whichever build wrote it:
+  - **One written job per value type,** each converting its value
+    type's unplanned layouts (`Layouts::Unplanned`, jig's
+    `protocol/store/jobs.md`, 4) over its value type's ranges:
+    `test-ids-landing` value type 20 (`landing`, family 23),
+    `test-ids-receipt` 21 (`receipt`, 24), `test-ids-tier` 25 (`tier`,
+    28) and `test-ids-verification` 26 (`verification`, 29). They run
+    before `deleted-repository-forge-rows`, which reads these families
+    through the read edge, at the binary's layout.
+  - **The wide text:** the binary's text with `FailingTest.test_id` and
+    `TierFlake.test` at `bytes 4096` and the five tier lists of
+    landings (below) at `list 759`, the ceilings every older layout
+    has, so that each plans to it. A page derives it from the binary's
+    text by those seven substitutions, each of a declaration's exact
+    words found once; one not found once refuses the page, `why` `the
+    binary's text has no single {words}`, which the focused test of
+    the binary's text keeps from happening. The job keeps no text of
+    its own.
+  - **A value's conversion:** its stored layout, the page's
+    `JobLayout`, is planned to the wide text at the value type's root
+    and variant and converted by that plan; the result is read as a
+    generic value of the wide text. Where its ids are all within 1,024
+    bytes it is, byte for byte, a value of the binary's layout; where
+    one is longer, the rule below changes it, by replacing or removing
+    the spans the generic value gives and the counts above them. The
+    result is decoded by the generated code at the schema's ceilings,
+    which checks it, and put at its key.
+  - **The rule,** for a failing test's id past 1,024 bytes: a
+    `Failures` holding one becomes `many`, in a receipt
+    (`Receipt.failures`, a `ReceiptRow`'s and a `TierRow`'s
+    `result`), a verification's blame, a tier record's `failing` and
+    a tier goal's `failing`; where a `TierRow`'s `record.failing`
+    becomes `many`, each of its posting's landings blamed by index
+    into it (`TierPostedBlame`'s `owns` and `suspect`) becomes
+    `owns_many` or `suspect_many`; a flake holding one is dropped from
+    `TierRecord.flakes`, its count with it, the others kept in order.
+  - **Refused,** with the row's key, since relabeling work in flight
+    would judge a partial pass as a whole one or post what its pending
+    write does not hold: a tier row whose run is in flight
+    (`record.run`) holding one anywhere, `why` `a tier run in flight
+    holds a failing test's id past 1,024 bytes`; a tier row whose
+    posting has a write pending (`posting.entry`) that the rule would
+    change, `why` `a tier posting in flight would change for a failing
+    test's id past 1,024 bytes`; a landing whose search by test selects
+    one (`LandingSelection`), `why` `a landing's search by test holds a
+    failing test's id past 1,024 bytes`. The start is refused
+    `OpenRefusal::Job`, the store unchanged: its operator starts the
+    build before, lets that work end, then this one.
+  - **Its counts:** `test-ids-tier`'s `many`, the `Failures` made
+    `many`, `flakes`, the flakes dropped, and `posted`, the posted
+    landings made `*_many`; `test-ids-receipt`'s and
+    `test-ids-verification`'s `many`; `test-ids-landing`, which changes
+    no value, none. A store whose ids are within 1,024 bytes, as
+    dev.fabrig.ai's are within 256, counts none: each value is put again
+    unchanged at the binary's layout.
+  - **Once dev.fabrig.ai has run them,** their code goes (`floor.md`, 8).
 - **The job `deleted-repository-forge-rows`** drops what a project's
   deletion left naming a repository whose `Repository` row is gone
   (`../draft/deleted-repository-rows.md`), so that the restart's link
@@ -601,16 +665,32 @@ refuses the start. The ceiling keeps the tier row's worst-case encoding,
 including each goal's failing-test IDs, within the codec's u32 length
 envelope (2026-11-04).
 
-A tier's pending landings, a run's landings and a finding's blamed
-landings each have a ceiling of 759. Their runtime bound is `2 *
-forge.changes + 1`, so `forge.changes` is at most 379, and a value above
-it refuses the start, naming `forge.changes` and that bound before the
-store's sizing runs (`configuration/limits.md`) (2026-11-11). 759 is the
-largest odd ceiling that keeps the tier row's worst-case encoding within
-the codec's u32 length envelope: 4,291,165,782 bytes at 759, past it at
-761 and at the 2049 first chosen, which no codec-safe ceiling reaches
-without changing the stored record's shape. A list encodes its count;
-a smaller bound's bytes read unchanged through the registry.
+A tier's lists of landings, its pending landings (`TierRow.pending`), a
+run's (`TierRun.landings`), a finding's blamed ones
+(`TierFinding.blamed`), a probe's waiting groups (`TierProbe.waiting`)
+and a posting's landings (`TierPosting.landings`), each have a ceiling
+of 1,537. Their runtime bound is `2 * forge.changes + 1`, so
+`forge.changes` is at most 768, the least of the five ceilings less one,
+halved, and a value above it refuses the start, naming `forge.changes`
+and that bound before the store's sizing runs
+(`configuration/limits.md`). A list encodes its count; a smaller
+bound's bytes read unchanged through the registry, so the widening from
+759 is derived.
+
+A failing test's id (`FailingTest.test_id`) and a flake's
+(`TierFlake.test`) each have a ceiling of 1,024 bytes, which holds the
+tier row's worst-case encoding within the codec's u32 length envelope at
+1,537 landings: about 1.9 GB, a finding's blamed landings' failures most
+of it, where at ids of 4,096 it passed the envelope past 759 landings
+(4,294,744,175 bytes at 759). `temper-protocol-store`'s focused test
+pins the figure. Their runtime bound is `forge.tiers.test_id_bytes`,
+512 in the stock; a value above the least of the two ceilings, 1,024,
+refuses the start, naming `forge.tiers.test_id_bytes` and that bound,
+before the store's sizing runs (`configuration/limits.md`). A store
+written at 4,096 is brought within by the `test-ids-*` jobs (above). A
+receipt report's test keys (`ReceiptTest.key`) keep their ceiling of
+4,096: no tier row holds them, and their runtime bound is
+`test_id_bytes` too, so what the store writes is within 1,024.
 
 A repository's stored CI workflows, the record's `workflows`, are a list
 with a ceiling of 16 names, each of at most 255 bytes: its bounds are the
@@ -705,7 +785,7 @@ Within the suites' budgets (`../testing/README.md`, section 2):
 - **Step tests** in `temper-protocol-store`: each family's key encoder
   against the derived order, and its decoder against its encoder; the
   interval of `Range::Forge` against `Range::contains` over generated
-  keys; each codec both ways, with golden bytes; each translation both
+  keys; each codec both ways, with built values; each translation both
   ways, a domain value equal to itself after a round trip; the schema's
   bounds at their limit and one past; the sizes against the forge's
   limits.

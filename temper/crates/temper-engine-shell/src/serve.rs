@@ -1,4 +1,6 @@
 //! The engine's start for serve (temper/docs/design/protocol/binaries.md, 1 and 2 and temper/docs/design/protocol/components.md).
+//! Fixed engine seeds follow temper/docs/design/protocol/setup/box.md, 5 and
+//! temper/docs/design/client/journey-clock.md, 4.1.
 use crate::{path, prefixed, setup};
 use jig_protocol_config::{self as config, read};
 use skein_io::kernel::{Exit, Fd};
@@ -259,6 +261,7 @@ pub fn run(
         directories,
         environment,
         crate::served::SERVED,
+        &skein_shell::Clock::new(),
         |_| Ok(()),
         |bytes, owned, ()| {
             prepare_given(
@@ -355,6 +358,28 @@ pub fn seeds(link_secret: Option<Secret>, local_secret: Option<Secret>) -> Resul
     let mut installation = [0_u8; 16];
     installation.copy_from_slice(drawn.expose().get(..16).expect("32-byte seed"));
     Ok(Seeds { deployment, installation, seed, crypto, link_secret, local_secret })
+}
+/// Fixed engine draws (temper/docs/design/protocol/setup/box.md, 5;
+/// temper/docs/design/client/journey-clock.md, 4.1). Link and local secrets stay the box's.
+#[must_use]
+pub fn seeds_from(start: &skein_shell::FixedStart, link_secret: Option<Secret>, local_secret: Option<Secret>) -> Seeds {
+    let mut crypto = [0_u8; 32];
+    start.draw(1, &mut crypto);
+    let mut drawn = [0_u8; 32];
+    start.draw(2, &mut drawn);
+    let mut deployment = [0_u8; 16];
+    deployment.copy_from_slice(drawn.get(..16).expect("32-byte draw"));
+    start.draw(3, &mut drawn);
+    let mut installation = [0_u8; 16];
+    installation.copy_from_slice(drawn.get(..16).expect("32-byte draw"));
+    Seeds {
+        deployment,
+        installation,
+        seed: start.seed,
+        crypto: Secret::new(Box::new(crypto)),
+        link_secret,
+        local_secret,
+    }
 }
 /// Adopt the engine's store and page after the caller has configured its service.
 pub fn adopt(

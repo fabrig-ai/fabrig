@@ -1,6 +1,5 @@
-# Each test binary's layer (tools/tiers/layers.md). A library's own tests, a binary's own and a
-# crate's generated codec tests are step tests, and the repository's checks a group of their own,
-# by rule, with no line.
+# Each test binary's layer (tools/tiers/layers.md). A library's own tests and a binary's own
+# are step tests, and the repository's checks a group of their own, by rule, with no line.
 layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", "real-loop", "end-to-end"]
 
 [skein]
@@ -96,6 +95,7 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "jig-client-browser-world::browser_skein_stories" = "end-to-end" # Chromium on the shipped reference application.
 "jig-client-browser-world::browser_tier" = "end-to-end" # Chromium on the shipped reference application.
 "jig-client-browser-world::suite" = "step" # Shell mount translated to an HTTP request, no browser.
+"jig-client-protocol-http::frames" = "step" # The frame cutter against seeded byte bodies and cuts.
 "jig-client-protocol-world::suite" = "simulated" # step + protocol + simulated: referee controls, byte stories and native client/service over simulated io.
 "jig-client-shell-native::suite" = "simulated" # Native shell over simulated sockets and a scripted HTTP engine.
 "jig-client-test-kit::suite" = "step" # Referee transitions and connector-value admission/pricing.
@@ -112,11 +112,12 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "jig-host-world::suite" = "domain" # step + domain: saturated step fixtures and scripted host stories.
 "jig-notes-world::suite" = "domain" # step + domain: index-referee controls and notes stories.
 "jig-one-process-world::suite" = "simulated" # Whole service, native clients and hosted agents over the simulator.
+"jig-ops-client-protocol-wire::suite" = "step" # Hand-written translations through the ops client's record codecs.
 "jig-ops-world::suite" = "protocol" # domain + protocol: connector worlds and joint clients/engine through real HTTP machines.
 "jig-people-world::suite" = "domain" # step + domain: referee controls and people stories.
 "jig-protocol-accounts-world::suite" = "simulated" # step + simulated: codec drift and account driver/store against a fake issuer over simulated io.
 "jig-protocol-config::base" = "step" # Engine and worker document readers over an application's base.
-"jig-store-codecs-world::drift" = "step" # Schema, generated codecs, goldens and layout fingerprints.
+"jig-store-codecs-world::drift" = "step" # Generated records, pinned schema constructs and layout fingerprints.
 "jig-store-codecs-world::suite" = "step" # Codec bounds, round trips and fuzzy decodes.
 "jig-store-world::frame_limits" = "step" # Profile-derived read-room arithmetic, no store world.
 "jig-store-world::suite" = "simulated" # step + simulated: serving-machine controls and store/file drivers on a crashing disk.
@@ -131,7 +132,7 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 [temper]
 "temper-engine-service-vocabulary::figures" = "step" # Named application limits round trips.
 "temper-agent::suite" = "end-to-end" # Shipped agent's command-line boundary.
-"temper-box-kit::parent" = "real-loop" # step and real-loop: observe() cases and real /bin/cat process identities.
+"temper-box-kit::screen" = "step" # Terminal cell reader on renderer output, without io.
 "temper-box-machine::real_loop" = "real-loop" # Box service and hosted children on one real ring.
 "temper-box::live" = "end-to-end"
 "temper-box::live_github" = "end-to-end"
@@ -168,6 +169,7 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "temper-playground-serve::suite" = "end-to-end" # Shipped static host's command-line boundary.
 "temper-playground-world::memory" = "simulated" # Playground's hosted processes on the simulator.
 "temper-playground-world::suite" = "simulated" # Playground's hosted processes on the simulator.
+"temper-process-guard::parent" = "real-loop" # step and real-loop: observe() cases and real /bin/cat process identities.
 "temper-protocol-reaches::suite" = "step" # Seeded judgement functions on generated tables.
 "temper-qa-tool::suite" = "real-loop" # step, domain and real-loop: fake-clock world beside real sockets, locks and shell children.
 "temper-qa::suite" = "end-to-end" # Shipped QA tool's command-line boundary.
@@ -180,7 +182,8 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "temper-twin-tool::suite" = "domain" # step and domain: conversion checks and fake LLM replay.
 "temper-twin::suite" = "end-to-end" # Shipped twin tool's command-line boundary.
 "temper-version::commit" = "step" # Build identity functions on git answers and fixture paths.
-"temper-worker-checkout-world::suite" = "real-loop" # domain and real-loop: fake-disk world beside real git and owned Forgejo.
+"temper-worker-checkout-world::fakes" = "domain" # Checkout child domain against the fake forge and fake disk.
+"temper-worker-checkout-world::suite" = "real-loop" # Checkout delivery against real git and owned Forgejo.
 "temper-worker-domain-world::suite" = "domain"
 "temper-worker-protocol-git-world::suite" = "machine"
 "temper-worker::suite" = "end-to-end" # Shipped worker's command-line boundary.

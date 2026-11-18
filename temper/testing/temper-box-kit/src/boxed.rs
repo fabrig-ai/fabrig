@@ -262,7 +262,19 @@ pub fn run_command(command: Command, forgejo: Option<SocketAddr>, plan: Plan, de
     let forgejo_pids = Rc::new(Cell::new(None));
     let engine_served = Rc::new(Cell::new(None));
     let forgejo_program = if matches!(plan, Plan::KillForgejo) {
-        Some(std::fs::canonicalize(super::owned::binaries().0).expect("Forgejo path"))
+        use std::os::unix::ffi::OsStrExt;
+        let data = data.as_ref().expect("Forgejo restart's data directory");
+        let directories = super::configuration::directories(data);
+        let directories =
+            jig_protocol_config::Directories::given(&directories.config, &directories.data, &directories.cache)
+                .expect("fixture directories");
+        let bytes = std::fs::read(data.join("forge-1/setup")).expect("Forgejo setup");
+        let temper_forge_setup::setup_file::SetupFile::Owned(setup) =
+            temper_forge_setup::setup_file::decode(&bytes, &directories).expect("Forgejo setup file")
+        else {
+            panic!("owned Forgejo restart")
+        };
+        Some(std::fs::canonicalize(std::ffi::OsStr::from_bytes(&setup.forgejo)).expect("Forgejo path"))
     } else {
         None
     };

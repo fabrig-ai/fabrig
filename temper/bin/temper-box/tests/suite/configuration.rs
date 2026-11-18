@@ -32,6 +32,107 @@ fn process_engine(case: &str) -> jig_protocol_config::Engine {
 }
 
 #[test]
+fn the_process_document_holds_the_agent_after_the_store_restores_stock() {
+    use skein_lib::{List, Secret};
+    use temper_service::{
+        settings::{Files, Seeds},
+        startup,
+    };
+
+    let scratch = support::Scratch::startup("process-stock-turn");
+    support::configuration(scratch.path(), &support::Forge::Unreached);
+    let bytes = std::fs::read(scratch.path().join("temper.json")).expect("process configuration");
+    let document = serde_json::from_slice(&bytes).expect("deployment JSON");
+    // Compose stock agents(), not the fixture's pre-serve agents.setting.
+    let configuration = serde_json::to_vec(&temper_agent_fixtures::configuration(&document)).expect("stock agent JSON");
+    let agent = temper_worker_shell::agent::prepare_bytes(configuration.into()).expect("stock agent").agent;
+    let directories = jig_directories(&support::configuration::directories(scratch.path()));
+    let named = startup::named(&bytes, &directories).expect("named fixture files");
+    let mut entries = List::with_capacity(u32::try_from(named.files.len()).expect("file count"));
+    for file in named.files {
+        entries.push((file.path, Secret::new(Box::new([b'7'; 64])))).expect("named file count");
+    }
+    let seeds = Seeds {
+        link_secret: None,
+        local_secret: None,
+        deployment: [7; 16],
+        installation: [8; 16],
+        seed: 7,
+        crypto: Secret::new(Box::new([9; 32])),
+    };
+    startup::check(&bytes, &directories, &Files { entries }, &agent, &seeds, None, List::with_capacity(0), None)
+        .unwrap_or_else(|why| panic!("{}", String::from_utf8_lossy(&startup::lines(&why))));
+    scratch.remove();
+}
+
+#[test]
+fn the_process_workers_figures_follow_the_agents_setting() {
+    use temper_client_protocol_wire::v1 as w;
+
+    for (case, forge) in [
+        (
+            "forgejo",
+            support::Forge::Throwaway {
+                forgejo: std::path::Path::new("/fixture/forgejo"),
+                api: "127.0.0.1:3000".parse().expect("fixture forge"),
+                git: "http://127.0.0.1:3000/".into(),
+            },
+        ),
+        ("unreached", support::Forge::Unreached),
+    ] {
+        let scratch = support::Scratch::startup(&format!("process-worker-figures-{case}"));
+        support::configuration(scratch.path(), &forge);
+        let path = scratch.path().join("temper.json");
+        let mut document: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&path).expect("process document")).expect("deployment JSON");
+        let mut agent = temper_agent_fixtures::read(scratch.path());
+        for payload in [63_740, 8192] {
+            agent["profile"]["declared"]["tool_payload"] = payload.into();
+            temper_agent_fixtures::apply(&mut document, scratch.path(), &agent);
+            let setting = std::fs::read(scratch.path().join("agents.setting")).expect("agents setting");
+            let agents =
+                w::AgentFigures::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&setting)).expect("agents figures");
+            let part = temper_service::startup::box_worker(
+                &serde_json::to_vec(&document).expect("deployment JSON"),
+                &jig_directories(&support::configuration::directories(scratch.path())),
+                &temper_service::stock::Given::Stock,
+                &agents,
+                &[],
+            )
+            .expect("box composition")
+            .expect("box worker");
+            let bytes = temper_worker_shell::agent::figures::configuration(
+                part.figures.as_ref().expect("composed figures"),
+                None,
+                scratch.path(),
+                &[],
+            )
+            .expect("agent document");
+            let agent = temper_worker_shell::agent::prepare_bytes(bytes).expect("composed agent").agent;
+            let part = temper_service::startup::box_worker_with_agent(
+                &serde_json::to_vec(&document).expect("deployment JSON"),
+                &jig_directories(&support::configuration::directories(scratch.path())),
+                &temper_service::stock::Given::Stock,
+                &agents,
+                &[],
+                &agent.declaration(),
+            )
+            .expect("derived box composition")
+            .expect("box worker");
+            let limits = temper_service::worker_settings::root_limits(&part.worker, &agent, &part.limits);
+            let mut problems = temper_worker_service::startup::Problems::empty();
+            temper_worker_service::startup::worker::worker(&limits, &mut problems);
+            assert!(
+                problems.is_empty(),
+                "{case}, payload {payload}: {}",
+                String::from_utf8_lossy(&temper_worker_service::startup::lines(&problems))
+            );
+        }
+        scratch.remove();
+    }
+}
+
+#[test]
 fn the_browsers_client_bounds_are_the_terminals() {
     assert_eq!(
         temper_client_shell_web::limits::client(),
@@ -52,7 +153,7 @@ fn the_native_forge_fixture_fits_its_store() {
         },
     );
     let document = std::fs::read(scratch.path().join("temper.json")).expect("deployment");
-    let agent = temper_fixtures::agent::prepared(scratch.path()).agent;
+    let agent = temper_agent_fixtures::prepared(scratch.path()).agent;
     let store = temper_service::startup::store_limits(
         &document,
         &jig_protocol_config::Directories::working(),
@@ -125,15 +226,15 @@ fn the_owned_example_fits_the_native_client() {
 }
 fn assert_owned_limits(limits: &serde_json::Value) {
     assert_eq!(limits["profile"], "standard");
-    for (name, value) in [("hub.accounts", 4_u64), ("hub.run_calls", 48), ("hub.event_bytes", 10_660)] {
+    for (name, value) in [("hub.accounts", 4_u64), ("hub.run_calls", 48), ("hub.event_bytes", 63_738)] {
         assert_eq!(limits["overrides"][name], value, "the engine supplies the stock agent’s {name}");
     }
 }
 
 #[test]
 fn the_retained_cluster_overrides_name_no_charter_documents() {
-    // Two charters, the chat template, the deployment landing rule and two workers.
-    const ITEMS: usize = 6;
+    // Two charters, the chat template, the deployment landing rule, two workers and the agents' policy.
+    const ITEMS: usize = 7;
     let bytes = std::fs::read(skein_scratch::paths::tree().join("bin/temper-box/tests/fixtures/cluster/settings.json"))
         .expect("retained cluster overrides");
     // The process story fills whole settings from the owner's reads before decoding.
@@ -232,8 +333,8 @@ fn the_clusters_documents_check_as_their_shapes() {
                 startup::named(&bytes, &jig_directories(&directories)).expect("checked engine alone");
             }
             Shape::WorkerAlone => {
-                let mut part =
-                    startup::worker_part(&bytes, &jig_directories(&directories), None).expect("checked worker alone");
+                let mut part = startup::worker_part(&bytes, &jig_directories(&directories), None, &[])
+                    .expect("checked worker alone");
                 temper_worker_service::figures::apply(&mut part, support::cluster::figures(&engine))
                     .expect("applied engine figures");
                 let worker = &part.worker.jig;
@@ -301,7 +402,7 @@ fn the_turn_story_profile_declares_prepare_and_fits_its_store() {
         serde_json::from_slice(&std::fs::read(&path).expect("configuration")).expect("JSON");
     support::batch_landing::message_room(scratch.path(), &mut value);
     let document = serde_json::to_vec(&value).expect("deployment JSON");
-    let agent = temper_fixtures::agent::prepared(scratch.path()).agent;
+    let agent = temper_agent_fixtures::prepared(scratch.path()).agent;
     let _store = temper_service::startup::store_limits(
         &document,
         &jig_protocol_config::Directories::working(),

@@ -803,6 +803,7 @@ pub enum Event {
         reply_to: ReplyTo,
         identity: people::Identity,
         held: Option<u64>,
+        until: Option<Wall>,
     },
     /// Admit a visible subject on a live sign-in, without a request key.
     Watch {
@@ -948,6 +949,8 @@ pub enum Event {
         invalid_saved: bool,
         /// Unusable resume history retains its own typed reason (jig/docs/design/domain/hosts/hub.md, 3).
         unusable_history: bool,
+        /// The program started without its tools; the core authenticates its bound source and place.
+        untooled: bool,
         read: Option<u64>,
         refused: Box<[u64]>,
     },
@@ -1511,6 +1514,7 @@ fn fleet_new_work(event: &fleet::Event) -> bool {
         | fleet::Event::Ask { .. }
         | fleet::Event::Relay { .. } => true,
         fleet::Event::ListRead { .. }
+        | fleet::Event::Untooled { .. }
         | fleet::Event::Mismatch { .. }
         | fleet::Event::Draining { .. }
         | fleet::Event::Logins { .. }

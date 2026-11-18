@@ -573,8 +573,8 @@ pub fn fixture_5_2() -> forge::Fixture {
             for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {
                 project["policy"]["ceiling"]["delegation"]["kinds"] = kinds.clone();
                 project["policy"]["roles"][0]["authority"]["delegation"]["kinds"] = kinds.clone();
-                // The chat's run, A, the helper and B reserve 10 + 5 + 5 + 25.
-                project["policy"]["roles"][0]["authority"]["budget"]["spend"] = 50.into();
+                // The chat's run, A, the helper and B reserve 10 + 5 + 5 + 40.
+                project["policy"]["roles"][0]["authority"]["budget"]["spend"] = 65.into();
             }
             // The coder's checkout needs both its LLM and application git grants,
             // as in fixture_check. The cluster supplies one slot per worker.

@@ -93,6 +93,7 @@ pub struct CallError {
 
 #[expect(clippy::struct_excessive_bools, reason = "independent outside fault and observation switches remain explicit")]
 pub struct World {
+    idle_revision: Option<(u64, Option<Time>)>,
     auto_prepare: bool,
     restart_config: engine::Config,
     oracle_documents: Vec<(Token, forge_top::Document)>,
@@ -106,6 +107,8 @@ pub struct World {
     pub out: Queue<engine::Request>,
     pub events: VecDeque<engine::Event>,
     pub store: Store,
+    /// Task row keys saved by the most recent tick's durable transaction.
+    pub changed_tasks: Vec<Key>,
     pub fake: fake::Domain,
     pub fake_env: Env<fake::Config>,
     fake_out: Queue<fake::Request>,
@@ -190,9 +193,15 @@ pub struct World {
     pub acknowledgements: Option<Vec<(u64, u64)>>,
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Default)]
 #[expect(clippy::struct_excessive_bools, reason = "stories independently configure landing rules, kind and authority")]
 pub struct StoryLimits {
+    /// Gather startup edits before constructing either the store or the root.
+    pub second_project: bool,
+    pub project_landing: Option<(u32, temper_landing_fixtures::ProjectLanding)>,
+    pub project_policy: Option<jig_domain_core::ConfiguredPolicy>,
+    pub settings_owner: Option<people::IdentityKey>,
+    pub forge_pages: Option<&'static [u8]>,
     /// Scripted task trees may dispatch workflow checks without an authority proposal.
     pub workflow_dispatch: bool,
     /// Opened changes make their own branch from a person's pushed source.
@@ -342,6 +351,18 @@ impl World {
         model: &engine::Model,
         limits: &engine::Limits,
     ) -> Self {
+        Self::configured_stock_limits_with(defaults, model, limits, StoryLimits::default())
+    }
+
+    /// Stock settings with all startup edits gathered before construction.
+    #[must_use]
+    #[expect(clippy::needless_pass_by_value, reason = "world constructors accept owned scenario settings")]
+    pub fn configured_stock_limits_with(
+        defaults: &jig_domain_core::settings::Defaults,
+        model: &engine::Model,
+        limits: &engine::Limits,
+        timing: StoryLimits,
+    ) -> Self {
         Self::configured_settings(
             true,
             true,
@@ -349,7 +370,7 @@ impl World {
             1000,
             paths::Gate { agent: true, ..paths::Gate::default() },
             None,
-            &StoryLimits::default(),
+            &timing,
             Some((defaults, model, Some(limits))),
             &[],
         )
@@ -432,6 +453,7 @@ impl World {
     }
 
     #[must_use]
+    #[expect(clippy::needless_pass_by_value, reason = "preserve the public constructor's owned scenario settings")]
     pub fn configured_limits(
         with_read: bool,
         with_change: bool,
@@ -520,9 +542,10 @@ impl World {
             across,
             library_gate_latency: _,
             tier,
+            ..
         } = *timing;
-        let paths::Gate { approval, agent: agent_gate, owner: owner_gate } = gate;
-        std::array::from_fn(|index| {
+        let paths::Gate { approval, agent: agent_gate, owner: owner_gate, freshness } = gate;
+        let (bootstrap, limits) = {
             let mut limits = walking::limits();
             if let Some(questions) = questions {
                 limits.forge.change_policy.questions = questions;
@@ -707,7 +730,11 @@ impl World {
                         ci: true,
                         up_to_date: true,
                         gates: if agent_gate || owner_gate {
-                            Box::new([engine::Gate { number: 1, blocking: true, freshness: engine::Freshness::Exact }])
+                            Box::new([engine::Gate {
+                                number: 1,
+                                blocking: true,
+                                freshness: freshness.unwrap_or(engine::Freshness::Exact),
+                            }])
                         } else {
                             Box::new([])
                         },
@@ -836,7 +863,11 @@ impl World {
                         ci: true,
                         up_to_date: true,
                         gates: if agent_gate || owner_gate {
-                            Box::new([engine::Gate { number: 1, blocking: true, freshness: engine::Freshness::Exact }])
+                            Box::new([engine::Gate {
+                                number: 1,
+                                blocking: true,
+                                freshness: freshness.unwrap_or(engine::Freshness::Exact),
+                            }])
                         } else {
                             Box::new([])
                         },
@@ -854,7 +885,7 @@ impl World {
                     landings
                         .insert(
                             1,
-                            temper_fixtures::landing::ProjectLanding {
+                            temper_landing_fixtures::ProjectLanding {
                                 gate_retries: 2,
                                 batch: if landing_members == Some(0) { 1 } else { batch.unwrap_or(1) },
                                 combine_main: engine::Combine::Merge,
@@ -867,18 +898,18 @@ impl World {
                                 tier_retries: 2,
                                 verification_bound_ms: tier.map_or(7_200_000, |tier| tier.bound_ms),
                                 by: if turn {
-                                    temper_fixtures::landing::Way::Turn
+                                    temper_landing_fixtures::Way::Turn
                                 } else {
-                                    temper_fixtures::landing::Way::Queue
+                                    temper_landing_fixtures::Way::Queue
                                 },
-                                repositories: Box::new([temper_fixtures::landing::RepositoryChecks {
+                                repositories: Box::new([temper_landing_fixtures::RepositoryChecks {
                                     tiers: match tier {
                                         Some(tier) => crate::tier_runs::checks(tier),
                                         None => Box::new([]),
                                     },
                                     repository: forge_world::REPO,
                                     gates: if turn {
-                                        Box::new([temper_fixtures::landing::GateCheck {
+                                        Box::new([temper_landing_fixtures::GateCheck {
                                             name: b"gate".as_slice().into(),
                                             workflow: b"gate.yml".as_slice().into(),
                                             ignored: Box::new([b"docs".as_slice().into()]),
@@ -1188,17 +1219,35 @@ impl World {
                 // The story changes whole rules through the settings entrance.
                 limits.people.amendment_bytes = 2048;
             }
-            if kinds && index == 1 {
-                config.core.kinds = temper_engine_service_stock::stock::kinds(&limits, config.core.connectors[0]);
+            if let Some(policy) = &timing.project_policy {
+                config.core.seed_projects[0].policy = policy.clone();
             }
-            for worker in &mut config.core.defaults.workers {
-                worker.places = limits.fleet.slots;
+            if timing.second_project {
+                second_project(&mut config, &mut limits);
             }
             for (project, landing) in &landings {
                 crate::oracle::config::set_landing(&mut config, *project, landing.clone());
             }
+            if let Some((project, landing)) = &timing.project_landing {
+                crate::oracle::config::set_landing(&mut config, *project, landing.clone());
+            }
+            if let Some(identity) = &timing.settings_owner {
+                settings_owner(&mut config, &limits, identity);
+                config.core.kinds = Box::new([]);
+            }
+            if let Some(pages) = timing.forge_pages {
+                config.forges[0].web = Some(pages.into());
+            }
+            for worker in &mut config.core.defaults.workers {
+                worker.places = limits.fleet.slots;
+            }
             (config, limits)
-        })
+        };
+        let mut runtime = crate::oracle::config::copy(&bootstrap);
+        if kinds || timing.settings_owner.is_some() {
+            runtime.core.kinds = temper_engine_service_stock::stock::kinds(&limits, runtime.core.connectors[0]);
+        }
+        [(bootstrap, limits), (runtime, limits)]
     }
 
     #[expect(
@@ -1406,11 +1455,15 @@ impl World {
             store_limits.tasks.holdings = limits.tasks.holdings;
             store_limits.journal.writes = limits.journal.writes;
         }
+        if timing.second_project || timing.project_policy.is_some() || timing.settings_owner.is_some() {
+            store_limits = limits;
+        }
         let store =
             temper_engine_domain_world::fixtures::restored_over(Store::with_limits(&store_limits), bootstrap, &limits);
         let period_budget = config.core.defaults.rules.period_spend;
         Self {
             restart_config: crate::oracle::config::copy(&config),
+            idle_revision: None,
             oracle_documents: Vec::new(),
             oracle_watcher: 0x4e33,
             broken: false,
@@ -1422,6 +1475,7 @@ impl World {
             out: Queue::uncapped(),
             events: VecDeque::from([engine::Event::Restart { pending: store.pending_generation }]),
             store,
+            changed_tasks: Vec::new(),
             fake,
             fake_env,
             fake_out: Queue::uncapped(),
@@ -1520,18 +1574,7 @@ impl World {
     #[must_use]
     pub fn with_second_project(mut self) -> Self {
         assert_eq!(self.env.now, Time::ZERO, "project configuration precedes startup");
-        self.env.limits.authority.projects = 2;
-        self.env.limits.people.projects = 3;
-        self.env.limits.people.initial_owners = 2;
-        let first = &self.restart_config.core.seed_projects[0];
-        let second = jig_domain_core::SeedProject { number: 2, name: "Project 2".into(), policy: first.policy.clone() };
-        let mut projects = self.restart_config.core.seed_projects.into_vec();
-        projects.push(second);
-        self.restart_config.core.seed_projects = projects.into_boxed_slice();
-        let identity = self.restart_config.core.owners[0].identity.clone();
-        let mut owners = self.restart_config.core.owners.into_vec();
-        owners.push(people::InitialOwner { project: 2, identity });
-        self.restart_config.core.owners = owners.into_boxed_slice();
+        second_project(&mut self.restart_config, &mut self.env.limits);
         self.creating =
             jig_test_profile::fixtures::Creating::new(&self.restart_config.core, self.env.limits.tasks.tree_tasks);
         let mut bootstrap = crate::oracle::config::copy(&self.restart_config);
@@ -1556,7 +1599,7 @@ impl World {
 
     /// Configure an additional project's verification policy before startup.
     #[must_use]
-    pub fn with_project_landing(mut self, project: u32, landing: temper_fixtures::landing::ProjectLanding) -> Self {
+    pub fn with_project_landing(mut self, project: u32, landing: temper_landing_fixtures::ProjectLanding) -> Self {
         assert_eq!(self.env.now, Time::ZERO);
         crate::oracle::config::set_landing(&mut self.restart_config, project, landing);
         self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
@@ -1579,11 +1622,7 @@ impl World {
     ) -> Self {
         assert_eq!(self.env.now, Time::ZERO, "owner identity precedes startup");
         configure(&mut self.restart_config);
-        for owner in &mut self.restart_config.core.owners {
-            owner.identity = identity.clone();
-        }
-        self.restart_config.core.kinds =
-            temper_engine_service_stock::stock::kinds(&self.env.limits, self.restart_config.core.connectors[0]);
+        settings_owner(&mut self.restart_config, &self.env.limits, identity);
         let mut bootstrap = crate::oracle::config::copy(&self.restart_config);
         bootstrap.core.kinds = Box::new([]);
         self.store = crate::fixtures::restored_over(Store::with_limits(&self.env.limits), bootstrap, &self.env.limits);
@@ -2132,7 +2171,7 @@ impl World {
         self.restart_same();
     }
     /// Restart with a project's new landing configuration, retaining only durable rows.
-    pub fn restart_with_project_landing(&mut self, project: u32, landing: temper_fixtures::landing::ProjectLanding) {
+    pub fn restart_with_project_landing(&mut self, project: u32, landing: temper_landing_fixtures::ProjectLanding) {
         crate::oracle::config::set_landing(&mut self.restart_config, project, landing);
         self.restart_same();
     }
@@ -2147,6 +2186,7 @@ impl World {
         }
         assert!(self.store.pending.is_empty(), "store answers precede a restart");
         assert!(self.pending.is_empty(), "API answers precede a restart");
+        self.idle_revision = None;
         self.root =
             engine::Domain::new(crate::oracle::config::copy(&config), &self.env.limits).expect("restart config");
         self.restart_config = config;
@@ -2843,6 +2883,69 @@ impl World {
         question
     }
 
+    fn idle_until_timer(&mut self) -> bool {
+        if self.period.is_none()
+            || !self.events.is_empty()
+            || !self.immediate.is_empty()
+            || !self.out.is_empty()
+            || !self.fake_out.is_empty()
+            || !self.store.idle()
+            || (self.auto_prepare && self.jobs.iter().any(|job| job.kind == jig_domain_link::JobKind(1)))
+        {
+            return false;
+        }
+        let revision = self.root.revision();
+        if self.idle_revision.is_some_and(|(idle, _)| idle == revision) {
+            return true;
+        }
+        if !self.root.quiescent() {
+            return false;
+        }
+        self.idle_revision = Some((revision, self.root.next_deadline(&self.env)));
+        true
+    }
+
+    /// Observe the entire fixed-tick horizon, jumping only over ticks with no
+    /// immediate work and strictly before either machine's next timer. Timers
+    /// still fire on the first tick of the story's grid at or after their due time.
+    pub fn advance_ticks(&mut self, mut ticks: u32) {
+        if ticks > 0 && !self.oracle_running {
+            self.sync_clock();
+        }
+        while ticks > 0 {
+            let interval = self.tick_interval.as_nanos();
+            if !self.oracle_running && interval > 0 && self.idle_until_timer() {
+                let root = self.idle_revision.expect("idle root revision").1;
+                let due = match (root, self.fake.next_deadline()) {
+                    (Some(root), Some(fake)) => Some(root.min(fake)),
+                    (root, None) => root,
+                    (None, fake) => fake,
+                };
+                let skip = due.map_or(u64::from(ticks), |due| {
+                    due.as_nanos().saturating_sub(self.env.now.as_nanos()).saturating_sub(1) / interval
+                });
+                let skip = u32::try_from(skip.min(u64::from(ticks))).expect("bounded by remaining ticks");
+                if skip > 0 {
+                    self.changed_tasks.clear();
+                    self.env.now =
+                        self.env.now.saturating_add(Duration::from_nanos(interval.saturating_mul(u64::from(skip))));
+                    self.sync_clock();
+                    self.fake.reclaim();
+                    ticks -= skip;
+                    continue;
+                }
+            }
+            self.tick();
+            ticks -= 1;
+        }
+    }
+
+    fn sync_clock(&mut self) {
+        self.env.wall = Wall::from_nanos(self.env.now.as_nanos());
+        self.fake_env.now = self.env.now;
+        self.fake_env.wall = self.env.wall;
+    }
+
     pub fn tick(&mut self) {
         self.tick_with_reply_cut(None, true);
         if self.auto_prepare {
@@ -2861,12 +2964,8 @@ impl World {
         self.tick_with_reply_cut(Some(target), true)
     }
 
-    #[expect(
-        clippy::too_many_lines,
-        reason = "one tick preserves reply cuts, located sources and runner job answers together"
-    )]
     fn tick_with_reply_cut(&mut self, target: Option<u64>, resume: bool) -> bool {
-        let mut lost = false;
+        self.changed_tasks.clear();
         // A Busy retry keeps the offered change step in flight. Drain that
         // read's timer before snapshotting; an idle procedure's poll is not work.
         let retrying_change = self.oracle_running
@@ -2897,9 +2996,26 @@ impl World {
         } else {
             self.env.now = self.env.now.saturating_add(self.tick_interval);
         }
-        self.env.wall = Wall::from_nanos(self.env.now.as_nanos());
-        self.fake_env.now = self.env.now;
-        self.fake_env.wall = self.env.wall;
+        self.sync_clock();
+        // An idle shell has no input, output or owner continuation to run.
+        // Keep the tick's observation instant, including both timer boundaries.
+        if !self.oracle_running
+            && self.idle_until_timer()
+            && self.idle_revision.expect("idle root revision").1.is_none_or(|due| due > self.env.now)
+            && !self.fake.is_due(self.fake_env.now)
+        {
+            self.fake.reclaim();
+            return false;
+        }
+        self.tick_at_now(target, resume, retrying_change)
+    }
+
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one tick preserves reply cuts, located sources and runner job answers together"
+    )]
+    fn tick_at_now(&mut self, target: Option<u64>, resume: bool, retrying_change: bool) -> bool {
+        let mut lost = false;
         if let Some(index) = self.events.iter().position(|event| !crate::waits_for_start(&self.root, event)) {
             let event = self.events.remove(index).expect("selected eligible input");
             self.send(event);
@@ -2912,6 +3028,13 @@ impl World {
                     if row.number == target && row.inbox.iter().any(|word| matches!(word.from, tasks::Party::Task(_))))
                 })
             });
+            self.changed_tasks.extend(writes.iter().filter_map(|write| match write {
+                engine::Write::Save(
+                    row
+                    @ Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(_) | tasks::Stored::Ended(_))),
+                ) => Some(row.key()),
+                _ => None,
+            }));
             let number = self.store.apply();
             if !lost {
                 self.send(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
@@ -3062,6 +3185,7 @@ impl World {
     pub fn sign_in(&mut self) {
         self.until(Until::Ready);
         self.send(engine::Event::Party(engine::PartyInput::SignedIn {
+            until: None,
             held: None,
             reply_to: ReplyTo::new(Token::new(90)),
             identity: people::Identity {
@@ -3101,6 +3225,28 @@ impl World {
     }
 }
 
+fn second_project(config: &mut engine::Config, limits: &mut engine::Limits) {
+    limits.authority.projects = 2;
+    limits.people.projects = 3;
+    limits.people.initial_owners = 2;
+    let first = &config.core.seed_projects[0];
+    let second = jig_domain_core::SeedProject { number: 2, name: "Project 2".into(), policy: first.policy.clone() };
+    let mut projects = std::mem::take(&mut config.core.seed_projects).into_vec();
+    projects.push(second);
+    config.core.seed_projects = projects.into_boxed_slice();
+    let identity = config.core.owners[0].identity.clone();
+    let mut owners = std::mem::take(&mut config.core.owners).into_vec();
+    owners.push(people::InitialOwner { project: 2, identity });
+    config.core.owners = owners.into_boxed_slice();
+}
+
+fn settings_owner(config: &mut engine::Config, limits: &engine::Limits, identity: &people::IdentityKey) {
+    for owner in &mut config.core.owners {
+        owner.identity = identity.clone();
+    }
+    config.core.kinds = temper_engine_service_stock::stock::kinds(limits, config.core.connectors[0]);
+}
+
 #[must_use]
 pub fn change_world(
     silent_ci: bool,
@@ -3136,7 +3282,7 @@ pub fn change_world_with_policy(
         true,
         silent_ci,
         passes,
-        paths::Gate { approval, agent: agent_gate, owner: owner_gate },
+        paths::Gate { approval, agent: agent_gate, owner: owner_gate, ..paths::Gate::default() },
         None,
     );
     change_world_in(world, paths::Change { no_ci, owner_gate, tracked })
@@ -3354,14 +3500,14 @@ fn delegated_goal(world: &mut World, parent: &engine::Assignment) -> engine::Ass
     let event =
         world.protocol.answer(Token::new(7), parent.task, parent.attempt, 0, tasks::End::Parked, engine::Parts::none());
     world.send(event);
-    for _ in 0..20 {
-        world.tick();
-    }
+    world.advance_ticks(20);
     goal
 }
 
 #[derive(Clone, Copy, Default)]
 pub struct Gate {
+    /// Agent and owner reviews use Exact unless the story chooses another rule.
+    pub freshness: Option<engine::Freshness>,
     pub approval: Option<engine::Freshness>,
     pub agent: bool,
     pub owner: bool,
@@ -3486,9 +3632,10 @@ impl World {
         self.oracle_settle();
         self.store.crash(0);
         snapshot.compare_rows(&self.store.rows).unwrap_or_else(|finding| panic!("{finding}"));
-        let store = std::mem::take(&mut self.store);
+        let store = self.store.take_for_drop();
         let mut fresh =
             crate::direct::Driver::cold(store, crate::oracle::config::copy(&self.restart_config), &self.env.limits);
+        self.idle_revision = None;
         std::mem::swap(&mut self.root, &mut fresh.root);
         std::mem::swap(&mut self.out, &mut fresh.out);
         std::mem::swap(&mut self.events, &mut fresh.events);
@@ -3523,7 +3670,8 @@ impl World {
         self.oracle_running = false;
     }
 
-    fn oracle_settle(&mut self) {
+    /// Drain immediate terminals while permitting tasks that wait on an account or a host.
+    pub fn oracle_settle(&mut self) {
         // These are the world's held terminals, not new actions from surviving peers.
         self.release_write_answers();
         if let Some(reads) = self.held_reads.take() {
@@ -3797,3 +3945,6 @@ fn read_box_profiles() -> (jig_protocol_config::Limits, temper_engine_service_vo
     }
     (parsed.limits, temper)
 }
+
+#[cfg(test)]
+mod tests;

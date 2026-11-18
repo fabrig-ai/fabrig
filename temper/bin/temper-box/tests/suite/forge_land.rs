@@ -392,11 +392,11 @@ fn a_claude_configuration_replaces_openai_and_keeps_the_demo() {
     // docs/help/box.md, step 1: Claude's fields over init's endpoint and model sizes.
     let (scratch, paths) = initialized_deployment("live-claude-configuration");
     let config = &paths[0];
-    let agent_before = temper_fixtures::agent::read(config);
+    let agent_before = temper_agent_fixtures::read(config);
     let before: Value =
         serde_json::from_slice(&fs::read(config.join("temper.json")).expect("deployment")).expect("JSON");
     configure_claude(&paths);
-    let agent = temper_fixtures::agent::read(config);
+    let agent = temper_agent_fixtures::read(config);
     let value: Value =
         serde_json::from_slice(&fs::read(config.join("temper.json")).expect("deployment")).expect("JSON");
     assert_eq!(
@@ -412,14 +412,14 @@ fn a_claude_configuration_replaces_openai_and_keeps_the_demo() {
                 "address":"api.anthropic.com:443", "transport":"tls", "server_name":"api.anthropic.com",
                 "connect":10000, "handshake":10000, "headers":[],
                 "limits": {
-                    "window":1_048_576, "output":8192, "reasoning_item":65536, "head":60000, "idle":300_000,"oversized_reasoning":"fail"}},
+                    "window":1_048_576, "output":48_000, "reasoning_item":65536, "head":60000, "idle":300_000,"oversized_reasoning":"fail"}},
             agent_before["endpoints"].as_array().unwrap().iter().find(|endpoint| endpoint["name"] == "demo").unwrap()
         ])
     );
     assert_eq!(agent["profile"], agent_before["profile"]);
     assert_eq!(agent["environment"], agent_before["environment"]);
     assert_eq!(
-        temper_fixtures::providers::read(&paths[1]),
+        temper_agent_fixtures::providers::read(&paths[1]),
         json!({
             "providers":[{"name":"anthropic", "number":2, "signed_in_plan":false,
                 "manage_usage":"https://claude.ai/settings/usage", "endpoint":"claude",
@@ -457,7 +457,7 @@ fn stock_charters_keep_seven_models_and_choose_the_boxs_scripted_default() {
         .member(&document, b"engine")
         .expect("engine");
     let given = temper_service::stock::Given::Stock.with_providers(
-        temper_fixtures::providers::values(&temper_fixtures::providers::read(&paths[1])),
+        temper_agent_fixtures::providers::values(&temper_agent_fixtures::providers::read(&paths[1])),
         Box::new([temper_service::stock::scripted(([127, 0, 0, 1], 8370).into())]),
     );
     let engine = temper_service::startup::engine_with(
@@ -517,7 +517,7 @@ fn live_model_world(
         .member(&document, b"engine")
         .expect("engine");
     let given = temper_service::stock::Given::Stock.with_providers(
-        temper_fixtures::providers::values(&temper_fixtures::providers::read(&paths[1])),
+        temper_agent_fixtures::providers::values(&temper_agent_fixtures::providers::read(&paths[1])),
         Box::new([temper_service::stock::scripted(([127, 0, 0, 1], 8370).into())]),
     );
     let engine = temper_service::startup::engine_with(
@@ -724,7 +724,7 @@ fn a_fresh_sitting_selects_its_model_in_every_charter() {
             json!({
                 "setting":{"kind":"charter","number":number},
                 "set":{"instructions":format!("charter {number}"),"model":model,
-                    "alternatives":[],"rest":false,"time":240_000_000_000_u64}
+                    "alternatives":[],"rest":false,"time":1}
             })
         })
     };
@@ -1756,6 +1756,16 @@ fn referee_json(argv: &[&str], page: &jig_client::contract::ActivityPage) -> Val
         root::Event::Client { event: Event::StartUnlinked { kept: List::with_capacity(0) } },
         root::Event::Client { event: Event::SignIn { with: jig_client::With::Transport } },
         root::Event::Client { event: Event::Up { up: Up::Served { served: true, versions: None } } },
+        root::Event::Client {
+            event: Event::Up {
+                up: Up::Watched {
+                    watch: skein_lib::Token::new(0),
+                    event: jig_client::contract::WatchEvent::Delivered(jig_client::contract::Delivery::Me(Box::new(
+                        referee_me(),
+                    ))),
+                },
+            },
+        },
         root::Event::Call { number: 1, call, json: true, value: None },
     ]);
     for _ in 0..32 {
@@ -1783,9 +1793,6 @@ fn referee_response(
         return None;
     };
     Some(match down {
-        Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Me) } => {
-            Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(referee_me()))) }
-        }
         Down::Open { watch, .. } => Up::WatchEnded { watch, end: c::WatchEnd::SubjectEnded },
         Down::Read { read, .. } => Up::ReadDone {
             read,
@@ -2059,8 +2066,8 @@ fn a_key_configuration_changes_only_anthropics_list_policy_and_starts() {
     let (scratch, paths) = initialized_deployment("live-key-configuration");
     let path = paths[0].join("temper.json");
     let expected: Value = serde_json::from_slice(&fs::read(&path).expect("init configuration")).expect("JSON");
-    let mut expected_providers = temper_fixtures::providers::read(&paths[1]);
-    let agent = temper_fixtures::agent::read(&paths[0]);
+    let mut expected_providers = temper_agent_fixtures::providers::read(&paths[1]);
+    let agent = temper_agent_fixtures::read(&paths[0]);
     let provider = expected_providers["providers"]
         .as_array_mut()
         .expect("providers")
@@ -2074,8 +2081,8 @@ fn a_key_configuration_changes_only_anthropics_list_policy_and_starts() {
     configure_key(&paths);
     let configured: Value = serde_json::from_slice(&fs::read(path).expect("key configuration")).expect("JSON");
     assert_eq!(configured, expected, "the startup document is unchanged");
-    assert_eq!(temper_fixtures::providers::read(&paths[1]), expected_providers, "only Anthropic's list changes");
-    assert_eq!(temper_fixtures::agent::read(&paths[0]), agent, "Claude Code's program stays as init writes it");
+    assert_eq!(temper_agent_fixtures::providers::read(&paths[1]), expected_providers, "only Anthropic's list changes");
+    assert_eq!(temper_agent_fixtures::read(&paths[0]), agent, "Claude Code's program stays as init writes it");
     scratch.remove();
     assert_live_startup("live-key-startup", configure_key);
 }

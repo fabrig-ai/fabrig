@@ -47,6 +47,7 @@ pub const CONNECTOR: u16 = 1;
 #[must_use]
 pub fn sign_in(reply_to: Token, provider: u16, subject: &[u8], login: &[u8], name: &[u8]) -> root::Event {
     root::Event::Core(core::Event::SignIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(reply_to),
         identity: people::Identity {

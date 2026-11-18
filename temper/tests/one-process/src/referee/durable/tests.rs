@@ -21,7 +21,7 @@ fn generation_snapshot(old: bool, malformed: bool) -> Vec<u8> {
     ];
     for set in temper_engine_service::store::OWNER_SETS.sets {
         for job in set.jobs {
-            if old && set.owner == jig_protocol_store::Owner::Application && job.name == crate::upgrade::JOB {
+            if old && crate::upgrade::JOBS.contains(&job.name) {
                 continue;
             }
             let job_row = jig_protocol_store::registry_v1::Job::new(

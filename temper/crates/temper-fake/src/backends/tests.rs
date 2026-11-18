@@ -66,7 +66,7 @@ fn welcome_steps_name_only_the_four_held_peers_and_share_the_seed() {
     let (_, _, peers) = fixture();
     assert_eq!(SEED, 7);
     for config in [b"/effective/config".as_slice(), b"/effective/config/"] {
-        let given = steps(config, b"/effective/data/", &peers, None, false);
+        let given = steps(config, b"/effective/data/", &peers, None, false, None);
         assert_eq!(given.len(), 4);
         for (step, name, command, document, listen) in [
             (
@@ -497,8 +497,7 @@ fn program_offer_has_a_runnable_model_route_in_both_documents() {
         "the rewrite preserves the profile's creating lists"
     );
     let llm = flat(&docs.providers);
-    let effective_agent =
-        temper_fixtures::agent::with_providers(&json(&docs.temper), &provider_values(&docs.providers));
+    let effective_agent = temper_agent_fixtures::with_providers(&json(&docs.temper), &provider_values(&docs.providers));
 
     assert_program_provider(&llm);
     assert!(llm.get("models").is_none());
@@ -523,10 +522,12 @@ fn program_offer_has_a_runnable_model_route_in_both_documents() {
         assert_eq!(endpoint["dialect"], 2, "Anthropic’s endpoint dialect");
         assert_eq!(endpoint["number"], 2);
     }
+    // The catalogue requests 8,192 tokens within the endpoint's 48,000-token ceiling.
+    assert_eq!(model.model.output, 8192);
     let agent_limits = &agent_endpoint["limits"];
     for field in ["window", "output"] {
-        let actual = if field == "window" { model.model.window } else { model.model.output };
-        assert_eq!(json!(actual), agent_limits[field], "program quantities agree: {field}");
+        let actual = if field == "window" { model.model.window } else { 48_000 };
+        assert_eq!(json!(actual), agent_limits[field], "program endpoint quantities: {field}");
     }
     let stock = temper_engine_service_stock::stock::defaults(&admitted.llm, admitted.limits.core.tasks.result_bytes);
     for charter in &stock.charters {
@@ -604,8 +605,7 @@ fn written_anthropic_entries_are_replaced_once() {
     let (temper, paths, peers) = fixture();
     let docs = write(&temper, &paths, &peers).expect("rewrite written Anthropic route");
     let llm = flat(&docs.providers);
-    let effective_agent =
-        temper_fixtures::agent::with_providers(&json(&docs.temper), &provider_values(&docs.providers));
+    let effective_agent = temper_agent_fixtures::with_providers(&json(&docs.temper), &provider_values(&docs.providers));
 
     assert_eq!(llm["providers"].as_array().unwrap().iter().filter(|p| p["name"] == "anthropic").count(), 1);
     assert_program_provider(&llm);
@@ -705,8 +705,8 @@ fn provider_values(bytes: &[u8]) -> Box<[jig_protocol_config::ProviderSetting]> 
     .unwrap()
 }
 fn stock_providers() -> Value {
-    temper_fixtures::providers::flat(&temper_engine_service_stock::providers())
+    temper_agent_fixtures::providers::flat(&temper_engine_service_stock::providers())
 }
 fn flat(bytes: &[u8]) -> Value {
-    temper_fixtures::providers::flat(&provider_values(bytes))
+    temper_agent_fixtures::providers::flat(&provider_values(bytes))
 }

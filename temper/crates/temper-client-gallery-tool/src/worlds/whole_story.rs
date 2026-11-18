@@ -510,13 +510,25 @@ pub(super) fn domain(name: &str, address: Address) -> Domain {
     ] {
         step(&mut root, name, Event::Client { event }, &mut out);
     }
+    step(
+        &mut root,
+        name,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: Up::Watched {
+                    watch: Token::new(0),
+                    event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me.clone()))),
+                },
+            },
+        },
+        &mut out,
+    );
     for _ in 0..512 {
         let Some(request) = out.pop() else { break };
         let Some(request) = down(request) else { continue };
         match request {
             Down::Open { watch, subject: Watchable::Jig(subject) } => {
                 let value = match subject {
-                    c::Subject::Me => c::Delivery::Me(Box::new(me.clone())),
                     c::Subject::Accounts => c::Delivery::Accounts(Box::new(super::accounts(World::Solo, Then::Shown))),
                     c::Subject::Settings => {
                         let mut settings = List::with_capacity(me.projects.len());
@@ -621,7 +633,7 @@ pub(super) fn domain(name: &str, address: Address) -> Domain {
                         Some(wire::setting_answer(
                             &w::SettingAnswer::new(
                                 &w::CEILINGS,
-                                w::SettingAnswerParts { value: Some(writer.finish()) },
+                                w::SettingAnswerParts { revision: None, value: Some(writer.finish()) },
                             )
                             .expect("ways answer"),
                         ))

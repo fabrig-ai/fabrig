@@ -228,7 +228,7 @@ fn finding_reads_print_areas_triager_and_the_whole_finding() {
         } else {
             assert!(f::has(&printed, b"filer: party 8\nfiled: 77\nhanded on: words, not code\ngoal: task 90\ndropped: duplicate\n\nBoot twice\n"));
         }
-        assert_eq!(root.watches.len(), 1, "reads close the findings watch");
+        assert_eq!(root.watches.len(), 0, "reads close the findings watch");
     }
 }
 #[test]

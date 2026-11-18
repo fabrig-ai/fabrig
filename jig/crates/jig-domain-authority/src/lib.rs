@@ -69,7 +69,7 @@ pub use check::{
 };
 pub use domain::{Domain, Event, PolicyFact, PolicyRefusal, policy_refusal, step, valid_rules};
 pub use limits::{Limits, name_within, rules_bound, stored_finding_limit};
-pub use numbers::{Numbers, carve, charge, left, settle};
+pub use numbers::{Numbers, carve, charge, left, run_spend, settle};
 pub use order::{
     Implication, Implies, at_most, grant_at_most, grant_covers, pattern_at_most, pattern_covers, resolve_task_grants,
 };

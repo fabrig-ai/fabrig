@@ -84,13 +84,14 @@ pub(crate) const OPEN_CHANGE: &[&str] = &[
     "--title",
     "Fix the docs",
     "--budget",
-    "500",
+    "5.00",
     "--key",
     "open-change",
 ];
 pub(crate) const EVERY_TOOL: &[&[&str]] = &[
+    &["link", "--out", "record"],
     &["deployment", "checkpoint"],
-    &["milestone", "new", "--project", "1", "--budget", "400", "Store shape", "--key", "milestone"],
+    &["milestone", "new", "--project", "1", "--budget", "4.00", "Store shape", "--key", "milestone"],
     &["milestone", "whole", "812", "--key", "whole"],
     &["milestone", "list", "--project", "1"],
     &["milestone", "show", "812"],
@@ -126,7 +127,7 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     ],
     &["party", "make", "--project", "1", "--role", "2", "--out", "service", "scout"],
     &["sign-in", "--service", "service"],
-    &["role", "start", "--project", "2", "--budget", "50", "Owns the tests", "--key", "k"],
+    &["role", "start", "--project", "2", "--budget", "0.50", "Owns the tests", "--key", "k"],
     &["role", "list", "--project", "shop"],
     &["role", "show", "41"],
     &["role", "talk", "41", "Hello", "--key", "talk"],
@@ -151,7 +152,7 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
         "--charter",
         "1",
         "--budget",
-        "80",
+        "0.80",
         "--deadline",
         "1970-01-01T00:01Z",
         "work",
@@ -190,6 +191,8 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["account", "replace-key", "43", "key-file"],
     &["account", "forget", "43"],
     &["account", "rank", "43", "1"],
+    &["account", "uses", "43", "--party", "73", "--project", "1"],
+    &["account", "uses", "43", "--default"],
     &["account", "retry", "43"],
     &["task", "amend", "41", "--rev", "7", "--model", "chosen-model", "because"],
     &["account", "declare", "9", "helper", "work-login", "--key", "declare"],
@@ -256,7 +259,7 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["forge", "accept", "3", "1"],
     &["revision", "advance", "7", "--key", "move-7"],
     &["project", "show", "1"],
-    &["project", "fund", "1", "200", "--key", "fund"],
+    &["project", "fund", "1", "2.00", "--key", "fund"],
     &["landing", "show", "41"],
     &["landing", "list", "--project", "1"],
     &["landing", "history", "--project", "1"],
@@ -803,17 +806,9 @@ impl Harness {
         self.next
     }
     pub fn deliver(&mut self, delivery: c::Delivery) {
-        let mut watches = List::with_capacity(OUTPUTS);
-        for (token, subject) in &self.watches {
-            if *subject == client::Watchable::Jig(c::Subject::Me) {
-                watches.push(*token).expect("bounded me watches");
-            }
-        }
-        for token in &watches {
-            self.client(client::Event::Up {
-                up: client::Up::Watched { watch: *token, event: c::WatchEvent::Delivered(delivery.clone()) },
-            });
-        }
+        self.client(client::Event::Up {
+            up: client::Up::Watched { watch: Token::new(0), event: c::WatchEvent::Delivered(delivery) },
+        });
     }
     pub fn serve(&mut self, call: u32, result: c::ReadResult) {
         self.serve_readout(call, client::Readout::Jig(result));

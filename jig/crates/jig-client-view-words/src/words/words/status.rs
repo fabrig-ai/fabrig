@@ -81,6 +81,13 @@ impl Words {
             }
         }
     }
+    /// Explain the task-local exclusion of a program that started without its tools.
+    pub fn run_wait(&self, b: &mut Builder, wait: &jig_client::contract::TaskRunWait) {
+        use jig_client::contract::{TaskRunWait, TaskWaitWhy};
+        if let TaskRunWait::Account { why: TaskWaitWhy::Untooled { worker }, .. } = wait {
+            self.text(b, P::WaitUntooled, &[Hole::Number(u64::from(*worker))]);
+        }
+    }
     fn host_refused(&self, b: &mut Builder, why: jig_client::contract::TaskWaitRefused) {
         use jig_client::contract::{HostKind, TaskWaitRefused as R};
         match why {

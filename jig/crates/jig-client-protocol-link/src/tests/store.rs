@@ -153,6 +153,7 @@ fn a_table_entry_restores_family_bytes_and_their_wire_version() {
 fn an_erased_key_waits_for_durability_before_the_step_s_exchange() {
     let mut harness = fixtures::Harness::new(&fixtures::limits());
     harness.link.step(Time::ZERO, Event::Erase { key: fixtures::KEY }, &mut harness.out);
+    harness.link.settle(&mut harness.out);
     harness.send_kept(fixtures::ATTEMPT);
     assert_eq!(harness.exchanges(), 0);
     harness.written();
@@ -183,11 +184,12 @@ fn a_mismatched_table_storage_key_drops_its_record() {
 fn a_cancelled_opening_already_in_the_step_queue_is_never_sent_after_writing() {
     let mut harness = fixtures::Harness::streaming(fixtures::family_subject());
     let (exchange, _) = harness.opening();
+    harness.clear();
     harness.link.step(Time::ZERO, Event::Lost { exchange }, &mut harness.out);
+    harness.link.settle(&mut harness.out);
     harness.save(fixtures::saved_table(fixtures::message()));
     harness.written();
-    assert_eq!(harness.exchanges(), 1, "the uncertain opening drops its stream");
-    assert_eq!(harness.gone_name(), fixtures::STREAM);
+    assert_eq!(harness.exchanges(), 0, "no stream gone is sent");
     harness.assert_no_watch_exchange();
     assert_eq!(harness.ended(fixtures::WATCH), Some(c::WatchEnd::Dropped));
 }
@@ -211,9 +213,13 @@ fn a_full_table_and_the_stream_s_name_start() {
         let Request::Kept { .. } = request else { panic!("restored table entry: {request:?}") };
     }
     h.clear();
-    h.open(fixtures::WATCH, fixtures::frame_subject());
-    assert_eq!(h.gone_name(), fixtures::STREAM);
-    assert!(!h.has(&Request::OpenStream { credential: None }));
+    h.open(fixtures::WATCH, fixtures::application_subject());
+    assert_eq!(h.exchanges(), 0);
+    assert!(h.has(&Request::OpenStream {
+        credential: None,
+        replaces: Some(fixtures::STREAM),
+        version: jig_client_protocol_wire::VERSION
+    }));
 }
 
 #[test]
@@ -240,6 +246,7 @@ fn held_exchanges_leave_in_order_after_the_write() {
             },
             &mut harness.out,
         );
+        harness.link.settle(&mut harness.out);
     }
     assert_eq!(harness.exchanges(), 0, "all exchanges await the write");
     harness.clear();

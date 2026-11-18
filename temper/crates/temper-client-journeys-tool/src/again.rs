@@ -1,6 +1,7 @@
 //! The browser half of recording again, over the native walk (client/web/journeys.md, 8.1–8.2).
 //! Like skein's harness (skein/docs/design/ui/web/testing.md, 2), this is ordinary Rust: the clock is
-//! supplied by the harness, and only completed downloads are read here.
+//! supplied by the harness, and only completed downloads are read here. Saves used for control
+//! lookup and walk comparison hold placeholders (client/journey-placeholders.md, 4.2).
 use crate::Refusal;
 use skein_browser::boundary::Key;
 use skein_fake_person::{Doing, Face, Find, Found, Next};
@@ -11,11 +12,16 @@ use skein_fake_person_browser::{
 use skein_lib::{Duration, Time};
 use skein_ui::{Act, Role};
 use std::{
+    ffi::OsString,
     fs,
     os::unix::ffi::OsStrExt,
     path::{Path, PathBuf},
 };
 use temper_client_shell_web::journey::{self, Control, SetupStep, Step};
+
+/// 2026-01-06T09:00:00Z, seed 7 (temper/docs/design/client/journey-clock.md, 2).
+/// Every part of `again` takes this start (temper/docs/design/client/journey-clock.md, 4.4).
+pub(crate) const FIXED_START: &str = "1767690000,7";
 
 const HORIZON: Duration = Duration::from_secs(600);
 const POLL: Duration = Duration::from_millis(50);
@@ -39,7 +45,8 @@ pub fn again(
     paths: &Paths,
     environment: &[crate::EnvironmentEntry],
 ) -> Result<(), Refusal> {
-    let steps = starting(journeys, name)?;
+    let committed = recorded(journeys, name)?;
+    let steps = walked(name, &committed)?;
     let prepared = prepared(journeys, name)?;
     let downloads = paths.scratch.join("downloads");
     fs::create_dir(&downloads).map_err(|_| crate::io_refusal(&downloads))?;
@@ -47,10 +54,35 @@ pub fn again(
     let isolated = crate::isolation::environment(environment, &paths.scratch).map_err(fail)?;
     let launcher =
         crate::isolation::program("env", environment).ok_or_else(|| fail("cannot find env on PATH".into()))?;
-    let mut args = crate::isolation::server_arguments(&isolated, &paths.scratch);
+    let mut harness = Harness::new(box_setup(paths, launcher, &isolated, Some(downloads)))
+        .page_query(&page_query(true))
+        .horizon(HORIZON);
+    let mut walker = Walker::new(name, steps, prepared);
+    let outcome = harness.run(&mut [&mut walker]);
+    if let Some(refusal) = walker.refusal.take() {
+        return Err(refusal);
+    }
+    if let Outcome::Failed { step, report, .. } = outcome {
+        return Err(Refusal::Harness { name: name.to_owned(), step: step.saturating_add(1), report });
+    }
+    let recording = walker.recording.take().expect("completed walker keeps its end save");
+    walker.check(&committed, &recording)?;
+    crate::add(journeys, name, &recording, &private_paths(paths)).map(|_| ())
+}
+
+/// A fresh fake box, including its restart (temper/docs/design/client/journey-clock.md, 4.4).
+pub(crate) fn box_setup(
+    paths: &Paths,
+    launcher: PathBuf,
+    isolated: &[(OsString, OsString)],
+    downloads: Option<PathBuf>,
+) -> Setup<'static> {
+    let mut args = crate::isolation::server_arguments(isolated, &paths.scratch);
     args.extend([
         paths.temper.clone().into_os_string(),
         "--fake-backends".into(),
+        "--fixed-start".into(),
+        FIXED_START.into(),
         "--bundle".into(),
         paths.bundle.clone().into_os_string(),
     ]);
@@ -63,36 +95,25 @@ pub fn again(
         };
         args.push(path.into_os_string());
     }
-    let mut harness = Harness::new(Setup {
+    Setup {
         server: launcher,
         restart: args.clone(),
         args,
         printed: Printed { sent: Sent::Page, prefix: b"http://127.0.0.1:", on: Output::Stdout, names: Names::Url },
         chromium: paths.chromium.clone(),
-        downloads: Some(downloads),
+        downloads,
         expected: vec![],
         origins: vec![],
-    })
-    .page_query(b"internal-record=1&internal-loopback-navigation=1")
-    .horizon(HORIZON);
-    let mut walker = Walker::new(name, steps, prepared);
-    let outcome = harness.run(&mut [&mut walker]);
-    if let Some(refusal) = walker.refusal {
-        return Err(refusal);
     }
-    if let Outcome::Failed { step, report, .. } = outcome {
-        return Err(Refusal::Harness { name: name.to_owned(), step: step.saturating_add(1), report });
-    }
-    let recording = walker.recording.expect("completed walker keeps its end save");
-    let new =
-        journey::walk(&recording).map_err(|unwalkable| Refusal::Unwalkable { name: name.to_owned(), unwalkable })?;
-    if let Some(step) = journey::differs(&walker.steps, &new) {
-        return Err(Refusal::WalkDiffers { name: name.to_owned(), step });
-    }
-    crate::add(journeys, name, &recording, &private_paths(paths)).map(|_| ())
 }
 
-/// Local capture paths are given originals for the shared redactor (client/web/journeys.md, 3.6).
+/// First loads and setup reloads share the start (temper/docs/design/client/journey-clock.md, 4.4).
+pub(crate) fn page_query(record: bool) -> Vec<u8> {
+    let recording = if record { "internal-record=1&" } else { "" };
+    format!("{recording}internal-loopback-navigation=1&internal-fixed-start={FIXED_START}").into_bytes()
+}
+
+/// Local capture paths are given originals for the shared redactor (client/web/journey-redaction.md).
 pub(crate) fn private_paths(paths: &Paths) -> Vec<Box<[u8]>> {
     [&paths.temper, &paths.bundle, &paths.scratch]
         .into_iter()
@@ -105,12 +126,28 @@ pub(crate) fn private_paths(paths: &Paths) -> Vec<Box<[u8]>> {
 /// # Errors
 /// Refuses an invalid name, a missing recording or an unwalkable recording.
 pub fn starting(journeys: &Path, name: &str) -> Result<Vec<Step>, Refusal> {
+    walked(name, &recorded(journeys, name)?)
+}
+fn recorded(journeys: &Path, name: &str) -> Result<Vec<u8>, Refusal> {
     if !crate::named(name) {
         return Err(Refusal::Name(name.to_owned()));
     }
     let path = journeys.join(name).join("recording");
-    let recording = fs::read(&path).map_err(|_| crate::io_refusal(&path))?;
-    journey::walk(&recording).map_err(|unwalkable| Refusal::Unwalkable { name: name.to_owned(), unwalkable })
+    fs::read(&path).map_err(|_| crate::io_refusal(&path))
+}
+fn walked(name: &str, recording: &[u8]) -> Result<Vec<Step>, Refusal> {
+    journey::walk(recording).map_err(|unwalkable| Refusal::Unwalkable { name: name.to_owned(), unwalkable })
+}
+fn normalised(save: &[u8]) -> Result<Box<[u8]>, journey::Refusal> {
+    journey::normalise(save).map(|normalised| normalised.recording).map_err(|why| {
+        let unreadable = match why {
+            journey::Unredacted::Unreadable(unreadable) => unreadable,
+            journey::Unredacted::Undecoded(undecoded) => {
+                journey::Unreadable { line: undecoded.line, why: "stream data could not be decoded" }
+            }
+        };
+        journey::Refusal::Unreadable(unreadable)
+    })
 }
 
 /// The journey's setup, its `after` joined, or None.
@@ -249,6 +286,14 @@ impl Walker {
     fn save_refusal(&self, refusal: journey::Refusal) -> Refusal {
         Refusal::Save { name: self.name.clone(), step: self.step(), refusal }
     }
+    fn check(&self, committed: &[u8], recording: &[u8]) -> Result<(), Refusal> {
+        let old = normalised(committed).map_err(|why| self.save_refusal(why))?;
+        let new = normalised(recording).map_err(|why| self.save_refusal(why))?;
+        if let Some(step) = journey::differs(&walked(&self.name, &old)?, &walked(&self.name, &new)?) {
+            return Err(Refusal::WalkDiffers { name: self.name.clone(), step });
+        }
+        Ok(())
+    }
     fn save(&mut self, face: &mut BrowserFace<'_>, earlier: Option<Vec<u8>>) {
         self.phase = Phase::Download { after: face.downloads().len(), earlier };
         face.key(Key::Letter { letter: b's', alt: true }, true);
@@ -343,10 +388,7 @@ impl Walker {
                 // Opening then waits for that new page's asynchronous client start.
                 self.phase = Phase::Opening;
                 return Ok(Next::Do(Doing::Go {
-                    address: skein_fake_person_browser::harness::with_query(
-                        &address,
-                        b"internal-record=1&internal-loopback-navigation=1",
-                    ),
+                    address: skein_fake_person_browser::harness::with_query(&address, &page_query(true)),
                 }));
             }
             Phase::MarkWait { mark, text } => {
@@ -428,7 +470,10 @@ impl Walker {
             }
             Phase::Still { save } => match &self.steps[self.at] {
                 Step::Act { act, event } => {
-                    if let Some(control) = journey::control(&save, act, event).map_err(|why| self.save_refusal(why))? {
+                    let normalised = normalised(&save).map_err(|why| self.save_refusal(why))?;
+                    if let Some(control) =
+                        journey::control(&normalised, act, event).map_err(|why| self.save_refusal(why))?
+                    {
                         self.phase = Phase::Find { control };
                     } else {
                         self.missing_since.get_or_insert(now);
@@ -528,9 +573,39 @@ pub(crate) fn copy_act(act: &Act) -> Act {
 }
 
 #[cfg(test)]
+mod normalised_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use skein_lib::Token;
+
+    #[test]
+    fn the_walk_start_is_readable() {
+        assert_eq!(
+            skein_lib::FixedStart::read(FIXED_START.as_bytes()),
+            Some(skein_lib::FixedStart { seed: 7, wall: skein_lib::Wall::from_nanos(1_767_690_000_000_000_000) })
+        );
+    }
+
+    #[test]
+    fn the_browser_box_restart_and_page_share_the_walk_start() {
+        let paths = Paths {
+            temper: "/scratch/temper".into(),
+            bundle: "/scratch/bundle".into(),
+            cache: None,
+            chromium: "/chromium".into(),
+            scratch: "/scratch".into(),
+        };
+        let setup = box_setup(&paths, "/env".into(), &[], Some("/scratch/downloads".into()));
+        let expected: Vec<OsString> = ["--fake-backends", "--fixed-start", "1767690000,7"].map(Into::into).into();
+        assert!(setup.args.windows(expected.len()).any(|args| args == expected));
+        assert_eq!(setup.restart, setup.args);
+        assert_eq!(
+            page_query(true),
+            b"internal-record=1&internal-loopback-navigation=1&internal-fixed-start=1767690000,7"
+        );
+    }
 
     fn walker() -> Walker {
         let setup = journey::setup(
@@ -634,7 +709,10 @@ mod tests {
         assert_eq!(
             walker.progress(&mut face, Time::ZERO).expect("load"),
             Next::Do(Doing::Go {
-                address: b"/projects/1?internal-record=1&internal-loopback-navigation=1".as_slice().into()
+                address:
+                    b"/projects/1?internal-record=1&internal-loopback-navigation=1&internal-fixed-start=1767690000,7"
+                        .as_slice()
+                        .into()
             })
         );
         assert!(matches!(walker.phase, Phase::Opening));

@@ -125,6 +125,7 @@ impl Story {
                     }
                     client::UnlinkedRequest::Told { told } => self.told.push(told),
                     client::UnlinkedRequest::ApprovalAct(_)
+                    | client::UnlinkedRequest::AskedLink(_)
                     | client::UnlinkedRequest::Approval(_)
                     | client::UnlinkedRequest::SignOut
                     | client::UnlinkedRequest::Authorized(_) => {

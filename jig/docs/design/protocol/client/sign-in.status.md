@@ -1,6 +1,7 @@
 # sign-in: status
 
-2026-11-11. Where the tree's code lags or departs from [sign-in.md](sign-in.md).
+2026-11-17. Where the tree's code lags or departs from [sign-in.md](sign-in.md).
+
 
 - **Departs:** the whole document, *Never taken, nothing made*: a take admitted before
   expiry remains reserved until the core answers, even past the approval's

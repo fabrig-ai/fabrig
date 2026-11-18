@@ -153,8 +153,15 @@ with `field=result` gives the producer's report whole, in pieces. A document's
 card shows what `documents.text_bytes` holds, marked as cut.
 
 The `no_change` verdict becomes jig's successful `NoChange` result. It
-retains the explanation, supplies no resource or landing, and ends the
-change without a hold or escalation. The requester receives that result.
+retains the explanation and supplies no resource or landing. A
+producer's ends its change without a hold or escalation, and the
+requester receives that result. A repair's or a resolution's is its
+change's to read (`../forge/change/repairs.md`): a CI repair's checks
+its head again (*A CI repair that changes nothing checks its head
+again*), and a landing's, a gate's, a review's or a resolution's holds
+the change, as a failed repair does. So a repair that delivered
+finishes as a change, in a later run as in the one that delivered
+(`README.md`, 5), never as `no_change`.
 A change contract's choice becomes jig's successful `Verdict` result with
 its code, and, like `no_change`, is refused where the run settled a
 change.
@@ -249,11 +256,14 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   - **A decision's words,** `decided`'s (`tools.md`): every charter that
     decides says, beside its call: "Write the question in one sentence,
     the situation as a person reads it, and each option in one line."
-    They are charter 1's Asking paragraph and the shared sections of
+    They are charter 1's Asking paragraph, the shared sections of
     charters 13 to 16, the standing role's, the triager's, the prover's
-    and the porter's, as the draft lists them; charter 5's *Asking your
-    requester* doesn't repeat it, keeping its brief within the receiving
-    bounds (`../../protocol/configuration/stock.md`'s charter 5 row). So the option `took` names reads as one line.
+    and the porter's, as the draft lists them, and charter 5's *Asking
+    your requester* (`../../../charters/stock/goal.md`), whose line,
+    after the sentence that calls `decided`, says where the rest goes:
+    "Write its question in one sentence, the situation as a person reads
+    it, and each option in one line; commits, figures and task or pull
+    numbers go in its why." So the option `took` names reads as one line.
   - **A goal's report headline** (`agents.md`, 3, *A goal's report*):
     charter 1's goal paragraph says the headline is one line for the
     person saying "where the goal stands, naming no task, change or pull
@@ -282,8 +292,10 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
 - **Budget:** the run's turns, spend and time, with its reserve of turns
   and time for finishing (smith's `domain/budget.md`, 1), from its
   charter in configuration, at the task's revision; its spend is what
-  its task has left, capped per run, reserved at its claim, in the
-  deployment's unit (jig's `domain/hosts/charters.md`).
+  its task has left, half of it where the task may start a delegate, so
+  that a goal's changes are funded while its agent runs, capped per run,
+  reserved at its claim, in the deployment's unit (jig's
+  `domain/authority.md`, section 7, and `domain/hosts/charters.md`).
 - **Models:** the main session's and those its sub-agents may use, each
   with its endpoint, window, output and prices (`../../protocol/llm.md`,
   section 3): the task's LLM choice among those its charter allows,

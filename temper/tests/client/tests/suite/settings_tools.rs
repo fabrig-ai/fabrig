@@ -164,8 +164,8 @@ fn a_settings_file_sets_a_project_policy_through_ctl_proposed_shown_and_accepted
     );
     assert_eq!(decided, "done: decide\n");
     let project = call(&mut world, agent, &[b"project", b"show", b"1"]);
-    assert!(project.contains("spend per period: 900"), "{project}");
-    assert!(project.contains("budget 900,"), "{project}");
+    assert!(project.contains("spend per period: 9.00"), "{project}");
+    assert!(project.contains("budget 9.00,"), "{project}");
     let after = call(&mut world, agent, &[b"settings", b"show"]);
     assert!(after.starts_with("newest revision 2\n"), "{after}");
     let rows = world.front().engine.store.rows.clone();

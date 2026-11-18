@@ -9,7 +9,7 @@ use std::{
     path::{Path, PathBuf},
 };
 pub(super) type RecipeFiles = BTreeMap<Box<[u8]>, Vec<u8>>;
-fn documents() -> [&'static [u8]; 6] {
+fn documents() -> [&'static [u8]; 5] {
     let mut names = crate::drive::deployment::inputs().map(|(name, _)| name.as_bytes());
     names.sort_unstable();
     names

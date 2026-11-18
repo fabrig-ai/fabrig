@@ -360,9 +360,7 @@ fn a_live_producer_is_not_held_past_the_stall() {
     jump(&mut world, bound.saturating_add(Duration::from_secs(1)));
     observe_push(&mut world, &producer);
     // Settle the hint's reads as well as its durable step.
-    for _ in 0..40 {
-        world.tick();
-    }
+    world.advance_ticks(40);
     not_held(&world, task);
     close(world, &goal);
 }

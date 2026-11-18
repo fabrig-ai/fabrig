@@ -2657,7 +2657,7 @@ fn outcome_facts(
     }
     projection_outcome(d, env, entry, outcome, out);
     change_outcome(d, env, entry, outcome, out);
-    release_outcome(d, entry, outcome, out);
+    release_outcome(d, env, entry, outcome, out);
     goal_branch::outcome(d, entry, outcome, out);
     match outcome {
         skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Branch(commit), .. } => {
@@ -3225,7 +3225,8 @@ fn record_delegate_head(
             && row.repository.forge == name.forge
             && row.repository.repository == name.repository
             && crate::items::branch_matches(name, &row.branch)
-            && (row.change.last_head != Some(commit) || (checked && row.change.last_checked != Some(commit)))
+            && (row.change.last_head != Some(commit)
+                || (checked && (row.change.last_checked != Some(commit) || row.change.last_checked_by != Some(task))))
         {
             let mut row = row.clone();
             if row.change.last_head != Some(commit) {
@@ -3234,6 +3235,7 @@ fn record_delegate_head(
             row.change.last_head = Some(commit);
             if checked {
                 row.change.last_checked = Some(commit);
+                row.change.last_checked_by = Some(task);
             }
             pushed = Some(row);
             break;
@@ -7253,6 +7255,15 @@ fn closing_pull(d: &Domain, task: u64, ending: ReleaseEnding) -> Option<u64> {
     }
 }
 
+fn pull_seen_closed(d: &Domain, repository: skein_forge::api::Repository, number: u64, limits: &Limits) -> bool {
+    let resource = skein_forge_client::Resource { repository, what: skein_forge_client::What::Pull(number) };
+    let Some(name) = from_client(&resource, limits) else { return false };
+    match d.pulls.get(&name) {
+        Some(pull) => pull.state == skein_forge::api::State::Closed,
+        None => false,
+    }
+}
+
 fn recorded_merge(d: &Domain, task: u64) -> Option<skein_forge::api::Commit> {
     for (commit, owner) in &d.landed {
         if *owner == task {
@@ -7284,6 +7295,22 @@ fn release_row(
     }
 }
 
+// A failed release can take another ending from the same root (forge/change/README.md, 4).
+fn retarget_release(row: &mut ReleaseRow, root: u64, ending: ReleaseEnding, close_pull: Option<u64>) -> bool {
+    if row.root != root || (row.ending != ending && ending != ReleaseEnding::Cancelled && !row.failed) {
+        return false;
+    }
+    if row.ending != ending {
+        row.ending = ending;
+        row.releasing = false;
+        row.close_pull = close_pull;
+        if close_pull.is_none() {
+            row.comment = None;
+        }
+    }
+    true
+}
+
 fn settle_effects(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -7296,14 +7323,12 @@ fn settle_effects(
     crate::tiers::closing(d, env, task, ending, out);
     let close_pull = closing_pull(d, task, ending);
     if let Some(row) = d.releases.get_mut(&task) {
-        if row.root != root || (row.ending != ending && ending != ReleaseEnding::Cancelled) {
+        let changed = row.ending != ending;
+        if !retarget_release(row, root, ending, close_pull) {
             emit(out, Request::ReleaseFailed { task, account: None });
             return;
         }
-        if row.ending != ending {
-            row.ending = ending;
-            row.releasing = false;
-            row.close_pull = close_pull;
+        if changed {
             emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Release(row.clone()) });
         }
         if row.effects_settled {
@@ -7398,14 +7423,9 @@ fn release(
     }
     let close_pull = closing_pull(d, task, ending);
     if let Some(row) = d.releases.get_mut(&task) {
-        if row.root != root || (row.ending != ending && ending != ReleaseEnding::Cancelled) {
+        if !retarget_release(row, root, ending, close_pull) {
             emit(out, Request::ReleaseFailed { task, account: None });
             return;
-        }
-        if row.ending != ending {
-            row.ending = ending;
-            row.releasing = false;
-            row.close_pull = close_pull;
         }
         if row.failed {
             row.failed = false;
@@ -7569,7 +7589,7 @@ fn continue_release_inner(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u
     unreachable!("every release pass removes a hold or completes");
 }
 
-// Removal leaves the remote forge untouched (temper/docs/design/domain/forge/adoption.md, 1).
+// Removed forges and pulls seen closed need no remote cleanup (forge/adoption.md, 1; forge/change/README.md, 4).
 fn release_pull(d: &mut Domain, env: &Env<Limits>, row: &mut ReleaseRow, entry: u64, out: &mut Queue<Request>) -> bool {
     let Some(number) = row.close_pull else { return true };
     let Some(change) = d.changes.get(&row.task) else {
@@ -7577,7 +7597,10 @@ fn release_pull(d: &mut Domain, env: &Env<Limits>, row: &mut ReleaseRow, entry: 
         return false;
     };
     let repository = change.repository;
-    if d.forge_ended(repository.forge) || cancellation_pull(d, row.task).is_none() {
+    if d.forge_ended(repository.forge)
+        || cancellation_pull(d, row.task).is_none()
+        || pull_seen_closed(d, repository, number, &env.limits)
+    {
         row.close_pull = None;
         row.comment = None;
         d.releases.insert(row.task, row.clone()).expect("replaces release");
@@ -7777,7 +7800,13 @@ fn enqueue_release(
     keep_entry(d, entry, Some(number), out);
 }
 
-fn release_outcome(d: &mut Domain, entry: u64, outcome: skein_forge_client::Outcome, out: &mut Queue<Request>) {
+fn release_outcome(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    entry: u64,
+    outcome: skein_forge_client::Outcome,
+    out: &mut Queue<Request>,
+) {
     if outcome == skein_forge_client::Outcome::Uncertain || outcome == skein_forge_client::Outcome::Queued {
         return;
     }
@@ -7829,8 +7858,16 @@ fn release_outcome(d: &mut Domain, entry: u64, outcome: skein_forge_client::Outc
             | skein_forge_client::Outcome::Raced { .. }
             | skein_forge_client::Outcome::Held
             | skein_forge_client::Outcome::Withdrawn => {
-                row.failed = true;
-                emit(out, Request::ReleaseFailed { task, account });
+                if resource.is_none()
+                    && let Some(number) = row.close_pull
+                    && let Some(change) = d.changes.get(&task)
+                    && pull_seen_closed(d, change.repository, number, &env.limits)
+                {
+                    row.close_pull = None;
+                } else {
+                    row.failed = true;
+                    emit(out, Request::ReleaseFailed { task, account });
+                }
             }
             skein_forge_client::Outcome::Uncertain | skein_forge_client::Outcome::Queued => {
                 unreachable!("uncertain returned above")
