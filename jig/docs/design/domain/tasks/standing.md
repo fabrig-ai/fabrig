@@ -175,8 +175,12 @@ that woke it and its talk (5.6). At a wake, the first of:
   those its session offers: the always-offered, and the kinds named in the
   `on` of each part its session's reasons read.
 - **Fresh:** its run cannot resume: its charter starts fresh, or its
-  transcript's window cannot be resumed, closed, cut or past
-  `resume_bytes` (`../engine/executors.md`, 2).
+  transcript's window cannot be resumed, closed, cut, past
+  `resume_bytes`, or run on another endpoint or backend than the one
+  this run's source runs on (`../engine/executors.md`, 2, *Resumed only
+  where it ran*). The run that follows reads its Now whole and its
+  notes' index as any session's first (5.4), and nothing it keeps
+  outside its transcript is lost.
 
 Judged where they happen, not at a wake:
 
