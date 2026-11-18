@@ -1,5 +1,7 @@
 //! Scratch starts and their cancellable close (protocol/store/opening.md 5).
-use crate::{Arrived, Below, Event, Io, KeptWire, OpenRefusal, Phase, Root, Store, directory, generations, open};
+use crate::{
+    Arrived, Below, Event, Io, KeptWire, OpenRefusal, Phase, Reach, Root, Store, directory, generations, open,
+};
 use alloc::boxed::Box;
 use generations::{Copying, Progress, Removing};
 use skein_io::file;
@@ -27,6 +29,7 @@ pub(crate) struct State {
     scratch: Root,
     owner: Token,
     installation: [u8; 16],
+    reach: Reach,
     active: Option<generations::Active>,
     stage: Stage,
     announced: bool,
@@ -35,12 +38,14 @@ pub(crate) struct State {
     files: crate::file_handles::Owned,
 }
 
+#[expect(clippy::too_many_arguments, reason = "a rehearsal carries its reach beside the adopted roots")]
 pub(crate) fn begin(
     store: &mut Store,
     owner: Token,
     source: Root,
     scratch: Root,
     installation: [u8; 16],
+    reach: Reach,
     above: &mut Queue<Event>,
     below: &mut Below,
 ) {
@@ -57,6 +62,7 @@ pub(crate) fn begin(
         scratch,
         owner,
         installation,
+        reach,
         active: None,
         stage: Stage::Locking,
         announced: false,
@@ -166,8 +172,15 @@ pub(crate) fn up(store: &mut Store, arrived: Arrived, above: &mut Queue<Event>, 
             let chunk = store.limits.store.chunk;
             let state = state(store);
             let number = state.active.expect("active read before scratch copy").number;
-            state.stage =
-                Stage::Copying(generations::copy_between(state.source, state.scratch, number, number, chunk, below));
+            state.stage = Stage::Copying(generations::copy_between(
+                state.source,
+                state.scratch,
+                number,
+                number,
+                chunk,
+                state.reach,
+                below,
+            ));
         }
         Stage::Copying(mut copying) => match generations::copied(&mut copying, arrived, below) {
             Progress::Pending => state(store).stage = Stage::Copying(copying),
@@ -215,6 +228,18 @@ fn kept_wires(store: &mut Store, owner: Token) -> Option<Box<[KeptWire]>> {
     let key = crate::keys::encode_own(&crate::keys::Own::Wires, store.limits.store.key)?;
     let bytes = open::get(store, owner, key).ok()??;
     crate::rows::kept_wires(&bytes)
+}
+
+/// End an openings-only rehearsal after the recovered rows have been announced.
+pub(crate) fn end_openings(store: &mut Store, above: &mut Queue<Event>) -> bool {
+    let Some(state) = &store.rehearsal else { return false };
+    match state.reach {
+        Reach::Whole => false,
+        Reach::Openings => {
+            close(store, state.owner, above);
+            true
+        }
+    }
 }
 
 pub(crate) fn close(store: &mut Store, owner: Token, above: &mut Queue<Event>) {

@@ -12,6 +12,7 @@ pub const ENGINE: Table = Table {
         SERVE,
         VERSIONS,
         UPGRADE_CHECK,
+        UPGRADE_WORKERS,
         UPGRADE_BACK,
         CHECKPOINT,
         RESTORE,
@@ -77,12 +78,21 @@ pub const UPGRADE_CHECK: Command = Command {
     line: "Rehearses an upgrade over a copy; switches nothing.",
     arguments: &[
         DIRECTORIES,
-        Argument { shown: "DIRECTORY", line: "A stopped deployment's data directory or a copy of one; never written." },
+        Argument {
+            shown: "DIRECTORY",
+            line: "A stopped deployment's data directory, a checkpoint of a serving deployment, or a copy of one; never written.",
+        },
     ],
     settings: &[&directories::SETTINGS],
     switches: &[],
     variables: &[],
     notes: "Uses the configuration serve would read and a scratch copy under the cache directory. Reports the jobs it ran, restores, elapsed time and whether workers may stay. What follows the switch is not rehearsed. Exit 0 when its jobs and restores pass, 1 when a start would be refused.",
+};
+pub const UPGRADE_WORKERS: Command = Command {
+    reach: Reach::Words(&["upgrade", "--workers"]),
+    line: "Judges the workers alone over a copy; switches nothing.",
+    notes: "Uses the configuration serve would read and a scratch copy under the cache directory. Recovers the maps without task logs and prints only the workers' verdict, with no record decoded, level checked, plan, job or restore run. Exit 0 for yes, no or unknown; 1 on an opening refusal. Takes only DIRECTORY's lock, never the serving deployment's when reading a checkpoint; writes nothing under --data before the rehearsal.",
+    ..UPGRADE_CHECK
 };
 pub const UPGRADE_BACK: Command = Command {
     reach: Reach::Words(&["upgrade", "--back"]),

@@ -367,6 +367,29 @@ fn an_unaccounted_llms_account_failure_names_no_account() {
 }
 
 #[test]
+fn an_untooled_program_answers_with_its_own_fault() {
+    let mut harness = Harness::new();
+    let (_, owner, _) = harness.admit(7, charter());
+    let detail = bytes(b"smith: the program started without smith's tools");
+    let emitted = harness.step(Event::Below(crate::Below::Failed {
+        owner,
+        failure: Failure::Untooled,
+        report: crate::llm::Report::none(),
+        evidence: Evidence::Unsent,
+        detail: detail.clone(),
+    }));
+    let mut terminal = None;
+    for request in &*emitted {
+        if let Request::Answer { answer: run::Answer::Failed { failure, .. }, .. } = request {
+            assert!(terminal.is_none(), "one run answer");
+            terminal = Some(failure.clone());
+        }
+    }
+    assert_eq!(terminal, Some(run::RunFailure::Model(run::Fault::Untooled { name: bytes(b"claude_code"), detail })));
+    assert!(account_notices(&emitted).is_empty(), "a program fault is not an account notice");
+}
+
+#[test]
 fn a_program_failure_report_keeps_its_status_in_the_runs_fault() {
     for status in [Some(403), None] {
         let report =

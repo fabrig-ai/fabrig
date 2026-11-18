@@ -77,7 +77,13 @@ fn rehearsal_jobs_and_the_open_share_one_set_check() {
     let directory = disk.root();
     let events = disk.request(
         &mut store,
-        Request::Rehearse { owner: Token::new(1), directory, scratch, installation: fixtures::INSTALLATION },
+        Request::Rehearse {
+            owner: Token::new(1),
+            directory,
+            scratch,
+            installation: fixtures::INSTALLATION,
+            reach: crate::Reach::Whole,
+        },
     );
     assert!(events.iter().any(|event| if let Event::Rehearsing { .. } = event { true } else { false }), "{events:?}");
     let events = finish_empty_jobs(&mut disk, &mut store, events);

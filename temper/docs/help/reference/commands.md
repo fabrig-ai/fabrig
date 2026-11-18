@@ -95,9 +95,20 @@ Reads no configuration and no store.
 Rehearses an upgrade over a copy; switches nothing.
 
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
-- `DIRECTORY`: A stopped deployment's data directory or a copy of one; never written.
+- `DIRECTORY`: A stopped deployment's data directory, a checkpoint of a serving deployment, or a copy of one; never written.
 
 Uses the configuration serve would read and a scratch copy under the cache directory. Reports the jobs it ran, restores, elapsed time and whether workers may stay. What follows the switch is not rehearsed. Exit 0 when its jobs and restores pass, 1 when a start would be refused.
+
+### temper-engine upgrade --workers
+
+`temper-engine upgrade --workers [DIRECTORIES] DIRECTORY`
+
+Judges the workers alone over a copy; switches nothing.
+
+- `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
+- `DIRECTORY`: A stopped deployment's data directory, a checkpoint of a serving deployment, or a copy of one; never written.
+
+Uses the configuration serve would read and a scratch copy under the cache directory. Recovers the maps without task logs and prints only the workers' verdict, with no record decoded, level checked, plan, job or restore run. Exit 0 for yes, no or unknown; 1 on an opening refusal. Takes only DIRECTORY's lock, never the serving deployment's when reading a checkpoint; writes nothing under --data before the rehearsal.
 
 ### temper-engine upgrade --back
 
@@ -366,6 +377,12 @@ As temper-engine versions, above.
 `temper-box upgrade --check [DIRECTORIES] DIRECTORY`
 
 As temper-engine upgrade --check, above.
+
+### temper-box upgrade --workers
+
+`temper-box upgrade --workers [DIRECTORIES] DIRECTORY`
+
+As temper-engine upgrade --workers, above.
 
 ### temper-box upgrade --back
 

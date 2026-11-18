@@ -183,6 +183,14 @@ Adoption::Restore { name: CheckpointName, draw: [u8; 16] }
   (`opening.md`, 1.2). The deployment's lock has been held since, and a
   checkpoint's open switches nothing, so N and that digest still stand
   at 4.6.
+- **With which build:** the open refuses a store ahead of the build
+  (`opening.md`, 1.8, `Ahead`) and one it must upgrade first
+  (`checkpoints.md`, 5, `Unready::Upgrade`), so a restore runs with a
+  build at the deployment's levels as it stands. The generation it
+  stages holds the source's state at the source's levels, so an older
+  build whose levels those are opens it as it was. A redeploy's going
+  back after the upgraded generation's first commit restores with the
+  new build, then starts the previous one (temper's `redeploy.md`, 4.6).
 
 ### 4.4 The staged generation
 
@@ -389,13 +397,6 @@ nothing else:
 
 ## 9. Open questions
 
-- **Restoring with an older build:** the safety checkpoint's open
-  refuses a store ahead of the build (`opening.md`, 1.8, `Ahead`). So
-  a restore runs with a build that opens the deployment as it stands,
-  and the generation it restores may then be started by an older build.
-  The redeploy's going back after the first commit (temper's
-  `draft/checkpoints.md`, 6) restores with the new build and then
-  starts the previous one. That is milestone C3's to design.
 - **A deployment that does not open** (no `active`, `Unreadable`,
   `Missing`) has no state to save, and a restore refuses it at the
   safety checkpoint's open. A checkpoint is laid out as a deployment's

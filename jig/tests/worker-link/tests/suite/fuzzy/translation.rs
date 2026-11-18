@@ -156,7 +156,8 @@ fn fuzzy_every_kind_at_drawn_agreed_versions_arrives_unchanged_or_is_refused() {
         assert!(
             matches!(current.worker_root.last(), Some(jig_protocol_worker_link::Request::Restarting { wait: heard }) if *heard == wait)
         );
-        if version == wire::VERSION {
+        // Restarting is held from 15, independently of the current wire version.
+        if version >= 15 {
             assert!(
                 matches!(capped.worker_root.last(), Some(jig_protocol_worker_link::Request::Restarting { wait: heard }) if *heard == wait)
             );

@@ -5,7 +5,7 @@ use skein_channel::{Direction, Role, Term};
 use skein_lib::{Duration, List, Reader};
 
 // Hello151 + endpoint count4 + 64 identities of4 + jobs count4 + two bounds of20.
-const HELLO_MAX: u32 = 151 + 4 + crate::v16::CEILINGS.bounds_program_endpoints * 4 + 4 + 2 * 20;
+const HELLO_MAX: u32 = 151 + 4 + crate::v17::CEILINGS.bounds_program_endpoints * 4 + 4 + 2 * 20;
 fn hello_schema() -> skein_channel::Schema {
     crate::schema(&fixtures::LIMITS).expect("small schema")
 }
@@ -73,7 +73,7 @@ fn hello_through_bytes(hello: &Hello) -> Hello {
 
 #[test]
 fn assignment_charter_path_names_the_schema_field() {
-    const NAME: &str = crate::v16::Path::AssignmentCharter.name();
+    const NAME: &str = crate::v17::Path::AssignmentCharter.name();
     assert_eq!(NAME, "Assignment.charter");
 }
 
@@ -184,8 +184,8 @@ fn a_hello_past_the_endpoint_ceiling_is_refused_at_its_bound() {
         (at_cap, Ok(ENDPOINT_CAP)),
         (
             past_cap,
-            Err(crate::v16::Problem {
-                path: crate::v16::Path::BoundsProgramEndpoints,
+            Err(crate::v17::Problem {
+                path: crate::v17::Path::BoundsProgramEndpoints,
                 reason: skein_codec::Reason::Bound,
             }),
         ),
@@ -364,7 +364,7 @@ pub(super) fn through_bytes<T>(
     value: &T,
     measure: fn(&T) -> u32,
     encode: fn(&T, &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow>,
-    decode: fn(&crate::v16::Limits, &mut Reader<'_>) -> Result<T, crate::v16::Problem>,
+    decode: fn(&crate::v17::Limits, &mut Reader<'_>) -> Result<T, crate::v17::Problem>,
 ) -> T {
     let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(measure(value)));
     encode(value, &mut writer).expect("measured room");

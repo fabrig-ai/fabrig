@@ -44,12 +44,19 @@ fn help(text: &str) -> bool {
                 "versions",
                 "upgrade",
                 "upgrade",
+                "upgrade",
                 "checkpoint",
                 "checkpoint",
                 "checkpoint",
                 "restore",
             ]
         && text.contains("temper-box [--config DIR]")
+        && text.contains("upgrade --workers")
+        && text
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ")
+            .contains("Judges the workers alone over a copy; switches nothing.")
         && ["forge", "fake", "internal", "ctl", "open"].iter().all(|word| !names.contains(word))
 }
 
@@ -127,6 +134,12 @@ const ROWS: &[Case] = &[
         2,
         empty,
         "temper-box upgrade --check: invalid arguments\nusage: temper-box upgrade --check [DIRECTORIES] DIRECTORY\n",
+    ),
+    (
+        &["upgrade", "--workers"],
+        2,
+        empty,
+        "temper-box upgrade --workers: invalid arguments\nusage: temper-box upgrade --workers [DIRECTORIES] DIRECTORY\n",
     ),
     (
         &["upgrade", "--back", "extra"],

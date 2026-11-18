@@ -157,6 +157,9 @@ fn model_fault(record: &wire::ModelFaultValue) -> Result<host::ModelFault, Error
         wire::ModelFault::Program(value) => {
             host::ModelFault::Program { name: value.name().into(), exit: *value.exit(), detail: value.detail().into() }
         }
+        wire::ModelFault::Untooled(value) => {
+            host::ModelFault::Untooled { name: value.name().into(), detail: value.detail().into() }
+        }
         wire::ModelFault::Provider => host::ModelFault::Provider,
         wire::ModelFault::Declined => host::ModelFault::Declined,
         wire::ModelFault::Truncated => host::ModelFault::Truncated,

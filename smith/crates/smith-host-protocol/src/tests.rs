@@ -719,7 +719,7 @@ fn host_completion(failure: smith_host_domain::CompletionFailure) -> smith_host_
     }
 }
 
-fn fault_rows() -> [(smith_channel::ModelFault, smith_host_domain::ModelFault); 11] {
+fn fault_rows() -> [(smith_channel::ModelFault, smith_host_domain::ModelFault); 12] {
     use smith_channel as wire;
     use smith_host_domain as host;
     let limits = &wire::CEILINGS;
@@ -766,6 +766,23 @@ fn fault_rows() -> [(smith_channel::ModelFault, smith_host_domain::ModelFault); 
                 name: b"login".as_slice().into(),
                 exit: Some(2),
                 detail: b"unavailable".as_slice().into(),
+            },
+        ),
+        (
+            wire::ModelFault::Untooled(
+                wire::ProgramFault::new(
+                    limits,
+                    wire::ProgramFaultParts {
+                        name: b"claude_code".as_slice().into(),
+                        exit: None,
+                        detail: b"smith: the program started without smith's tools".as_slice().into(),
+                    },
+                )
+                .unwrap(),
+            ),
+            host::ModelFault::Untooled {
+                name: b"claude_code".as_slice().into(),
+                detail: b"smith: the program started without smith's tools".as_slice().into(),
             },
         ),
         (wire_completion(wire::CompletionFailure::Refused), host_completion(host::CompletionFailure::Refused)),

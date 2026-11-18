@@ -7,8 +7,9 @@
     "stop": "sudo systemctl stop temper-engine",
     "start": "sudo systemctl start temper-engine",
     "log": "sudo journalctl -u temper-engine -o cat --since @{since}",
-    "check": "sudo -u temper {binary} upgrade --check --config /var/lib/temper/config --data /var/lib/temper/data --cache /var/lib/temper/cache /var/lib/temper/data/deployment",
-    "backup": "sudo -u temper cp -a /var/lib/temper/data/deployment /var/lib/temper/backups/{name}",
+    "check": "sudo -u temper {binary} upgrade --check --config /var/lib/temper/config --data /var/lib/temper/data --cache /var/lib/temper/cache /var/lib/temper/data/deployment/checkpoints/{checkpoint}",
+    "checkpoint": "sudo -u temper {binary} checkpoint --config /var/lib/temper/config --data /var/lib/temper/data --cache /var/lib/temper/cache",
+    "verdict": "sudo -u temper {binary} upgrade --workers --config /var/lib/temper/config --data /var/lib/temper/data --cache /var/lib/temper/cache /var/lib/temper/data/deployment/checkpoints/{checkpoint}",
     "swap": "sudo install -m 0755 {from} {to}",
     "ctl": "sudo -u temper temper ctl /var/lib/temper/ctl"
   },
